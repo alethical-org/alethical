@@ -197,6 +197,28 @@ describe('private Users access and cleanup', () => {
     expect(host.textContent).toContain('Excluded accounts');
     expect(host.textContent).toContain('No excluded accounts.');
   });
+  it('refreshes current records without clearing the selected account filter', async () => {
+    await render();
+    const button = (label: string) =>
+      Array.from(host.querySelectorAll('[role="button"]')).find(
+        (node) => node.textContent === label,
+      )!;
+    await act(async () =>
+      button('Pending').dispatchEvent(new MouseEvent('click', { bubbles: true })),
+    );
+    const pending = deferred<typeof fixture>();
+    state.search.mockReturnValueOnce(pending.promise);
+    await act(async () =>
+      button('Refresh').dispatchEvent(new MouseEvent('click', { bubbles: true })),
+    );
+    expect(state.search.mock.lastCall?.[1].status).toBe('pending');
+    expect(button('Refresh').getAttribute('aria-disabled')).toBe('true');
+    expect(host.textContent).toContain('Loading accounts');
+    await act(async () => pending.resolve(fixture));
+    expect(button('Pending').getAttribute('aria-pressed')).toBe('true');
+    expect(button('Refresh').getAttribute('aria-disabled')).not.toBe('true');
+    expect(host.textContent).toContain('fixture@example.com');
+  });
   it('shows failure and Retry, rather than an empty count, when the data service fails', async () => {
     state.search.mockRejectedValueOnce(new Error('unavailable'));
     await render();

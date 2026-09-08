@@ -46,8 +46,11 @@ capitalization. Press **Search** or Enter to apply it.
 
 **Status** selects all, confirmed, or pending accounts. **Signup date** selects
 any date or accounts created in the last 7 or 30 days. These filters apply together.
-**Clear filters** returns to the complete included list. **Refresh**, above the
-summary, reads current records again. The email field accepts up to 254 characters
+**Clear filters** returns to the complete included list. **Refresh** reads current
+records again while keeping the selected filters. On desktop it is vertically
+centered beside the introductory description; on phones it sits below the description
+at the right edge. A 48-pixel gap separates this row from the summary cards.
+The email field accepts up to 254 characters
 and stays beside Search on desktop and phone. The source line states when those
 records were read.
 

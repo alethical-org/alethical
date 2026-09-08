@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { GoBackLink } from '../../components/GoBackLink';
@@ -80,7 +80,13 @@ type LoadedSearch = { search: AdminUsersSearch; attempt: number } & (
 );
 
 /** This component is destroyed on sign-out, account change, or lost permission. */
-function PrivateUsers({ accessToken }: { accessToken: string }) {
+function PrivateUsers({
+  accessToken,
+  renderPage,
+}: {
+  accessToken: string;
+  renderPage: (content: ReactNode, refresh?: ReactNode) => ReactNode;
+}) {
   const { isMobile } = useResponsive();
   const { focused, focusProps } = useFieldFocus();
   const [draft, setDraft] = useState('');
@@ -122,19 +128,12 @@ function PrivateUsers({ accessToken }: { accessToken: string }) {
   };
 
   if (current?.state === 'restricted')
-    return (
-      <StateMessage message="Restricted access. This account does not have access to Users." />
+    return renderPage(
+      <StateMessage message="Restricted access. This account does not have access to Users." />,
     );
 
-  return (
+  return renderPage(
     <View style={styles.content}>
-      <View style={styles.toolbar}>
-        <Action
-          label="Refresh"
-          disabled={!current}
-          onPress={() => setAttempt((value) => value + 1)}
-        />
-      </View>
       {result ? (
         <View style={styles.summary}>
           {[
@@ -337,7 +336,8 @@ function PrivateUsers({ accessToken }: { accessToken: string }) {
           </View>
         </>
       ) : null}
-    </View>
+    </View>,
+    <Action label="Refresh" disabled={!current} onPress={() => setAttempt((value) => value + 1)} />,
   );
 }
 
@@ -348,7 +348,7 @@ export function AdminUsersScreen({ navigation }: RootScreenProps<'AdminUsers'>) 
   const { isMobile } = useResponsive();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   useDocumentTitle('/admin/users', 'Users | Alethical');
-  return (
+  const renderPage = (content: ReactNode, refresh?: ReactNode) => (
     <SearchPageShell
       openMenu={openMenu}
       onOpenMenuChange={setOpenMenu}
@@ -356,6 +356,7 @@ export function AdminUsersScreen({ navigation }: RootScreenProps<'AdminUsers'>) 
       onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
       onPrivacy={() => navigation.navigate('Privacy')}
       onTerms={() => navigation.navigate('Terms')}
+      heroBottomPadding={8}
       hero={
         <View>
           <GoBackLink
@@ -375,14 +376,28 @@ export function AdminUsersScreen({ navigation }: RootScreenProps<'AdminUsers'>) 
           >
             Users
           </Text>
-          <Text style={styles.subhead}>
-            Current accounts and when they first confirmed. Team and test accounts are listed
-            separately and excluded from all totals and account results.
-          </Text>
+          <View style={[styles.introRow, isMobile && styles.introRowMobile]}>
+            <Text style={styles.subhead}>
+              Current accounts and when they first confirmed. Team and test accounts are listed
+              separately and excluded from all totals and account results.
+            </Text>
+            {refresh ? <View style={isMobile && styles.refreshMobile}>{refresh}</View> : null}
+          </View>
         </View>
       }
     >
-      {access.state === 'signed-out' ? (
+      {content}
+    </SearchPageShell>
+  );
+  return access.state === 'allowed' && user && accessToken ? (
+    <PrivateUsers
+      key={`${user.id}:${accessToken}`}
+      accessToken={accessToken}
+      renderPage={renderPage}
+    />
+  ) : (
+    renderPage(
+      access.state === 'signed-out' ? (
         <StateMessage
           message="Sign in with an administrator account to view Users."
           action="Sign in"
@@ -398,16 +413,22 @@ export function AdminUsersScreen({ navigation }: RootScreenProps<'AdminUsers'>) 
           action="Retry"
           onPress={access.retry}
         />
-      ) : user && accessToken ? (
-        <PrivateUsers key={`${user.id}:${accessToken}`} accessToken={accessToken} />
-      ) : null}
-    </SearchPageShell>
+      ) : null,
+    )
   );
 }
 
 const styles = StyleSheet.create({
   content: { gap: 22, paddingBottom: 32 },
-  toolbar: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' },
+  introRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 24,
+    marginTop: 14,
+  },
+  introRowMobile: { flexDirection: 'column', alignItems: 'stretch', gap: 16 },
+  refreshMobile: { alignSelf: 'flex-end' },
   excluded: { gap: 14, marginTop: 10 },
   excludedEmail: { flex: 1, minWidth: 0 },
   adminLabel: {
@@ -435,7 +456,8 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 26,
     color: t.colors.text.secondary,
-    marginTop: 14,
+    flexShrink: 1,
+    minWidth: 0,
     maxWidth: 720,
   },
   body: {
