@@ -193,6 +193,14 @@ for (let run = 0; run < RUNS; run += 1) {
       end: Math.round(entry.responseEnd),
       bytes: entry.encodedBodySize,
       kind: entry.initiatorType,
+      // Zero on a request the answering service has not given the page
+      // permission to time, so a 0 here means "not allowed to know" rather
+      // than "took no time" (#2039).
+      connecting: entry.requestStart ? Math.round(entry.requestStart - entry.startTime) : null,
+      waitingOnTheServer: entry.responseStart
+        ? Math.round(entry.responseStart - entry.requestStart)
+        : null,
+      downloading: entry.responseStart ? Math.round(entry.responseEnd - entry.responseStart) : null,
     }));
     return {
       stages: window.__stages,
@@ -224,7 +232,11 @@ for (let run = 0; run < RUNS; run += 1) {
     .filter(Boolean)
     .reduce((sum, body) => sum + body.length, 0);
 
+  const listSplit = listRequests.find((entry) => entry.waitingOnTheServer != null) ?? {};
   runs.push({
+    listConnecting: listSplit.connecting ?? null,
+    listWaitingOnTheServer: listSplit.waitingOnTheServer ?? null,
+    listDownloading: listSplit.downloading ?? null,
     htmlEnd: reading.html.end,
     programStart,
     programEnd,
@@ -287,6 +299,19 @@ row('downloading the program', gap('programStart', 'programEnd'));
 row('starting the program', gap('programEnd', 'appTookOver'));
 row('waiting for the list request', gap('listStart', 'listEnd'));
 row('drawing the cards after it arrived', gap('listEnd', 'cardsDrawn'));
+console.log('');
+const connecting = pick('listConnecting');
+if (connecting.length) {
+  console.log('Inside the list request:');
+  row('  opening the connection', connecting);
+  row('  waiting on the server', pick('listWaitingOnTheServer'));
+  row('  downloading the answer', pick('listDownloading'));
+} else {
+  console.log(
+    'Inside the list request: not readable. The data service gave this page no\n' +
+      'permission to time it, so the browser reports only the total (#2039).',
+  );
+}
 console.log('');
 console.log(
   `  program bytes over the wire: ${median(pick('programBytes'))?.toLocaleString()}   ` +
