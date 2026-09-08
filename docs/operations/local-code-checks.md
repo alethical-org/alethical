@@ -177,7 +177,8 @@ proof. The release owner updates unchecked items with outcomes before closing th
   [restored explanation](https://github.com/alethical-org/alethical/actions/runs/34241556141),
   [unchanged code-check run](https://github.com/alethical-org/alethical/actions/runs/34241355367).
 - [x] Full local suites pass: 2,406 frontend tests and 2,289 backend tests.
-  `just format` completes without changing files.
+  `just format` completes without changing files, including when run first in a
+  fresh checkout with neither root nor frontend dependencies installed.
 - [x] The [real merge-group description run](https://github.com/alethical-org/alethical/actions/runs/34244224539)
   passes on `40f1efd338d68348afa3987f234317d6db9ef252`. Its production step checks
   [pull request 2080](https://github.com/alethical-org/alethical/pull/2080) against
@@ -190,12 +191,24 @@ proof. The release owner updates unchecked items with outcomes before closing th
   [phase 1](https://github.com/alethical-org/alethical/pull/2079). The website and API
   deployments succeed, the website answers HTTP 200, and the API reports healthy.
 - [x] An actual phase-2 commit passes through the installed commit hook.
-- [ ] Exercise an actual upload through the installed hook safely.
+- [x] An actual upload of phase 2 passes through the installed hook after all
+  2,406 frontend and 2,289 backend tests pass against its exact saved commit.
   Other active owners adopt the checks through their normal dependency installation
   without changing their in-progress branches on our behalf.
 - [x] `description-checks` is required from GitHub Actions alongside `changes`,
   `backend`, and `frontend`. Strict mode and all other branch protections are unchanged.
-- [ ] Merge phase 2 removing only the old description step and update
+- [x] Phase 2 removes only the old description step and aligns
   [`CONTRIBUTING.md`](../../CONTRIBUTING.md),
   [Repo and service settings](repo-and-service-settings.md), and
-  [workflow rules](../../.claude/rules/workflow.md) to describe the active state.
+  [workflow rules](../../.claude/rules/workflow.md).
+- [x] With the old step removed, a missing explanation fails only the
+  [description check](https://github.com/alethical-org/alethical/actions/runs/34245717242).
+  Restoring the explanation [passes](https://github.com/alethical-org/alethical/actions/runs/34245817999)
+  on the same saved revision `57ef604d8aa4c53cce9e33528768db1021daa6b9`.
+  The [existing code-check run](https://github.com/alethical-org/alethical/actions/runs/34245619283)
+  remains unchanged; no code upload or second CI run is needed.
+
+The final release record is
+[pull request 2088](https://github.com/alethical-org/alethical/pull/2088). Its current
+checks and merged state record completion; the prepared code and local proof above
+do not substitute for that protected merge.
