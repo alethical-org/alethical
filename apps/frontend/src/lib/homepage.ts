@@ -35,8 +35,4 @@ export const MONEY_PROMO_HEADING = 'Follow the money';
 export const MONEY_PROMO_BODY =
   'Minnesota’s campaign and lobbying records — every figure read from the filings sent to the state, never a total we assembled.';
 export const MONEY_PROMO_COUNT_UNIT = 'registered campaigns, parties, and funds';
-/** Kept on the card, not only on the money landing: this is where a reader
- *  decides whether to click, and the destination's notice only reaches them
- *  after they already have. */
-export const MONEY_PROMO_CAVEAT = 'Parts of this are still being built.';
 export const MONEY_PROMO_CTA = 'Search the money records';

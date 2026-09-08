@@ -18,15 +18,23 @@
  *   lobbying records reads as the size of both.
  */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
   MONEY_PROMO_BODY,
-  MONEY_PROMO_CAVEAT,
   MONEY_PROMO_COUNT_UNIT,
   MONEY_PROMO_CTA,
   MONEY_PROMO_HEADING,
 } from '../../../lib/homepage';
+
+const cardSource = readFileSync(join(__dirname, '..', 'MoneyPromoCard.tsx'), 'utf8');
+const homeSource = readFileSync(
+  join(__dirname, '..', '..', '..', 'screens', 'redesign', 'HomeSignedOutScreen.tsx'),
+  'utf8',
+);
 
 describe('the money card never re-promises a per-row link to a filing', () => {
   it('says the figures are read from the filings', () => {
@@ -56,10 +64,24 @@ describe('the count line names which register it counts', () => {
 });
 
 describe('the rest of the card', () => {
-  it('keeps the under-construction caveat, which the destination alone cannot carry', () => {
-    // The reader decides whether to click here; the money landing's own notice
-    // only reaches them after they already have.
-    expect(MONEY_PROMO_CAVEAT).toBe('Parts of this are still being built.');
+  it('removes the unfinished-product caveat from every card size', () => {
+    expect(cardSource).not.toContain('Parts of this are still being built.');
+    expect(cardSource).not.toContain('MONEY_PROMO_CAVEAT');
+    expect(cardSource).not.toMatch(/\bcaveat(?:Top)?:/);
+  });
+
+  it('uses the settled gap above the button for all 4 card sizes', () => {
+    expect(cardSource.match(/buttonTop: 32,/g) ?? []).toHaveLength(1);
+    expect(cardSource.match(/buttonTop: 24,/g) ?? []).toHaveLength(1);
+    expect(cardSource.match(/buttonTop: 20,/g) ?? []).toHaveLength(1);
+    expect(cardSource.match(/buttonTop: 22,/g) ?? []).toHaveLength(1);
+  });
+
+  it('moves only the signed-out computer card down by the 56 pixels it lost', () => {
+    expect(homeSource).toContain(
+      "heroRightDesktop: { flex: 1, alignItems: 'flex-end', marginTop: -10 },",
+    );
+    expect(homeSource).toContain('heroRightSignedOut: { flex: 0.72, marginTop: 46 },');
   });
 
   it('keeps the heading and the call to action verbatim', () => {
