@@ -37,6 +37,18 @@ export const RECORD_DOES_NOT_COVER = [
   'Donors who gave $200 or less in total for the year need not be named',
 ] as const;
 
+/**
+ * The landing's own copy of that block carries a 4th line (accepted 8 Sep 2026, proposed
+ * by Design): the fact that used to sit inside the Who got paid card. It describes a
+ * property of the record rather than of the lane, so it moved to the block that lists the
+ * record's properties, and the card kept only what the lane does. The other pages that
+ * draw the 3-line block are not the landing and keep the 3.
+ */
+export const MONEY_LANDING_RECORD_DOES_NOT_COVER = [
+  ...RECORD_DOES_NOT_COVER,
+  'No list of every payee — a paid name carries only its spelling on the filing',
+] as const;
+
 /** "1,603" — grouped the way the register pages print counts. */
 export function formatCount(count: number): string {
   return count.toLocaleString('en-US');
@@ -51,6 +63,23 @@ export function laneCountLine(count: number | null, unit: string): string | null
   if (count === null) return null;
   return `${formatCount(count)} ${unit.toUpperCase()}`;
 }
+
+/**
+ * What each counted lane counts, in the words its count line prints after the number.
+ * Four lanes carry a count and the 5th, Who got paid, carries none: its slot is empty,
+ * with no label, dash or placeholder (ruled 8 Sep 2026). A grey "NOTHING TO COUNT" was
+ * proposed for it and withdrawn: false, because we hold hundreds of thousands of payment
+ * rows and that card searches them, and colour was its only signal.
+ *
+ * "payments" on the Outside spending lane is a count of the rows in the
+ * independent-expenditures file, never a sum of them.
+ */
+export const LANE_COUNT_UNITS = {
+  legislators: 'members',
+  committees: 'registered filers',
+  byRace: 'contests',
+  outsideSpending: 'payments',
+} as const;
 
 /**
  * The period a filing covers, both ends read off the filing — never an assumed
@@ -205,7 +234,7 @@ export function legislatorsLaneSentence(confirmation: {
 // --- The landing's own fixed wording ----------------------------------------
 
 /**
- * The heading, the sentence under it, and the 2 lane cards that lead somewhere.
+ * The heading, the sentence under it, and the 5 lane cards.
  *
  * These lived as literals inside `screens/redesign/MoneyLandingScreen.tsx` until
  * the first server response started carrying the landing's own text (#1812). They
@@ -236,16 +265,16 @@ export const MONEY_LANDING_SUBTITLE =
   'the name it was filed under';
 
 /**
- * The line under the search field. It says what the matching does and rules out a
- * nearest-match guess out loud, for the reason `lib/moneyNameSearch.ts` measures: 178
- * registered filer names sit a single character apart from another, and every one of
- * those pairs is a different organisation. It lives here rather than as text inside the
- * screen so a test can pin it, like every other sentence the landing shows.
+ * The line under the search field: what the matching does, in one line, and no more
+ * (accepted 8 Sep 2026, proposed by Design). It used to go on to rule out a nearest-match
+ * guess and say why; that sentence is not gone from the product, it is printed where the
+ * case arises — `NO_MATCH_WHY` in `lib/moneyNameSearch.ts` shows it on the results page
+ * when a search finds nothing — and 3 lines above the page's primary actions was a high
+ * price for pre-empting it. A standalone line, so no full stop (copy rule C). It lives here
+ * rather than as text inside the screen so a test can pin it, like every other sentence
+ * the landing shows.
  */
-export const MONEY_LANDING_SEARCH_NOTE =
-  'Matched on the name as it was filed, exactly as typed. We offer no nearest match: names ' +
-  'here differ from each other by a single character often enough that a guess would put you ' +
-  'on the wrong organisation.';
+export const MONEY_LANDING_SEARCH_NOTE = 'Matched on the name as it was filed, exactly as typed';
 
 export const MONEY_LANE_LEGISLATORS = {
   title: 'Legislators',
@@ -293,13 +322,14 @@ export const MONEY_LANE_COMMITTEES = {
  * alphabetical is honest and useless across hundreds of thousands of spellings.
  * There is no honest ordering, so the lane opens the search field, and one name
  * opens every payment filed under that exact spelling.
+ *
+ * The card says only what the lane does. The "no list of every payee" fact it used to
+ * carry as a second sentence is a property of the record, not of the lane, and since
+ * 8 Sep 2026 it is the 4th line of `MONEY_LANDING_RECORD_DOES_NOT_COVER`, one screen below.
  */
 export const MONEY_LANE_WHO_GOT_PAID = {
   title: 'Who got paid',
-  body:
-    'Search a name to see every payment filed under that exact spelling. There is no list of ' +
-    'every payee: these names carry no identifier, so any order across committees on different ' +
-    'filing calendars would set one period against another',
+  body: 'Search a name to see every payment filed under that exact spelling',
 } as const;
 
 /**
@@ -308,17 +338,18 @@ export const MONEY_LANE_WHO_GOT_PAID = {
  * they take the shape already on the page: a card in the same row as the 3 above,
  * rather than a new element nobody drew.
  *
- * Money by race: the body says the order out loud because the page never sorts by
- * amount and never totals a contest (rule 12), and a reader arriving from a card
- * that promised a ranking would read the list as one. Outside spending: "spending"
- * is allowed here because it IS spending, by groups that are not the campaign; the
- * word stays banned for a committee's own money out.
+ * Money by race: the card promises no ranking and no total (rule 12), and it no longer
+ * states the list's order — "in district and then name order" was cut on 8 Sep 2026
+ * (accepted, proposed by Design), because the order is a property of the list and the
+ * race page prints its own order line above the rows. Outside spending: "spending" is
+ * allowed here because it IS spending, by groups that are not the campaign; the word
+ * stays banned for a committee's own money out.
  */
 export const MONEY_LANE_BY_RACE = {
   title: 'Money by race',
   body:
-    'Every candidate committee grouped by the seat it is running for, in district and then ' +
-    'name order, each with its own filed figures',
+    'Every candidate committee grouped by the seat it is running for, each with its own ' +
+    'filed figures',
 } as const;
 
 export const MONEY_LANE_OUTSIDE_SPENDING = {
@@ -338,6 +369,19 @@ export const FILES_LAST_COPIED_NOTE =
 
 /** The heading over the permanent gaps, on the landing and on the committees list. */
 export const RECORD_DOES_NOT_COVER_HEADING = 'What this record does not cover';
+
+/**
+ * The research row, a quiet row above the filing-period list (redrawn 8 Sep 2026). It
+ * used to be a large card above the lanes headed WHAT WE FOUND, a 3rd name for a thing
+ * the product already calls Research on the page the row links to, so the label is the
+ * product's own word. With nothing published the row reads its one line and nothing
+ * else: no count of 0 pieces, no second link. Research pieces only, never a guide: the
+ * link says "Read the research", so a guide featured here would be labelled as something
+ * it is not.
+ */
+export const RESEARCH_ROW_LABEL = 'RESEARCH';
+export const RESEARCH_ROW_LINK = 'Read the research';
+export const RESEARCH_ROW_EMPTY = 'Nothing is published yet';
 
 /**
  * The landing's closing line under the 3 gaps, standalone in the card and so bare

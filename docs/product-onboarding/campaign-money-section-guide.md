@@ -85,51 +85,74 @@ Top to bottom:
 2. **A working search box.** Type a name and press Enter or the Search button, and it opens
    the results page. It commits on Enter rather than as you type, because every search has
    its own address and a search that ran per keystroke would leave a browser history entry
-   for every letter. Under it, one line saying what the matching does: the name exactly as
-   it was filed, and no nearest-match guess — names in these records differ from each other
-   by a single character often enough that a guess would put a reader on the wrong
-   organisation. A query shorter than the search's own floor is not blocked here; the
-   results page says "type at least 3 characters" instead, which is the true answer rather
-   than a box that silently refuses.
-3. **What we found** — the research lane, first in prominence. It links to the `/read`
-   page, showing the newest piece's title, standfirst and dates. With nothing published it
-   says "Nothing is published yet" and counts "0 RESEARCH PIECES PUBLISHED" honestly.
-4. **Five lane cards, and all 5 open something**, each with an arrow beside its title and,
-   where the register serves one, its live count in green at the foot: Legislators (links to
-   the legislator directory — a member's money is a tab on the profile they already have),
-   Committees (links to the register's own list at `/money/committees`), Who got paid, which
-   opens the name search, Money by race (`/money/races`, every candidate committee grouped by
-   the seat it runs for, in district then name order) and Outside spending
-   (`/money/outside-spending`, what groups that are not the campaign spent for or against a
-   candidate). The last 2 carry no count. From 768 up the 5 cards wrap into 2 rows; below
-   768 they stack. **That last lane is a search rather than a list, and its card says so.**
-   There is no browse-all-payees list and there deliberately never will be one: a payee
-   carries no identifier in Minnesota's data, so such a list could only be ordered 4 ways
-   and 3 of them are forbidden while the 4th is useless. By amount, by how many records
-   carry the name, or by most recent payment are all rankings across committees on
-   different filing calendars, which sets one period against another
+   for every letter. Under it, one line saying what the matching does: "Matched on the name
+   as it was filed, exactly as typed". It says no more than that (shortened 8 Sep 2026): the
+   reason there is no nearest-match guess — names in these records differ from each other by
+   a single character often enough that a guess would put a reader on the wrong organisation
+   — is printed on the results page at the moment a search finds nothing, which is where the
+   case arises. A query shorter than the search's own floor is not blocked here; the results
+   page says "type at least 3 characters" instead, which is the true answer rather than a
+   box that silently refuses.
+3. **Five lane cards, straight after the search, and all 5 open something.** Each is a raised
+   white card with a green arrow beside its title, and 4 of them end with a live count in
+   the same green, read from `/api/v1/campaign-finance/summary` and absent (never 0) when
+   the server cannot count it: Legislators (links to the legislator directory — a member's
+   money is a tab on the profile they already have; "200 MEMBERS"), Committees (links to
+   the register's own list at `/money/committees`; "1,603 REGISTERED FILERS"), Who got paid,
+   which opens the name search and carries no count, Money by race (`/money/races`, "Every
+   candidate committee grouped by the seat it is running for, each with its own filed
+   figures"; "222 CONTESTS", one contest per office-and-district grouping the race page
+   itself uses) and Outside spending (`/money/outside-spending`, what groups that are not
+   the campaign spent for or against a candidate; "41,130 PAYMENTS", the number of rows in
+   the independent-expenditures file, never their sum). The counts quoted are the live
+   figures on 8 Sep 2026 and move with the data. **The Who got paid card's count slot is
+   empty, with no label, dash or placeholder** (ruled 8 Sep 2026): a grey "NOTHING TO COUNT"
+   was proposed and refused, because the record holds hundreds of thousands of payment rows
+   and that card searches them, and colour was its only signal. **That lane is a search
+   rather than a list, and its card says so** — "Search a name to see every payment filed
+   under that exact spelling", and nothing more, since 8 Sep 2026; the fact that there is no
+   list of every payee moved to the does-not-cover block below. There is no browse-all-payees
+   list and there deliberately never will be one: a payee carries no identifier in
+   Minnesota's data, so such a list could only be ordered 4 ways and 3 of them are forbidden
+   while the 4th is useless. By amount, by how many records carry the name, or by most recent
+   payment are all rankings across committees on different filing calendars, which sets one
+   period against another
    ([`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 12);
    alphabetical is honest and useless across hundreds of thousands of spellings. Ruled
    27 Aug 2026 on [#1780](https://github.com/alethical-org/alethical/issues/1780). Every
    lane being visible is a deliberate decision (Eugene, 18 Aug 2026), so a reader sees the
-   whole shape of the section.
-5. **What this record does not cover**: nothing before 2015; unions do not report to this
-   board; and the exact sentence "Donors who gave $200 or less in total for the year need
-   not be named" (the $200 test is on a donor's yearly total, never on one gift's size, and
-   it is the point at which a name becomes required rather than a line below which nobody is
-   named — [#1755](https://github.com/alethical-org/alethical/issues/1755)).
-   The block closes with "These are properties of the record itself, not gaps we can close",
-   and it holds only those three permanent source gaps. The confirmed-member count is stated
-   once on the page, in the Legislators lane, and not repeated here (copy rule A, 1 Sep 2026).
-   On a computer (768px and wider) this block sits beside the files-last-copied block; on a
-   phone the two stack. **Lobbying is deliberately not
-   among them** (ruled 1 Sep 2026, campaign-money design round 4): its absence is ours to
-   close rather than a hole in what Minnesota publishes, and the red under-development
-   strip at the top of this same page already names it — so a fourth line here would state
-   one fact at two levels of the page. The block once carried a lobbying line; its history,
-   including the 31 Aug 2026 rewording that kept the spending we hold apart from the
-   registrations we do not, is on
+   whole shape of the section. On a wide screen the 5 cards sit in 1 row; on a narrower
+   computer (768px up to about 1,100px) they wrap into 2 rows rather than shrinking below
+   their words; below 768 they stack in 1 column in the same order.
+4. **What this record does not cover**: nothing before 2015; unions do not report to this
+   board; the exact sentence "Donors who gave $200 or less in total for the year need not
+   be named" (the $200 test is on a donor's yearly total, never on one gift's size, and it
+   is the point at which a name becomes required rather than a line below which nobody is
+   named — [#1755](https://github.com/alethical-org/alethical/issues/1755)); and, on this
+   page only, a 4th line, "No list of every payee — a paid name carries only its spelling on
+   the filing" (accepted 8 Sep 2026), which is the fact that used to sit inside the Who got
+   paid card and describes the record rather than the lane. The other pages that draw this
+   block keep the 3 shared lines. The block closes with "These are properties of the record
+   itself, not gaps we can close". The confirmed-member count is stated once on the page, in
+   the Legislators lane, and not repeated here (copy rule A, 1 Sep 2026). On a computer
+   (768px and wider) this block sits beside the files-last-copied block; on a phone the two
+   stack. **Lobbying is deliberately not among them** (ruled 1 Sep 2026, campaign-money
+   design round 4): its absence is ours to close rather than a hole in what Minnesota
+   publishes, and the red under-development strip at the top of this same page already names
+   it — so a lobbying line here would state one fact at two levels of the page. The block
+   once carried a lobbying line; its history, including the 31 Aug 2026 rewording that kept
+   the spending we hold apart from the registrations we do not, is on
    [#1862](https://github.com/alethical-org/alethical/issues/1862).
+5. **Research** — a quiet row under the 2 blocks, labelled RESEARCH, carrying the newest
+   research piece's title, its standfirst, its published and records-through dates, and a
+   "Read the research" link that opens the piece itself. Research pieces only, never a
+   guide: the link says research, so a guide featured here would be labelled as something
+   it is not. With nothing published the row reads "Nothing is published yet" and nothing
+   else — no count of 0 pieces and no second link (a "More on Read" link was proposed and
+   refused; the top bar's Read item is on every page). Until 8 Sep 2026 this was a large
+   card headed WHAT WE FOUND above the lanes; the label is now the product's own word for
+   its writing.
+6. **The most recent completed filing period**, described below.
 
 Three more pieces bind to live data (two public endpoints:
 `/api/v1/campaign-finance/summary` and `/api/v1/campaign-finance/filings`). Each data block
@@ -154,9 +177,11 @@ served renders nothing rather than a number:
   rows arrived most recently, and with none it says more than a thousand filers can share
   one period end and the tie breaks on the name. Both sentences are derived from the feed's
   own ordering field through one mapping, so the words and the order cannot drift apart.
-- The lanes' **live counts**: registered filers on the Committees lane, and sitting members
-  on the Legislators lane, whose text also states how many members' committees a person has
-  confirmed, read live from the confirmation log so it moves as confirmations land. Once
+- The lanes' **live counts**: registered filers on the Committees lane, contests on the Money
+  by race lane, rows of the independent-expenditures file on the Outside spending lane, and
+  sitting members on the Legislators lane, whose text also states how many members'
+  committees a person has confirmed, read live from the confirmation log so it moves as
+  confirmations land. Once
   every sitting member is confirmed that text reads "Confirmed for every sitting legislator"
   instead of a count, because the counted wording's closing clause ("for the rest, no
   figures show on a profile") would then describe nobody (accepted 8 Sep 2026). A count
@@ -838,8 +863,8 @@ already.
 
 ## The `/read` page (`/read`)
 
-Reached from the top menu's **Read** item, and from the money landing's "What we found"
-card. It has moved 3 times: it sat at `/money/reports` until 20 Aug 2026, when the nav gained
+Reached from the top menu's **Read** item; the money landing's research row links to the
+newest piece itself rather than to this page. It has moved 3 times: it sat at `/money/reports` until 20 Aug 2026, when the nav gained
 its own group and it left the money section
 ([#1698](https://github.com/alethical-org/alethical/issues/1698)), at `/reports` until the
 morning of 27 Aug 2026, when "report" went back to meaning only the document a campaign files

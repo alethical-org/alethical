@@ -707,7 +707,7 @@ export interface MoneyFilingsFeed {
   newestPeriod: { periodEnd: string | null; filingCount: number } | null;
 }
 
-/** The landing's counts and dates (GET /campaign-finance/summary). Three
+/** The landing's counts and dates (GET /campaign-finance/summary). Five
  *  independent blocks, each with its own state, so one gap cannot blank the
  *  others. A null count is our gap and never renders as 0; a served 0 is a
  *  verified zero and renders as the number it is. */
@@ -722,6 +722,18 @@ export interface MoneyLandingSummary {
     sittingMemberCount: number | null;
     /** ISO timestamp of the newest confirmation; null while there is none. */
     newestConfirmationAt: string | null;
+  };
+  /** How many contests the race page groups the register's candidate committees
+   *  into (one office-and-district pair each), counted off the same register. */
+  contests: {
+    state: 'reported' | 'unavailable';
+    contestCount: number | null;
+  };
+  /** How many rows the independent-expenditures download holds — the population
+   *  the outside-spending page reads unfiltered. A count of rows, never a sum. */
+  independentExpenditureRows: {
+    state: 'reported' | 'unavailable';
+    rowCount: number | null;
   };
   freshness: {
     /** ISO timestamp we last copied new filings from the Board — the page's one

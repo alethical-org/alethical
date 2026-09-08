@@ -2615,6 +2615,14 @@ export interface ApiCampaignFinanceSummaryPayload {
     sitting_member_count?: number | null;
     newest_confirmation_at?: string | null;
   } | null;
+  contests?: {
+    state?: string;
+    contest_count?: number | null;
+  } | null;
+  independent_expenditure_rows?: {
+    state?: string;
+    row_count?: number | null;
+  } | null;
   freshness?: {
     downloads_fetched_at?: string | null;
   } | null;
@@ -2640,16 +2648,18 @@ function blockState(state: string | undefined): 'reported' | 'unavailable' {
 }
 
 /**
- * The /money landing's counts and dates. Three independent blocks, each with its
+ * The /money landing's counts and dates. Five independent blocks, each with its
  * own state, so one gap cannot blank the other lanes. A null count is our gap
- * and never renders as 0; a served 0 (today's confirmed_member_count) is a
- * verified zero and renders as the number it is (grounded-answers.md rule 12).
+ * and never renders as 0; a served 0 (an empty confirmation log) is a verified
+ * zero and renders as the number it is (grounded-answers.md rule 12).
  */
 export function campaignFinanceSummaryFromPayload(
   payload: ApiCampaignFinanceSummaryPayload,
 ): MoneyLandingSummary {
   const register = payload.register ?? undefined;
   const confirmations = payload.legislator_committee_confirmations ?? undefined;
+  const contests = payload.contests ?? undefined;
+  const independentRows = payload.independent_expenditure_rows ?? undefined;
   return {
     register: {
       state: blockState(register?.state),
@@ -2664,6 +2674,14 @@ export function campaignFinanceSummaryFromPayload(
       sittingMemberCount:
         confirmations?.state === 'reported' ? (confirmations?.sitting_member_count ?? null) : null,
       newestConfirmationAt: confirmations?.newest_confirmation_at ?? null,
+    },
+    contests: {
+      state: blockState(contests?.state),
+      contestCount: contests?.state === 'reported' ? (contests?.contest_count ?? null) : null,
+    },
+    independentExpenditureRows: {
+      state: blockState(independentRows?.state),
+      rowCount: independentRows?.state === 'reported' ? (independentRows?.row_count ?? null) : null,
     },
     freshness: {
       downloadsFetchedAt: payload.freshness?.downloads_fetched_at ?? null,

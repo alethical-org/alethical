@@ -134,6 +134,7 @@ import {
   FILES_LAST_COPIED_NOTE,
   laneCountLine,
   MONEY_LANDING_HEADING,
+  MONEY_LANDING_RECORD_DOES_NOT_COVER,
   MONEY_LANDING_SUBTITLE,
   MONEY_LANE_BY_RACE,
   MONEY_LANE_COMMITTEES,
@@ -975,7 +976,7 @@ export function moneyLandingPageSnapshot(source: MoneyLandingSnapshotSource): Pa
     sections: [
       {
         heading: RECORD_DOES_NOT_COVER_HEADING,
-        body: [...RECORD_DOES_NOT_COVER],
+        body: [...MONEY_LANDING_RECORD_DOES_NOT_COVER],
         bodyIsList: true,
       },
     ],
