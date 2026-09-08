@@ -55,8 +55,9 @@ centered beside the introductory description; on phones it sits below the descri
 at the right edge. A 48-pixel gap separates this row from the summary cards.
 The email field accepts up to 254 characters
 and stays beside Search on desktop and phone. The Search button and email field
-share the same height. The source line states when those
-records were read.
+share the same height. Below the main account results, 1 source line combines
+when the records were read, what the counts cover, and when today begins.
+The update time ends in **CT**. The line wraps on smaller screens.
 
 The summary shows confirmed current accounts, first confirmations today, and first
 confirmations in the last 7 and 30 days. The pending total appears beside Status.

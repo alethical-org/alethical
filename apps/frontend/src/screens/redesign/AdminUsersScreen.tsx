@@ -152,10 +152,6 @@ function PrivateUsers({
           ))}
         </View>
       ) : null}
-      <Text style={styles.note}>
-        Counts cover all included current accounts, regardless of filters. Today starts at midnight
-        in Minnesota. Times below use Minnesota time.
-      </Text>
       <View style={styles.filters}>
         <Text nativeID="admin-email-search-label" style={styles.label}>
           Search email
@@ -316,7 +312,9 @@ function PrivateUsers({
           </View>
           <View style={styles.freshness}>
             <Text style={styles.note}>
-              Source: Alethical sign-in records · Updated {adminAccountDate(result.as_of)}
+              Source: Alethical sign-in records · Updated {adminAccountDate(result.as_of)} CT ·
+              Counts cover all included current accounts, regardless of filters; today starts at
+              midnight.
             </Text>
           </View>
           <View style={styles.excluded}>
