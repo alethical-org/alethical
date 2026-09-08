@@ -32,9 +32,11 @@ edge cache for a short TTL.
 That count was 11 before #2040, and 4 of the 11 were removed with no served value
 changing, along with about 500 kB of a 10-bill page's payload — most of it whole
 bills' text read to extract 1 date that their own section headings had already
-ruled out. A cache only helps the reader who finds a copy waiting, and how often
-that happens is unmeasured
-([`page-load-performance-decisions.md`](page-load-performance-decisions.md), "What
+ruled out. A cache only helps the reader who finds a copy waiting, and on
+`/api/v1/bills` a reader waited on the origin for 86.3% of reads over the 28 days
+to 7 September 2026, so a saved statement is paid by nearly every reader
+([`page-load-performance-decisions.md`](page-load-performance-decisions.md), "How
+often a reader gets each of the 2 speeds" for the per-address shares, and "What
 the bill list's fixed cost turned out to be" for the statement-by-statement
 figures and the 2 payload findings).
 

@@ -51,7 +51,7 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 66 runnable files. GitHub jobs call 27 of them, and the
+The `scripts/` folder has 67 runnable files. GitHub jobs call 27 of them, and the
 Mac backup above calls 1. A workflow also calls
 `apps/frontend/scripts/traffic-token-expiry.mjs`, a similarly named script that
 lives in a different folder and is not part of this list or its totals. The
@@ -68,7 +68,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Review campaign-finance records | `recompute_lobbying_published_figures.py`, `review_legislator_campaign_committees.py`, `show_party_and_caucus_money.py` |
 | Measure AI answers and search | `answer_eval.py`, `retrieval_eval.py`, `try_queries.py`, `validate_query_rubric.py` |
 | Compare printed-name search offline without paid calls or live changes | `benchmark_campaign_finance_name_search.py` |
-| Measure what real visitors waited for | `report_page_speed_by_address.py` |
+| Measure what real visitors waited for | `report_origin_share_by_address.py`, `report_page_speed_by_address.py` |
 | Maintain search and stored files | `archive_published_sources.py`, `build_rag_hnsw_index.py`, `mirror_raw_files.py` |
 | Protect unfinished work and rotating read grants | `back-up-uncommitted-worktree-work.sh`, `supabase_oauth_state.mjs` |
 | Check fresh change explanations | `check_pr_descriptions.py` |

@@ -1,4 +1,4 @@
-<!-- describes: .github/workflows/production-release-failed.yml, apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py -->
+<!-- describes: .github/workflows/production-release-failed.yml, apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py, scripts/report_origin_share_by_address.py -->
 
 # Page-load performance decisions
 
@@ -835,12 +835,14 @@ for 10 rows in the slim view; 454 ms for 1 full row; 565 ms for 10. So most of i
 each bill's full record, and 1 row costs nearly as much as 10, which points at a fixed cost
 in the loading rather than a per-row one.
 
-**Report both numbers with the cache state named, and never claim which one a reader gets.**
-How often a copy is already held is unmeasured, and it cannot be reasoned out from how often
-the page is visited: a first-time visitor can be handed an answer somebody else's visit put
-there minutes earlier, and copies are held per location rather than once for everybody. So
-"565 ms cold, 90 ms warm" is the honest pair, and "most visitors pay 565 ms" is a claim
-nobody here has earned.
+**Report both numbers with the cache state named, and take which one a reader gets from the
+measurement rather than from how often the page is visited.** Visit frequency cannot answer
+it: a first-time visitor can be handed an answer somebody else's visit put there minutes
+earlier, and copies are held per location rather than once for everybody. What answers it is
+Cloudflare's own record of what its cache did, and on `/api/v1/bills` the reader was the one
+waiting for 86.3% of reads over the 28 days to 7 September 2026 (**How often a reader gets
+each of the 2 speeds** below). So the honest pair is still "565 ms cold, 90 ms warm", and the
+cold figure is now known to be what nearly every reader pays.
 
 **The list response carried far more than a card draws, and cutting it is worth about
 40 ms.** `/bills` asked for 10 bills and received 127,201 bytes,
@@ -1073,6 +1075,151 @@ no rows is silent or beyond our copy (`.claude/rules/grounded-answers.md` rule 1
 Asked of the listed committees alone, a race page with no rows in an open year would
 read "we have nothing for this year" instead of "nobody has filed yet", so that
 question keeps the whole download as its subject and rides in the same statement.
+
+## How often a reader gets each of the 2 speeds
+
+**Both speeds above were real and neither said how often it happens, so every
+decision made from them rested on a guess. It does not any more: over 28 complete
+UTC days, 11 August to 7 September 2026, our own server built 91.6% of the reads of
+`/api/v1/bills`, and the reader was the one waiting for 86.3% of them.** So the
+464 ms origin figure is very nearly what a bill-list reader pays, and the 90 ms
+cached figure describes about 1 read in 8. Read from Cloudflare's own record of its
+own cache by
+[`scripts/report_origin_share_by_address.py`](../../scripts/report_origin_share_by_address.py)
+([issue 2045](https://github.com/alethical-org/alethical/issues/2045)).
+
+**Two shares, not one, and the difference is the whole reason the money window is
+worth having.** Cloudflare labels every response with what its cache did
+([its own definitions](https://developers.cloudflare.com/cache/concepts/cache-responses/)).
+`miss` and `expired` mean the reader waited on Railway. `updating` means the reader
+was handed a stale copy immediately while Cloudflare refreshed it behind them: our
+server still built an answer, but no reader waited for it. `hit` means no origin read
+at all. So "built here" is what the origin cost us and "reader waited" is what it
+cost a person, and only the second one is a reader-facing problem.
+
+Requests Cloudflare never considered cacheable are counted apart and left out of
+every share: a signed-in read, an admin read and the saved-question reads carry
+`private, no-store` or an `Authorization` header, and a share that put them in its
+denominator would report the cache as failing on requests it was never offered.
+
+| API address | Requests | Built here | Reader waited |
+|---|---:|---:|---:|
+| `/api/v1/bills` | 10,323 | 91.6% | 86.3% |
+| `/api/v1/bills/<bill>` | 121,921 | 96.4% | 95.8% |
+| `/api/v1/bills/<bill>/versions` | 4,941 | 98.1% | 97.1% |
+| `/api/v1/bills/<bill>/votes` | 448 | 89.3% | 80.6% |
+| `/api/v1/bills/featured` | 640 | 85.0% | 65.0% |
+| `/api/v1/legislators` | 2,996 | 96.4% | 94.8% |
+| `/api/v1/legislators/<who>` | 3,438 | 96.2% | 92.9% |
+| `/api/v1/legislators/<who>/campaign-finance` | 1,203 | 96.1% | 92.9% |
+| `/api/v1/legislators/<who>/independent-spending` | 1,489 | 94.6% | 80.5% |
+| `/api/v1/legislators/<who>/bills` | 343 | 90.9% | 82.4% |
+| `/api/v1/legislators/<who>/votes` | 332 | 81.0% | 71.4% |
+| `/api/v1/committees/<n>/finance` | 5,801 | 87.5% | 79.7% |
+| `/api/v1/committees/<n>/payments` | 2,139 | 95.6% | 93.5% |
+| `/api/v1/campaign-finance/summary` | 736 | 72.4% | 47.2% |
+| `/api/v1/campaign-finance/committees` | 412 | 79.6% | 60.2% |
+| `/api/v1/campaign-finance/outside-spending` | 391 | 70.8% | 49.9% |
+| `/api/v1/campaign-finance/filings` | 311 | 80.7% | 62.1% |
+| `/api/v1/campaign-finance/races` | 228 | 61.4% | 28.5% |
+| `/api/v1/campaign-finance/search` | 112 | 77.7% | 64.3% |
+| `/api/v1/sessions` | 1,873 | 74.1% | 54.7% |
+| `/api/v1/policy-areas` | 687 | 87.9% | 71.7% |
+| `/api/v1/meta` | 822 | 84.0% | 66.9% |
+| every `/api/v1` read | 163,630 | 94.9% | 92.8% |
+
+`/api/v1/campaign-finance/payments-under-name` (40 records) and
+`/api/v1/committees/<n>/filings` (6) are withheld rather than printed, and so is
+`/api/v1/search`, which was asked for once. A percentage of 6 requests is not a
+measurement, and the tool refuses one under 50 records rather than printing a
+confident figure.
+
+**The gap between the 2 shares is what serving a stale copy is worth, and it is
+large.** On `/api/v1/bills` it is 5.3 points and on
+`/api/v1/campaign-finance/races` it is 32.9, which is more than half of that address's
+origin reads happening behind a reader who had already been answered. That is
+`stale-while-revalidate` doing its job, and it is on every public read, at 5 minutes
+for bill and vote records and at a day for the 5 named money records.
+
+**Nothing here prices the difference between those 2 windows, and the addresses
+cannot be compared to work it out.** Both windows carry a stale grace, so both
+produce background refreshes; the addresses with the widest gaps include short-window
+ones (`/api/v1/legislators/<who>/independent-spending`, 14.1 points) and the money
+addresses whose figures are partly our own traffic. Changing a window is out of scope
+on [issue 2045](https://github.com/alethical-org/alethical/issues/2045) and is a
+reader-visible trade for the Alethical team to make, not a conclusion to draw from
+this table.
+
+**Why so little is answered from a copy at all is traffic against window, and the
+traffic is not there yet.** Cloudflare keeps a separate copy at each of its own
+locations, and a bill read keeps one for 60 seconds plus a 5-minute grace.
+`/api/v1/bills` was asked for about 369 times a day across the whole world, so the
+previous reader at the same location rarely asked for the same address inside the
+same 6 minutes. Nothing is misconfigured. A location that has served nobody inside
+the window has nothing to hand over, which is the same per-location fact recorded
+above under **How old a current claim can be, end to end**.
+
+**So a saved database statement is worth its full measured cost to nearly every
+reader, and a cache is not an argument against removing one.** The 4 statements
+removed from the bill list for
+[#2040](https://github.com/alethical-org/alethical/issues/2040) are paid by 91.6% of
+its reads, not by a cold minority.
+
+### What this measurement can and cannot say
+
+**It counts our own answers, not the people who asked for them.** The only thing the
+tool asks Cloudflare per address is the cache status. No country, device, browser,
+element, referrer, query string, network or reader identity is requested, and a test
+pins that (`alethical/tests/test_report_origin_share_by_address.py`).
+
+**It covers `api.alethical.com` only.** The Vercel records for `www.alethical.com`
+are DNS-only, so Cloudflare never sees the page HTML and holds no copy of it. What
+Vercel's own page store does is bounded by `api/page.ts` and is not measured here.
+
+**Who is asking turns out not to change the answer, which was worth checking rather
+than assuming.** Verified bots are excluded from the table; counting them in moves
+the bill list from 91.6% to 92.2% and the whole surface from 94.9% to 95.2%. A
+one-off read of Cloudflare's browser-family totals, taken to test this and not part
+of the tool, put `/api/v1/bills` at 91.9% built here for requests carrying a
+recognised browser against 92.0% for everything else. So the share is a property of
+the window and the traffic rather than of the requester.
+
+**The 4 money addresses a job warms, and the ones our own probes reach, are not
+reader behaviour.** `.github/workflows/warm-money-pages.yml` reads
+`campaign-finance/summary`, `committees`, `races` and `outside-spending` after each
+production release and once a day; it first ran on 4 September 2026 and succeeded 12
+times inside this window, so 48 of those rows are the warmer.
+`/api/v1/campaign-finance/races` received requests on only 4 of the 28 days: 156 on
+4 September, 3 on the 5th, 4 on the 6th and 70 on the 7th. The 2 busy days are the 2
+days this file's own money measurements were taken. So the money rows are largely
+measuring us, and 3 requests a day is the size of the reader traffic underneath them.
+The bill addresses, at 369 a day every day, are not in that position.
+
+**Cloudflare drops records under load and says by how much.** Every count above is
+its own kept-record count multiplied by that group's average sampling interval,
+which ran 1.00 to 1.10 on these rows, so almost nothing was dropped. The floor of 50
+is applied to kept records rather than to the estimate, for the same reason
+`scripts/report_page_speed_by_address.py` does it: an estimate can look like a
+hundred measurements while resting on one.
+
+**One cross-check is unavailable and the reason is a permission.** Cloudflare's
+unsampled hourly totals would confirm these estimates, and they sit in a zone-scoped
+dataset that the Account Analytics Read token cannot reach: asked on 8 September 2026,
+that token returns an empty zone list, and the account-scoped hourly dataset refuses
+the path outright. So the adaptive dataset is the only source, and its near-1
+sampling interval is what stands in for a second opinion.
+
+Run it with `CLOUDFLARE_ANALYTICS_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` set:
+
+```bash
+python scripts/report_origin_share_by_address.py
+```
+
+Nothing reads it on a schedule. The token lives on Vercel and not in GitHub Actions'
+secrets, which only the maintainer can change, and
+[issue 516](https://github.com/alethical-org/alethical/issues/516) already owns that
+gap for the page-speed report next to it.
+
 
 ## Private activity totals: 8 Sep 2026
 
