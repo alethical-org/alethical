@@ -1,0 +1,200 @@
+name: Production release missing
+
+# A merged change that never gets built reaches no reader, and until this existed
+# nothing anywhere said so ([issue 2075](https://github.com/alethical-org/alethical/issues/2075)).
+#
+# WHAT HAPPENED, 8 Sep 2026. Commit `04005cfd` merged to `main`, changed
+# `api/page.ts` and `apps/frontend`, and received no production build at all.
+# Readers kept the previous page for 29 minutes. Every check was green, no build
+# failed, and it reached readers only because an unrelated frontend change merged
+# 20 minutes later and happened to trigger a build.
+#
+# THE CAUSE, FROM THE RECORDS. GitHub's merge queue merged pull request 2066 and
+# the docs-only pull request 2071 as 1 batch, and the whole stack fast-forwarded
+# onto `main` in 1 push: there is a push-triggered workflow run for `c8ad2698` and
+# none for `04005cfd`, and Railway, which has no ignore step, likewise deployed
+# `c8ad2698` and never saw `04005cfd`. Vercel builds a push's head only, and
+# `vercel.json`'s ignore step then compared that head against its immediate parent
+# and correctly found nothing but documents. The ignore step's window is 1 commit
+# wide; a push can be several commits long.
+#
+# WHY ITS SIBLING COULD NOT SEE THIS. `production-release-failed.yml` watches
+# `deployment_status` for a production deployment that FAILS. Here nothing failed:
+# one build was legitimately skipped and one commit simply never got a build, so
+# there was no deployment and no status to watch. The 2 sit side by side and cover
+# the 2 shapes: that one catches a red release, this one catches an absent one.
+#
+# WHY IT READS THE PAGE RATHER THAN A DEPLOYMENT'S OUTCOME. Every deploying build
+# stamps its own commit into the served page, so 1 read of 1 address says exactly
+# what readers have. A missing build, a failed build, a release rolled back by
+# hand and a stalled edge cache all break the same rule, because the question is
+# what a reader gets rather than what a deployment did.
+#
+# WHY IT RUNS ON EVERY PUSH TO `main` AND CARRIES NO `paths:` FILTER. A docs-only
+# push is precisely what hid the unbuilt commit on 8 Sep. Filtering this to
+# website paths would have skipped the run that could have caught it.
+#
+# QUIET BY CONSTRUCTION. The rule is that the changes between the commit
+# production was built from and `main`'s head must not touch a path the website is
+# built from. A docs-only merge satisfies that with no build at all, so the ignore
+# step doing its correct job many times a day says nothing here. Measured across
+# 264 production releases to 8 Sep 2026, a push reaches readers in 48 to 91
+# seconds, so the 10-minute grace inside the check is about 7 times the slowest
+# release ever seen here.
+#
+# Costs nothing per run: 1 public page read per attempt and the local git history.
+
+on:
+  push:
+    branches:
+      - main
+  # A run on a pull request proves the plumbing, which is the only thing such a
+  # run can prove: a pull request's own head is never what production serves, so
+  # the answer is known before it starts. What it does check is that the checkout
+  # is deep enough, that a GitHub runner can read our live page at all, and that
+  # the loop reads the check's answer correctly. The verdict itself is covered by
+  # `alethical/tests/test_check_production_release_reached_readers.py`, which
+  # replays the 8 Sep push against a real git history.
+  pull_request:
+    paths:
+      - ".github/workflows/production-release-missing.yml"
+      - "scripts/check_production_release_reached_readers.py"
+      - "apps/frontend/scripts/stamp-release-commit.mjs"
+  workflow_dispatch:
+
+# Cancel an older wait on the same branch, because a newer push's answer covers
+# it: the check's clock runs from the OLDEST change still waiting, not from the
+# newest merge, so a run of merges cannot keep resetting the alarm. On 8 Sep
+# merges landed at 13:51, 13:56, 14:08, 14:13 and 14:29, and a grace measured per
+# merge would have been restarted 5 times and never fired.
+concurrency:
+  # Keyed on the ref, so every push to `main` shares 1 slot and cancels the
+  # older wait, while a pull-request self-test gets its own and can never cancel
+  # `main`'s watch out from under a real outage.
+  group: production-release-missing-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    name: Say when a merge is not reaching readers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          # The check diffs main's head against the commit production was built
+          # from, which can be several commits back. A shallow clone has neither
+          # that commit nor the range, and the check would silently have no
+          # verdict to give.
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Read what production is serving, until it catches up or the grace runs out
+        id: check
+        run: |
+          # `set +e` on purpose, and it is not decoration. GitHub runs a `run:`
+          # block as `bash -e`, so the check's own non-zero answer would kill this
+          # step before it printed a word: the first pull-request run of this
+          # workflow died 0.4 seconds in with an empty verdict file, and a watch
+          # that cannot report its own finding is no watch at all.
+          set +e -uo pipefail
+          # 20 minutes of attempts, 1 read a minute. The check turns waiting into
+          # an alarm on its own once the oldest waiting change passes its grace,
+          # so this deadline only bounds the case where the page cannot be read at
+          # all, which would leave no verdict either way.
+          deadline=$(( $(date +%s) + 20 * 60 ))
+          # No grace on a pull request. Waiting 10 minutes for a state that cannot
+          # arrive would tell nobody anything; answering at once shows the words
+          # the alarm would carry.
+          grace=10
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then grace=0; fi
+          while : ; do
+            python scripts/check_production_release_reached_readers.py \
+              --grace-minutes "$grace" > verdict.txt 2>&1
+            status=$?
+            cat verdict.txt
+            if [ "$status" != "2" ]; then break; fi
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "Gave up: 20 minutes of attempts and still no verdict."
+              break
+            fi
+            sleep 60
+          done
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+      # A branch run reports and writes nothing, so the whole job can be exercised
+      # against live production without opening an issue on the board.
+      - name: Open or update the one issue when a merge is not reaching readers
+        if: steps.check.outputs.status == '1' && github.ref_name == 'main'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const title = "A merge is not reaching readers, because no production release ran";
+            // Found by this marker rather than by its title, so the title can be
+            // edited and a person can adopt an issue they are already working as
+            // this watch's home by pasting the marker into it. Same rule as
+            // published-piece-links.yml.
+            const marker = "<!-- production-release-missing -->";
+            const body = [
+              marker,
+              fs.readFileSync('verdict.txt', 'utf8').trim(),
+              "",
+              "Opened automatically by `.github/workflows/production-release-missing.yml`.",
+              `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            ].join("\n");
+            const open = (await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner, repo: context.repo.repo, state: "open", per_page: 100,
+            })).find((issue) => (issue.body || "").includes(marker) || issue.title === title);
+            if (open) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo, issue_number: open.number, body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title: `🚨 ${title}`, body, labels: ["frontend", "ci"],
+              });
+            }
+
+      # One alarm per outage, closed when it is over, so a run of these cannot
+      # fill the board. Its sibling closes on a successful deployment event; the
+      # repair here is a hand-run deploy that emits no such event, so this closes
+      # on the next run that finds readers up to date, which is the next merge or
+      # a hand-run of this workflow.
+      - name: Close the issue once readers have what main has
+        if: steps.check.outputs.status == '0' && github.ref_name == 'main'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = "<!-- production-release-missing -->";
+            const open = (await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner, repo: context.repo.repo, state: "open", per_page: 100,
+            })).find((issue) => (issue.body || "").includes(marker));
+            if (!open) return;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: open.number,
+              body: `Readers are up to date again. ${fs.readFileSync('verdict.txt', 'utf8').trim()}\n\nClosed automatically.`,
+            });
+            await github.rest.issues.update({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: open.number,
+              state: "closed", state_reason: "completed",
+            });
+
+      # A red run rather than an issue, deliberately. The only way to get here is
+      # 20 minutes in which the page could not be read at all, which has never
+      # been observed: the check makes 1 request a minute, and the bot challenge
+      # this repository has measured came from a fast loop. If it ever does happen
+      # twice, it earns an issue of its own.
+      - name: Fail the run when 20 minutes produced no verdict
+        if: steps.check.outputs.status == '2'
+        run: exit 1

@@ -260,6 +260,27 @@ owns the current provider, email, password, and confirmation settings.
   ([issue 2052](https://github.com/alethical-org/alethical/issues/2052)). It watches
   only the `Production` environment, so a failed preview, which ships to nobody,
   opens nothing.
+- A release that never starts says so too, and it is a different watch because
+  nothing fails. `.github/workflows/production-release-missing.yml` reads which
+  commit the live page says built it and compares that with `main`. It opens 1
+  issue when a merged change to a website path has not reached readers 10 minutes
+  after merging, comments on that same issue rather than opening another, and
+  closes it once readers are up to date. A documents-only merge correctly needs no
+  release and it says nothing. It exists because a merged website change once sat
+  unbuilt for 29 minutes with every check green, no build failure anywhere, and
+  the failed-release watch above reporting `skipped`
+  ([issue 2075](https://github.com/alethical-org/alethical/issues/2075)).
+- Ask the live page which commit it is, in 1 command:
+  `curl -sL https://www.alethical.com/ | grep alethical-release-commit`. Every
+  deploying build writes that commit into the page
+  (`apps/frontend/scripts/stamp-release-commit.mjs`), which is the fastest honest
+  answer to "is my merge live" and the same reading the watch above uses.
+- The merge queue can advance `main` by several commits in 1 push, and Vercel
+  builds the push's head only. `vercel.json`'s `ignoreCommand` compares that head
+  against its immediate parent, so when the head is documents-only every earlier
+  commit in the same push goes unbuilt however much website code it changed. That
+  is what happened on 8 Sep 2026, and the repair is the hand-run
+  `vercel-deploy.yml` job.
 - Judge what readers are getting by the `Production` environment's own newest
   deployment state. The `Vercel` commit status does not say which environment ran,
   and the separate `alethical / production` environment is the API rather than the

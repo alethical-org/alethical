@@ -41,12 +41,22 @@ jobs:
           test "$GITHUB_REF" = "refs/heads/main"
           test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$GITHUB_SHA"
 
+      # `--build-env ALETHICAL_COMMIT_SHA` is what makes this path's release
+      # visible to `.github/workflows/production-release-missing.yml`. That watch
+      # reads the commit out of the served page, and the page carries it because
+      # `apps/frontend/scripts/stamp-release-commit.mjs` writes it during the
+      # build. A Git-connected build gets it from Vercel's own
+      # `VERCEL_GIT_COMMIT_SHA`; this path uploads a source archive instead, so
+      # nothing here is Git-connected and the commit has to be handed over. Without
+      # it, the repair for a missed release would produce a page that cannot say
+      # which commit it is, and the watch would keep reporting the outage.
       - name: Deploy production to Vercel
         run: >
           npx --yes vercel@54.4.1 deploy
           --prod
           --yes
           --archive=tgz
+          --build-env ALETHICAL_COMMIT_SHA="$GITHUB_SHA"
           --meta githubCommitSha="$GITHUB_SHA"
           --meta githubCommitRef="$GITHUB_REF_NAME"
           --meta githubRepo="$GITHUB_REPOSITORY"

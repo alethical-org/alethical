@@ -2,7 +2,7 @@
 
 <!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py -->
 
-Net: The repository has 21 GitHub Actions workflows. 17 can start automatically
+Net: The repository has 22 GitHub Actions workflows. 18 can start automatically
 and 4 run only when a person starts them. Scheduled checks, releases, and local
 backups do not call paid AI services. Reader questions and deliberately started
 AI work do.
@@ -27,6 +27,7 @@ AI work do.
 | Money pages stay warm (`.github/workflows/warm-money-pages.yml`) | After each successful production release, and daily at 16:00 UTC | Reads the 5 money addresses and the 4 campaign-money data routes once, so the first real reader after a release is not the one who waits on a cold read. Prints nothing when every address answers; opens no issue | No paid AI call; a handful of reads of our own live site on GitHub's standard free runner |
 | Public metric source health (`.github/workflows/site-metrics-health.yml`) | Daily at 13:43 UTC, and by hand | Reads 7 cached public measurement answers, checks freshness and counting contracts, and names failures in the run summary | No paid AI call; public reads on GitHub's standard free runner |
 | Failed release says so (`.github/workflows/production-release-failed.yml`) | After each production release, succeeded or failed | Opens 1 issue when the website's own release fails, so a merge that reaches nobody does not sit unnoticed; comments rather than opening a second while it keeps failing, and closes that issue when a release next succeeds. Ignores preview releases, which ship to nobody | No paid AI call; reads 1 deployment event on GitHub's standard free runner |
+| Missing release says so (`.github/workflows/production-release-missing.yml`) | After each change reaches `main`, and by hand | Reads which commit the live site says built it and compares that with `main`. Opens 1 issue when a merged website change is not reaching readers after 10 minutes, comments rather than opening a second, and closes that issue once readers are up to date. Says nothing for a documents-only merge, which correctly needs no release | No paid AI call; 1 read a minute of our own live site on GitHub's standard free runner |
 | Traffic access key (`.github/workflows/traffic-token-expiry.yml`) | Daily at 12:00 UTC | Opens 1 issue 60 days before the private Vercel Traffic key expires and adds 1 urgent note 14 days before | No paid AI call; reads 1 date stored in the repository |
 | Backend release (Railway Git connection) | A commit reaches `main` | Applies database changes, then releases the API if its readiness check passes | No paid AI call; build and hosting usage stays on the existing Railway account |
 | Website release (Vercel Git connection) | A relevant commit reaches `main` | Builds and releases the web app | No paid AI call; build and hosting usage stays on the existing Vercel account |
@@ -37,7 +38,7 @@ Time and Central Daylight Time, so their local hour changes by 1 during the year
 
 ## What GitHub runs only by hand
 
-These 4 workflows complete the total of 21:
+These 4 workflows complete the total of 22:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |
@@ -51,7 +52,7 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 67 runnable files. GitHub jobs call 27 of them, and the
+The `scripts/` folder has 68 runnable files. GitHub jobs call 28 of them, and the
 Mac backup above calls 1. A workflow also calls
 `apps/frontend/scripts/traffic-token-expiry.mjs`, a similarly named script that
 lives in a different folder and is not part of this list or its totals. The
@@ -62,7 +63,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Purpose | Files |
 | --- | --- |
 | Import official records or test data | `build_legislative_district_boundaries.py`, `load_campaign_finance.py`, `load_campaign_finance_filings.py`, `load_lobbying_expenditures.py`, `load_minnesota_data.py`, `load_sample_data.py` |
-| Check data, code, documents, local tools, and hosted settings | `audit_repaired_bill_prompt_context.py`, `check_bill_section_gaps.py`, `check_bill_summary_coverage.py`, `check_campaign_finance_stated_spending.py`, `check_campaign_finance_stated_split.py`, `check_declared_dependencies.py`, `check_doc_quotes.py`, `check_doc_references.py`, `check_doc_sync.py`, `check_home_hero_card_literals.py`, `check_hosted_service_settings.py`, `check_jobs_and_scripts_inventory.py`, `check_local_env.py`, `check_no_cross_committee_total.py`, `check_no_merge_conflict_markers.py`, `check_no_nul_bytes.py`, `check_published_piece_links.py`, `check_rag_coverage.py`, `check_schema_drift.py`, `check_shared_checkout_rules_in_sync.py`, `check_site_metrics_health.py`, `check_technology_health.py`, `check_timeless_docs.py` |
+| Check data, code, documents, local tools, and hosted settings | `audit_repaired_bill_prompt_context.py`, `check_bill_section_gaps.py`, `check_bill_summary_coverage.py`, `check_campaign_finance_stated_spending.py`, `check_campaign_finance_stated_split.py`, `check_declared_dependencies.py`, `check_doc_quotes.py`, `check_doc_references.py`, `check_doc_sync.py`, `check_home_hero_card_literals.py`, `check_hosted_service_settings.py`, `check_jobs_and_scripts_inventory.py`, `check_local_env.py`, `check_no_cross_committee_total.py`, `check_no_merge_conflict_markers.py`, `check_no_nul_bytes.py`, `check_production_release_reached_readers.py`, `check_published_piece_links.py`, `check_rag_coverage.py`, `check_schema_drift.py`, `check_shared_checkout_rules_in_sync.py`, `check_site_metrics_health.py`, `check_technology_health.py`, `check_timeless_docs.py` |
 | Fill missing fields on older records | `backfill_bill_action_committee_name.py`, `backfill_bill_section_body_blocks.py`, `backfill_bill_title_from_current_version.py`, `backfill_campaign_finance_filed_dates.py`, `backfill_campaign_finance_report_documents.py`, `backfill_companion_links.py`, `backfill_rag_bulk.py`, `backfill_vote_event_dates.py` |
 | Repair damage from past bugs | `clean_stale_bill_versions.py`, `correct_bill_current_statuses.py`, `dedupe_ai_enrichment.py`, `delete_fixture_bills.py`, `dump_evidence_document.py`, `reanchor_rag_to_current_version.py`, `repair_companion_links.py`, `repair_incomplete_vote_records.py`, `repair_missing_bill_sections.py`, `repair_mojibake_text.py`, `repair_vote_roster_identities.py` |
 | Review campaign-finance records | `recompute_lobbying_published_figures.py`, `review_legislator_campaign_committees.py`, `show_party_and_caucus_money.py` |

@@ -18,6 +18,16 @@ name: Production release failed
 # tab is also something a person has to go and look at, and the whole defect here
 # was nobody looking. An issue reaches the board and the maintainer's notifications.
 #
+# IT WATCHES A RED RELEASE, AND ITS SIBLING WATCHES AN ABSENT ONE. A production
+# release that never starts produces no deployment and no status, so nothing here
+# can see it: on 8 Sep 2026 a merged website change sat unbuilt for 29 minutes
+# with every check green and this job reporting `skipped`
+# ([issue 2075](https://github.com/alethical-org/alethical/issues/2075)).
+# `.github/workflows/production-release-missing.yml` covers that shape, by reading
+# which commit the served page says it was built from. Keep the 2 separate: this
+# one is event-driven and answers in seconds, and that one has to wait for a
+# release that may never come.
+#
 # Deliberately narrow, so it cannot cry wolf:
 #
 #   - Production only. A failed PREVIEW deployment ships nothing to anybody and
