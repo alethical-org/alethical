@@ -8,10 +8,11 @@ the available sign-in methods. It cannot change an account or send an alert.
 
 ## Opening `/admin/users`
 
-Sign in, open the account menu, and choose **Users**. This works in the desktop
-menu and the phone account sheet. Approved administrators also see **Admin metrics**
-at `/admin/metrics`. Opening `/admin` also leads to `/admin/users`. An administrator may open
-`/admin/users` directly or reload it.
+Sign in, open the account menu, and choose **Users** under **Admin**. This works in the
+desktop menu and the phone account sheet. The Admin group follows the password row and
+comes before Sign out. **Metrics** follows Users in that group and opens `/admin/metrics`,
+whose title remains **Admin metrics**. Opening `/admin` also leads to `/admin/users`.
+An administrator may open `/admin/users` directly or reload it.
 
 These 8 email addresses are approved for administrator access:
 

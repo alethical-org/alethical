@@ -45,7 +45,6 @@ import { SignInContainer } from './SignInContainer';
 const isWeb = Platform.OS === 'web';
 const emailPasswordEnabled = process.env.EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED === 'true';
 const SIGN_OUT_FAILURE = 'We couldn’t sign you out. Check your connection and try again.';
-const OTHER_DEVICE_NOTE = 'You may still be signed in on other devices';
 
 function displayName(name: string | undefined, email: string | undefined) {
   const trimmed = (name ?? '').trim();
@@ -547,9 +546,7 @@ function TrackedRow({
       <View style={phone ? styles.sheetIconBox : styles.menuIconBox}>
         <BookmarkIcon size={phone ? 22 : 20} />
       </View>
-      <Text numberOfLines={1} style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>
-        Tracked
-      </Text>
+      <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Tracked</Text>
       {count === null ? null : (
         <Text style={phone ? styles.sheetTrackedCount : styles.menuTrackedCount}>{count}</Text>
       )}
@@ -559,7 +556,14 @@ function TrackedRow({
 
 function ChevronRightIcon() {
   return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <Svg
+      width={18}
+      height={18}
+      viewBox="0 0 24 24"
+      fill="none"
+      style={{ flexShrink: 0 }}
+      aria-hidden
+    >
       <Path
         d="M9 5 L16 12 L9 19"
         stroke={t.colors.text.faint}
@@ -571,7 +575,7 @@ function ChevronRightIcon() {
   );
 }
 
-function AdminRow({
+function AdminGroup({
   variant,
   onNavigate,
 }: {
@@ -583,7 +587,10 @@ function AdminRow({
   const phone = variant === 'phone';
   if (access.state !== 'allowed') return null;
   return (
-    <>
+    <View style={phone ? styles.sheetAdminGroup : styles.menuAdminGroup}>
+      <Text style={[styles.adminLabel, phone ? styles.sheetAdminLabel : styles.menuAdminLabel]}>
+        Admin
+      </Text>
       <Pressable
         {...linkProps(routePath.adminUsers(), () => {
           onNavigate();
@@ -591,9 +598,12 @@ function AdminRow({
         })}
         style={({ pressed }) => [
           phone ? styles.sheetTrackedRow : styles.menuTrackedRow,
+          phone ? styles.sheetIconRow : styles.menuIconRow,
+          styles.adminRow,
           pressed && (phone ? styles.sheetButtonPressed : styles.menuItemPressed),
         ]}
       >
+        <View style={phone ? styles.sheetIconBox : styles.menuIconBox} />
         <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Users</Text>
         <ChevronRightIcon />
       </Pressable>
@@ -604,15 +614,16 @@ function AdminRow({
         })}
         style={({ pressed }) => [
           phone ? styles.sheetTrackedRow : styles.menuTrackedRow,
+          phone ? styles.sheetIconRow : styles.menuIconRow,
+          styles.adminRow,
           pressed && (phone ? styles.sheetButtonPressed : styles.menuItemPressed),
         ]}
       >
-        <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>
-          Admin metrics
-        </Text>
+        <View style={phone ? styles.sheetIconBox : styles.menuIconBox} />
+        <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Metrics</Text>
         <ChevronRightIcon />
       </Pressable>
-    </>
+    </View>
   );
 }
 
@@ -702,7 +713,6 @@ function DesktopSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }
           {flow.label}
         </Text>
       </Pressable>
-      <Text style={styles.desktopSignOutNote}>{OTHER_DEVICE_NOTE}</Text>
     </>
   );
 }
@@ -740,7 +750,6 @@ function PhoneSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }) 
           {flow.label}
         </Text>
       </Pressable>
-      <Text style={styles.phoneSignOutNote}>{OTHER_DEVICE_NOTE}</Text>
     </>
   );
 }
@@ -771,30 +780,28 @@ function AccountSurfaceContent({
         <View style={styles.menuHeader}>
           <Identity name={name} email={email} avatar={38} />
         </View>
-        <View style={styles.menuDivider} />
         {/* The reader's own things sit above the one setting behind this menu
             (#1698). There is deliberately no Account row: Change password IS the
             action, so a row called Account would be a hop revealing one row. */}
         <TrackedRow variant="desktop" onNavigate={onLeave} />
-        <AdminRow variant="desktop" onNavigate={onLeave} />
-        <View style={styles.menuDivider} />
         {emailPasswordEnabled ? (
-          <>
-            <Pressable
-              accessibilityRole="button"
-              onPress={onPasswordPress}
-              style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-            >
-              <View style={styles.menuIconBox}>
-                <PasswordIcon color={t.colors.text.faint} />
-              </View>
-              <Text numberOfLines={1} style={styles.menuItemText}>
-                {passwordCopy.rowLabel}
-              </Text>
-            </Pressable>
-            <View style={styles.menuDivider} />
-          </>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onPasswordPress}
+            style={({ pressed }) => [
+              styles.menuItem,
+              styles.menuPasswordRow,
+              pressed && styles.menuItemPressed,
+            ]}
+          >
+            <View style={styles.menuIconBox}>
+              <PasswordIcon color={t.colors.text.faint} />
+            </View>
+            <Text style={styles.menuItemText}>{passwordCopy.rowLabel}</Text>
+          </Pressable>
         ) : null}
+        <AdminGroup variant="desktop" onNavigate={onLeave} />
+        <View style={styles.menuDivider} />
         <DesktopSignOut flow={signOutFlow} />
       </>
     );
@@ -803,26 +810,28 @@ function AccountSurfaceContent({
   return (
     <>
       <Identity name={name} email={email} avatar={48} />
-      <TrackedRow variant="phone" onNavigate={onLeave} />
-      <AdminRow variant="phone" onNavigate={onLeave} />
-      {emailPasswordEnabled ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={onPasswordPress}
-          style={({ pressed }) => [
-            styles.sheetPasswordButton,
-            pressed && styles.sheetButtonPressed,
-          ]}
-        >
-          <View style={styles.sheetIconBox}>
-            <PasswordIcon color={t.colors.text.primary} />
-          </View>
-          <Text numberOfLines={1} style={[styles.sheetButtonText, styles.sheetPasswordText]}>
-            {passwordCopy.rowLabel}
-          </Text>
-          <ChevronRightIcon />
-        </Pressable>
-      ) : null}
+      <View style={styles.sheetAccountRows}>
+        <TrackedRow variant="phone" onNavigate={onLeave} />
+        {emailPasswordEnabled ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onPasswordPress}
+            style={({ pressed }) => [
+              styles.sheetPasswordButton,
+              pressed && styles.sheetButtonPressed,
+            ]}
+          >
+            <View style={styles.sheetIconBox}>
+              <PasswordIcon color={t.colors.text.primary} />
+            </View>
+            <Text style={[styles.sheetButtonText, styles.sheetPasswordText]}>
+              {passwordCopy.rowLabel}
+            </Text>
+            <ChevronRightIcon />
+          </Pressable>
+        ) : null}
+        <AdminGroup variant="phone" onNavigate={onLeave} />
+      </View>
       <PhoneSignOut flow={signOutFlow} />
     </>
   );
@@ -1120,8 +1129,7 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
   },
   menuItemPressed: { backgroundColor: t.colors.surfaces.s300 },
-  // Icon boxes share the iconless admin rows' left edge. Keep their spacing
-  // separate because the admin rows use the tracked row's base layout too.
+  // Empty icon boxes reserve the same label column for the administrator links.
   menuIconRow: { gap: 12 },
   sheetIconRow: { gap: 13 },
   menuIconBox: {
@@ -1145,9 +1153,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     minHeight: 44,
-    paddingTop: 13,
+    borderTopWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    paddingTop: 10,
     paddingRight: 15,
-    paddingBottom: 13,
+    paddingBottom: 10,
     paddingLeft: 12,
   },
   menuTrackedLabel: {
@@ -1175,17 +1185,25 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.semibold,
     color: t.colors.text.primary,
   },
-  desktopSignOutError: { marginTop: 12, marginHorizontal: 15 },
-  desktopSignOutNote: {
-    paddingTop: 2,
-    paddingRight: 15,
-    paddingBottom: 14,
-    paddingLeft: 15,
-    fontFamily: t.typography.body,
-    fontSize: 12,
-    lineHeight: 17,
-    color: t.colors.text.faint,
+  menuPasswordRow: {
+    borderTopWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    paddingTop: 10,
+    paddingBottom: 10,
   },
+  menuAdminGroup: { borderTopWidth: 1, borderColor: t.colors.alpha.ink08 },
+  sheetAdminGroup: { borderTopWidth: 1, borderColor: t.colors.alpha.ink10 },
+  adminLabel: { fontFamily: t.typography.ui, color: '#787f79' },
+  menuAdminLabel: {
+    fontSize: 12.5,
+    paddingTop: 8,
+    paddingBottom: 4,
+    paddingLeft: 12,
+    paddingRight: 15,
+  },
+  sheetAdminLabel: { fontSize: 14, paddingTop: 14, paddingBottom: 6, paddingHorizontal: 2 },
+  adminRow: { borderTopWidth: 0 },
+  desktopSignOutError: { marginTop: 12, marginHorizontal: 15 },
   passwordTile: {
     width: 52,
     height: 52,
@@ -1327,10 +1345,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // The phone watchlist row, above Change password. It carries the line ABOVE
-  // it; the line between the two is Change password's own top border.
+  sheetAccountRows: { marginTop: 18 },
   sheetTrackedRow: {
-    marginTop: 18,
     width: '100%',
     minHeight: 56,
     flexDirection: 'row',
@@ -1339,6 +1355,7 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.surfaces.base,
     borderTopWidth: 1,
     borderColor: t.colors.alpha.ink08,
+    paddingVertical: 14,
     paddingHorizontal: 2,
   },
   sheetTrackedLabel: {
@@ -1359,7 +1376,6 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
   },
   sheetPasswordButton: {
-    marginTop: 18,
     width: '100%',
     minHeight: 56,
     flexDirection: 'row',
@@ -1368,6 +1384,7 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.surfaces.base,
     borderTopWidth: 1,
     borderColor: t.colors.alpha.ink08,
+    paddingVertical: 14,
     paddingHorizontal: 2,
   },
   sheetPasswordText: { flex: 1, textAlign: 'left' },
@@ -1380,11 +1397,4 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   phoneSignOutError: { marginTop: 16 },
-  phoneSignOutNote: {
-    marginTop: 10,
-    fontFamily: t.typography.body,
-    fontSize: 13.5,
-    lineHeight: 20,
-    color: t.colors.text.faint,
-  },
 });
