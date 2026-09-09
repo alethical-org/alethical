@@ -1066,6 +1066,7 @@ export function AccountNavButton() {
   const [open, setOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const wrapRef = useRef<View>(null);
+  const buttonRef = useRef<View>(null);
   const signOutFlow = useAccountSignOut(open);
   const avatarHover = useFineHover();
 
@@ -1080,8 +1081,13 @@ export function AccountNavButton() {
       if (signOutFlow.state === 'busy') return;
       setOpen(false);
     };
+    // Escape hands focus back to the button that opened the menu, the same way
+    // the phone sheet does (#2132). Outside clicks and navigation deliberately
+    // do not: the pointer or the next screen has already placed focus itself.
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && signOutFlow.state !== 'busy') setOpen(false);
+      if (event.key !== 'Escape' || signOutFlow.state === 'busy') return;
+      setOpen(false);
+      (buttonRef.current as unknown as HTMLElement | null)?.focus?.();
     };
     document.addEventListener('pointerdown', handlePointerDown, true);
     document.addEventListener('keydown', handleKeyDown, true);
@@ -1098,6 +1104,7 @@ export function AccountNavButton() {
     <>
       <View ref={wrapRef} style={styles.navWrap}>
         <Pressable
+          ref={buttonRef}
           accessibilityRole="button"
           accessibilityLabel={`Account panel for ${name}`}
           aria-expanded={open}
