@@ -6,8 +6,9 @@
  * Rendered, not source-checked, for the reason `campaignMoneyTabDrawsOutsideSpending`
  * gives: an element can be imported and called and still never reach a reader. What
  * these tests pin is what a reader meets — the named figure that is never blank, the
- * filing's link stated once, the label "Not a donation", the plain label for money
- * given to another campaign, and the evidence block at the card's foot.
+ * filing's link stated once, the label "Not a donation" over every receipt kind but
+ * `Miscellaneous`, a money-out card that is the filing's own figure alone, and the
+ * evidence block at the card's foot.
  */
 import { describe, expect, it, vi } from 'vitest';
 
@@ -29,8 +30,11 @@ import { CampaignMoneyTab } from '../CampaignMoneyTab';
 import type { CampaignCommitteeMoney, LegislatorCampaignMoney } from '../../../data/types';
 import {
   FILED_REPORTS_LINK_LABEL,
+  itemizedContributionsNote,
   MONEY_IN_NAMED_LABEL,
   MONEY_IN_REPORTED_LABEL,
+  MONEY_OUT_REPORTED_LABEL,
+  NAMED_DONATIONS_LINK_LABEL,
   NOT_A_DONATION_HEADING,
 } from '../../../lib/committeeMoney';
 import { MATCH_CHECK_LABEL, reportedThroughLabel } from '../../../lib/legislatorCampaignMoney';
@@ -52,9 +56,14 @@ function committee(overrides: Partial<CampaignCommitteeMoney> = {}): CampaignCom
       state: 'reported',
       itemizedContributionTotal: '151614.0000',
       itemizedContributionPayments: 212,
-      otherReceipts: [{ receiptType: 'Public Subsidy', total: '3000.0000', payments: 1 }],
+      otherReceipts: [
+        { receiptType: 'Public Subsidy', total: '3000.0000', payments: 1 },
+        { receiptType: 'Miscellaneous', total: '307.2600', payments: 2 },
+      ],
       reportedPeriodStart: '2026-01-01',
-      sourceUrl: 'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/',
+      // The served address is the bulk download itself, as the live route sends it.
+      sourceUrl:
+        'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-2113865252',
     },
     moneyOut: {
       state: 'reported',
@@ -183,14 +192,65 @@ describe('the money cards on the profile, at the final inventory', () => {
     expect(html).not.toContain(FILED_REPORTS_LINK_LABEL);
   });
 
-  it('labels the rows that are not donations "Not a donation"', () => {
-    expect(text(render([committee()]))).toContain(`${NOT_A_DONATION_HEADING} Public Subsidy`);
+  it('labels the rows that are not donations "Not a donation", and hides Miscellaneous', () => {
+    const html = text(render([committee()]));
+    expect(html).toContain(`${NOT_A_DONATION_HEADING} Public Subsidy`);
+    expect(html).not.toContain('Miscellaneous');
+    // With only the hidden kind served, the heading does not draw either.
+    const onlyMisc = text(
+      render([
+        committee({
+          moneyIn: {
+            ...committee().moneyIn!,
+            otherReceipts: [{ receiptType: 'Miscellaneous', total: '307.2600', payments: 2 }],
+          },
+        }),
+      ]),
+    );
+    expect(onlyMisc).not.toContain(NOT_A_DONATION_HEADING);
   });
 
-  it('calls money handed to another campaign what it is, and never "Contribution"', () => {
-    const html = text(render([committee()]));
-    expect(html).toContain('Given to other campaigns');
-    expect(html).not.toMatch(/Contribution ·/);
+  // Ruled by Eugene, 11 Sep 2026: heading, "Expenditures", the filing's amount. None
+  // of our own figures, rows or links beside it.
+  it('draws money out as the filing’s Expenditures figure and nothing else', () => {
+    const html = cards(render([committee()]));
+    expect(html).toContain(`${MONEY_OUT_REPORTED_LABEL} $168,220`);
+    expect(html).not.toContain('$131,882');
+    expect(html).not.toContain('Payments we can list');
+    expect(html).not.toContain('Given to other campaigns');
+    expect(html).not.toContain('Campaign Expenditure');
+    expect(html).not.toContain('never subtract');
+    expect(html).not.toContain('Minnesota’s list of payments out');
+  });
+
+  it('reads "Not reported" for money out with no served total, never $0', () => {
+    const html = cards(
+      render([committee({ moneyOut: { ...committee().moneyOut!, reportedTotal: null } })]),
+    );
+    expect(html).toContain(`${MONEY_OUT_REPORTED_LABEL} Not reported`);
+    expect(html).not.toContain(`${MONEY_OUT_REPORTED_LABEL} $0`);
+    // And a null block is the same absence.
+    expect(cards(render([committee({ moneyOut: null })]))).toContain(
+      `${MONEY_OUT_REPORTED_LABEL} Not reported`,
+    );
+  });
+
+  it('links money in to the Board’s downloads page, not to the download itself', () => {
+    const raw = render([committee()]);
+    expect(raw).toContain(NAMED_DONATIONS_LINK_LABEL);
+    expect(raw).toContain(
+      'href="https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/"',
+    );
+    expect(raw).not.toContain('?download=');
+  });
+
+  // Ruled by Eugene, 11 Sep 2026: the naming rule is stated once on the card, in the
+  // sentence under the itemized figure, and the non-itemized sentence repeats no figure.
+  it('states the $200 naming rule exactly once, under the itemized figure', () => {
+    const html = cards(render([committee()]));
+    expect(html).toContain(itemizedContributionsNote(false));
+    expect(html.split('$200').length - 1).toBe(1);
+    expect(html).toContain('whose givers the state’s public file does not name');
   });
 
   it('prints the share of reported donations with no name, which is profile-only', () => {

@@ -66,7 +66,7 @@ import {
   madeRowMeta,
   MONEY_IN_HEADING,
   MONEY_IN_REPORTED_LABEL,
-  MONEY_OUT_FIGURE_LABEL,
+  MONEY_OUT_REPORTED_LABEL,
   MONEY_OUT_HEADING,
   notFoundBody,
   notFoundTitle,
@@ -121,15 +121,15 @@ import { theme as t } from '../../theme/tokens';
  *
  * The display rules this screen keeps, each one a way a page could show a
  * confident wrong number (grounded-answers.md rule 12; design doc §7):
- * - Two numbers, both correct: the total the committee reported to the state AND
- *   the payments we can list. The named/unnamed division arrives DECIDED by the
- *   server (`split.state`); this page never subtracts, and in each of the 4
- *   withheld states it prints the state's own plain sentence instead.
+ * - Money in is 2 numbers, both correct: the total the committee reported to the
+ *   state AND the donations we can list with a donor's name. The named/unnamed
+ *   division arrives DECIDED by the server (`split.state`); this page never
+ *   subtracts, and in each of the 4 withheld states it prints the state's own plain
+ *   sentence instead.
  * - Missing is "Not reported"; a verified zero is "0"; a closed committee is its
  *   own state with the register's own date.
- * - Money out is never "spent": statewide, 38% of it is money given to other
- *   committees, so the figure is "Payments we can list" and transfers get their
- *   own plain label.
+ * - Money out is the filing's own figure alone, labelled "Expenditures" and never
+ *   "spent" (ruled by Eugene, 11 Sep 2026); no figure of ours draws beside it.
  * - A ballot-question filer's page states no donor-naming threshold anywhere.
  * - When our own service does not answer, the page holds the figures it already
  *   had, dated, until it answers — never expiring on a timer.
@@ -650,7 +650,7 @@ function MoneyOutCard({
       <View style={styles.card}>
         <CardHeading surface="committee">{MONEY_OUT_HEADING}</CardHeading>
         <Figure
-          label={MONEY_OUT_FIGURE_LABEL}
+          label={MONEY_OUT_REPORTED_LABEL}
           value={closed ? CLOSED_EMPTY_VALUE : EMPTY_YEAR_VALUE}
           isFigure={false}
           isMobile={isMobile}
@@ -666,7 +666,6 @@ function MoneyOutCard({
       <MoneyOutBlock
         surface="committee"
         moneyOut={money.moneyOut}
-        isBallot={isBallot}
         stampThrough={stampThroughDate(money.split, money.moneyOut)}
         isMobile={isMobile}
       />
