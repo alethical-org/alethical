@@ -702,6 +702,16 @@ def split_for_committee(
         ),
         None,
     )
+    if cash is None and finance.money_in.state == REPORTED:
+        # We hold this filer-year's contribution rows and not one of them is cash:
+        # the reader returns no cash entry, because in an itemized file absence is
+        # silence, and this is the one caller that knows the rows are held. Read as
+        # ``None`` it reached `named_money_split` as "no named payments", and the
+        # page then said the state's donation list names none of this money, over
+        # $3,868.19 of named in-kind donations to filer 60084 in 2025. Every row in
+        # the live release carries ``Yes`` or ``No`` in the source's own ``In-kind?``
+        # column, so this is a measured zero, exactly as ``_in_kind_out`` reads it.
+        cash = Decimal(0)
     stated = stated_split_for_year(db, release, registration_number, year)
     return named_money_split(
         finance,

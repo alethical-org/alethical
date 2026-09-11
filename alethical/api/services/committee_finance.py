@@ -171,6 +171,16 @@ class MoneyIn:
     than from the download, and ``reported_through`` is the date it runs to. Both are
     ``None`` when no filings snapshot is published, which is a fact about us. They are
     never added to the itemized figure: they are separate claims by separate sources.
+
+    **The figure is the filing's Cash column, not its Total column.** The Board's
+    totals route serves each contribution line as cash: filer 60084's 2025 year-end
+    prints "Total Contributions Received: Cash 0.00, In-kind 3,868.19, Total 3,868.19"
+    and the route serves ``Contributions received 0.00`` for it. A committee whose
+    donations were all goods and services therefore reports a cash line of $0 beside
+    itemized in-kind rows, and that $0 is not the filer's total, so ``money_in``
+    withholds it (``None``) rather than serving a zero the filing's own Total column
+    contradicts. 16 committee-years across 2024 to 2026 on the live release,
+    11 Sep 2026.
     """
 
     state: str
@@ -511,6 +521,20 @@ def money_in(
             period_start,
             source_url,
         )
+    if reported_total == 0 and _every_named_contribution_is_in_kind(
+        db, release, registration_number, year
+    ):
+        # The Board's line is the filing's Cash column, and this filing's cash was
+        # $0 because everything it took in was goods and services: filer 60084's 2025
+        # year-end states "Total Contributions Received: Cash 0.00, In-kind 3,868.19,
+        # Total 3,868.19". Served, that $0 sat under "Total contributions" on a live
+        # page, directly above $3,868 of itemized donations, which is a zero the
+        # filing's own Total column contradicts and not the verified zero rule 12
+        # allows. 16 committee-years across 2024 to 2026, 11 Sep 2026. A cash line
+        # above zero beside in-kind rows is still a real cash figure and is served;
+        # a cash line of $0 beside *cash* rows is a contradiction between the 2
+        # publications and stays served so the split can refuse it for that reason.
+        reported_total, reported_through, period_start = None, None, None
     return MoneyIn(
         REPORTED,
         contributions.total,
@@ -521,6 +545,21 @@ def money_in(
         period_start,
         source_url,
     )
+
+
+def _every_named_contribution_is_in_kind(
+    db: Session, release: Release, registration_number: str, year: int
+) -> bool:
+    """Whether none of the contribution rows we hold for this filer-year was cash.
+
+    **Only ever called once the caller knows it holds this filer-year's contribution
+    rows**, and only when the filing's cash line is $0, so the extra read runs on the
+    16 committee-years it applies to rather than on every page (#1966). ``in_kind``
+    is ``Yes`` or ``No`` on every row of the live release, so "we hold rows and no cash
+    row is among them" is a measurement, the same reading ``_in_kind_out`` makes.
+    """
+    cash = reader.contribution_cash(db, release, registration_number, years=[year])
+    return not any(entry.year == year and entry.rows > 0 for entry in cash)
 
 
 def _filed_figure(

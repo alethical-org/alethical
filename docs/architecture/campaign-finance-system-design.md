@@ -1456,7 +1456,22 @@ clause inside a paragraph about something else.
 
 **The total is reported; the split into itemized and not-itemized is computed. Decided this
 way deliberately.** §9 establishes that the route returns the filing's own total, so the large
-number on a card can never disagree with the filing, because it *is* the filing's number. The
+number on a card can never disagree with the filing, because it *is* the filing's number.
+
+**But it is the filing's Cash column, never its Total column.** Every contribution line the
+route serves equals its schedule's itemized plus non-itemized *cash* (§9.4's self-test, and the
+20008 arithmetic in §9.5, which reconciles only once the $5,751.39 of in-kind is left out).
+Read on filer 60084's 2025 year-end, whose summary prints "Total Contributions Received: Cash
+0.00, In-kind 3,868.19, Total 3,868.19" while the route serves $0.00: a committee whose
+donations were all goods and services reports a cash line of $0 beside itemized in-kind rows.
+That $0 is not the filer's total and is not rule 12's verified zero, so `money_in` withholds it
+where the cash line is $0 and every held contribution row is in kind, and the card draws the
+in-kind figure with no "Total contributions" line. 16 committee-years across 2024 to 2026 on
+the live release, 11 Sep 2026; 1 of them (19490, 2026) is a confirmed legislator's committee.
+A cash line above $0 beside in-kind rows is a real cash figure and is served, with the card's
+goods-and-services sentence saying the in-kind is counted separately; a $0 cash line beside
+*cash* rows is the 2 publications disagreeing and stays served so the split can refuse it for
+that reason. The
 filing also states its own itemized and non-itemized subtotals, but only on the report document,
 one request per filing and only for 2023 onward (§9.4). So the split is derived — reported total
 minus the rows we hold — and that derivation reproduced the filing's stated split to the penny

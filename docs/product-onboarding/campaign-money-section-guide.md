@@ -567,7 +567,12 @@ Top to bottom:
 5. **Money in — two numbers, both correct.** "Total contributions", the total the committee
    itself reported to the state, drawn only when the filing's total exists, and "Itemized
    contributions", the donations we can list with a donor's name, drawn always — a real
-   amount or the words "Not reported", never a blank. The labels are the filing's own words
+   amount or the words "Not reported", never a blank. The reported figure is the filing's
+   **cash** column, which is what the Board's totals service serves, so where that column is
+   $0 and every named donation was goods and services the figure is not drawn: the page
+   shows the in-kind donations and says it holds no official total it can stand behind
+   rather than printing a $0 the filing's own Total column contradicts (16 committee-years
+   across 2024 to 2026, 11 Sep 2026). The labels are the filing's own words
    (ruled by Eugene, 11 Sep 2026). Directly under the itemized figure a fixed sentence says
    what it is and states the naming rule, the one place on the card that rule appears. On
    most pages it reads exactly:
