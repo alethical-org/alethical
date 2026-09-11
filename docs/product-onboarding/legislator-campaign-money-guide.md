@@ -278,7 +278,9 @@ shown on 168 and does not exist on 74. The 7 held back are **special-election
 filer-years**, of which the live snapshot holds 39 in total: we have the number and refuse
 to stand behind it, because a special-election filing's totals copy cannot speak for a whole
 year. Rep. Xp Lee's committee 19223 for 2025 is one of them and holds $16,923.32 we will not
-publish.
+publish. Since 11 Sep 2026 a second reason holds a figure back: a cash line of $0 beside
+donations that were all goods and services (§ Missing, zero, and broken below), which moves
+1 of the 242 confirmed committees, Po Vang's 19490 for 2026, from shown to held back.
 
 **Never write that Minnesota "publishes no official total for a committee's spending".**
 Minnesota publishes one: the filed report's own "Total Expenditures and Disbursements"
