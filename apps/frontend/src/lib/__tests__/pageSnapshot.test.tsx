@@ -8,13 +8,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import billFixture from './fixtures/bill-page-snapshot.json';
 import committeeFixture from './fixtures/committee-money-page-snapshot.json';
-import {
-  emptyListTitle,
-  madePaymentRow,
-  paymentsEyebrow,
-  paymentsTitle,
-  statedSpendingNote,
-} from '../committeeMoney';
+import { emptyListTitle, madePaymentRow, paymentsEyebrow, paymentsTitle } from '../committeeMoney';
 import committeeEmptyYearFixture from './fixtures/committee-empty-year-snapshot.json';
 import committeePaymentsFixture from './fixtures/committee-payments-page-snapshot.json';
 import legislatorFixture from './fixtures/legislator-page-snapshot.json';
@@ -110,9 +104,9 @@ const {
   emptyYearMoneyInWhy,
   coveredPeriodLine,
   listLinkNote,
-  MONEY_OUT_FIGURE_LABEL,
+  MONEY_IN_REPORTED_LABEL,
   MONEY_OUT_REPORTED_LABEL,
-  moneyOutNote,
+  NAMED_DONATIONS_LINK_LABEL,
   receivedPaymentRow,
   showingLine,
   uncoveredPeriodLine,
@@ -1354,7 +1348,7 @@ describe('a committee’s record in the first response', () => {
   });
 
   // Rule 12's first requirement: the total the committee reported and the
-  // payments we can list are different figures, and both are shown.
+  // donations we can list with a name are different figures, and both are shown.
   it('shows the reported total AND the named total, and never subtracts them', () => {
     expect(text).toContain(formatMoney(split.reported_total));
     expect(text).toContain(formatMoney(split.named_total));
@@ -1362,19 +1356,24 @@ describe('a committee’s record in the first response', () => {
     expect(text).toContain(unnamedMoneyExplanation(false));
   });
 
-  // The first response is what a search engine and a reader on a slow connection get,
-  // so an unchecked spending figure must not read as checked here either (#1650).
-  it('says in the first response that nobody has checked this money out against the filing', () => {
-    expect(text).toContain(statedSpendingNote('not_run'));
+  // Ruled by Eugene, 11 Sep 2026: the money-out section is the filing's own figure
+  // alone, so the first response carries the same and nothing of ours beside it.
+  it('prints money out as the filing’s Expenditures figure and nothing else', () => {
+    expect(text).toContain(`${MONEY_OUT_REPORTED_LABEL}: ${formatMoney(moneyOut.reported_total)}`);
+    expect(text).not.toContain('spent');
+    expect(text).not.toContain('Payments we can list');
+    expect(text).not.toContain('never subtract');
+    expect(text).not.toContain('Given to other campaigns');
+    expect(text).not.toContain('Minnesota’s list of payments out');
+    expect(text).not.toContain(formatMoney(moneyOut.itemized_payment_total) + ' · ');
   });
 
-  it('labels money out as payments rather than as spending', () => {
-    expect(text).toContain(MONEY_OUT_REPORTED_LABEL);
-    expect(text).toContain(MONEY_OUT_FIGURE_LABEL);
-    expect(text).not.toContain('spent');
-    expect(text).toContain(
-      moneyOutNote('reported', false, true, Number(moneyOut.reported_total) === 0),
+  it('links the money-in source to the Board’s downloads page, never the download itself', () => {
+    const link = (snapshot.links ?? []).find((entry) => entry.label === NAMED_DONATIONS_LINK_LABEL);
+    expect(link?.href).toBe(
+      'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/',
     );
+    expect(html).not.toContain('?download=');
   });
 
   // Ruled 1 Sep 2026 (#1924): the payment count comes off both named figures, because
@@ -1396,25 +1395,34 @@ describe('a committee’s record in the first response', () => {
     expect(proseLines('Money out')).not.toContain('3 payments');
   });
 
-  // The other half of the same ruling, and the half a careless deletion breaks: a
-  // category row's count is that category's own fact, not a second printing of the
-  // figure's, so it stays. The non-donation receipt row is added here because the
-  // fixture carries none.
-  it('still counts the payments on a category row and on a non-donation receipt row', () => {
-    expect(text).toContain('Given to other campaigns · $2,700 · 3 payments');
-    const withReceipt = committeePageSnapshot(
-      {
-        ...committeeFixture,
-        money_in: {
-          ...committeeFixture.money_in,
-          other_receipts: [{ receipt_type: 'Miscellaneous', total: '375.00', payments: 1 }],
-        },
-      },
-      '41326',
-    );
-    expect(visibleText(renderPageSnapshot(withReceipt))).toContain(
-      'Miscellaneous · $375 · 1 payment',
-    );
+  // A non-donation receipt row's count is that row's own fact, so it stays — except on
+  // a `Miscellaneous` row, which is not drawn at all, and its heading goes with it
+  // (ruled by Eugene, 11 Sep 2026). The fixture carries no receipt rows of its own.
+  it('counts the payments on a non-donation receipt row, and hides a Miscellaneous one', () => {
+    const withReceipts = (rows: { receipt_type: string; total: string; payments: number }[]) =>
+      visibleText(
+        renderPageSnapshot(
+          committeePageSnapshot(
+            {
+              ...committeeFixture,
+              money_in: { ...committeeFixture.money_in, other_receipts: rows },
+            },
+            '41326',
+          ),
+        ),
+      );
+    const subsidy = withReceipts([
+      { receipt_type: 'Public Subsidy', total: '3000.00', payments: 1 },
+      { receipt_type: 'Miscellaneous', total: '375.00', payments: 1 },
+    ]);
+    expect(subsidy).toContain('Not a donation');
+    expect(subsidy).toContain('Public Subsidy · $3,000 · 1 payment');
+    expect(subsidy).not.toContain('Miscellaneous');
+    const onlyMisc = withReceipts([
+      { receipt_type: 'Miscellaneous', total: '375.00', payments: 1 },
+    ]);
+    expect(onlyMisc).not.toContain('Not a donation');
+    expect(onlyMisc).not.toContain('$375');
   });
 
   // Every page carrying a money figure carries one clearly labelled date for it.
@@ -1499,8 +1507,6 @@ describe('a committee’s record in the first response', () => {
         split.unnamed_total,
         split.named_in_kind_total,
         moneyOut.reported_total,
-        moneyOut.itemized_payment_total,
-        ...moneyOut.by_type.map((entry) => entry.total),
       ].map((value) => formatMoney(value)),
     );
     expect(servedAmounts.length).toBeGreaterThan(0);
@@ -1547,8 +1553,8 @@ describe('a filed zero is a number, not a gap', () => {
     // Whole dollars since #1924, so a filed zero reads "$0" rather than "$0.00". It is
     // still a figure and not a gap, which is the point of the test: the label carries a
     // number, never the "Not reported" wording an absent total gets.
-    expect(text).toContain('Donations this committee reported to the state: $0');
-    expect(text).not.toContain('Donations this committee reported to the state: Not reported');
+    expect(text).toContain(`${MONEY_IN_REPORTED_LABEL}: $0`);
+    expect(text).not.toContain(`${MONEY_IN_REPORTED_LABEL}: Not reported`);
     expect(text).toContain(ZERO_REPORTED_NOTE);
   });
 
@@ -1561,6 +1567,10 @@ describe('a filed zero is a number, not a gap', () => {
     };
     const missingText = visibleText(renderPageSnapshot(committeePageSnapshot(missing, '41326')));
     expect(missingText).toContain('Not reported');
+    // Money out with no served total reads the words, never $0 and never a missing line
+    // (rule 12; ruled 11 Sep 2026).
+    expect(missingText).toContain(`${MONEY_OUT_REPORTED_LABEL}: Not reported`);
+    expect(missingText).not.toContain(`${MONEY_OUT_REPORTED_LABEL}: $0`);
   });
 });
 
@@ -1735,11 +1745,9 @@ describe('the money screens keep reading the helpers the server reads', () => {
       'committeeEyebrow',
       'registeredForLine',
       'unnamedMoneyExplanation',
-      'moneyOutNote',
       'coveredPeriodDetail',
       'recordCoverageLines',
       'MONEY_OUT_REPORTED_LABEL',
-      'MONEY_OUT_FIGURE_LABEL',
       'centralDateLabel',
     ]) {
       expect(source).toContain(call);

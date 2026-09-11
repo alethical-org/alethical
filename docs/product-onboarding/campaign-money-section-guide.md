@@ -445,10 +445,10 @@ Three rules are the whole page, and each is enforced by a test on the read behin
   order ("DISTRICT, THEN NAME A–Z") beside the count so a reader never infers a ranking from where
   a row sits. The page never re-sorts what it is served.
 - **Every figure carries its own dates.** Each committee shows the same 2 money-in figures its own
-  page shows, under the same labels: "Donations this committee reported to the state", with the
-  period its filing states ("Figures for 1 Jan 2026 – 20 Jul 2026", or "Figures through 20 Jul
-  2026" where the Board's calendars print no start), and "Donations with a donor's name", with the
-  dates of the payments we hold ("Payments dated 3 Feb 2026 to 15 Jun 2026"). A committee with no
+  page shows, under the same labels: "Total contributions", with the period its filing states
+  ("Figures for 1 Jan 2026 – 20 Jul 2026", or "Figures through 20 Jul 2026" where the Board's
+  calendars print no start), and "Itemized contributions", with the dates of the payments we
+  hold ("Payments dated 3 Feb 2026 to 15 Jun 2026"). A committee with no
   filing for the year reads "Not reported", never $0. Where 2 committees in one contest report
   over different periods, a line above the rows says so.
 
@@ -564,16 +564,37 @@ Top to bottom:
    says its calendar is its own. If our own data service stops answering, the page keeps
    the figures it already had and says they are held until it answers — never expiring
    on a timer.
-5. **Money in — two numbers, both correct.** The total the committee itself reported to
-   the state, drawn only when the filing's total exists, and the donations we can list
-   with a donor's name, drawn always — a real amount or the words "Not reported", never a
-   blank. The split into named and unnamed money is decided by the server before the page
-   ever sees it, and the page never subtracts. When the split is safe, the unnamed figure
-   appears with the sentence explaining it (a committee only has to name a donor once that
-   donor has given more than $200 in total for the year, and may name a smaller one but
-   does not have to); no bar draws it, because a bar measured against the reported total
-   performs the same subtraction in a picture. Both money cards are drawn by the one
-   component the legislator profile's Campaign money tab uses
+5. **Money in — two numbers, both correct.** "Total contributions", the total the committee
+   itself reported to the state, drawn only when the filing's total exists, and "Itemized
+   contributions", the donations we can list with a donor's name, drawn always — a real
+   amount or the words "Not reported", never a blank. The labels are the filing's own words
+   (ruled by Eugene, 11 Sep 2026). Directly under the itemized figure a fixed sentence says
+   what it is and states the naming rule, the one place on the card that rule appears. On
+   most pages it reads exactly:
+
+   > Donations where the filing names who gave. Named donors include people, lobbyists,
+   > other campaigns, political committees and funds, and party organisations. Minnesota
+   > requires a committee to name a donor once that donor has given more than $200 in
+   > total for the year; a committee may name a smaller donor but does not have to.
+
+   On a ballot-question committee's page the last sentence reads instead: "Minnesota
+   requires a ballot-question committee to name a donor once that donor has given more
+   than $500 in total for the year, which is a higher line than the $200 a candidate's
+   committee carries; a committee may name a smaller donor but does not have to."
+
+   The split into named and unnamed money is decided by the server before the page ever
+   sees it, and the page never subtracts. When the split is safe, the "Non-itemized
+   contributions" figure appears with one sentence under it, the same for every kind of
+   filer and repeating no threshold: "Donations inside the committee's reported total whose
+   givers the state's public file does not name." No bar draws it, because a bar measured
+   against the reported total performs the same subtraction in a picture. Receipts that are
+   not donations (a public subsidy, interest, a loan) sit under a "Not a donation" heading
+   with the state's own label; **a row the state types `Miscellaneous` is not drawn, and
+   with no other row the heading is not drawn either** (ruled 11 Sep 2026). The card ends
+   with the link "Minnesota's campaign-finance downloads", which opens the Board's downloads
+   page rather than the 9 MB bulk download the server's address points at: the page strips
+   the `?download=` part, so a new release id cannot break the link. Both money cards are
+   drawn by the one component the legislator profile's Campaign money tab uses
    (`apps/frontend/src/components/campaignMoney/MoneyCards.tsx`), so the 2 pages cannot
    word the same money differently. In each case where a split would state something false — the two figures cover
    different periods, the sources disagree, our copy of the donation list is missing
@@ -611,59 +632,22 @@ Top to bottom:
    say whether a reader loaded one. The other 17 keep the sentence, because a difference
    the threshold does not explain is a real finding.
 
-6. **Money out — two numbers too, and never called "spending."** The filing's own
-   reported money-out total ("Payments out this committee reported to the state", with
-   the period it covers) sits above "Payments we can list", and the two are never added
-   or subtracted — they are separate claims by separate sources, exactly like money in.
-   What stays banned is calling the listed payments "spent": broken down by the filing's
-   own kinds, money given to other campaigns gets its own plainly-labelled line —
-   statewide, a large share of money out is transfers to other committees, and for a
-   caucus that is the point. A year our copy holds no reported total for says so as our
-   copy's gap.
+6. **Money out — the filing's own figure, and never called "spending."** One figure,
+   labelled "Expenditures" in the filing's own word (ruled by Eugene, 11 Sep 2026): the
+   committee's reported money-out total for the period, with its own period note where that
+   differs from the period panel's. The card is heading, label and amount, and nothing else:
+   no figure of ours beside it, no sentence comparing 2 figures, no rows by kind of payment,
+   and no link to the state's payments file. Where our copy holds no reported total the
+   figure reads the words "Not reported", never $0 and never a hidden card. What stays banned
+   is the word "spent": statewide, a large share of money out is transfers to other
+   committees, and for a caucus that is the point. The payments themselves, by kind, are
+   still on the Where it went tab below and on the every-payment page.
 
-   **And the first of the notes under those 2 figures changes when ours is the larger one,
-   because the usual explanation runs only one way.** The $200 naming threshold holds payments back,
-   so it can only make our list smaller. Where our list is bigger, the note says instead
-   that the 2 figures can disagree in either direction and names why: the committee's own
-   report counts money it paid, while the state's payments file also carries goods and
-   services given to it. Measured across every filer-year where a reader can see both
-   figures, 389 of 3,613 are in that shape, $17,267,605.45 in total, and 25 of those sit
-   on a committee confirmed for a sitting legislator, so they render inside a legislator
-   profile as well as on a committee page. Goods and services fully account for the excess
-   on 254 of the 389, which is most and not all, so the note names the mechanism and never
-   claims it explains the committee on screen.
-
-   **And under that, a second note saying whether anybody compared the payments we can list
-   against the report the committee itself filed with Minnesota.** Where the 2 agree it prints
-   nothing at all, so an ordinary committee-year draws exactly as it did before; where they
-   disagree it says so and refuses to pick a side; where nobody has compared them yet it says
-   that instead, and it says so for all 3 reasons that land there because none of them is a
-   pass. **This is a different comparison from the note above it**, and reading the 2 as one
-   would make their counts look like a contradiction: the note above compares our listed
-   payments against the committee's *reported total*, while this one compares the committee's
-   own *itemized* money-out subtotal, read off its filed report, against the payments the
-   state's file holds for the same period. Like against like, which is why this one can find a
-   shortfall the other cannot: 40 of the 217 disagreeing committee-years are the filing naming
-   $492,182.50 of money out our rows do not hold. The wording, all 3 outcomes and the full
-   count live in
-   [`legislator-campaign-money-guide.md`](legislator-campaign-money-guide.md) § Money out,
-   which owns what both money-out surfaces share
-   ([#1650](https://github.com/alethical-org/alethical/issues/1650)).
-
-   **And directly under "Payments we can list", where the committee-year has any, a line
-   naming how much of that figure was goods and services rather than money** -- the same
-   line money in has drawn under its named donations since
-   [#1332](https://github.com/alethical-org/alethical/issues/1332), and the reason it took
-   until [#1894](https://github.com/alethical-org/alethical/issues/1894) is that the server
-   sent no such figure for money out. Minnesota's payments file marks each payment cash or
-   in kind, and 21,983 of its 377,860 rows are in kind, across 2,393 of 12,319
-   committee-years. The line states the amount and stops: it never says the goods and
-   services are *why* the 2 money-out figures differ, because that is true of 254 of the
-   389 and false of the other 135, and the direction-flip note above already carries the
-   honest general explanation. **Nothing is drawn where the amount is not above zero**, which covers both a
-   committee-year whose payments we hold none of and one whose payments are all cash. 97
-   committee-years hold in-kind rows summing to exactly $0.00, and none of them prints a
-   "$0" line.
+   The comparison of the state's payments file against the committee's own filed report
+   still runs per committee-year and its verdict is still served; the card no longer prints
+   it, because the figure it judged is no longer on the card. Its mechanics are in
+   [`legislator-campaign-money-guide.md`](legislator-campaign-money-guide.md) § Where the
+   data comes from ([#1650](https://github.com/alethical-org/alethical/issues/1650)).
 
 7. **Three tabs on every page, and up to 2 more. The first two — Who gave and Where it went** — the six largest payments,
    ranked largest first (honest inside one committee; never across committees), each

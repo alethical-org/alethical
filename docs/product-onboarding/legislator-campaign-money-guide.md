@@ -192,17 +192,30 @@ we hold, which is why both get the same honest wording.
 
 ### Money in
 
-Two figures, and they are different things:
+Two figures, and they are different things. Their labels are the filing's own words, ruled
+by Eugene on 11 Sep 2026:
 
-- **Donations this committee reported to the state.** The committee's own report, drawn
-  only when we hold its total. The date the report runs to, and the link to the state's
-  site where its filed reports can be looked up by registration number, sit once in a
-  filing stamp above the money-in and money-out blocks rather than under either figure:
-  one filing produces both, so stating it per figure would state one fact twice.
-- **Donations with a donor's name.** The state publishes a spreadsheet of the donations
-  it required each committee to name. This is what that spreadsheet holds for the year,
-  with the dates of the first and last payment. Always drawn: a real amount, or the words
-  "Not reported", never a blank.
+- **Total contributions.** The committee's own report, drawn only when we hold its total.
+  The date the report runs to, and the link to the state's site where its filed reports
+  can be looked up by registration number, sit once in a filing stamp above the money-in
+  and money-out blocks rather than under either figure: one filing produces both, so
+  stating it per figure would state one fact twice.
+- **Itemized contributions.** The state publishes a spreadsheet of the donations it
+  required each committee to name. This is what that spreadsheet holds for the year, with
+  the dates of the first and last payment. Always drawn: a real amount, or the words
+  "Not reported", never a blank. Directly under it, before the goods-and-services line
+  where one draws, a fixed sentence says what the figure is and states the naming rule.
+  It is the one place on the card that rule is stated, and on a legislator's committee it
+  reads exactly:
+
+  > Donations where the filing names who gave. Named donors include people, lobbyists,
+  > other campaigns, political committees and funds, and party organisations. Minnesota
+  > requires a committee to name a donor once that donor has given more than $200 in
+  > total for the year; a committee may name a smaller donor but does not have to.
+
+  The committee page prints a second version of it for a ballot-question committee, whose
+  line is $500 ([`campaign-money-section-guide.md`](campaign-money-section-guide.md)
+  item 5); a legislator's committee is never one.
 
 Both blocks, and the evidence block at the card's foot, are drawn by the same component
 the committee's own page uses (`apps/frontend/src/components/campaignMoney/MoneyCards.tsx`),
@@ -211,15 +224,18 @@ the share of the reported donations that carry no name is printed here and not o
 committee page, and the goods-and-services sentence names the row marker only on the
 committee page, whose lists carry it.
 
-**Donations with nobody's name on them** is the difference between the two, shown as a
-dollar figure and as a share, and never as a bar. On a typical member roughly 4 dollars in 10 land here. The
-sentence under it is fixed and says exactly this:
+**Non-itemized contributions** is the difference between the two, shown as a dollar
+figure and as a share, and never as a bar. On a typical member roughly 4 dollars in 10 land
+here. The sentence under it is fixed, the same for every kind of filer, and says exactly
+this:
 
-> Minnesota only makes candidates name a donor once that donor has given more than $200
-> in total for the year. A campaign may name a smaller donor but does not have to, and for
-> this money the state's public file does not say who gave it.
+> Donations inside the committee's reported total whose givers the state's public file
+> does not name.
 
-**Read that as the donor's yearly total, never the size of a single gift.** 327,759 of
+It repeats no threshold, because the itemized sentence above it has already stated the
+rule once and one fact at 2 places on a card is the repeat Eugene ruled out.
+
+**Read the $200 as the donor's yearly total, never the size of a single gift.** 327,759 of
 the 583,152 published donation rows are individually under $200 and are named anyway,
 because that donor's yearly total had already passed the line.
 
@@ -229,99 +245,52 @@ campaign may name a smaller donor if it chooses. At least one does, so a page sa
 impossible is caught by any reader who opens that filing and finds a $75 donor listed by name
 ([#1755](https://github.com/alethical-org/alethical/issues/1755)).
 
-Money in that is not a donation — a loan the candidate made to their own campaign, most
-often — is listed separately under its own heading, with the state's own label. It is
-never added to the donation figure, because the filing carries it on a different
-schedule and the Board's own totals exclude it.
+Money in that is not a donation — a public subsidy, interest, a loan — is listed
+separately under its own heading, "Not a donation", with the state's own label. It is never
+added to the donation figure, because the filing carries it on a different schedule and the
+Board's own totals exclude it. **A row the state types `Miscellaneous` is not drawn** (ruled
+by Eugene, 11 Sep 2026), and when that was the only such row the heading is not drawn
+either. Every other kind still is.
+
+The link at the foot of the card, **Minnesota's campaign-finance downloads**, opens the
+Board's downloads page (`https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/`).
+The address the server sends is the bulk download itself, which streams a 9 MB statewide
+spreadsheet with no page behind it, so the card strips the `?download=` part and links to
+the page that download lives on.
 
 ### Money out
 
-**Payments out this committee reported to the state**, where we hold that figure, above
-**Payments we can list** with its count and its breakdown by the state's own labels for
-the kind of payment. Two figures, exactly as money in has 2, and never subtracted:
-`.claude/rules/grounded-answers.md` rule 12 wants a second number beside every money
-figure, and until 31 Aug 2026 money out was the only figure on this tab with none.
+**One figure, the filing's own: "Expenditures"**, the committee's reported money-out total
+for the period, with its own period note where that differs from the filing stamp's. Ruled by
+Eugene on 11 Sep 2026: the card is heading, label and amount, and nothing else. It no longer
+draws our own "payments we can list" figure, the sentence comparing the 2 figures, the
+sentence saying whether anybody compared them against the filed report, a goods-and-services
+line, rows by kind of payment, or a link to the state's payments file. Those are all
+statements about a figure of ours that is not on the card.
 
-**And a sentence saying whether anybody compared that figure against the report the
-committee itself filed with Minnesota.** This is the wording both money-out surfaces share,
-and it lives here; the committee page's own guide
-([`campaign-money-section-guide.md`](campaign-money-section-guide.md) item 6) points at this
-paragraph rather than restating it. Three outcomes:
-
-- **The two agree: no sentence at all**, and the card draws exactly as it did before. An
-  ordinary case gets no decoration.
-- **The two disagree**: the page says it compared them, that the committee's own filing
-  itemizes a different amount of money out from the one the state's payments file holds, and
-  that we show what each says and work out neither because we cannot tell which is right. It
-  never says which of the 2 figures is the larger one, because the disagreements run both
-  ways and any wording that picked a side would be wrong about a third of the time.
-- **Nobody has compared them yet**: the page says so, and says it cannot rule out that the
-  filing names payments our copy is missing. Three different reasons land here and all 3 get
-  this sentence, because none of them is a pass: we hold no copy of the filing's report
-  document, our own reader read a document and could not prove itself against figures we
-  already trust, or the comparison has not been run over the payments currently published.
-
-**This is a different comparison from the direction-flip note the committee page draws, and
-the 2 must not be read as one.** That one is our listed payments against the committee's
-*reported total*. This one is the committee's own *itemized* money-out subtotal, read off the
-filed report document, against the payments the state's file holds for the same period --
-like against like, which is why it can find a shortfall the other cannot. Measured on the
-live release, 2 Sep 2026, across all 4,124 committee-years of 2024, 2025 and 2026 the check
-reaches: 3,304 agree and 217 disagree, 481 we hold no filing document for, and 122 our own
-reader could not prove itself on. Of the 217, **40 are the filing naming money out our rows
-do not hold**, $492,182.50 of it, and 16 of those hold not one payment row while the filing
-names money out; the other 177 are our rows exceeding the filing's itemized figure,
-$1,698,395.18 of it. **33 of the 217 sit on a committee somebody has confirmed for a sitting
-legislator**, so they render on this tab as well as on a committee page, 6 of the 33 being
-the direction where the filing names more than we hold. A further 24 of the
-we-hold-no-document cases and 18 of the reader-could-not-prove-itself cases sit on a
-confirmed committee. Whether a person loaded any of those pages nothing we hold can say.
-
-**And the answers are only as fresh as the last run of the check.** Each answer is tied to the
-exact copy of Minnesota's download it was made about, so publishing a new copy retires all of
-them at once and every committee-year reads "nobody has compared these yet" until somebody
-re-runs it. That is honest and it is not the intended steady state; the fix is
-[#1922](https://github.com/alethical-org/alethical/issues/1922).
-Full measurement:
-[`campaign-finance-system-design.md`](../architecture/campaign-finance-system-design.md) §9.9
-(checks this design asks for), and
-[#1650](https://github.com/alethical-org/alethical/issues/1650).
-
-**And under "Payments we can list", where there is any, how much of it was goods and
-services rather than money.** Minnesota's payments file marks each payment cash or in kind,
-and this tab drew no such line until
-[#1894](https://github.com/alethical-org/alethical/issues/1894) because the legislator route
-sent no figure for it, while the donations half of the same card has named its own in-kind
-amount since [#1332](https://github.com/alethical-org/alethical/issues/1332). The line states
-the amount and explains nothing: it never claims the goods and services are why the 2
-money-out figures differ. Absent whenever the amount is not above zero, which is both a
-committee-year whose payments we hold none of and one whose payments are all cash -- never a
-drawn "$0", for the same reason nothing else here is.
+**Where we hold no reported total the figure reads the words "Not reported"**, set as words
+and never in the size money is set in. Never $0, and never a hidden card: a missing figure
+and a zero are different facts
+([grounded-answers.md rule 12](https://github.com/alethical-org/alethical/blob/main/.claude/rules/grounded-answers.md)).
+Counted across the 242 confirmed committees on 31 Aug 2026: for 2025 the figure can be
+shown on 199, is held back on 7, and does not exist in our copy on 36; for 2026 it can be
+shown on 168 and does not exist on 74. The 7 held back are **special-election
+filer-years**, of which the live snapshot holds 39 in total: we have the number and refuse
+to stand behind it, because a special-election filing's totals copy cannot speak for a whole
+year. Rep. Xp Lee's committee 19223 for 2025 is one of them and holds $16,923.32 we will not
+publish.
 
 **Never write that Minnesota "publishes no official total for a committee's spending".**
 Minnesota publishes one: the filed report's own "Total Expenditures and Disbursements"
-line, held in `cf_filing_figure.total_expenditures` for **3,630 filer-years**, which the
-committee page prints. The legislator route serves it, the tab draws it, and the sentence
-beneath says the 2 are separate claims never subtracted
+line, held in `cf_filing_figure.total_expenditures` for **3,630 filer-years**, which is
+the figure this card draws
 ([#1875](https://github.com/alethical-org/alethical/issues/1875): the tab once drew
 nothing and blamed Minnesota for the absence, while only the committee route served it).
 
-**Where the figure is genuinely absent, the sentence says the gap is ours.** Counted
-across the 242 confirmed committees on 31 Aug 2026: for 2025 the figure can be shown on
-199, is held back on 7, and does not exist in our copy on 36; for 2026 it can be shown on
-168 and does not exist on 74. The 7 held back are **special-election filer-years**, of
-which the live snapshot holds 39 in total: we have the number and refuse to stand behind
-it, because a special-election filing's totals copy cannot speak for a whole year. Rep. Xp
-Lee's committee 19223 for 2025 is one of them and holds $16,923.32 we will not publish.
-Nothing is drawn as a zero in any of those cases, because a missing figure and a zero are
-different facts.
-
-**And read "payments over $200" the way this guide already reads the donor threshold —
-as a floor on who a committee must name, never as a filter on the file.** 41,978 of the
-96,772 payment rows for 2024 to 2026 are individually $200.00 or less (157,121 of 377,860
-across the whole file), because a committee must name a recipient once the year's payments
-to them pass $200 and may name a smaller one if it chooses. Same correction as
-[#1755](https://github.com/alethical-org/alethical/issues/1755) made for donors.
+**The comparison against the committee's own filed report still runs**, and its verdict per
+committee-year is still stored and served (`stated_spending_state`); the card just no longer
+prints it, because the figure it judged is no longer on the card. Its mechanics are under
+"Where the data comes from" below.
 
 ### Spending by outside groups
 
@@ -723,7 +692,8 @@ describes records and the page frames them.
 - **The match between a member and a committee** is a row a named person wrote and
   signed ([#1354](https://github.com/alethical-org/alethical/issues/1354)). No score, no
   threshold and no name match ever creates one.
-- **The figure the money-out comparison reads** is the committee's own filed report
+- **The figure the money-out comparison reads** (a verdict the route serves and, since
+  11 Sep 2026, the card no longer prints) is the committee's own filed report
   document, kept in our own store, so the comparison asks the Board for nothing. It is read
   by `stated_spending` in `alethical/pipeline/campaign_finance_report_documents.py`, the
   comparison is run by `alethical/pipeline/campaign_finance_stated_spending.py`, and its one

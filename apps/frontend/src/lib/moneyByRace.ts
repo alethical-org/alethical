@@ -114,10 +114,10 @@ export const MIXED_PERIODS_NOTE =
   'The reported totals in this contest cover different periods — each row states its own';
 
 /** The label on the first figure, verbatim from the committee page's money-in card. */
-export const REPORTED_FIGURE_LABEL = 'Donations this committee reported to the state';
+export const REPORTED_FIGURE_LABEL = 'Total contributions';
 
 /** The label on the second figure, verbatim from the committee page's money-in card. */
-export const NAMED_FIGURE_LABEL = 'Donations with a donor’s name';
+export const NAMED_FIGURE_LABEL = 'Itemized contributions';
 
 /** What stands in for a figure we do not hold. Words, never `$0`. */
 export const NOT_REPORTED_VALUE = 'Not reported';

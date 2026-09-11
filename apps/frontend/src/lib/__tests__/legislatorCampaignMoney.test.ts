@@ -16,7 +16,6 @@ import {
   EARLIEST_CAMPAIGN_MONEY_YEAR,
   LINK_UNCONFIRMED_EXPLANATION,
   type FilingSchedule,
-  UNNAMED_MONEY_EXPLANATION,
   campaignMoneyYear,
   campaignMoneyYears,
   formatDay,
@@ -35,7 +34,6 @@ import {
   emptyStateFor,
   filingScheduleNote,
   statedSplitNote,
-  spendingNote,
   splitExplanation,
   unnamedShareLabel,
 } from '../legislatorCampaignMoney';
@@ -149,41 +147,6 @@ describe('moneyFigure', () => {
   });
 });
 
-describe('the sentence explaining money with no name on it', () => {
-  it('puts the $200 threshold on the donor’s yearly total, never on one gift', () => {
-    expect(UNNAMED_MONEY_EXPLANATION).toContain('more than $200 in total for the year');
-  });
-
-  it('states the threshold as a floor on who must be named, never as a ban', () => {
-    // The statute's words are that a contributor "must then be listed" once the
-    // aggregate exceeds the threshold, and nothing in it forbids naming a smaller
-    // one. Filer 18135's 2026 pre-general itemizes 215 donors at or under $200 and
-    // reconciles to the cent (campaign-finance-system-design.md §2.3), so a reader
-    // can open a real filing that contradicts the absolute (#1755).
-    expect(UNNAMED_MONEY_EXPLANATION).toContain('may name a smaller donor but does not have to');
-    expect(UNNAMED_MONEY_EXPLANATION).not.toContain('never named');
-  });
-
-  it("says the state's file does not name them, not that nobody knows", () => {
-    // The source proves only what Minnesota published. The committee knows who gave it,
-    // and another record may say so, which makes "nobody knows" a claim about the world
-    // that this file cannot support.
-    expect(UNNAMED_MONEY_EXPLANATION).toContain('public file does not say who gave it');
-    expect(UNNAMED_MONEY_EXPLANATION).not.toContain('nobody knows');
-  });
-
-  it('never says that small donations go unnamed', () => {
-    // 327,759 of the 583,152 published rows are individually under $200 and are named
-    // anyway, because that donor's yearly total had already passed it.
-    expect(UNNAMED_MONEY_EXPLANATION).not.toMatch(/small (gift|donation|payment)/i);
-    expect(UNNAMED_MONEY_EXPLANATION).not.toMatch(/under \$200|below \$200|less than \$200/i);
-  });
-
-  it('says candidates, because a ballot-question committee’s threshold is $500', () => {
-    expect(UNNAMED_MONEY_EXPLANATION).toContain('candidates');
-  });
-});
-
 describe('splitExplanation', () => {
   it('says nothing when the split is honest and the figures speak', () => {
     expect(splitExplanation('shown')).toBeNull();
@@ -294,31 +257,6 @@ describe('splitExplanation', () => {
     ] as const) {
       expect(splitExplanation(state)).not.toMatch(/hid|conceal|refus|failed to (report|file)/i);
     }
-  });
-});
-
-describe('spendingNote', () => {
-  it('says there is no bigger number, beside a real figure', () => {
-    // Was 'no bigger number', which sat beside the claim that Minnesota publishes no
-    // spending total. Minnesota publishes one for 3,630 filer-years, so what has to
-    // survive is the $200 sentence and nothing that speaks for Minnesota's records.
-    expect(spendingNote('reported')).toContain('$200 in total for the year');
-  });
-
-  it('says an absent figure is not a spending of zero', () => {
-    // The sentence beside a figure would be explaining a number that is not on the
-    // screen, and a reader takes the absence as zero. This is the same
-    // missing-versus-zero failure as a "$0", one step further out.
-    const text = spendingNote('not_reported');
-    expect(text).toContain('does not mean the committee paid out nothing');
-    expect(text).not.toContain('no bigger number');
-    // Money out is never called spending here: a large share of it is money given to
-    // other campaigns, and the committee page's own note words this state the same way.
-    expect(text).not.toContain('spent nothing');
-  });
-
-  it('says a load failed rather than blaming the committee', () => {
-    expect(spendingNote('unavailable')).toMatch(/our copy/);
   });
 });
 
@@ -890,78 +828,6 @@ describe('what the card says about who checked the match', () => {
       partyAgreement: null,
     });
     expect(sentences).toEqual(['Checked by Alethical on Aug 31, 2026']);
-  });
-});
-
-describe('the spending note never speaks for what Minnesota publishes', () => {
-  // The shipped defect: this block told readers Minnesota "publishes no official total
-  // for a committee's spending". Minnesota publishes one. cf_filing_figure holds a
-  // total_expenditures line for 3,630 filer-years, our own committee route serves it, and
-  // our own committee page prints it 2 clicks away. A reader who wanted the official
-  // figure was told not to look for it.
-  const everyState = ['reported', 'not_reported', 'unavailable'] as const;
-
-  it('never claims Minnesota publishes no spending total, in any state', () => {
-    for (const state of everyState) {
-      expect(spendingNote(state)).not.toMatch(/publishes no official total/i);
-      expect(spendingNote(state)).not.toMatch(/Minnesota[^.]*no (?:official )?total/i);
-    }
-  });
-
-  // The money-in block on the same screen already says the true version, and the
-  // difference is which side the gap is on: ours, not Minnesota's.
-  it('puts a missing comparison on our side of the line', () => {
-    // Was 'we do not repeat it here yet', which was true for the hours between removing
-    // the false claim about Minnesota and drawing the figure. The page draws it now, so
-    // what has to survive is that a missing comparison is described as ours.
-    const note = spendingNote('reported');
-    expect(note).toContain('that we can stand behind');
-    expect(note).not.toContain('no bigger number');
-  });
-
-  it('still says the list is not everything, which is the true half', () => {
-    expect(spendingNote('reported')).toContain('$200 in total for the year');
-    expect(spendingNote('reported')).toContain('not everything');
-  });
-
-  // Unchanged and load-bearing: an absent figure must never read as a paying-out of zero.
-  it('keeps refusing to let nothing named read as nothing paid out', () => {
-    expect(spendingNote('not_reported')).toContain('does not mean the committee paid out nothing');
-  });
-});
-
-describe('money out finally has its second number', () => {
-  // Rule 12 wants a second figure beside every money figure, so a reader can see what
-  // our list does and does not cover. Money out was the only figure on this tab with
-  // none: the route served the committee's own reported total, the client mapping
-  // dropped it, and the page then told readers Minnesota published no such total. It
-  // publishes one for 3,630 filer-years.
-  it('says the 2 figures are separate claims when both are on screen', () => {
-    const note = spendingNote('reported', true);
-    expect(note).toContain('2 different figures from Minnesota');
-    expect(note).toContain('never subtract one from the other');
-    expect(note).toContain('$200 in total for the year');
-  });
-
-  // Null is not zero and not Minnesota's fault. We hold no total for some
-  // committee-years, and on a special-election filer-year we hold one and refuse to
-  // stand behind it: 39 such filer-years are in the live snapshot, including Rep. Xp
-  // Lee's committee 19223 for 2025, which holds $16,923.32 we will not publish.
-  it('puts a missing comparison on our side when only our list is on screen', () => {
-    const note = spendingNote('reported', false);
-    expect(note).toContain('that we can stand behind');
-    expect(note).not.toContain('2 different figures from Minnesota');
-  });
-
-  it('still never claims Minnesota publishes no spending total, either way', () => {
-    for (const has of [true, false]) {
-      expect(spendingNote('reported', has)).not.toMatch(/publishes no official total/i);
-      expect(spendingNote('reported', has)).not.toMatch(/Minnesota[^.]*no (?:official )?total/i);
-    }
-  });
-
-  it('defaults to the honest sentence when the caller says nothing', () => {
-    expect(spendingNote('reported')).toBe(spendingNote('reported', false));
   });
 });
 

@@ -244,46 +244,60 @@ export function confirmedMemberMoneyPath(slug: string): string {
 }
 
 /**
- * Why some donations carry nobody's name, worded per filer kind. The ordinary
- * sentence states the $200 test on a donor's yearly total (rule 12's exact
- * framing), as a floor on who a committee MUST name rather than a ban on naming
- * anyone smaller: the statute's own words are that a contributor "must then be
- * listed" once the aggregate exceeds the threshold, and nothing in it forbids
- * naming a smaller one. Filer 18135's 2026 pre-general itemizes 215 donors at or
- * under $200 and reconciles to the cent
- * (`docs/architecture/campaign-finance-system-design.md` §2.3), so "are never
- * named" was a false absolute (#1755). A ballot-question filer's page carries a
- * threshold of **$500** rather than the $200 a candidate's committee carries, because
- * that is what both sources covering these filers say: Minnesota Statutes 10A.20
- * subd. 3(c), and the Board's own *Independent Expenditure and Ballot Question Political
- * Committee and Fund Handbook* (revised 08/27/2026, its newest), in its itemization
- * passage and a worked example. Both read at source 31 Aug 2026.
+ * The sentence directly under the Itemized contributions figure, on both surfaces
+ * (ruled by Eugene, 11 Sep 2026, word for word). It is the one place on the card that
+ * states the naming rule, and it states it as rule 12 frames it: a test on a donor's
+ * yearly total, and a floor on who a committee MUST name rather than a ban on naming
+ * anyone smaller. The statute's own words are that a contributor "must then be listed"
+ * once the aggregate exceeds the threshold, and nothing in it forbids naming a smaller
+ * one; filer 18135's 2026 pre-general itemizes 215 donors at or under $200 and
+ * reconciles to the cent (`docs/architecture/campaign-finance-system-design.md` §2.3),
+ * so "are never named" was a false absolute (#1755).
  *
- * **Two earlier versions of this sentence were wrong, in opposite directions, and both
- * are worth remembering.** It first told readers "official sources disagree about that
+ * A ballot-question filer's page carries **$500** rather than the $200 a candidate's
+ * committee carries, because that is what both sources covering these filers say:
+ * Minnesota Statutes 10A.20 subd. 3(c), and the Board's own *Independent Expenditure and
+ * Ballot Question Political Committee and Fund Handbook* (revised 08/27/2026, its
+ * newest), in its itemization passage and a worked example. Both read at source
+ * 31 Aug 2026. An earlier sentence told readers "official sources disagree about that
  * threshold for ballot-question committees", which was false and was live on filer
- * 60083's 2025 page beside $8,459.00 of unnamed money. The $200 reading it rested on
- * came from the *Political Committee and Political Fund Handbook*, whose reporting
- * instructions are written for the general-purpose kind of filer: a handbook for
- * different filers, not a source that contradicts. It then stated no figure at all,
- * which was honest but told a reader less than Minnesota publishes. Eugene lifted the
- * ban on 31 Aug 2026.
+ * 60083's 2025 page: the $200 reading it rested on came from the *Political Committee
+ * and Political Fund Handbook*, written for a different kind of filer.
  */
-export function unnamedMoneyExplanation(isBallot: boolean): string {
+export function itemizedContributionsNote(isBallot: boolean): string {
+  const who =
+    'Donations where the filing names who gave. Named donors include people, lobbyists, ' +
+    'other campaigns, political committees and funds, and party organisations. ';
   if (isBallot) {
     return (
-      'These donations are inside the committee’s own reported total, and the ' +
-      'state’s public file does not say who gave them. Minnesota only makes a ' +
-      'ballot-question committee name a donor once that donor has given more than ' +
-      '$500 in total for the year, which is a higher line than the $200 a ' +
-      'candidate’s committee carries. A committee may name a smaller donor but ' +
+      who +
+      'Minnesota requires a ballot-question committee to name a donor once that donor ' +
+      'has given more than $500 in total for the year, which is a higher line than the ' +
+      '$200 a candidate’s committee carries; a committee may name a smaller donor but ' +
       'does not have to.'
     );
   }
   return (
-    'Minnesota only makes a committee name a donor once that donor has given more ' +
-    'than $200 in total for the year. A committee may name a smaller donor but does ' +
-    'not have to, and for this money the state’s public file does not say who gave it.'
+    who +
+    'Minnesota requires a committee to name a donor once that donor has given more ' +
+    'than $200 in total for the year; a committee may name a smaller donor but does ' +
+    'not have to.'
+  );
+}
+
+/**
+ * The sentence under the Non-itemized contributions figure. One sentence, the same for
+ * every filer kind (ruled by Eugene, 11 Sep 2026): the naming rule is stated once on
+ * the card, under the itemized figure above, so this says only what this money is. It
+ * says the state's file does not name the givers, **not** that nobody knows who they
+ * are: the second is a claim about the world this source cannot support. The `isBallot`
+ * parameter stays so callers do not change.
+ */
+export function unnamedMoneyExplanation(isBallot: boolean): string {
+  void isBallot;
+  return (
+    'Donations inside the committee’s reported total whose givers the state’s public ' +
+    'file does not name.'
   );
 }
 
@@ -537,16 +551,21 @@ export function notFoundBody(registrationNumber: string): string {
 export const MONEY_IN_HEADING = 'Money in';
 export const MONEY_OUT_HEADING = 'Money out';
 
-/** "Reported to the state", never "Raised in total": the 2 are the same only when the
- *  report covers the whole year, and a report that stops in March makes the second
- *  false while the first stays true beside its own coverage date. */
-export const MONEY_IN_REPORTED_LABEL = 'Donations this committee reported to the state';
+/** The filing's own total, in the filing's own words (ruled by Eugene, 11 Sep 2026).
+ *  Never "Raised in total": the 2 are the same only when the report covers the whole
+ *  year, and a report that stops in March makes the second false while the first stays
+ *  true beside its own coverage date. */
+export const MONEY_IN_REPORTED_LABEL = 'Total contributions';
 
-/** The named figure. Always drawn: a real amount or the words "Not reported", never a
- *  blank, because a card with a hole where a figure should be reads as broken. */
-export const MONEY_IN_NAMED_LABEL = 'Donations with a donor’s name';
+/** The named figure, in the filing's own word for it (ruled by Eugene, 11 Sep 2026).
+ *  Always drawn: a real amount or the words "Not reported", never a blank, because a
+ *  card with a hole where a figure should be reads as broken. The sentence under it
+ *  (`itemizedContributionsNote`) says what the word means. */
+export const MONEY_IN_NAMED_LABEL = 'Itemized contributions';
 
-export const MONEY_IN_UNNAMED_LABEL = 'Donations with nobody’s name on them';
+/** The filing's own word for money reported as a lump with no donor listed (ruled by
+ *  Eugene, 11 Sep 2026). The sentence under it says what the word means. */
+export const MONEY_IN_UNNAMED_LABEL = 'Non-itemized contributions';
 
 /** The heading over the receipt rows that are not donations — a loan, a public
  *  subsidy, interest. Short because the card heading 2 elements above already says
@@ -554,15 +573,48 @@ export const MONEY_IN_UNNAMED_LABEL = 'Donations with nobody’s name on them';
  *  (ruled by Eugene, 2 Sep 2026, in the campaign-money design's copy proposals). */
 export const NOT_A_DONATION_HEADING = 'Not a donation';
 
+/**
+ * The receipt kind the cards do not draw (ruled by Eugene, 11 Sep 2026). Matched against
+ * the served value exactly: `Miscellaneous` is the Board's own kind on the contributions
+ * file, and a page that hides it draws no `Not a donation` heading when no row is left.
+ * Every other kind (a public subsidy, interest, a loan) still draws with its own label.
+ */
+export const HIDDEN_RECEIPT_KIND = 'Miscellaneous';
+
+/** The receipt rows a card draws: every served row except the hidden kind. Generic over
+ *  the row shape because the app's mapped rows carry `receiptType` and the first
+ *  response's raw rows carry `receipt_type`, and one filter has to serve both. */
+export function shownReceiptRows<T>(
+  rows: readonly T[] | null | undefined,
+  kindOf: (row: T) => string,
+): T[] {
+  return (rows ?? []).filter((row) => kindOf(row) !== HIDDEN_RECEIPT_KIND);
+}
+
 /** The link to the Board's own viewer, where a reader looks the filing up by its
  *  registration number. Drawn once per page, in the filing stamp above both cards,
  *  never inside one: one filing produces both cards, so a link inside money in alone
  *  makes that card look like it owns the filing. */
 export const FILED_REPORTS_LINK_LABEL = 'This committee’s filed reports, on the state’s own site';
 
-/** The 2 source links at the foot of the cards, to the state's own downloads. */
-export const NAMED_DONATIONS_LINK_LABEL = 'Minnesota’s list of named donations';
-export const PAYMENTS_OUT_LINK_LABEL = 'Minnesota’s list of payments out';
+/**
+ * The source link at the foot of the money-in card, to the Board's downloads page.
+ *
+ * The server sends the address of the bulk download itself
+ * (`.../data-downloads/campaign-finance/?download=<id>`), which streams a 9 MB statewide
+ * spreadsheet with no page behind it, so in a browser nothing readable opens. The card
+ * links to the page that download lives on instead (ruled by Eugene, 11 Sep 2026), and
+ * derives it here from the served address rather than hard-coding it, so a future release
+ * id cannot break it and the served field stays untouched.
+ */
+export const NAMED_DONATIONS_LINK_LABEL = 'Minnesota’s campaign-finance downloads';
+
+/** The page a Board bulk-download address lives on: the same address with its
+ *  `?download=<id>` query removed. An address with no query comes back as it is. */
+export function downloadsPageUrl(sourceUrl: string): string {
+  const cut = sourceUrl.indexOf('?');
+  return cut === -1 ? sourceUrl : sourceUrl.slice(0, cut);
+}
 
 /**
  * The one coverage date the filing stamp above both cards states, or null when no
@@ -597,206 +649,15 @@ export function reportedThroughNote(
 // --- Money out labels ----------------------------------------------------------------
 
 /**
- * The plain label for a money-out kind. `Contribution` on the expenditures file is
- * money given to another committee — statewide, $270M of $712M money-out — and for
- * a caucus that share is the point, so it gets the plain words. Every other label
- * is the source's own, verbatim.
+ * The money-out card is the filing's own figure and nothing else (ruled by Eugene,
+ * 11 Sep 2026): heading, this label, the reported amount with its period note. No figure
+ * of ours sits beside it, so there is no second number to compare, no sentence about
+ * subtraction, and no rows of payment kinds. The filing's own word for the figure,
+ * labelled as the filing's claim and never as "spent". When no reported total is served
+ * the figure reads the words "Not reported", never $0 and never a hidden card
+ * (`.claude/rules/grounded-answers.md` rule 12).
  */
-export function moneyOutKindLabel(expenditureType: string): string {
-  return expenditureType === 'Contribution' ? 'Given to other campaigns' : expenditureType;
-}
-
-/** Money out is never called "spent": 38% of it statewide is money given to other
- *  committees, so the neutral heading is fixed here where a test can hold it. */
-export const MONEY_OUT_FIGURE_LABEL = 'Payments we can list';
-
-/** The filing's own money-out total — rule 12's second number for this card,
- *  labelled as the filing's claim, never as "spent". */
-export const MONEY_OUT_REPORTED_LABEL = 'Payments out this committee reported to the state';
-
-/**
- * Whether our listable payments total is larger than the committee's own reported total.
- *
- * The one comparison the money-out note has to make, and it is a comparison rather than a
- * subtraction: the 2 figures are never subtracted, only asked which is bigger, because
- * which is bigger decides which sentence is true. Blank or unreadable on either side is
- * false, so a missing figure never produces a claim about a gap.
- */
-export function listedExceedsReported(
-  reportedTotal: string | number | null | undefined,
-  listedTotal: string | number | null | undefined,
-): boolean {
-  // Blank before numeric, and this order is the whole guard. `Number(null)` and
-  // `Number('')` are both 0, so a missing reported total would read as 0 and every
-  // listable figure would look like a gap. A non-numeric string needs no check: it
-  // becomes NaN and every comparison against NaN is already false.
-  if (reportedTotal === null || reportedTotal === undefined || reportedTotal === '') return false;
-  if (listedTotal === null || listedTotal === undefined || listedTotal === '') return false;
-  return Number(listedTotal) > Number(reportedTotal);
-}
-
-/**
- * The sentence under the money-out figure, per served state. A ballot-question filer's
- * page names the payments threshold without a figure: the $500 the statute and the
- * Board's handbook set is the donor-itemization threshold, and no source we hold sets a
- * ballot-question figure for the payments file.
- */
-export function moneyOutNote(
-  state: 'reported' | 'not_reported' | 'unavailable',
-  isBallot: boolean,
-  hasReportedTotal = false,
-  reportedTotalIsZero = false,
-  ourListExceedsReportedTotal = false,
-): string {
-  if (state === 'unavailable') {
-    return 'We could not read this committee’s payments out of our copy of Minnesota’s file.';
-  }
-  if (state === 'not_reported') {
-    if (hasReportedTotal && reportedTotalIsZero) {
-      // The filing's own zero: "that does not mean it paid out nothing" would
-      // contradict the committee's own report sitting right above it.
-      return (
-        'The committee’s own report to the state says it paid out nothing in this ' +
-        'period, and the state’s payments file names no payment for it. That is the ' +
-        'filing’s own zero, not a gap in our records.'
-      );
-    }
-    if (hasReportedTotal) {
-      return (
-        'The total above is the filing’s own figure. The state’s payments file names ' +
-        'none of its payments for this year' +
-        (isBallot ? '' : ' — it names only recipients paid more than $200 in total for the year') +
-        ', so we cannot list any of them.'
-      );
-    }
-    return isBallot
-      ? 'Minnesota’s public file names only payments above a naming threshold, and it names none for this committee this year. That does not mean the committee paid out nothing.'
-      : 'Minnesota only names a recipient once payments to them pass $200 in total for the year, and it named none for this committee this year. That does not mean the committee paid out nothing.';
-  }
-  if (hasReportedTotal) {
-    // **The naming threshold cannot explain a list that is BIGGER than the filing's own
-    // total, and saying it does is a false claim on a named politician's page.** The
-    // threshold only ever holds payments back, so it can only make our list smaller. On
-    // Lisa Demuth's Governor committee for 2025 our list is $60,286.21 against the
-    // filing's $41,331.05 — $18,955.16 larger — and the sentence below used to blame the
-    // threshold for it. Measured across every filer-year where a reader can see both
-    // figures: 389 of 3,613 have our list larger, $17,267,605.45 in total, and 25 of
-    // those sit on a committee a person has confirmed for a sitting legislator, so they
-    // render inside a legislator profile as well as on a committee page.
-    //
-    // What actually causes it, measured to the cent on that committee: the filing's total
-    // counts cash, and the state's payments file also carries goods and services. In-kind
-    // fully accounts for the excess on 254 of the 389, which is most of them and not all
-    // of them, so this sentence names the mechanism WITHOUT claiming it explains this
-    // committee's gap. Naming a cause that is right 254 times out of 389 on a named
-    // person's page is the same failure in a new coat.
-    //
-    // This sentence stays general on purpose, and that is no longer because the figure
-    // is missing. Since
-    // [#1894](https://github.com/alethical-org/alethical/issues/1894) the server sends
-    // an in-kind money-out total and `inKindOutNote` below prints it as its own line,
-    // the same shape the money-IN card uses for `named_in_kind_total`. The 2 lines do
-    // different jobs: that one states an amount we hold, this one says the 2 figures
-    // count different things and refuses to name a cause for the gap. Folding the
-    // amount into this sentence would turn a fact into an explanation, which is the
-    // 254-of-389 guess the paragraph above is about.
-    if (ourListExceedsReportedTotal) {
-      return (
-        'These are 2 different figures from Minnesota and we never subtract one from the ' +
-        'other. They can disagree in either direction because they count different ' +
-        'things: the committee’s own report counts money it paid, while the state’s ' +
-        'payments file also carries goods and services given to it, and the file names a ' +
-        'recipient only once payments to them pass $200 in total for the year. ' +
-        'Money out is not all spending: some of it is money given to other campaigns, ' +
-        'listed below.'
-      );
-    }
-    return isBallot
-      ? 'The total above is the filing’s own figure for the period it names. The payments we can list come from the state’s payments file, which names only payments above a naming threshold, so the two are different figures and we do not subtract one from the other. Money out is not all spending: some of it is money given to other campaigns, listed below.'
-      : 'The total above is the filing’s own figure for the period it names. The payments we can list come from the state’s payments file, which names a recipient only once payments to them pass $200 in total for the year, so the two are different figures and we do not subtract one from the other. Money out is not all spending: some of it is money given to other campaigns, listed below.';
-  }
-  return isBallot
-    ? 'Our copy of the state’s figures holds no reported total for this year’s money out, so there is no bigger number to compare this against. Money out is not all spending: some of it is money given to other campaigns, listed below.'
-    : 'Our copy of the state’s figures holds no reported total for this year’s money out, so there is no bigger number to compare this against. Minnesota only names a recipient once payments to them pass $200 in total for the year. Money out is not all spending: some of it is money given to other campaigns, listed below.';
-}
-
-/**
- * What the money-out card says about whether anyone checked it, or null when the
- * ordinary case needs no decoration.
- *
- * The money-out twin of `statedSplitNote` in `legislatorCampaignMoney.ts`, and it
- * exists because until [#1650](https://github.com/alethical-org/alethical/issues/1650)
- * a spending figure nobody had compared against the committee's own filed report was
- * drawn exactly like one that had been. Measured on the live release, 1 Sep 2026,
- * across all 4,124 committee-years of 2024, 2025 and 2026 that the check reaches:
- * 3,313 agree, 208 disagree, 481 the Board serves us no document for, and 122 our own
- * reader could not prove itself on.
- *
- * **`disagrees` gets its own sentence, and it is the reason this function is not just
- * a caveat.** 40 of the 208 are the direction that publishes silently: the committee's
- * own filing itemizes $495,305.39 of payments our copy does not hold, 17 of those
- * committee-years holding not one row while the filing names money out. On those pages
- * "Payments we can list" is short, and the card's ordinary note offers 2 benign reasons
- * for a gap — the $200 naming threshold and goods and services — neither of which
- * applies to a figure the filing's own itemized subtotal contradicts. Leaving that
- * explanation standing alone would hand a reader a reassurance the check has already
- * disproved.
- *
- * **It never says which figure is the larger one.** The 208 run in both directions,
- * 168 of them ours being larger, so any wording that picks a side is wrong about a
- * third of the time — the same trap `splitExplanation` fell into on the money-in side.
- *
- * **No figure is withheld, and that is Eugene's ruling of 12 Aug 2026 rather than a
- * softer reading of it**: where 2 of Minnesota's own publications disagree and we
- * cannot derive the truth, we show both and say plainly that they disagree. Money out
- * prints no derived third number, so unlike the money-in split there is nothing a
- * disagreement could make false by subtraction.
- */
-export function statedSpendingNote(state: string | null | undefined): string | null {
-  if (state === 'agrees') return null;
-  if (state === 'disagrees') {
-    return (
-      'We compared this against the report the committee filed, and the two do not ' +
-      'agree: its own filing itemizes a different amount of money out from the one ' +
-      'the state’s payments file holds for it. We show what each says and work out ' +
-      'neither, because we cannot tell which is right.'
-    );
-  }
-  return (
-    'We have not yet compared this against the report the committee filed, so we ' +
-    'cannot rule out that its filing names payments our copy is missing.'
-  );
-}
-
-/**
- * The money-out card's goods-and-services line, or null when there is nothing to say.
- *
- * Minnesota's payments file carries goods and services given to a committee as a
- * payment out marked in kind, so an itemized money-out figure is not all cash, and a
- * reader shown only the total will read all of it as cash spent. The money-in card has
- * said exactly how much was goods and services since #1332; money out could only name
- * the mechanism until the server started sending this figure
- * ([#1894](https://github.com/alethical-org/alethical/issues/1894)).
- *
- * **States an amount and explains nothing.** It does not say this is why the 2 money-out
- * figures differ, because on 254 of the 389 committee-years where our list is the larger
- * figure in-kind fully accounts for the gap and on the other 135 it does not, and naming
- * a cause that is right two-thirds of the time under a named politician's photograph is
- * the failure `.claude/rules/grounded-answers.md` rule 3 forbids.
- *
- * Null covers 2 different facts and prints nothing for both, which is deliberate: a
- * committee-year we hold no payment rows for sends no figure at all, and one whose rows
- * are all cash sends a measured 0. Rule 12 forbids printing "$0.00" for the first, and
- * the second is a sentence with no information in it.
- */
-export function inKindOutNote(inKindTotal: string | null | undefined): string | null {
-  if (!isAmountAboveZero(inKindTotal)) return null;
-  return (
-    `${formatMoney(inKindTotal ?? null)} of the payments above were goods and services ` +
-    'rather than money. The state counts those separately from the total the committee ' +
-    'reported.'
-  );
-}
+export const MONEY_OUT_REPORTED_LABEL = 'Expenditures';
 
 // --- The two lists and the payments view ----------------------------------------------
 

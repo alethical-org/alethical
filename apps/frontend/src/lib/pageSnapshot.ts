@@ -86,8 +86,8 @@ import {
   emptyYearMoneyInWhy,
   IN_KIND_CHIP,
   isBallotQuestionFiler,
+  downloadsPageUrl,
   listLinkNote,
-  MONEY_OUT_FIGURE_LABEL,
   MONEY_IN_NAMED_LABEL,
   MONEY_IN_REPORTED_LABEL,
   MONEY_IN_UNNAMED_LABEL,
@@ -95,13 +95,10 @@ import {
   NAMED_DONATIONS_LINK_LABEL,
   NOT_A_DONATION_HEADING,
   reportedThroughNote,
-  moneyOutKindLabel,
   inKindDonationsNote,
-  inKindOutNote,
+  itemizedContributionsNote,
   paymentRowHref,
-  listedExceedsReported,
-  moneyOutNote,
-  statedSpendingNote,
+  shownReceiptRows,
   NOT_IN_REGISTER_LINE,
   paymentsEyebrow,
   paymentsTitle,
@@ -1447,16 +1444,14 @@ export function committeePageSnapshot(
     moneyInBlocks.push({
       kind: 'prose',
       lines: [
-        `Donations this committee reported to the state: ${
-          closed ? CLOSED_EMPTY_VALUE : EMPTY_YEAR_VALUE
-        }`,
+        `${MONEY_IN_REPORTED_LABEL}: ${closed ? CLOSED_EMPTY_VALUE : EMPTY_YEAR_VALUE}`,
         closed ? CLOSED_MONEY_IN_WHY : emptyYearMoneyInWhy(year),
       ],
     });
     moneyOutBlocks.push({
       kind: 'prose',
       lines: [
-        `${MONEY_OUT_FIGURE_LABEL}: ${closed ? CLOSED_EMPTY_VALUE : EMPTY_YEAR_VALUE}`,
+        `${MONEY_OUT_REPORTED_LABEL}: ${closed ? CLOSED_EMPTY_VALUE : EMPTY_YEAR_VALUE}`,
         closed ? CLOSED_MONEY_OUT_WHY : EMPTY_YEAR_MONEY_OUT_WHY,
       ],
     });
@@ -1489,7 +1484,9 @@ export function committeePageSnapshot(
             reportedThroughNote(split.reported_through, stampThrough) ?? '',
           ]
         : []),
-      ...(reportedZero ? [ZERO_REPORTED_NOTE] : [`${MONEY_IN_NAMED_LABEL}: ${named.text}`]),
+      ...(reportedZero
+        ? [ZERO_REPORTED_NOTE]
+        : [`${MONEY_IN_NAMED_LABEL}: ${named.text}`, itemizedContributionsNote(identity.isBallot)]),
       ...(inKind ? [inKindDonationsNote(inKind, true)] : []),
       ...(split.state === 'shown' && unnamed !== null && !reportedZero
         ? [
@@ -1501,11 +1498,14 @@ export function committeePageSnapshot(
       splitExplanation((split.state ?? 'no_reported_total') as SplitState) ?? '',
     ].filter(Boolean);
     moneyInBlocks.push({ kind: 'prose', lines: inLines });
-    if ((moneyIn.other_receipts ?? []).length) {
+    // The same rows the live card draws: every served kind but `Miscellaneous`, and no
+    // heading when none is left (ruled by Eugene, 11 Sep 2026).
+    const receipts = shownReceiptRows(moneyIn.other_receipts, (receipt) => receipt.receipt_type);
+    if (receipts.length) {
       moneyInBlocks.push({ kind: 'prose', lines: [NOT_A_DONATION_HEADING] });
       moneyInBlocks.push({
         kind: 'bullets',
-        items: (moneyIn.other_receipts ?? []).map((receipt) =>
+        items: receipts.map((receipt) =>
           [
             receipt.receipt_type,
             formatMoney(receipt.total) ?? '',
@@ -1517,55 +1517,23 @@ export function committeePageSnapshot(
       });
     }
 
-    const outTotal = moneyFigure(
-      committeeBlockState(moneyOut.state),
-      moneyOut.itemized_payment_total ?? null,
+    // The money-out card is the filing's own figure alone (ruled by Eugene, 11 Sep
+    // 2026), drawn exactly as the live card draws it: the reported amount, or the words
+    // "Not reported" where none is served. Never $0 for a missing total, and never a
+    // figure of ours beside it.
+    const reportedOut = moneyFigure(
+      (moneyOut.reported_total ?? null) === null ? 'not_reported' : 'reported',
+      moneyOut.reported_total ?? null,
     );
-    const reportedOut = formatMoney(moneyOut.reported_total ?? null);
     moneyOutBlocks.push({
       kind: 'prose',
       lines: [
-        ...(reportedOut
-          ? [
-              `${MONEY_OUT_REPORTED_LABEL}: ${reportedOut}`,
-              reportedThroughNote(moneyOut.reported_through, stampThrough) ?? '',
-            ]
+        `${MONEY_OUT_REPORTED_LABEL}: ${reportedOut.text}`,
+        ...(reportedOut.isFigure
+          ? [reportedThroughNote(moneyOut.reported_through, stampThrough) ?? '']
           : []),
-        `${MONEY_OUT_FIGURE_LABEL}: ${outTotal.text}`,
-        // The goods-and-services line the 2 live cards draw under this figure. It
-        // belongs in the first response too: this is what a search engine and a reader
-        // on a slow connection see, and a payments total with no such line reads as
-        // cash the committee spent (#1894).
-        inKindOutNote(moneyOut.in_kind_total ?? null) ?? '',
-        moneyOutNote(
-          committeeBlockState(moneyOut.state),
-          identity.isBallot,
-          reportedOut !== null,
-          Number(moneyOut.reported_total) === 0,
-          listedExceedsReported(moneyOut.reported_total, moneyOut.itemized_payment_total),
-        ),
-        // Whether the committee's own filed report was read against these payments.
-        // The first response is what a search engine and a reader on a slow
-        // connection get, so a spending figure nobody has checked must not read as
-        // checked here either (#1650). `not_run` and never `not_checked` when the
-        // field is absent: our own silence may not borrow Minnesota's excuse.
-        statedSpendingNote(moneyOut.stated_spending_state ?? 'not_run') ?? '',
       ].filter(Boolean),
     });
-    if ((moneyOut.by_type ?? []).length) {
-      moneyOutBlocks.push({
-        kind: 'bullets',
-        items: (moneyOut.by_type ?? []).map((entry) =>
-          [
-            moneyOutKindLabel(entry.type),
-            formatMoney(entry.total) ?? '',
-            paymentCountLabel(entry.payments) ?? '',
-          ]
-            .filter(Boolean)
-            .join(' · '),
-        ),
-      });
-    }
   }
 
   return {
@@ -1605,7 +1573,7 @@ export function committeePageSnapshot(
         href: `/money/committees/${encodeURIComponent(identity.slug)}/payments`,
       },
       ...(moneyIn.source_url
-        ? [{ label: NAMED_DONATIONS_LINK_LABEL, href: moneyIn.source_url }]
+        ? [{ label: NAMED_DONATIONS_LINK_LABEL, href: downloadsPageUrl(moneyIn.source_url) }]
         : []),
       { label: COMMITTEE_LIST_TITLE, href: '/money/committees' },
     ],

@@ -327,7 +327,6 @@ function CommitteeCard({
       <MoneyOutBlock
         surface="profile"
         moneyOut={committee.moneyOut}
-        isBallot={false}
         stampThrough={through}
         isMobile={isMobile}
       />

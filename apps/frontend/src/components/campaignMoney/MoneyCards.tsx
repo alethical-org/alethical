@@ -21,48 +21,46 @@
  *   d. The goods-and-services line — only when named payments include some above zero.
  *   e. The unnamed figure with its threshold sentence — when the split is shown.
  *   f. That state's own withheld sentence in (e)'s position — when it is not.
- *   g. "Not a donation" rows — only when the filing carries other receipt kinds.
- *   h. The source link to the state's own list — whenever served.
+ *   g. "Not a donation" rows — only when the filing carries other receipt kinds, and
+ *      never a `Miscellaneous` row (ruled by Eugene, 11 Sep 2026); the heading goes with
+ *      the last row.
+ *   h. The source link to the Board's downloads page — whenever a download address is
+ *      served, derived from it (`downloadsPageUrl`).
  *
- * Money out is 2 figures plus the filing's own category rows. No third figure and no
- * bar: an unnamed money-out figure would be the subtraction the card's own sentence says
- * we never perform, and a bar measured against the reported total performs it in a
- * picture.
+ * Money out is the filing's own figure alone (ruled by Eugene, 11 Sep 2026): heading,
+ * "Expenditures", the reported amount with its period note. No figure of ours beside it,
+ * so no comparison sentence, no rows of payment kinds and no link to the payments file.
+ * A committee-year with no served total reads the words "Not reported", set as words and
+ * never in the amount face; the card never hides and never prints $0 for it.
  *
  * The filing's period, identity and link live once in a stamp above both cards, never
  * inside one — one filing produces both cards, so stating any of it per card states one
  * fact twice. A figure's own period note returns only where its coverage date differs
  * from the stamp's (`reportedThroughNote`).
  *
- * The 2 surfaces differ in exactly 3 deliberate ways, each carried by `surface`:
+ * The 2 surfaces differ in exactly 2 deliberate ways, each carried by `surface`:
  * the percentage note under the unnamed figure is profile-only (it is an annotation on a
- * named person's money, and the committee page is about the committee); the
+ * named person's money, and the committee page is about the committee), and the
  * goods-and-services line names the row marker on the committee page, where the rows
- * below carry it, and not on the profile, where they do not; and money out's explaining
- * sentence is each surface's own (`moneyOutNote` / `spendingNote`), because the committee
- * page knows a ballot-question filer and the profile never draws one.
+ * below carry it, and not on the profile, where they do not.
  */
 import { Linking, StyleSheet, Text, View } from 'react-native';
 
 import {
+  downloadsPageUrl,
   FILED_REPORTS_LINK_LABEL,
   inKindDonationsNote,
-  inKindOutNote,
-  listedExceedsReported,
+  itemizedContributionsNote,
   MONEY_IN_HEADING,
   MONEY_IN_NAMED_LABEL,
   MONEY_IN_REPORTED_LABEL,
   MONEY_IN_UNNAMED_LABEL,
-  MONEY_OUT_FIGURE_LABEL,
   MONEY_OUT_HEADING,
   MONEY_OUT_REPORTED_LABEL,
-  moneyOutKindLabel,
-  moneyOutNote,
   NAMED_DONATIONS_LINK_LABEL,
   NOT_A_DONATION_HEADING,
-  PAYMENTS_OUT_LINK_LABEL,
   reportedThroughNote,
-  statedSpendingNote,
+  shownReceiptRows,
   unnamedMoneyExplanation,
   ZERO_REPORTED_NOTE,
 } from '../../lib/committeeMoney';
@@ -74,10 +72,8 @@ import {
   moneyFigure,
   paymentCountLabel,
   paymentDateRangeLabel,
-  spendingNote,
   splitExplanation,
   statedSplitNote,
-  UNNAMED_MONEY_EXPLANATION,
   unnamedShareLabel,
   type CommitteeMatchCheck,
   type MoneyBlockState,
@@ -101,15 +97,11 @@ export interface MoneyInLike {
   sourceUrl: string | null;
 }
 
+/** The 2 served money-out fields the card reads. The route still serves our own itemized
+ *  figures and rows; the card draws none of them (ruled by Eugene, 11 Sep 2026). */
 export interface MoneyOutLike {
-  state: MoneyBlockState;
-  itemizedPaymentTotal: string | null;
-  inKindTotal: string | null;
   reportedTotal: string | null;
   reportedThrough: string | null;
-  statedSpendingState: string;
-  byType: readonly { type: string; total: string; payments: number }[];
-  sourceUrl: string | null;
 }
 
 export interface SplitLike {
@@ -197,6 +189,10 @@ export function MoneyInBlock({
     split.state === 'shown' && Number(split.reportedTotal) === 0 && split.namedTotal === null;
   const explanation = splitExplanation(split.state);
   const checkNote = statedSplitNote(split.statedSplitState);
+  // (g) without the hidden kind. Filtered here and not in the route mapping, so the
+  // served field stays what Minnesota sent and `yearDisplayState` still knows the year
+  // holds a filing.
+  const receipts = shownReceiptRows(moneyIn?.otherReceipts, (receipt) => receipt.receiptType);
 
   return (
     <View style={styles.block}>
@@ -227,6 +223,13 @@ export function MoneyInBlock({
         />
       )}
 
+      {/* What the itemized figure is, directly under it and before the goods-and-services
+          line: the one place on the card that states the naming rule (ruled by Eugene,
+          11 Sep 2026). Absent only where the figure itself gives way to the filed zero. */}
+      {reportedZero ? null : (
+        <Text style={styles.explain}>{itemizedContributionsNote(isBallot)}</Text>
+      )}
+
       {inKind ? (
         <Text style={styles.explain}>{inKindDonationsNote(inKind, surface === 'committee')}</Text>
       ) : null}
@@ -243,21 +246,17 @@ export function MoneyInBlock({
             }
             isMobile={isMobile}
           />
-          <Text style={styles.explain}>
-            {surface === 'committee'
-              ? unnamedMoneyExplanation(isBallot)
-              : UNNAMED_MONEY_EXPLANATION}
-          </Text>
+          <Text style={styles.explain}>{unnamedMoneyExplanation(isBallot)}</Text>
           {checkNote ? <Text style={styles.explain}>{checkNote}</Text> : null}
         </>
       ) : null}
 
       {explanation ? <Text style={styles.explain}>{explanation}</Text> : null}
 
-      {moneyIn?.otherReceipts.length ? (
+      {receipts.length ? (
         <View style={styles.rows}>
           <Text style={styles.rowsHead}>{NOT_A_DONATION_HEADING}</Text>
-          {moneyIn.otherReceipts.map((receipt) => (
+          {receipts.map((receipt) => (
             <Row
               key={receipt.receiptType}
               label={receipt.receiptType}
@@ -269,7 +268,7 @@ export function MoneyInBlock({
       ) : null}
 
       {moneyIn?.sourceUrl ? (
-        <SourceLink label={NAMED_DONATIONS_LINK_LABEL} url={moneyIn.sourceUrl} />
+        <SourceLink label={NAMED_DONATIONS_LINK_LABEL} url={downloadsPageUrl(moneyIn.sourceUrl)} />
       ) : null}
     </View>
   );
@@ -278,79 +277,35 @@ export function MoneyInBlock({
 export function MoneyOutBlock({
   surface,
   moneyOut,
-  isBallot,
   stampThrough,
   isMobile,
 }: {
   surface: MoneyCardSurface;
   moneyOut: MoneyOutLike | null;
-  isBallot: boolean;
   stampThrough: string | null;
 } & Band) {
-  const state: MoneyBlockState = moneyOut?.state ?? 'not_reported';
-  const total = moneyFigure(state, moneyOut?.itemizedPaymentTotal ?? null);
-  const reportedOut = formatMoney(moneyOut?.reportedTotal ?? null);
-  const inKindOut = inKindOutNote(moneyOut?.inKindTotal ?? null);
-  const spendingCheck = moneyOut ? statedSpendingNote(moneyOut.statedSpendingState) : null;
-  // Each surface's own explaining sentence. The committee page's knows a
-  // ballot-question filer and whether our list is the larger figure; the profile's
-  // is the set written for a legislator's committee, which is never a ballot one.
-  const note =
-    surface === 'committee'
-      ? moneyOutNote(
-          state,
-          isBallot,
-          reportedOut !== null,
-          Number(moneyOut?.reportedTotal) === 0,
-          listedExceedsReported(moneyOut?.reportedTotal, moneyOut?.itemizedPaymentTotal),
-        )
-      : spendingNote(state, reportedOut !== null);
+  // The filing's own figure, always drawn: a real amount, or the words "Not reported"
+  // set as words. A null block is a committee the route holds no money-out row for,
+  // and rule 12 reads that as missing, never as $0.
+  const reportedOut = moneyFigure(
+    moneyOut?.reportedTotal === null || moneyOut?.reportedTotal === undefined
+      ? 'not_reported'
+      : 'reported',
+    moneyOut?.reportedTotal,
+  );
 
   return (
     <View style={styles.block}>
       <CardHeading surface={surface}>{MONEY_OUT_HEADING}</CardHeading>
-      {reportedOut ? (
-        <Figure
-          label={MONEY_OUT_REPORTED_LABEL}
-          value={reportedOut}
-          note={reportedThroughNote(moneyOut?.reportedThrough, stampThrough)}
-          isMobile={isMobile}
-        />
-      ) : null}
       <Figure
-        label={MONEY_OUT_FIGURE_LABEL}
-        value={total.text}
-        isFigure={total.isFigure}
+        label={MONEY_OUT_REPORTED_LABEL}
+        value={reportedOut.text}
+        isFigure={reportedOut.isFigure}
+        note={
+          reportedOut.isFigure ? reportedThroughNote(moneyOut?.reportedThrough, stampThrough) : null
+        }
         isMobile={isMobile}
       />
-      {/* Directly under the figure it qualifies, the same place money in draws its
-          own goods-and-services line, because a reader shown a payments total reads
-          all of it as cash the committee spent (#1894). Absent whenever the amount is
-          not above zero. */}
-      {inKindOut ? <Text style={styles.explain}>{inKindOut}</Text> : null}
-      <Text style={styles.explain}>{note}</Text>
-      {/* After the note it qualifies: the note says what the 2 figures are, and this
-          says whether anybody checked them against the committee's own filing. Null on
-          `agrees`, so a checked committee-year draws plainly (#1650). */}
-      {spendingCheck ? <Text style={styles.explain}>{spendingCheck}</Text> : null}
-      {/* The filing's own category rows, with the plain label for money given to
-          another campaign. Real categories from the filing, never arithmetic of ours,
-          so they draw in every state that has them. */}
-      {moneyOut?.byType.length ? (
-        <View style={styles.rows}>
-          {moneyOut.byType.map((entry) => (
-            <Row
-              key={entry.type}
-              label={moneyOutKindLabel(entry.type)}
-              value={formatMoney(entry.total) ?? ''}
-              note={paymentCountLabel(entry.payments)}
-            />
-          ))}
-        </View>
-      ) : null}
-      {moneyOut?.sourceUrl ? (
-        <SourceLink label={PAYMENTS_OUT_LINK_LABEL} url={moneyOut.sourceUrl} />
-      ) : null}
     </View>
   );
 }

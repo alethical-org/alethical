@@ -128,8 +128,8 @@ describe('every figure carries its own dates', () => {
   });
 
   it('uses the committee page’s own 2 labels, word for word', () => {
-    expect(REPORTED_FIGURE_LABEL).toBe('Donations this committee reported to the state');
-    expect(NAMED_FIGURE_LABEL).toBe('Donations with a donor’s name');
+    expect(REPORTED_FIGURE_LABEL).toBe('Total contributions');
+    expect(NAMED_FIGURE_LABEL).toBe('Itemized contributions');
   });
 
   it('never assumes a period start the Board’s calendars do not print', () => {

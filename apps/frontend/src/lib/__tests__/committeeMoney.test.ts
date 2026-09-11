@@ -34,7 +34,10 @@ import {
   MONEY_OUT_HEADING,
   NAMED_DONATIONS_LINK_LABEL,
   NOT_A_DONATION_HEADING,
-  PAYMENTS_OUT_LINK_LABEL,
+  HIDDEN_RECEIPT_KIND,
+  shownReceiptRows,
+  downloadsPageUrl,
+  itemizedContributionsNote,
   reportedThroughNote,
   stampThroughDate,
   CLOSED_MONEY_OUT_WHY,
@@ -57,18 +60,12 @@ import {
   isInKind,
   listLinkNote,
   madeRowMeta,
-  MONEY_OUT_FIGURE_LABEL,
   MONEY_OUT_REPORTED_LABEL,
-  moneyOutKindLabel,
-  listedExceedsReported,
   inKindDonationsNote,
-  inKindOutNote,
   paymentRowHref,
   receivedPaymentRow,
   madePaymentRow,
   UNNAMED_PAYMENT_PARTY,
-  statedSpendingNote,
-  moneyOutNote,
   notFoundBody,
   notFoundTitle,
   paymentsEyebrow,
@@ -334,35 +331,19 @@ describe('the not-found state', () => {
 });
 
 describe('money out', () => {
-  it('is never labelled spent, spending or expenses', () => {
-    expect(MONEY_OUT_FIGURE_LABEL).toBe('Payments we can list');
+  // Ruled by Eugene, 11 Sep 2026: the card is the filing's own figure alone, under the
+  // filing's own word for it. Never "spent": statewide, a large share of money out is
+  // money given to other committees.
+  it('is the filing’s word, and is never labelled spent or spending', () => {
+    expect(MONEY_OUT_REPORTED_LABEL).toBe('Expenditures');
     for (const sentence of [
-      MONEY_OUT_FIGURE_LABEL,
+      MONEY_OUT_REPORTED_LABEL,
       CLOSED_MONEY_OUT_WHY,
       EMPTY_YEAR_MONEY_OUT_WHY,
     ]) {
       expect(sentence.toLowerCase()).not.toContain('spent');
       expect(sentence.toLowerCase()).not.toContain('spending');
-      expect(sentence.toLowerCase()).not.toContain('expense');
     }
-  });
-
-  it('its note drops every threshold figure on a ballot-question page', () => {
-    expect(moneyOutNote('reported', false)).toContain('$200');
-    expect(moneyOutNote('reported', true)).not.toContain('$200');
-    expect(moneyOutNote('not_reported', true)).not.toContain('$200');
-    expect(moneyOutNote('not_reported', true)).not.toContain('$500');
-    expect(moneyOutNote('reported', true, true)).not.toContain('$200');
-  });
-
-  it('a filing’s own zero paid out never gets "does not mean it paid out nothing"', () => {
-    const note = moneyOutNote('not_reported', true, true, true);
-    expect(note).toContain('says it paid out nothing');
-    expect(note).not.toContain('does not mean');
-    // A real total beside an empty payments file says which claim is whose.
-    expect(moneyOutNote('not_reported', false, true, false)).toContain(
-      'names none of its payments',
-    );
   });
 
   describe('a printed name links to its own exact spelling (#1331)', () => {
@@ -483,68 +464,6 @@ describe('money out', () => {
     expect(without).not.toContain('donated goods or services');
     // The claim itself is identical: strip the marker and the 2 are the same sentence.
     expect(withChip.replace(' (donated goods or services)', '')).toBe(without);
-  });
-
-  it('names the goods-and-services amount, and says nothing at all without one', () => {
-    // The whole point of #1894: money in has said this since #1332 and money out
-    // could only name the mechanism.
-    const note = inKindOutNote('325.50');
-    // Whole dollars with the cents cut (#1924): $325.50 prints as $325, never $326.
-    expect(note).toContain('$325');
-    expect(note).not.toContain('$325.50');
-    expect(note).not.toContain('$326');
-    expect(note).toContain('goods and services');
-    expect(note).toContain('rather than money');
-
-    // Nothing to say, and 2 different reasons for it. A committee-year we hold no
-    // payment rows for sends no figure; one whose payments are all cash sends a
-    // measured 0. Neither may print "$0.00" against a named politician, and 97
-    // committee-years in the live release hold in-kind rows summing to exactly 0.
-    expect(inKindOutNote(null)).toBeNull();
-    expect(inKindOutNote(undefined)).toBeNull();
-    expect(inKindOutNote('')).toBeNull();
-    expect(inKindOutNote('0')).toBeNull();
-    expect(inKindOutNote('0.0000')).toBeNull();
-    expect(inKindOutNote('not a number')).toBeNull();
-  });
-
-  it('the goods-and-services line states an amount and explains no gap', () => {
-    // In-kind fully accounts for the excess on 254 of the 389 committee-years where
-    // our payment list is the larger figure, and not on the other 135. So this line
-    // may never say it is why the 2 figures differ: that is a cause, right two-thirds
-    // of the time, printed under a named person's photograph.
-    const note = inKindOutNote('325.50') ?? '';
-    for (const forbidden of [
-      'why',
-      'because',
-      'explains',
-      'accounts for',
-      'the difference',
-      'the gap',
-      'disagree',
-    ]) {
-      expect(note.toLowerCase()).not.toContain(forbidden);
-    }
-    // And the sentence that DOES discuss the 2 figures still names no cause for the
-    // gap, so adding this line did not let the pair of them make the claim jointly.
-    expect(moneyOutNote('reported', false, true, false, true)).not.toContain('because of');
-  });
-
-  it('with the filing’s own total on screen, the note explains two figures and no subtraction', () => {
-    const note = moneyOutNote('reported', false, true);
-    expect(note).toContain('the filing’s own figure');
-    expect(note).toContain('do not subtract');
-    expect(MONEY_OUT_REPORTED_LABEL.toLowerCase()).not.toContain('spent');
-    // Without one, the note owns the gap as ours rather than claiming Minnesota
-    // publishes no such total — it does, and our copy can simply lack a year.
-    expect(moneyOutNote('reported', false, false)).toContain('Our copy');
-  });
-
-  it('a Contribution-typed payment out is money given to another campaign', () => {
-    expect(moneyOutKindLabel('Contribution')).toBe('Given to other campaigns');
-    // Every other label is the source's own, verbatim.
-    expect(moneyOutKindLabel('General Expenditure')).toBe('General Expenditure');
-    expect(moneyOutKindLabel('Non-Campaign Disbursement')).toBe('Non-Campaign Disbursement');
   });
 });
 
@@ -689,150 +608,60 @@ describe('the record-coverage block', () => {
     }
   });
 
-  // This sentence has been wrong twice, in opposite directions, and both are pinned.
-  // It first told readers "official sources disagree about that threshold for
-  // ballot-question committees" — live on filer 60083's 2025 page beside $8,459.00 of
-  // unnamed money — which is a claim about Minnesota's own records contradicting each
-  // other that Minnesota's records do not support. It then printed no figure at all,
-  // which was honest but told a reader less than Minnesota publishes. Eugene lifted the
-  // ban on 31 Aug 2026, so it now names $500 and says what the $200 line is.
-  it('names $500 and never blames Minnesota for disagreeing with itself', () => {
-    const ballot = unnamedMoneyExplanation(true);
-    expect(ballot).not.toMatch(/sources disagree/i);
-    expect(ballot).not.toMatch(/do not agree/i);
-    expect(ballot).toContain('$500');
-    // The $200 appears only as the contrast, so the reader knows which line is theirs.
-    expect(ballot).toContain('higher line than the $200');
-    // The 2 rules the figure carries with it, same as the $200 one (#1755): a yearly
-    // total rather than a per-gift cut-off, and a floor rather than a bar.
-    expect(ballot).toContain('in total for the year');
-    expect(ballot).toContain('may name a smaller donor but');
-    // And it still says what is true about this money.
-    expect(ballot).toContain('does not say who gave them');
+  // Ruled by Eugene, 11 Sep 2026: the naming rule is said once on the card, under the
+  // itemized figure, so this sentence says only what the money is. The same words for
+  // every filer kind; the parameter stays so callers do not change.
+  it('says what non-itemized money is, in 1 sentence, for every filer kind', () => {
+    const sentence =
+      'Donations inside the committee’s reported total whose givers the state’s public ' +
+      'file does not name.';
+    expect(unnamedMoneyExplanation(false)).toBe(sentence);
+    expect(unnamedMoneyExplanation(true)).toBe(sentence);
+    // It says the file does not name them, never that nobody knows who they are.
+    expect(sentence).not.toContain('nobody knows');
+    expect(sentence).not.toContain('$');
   });
 });
 
-describe('the money-out threshold sentence describes a yearly total, never a per-payment cut-off', () => {
-  // grounded-answers rule 12: "Minnesota only publishes payments over $200" was live on
-  // production on both money surfaces. It reads as a rule about the size of a single
-  // payment. The real rule is a test on what one recipient was paid across the year, and
-  // most named payments are individually under $200, so the per-payment phrasing tells a
-  // reader the opposite of the truth about which payments are missing.
-  const forbidden = /(publishes|names)\s+(a committee’s\s+)?payments\s+over\s+\$200/i;
+describe('the sentence under the Itemized contributions figure', () => {
+  // Ruled by Eugene, 11 Sep 2026, word for word. This is the one place on the card that
+  // states the naming rule, and it states it as rule 12 frames it: a test on a donor's
+  // yearly total, and a floor on who a committee MUST name rather than a ban (#1755).
+  const who =
+    'Donations where the filing names who gave. Named donors include people, lobbyists, ' +
+    'other campaigns, political committees and funds, and party organisations. ';
 
-  it('never phrases the threshold as a per-payment rule', () => {
-    for (const state of ['reported', 'not_reported', 'unavailable'] as const) {
-      expect(moneyOutNote(state, false)).not.toMatch(forbidden);
-      expect(moneyOutNote(state, true)).not.toMatch(forbidden);
-    }
-  });
-
-  it('says the threshold is a total for the year, per recipient', () => {
-    expect(moneyOutNote('reported', false)).toContain(
-      'once payments to them pass $200 in total for the year',
+  it('prints the ruled words for a candidate committee, party unit or ordinary fund', () => {
+    expect(itemizedContributionsNote(false)).toBe(
+      who +
+        'Minnesota requires a committee to name a donor once that donor has given more ' +
+        'than $200 in total for the year; a committee may name a smaller donor but does ' +
+        'not have to.',
     );
   });
 
-  it('still prints no threshold figure at all on a ballot-question page', () => {
-    expect(moneyOutNote('reported', true)).not.toContain('$200');
-  });
-});
-
-describe('money out never blames the naming threshold for a list that is bigger', () => {
-  // The shipped defect: our listable payments total can EXCEED the committee's own
-  // reported total, and the note blamed the $200 naming threshold, which can only ever
-  // hold payments back and so can only make our list smaller. Measured on Lisa Demuth's
-  // Governor committee for 2025: our list $60,286.21 against the filing's $41,331.05,
-  // $18,955.16 larger, with the false sentence under it on a live page. Across every
-  // filer-year where a reader sees both figures, 389 of 3,613 are in that shape, and 25
-  // of those sit on a committee confirmed for a sitting legislator.
-  it('drops the threshold-only explanation when our list is the larger figure', () => {
-    const note = moneyOutNote('reported', false, true, false, true);
-    expect(note).toContain('can disagree in either direction');
-    expect(note).toContain('goods and services');
-    expect(note).not.toContain('The total above is the filing’s own figure');
+  it('prints the ruled words for a ballot-question committee, with its $500 line', () => {
+    expect(itemizedContributionsNote(true)).toBe(
+      who +
+        'Minnesota requires a ballot-question committee to name a donor once that donor ' +
+        'has given more than $500 in total for the year, which is a higher line than the ' +
+        '$200 a candidate’s committee carries; a committee may name a smaller donor but ' +
+        'does not have to.',
+    );
   });
 
-  it('keeps the threshold explanation when the filing is the larger figure', () => {
-    const note = moneyOutNote('reported', false, true, false, false);
-    expect(note).toContain('The total above is the filing’s own figure');
-    expect(note).toContain('$200');
-    expect(note).not.toContain('can disagree in either direction');
-  });
-
-  // In-kind explains 254 of the 389, which is most and not all, so the sentence names the
-  // mechanism and never claims it explains THIS committee's gap. Naming a cause that is
-  // right 254 times out of 389 on a named person's page is the same failure in a new coat.
-  it('names the mechanism without claiming it explains this committee', () => {
-    const note = moneyOutNote('reported', false, true, false, true);
-    expect(note).not.toMatch(/because this committee|the difference is|accounts for/i);
-    expect(note).toContain('we never subtract one from the other');
-  });
-
-  it('compares the 2 figures and never subtracts them', () => {
-    expect(listedExceedsReported('41331.05', '60286.21')).toBe(true);
-    expect(listedExceedsReported('60286.21', '41331.05')).toBe(false);
-    expect(listedExceedsReported('100.00', '100.00')).toBe(false);
-  });
-
-  // A missing figure on either side must never produce a claim about a gap. This is the
-  // missing-versus-zero rule applied to a comparison rather than to a figure.
-  it('says nothing about a gap when either figure is missing', () => {
-    expect(listedExceedsReported(null, '60286.21')).toBe(false);
-    expect(listedExceedsReported('41331.05', null)).toBe(false);
-    expect(listedExceedsReported('', '60286.21')).toBe(false);
-    expect(listedExceedsReported(undefined, undefined)).toBe(false);
-    expect(listedExceedsReported('not a number', '60286.21')).toBe(false);
-  });
-});
-
-describe('whether anybody checked this committee\u2019s money out against its own filing', () => {
-  // Every one of these is a way the money-out card could tell a reader a figure was
-  // checked when it was not, or explain away a gap the check has already disproved
-  // (#1650; grounded-answers.md rule 12).
-
-  it('says nothing when the filing and our rows agree, so a checked year draws plainly', () => {
-    expect(statedSpendingNote('agrees')).toBeNull();
-  });
-
-  it('says the 2 official figures were compared and do not agree', () => {
-    const note = statedSpendingNote('disagrees') ?? '';
-    expect(note).toContain('do not');
-    expect(note).toContain('agree');
-    // It must not repeat the unchecked caveat: we did compare it.
-    expect(note).not.toContain('have not yet compared');
-  });
-
-  it('never says which of the 2 figures is the larger one', () => {
-    // The 208 disagreements in the live release run both ways, 168 of them ours being
-    // larger, so any wording that picks a side is wrong about a third of the time.
-    const note = (statedSpendingNote('disagrees') ?? '').toLowerCase();
-    for (const side of ['more than', 'less than', 'larger', 'smaller', 'short of', 'missing']) {
-      expect(note).not.toContain(side);
-    }
-  });
-
-  it('never claims a cause for a disagreement it cannot explain', () => {
-    // The $200 naming threshold and goods and services are the card's 2 ordinary
-    // reasons for a gap, and neither survives a filing whose own itemized subtotal
-    // disagrees. Naming one here would be the reassurance the check disproved.
-    const note = statedSpendingNote('disagrees') ?? '';
-    expect(note).not.toContain('$200');
-    expect(note).not.toContain('goods and services');
-  });
-
-  it.each(['not_checked', 'reader_unproven', 'not_run', null, undefined, ''])(
-    'warns that the filing may name payments our copy is missing when the state is %s',
-    (state) => {
-      const note = statedSpendingNote(state) ?? '';
-      expect(note).toContain('have not yet compared');
-      expect(note).toContain('missing');
-    },
-  );
-
-  it('never lets an unverdicted state read like an agreement', () => {
-    for (const state of ['not_checked', 'reader_unproven', 'not_run']) {
-      expect(statedSpendingNote(state)).not.toBeNull();
+  // The $200 test is a floor on who a committee MUST name, never a ban on naming anyone
+  // smaller: filer 18135's 2026 pre-general itemizes 215 donors at or under $200 and
+  // reconciles to the cent (campaign-finance-system-design.md §2.3), so the absolute was
+  // false about a real filing a reader can open (#1755).
+  it('states the threshold on the yearly total, as a floor, and never blames Minnesota', () => {
+    for (const isBallot of [false, true]) {
+      const note = itemizedContributionsNote(isBallot);
+      expect(note).toContain('in total for the year');
+      expect(note).toContain('may name a smaller donor but does not have to');
+      expect(note).not.toContain('never named');
+      expect(note).not.toMatch(/sources disagree|do not agree/i);
+      expect(note).not.toMatch(/under \$200|below \$200|less than \$200/i);
     }
   });
 });
@@ -841,27 +670,24 @@ describe('the 2 money cards’ fixed labels, shared by both surfaces', () => {
   it('names the 8-element inventory in the words the design ruled', () => {
     expect(MONEY_IN_HEADING).toBe('Money in');
     expect(MONEY_OUT_HEADING).toBe('Money out');
-    expect(MONEY_IN_REPORTED_LABEL).toBe('Donations this committee reported to the state');
-    expect(MONEY_IN_NAMED_LABEL).toBe('Donations with a donor’s name');
-    expect(MONEY_IN_UNNAMED_LABEL).toBe('Donations with nobody’s name on them');
+    // Ruled 11 Sep 2026: the filing's own words for the 4 totals.
+    expect(MONEY_IN_REPORTED_LABEL).toBe('Total contributions');
+    expect(MONEY_IN_NAMED_LABEL).toBe('Itemized contributions');
+    expect(MONEY_IN_UNNAMED_LABEL).toBe('Non-itemized contributions');
+    expect(MONEY_OUT_REPORTED_LABEL).toBe('Expenditures');
     // Ruled 2 Sep 2026: the card heading 2 elements above already says "Money in", and
     // the rows show that each is reported on its own line.
     expect(NOT_A_DONATION_HEADING).toBe('Not a donation');
-    expect(NAMED_DONATIONS_LINK_LABEL).toBe('Minnesota’s list of named donations');
-    expect(PAYMENTS_OUT_LINK_LABEL).toBe('Minnesota’s list of payments out');
+    // Ruled 11 Sep 2026: the link opens the Board's downloads page, not the download.
+    expect(NAMED_DONATIONS_LINK_LABEL).toBe('Minnesota’s campaign-finance downloads');
     expect(FILED_REPORTS_LINK_LABEL).toBe(
       'This committee’s filed reports, on the state’s own site',
     );
   });
 
   it('never calls money out spent, spending or expenses', () => {
-    for (const label of [
-      MONEY_OUT_HEADING,
-      MONEY_OUT_FIGURE_LABEL,
-      MONEY_OUT_REPORTED_LABEL,
-      PAYMENTS_OUT_LINK_LABEL,
-    ]) {
-      expect(label).not.toMatch(/spen[dt]|expense/i);
+    for (const label of [MONEY_OUT_HEADING, MONEY_OUT_REPORTED_LABEL]) {
+      expect(label).not.toMatch(/spen[dt]/i);
     }
   });
 
@@ -870,13 +696,50 @@ describe('the 2 money cards’ fixed labels, shared by both surfaces', () => {
       MONEY_IN_REPORTED_LABEL,
       MONEY_IN_NAMED_LABEL,
       MONEY_IN_UNNAMED_LABEL,
+      MONEY_OUT_REPORTED_LABEL,
       NOT_A_DONATION_HEADING,
       NAMED_DONATIONS_LINK_LABEL,
-      PAYMENTS_OUT_LINK_LABEL,
       FILED_REPORTS_LINK_LABEL,
     ]) {
       expect(label.endsWith('.')).toBe(false);
     }
+  });
+
+  // Ruled by Eugene, 11 Sep 2026. Matched against the served kind exactly, so a row
+  // typed `Miscellaneous Income` still draws: only the one kind is hidden.
+  it('hides the Miscellaneous receipt row and keeps every other kind', () => {
+    expect(HIDDEN_RECEIPT_KIND).toBe('Miscellaneous');
+    const rows = [
+      { receiptType: 'Miscellaneous', total: '307.2600', payments: 2 },
+      { receiptType: 'Public Subsidy', total: '3000.0000', payments: 1 },
+      { receiptType: 'Miscellaneous Income', total: '5.9900', payments: 1 },
+    ];
+    expect(shownReceiptRows(rows, (row) => row.receiptType).map((row) => row.receiptType)).toEqual([
+      'Public Subsidy',
+      'Miscellaneous Income',
+    ]);
+    // The first response's raw rows carry the other key, and the same filter serves them.
+    expect(
+      shownReceiptRows([{ receipt_type: 'Miscellaneous' }], (row) => row.receipt_type),
+    ).toEqual([]);
+    expect(shownReceiptRows(null, () => '')).toEqual([]);
+  });
+
+  // The served address streams a 9 MB statewide spreadsheet with no page behind it;
+  // the card opens the page that download lives on, derived so a new release id cannot
+  // break it and the served field stays untouched.
+  it('links to the downloads page the served download lives on', () => {
+    expect(
+      downloadsPageUrl(
+        'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-2113865252',
+      ),
+    ).toBe('https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/');
+    // An address with no query is already a page.
+    expect(
+      downloadsPageUrl(
+        'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/',
+      ),
+    ).toBe('https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/');
   });
 });
 
