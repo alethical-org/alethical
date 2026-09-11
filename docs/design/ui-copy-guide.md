@@ -45,6 +45,16 @@ Ratified with the rev 17 sign-in redesign ([#1533](https://github.com/alethical-
 - The rule covers claims about **server state** too: a failure screen may not say "your account has not changed" when a lost reply can leave a changed account behind it, and no reset screen says other devices are "already signed out" when their access passes can outlive the change.
 - Silence is permitted; a dead end is not. Declining to say what happened never excuses leaving nothing to press.
 
+## Labels, sentences and source links on a records card
+Ratified 11 Sep 2026 from the 6 changes to the campaign-money card (labels, the removed "Payments we can list" figure, the removed Miscellaneous row, and the source link). Each is a standing rule, not a money-page rule.
+
+- **A label uses the source's own term; the sentence under it translates.** "Total contributions" over "Donations this committee reported to the state": a label is read at a glance, and a reader who opens the state's own site sees the same word. The plain-English explanation is the line beneath. The limit is meaning: the source's term wins only where it means to a reader what it means to the source. "Miscellaneous" fails that test and is not printed; "Contribution" on the money-out file means a transfer, so that row stays "Given to other campaigns".
+- **A label never encodes a rule.** "Individual donors over $200" carried 3 facts in 4 words and got all 3 wrong (donors are not only individuals, the threshold is a yearly total not a gift size, and it is a floor not a bar). Anything with an "if", a threshold or a condition goes in a sentence; the label names only the thing.
+- **A rule is printed once on a card, under the figure it explains.** The donor-naming rule sits under Itemized contributions; the Non-itemized line beneath says only what it is. Two figures on one card never each carry the same rule.
+- **A summary card shows figures a reader can check against the source in 1 step.** A figure of our own that needs a paragraph to be read safely belongs on the page that lists its rows, not on the card. The card prints what the source states.
+- **A source link's label describes what opens, and the destination is clicked in a real browser before it ships.** "Minnesota's list of named donations" opened a 9 MB statewide file with no page behind it. A link to a bulk file points at the page that file lives on and says so; a page address is derived from the served download address, never pasted, so a changed file id cannot break it.
+- **A copy change made without a design round still updates Design's copy record the same day.** Otherwise the next drawing prints the old words and the review loop reopens. The mechanism is a note to Design listing every old → new string, sent with the change.
+
 ## Test for any copy
 Does this deliver a sovereignty recognition moment, or is it just a label? If just a label, rewrite.
 
