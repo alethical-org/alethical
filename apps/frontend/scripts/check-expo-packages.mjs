@@ -42,9 +42,15 @@ const HOLD_DAYS = 7;
 const EXPECTATION = /^\s*(\S+)@(\S+)\s+-\s+expected version:\s+(\S+)\s*$/;
 
 async function publishedDaysAgo(name, version) {
+  // Expo prints its own packages' expectations as a range ("~57.0.2"), and the
+  // registry's time map is keyed by exact version, so a range looked up as written
+  // finds nothing and every such complaint read as "unknown age" and failed the push
+  // (11 Sep 2026: expo-clipboard 57.0.2, 4 hours old, blocked a branch as if it were
+  // past the hold). Strip the range operator before the lookup.
+  const exact = version.replace(/^(?:~|\^|>=|>|=)/, '');
   const response = await fetch(`https://registry.npmjs.org/${encodeURIComponent(name)}`);
   if (!response.ok) return null;
-  const published = (await response.json())?.time?.[version];
+  const published = (await response.json())?.time?.[exact];
   if (!published) return null;
   return (Date.now() - new Date(published).getTime()) / 86_400_000;
 }
