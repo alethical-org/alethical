@@ -510,9 +510,16 @@ tab prints both figures and no subtraction.
 
 - **"Not reported"** means the state's spreadsheet names nothing for this committee this
   year. It is never shown as "$0". A committee whose donors all stayed under the naming
-  threshold is never itemized, so silence here is silence, not a zero.
+  threshold need not be itemized, so silence here is silence, not a zero.
 - **"$0"** appears only where a committee genuinely reported nothing and the
   spreadsheet names nothing, and the two therefore agree.
+- **A "Total contributions" figure is the filing's cash column, and it is not drawn where
+  that column is $0 and every named donation was goods and services.** The Board's totals
+  service serves the filing's Cash column: Citizens for Education Shakopee's 2025 year-end
+  states "Cash 0.00, In-kind 3,868.19, Total 3,868.19", and the service serves $0.00. That
+  zero is not the filing's total, so the page shows the itemized in-kind figure with the
+  goods-and-services sentence and no "Total contributions" line, and says it holds no
+  official total it can stand behind. 16 committee-years across 2024 to 2026 (11 Sep 2026).
 - **A load failure gets its own message** and never falls through to "Not reported",
   because a fault on our side must not read as a named person having filed nothing.
 

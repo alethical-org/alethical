@@ -654,6 +654,55 @@ def test_a_total_covering_another_year_withholds_the_split(db, client):
     assert split["named_total"] == "100.0000"
 
 
+def test_an_all_in_kind_year_serves_no_total_and_a_measured_cash_zero(db, client):
+    """Citizens for Education Shakopee (60084), 2025, as the page received it.
+
+    Its filing states "Total Contributions Received: Cash 0.00, In-kind 3,868.19,
+    Total 3,868.19"; the Board's totals route serves the Cash column. The page printed
+    "Total contributions $0" above "Itemized contributions $3,868", and the split,
+    handed no cash entry for a year whose rows are all in kind, said the state's
+    donation list names none of the money. Both are fixed at the source: the cash
+    line is withheld as the total, and the held rows read as a measured cash zero so
+    the in-kind figure is served.
+    """
+    published = Published(db)
+    _receipt(
+        db, published.contributions, reg_num=CANDIDATE, amount="1902.40", in_kind="Yes"
+    )
+    _receipt(
+        db, published.contributions, reg_num=CANDIDATE, amount="1965.79", in_kind="Yes"
+    )
+    db.commit()
+    publish_filings_snapshot(
+        db,
+        filings=[
+            (
+                CANDIDATE,
+                2025,
+                "contributions_received",
+                Decimal("0.00"),
+                date(2025, 12, 31),
+            )
+        ],
+        kind=FilerKind.political_committee_or_fund,
+    )
+
+    response = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2025}
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()["data"]
+    assert data["money_in"]["state"] == "reported"
+    assert data["money_in"]["itemized_contribution_total"] == "3868.1900"
+    assert data["money_in"]["reported_total"] is None
+    split = data["split"]
+    assert split["state"] == "no_reported_total"
+    assert split["reported_total"] is None
+    assert split["named_total"] == "3868.1900"
+    assert Decimal(split["named_cash_total"]) == Decimal("0")
+    assert split["named_in_kind_total"] == "3868.1900"
+
+
 # --- Largest-first paging and the measured count on /payments -------------------
 
 

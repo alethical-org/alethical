@@ -189,6 +189,7 @@ def _receipt(
     on=None,
     name="Port, Lindsey Senate Committee",
     entity="PCC",
+    in_kind="No",
 ):
     db.add(
         models.CampaignFinanceContributionRow(
@@ -202,7 +203,7 @@ def _receipt(
             year=year,
             contributor="A Donor",
             receipt_type=receipt_type,
-            in_kind="No",
+            in_kind=in_kind,
         )
     )
     db.flush()
@@ -631,6 +632,102 @@ def test_rows_we_cannot_total_withhold_the_in_kind_figure_too(db):
     assert finance.money_out.state == UNAVAILABLE
     assert finance.money_out.itemized_payment_total is None
     assert finance.money_out.in_kind_total is None
+
+
+# --- The filing's cash line is not its total ---------------------------------
+
+
+def _cash_line(db, reg_num, amount, *, year=2025):
+    """This filer-year's own "Contributions received" line, as the Board's totals
+    route serves it: the filing's **Cash** column."""
+    publish_filings_snapshot(
+        db,
+        filings=[
+            (
+                reg_num,
+                year,
+                "contributions_received",
+                Decimal(amount),
+                date(year, 12, 31),
+            )
+        ],
+        kind=models.CampaignFinanceFilerKind.political_committee_or_fund,
+    )
+
+
+def test_a_cash_line_of_zero_beside_only_in_kind_rows_is_not_the_filers_total(db):
+    """Citizens for Education Shakopee (60084), 2025, read from its own filing.
+
+    The year-end report states "Total Contributions Received: Cash 0.00, In-kind
+    3,868.19, Total 3,868.19", and the Board's totals route serves the Cash column, so
+    we stored $0 and served it as the reported total above $3,868.19 of itemized
+    in-kind rows. That zero is the filing's cash, not its total, and rule 12's verified
+    zero it is not: the filing's own Total column says otherwise. 16 committee-years
+    across 2024 to 2026 on the live release, 11 Sep 2026.
+    """
+    published = Published(db)
+    _receipt(
+        db, published.contributions, reg_num=CANDIDATE, amount="1902.40", in_kind="Yes"
+    )
+    _receipt(
+        db, published.contributions, reg_num=CANDIDATE, amount="1965.79", in_kind="Yes"
+    )
+    db.commit()
+    _cash_line(db, CANDIDATE, "0.00")
+
+    finance = _finance(db, CANDIDATE)
+    assert finance is not None
+    money_in = finance.money_in
+    # The named figure stands: it is what the committee received, in kind.
+    assert money_in.state == REPORTED
+    assert money_in.itemized_contribution_total == Decimal("3868.19")
+    assert money_in.itemized_contribution_payments == 2
+    # The cash line does not, and nothing dated to it survives without it.
+    assert money_in.reported_total is None
+    assert money_in.reported_through is None
+    assert money_in.reported_period_start is None
+
+
+def test_a_cash_line_above_zero_beside_in_kind_rows_is_still_a_real_figure(db):
+    """Jim Nash's shape: $250.00 of donated goods beside a cash line that is real money.
+
+    The cash line understates the filing's Total column by the in-kind amount, and the
+    card says so under the itemized figure. What it is not is a zero standing for a
+    committee that took money in, so it is served.
+    """
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="500.00")
+    _receipt(
+        db, published.contributions, reg_num=CANDIDATE, amount="250.00", in_kind="Yes"
+    )
+    db.commit()
+    _cash_line(db, CANDIDATE, "800.00")
+
+    finance = _finance(db, CANDIDATE)
+    assert finance is not None
+    assert finance.money_in.reported_total == Decimal("800.00")
+    assert finance.money_in.reported_through == date(2025, 12, 31)
+
+
+def test_a_cash_line_of_zero_beside_a_cash_row_is_left_for_the_split_to_refuse(db):
+    """Wynfred Russell's shape (19086): the route serves $0 while our rows hold cash.
+
+    That is Minnesota's 2 publications disagreeing, or a correction the route has not
+    picked up, and the split has a state for each. Withholding the figure here would
+    hide the contradiction instead of naming it, so the zero is served and the split's
+    negative remainder refuses it.
+    """
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="500.00")
+    _receipt(
+        db, published.contributions, reg_num=CANDIDATE, amount="250.00", in_kind="Yes"
+    )
+    db.commit()
+    _cash_line(db, CANDIDATE, "0.00")
+
+    finance = _finance(db, CANDIDATE)
+    assert finance is not None
+    assert finance.money_in.reported_total == Decimal("0")
 
 
 # --- Which year, and which dates ---------------------------------------------

@@ -127,7 +127,7 @@ describe('moneyFigure', () => {
 
   it('says "Not reported" rather than showing a zero when we hold nothing', () => {
     // Missing versus zero. A committee whose donors all stayed under the naming
-    // threshold is never itemized, so absence here is silence, not a zero.
+    // threshold need not be itemized, so absence here is silence, not a zero.
     expect(moneyFigure('not_reported', null)).toEqual({
       text: 'Not reported',
       isFigure: false,
