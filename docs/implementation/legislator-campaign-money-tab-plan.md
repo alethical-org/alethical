@@ -37,9 +37,9 @@ covering [issue 2143](https://github.com/alethical-org/alethical/issues/2143).
   buttons inside the phone width rather than clipped by an ancestor.
 - [x] Load the donation browser when the Campaign money tab opens. Separate the shared
   year control and color map so committee pages do not pull the entire profile into the
-  first download. The production-build check passes at 390,440 bytes against its
+  first download. The production-build check passes at 390,330 bytes against its
   392,321-byte allowance, including its existing 542-byte hosted-settings allowance.
-- [x] Save the change as [draft pull request 2153](https://github.com/alethical-org/alethical/pull/2153) with the reader-guide updates. Run the
+- [x] Save the change as [pull request 2153](https://github.com/alethical-org/alethical/pull/2153) with the reader-guide updates. Run the
   full frontend checks, production build and current-head GitHub checks.
 - [x] Resolve the recorded drawing/brief disagreements before publishing the affected
   pieces. The [chart and amount-format questions](https://github.com/alethical-org/alethical/issues/2140#issuecomment-5646690898)
@@ -48,17 +48,18 @@ covering [issue 2143](https://github.com/alethical-org/alethical/issues/2143).
 - [ ] Merge through the queue after the answers are implemented, check the live profile,
   and remove this task's branch and worktree.
 
-The complete frontend suite passed 2,516 tests after the final type-size and download
-changes. Type checking, package compatibility, the production build and the check against
+The complete frontend suite passed 2,542 tests after integrating the approved spending
+wording, and the backend suite passed 2,451 tests. Type checking, package compatibility,
+the production build and the check against
 adding a person's committees together also passed. Current-head GitHub checks belong in
 the pull request's validation record.
 
 ## Separate approved changes
 
-- [ ] [Issue 2151](https://github.com/alethical-org/alethical/issues/2151): the existing
-  Expenditures wording change is approved: show listed-payment totals and state when
-  no official spending total is held. Implement and test it in its own pull request,
-  then integrate it into the redesigned profile.
+- [ ] [Issue 2151](https://github.com/alethical-org/alethical/issues/2151): show listed-payment
+  totals and state when no official spending total is held. Implemented and tested in
+  [pull request 2154](https://github.com/alethical-org/alethical/pull/2154), and integrated
+  into the redesigned profile. Its release precedes the redesign.
 - [ ] [Issue 2142](https://github.com/alethical-org/alethical/issues/2142): the historical
   loader replaces the held totals and the current filer directory differs from the held
   directory. The protected extension is approved for the 1,603 held filers, preserving

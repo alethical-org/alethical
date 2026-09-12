@@ -20,16 +20,15 @@ and
 ## Changes in the September 2026 build
 
 The profile redesign is tracked in [issue 2140](https://github.com/alethical-org/alethical/issues/2140).
-This guide describes its accepted donation lists, year choices and charts. It does not
-claim the redesign is live before the release finishes.
+This guide describes its donation lists, year choices and charts.
 
 On 12 September 2026 Eugene approved chart categories matching the donor tabs, with
 candidate committees included in Committees & Funds, and keeping the existing
 whole-dollar display. Each payment's original kind remains available. The exact chart
 colours remain with Design and can change in 1 colour-map file.
 
-The missing official money-out wording is approved and being delivered separately
-([issue 2151](https://github.com/alethical-org/alethical/issues/2151)). A protected
+The shared missing official money-out wording comes from
+[pull request 2154](https://github.com/alethical-org/alethical/pull/2154). A protected
 extension of the official totals for 2022 and 2023 is also approved, using the 1,603
 held filers and preserving every existing 2024–2026 record. Year choices alone do not
 claim that any historical totals have been loaded or passed their checks.

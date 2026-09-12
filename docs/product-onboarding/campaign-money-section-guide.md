@@ -480,8 +480,7 @@ Minnesota has no candidates); and loading placeholders that announce themselves 
 ## A legislator's Campaign money tab (`/legislators/<name>?tab=money`)
 
 The September 2026 profile redesign is tracked in
-[issue 2140](https://github.com/alethical-org/alethical/issues/2140). Its accepted changes
-are described here without claiming the release has finished. The full profile behavior,
+[issue 2140](https://github.com/alethical-org/alethical/issues/2140). The full profile behavior,
 including the committee-confirmation deadline and every withheld-figure state, is in
 [legislator-campaign-money-guide.md](https://github.com/alethical-org/alethical/blob/main/docs/product-onboarding/legislator-campaign-money-guide.md).
 
@@ -489,8 +488,9 @@ This route shows each confirmed legislative committee separately. Its year butto
 from 2015 through the current calendar year, so 2026 offers 12 years. Dashed outlines use
 the actual answers for those years to mark named-only coverage; they do not assume an
 older year lacks an official report. These style answers never renew the 20-minute check
-on whose committee is being shown. The separate 2022–2023 official-total load is paused;
-the new year buttons do not mean those totals have been loaded.
+on whose committee is being shown. The separate 2022–2023 official-total extension is
+tracked in [issue 2142](https://github.com/alethical-org/alethical/issues/2142);
+the year buttons do not mean those totals have been loaded.
 
 The prominent donor chart shows shares of cash money by donor kind. A checked split uses
 the official cash total and includes unnamed cash. With no official total it uses the
@@ -526,9 +526,8 @@ The chart categories match the donor tabs, with other candidate committees inclu
 Committees & Funds. Original source kinds remain on payment rows. The existing
 whole-dollar formatter stays, while arithmetic retains every decimal place. These
 decisions were approved on 12 September 2026. The exact chart colours remain with
-Design and can change in 1 colour-map file. The approved missing-official-total wording
-is being delivered separately in
-[issue 2151](https://github.com/alethical-org/alethical/issues/2151).
+Design and can change in 1 colour-map file. The shared missing-official-total wording
+comes from [pull request 2154](https://github.com/alethical-org/alethical/pull/2154).
 
 ## A committee's page (`/money/committees/{name}-{number}`)
 
