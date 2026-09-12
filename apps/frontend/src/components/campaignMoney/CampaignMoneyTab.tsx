@@ -5,7 +5,7 @@ import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
  * One component for both the desktop and phone profiles, deliberately. Almost
  * everything on this tab is a sentence about what a figure does and does not mean,
  * and two copies of those sentences is how one of them gets fixed and the other
- * does not. Layout differences ride on `isDesktop`; wording never does.
+ * does not. Layout differences follow the shared responsive bands; wording never does.
  *
  * Every string here comes from `lib/legislatorCampaignMoney.ts`, which is where the
  * rules in `.claude/rules/grounded-answers.md` rule 12 and
@@ -108,7 +108,6 @@ export function CampaignMoneyTab({
   isError,
   moneyUpdatedAt,
   refetchMoney,
-  isDesktop,
   legislatorId,
   onOpenSource,
 }: Props) {

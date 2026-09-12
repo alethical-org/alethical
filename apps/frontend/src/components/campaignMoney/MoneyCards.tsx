@@ -38,11 +38,10 @@
  * fact twice. A figure's own period note returns only where its coverage date differs
  * from the stamp's (`reportedThroughNote`).
  *
- * The 2 surfaces differ in exactly 2 deliberate ways, each carried by `surface`:
- * the percentage note under the unnamed figure is profile-only (it is an annotation on a
- * named person's money, and the committee page is about the committee), and the
- * goods-and-services line names the row marker on the committee page, where the rows
- * below carry it, and not on the profile, where they do not.
+ * On the redesigned profile, `withDonorBreakdown` lets the chart own the percentage,
+ * goods-and-services and withheld-split explanation once. The amount rows stay here.
+ * The profile theme supplies its palette and type sizes; the committee page keeps its
+ * existing styles and full explanation inventory.
  */
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, Text, View, type TextProps, type TextStyle } from 'react-native';

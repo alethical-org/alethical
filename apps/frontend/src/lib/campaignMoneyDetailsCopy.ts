@@ -36,8 +36,8 @@ export const moneyDetailsCopy = {
   expandPayments: (expanded: boolean, count: number, name: string) =>
     `${expanded ? 'Hide' : 'Show'} the ${count} payments from ${name}`,
   amountMissing: 'Amount not given',
-  totalMissing: 'Amount not given in the filing',
-  dateMissing: 'Date not given in the filing',
+  totalMissing: 'Unavailable because a payment amount is missing',
+  dateMissing: 'Date not given in the public file',
   inKindMarker: 'DONATED GOODS OR SERVICES',
   sort: 'Sort names',
   currentSort: (label: string) => `Sort names, currently ${label}`,

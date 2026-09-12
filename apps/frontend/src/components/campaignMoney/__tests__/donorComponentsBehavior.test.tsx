@@ -255,7 +255,7 @@ describe('the donor list preserves the complete filed record', () => {
     expect(view.textContent).toContain('2 payments');
     expect(view.textContent).toContain('Total of listed payments in this tab:');
     click(view.querySelector('[aria-label="Show the 2 payments from Example Printer"]'));
-    expect(view.textContent?.match(/Date not given in the filing/g)).toHaveLength(2);
+    expect(view.textContent?.match(/Date not given in the public file/g)).toHaveLength(2);
     expect(view.textContent?.match(/Print leaflets/g)).toHaveLength(2);
     expect(view.textContent?.match(/Anoka, MN/g)).toHaveLength(2);
     expect(view.querySelector('a')).toBeNull();
