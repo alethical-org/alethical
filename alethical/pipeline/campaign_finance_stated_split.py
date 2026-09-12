@@ -15,12 +15,11 @@ publishes normally ([#1329](https://github.com/alethical-org/alethical/issues/13
 million verified payments must not be withheld because 1 committee's figures contradict
 each other.
 
-**What it can and cannot cover, stated up front rather than discovered later.** The
-Board serves no report document before 2023, serves none for several report kinds inside
-the years it does cover, and answers HTTP 200 to every one of those refusals (§9.4). So a
-committee-year the route cannot reach is recorded as **not checked**, never as passed —
-which is what `docs/architecture/campaign-finance-system-design.md` §9.9 exists to
-enforce.
+**What it can and cannot cover, stated up front rather than discovered later.** Exact
+report versions already held can be checked for any year. The Board is asked only for
+missing versions from 2023 onward. A committee-year without a readable report remains
+**not checked**, never passed, which is what
+`docs/architecture/campaign-finance-system-design.md` §9.9 exists to enforce.
 
 **A part-year filing and the download name different donors, and that is not a
 disagreement.** Minnesota itemizes the donors who had passed $200 by a report's own
@@ -1117,11 +1116,9 @@ class StatedSplitCoverage:
     def is_a_clean_sweep(self) -> bool:
         """Every committee-year of the population has a verdict, and all of them agree.
 
-        Deliberately strict, and in practice **unreachable on the real corpus**: our
-        payment rows reach back to 2015 and the Board serves no report document before
-        2023, so a release always carries committee-years that cannot be checked. That is
-        the honest state of this check rather than a defect in it -- ``§9.9`` exists
-        precisely so an unreachable population reads as unreachable.
+        Deliberately strict. Payment rows reach back to 2015, while held report
+        documents cover only part of that history. A committee-year without a readable
+        report stays in the population and prevents a clean sweep.
         """
         return (
             self.population is not None
