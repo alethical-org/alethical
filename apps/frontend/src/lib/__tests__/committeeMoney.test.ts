@@ -40,8 +40,6 @@ import {
   itemizedContributionsNote,
   reportedThroughNote,
   stampThroughDate,
-  CLOSED_MONEY_OUT_WHY,
-  EMPTY_YEAR_MONEY_OUT_WHY,
   NOT_IN_REGISTER_LINE,
   ZERO_REPORTED_NOTE,
   capNextLabel,
@@ -331,19 +329,11 @@ describe('the not-found state', () => {
 });
 
 describe('money out', () => {
-  // Ruled by Eugene, 11 Sep 2026: the card is the filing's own figure alone, under the
-  // filing's own word for it. Never "spent": statewide, a large share of money out is
-  // money given to other committees.
+  // The official figure keeps the filing's word. Named payments use their own label;
+  // neither amount claims money was spent because transfers can be included.
   it('is the filing’s word, and is never labelled spent or spending', () => {
     expect(MONEY_OUT_REPORTED_LABEL).toBe('Expenditures');
-    for (const sentence of [
-      MONEY_OUT_REPORTED_LABEL,
-      CLOSED_MONEY_OUT_WHY,
-      EMPTY_YEAR_MONEY_OUT_WHY,
-    ]) {
-      expect(sentence.toLowerCase()).not.toContain('spent');
-      expect(sentence.toLowerCase()).not.toContain('spending');
-    }
+    expect(MONEY_OUT_REPORTED_LABEL.toLowerCase()).not.toMatch(/spent|spending/);
   });
 
   describe('a printed name links to its own exact spelling (#1331)', () => {

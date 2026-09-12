@@ -32,7 +32,6 @@ import {
   AMENDED_CHIP,
   CLOSED_EMPTY_VALUE,
   CLOSED_MONEY_IN_WHY,
-  CLOSED_MONEY_OUT_WHY,
   closedChipLabel,
   closedPeriodDetail,
   closedPeriodLine,
@@ -48,7 +47,6 @@ import {
   emptyListTitle,
   emptyListWhy,
   emptyYearMoneyInWhy,
-  EMPTY_YEAR_MONEY_OUT_WHY,
   filingIsAmended,
   filedDateLine,
   filingRowPeriodLine,
@@ -66,8 +64,6 @@ import {
   madeRowMeta,
   MONEY_IN_HEADING,
   MONEY_IN_REPORTED_LABEL,
-  MONEY_OUT_REPORTED_LABEL,
-  MONEY_OUT_HEADING,
   notFoundBody,
   notFoundTitle,
   OUTSIDE_ABOUT_INTRO,
@@ -126,10 +122,9 @@ import { theme as t } from '../../theme/tokens';
  *   division arrives DECIDED by the server (`split.state`); this page never
  *   subtracts, and in each of the 4 withheld states it prints the state's own plain
  *   sentence instead.
- * - Missing is "Not reported"; a verified zero is "0"; a closed committee is its
- *   own state with the register's own date.
- * - Money out is the filing's own figure alone, labelled "Expenditures" and never
- *   "spent" (ruled by Eugene, 11 Sep 2026); no figure of ours draws beside it.
+ * - A verified zero is "0"; a closed committee keeps the register's own date.
+ * - Money out shows the official "Expenditures" total when held. Otherwise it names
+ *   the listed-payment sum and says the official total is absent from our records.
  * - A ballot-question filer's page states no donor-naming threshold anywhere.
  * - When our own service does not answer, the page holds the figures it already
  *   had, dated, until it answers — never expiring on a timer.
@@ -484,7 +479,7 @@ function CommitteeBody({
           isMobile={isMobile}
           onSelectYear={onSelectYear}
         />
-        <MoneyOutCard money={money} state={state} isBallot={isBallot} isMobile={isMobile} />
+        <MoneyOutCard money={money} isMobile={isMobile} />
       </View>
 
       <PaymentsSection
@@ -633,34 +628,7 @@ function MoneyInCard({
   );
 }
 
-function MoneyOutCard({
-  money,
-  state,
-  isBallot,
-  isMobile,
-}: {
-  money: CommitteeMoney;
-  state: 'closed-empty' | 'empty-year' | 'figures';
-  isBallot: boolean;
-  isMobile: boolean;
-}) {
-  if (state !== 'figures') {
-    const closed = state === 'closed-empty';
-    return (
-      <View style={styles.card}>
-        <CardHeading surface="committee">{MONEY_OUT_HEADING}</CardHeading>
-        <Figure
-          label={MONEY_OUT_REPORTED_LABEL}
-          value={closed ? CLOSED_EMPTY_VALUE : EMPTY_YEAR_VALUE}
-          isFigure={false}
-          isMobile={isMobile}
-        />
-        <Text style={styles.explain}>
-          {closed ? CLOSED_MONEY_OUT_WHY : EMPTY_YEAR_MONEY_OUT_WHY}
-        </Text>
-      </View>
-    );
-  }
+function MoneyOutCard({ money, isMobile }: { money: CommitteeMoney; isMobile: boolean }) {
   return (
     <View style={styles.card}>
       <MoneyOutBlock

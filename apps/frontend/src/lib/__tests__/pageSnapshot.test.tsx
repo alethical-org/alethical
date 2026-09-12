@@ -99,7 +99,10 @@ const {
 } = await import('../pageSnapshot');
 const {
   committeeSlug,
-  EMPTY_YEAR_MONEY_OUT_WHY,
+  MONEY_OUT_OFFICIAL_MISSING,
+  MONEY_OUT_NAMED_MISSING,
+  MONEY_OUT_NAMED_LABEL,
+  MONEY_OUT_NAMED_NOTE,
   EMPTY_YEAR_VALUE,
   emptyYearMoneyInWhy,
   coveredPeriodLine,
@@ -1529,7 +1532,9 @@ describe('a committee-year with nothing filed', () => {
   it('still says what the record holds rather than serving an empty shell', () => {
     expect(snapshot.heading).toBe('Jackson, Carolyn C House Committee');
     expect(text).toContain(emptyYearMoneyInWhy(2026));
-    expect(text).toContain(EMPTY_YEAR_MONEY_OUT_WHY);
+    expect(text).toContain(MONEY_OUT_OFFICIAL_MISSING);
+    expect(text).toContain(MONEY_OUT_NAMED_MISSING);
+    expect(text).not.toContain(MONEY_OUT_REPORTED_LABEL);
   });
 });
 
@@ -1567,11 +1572,38 @@ describe('a filed zero is a number, not a gap', () => {
     };
     const missingText = visibleText(renderPageSnapshot(committeePageSnapshot(missing, '41326')));
     expect(missingText).toContain('Not reported');
-    // Money out with no served total reads the words, never $0 and never a missing line
-    // (rule 12; ruled 11 Sep 2026).
-    expect(missingText).toContain(`${MONEY_OUT_REPORTED_LABEL}: Not reported`);
-    expect(missingText).not.toContain(`${MONEY_OUT_REPORTED_LABEL}: $0`);
+    expect(missingText).toContain(
+      `${MONEY_OUT_NAMED_LABEL}: ${formatMoney(missing.money_out.itemized_payment_total)}`,
+    );
+    expect(missingText).toContain(MONEY_OUT_NAMED_NOTE);
+    expect(missingText).toContain(MONEY_OUT_OFFICIAL_MISSING);
+    expect(missingText).not.toContain(MONEY_OUT_REPORTED_LABEL);
   });
+});
+
+describe('money-out source labels in the first response', () => {
+  function outText(moneyOut: Parameters<typeof committeePageSnapshot>[0]['money_out']) {
+    const snapshot = committeePageSnapshot({ ...committeeFixture, money_out: moneyOut }, '41326');
+    return JSON.stringify(snapshot.sections?.find((section) => section.heading === 'Money out'));
+  }
+
+  it('keeps an official zero instead of replacing it with the named amount', () => {
+    const text = outText({ ...committeeFixture.money_out, reported_total: '0.0000' });
+    expect(text).toContain(`${MONEY_OUT_REPORTED_LABEL}: $0`);
+    expect(text).not.toContain(MONEY_OUT_NAMED_LABEL);
+    expect(text).not.toContain(MONEY_OUT_OFFICIAL_MISSING);
+  });
+
+  it.each(['not_reported', 'unavailable'])(
+    'withholds the named figure when its state is %s',
+    (state) => {
+      const text = outText({ ...committeeFixture.money_out, state, reported_total: null });
+      expect(text).toContain(MONEY_OUT_NAMED_MISSING);
+      expect(text).toContain(MONEY_OUT_OFFICIAL_MISSING);
+      expect(text).not.toContain('$');
+      expect(text).not.toContain(MONEY_OUT_REPORTED_LABEL);
+    },
+  );
 });
 
 describe('a committee’s full payments list in the first response', () => {
@@ -1747,7 +1779,7 @@ describe('the money screens keep reading the helpers the server reads', () => {
       'unnamedMoneyExplanation',
       'coveredPeriodDetail',
       'recordCoverageLines',
-      'MONEY_OUT_REPORTED_LABEL',
+      'moneyOutSummary',
       'centralDateLabel',
     ]) {
       expect(source).toContain(call);
