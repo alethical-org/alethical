@@ -1,3 +1,5 @@
+import type { CommitteeRefunds } from '../data/types';
+
 /** Fixed copy for the accepted all-year refund card on a confirmed committee. */
 export const refundCopy = {
   heading: "Refunds the state paid to this committee's donors",
@@ -6,6 +8,7 @@ export const refundCopy = {
   columns: ['Year', 'Contributions refunded', 'Amount refunded'],
   caption: 'Refunds by year',
   notPublished: 'Not published',
+  countNotPublished: 'Count not published',
   notPublishedDetail: (year: number) => `The Board published no summary for ${year}`,
   unavailable: 'Not yet copied by Alethical',
   jointFilingNote: 'The Board counts a married couple filing jointly as one contribution',
@@ -15,3 +18,18 @@ export const refundCopy = {
   notMatched:
     "The Board's refund summaries name no row for this committee's candidate, office and party.",
 } as const;
+
+/** An unpublished year belongs only inside this committee's matched history. */
+export function visibleRefundYears(refunds: CommitteeRefunds): CommitteeRefunds['years'] {
+  const matched = refunds.years.filter((row) => row.state === 'reported').map((row) => row.year);
+  const oldest = Math.min(...matched);
+  const newest = Math.max(...matched);
+  return refunds.years
+    .filter(
+      (row) =>
+        row.state === 'reported' ||
+        row.state === 'unavailable' ||
+        (row.state === 'not_published' && row.year > oldest && row.year < newest),
+    )
+    .sort((a, b) => b.year - a.year);
+}

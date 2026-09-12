@@ -19,8 +19,9 @@ Three different silences are kept apart here, because a page that renders any of
 * ``not_matched`` -- the Board published that year's summary and no line in it attaches to
   this committee. That is usually the office moving rather than an error, and the next
   paragraph is why.
-* ``unavailable`` -- we hold no published summary at all. A fact about us, never about the
-  committee.
+* ``unavailable`` -- we lack a published copy for a known year. The block also uses this
+  state when nothing matches and a year cannot be read, or when we hold no summaries.
+  A fact about us, never about the committee.
 
 **Why a committee's older years often read ``not_matched``, and why that is the honest
 answer.** A refund summary names a candidate and the office they sought and never a
@@ -219,6 +220,8 @@ def refunds_for_committee(db: Session, *, registration_number: str) -> Committee
     state = (
         REPORTED
         if any(entry.state == REPORTED for entry in years)
+        else UNAVAILABLE
+        if any(entry.state == UNAVAILABLE for entry in years)
         else NOT_MATCHED
         if any(entry.state == NOT_MATCHED for entry in years)
         else UNAVAILABLE

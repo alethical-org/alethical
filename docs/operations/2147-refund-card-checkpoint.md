@@ -1,6 +1,6 @@
 # Refund card delivery checkpoint
 
-Net: The refund data contract and source notes are ready; the card itself is not built or live.
+Net: The refund data contract and source notes are ready; the accepted card is built locally and its checks are in progress.
 
 ## Accepted delivery
 
@@ -29,7 +29,7 @@ the live protection merged afterward. No F pull request has been opened.
   published candidate summaries only, preserving matches, amounts, states and
   original copy dates.
 - Frontend types and API conversion preserve nulls and carry refunds on both
-  selected-year and outside-year committees. No refund component exists yet.
+  selected-year and outside-year committees. The refund component now uses those inputs.
 - After merging the directory protection, 96 focused backend checks passed.
   The 4 new frontend API checks and frontend type checking pass.
 
@@ -54,38 +54,45 @@ Local recovery evidence, retained until final delivery:
 The current production API ignores the new metadata until the F API code ships.
 No PDF was recopied and no figure or candidate match was recomputed.
 
-## Required answers still pending
+## Approved source corrections
 
-These were sent to Eugene as questions. No answer has arrived; neither a later
-scope addition nor a peer recommendation approves them.
+Eugene approved these on 12 September 2026:
 
-1. The accepted prompt asks for Abeler's 2016 gap but also allows a gap only
-   between matched years. His oldest exact match is 2017; 2015 is not matched.
-   Recommendation: omit his 2016 row and use the real Dibble committee 15667
-   fixture, which has matching 2015 and 2017 rows, to test the 2016 gap.
-2. The Board's 2024 file carries an amount but no contribution-count column.
-   Recommendation: print `Count not published` in that count cell and retain
-   $10,508 in the amount cell. This new string needs Eugene's answer.
+1. Abeler's oldest matching refund year is 2017. His card omits 2016. The real
+   Dibble Senate committee (15667) has matching 2015 and 2017 rows for the gap test.
+2. Abeler's 2024 count prints `Count not published`, while the amount remains
+   $10,508. The state belongs to the individual row; the renderer handles any non-null
+   count normally. The public 2024 PDF matches the held bytes: 334 candidate rows have blank
+   counts; 5 additional rows are totals. The count column is blank on all 12 pages.
 
-Do not decide those answers from silence. Continue independent work meanwhile.
+The historical replacement separately remains held after 3 spaced retries for
+Action 4 Liberty PAC (41173), 2026. No preservation exception is approved.
 
-## Remaining build and delivery
+## Local validation
 
-1. Build the semantic 3-column card in `components/campaignMoney`, with fixed copy
-   in its companion library. Follow the exact latest accepted strings, layout
-   bands, colors, font choices, table caption and source-link rules.
-2. Put each card directly after its own committee card and above outside
-   spending; retain it under the no-money-for-this-year state, using outside-year
-   committee refunds. Keep each committee identifiable and separate.
-3. Pin real Abeler figures, distinct missing states, gap bracketing, 2-committee
-   placement, all-year behavior, and unconfirmed/loading/failed/expired-match
-   exclusions. Preserve the existing held-figures behavior on failed rechecks.
-4. Finish the reader guide, local browser checks at the 3 existing layout bands,
-   full required checks, F pull request, merge queue, production deployment and
-   fresh-context live user check.
-5. Report F on [issue 2140](https://github.com/alethical-org/alethical/issues/2140).
-   The separately approved 4 follow-on jobs cannot start until A through F are
-   live and that report is posted.
+- 2,608 frontend tests passed, including 28 new rendered refund tests.
+- Type checking, lint, production web build and existing first-load limit passed.
+- Phone (375), tablet (900) and desktop (1280) browser reads showed the correct
+  fonts, fixed 3-column table, source link and no horizontal overflow. Keyboard
+  focus on the source link has the tab's violet outline.
+- Switching Abeler from 2025 to 2021 kept all refund rows. Dibble's phone table
+  shows a 2016 year header and one 2-column missing cell between matched years.
+- The local browser relay reads public production data; it adds only the already
+  enriched source metadata so the not-yet-deployed API fields can be previewed.
+  Final checks must use the actual production response after F deploys.
+- Full backend run: 2,546 passed; 3 script-inventory tests exposed the newly added
+  metadata command missing from the inventory. The inventory is corrected and
+  all 16 inventory checks now pass. No application behavior failed.
 
-Docs check: This checkpoint records completed data work, the source metadata
-write, outstanding product answers, and the remaining refund-card delivery.
+## Remaining release
+
+1. Save and upload the completed card, tests and documentation. Run exact-upload
+   checks and open the F pull request.
+2. Complete current-head and merge-queue checks, deploy, then read the actual live
+   refund block and cards, including a fresh-context user-flow check.
+3. Report F on [issue 2140](https://github.com/alethical-org/alethical/issues/2140).
+   Keep the historical replacement explicitly held and its old published data
+   unchanged. The later follow-on queues remain recorded in the parent delivery plan.
+
+Docs check: This checkpoint records the completed card, source metadata enrichment,
+approved source corrections, local validation and remaining release checks.

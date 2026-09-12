@@ -228,6 +228,47 @@ def test_empty_card_gets_stored_source_url_and_newest_actual_copy_date(db, clien
     assert all(row["joint_filing_counts_as_one"] is None for row in block["years"])
 
 
+@pytest.mark.parametrize("outside_selected_year", [False, True])
+@pytest.mark.parametrize("has_matched_rows", [False, True])
+def test_missing_copy_stays_visible_when_other_years_have_no_match(
+    db, client, outside_selected_year, has_matched_rows
+):
+    legislator = _abeler(db)
+    link = db.scalars(select(models.LegislatorCampaignCommittee)).one()
+    link.first_year_as_reviewed = "2024"
+    link.last_year_as_reviewed = "2025"
+    for summary in db.scalars(select(models.CampaignFinanceRefundSummary)).all():
+        summary.validation_json = {
+            "source_metadata": {"source_url": INDEX_URL},
+            "source_index": {"candidate_years": [2024, 2025, 2026]},
+        }
+    if not has_matched_rows:
+        for row in db.scalars(select(models.CampaignFinanceRefundRow)).all():
+            row.matched_registration_number = None
+    db.commit()
+
+    response = client.get(
+        f"/api/v1/legislators/{legislator}/campaign-finance",
+        params={"year": 2023 if outside_selected_year else 2025},
+    )
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    key = "committees_outside_this_year" if outside_selected_year else "committees"
+    block = payload[key][0]["refunds"]
+    assert block["state"] == ("reported" if has_matched_rows else "unavailable")
+    assert block["source_url"] == INDEX_URL
+    assert block["copied_on"] == "2026-09-12"
+    missing = block["years"][0]
+    assert missing["year"] == 2026
+    assert missing["state"] == "unavailable"
+    assert missing["amount_refunded"] is None
+    assert missing["contributions_refunded"] is None
+    assert missing["copied_on"] is None
+    assert next(row for row in block["years"] if row["year"] == 2025)["state"] == (
+        "reported" if has_matched_rows else "not_matched"
+    )
+
+
 @pytest.mark.parametrize("note", [True, False, None])
 def test_api_uses_per_file_note_metadata_and_old_fixtures_remain_compatible(
     db, client, note
