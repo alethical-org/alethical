@@ -126,6 +126,41 @@ Direct peer consultation is permitted only for a new disagreement with the revis
 corrections, and only in the existing Claude conversation “candidate donor profile”.
 The revised corrections currently have no outstanding disagreement.
 
+## Added refund card, F
+
+Eugene added this delivery on 12 September 2026 and replaced its initial brief with
+the 7-decision version. Implementation starts only after the import for
+[issue 2147](https://github.com/alethical-org/alethical/issues/2147), currently
+[pull request 2160](https://github.com/alethical-org/alethical/pull/2160), is merged
+and its populated `refunds` response is live. This dependency does not pause the
+historical filings refresh.
+
+- [ ] Use the accepted `Alethical UX (4).zip` refund drawing, with Eugene's message
+  taking precedence over its illustrative data and superseded wording.
+- [ ] Render 1 all-years refund card directly below each confirmed committee's card,
+  before outside spending. Preserve it when only the selected year has no figures;
+  withhold it with unconfirmed, loading and failed whole-tab states.
+- [ ] Keep source-backed reported, not-published, not-matched and unavailable states
+  distinct. Show an unpublished year only between matched years; omit unmatched years.
+  Never add a total or guess an identity, a count, a copy date or a source address.
+- [ ] Use the exact accepted heading, explanation, table headings, notes and empty
+  wording. Omit the drawing's extra registration line. Keep 3 table columns at phone
+  width, an off-screen caption and proper column and year headers.
+- [ ] Load a fixture from the live response for 17868 and test real 2025 and 2021
+  figures, missing-value wording, the conditional gap and 2 separately placed cards.
+- [ ] Update the profile reader guide and complete checks, release and live review.
+
+Two source corrections await Eugene's answer: applying the between-matches rule omits
+2016 from Abeler's card because no earlier Senate-committee row matches; the drawing's
+2015 row is illustrative. The 2024 candidate file supplies $10,508.22 and no count;
+the proposed count-cell wording is “Count not published”. This proposal leaves the
+reported amount visible.
+
+The import's reviewed response currently supplies file names and copy dates but no
+stored program-page address or per-file married-couple-note flag. Those inputs must
+be supplied from the import before the card can print the required source link and
+conditional note. The card must not invent them from a filename or year.
+
 ## Final record
 
 - [ ] Comment on [issue 2140](https://github.com/alethical-org/alethical/issues/2140)
