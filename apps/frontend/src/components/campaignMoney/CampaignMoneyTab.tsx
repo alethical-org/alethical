@@ -39,7 +39,12 @@ import {
   severalCommitteesNote,
   confirmedCommitteesWithheldLine,
 } from '../../lib/legislatorCampaignMoney';
-import { coveredPeriodDetail, coveredPeriodLine, staleHoldNote } from '../../lib/committeeMoney';
+import {
+  coveredPeriodDetail,
+  coveredPeriodLine,
+  paymentFilesDownloadedLine,
+  staleHoldNote,
+} from '../../lib/committeeMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { useLegislatorOutsideSpending } from '../../hooks/useAppQueries';
 import { useCurrentClaimExpiry } from '../../hooks/useCurrentClaimExpiry';
@@ -207,7 +212,7 @@ export function CampaignMoneyTab({
         <>
           <View style={styles.card}>
             <Text accessibilityRole="alert" style={styles.body}>
-              {staleHoldNote(money.fetchedAt ? centralDateLabel(money.fetchedAt) : null)}
+              {staleHoldNote(null)}
             </Text>
           </View>
           <SeveralCommitteesNote count={money.committees.length} />
@@ -583,10 +588,7 @@ function FreshnessNote({
     );
   return (
     <View style={styles.freshness}>
-      <Text style={[text.small, text.numeric]}>
-        We last downloaded Minnesota’s campaign finance files on {day}. That is when we checked, not
-        the period this money covers.
-      </Text>
+      <Text style={[text.small, text.numeric]}>{paymentFilesDownloadedLine(day)}</Text>
     </View>
   );
 }

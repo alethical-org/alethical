@@ -402,11 +402,13 @@ describe('independent outside-money confirmation and shared download dates', () 
     expect(outsideQuery.refetch).toHaveBeenCalledTimes(1);
   });
 
-  it('prints the original freshness note once when both records were copied on the same day', () => {
+  it('dates the payment files once without assigning that date to report totals', () => {
     setOutside();
     render(2025, data(2025));
     expect(container.textContent?.match(/We last downloaded Minnesota/g)).toHaveLength(1);
-    expect(container.textContent).toContain('not the period this money covers');
+    expect(container.textContent).toContain('Minnesota’s payment files');
+    expect(container.textContent).toContain('The report totals are copied separately');
+    expect(container.textContent).toContain('not the period the money covers');
     expect(container.textContent).not.toContain(moneyDetailsCopy.freshnessMismatch);
     expect(container.textContent).not.toContain('Check these records again');
     expect(container.textContent).not.toContain('Copied from the state on');

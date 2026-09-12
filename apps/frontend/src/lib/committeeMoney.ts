@@ -463,6 +463,14 @@ export function staleHoldNote(checkedOn: string | null): string {
   );
 }
 
+/** The bulk-payment copy has its own date, separate from the filing totals. */
+export function paymentFilesDownloadedLine(day: string): string {
+  return (
+    `We last downloaded Minnesota’s payment files on ${day}. ` +
+    'The report totals are copied separately. This is a download date, not the period the money covers.'
+  );
+}
+
 /**
  * Which display state a whole committee-year is in, decided once so the period
  * stamp, the 2 cards, the lists and the first server response cannot disagree

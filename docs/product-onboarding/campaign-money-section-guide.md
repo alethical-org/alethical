@@ -609,10 +609,13 @@ Top to bottom:
    filing; the start appears only when the Board's own published filing calendar prints
    one against that end (so "Figures for Jan 1, 2026 – Jul 20, 2026"), and otherwise the
    panel says "through" alone — a start is never assumed, because a special-election
-   filer's period does not open on 1 January. Beside it, the one freshness date (the day
-   we copied the Board's files, printed as its Minnesota day), and the link to the
-   committee's filed reports on the Board's own site. The filing's period and link live
-   here, once, above both money cards and never inside one: one filing produces both
+   filer's period does not open on 1 January. Beside it is the link to the
+   committee's filed reports on the Board's own site. The date at the foot of the page
+   names the payment files it covers and explains that report totals are copied
+   separately. The payment-file date never dates the report totals or the register.
+   The same distinction appears on the committee's every-payment view and in the first
+   response served for both addresses. The filing's period and link live here, once,
+   above both money cards and never inside one: one filing produces both
    cards, so stating any of it per card would state one fact twice. A party unit's panel
    says its calendar is its own. If our own data service stops answering, the page keeps
    the figures it already had and says they are held until it answers — never expiring

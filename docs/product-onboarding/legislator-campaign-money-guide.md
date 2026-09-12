@@ -526,7 +526,8 @@ opposing and any unspecified direction remain separate, including when the same 
 appears in more than 1 direction. No amount is moved between directions or combined with
 the candidate's own receipts or ordinary payments out.
 
-The shared freshness note appears once at the foot of the tab. The outside-spending card
+The shared payment-file freshness note appears once at the foot of the tab. It does
+not date the separately copied report totals. The outside-spending card
 does not repeat a download date. Its payment dates still describe its own source rows.
 Grouped rows must finish loading before their totals appear; a partial list cannot stand
 in for the complete selected-year record.
@@ -689,8 +690,9 @@ An explaining paragraph inside a card keeps every full stop it has, however shor
    all, because the Board's own service answers a request for a year it has no report
    for with the _previous_ year's figures and nothing in the answer says so.
 3. **One shared freshness date at the foot of the tab** — shown only when the displayed
-   campaign and outside-spending records support the same download date. It is not the
-   period the money covers. If their dates differ or a date is missing, the tab explains
+   campaign-payment and outside-spending files support the same download date. The note
+   names payment files and explains that report totals are copied separately. It is not
+   the period the money covers. If payment-file dates differ or a date is missing, the tab explains
    that it cannot state a shared date and lets the reader check the records again.
 
 **A fourth kind of time exists and is deliberately not printed here.** Our data service

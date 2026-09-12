@@ -1426,10 +1426,12 @@ describe('a committee’s record in the first response', () => {
     expect(onlyMisc).not.toContain('$375');
   });
 
-  // Every page carrying a money figure carries one clearly labelled date for it.
-  it('carries the period the figures cover and the day we copied the files', () => {
+  it('separates the filing period from the payment files download date', () => {
     expect(text).toContain(coveredPeriodLine(split.reported_through, '2026-01-01'));
     expect(text).toContain(centralDateLabel(committeeFixture.fetched_at));
+    expect(text).toContain('Minnesota’s payment files');
+    expect(text).toContain('The report totals are copied separately');
+    expect(text).not.toContain('Checked against our copy of the Board’s files');
   });
 
   it('says whose committee this is in the shared sentence, never inferring a person', () => {

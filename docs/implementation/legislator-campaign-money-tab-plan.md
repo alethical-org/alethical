@@ -31,6 +31,9 @@ covering [issue 2143](https://github.com/alethical-org/alethical/issues/2143).
   outside spending independently when its committee confirmation expires.
 - [x] Print a shared download date only when displayed records support the same date;
   otherwise provide an explanation and a refresh control.
+- [x] Scope that date to payment files. Report totals are copied separately; the
+  payment-file date never dates report coverage checks or the register. Carry the same
+  wording through the profile, committee views and first served response.
 - [x] Test real Abeler records for 2025, 2026, 2021 and 2024 at phone, tablet and desktop
   widths. Check keyboard tabs, sorting, row expansion, real committee links and the
   browser's accessibility tree. Repair the phone money-column overlap.
