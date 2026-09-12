@@ -58,6 +58,7 @@ import {
 } from './MoneyCards';
 import { YearControl } from './YearControl';
 import { CommitteeMixHistory } from './CommitteeMixHistory';
+import { CommitteeRefundCard } from './CommitteeRefundCard';
 import { useCampaignMoneyYearStates } from '../../hooks/useCampaignMoneyDetails';
 import { CommitteeDonations } from './CommitteeDonations';
 import { GroupedOutsideSpending } from './GroupedOutsideSpending';
@@ -72,6 +73,7 @@ import {
 } from '../../lib/campaignMoneyDetails';
 import { moneyDetailsCopy as copy } from '../../lib/campaignMoneyDetailsCopy';
 import {
+  committeeCardStyles,
   detailsStyles,
   numericText,
   useCampaignMoneyTypography,
@@ -215,7 +217,9 @@ export function CampaignMoneyTab({
               {staleHoldNote(null)}
             </Text>
           </View>
-          <SeveralCommitteesNote count={money.committees.length} />
+          <SeveralCommitteesNote
+            count={money.committees.length + money.committeesOutsideThisYear.length}
+          />
           {money.committees.map((committee) => (
             <CommitteeCard
               key={committee.registrationNumber}
@@ -226,6 +230,7 @@ export function CampaignMoneyTab({
               {...cardPreferences(committee.registrationNumber)}
             />
           ))}
+          <OutsideYearCommitteeCards committees={money.committeesOutsideThisYear} year={year} />
         </>
       ) : committeesWithheld && (money.linkState === 'confirmed' || money.committees.length > 0) ? (
         // Ahead of every empty state below, because each of those asserts something
@@ -238,19 +243,25 @@ export function CampaignMoneyTab({
       ) : emptyStateFor(money.linkState, money.committees.length) === 'unconfirmed' ? (
         <UnconfirmedPanel />
       ) : emptyStateFor(money.linkState, money.committees.length) === 'confirmed-elsewhere' ? (
-        <View style={styles.card}>
-          <Text accessibilityRole="header" aria-level={3} style={styles.h3}>
-            {confirmedElsewhereHeading(year, money.committeesOutsideThisYear)}
-          </Text>
-          <Text style={styles.body}>
-            {confirmedElsewhereExplanation(year, money.committeesOutsideThisYear)}
-          </Text>
-        </View>
+        money.committeesOutsideThisYear.length ? (
+          <OutsideYearCommitteeCards committees={money.committeesOutsideThisYear} year={year} />
+        ) : (
+          <View style={styles.card}>
+            <Text accessibilityRole="header" aria-level={3} style={styles.h3}>
+              {confirmedElsewhereHeading(year, money.committeesOutsideThisYear)}
+            </Text>
+            <Text style={styles.body}>
+              {confirmedElsewhereExplanation(year, money.committeesOutsideThisYear)}
+            </Text>
+          </View>
+        )
       ) : (
         <>
           {/* Above the cards, not below: a reader who stops after the first figure
               is exactly the reader who would otherwise add the second one to it. */}
-          <SeveralCommitteesNote count={money.committees.length} />
+          <SeveralCommitteesNote
+            count={money.committees.length + money.committeesOutsideThisYear.length}
+          />
           {money.committees.map((committee) => (
             <CommitteeCard
               key={committee.registrationNumber}
@@ -261,6 +272,7 @@ export function CampaignMoneyTab({
               {...cardPreferences(committee.registrationNumber)}
             />
           ))}
+          <OutsideYearCommitteeCards committees={money.committeesOutsideThisYear} year={year} />
         </>
       )}
 
@@ -319,6 +331,40 @@ export function CampaignMoneyTab({
       />
     </View>
   );
+}
+
+/** A selected-year absence does not erase a confirmed committee's refund history. */
+function OutsideYearCommitteeCards({
+  committees,
+  year,
+}: {
+  committees: LegislatorCampaignMoney['committeesOutsideThisYear'];
+  year: CampaignMoneyYear;
+}) {
+  const { isMobile, isTablet } = useResponsive();
+  const type = useCampaignMoneyTypography();
+  return committees.map((committee) => (
+    <View key={committee.registrationNumber} style={{ gap: 24 }}>
+      <View style={[styles.card, isTablet && styles.cardTablet, isMobile && styles.cardMobile]}>
+        <Text style={styles.eyebrow}>
+          {year} · REGISTRATION {committee.registrationNumber}
+        </Text>
+        <Text accessibilityRole="header" aria-level={3} style={[styles.h3, { fontSize: type.h3 }]}>
+          {committee.committeeNameAsReviewed}
+        </Text>
+        <Text accessibilityRole="header" aria-level={4} style={styles.explain}>
+          {confirmedElsewhereHeading(year, [committee])}
+        </Text>
+        <Text style={[styles.body, { fontSize: type.body }]}>
+          {confirmedElsewhereExplanation(year, [committee])}
+        </Text>
+      </View>
+      <CommitteeRefundCard
+        refunds={committee.refunds}
+        registrationNumber={committee.registrationNumber}
+      />
+    </View>
+  ));
 }
 
 /**
@@ -461,6 +507,10 @@ function CommitteeCard({
           <CheckedByBlock checked={committee.checked} />
         </View>
       </View>
+      <CommitteeRefundCard
+        refunds={committee.refunds}
+        registrationNumber={committee.registrationNumber}
+      />
     </CampaignMoneyCardTheme>
   );
 }
@@ -627,17 +677,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   block: { gap: 12, marginTop: 8 },
-  card: {
-    backgroundColor: c.background,
-    borderWidth: 1,
-    borderColor: c.border,
-    borderRadius: t.radii.lg,
-    paddingTop: 30,
-    paddingBottom: 28,
-    paddingHorizontal: 32,
-    gap: 16,
-    ...(t.shadows.card as object),
-  },
+  card: committeeCardStyles.card,
   body: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.bodyLg,
@@ -665,8 +705,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   freshness: { gap: 8 },
-  cardMobile: { paddingHorizontal: 18, paddingVertical: 20 },
-  cardTablet: { paddingHorizontal: 26, paddingTop: 26, paddingBottom: 24 },
+  cardMobile: committeeCardStyles.mobile,
+  cardTablet: committeeCardStyles.tablet,
   figures: {
     flexDirection: 'row',
     gap: 28,

@@ -24,14 +24,16 @@ This guide describes its donation lists, year choices and charts.
 
 On 12 September 2026 Eugene approved chart categories matching the donor tabs, with
 candidate committees included in Committees & Funds, and keeping the existing
-whole-dollar display. Each payment's original kind remains available. The exact chart
-colours remain with Design and can change in 1 colour-map file.
+whole-dollar display. Each payment's original kind remains available. The donut, its
+legend and the history bars use the final shared solid colour map.
 
 The shared missing official money-out wording comes from
-[pull request 2154](https://github.com/alethical-org/alethical/pull/2154). A protected
-extension of the official totals for 2022 and 2023 is also approved, using the 1,603
-held filers and preserving every existing 2024–2026 record. Year choices alone do not
-claim that any historical totals have been loaded or passed their checks.
+[pull request 2155](https://github.com/alethical-org/alethical/pull/2155). The ordinary
+full-replacement refresh for 2022–2026 uses the intact saved directory of 1,603 filers
+and the existing missing-record checks. It adds no protected historical store. Its
+replacement remains held because the new Board totals feed omits an existing 2026
+record. Year choices alone do not claim that historical totals have been loaded or
+passed their checks.
 
 ## What every profile shows today
 
@@ -408,6 +410,76 @@ committee-year is still stored and served (`stated_spending_state`); the card ju
 prints it. A held official total stays visible even when that comparison is unproved;
 the comparison does not decide whether the total exists. Its mechanics are under "Where
 the data comes from" below.
+
+### Refunds the state paid to donors
+
+Directly below each confirmed committee's card is a separate card headed **Refunds
+the state paid to this committee's donors**. It shows the state's payments back to
+that committee's donors, never money the committee received. Each committee keeps
+its own card, and no year or page total is calculated.
+
+The introduction reads:
+
+> Minnesota pays a resident back for a gift to a state candidate, up to $75 a year for
+> 1 person and $150 for a married couple filing together. This is money the state
+> returned to donors, not money the committee received.
+
+The table keeps **Year**, **Contributions refunded**, and **Amount refunded** in
+3 columns, including on a phone. It lists all held refund years newest first,
+regardless of the campaign-money year selected above it. Amounts use the tab's
+existing dollar formatting. The source amount $14,216.47 therefore displays as
+$14,216, with its cents preserved in the data.
+
+The Board identifies a candidate by printed name, office and district, and party,
+not a registration number. The importer attaches a row only when those fields
+match the confirmed committee's register entry exactly. A published year with no
+matching row prints nothing. Near-matches stay in the import's review record and
+never become hints on a person's profile.
+
+**Not published** is reserved for a year for which the Board published no summary.
+It spans both figure columns, followed by **The Board published no summary for
+{year}** beneath that row. It appears only between 2 years with matching rows.
+**Not yet copied by Alethical** is the separate state for a known year whose file
+Alethical does not hold. Neither state becomes a zero. Abeler's oldest matching
+refund row is 2017, so his card has no 2016 gap. Dibble's Senate committee (15667)
+has matching 2015 and 2017 rows, so its card does show 2016.
+
+A reported amount with a blank count keeps its amount and reads **Count not
+published** in the count cell. Abeler's 2024 therefore reads **Count not published**
+and **$10,508**. A missing count is never rendered as zero or an empty cell. The Board's
+[2024 candidate summary](https://cfb.mn.gov/pdf/publications/public_subsidy/historical/2024_refunds_cand.pdf)
+has 334 candidate rows, all with blank counts, and 5 total rows. Senate district
+numbers belong to the office column and are never treated as refund counts.
+
+The note **The Board counts a married couple filing jointly as one contribution**
+appears when the source files for the reported rows carry that counting note.
+A second line reads
+**Rows from the Board's yearly refund summary whose candidate name, office and
+party match this committee's registration exactly**. The only link in the card is
+**Board summary files last copied {newest copy date}**, pointing to the Board's
+program page recorded by the import. Year cells are not links. Adding this source
+information to an already-held file does not change its copy date or its figures.
+
+When no candidate row matches, the card keeps its heading, introduction, and
+copied-files link, and says:
+
+> The Board's refund summaries name no row for this committee's candidate, office
+> and party.
+
+The refund history remains under **Nothing reported for {year}**, because that
+message concerns the selected campaign-money year. It remains tied to each
+confirmed committee and disappears when the member's committee match is withheld,
+the first read is loading, or that read failed. It never brings a campaign for a
+non-legislative office onto this profile.
+
+The table has an off-screen caption, **Refunds by year**, column headers and a row
+header for every year. The no-summary row preserves its year header while its
+message occupies the 2 figure columns.
+
+Docs check: This section follows the per-committee refunds response and the accepted
+card decisions in [issue 2147](https://github.com/alethical-org/alethical/issues/2147),
+including the approved gap and blank-count corrections. The complete guide was
+reread; the superseded spending-card and protected-history claims were corrected.
 
 ### Spending by outside groups
 

@@ -567,6 +567,48 @@ def extract_pages(pdf_bytes: bytes) -> list[str]:
     return [page.extract_text() or "" for page in reader.pages]
 
 
+def source_note_metadata(pages: list[str]) -> dict:
+    """Record a printed note, not an inferred rule about how Minnesota counts.
+
+    The exact sentence appears in the Board's 2024 and 2025 candidate PDFs.
+    False means the complete readable text carries no such note; it does not assert
+    that joint returns are counted separately. Incomplete or unfamiliar text is unknown.
+    """
+    sentence = "Contributions from a married couple filing jointly are reported as one contribution"
+    for page_number, page in enumerate(pages, 1):
+        flattened = " ".join(normalise(page).split())
+        # The older PDFs split this exact word as "re ported" when text is extracted.
+        pattern = re.escape(sentence).replace("reported", r"re\s*ported")
+        match = re.search(pattern, flattened, re.I)
+        if match:
+            return {
+                "joint_filing_counts_as_one": True,
+                "joint_filing_note": match.group(0),
+                "joint_filing_note_page": page_number,
+            }
+    text = " ".join(" ".join(normalise(page).split()) for page in pages)
+    complete = bool(pages) and all(page.strip() for page in pages)
+    familiar = bool(
+        re.search(
+            r"Contribution Refund Summary for (?:Candidate|Principal Campaign|Political Party)",
+            text,
+            re.I,
+        )
+    )
+    ambiguous = bool(re.search(r"married|jointly|joint filing", text, re.I))
+    return {
+        "joint_filing_counts_as_one": False
+        if complete and familiar and not ambiguous
+        else None,
+        "joint_filing_note": None,
+        "joint_filing_note_page": None,
+    }
+
+
+def _source_metadata(pages: list[str], index_url: Optional[str]) -> dict:
+    return {"source_url": index_url, **source_note_metadata(pages)}
+
+
 # --- Checking a file before anything of it is published ------------------------------
 #
 # Four checks, and what separates them is who the disagreement belongs to. A section
@@ -946,6 +988,7 @@ class FileOutcome:
     published: bool = False
     reused: bool = False
     not_published_reason: Optional[str] = None
+    unavailable_reason: Optional[str] = None
     attached_rows: int = 0
     unattached_rows: int = 0
 
@@ -1257,7 +1300,15 @@ def load_refund_summaries(
 
     if index_html is None:
         log(f"reading the Board's index page: {index_url}")
-        index_html = http.get(index_url, timeout=REQUEST_TIMEOUT_SECONDS).text
+        try:
+            response = http.get(index_url, timeout=REQUEST_TIMEOUT_SECONDS)
+            response.raise_for_status()
+            index_html = response.text
+        except requests.RequestException as error:
+            report.errors.append(
+                f"the Board's index could not be read: {type(error).__name__}"
+            )
+            return report
     links = resolve_refund_files(index_html)
     log(f"the page links {len(links)} file(s)")
     if not links:
@@ -1267,7 +1318,14 @@ def load_refund_summaries(
         )
         return report
 
-    linked_years = {link.year for link in links}
+    linked = {(link.year, link.kind) for link in links}
+    source_index = {
+        "url": index_url,
+        "candidate_years": sorted(
+            {link.year for link in links if link.kind == CANDIDATE}
+        ),
+        "observed_on": datetime.now(UTC).date().isoformat(),
+    }
     for link in links:
         if wanted is not None and link.year not in wanted:
             continue
@@ -1278,17 +1336,26 @@ def load_refund_summaries(
             store=store,
             dry_run=dry_run,
             ingestion_run_id=ingestion_run_id,
+            index_url=index_url,
             log=log,
         )
         report.outcomes.append(outcome)
+        if outcome.unavailable_reason:
+            report.errors.append(
+                f"{link.year} {link.kind}: {outcome.unavailable_reason}"
+            )
         time.sleep(REQUEST_SPACING_SECONDS)
 
     if probe_unlinked_years:
-        this_year = datetime.now(UTC).year
-        for year in range(FIRST_PUBLISHED_YEAR, this_year + 1):
-            if year in linked_years or (wanted is not None and year not in wanted):
+        # Probe gaps inside the observed history, never invent a future year's absence.
+        for year in range(
+            min(link.year for link in links), max(link.year for link in links) + 1
+        ):
+            if wanted is not None and year not in wanted:
                 continue
             for kind, suffix in ((CANDIDATE, "cand"), (PARTY_UNIT, "party")):
+                if (year, kind) in linked:
+                    continue
                 link = RefundFileLink(
                     year=year,
                     kind=kind,
@@ -1297,16 +1364,31 @@ def load_refund_summaries(
                         f"{year}_refunds_{suffix}.pdf"
                     ),
                 )
-                fetched = fetch_file(http, link)
-                reason = (
-                    f"the Board's page links no file for {year}, and its address answered "
-                    f"HTTP {fetched.status_code} with "
-                    + (
-                        f"{len(fetched.body)} bytes that are not a PDF"
-                        if not looks_like_refund_pdf(fetched.body)
-                        else "a PDF the page does not link"
+                try:
+                    fetched = fetch_file(http, link)
+                except requests.RequestException as error:
+                    report.errors.append(
+                        f"{year} {kind}: unlinked probe unavailable ({type(error).__name__})"
+                    )
+                    continue
+                # A missing link alone does not establish that a file was not published.
+                missing_page = (
+                    fetched.status_code == 200
+                    and not looks_like_refund_pdf(fetched.body)
+                    and bool(
+                        re.search(
+                            rb"<h[1-6][^>]*>\s*This page is not available\s*</h[1-6]>",
+                            fetched.body,
+                            re.I,
+                        )
                     )
                 )
+                if not missing_page:
+                    report.errors.append(
+                        f"{year} {kind}: unlinked address needs review (HTTP {fetched.status_code}); no absence recorded"
+                    )
+                    continue
+                reason = f"the Board's page links no {kind} file for {year}, and its address returned the Board's 'This page is not available' heading"
                 log(f"  {year} {kind}: not published -- {reason}")
                 report.not_published.append((year, kind, reason))
                 if not dry_run:
@@ -1314,6 +1396,20 @@ def load_refund_summaries(
                 time.sleep(REQUEST_SPACING_SECONDS)
 
     if not dry_run:
+        source_index["read_failures"] = list(report.errors)
+        # Preserve index evidence even when a newly linked year could not be copied.
+        for summary in db.scalars(
+            select(schema.CampaignFinanceRefundSummary).where(
+                schema.CampaignFinanceRefundSummary.kind
+                == schema.CampaignFinanceRefundKind.candidate,
+                schema.CampaignFinanceRefundSummary.status
+                == schema.CampaignFinanceRefundStatus.published,
+            )
+        ).all():
+            summary.validation_json = {
+                **(summary.validation_json or {}),
+                "source_index": source_index,
+            }
         db.commit()
     return report
 
@@ -1327,25 +1423,40 @@ def _load_one(
     dry_run: bool,
     ingestion_run_id: Optional[uuid.UUID],
     log,
+    index_url: Optional[str] = None,
 ) -> FileOutcome:
     import tempfile
 
     outcome = FileOutcome(link=link)
     log(f"  {link.year} {link.kind}: {link.url}")
-    fetched = fetch_file(http, link)
+    try:
+        fetched = fetch_file(http, link)
+    except requests.RequestException as error:
+        outcome.unavailable_reason = (
+            f"linked file could not be read ({type(error).__name__})"
+        )
+        return outcome
     if not fetched.is_document:
         reason = (
             f"the linked address answered HTTP {fetched.status_code} with "
             f"{len(fetched.body)} bytes that are not a PDF"
         )
-        outcome.not_published_reason = reason
-        log(f"    {reason}")
-        if not dry_run:
-            _record_not_published(db, link, fetched, reason)
+        outcome.unavailable_reason = reason
+        log(f"    unavailable: {reason}")
         return outcome
 
     content_hash = _hash_bytes(fetched.body)
-    parsed = parse_pages(extract_pages(fetched.body), year=link.year, kind=link.kind)
+    from pypdf.errors import PdfReadError
+
+    try:
+        pages = extract_pages(fetched.body)
+    except (PdfReadError, ValueError) as error:
+        outcome.unavailable_reason = (
+            f"linked PDF could not be read ({type(error).__name__})"
+        )
+        return outcome
+    metadata = _source_metadata(pages, index_url)
+    parsed = parse_pages(pages, year=link.year, kind=link.kind)
     outcome.parsed = parsed
     outcome.checks = validate(
         parsed,
@@ -1369,9 +1480,14 @@ def _load_one(
 
     if existing is not None:
         outcome.summary_id = existing.id
+        # These are the same bytes: keep their original copy dates and raw records.
+        existing.validation_json = {
+            **(existing.validation_json or {}),
+            "source_metadata": metadata,
+        }
         outcome.reused = True
         log(
-            "    these exact bytes are already held; re-running the identity check only"
+            "    these exact bytes are already held; refreshing source notes and identity checks"
         )
     else:
         store = store or _store_from_env()
@@ -1406,6 +1522,7 @@ def _load_one(
             ),
             status=schema.CampaignFinanceRefundStatus.fetched,
             validation_json={
+                "source_metadata": metadata,
                 "checks": [
                     {"name": c.name, "status": c.status, "detail": c.detail}
                     for c in outcome.checks
@@ -1461,3 +1578,89 @@ def _load_one(
             and held.status is schema.CampaignFinanceRefundStatus.published
         )
     return outcome
+
+
+def enrich_refund_source_metadata(
+    db: Session,
+    *,
+    store: Any,
+    index_html: str,
+    index_url: str,
+    years: Optional[Iterable[int]] = None,
+    dry_run: bool = True,
+) -> list[dict]:
+    """Enrich published candidate PDFs alone; never re-match rows or change other copies.
+
+    The caller supplies an index it actually read. A program link is added only where
+    that index links the stored PDF URL. Existing provenance remains when a file has
+    since disappeared from the index. Copy dates and all published facts stay untouched.
+    Hash failures abort before any changes are applied. The caller owns commit/rollback.
+    """
+    import tempfile
+    from pathlib import Path
+
+    links = resolve_refund_files(index_html)
+    if not links:
+        raise ValueError("The supplied index links no refund PDFs; refusing enrichment")
+    linked = {(link.year, link.kind, link.url) for link in links}
+    statement = (
+        select(schema.CampaignFinanceRefundSummary)
+        .where(
+            schema.CampaignFinanceRefundSummary.kind
+            == schema.CampaignFinanceRefundKind.candidate,
+            schema.CampaignFinanceRefundSummary.status
+            == schema.CampaignFinanceRefundStatus.published,
+        )
+        .order_by(
+            schema.CampaignFinanceRefundSummary.year,
+            schema.CampaignFinanceRefundSummary.id,
+        )
+    )
+    if years is not None:
+        statement = statement.where(
+            schema.CampaignFinanceRefundSummary.year.in_(list(years))
+        )
+    if not dry_run:
+        statement = statement.with_for_update()
+    statement = statement.execution_options(populate_existing=True)
+    proposals = []
+    for summary in db.scalars(statement).all():
+        with tempfile.TemporaryDirectory() as directory:
+            path = str(Path(directory) / "source.gz")
+            store.get(summary.object_key, path, max_bytes=summary.compressed_byte_size)
+            if sha256_of_file(path) != summary.compressed_hash:
+                raise ValueError(f"Stored compressed hash mismatch: {summary.id}")
+            body = gzip.decompress(Path(path).read_bytes())
+            if (
+                len(body) != summary.byte_size
+                or _hash_bytes(body) != summary.content_hash
+            ):
+                raise ValueError(f"Stored PDF hash or size mismatch: {summary.id}")
+            if not looks_like_refund_pdf(body):
+                raise ValueError(f"Stored body is not a PDF: {summary.id}")
+            pages = extract_pages(body)
+        before = dict(summary.validation_json or {})
+        previous_source = before.get("source_metadata", {}).get("source_url")
+        source_url = (
+            index_url
+            if (summary.year, summary.kind.value, summary.source_url) in linked
+            else previous_source
+        )
+        after = {**before, "source_metadata": _source_metadata(pages, source_url)}
+        proposals.append((summary, before, after))
+    if not dry_run:
+        for summary, before, after in proposals:
+            if before != after:
+                summary.validation_json = after
+        db.flush()
+    return [
+        {
+            "summary_id": str(summary.id),
+            "year": summary.year,
+            "kind": summary.kind.value,
+            "changed": before != after,
+            "before": before,
+            "after": after,
+        }
+        for summary, before, after in proposals
+    ]
