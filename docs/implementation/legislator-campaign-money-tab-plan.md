@@ -165,7 +165,8 @@ The accepted card is built in `codex/2147-legislator-refund-card` at
 with type checking, lint and the production web build. The first full backend run
 passed 2,546 checks and exposed 3 inventory failures for the new metadata helper;
 the corrected inventory passes all 16 focused checks. Exact-upload checks are
-running before F is opened and carried through the queue and live checks.
+complete: all 2,549 server tests pass. [Pull request 2162](https://github.com/alethical-org/alethical/pull/2162)
+is open for the queue and live checks.
 
 ## Final record
 
@@ -299,8 +300,8 @@ each job's issue. Comment on issue 2140 after all 4 merge.
 
 Eugene added job 5e after jobs 5a through 5d on 12 September 2026. This authorizes
 lobbying data and server work only; lobbying pages still await Design's second
-round and their separate brief. Open its issue first in milestone `campaign finance`,
-then close it with its own pull request and report live results. Keep the same
+round and their separate brief. The queued work is [issue 2163](https://github.com/alethical-org/alethical/issues/2163)
+in milestone `campaign finance`; close it with its own pull request and report live results. Keep the same
 worktree, checks, merge queue, live-read and no-architecture-file-edit rules.
 
 - Resolve the Board's [lobbying downloads](https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/)
