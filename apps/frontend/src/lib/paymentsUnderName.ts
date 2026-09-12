@@ -20,8 +20,9 @@
  *   this is everything a person or business received.
  * - **No total across committees, in any form.** The rows come from committees on
  *   different filing calendars, so a sum would set one period against another
- *   (rule 12). There is no total, no subtotal, no average and no largest-payment
- *   figure anywhere on this page — only each row's own amount.
+ *   (rule 12). Only payments filed by the same numbered filer in the same
+ *   filing year earn a subtotal, and only when that group has at least 2 rows.
+ *   There is no page total, year total, average or largest-payment figure.
  * - **The 3 roles are 3 answers, never 1.** 491 rows of the independent-spending
  *   file share a spender, name, amount and date with an ordinary expenditure row,
  *   and whether that is one payment filed twice or 2 that coincide is not
@@ -229,6 +230,12 @@ export interface PaymentUnderNameRow {
 /** One payment as the 3 downloads serve it, already flattened by the API client
  *  to the fields this page draws. */
 export interface PaymentUnderName {
+  /** The filing year, never inferred from the payment date. */
+  year?: number | null;
+  employer?: string | null;
+  /** Held filer register kind, served for the two payee roles. */
+  filerKind?: string | null;
+  recordNumber?: number | null;
   /** The committee that filed the row: the recipient of a donation, the committee
    *  that made an expenditure, or the spender behind independent spending. */
   filerName: string | null;
@@ -264,7 +271,7 @@ export function paymentUnderNameMeta(payment: PaymentUnderName, role: PaymentNam
     const kind = registerKindLabel(registerKindFromEntityType(payment.filerEntityType));
     if (kind) parts.push(kind);
     if (payment.receiptType && payment.receiptType !== 'Contribution') {
-      parts.push(`${payment.receiptType} — reported on its own schedule, not a donation`);
+      parts.push(nonContributionReceiptLabel(payment.receiptType)!);
     }
     return parts.join(' · ');
   }
@@ -318,4 +325,117 @@ export function committeesInRows(payments: readonly PaymentUnderName[]): number 
     if (key) seen.add(key);
   }
   return seen.size;
+}
+
+export const YEAR_MAY_CONTINUE = 'This year may continue below the cap';
+export const UNKNOWN_FILING_YEAR = 'Year not given in the filing';
+
+export function filerRegistrationLabel(registration: string): string {
+  return `Registration ${registration}`;
+}
+
+export function groupPaymentCount(count: number): string {
+  return `${formatCount(count)} ${count === 1 ? 'payment' : 'payments'}`;
+}
+
+export function nonContributionReceiptLabel(receiptType: string | null): string | null {
+  return receiptType && receiptType !== 'Contribution'
+    ? `${receiptType} — reported on its own schedule, not a donation`
+    : null;
+}
+
+export interface PaymentsUnderNameGroup {
+  key: string;
+  newest: PaymentUnderName;
+  payments: readonly PaymentUnderName[];
+  /** Computed only inside one numbered filer and one filing year. */
+  subtotal: string | null;
+}
+
+export interface PaymentsUnderNameYear {
+  year: number | null;
+  groups: PaymentsUnderNameGroup[];
+  paymentCount: number;
+  mayContinue: boolean;
+}
+
+/** Source amounts have four decimal places. Missing or malformed money withholds
+ * this group's subtotal, never treating an unreadable amount as zero. */
+function filerYearSubtotal(payments: readonly PaymentUnderName[]): string | null {
+  if (payments.length < 2) return null;
+  const first = payments[0];
+  if (!first.filerRegistrationNumber || first.year == null) return null;
+  let units = 0n;
+  for (const payment of payments) {
+    if (
+      payment.filerRegistrationNumber !== first.filerRegistrationNumber ||
+      payment.year !== first.year
+    )
+      return null;
+    const match = payment.amount?.match(/^(-?)(\d+)(?:\.(\d{1,4}))?$/);
+    if (!match) return null;
+    const magnitude = BigInt(match[2]) * 10000n + BigInt((match[3] ?? '').padEnd(4, '0'));
+    units += match[1] ? -magnitude : magnitude;
+  }
+  const magnitude = units < 0n ? -units : units;
+  return `${units < 0n ? '-' : ''}${magnitude / 10000n}.${String(magnitude % 10000n).padStart(4, '0')}`;
+}
+
+/** Newest filing years first. Stable sorting preserves the server's record-number
+ * tie break and every repeated payment. Unknown filers cannot earn a subtotal. */
+export function paymentsUnderNameYears(
+  payments: readonly PaymentUnderName[],
+  hasMore: boolean,
+): PaymentsUnderNameYear[] {
+  const byYear = new Map<number | null, Map<string, PaymentUnderName[]>>();
+  const ordered = [...payments].sort((a, b) => (b.paidOn ?? '').localeCompare(a.paidOn ?? ''));
+  for (const [index, payment] of ordered.entries()) {
+    const year = payment.year ?? null;
+    const groups = byYear.get(year) ?? new Map<string, PaymentUnderName[]>();
+    const key = payment.filerRegistrationNumber
+      ? `registration:${payment.filerRegistrationNumber}`
+      : `unidentified-row:${index}`;
+    const group = groups.get(key) ?? [];
+    group.push(payment);
+    groups.set(key, group);
+    byYear.set(year, groups);
+  }
+  const years = [...byYear.keys()].sort((a, b) => (b ?? -Infinity) - (a ?? -Infinity));
+  return years.map((year, index) => {
+    const groups = [...byYear.get(year)!.entries()].map(([key, rows]) => ({
+      key,
+      newest: rows[0],
+      payments: rows,
+      subtotal: filerYearSubtotal(rows),
+    }));
+    return {
+      year,
+      groups,
+      paymentCount: groups.reduce((count, group) => count + group.payments.length, 0),
+      mayContinue: hasMore && index === years.length - 1,
+    };
+  });
+}
+
+export function paymentsUnderNameYearCount(
+  year: PaymentsUnderNameYear,
+  role: PaymentNameRole,
+): string {
+  const payments = groupPaymentCount(year.paymentCount);
+  if (year.mayContinue) return `${payments} so far`;
+  if (year.groups.some((group) => !group.newest.filerRegistrationNumber)) return payments;
+  const count = year.groups.length;
+  const unit = role === 'independent_vendor' ? 'spender' : 'committee';
+  return `${payments} ${role === 'contributor' ? 'to' : 'from'} ${formatCount(count)} ${unit}${count === 1 ? '' : 's'}`;
+}
+
+export function paymentsUnderNameFilerKind(
+  payment: PaymentUnderName,
+  role: PaymentNameRole,
+): string | null {
+  return registerKindLabel(
+    role === 'contributor'
+      ? registerKindFromEntityType(payment.filerEntityType)
+      : payment.filerKind,
+  );
 }

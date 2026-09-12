@@ -3625,24 +3625,44 @@ async function committeePaymentsRequest(
  * `total_payments` is never served on a name-keyed lookup, so `totalPayments` is
  * always null here and the page may not print "of N" (grounded-answers rule 11).
  */
+export type PaymentsUnderNamePage = CommitteePaymentsPage<PaymentUnderName> & { releaseId: string };
+
 export async function getPaymentsUnderNameFromApi(
   name: string,
   role: PaymentNameRole,
-  options: { limit?: number; offset?: number } = {},
-): Promise<CommitteePaymentsPage<PaymentUnderName>> {
+  options: { limit?: number; offset?: number; signal?: AbortSignal } = {},
+): Promise<PaymentsUnderNamePage> {
   const params = new URLSearchParams({ name, role });
   if (options.limit !== undefined) params.set('limit', String(options.limit));
   if (options.offset !== undefined) params.set('offset', String(options.offset));
-  const response = await publicApiRequest<DetailResponse<ApiCommitteePaymentsPayload>>(
-    `/campaign-finance/payments-under-name?${params.toString()}`,
-  );
-  return committeePaymentsPage(response.data, (row) => paymentUnderName(row, role));
+  const response = await publicApiRequest<
+    DetailResponse<
+      ApiCommitteePaymentsPayload & { name?: string; role?: string; release_id?: string }
+    >
+  >(`/campaign-finance/payments-under-name?${params.toString()}`, options.signal);
+  if (response.data.name !== name || response.data.role !== role || !response.data.release_id) {
+    throw new Error('Payments did not identify the requested name, role and release');
+  }
+  return {
+    ...committeePaymentsPage(response.data, (row) => paymentUnderName(row, role)),
+    releaseId: response.data.release_id,
+  };
 }
 
 /** One served row, whichever of the 3 downloads it came from. */
-function paymentUnderName(row: Record<string, unknown>, role: PaymentNameRole): PaymentUnderName {
+export function paymentUnderName(
+  row: Record<string, unknown>,
+  role: PaymentNameRole,
+): PaymentUnderName {
+  const filed = {
+    year: typeof row.year === 'number' && Number.isInteger(row.year) ? row.year : null,
+    employer: asText(row.employer),
+    filerKind: asText(row.filer_kind),
+    recordNumber: typeof row.record_number === 'number' ? row.record_number : null,
+  };
   if (role === 'contributor') {
     return {
+      ...filed,
       filerName: asText(row.recipient_name),
       filerRegistrationNumber: asText(row.recipient_registration_number),
       filerEntityType: asText(row.recipient_type),
@@ -3658,6 +3678,7 @@ function paymentUnderName(row: Record<string, unknown>, role: PaymentNameRole): 
   }
   if (role === 'vendor') {
     return {
+      ...filed,
       filerName: asText(row.committee_name),
       filerRegistrationNumber: asText(row.committee_registration_number),
       filerEntityType: null,
@@ -3672,6 +3693,7 @@ function paymentUnderName(row: Record<string, unknown>, role: PaymentNameRole): 
     };
   }
   return {
+    ...filed,
     filerName: asText(row.spender),
     filerRegistrationNumber: asText(row.spender_registration_number),
     filerEntityType: null,

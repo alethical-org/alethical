@@ -123,7 +123,7 @@ the 2 services cannot drift into disagreeing about what an absence means.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Callable, Optional, Sequence
@@ -230,6 +230,7 @@ class ExpenditurePayment:
     in_kind: Optional[str]
     in_kind_description: Optional[str]
     record_number: int
+    filer_kind: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -259,6 +260,7 @@ class IndependentPayment:
     expenditure_type: Optional[str]
     purpose: Optional[str]
     record_number: int
+    filer_kind: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -424,6 +426,7 @@ def _fetch(
     limit: int,
     offset: int,
     order: str = ORDER_BY_DATE,
+    by_year_first: bool = False,
 ) -> tuple[list, bool]:
     """One page of rows, plus whether anything is left after it.
 
@@ -447,6 +450,8 @@ def _fetch(
         if order == ORDER_BY_AMOUNT
         else f"{date_column} DESC NULLS LAST, row_number DESC"
     )
+    if by_year_first:
+        order_by = f"year DESC NULLS LAST, {order_by}"
     params: dict[str, object] = {
         "snapshot": snapshot_id,
         "key": key_value,
@@ -640,6 +645,7 @@ def _payments(
     numbers_to_check: Sequence[str] = (),
     order: str = ORDER_BY_DATE,
     count_total: bool = False,
+    by_year_first: bool = False,
 ) -> PaymentPage:
     """One page of one download's rows, found by one column, with no figure computed.
 
@@ -670,6 +676,7 @@ def _payments(
             limit=limit,
             offset=offset,
             order=order,
+            by_year_first=by_year_first,
         )
         if not rows:
             # A page past the last row of a real result still deserves the total: with
@@ -918,7 +925,37 @@ def payments_from_contributor(
         year=year,
         limit=limit,
         offset=offset,
+        by_year_first=True,
         numbers_that_are_filers_here=("recipient_registration_number",),
+    )
+
+
+def _with_filer_kinds(db: Session, page: PaymentPage, field: str) -> PaymentPage:
+    """One held register reading for the returned filers, without joining payment rows.
+
+    The register is published separately from the three money files. Restricting the
+    lookup to its current snapshot prevents old register copies from duplicating a
+    payment. No matching filer means no kind; a spender's name is never evidence.
+    """
+    numbers = list(_numbers(page.payments, (field,)))
+    if not numbers:
+        return page
+    kinds = dict(
+        db.execute(
+            text(
+                "SELECT f.registration_number, f.kind FROM cf_filer f "
+                "JOIN cf_filing_current c ON c.snapshot_id = f.snapshot_id "
+                "WHERE c.id = true AND f.registration_number = ANY(:numbers)"
+            ),
+            {"numbers": numbers},
+        ).all()
+    )
+    return replace(
+        page,
+        payments=tuple(
+            replace(payment, filer_kind=kinds.get(getattr(payment, field)))
+            for payment in page.payments
+        ),
     )
 
 
@@ -938,7 +975,7 @@ def payments_to_vendor(
     491 of its rows share a spender, vendor, amount and date with an expenditure row and
     adding the 2 lists would decide, without evidence, that those are 2 payments.
     """
-    return _payments(
+    page = _payments(
         db,
         release,
         _EXPENDITURES,
@@ -947,8 +984,10 @@ def payments_to_vendor(
         year=year,
         limit=limit,
         offset=offset,
+        by_year_first=True,
         numbers_that_are_filers_here=("committee_registration_number",),
     )
+    return _with_filer_kinds(db, page, "committee_registration_number")
 
 
 def independent_payments_to_vendor(
@@ -961,7 +1000,7 @@ def independent_payments_to_vendor(
     offset: int = 0,
 ) -> PaymentPage:
     """Every independent-expenditure payment recorded under exactly this vendor string."""
-    return _payments(
+    page = _payments(
         db,
         release,
         _INDEPENDENT,
@@ -970,11 +1009,13 @@ def independent_payments_to_vendor(
         year=year,
         limit=limit,
         offset=offset,
+        by_year_first=True,
         numbers_to_check=(
             "spender_registration_number",
             "affected_committee_registration_number",
         ),
     )
+    return _with_filer_kinds(db, page, "spender_registration_number")
 
 
 def payments_from_donors_typing(
