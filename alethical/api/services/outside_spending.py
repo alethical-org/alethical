@@ -47,7 +47,7 @@ test repeats.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
@@ -184,6 +184,33 @@ class OutsideSpendingFigures:
 
 
 @dataclass(frozen=True)
+class OutsideSpendingGroupedFigures(OutsideSpendingFigures):
+    """Each direction counts its own spender identities; no side is netted."""
+
+    supporting_spender_count: int
+    opposing_spender_count: int
+    direction_not_recorded_spender_count: int
+
+
+@dataclass(frozen=True)
+class OutsideSpendingGroup:
+    """One registered spender and direction, or an exact filed name without a number.
+
+    Where one number carries several spellings, print the last name in the source's
+    row order. Never merge distinct registration numbers because names look alike.
+    A blank amount withholds the group's sum, just as it withholds the total above.
+    """
+
+    spender: Optional[str]
+    spender_registration_number: Optional[str]
+    spender_linkable: bool
+    direction: str
+    amount: Optional[Decimal]
+    row_count: int
+    grouping_basis: str
+
+
+@dataclass(frozen=True)
 class ConfirmedMember:
     """The legislator a person confirmed this committee belongs to (§5.1)."""
 
@@ -236,6 +263,7 @@ class OutsideSpendingPage:
     source_url: Optional[str]
     release_id: UUID
     fetched_at: Optional[datetime]
+    groups: Optional[tuple[OutsideSpendingGroup, ...]] = None
 
 
 class UnknownSubject(LookupError):
@@ -399,6 +427,7 @@ def _read(
     register_snapshot_id: Optional[UUID],
     about: Optional[str],
     spender: Optional[str],
+    group_by_spender: bool = False,
 ) -> _Read:
     """Everything one outside-spending answer needs from the database, in one request."""
     statement = _READ.format(
@@ -425,8 +454,8 @@ def _read(
                 "against": OPPOSING,
                 "about": about,
                 "spender": spender,
-                "limit": PAGE_SIZE,
-                "offset": (page_number - 1) * PAGE_SIZE,
+                "limit": None if group_by_spender else PAGE_SIZE,
+                "offset": 0 if group_by_spender else (page_number - 1) * PAGE_SIZE,
             },
         )
         .mappings()
@@ -531,6 +560,7 @@ def outside_spending(
     year: Optional[int] = None,
     sort: str = SORT_NEWEST,
     page_number: int = 1,
+    group_by_spender: bool = False,
 ) -> OutsideSpendingPage:
     """One page of the outside-spending record for one subject.
 
@@ -538,6 +568,14 @@ def outside_spending(
     still one subject's rows narrowed by the other side. The rows, the total, the
     figures and the counts all come from the same WHERE clause.
     """
+    if group_by_spender and (about is None or year is None):
+        raise ValueError("spender grouping requires an about committee and year")
+    if group_by_spender:
+        # Group every row of this bounded committee-year, never one raw page. The
+        # existing read gets rows, figures and linkable numbers in one statement, so
+        # a release replacement cannot make groups disagree with the direction totals.
+        sort = SORT_LARGEST
+        page_number = 1
     dataset = Dataset.independent_expenditures
     where, params = _where(about=about, spender=spender, year=year)
 
@@ -557,6 +595,7 @@ def outside_spending(
             source_url=release.independent_expenditures.source_url,
             release_id=release.id,
             fetched_at=release.fetched_at,
+            groups=() if group_by_spender else None,
         )
 
     # The register is a separate run from the downloads, resolved once here because the
@@ -573,6 +612,7 @@ def outside_spending(
             register_snapshot_id=None if register is None else register.id,
             about=about,
             spender=spender,
+            group_by_spender=group_by_spender,
         )
         figures = read.figures
         if figures.row_count == 0:
@@ -628,21 +668,91 @@ def outside_spending(
     shaped = tuple(
         _row(row, linkable=linkable, in_register=in_register) for row in rows
     )
+    groups = None
+    if group_by_spender:
+        groups, figures = _group_spenders(shaped, figures)
     return OutsideSpendingPage(
         state=REPORTED,
         about=about_subject,
         spender=spender_subject,
         year=year,
         sort=sort,
-        rows=shaped,
+        rows=() if group_by_spender else shaped,
         page_number=page_number,
         page_size=PAGE_SIZE,
         total_rows=figures.row_count,
-        has_more=page_number * PAGE_SIZE < figures.row_count,
+        has_more=False
+        if group_by_spender
+        else page_number * PAGE_SIZE < figures.row_count,
         figures=figures,
         source_url=release.independent_expenditures.source_url,
         release_id=release.id,
         fetched_at=release.fetched_at,
+        groups=groups,
+    )
+
+
+def _group_spenders(
+    rows: tuple[OutsideSpendingRow, ...], figures: OutsideSpendingFigures
+) -> tuple[tuple[OutsideSpendingGroup, ...], OutsideSpendingGroupedFigures]:
+    """The same rows feed groups, direction counts, and their existing figures.
+
+    Registration keys and name keys stay separate even when a filed name is itself
+    numeric. Missing, blank, and '0' registration cells all use the exact-name basis.
+    """
+    grouped: dict[tuple[str, Optional[str], str], list[OutsideSpendingRow]] = {}
+    for row in rows:
+        basis = (
+            "registration_number" if row.spender_registration_number else "exact_name"
+        )
+        identity = (
+            row.spender_registration_number
+            if row.spender_registration_number
+            else row.spender
+        )
+        grouped.setdefault((basis, identity, row.direction), []).append(row)
+    groups = []
+    for (basis, _, direction), payments in grouped.items():
+        latest = max(payments, key=lambda row: row.record_number)
+        groups.append(
+            OutsideSpendingGroup(
+                spender=latest.spender,
+                spender_registration_number=latest.spender_registration_number,
+                spender_linkable=latest.spender_linkable,
+                direction=direction,
+                amount=(
+                    sum(
+                        (row.amount for row in payments if row.amount is not None),
+                        Decimal(0),
+                    )
+                    if all(row.amount is not None for row in payments)
+                    else None
+                ),
+                row_count=len(payments),
+                grouping_basis=basis,
+            )
+        )
+    # Missing amounts go last. Explicit tie-breaks keep equal sums stable.
+    groups.sort(
+        key=lambda group: (
+            group.amount is None,
+            -(group.amount or Decimal(0)),
+            group.spender or "",
+            group.spender_registration_number or "",
+            group.direction,
+        )
+    )
+    counts = {
+        direction: sum(key[2] == direction for key in grouped)
+        for direction in (SUPPORTING, OPPOSING, DIRECTION_NOT_RECORDED)
+    }
+    values = asdict(figures)
+    values["spender_count"] = len({key[:2] for key in grouped})
+    return tuple(groups), OutsideSpendingGroupedFigures(
+        **values,
+        supporting_spender_count=counts[SUPPORTING],
+        opposing_spender_count=counts[OPPOSING],
+        direction_not_recorded_spender_count=counts[DIRECTION_NOT_RECORDED],
     )
 
 
