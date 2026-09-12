@@ -104,13 +104,23 @@ which rounds to the brief's 3.26:1. The palette tests cover all kinds and all 12
   Board requests in 19.4 seconds and preserved all 5 amendment test figures. The
   full 1,603-filer fetch is running, targeting 6,412 filer requests. Both report
   checks and exact-version receipt-date carry-forward follow publication.
-- [ ] [Issue 2141](https://github.com/alethical-org/alethical/issues/2141): finish the
+- [x] [Issue 2141](https://github.com/alethical-org/alethical/issues/2141): finish the
   accepted payments-under-one-name view, grouped by year and filing committee, including
   source-backed filer kinds and continued groups when another page of payments loads.
-  [Pull request 2158](https://github.com/alethical-org/alethical/pull/2158) is uploaded
-  with automatic merge through the protected queue. Root owns its release. After
-  integrating current main, 2,478 frontend and 2,455 backend tests passed. Missing
-  registration numbers never produce a guessed distinct-filer count or subtotal.
+  [Pull request 2158](https://github.com/alethical-org/alethical/pull/2158) is live at
+  [commit 536f92a8](https://github.com/alethical-org/alethical/commit/536f92a83e0ff53aa49a90790664fc7e4bea9866).
+  After integrating current main, 2,478 frontend and 2,455 backend tests passed;
+  the combined merge-queue checks and both production deployments also passed.
+  Missing registration numbers never produce a guessed distinct-filer count or
+  subtotal. All 29 live Nystrom source rows match the saved real-row fixture.
+  An independent browser read checked Nystrom, 500 Facebook vendor payments and
+  all 854 Facebook independent payments, including completed pagination, served
+  and absent filer kinds, keyboard links and all 3 layout bands. Header links open
+  the full committee record without a selected-year query, as accepted.
+
+The original payment-page help paragraph was kept unchanged under E's fixed-copy
+instruction. A proposed replacement describing group-name links and group subtotals
+is awaiting Eugene's answer; its wording is not changed without that answer.
 
 Direct peer consultation is permitted only for a new disagreement with the revised
 corrections, and only in the existing Claude conversation “candidate donor profile”.
