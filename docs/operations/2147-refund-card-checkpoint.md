@@ -1,6 +1,6 @@
 # Refund card delivery checkpoint
 
-Net: The refund data contract and source notes are ready; the accepted card is built locally and its checks are in progress.
+Net: The refund-history card and its source fields are live. Each confirmed committee keeps its own all-years history, including when the selected campaign year has nothing reported.
 
 ## Accepted delivery
 
@@ -12,9 +12,10 @@ at `/tmp/2147-refund-design/exports/design_review_money_refunds_to_donors/`.
 Eugene's latest 7-decision message overrides the drawing, including omission of
 its extra registration line and keeping the year as a row header in gap rows.
 
-Build in `/private/tmp/alethical-2147-refund-card`, branch
-`codex/2147-legislator-refund-card`. Completed data work is commit `6ba654ba`, with
-the live protection merged afterward. No F pull request has been opened.
+The build worktree is `/private/tmp/alethical-2147-refund-card`, branch
+`codex/2147-legislator-refund-card`. [Pull request 2162](https://github.com/alethical-org/alethical/pull/2162)
+is live at [commit 71280542](https://github.com/alethical-org/alethical/commit/71280542096c1869f3663c9f9348134f66fd32e9).
+The website and API both serve that release.
 
 ## Completed
 
@@ -30,8 +31,9 @@ the live protection merged afterward. No F pull request has been opened.
   original copy dates.
 - Frontend types and API conversion preserve nulls and carry refunds on both
   selected-year and outside-year committees. The refund component now uses those inputs.
-- After merging the directory protection, 96 focused backend checks passed.
-  The 4 new frontend API checks and frontend type checking pass.
+- All 2,608 frontend tests and 2,549 backend tests pass, including 28 new rendered
+  refund cases. Type checking, lint, production build, current-head checks and
+  the combined merge-queue checks pass.
 
 ## Production source metadata
 
@@ -51,8 +53,8 @@ Local recovery evidence, retained until final delivery:
 - `/tmp/2147-refund-enrichment-ops.py`: bounded backup, dry-run, apply and readback
   wrapper, loading credentials in memory without printing them
 
-The current production API ignores the new metadata until the F API code ships.
-No PDF was recopied and no figure or candidate match was recomputed.
+The production API serves the stored metadata. No PDF was recopied and no figure
+or candidate match was recomputed.
 
 ## Approved source corrections
 
@@ -77,22 +79,27 @@ Action 4 Liberty PAC (41173), 2026. No preservation exception is approved.
   focus on the source link has the tab's violet outline.
 - Switching Abeler from 2025 to 2021 kept all refund rows. Dibble's phone table
   shows a 2016 year header and one 2-column missing cell between matched years.
-- The local browser relay reads public production data; it adds only the already
-  enriched source metadata so the not-yet-deployed API fields can be previewed.
-  Final checks must use the actual production response after F deploys.
-- Full backend run: 2,546 passed; 3 script-inventory tests exposed the newly added
-  metadata command missing from the inventory. The inventory is corrected and
-  all 16 inventory checks now pass. No application behavior failed.
+- The local browser relay used public production data plus the already enriched
+  source metadata. The final checks below use the actual production responses.
+- The runnable-job inventory includes the metadata helper. Its 16 focused checks
+  and all 2,549 backend tests pass.
 
-## Remaining release
+## Live release checks
 
-1. Save and upload the completed card, tests and documentation. Run exact-upload
-   checks and open the F pull request.
-2. Complete current-head and merge-queue checks, deploy, then read the actual live
-   refund block and cards, including a fresh-context user-flow check.
-3. Report F on [issue 2140](https://github.com/alethical-org/alethical/issues/2140).
-   Keep the historical replacement explicitly held and its old published data
-   unchanged. The later follow-on queues remain recorded in the parent delivery plan.
+- Public production responses for Abeler in 2025 and 2021, Dibble in 2025, and
+  Gottfried in 2024 and 2015 pass the all-years and separate-committee assertions.
+  Evidence is saved in `/tmp/2147-live-api/`, with the bounded checker at
+  `/tmp/2147-refund-live-api-check.py`.
+- An independent live browser reader checked Abeler's figures and absent 2016,
+  Dibble's real 2016 gap, and Gottfried's 2 separate cards. Both Gottfried refund
+  cards stay visible under the empty 2015 campaign-year state.
+- Phone (390), tablet (834) and desktop (1280) reads keep all 3 columns without
+  horizontal overflow. Table headings, year headers, gap-cell spans, source
+  destination and keyboard focus pass. New-tab activation is not observed by the
+  in-app browser; the destination itself loads.
+- The [A–F live report](https://github.com/alethical-org/alethical/issues/2140#issuecomment-5649295250)
+  records this release and keeps the historical replacement explicitly held.
+  The old published campaign-finance data remains unchanged by that held run.
 
-Docs check: This checkpoint records the completed card, source metadata enrichment,
-approved source corrections, local validation and remaining release checks.
+Docs check: This checkpoint records the live card, source metadata enrichment,
+approved source corrections, complete test results and live checks with their limits.

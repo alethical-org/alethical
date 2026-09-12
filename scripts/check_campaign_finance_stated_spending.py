@@ -146,9 +146,9 @@ def main() -> int:
         type=int,
         default=None,
         metavar="YEAR",
-        help="Which filing years to check. Default this year and last year. Years "
-        "before 2023 are reported as unavailable, because the Board serves no report "
-        "document for them.",
+        help="Which filing years to check. Default this year and last year. Read "
+        "exact report versions already held, including older years. A missing "
+        "document is recorded as not checked.",
     )
     parser.add_argument(
         "--only-filers",

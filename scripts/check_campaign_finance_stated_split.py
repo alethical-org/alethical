@@ -24,10 +24,10 @@ publishes normally. Eugene ruled on 12 Aug 2026 that where 2 of Minnesota's own
 publications disagree and we cannot derive the truth, we show both figures and say
 plainly that they disagree.
 
-**It cannot cover everything, and it says so rather than passing quietly.** The Board
-serves no report document before 2023 and serves none for several report kinds inside
-the years it does cover, answering HTTP 200 to every refusal. Those committee-years are
-recorded as **not checked**, never as passed.
+**It cannot cover everything, and it says so rather than passing quietly.** Exact
+report versions already held can be checked for any year. The Board is asked only for
+missing versions from 2023 onward. A committee-year without an available report
+document remains **not checked**, never passed.
 
 **And the reader proves itself first.** Each contributor-type figure the Board's totals
 route publishes equals the matching schedule's itemized plus non-itemized cash, so the
@@ -165,9 +165,9 @@ def main() -> int:
         type=int,
         default=None,
         metavar="YEAR",
-        help="Which filing years to check. Default this year and last year. Years "
-        "before 2023 are reported as unavailable, because the Board serves no report "
-        "document for them.",
+        help="Which filing years to check. Default this year and last year. Read an "
+        "exact report version already held for any year; ask the Board only for "
+        "missing versions from 2023 onward.",
     )
     parser.add_argument(
         "--only-filers",

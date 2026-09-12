@@ -444,11 +444,11 @@ changes its name keeps its address.
 each row is its own card, with the registration number and an arrow at its right. On a phone
 the list is hairline rows inside one card, and a row's fields stack under its name in the same
 order: the kind, then the registration number as a third line. No field is dropped at phone
-width, and nothing on the page stays pinned to the screen as you scroll. The search results,
-a committee's all-payments view and the payments-under-a-name page draw their rows the same
-way, from the same shared piece
+width, and nothing on the page stays pinned to the screen as you scroll. The search results
+and a committee's all-payments view draw their rows the same way, from the same shared piece
 (`apps/frontend/src/components/campaignMoney/MoneyListRows.tsx`); on those, a payment's date
-and amount go under the name, left-aligned, on the phone.
+and amount go under the name, left-aligned, on the phone. The `/money/payments` view uses
+its own year and filer groups across 3 layout bands, described in its route section above.
 
 Its own states: nothing matches the typed name (with the spelling advice, no nearest-match
 guess, and a way to drop the filter); our copy of the register could not be read at all
@@ -517,9 +517,10 @@ This route shows each confirmed legislative committee separately. Its year butto
 from 2015 through the current calendar year, so 2026 offers 12 years. Dashed outlines use
 the actual answers for those years to mark named-only coverage; they do not assume an
 older year lacks an official report. These style answers never renew the 20-minute check
-on whose committee is being shown. The separate 2022–2023 official-total extension is
-tracked in [issue 2142](https://github.com/alethical-org/alethical/issues/2142);
-the year buttons do not mean those totals have been loaded.
+on whose committee is being shown. The 2022–2026 replacement of the held filing totals is
+tracked in [issue 2142](https://github.com/alethical-org/alethical/issues/2142).
+The replacement remains held because the new Board feed omits an existing 2026 record;
+the year buttons do not mean its totals have been published.
 
 The prominent donor chart shows shares of cash money by donor kind. A checked split uses
 the official cash total and includes unnamed cash. With no official total it uses the
@@ -541,8 +542,9 @@ The search works within the loaded tab. Sorts are largest, smallest, name A to Z
 and oldest, with missing dates last. Search leaves whole-tab counts and totals unchanged.
 Opening a group shows all its payments. Repeated-looking payments are kept. A committee
 name with a known registration destination is a real link; private names stay plain
-text on this profile. The exact-name lookup on `/money/payments` is unchanged, and this
-build adds neither donor overlap nor individual donor profiles.
+text on this profile. The exact-name lookup on `/money/payments` groups payments by year
+and filing committee or spender. That lookup does not establish a donor's identity or
+show donor overlap.
 
 Outside spending follows the selected year and groups payments by spender within each
 direction. Supporting and opposing totals remain separate, and never enter the
@@ -554,9 +556,9 @@ committees together or turns missing rows into a reported zero.
 The chart categories match the donor tabs, with other candidate committees included in
 Committees & Funds. Original source kinds remain on payment rows. The existing
 whole-dollar formatter stays, while arithmetic retains every decimal place. These
-decisions were approved on 12 September 2026. The exact chart colours remain with
-Design and can change in 1 colour-map file. The shared missing-official-total wording
-comes from [pull request 2154](https://github.com/alethical-org/alethical/pull/2154).
+decisions were approved on 12 September 2026. The donut, its legend and the history bars
+use the final shared solid colour map. The shared missing-official-total wording comes
+from [pull request 2155](https://github.com/alethical-org/alethical/pull/2155).
 
 ## A committee's page (`/money/committees/{name}-{number}`)
 
@@ -824,9 +826,10 @@ across the whole design set:
   exception is an amount above zero but under a dollar, which keeps its cents: cut to "$0"
   a 50-cent row would read as a committee that reported nothing.
 - **One typeface for money.** Every amount is set in the same face as the big totals
-  (Libre Franklin). The dotted-zero monospaced face stays for dates, registration numbers,
-  small capital labels and count lines, so the two faces separate two kinds of thing
-  rather than two kinds of number.
+  (Libre Franklin). The legislator profile and `/money/payments` also use Libre Franklin
+  for dates, registration numbers and counts, with equal-width digits. The unchanged
+  committee, search and list screens retain their monospaced dates, registration numbers
+  and count lines. Short capital labels keep their existing typeface.
 - **No full stop at the end of a line that stands alone** — a caption, a date or meta
   line, a label, a one-line card description, and any stack or column of those, including
   the "What this record covers" block on both this page and the section landing. An

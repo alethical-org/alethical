@@ -601,8 +601,9 @@ the candidate's own receipts or ordinary payments out.
 The shared payment-file freshness note appears once at the foot of the tab. It does
 not date the separately copied report totals. The outside-spending card
 does not repeat a download date. Its payment dates still describe its own source rows.
-Grouped rows must finish loading before their totals appear; a partial list cannot stand
-in for the complete selected-year record.
+The complete grouped answer supplies each spender's amount and count. Opening a group
+loads its complete payment list from the same published copy. Existing direction totals
+stay visible if grouped details cannot load; a partial list never supplies a total.
 
 Built by [#1332](https://github.com/alethical-org/alethical/issues/1332) and
 [#1454](https://github.com/alethical-org/alethical/issues/1454).
