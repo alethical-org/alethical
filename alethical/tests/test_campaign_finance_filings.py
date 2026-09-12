@@ -14,6 +14,7 @@ page or a chunked body.
 from __future__ import annotations
 
 import hashlib
+import gzip
 import json
 import threading
 from dataclasses import dataclass, field
@@ -981,6 +982,69 @@ def test_asking_about_two_years_of_one_segment_costs_one_request(
 
 
 # --- Keeping the bytes -------------------------------------------------------
+
+
+def saved_directory(board: FakeBoard, path: Path) -> Path:
+    archive = filings.ResponseArchive(str(path))
+    for kind in FilerKind:
+        response, _, errors = filings.fetch_directory(
+            filings.http_session(), kind, board.base_url
+        )
+        assert not errors
+        archive.write(f"directory:{kind.value}", response)
+    archive.close()
+    board.requests_seen.clear()
+    return path
+
+
+def test_saved_directory_keeps_scope_but_fetches_every_catalogue_and_segment(
+    db, board, store, tmp_path
+) -> None:
+    held = saved_directory(board, tmp_path / "directory.jsonl.gz")
+    originals = filings.saved_directory_responses(str(held))
+    board.directory_returns_false.update(FilerKind)
+    first = run(db, board, store, directory_archive=str(held))
+    assert first.requested_filers == sum(map(len, DIRECTORY_ROWS.values()))
+    assert len(board.requests_seen) == first.requested_filers * 2
+    assert first.response_count == len(board.requests_seen) + 3
+    retained = tmp_path / "retained.jsonl.gz"
+    retained.write_bytes(store.objects[first.archive_key])
+    assert filings.saved_directory_responses(str(retained)) == originals
+
+    # It remains the ordinary full replacement and can publish after its checks.
+    published = filings.publish_stored_filings(
+        db, first.record_set_hash, store=store, log=lambda _: None
+    )
+    assert published.published
+    board.empty_filers.add("18999")
+    replacement = run(db, board, store, directory_archive=str(held))
+    assert (
+        checks_of(replacement)["no_published_filer_year_lost_its_figures"].status
+        == "failed"
+    )
+    assert not replacement.published
+
+
+@pytest.mark.parametrize("damage", ["missing", "duplicate", "hash"])
+def test_saved_directory_must_be_complete_and_intact_before_any_request(
+    db, board, store, tmp_path, damage
+) -> None:
+    path = saved_directory(board, tmp_path / "directory.jsonl.gz")
+    with gzip.open(path, "rt") as handle:
+        records = [json.loads(line) for line in handle]
+    if damage == "missing":
+        records.pop()
+    elif damage == "duplicate":
+        records.append(records[0])
+    else:
+        records[0]["sha256"] = "0" * 64
+    with gzip.open(path, "wt") as handle:
+        for record in records:
+            handle.write(json.dumps(record) + "\n")
+    with pytest.raises(filings.CampaignFinanceFilingsRefusal, match="saved directory"):
+        run(db, board, store, directory_archive=str(path))
+    assert board.requests_seen == []
+    assert store.objects == {}
 
 
 def test_every_response_is_kept_and_each_figure_names_the_line_it_came_from(

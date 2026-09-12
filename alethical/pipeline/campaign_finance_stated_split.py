@@ -1142,7 +1142,8 @@ def stated_split_coverage(
     rows = db.execute(
         text(
             "SELECT status, count(*), max(checked_at) FROM cf_stated_split "
-            " WHERE snapshot_id = :snapshot GROUP BY status"
+            " WHERE snapshot_id = :snapshot AND filings_snapshot_id = "
+            "(SELECT snapshot_id FROM cf_filing_current WHERE id IS TRUE) GROUP BY status"
         ),
         {"snapshot": contributions_snapshot_id},
     ).all()
@@ -1154,6 +1155,8 @@ def stated_split_coverage(
         text(
             "SELECT registration_number, filing_year FROM cf_stated_split "
             " WHERE snapshot_id = :snapshot AND status = 'disagrees' "
+            " AND filings_snapshot_id = (SELECT snapshot_id "
+            "FROM cf_filing_current WHERE id IS TRUE)"
             " ORDER BY registration_number, filing_year"
         ),
         {"snapshot": contributions_snapshot_id},

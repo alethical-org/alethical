@@ -1316,6 +1316,34 @@ def test_a_stored_verdict_reads_back_for_the_release_it_was_made_about(
         {("19200", 2025)}
     )
 
+    # A replacement of the filing totals leaves the payments release unchanged.
+    # The earlier disagreement must stop being evidence for the new filing copy.
+    replacement = seed_filings_snapshot(db, reported={("19200", 2025): "2100.00"})
+    assert replacement.id != filings
+    assert (
+        service.stated_split_for_year(db, release, "19200", 2025).status
+        == service.NOT_RUN
+    )
+    assert (
+        service.committee_years_that_must_not_show_a_split(db, release) == frozenset()
+    )
+    assert split.stated_split_coverage(db, release.contributions.snapshot_id) is None
+
+    split.store_verdicts(
+        db,
+        release.contributions.snapshot_id,
+        replacement.id,
+        [
+            split.Verdict(
+                registration_number="19200",
+                filing_year=2025,
+                status=Status.agrees,
+                reason="new filing copy checked",
+            )
+        ],
+    )
+    assert service.stated_split_for_year(db, release, "19200", 2025).may_show_a_split
+
 
 def test_a_committee_year_nobody_has_checked_reads_as_not_run(db, board, store) -> None:
     """A fact about us. A caller must never read an absent row as a clean result."""

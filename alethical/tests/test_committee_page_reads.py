@@ -145,13 +145,14 @@ def _payment(db, snapshot, *, reg_num, amount, year=2025):
 
 
 def _spending_verdict(db, snapshot, *, reg_num, year=2025, status="disagrees"):
-    """One stored money-out verdict, keyed on the expenditures snapshot the check uses."""
+    """One stored verdict for the current filings and expenditures copies."""
     db.execute(
         text(
             "INSERT INTO cf_stated_spending "
-            "(snapshot_id, registration_number, filing_year, status, reason, checked_at) "
+            "(snapshot_id, registration_number, filing_year, status, reason, checked_at, "
+            "filings_snapshot_id) "
             "VALUES (:snap, :reg, :year, CAST(:status AS cf_stated_spending_status), "
-            ":reason, :at)"
+            ":reason, :at, (SELECT snapshot_id FROM cf_filing_current WHERE id IS TRUE))"
         ),
         {
             "snap": snapshot.id,
@@ -872,12 +873,68 @@ def test_nobody_has_checked_this_money_out_so_the_page_is_told_so(db, client):
     assert money_out["stated_spending_state"] == "not_run"
 
 
+def test_replacing_filings_keeps_official_totals_and_retires_each_old_comparison(
+    db, client
+):
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="50.00")
+    db.commit()
+
+    def replace_figures(amount):
+        return publish_filings_snapshot(
+            db,
+            filings=[
+                (CANDIDATE, 2025, key, Decimal(amount), date(2025, 12, 31))
+                for key in ("individuals_contributions", "total_expenditures")
+            ],
+        )
+
+    def approve_split(snapshot_id):
+        db.execute(
+            text(
+                "INSERT INTO cf_stated_split "
+                "(snapshot_id, registration_number, filing_year, filings_snapshot_id, "
+                "status, reason, checked_at) VALUES (:payments, :reg, 2025, :filings, "
+                "'agrees', 'this copy checked', now()) "
+                "ON CONFLICT (snapshot_id, registration_number, filing_year) "
+                "DO UPDATE SET filings_snapshot_id = EXCLUDED.filings_snapshot_id"
+            ),
+            {
+                "payments": published.contributions.id,
+                "reg": CANDIDATE,
+                "filings": snapshot_id,
+            },
+        )
+        db.commit()
+
+    previous = replace_figures("100.00")
+    approve_split(previous)
+    _spending_verdict(db, published.expenditures, reg_num=CANDIDATE, status="agrees")
+    address = f"/api/v1/committees/{CANDIDATE}/finance"
+    before = client.get(address, params={"year": 2025}).json()["data"]
+    assert before["split"]["stated_split_state"] == "agrees"
+    assert before["money_out"]["stated_spending_state"] == "agrees"
+
+    current = replace_figures("190.00")
+    after = client.get(address, params={"year": 2025}).json()["data"]
+    assert after["money_out"]["reported_total"] == "190.0000"
+    assert after["money_out"]["stated_spending_state"] == "not_run"
+    assert after["split"]["stated_split_state"] == "not_checked"
+
+    approve_split(current)
+    independent = client.get(address, params={"year": 2025}).json()["data"]
+    assert independent["split"]["stated_split_state"] == "agrees"
+    assert independent["money_out"]["reported_total"] == "190.0000"
+    assert independent["money_out"]["stated_spending_state"] == "not_run"
+
+
 def test_a_stored_money_out_verdict_reaches_the_committee_page(db, client):
     """The check ran and found the 2 official figures disagree, so the page is handed
     the verdict rather than the ordinary reassurance that a gap is the $200 naming
     threshold or goods and services -- neither of which explains a filing whose own
     itemized subtotal disagrees."""
     published = Published(db)
+    _filings_snapshot(db)
     _payment(db, published.expenditures, reg_num=CANDIDATE, amount="250.00")
     _spending_verdict(db, published.expenditures, reg_num=CANDIDATE, year=2025)
 
@@ -892,6 +949,7 @@ def test_a_committee_year_we_hold_no_payments_for_still_carries_its_verdict(db, 
     empty path would drop: 17 of the live release's 208 disagreements hold not one
     payment row while the committee's own filing itemizes money out."""
     published = Published(db)
+    _filings_snapshot(db)
     _receipt(db, published.contributions, reg_num=CANDIDATE, amount="100.00")
     _spending_verdict(db, published.expenditures, reg_num=CANDIDATE, year=2025)
 

@@ -624,7 +624,7 @@ than the payments in, so a committee that spent money and received none belongs 
 not to the other. On the release published 12 August 2026 the 2 populations are 4,124 and
 3,968 committee-years for 2024 to 2026.
 
-**A publish runs both of those checks itself, and waits for them**
+**A bulk-payments publish runs both of those checks itself, and waits for them**
 ([#1922](https://github.com/alethical-org/alethical/issues/1922)). Each verdict is stored
 against the exact data snapshot it judged, which is what stops a verdict about payments
 since replaced from being shown as a verdict about the payments on screen — and it means a
@@ -823,6 +823,42 @@ makes a scoped live check possible before a full one — and a narrowed run **re
 publish**, because publishing replaces the whole live set and 2 filers would delete every
 other committee's reported total.
 
+**A historical refresh can use the complete directory already held.** Pass
+`--directory-archive <saved-run.jsonl.gz>` to read all 3 original directory responses
+from a retained run. The loader checks each response's fingerprint, requires all 3
+kinds exactly once, and keeps their original bytes and dates in its normal archive.
+Every report catalogue and financial segment is fetched anew. This does not create
+a second store, merge old figures into new ones, or waive the check for lost
+committee-years. The directory's fields remain as they were on its original date.
+
+For the approved 2022 to 2026 refresh, the held directory names 1,603 filers. The
+current directory omits 14 of them and adds 16; 9 omitted filers have 15 published
+committee-years. Reusing the held directory protects those records. Termination dates
+for registrations 18452, 19090 and 41173 have changed in the newer directory and
+must be refreshed in the next ordinary directory run. This scope and its outcome
+are tracked in [the historical totals task](https://github.com/alethical-org/alethical/issues/2142).
+
+**Replacing filings retires their earlier comparison results.** A stored result is
+usable only when both its filings snapshot and its bulk-payments snapshot match the
+copies being read. The filings loader itself does not run either comparison. After
+publication, run the stated-split and stated-spending checks for every year in the
+new snapshot, independently. Until each completes, its results read `not_run`.
+The split check controls the derived named-and-unnamed division. The spending check
+controls the comparison note, never the official total: that total remains visible
+when its source passes the structural checks, including a present, well-formed
+coverage end inside its labelled year.
+
+**Carry known receipt dates into the new catalogue before another publication.**
+`scripts/backfill_campaign_finance_filed_dates.py --target production --limit 0`
+copies a date only from the exact same report version in the previous generation
+and asks the Board for nothing. A coverage-end date is never substituted for a
+receipt date. The previous generation is kept for 1 replacement cycle.
+
+**Freshness follows each source.** A filings refresh dates the newly copied totals
+and catalogues; it does not change the bulk-payments download date. Reused directory
+responses retain their earlier capture dates. A page describing a shared date must
+say which sources that date covers.
+
 **Publishing a quarantined set: name its hash and do not fetch again.** A first run has
 nothing to compare against, so it quarantines by design, exactly as the downloads do. The
 difference is what the second step costs. Re-fetching to publish is another 48 minutes,
@@ -848,6 +884,11 @@ filer kind that came back mostly empty stop the run whatever you pass.
 **A full run is about 4,800 requests and takes roughly 48 minutes.** Measured on
 2026-08-12 across all 1,603 registered filers: median response 0.23 seconds, slowest
 1.9 seconds, at 0.25 seconds between requests.
+
+The wider 2022 to 2026 run uses 3 financial segments plus 1 catalogue request for
+each of 1,603 filers: 6,412 requests before retries, directory reads and report
+downloads. Its source-fetch budget is 40 to 60 minutes. The independent report
+checks run afterwards and add their own reading time.
 
 **Three undocumented routes, all answering HTTP 200 to several kinds of failure.** The
 registered-filer directory, a filer's report catalogue, and a filer's reported figures.

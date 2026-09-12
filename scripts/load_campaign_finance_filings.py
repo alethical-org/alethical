@@ -130,6 +130,14 @@ def main() -> int:
         "seconds, which is what makes a scoped live check possible before a full one.",
     )
     parser.add_argument(
+        "--directory-archive",
+        default=None,
+        metavar="PATH",
+        help="Use all 3 intact directory responses from a saved .jsonl.gz run. "
+        "Fetch every catalogue and financial segment anew. Directory fields keep "
+        "their original capture dates; all missing-record checks still apply.",
+    )
+    parser.add_argument(
         "--publish-hash",
         default=None,
         metavar="SHA256",
@@ -150,12 +158,17 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.publish_stored_hash and (
-        args.dry_run or args.publish_hash or args.only_filers or args.years
+        args.dry_run
+        or args.publish_hash
+        or args.only_filers
+        or args.years
+        or args.directory_archive
     ):
         parser.error(
             "--publish-stored-hash publishes bytes already on file and fetches nothing, "
             "so it takes no --years, no --only-filers, no --publish-hash and no "
-            "--dry-run. The years and filers are whatever that stored run covered."
+            "--dry-run or --directory-archive. The years and filers are whatever "
+            "that stored run covered."
         )
 
     database_url = normalize_database_url(
@@ -182,6 +195,7 @@ def main() -> int:
                 dry_run=args.dry_run,
                 years=args.years,
                 only_filers=args.only_filers,
+                directory_archive=args.directory_archive,
                 publish_hash=args.publish_hash,
                 log=lambda message: print(message, file=sys.stderr),
             )

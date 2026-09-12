@@ -1020,6 +1020,47 @@ def read_archive_line(path: str, line_number: int) -> Optional[dict]:
     return None
 
 
+def saved_directory_responses(path: str) -> dict[FilerKind, Response]:
+    """Read all 3 intact directory responses from a retained run.
+
+    A historical refresh can keep the held register's full scope when a newer
+    register omits closed filers whose reports we still publish. Only the directory
+    is reused; catalogues and financial segments are fetched normally. Original
+    response bytes, hashes and dates are retained in the new run's ordinary archive.
+    """
+    found: dict[FilerKind, Response] = {}
+    try:
+        with gzip.open(path, "rt", encoding="utf-8") as handle:
+            for line in handle:
+                record = json.loads(line)
+                what = record.get("what", "")
+                if not what.startswith("directory:"):
+                    continue
+                kind = FilerKind(what.split(":", 1)[1])
+                body = _bytes_of(record)
+                if kind in found or body is None or record.get("status") != 200:
+                    raise ValueError(f"duplicate or invalid {kind.value} response")
+                _, errors = parse_directory_payload(json.loads(body), kind)
+                if errors:
+                    raise ValueError("; ".join(errors))
+                found[kind] = Response(
+                    url=record["url"],
+                    form=record["form"],
+                    status_code=record["status"],
+                    body=body,
+                    content_hash=record["sha256"],
+                    started_at=datetime.fromisoformat(record["started_at"]),
+                    completed_at=datetime.fromisoformat(record["completed_at"]),
+                )
+        if set(found) != set(FilerKind):
+            raise ValueError("the archive must contain each of the 3 directory kinds")
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        raise CampaignFinanceFilingsRefusal(
+            f"Cannot use the saved directory: {error}"
+        ) from error
+    return found
+
+
 # --- What the run collected ---------------------------------------------------
 
 
@@ -2468,6 +2509,7 @@ def load_campaign_finance_filings(
     dry_run: bool = False,
     years: Optional[Sequence[int]] = None,
     only_filers: Optional[Sequence[str]] = None,
+    directory_archive: Optional[str] = None,
     publish_hash: Optional[str] = None,
     base_url: str = BOARD_BASE_URL,
     spacing_seconds: float = REQUEST_SPACING_SECONDS,
@@ -2482,9 +2524,14 @@ def load_campaign_finance_filings(
     request timings and change every run while the figures do not.
 
     ``only_filers`` narrows the run to named registration numbers, which is what makes
-    a scoped live check possible: the full run is about 4,800 requests and 48 minutes,
-    and a single filer is 3 requests.
+    a scoped live check possible. Each filer costs 1 catalogue request plus 1 request
+    per distinct 2-year segment. A 2022 through 2026 run over 1,603 filers costs 6,412
+    filer requests before retries, plus 3 directory reads unless their archive is used.
     """
+    # Read and prove every directory response before any request or database write.
+    saved_directory = (
+        saved_directory_responses(directory_archive) if directory_archive else None
+    )
     http = http or http_session()
     years = sorted(
         {int(year) for year in (years or default_years(today or date.today()))}
@@ -2533,7 +2580,11 @@ def load_campaign_finance_filings(
                 "--dry-run to check these filers, or drop --only-filers to publish."
             )
         for kind in FilerKind:
-            response, filers, errors = fetch_directory(http, kind, base_url)
+            if saved_directory is None:
+                response, filers, errors = fetch_directory(http, kind, base_url)
+            else:
+                response = saved_directory[kind]
+                filers, errors = parse_directory_payload(response.json(), kind)
             archive.write(f"directory:{kind.value}", response)
             run.errors.extend(errors)
             run.filers.extend(filers)
@@ -2541,7 +2592,8 @@ def load_campaign_finance_filings(
                 f"{kind.value}: {len(filers):,} registered filers"
                 + (f", {len(errors)} error(s)" if errors else "")
             )
-            time.sleep(spacing_seconds)
+            if saved_directory is None:
+                time.sleep(spacing_seconds)
 
         seen: set[str] = set()
         for filer in run.filers:

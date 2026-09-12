@@ -126,6 +126,9 @@ SELECT registration_number, filing_year, status, reason, stated_itemized,
        amendment_index, self_test, checked_at
   FROM cf_stated_split
  WHERE snapshot_id = :snapshot
+   AND filings_snapshot_id = (
+       SELECT snapshot_id FROM cf_filing_current WHERE id IS TRUE
+   )
    AND registration_number = :reg_num
 """
 
@@ -138,8 +141,8 @@ def stated_split(
 ) -> list[StatedSplit]:
     """Every stored answer for one committee, newest year last.
 
-    Scoped to the release's own contributions snapshot, so an answer about payments that
-    have since been replaced is never returned. A year with no stored answer is simply
+    Scoped to both the release's contributions snapshot and the current filings copy,
+    so replacing either source makes its old verdict unavailable. A year with no answer is
     absent; use ``stated_split_for_year`` when a page needs one year and needs the
     difference between "no answer" and "a clean answer" spelled out.
     """
@@ -208,6 +211,8 @@ def committee_years_that_must_not_show_a_split(
         text(
             "SELECT registration_number, filing_year FROM cf_stated_split "
             " WHERE snapshot_id = :snapshot AND status = 'disagrees'"
+            " AND filings_snapshot_id = (SELECT snapshot_id "
+            "FROM cf_filing_current WHERE id IS TRUE)"
         ),
         {"snapshot": release.contributions.snapshot_id},
     ).all()
