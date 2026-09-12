@@ -2951,6 +2951,240 @@ class CampaignFinanceReportDocument(TimestampMixin, Base):
     )
 
 
+class CampaignFinanceRefundKind(enum.Enum):
+    """Which of the 2 refund summaries the Board publishes each year."""
+
+    candidate = "candidate"
+    party_unit = "party_unit"
+
+
+class CampaignFinanceRefundStatus(enum.Enum):
+    """Where one refund summary sits in the snapshot-and-replace cycle (§4)."""
+
+    fetched = "fetched"
+    published = "published"
+    superseded = "superseded"
+    quarantined = "quarantined"
+
+
+class CampaignFinanceRefundSummary(TimestampMixin, UUIDPrimaryKeyMixin, Base):
+    """One year's Political Contribution Refund summary, as the Board printed it (#2147).
+
+    Minnesota refunds a resident's gift to a state candidate or a party unit, and
+    publishes what it refunded once a year as 2 PDFs and nothing else -- no CSV, no API,
+    no data download. So this is the one campaign-finance source whose figures are read
+    off a printed page, and the columns below record what that page said about itself so a
+    figure can be traced back to it: which address served it, the sha256 of the bytes, the
+    day we copied them, how many pages, and the totals the file printed for checking our
+    own rows against.
+
+    **The 3 columns ``object_key``, ``compressed_hash`` and ``mirrored_at`` are the whole
+    contract for a new kind of stored body** (``docs/architecture/
+    campaign-finance-system-design.md`` §4.5). The second-copy job reads which tables hold
+    a body out of the schema rather than from a list (#1501), so naming them this way is
+    what makes the Cloudflare R2 mirror cover these files from the day they ship, with no
+    edit to that job.
+
+    ``prints_cents`` is not decoration. The 2013 files print whole dollars -- ``$462``,
+    not ``$462.00`` -- so the sum of their printed rows cannot equal their printed total,
+    and a check that demanded equality would quarantine a file that is perfectly read.
+    Recorded here so the check knows which arithmetic is available rather than inferring
+    it each run.
+    """
+
+    __tablename__ = "cf_refund_summary"
+
+    year: Mapped[int] = mapped_column(Integer, nullable=False)
+    kind: Mapped[CampaignFinanceRefundKind] = mapped_column(
+        SQLEnum(CampaignFinanceRefundKind, name="cf_refund_kind"), nullable=False
+    )
+    # The address exactly as the Board's own page linked it on the day of the run. Stored
+    # rather than rebuilt from the year, because the set of published years has a hole in
+    # it and the guessable 2016 address answers HTTP 200 with an error page.
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    # sha256 of the response bytes, never of extracted text: 2 readers extract one PDF 2
+    # ways, and the bytes are what a reader would download.
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    object_key: Mapped[str] = mapped_column(Text, nullable=False)
+    compressed_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    compressed_byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    compression: Mapped[str] = mapped_column(String(20), nullable=False, default="gzip")
+    mirrored_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    # The day we copied these bytes, which is what a reader is shown beside a figure. A
+    # date rather than an instant: it is a provenance label, not a measurement.
+    fetched_on: Mapped[date] = mapped_column(Date, nullable=False)
+    fetch_started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    fetch_completed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    page_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    row_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Lines carrying money that could not be read, kept as a count here and in full in
+    # ``validation_json``. Never 0 by assumption: the 2024 and 2025 party summaries each
+    # print their largest unit's amount as ``###########`` because the number was wider
+    # than its column, so the figure is genuinely absent from the file.
+    unreadable_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
+    prints_cents: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    # The file's own grand total, for checking our rows against. Nullable because a count
+    # is not always printed: the whole 2024 candidate summary publishes amounts and no
+    # counts, and its totals do the same.
+    printed_total_amount: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 2))
+    printed_total_count: Mapped[Optional[int]] = mapped_column(Integer)
+
+    status: Mapped[CampaignFinanceRefundStatus] = mapped_column(
+        SQLEnum(CampaignFinanceRefundStatus, name="cf_refund_status"), nullable=False
+    )
+    # Every check this file was put through and what each one answered, including the
+    # checks that were skipped and why. Stored rather than logged: a published figure's
+    # defence is the record that somebody checked it.
+    validation_json: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb")
+    )
+    ingestion_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("ingestion_run.id")
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text)
+
+    __table_args__ = (
+        # Re-fetching bytes we already hold reuses the snapshot instead of writing a
+        # second one. Content-addressed the same way every other stored body here is.
+        UniqueConstraint(
+            "year", "kind", "content_hash", name="uq_cf_refund_summary_year_kind_hash"
+        ),
+        # One published file per year and kind, enforced by the database rather than by
+        # the loader remembering: 2 published snapshots for one year would double every
+        # figure on a person's page.
+        Index(
+            "uq_cf_refund_summary_published",
+            "year",
+            "kind",
+            unique=True,
+            postgresql_where=text("status = 'published'"),
+        ),
+    )
+
+
+class CampaignFinanceRefundRow(Base):
+    """One printed line of a refund summary, stored as printed (#2147).
+
+    No timestamps and nothing a person decided, for the same reason as every other
+    imported row table here: the set is replaced whenever the file is re-read, so
+    anything stored here is destroyed silently (§4.4).
+
+    **``contribution_count`` is nullable and that is a fact about Minnesota, not a gap in
+    our reading.** The whole 2024 candidate summary publishes a refunded amount and no
+    count, for every row and for its own totals. A reader is told the count was not
+    published; nothing turns it into 0 (``.claude/rules/grounded-answers.md`` rule 12).
+
+    ``office_sought`` keeps the office exactly as the line printed it, including 2023's
+    lower-case ``House - 50a`` and 2015's doubled space in ``House -  5B``. ``office`` and
+    ``district`` beside it are that same string split into the 2 fields the registered-filer
+    directory uses, which is what the identity check in ``matched_registration_number``
+    compares against. Storing both means the settled form never replaces the printed one.
+    """
+
+    __tablename__ = "cf_refund_row"
+
+    summary_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cf_refund_summary.id", ondelete="CASCADE"), primary_key=True
+    )
+    # 1-based within the file, in printed order. The pair traces a displayed figure to a
+    # line of one dated copy of one PDF, and is explicitly not an identity across copies.
+    row_number: Mapped[int] = mapped_column(Integer, primary_key=True)
+    page_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    # The candidate or party unit exactly as the line named them. The identity check
+    # compares this character for character against the register's candidate name, so
+    # nothing may tidy it.
+    printed_name: Mapped[str] = mapped_column(Text, nullable=False)
+    printed_line: Mapped[str] = mapped_column(Text, nullable=False)
+    office_sought: Mapped[Optional[str]] = mapped_column(Text)
+    office: Mapped[Optional[str]] = mapped_column(String(60))
+    district: Mapped[Optional[str]] = mapped_column(String(20))
+    # The row's own party code where the file prints one (2024 and 2025), otherwise the
+    # heading its section sits under. Both are the file's claim about this row.
+    party: Mapped[Optional[str]] = mapped_column(String(40))
+    section_heading: Mapped[Optional[str]] = mapped_column(Text)
+    contribution_count: Mapped[Optional[int]] = mapped_column(Integer)
+    # 2 decimals, because that is what these files print. Every other money column here is
+    # numeric(18,4) because those downloads print 4; matching the source rather than the
+    # sibling is what keeps a stored figure equal to the printed one.
+    refunded_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+
+    # --- The identity check, and its basis -----------------------------------------
+    #
+    # A refund row names a candidate and an office and never a registration number, so it
+    # reaches a person only through a committee that person has already confirmed as
+    # theirs (§5). All 3 of the columns below must agree with the register for
+    # ``matched_registration_number`` to be set, and a row failing any of them stays
+    # unattached and is served on nobody's page. There is no fuzzy matching here and no
+    # attaching by name alone: a wrong link publishes real money under the wrong person's
+    # photograph and nothing downstream would notice (§5.1).
+    matched_registration_number: Mapped[Optional[str]] = mapped_column(String(20))
+    name_evidence: Mapped[Optional[str]] = mapped_column(String(30))
+    register_verdict: Mapped[Optional[str]] = mapped_column(String(30))
+    party_agreement: Mapped[Optional[str]] = mapped_column(String(30))
+    # Which registered-filer directory the check read. Recorded because that set is
+    # replaced on every filings run, so "these agreed" is a fact about a moment.
+    matched_against_filing_snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        # Named explicitly: the metadata convention would generate a 68-character
+        # identifier, and Postgres truncates at 63.
+        ForeignKey(
+            "cf_filing_snapshot.id",
+            ondelete="SET NULL",
+            name="fk_cf_refund_row_filing_snapshot",
+        )
+    )
+    matched_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        Index(
+            "ix_cf_refund_row_match",
+            "matched_registration_number",
+            "summary_id",
+        ),
+    )
+
+
+class CampaignFinanceRefundNotPublished(TimestampMixin, Base):
+    """A year and kind the Board publishes no refund summary for (#2147).
+
+    **Recorded rather than left as an absence, because 2 different facts otherwise look
+    identical**: Minnesota published nothing for that year, and we have not loaded it yet.
+    A page may say the first and must never say the first when only the second is known
+    (``.claude/rules/grounded-answers.md`` rule 12, missing versus zero).
+
+    2016 is the row this exists for. It is linked nowhere on the Board's page, and its
+    guessable address answers **HTTP 200** with 30 KB of the Board's HTML shell whose only
+    heading reads "This page is not available" -- the same failure §4.6 records against the
+    lobbying page behind our largest published figure. So the status code is stored beside
+    what the bytes actually were, and neither alone is read as an answer.
+    """
+
+    __tablename__ = "cf_refund_not_published"
+
+    year: Mapped[int] = mapped_column(Integer, primary_key=True)
+    kind: Mapped[CampaignFinanceRefundKind] = mapped_column(
+        SQLEnum(CampaignFinanceRefundKind, name="cf_refund_kind"), primary_key=True
+    )
+    # The address we asked, so the answer below is checkable.
+    url: Mapped[str] = mapped_column(Text, nullable=False)
+    observed_on: Mapped[date] = mapped_column(Date, nullable=False)
+    # What the address answered. A status code decides nothing here, which is the point:
+    # 200 with an error page is the shape this catches.
+    http_status: Mapped[Optional[int]] = mapped_column(Integer)
+    served_media_type: Mapped[Optional[str]] = mapped_column(String(120))
+    byte_size: Mapped[Optional[int]] = mapped_column(BigInteger)
+    # Why we concluded nothing was published, in words a person can check.
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+
+
 class PublishedSourceCopy(TimestampMixin, Base):
     """Our own copy of one document that Alethical's published writing cites.
 

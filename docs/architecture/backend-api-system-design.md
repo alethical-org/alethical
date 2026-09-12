@@ -858,7 +858,35 @@ because all 200 sitting members do appear in the Board's register), `confirmed`.
 
 Returns `legislator_id`, `year`, `link_state`, `other_office_committees`, and `committees[]`.
 Each committee carries `registration_number`, `committee_name`, `office`, the same `money_in`
-/ `money_out` / `independent_spending` blocks the committee endpoint serves, and a `split`.
+/ `money_out` / `independent_spending` blocks the committee endpoint serves, a `split`, and a
+`refunds` block this endpoint serves and the committee endpoint does not.
+
+**`refunds` is the state's own record, in its own block**
+([#2147](https://github.com/alethical-org/alethical/issues/2147)). Minnesota pays a resident
+back for a gift to a state candidate's principal campaign committee or to a party unit, and
+the Board publishes what it refunded once a year as 2 PDFs and nothing else. That is money the
+state paid to this committee's donors rather than money the committee reported about itself,
+so it is never folded into `money_in` where a reader could add it to something. It carries
+`state` and `years[]`, and each year carries `year`, its own `state`,
+`contributions_refunded`, `amount_refunded`, `source_file_name` and `copied_on` — the file
+name and the day we copied it, because a PDF has no row id to cite. `years[]` is deliberately
+not filtered to the `year` the request asked for: the card it feeds shows a history, and one
+year of it cannot say whether a gap is a quiet year or a year Minnesota published nothing.
+
+**Read `state` before any number, and each year's `state` before its number.** Three silences
+are kept apart, and rendering any of them as 0 tells a reader something false about a named
+person (`.claude/rules/grounded-answers.md` rule 12, missing versus zero). A year reads
+`not_published` when Minnesota published no summary for it, which is true of 2016; `not_matched`
+when the summary exists and no line in it attaches to this committee; and `reported` when a
+line does. The block reads `unavailable` when we hold no published summary at all, which is a
+fact about us and never about the committee. `not_matched` is usually the seat moving rather
+than an error: a refund summary names a candidate and the office they sought and never a
+registration number, so a line reaches a person only through the 3-part check in
+`alethical/pipeline/campaign_finance_refunds.match_row` against the register's **current**
+office and district, and the 2022 redistricting renumbered every legislative seat. And a
+`reported` year can still carry a null `contributions_refunded`: the whole 2024 candidate
+summary publishes a refunded amount and no number of contributions, so a page says the count
+was not published rather than showing a 0.
 
 **`split.state` and the 8 values it takes.** This is the field that decides whether a page may
 divide a committee's money into named and unnamed, and the same object is served by
