@@ -36,7 +36,8 @@ outside the repository in its saved recovery checkpoint.
    independent results and legacy schedules. Complete current-head checks and live
    backend deployment.
 2. Wait for the parent build owner to confirm the approved Money out card
-   correction is live. The historical refresh must not start before that.
+   correction and source-specific freshness wording are live. The historical
+   refresh must not start before those corrections.
 3. Refresh the read-only recovery backup. Check archive fingerprints, current
    source identities and absence of competing publication. Prove rollback against
    a local copy and run a scoped source dry run.
@@ -54,9 +55,20 @@ outside the repository in its saved recovery checkpoint.
 
 ## Current checkpoint
 
-- Code is being tested. No production replacement has begun.
+- The server changes are in [pull request 2156](https://github.com/alethical-org/alethical/pull/2156).
+  All 2,470 server tests, lint, formatting and database type checks passed before
+  upload. No production replacement has begun.
 - The rejected extension checkpoint's SHA256 is
   `7a1635d93747f24f1aa8620c50c414736f704fa6d819ac51b2eaa9b60a211efd`.
-- Existing recovery copies contain 1,603 filers, 3,630 committee-years, 36,655
-  catalogue rows, 55,845 figure rows and both comparison tables. Refresh these
-  copies immediately before publication.
+- The recovery copy captured on 12 September 2026 at 17:54:23 UTC contains
+  1,603 filers, 3,630 committee-years, 36,655 catalogue rows, 55,845 figure rows,
+  both comparison tables and 3,735 known receipt dates. The retained archive and
+  every exported table have saved SHA256 fingerprints.
+- A disposable database rehearsal restored the original source pointer and
+  current-copy comparison rows from that actual recovery copy. Source rows
+  matched every saved fingerprint. The production restore refuses a changed
+  bulk release, an unexpected current filing copy or changed prior-generation
+  source rows.
+- Scoped and full Board requests wait for the card, source-date wording and
+  server checks to be live. Money in runs before money out so the latter can
+  read any newly kept report documents.

@@ -446,7 +446,7 @@ checks and reports, writing nothing and needing no credentials. `just
 load-campaign-finance local false` publishes locally and `just
 load-campaign-finance production false` publishes to production. A run that publishes
 then re-runs the 2 checks that compare a committee against its own filed report and waits
-for them, which adds roughly 42 minutes — see "A publish runs both of those checks itself"
+for them, which adds roughly 42 minutes — see "A bulk-payments publish runs both of those checks itself"
 below.
 
 **A first import is quarantined on purpose, and so is any set that fails a check.**
@@ -861,7 +861,7 @@ say which sources that date covers.
 
 **Publishing a quarantined set: name its hash and do not fetch again.** A first run has
 nothing to compare against, so it quarantines by design, exactly as the downloads do. The
-difference is what the second step costs. Re-fetching to publish is another 48 minutes,
+difference is what the second step costs. Re-fetching to publish repeats the entire source-fetch time,
 and in an election season the two runs may **never agree**, because filings land daily and
 each fetch hashes differently — so the set an operator reviewed would stay unpublishable
 for as long as filings keep arriving. Publish from the responses already kept instead:
@@ -881,9 +881,10 @@ What naming a hash waives is only the comparison against a previous snapshot. A 
 that did not parse, a label this design does not know, a value that is not money, and a
 filer kind that came back mostly empty stop the run whatever you pass.
 
-**A full run is about 4,800 requests and takes roughly 48 minutes.** Measured on
+**The 3-year run used about 4,800 requests and roughly 48 minutes.** Measured on
 2026-08-12 across all 1,603 registered filers: median response 0.23 seconds, slowest
-1.9 seconds, at 0.25 seconds between requests.
+1.9 seconds, at 0.25 seconds between requests. Each filer has 1 catalogue request
+plus 1 figures request per 2-year election segment.
 
 The wider 2022 to 2026 run uses 3 financial segments plus 1 catalogue request for
 each of 1,603 filers: 6,412 requests before retries, directory reads and report
@@ -987,11 +988,11 @@ the design; a mismatch stops the run and says that either a filer amended a clos
 which is ordinary and wants the pinned figure updated, or the route stopped resolving
 amendments, which is not.
 
-**Where the responses go.** All of a run's ~4,800 responses are kept as **one gzipped
+**Where the responses go.** All of a run's responses are kept as **one gzipped
 JSON Lines object** in the same private bucket the downloads use, each line carrying one
 response's own sha256 and its exact bytes. Every stored figure names the line it came
 from, so a published number traces back to a response we still hold. One object rather
-than 4,800, because 4,800 tiny objects would cost more to store and audit than the
+than thousands of tiny objects, because those would cost more to store and audit than the
 evidence is worth. Those archives get a second copy on Cloudflare R2 like everything else
 in the bucket, recorded on `cf_filing_snapshot.mirrored_at` — which read 0 of 2 for the
 first week the archives existed, because the copying job named one table
@@ -1152,7 +1153,7 @@ just pipeline local --write --allow-writes     # commit after review
 | `uv run python scripts/load_minnesota_data.py`                                           | Live loader — roster + profiles + smoke bill set, idempotent (`--legislator-limit N`, `--bill HF2136`, `--roster-only`, `--skip-bills`, `--reconcile-roster`, `--reconcile-only [--dry-run]`, `--session-slug`) |
 | `just reconcile-roster [apply=true]`                                                     | Reconcile current membership against the official roster PDF (dry-run by default; deactivates departed members). `ALETHICAL_DATABASE_TARGET=production` to target prod                                          |
 | `just load-campaign-finance [target=local] [dry=true]`                                    | Fetch the Board's 3 campaign-finance files, check them, publish as one dated set replacing the previous one. Dry-run by default (writes nothing, needs no credentials); a first import quarantines by design. A run that publishes then re-runs the 2 checks below that compare a committee against its own filed report, and waits for them, which adds roughly 42 minutes — section **H** |
-| `just load-campaign-finance-filings [target=local] [dry=true] [filers=""]`                 | Fetch what each committee itself reported plus Minnesota's registered-filer list, which is what lets a page show the true total beside the payments we can name. Turns on the 2 checks the loader above used to record as "not run". A full run is ~4,800 requests and ~48 minutes, so pass `filers` to check a few first — section **H2** |
+| `just load-campaign-finance-filings [target=local] [dry=true] [filers=""]`                 | Fetch what each committee itself reported plus Minnesota's registered-filer list, which is what lets a page show the true total beside the payments we can name. Turns on the 2 checks the loader above used to record as "not run". The 2022 to 2026 run makes 6,412 filer requests before retries and report downloads; use `filers` for a scoped dry run first — section **H2** |
 | `uv run python scripts/load_sample_data.py`                                              | Deterministic fixtures for tests/offline demos (no network)                                                                                                                                                     |
 | `uv run python scripts/backfill_rag_bulk.py`                                             | Threaded RAG backfill for current versions missing chunks                                                                                                                                                       |
 | `uv run python -m alethical.pipeline.committee_memberships --cleanup-orphans`            | Committee repair/backfill                                                                                                                                                                                       |
