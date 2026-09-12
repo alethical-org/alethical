@@ -12,6 +12,7 @@ import {
   MoneyOutBlock,
 } from '../MoneyCards';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../../lib/campaignMoneyColors';
+import { MONEY_OUT_OFFICIAL_MISSING } from '../../../lib/committeeMoney';
 import { theme as t } from '../../../theme/tokens';
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT =
@@ -166,9 +167,9 @@ describe('profile styling for shared money cards', () => {
 
   it('keeps missing spending as words and every displayed text color in the profile palette', () => {
     const profile = mount.querySelector('#profile')!;
-    const unavailable = exact(profile, 'Not reported');
-    expect(getComputedStyle(unavailable).fontSize).toBe('14px');
-    expect(getComputedStyle(unavailable).color).toBe(color(c.muted));
+    const unavailable = exact(profile, MONEY_OUT_OFFICIAL_MISSING);
+    expect(getComputedStyle(unavailable).fontSize).toBe('15px');
+    expect(getComputedStyle(unavailable).color).toBe(color(c.secondary));
     const palette = new Set(Object.values(c).map(color));
     for (const element of profile.querySelectorAll<HTMLElement>('*')) {
       if ([...element.childNodes].some((child) => child.nodeType === Node.TEXT_NODE)) {

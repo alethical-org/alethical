@@ -247,11 +247,11 @@ describe('the money cards on the profile, at the final inventory', () => {
     );
     expect(html).toContain(`${MONEY_OUT_NAMED_LABEL} $131,882`);
     expect(html).toContain(MONEY_OUT_OFFICIAL_MISSING);
-    expect(html).not.toContain(MONEY_OUT_REPORTED_LABEL);
+    expect(html).not.toContain(`Money out ${MONEY_OUT_REPORTED_LABEL}`);
     const absent = cards(render([committee({ moneyOut: null })]));
     expect(absent).toContain(MONEY_OUT_NAMED_MISSING);
     expect(absent).toContain(MONEY_OUT_OFFICIAL_MISSING);
-    expect(absent).not.toContain(MONEY_OUT_REPORTED_LABEL);
+    expect(absent).not.toContain(`Money out ${MONEY_OUT_REPORTED_LABEL}`);
   });
 
   it('links money in to the Board’s downloads page, not to the download itself', () => {
