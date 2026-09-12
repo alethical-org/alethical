@@ -221,19 +221,29 @@ def test_running_it_twice_copies_nothing_the_second_time(db, tmp_path) -> None:
     assert not second.failures
 
 
-def test_an_unrecorded_file_already_copied_is_not_read_again(db, tmp_path) -> None:
-    """The no-row case has no column to skip on, so presence and size do it.
+def test_an_unrecorded_file_not_due_for_a_hash_check_is_not_read_again(
+    db, tmp_path
+) -> None:
+    """Presence and size suffice between the rotating 28-day hash checks.
 
-    Otherwise every run re-reads every object no database row names, and the cost of
-    a daily run grows with the store instead of staying flat.
+    Fix the day so this test does not enter the due-date path when the calendar
+    reaches either fixture key. The rotation has its own tests below.
     """
     source = MemoryStore(BODIES)
     mirror = MemoryStore(BODIES)
 
-    report = run(db, source, mirror, tmp_path)
+    report = mirror_raw_files(
+        db,
+        source,
+        mirror,
+        str(tmp_path),
+        now=datetime(2026, 9, 13, tzinfo=timezone.utc),
+        log=lambda message: None,
+    )
 
     assert len(report.of(ALREADY_PRESENT)) == 2
     assert mirror.uploads == []
+    assert report.verification_bytes == 0
 
 
 def test_a_different_file_under_the_same_name_is_refused_never_overwritten(
