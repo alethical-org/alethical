@@ -24,14 +24,15 @@ This guide describes its donation lists, year choices and charts.
 
 On 12 September 2026 Eugene approved chart categories matching the donor tabs, with
 candidate committees included in Committees & Funds, and keeping the existing
-whole-dollar display. Each payment's original kind remains available. The exact chart
-colours remain with Design and can change in 1 colour-map file.
+whole-dollar display. Each payment's original kind remains available. The donut, its
+legend and the history bars use the final shared solid colour map.
 
 The shared missing official money-out wording comes from
-[pull request 2154](https://github.com/alethical-org/alethical/pull/2154). A protected
-extension of the official totals for 2022 and 2023 is also approved, using the 1,603
-held filers and preserving every existing 2024–2026 record. Year choices alone do not
-claim that any historical totals have been loaded or passed their checks.
+[pull request 2155](https://github.com/alethical-org/alethical/pull/2155). The ordinary
+full-replacement refresh for 2022–2026 uses the intact saved directory of 1,603 filers
+and the existing missing-record checks. It adds no protected historical store. The
+source download is running and has not published its replacement yet. Year choices
+alone do not claim that historical totals have been loaded or passed their checks.
 
 ## What every profile shows today
 
@@ -529,8 +530,9 @@ the candidate's own receipts or ordinary payments out.
 The shared payment-file freshness note appears once at the foot of the tab. It does
 not date the separately copied report totals. The outside-spending card
 does not repeat a download date. Its payment dates still describe its own source rows.
-Grouped rows must finish loading before their totals appear; a partial list cannot stand
-in for the complete selected-year record.
+The complete grouped answer supplies each spender's amount and count. Opening a group
+loads its complete payment list from the same published copy. Existing direction totals
+stay visible if grouped details cannot load; a partial list never supplies a total.
 
 Built by [#1332](https://github.com/alethical-org/alethical/issues/1332) and
 [#1454](https://github.com/alethical-org/alethical/issues/1454).
