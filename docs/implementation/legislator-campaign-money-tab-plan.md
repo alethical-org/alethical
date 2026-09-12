@@ -100,8 +100,10 @@ which rounds to the brief's 3.26:1. The palette tests cover all kinds and all 12
   dates. [Pull request 2156](https://github.com/alethical-org/alethical/pull/2156)
   carries the safeguards and merged as
   [commit 4f9d589e](https://github.com/alethical-org/alethical/commit/4f9d589eecc00fb12e0c70dd834422d13990d195).
-  The card and source-date gates are clear; the source run waits for safeguard deployment
-  and the final recovery/state check.
+  All deployment and recovery gates passed. The 8-filer source rehearsal made 32
+  Board requests in 19.4 seconds and preserved all 5 amendment test figures. The
+  full 1,603-filer fetch is running, targeting 6,412 filer requests. Both report
+  checks and exact-version receipt-date carry-forward follow publication.
 - [ ] [Issue 2141](https://github.com/alethical-org/alethical/issues/2141): finish the
   accepted payments-under-one-name view, grouped by year and filing committee, including
   source-backed filer kinds and continued groups when another page of payments loads.
