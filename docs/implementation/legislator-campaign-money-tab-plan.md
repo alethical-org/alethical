@@ -210,3 +210,34 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   evidence as a separate issue. State on issue 1662 whether the next refresh is safe.
 - [ ] After job 4's report, comment on issue 2140 with all 4 pull requests and any
   architecture findings, then stop. Lobbying waits for its separate design brief.
+
+
+### 12 September follow-up checkpoint
+
+- [Pull request 2161](https://github.com/alethical-org/alethical/pull/2161) is live at
+  `f97afbde708cc7bfa17688704092653ba043d6fe`; refund matching and registration-year
+  filtering follow the published directory even while a newer copy is quarantined.
+- C finished all 6,412 official requests without retries or source errors. The
+  retained replacement has 1,603 filers, 5,639 committee-years, 86,646 figures and
+  36,655 report catalogue entries. Publication is held by the missing-record check:
+  Action 4 Liberty PAC (41173) has no 2026 figures in the current Board totals feed.
+  Its public termination PDF is still readable and states $103.93 receipts and
+  $1,030 spending, whereas the old saved totals reported $0 and $60 through May 31.
+  No source substitution or preservation exception is approved. The historical
+  helper is finishing the complete impact comparison and source diagnosis.
+- F's data contract is saved in its own worktree
+  `/private/tmp/alethical-2147-refund-card`, branch `codex/2147-legislator-refund-card`.
+  It includes source metadata, all-year refunds for outside-year confirmed
+  committees, and truthful failure states. 96 backend integration checks, 4 API
+  conversion checks and frontend type checking pass. The card itself is not built.
+- F source enrichment completed for the 12 published candidate summaries. Only
+  source metadata changed; the readback preserves all amounts, matches, copy dates
+  and missing-year records. The API fields will become visible when F ships.
+- Eugene's answers on Abeler's unbracketed 2016 row and the missing 2024 count remain
+  pending, as does E's optional grouped-page help-text proposal. A scope addition
+  does not answer those questions.
+- A new attempted consultation with the permitted Claude session was rejected by
+  automatic approval review for including run status and preservation instructions.
+  No message from that attempt was sent; the assessment continues locally.
+- The 4 follow-on jobs remain gated on A–F live completion and the final
+  [issue 2140](https://github.com/alethical-org/alethical/issues/2140) report.
