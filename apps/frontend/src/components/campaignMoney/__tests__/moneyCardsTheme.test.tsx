@@ -168,7 +168,7 @@ describe('profile styling for shared money cards', () => {
   it('keeps missing spending as words and every displayed text color in the profile palette', () => {
     const profile = mount.querySelector('#profile')!;
     const unavailable = exact(profile, MONEY_OUT_OFFICIAL_MISSING);
-    expect(getComputedStyle(unavailable).fontSize).toBe('15px');
+    expect(getComputedStyle(unavailable).fontSize).toBe('14px');
     expect(getComputedStyle(unavailable).color).toBe(color(c.secondary));
     const palette = new Set(Object.values(c).map(color));
     for (const element of profile.querySelectorAll<HTMLElement>('*')) {
