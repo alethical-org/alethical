@@ -694,6 +694,6 @@ const profileStyles = StyleSheet.create({
   stampPeriodMuted: { ...defaultStyles.stampPeriodMuted, color: c.secondary },
   stampDetail: { ...defaultStyles.stampDetail, color: c.secondary },
   checked: { ...defaultStyles.checked, borderTopColor: c.border },
-  checkedLabel: { ...defaultStyles.checkedLabel, color: c.secondary },
+  checkedLabel: { ...defaultStyles.checkedLabel, color: c.muted },
   checkedSentence: { ...defaultStyles.checkedSentence, color: c.secondary },
 });

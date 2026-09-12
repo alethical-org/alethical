@@ -17,6 +17,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { linkProps, routePath } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
+import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 
 export type ProfileTab = 'overview' | 'money';
 
@@ -55,7 +56,15 @@ export function LegislatorProfileTabs({
             aria-current={isActive ? 'page' : undefined}
             style={[styles.tab, isActive && styles.tabActive]}
           >
-            <Text style={[styles.label, isActive && styles.labelActive]}>{tab.label}</Text>
+            <Text
+              style={[
+                styles.label,
+                isActive && styles.labelActive,
+                active === 'money' && !isActive && { color: c.muted },
+              ]}
+            >
+              {tab.label}
+            </Text>
           </Pressable>
         );
       })}

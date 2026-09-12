@@ -74,7 +74,7 @@ export function DonorBreakdown({
                 {chart.slices.map((slice) => {
                   const length = Math.max(
                     0,
-                    slice.share * circumference - (chart.slices.length > 1 ? 2 : 0),
+                    slice.share * circumference - (chart.slices.length > 1 ? 3 : 0),
                   );
                   const start = offset;
                   offset += slice.share * circumference;
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     borderRadius: 8,
   },
-  swatch: { width: 12, height: 12, borderRadius: 6, flexShrink: 0 },
+  swatch: { width: 14, height: 14, borderRadius: 3, flexShrink: 0 },
   legendName: { flex: 1, minWidth: 0, gap: 3 },
   legendValue: { alignItems: 'flex-end', gap: 3 },
 });

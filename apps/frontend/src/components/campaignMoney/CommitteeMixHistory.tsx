@@ -114,7 +114,15 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 44 },
   year: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 10, borderRadius: 8 },
   active: { backgroundColor: c.tile },
-  bar: { flex: 1, minWidth: 0, flexDirection: 'row', borderRadius: 4, overflow: 'hidden' },
+  bar: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    gap: 2,
+    backgroundColor: c.background,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
   empty: { flex: 1 },
-  swatch: { width: 12, height: 12, borderRadius: 6 },
+  swatch: { width: 14, height: 14, borderRadius: 3 },
 });

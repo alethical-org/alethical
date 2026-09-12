@@ -2,7 +2,8 @@
 
 This is the delivery checkpoint for [issue 2140](https://github.com/alethical-org/alethical/issues/2140),
 updated 12 September 2026. The redesign is a local preview, not the published profile.
-The accepted work is 4 separate changes, each with its own pull request and live check.
+The accepted work includes the profile, outside spending, spending-card correction,
+historical totals and payments grouped by name, each with a pull request and live check.
 
 ## Completed server change
 
@@ -54,18 +55,47 @@ the production build and the check against
 adding a person's committees together also passed. Current-head GitHub checks belong in
 the pull request's validation record.
 
+## Final palette
+
+The 12 September ruling replaces the earlier palette and any texture proposal.
+The donut, its legend and the named-donation history use one shared colour map:
+Individuals `#149d5b`, Lobbyists `#1f8fe6`, Committees & Funds `#7c3aed`,
+Party Units `#e56b12`, Other kinds `#d6336c`, Non-itemized contributions `#899087`.
+Only categories present in the source produce slices; changing colours never adds
+records or separates candidate committees from Committees & Funds.
+
+Slices are solid with a 3-unit white gap in the donut's 180-unit drawing box.
+History segments have 2-pixel white gaps. Legend markers are borderless 14-pixel
+squares with 3-pixel corners. Tertiary text is `#6b716b`; links are `#0f7a45`,
+hover borders `#28bf71` and focus outlines `#7c5cff`. Search-field focus keeps the
+site's `#5b30d6`. The six slice colours' lowest contrast against white is 3.259:1,
+which rounds to the brief's 3.26:1. The palette tests cover all kinds and all 12 years.
+
 ## Separate approved changes
 
-- [ ] [Issue 2151](https://github.com/alethical-org/alethical/issues/2151): show listed-payment
-  totals and state when no official spending total is held. Implemented and tested in
-  [pull request 2154](https://github.com/alethical-org/alethical/pull/2154), and integrated
-  into the redesigned profile. Its release precedes the redesign.
-- [ ] [Issue 2142](https://github.com/alethical-org/alethical/issues/2142): the historical
-  loader replaces the held totals and the current filer directory differs from the held
-  directory. The protected extension is approved for the 1,603 held filers, preserving
-  all existing 2024–2026 records. No historical production write has run. Require
-  preservation and rollback tests plus an independent review before publishing checked
-  2022 and 2023 records.
+- [ ] [Issue 2151](https://github.com/alethical-org/alethical/issues/2151):
+  [pull request 2154](https://github.com/alethical-org/alethical/pull/2154) is live,
+  but its named-payment figure on the summary card has been withdrawn. A follow-up
+  removes that figure on both profiles and committee pages. Missing official totals
+  print only the approved absence sentence; calculated sums remain beside payment rows.
+  Official zero remains visible with its own explanation. Integrate the follow-up here
+  before releasing the profile redesign.
+- [ ] [Issue 2142](https://github.com/alethical-org/alethical/issues/2142): replace
+  the full filings copy through the existing loader for 2022–2026 and the intact saved
+  directory of 1,603 filers. No separate protected historical store. Preserve the
+  missing-record and coverage-end guards. Bind both comparison checks to both current
+  source copies before publication, then rerun each independently for all 5 years.
+  Official totals remain visible under structural checks; the PDF checks govern only
+  the derived split and spending comparison. Carry known receipt dates forward before
+  the previous generation is removed. Refresh only filing-source dates, not bulk-payment
+  dates. The production replacement waits for the card correction and new checks.
+- [ ] [Issue 2141](https://github.com/alethical-org/alethical/issues/2141): finish the
+  accepted payments-under-one-name view, grouped by year and filing committee, including
+  source-backed filer kinds and continued groups when another page of payments loads.
+
+Direct peer consultation is permitted only for a new disagreement with the revised
+corrections, and only in the existing Claude conversation “candidate donor profile”.
+The revised corrections currently have no outstanding disagreement.
 
 ## Final record
 
@@ -73,7 +103,7 @@ the pull request's validation record.
   with every pull request, live result, held portion and finding for the architecture owner.
 - [ ] Leave [campaign-finance-system-design.md](../architecture/campaign-finance-system-design.md)
   unchanged in this task; its owner receives findings through issue 2140.
-- [ ] After all 4 changes are live, give Eugene 1 complete prompt for Claude to review
+- [ ] After all changes are live, give Eugene 1 complete prompt for Claude to review
   the approved decisions, implementation, checks, live results and remaining limits.
 
 No paid run, real user message or destructive production change is authorized by this plan.

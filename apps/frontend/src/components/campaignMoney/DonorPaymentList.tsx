@@ -100,10 +100,13 @@ export function DonorPaymentList({
             style={(state) => [
               s.control,
               tab === item.id && styles.active,
+              Boolean('hovered' in state && state.hovered) && { borderColor: c.hoverBorder },
               Boolean('focused' in state && state.focused) && s.focus,
             ]}
           >
-            <Text style={[s.controlText, ready && s.numeric]}>
+            <Text
+              style={[s.controlText, tab !== item.id && { color: c.muted }, ready && s.numeric]}
+            >
               {item.label}
               {ready ? ` (${tabDetails(groups, item.id).nameCount})` : ''}
             </Text>
