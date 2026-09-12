@@ -637,29 +637,25 @@ Top to bottom:
    say whether a reader loaded one. The other 17 keep the sentence, because a difference
    the threshold does not explain is a real finding.
 
-6. **Money out shows the official figure when held, otherwise a clearly named partial
-   figure.** “Expenditures” is the committee's reported money-out total for the period,
-   including a verified $0, with its own period note where that differs from the period
-   panel's. No named-payment sum sits beside an official total.
+6. **Money out shows only the official figure.** “Expenditures” is the committee's
+   reported money-out total for the period, including a verified $0, with its own period
+   note where that differs from the period panel's. A zero carries its own sentence:
+   “The committee’s own report states $0 in expenditures. That is the filing’s own zero,
+   not a gap in our records.”
 
-   With no official total, the Expenditures line is omitted. A usable sum of the selected
-   year's named rows is shown as **“Total of named payments”**, with **“Payments listed in
-   the state’s public file for this year, including goods and services.”** The card says
-   **“We do not hold an official spending total for this committee for this year.”**
-   This is Alethical's data gap, not a claim that the committee failed to file. The named
-   amount does not borrow the official filing's coverage date.
+   With no official total, the card shows no amount and only **“We do not hold an
+   official spending total for this committee for this year.”** This is Alethical's data
+   gap, not a claim that the committee failed to file. The same sentence applies whether
+   the named-payment rows contain an amount, a measured zero, no payments, or an
+   unavailable amount. Empty and closed committee-years use it too, while the identity
+   and money-in card retain their own explanation.
 
-   If the named sum is also missing or unavailable, the card shows no amount and adds
-   **“We do not hold a named-payments total for this committee for this year.”** A measured
-   zero remains $0 under the label for the source that supplied it; no missing amount
-   becomes zero. Empty and closed committee-years use the same money-out sentences,
-   while the identity and money-in card retain the explanation for a closed committee.
-
-   Named payments are not labelled “spent”: transfers to other committees and goods
-   and services can be included. The rows remain on the Where it went tab and the
-   every-payment page. The comparison against the filed report still runs and is served,
-   but the card prints no verdict and never claims a named sum is the official total.
-   The shared wording and source details are in
+   Calculated sums belong beside their payment rows, never on the summary card. Named
+   payments can include transfers to other committees and goods and services; their rows
+   remain on the Where it went tab and the every-payment page. The comparison against
+   the filed report still runs and is served, but the card prints no verdict. A held
+   official total stays visible even when that comparison is unproved. The shared
+   wording and source details are in
    [`legislator-campaign-money-guide.md`](legislator-campaign-money-guide.md), under
    Money out and Where the data comes from.
 
@@ -749,7 +745,7 @@ across the whole design set:
   explaining paragraph inside a card keeps every full stop it has, however short.
 
 Empty and edge states, each its own honest sentence: a year no report covers (money in
-says “Not reported”; money out says which totals Alethical does not hold; neither prints
+says “Not reported”; money out says Alethical does not hold an official spending total; neither prints
 a zero or last year's money under this year's heading); a closed
 committee's empty year (it closed, when, and that its final report exists and is public
 even though our copy of the figures does not include it); a registration number in neither
