@@ -694,22 +694,31 @@ Top to bottom:
    say whether a reader loaded one. The other 17 keep the sentence, because a difference
    the threshold does not explain is a real finding.
 
-6. **Money out — the filing's own figure, and never called "spending."** One figure,
-   labelled "Expenditures" in the filing's own word (ruled by Eugene, 11 Sep 2026): the
-   committee's reported money-out total for the period, with its own period note where that
-   differs from the period panel's. The card is heading, label and amount, and nothing else:
-   no figure of ours beside it, no sentence comparing 2 figures, no rows by kind of payment,
-   and no link to the state's payments file. Where our copy holds no reported total the
-   figure reads the words "Not reported", never $0 and never a hidden card. What stays banned
-   is the word "spent": statewide, a large share of money out is transfers to other
-   committees, and for a caucus that is the point. The payments themselves, by kind, are
-   still on the Where it went tab below and on the every-payment page.
+6. **Money out shows the official figure when held, otherwise a clearly named partial
+   figure.** “Expenditures” is the committee's reported money-out total for the period,
+   including a verified $0, with its own period note where that differs from the period
+   panel's. No named-payment sum sits beside an official total.
 
-   The comparison of the state's payments file against the committee's own filed report
-   still runs per committee-year and its verdict is still served; the card no longer prints
-   it, because the figure it judged is no longer on the card. Its mechanics are in
-   [`legislator-campaign-money-guide.md`](legislator-campaign-money-guide.md) § Where the
-   data comes from ([#1650](https://github.com/alethical-org/alethical/issues/1650)).
+   With no official total, the Expenditures line is omitted. A usable sum of the selected
+   year's named rows is shown as **“Total of named payments”**, with **“Payments listed in
+   the state’s public file for this year, including goods and services.”** The card says
+   **“We do not hold an official spending total for this committee for this year.”**
+   This is Alethical's data gap, not a claim that the committee failed to file. The named
+   amount does not borrow the official filing's coverage date.
+
+   If the named sum is also missing or unavailable, the card shows no amount and adds
+   **“We do not hold a named-payments total for this committee for this year.”** A measured
+   zero remains $0 under the label for the source that supplied it; no missing amount
+   becomes zero. Empty and closed committee-years use the same money-out sentences,
+   while the identity and money-in card retain the explanation for a closed committee.
+
+   Named payments are not labelled “spent”: transfers to other committees and goods
+   and services can be included. The rows remain on the Where it went tab and the
+   every-payment page. The comparison against the filed report still runs and is served,
+   but the card prints no verdict and never claims a named sum is the official total.
+   The shared wording and source details are in
+   [`legislator-campaign-money-guide.md`](legislator-campaign-money-guide.md), under
+   Money out and Where the data comes from.
 
 7. **Three tabs on every page, and up to 2 more. The first two — Who gave and Where it went** — the six largest payments,
    ranked largest first (honest inside one committee; never across committees), each
@@ -796,8 +805,9 @@ across the whole design set:
   the "What this record covers" block on both this page and the section landing. An
   explaining paragraph inside a card keeps every full stop it has, however short.
 
-Empty and edge states, each its own honest sentence: a year no report covers ("Not
-reported", never a zero, and never last year's money under this year's heading); a closed
+Empty and edge states, each its own honest sentence: a year no report covers (money in
+says “Not reported”; money out says which totals Alethical does not hold; neither prints
+a zero or last year's money under this year's heading); a closed
 committee's empty year (it closed, when, and that its final report exists and is public
 even though our copy of the figures does not include it); a registration number in neither
 our copy of the register nor the state's money files (a fact about our records, never

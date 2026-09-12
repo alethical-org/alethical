@@ -369,18 +369,26 @@ amounts are never combined across a member's committees.
 
 ### Money out
 
-**One figure, the filing's own: "Expenditures"**, the committee's reported money-out total
-for the period, with its own period note where that differs from the filing stamp's. Ruled by
-Eugene on 11 Sep 2026: the card is heading, label and amount, and nothing else. It no longer
-draws our own "payments we can list" figure, the sentence comparing the 2 figures, the
-sentence saying whether anybody compared them against the filed report, a goods-and-services
-line, rows by kind of payment, or a link to the state's payments file. Those are all
-statements about a figure of ours that is not on the card.
+**When an official total is held, the card shows “Expenditures”**, the committee's
+reported money-out total for the period, including a verified $0. Its own period note
+appears only where it differs from the filing stamp's. No named-payment sum sits beside
+an official total, and the card prints no comparison verdict or rows by payment kind.
 
-**Where we hold no reported total the figure reads the words "Not reported"**, set as words
-and never in the size money is set in. Never $0, and never a hidden card: a missing figure
-and a zero are different facts
-([grounded-answers.md rule 12](https://github.com/alethical-org/alethical/blob/main/.claude/rules/grounded-answers.md)).
+**When the official total is missing, the card omits the “Expenditures” line.** If the
+state's payments file supplies a usable sum, the card shows **“Total of named payments”**
+and the sentence **“Payments listed in the state’s public file for this year, including
+goods and services.”** This is the served sum of the named rows for the selected year,
+not a complete official spending total. It is not given the filing's coverage date.
+
+Every missing-official-total card then says **“We do not hold an official spending total
+for this committee for this year.”** This describes Alethical's records, not a failure by
+the committee to file. If the named-payment sum is also missing or unavailable, no amount
+is drawn and the card also says **“We do not hold a named-payments total for this committee
+for this year.”** A measured zero from the named-payment rows stays $0 under its own label;
+a missing or unavailable amount never becomes zero. The same sentences apply to a
+committee page's empty or closed year, while its identity and money-in card retain their
+own closed-year explanation.
+
 Counted across the 242 confirmed committees on 31 Aug 2026: for 2025 the figure can be
 shown on 199, is held back on 7, and does not exist in our copy on 36; for 2026 it can be
 shown on 168 and does not exist on 74. The 7 held back are **special-election
@@ -400,8 +408,9 @@ nothing and blamed Minnesota for the absence, while only the committee route ser
 
 **The comparison against the committee's own filed report still runs**, and its verdict per
 committee-year is still stored and served (`stated_spending_state`); the card just no longer
-prints it, because the figure it judged is no longer on the card. Its mechanics are under
-"Where the data comes from" below.
+prints it. A named-payment sum is shown only when the official total is absent, so the
+card never claims those figures agree. Its mechanics are under "Where the data comes
+from" below.
 
 ### Spending by outside groups
 
@@ -629,8 +638,12 @@ tab prints both figures and no subtraction.
 - **"Not reported"** means the state's spreadsheet names nothing for this committee this
   year. It is never shown as "$0". A committee whose donors all stayed under the naming
   threshold need not be itemized, so silence here is silence, not a zero.
-- **"$0"** appears only where a committee genuinely reported nothing and the
-  spreadsheet names nothing, and the two therefore agree.
+- **“$0” on an Expenditures line** is the official total the filing states. A measured
+  zero in the named-payment rows appears under “Total of named payments” only when no
+  official total is held. Neither amount is a stand-in for missing data.
+- **“We do not hold an official spending total for this committee for this year.”**
+  means Alethical lacks the official money-out figure. It never means the committee
+  failed to report, and the Expenditures line is omitted.
 - **A "Total contributions" figure is the filing's cash column, and it is not drawn where
   that column is $0 and every named donation was goods and services.** The Board's totals
   service serves the filing's Cash column: Citizens for Education Shakopee's 2025 year-end
