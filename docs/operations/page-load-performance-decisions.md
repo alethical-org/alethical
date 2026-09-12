@@ -743,10 +743,10 @@ success caching of that partial response ([issue 2068](https://github.com/alethi
 
 **The 250-row case is a wash on bytes and a round trip cheaper**, which is the whole
 argument for carrying it: 6,696 bytes added against 6,660 removed, arriving in one response
-instead of that response plus a request to a different host. 250 is the cap the address
-serves, so the last row of that table is the worst case rather than a middling one, and the
-rows are already in the response as text either way — the payments snapshot prints every
-one of them.
+instead of that response plus a request to a different host. 250 was the cap that release
+served, so the last row of that table was the worst case for that release rather than a
+middling one. The rows were already in the response as text either way: the payments
+snapshot printed every one of them.
 
 **The short list of 6 is carried and the outside-spending presence reads are not.** The
 short list costs about 600 to 750 gzipped bytes and removes a read of the same size. Each
