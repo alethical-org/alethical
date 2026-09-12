@@ -1,7 +1,7 @@
 # Legislator Campaign money tab delivery
 
 This is the delivery checkpoint for [issue 2140](https://github.com/alethical-org/alethical/issues/2140),
-updated 12 September 2026. The redesign is a local preview, not the published profile.
+updated 12 September 2026. The redesign and official-only spending cards are live.
 The accepted work includes the profile, outside spending, spending-card correction,
 historical totals and payments grouped by name, each with a pull request and live check.
 
@@ -49,14 +49,20 @@ covering [issue 2143](https://github.com/alethical-org/alethical/issues/2143).
   pieces. The [chart and amount-format questions](https://github.com/alethical-org/alethical/issues/2140#issuecomment-5646690898)
   were approved on 12 September 2026: chart categories match donor tabs, with candidate
   committees in Committees & Funds, and the existing whole-dollar formatter remains.
-- [ ] Merge through the queue after the answers are implemented, check the live profile,
-  and remove this task's branch and worktree.
+- [x] Merge through the queue after the answers are implemented and check the live profile.
+- [ ] Remove the completed build branches and worktrees after the remaining deliveries.
 
-The complete frontend suite passed 2,542 tests after integrating the approved spending
-wording, and the backend suite passed 2,451 tests. Type checking, package compatibility,
+The complete frontend suite passed 2,550 tests after integrating the approved spending
+and source-date wording, and the backend suite passed 2,451 tests. Type checking, package compatibility,
 the production build and the check against
 adding a person's committees together also passed. Current-head GitHub checks belong in
-the pull request's validation record.
+the pull request's validation record. The final singular-count correction passed its
+24 focused checks and the complete required checks on the current head and combined
+merge commit. Both production deployments succeeded for
+[commit c72997ae](https://github.com/alethical-org/alethical/commit/c72997ae5f5d6d43778cea766d35f5fb67412223).
+An independent live browser check passed the chart controls, registered committee
+link, 2024 singular count, 2021 absent spending amount, source-date sentence and
+375-pixel layout.
 
 ## Final palette
 
@@ -76,13 +82,13 @@ which rounds to the brief's 3.26:1. The palette tests cover all kinds and all 12
 
 ## Separate approved changes
 
-- [ ] [Issue 2151](https://github.com/alethical-org/alethical/issues/2151):
-  [pull request 2154](https://github.com/alethical-org/alethical/pull/2154) is live,
-  but its named-payment figure on the summary card has been withdrawn. A follow-up
-  removes that figure on both profiles and committee pages. Missing official totals
-  print only the approved absence sentence; calculated sums remain beside payment rows.
-  Official zero remains visible with its own explanation. Integrate the follow-up here
-  before releasing the profile redesign.
+- [x] [Issue 2151](https://github.com/alethical-org/alethical/issues/2151):
+  [pull request 2155](https://github.com/alethical-org/alethical/pull/2155) is live and
+  supersedes the named-payment card figure shipped by
+  [pull request 2154](https://github.com/alethical-org/alethical/pull/2154).
+  Missing official totals print only the approved absence sentence; calculated sums
+  remain beside payment rows. Official zero remains visible with its own explanation.
+  The correction is integrated into the released profile redesign.
 - [ ] [Issue 2142](https://github.com/alethical-org/alethical/issues/2142): replace
   the full filings copy through the existing loader for 2022–2026 and the intact saved
   directory of 1,603 filers. No separate protected historical store. Preserve the
@@ -91,10 +97,18 @@ which rounds to the brief's 3.26:1. The palette tests cover all kinds and all 12
   Official totals remain visible under structural checks; the PDF checks govern only
   the derived split and spending comparison. Carry known receipt dates forward before
   the previous generation is removed. Refresh only filing-source dates, not bulk-payment
-  dates. The production replacement waits for the card correction and new checks.
+  dates. [Pull request 2156](https://github.com/alethical-org/alethical/pull/2156)
+  carries the safeguards and merged as
+  [commit 4f9d589e](https://github.com/alethical-org/alethical/commit/4f9d589eecc00fb12e0c70dd834422d13990d195).
+  The card and source-date gates are clear; the source run waits for safeguard deployment
+  and the final recovery/state check.
 - [ ] [Issue 2141](https://github.com/alethical-org/alethical/issues/2141): finish the
   accepted payments-under-one-name view, grouped by year and filing committee, including
   source-backed filer kinds and continued groups when another page of payments loads.
+  [Pull request 2158](https://github.com/alethical-org/alethical/pull/2158) is uploaded
+  with automatic merge through the protected queue. Root owns its release. After
+  integrating current main, 2,478 frontend and 2,455 backend tests passed. Missing
+  registration numbers never produce a guessed distinct-filer count or subtotal.
 
 Direct peer consultation is permitted only for a new disagreement with the revised
 corrections, and only in the existing Claude conversation “candidate donor profile”.
