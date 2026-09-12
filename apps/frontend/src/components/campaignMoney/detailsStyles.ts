@@ -4,6 +4,23 @@ import { useResponsive } from '../../hooks/useResponsive';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 import { theme as t } from '../../theme/tokens';
 
+/** The same committee-card surface on the money summary and its refund history. */
+export const committeeCardStyles = StyleSheet.create({
+  card: {
+    backgroundColor: c.background,
+    borderWidth: 1,
+    borderColor: c.border,
+    borderRadius: t.radii.lg,
+    paddingTop: 30,
+    paddingBottom: 28,
+    paddingHorizontal: 32,
+    gap: 16,
+    ...(t.shadows.card as object),
+  },
+  mobile: { paddingHorizontal: 18, paddingVertical: 20 },
+  tablet: { paddingHorizontal: 26, paddingTop: 26, paddingBottom: 24 },
+});
+
 export const detailsStyles = StyleSheet.create({
   section: { gap: 18, minWidth: 0 },
   heading: { fontFamily: t.typography.title, fontSize: 24, fontWeight: '800', color: c.text },

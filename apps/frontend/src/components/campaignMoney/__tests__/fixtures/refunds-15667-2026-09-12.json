@@ -1,0 +1,117 @@
+{
+  "state": "reported",
+  "years": [
+    {
+      "year": 2026,
+      "state": "not_published",
+      "contributions_refunded": null,
+      "amount_refunded": null,
+      "source_file_name": null,
+      "copied_on": null
+    },
+    {
+      "year": 2025,
+      "state": "reported",
+      "contributions_refunded": 18,
+      "amount_refunded": "1448.20",
+      "source_file_name": "2025_refunds_cand.pdf",
+      "copied_on": "2026-09-12"
+    },
+    {
+      "year": 2024,
+      "state": "reported",
+      "contributions_refunded": null,
+      "amount_refunded": "750.00",
+      "source_file_name": "2024_refunds_cand.pdf",
+      "copied_on": "2026-09-12"
+    },
+    {
+      "year": 2023,
+      "state": "reported",
+      "contributions_refunded": 12,
+      "amount_refunded": "716.67",
+      "source_file_name": "2023_refunds_cand.pdf",
+      "copied_on": "2026-09-12"
+    },
+    {
+      "year": 2022,
+      "state": "reported",
+      "contributions_refunded": 17,
+      "amount_refunded": "820.79",
+      "source_file_name": "2022_refunds_cand.pdf",
+      "copied_on": "2026-09-12"
+    },
+    {
+      "year": 2021,
+      "state": "reported",
+      "contributions_refunded": 1,
+      "amount_refunded": "50.00",
+      "source_file_name": "2021_refunds_cand.pdf",
+      "copied_on": "2026-09-12"
+    },
+    {
+      "year": 2020,
+      "state": "reported",
+      "contributions_refunded": 66,
+      "amount_refunded": "3586.66",
+      "source_file_name": "2020_refunds_cand.pdf",
+      "copied_on": "2026-09-12"
+    },
+    {
+      "year": 2019,
+      "state": "reported",
+      "contributions_refunded": 46,
+      "amount_refunded": "3368.25",
+      "source_file_name": "2019_refunds_cand.pdf",
+      "copied_on": "2026-09-12"
+    },
+    {
+      "year": 2018,
+      "state": "reported",
+      "contributions_refunded": 3,
+      "amount_refunded": "110.00",
+      "source_file_name": "2018_refunds_cand.pdf",
+      "copied_on": "2026-09-12"
+    },
+    {
+      "year": 2017,
+      "state": "reported",
+      "contributions_refunded": 85,
+      "amount_refunded": "5392.49",
+      "source_file_name": "2017_refunds_cand.pdf",
+      "copied_on": "2026-09-12"
+    },
+    {
+      "year": 2016,
+      "state": "not_published",
+      "contributions_refunded": null,
+      "amount_refunded": null,
+      "source_file_name": null,
+      "copied_on": null
+    },
+    {
+      "year": 2015,
+      "state": "reported",
+      "contributions_refunded": 33,
+      "amount_refunded": "2045.00",
+      "source_file_name": "2015_refunds_cand.pdf",
+      "copied_on": "2026-09-12"
+    },
+    {
+      "year": 2014,
+      "state": "reported",
+      "contributions_refunded": 28,
+      "amount_refunded": "1791.76",
+      "source_file_name": "2014_refunds_cand.pdf",
+      "copied_on": "2026-09-12"
+    },
+    {
+      "year": 2013,
+      "state": "reported",
+      "contributions_refunded": 5,
+      "amount_refunded": "275.00",
+      "source_file_name": "2013_refunds_cand.pdf",
+      "copied_on": "2026-09-12"
+    }
+  ]
+}

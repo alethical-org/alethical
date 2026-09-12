@@ -852,13 +852,66 @@ Purpose:
 `year` is **required** (`ge=2015, le=2100`, no default), as on every endpoint in this section.
 
 **Read `link_state` before `committees`.** An empty list is not a statement about the person:
-`unconfirmed` (nobody has checked which committee is theirs — every sitting member today),
+`unconfirmed` (nobody has confirmed which committee is theirs),
 `reviewed_none_confirmed` (someone checked and confirmed none, worded the same way to a reader
 because all 200 sitting members do appear in the Board's register), `confirmed`.
 
 Returns `legislator_id`, `year`, `link_state`, `other_office_committees`, and `committees[]`.
 Each committee carries `registration_number`, `committee_name`, `office`, the same `money_in`
-/ `money_out` / `independent_spending` blocks the committee endpoint serves, and a `split`.
+/ `money_out` / `independent_spending` blocks the committee endpoint serves, a `split`, and a
+`refunds` block this endpoint serves and the committee endpoint does not.
+
+**`refunds` is the state's own record, in its own block**
+([#2147](https://github.com/alethical-org/alethical/issues/2147)). Minnesota pays a resident
+back for a gift to a state candidate's principal campaign committee or to a party unit, and
+the Board publishes what it refunded once a year as 2 PDFs and nothing else. That is money the
+state paid to this committee's donors rather than money the committee reported about itself,
+so it is never folded into `money_in` where a reader could add it to something. It carries
+`state`, `years[]`, nullable `source_url` (the stored Board program-page address),
+and nullable `copied_on` (the newest actual published-file copy date). Each year
+carries `year`, its own `state`, `contributions_refunded`, `amount_refunded`,
+`source_file_name`, `copied_on`, and nullable `joint_filing_counts_as_one`. That
+last flag is extracted from the held PDF's printed note; it is not inferred from
+its year. The source file name and copy date identify the PDF, which has no row id. `years[]` is deliberately
+not filtered to the `year` the request asked for: the card it feeds shows a history, and one
+year of it cannot say whether a gap is a quiet year or a year Minnesota published nothing.
+The same refund block is supplied on `committees_outside_this_year[]` for confirmed
+legislative committees, so an empty selected campaign year does not erase a refund
+history. Unconfirmed and non-legislative committees remain excluded. The display
+omits `not_matched` years and shows `not_published` only between 2 matching years.
+
+Refund matching and the registration year both read the published filer directory named
+by `cf_filing_current`. A newer fetched or quarantined copy cannot change an existing
+match or the earliest year shown. If no directory is published, the importer supplies
+no candidate match and the API applies no registration-year cutoff; neither guesses
+from an unpublished copy.
+
+**Read `state` before any number, and each year's `state` before its number.** Three silences
+are kept apart, and rendering any of them as 0 tells a reader something false about a named
+person (`.claude/rules/grounded-answers.md` rule 12, missing versus zero). A year reads
+`not_published` when Minnesota published no summary for it, which is true of 2016; `not_matched`
+when the summary exists and no line in it attaches to this committee; and `reported` when a
+line does. A known year whose linked summary has no published copy reads
+`unavailable`. The block prefers `reported` when any year matches, then
+`unavailable` when a known year cannot be read, then `not_matched` when the held
+summaries name no matching row. With no summaries at all it also reads
+`unavailable`. A failed download never establishes `not_published`. These are
+facts about our copies and never about the committee. `not_matched` is usually the seat moving rather
+than an error: a refund summary names a candidate and the office they sought and never a
+registration number, so a line reaches a person only through the 3-part check in
+`alethical/pipeline/campaign_finance_refunds.match_row` against the register's **current**
+office and district, and the 2022 redistricting renumbered every legislative seat. And a
+`reported` year can still carry a null `contributions_refunded`: the whole 2024 candidate
+summary publishes a refunded amount and no number of contributions, so a page says the count
+was not published rather than showing a 0. Its fixed words are `Count not published`.
+
+Source-note enrichment checks both hashes of the held published PDFs and adds
+metadata only. It does not recopy a file, change a refund or candidate match,
+move a copy date, or alter missing-year evidence. The source URL and newest
+copy date remain available even for the no-match card.
+
+Docs check: The refund response description includes stored source metadata,
+known unavailable years, and all-year histories outside the selected campaign year.
 
 **`split.state` and the 8 values it takes.** This is the field that decides whether a page may
 divide a committee's money into named and unnamed, and the same object is served by

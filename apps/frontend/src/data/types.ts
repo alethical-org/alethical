@@ -576,6 +576,24 @@ export interface AskCitation {
   sectionAvailable?: boolean;
 }
 
+export type RefundState = 'reported' | 'not_published' | 'not_matched' | 'unavailable';
+
+/** The state's refunds to donors, separate from the committee's own receipts. */
+export interface CommitteeRefunds {
+  state: RefundState;
+  sourceUrl: string | null;
+  copiedOn: string | null;
+  years: {
+    year: number;
+    state: RefundState;
+    contributionsRefunded: number | null;
+    amountRefunded: string | null;
+    sourceFileName: string | null;
+    copiedOn: string | null;
+    jointFilingCountsAsOne: boolean | null;
+  }[];
+}
+
 /**
  * One committee's campaign money for one year, as
  * `GET /api/v1/legislators/{id}/campaign-finance` reports it (#1329).
@@ -601,6 +619,9 @@ export interface CampaignCommitteeMoney {
    *  changing a name does not rewrite the basis of a decision already made. Null only for
    *  a decision written before those columns existed, where the card says nothing. */
   checked: CommitteeMatchCheck | null;
+  /** All held refund years, unaffected by the selected campaign-money year.
+   * Omitted only by older cached responses. */
+  refunds?: CommitteeRefunds;
   moneyIn: {
     state: MoneyBlockState;
     itemizedContributionTotal: string | null;

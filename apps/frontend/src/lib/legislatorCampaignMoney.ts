@@ -1,3 +1,5 @@
+import type { CommitteeRefunds } from '../data/types';
+
 /**
  * What a legislator's campaign money tab is allowed to say (#1329).
  *
@@ -92,6 +94,7 @@ export interface CommitteeOutsideThisYear {
   registrationNumber: string;
   committeeNameAsReviewed: string;
   closedOn: string | null;
+  refunds?: CommitteeRefunds;
 }
 
 /**

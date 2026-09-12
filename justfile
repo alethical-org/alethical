@@ -185,6 +185,20 @@ load-campaign-finance target="local" dry="true":
 load-lobbying target="local" dry="true":
   uv run python scripts/load_lobbying_expenditures.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }}
 
+# Load Minnesota's yearly Political Contribution Refund summaries (#2147). The state
+# pays a resident back for a gift to a state candidate's committee or a party unit,
+# and publishes what it refunded once a year as 2 PDFs and nothing else, so this
+# reads the figures out of the printed pages. A file that fails a check is
+# quarantined rather than published, and the command exits non-zero.
+# Dry-run by default, same as above, and a real run needs the same 4 storage values.
+#   just load-refunds                                # dry run against local
+#   just load-refunds local false                    # publish locally
+#   just load-refunds production false               # publish to production
+# One year at a time, repeating the flag for more:
+#   uv run python scripts/load_refund_summaries.py --target local --year 2025
+load-refunds target="local" dry="true":
+  uv run python scripts/load_refund_summaries.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }}
+
 # Copy every stored source file to Cloudflare R2, and prove the copy arrived (#1402).
 # The daily job .github/workflows/mirror-raw-files.yml already does this; run it by
 # hand to check the second copy now or after a failed run. It only ever adds, and a

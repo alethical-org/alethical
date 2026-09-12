@@ -91,6 +91,10 @@ from sqlalchemy.orm import Session
 
 from alethical.api.services.campaign_finance_register import report_corrections
 from alethical.api.services.committee_amount import reported_by
+from alethical.api.services.committee_refunds import (
+    CommitteeRefunds,
+    refunds_for_committee,
+)
 from alethical.api.services.committee_filing_schedule import (
     CommitteeFilingSchedule,
     committee_filing_schedule,
@@ -261,6 +265,15 @@ class LegislatorCommitteeMoney:
     #: ones stored on the decision, never recomputed here, so the page shows the basis of the
     #: decision that was actually made rather than what today's data would suggest.
     checked: CommitteeMatchCheck | None = None
+    #: What the state refunded to this committee's donors, year by year, from Minnesota's
+    #: Political Contribution Refund summaries
+    #: ([#2147](https://github.com/alethical-org/alethical/issues/2147)). Deliberately a
+    #: history rather than this request's year: a single year could not say whether a gap
+    #: is a quiet year or a year Minnesota published nothing. It is money the **state**
+    #: paid back to donors, never money the committee reported, so it is its own block and
+    #: is never added to anything in ``finance``
+    #: (``alethical/api/services/committee_refunds.py``).
+    refunds: CommitteeRefunds | None = None
 
 
 @dataclass(frozen=True)
@@ -283,6 +296,7 @@ class CommitteeOutsideThisYear:
     registration_number: str
     committee_name_as_reviewed: str
     closed_on: date | None
+    refunds: CommitteeRefunds | None = None
 
 
 @dataclass(frozen=True)
@@ -848,6 +862,9 @@ def legislator_finance(
                     finance=None,
                     schedule=schedule,
                     checked=_match_check(link),
+                    refunds=refunds_for_committee(
+                        db, registration_number=link.registration_number
+                    ),
                     split=NamedMoneySplit(
                         state=SPLIT_NO_REPORTED_TOTAL,
                         reported_total=None,
@@ -872,6 +889,9 @@ def legislator_finance(
                 finance=finance,
                 schedule=schedule,
                 checked=_match_check(link),
+                refunds=refunds_for_committee(
+                    db, registration_number=link.registration_number
+                ),
                 split=split_for_committee(
                     db,
                     release,
@@ -943,6 +963,11 @@ def _committees_outside_this_year(
             registration_number=link.registration_number,
             committee_name_as_reviewed=link.committee_name_as_reviewed,
             closed_on=closed_on.get(link.registration_number),
+            refunds=(
+                refunds_for_committee(db, registration_number=link.registration_number)
+                if is_for_a_legislative_office(link.office_as_reviewed)
+                else None
+            ),
         )
         for link in sorted(links, key=lambda row: row.registration_number)
     )
