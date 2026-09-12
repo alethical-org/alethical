@@ -645,36 +645,28 @@ export function reportedThroughNote(
 
 /** The filing's own total. A missing official total never borrows this label. */
 export const MONEY_OUT_REPORTED_LABEL = 'Expenditures';
-export const MONEY_OUT_NAMED_LABEL = 'Total of named payments';
-export const MONEY_OUT_NAMED_NOTE =
-  'Payments listed in the state’s public file for this year, including goods and services.';
 export const MONEY_OUT_OFFICIAL_MISSING =
   'We do not hold an official spending total for this committee for this year.';
-export const MONEY_OUT_NAMED_MISSING =
-  'We do not hold a named-payments total for this committee for this year.';
+export const MONEY_OUT_ZERO_NOTE =
+  'The committee’s own report states $0 in expenditures. That is the filing’s own zero, not a gap in our records.';
 
-/** The same missing-total decision for both cards and the first HTML response.
- *  Only a reported named-payment block can supply its own sum. Neither a missing
- *  block nor an unavailable one becomes zero, and neither borrows the filing label. */
-export function moneyOutSummary(
-  moneyOut: {
-    state: MoneyBlockState;
-    reportedTotal: string | null;
-    itemizedPaymentTotal: string | null;
-  } | null,
-) {
+/** Summary cards print the filing's own total. A calculated payment sum belongs
+ *  beside its rows, never in the missing official figure's place. Shared by both
+ *  cards and the first HTML response. */
+export function moneyOutSummary(moneyOut: { reportedTotal: string | null } | null) {
   const official = formatMoney(moneyOut?.reportedTotal);
   if (official !== null) {
-    return { label: MONEY_OUT_REPORTED_LABEL, amount: official, notes: [], isOfficial: true };
+    return {
+      label: MONEY_OUT_REPORTED_LABEL,
+      amount: official,
+      notes: official === '$0' ? [MONEY_OUT_ZERO_NOTE] : [],
+      isOfficial: true,
+    };
   }
-  const named = moneyOut?.state === 'reported' ? formatMoney(moneyOut.itemizedPaymentTotal) : null;
   return {
-    label: named === null ? null : MONEY_OUT_NAMED_LABEL,
-    amount: named,
-    notes: [
-      named === null ? MONEY_OUT_NAMED_MISSING : MONEY_OUT_NAMED_NOTE,
-      MONEY_OUT_OFFICIAL_MISSING,
-    ],
+    label: null,
+    amount: null,
+    notes: [MONEY_OUT_OFFICIAL_MISSING],
     isOfficial: false,
   };
 }

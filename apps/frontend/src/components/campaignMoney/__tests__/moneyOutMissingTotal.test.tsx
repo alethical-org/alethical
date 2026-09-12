@@ -5,7 +5,8 @@ import { MoneyOutBlock, type MoneyOutLike } from '../MoneyCards';
 
 const missingOfficial =
   'We do not hold an official spending total for this committee for this year.';
-const missingNamed = 'We do not hold a named-payments total for this committee for this year.';
+const officialZero =
+  'The committee’s own report states $0 in expenditures. That is the filing’s own zero, not a gap in our records.';
 const listedNote =
   'Payments listed in the state’s public file for this year, including goods and services.';
 const base = {
@@ -30,16 +31,23 @@ for (const surface of ['profile', 'committee'] as const) {
       return host.textContent ?? '';
     }
 
-    it('names the limited payments total when the official total is absent', () => {
-      const result = text(base);
-      expect(result).toContain('Total of named payments');
-      expect(result).toContain('$1,234');
-      expect(result).toContain(listedNote);
-      expect(result).toContain(missingOfficial);
-      expect(result).not.toContain('Expenditures');
-      expect(result).not.toContain('Not reported');
-      expect(result).not.toContain('covering through');
-    });
+    it.each([
+      base,
+      null,
+      { ...base, itemizedPaymentTotal: '0.0000' },
+      { ...base, itemizedPaymentTotal: null },
+      { ...base, state: 'not_reported', itemizedPaymentTotal: '0.0000' },
+      { ...base, state: 'unavailable' },
+    ] as (MoneyOutLike | null)[])(
+      'prints only our missing-official-total sentence, regardless of named rows: %j',
+      (moneyOut) => {
+        const result = text(moneyOut);
+        expect(result).toBe(`Money out${missingOfficial}`);
+        expect(result).not.toContain('Total of named payments');
+        expect(result).not.toContain(listedNote);
+        expect(result).not.toContain('$');
+      },
+    );
 
     it.each(['0.0000', '2800.0000'])(
       'keeps the official total %s and its coverage',
@@ -54,29 +62,25 @@ for (const surface of ['profile', 'committee'] as const) {
       },
     );
 
-    it('keeps a measured zero in the named payments as a named figure', () => {
-      const result = text({ ...base, itemizedPaymentTotal: '0.0000' } as MoneyOutLike);
-      expect(result).toContain('Total of named payments');
-      expect(result).toContain('$0');
-      expect(result).toContain(missingOfficial);
-      expect(result).not.toContain('Expenditures');
+    it('keeps an official figure when the separate comparison is unproved', () => {
+      const moneyOut = {
+        ...base,
+        reportedTotal: '17307.4800',
+        statedSpendingState: 'reader_unproven',
+      };
+      const result = text(moneyOut);
+      expect(result).toContain('Expenditures');
+      expect(result).toContain('$17,307');
+      expect(result).not.toContain(missingOfficial);
     });
 
-    it.each([
-      null,
-      { ...base, itemizedPaymentTotal: null },
-      { ...base, state: 'not_reported', itemizedPaymentTotal: '0.0000' },
-      { ...base, state: 'unavailable' },
-    ] as (MoneyOutLike | null)[])(
-      'does not make a missing or unavailable named total into a figure: %j',
-      (moneyOut) => {
-        const result = text(moneyOut);
-        expect(result).toContain(missingNamed);
-        expect(result).toContain(missingOfficial);
-        expect(result).not.toContain('$');
-        expect(result).not.toContain('Expenditures');
-        expect(result).not.toContain('Not reported');
-      },
-    );
+    it('gives an official zero its own sentence even when the comparison is unproved', () => {
+      const moneyOut = { ...base, reportedTotal: '0.0000', statedSpendingState: 'reader_unproven' };
+      const result = text(moneyOut);
+      expect(result).toContain('Expenditures');
+      expect(result).toContain('$0');
+      expect(result).toContain(officialZero);
+      expect(result).not.toContain(missingOfficial);
+    });
   });
 }

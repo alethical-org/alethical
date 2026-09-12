@@ -28,8 +28,8 @@
  *      served, derived from it (`downloadsPageUrl`).
  *
  * Money out shows the filing's own Expenditures figure when held, including zero.
- * Without it, the card names the total of listed payments and says the official
- * total is missing from our records. An unavailable listed sum never becomes zero.
+ * Without it, the card shows no amount and says the official total is missing
+ * from our records. Calculated payment sums belong beside their rows.
  *
  * The filing's period, identity and link live once in a stamp above both cards, never
  * inside one — one filing produces both cards, so stating any of it per card states one
