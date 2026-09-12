@@ -4696,6 +4696,9 @@ def legislator_campaign_finance(
                     "registration_number": entry.registration_number,
                     "committee_name_as_reviewed": entry.committee_name_as_reviewed,
                     "closed_on": entry.closed_on,
+                    "refunds": asdict(entry.refunds)
+                    if entry.refunds is not None
+                    else None,
                 }
                 for entry in finance.committees_outside_this_year
             ],
@@ -4759,6 +4762,8 @@ def legislator_campaign_finance(
                     "refunds": (
                         {
                             "state": entry.refunds.state,
+                            "source_url": entry.refunds.source_url,
+                            "copied_on": entry.refunds.copied_on,
                             "years": [
                                 {
                                     "year": row.year,
@@ -4770,6 +4775,7 @@ def legislator_campaign_finance(
                                     # and no download to point at.
                                     "source_file_name": row.source_file_name,
                                     "copied_on": row.copied_on,
+                                    "joint_filing_counts_as_one": row.joint_filing_counts_as_one,
                                 }
                                 for row in entry.refunds.years
                             ],

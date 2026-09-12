@@ -73,12 +73,15 @@ class RefundYear:
     #: id and no download to cite, so the citation is the file and the day we copied it.
     source_file_name: Optional[str]
     copied_on: Optional[str]
+    joint_filing_counts_as_one: Optional[bool] = None
 
 
 @dataclass(frozen=True)
 class CommitteeRefunds:
     state: str
     years: tuple[RefundYear, ...]
+    source_url: Optional[str] = None
+    copied_on: Optional[str] = None
 
 
 def _file_name(url: str) -> str:
@@ -121,6 +124,7 @@ def refunds_for_committee(db: Session, *, registration_number: str) -> Committee
             schema.CampaignFinanceRefundSummary.year,
             schema.CampaignFinanceRefundSummary.source_url,
             schema.CampaignFinanceRefundSummary.fetched_on,
+            schema.CampaignFinanceRefundSummary.validation_json,
         ).where(
             schema.CampaignFinanceRefundSummary.kind
             == schema.CampaignFinanceRefundKind.candidate,
@@ -128,9 +132,6 @@ def refunds_for_committee(db: Session, *, registration_number: str) -> Committee
             == schema.CampaignFinanceRefundStatus.published,
         )
     ).all()
-    if not published:
-        return CommitteeRefunds(state=UNAVAILABLE, years=())
-
     matched = {
         row[0]: (row[1], row[2])
         for row in db.execute(
@@ -165,15 +166,34 @@ def refunds_for_committee(db: Session, *, registration_number: str) -> Committee
         .all()
     )
     since = _registered_since(db, registration_number)
-    held = {row[1]: (row[2], row[3]) for row in published}
-    span = sorted(set(held) | unpublished_years, reverse=True)
+    held = {row[1]: (row[2], row[3], row[4]) for row in published}
+    known_years = set(
+        db.scalars(
+            select(schema.CampaignFinanceRefundSummary.year).where(
+                schema.CampaignFinanceRefundSummary.kind
+                == schema.CampaignFinanceRefundKind.candidate
+            )
+        ).all()
+    )
+    if not published and not known_years:
+        return CommitteeRefunds(state=UNAVAILABLE, years=())
+    for row in published:
+        known_years.update(
+            (row[4] or {}).get("source_index", {}).get("candidate_years", [])
+        )
+    span = sorted(set(held) | unpublished_years | known_years, reverse=True)
 
     years: list[RefundYear] = []
     for year in span:
         if since is not None and year < since:
             continue
         if year in held:
-            url, fetched_on = held[year]
+            url, fetched_on, validation = held[year]
+            note = (
+                (validation or {})
+                .get("source_metadata", {})
+                .get("joint_filing_counts_as_one")
+            )
             figures = matched.get(year)
             years.append(
                 RefundYear(
@@ -185,13 +205,14 @@ def refunds_for_committee(db: Session, *, registration_number: str) -> Committee
                     amount_refunded=figures[1] if figures is not None else None,
                     source_file_name=_file_name(url),
                     copied_on=fetched_on.isoformat(),
+                    joint_filing_counts_as_one=note if isinstance(note, bool) else None,
                 )
             )
         else:
             years.append(
                 RefundYear(
                     year=year,
-                    state=NOT_PUBLISHED,
+                    state=UNAVAILABLE if year in known_years else NOT_PUBLISHED,
                     contributions_refunded=None,
                     amount_refunded=None,
                     source_file_name=None,
@@ -205,4 +226,18 @@ def refunds_for_committee(db: Session, *, registration_number: str) -> Committee
         if any(entry.state == NOT_MATCHED for entry in years)
         else UNAVAILABLE
     )
-    return CommitteeRefunds(state=state, years=tuple(years))
+    newest = sorted(published, key=lambda row: (row[3], row[1]), reverse=True)
+    source_url = next(
+        (
+            (row[4] or {}).get("source_metadata", {}).get("source_url")
+            for row in newest
+            if (row[4] or {}).get("source_metadata", {}).get("source_url")
+        ),
+        None,
+    )
+    return CommitteeRefunds(
+        state=state,
+        years=tuple(years),
+        source_url=source_url,
+        copied_on=newest[0][3].isoformat() if newest else None,
+    )

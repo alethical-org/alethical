@@ -55,6 +55,7 @@ import {
   TrackedCommittee,
   CommitteePaymentsPage,
   CommitteeReceivedPayment,
+  CommitteeRefunds,
   CommitteeRegisterPage,
   CommitteeRegisterRow,
   CurrentClaimFreshness,
@@ -576,6 +577,21 @@ interface ApiBillVotePayload {
   records?: ApiBillVoteRecordPayload[] | null;
 }
 
+interface ApiCommitteeRefundsPayload {
+  state: CommitteeRefunds['state'];
+  source_url?: string | null;
+  copied_on?: string | null;
+  years: {
+    year: number;
+    state: CommitteeRefunds['state'];
+    contributions_refunded: number | null;
+    amount_refunded: string | null;
+    source_file_name: string | null;
+    copied_on: string | null;
+    joint_filing_counts_as_one?: boolean | null;
+  }[];
+}
+
 interface ApiLegislatorCampaignMoneyPayload {
   /** When the origin last confirmed `link_state`. A validation time, never a
    *  record date (`alethical/api/routers/public.py`). */
@@ -588,6 +604,7 @@ interface ApiLegislatorCampaignMoneyPayload {
     registration_number: string;
     committee_name_as_reviewed: string;
     closed_on?: string | null;
+    refunds?: ApiCommitteeRefundsPayload | null;
   }[];
   release_id: string;
   fetched_at?: string | null;
@@ -602,6 +619,7 @@ interface ApiLegislatorCampaignMoneyPayload {
       register_verdict?: string | null;
       party_agreement?: string | null;
     } | null;
+    refunds?: ApiCommitteeRefundsPayload | null;
     money_in?: {
       state: NonNullable<LegislatorCampaignMoney['committees'][number]['moneyIn']>['state'];
       itemized_contribution_total?: string | null;
@@ -2478,6 +2496,26 @@ export async function getLegislatorBillsFromApi(
   };
 }
 
+function mapCommitteeRefunds(
+  refunds: ApiCommitteeRefundsPayload | null | undefined,
+): CommitteeRefunds | undefined {
+  if (!refunds) return undefined;
+  return {
+    state: refunds.state,
+    sourceUrl: refunds.source_url ?? null,
+    copiedOn: refunds.copied_on ?? null,
+    years: refunds.years.map((row) => ({
+      year: row.year,
+      state: row.state,
+      contributionsRefunded: row.contributions_refunded,
+      amountRefunded: row.amount_refunded,
+      sourceFileName: row.source_file_name,
+      copiedOn: row.copied_on,
+      jointFilingCountsAsOne: row.joint_filing_counts_as_one ?? null,
+    })),
+  };
+}
+
 /**
  * One legislator's own campaign money for one year, per confirmed committee.
  *
@@ -2510,6 +2548,7 @@ export async function getLegislatorCampaignMoneyFromApi(
       registrationNumber: entry.registration_number,
       committeeNameAsReviewed: entry.committee_name_as_reviewed,
       closedOn: entry.closed_on ?? null,
+      refunds: mapCommitteeRefunds(entry.refunds),
     })),
     committees: payload.committees.map((committee) => ({
       registrationNumber: committee.registration_number,
@@ -2524,6 +2563,7 @@ export async function getLegislatorCampaignMoneyFromApi(
             partyAgreement: committee.checked.party_agreement ?? null,
           }
         : null,
+      refunds: mapCommitteeRefunds(committee.refunds),
       moneyIn: committee.money_in
         ? {
             state: committee.money_in.state,

@@ -296,6 +296,7 @@ class CommitteeOutsideThisYear:
     registration_number: str
     committee_name_as_reviewed: str
     closed_on: date | None
+    refunds: CommitteeRefunds | None = None
 
 
 @dataclass(frozen=True)
@@ -962,6 +963,11 @@ def _committees_outside_this_year(
             registration_number=link.registration_number,
             committee_name_as_reviewed=link.committee_name_as_reviewed,
             closed_on=closed_on.get(link.registration_number),
+            refunds=(
+                refunds_for_committee(db, registration_number=link.registration_number)
+                if is_for_a_legislative_office(link.office_as_reviewed)
+                else None
+            ),
         )
         for link in sorted(links, key=lambda row: row.registration_number)
     )

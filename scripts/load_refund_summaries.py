@@ -23,14 +23,15 @@ has already confirmed that committee belongs to a legislator.
 **A file that fails a check is quarantined, not published**, and the command exits
 non-zero. Its bytes and its checks are kept either way, so the next run sees what was
 wrong rather than downloading into the same silence. Running it again on unchanged bytes
-re-runs the identity check alone, which is the point: a committee is confirmed by a person
+refreshes source-note metadata and re-runs the identity check while keeping copy dates:
+a committee is confirmed by a person
 days after a file is loaded, and the registered-filer directory is replaced by every
 filings run.
 
 **A year the Board published nothing for is recorded, not left as an absence.** The
-addresses for an unlinked year are fetched anyway, so "Minnesota published none" is an
-answer this command asked for rather than one it assumed, and a page can say that instead
-of drawing a 0 (``.claude/rules/grounded-answers.md`` rule 12, missing versus zero).
+addresses for gaps inside the linked history are fetched. Only the Board's explicit
+missing-page heading corroborates a missing file. Failed reads and valid unlinked PDFs
+are recorded as errors, never as evidence that the Board published nothing (``.claude/rules/grounded-answers.md`` rule 12, missing versus zero).
 
 Which database, and what it needs: ``--target production`` needs ``SUPABASE_PROJECT_URL``
 and ``SUPABASE_DB_PASSWORD``, and a real (non-dry) run of either target needs the 4
@@ -69,6 +70,8 @@ from alethical.pipeline.campaign_finance_refunds import (  # noqa: E402
 
 def _outcome_state(outcome, *, dry_run: bool) -> str:
     """What happened to one file, in the fewest words that are true of it."""
+    if outcome.unavailable_reason:
+        return f"unavailable -- {outcome.unavailable_reason}"
     if outcome.not_published_reason:
         return f"nothing to load -- {outcome.not_published_reason}"
     if dry_run:
