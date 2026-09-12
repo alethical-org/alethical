@@ -18,8 +18,7 @@ No production data changes or paid runs are part of this change. The architectur
 - Grouping, exact filed fields, role-specific kind mapping, per-filer/year arithmetic and release-consistent paging are implemented.
 - The complete backend suite passed: 2,455 tests. The frontend suite passed 2,470 tests before the final cancellation regression; the focused paging suite now has 7 passing tests. Formatting, types and the cross-committee total check passed.
 - Real-browser checks used Nystrom's 29 payments and Facebook's ordinary/independent payments at widths 390, 900 and 1,440. A keyboard committee link opened its committee and returned. Loading more ordinary payments increased the visible list from 250 to 500, retained rows and kept the partial-year warning. Phone content stayed within the viewport.
-- The local preview reads public production payments through a read-only local proxy. The additional registered kind field awaits deployment; its source and absence behavior passed the backend checks.
-- Remaining: align latest main, upload, open the pull request, resolve independent review, pass current-head and merge-queue checks, confirm deployment and live fields, report on the issue, then clean this worktree.
+- The local preview used public production payments through a read-only local proxy. Before deployment, the additional registered kind field's source and absence behavior passed the backend checks. The live result is recorded below.
 
 ## Independent review complete
 

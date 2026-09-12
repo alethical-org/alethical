@@ -26,8 +26,8 @@ plainly that they disagree.
 
 **It cannot cover everything, and it says so rather than passing quietly.** Exact
 report versions already held can be checked for any year. The Board is asked only for
-missing versions from 2023 onward. A committee-year without a readable report remains
-**not checked**, never passed.
+missing versions from 2023 onward. A committee-year without an available report
+document remains **not checked**, never passed.
 
 **And the reader proves itself first.** Each contributor-type figure the Board's totals
 route publishes equals the matching schedule's itemized plus non-itemized cash, so the

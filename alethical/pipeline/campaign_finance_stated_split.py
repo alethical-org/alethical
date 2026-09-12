@@ -17,8 +17,8 @@ each other.
 
 **What it can and cannot cover, stated up front rather than discovered later.** Exact
 report versions already held can be checked for any year. The Board is asked only for
-missing versions from 2023 onward. A committee-year without a readable report remains
-**not checked**, never passed, which is what
+missing versions from 2023 onward. A committee-year without an available report
+document remains **not checked**, never passed, which is what
 `docs/architecture/campaign-finance-system-design.md` §9.9 exists to enforce.
 
 **A part-year filing and the download name different donors, and that is not a
@@ -1117,8 +1117,8 @@ class StatedSplitCoverage:
         """Every committee-year of the population has a verdict, and all of them agree.
 
         Deliberately strict. Payment rows reach back to 2015, while held report
-        documents cover only part of that history. A committee-year without a readable
-        report stays in the population and prevents a clean sweep.
+        documents cover only part of that history. A committee-year without an available
+        report document stays in the population and prevents a clean sweep.
         """
         return (
             self.population is not None
