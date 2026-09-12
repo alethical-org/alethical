@@ -122,8 +122,8 @@ The original payment-page help paragraph was kept unchanged under E's fixed-copy
 instruction. A proposed replacement describing group-name links and group subtotals
 is awaiting Eugene's answer; its wording is not changed without that answer.
 
-Direct peer consultation is permitted only for a new disagreement with the revised
-corrections, and only in the existing Claude conversation “candidate donor profile”.
+Direct peer consultation is permitted whenever useful, and only in the existing
+Claude conversation “candidate donor profile”.
 The revised corrections currently have no outstanding disagreement.
 
 ## Added refund card, F
@@ -171,3 +171,42 @@ conditional note. The card must not invent them from a filename or year.
   the approved decisions, implementation, checks, live results and remaining limits.
 
 No paid run, real user message or destructive production change is authorized by this plan.
+
+## Approved follow-on sequence
+
+These jobs start only after A through F have merged, passed live checks and been
+reported on [issue 2140](https://github.com/alethical-org/alethical/issues/2140).
+The current task owns all 4, in this order, with 1 pull request per job, each from
+its own worktree off current `origin/main`, through the merge queue and a live check.
+Every pull request carries `Net:` and `Docs check:` lines. The campaign-finance
+architecture record stays unchanged; proposed changes go on each job's issue.
+
+- [ ] Job 1, [issue 2068](https://github.com/alethical-org/alethical/issues/2068):
+  reduce the first payments read or warm it so a cold read fits its deadline.
+  Any remaining read failure uses the existing load-failed state, never the empty
+  donation sentence. Pin failed-read rendering and check MN DFL State Central's
+  live committee page.
+- [ ] Job 2: open a dedicated issue, then reuse B's contribution-kind chart,
+  non-itemized slice, 5 fixed tabs, conditional Other tab and grouped outside
+  spending on `/money/committees/<slug>`. Keep its Year, Track, Share and Filings
+  controls. Its own committee needs no legislator-confirmation gate, and committees
+  are never added together. Shared elements use shared words. Update the campaign
+  money section reader guide and close the issue with this job's pull request.
+- [ ] Job 3, [issue 2126](https://github.com/alethical-org/alethical/issues/2126),
+  [issue 2070](https://github.com/alethical-org/alethical/issues/2070) and
+  [issue 2012](https://github.com/alethical-org/alethical/issues/2012): record cold
+  and warm production loads for the sample profile tab and busiest committee on
+  issue 2126 before changing code. In order, separate day-lived dated figures from
+  the 60-second ownership answer without changing the 20-minute confirmation expiry;
+  remove committee sentences from the initial address-reader import chain; and load
+  the code shared by 2 screens with those screens. Measure after each step and post
+  before/after results on its issue. Only production measurements may set the
+  first-load size limit. Deliver the 3 ordered changes in this job's single pull request.
+- [ ] Job 4, [issue 1662](https://github.com/alethical-org/alethical/issues/1662):
+  before the next scheduled refresh, re-download the 3 bulk files and 20 already-held
+  reports across kinds and years. Compare records and document bytes; report row
+  counts, columns, amounts, amendment handling, changes and unchanged fields.
+  Make no production data change. File each loader/check-breaking difference with
+  evidence as a separate issue. State on issue 1662 whether the next refresh is safe.
+- [ ] After job 4's report, comment on issue 2140 with all 4 pull requests and any
+  architecture findings, then stop. Lobbying waits for its separate design brief.
