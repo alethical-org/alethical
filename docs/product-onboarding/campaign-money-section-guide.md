@@ -37,7 +37,7 @@ permanently and straight to the `/read` address it belongs to, never through the
   `/money/payments?name=…&role=…` — a link somebody can share, showing the same list.
 - Open `/money/outside-spending` directly for the record of what outside groups spent
   supporting or opposing committees, or `/money/outside-spending?about=<registration
-  number>` and `?spender=<registration number>` for one committee's or one group's view of it.
+number>` and `?spender=<registration number>` for one committee's or one group's view of it.
 - Open `/money/races` directly for every candidate committee grouped by the seat it runs for,
   or `/money/races#house-12a` for one contest.
 - Open the **Money by race** or **Outside spending** card on `/money`, the 4th and 5th cards in
@@ -477,6 +477,58 @@ Its own states: an office with no candidate committees in our copy (a way to dro
 offered); our copy of the register could not be read (said as our gap, never as a claim that
 Minnesota has no candidates); and loading placeholders that announce themselves to screen readers.
 
+## A legislator's Campaign money tab (`/legislators/<name>?tab=money`)
+
+The September 2026 profile redesign is tracked in
+[issue 2140](https://github.com/alethical-org/alethical/issues/2140). The full profile behavior,
+including the committee-confirmation deadline and every withheld-figure state, is in
+[legislator-campaign-money-guide.md](https://github.com/alethical-org/alethical/blob/main/docs/product-onboarding/legislator-campaign-money-guide.md).
+
+This route shows each confirmed legislative committee separately. Its year buttons run
+from 2015 through the current calendar year, so 2026 offers 12 years. Dashed outlines use
+the actual answers for those years to mark named-only coverage; they do not assume an
+older year lacks an official report. These style answers never renew the 20-minute check
+on whose committee is being shown. The separate 2022–2023 official-total extension is
+tracked in [issue 2142](https://github.com/alethical-org/alethical/issues/2142);
+the year buttons do not mean those totals have been loaded.
+
+The prominent donor chart shows shares of cash money by donor kind. A checked split uses
+the official cash total and includes unnamed cash. With no official total it uses the
+complete named cash list and says “named donations only”. Goods and services stay in the
+named amounts and rows, with 1 explanation under the chart, but never enter cash shares.
+There is no separate unnamed percentage under the profile's summary amount. Missing,
+unsafe or incomplete figures retain their own explanation instead of a misleading circle.
+
+The fixed tabs are Individuals, Lobbyists, Committees & Funds, Party Units and Expenditures.
+An Other kinds tab appears only where a contribution has another kind. Candidate Committee rows
+sit in Committees & Funds and retain their filed kind. Contribution tabs include only
+`Contribution` receipts. Each group is 1 exact name within 1 committee, year and tab;
+spelling variants are not joined. Counts distinguish printed names from payment rows,
+not people. Missing-name rows stay readable and do not add to the name count.
+
+Every page of received and made payments must load from one release before list totals
+and counts appear. Showing 10 groups first is a display limit, not a partial-data total.
+The search works within the loaded tab. Sorts are largest, smallest, name A to Z, newest
+and oldest, with missing dates last. Search leaves whole-tab counts and totals unchanged.
+Opening a group shows all its payments. Repeated-looking payments are kept. A committee
+name with a known registration destination is a real link; private names stay plain
+text on this profile. The exact-name lookup on `/money/payments` is unchanged, and this
+build adds neither donor overlap nor individual donor profiles.
+
+Outside spending follows the selected year and groups payments by spender within each
+direction. Supporting and opposing totals remain separate, and never enter the
+candidate's own figures. After that, each committee has its own history of named cash
+shares from 2015 through the current year. The history loads after the selected lists
+and appears only when every year is complete and from the same release. It never adds
+committees together or turns missing rows into a reported zero.
+
+The chart categories match the donor tabs, with other candidate committees included in
+Committees & Funds. Original source kinds remain on payment rows. The existing
+whole-dollar formatter stays, while arithmetic retains every decimal place. These
+decisions were approved on 12 September 2026. The exact chart colours remain with
+Design and can change in 1 colour-map file. The shared missing-official-total wording
+comes from [pull request 2154](https://github.com/alethical-org/alethical/pull/2154).
+
 ## A committee's page (`/money/committees/{name}-{number}`)
 
 One committee's money for one year, from Minnesota's own filings. The number at the end
@@ -511,6 +563,7 @@ Top to bottom:
    changed. A visitor who is not signed in sees no Track control on this page at all;
    following a committee while signed out is deliberately not built
    ([#1943](https://github.com/alethical-org/alethical/issues/1943)).
+
 2. **Whose committee it is.** Until a person at Alethical has checked, the page attaches
    the money to nobody and says why: the filed name is the filer's own wording, not a
    confirmation by anyone. A party unit, caucus, fund, or ballot-question committee gets
@@ -556,10 +609,13 @@ Top to bottom:
    filing; the start appears only when the Board's own published filing calendar prints
    one against that end (so "Figures for Jan 1, 2026 – Jul 20, 2026"), and otherwise the
    panel says "through" alone — a start is never assumed, because a special-election
-   filer's period does not open on 1 January. Beside it, the one freshness date (the day
-   we copied the Board's files, printed as its Minnesota day), and the link to the
-   committee's filed reports on the Board's own site. The filing's period and link live
-   here, once, above both money cards and never inside one: one filing produces both
+   filer's period does not open on 1 January. Beside it is the link to the
+   committee's filed reports on the Board's own site. The date at the foot of the page
+   names the payment files it covers and explains that report totals are copied
+   separately. The payment-file date never dates the report totals or the register.
+   The same distinction appears on the committee's every-payment view and in the first
+   response served for both addresses. The filing's period and link live here, once,
+   above both money cards and never inside one: one filing produces both
    cards, so stating any of it per card would state one fact twice. A party unit's panel
    says its calendar is its own. If our own data service stops answering, the page keeps
    the figures it already had and says they are held until it answers — never expiring
@@ -591,17 +647,20 @@ Top to bottom:
    sees it, and the page never subtracts. When the split is safe, the "Non-itemized
    contributions" figure appears with one sentence under it, the same for every kind of
    filer and repeating no threshold: "Donations inside the committee's reported total whose
-   givers the state's public file does not name." No bar draws it, because a bar measured
-   against the reported total performs the same subtraction in a picture. Receipts that are
+   givers the state's public file does not name." This committee route draws no chart.
+   The profile route can chart a server-approved split after its complete named cash
+   rows agree with that split. Receipts that are
    not donations (a public subsidy, interest, a loan) sit under a "Not a donation" heading
    with the state's own label; **a row the state types `Miscellaneous` is not drawn, and
    with no other row the heading is not drawn either** (ruled 11 Sep 2026). The card ends
    with the link "Minnesota's campaign-finance downloads", which opens the Board's downloads
    page rather than the 9 MB bulk download the server's address points at: the page strips
-   the `?download=` part, so a new release id cannot break the link. Both money cards are
-   drawn by the one component the legislator profile's Campaign money tab uses
-   (`apps/frontend/src/components/campaignMoney/MoneyCards.tsx`), so the 2 pages cannot
-   word the same money differently. In each case where a split would state something false — the two figures cover
+   the `?download=` part, so a new release id cannot break the link. The official figures
+   share [MoneyCards.tsx](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/campaignMoney/MoneyCards.tsx)
+   with the legislator profile, but the layouts differ. The profile redesign puts the
+   donor chart first, moves the goods-and-services explanation under that chart and
+   removes the separate unnamed percentage below the summary. This committee route keeps
+   its existing summary and tabs. In each case where a split would state something false — the two figures cover
    different periods, the sources disagree, our copy of the donation list is missing
    named money the filing carries, the committee corrected its report after we copied the
    official total, the two figures simply will not line up, there are no named payments,
@@ -623,7 +682,7 @@ Top to bottom:
    list of states and
    their counts is in
    [`legislator-campaign-money-guide.md`](legislator-campaign-money-guide.md), which
-   owns the wording both surfaces share.
+   records the shared figure states and the profile's distinct layout.
 
    **That check itself was wrong about 37 committee-years until 28 August 2026, and 20 of
    them are now fixed.** Minnesota names only the donors who had passed $200 by a report's
@@ -693,7 +752,7 @@ Top to bottom:
    viewer; there are no per-report links, because the Board serves report documents
    through a form a link cannot reach, and not at all for most years before 2023 — a row
    of dead links would be worse than one honest step.
-8a. **Two more tabs, each drawn only where this filer has rows in Minnesota's
+   8a. **Two more tabs, each drawn only where this filer has rows in Minnesota's
    independent-expenditures file, in that direction — per filer, never per kind of
    committee.** "Spent about them" lists what other groups spent for or against this
    committee, filed independently of it; "Spent by them" lists what this filer spent about
@@ -1073,8 +1132,8 @@ not before, and a person decides every such link rather than software proposing 
 - No page sums money across members or filers, ranks committees by amount, or shows a
   dollar figure on a list of many committees. Signed research pieces are the one conditioned
   exception, under rule 13.
-- The section collects nothing from readers. There is no sign-in gate and no form that
-  stores anything. The search box sends the name typed into it to our own server to be
-  matched against the filings, and to nobody else; the typed name appears in the page's own
-  web address, which is what makes a search shareable, and nothing about it is stored
-  against a reader.
+- The section has no sign-in gate for reading records. The name search at `/money/search`
+  sends the typed name to Alethical's own server, and to nobody else. Its address carries
+  that name so the search can be shared; it is not stored against a reader. Searching
+  within a legislator profile's already-loaded payment tab stays in the browser and
+  does not change the address.

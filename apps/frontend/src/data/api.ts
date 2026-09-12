@@ -871,7 +871,7 @@ export async function publicApiRequest<T>(path: string, signal?: AbortSignal): P
  * the tidier code and it costs **409 bytes** in the first-load bundle, because
  * `publicApiRequest` has dozens of callers and the wrapper's returned object gets
  * inlined into each one. Every reader downloads that, on every page, to save one
- * duplicated error branch here. Only the 4 reads carrying a claim about the state
+ * duplicated error branch here. Only reads carrying a claim about the state
  * of the world right now need the age; every other caller wants the body alone.
  *
  * `Age` is a whole number of seconds each cache raises by the time it held the
@@ -2500,6 +2500,7 @@ export async function getLegislatorCampaignMoneyFromApi(
   const payload = response.body.data;
   return {
     legislatorId: payload.legislator_id,
+    releaseId: payload.release_id,
     year: payload.year,
     linkState: payload.link_state,
     currentClaim: currentClaimFreshness(payload.current_claim_validated_at, response.ageSeconds),
@@ -3190,10 +3191,10 @@ export async function getLegislatorOutsideSpendingFromApi(
   year: number,
 ): Promise<OutsideSpendingYear> {
   const params = new URLSearchParams({ year: String(year) });
-  const response = await publicApiRequest<DetailResponse<ApiOutsideSpendingPayload>>(
+  const response = await publicApiRequestWithAge<DetailResponse<ApiOutsideSpendingPayload>>(
     `/legislators/${encodeURIComponent(legislatorId)}/independent-spending?${params.toString()}`,
   );
-  const data = response.data;
+  const data = response.body.data;
   let state: OutsideSpendingState =
     data.state === 'reported' || data.state === 'link_unconfirmed' ? data.state : 'unavailable';
   // A `reported` year must arrive with all 3 payment counts, or no figure may be drawn
@@ -3219,6 +3220,9 @@ export async function getLegislatorOutsideSpendingFromApi(
   return {
     year: data.year,
     state,
+    // This short-cached response re-reads confirmed ownership at the origin.
+    // Its HTTP age sets the deadline; the filing download date cannot renew it.
+    currentClaim: currentClaimFreshness(null, response.ageSeconds),
     snapshotId: data.snapshot_id ?? null,
     committees: committees.map((committee) => ({
       registrationNumber: committee.registration_number ?? '',

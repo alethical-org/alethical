@@ -34,7 +34,7 @@ export const EARLIEST_CAMPAIGN_MONEY_YEAR = 2015;
 export type CampaignMoneyYear = number;
 
 /**
- * The years this tab offers, newest first: this calendar year and the one before.
+ * The recent years offered by the existing committee record controls, newest first.
  *
  * Read off the calendar rather than written down, and that is the whole point. A
  * hardcoded pair goes stale in silence: on 1 January 2027 a list saying 2026 and 2025
@@ -51,8 +51,16 @@ export type CampaignMoneyYear = number;
  */
 export function campaignMoneyYears(today: Date = new Date()): CampaignMoneyYear[] {
   const current = Math.max(today.getFullYear(), EARLIEST_CAMPAIGN_MONEY_YEAR);
-  const previous = current - 1;
-  return previous >= EARLIEST_CAMPAIGN_MONEY_YEAR ? [current, previous] : [current];
+  return current > EARLIEST_CAMPAIGN_MONEY_YEAR ? [current, current - 1] : [current];
+}
+
+/** The profile's full calendar-year selection, following the download boundary. */
+export function campaignMoneyHistoryYears(today: Date = new Date()): CampaignMoneyYear[] {
+  const current = Math.max(today.getFullYear(), EARLIEST_CAMPAIGN_MONEY_YEAR);
+  return Array.from(
+    { length: current - EARLIEST_CAMPAIGN_MONEY_YEAR + 1 },
+    (_, index) => current - index,
+  );
 }
 
 /** Whether a block of figures may be read at all, from the server's own vocabulary. */
@@ -96,7 +104,7 @@ export function campaignMoneyYear(
   raw: string | number | undefined,
   today: Date = new Date(),
 ): CampaignMoneyYear {
-  const years = campaignMoneyYears(today);
+  const years = campaignMoneyHistoryYears(today);
   const parsed = typeof raw === 'string' ? Number.parseInt(raw, 10) : raw;
   const match = years.find((year) => year === parsed);
   return match ?? years[0];

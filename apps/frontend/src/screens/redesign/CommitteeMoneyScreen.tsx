@@ -3,7 +3,7 @@ import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from
 import Svg, { Path } from 'react-native-svg';
 
 import { SharePopover } from '../../components/billDetail/SharePopover';
-import { YearControl } from '../../components/campaignMoney/CampaignMoneyTab';
+import { YearControl } from '../../components/campaignMoney/YearControl';
 import {
   BOARD_VIEWER,
   CardHeading,
@@ -86,6 +86,7 @@ import {
   showingLine,
   stampThroughDate,
   staleHoldNote,
+  paymentFilesDownloadedLine,
   NOT_IN_REGISTER_LINE,
   uncoveredPeriodDetail,
   uncoveredPeriodLine,
@@ -463,7 +464,6 @@ function CommitteeBody({
         money={money}
         state={state}
         year={year}
-        checkedOn={checkedOn}
         isPartyUnit={isPartyUnit}
         isHoldingStale={isHoldingStale}
         isMobile={isMobile}
@@ -503,10 +503,7 @@ function CommitteeBody({
       </View>
 
       {checkedOn ? (
-        <Text style={styles.freshness}>
-          We last copied Minnesota’s campaign finance files on {checkedOn}. That is when we checked,
-          not the period this money covers.
-        </Text>
+        <Text style={styles.freshness}>{paymentFilesDownloadedLine(checkedOn)}</Text>
       ) : null}
     </View>
   );
@@ -516,7 +513,6 @@ function PeriodStamp({
   money,
   state,
   year,
-  checkedOn,
   isPartyUnit,
   isHoldingStale,
   isMobile,
@@ -524,7 +520,6 @@ function PeriodStamp({
   money: CommitteeMoney;
   state: 'closed-empty' | 'empty-year' | 'figures';
   year: number;
-  checkedOn: string | null;
   isPartyUnit: boolean;
   isHoldingStale: boolean;
   isMobile: boolean;
@@ -536,13 +531,13 @@ function PeriodStamp({
   let detail: string;
   if (state === 'closed-empty') {
     line = closedPeriodLine(money.register.terminationDate);
-    detail = closedPeriodDetail(money.register.terminationDate, checkedOn);
+    detail = closedPeriodDetail(money.register.terminationDate, null);
   } else if (state === 'empty-year') {
     line = uncoveredPeriodLine(year);
-    detail = uncoveredPeriodDetail(year, checkedOn);
+    detail = uncoveredPeriodDetail(year, null);
   } else {
     line = coveredPeriodLine(through, money.moneyIn.reportedPeriodStart);
-    detail = coveredPeriodDetail(through, checkedOn, {
+    detail = coveredPeriodDetail(through, null, {
       isPartyUnit,
       reportedPeriodStart: money.moneyIn.reportedPeriodStart,
     });
@@ -553,7 +548,7 @@ function PeriodStamp({
       <FilingStamp
         line={line}
         detail={detail}
-        notes={isHoldingStale ? [staleHoldNote(checkedOn)] : []}
+        notes={isHoldingStale ? [staleHoldNote(null)] : []}
         showLink={state === 'figures' && through !== null}
         covered={covered}
         isMobile={isMobile}

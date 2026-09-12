@@ -1,7 +1,7 @@
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { YearControl } from '../../components/campaignMoney/CampaignMoneyTab';
+import { YearControl } from '../../components/campaignMoney/YearControl';
 import { MoneyListRow, MoneyListRows } from '../../components/campaignMoney/MoneyListRows';
 import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton } from '../../components/Skeleton';
@@ -27,6 +27,7 @@ import {
   paymentsEyebrow,
   paymentsTabFromParam,
   paymentsTitle,
+  paymentFilesDownloadedLine,
   receivedPaymentRow,
   registerKindFromEntityType,
   registrationNumberFromSlug,
@@ -192,7 +193,7 @@ export function CommitteePaymentsScreen({
                       </Text>
                     ) : null}
                     <Text style={styles.stampDetail}>
-                      {coveredPeriodDetail(money?.split.reportedThrough ?? null, checkedOn, {
+                      {coveredPeriodDetail(money?.split.reportedThrough ?? null, null, {
                         isPartyUnit: registerKind === 'party_unit',
                         reportedPeriodStart: money?.moneyIn.reportedPeriodStart ?? null,
                       })}
@@ -201,11 +202,14 @@ export function CommitteePaymentsScreen({
                 ) : (
                   <>
                     <Text style={styles.stampPeriodMuted}>{uncoveredPeriodLine(year)}</Text>
-                    <Text style={styles.stampDetail}>{uncoveredPeriodDetail(year, checkedOn)}</Text>
+                    <Text style={styles.stampDetail}>{uncoveredPeriodDetail(year, null)}</Text>
                   </>
                 )}
                 {moneyQuery.isError && money ? (
-                  <Text style={styles.stampDetail}>{staleHoldNote(checkedOn)}</Text>
+                  <Text style={styles.stampDetail}>{staleHoldNote(null)}</Text>
+                ) : null}
+                {checkedOn ? (
+                  <Text style={styles.stampDetail}>{paymentFilesDownloadedLine(checkedOn)}</Text>
                 ) : null}
               </View>
 

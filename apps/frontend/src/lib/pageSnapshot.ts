@@ -95,6 +95,7 @@ import {
   reportedThroughNote,
   inKindDonationsNote,
   itemizedContributionsNote,
+  paymentFilesDownloadedLine,
   paymentRowHref,
   shownReceiptRows,
   NOT_IN_REGISTER_LINE,
@@ -1384,17 +1385,13 @@ function committeeIdentity(
             ),
     periodDetail:
       state === 'closed-empty'
-        ? closedPeriodDetail(register.termination_date, checkedOn)
+        ? closedPeriodDetail(register.termination_date, null)
         : state === 'empty-year'
-          ? uncoveredPeriodDetail(year, checkedOn)
-          : coveredPeriodDetail(
-              split.reported_through ?? moneyOut.reported_through ?? null,
-              checkedOn,
-              {
-                isPartyUnit,
-                reportedPeriodStart: moneyIn.reported_period_start ?? null,
-              },
-            ),
+          ? uncoveredPeriodDetail(year, null)
+          : coveredPeriodDetail(split.reported_through ?? moneyOut.reported_through ?? null, null, {
+              isPartyUnit,
+              reportedPeriodStart: moneyIn.reported_period_start ?? null,
+            }),
   };
 }
 
@@ -1538,7 +1535,15 @@ export function committeePageSnapshot(
     sections: [
       {
         heading: identity.periodLine ?? 'Filing period',
-        blocks: [{ kind: 'prose', lines: [identity.periodDetail] }],
+        blocks: [
+          {
+            kind: 'prose',
+            lines: [
+              identity.periodDetail,
+              ...(identity.checkedOn ? [paymentFilesDownloadedLine(identity.checkedOn)] : []),
+            ],
+          },
+        ],
       },
       { heading: 'Money in', blocks: moneyInBlocks },
       { heading: 'Money out', blocks: moneyOutBlocks },
@@ -1616,7 +1621,15 @@ export function committeePaymentsPageSnapshot(
     sections: [
       {
         heading: identity.periodLine ?? 'Filing period',
-        blocks: [{ kind: 'prose', lines: [identity.periodDetail] }],
+        blocks: [
+          {
+            kind: 'prose',
+            lines: [
+              identity.periodDetail,
+              ...(identity.checkedOn ? [paymentFilesDownloadedLine(identity.checkedOn)] : []),
+            ],
+          },
+        ],
       },
       ...(payments.rows.length
         ? [

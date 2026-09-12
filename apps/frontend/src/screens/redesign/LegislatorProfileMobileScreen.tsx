@@ -37,7 +37,7 @@ import {
   useLegislatorVotes,
   useSessions,
 } from '../../hooks/useAppQueries';
-import { CampaignMoneyTab } from '../../components/campaignMoney/CampaignMoneyTab';
+import { CampaignMoneyTab } from '../../components/campaignMoney/CampaignMoneyTabOnDemand';
 import {
   LegislatorProfileTabs,
   type ProfileTab,

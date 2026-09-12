@@ -18,6 +18,7 @@ import {
   type FilingSchedule,
   campaignMoneyYear,
   campaignMoneyYears,
+  campaignMoneyHistoryYears,
   formatDay,
   formatMoney,
   isAmountAboveZero,
@@ -602,6 +603,16 @@ describe('the years the tab offers', () => {
     expect(campaignMoneyYears(new Date('2015-06-01T12:00:00Z'))).toEqual([
       EARLIEST_CAMPAIGN_MONEY_YEAR,
     ]);
+  });
+});
+
+describe('the profile historical years', () => {
+  it('includes every year from the current calendar year through 2015', () => {
+    expect(campaignMoneyHistoryYears(new Date('2026-09-12T12:00:00Z'))).toEqual([
+      2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015,
+    ]);
+    expect(campaignMoneyYear('2021', new Date('2026-09-12T12:00:00Z'))).toBe(2021);
+    expect(campaignMoneyHistoryYears(new Date('2027-01-01T12:00:00Z'))[0]).toBe(2027);
   });
 });
 

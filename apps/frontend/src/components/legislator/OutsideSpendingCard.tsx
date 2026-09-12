@@ -53,11 +53,13 @@ export function OutsideSpendingCard({
   isLoading,
   isError,
   onOpenSource,
+  showFreshness = true,
 }: {
   years: OutsideSpendingYear[];
   isLoading: boolean;
   isError: boolean;
   onOpenSource: (url: string) => void;
+  showFreshness?: boolean;
 }) {
   const { isMobile } = useResponsive();
   const sourceUrl = outsideSpendingSourceUrl(years);
@@ -115,7 +117,7 @@ export function OutsideSpendingCard({
             href={sourceUrl}
             onPress={() => onOpenSource(sourceUrl)}
           />
-          {fetchedOn ? (
+          {showFreshness && fetchedOn ? (
             <Text style={styles.fetched}>Copied from the state on {fetchedOn}</Text>
           ) : null}
         </View>

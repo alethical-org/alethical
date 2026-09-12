@@ -36,13 +36,15 @@
  * fact twice. A figure's own period note returns only where its coverage date differs
  * from the stamp's (`reportedThroughNote`).
  *
- * The 2 surfaces differ in exactly 2 deliberate ways, each carried by `surface`:
- * the percentage note under the unnamed figure is profile-only (it is an annotation on a
- * named person's money, and the committee page is about the committee), and the
- * goods-and-services line names the row marker on the committee page, where the rows
- * below carry it, and not on the profile, where they do not.
+ * On the redesigned profile, `withDonorBreakdown` lets the chart own the percentage,
+ * goods-and-services and withheld-split explanation once. The amount rows stay here.
+ * The profile theme supplies its palette and type sizes; the committee page keeps its
+ * existing styles and full explanation inventory.
  */
-import { Linking, StyleSheet, Text, View } from 'react-native';
+import { createContext, useContext, useState, type ReactNode } from 'react';
+import { Linking, StyleSheet, Text, View, type TextProps, type TextStyle } from 'react-native';
+
+import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 
 import {
   downloadsPageUrl,
@@ -79,6 +81,7 @@ import {
 } from '../../lib/legislatorCampaignMoney';
 import { externalLinkProps } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
+import { useCampaignMoneyTypography } from './detailsStyles';
 
 /** The Board's own lookup page. A search, not a per-committee address — a guessed
  *  deep link that lands on the wrong committee is worse than one extra step. */
@@ -117,6 +120,72 @@ export interface SplitLike {
 
 type Band = { isMobile: boolean };
 
+type CardStyles = { [Key in keyof typeof defaultStyles]: TextStyle };
+const ProfileCardTheme = createContext<CardStyles | null>(null);
+
+/** Opt in the profile's shared cards without changing the committee page's styling. */
+export function CampaignMoneyCardTheme({ children }: { children: ReactNode }) {
+  const type = useCampaignMoneyTypography();
+  const small = { fontSize: type.small, lineHeight: type.small * 1.5 };
+  const body = { fontSize: type.body, lineHeight: type.body * 1.55 };
+  const styles = {
+    ...profileStyles,
+    headingCommittee: { ...profileStyles.headingCommittee, fontSize: type.h3 },
+    headingProfile: { ...profileStyles.headingProfile, ...body },
+    explain: { ...profileStyles.explain, ...small },
+    figureLabel: { ...profileStyles.figureLabel, ...body },
+    figureLabelMobile: { fontSize: type.body },
+    // The drawing's compact Money in/out amounts use body size; outside-spending
+    // headline totals own the separate 36/32/28px figure scale.
+    figureValue: { ...profileStyles.figureValue, ...body },
+    figureValueMobile: { fontSize: type.body },
+    figureStandIn: { ...profileStyles.figureStandIn, ...small },
+    figureNote: { ...profileStyles.figureNote, ...small },
+    rowsHead: { ...profileStyles.rowsHead, ...body },
+    rowLabel: { ...profileStyles.rowLabel, ...body },
+    rowNote: { ...profileStyles.rowNote, ...small },
+    rowValue: { ...profileStyles.rowValue, ...body },
+    source: { ...profileStyles.source, fontSize: type.small },
+    stampPeriodMuted: { ...profileStyles.stampPeriodMuted, ...body },
+    stampDetail: { ...profileStyles.stampDetail, ...small },
+    checkedSentence: { ...profileStyles.checkedSentence, ...small },
+  };
+  return <ProfileCardTheme.Provider value={styles}>{children}</ProfileCardTheme.Provider>;
+}
+
+function useCardStyles() {
+  return useContext(ProfileCardTheme) ?? defaultStyles;
+}
+
+/** The profile's date/count lines use the amount face; the period is weight 700. */
+function CardText({
+  children,
+  style,
+  numeric = typeof children === 'string' && /\d/.test(children),
+  period = false,
+  ...props
+}: TextProps & {
+  numeric?: boolean;
+  period?: boolean;
+  // Native Text's types omit the web anchor's focus events.
+  onFocus?: () => void;
+  onBlur?: () => void;
+}) {
+  const profile = useContext(ProfileCardTheme);
+  return (
+    <Text
+      {...props}
+      style={[
+        style,
+        profile && numeric && numericStyles.number,
+        profile && period && numericStyles.period,
+      ]}
+    >
+      {children}
+    </Text>
+  );
+}
+
 /**
  * The filing's facts, once, above both cards: the period its figures cover, the
  * sentence saying how that period was read, and the link to the filing on the Board's
@@ -137,16 +206,19 @@ export function FilingStamp({
   showLink: boolean;
   covered: boolean;
 } & Band) {
+  const styles = useCardStyles();
   return (
     <View style={[styles.stamp, isMobile && styles.stampMobile]}>
       {line ? (
-        <Text style={covered ? styles.stampPeriod : styles.stampPeriodMuted}>{line}</Text>
+        <CardText period={covered} style={covered ? styles.stampPeriod : styles.stampPeriodMuted}>
+          {line}
+        </CardText>
       ) : null}
-      <Text style={styles.stampDetail}>{detail}</Text>
+      <CardText style={styles.stampDetail}>{detail}</CardText>
       {notes.map((note) => (
-        <Text key={note} style={styles.stampDetail}>
+        <CardText key={note} style={styles.stampDetail}>
           {note}
-        </Text>
+        </CardText>
       ))}
       {showLink ? <SourceLink label={FILED_REPORTS_LINK_LABEL} url={BOARD_VIEWER} /> : null}
     </View>
@@ -160,8 +232,11 @@ export function MoneyInBlock({
   isBallot,
   stampThrough,
   isMobile,
+  withDonorBreakdown = false,
 }: {
   surface: MoneyCardSurface;
+  /** The profile chart already states the split and goods-and-services explanation. */
+  withDonorBreakdown?: boolean;
   split: SplitLike;
   moneyIn: MoneyInLike | null;
   isBallot: boolean;
@@ -169,6 +244,7 @@ export function MoneyInBlock({
    *  note draws only where its date differs. */
   stampThrough: string | null;
 } & Band) {
+  const styles = useCardStyles();
   const reported = formatMoney(split.reportedTotal);
   // (c) draws whatever the block's state: a null block on the profile is a committee
   // the downloads hold no row for, and "Not reported" is what that reads as.
@@ -207,14 +283,14 @@ export function MoneyInBlock({
       ) : null}
 
       {reportedZero ? (
-        <Text style={styles.explain}>{ZERO_REPORTED_NOTE}</Text>
+        <CardText style={styles.explain}>{ZERO_REPORTED_NOTE}</CardText>
       ) : (
         <Figure
           label={MONEY_IN_NAMED_LABEL}
           value={named.text}
           isFigure={named.isFigure}
           note={
-            surface === 'profile'
+            surface === 'profile' && !withDonorBreakdown
               ? paymentDateRangeLabel(split.firstPaymentOn, split.lastPaymentOn)
               : null
           }
@@ -226,11 +302,13 @@ export function MoneyInBlock({
           line: the one place on the card that states the naming rule (ruled by Eugene,
           11 Sep 2026). Absent only where the figure itself gives way to the filed zero. */}
       {reportedZero ? null : (
-        <Text style={styles.explain}>{itemizedContributionsNote(isBallot)}</Text>
+        <CardText style={styles.explain}>{itemizedContributionsNote(isBallot)}</CardText>
       )}
 
-      {inKind ? (
-        <Text style={styles.explain}>{inKindDonationsNote(inKind, surface === 'committee')}</Text>
+      {inKind && !withDonorBreakdown ? (
+        <CardText style={styles.explain}>
+          {inKindDonationsNote(inKind, surface === 'committee')}
+        </CardText>
       ) : null}
 
       {split.state === 'shown' && unnamed !== null && !reportedZero ? (
@@ -239,22 +317,24 @@ export function MoneyInBlock({
             label={MONEY_IN_UNNAMED_LABEL}
             value={unnamed}
             note={
-              surface === 'profile'
+              surface === 'profile' && !withDonorBreakdown
                 ? unnamedShareLabel(split.unnamedTotal, split.reportedTotal)
                 : null
             }
             isMobile={isMobile}
           />
-          <Text style={styles.explain}>{unnamedMoneyExplanation(isBallot)}</Text>
-          {checkNote ? <Text style={styles.explain}>{checkNote}</Text> : null}
+          <CardText style={styles.explain}>{unnamedMoneyExplanation(isBallot)}</CardText>
+          {checkNote ? <CardText style={styles.explain}>{checkNote}</CardText> : null}
         </>
       ) : null}
 
-      {explanation ? <Text style={styles.explain}>{explanation}</Text> : null}
+      {explanation && !withDonorBreakdown ? (
+        <CardText style={styles.explain}>{explanation}</CardText>
+      ) : null}
 
       {receipts.length ? (
         <View style={styles.rows}>
-          <Text style={styles.rowsHead}>{NOT_A_DONATION_HEADING}</Text>
+          <CardText style={styles.rowsHead}>{NOT_A_DONATION_HEADING}</CardText>
           {receipts.map((receipt) => (
             <Row
               key={receipt.receiptType}
@@ -283,6 +363,7 @@ export function MoneyOutBlock({
   moneyOut: MoneyOutLike | null;
   stampThrough: string | null;
 } & Band) {
+  const styles = useCardStyles();
   const summary = moneyOutSummary(moneyOut);
 
   return (
@@ -300,9 +381,9 @@ export function MoneyOutBlock({
         />
       ) : null}
       {summary.notes.map((note) => (
-        <Text key={note} style={styles.explain}>
+        <CardText key={note} style={styles.explain}>
           {note}
-        </Text>
+        </CardText>
       ))}
     </View>
   );
@@ -317,15 +398,16 @@ export function MoneyOutBlock({
  * weaker record to describe loosely; it is nothing to say.
  */
 export function CheckedByBlock({ checked }: { checked: CommitteeMatchCheck | null | undefined }) {
+  const styles = useCardStyles();
   const sentences = matchCheckSentences(checked);
   if (!sentences.length) return null;
   return (
     <View style={styles.checked}>
-      <Text style={styles.checkedLabel}>{MATCH_CHECK_LABEL.toUpperCase()}</Text>
+      <CardText style={styles.checkedLabel}>{MATCH_CHECK_LABEL.toUpperCase()}</CardText>
       {sentences.map((sentence) => (
-        <Text key={sentence} style={styles.checkedSentence}>
+        <CardText key={sentence} style={styles.checkedSentence}>
           {sentence}
-        </Text>
+        </CardText>
       ))}
     </View>
   );
@@ -338,14 +420,15 @@ export function CardHeading({
   surface: MoneyCardSurface;
   children: string;
 }) {
+  const styles = useCardStyles();
   return (
-    <Text
+    <CardText
       accessibilityRole="header"
       aria-level={surface === 'committee' ? 2 : 4}
       style={surface === 'committee' ? styles.headingCommittee : styles.headingProfile}
     >
       {children}
-    </Text>
+    </CardText>
   );
 }
 
@@ -368,10 +451,13 @@ export function Figure({
   note?: string | null;
   isFigure?: boolean;
 } & Band) {
+  const styles = useCardStyles();
   return (
     <View style={styles.figure}>
-      <Text style={[styles.figureLabel, isMobile && styles.figureLabelMobile]}>{label}</Text>
-      <Text
+      <CardText style={[styles.figureLabel, isMobile && styles.figureLabelMobile]}>
+        {label}
+      </CardText>
+      <CardText
         style={
           isFigure
             ? [styles.figureValue, isMobile && styles.figureValueMobile]
@@ -379,33 +465,46 @@ export function Figure({
         }
       >
         {value}
-      </Text>
-      {note ? <Text style={styles.figureNote}>{note}</Text> : null}
+      </CardText>
+      {note ? <CardText style={styles.figureNote}>{note}</CardText> : null}
     </View>
   );
 }
 
 function Row({ label, value, note }: { label: string; value: string; note?: string | null }) {
+  const styles = useCardStyles();
   return (
     <View style={styles.row}>
-      <Text style={styles.rowLabel}>
+      <CardText numeric={/\d/.test(`${label}${note ?? ''}`)} style={styles.rowLabel}>
         {label}
-        {note ? <Text style={styles.rowNote}> · {note}</Text> : null}
-      </Text>
-      <Text style={styles.rowValue}>{value}</Text>
+        {note ? (
+          <CardText numeric={/\d/.test(note)} style={styles.rowNote}>
+            {' '}
+            · {note}
+          </CardText>
+        ) : null}
+      </CardText>
+      <CardText style={styles.rowValue}>{value}</CardText>
     </View>
   );
 }
 
 function SourceLink({ label, url }: { label: string; url: string }) {
+  const styles = useCardStyles();
+  const [focused, setFocused] = useState(false);
   return (
-    <Text style={styles.source} {...externalLinkProps(url, () => void Linking.openURL(url))}>
+    <CardText
+      style={[styles.source, focused && styles.sourceFocused]}
+      {...externalLinkProps(url, () => void Linking.openURL(url))}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+    >
       {label}
-    </Text>
+    </CardText>
   );
 }
 
-const styles = StyleSheet.create({
+const defaultStyles = StyleSheet.create({
   block: { gap: 14 },
   headingCommittee: {
     fontFamily: t.typography.title,
@@ -489,6 +588,7 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     alignSelf: 'flex-start',
   },
+  sourceFocused: {},
   stamp: {
     backgroundColor: t.colors.surfaces.s100,
     borderWidth: 1,
@@ -541,4 +641,59 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: t.colors.text.secondary,
   },
+});
+
+const numericStyles = StyleSheet.create({
+  number: { fontFamily: t.typography.body, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  period: { fontFamily: t.typography.body, fontWeight: '700', fontVariant: ['tabular-nums'] },
+});
+
+// Keep the default shared styles intact: this palette applies only inside the
+// profile wrapper, including nested figures, sources and the checked-by footer.
+const profileStyles = StyleSheet.create({
+  ...defaultStyles,
+  headingCommittee: { ...defaultStyles.headingCommittee, color: c.text },
+  headingProfile: {
+    ...defaultStyles.headingProfile,
+    color: c.text,
+    fontWeight: '800',
+    letterSpacing: 0,
+    textTransform: 'none',
+  },
+  explain: { ...defaultStyles.explain, color: c.secondary },
+  figureLabel: { ...defaultStyles.figureLabel, color: c.secondary },
+  figureValue: { ...defaultStyles.figureValue, ...numericStyles.number, color: c.text },
+  figureStandIn: { ...defaultStyles.figureStandIn, color: c.muted },
+  figureNote: { ...defaultStyles.figureNote, color: c.muted },
+  rowsHead: { ...defaultStyles.rowsHead, color: c.text, fontWeight: '800' },
+  rowLabel: { ...defaultStyles.rowLabel, color: c.text },
+  rowNote: { ...defaultStyles.rowNote, color: c.muted },
+  rowValue: { ...defaultStyles.rowValue, ...numericStyles.number, color: c.text },
+  source: {
+    ...defaultStyles.source,
+    color: c.link,
+    minHeight: 44,
+    lineHeight: 22,
+    paddingVertical: 11,
+  },
+  sourceFocused: {
+    outlineColor: c.focus,
+    outlineWidth: 2,
+    outlineStyle: 'solid',
+    outlineOffset: 2,
+  },
+  stamp: { ...defaultStyles.stamp, backgroundColor: c.tile, borderColor: c.border },
+  stampPeriod: {
+    ...defaultStyles.stampPeriod,
+    ...numericStyles.period,
+    fontSize: 20,
+    lineHeight: 26,
+    letterSpacing: -0.2,
+    color: c.text,
+  },
+  stampPeriodMuted: { ...defaultStyles.stampPeriodMuted, color: c.secondary },
+  stampDetail: { ...defaultStyles.stampDetail, color: c.secondary },
+  checked: { ...defaultStyles.checked, borderTopColor: c.border },
+  checkedLabel: { ...defaultStyles.checkedLabel, color: c.muted },
+  checkedSentence: { ...defaultStyles.checkedSentence, color: c.secondary },
 });
