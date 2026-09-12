@@ -519,7 +519,8 @@ the actual answers for those years to mark named-only coverage; they do not assu
 older year lacks an official report. These style answers never renew the 20-minute check
 on whose committee is being shown. The 2022–2026 replacement of the held filing totals is
 tracked in [issue 2142](https://github.com/alethical-org/alethical/issues/2142).
-The source download is running; the year buttons do not mean its totals have been published.
+The replacement remains held because the new Board feed omits an existing 2026 record;
+the year buttons do not mean its totals have been published.
 
 The prominent donor chart shows shares of cash money by donor kind. A checked split uses
 the official cash total and includes unnamed cash. With no official total it uses the

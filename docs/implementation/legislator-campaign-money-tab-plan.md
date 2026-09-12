@@ -1,7 +1,8 @@
 # Legislator Campaign money tab delivery
 
 This is the delivery checkpoint for [issue 2140](https://github.com/alethical-org/alethical/issues/2140),
-updated 12 September 2026. The redesign and official-only spending cards are live.
+updated 12 September 2026. A–F code changes are live; the historical replacement
+remains stopped under its missing-record guard.
 The accepted work includes the profile, outside spending, spending-card correction,
 historical totals and payments grouped by name, each with a pull request and live check.
 
@@ -130,27 +131,25 @@ The revised corrections currently have no outstanding disagreement.
 
 ## Added refund card, F
 
-Eugene added this delivery on 12 September 2026 and replaced its initial brief with
-the 7-decision version. Implementation starts only after the import for
-[issue 2147](https://github.com/alethical-org/alethical/issues/2147), currently
-[pull request 2160](https://github.com/alethical-org/alethical/pull/2160), is merged
-and its populated `refunds` response is live. This dependency does not pause the
-historical filings refresh.
+The refund card is live in [pull request 2162](https://github.com/alethical-org/alethical/pull/2162),
+following the source import in [pull request 2160](https://github.com/alethical-org/alethical/pull/2160)
+and published-directory protection in [pull request 2161](https://github.com/alethical-org/alethical/pull/2161).
+Eugene's 7-decision version and later source corrections govern the accepted drawing.
 
-- [ ] Use the accepted `Alethical UX (4).zip` refund drawing, with Eugene's message
+- [x] Use the accepted `Alethical UX (4).zip` refund drawing, with Eugene's message
   taking precedence over its illustrative data and superseded wording.
-- [ ] Render 1 all-years refund card directly below each confirmed committee's card,
+- [x] Render 1 all-years refund card directly below each confirmed committee's card,
   before outside spending. Preserve it when only the selected year has no figures;
   withhold it with unconfirmed, loading and failed whole-tab states.
-- [ ] Keep source-backed reported, not-published, not-matched and unavailable states
+- [x] Keep source-backed reported, not-published, not-matched and unavailable states
   distinct. Show an unpublished year only between matched years; omit unmatched years.
   Never add a total or guess an identity, a count, a copy date or a source address.
-- [ ] Use the exact accepted heading, explanation, table headings, notes and empty
+- [x] Use the exact accepted heading, explanation, table headings, notes and empty
   wording. Omit the drawing's extra registration line. Keep 3 table columns at phone
   width, an off-screen caption and proper column and year headers.
-- [ ] Load a fixture from the live response for 17868 and test real 2025 and 2021
+- [x] Load a fixture from the live response for 17868 and test real 2025 and 2021
   figures, missing-value wording, the conditional gap and 2 separately placed cards.
-- [ ] Update the profile reader guide and complete checks, release and live review.
+- [x] Update the profile reader guide and complete checks, release and live review.
 
 Eugene approved both source corrections on 12 September: omit Abeler's 2016 row
 because his oldest matching year is 2017; use Dibble (15667), whose matching 2015
@@ -160,19 +159,25 @@ and “Count not published”. A blank count is never a zero or an empty cell.
 F now supplies the stored program-page address, actual newest copy date, and the
 per-file married-couple-note flag. Source-only metadata enrichment for the 12 held
 published candidate PDFs changed no figure, match, copy date or missing-year state.
-The accepted card is built in `codex/2147-legislator-refund-card` at
-`8455865a`; 2,608 frontend tests and 28 focused rendered refund checks pass, along
-with type checking, lint and the production web build. The first full backend run
-passed 2,546 checks and exposed 3 inventory failures for the new metadata helper;
-the corrected inventory passes all 16 focused checks. Exact-upload checks are
-complete: all 2,549 server tests pass. [Pull request 2162](https://github.com/alethical-org/alethical/pull/2162)
-is open for the queue and live checks.
+All 2,608 frontend tests and 2,549 server tests pass, including 28 new rendered
+refund cases. Type checking, pinned lint, the production build, current-head and
+combined merge-queue checks passed. F is
+[commit 71280542](https://github.com/alethical-org/alethical/commit/71280542096c1869f3663c9f9348134f66fd32e9),
+with successful website and API releases.
+
+Public production-origin responses passed all 5 Abeler, Dibble and Gottfried
+samples. An independent live reader checked Abeler's unchanged all-years table,
+Dibble's real 2016 gap, Gottfried's 2 cards in both 2024 and empty 2015, source
+links, table semantics and 390/834/1280 widths. The in-app browser did not expose
+new-tab activation; source destination and keyboard focus passed. The temporary
+mixed-release source-link gap cleared after the API deployed and the canonical
+2025 page reloaded.
 
 ## Final record
 
-- [ ] Comment on [issue 2140](https://github.com/alethical-org/alethical/issues/2140)
+- [x] Comment on [issue 2140](https://github.com/alethical-org/alethical/issues/2140)
   with every pull request, live result, held portion and finding for the architecture owner.
-- [ ] Leave [campaign-finance-system-design.md](../architecture/campaign-finance-system-design.md)
+- [x] Leave [campaign-finance-system-design.md](../architecture/campaign-finance-system-design.md)
   unchanged in this task; its owner receives findings through issue 2140.
 - [ ] After all changes are live, give Eugene 1 complete prompt for Claude to review
   the approved decisions, implementation, checks, live results and remaining limits.
@@ -183,6 +188,9 @@ No paid run, real user message or destructive production change is authorized by
 
 These jobs start only after A through F have merged, passed live checks and been
 reported on [issue 2140](https://github.com/alethical-org/alethical/issues/2140).
+The code-release gate is met by the [A–F live report](https://github.com/alethical-org/alethical/issues/2140#issuecomment-5649295250).
+Eugene directed the historical replacement to stop and the other jobs to continue;
+its data publication and comparison-count report remain held, not completed.
 The current task owns all 4, in this order, with 1 pull request per job, each from
 its own worktree off current `origin/main`, through the merge queue and a live check.
 Every pull request carries `Net:` and `Docs check:` lines. The campaign-finance
@@ -217,7 +225,7 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   evidence as a separate issue. State on issue 1662 whether the next refresh is safe.
 - [ ] After job 4's report, comment on issue 2140 with all 4 pull requests and any
   architecture findings, then report completion of this set. The subsequently approved data-only jobs
-  below follow this set; lobbying still waits for its separate design brief.
+  below follow this set; the accepted lobbying display is job 5f after 5e is live.
 
 
 ### 12 September follow-up checkpoint
@@ -239,18 +247,18 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   `/private/tmp/alethical-2147-refund-card`, branch `codex/2147-legislator-refund-card`.
   It includes source metadata, all-year refunds for outside-year confirmed
   committees, and truthful failure states. 96 backend integration checks, 4 API
-  conversion checks and frontend type checking pass. The card is complete locally;
-  release checks are in progress, as detailed in the F section above.
+  conversion checks and frontend type checking pass. The card and source fields are live in [pull request 2162](https://github.com/alethical-org/alethical/pull/2162).
 - F source enrichment completed for the 12 published candidate summaries. Only
   source metadata changed; the readback preserves all amounts, matches, copy dates
-  and missing-year records. The API fields will become visible when F ships.
+  and missing-year records. The API fields are live.
 - Eugene approved the refund gap and missing-count corrections. E's optional
   grouped-page help-text proposal remains pending.
 - A new attempted consultation with the permitted Claude session was rejected by
   automatic approval review for including run status and preservation instructions.
   No message from that attempt was sent; the assessment continues locally.
-- The 4 follow-on jobs remain gated on A–F live completion and the final
-  [issue 2140](https://github.com/alethical-org/alethical/issues/2140) report.
+- Job 1 is assigned to internal worker `/root/refund_live_reader`, using a new
+  worktree for [issue 2068](https://github.com/alethical-org/alethical/issues/2068).
+  Root owns the delivery-record release in parallel; jobs 2 onward retain their order.
 
 
 ## Approved data-only queue after follow-on jobs 1 through 4
@@ -299,8 +307,8 @@ each job's issue. Comment on issue 2140 after all 4 merge.
 ### Job 5e: current lobbyists and lobbying lookups
 
 Eugene added job 5e after jobs 5a through 5d on 12 September 2026. This authorizes
-lobbying data and server work only; lobbying pages still await Design's second
-round and their separate brief. The queued work is [issue 2163](https://github.com/alethical-org/alethical/issues/2163)
+lobbying data and server work only; the accepted lobbying display is the separate
+job 5f after this data service is live. The queued work is [issue 2163](https://github.com/alethical-org/alethical/issues/2163)
 in milestone `campaign finance`; close it with its own pull request and report live results. Keep the same
 worktree, checks, merge queue, live-read and no-architecture-file-edit rules.
 
@@ -338,3 +346,44 @@ worktree, checks, merge queue, live-read and no-architecture-file-edit rules.
   with 86 associations must produce 86 rows; an absent registration returns
   `not_registered_today`. Document response blocks in the API record and report
   measured link proofs on the job's issue.
+
+
+### Job 5f: lobbying pages after 5e is live
+
+The accepted display build is [issue 2164](https://github.com/alethical-org/alethical/issues/2164),
+in milestone `campaign finance`. It starts after the live check for
+[issue 2163](https://github.com/alethical-org/alethical/issues/2163). Eugene's
+12 September 2026 brief overrides both accepted Design rounds. The complete fixed
+text and measurements are in `Alethical UX (5).zip` and `Alethical UX (6).zip`;
+their separate extracted copies are under `/tmp/2140-lobbying-design-round-1/`
+and `/tmp/2140-lobbying-design-round-2/`. Both use the same internal filenames,
+so one round must never overwrite the other.
+
+- Build the landing, both lists and both detail addresses under `/money/lobbying`,
+  using only the trailing entity/registration number to resolve a detail address.
+  Add both search groups, the sixth `/money` lane and the accepted expanded
+  Lobbyists and Committees & Funds panels in both existing committee surfaces.
+- Lists use numbered pages of 50 with page in the address and name filtering;
+  only cards expand by 30. Counts state the complete population, distinct entity
+  IDs for principals and separate names/payments on the Lobbyists tab.
+- Keep employer text before expansion. Inside the panel show the registration,
+  the differing registered name when applicable, and a link only for a number in
+  today's list. Absent numbers say `not registered today`, with no link.
+- The principal name comes from spending; differing list spelling gets its own
+  line. List-only principals are counted across the union of both files, remain
+  plain in list/search and carry the exact no-spending-rows sentence.
+- A row with any later kind shows all 5 kinds even before 2024. Otherwise preserve
+  the accepted pre-2024 merged-cell wording. Blank rows say `Not reported`;
+  a filed .0000 is 0. Exclude all-blank rows from the landing spending count and
+  choose the latest reported year from rows containing any amount.
+- Preserve separate yearly spending, current relationships and donations. No
+  cross-year/committee total, chart, ranking, trend, map or suggested money chain.
+  Never print contact fields; use the shared actual source-copy date.
+- Follow the accepted 768/1100 bands, at least 44-pixel controls, table captions
+  and headers and semantic lists. Test real Kozak/17868 payments, 86 principals
+  expanded in 30s, both list page-2 cases and a list-only principal in search.
+- Remove the exact lobbying-under-development strip from every money page in the
+  same release. Update the section guide and add a declared, indexed lobbying
+  reader guide. Own worktree, PR, checks, merge queue and live review remain
+  required; report on both issues 2164 and 2140. Architecture findings go to the
+  issue, never into campaign-finance-system-design.md from this task.
