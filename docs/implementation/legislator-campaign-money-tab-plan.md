@@ -39,11 +39,12 @@ covering [issue 2143](https://github.com/alethical-org/alethical/issues/2143).
   year control and color map so committee pages do not pull the entire profile into the
   first download. The production-build check passes at 390,440 bytes against its
   392,321-byte allowance, including its existing 542-byte hosted-settings allowance.
-- [ ] Save the change as a draft pull request with the reader-guide updates. Run the
+- [x] Save the change as [draft pull request 2153](https://github.com/alethical-org/alethical/pull/2153) with the reader-guide updates. Run the
   full frontend checks, production build and current-head GitHub checks.
-- [ ] Resolve the recorded drawing/brief disagreements before publishing the affected
+- [x] Resolve the recorded drawing/brief disagreements before publishing the affected
   pieces. The [chart and amount-format questions](https://github.com/alethical-org/alethical/issues/2140#issuecomment-5646690898)
-  remain open; a preview is not approval of either choice.
+  were approved on 12 September 2026: chart categories match donor tabs, with candidate
+  committees in Committees & Funds, and the existing whole-dollar formatter remains.
 - [ ] Merge through the queue after the answers are implemented, check the live profile,
   and remove this task's branch and worktree.
 
@@ -52,17 +53,18 @@ changes. Type checking, package compatibility, the production build and the chec
 adding a person's committees together also passed. Current-head GitHub checks belong in
 the pull request's validation record.
 
-## Separate held changes
+## Separate approved changes
 
 - [ ] [Issue 2151](https://github.com/alethical-org/alethical/issues/2151): the existing
-  Expenditures wording conflicts with the accepted request. Keep that piece held at the
-  [wording decision](https://github.com/alethical-org/alethical/issues/2140#issuecomment-5646640387),
-  then implement and test it in its own pull request.
+  Expenditures wording change is approved: show listed-payment totals and state when
+  no official spending total is held. Implement and test it in its own pull request,
+  then integrate it into the redesigned profile.
 - [ ] [Issue 2142](https://github.com/alethical-org/alethical/issues/2142): the historical
   loader replaces the held totals and the current filer directory differs from the held
-  directory. No historical production write has run. Resume only after the
-  [historical-load decision](https://github.com/alethical-org/alethical/issues/2140#issuecomment-5646646652),
-  with preservation and rollback tests before publishing checked 2022 and 2023 records.
+  directory. The protected extension is approved for the 1,603 held filers, preserving
+  all existing 2024–2026 records. No historical production write has run. Require
+  preservation and rollback tests plus an independent review before publishing checked
+  2022 and 2023 records.
 
 ## Final record
 
@@ -70,5 +72,7 @@ the pull request's validation record.
   with every pull request, live result, held portion and finding for the architecture owner.
 - [ ] Leave [campaign-finance-system-design.md](../architecture/campaign-finance-system-design.md)
   unchanged in this task; its owner receives findings through issue 2140.
+- [ ] After all 4 changes are live, give Eugene 1 complete prompt for Claude to review
+  the approved decisions, implementation, checks, live results and remaining limits.
 
 No paid run, real user message or destructive production change is authorized by this plan.

@@ -500,7 +500,7 @@ There is no separate unnamed percentage under the profile's summary amount. Miss
 unsafe or incomplete figures retain their own explanation instead of a misleading circle.
 
 The fixed tabs are Individuals, Lobbyists, Committees & Funds, Party Units and Expenditures.
-An Other tab appears only where a contribution has another kind. Candidate Committee rows
+An Other kinds tab appears only where a contribution has another kind. Candidate Committee rows
 sit in Committees & Funds and retain their filed kind. Contribution tabs include only
 `Contribution` receipts. Each group is 1 exact name within 1 committee, year and tab;
 spelling variants are not joined. Counts distinguish printed names from payment rows,
@@ -522,11 +522,13 @@ shares from 2015 through the current year. The history loads after the selected 
 and appears only when every year is complete and from the same release. It never adds
 committees together or turns missing rows into a reported zero.
 
-The exact chart colours, candidate-committee chart slices and proposed amount-format
-change still await decisions. The current build retains the existing whole-dollar
-formatter. The missing official money-out wording is also pending in
-[issue 2151](https://github.com/alethical-org/alethical/issues/2151); the existing Money
-out descriptions in this guide remain unchanged until that decision.
+The chart categories match the donor tabs, with other candidate committees included in
+Committees & Funds. Original source kinds remain on payment rows. The existing
+whole-dollar formatter stays, while arithmetic retains every decimal place. These
+decisions were approved on 12 September 2026. The exact chart colours remain with
+Design and can change in 1 colour-map file. The approved missing-official-total wording
+is being delivered separately in
+[issue 2151](https://github.com/alethical-org/alethical/issues/2151).
 
 ## A committee's page (`/money/committees/{name}-{number}`)
 

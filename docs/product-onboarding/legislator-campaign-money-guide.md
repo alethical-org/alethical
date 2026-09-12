@@ -23,16 +23,16 @@ The profile redesign is tracked in [issue 2140](https://github.com/alethical-org
 This guide describes its accepted donation lists, year choices and charts. It does not
 claim the redesign is live before the release finishes.
 
-The exact chart colours, how candidate-committee donations divide into chart slices,
-and whether to change the existing whole-dollar display still await a decision. The
-current build retains the existing amount formatter and keeps each payment's original
-kind available. These are not approvals of a new colour or rounding rule.
+On 12 September 2026 Eugene approved chart categories matching the donor tabs, with
+candidate committees included in Committees & Funds, and keeping the existing
+whole-dollar display. Each payment's original kind remains available. The exact chart
+colours remain with Design and can change in 1 colour-map file.
 
-The proposed change to the missing official money-out wording is separate and paused
-([issue 2151](https://github.com/alethical-org/alethical/issues/2151)). The Money out
-section retains the existing wording until that decision is made. Adding official totals
-for 2022 and 2023 is also paused; the year choices described here do not mean those totals
-have been loaded.
+The missing official money-out wording is approved and being delivered separately
+([issue 2151](https://github.com/alethical-org/alethical/issues/2151)). A protected
+extension of the official totals for 2022 and 2023 is also approved, using the 1,603
+held filers and preserving every existing 2024–2026 record. Year choices alone do not
+claim that any historical totals have been loaded or passed their checks.
 
 ## What every profile shows today
 
@@ -287,7 +287,11 @@ the page that download lives on.
 compact summary figures and grouped payment list. It explains where the money came from
 by cash amount, not by number of names. Its labels carry the kind, amount, percentage and
 count of printed names, so the circle is not the only way to read it. Choosing a named
-kind opens its matching contribution tab.
+kind opens its matching contribution tab. The categories have the same names and order
+as those tabs, including Candidate Committee together with Political Committee/Fund in
+**Committees & Funds**. The count uses exact printed names across that combined category,
+so a name appearing under both source kinds counts once. Amounts keep the existing
+whole-dollar format; the underlying sums retain every decimal place.
 
 When the server marks the split as `shown`, the base is the committee's official cash
 contribution total. The named cash slices and the unnamed cash slice must add exactly to
@@ -308,10 +312,10 @@ does not turn into a cash chart showing a misleading zero.
 ### The names and payments under each committee
 
 The fixed tabs are **Individuals, Lobbyists, Committees & Funds, Party Units, and
-Expenditures**. They stay visible when empty. An **Other** tab appears only when a
+Expenditures**. They stay visible when empty. An **Other kinds** tab appears only when a
 contribution has another kind. Candidate Committee rows sit in Committees & Funds and
-keep the “Candidate committee” label. The original kind remains on each payment; the
-pending chart-slice decision does not change this list grouping.
+keep the “Candidate committee” label. The original kind remains on each payment even
+though the chart and tab combine those 2 committee kinds.
 
 Only rows the state labels `Contribution` enter the contribution tabs, name counts or
 donor charts. Subsidies, interest and loans are not gifts. Expenditures holds the
@@ -353,7 +357,8 @@ that 2 records belong to the same person.
 
 Below outside spending, each committee has its own history from 2015 through the current
 year. Each year's bar uses that year's named cash contributions only. Unnamed money and
-goods and services never enter those shares. A year with no named rows is labelled as
+goods and services never enter those shares. Its categories match the donor tabs and
+the selected-year chart. A year with no named rows is labelled as
 such, and a year whose cash amounts cannot support a chart says a breakdown is unavailable.
 
 The history starts loading after the selected year's received and made lists finish.

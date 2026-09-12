@@ -5,10 +5,12 @@ export const moneyDetailsCopy = {
   chartLoading: 'Loading the contribution breakdown…',
   chartFailed: 'We could not load the complete donation list, so the chart is withheld.',
   chartUnavailable: 'We cannot draw this breakdown from the payment amounts we hold.',
-  chartExplanation: (namedOnly: boolean) =>
-    namedOnly
-      ? 'Each slice is a share of the named cash donations in this year. Named donors are grouped by the kind Minnesota records.'
-      : 'Each slice is a share of the cash contributions this committee reported for the period above. Named donors are grouped by the kind Minnesota records; the last slice is money whose givers the state’s public file does not name.',
+  chartExplanation: (namedOnly: boolean, hasUnnamed: boolean) =>
+    `${
+      namedOnly
+        ? 'Each slice is a share of the named cash donations in this year.'
+        : 'Each slice is a share of the cash contributions this committee reported for the period above.'
+    } Named donations use the same categories as the tabs below, with other candidate committees included in Committees & Funds.${hasUnnamed ? ' The last slice is money whose givers the state’s public file does not name.' : ''}`,
   baseLabel: (namedOnly: boolean) => (namedOnly ? 'named' : 'reported'),
   kindMissing: 'Kind not given',
   names: (count: number) => `${count} ${count === 1 ? 'name' : 'names'}`,
@@ -26,7 +28,7 @@ export const moneyDetailsCopy = {
     expenditures ? 'Total of listed payments in this tab: ' : 'Named total in this tab: ',
   goodsShare: (amount: string | null) => `, of which ${amount} goods and services`,
   listedSpendingNote:
-    'Minnesota makes a committee name a recipient only once payments to them pass $200 in total for the year, so these payments never sum to the total above.',
+    'Minnesota makes a committee name a recipient only once payments to them pass $200 in total for the year. The listed payments may leave out smaller payments whose recipients are not named.',
   noSearchMatch: 'No names in this tab match that.',
   emptyTab: (word: string, year: number) =>
     `The state’s file names no ${word} for this committee in ${year}.`,
@@ -34,7 +36,7 @@ export const moneyDetailsCopy = {
     `Show the other ${count} ${expenditures ? 'payees' : 'names'}`,
   candidateCommittee: 'Candidate committee',
   expandPayments: (expanded: boolean, count: number, name: string) =>
-    `${expanded ? 'Hide' : 'Show'} the ${count} payments from ${name}`,
+    `${expanded ? 'Hide' : 'Show'} the ${count} ${count === 1 ? 'payment' : 'payments'} from ${name}`,
   amountMissing: 'Amount not given',
   totalMissing: 'Unavailable because a payment amount is missing',
   dateMissing: 'Date not given in the public file',

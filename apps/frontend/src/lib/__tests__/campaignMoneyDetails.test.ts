@@ -40,8 +40,14 @@ describe('one committee’s complete donation record', () => {
       'committees',
     );
     expect(
-      contributionKindSlices(real).find((slice) => slice.kind === 'Candidate Committee')?.amount,
-    ).toBe('500.00');
+      contributionKindSlices(real).find((slice) => slice.kind === 'Committees & Funds'),
+    ).toMatchObject({ tab: 'committees', amount: '16550.00', nameCount: 35 });
+    expect(contributionKindSlices(real).map((slice) => slice.kind)).toEqual([
+      'Individuals',
+      'Lobbyists',
+      'Committees & Funds',
+      'Party Units',
+    ]);
   });
 
   it('keeps exact spelling, duplicate payments and free-text descriptions; excludes other receipts', () => {
@@ -162,6 +168,27 @@ describe('one committee’s complete donation record', () => {
 });
 
 describe('contribution chart boundaries', () => {
+  it('counts an exact name once across committee kinds while retaining both payment types', () => {
+    const rows = [
+      gift({ contributorType: 'Candidate Committee', amount: '3' }),
+      gift({ contributorType: 'Political Committee/Fund', amount: '7' }),
+      gift({ contributorType: 'Candidate Committee', amount: '5', inKind: 'Yes' }),
+    ];
+    expect(contributionKindSlices(rows)).toEqual([
+      {
+        kind: 'Committees & Funds',
+        tab: 'committees',
+        amount: '10.00',
+        nameCount: 1,
+        safeForChart: true,
+      },
+    ]);
+    expect(groupContributionPayments(rows)[0]).toMatchObject({
+      amount: '15.00',
+      types: ['Candidate Committee', 'Political Committee/Fund'],
+    });
+  });
+
   it('reconciles the real 2025 named cash and unnamed slice to the official total', () => {
     const chart = prepareContributionChart(real, {
       state: 'shown',

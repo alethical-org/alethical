@@ -62,7 +62,12 @@ export function DonorBreakdown({
         <Text style={s.body}>{copy.chartUnavailable}</Text>
       ) : (
         <>
-          <Text style={s.small}>{copy.chartExplanation(namesOnly)}</Text>
+          <Text style={s.small}>
+            {copy.chartExplanation(
+              namesOnly,
+              chart.slices.some((slice) => slice.tab === null),
+            )}
+          </Text>
           <View style={[styles.chartRow, isMobile && styles.chartStack]}>
             <View style={{ width: diameter, height: diameter, alignSelf: 'center' }}>
               <Svg width={diameter} height={diameter} viewBox="0 0 180 180" aria-hidden>

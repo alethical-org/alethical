@@ -233,25 +233,31 @@ export function contributionChartSafety(rows: readonly DetailedReceivedPayment[]
 }
 
 export function contributionKindSlices(rows: readonly DetailedReceivedPayment[]) {
-  const kinds = new Map<string | null, DetailedReceivedPayment[]>();
+  const kinds = new Map<MoneyDetailsTab, DetailedReceivedPayment[]>();
   for (const row of rows) {
     if (row.receiptType !== 'Contribution' || row.inKind !== 'No') continue;
-    const group = kinds.get(row.contributorType) ?? [];
+    const tab = contributionTab(row.contributorType);
+    const group = kinds.get(tab) ?? [];
     group.push(row);
-    kinds.set(row.contributorType, group);
+    kinds.set(tab, group);
   }
-  return [...kinds].map(([kind, payments]) => ({
-    kind,
-    tab: contributionTab(kind),
-    amount: sumMoneyAmounts(payments.map((row) => row.amount)),
-    nameCount: new Set(
-      payments.map((row) => row.contributor).filter((name) => name !== null && name !== ''),
-    ).size,
-    safeForChart: payments.every((row) => {
-      const amount = moneyUnits(row.amount);
-      return amount !== null && amount >= 0n;
-    }),
-  }));
+  // The chart uses the same categories and order as the tabs it opens. A name
+  // appearing under both committee kinds counts once in their combined category.
+  return MONEY_DETAILS_TABS.filter(({ id }) => kinds.has(id)).map(({ id, label }) => {
+    const payments = kinds.get(id)!;
+    return {
+      kind: label,
+      tab: id,
+      amount: sumMoneyAmounts(payments.map((row) => row.amount)),
+      nameCount: new Set(
+        payments.map((row) => row.contributor).filter((name) => name !== null && name !== ''),
+      ).size,
+      safeForChart: payments.every((row) => {
+        const amount = moneyUnits(row.amount);
+        return amount !== null && amount >= 0n;
+      }),
+    };
+  });
 }
 
 export interface ContributionChart {
@@ -283,10 +289,10 @@ export function prepareContributionChart(
     reason,
   });
   const contributions = rows.filter((row) => row.receiptType === 'Contribution');
-  if (contributions.length === 0) return absent('no_rows');
   if (split.state !== 'shown' && split.state !== 'no_reported_total') {
     return absent('withheld', split.state);
   }
+  if (contributions.length === 0) return absent('no_rows');
   const safety = contributionChartSafety(contributions);
   // An official cash total may be entirely unnamed while named gifts are goods.
   if (safety !== 'ready' && safety !== 'no_cash') return absent('unavailable', safety);

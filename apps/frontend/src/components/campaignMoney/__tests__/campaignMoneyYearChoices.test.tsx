@@ -79,6 +79,12 @@ import type { CampaignCommitteeMoney, LegislatorCampaignMoney } from '../../../d
 import { CampaignMoneyTab } from '../CampaignMoneyTab';
 import { moneyDetailsCopy } from '../../../lib/campaignMoneyDetailsCopy';
 import {
+  confirmedCommitteesWithheldLine,
+  confirmedElsewhereExplanation,
+  LINK_UNCONFIRMED_EXPLANATION,
+  otherOfficeNote,
+} from '../../../lib/legislatorCampaignMoney';
+import {
   outsideSpenderFigures,
   outsideSpenderIdentity,
   outsideSpenderKey,
@@ -250,6 +256,44 @@ function selectedSort(scope: HTMLElement) {
 }
 
 describe('reader choices across a campaign-money year change', () => {
+  it.each([false, true])(
+    'withholds expired ownership statements for an empty year and other races (failed recheck: %s)',
+    (failedRecheck) => {
+      const cached = data(2023, []);
+      cached.committeesOutsideThisYear = [
+        { registrationNumber: '17868', committeeNameAsReviewed: 'Committee 17868', closedOn: null },
+      ];
+      cached.otherOfficeCommittees = 2;
+      const confirmedElsewhere = confirmedElsewhereExplanation(
+        2023,
+        cached.committeesOutsideThisYear,
+      );
+      const otherRace = otherOfficeNote(2)!;
+
+      render(2023, cached);
+      expect(container.textContent).toContain(confirmedElsewhere);
+      expect(container.textContent).toContain(otherRace);
+
+      cached.currentClaim.servedAgeMs = 21 * 60 * 1000;
+      render(2023, cached, failedRecheck);
+      expect(container.textContent).toContain(confirmedCommitteesWithheldLine('Sample member'));
+      expect(container.textContent).not.toContain(confirmedElsewhere);
+      expect(container.textContent).not.toContain(otherRace);
+    },
+  );
+
+  it.each(['unconfirmed', 'reviewed_none_confirmed'] as const)(
+    'keeps the %s panel distinct from an expired positive match',
+    (linkState) => {
+      const cached = data(2023, []);
+      cached.linkState = linkState;
+      cached.currentClaim.servedAgeMs = 21 * 60 * 1000;
+      render(2023, cached);
+      expect(container.textContent).toContain(LINK_UNCONFIRMED_EXPLANATION);
+      expect(container.textContent).not.toContain(confirmedCommitteesWithheldLine('Sample member'));
+    },
+  );
+
   it('withholds an expired committee match even when failed refreshes leave cached figures', () => {
     const cached = data(2025);
     cached.currentClaim.servedAgeMs = 21 * 60 * 1000;
@@ -280,7 +324,7 @@ describe('reader choices across a campaign-money year change', () => {
       ),
     );
     expect(list().querySelectorAll('[aria-label^="Show the "]')).toHaveLength(12);
-    click(list().querySelector('[aria-label="Show the 1 payments from Group 17868 12"]'));
+    click(list().querySelector('[aria-label="Show the 1 payment from Group 17868 12"]'));
     expect(list().querySelector('[aria-label^="Hide the "]')).not.toBeNull();
     click(list().querySelector('[aria-label^="Sort names, currently"]'));
     expect(list().querySelector('[role="menu"]')).not.toBeNull();

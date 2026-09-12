@@ -145,7 +145,7 @@ export function CampaignMoneyTab({
     enabled: Boolean(money && !isLoading && !committeesWithheld && money.committees.length),
   });
   const namesOnlyYears = new Set(
-    (yearStates.data ?? [])
+    (committeesWithheld ? [] : (yearStates.data ?? []))
       .filter((record) => {
         const states = Object.values(record.committees);
         return (
@@ -155,6 +155,7 @@ export function CampaignMoneyTab({
       .map((record) => record.year),
   );
   if (
+    !committeesWithheld &&
     money?.committees.length &&
     money.committees.every((committee) => committee.split.state === 'no_reported_total')
   )
@@ -221,7 +222,7 @@ export function CampaignMoneyTab({
             />
           ))}
         </>
-      ) : committeesWithheld && money.committees.length > 0 ? (
+      ) : committeesWithheld && (money.linkState === 'confirmed' || money.committees.length > 0) ? (
         // Ahead of every empty state below, because each of those asserts something
         // about this member that we would not be able to stand behind here.
         <View style={styles.card}>
@@ -258,7 +259,9 @@ export function CampaignMoneyTab({
         </>
       )}
 
-      {money && !isLoading ? <OtherOfficeNote count={money.otherOfficeCommittees} /> : null}
+      {money && !isLoading && !committeesWithheld ? (
+        <OtherOfficeNote count={money.otherOfficeCommittees} />
+      ) : null}
 
       {/* Money others spent about this member, below the committee's own money in and
           money out and their payment lists, because it is the record a reader of those

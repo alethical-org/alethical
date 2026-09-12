@@ -113,6 +113,42 @@ function click(element: Element | null | undefined) {
 }
 
 describe('the donor chart explains what its cash shares represent', () => {
+  it('opens the combined committee tab from the combined cash slice', () => {
+    const onSelect = vi.fn();
+    const view = mount(
+      <DonorBreakdown
+        payments={realPayments}
+        split={namedSplit}
+        year={2025}
+        complete
+        failed={false}
+        onSelectTab={onSelect}
+      />,
+    );
+    const button = view.querySelector('[aria-label^="Committees & Funds, 35 names, $16,550"]');
+    click(button);
+    expect(onSelect).toHaveBeenCalledWith('committees');
+    expect(view.querySelector('[aria-label^="Candidate Committee,"]')).toBeNull();
+  });
+
+  it('does not describe an unnamed slice when the reported total is entirely named', () => {
+    const view = markup(
+      breakdown({
+        payments: [gift()],
+        split: {
+          ...namedSplit,
+          state: 'shown',
+          reportedTotal: '100.00',
+          namedCashTotal: '100.00',
+          unnamedTotal: '0.00',
+        },
+      }),
+    );
+    expect(view.querySelector('svg')).not.toBeNull();
+    expect(view.textContent).not.toContain('last slice');
+    expect(view.textContent).not.toContain('Non-itemized contributions');
+  });
+
   it('opens the matching list when the reader selects a named chart category', () => {
     const onSelect = vi.fn();
     const view = mount(
@@ -174,9 +210,12 @@ describe('the donor chart explains what its cash shares represent', () => {
     'reported_total_predates_a_correction',
     'figures_do_not_line_up',
   ])('retains the evidence-specific explanation for %s', (state) => {
-    const view = markup(breakdown({ split: { ...namedSplit, state } }));
-    expect(view.querySelector('svg')).toBeNull();
-    expect(view.textContent).toContain(splitExplanation(state));
+    for (const payments of [realPayments, []]) {
+      const view = markup(breakdown({ payments, split: { ...namedSplit, state } }));
+      expect(view.querySelector('svg')).toBeNull();
+      expect(view.textContent).toContain(splitExplanation(state));
+      expect(view.textContent).not.toContain('names no donor for this committee');
+    }
   });
 
   it('distinguishes an empty named list from a reported zero', () => {
