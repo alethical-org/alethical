@@ -43,6 +43,7 @@ import {
   getOutsideSpendingFromApi,
   getOutsideSpendingRecordFromApi,
   getPaymentsUnderNameFromApi,
+  type PaymentsUnderNamePage,
   ListPagination,
   LegislatorListFilters,
   listChatSessionsFromApi,
@@ -103,11 +104,7 @@ import {
   outsideSpendingRecordPageFromPayload,
   outsideSpendingRecordQueryKey,
 } from '../lib/outsideSpending';
-import {
-  PAYMENTS_UNDER_NAME_PAGE_SIZE,
-  type PaymentNameRole,
-  type PaymentUnderName,
-} from '../lib/paymentsUnderName';
+import { PAYMENTS_UNDER_NAME_PAGE_SIZE, type PaymentNameRole } from '../lib/paymentsUnderName';
 import { trackState, TrackState } from '../lib/trackedState';
 import { routePath } from '../navigation/links';
 import { screenLoaderForPath } from '../navigation/screenPreload';
@@ -745,14 +742,25 @@ export function useCommitteePaymentsList(
 export function usePaymentsUnderName(name: string, role: PaymentNameRole | null) {
   return useInfiniteQuery({
     queryKey: ['payments-under-name', name, role],
-    queryFn: ({ pageParam }): Promise<CommitteePaymentsPage<PaymentUnderName>> =>
-      getPaymentsUnderNameFromApi(name, role as PaymentNameRole, {
+    queryFn: async ({ pageParam, signal }): Promise<PaymentsUnderNamePage> => {
+      const page = await getPaymentsUnderNameFromApi(name, role as PaymentNameRole, {
         limit: PAYMENTS_UNDER_NAME_PAGE_SIZE,
-        offset: pageParam,
-      }),
-    initialPageParam: 0,
+        offset: pageParam.offset,
+        signal,
+      });
+      if (pageParam.releaseId !== null && page.releaseId !== pageParam.releaseId) {
+        throw new Error('The payment release changed between pages');
+      }
+      if (pageParam.offset > 0 && page.state !== 'reported') {
+        throw new Error('The next payments could not be read');
+      }
+      return page;
+    },
+    initialPageParam: { offset: 0, releaseId: null as string | null },
     getNextPageParam: (lastPage, allPages) =>
-      lastPage.hasMore ? allPages.length * PAYMENTS_UNDER_NAME_PAGE_SIZE : undefined,
+      lastPage.hasMore
+        ? { offset: allPages.length * PAYMENTS_UNDER_NAME_PAGE_SIZE, releaseId: lastPage.releaseId }
+        : undefined,
     enabled: name.length > 0 && role !== null,
     retry: false,
   });

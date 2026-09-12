@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -30,11 +31,16 @@ import {
   paymentsUnderNameHeading,
   paymentsUnderNameStandfirst,
   paymentUnderNameRow,
+  paymentsUnderNameYears,
+  paymentsUnderNameYearCount,
+  paymentsUnderNameFilerKind,
+  YEAR_MAY_CONTINUE,
   nothingFiledTitle,
   RECORDS_UNAVAILABLE_TITLE,
   RECORDS_UNAVAILABLE_WHY,
   SEARCH_ANOTHER_NAME,
 } from '../../lib/paymentsUnderName';
+import { formatMoney } from '../../lib/legislatorCampaignMoney';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
@@ -53,10 +59,8 @@ import { theme as t } from '../../theme/tokens';
  * Four things this page does deliberately, each because the alternative would be
  * a false claim rather than because it is tidier:
  *
- * - **No total, of any kind, anywhere.** Every row carries its own amount and
- *   nothing adds them: the rows come from committees on different filing
- *   calendars, so a sum would set one period against another (rule 12). This is
- *   the single line the whole page turns on, and a test fails if a total appears.
+ * - Subtotals stay inside one filer and one filing year. There is no year or
+ *   page total across committees on different filing calendars.
  * - **The page is a spelling, not an organisation.** The heading quotes the
  *   string it searched for, and no sentence says this is everything a person or
  *   business received — 2 spellings of one name are never joined, so the page
@@ -88,7 +92,7 @@ export function PaymentsUnderNameScreen({
   navigation,
   route,
 }: RootScreenProps<'PaymentsUnderName'>) {
-  const { isMobile } = useResponsive();
+  const { isMobile, isTablet } = useResponsive();
   const name = route.params?.name ?? '';
   // The router refuses an address with no name or an unserved role, so a resolved
   // route always has both. Re-read here anyway rather than casting: this screen is
@@ -122,7 +126,9 @@ export function PaymentsUnderNameScreen({
         <ScrollView contentContainerStyle={styles.page}>
           <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
           <UnderDevelopmentNotice />
-          <Container style={[styles.main, isMobile && styles.mainMobile]}>
+          <Container
+            style={[styles.main, isTablet && styles.mainTablet, isMobile && styles.mainMobile]}
+          >
             <View style={styles.card}>
               <Text accessibilityRole="header" aria-level={1} style={styles.h3}>
                 {nothingFiledTitle(name)}
@@ -149,7 +155,9 @@ export function PaymentsUnderNameScreen({
             the element and its component file is the whole removal. */}
         <UnderDevelopmentNotice />
 
-        <Container style={[styles.main, isMobile && styles.mainMobile]}>
+        <Container
+          style={[styles.main, isTablet && styles.mainTablet, isMobile && styles.mainMobile]}
+        >
           <Pressable
             {...linkProps(backToSearch, () => navigation.navigate('MoneySearch', { q: name }))}
             style={styles.backLink}
@@ -162,7 +170,7 @@ export function PaymentsUnderNameScreen({
           <Text
             accessibilityRole="header"
             aria-level={1}
-            style={[styles.h1, isMobile && styles.h1Mobile]}
+            style={[styles.h1, isTablet && styles.h1Tablet, isMobile && styles.h1Mobile]}
           >
             {paymentsUnderNameHeading(name, role)}
           </Text>
@@ -213,12 +221,16 @@ export function PaymentsUnderNameScreen({
           ) : (
             <PaymentRows
               isMobile={isMobile}
+              isTablet={isTablet}
               rows={rows}
               role={role}
               linkable={linkable}
               hasNextPage={Boolean(list.hasNextPage)}
               isFetchingNextPage={list.isFetchingNextPage}
-              onMore={() => void list.fetchNextPage()}
+              onMore={() =>
+                void (list.isFetchNextPageError ? list.refetch() : list.fetchNextPage())
+              }
+              loadMoreError={list.isFetchNextPageError}
               navigation={navigation}
             />
           )}
@@ -261,8 +273,10 @@ function SearchAnotherName({
   );
 }
 
-function PaymentRows({
+export function PaymentRows({
   isMobile,
+  isTablet = false,
+  loadMoreError = false,
   rows,
   role,
   linkable,
@@ -272,6 +286,8 @@ function PaymentRows({
   navigation,
 }: {
   isMobile: boolean;
+  isTablet?: boolean;
+  loadMoreError?: boolean;
   rows: Parameters<typeof committeesInRows>[0];
   role: Parameters<typeof paymentUnderNameRow>[1];
   linkable: ReadonlySet<string>;
@@ -280,85 +296,162 @@ function PaymentRows({
   onMore: () => void;
   navigation: RootScreenProps<'PaymentsUnderName'>['navigation'];
 }) {
-  // Shaped in lib/paymentsUnderName.ts rather than here, so the line this screen
-  // draws is decided in the one place a test can pin it.
-  const shaped = rows.map((payment, index) => {
-    const row = paymentUnderNameRow(payment, role, linkable);
-    return { ...row, key: `${index}-${row.name}-${row.date ?? ''}` };
-  });
-
+  const years = paymentsUnderNameYears(rows, hasNextPage);
+  const bodySize = isMobile ? 15 : isTablet ? 16 : 17;
   return (
     <View>
       <View style={styles.listHead}>
         <Text style={styles.listCount}>
-          {paymentsShowingLine(shaped.length, committeesInRows(rows), hasNextPage)}
+          {paymentsShowingLine(rows.length, committeesInRows(rows), hasNextPage)}
         </Text>
-        <Text style={styles.listSort}>{ORDERED_NEWEST_FIRST}</Text>
+        {!hasNextPage ? <Text style={styles.listSort}>{ORDERED_NEWEST_FIRST}</Text> : null}
       </View>
-
-      {/* Card rows at computer width, hairline rows inside one card on the phone
-          (MoneyListRows). On the phone the date and the amount go under the name
-          as a third line, left-aligned: once each amount sits under its own name
-          there is no column to compare down (phone band rule D2). */}
-      <MoneyListRows isMobile={isMobile}>
-        {shaped.map((row, index) => {
-          const inner = (
-            <>
-              <View style={styles.listRowText}>
-                <View style={styles.listNameRow}>
-                  <Text style={styles.listName}>{row.name}</Text>
-                  {row.inKind ? (
-                    <Text style={styles.inKindChip}>{IN_KIND_CHIP.toUpperCase()}</Text>
-                  ) : null}
-                </View>
-                {row.meta ? <Text style={styles.listMeta}>{row.meta}</Text> : null}
-                {isMobile ? (
-                  <View style={styles.listBottomRow}>
-                    <Text style={styles.listDateMobile}>
-                      {row.date ? row.date.toUpperCase() : ''}
-                    </Text>
-                    <Text style={styles.listAmountMobile}>{row.amount ?? ''}</Text>
-                  </View>
-                ) : null}
-              </View>
-              {isMobile ? null : (
-                <>
-                  <Text style={styles.listDate}>{row.date ? row.date.toUpperCase() : ''}</Text>
-                  <Text style={styles.listAmount}>{row.amount ?? ''}</Text>
-                </>
-              )}
-            </>
-          );
-          const targetSlug = row.linkNumber ? committeeSlug(row.linkName, row.linkNumber) : null;
-          return (
-            <MoneyListRow
-              key={row.key}
-              isMobile={isMobile}
-              first={index === 0}
-              link={
-                targetSlug
-                  ? {
-                      href: routePath.moneyCommittee(targetSlug),
-                      onPress: () => navigation.push('CommitteeMoney', { slug: targetSlug }),
-                    }
-                  : null
-              }
+      {years.map((year) => (
+        <View key={year.year ?? 'unknown'} style={styles.yearSection}>
+          <View style={styles.yearHeadingRow}>
+            <Text
+              accessibilityRole="header"
+              aria-level={2}
+              style={[styles.yearHeading, { fontSize: isMobile ? 24 : isTablet ? 28 : 30 }]}
             >
-              {inner}
-            </MoneyListRow>
-          );
-        })}
-      </MoneyListRows>
+              {year.year ?? 'Year not given in the filing'}
+            </Text>
+            {year.mayContinue ? <Text style={styles.yearWarning}>{YEAR_MAY_CONTINUE}</Text> : null}
+          </View>
+          <Text style={styles.yearCount}>{paymentsUnderNameYearCount(year, role)}</Text>
+          <View style={styles.groups}>
+            {year.groups.map((group) => {
+              const header = paymentUnderNameRow(group.newest, role, linkable);
+              const slug = header.linkNumber
+                ? committeeSlug(header.linkName, header.linkNumber)
+                : null;
+              const kind = paymentsUnderNameFilerKind(group.newest, role);
+              const registration = group.newest.filerRegistrationNumber;
+              return (
+                <View key={group.key} style={styles.groupCard}>
+                  <View style={styles.groupHeader}>
+                    <View style={styles.groupIdentity}>
+                      {slug ? (
+                        <FilerLink
+                          href={routePath.moneyCommittee(slug)}
+                          onPress={() => navigation.push('CommitteeMoney', { slug })}
+                          name={header.name}
+                          size={bodySize}
+                        />
+                      ) : (
+                        <Text
+                          accessibilityRole="header"
+                          aria-level={3}
+                          style={[styles.filerName, { fontSize: bodySize }]}
+                        >
+                          {header.name}
+                        </Text>
+                      )}
+                      {kind || registration ? (
+                        <Text style={styles.filerMeta}>
+                          {[kind, registration ? `Registration ${registration}` : null]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </Text>
+                      ) : null}
+                    </View>
+                    {group.payments.length > 1 ? (
+                      <View style={styles.groupAmount}>
+                        {group.subtotal !== null ? (
+                          <Text style={styles.subtotal}>{formatMoney(group.subtotal)}</Text>
+                        ) : null}
+                        <Text style={styles.paymentCount}>{group.payments.length} payments</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <View role="list">
+                    {group.payments.map((payment, index) => {
+                      const row = paymentUnderNameRow(payment, role, linkable);
+                      const detail = role === 'contributor' ? payment.employer : payment.purpose;
+                      const date = (
+                        <Text
+                          style={[
+                            styles.paymentDate,
+                            { fontSize: bodySize },
+                            isMobile && styles.paymentDateMobile,
+                          ]}
+                        >
+                          {row.date ?? ''}
+                        </Text>
+                      );
+                      const amount = (
+                        <Text style={[styles.paymentAmount, { fontSize: bodySize }]}>
+                          {row.amount ?? ''}
+                        </Text>
+                      );
+                      const description = (
+                        <View
+                          style={[styles.paymentDetail, isMobile && styles.paymentDetailMobile]}
+                        >
+                          {detail ? (
+                            <Text style={[styles.paymentPurpose, { fontSize: bodySize }]}>
+                              {detail}
+                            </Text>
+                          ) : null}
+                          {role === 'contributor' &&
+                          payment.receiptType &&
+                          payment.receiptType !== 'Contribution' ? (
+                            <Text style={styles.listMeta}>
+                              {payment.receiptType} — reported on its own schedule, not a donation
+                            </Text>
+                          ) : null}
+                          {row.inKind ? (
+                            <Text style={styles.inKindChip}>{IN_KIND_CHIP.toUpperCase()}</Text>
+                          ) : null}
+                        </View>
+                      );
+                      return (
+                        <View
+                          role="listitem"
+                          key={`${payment.recordNumber ?? index}-${index}`}
+                          style={[styles.paymentRow, isMobile && styles.paymentRowMobile]}
+                        >
+                          {isMobile ? (
+                            <>
+                              <View style={styles.paymentFirstLine}>
+                                {date}
+                                {amount}
+                              </View>
+                              {description}
+                            </>
+                          ) : (
+                            <>
+                              {date}
+                              {description}
+                              {amount}
+                            </>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      ))}
 
       {hasNextPage ? (
         <View style={styles.capCard}>
           <Text style={styles.capHead}>{CAP_HEADING}</Text>
           <Text style={styles.capNote}>{CAP_NOTE}</Text>
+          {loadMoreError ? (
+            <Text accessibilityRole="alert" style={styles.capNote}>
+              {LOAD_ERROR}
+            </Text>
+          ) : null}
           <View style={styles.capActions}>
             <Pressable
               onPress={onMore}
               accessibilityRole="button"
               aria-disabled={isFetchingNextPage}
+              disabled={isFetchingNextPage}
               style={styles.capButton}
             >
               <Text style={styles.capButtonLabel}>
@@ -374,11 +467,48 @@ function PaymentRows({
   );
 }
 
+function FilerLink({
+  href,
+  onPress,
+  name,
+  size,
+}: {
+  href: string;
+  onPress: () => void;
+  name: string;
+  size: number;
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <Pressable
+      {...linkProps(href, onPress)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      style={[styles.filerLink, focused && styles.focused]}
+    >
+      <Text
+        accessibilityRole="header"
+        aria-level={3}
+        style={[styles.filerName, styles.filerNameLink, { fontSize: size }]}
+      >
+        {name}
+      </Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   page: { flexGrow: 1 },
   main: { paddingTop: 28, paddingBottom: 64 },
-  mainMobile: { paddingTop: 18 },
-  backLink: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
+  mainMobile: { paddingTop: 18, paddingHorizontal: 20 },
+  mainTablet: { paddingHorizontal: 32 },
+  backLink: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
+  },
   backLabel: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
@@ -397,12 +527,13 @@ const styles = StyleSheet.create({
     marginTop: 12,
     maxWidth: 1100,
     fontFamily: t.typography.title,
-    fontSize: 38,
-    lineHeight: 44,
+    fontSize: 42,
+    lineHeight: 49,
     fontWeight: t.fontWeights.heavy,
     letterSpacing: -1,
     color: t.colors.text.primary,
   },
+  h1Tablet: { fontSize: 34, lineHeight: 41 },
   h1Mobile: { fontSize: 28, lineHeight: 34, letterSpacing: -0.6 },
   standfirst: {
     marginTop: 14,
@@ -414,7 +545,8 @@ const styles = StyleSheet.create({
   },
   stamp: {
     marginTop: 16,
-    fontFamily: t.typography.mono,
+    fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
     fontSize: 11.5,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.9,
@@ -430,6 +562,8 @@ const styles = StyleSheet.create({
   },
   listCount: {
     fontFamily: t.typography.body,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
     fontSize: t.fontSizes.body,
     color: t.colors.text.secondary,
   },
@@ -450,14 +584,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   listRowText: { flex: 1, minWidth: 0 },
-  listNameRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
-  listName: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.bodyLg,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.primary,
-    flexShrink: 1,
-  },
   inKindChip: {
     fontFamily: t.typography.mono,
     fontSize: 10,
@@ -478,46 +604,122 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: t.colors.text.secondary,
   },
-  listDate: {
-    width: 116,
-    textAlign: 'right',
-    fontFamily: t.typography.mono,
-    fontSize: 12,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.4,
-    color: t.colors.text.muted,
-  },
-  // The body face on every amount, matching the big totals (ruled 1 Sep 2026, #1924).
-  // `listDate` directly above keeps mono, which is the whole point: 2 faces separate a
-  // date from a dollar figure, not one dollar figure from another.
-  listAmount: {
-    width: 104,
-    textAlign: 'right',
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.bodyLg,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.primary,
-  },
-  listBottomRow: {
-    marginTop: 6,
+  yearSection: { marginTop: 34 },
+  yearHeadingRow: {
+    borderBottomWidth: 2,
+    borderBottomColor: t.colors.text.primary,
+    paddingBottom: 10,
     flexDirection: 'row',
     alignItems: 'baseline',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
     gap: 12,
     flexWrap: 'wrap',
   },
-  listDateMobile: {
-    fontFamily: t.typography.mono,
-    fontSize: 12,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.4,
-    color: t.colors.text.muted,
-  },
-  listAmountMobile: {
+  yearHeading: {
     fontFamily: t.typography.body,
-    fontSize: t.fontSizes.bodyLg,
-    fontWeight: t.fontWeights.bold,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
     color: t.colors.text.primary,
+  },
+  yearWarning: { fontFamily: t.typography.body, fontSize: 14, color: '#8f5a12', flexShrink: 1 },
+  yearCount: {
+    marginTop: 10,
+    marginBottom: 14,
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+    color: t.colors.text.secondary,
+  },
+  groups: { gap: 14 },
+  groupCard: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.10)',
+    borderRadius: 12,
+    paddingTop: 14,
+    paddingHorizontal: 18,
+    paddingBottom: 6,
+    boxShadow: '0 6px 18px rgba(17,21,15,0.05)',
+  },
+  groupHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+    flexWrap: 'wrap',
+    paddingBottom: 12,
+  },
+  groupIdentity: { flexGrow: 1, flexShrink: 1, flexBasis: 220, minWidth: 0 },
+  filerLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', maxWidth: '100%' },
+  focused: { outlineWidth: 2, outlineColor: '#7c5cff', outlineStyle: 'solid', outlineOffset: 2 },
+  filerName: {
+    minHeight: 44,
+    paddingTop: 10,
+    paddingBottom: 10,
+    fontFamily: t.typography.body,
+    fontWeight: '700',
+    color: t.colors.text.primary,
+    flexShrink: 1,
+  },
+  filerNameLink: { color: '#0f7a45' },
+  filerMeta: {
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+    color: t.colors.text.secondary,
+  },
+  groupAmount: { alignItems: 'flex-end', gap: 4, paddingTop: 10 },
+  subtotal: {
+    fontFamily: t.typography.body,
+    fontSize: 20,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+    color: t.colors.text.primary,
+  },
+  paymentCount: {
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+    color: t.colors.text.secondary,
+  },
+  paymentRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 16,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(17,21,15,0.10)',
+  },
+  paymentRowMobile: { flexDirection: 'column', gap: 6 },
+  paymentFirstLine: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 12,
+    width: '100%',
+  },
+  paymentDate: {
+    width: 130,
+    fontFamily: t.typography.body,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+    color: t.colors.text.primary,
+  },
+  paymentDateMobile: { width: 'auto', flex: 1 },
+  paymentDetail: { flex: 1, minWidth: 0, gap: 5, alignItems: 'flex-start' },
+  paymentDetailMobile: { width: '100%' },
+  paymentPurpose: { fontFamily: t.typography.body, color: '#4f5651', lineHeight: 23 },
+  paymentAmount: {
+    minWidth: 80,
+    fontFamily: t.typography.body,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+    color: t.colors.text.primary,
+    textAlign: 'right',
   },
   capCard: {
     marginTop: 20,
@@ -561,6 +763,7 @@ const styles = StyleSheet.create({
   },
   linkNote: {
     marginTop: 16,
+    marginHorizontal: 12,
     maxWidth: 960,
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.meta,

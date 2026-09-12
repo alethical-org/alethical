@@ -292,12 +292,17 @@ the name 'Facebook'") rather than standing the bare name up as a title, and the 
 under it says out loud that spellings vary, that this may not be everything, and that a name
 is all this is.
 
-**There is no total, and that is the single most important thing about the page.** Every row
-carries its own amount and nothing adds them up: the rows come from committees on different
-filing calendars, so any combined figure would set one period against another
-([`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 12).
-A test fails the build if a total, subtotal, average or any other cross-row figure appears
-in either the page or the library behind it.
+**Years lead, newest first, then the filer that filed each payment.** The year comes
+from the filing's own year column, not from the payment date. Within a year, each
+registration number gets a group, ordered by its newest payment. The group heading
+uses the name on that newest row. Repeated rows remain separate payments.
+
+**Only one filer and one year can have a subtotal.** A group with at least 2 payments
+shows their combined amount and the number of payments beneath it. A single payment
+shows its amount once. A missing amount withholds the group's subtotal. An unidentified
+filer or filing year gets no subtotal. There is no year or page total, and no sum across
+filers or filing years. The closing explanation about different filing calendars stays
+with the list ([issue 2141](https://github.com/alethical-org/alethical/issues/2141)).
 
 **Three separate addresses, never one.** The `role` in the address says which of Minnesota's
 3 downloads is being read, and the 3 are never combined:
@@ -332,16 +337,23 @@ may never be
 ([`docs/architecture/page-metadata-for-search-and-sharing-decisions.md`](../architecture/page-metadata-for-search-and-sharing-decisions.md)
 §22). It stays crawlable, so the committee pages its rows link to are still reachable.
 
-Each row names **the committee whose filing carries it**, with the filing's own words
-underneath (the kind of committee that received a donation, or an expenditure's own stated
-purpose, or which candidate independent spending was for or against), its own date and its
-own amount. A row opens that committee's page wherever our records hold that number as a
-filer. Where they do not, and the filing printed a name, the row opens every payment filed
-under that **exact spelling** instead: 2 spellings are never joined, so "Messinger, Alida"
-and "Messinger, Alida R" lead to 2 different lists and the page they lead to says so in its
-own words. A row naming nobody, and a transfer whose row shows the receiving committee
-rather than a vendor, both stay plain text, because in each case the lookup would ask a
-question the filing does not answer.
+The group header names **the filer whose record carries the payments**, with its kind
+and `Registration {number}` on one line. Contributions use the recipient type printed
+on the row. Ordinary and independent payments use the kind in our held register; a
+missing kind stays blank, and an independent spender is never assumed to be a political
+committee. The name is a real link to `/money/committees/{name}-{number}` only when the
+returned linkable-number list includes it. Otherwise the name stays plain text.
+
+Each payment shows its own date, its exact filed employer for contributions or exact
+filed purpose for either payee role, and its amount. No employer is lifted into the
+page header. Loans and other non-donation receipt types keep their existing schedule
+label. Donated goods and services keep their marker. A missing date stays blank rather
+than borrowing a day from another row.
+
+The year count says "{n} payments to {m} committees" for contributions, "{n} payments
+from {m} committees" for ordinary payments, or "{n} payments from {m} spenders" for
+independent payments. Counts describe the loaded records, never an inferred person's
+complete giving.
 
 Above the rows, one line says what is on the page, and it never says more than that. When
 nothing is held back it reads "9 payments, from 7 committees" — both counted from the rows
@@ -350,10 +362,26 @@ newest first" and drops the committee count entirely: the server serves no count
 name-keyed lookup, so "of 1,284" would be a number we invented, and a committee count over a
 partial list would read as how many committees filed in all.
 
-Rows arrive **newest first**, which the page states, and 250 at a time. The design drew this
-list largest-first; the server serves only date order for a name, so the page prints the
-order it actually has. The cap card says the cap is ours rather than the filings', and its
-button asks for the next batch without claiming how many are left.
+Rows arrive **newest filing year first, then newest payment date**, 250 at a time.
+Missing dates follow dated payments inside their filing year, and record numbers break
+ties without removing repeated rows. This order applies to these name lists alone.
+The cap card says the cap is ours rather than the filings', and its button asks for
+the next batch without claiming how many are left. While capped, the top count already
+says "newest first", so the separate order label is absent.
+
+The oldest visible year says **"This year may continue below the cap"** beside its
+heading and **"{n} payments so far"** beneath it. More payments join the existing year
+and filer groups, whose subtotals update. The warning moves to the oldest visible year
+and disappears when no more rows remain. Pages from different source releases are
+never combined; a failed next read keeps the existing rows and the cap, shows the
+existing loading-error explanation, and lets the reader retry the complete reading.
+
+At 1,100 pixels and wider the page has the computer layout; from 768 to 1,099 it uses
+the tablet spacing and type sizes. Below 768 a payment's date and amount share its first
+line and the employer or purpose sits beneath. Group headings and subtotals wrap rather
+than pushing the page sideways. All 3 layouts use Libre Franklin for reader text and
+numbers, with aligned digits on date and count lines. Committee links and buttons have
+at least a 44-pixel target and a visible keyboard focus mark.
 
 Its own states: nothing filed under that spelling ("Nothing is filed under '…' as spelled",
 the same spelling advice the search gives, no nearest-match guess, and a button back to the
