@@ -100,9 +100,7 @@ const {
 const {
   committeeSlug,
   MONEY_OUT_OFFICIAL_MISSING,
-  MONEY_OUT_NAMED_MISSING,
-  MONEY_OUT_NAMED_LABEL,
-  MONEY_OUT_NAMED_NOTE,
+  MONEY_OUT_ZERO_NOTE,
   EMPTY_YEAR_VALUE,
   emptyYearMoneyInWhy,
   coveredPeriodLine,
@@ -1533,7 +1531,7 @@ describe('a committee-year with nothing filed', () => {
     expect(snapshot.heading).toBe('Jackson, Carolyn C House Committee');
     expect(text).toContain(emptyYearMoneyInWhy(2026));
     expect(text).toContain(MONEY_OUT_OFFICIAL_MISSING);
-    expect(text).toContain(MONEY_OUT_NAMED_MISSING);
+    expect(text).not.toContain('We do not hold a named-payments total');
     expect(text).not.toContain(MONEY_OUT_REPORTED_LABEL);
   });
 });
@@ -1572,10 +1570,7 @@ describe('a filed zero is a number, not a gap', () => {
     };
     const missingText = visibleText(renderPageSnapshot(committeePageSnapshot(missing, '41326')));
     expect(missingText).toContain('Not reported');
-    expect(missingText).toContain(
-      `${MONEY_OUT_NAMED_LABEL}: ${formatMoney(missing.money_out.itemized_payment_total)}`,
-    );
-    expect(missingText).toContain(MONEY_OUT_NAMED_NOTE);
+    expect(missingText).not.toContain('Total of named payments');
     expect(missingText).toContain(MONEY_OUT_OFFICIAL_MISSING);
     expect(missingText).not.toContain(MONEY_OUT_REPORTED_LABEL);
   });
@@ -1588,22 +1583,39 @@ describe('money-out source labels in the first response', () => {
   }
 
   it('keeps an official zero instead of replacing it with the named amount', () => {
-    const text = outText({ ...committeeFixture.money_out, reported_total: '0.0000' });
+    const text = outText({
+      ...committeeFixture.money_out,
+      reported_total: '0.0000',
+      stated_spending_state: 'reader_unproven',
+    });
     expect(text).toContain(`${MONEY_OUT_REPORTED_LABEL}: $0`);
-    expect(text).not.toContain(MONEY_OUT_NAMED_LABEL);
+    expect(text).not.toContain('Total of named payments');
+    expect(text).toContain(MONEY_OUT_ZERO_NOTE);
     expect(text).not.toContain(MONEY_OUT_OFFICIAL_MISSING);
   });
 
-  it.each(['not_reported', 'unavailable'])(
-    'withholds the named figure when its state is %s',
+  it.each(['reported', 'not_reported', 'unavailable'])(
+    'shows no named figure when the official total is absent and the state is %s',
     (state) => {
       const text = outText({ ...committeeFixture.money_out, state, reported_total: null });
-      expect(text).toContain(MONEY_OUT_NAMED_MISSING);
+      expect(text).not.toContain('We do not hold a named-payments total');
       expect(text).toContain(MONEY_OUT_OFFICIAL_MISSING);
       expect(text).not.toContain('$');
       expect(text).not.toContain(MONEY_OUT_REPORTED_LABEL);
+      expect(text).not.toContain('Total of named payments');
+      expect(text).not.toContain('including goods and services');
     },
   );
+
+  it('keeps a held official amount when the separate comparison is unproved', () => {
+    const text = outText({
+      ...committeeFixture.money_out,
+      reported_total: '17307.4800',
+      stated_spending_state: 'reader_unproven',
+    });
+    expect(text).toContain(`${MONEY_OUT_REPORTED_LABEL}: $17,307`);
+    expect(text).not.toContain(MONEY_OUT_OFFICIAL_MISSING);
+  });
 });
 
 describe('a committee’s full payments list in the first response', () => {
