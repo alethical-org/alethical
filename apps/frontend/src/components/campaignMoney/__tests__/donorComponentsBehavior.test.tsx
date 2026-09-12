@@ -292,6 +292,7 @@ describe('the donor list preserves the complete filed record', () => {
       list({ groups: groupExpenditurePayments([payment, payment]), tab: 'expenditures' }),
     );
     expect(view.textContent).toContain('2 payments');
+    expect(view.textContent).toContain('1 name · 2 payments');
     expect(view.textContent).toContain('Total of listed payments in this tab:');
     click(view.querySelector('[aria-label="Show the 2 payments from Example Printer"]'));
     expect(view.textContent?.match(/Date not given in the public file/g)).toHaveLength(2);
@@ -318,6 +319,8 @@ describe('the donor list preserves the complete filed record', () => {
   it('keeps private names plain and gives known committees ordinary links', () => {
     const privateView = markup(list({ groups: groupContributionPayments([gift()]) }));
     expect(privateView.textContent).toContain('Amy Example');
+    expect(privateView.textContent).toContain('1 name · 1 payment');
+    expect(privateView.textContent).not.toContain('1 payments');
     expect(privateView.querySelector('a')).toBeNull();
     const publicView = markup(list({ tab: 'committees' }));
     const known = Array.from(publicView.querySelectorAll('a')).find(

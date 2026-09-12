@@ -23,7 +23,8 @@ export const moneyDetailsCopy = {
     'We could not load the complete payment list. Totals and name counts are withheld until every page loads.',
   retry: 'Try again',
   search: 'Search names in this tab',
-  counts: (names: number, payments: number) => `${names} names · ${payments} payments`,
+  counts: (names: number, payments: number) =>
+    `${names} ${names === 1 ? 'name' : 'names'} · ${payments} ${payments === 1 ? 'payment' : 'payments'}`,
   tabTotal: (expenditures: boolean) =>
     expenditures ? 'Total of listed payments in this tab: ' : 'Named total in this tab: ',
   goodsShare: (amount: string | null) => `, of which ${amount} goods and services`,
@@ -33,7 +34,7 @@ export const moneyDetailsCopy = {
   emptyTab: (word: string, year: number) =>
     `The state’s file names no ${word} for this committee in ${year}.`,
   showRemaining: (count: number, expenditures: boolean) =>
-    `Show the other ${count} ${expenditures ? 'payees' : 'names'}`,
+    `Show the other ${count} ${expenditures ? (count === 1 ? 'payee' : 'payees') : count === 1 ? 'name' : 'names'}`,
   candidateCommittee: 'Candidate committee',
   expandPayments: (expanded: boolean, count: number, name: string) =>
     `${expanded ? 'Hide' : 'Show'} the ${count} ${count === 1 ? 'payment' : 'payments'} from ${name}`,
