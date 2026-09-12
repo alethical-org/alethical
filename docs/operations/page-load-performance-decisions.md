@@ -729,6 +729,11 @@ behind them without blanking anything. Only the payments reads are removed outri
 Measured 8 Sep 2026 against the live release and the live data service, with the page
 cache deliberately missed on every read.
 
+The measurements below describe that release. The first payment read is now 50 rows,
+followed by up to 250 per request, to leave more room inside the 5-second first-response
+deadline. A failed payment read uses the existing could-not-load words and prevents
+success caching of that partial response ([issue 2068](https://github.com/alethical-org/alethical/issues/2068)).
+
 | Address | First response, gzipped | Reads removed | Cost |
 |---|---|---|---|
 | `.../100-percent-future-fund-41363?year=2025` | 5,642 → 6,614 | short payments list (567 gzip, 29 ms) | +972 bytes |
@@ -738,10 +743,10 @@ cache deliberately missed on every read.
 
 **The 250-row case is a wash on bytes and a round trip cheaper**, which is the whole
 argument for carrying it: 6,696 bytes added against 6,660 removed, arriving in one response
-instead of that response plus a request to a different host. 250 is the cap the address
-serves, so the last row of that table is the worst case rather than a middling one, and the
-rows are already in the response as text either way — the payments snapshot prints every
-one of them.
+instead of that response plus a request to a different host. 250 was the cap that release
+served, so the last row of that table was the worst case for that release rather than a
+middling one. The rows were already in the response as text either way: the payments
+snapshot printed every one of them.
 
 **The short list of 6 is carried and the outside-spending presence reads are not.** The
 short list costs about 600 to 750 gzipped bytes and removes a read of the same size. Each

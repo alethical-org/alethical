@@ -1028,6 +1028,15 @@ export const FILINGS_UNAVAILABLE =
   'We could not read this committee’s filings out of our copy of the Board’s catalogue. This ' +
   'is a gap on our side, not a statement about the committee.';
 
+/** A failed read is our gap, never evidence that the filing names nobody. */
+export const PAYMENTS_LOAD_ERROR =
+  'We couldn’t load these payments right now. This is a problem on our side and ' +
+  'says nothing about the committee. Please try again in a moment.';
+
+export function paymentsUnavailable(state: string | null | undefined): boolean {
+  return state !== 'reported' && state !== 'not_reported';
+}
+
 /** "Showing 250 of 1,284 payments named" / "41 payments named in this period". */
 export function showingLine(shown: number, total: number | null): string | null {
   if (total === null) return null;
@@ -1039,9 +1048,10 @@ export function showingLine(shown: number, total: number | null): string | null 
 
 /** The cap is ours, not the filing's, and the card says so in those words. */
 export const CAP_NOTE =
-  'We load 250 at a time, largest first — the cap is ours, not the filing’s. The ' +
+  'We load 50 first, then up to 250 at a time, largest first — the cap is ours, not the filing’s. The ' +
   'reports these payments come from list every one of them, and they are public.';
 
+export const FIRST_PAYMENTS_LIMIT = 50;
 export const PAGE_CAP = 250;
 
 export function capNextLabel(shown: number, total: number): string {

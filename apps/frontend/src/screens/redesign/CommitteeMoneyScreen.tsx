@@ -83,6 +83,8 @@ import {
   registerKindFromEntityType,
   registrationNumberFromSlug,
   SHORT_PAYMENTS_LIMIT,
+  PAYMENTS_LOAD_ERROR,
+  paymentsUnavailable,
   showingLine,
   stampThroughDate,
   staleHoldNote,
@@ -704,6 +706,7 @@ function PaymentsSection({
   });
   const page = tab === 'gave' ? received.data : made.data;
   const isLoading = tab === 'gave' ? received.isPending : made.isPending;
+  const isError = tab === 'gave' ? received.isError : made.isError;
 
   const linkable = new Set(page?.linkableRegistrationNumbers ?? []);
   const rows =
@@ -823,14 +826,16 @@ function PaymentsSection({
             </View>
           ))}
         </View>
+      ) : (isError && rows.length === 0) || paymentsUnavailable(page?.state) ? (
+        <View style={styles.card}>
+          <Text accessibilityRole="alert" style={styles.explain}>
+            {PAYMENTS_LOAD_ERROR}
+          </Text>
+        </View>
       ) : !page || page.state !== 'reported' ? (
         <View style={styles.card}>
           <Text style={styles.h3}>{emptyListTitle(tab, year)}</Text>
-          <Text style={styles.explain}>
-            {page?.state === 'unavailable'
-              ? 'We could not read this committee’s payments out of our copy of Minnesota’s files. This is a gap on our side, not a statement about the committee.'
-              : emptyListWhy(year)}
-          </Text>
+          <Text style={styles.explain}>{emptyListWhy(year)}</Text>
         </View>
       ) : (
         <>
