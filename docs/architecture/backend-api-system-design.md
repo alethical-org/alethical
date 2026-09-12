@@ -873,6 +873,12 @@ name and the day we copied it, because a PDF has no row id to cite. `years[]` is
 not filtered to the `year` the request asked for: the card it feeds shows a history, and one
 year of it cannot say whether a gap is a quiet year or a year Minnesota published nothing.
 
+Refund matching and the registration year both read the published filer directory named
+by `cf_filing_current`. A newer fetched or quarantined copy cannot change an existing
+match or the earliest year shown. If no directory is published, the importer supplies
+no candidate match and the API applies no registration-year cutoff; neither guesses
+from an unpublished copy.
+
 **Read `state` before any number, and each year's `state` before its number.** Three silences
 are kept apart, and rendering any of them as 0 tells a reader something false about a named
 person (`.claude/rules/grounded-answers.md` rule 12, missing versus zero). A year reads
