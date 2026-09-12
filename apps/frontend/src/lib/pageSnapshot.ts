@@ -1510,9 +1510,7 @@ export function committeePageSnapshot(
   }
 
   const out = moneyOutSummary({
-    state: committeeBlockState(moneyOut.state),
     reportedTotal: moneyOut.reported_total ?? null,
-    itemizedPaymentTotal: moneyOut.itemized_payment_total ?? null,
   });
   moneyOutBlocks.push({
     kind: 'prose',

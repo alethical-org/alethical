@@ -48,9 +48,7 @@ import {
   MONEY_IN_NAMED_LABEL,
   MONEY_IN_REPORTED_LABEL,
   MONEY_OUT_REPORTED_LABEL,
-  MONEY_OUT_NAMED_LABEL,
   MONEY_OUT_OFFICIAL_MISSING,
-  MONEY_OUT_NAMED_MISSING,
   NAMED_DONATIONS_LINK_LABEL,
   NOT_A_DONATION_HEADING,
 } from '../../../lib/committeeMoney';
@@ -245,11 +243,12 @@ describe('the money cards on the profile, at the final inventory', () => {
     const html = cards(
       render([committee({ moneyOut: { ...committee().moneyOut!, reportedTotal: null } })]),
     );
-    expect(html).toContain(`${MONEY_OUT_NAMED_LABEL} $131,882`);
+    expect(html).not.toContain('$131,882');
+    expect(html).not.toContain('Total of named payments');
     expect(html).toContain(MONEY_OUT_OFFICIAL_MISSING);
     expect(html).not.toContain(`Money out ${MONEY_OUT_REPORTED_LABEL}`);
     const absent = cards(render([committee({ moneyOut: null })]));
-    expect(absent).toContain(MONEY_OUT_NAMED_MISSING);
+    expect(absent).not.toContain('We do not hold a named-payments total');
     expect(absent).toContain(MONEY_OUT_OFFICIAL_MISSING);
     expect(absent).not.toContain(`Money out ${MONEY_OUT_REPORTED_LABEL}`);
   });

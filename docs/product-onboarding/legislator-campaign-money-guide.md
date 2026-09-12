@@ -373,20 +373,18 @@ reported money-out total for the period, including a verified $0. Its own period
 appears only where it differs from the filing stamp's. No named-payment sum sits beside
 an official total, and the card prints no comparison verdict or rows by payment kind.
 
-**When the official total is missing, the card omits the “Expenditures” line.** If the
-state's payments file supplies a usable sum, the card shows **“Total of named payments”**
-and the sentence **“Payments listed in the state’s public file for this year, including
-goods and services.”** This is the served sum of the named rows for the selected year,
-not a complete official spending total. It is not given the filing's coverage date.
+**When the official total is missing, the card shows no amount and only this sentence:**
+“We do not hold an official spending total for this committee for this year.” This
+describes Alethical's records, not a failure by the committee to file. The same sentence
+applies whether the named-payment rows contain an amount, a measured zero, no payments,
+or an unavailable amount. Empty and closed committee-years use it too, while their
+identity and money-in card retain their own explanation.
 
-Every missing-official-total card then says **“We do not hold an official spending total
-for this committee for this year.”** This describes Alethical's records, not a failure by
-the committee to file. If the named-payment sum is also missing or unavailable, no amount
-is drawn and the card also says **“We do not hold a named-payments total for this committee
-for this year.”** A measured zero from the named-payment rows stays $0 under its own label;
-a missing or unavailable amount never becomes zero. The same sentences apply to a
-committee page's empty or closed year, while its identity and money-in card retain their
-own closed-year explanation.
+**A sum we calculate belongs beside its payment rows, never in the summary card.** The
+card prints neither a named-payment total nor a second sentence about whether that sum
+exists. An official $0 remains a figure and carries its own sentence: “The committee’s
+own report states $0 in expenditures. That is the filing’s own zero, not a gap in our
+records.”
 
 Counted across the 242 confirmed committees on 31 Aug 2026: for 2025 the figure can be
 shown on 199, is held back on 7, and does not exist in our copy on 36; for 2026 it can be
@@ -407,9 +405,9 @@ nothing and blamed Minnesota for the absence, while only the committee route ser
 
 **The comparison against the committee's own filed report still runs**, and its verdict per
 committee-year is still stored and served (`stated_spending_state`); the card just no longer
-prints it. A named-payment sum is shown only when the official total is absent, so the
-card never claims those figures agree. Its mechanics are under "Where the data comes
-from" below.
+prints it. A held official total stays visible even when that comparison is unproved;
+the comparison does not decide whether the total exists. Its mechanics are under "Where
+the data comes from" below.
 
 ### Spending by outside groups
 
@@ -637,9 +635,9 @@ tab prints both figures and no subtraction.
 - **"Not reported"** means the state's spreadsheet names nothing for this committee this
   year. It is never shown as "$0". A committee whose donors all stayed under the naming
   threshold need not be itemized, so silence here is silence, not a zero.
-- **“$0” on an Expenditures line** is the official total the filing states. A measured
-  zero in the named-payment rows appears under “Total of named payments” only when no
-  official total is held. Neither amount is a stand-in for missing data.
+- **“$0” on an Expenditures line** is the official total the filing states, with its own
+  sentence distinguishing that zero from a gap. A calculated named-payment zero stays
+  beside the payment rows, never on the summary card.
 - **“We do not hold an official spending total for this committee for this year.”**
   means Alethical lacks the official money-out figure. It never means the committee
   failed to report, and the Expenditures line is omitted.
