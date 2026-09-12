@@ -6,7 +6,7 @@ import { linkProps } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
 
 /**
- * The one shape every long list in the money section draws its rows in
+ * The shared shape for the money register, search and committee payment lists
  * ("Money lists.dc.html", RULES FOR THIS SCREEN; issue #1946).
  *
  * Two bands, one switch at 768, and the rows change shape across it:
@@ -19,9 +19,9 @@ import { theme as t } from '../../theme/tokens';
  *   a floor: a wrapping name makes a row taller and its neighbours do not match it
  *   (phone band rule D4).
  *
- * The register, the name search, a committee's all-payments view and the
- * payments-under-a-name page all draw through this, so the 4 lists cannot drift
- * into 4 row shapes. What goes INSIDE a row is each screen's own business: a
+ * The register, the name search and a committee's all-payments view use this
+ * shape. The exact-name payment view groups loaded rows by year and filer,
+ * using this shared row only while loading. What goes INSIDE a row is each screen's own business: a
  * row's secondary fields stack under its name in the computer's order and no
  * field is dropped at phone width (rule D3).
  */

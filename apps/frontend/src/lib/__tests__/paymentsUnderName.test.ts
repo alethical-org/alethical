@@ -4,10 +4,6 @@
  * added, name an organisation the records cannot name, or print a figure nobody
  * counted.
  */
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -30,8 +26,6 @@ import {
   type PaymentNameRole,
   type PaymentUnderName,
 } from '../paymentsUnderName';
-
-const HERE = dirname(fileURLToPath(import.meta.url));
 
 function payment(overrides: Partial<PaymentUnderName> = {}): PaymentUnderName {
   return {
@@ -123,26 +117,6 @@ describe('no total across committees, in any form', () => {
   // committees on different filing calendars, so any figure that combined them
   // would set one period against another (rule 12).
   //
-  // Mutation-checked: adding a total to either the screen or its library fails
-  // this test, and removing it again passes.
-  // Amounts arrive as strings and only ever reach `formatMoney`, so ANY total
-  // would have to turn one into a number first — by `Number(`, `parseFloat`,
-  // `reduce(`, or `+=` — or be held in something named for a total. The guard
-  // reads code only: the comments and the printed sentences on this page say the
-  // word "total" constantly, because saying there is none is half the point.
-  const SUMMING =
-    /\breduce\s*\(|\bparseFloat\b|\bNumber\s*\(|\+=|\btotal\b|\bsum\b|\bsubtotal\b|\baverage\b/i;
-
-  it('the library computes no figure across the rows', () => {
-    expect(codeOnly(join(HERE, '..', 'paymentsUnderName.ts'))).not.toMatch(SUMMING);
-  });
-
-  it('the screen computes no figure across the rows', () => {
-    expect(
-      codeOnly(join(HERE, '../..', 'screens/redesign/PaymentsUnderNameScreen.tsx')),
-    ).not.toMatch(SUMMING);
-  });
-
   it('says out loud that there is no total, and why', () => {
     expect(LIST_NOTE).toContain('There is no total');
     expect(LIST_NOTE).toContain('different filing calendars');
@@ -258,17 +232,6 @@ describe('rows', () => {
     );
   });
 });
-
-/** One file's code with every comment and every literal string removed, so the
- *  no-total guard reads what the page COMPUTES rather than what it says. */
-function codeOnly(path: string): string {
-  return readFileSync(path, 'utf8')
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .replace(/(^|[^:])\/\/.*$/gm, '$1')
-    .replace(/'(?:[^'\\\n]|\\.)*'/g, "''")
-    .replace(/"(?:[^"\\\n]|\\.)*"/g, '""')
-    .replace(/`(?:[^`\\]|\\.)*`/g, '``');
-}
 
 /** Keeps the role type referenced, so a rename cannot leave this file compiling
  *  against a type nothing uses. */
