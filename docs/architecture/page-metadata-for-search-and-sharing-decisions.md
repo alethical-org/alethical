@@ -1420,7 +1420,7 @@ address is not a reason to show its reader nothing. Sorted for this section:
 | `/money/committees` and `?page=N` | record list | the page's 50 filers as ordinary anchors, plus previous/next/jump links |
 | `/money/committees?q=…` or `?kind=…` | filtered view | head only, `noindex`, no canonical — unchanged |
 | `/money/committees/{slug}` and `?year=N` | **record** | the committee's own register facts and its money for the year the address asks for, defaulting to the current filing year; canonical on the bare address either way |
-| `/money/committees/{slug}/payments`, `?year=N` and `?tab=gave\|spent` | **record** | the same identity and period for that same year, plus the first 250 named payments in the direction the address asks for; canonical on the bare address in every case |
+| `/money/committees/{slug}/payments`, `?year=N` and `?tab=gave\|spent` | **record** | the same identity and period for that same year, plus the first 50 named payments in the direction the address asks for; canonical on the bare address in every case |
 | `/money/races` | record list | every candidate committee grouped by the contest it registered for, each an ordinary anchor, with each figure's own dates ([#1954](https://github.com/alethical-org/alethical/issues/1954)) |
 | `/money/races?office=…` | filtered view | head only, `noindex`, no canonical |
 | `/money/search` and `?q=…` | filtered view | `noindex` with no canonical, and a body carrying the page's own explanation and what these records do not cover — never a result for anything typed ([#1966](https://github.com/alethical-org/alethical/issues/1966)) |

@@ -2283,6 +2283,53 @@ describe('a committee page hands its records to the app', () => {
     expect(state.mostAtOnce).toBe(2);
   });
 
+  it.each([
+    ['full', 'gave', 'rejected'],
+    ['full', 'spent', 'unavailable'],
+    ['short', 'gave', 'rejected'],
+    ['short', 'spent', 'unavailable'],
+  ])(
+    'keeps a %s %s payment read failure truthful and uncacheable (%s)',
+    async (view, tab, failure) => {
+      stubNetwork((url) =>
+        new URL(url).pathname.endsWith('/payments')
+          ? failure === 'rejected'
+            ? { status: 500 }
+            : { status: 200, payload: { data: { state: 'unavailable', payments: [] } } }
+          : { status: 200, payload: { data: FINANCE } },
+      );
+      const { body, headers, status } = await serve({
+        path: `/money/committees/${SLUG}${view === 'full' ? '/payments' : ''}`,
+        year: '2026',
+        tab,
+      });
+      expect(status).toBe(200);
+      expect(body).toContain('We couldn’t load these payments right now.');
+      expect(body).not.toContain('No donors named');
+      expect(body).not.toContain('No payments named');
+      expect(body).not.toContain('files we hold name none');
+      expect(headers.get('Cache-Control')).toBe('no-store');
+      expect(servedData(body).map((entry) => entry.key[0])).toEqual(['committee-money']);
+    },
+  );
+
+  it('reads only the first 50 payments for the first response', async () => {
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      calls.push(url);
+      return {
+        status: 200,
+        payload: {
+          data: new URL(url).pathname.endsWith('/payments') ? paymentsPayload('received') : FINANCE,
+        },
+      };
+    });
+    await serve({ path: `/money/committees/${SLUG}/payments`, year: '2026' });
+    const read = new URL(calls.find((url) => url.includes('/payments'))!);
+    expect(read.searchParams.get('limit')).toBe('50');
+    expect(read.searchParams.get('offset')).toBe('0');
+  });
+
   it('serves the committee’s own words when the payments read fails', async () => {
     vi.stubGlobal(
       'fetch',

@@ -23,6 +23,8 @@ import {
   notFoundBody,
   notFoundTitle,
   PAYMENTS_TAB_LABELS,
+  PAYMENTS_LOAD_ERROR,
+  paymentsUnavailable,
   paymentsDirection,
   paymentsEyebrow,
   paymentsTabFromParam,
@@ -54,7 +56,7 @@ import { theme as t } from '../../theme/tokens';
  * filing calendars (design doc §7). The year and the who-gave / where-it-went tab
  * ride in the address, so a shared link carries exactly what the sender saw.
  *
- * The list is capped at 250 rows at a time, and the cap card says the cap is
+ * The first read carries 50 rows, then up to 250 at a time. The cap card says it is
  * ours, not the filing's — the reports these payments come from list every one
  * of them, and they are public. "Showing X of Y" uses the served count, measured
  * with the same filter as the rows.
@@ -249,21 +251,16 @@ export function CommitteePaymentsScreen({
                     ))}
                   </MoneyListRows>
                 </View>
-              ) : list.isError && rows.length === 0 ? (
+              ) : (list.isError && rows.length === 0) || paymentsUnavailable(firstPage?.state) ? (
                 <View style={styles.card}>
                   <Text accessibilityRole="alert" style={styles.body}>
-                    We couldn’t load these payments right now. This is a problem on our side and
-                    says nothing about the committee. Please try again in a moment.
+                    {PAYMENTS_LOAD_ERROR}
                   </Text>
                 </View>
               ) : !firstPage || firstPage.state !== 'reported' ? (
                 <View style={styles.card}>
                   <Text style={styles.h3}>{emptyListTitle(tab, year)}</Text>
-                  <Text style={styles.explain}>
-                    {firstPage?.state === 'unavailable'
-                      ? 'We could not read this committee’s payments out of our copy of Minnesota’s files. This is a gap on our side, not a statement about the committee.'
-                      : emptyListWhy(year)}
-                  </Text>
+                  <Text style={styles.explain}>{emptyListWhy(year)}</Text>
                   <Pressable
                     onPress={() =>
                       onSelectYear(year === new Date().getFullYear() ? year - 1 : year + 1)

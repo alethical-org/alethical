@@ -53,7 +53,10 @@ import {
   type ApiOutsideSpendingRecordPagePayload,
 } from "../apps/frontend/src/lib/outsideSpending";
 import {
-  PAGE_CAP as COMMITTEE_PAYMENTS_PAGE_SIZE,
+  FIRST_PAYMENTS_LIMIT,
+  PAYMENTS_LOAD_ERROR,
+  paymentsTitle,
+  paymentsUnavailable,
   committeeMoneyQueryKey,
   committeePaymentsListQueryKey,
   committeePaymentsQueryKey,
@@ -356,6 +359,8 @@ type PageContent = {
    * so a figure and the freshness date beside it always come from one read.
    */
   data?: PageDataEntry[];
+  /** A partial read failure must be retried, not held as a successful page. */
+  noStore?: boolean;
 };
 
 function headOnly(metadata: PageMetadata): PageContent {
@@ -799,7 +804,7 @@ async function committeeFinance(
  *
  * A payments read is an addition to a page that already reads correctly, so
  * losing it serves the committee's identity and period with the list's own
- * absent state rather than taking the address down.
+ * failed-read words rather than taking the address down.
  */
 async function committeePayments(
   registrationNumber: string,
@@ -864,7 +869,10 @@ async function committeeContent(
       validatedAgeMs,
     },
   ];
-  if (direction && shortList) {
+  const failedPayments = Boolean(
+    direction && paymentsUnavailable(shortList?.state),
+  );
+  if (direction && shortList && !failedPayments) {
     data.push({
       key: committeePaymentsQueryKey({
         registrationNumber,
@@ -876,16 +884,25 @@ async function committeeContent(
       payload: shortList,
     });
   }
+  const snapshot = committeePageSnapshot(money, registrationNumber);
+  if (failedPayments) {
+    snapshot.sections = [
+      ...(snapshot.sections ?? []),
+      {
+        heading: paymentsTitle(direction === "made" ? "spent" : "gave"),
+        body: [PAYMENTS_LOAD_ERROR],
+      },
+    ];
+  }
   return {
+    noStore: failedPayments,
     metadata: committeeMoneyPageMetadata(slug, "page", {
       name: committeeSnapshotName(money, registrationNumber),
       canonicalSlug:
         committeeSnapshotPath(money, registrationNumber).split("/").pop() ??
         slug,
     }),
-    snapshot: renderPageSnapshot(
-      committeePageSnapshot(money, registrationNumber),
-    ),
+    snapshot: renderPageSnapshot(snapshot),
     data,
   };
 }
@@ -919,7 +936,7 @@ async function committeePaymentsContent(
     committeePayments(registrationNumber, {
       direction,
       year,
-      limit: COMMITTEE_PAYMENTS_PAGE_SIZE,
+      limit: FIRST_PAYMENTS_LIMIT,
     }),
   ]);
   const { money, validatedAgeMs } = finance;
@@ -933,7 +950,8 @@ async function committeePaymentsContent(
       validatedAgeMs,
     },
   ];
-  if (payments) {
+  const failedPayments = paymentsUnavailable(payments?.state);
+  if (payments && !failedPayments) {
     data.push({
       key: committeePaymentsListQueryKey({
         registrationNumber,
@@ -944,6 +962,7 @@ async function committeePaymentsContent(
     });
   }
   return {
+    noStore: failedPayments,
     data,
     metadata: committeeMoneyPageMetadata(slug, "payments", {
       name: committeeSnapshotName(money, registrationNumber),
@@ -1326,7 +1345,7 @@ export default async function handler(
   }
   response.setHeader(
     "Cache-Control",
-    status === 404 ? NOT_FOUND_CACHE : OK_CACHE,
+    content.noStore ? "no-store" : status === 404 ? NOT_FOUND_CACHE : OK_CACHE,
   );
   if (content.metadata.noindex) response.setHeader("X-Robots-Tag", "noindex");
   response.status(status).send(html);

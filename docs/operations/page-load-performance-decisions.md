@@ -729,6 +729,11 @@ behind them without blanking anything. Only the payments reads are removed outri
 Measured 8 Sep 2026 against the live release and the live data service, with the page
 cache deliberately missed on every read.
 
+The measurements below describe that release. The first payment read is now 50 rows,
+followed by up to 250 per request, to leave more room inside the 5-second first-response
+deadline. A failed payment read uses the existing could-not-load words and prevents
+success caching of that partial response ([issue 2068](https://github.com/alethical-org/alethical/issues/2068)).
+
 | Address | First response, gzipped | Reads removed | Cost |
 |---|---|---|---|
 | `.../100-percent-future-fund-41363?year=2025` | 5,642 → 6,614 | short payments list (567 gzip, 29 ms) | +972 bytes |

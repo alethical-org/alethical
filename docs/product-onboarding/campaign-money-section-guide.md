@@ -848,14 +848,23 @@ motion and announce themselves to screen readers.
 
 The full list behind a committee's figures — every named payment, largest first, with each
 payment's own date. The Who gave / Where it went choice and the year are in the address.
-The page loads 250 at a time; the capped-list card says the cap is ours, not the filing's,
-offers the next 250, and links to the filing itself on the Board's site. The version that
-arrives from the server carries the first 250 rows of the list the address asks for, in the
+The page loads 50 first, then up to 250 at a time; the capped-list card says the cap is ours,
+not the filing's, offers the next 250, and links to the filing itself on the Board's site.
+The version that arrives from the server carries the first 50 rows the address asks for, in the
 direction and the year it names, so a shared "Where it went" link opens on payments out rather
 than on donations in. "Showing X of Y" is a measured count served with the rows, never a guess. The same naming rules apply: a
 loan is labelled as reported on its own schedule rather than reading as a gift, transfers
 read "Money given to another campaign" and open no name lookup, and a registered filer's
 number opens its committee page where any other name opens its own exact spelling.
+
+A failed payment read, including an unavailable response, uses the existing could-not-load
+sentence on both this page and the committee's short payment list. It never prints a
+no-donors or no-payments heading. A first response with a failed payment read keeps the
+committee's identity and known figures, carries no successful payment seed, and uses
+`Cache-Control: no-store` so a later reader can retry immediately. Successful responses
+keep their usual cache windows. The first 50-row read reduces the work inside the
+5-second deadline; later pages start after the rows actually received, so no payment is
+skipped when the first page is smaller.
 
 ## The outside-spending record (`/money/outside-spending`)
 

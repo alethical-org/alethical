@@ -85,6 +85,8 @@ import {
   committeePaymentsListQueryKey,
   committeePaymentsQueryKey,
   SHORT_PAYMENTS_LIMIT,
+  FIRST_PAYMENTS_LIMIT,
+  PAGE_CAP,
 } from '../lib/committeeMoney';
 import {
   getCampaignFinanceRacesFromApiPayload,
@@ -669,9 +671,8 @@ export function useCommitteePaymentsReceived(
 }
 
 /**
- * The full-payments view's list: pages of 250, largest first, accumulated as the
- * reader asks for more. 250 matches the served maximum, so "Show the next 250"
- * is one request.
+ * The first read carries 50 rows; later reads carry up to 250, largest first.
+ * Advance by rows actually received so a smaller seeded page skips nothing.
  */
 export function useCommitteePaymentsList(
   registrationNumber: string | null,
@@ -688,18 +689,20 @@ export function useCommitteePaymentsList(
         ? getCommitteePaymentsReceivedFromApi(registrationNumber ?? '', {
             year,
             sort: 'amount',
-            limit: 250,
+            limit: pageParam === 0 ? FIRST_PAYMENTS_LIMIT : PAGE_CAP,
             offset: pageParam,
           })
         : getCommitteePaymentsMadeFromApi(registrationNumber ?? '', {
             year,
             sort: 'amount',
-            limit: 250,
+            limit: pageParam === 0 ? FIRST_PAYMENTS_LIMIT : PAGE_CAP,
             offset: pageParam,
           }),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) =>
-      lastPage && lastPage.hasMore ? allPages.length * 250 : undefined,
+      lastPage && lastPage.hasMore
+        ? allPages.reduce((count, page) => count + (page?.payments.length ?? 0), 0)
+        : undefined,
     enabled: Boolean(registrationNumber),
     retry: false,
     // The payments address is served this very page already read, in the year and

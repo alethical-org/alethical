@@ -101,6 +101,8 @@ import {
   NOT_IN_REGISTER_LINE,
   paymentsEyebrow,
   paymentsTitle,
+  PAYMENTS_LOAD_ERROR,
+  paymentsUnavailable,
   type PaymentsTab,
   RECORD_COVERS_HEADING,
   recordCoverageLines,
@@ -1613,7 +1615,11 @@ export function committeePaymentsPageSnapshot(
     bodyHeading: '',
     body: [
       ...(showing ? [showing] : []),
-      ...(served ? [] : [emptyListTitle(tab, year), emptyListWhy(year)]),
+      ...(served
+        ? []
+        : paymentsUnavailable(payments.state)
+          ? [PAYMENTS_LOAD_ERROR]
+          : [emptyListTitle(tab, year), emptyListWhy(year)]),
       listLinkNote(tab, identity.isBallot),
     ],
     bodyIsList: false,
@@ -1631,7 +1637,7 @@ export function committeePaymentsPageSnapshot(
           },
         ],
       },
-      ...(payments.rows.length
+      ...(served && payments.rows.length
         ? [
             {
               heading: paymentsEyebrow(tab),

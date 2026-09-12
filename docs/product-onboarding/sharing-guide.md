@@ -136,7 +136,7 @@ person here has confirmed the link, that member's name and an ordinary link to t
 — the period its figures cover, both money-in figures and both money-out figures with the sentences
 that say why they differ and the sentences that say whether anybody compared them against the
 report the committee filed, and the day we copied the files. **Its payments page** arrives with the same identity and period plus
-the first 250 named donations, each with its own date and amount. Every one of those figures goes
+the first 50 named payments, each with its own date and amount. Every one of those figures goes
 through the same functions the screen uses, so a missing figure reads "Not reported" and a filed zero
 reads "$0.00", and a test fails if the served page ever prints an amount the filing does not carry
 ([`.claude/rules/grounded-answers.md` rule 12](../../.claude/rules/grounded-answers.md)). A year named in the
