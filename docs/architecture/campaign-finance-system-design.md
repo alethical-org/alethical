@@ -35,11 +35,18 @@ keeping downloaded files in the database an hour after its own merged work had s
 Supabase Storage; another merged a display rule that a third had already measured to be wrong.
 
 - **The owner today** is the session working in the worktree
-  **`alethical-wt-feat/recheck-money-figures-when-a-release-publishes`**, which took the pen
-  2 Sep 2026 under the handover rule below. Its work came from
-  [#1922](https://github.com/alethical-org/alethical/issues/1922) and is written up in §4.1
-  as the cycle's fifth step and in §9.9 as "A verdict speaks only for the release it was made
-  about".
+  **`.claude/worktrees/zealous-curie-c0f954`** on branch `claude/legislator-money-tab-review-6bf9e7`
+  (the session reviewing the legislator money tab against the finance dashboard requirements),
+  which took the pen 12 Sep 2026 under the handover rule below. Its decisions came from
+  [#2140](https://github.com/alethical-org/alethical/issues/2140) and are written up in §2.4
+  (what each element of the money tab reads) and in §7 as "The legislator money tab, redrawn".
+  - The previous claim named the session working in the worktree
+    `alethical-wt-feat/recheck-money-figures-when-a-release-publishes`, appointed 2 Sep 2026.
+    That worktree is absent from `git worktree list` and the session is in no live list on
+    12 Sep 2026, which is what permits this handover. Its work came from
+    [#1922](https://github.com/alethical-org/alethical/issues/1922) and is written up in §4.1
+    as the cycle's fifth step and in §9.9 as "A verdict speaks only for the release it was made
+    about".
   - The previous claim named the session working in the worktree
     `alethical-wt-claude/board-summary-party-unit-line-1836`, appointed 1 Sep 2026. Neither
     that worktree nor that session exists as of 2 Sep 2026, which is what permits this
@@ -711,6 +718,31 @@ by 36.5% of what sitting legislators raised in 2024 and 41.3% in 2025, measured 
 also live on the Board's report viewer and as PDFs, though most PDFs older than 2023 are not
 served (§9.4). **Never rebuild payment rows out of a PDF for any period the bulk files already
 cover** — that is what the retired system did, and it is where its errors came from.
+
+### 2.4 What each element of the money tab reads
+
+The redesigned Campaign money tab on a legislator's profile
+([#2140](https://github.com/alethical-org/alethical/issues/2140)) and the payments-under-one-name
+page at `/money/payments` ([#2141](https://github.com/alethical-org/alethical/issues/2141)) draw
+only from the sources in §2.1 and §9. This table says which, so a reviewer can test any element
+against the file it comes from rather than against the screen.
+
+| Element | Source | Table | Years held | What gates it | What it never does |
+|---|---|---|---|---|---|
+| Official total, money in | totals route, 1 request per committee per 2-year segment (§9.1) | `cf_filing_figure` | 2024 to 2026; 2022 and 2023 added by [#2142](https://github.com/alethical-org/alethical/issues/2142) | structural check: a coverage end inside the labelled year | print for a year with no coverage end inside it |
+| Named total, money in | bulk contributions file (§2.1) | `cf_contribution_row` | 2015 to 2026 | `receipt_type = 'Contribution'` | count loans or miscellaneous income as donations |
+| Unnamed figure | official cash total minus named cash (§9.5) | `cf_stated_split` verdict | 2024 to 2026 | the stated-split check agrees | clamp a negative result or print before the check passes |
+| Donor-kind chart | bulk contributions file, `contrib_type` per row, cash only | `cf_contribution_row` | 2015 to 2026 | full chart only where the split is shown; named-only chart where no official total exists; no chart where the sources disagree | divide anything but the official cash total, or count names on the unnamed slice |
+| Donor tabs and rows | bulk contributions file, grouped by exact printed name | `cf_contribution_row` | 2015 to 2026 | every page fetched before any count or total prints | merge 2 spellings, drop a repeated row, or call a name a donor |
+| Expenditures tab | bulk expenditures file; `Amount` is the filing's total column (§2.1) | `cf_expenditure_row` | 2015 to 2026 | complete fetch | add into money in |
+| Official spending total | totals route | `cf_filing_figure` | 2024 to 2026; 2022 and 2023 by #2142 | structural check only; the spending check gates the comparison note beside it | hide because the spending check is unproved |
+| Outside spending | bulk independent-expenditures file | `cf_independent_expenditure_row` | 2015 to 2026 | the selected year and the confirmed committees; grouped by spender registration number ([#2143](https://github.com/alethical-org/alethical/issues/2143)) | add into the committee's money, or net For against Against |
+| Mix by year | bulk contributions file, named cash per year | `cf_contribution_row` | 2015 to 2026 | all 12 years fetched before it draws | include unnamed money |
+| Period stamp | totals route coverage end; filing calendar start (§9.6) | `cf_filing`, calendars | 2024 to 2026 | a served coverage end | assume 1 January, or print for a names-only year |
+| Filing-schedule sentence | report catalogue (§9.6) and the 2026 calendars | `cf_filing_report` | catalogue 2009 to 2026 | a next-report date where the Board serves one | guess a date |
+| Confirmation block | the person-checked committee link (§5.1) | `legislator_campaign_committee` | no year | a stored decision | render a proposal as a link |
+| `/money/payments` rows | the 3 bulk files, matched on the exact printed name | the 3 row tables | 2015 to 2026 | complete fetch, 250 per page | total across committees or merge spellings |
+| Refund program card | not loaded; the Board publishes yearly PDF summaries for 2015 and 2017 to 2025 ([#2147](https://github.com/alethical-org/alethical/issues/2147)) | none | none | | |
 
 ---
 
@@ -1772,6 +1804,56 @@ so finance pages inherit them rather than inventing their own.
 and the caucus later gave a candidate $5,000 are two documented facts. That the same dollars
 travelled is not a fact and no filing establishes it. Show each transfer with its own amount,
 date and source. A network view may show the shape; it may not imply continuation.
+
+**The legislator money tab, redrawn (Eugene, 12 Sep 2026;
+[#2140](https://github.com/alethical-org/alethical/issues/2140)).** Every rule above still binds
+it. These are the rules the redesign adds, each with the reason it exists.
+
+- **The lead chart divides the filing's official cash total, and unnamed money is its own slice.**
+  Named slices are the state's donor kinds, cash only, each with dollars, a share and a count of
+  distinct printed names; the unnamed slice carries dollars and a share and no count. A chart of
+  named money alone would silently drop about 4 dollars in 10 on a typical member's page (§9.5).
+  Three states: where the split is shown, the full chart; where no official total exists, a chart
+  of named money labelled as named donations only; where the sources disagree, no chart and the 1
+  applicable withheld-split sentence. A percentage never makes an incomplete picture look complete.
+- **Five fixed tabs in a fixed order: Individuals, Lobbyists, Committees & Funds, Party Units,
+  Expenditures.** A gift from another candidate's committee sits under Committees & Funds with the
+  state's words "Candidate committee" on its row, so the row keeps the filed kind. A sixth tab
+  appears only for rows the state marks Self, Other, Unknown or blank. Every row lands in exactly 1
+  tab.
+- **A list is complete before anything is counted, grouped, searched, sorted or totalled.** The
+  server sends at most 250 rows per request and returns loans and miscellaneous income beside
+  donations, so the page fetches every page and keeps only rows the state marks `Contribution`.
+  A partly loaded list never prints a total. Counts read "names" and "payments", never "donors",
+  because a spelling is not a person (§5). Two rows sharing a date and amount are both kept
+  (§4.2).
+- **A year with no official total shows named payments only.** No total line, no filing stamp, and
+  the payments' own first and last dates in place of a coverage end. "Not reported" is the word for
+  a filing that does not exist; for a year we never fetched, the committee did file, so the page
+  says only that we hold no official total.
+- **Outside spending follows the selected year and committee, grouped by the spender's registration
+  number.** For and Against are kept apart, a spender on both sides keeps both rows, and the third
+  figure prints only when a row's direction is blank. Twelve years of outside spending never sit
+  beside 1 year of donations.
+- **The year control says "Year", never "Report".** Our lists are calendar years from the state's
+  file, not report periods, and a later filing can change which gifts are named (§2.1).
+- **The mix-by-year chart is named cash only**, labelled so, because unnamed money cannot be split
+  by kind.
+- **The tab links to the committee's own page** at `/money/committees/<slug>`, which carries the
+  full record.
+
+**What the redesign leaves out, and why, so nobody re-derives it:** donor overlap and
+most-connected donors (a ranking of named people exposed to spelling,
+[#2145](https://github.com/alethical-org/alethical/issues/2145)); donors by state (the file carries
+zip codes only, and for some funds only Minnesota-address rows, §2.1,
+[#2146](https://github.com/alethical-org/alethical/issues/2146)); the refund program (PDF summaries,
+not loaded, [#2147](https://github.com/alethical-org/alethical/issues/2147)); a PDF download
+([#2148](https://github.com/alethical-org/alethical/issues/2148)); an all-years total or a
+comparison ([#2149](https://github.com/alethical-org/alethical/issues/2149), and the ranking ban
+above); official totals for 2015 to 2021, which the Board's report documents cannot check
+([#2150](https://github.com/alethical-org/alethical/issues/2150)); and splitting unnamed money by
+donor kind from the filing's 5 lines, whose party-unit line names half of what it holds (§9.1,
+[#2144](https://github.com/alethical-org/alethical/issues/2144)).
 
 ### 7.1 What a signed report page must do
 
