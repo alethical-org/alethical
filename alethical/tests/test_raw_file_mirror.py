@@ -392,7 +392,7 @@ def test_the_failed_action_name_is_what_the_report_counts(db, tmp_path) -> None:
 
 
 def test_every_table_holding_a_stored_body_is_found_by_the_schema_walk() -> None:
-    """The 5 kinds of body we keep today, discovered rather than listed.
+    """The 6 kinds of body we keep today, discovered rather than listed.
 
     This job was written for ``cf_snapshot_body`` alone. By the time anybody checked,
     ``cf_filing_snapshot`` held 2 totals archives with 0 rows recording a second copy,
@@ -405,7 +405,10 @@ def test_every_table_holding_a_stored_body_is_found_by_the_schema_walk() -> None
     covered by this job with no edit to it at all, because its table names the same 3
     columns. ``lobbying_expenditure_snapshot`` is the fifth: the Board's lobbying
     principal-expenditure download (#1862), body columns folded onto the snapshot the
-    way ``cf_filing_snapshot``'s are.
+    way ``cf_filing_snapshot``'s are. ``cf_refund_summary`` is the sixth: one copy of each
+    yearly Political Contribution Refund summary PDF (#2147), which the Board publishes in
+    no other form, and which was likewise covered the day it shipped by naming the same 3
+    columns and editing nothing in the job.
     """
     found = {model.__tablename__ for model in body_tables()}
 
@@ -415,6 +418,7 @@ def test_every_table_holding_a_stored_body_is_found_by_the_schema_walk() -> None
         "cf_report_document",
         "published_source_copy",
         "lobbying_expenditure_snapshot",
+        "cf_refund_summary",
     }
 
 

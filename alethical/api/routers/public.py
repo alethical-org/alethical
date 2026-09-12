@@ -4728,6 +4728,55 @@ def legislator_campaign_finance(
                         if entry.checked
                         else None
                     ),
+                    # What the **state** refunded to this committee's donors, year by
+                    # year. Minnesota refunds a resident's gift to a state candidate, up
+                    # to $75 a year for 1 person and $150 for a married couple, and
+                    # publishes what it paid back once a year as a PDF and nothing else.
+                    #
+                    # Its own block, never folded into ``money_in``: this is money the
+                    # state paid to donors, not money the committee reported receiving,
+                    # and the 2 must never be added (§3, three record types never
+                    # confused).
+                    #
+                    # **Read ``state``, then each year's own ``state``, before any
+                    # number.** ``not_published`` means Minnesota published no summary for
+                    # that year -- true of 2016 -- and is never drawn as a 0 or as a gap
+                    # meaning no refunds. ``not_matched`` means the summary exists and no
+                    # line in it attaches to this committee, which is usually the office
+                    # or district moving rather than an error: the 2022 redistricting
+                    # renumbered every seat, so a member is "House - 44B" in the 2021
+                    # summary and "House - 45B" in the 2025 one, and only the second
+                    # agrees with the register. ``unavailable`` means we hold no summary
+                    # at all, which is a fact about us.
+                    #
+                    # ``contributions_refunded`` is null on some ``reported`` years and
+                    # that is Minnesota, not us: the whole 2024 candidate summary prints
+                    # amounts and no counts. A page says the count was not published.
+                    #
+                    # The list is deliberately not filtered by this request's ``year``,
+                    # because a single year cannot say whether a gap is a quiet year or a
+                    # year nothing was published.
+                    "refunds": (
+                        {
+                            "state": entry.refunds.state,
+                            "years": [
+                                {
+                                    "year": row.year,
+                                    "state": row.state,
+                                    "contributions_refunded": row.contributions_refunded,
+                                    "amount_refunded": row.amount_refunded,
+                                    # The source here is a PDF, so the citation is the
+                                    # file and the day we copied it: there is no row id
+                                    # and no download to point at.
+                                    "source_file_name": row.source_file_name,
+                                    "copied_on": row.copied_on,
+                                }
+                                for row in entry.refunds.years
+                            ],
+                        }
+                        if entry.refunds
+                        else None
+                    ),
                     "money_in": (
                         {
                             "state": entry.finance.money_in.state,
