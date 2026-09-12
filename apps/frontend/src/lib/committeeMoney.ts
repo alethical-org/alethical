@@ -24,9 +24,9 @@
  *   those filers both set $500. The payments side is a different threshold and no
  *   source we hold sets a ballot-question figure for it, so the money-out sentence
  *   names that threshold without a figure.
- * - Missing is "Not reported"; a verified zero is "0"; a closed committee is its
- *   own state with its own date, because "not reported" and "nothing is due" are
- *   both false for it.
+ * - A verified zero is "0". An absent official money-out total is our data gap,
+ *   never a claim that the committee did not report. A closed committee keeps its
+ *   own date and final-report explanation.
  */
 
 import {
@@ -34,6 +34,7 @@ import {
   formatMoney,
   isAmountAboveZero,
   reportedThroughLabel,
+  type MoneyBlockState,
 } from './legislatorCampaignMoney';
 
 /** The two Board sub-type codes that mark a ballot-question filer on its own money
@@ -495,9 +496,6 @@ export const CLOSED_MONEY_IN_WHY =
   'public and you can read it on the Board’s site, but our copy of the state’s ' +
   'figures does not include it, so there is no total to show here.';
 
-export const CLOSED_MONEY_OUT_WHY =
-  'Payments out are reported in that same final report, so they are unavailable here for the same reason.';
-
 export function emptyYearMoneyInWhy(year: number): string {
   return (
     `No report figures covering ${year} are in the state’s files we hold for this ` +
@@ -505,9 +503,6 @@ export function emptyYearMoneyInWhy(year: number): string {
     `them forward.`
   );
 }
-
-export const EMPTY_YEAR_MONEY_OUT_WHY =
-  'Payments out are reported in the same filings as contributions, so they are unavailable for this year for the same reason.';
 
 /** What the big-figure slot reads in each empty case. Never set in the size money
  *  is set in — the screens use the stand-in style for these. */
@@ -648,16 +643,41 @@ export function reportedThroughNote(
 
 // --- Money out labels ----------------------------------------------------------------
 
-/**
- * The money-out card is the filing's own figure and nothing else (ruled by Eugene,
- * 11 Sep 2026): heading, this label, the reported amount with its period note. No figure
- * of ours sits beside it, so there is no second number to compare, no sentence about
- * subtraction, and no rows of payment kinds. The filing's own word for the figure,
- * labelled as the filing's claim and never as "spent". When no reported total is served
- * the figure reads the words "Not reported", never $0 and never a hidden card
- * (`.claude/rules/grounded-answers.md` rule 12).
- */
+/** The filing's own total. A missing official total never borrows this label. */
 export const MONEY_OUT_REPORTED_LABEL = 'Expenditures';
+export const MONEY_OUT_NAMED_LABEL = 'Total of named payments';
+export const MONEY_OUT_NAMED_NOTE =
+  'Payments listed in the state’s public file for this year, including goods and services.';
+export const MONEY_OUT_OFFICIAL_MISSING =
+  'We do not hold an official spending total for this committee for this year.';
+export const MONEY_OUT_NAMED_MISSING =
+  'We do not hold a named-payments total for this committee for this year.';
+
+/** The same missing-total decision for both cards and the first HTML response.
+ *  Only a reported named-payment block can supply its own sum. Neither a missing
+ *  block nor an unavailable one becomes zero, and neither borrows the filing label. */
+export function moneyOutSummary(
+  moneyOut: {
+    state: MoneyBlockState;
+    reportedTotal: string | null;
+    itemizedPaymentTotal: string | null;
+  } | null,
+) {
+  const official = formatMoney(moneyOut?.reportedTotal);
+  if (official !== null) {
+    return { label: MONEY_OUT_REPORTED_LABEL, amount: official, notes: [], isOfficial: true };
+  }
+  const named = moneyOut?.state === 'reported' ? formatMoney(moneyOut.itemizedPaymentTotal) : null;
+  return {
+    label: named === null ? null : MONEY_OUT_NAMED_LABEL,
+    amount: named,
+    notes: [
+      named === null ? MONEY_OUT_NAMED_MISSING : MONEY_OUT_NAMED_NOTE,
+      MONEY_OUT_OFFICIAL_MISSING,
+    ],
+    isOfficial: false,
+  };
+}
 
 // --- The two lists and the payments view ----------------------------------------------
 

@@ -69,7 +69,6 @@ import type { MoneyByRacePage } from '../data/types';
 import {
   CLOSED_EMPTY_VALUE,
   CLOSED_MONEY_IN_WHY,
-  CLOSED_MONEY_OUT_WHY,
   closedChipLabel,
   closedPeriodDetail,
   closedPeriodLine,
@@ -81,7 +80,6 @@ import {
   coveredPeriodLine,
   emptyListTitle,
   emptyListWhy,
-  EMPTY_YEAR_MONEY_OUT_WHY,
   EMPTY_YEAR_VALUE,
   emptyYearMoneyInWhy,
   IN_KIND_CHIP,
@@ -91,7 +89,7 @@ import {
   MONEY_IN_NAMED_LABEL,
   MONEY_IN_REPORTED_LABEL,
   MONEY_IN_UNNAMED_LABEL,
-  MONEY_OUT_REPORTED_LABEL,
+  moneyOutSummary,
   NAMED_DONATIONS_LINK_LABEL,
   NOT_A_DONATION_HEADING,
   reportedThroughNote,
@@ -1448,13 +1446,6 @@ export function committeePageSnapshot(
         closed ? CLOSED_MONEY_IN_WHY : emptyYearMoneyInWhy(year),
       ],
     });
-    moneyOutBlocks.push({
-      kind: 'prose',
-      lines: [
-        `${MONEY_OUT_REPORTED_LABEL}: ${closed ? CLOSED_EMPTY_VALUE : EMPTY_YEAR_VALUE}`,
-        closed ? CLOSED_MONEY_OUT_WHY : EMPTY_YEAR_MONEY_OUT_WHY,
-      ],
-    });
   } else {
     const reported = formatMoney(split.reported_total ?? null);
     const named = moneyFigure(committeeBlockState(moneyIn.state), split.named_total ?? null);
@@ -1516,25 +1507,28 @@ export function committeePageSnapshot(
         ),
       });
     }
-
-    // The money-out card is the filing's own figure alone (ruled by Eugene, 11 Sep
-    // 2026), drawn exactly as the live card draws it: the reported amount, or the words
-    // "Not reported" where none is served. Never $0 for a missing total, and never a
-    // figure of ours beside it.
-    const reportedOut = moneyFigure(
-      (moneyOut.reported_total ?? null) === null ? 'not_reported' : 'reported',
-      moneyOut.reported_total ?? null,
-    );
-    moneyOutBlocks.push({
-      kind: 'prose',
-      lines: [
-        `${MONEY_OUT_REPORTED_LABEL}: ${reportedOut.text}`,
-        ...(reportedOut.isFigure
-          ? [reportedThroughNote(moneyOut.reported_through, stampThrough) ?? '']
-          : []),
-      ].filter(Boolean),
-    });
   }
+
+  const out = moneyOutSummary({
+    state: committeeBlockState(moneyOut.state),
+    reportedTotal: moneyOut.reported_total ?? null,
+    itemizedPaymentTotal: moneyOut.itemized_payment_total ?? null,
+  });
+  moneyOutBlocks.push({
+    kind: 'prose',
+    lines: [
+      ...(out.label && out.amount !== null ? [`${out.label}: ${out.amount}`] : []),
+      ...(out.isOfficial
+        ? [
+            reportedThroughNote(
+              moneyOut.reported_through,
+              split.reported_through ?? moneyOut.reported_through ?? null,
+            ) ?? '',
+          ]
+        : []),
+      ...out.notes,
+    ].filter(Boolean),
+  });
 
   return {
     heading: identity.name,

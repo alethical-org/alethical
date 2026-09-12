@@ -27,11 +27,9 @@
  *   h. The source link to the Board's downloads page — whenever a download address is
  *      served, derived from it (`downloadsPageUrl`).
  *
- * Money out is the filing's own figure alone (ruled by Eugene, 11 Sep 2026): heading,
- * "Expenditures", the reported amount with its period note. No figure of ours beside it,
- * so no comparison sentence, no rows of payment kinds and no link to the payments file.
- * A committee-year with no served total reads the words "Not reported", set as words and
- * never in the amount face; the card never hides and never prints $0 for it.
+ * Money out shows the filing's own Expenditures figure when held, including zero.
+ * Without it, the card names the total of listed payments and says the official
+ * total is missing from our records. An unavailable listed sum never becomes zero.
  *
  * The filing's period, identity and link live once in a stamp above both cards, never
  * inside one — one filing produces both cards, so stating any of it per card states one
@@ -56,7 +54,7 @@ import {
   MONEY_IN_REPORTED_LABEL,
   MONEY_IN_UNNAMED_LABEL,
   MONEY_OUT_HEADING,
-  MONEY_OUT_REPORTED_LABEL,
+  moneyOutSummary,
   NAMED_DONATIONS_LINK_LABEL,
   NOT_A_DONATION_HEADING,
   reportedThroughNote,
@@ -97,9 +95,10 @@ export interface MoneyInLike {
   sourceUrl: string | null;
 }
 
-/** The 2 served money-out fields the card reads. The route still serves our own itemized
- *  figures and rows; the card draws none of them (ruled by Eugene, 11 Sep 2026). */
+/** The served official and named figures are separate claims. */
 export interface MoneyOutLike {
+  state: MoneyBlockState;
+  itemizedPaymentTotal: string | null;
   reportedTotal: string | null;
   reportedThrough: string | null;
 }
@@ -284,28 +283,27 @@ export function MoneyOutBlock({
   moneyOut: MoneyOutLike | null;
   stampThrough: string | null;
 } & Band) {
-  // The filing's own figure, always drawn: a real amount, or the words "Not reported"
-  // set as words. A null block is a committee the route holds no money-out row for,
-  // and rule 12 reads that as missing, never as $0.
-  const reportedOut = moneyFigure(
-    moneyOut?.reportedTotal === null || moneyOut?.reportedTotal === undefined
-      ? 'not_reported'
-      : 'reported',
-    moneyOut?.reportedTotal,
-  );
+  const summary = moneyOutSummary(moneyOut);
 
   return (
     <View style={styles.block}>
       <CardHeading surface={surface}>{MONEY_OUT_HEADING}</CardHeading>
-      <Figure
-        label={MONEY_OUT_REPORTED_LABEL}
-        value={reportedOut.text}
-        isFigure={reportedOut.isFigure}
-        note={
-          reportedOut.isFigure ? reportedThroughNote(moneyOut?.reportedThrough, stampThrough) : null
-        }
-        isMobile={isMobile}
-      />
+      {summary.label && summary.amount !== null ? (
+        <Figure
+          label={summary.label}
+          value={summary.amount}
+          isFigure
+          note={
+            summary.isOfficial ? reportedThroughNote(moneyOut?.reportedThrough, stampThrough) : null
+          }
+          isMobile={isMobile}
+        />
+      ) : null}
+      {summary.notes.map((note) => (
+        <Text key={note} style={styles.explain}>
+          {note}
+        </Text>
+      ))}
     </View>
   );
 }
