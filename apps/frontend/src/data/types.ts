@@ -765,6 +765,8 @@ export interface CurrentClaimFreshness {
 /** A legislator's own campaign money for one year. Read `linkState` before
  *  `committees`: an empty list is never on its own a statement about the person. */
 export interface LegislatorCampaignMoney {
+  /** Pins expanded payment rows to the same publication as the summary. */
+  releaseId?: string;
   legislatorId: string;
   year: number;
   linkState: LinkState;

@@ -12,6 +12,8 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: vi.fn() }) }));
+
 const { renderToStaticMarkup } = require('react-dom/server') as {
   renderToStaticMarkup: (node: React.ReactNode) => string;
 };
@@ -24,6 +26,18 @@ vi.mock('react-native-svg', () => ({
 
 vi.mock('../../../hooks/useAppQueries', () => ({
   useLegislatorOutsideSpending: () => ({ data: [], isLoading: false, isError: false }),
+}));
+
+vi.mock('../../../hooks/useCampaignMoneyDetails', () => ({
+  useCampaignMoneyYearStates: () => ({ data: [] }),
+  useCampaignMoneyDetails: () => ({
+    received: { data: undefined, isSuccess: false, isError: false },
+    made: { data: undefined, isSuccess: false, isError: false },
+    selectedComplete: false,
+    historyComplete: false,
+    history: { data: undefined },
+    releaseMismatch: false,
+  }),
 }));
 
 import { CampaignMoneyTab } from '../CampaignMoneyTab';
@@ -189,7 +203,8 @@ describe('the money cards on the profile, at the final inventory', () => {
     expect(html).toContain(`${MONEY_IN_NAMED_LABEL} Not reported`);
     // And the reported-total slot is simply absent, never a second "Not reported".
     expect(html).not.toContain(MONEY_IN_REPORTED_LABEL);
-    expect(html).not.toContain(FILED_REPORTS_LINK_LABEL);
+    expect(html).toContain(FILED_REPORTS_LINK_LABEL);
+    expect(html).not.toContain('The committee’s own report to the state covers');
   });
 
   it('labels the rows that are not donations "Not a donation", and hides Miscellaneous', () => {
@@ -253,8 +268,10 @@ describe('the money cards on the profile, at the final inventory', () => {
     expect(html).toContain('whose givers the state’s public file does not name');
   });
 
-  it('prints the share of reported donations with no name, which is profile-only', () => {
-    expect(text(render([committee()]))).toContain('31% of the donations the committee reported');
+  it('leaves the unnamed share in the lead chart instead of repeating it under the figure', () => {
+    expect(text(render([committee()]))).not.toContain(
+      '31% of the donations the committee reported',
+    );
   });
 
   it('closes each card with what a person checked, under its own label', () => {

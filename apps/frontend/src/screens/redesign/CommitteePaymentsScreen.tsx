@@ -1,7 +1,7 @@
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { YearControl } from '../../components/campaignMoney/CampaignMoneyTab';
+import { YearControl } from '../../components/campaignMoney/YearControl';
 import { MoneyListRow, MoneyListRows } from '../../components/campaignMoney/MoneyListRows';
 import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton } from '../../components/Skeleton';

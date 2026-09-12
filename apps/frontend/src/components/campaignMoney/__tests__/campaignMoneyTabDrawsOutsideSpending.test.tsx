@@ -14,6 +14,9 @@
  * the single fact that the tab puts it on the page.
  */
 import { describe, expect, it, vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+vi.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: vi.fn() }) }));
 
 const { renderToStaticMarkup } = require('react-dom/server') as {
   renderToStaticMarkup: (node: React.ReactNode) => string;
@@ -35,6 +38,18 @@ const outsideSpending = vi.hoisted(() => ({
 
 vi.mock('../../../hooks/useAppQueries', () => ({
   useLegislatorOutsideSpending: () => outsideSpending.current,
+}));
+
+vi.mock('../../../hooks/useCampaignMoneyDetails', () => ({
+  useCampaignMoneyYearStates: () => ({ data: [] }),
+  useCampaignMoneyDetails: () => ({
+    received: { data: undefined, isSuccess: false, isError: false },
+    made: { data: undefined, isSuccess: false, isError: false },
+    selectedComplete: false,
+    historyComplete: false,
+    history: { data: undefined },
+    releaseMismatch: false,
+  }),
 }));
 
 import { CampaignMoneyTab } from '../CampaignMoneyTab';
@@ -110,19 +125,21 @@ function renderTab({
 }) {
   outsideSpending.current = { data: years, isLoading, isError };
   return renderToStaticMarkup(
-    <CampaignMoneyTab
-      legislatorName="Sen. Aric Putnam"
-      year={2026}
-      onSelectYear={vi.fn()}
-      money={money}
-      isLoading={false}
-      isError={false}
-      moneyUpdatedAt={Date.now()}
-      refetchMoney={() => {}}
-      isDesktop={isDesktop}
-      legislatorId="aric-putnam"
-      onOpenSource={vi.fn()}
-    />,
+    <QueryClientProvider client={new QueryClient()}>
+      <CampaignMoneyTab
+        legislatorName="Sen. Aric Putnam"
+        year={2026}
+        onSelectYear={vi.fn()}
+        money={money}
+        isLoading={false}
+        isError={false}
+        moneyUpdatedAt={Date.now()}
+        refetchMoney={() => {}}
+        isDesktop={isDesktop}
+        legislatorId="aric-putnam"
+        onOpenSource={vi.fn()}
+      />
+    </QueryClientProvider>,
   );
 }
 

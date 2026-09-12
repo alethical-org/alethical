@@ -3,7 +3,7 @@ import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from
 import Svg, { Path } from 'react-native-svg';
 
 import { SharePopover } from '../../components/billDetail/SharePopover';
-import { YearControl } from '../../components/campaignMoney/CampaignMoneyTab';
+import { YearControl } from '../../components/campaignMoney/YearControl';
 import {
   BOARD_VIEWER,
   CardHeading,

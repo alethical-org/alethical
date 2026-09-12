@@ -1,0 +1,21 @@
+/** The pending Design palette replaces values here, never inside a component. */
+export const CAMPAIGN_MONEY_COLORS = {
+  individuals: '#149d5b',
+  lobbyists: '#2b6377',
+  committees: '#5b30d6',
+  partyUnits: '#a76a1a',
+  expenditures: '#6f756f',
+  other: '#6f756f',
+  unnamed: '#dfe3e0',
+  text: '#11150f',
+  secondary: '#4f5651',
+  muted: '#6b716b',
+  link: '#0f7a45',
+  focus: '#7c5cff',
+  fieldFocusBorder: '#5b30d6',
+  fieldFocusRing: 'rgba(91,48,214,0.22)',
+  background: '#ffffff',
+  border: '#dfe3e0',
+  tile: '#f5f6f4',
+  shadow: 'rgba(17,21,15,0.08)',
+} as const;

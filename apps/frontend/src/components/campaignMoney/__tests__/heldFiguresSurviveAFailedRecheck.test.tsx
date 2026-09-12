@@ -22,6 +22,8 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: vi.fn() }) }));
+
 const { renderToStaticMarkup } = require('react-dom/server') as {
   renderToStaticMarkup: (node: React.ReactNode) => string;
 };
@@ -34,6 +36,18 @@ vi.mock('react-native-svg', () => ({
 
 vi.mock('../../../hooks/useAppQueries', () => ({
   useLegislatorOutsideSpending: () => ({ data: [], isLoading: false, isError: false }),
+}));
+
+vi.mock('../../../hooks/useCampaignMoneyDetails', () => ({
+  useCampaignMoneyYearStates: () => ({ data: [] }),
+  useCampaignMoneyDetails: () => ({
+    received: { data: undefined, isSuccess: false, isError: false },
+    made: { data: undefined, isSuccess: false, isError: false },
+    selectedComplete: false,
+    historyComplete: false,
+    history: { data: undefined },
+    releaseMismatch: false,
+  }),
 }));
 
 import { CampaignMoneyTab } from '../CampaignMoneyTab';

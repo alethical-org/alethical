@@ -1,3 +1,4 @@
+import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 /**
  * The Campaign money tab on a legislator's profile (#1329).
  *
@@ -22,12 +23,14 @@
  */
 import React from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useNavigation, type NavigationProp } from '@react-navigation/native';
+import type { RootStackParamList } from '../../navigation/types';
 
 import type { CampaignCommitteeMoney, LegislatorCampaignMoney } from '../../data/types';
 import {
   LINK_UNCONFIRMED_EXPLANATION,
   type CampaignMoneyYear,
-  campaignMoneyYears,
+  campaignMoneyHistoryYears,
   confirmedElsewhereExplanation,
   confirmedElsewhereHeading,
   emptyStateFor,
@@ -36,22 +39,44 @@ import {
   severalCommitteesNote,
   confirmedCommitteesWithheldLine,
 } from '../../lib/legislatorCampaignMoney';
-import {
-  coveredPeriodDetail,
-  coveredPeriodLine,
-  stampThroughDate,
-  staleHoldNote,
-} from '../../lib/committeeMoney';
+import { coveredPeriodDetail, coveredPeriodLine, staleHoldNote } from '../../lib/committeeMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { useLegislatorOutsideSpending } from '../../hooks/useAppQueries';
 import { useCurrentClaimExpiry } from '../../hooks/useCurrentClaimExpiry';
 import { useResponsive } from '../../hooks/useResponsive';
-import { CheckedByBlock, FilingStamp, MoneyInBlock, MoneyOutBlock } from './MoneyCards';
-import { outsideSpendingYears } from '../../lib/outsideSpending';
+import {
+  CampaignMoneyCardTheme,
+  CheckedByBlock,
+  FilingStamp,
+  MoneyInBlock,
+  MoneyOutBlock,
+} from './MoneyCards';
+import { YearControl } from './YearControl';
+import { CommitteeMixHistory } from './CommitteeMixHistory';
+import { useCampaignMoneyYearStates } from '../../hooks/useCampaignMoneyDetails';
+import { CommitteeDonations } from './CommitteeDonations';
+import { GroupedOutsideSpending } from './GroupedOutsideSpending';
+import { LinkArrow } from '../LinkArrow';
+import { committeeSlug, FILED_REPORTS_LINK_LABEL } from '../../lib/committeeMoney';
+import { paymentDateRangeLabel, splitExplanation } from '../../lib/legislatorCampaignMoney';
+import { BOARD_VIEWER } from './MoneyCards';
+import { linkProps, routePath } from '../../navigation/links';
+import {
+  DEFAULT_MONEY_DETAILS_PREFERENCES,
+  type MoneyDetailsPreferences,
+} from '../../lib/campaignMoneyDetails';
+import { moneyDetailsCopy as copy } from '../../lib/campaignMoneyDetailsCopy';
+import {
+  detailsStyles,
+  numericText,
+  useCampaignMoneyTypography,
+  useDetailsStyles,
+} from './detailsStyles';
 import { OutsideSpendingCard } from '../legislator/OutsideSpendingCard';
 import { UnderDevelopmentNotice } from './UnderDevelopmentNotice';
 import { externalLinkProps } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
+import { outsideSpendingLoadFailure } from '../../lib/outsideSpending';
 
 /** The Board's own page, which is where every figure on this tab comes from. */
 const BOARD_URL = 'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/';
@@ -87,6 +112,15 @@ export function CampaignMoneyTab({
   legislatorId,
   onOpenSource,
 }: Props) {
+  const type = useCampaignMoneyTypography();
+  // Keep reader choices above the loading branch: changing years temporarily
+  // removes committee cards, but must not reset their chosen tab or sort.
+  const [preferences, setPreferences] = React.useState<Record<string, MoneyDetailsPreferences>>({});
+  const cardPreferences = (registration: string) => ({
+    preferences: preferences[registration] ?? DEFAULT_MONEY_DETAILS_PREFERENCES,
+    onPreferences: (value: MoneyDetailsPreferences) =>
+      setPreferences((previous) => ({ ...previous, [registration]: value })),
+  });
   // These committees are on this person's page BECAUSE somebody confirmed they are
   // theirs, and that decision can be taken back. Past the deadline the tab stops
   // repeating it (`lib/currentClaimFreshness.ts`).
@@ -100,10 +134,32 @@ export function CampaignMoneyTab({
   // and so both records sit on one page under one heading. It is a different record
   // from the committee's own money and is never added to it
   // (`docs/architecture/campaign-finance-system-design.md` §3).
-  const outsideSpending = useLegislatorOutsideSpending(
-    legislatorId,
-    outsideSpendingYears(new Date()),
+  const outsideSpending = useLegislatorOutsideSpending(legislatorId, [year]);
+  const selectedOutsideYear = outsideSpending.data?.find((record) => record.year === year);
+  const outsideCommitteesWithheld = useCurrentClaimExpiry({
+    servedAgeMs: selectedOutsideYear?.currentClaim?.servedAgeMs,
+    dataUpdatedAt: selectedOutsideYear ? outsideSpending.dataUpdatedAt : undefined,
+    refetch: outsideSpending.refetch,
+  });
+
+  const yearStates = useCampaignMoneyYearStates(legislatorId, campaignMoneyHistoryYears(), {
+    enabled: Boolean(money && !isLoading && !committeesWithheld && money.committees.length),
+  });
+  const namesOnlyYears = new Set(
+    (yearStates.data ?? [])
+      .filter((record) => {
+        const states = Object.values(record.committees);
+        return (
+          states.length > 0 && states.every((state) => state.splitState === 'no_reported_total')
+        );
+      })
+      .map((record) => record.year),
   );
+  if (
+    money?.committees.length &&
+    money.committees.every((committee) => committee.split.state === 'no_reported_total')
+  )
+    namesOnlyYears.add(year);
 
   return (
     <View style={styles.wrap}>
@@ -114,10 +170,15 @@ export function CampaignMoneyTab({
       <UnderDevelopmentNotice variant="inset" />
 
       <View style={styles.head}>
-        <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
+        <Text accessibilityRole="header" aria-level={2} style={[styles.h2, { fontSize: type.h2 }]}>
           Campaign money
         </Text>
-        <YearControl year={year} onSelect={onSelectYear} />
+        <YearControl
+          year={year}
+          onSelect={onSelectYear}
+          namesOnlyYears={namesOnlyYears}
+          years={campaignMoneyHistoryYears()}
+        />
       </View>
 
       {/* A failed recheck leaves the previous answer in place, so a fault is only a
@@ -140,7 +201,7 @@ export function CampaignMoneyTab({
         <View style={styles.card}>
           <Text style={styles.muted}>Loading campaign money…</Text>
         </View>
-      ) : isError ? (
+      ) : isError && !committeesWithheld ? (
         // Held figures, said plainly above them rather than below: a reader who
         // stops at the first number is the one who most needs to know it is held.
         <>
@@ -151,7 +212,14 @@ export function CampaignMoneyTab({
           </View>
           <SeveralCommitteesNote count={money.committees.length} />
           {money.committees.map((committee) => (
-            <CommitteeCard key={committee.registrationNumber} committee={committee} year={year} />
+            <CommitteeCard
+              key={committee.registrationNumber}
+              committee={committee}
+              year={year}
+              releaseId={money.releaseId}
+              onRefresh={refetchMoney}
+              {...cardPreferences(committee.registrationNumber)}
+            />
           ))}
         </>
       ) : committeesWithheld && money.committees.length > 0 ? (
@@ -179,7 +247,14 @@ export function CampaignMoneyTab({
               is exactly the reader who would otherwise add the second one to it. */}
           <SeveralCommitteesNote count={money.committees.length} />
           {money.committees.map((committee) => (
-            <CommitteeCard key={committee.registrationNumber} committee={committee} year={year} />
+            <CommitteeCard
+              key={committee.registrationNumber}
+              committee={committee}
+              year={year}
+              releaseId={money.releaseId}
+              onRefresh={refetchMoney}
+              {...cardPreferences(committee.registrationNumber)}
+            />
           ))}
         </>
       )}
@@ -194,66 +269,47 @@ export function CampaignMoneyTab({
           and measured-zero states. Gating it on the committee money's state is how it
           went missing for 15 days -- #1329 moved the money onto this tab, kept the
           request, and drew nothing with it (#1932). */}
-      <OutsideSpendingCard
-        years={outsideSpending.data ?? []}
-        isLoading={outsideSpending.isLoading}
-        isError={outsideSpending.isError}
-        onOpenSource={onOpenSource}
+      {!outsideCommitteesWithheld &&
+      !outsideSpending.isLoading &&
+      !outsideSpending.isError &&
+      selectedOutsideYear?.state === 'reported' ? (
+        <GroupedOutsideSpending year={selectedOutsideYear} onOpenSource={onOpenSource} />
+      ) : (
+        <OutsideSpendingCard
+          years={
+            outsideCommitteesWithheld
+              ? [outsideSpendingLoadFailure(year)]
+              : (outsideSpending.data ?? [])
+          }
+          isLoading={outsideSpending.isLoading}
+          isError={outsideSpending.isError}
+          onOpenSource={onOpenSource}
+          showFreshness={false}
+        />
+      )}
+
+      {money && !isLoading && !committeesWithheld
+        ? money.committees.map((committee) => (
+            <CommitteeMixHistory
+              key={committee.registrationNumber}
+              registrationNumber={committee.registrationNumber}
+              committeeName={committee.committeeName || committee.committeeNameAsReviewed}
+              year={year}
+              releaseId={money.releaseId}
+              onSelectYear={onSelectYear}
+            />
+          ))
+        : null}
+      <FreshnessNote
+        fetchedAts={[
+          ...(money ? [money.fetchedAt] : []),
+          ...(selectedOutsideYear?.state === 'reported' ? [selectedOutsideYear.fetchedAt] : []),
+        ]}
+        onRefresh={() => {
+          refetchMoney();
+          void outsideSpending.refetch();
+        }}
       />
-
-      <FreshnessNote fetchedAt={money?.fetchedAt ?? null} />
-    </View>
-  );
-}
-
-/**
- * The year switch.
- *
- * Two values only, and each is its own web address, so a figure someone sends to
- * somebody else arrives showing the year they were looking at. Deliberately not a
- * copy of the session pill at the head of Chief-Authored Bills: that pill counts a
- * two-year legislature, and this counts a calendar year, which is the unit
- * Minnesota's own reports use.
- */
-export function YearControl({
-  year,
-  onSelect,
-  fullWidth = false,
-}: {
-  year: CampaignMoneyYear;
-  onSelect: (year: CampaignMoneyYear) => void;
-  /** Phone band: the years share the row in equal halves rather than sitting as
-   *  left-packed pills, which read as a toolbar with room to spare
-   *  (`Money committee.dc.html`, rules for this screen). */
-  fullWidth?: boolean;
-}) {
-  return (
-    <View
-      style={[styles.years, fullWidth && styles.yearsFull]}
-      role="group"
-      aria-label="Choose a year"
-    >
-      {campaignMoneyYears().map((option) => {
-        const active = option === year;
-        return (
-          <Pressable
-            key={option}
-            onPress={() => onSelect(option)}
-            accessibilityRole="button"
-            // aria-pressed rather than accessibilityState: the second is dropped on
-            // the way to the browser, so a screen reader would hear no difference
-            // between the year in view and the one beside it.
-            aria-pressed={active}
-            style={[
-              styles.yearButton,
-              fullWidth && styles.yearButtonFull,
-              active && styles.yearButtonActive,
-            ]}
-          >
-            <Text style={[styles.yearLabel, active && styles.yearLabelActive]}>{option}</Text>
-          </Pressable>
-        );
-      })}
     </View>
   );
 }
@@ -283,60 +339,122 @@ function UnconfirmedPanel() {
 function CommitteeCard({
   committee,
   year,
+  releaseId,
+  onRefresh,
+  preferences,
+  onPreferences,
 }: {
   committee: CampaignCommitteeMoney;
   year: CampaignMoneyYear;
+  releaseId?: string;
+  onRefresh: () => void;
+  preferences: MoneyDetailsPreferences;
+  onPreferences: (preferences: MoneyDetailsPreferences) => void;
 }) {
-  // The money section has one width switch, at 768, and ignores the profile's own
-  // 1100 switch: the cards read their band themselves rather than from the host.
-  const { isMobile } = useResponsive();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const { isMobile, isTablet } = useResponsive();
+  const type = useCampaignMoneyTypography();
+  const text = useDetailsStyles();
   const name = committee.committeeName || committee.committeeNameAsReviewed;
   // The filing's period and link, once, above both cards — never inside one. The
   // tab's own freshness note at the foot carries the day we copied the files, so the
   // stamp here states the filing's coverage alone.
-  const through = stampThroughDate(committee.split, committee.moneyOut);
+  const through = committee.split.reportedThrough;
   const periodStart = committee.moneyIn?.reportedPeriodStart ?? null;
+  const recordParams = {
+    slug: committeeSlug(name, committee.registrationNumber),
+    year: String(year),
+  };
   return (
-    <View style={styles.card}>
-      <Text style={styles.eyebrow}>
-        {committee.office ? `${committee.office} · ` : ''}
-        {year} · REGISTRATION {committee.registrationNumber}
-      </Text>
-      <Text accessibilityRole="header" aria-level={3} style={styles.h3}>
-        {name}
-      </Text>
+    <CampaignMoneyCardTheme>
+      <View style={{ gap: 12 }}>
+        {committee.split.state === 'no_reported_total' ? (
+          <Text style={text.body}>{splitExplanation(committee.split.state)}</Text>
+        ) : null}
+        <View style={[styles.card, isTablet && styles.cardTablet, isMobile && styles.cardMobile]}>
+          <Text style={styles.eyebrow}>
+            {committee.office ? `${committee.office} · ` : ''}
+            {year} · REGISTRATION {committee.registrationNumber}
+          </Text>
+          <Text
+            accessibilityRole="header"
+            aria-level={3}
+            style={[styles.h3, { fontSize: type.h3 }, numericText(name)]}
+          >
+            {name}
+          </Text>
 
-      {through ? (
-        <FilingStamp
-          line={coveredPeriodLine(through, periodStart)}
-          detail={coveredPeriodDetail(through, null, { reportedPeriodStart: periodStart })}
-          showLink
-          covered
-          isMobile={isMobile}
-        />
-      ) : null}
-
-      <MoneyInBlock
-        surface="profile"
-        split={committee.split}
-        moneyIn={committee.moneyIn}
-        isBallot={false}
-        stampThrough={through}
-        isMobile={isMobile}
-      />
-      <MoneyOutBlock
-        surface="profile"
-        moneyOut={committee.moneyOut}
-        stampThrough={through}
-        isMobile={isMobile}
-      />
-      <FilingScheduleNote schedule={committee.filingSchedule} year={year} />
-      {/* Who checked that this account is this member's, and what they read. At the foot
+          {through ? (
+            <FilingStamp
+              line={coveredPeriodLine(through, periodStart)}
+              detail={coveredPeriodDetail(through, null, { reportedPeriodStart: periodStart })}
+              showLink={false}
+              covered
+              isMobile={isMobile}
+            />
+          ) : paymentDateRangeLabel(
+              committee.split.firstPaymentOn,
+              committee.split.lastPaymentOn,
+            ) ? (
+            <Text style={[text.body, text.numeric]}>
+              {paymentDateRangeLabel(committee.split.firstPaymentOn, committee.split.lastPaymentOn)}
+            </Text>
+          ) : null}
+          <View style={styles.recordLinks}>
+            <SourceLink label={FILED_REPORTS_LINK_LABEL} url={BOARD_VIEWER} />
+            <Pressable
+              style={(state) => [
+                styles.recordLink,
+                Boolean('focused' in state && state.focused) && detailsStyles.focus,
+              ]}
+              {...linkProps(
+                routePath.moneyCommittee(recordParams.slug, { year: recordParams.year }),
+                () => navigation.navigate('CommitteeMoney', recordParams),
+              )}
+            >
+              <Text style={[styles.source, { fontSize: type.body }]}>{copy.fullRecord}</Text>
+              <LinkArrow color={c.link} />
+            </Pressable>
+          </View>
+          <CommitteeDonations
+            committee={committee}
+            year={year}
+            releaseId={releaseId}
+            onRefresh={onRefresh}
+            preferences={preferences}
+            onPreferences={onPreferences}
+          >
+            <View style={[styles.figures, isMobile && styles.figuresMobile]}>
+              <View style={isMobile ? styles.figureColumnMobile : styles.figureColumn}>
+                <MoneyInBlock
+                  surface="profile"
+                  withDonorBreakdown
+                  split={committee.split}
+                  moneyIn={committee.moneyIn}
+                  isBallot={false}
+                  stampThrough={through}
+                  isMobile={isMobile}
+                />
+              </View>
+              <View style={isMobile ? styles.figureColumnMobile : styles.figureColumn}>
+                <MoneyOutBlock
+                  surface="profile"
+                  moneyOut={committee.moneyOut}
+                  stampThrough={through}
+                  isMobile={isMobile}
+                />
+              </View>
+            </View>
+          </CommitteeDonations>
+          <FilingScheduleNote schedule={committee.filingSchedule} year={year} />
+          {/* Who checked that this account is this member's, and what they read. At the foot
           of the card and inside it, beside the filing-schedule note and for the same
           reason: it is a statement about this one account rather than about Minnesota
           in general. */}
-      <CheckedByBlock checked={committee.checked} />
-    </View>
+          <CheckedByBlock checked={committee.checked} />
+        </View>
+      </View>
+    </CampaignMoneyCardTheme>
   );
 }
 
@@ -359,12 +477,13 @@ function FilingScheduleNote({
   schedule: CampaignCommitteeMoney['filingSchedule'];
   year: CampaignMoneyYear;
 }) {
+  const text = useDetailsStyles();
   const paragraphs = filingScheduleNote(schedule, year);
   if (!paragraphs.length) return null;
   return (
     <View style={styles.block}>
       {paragraphs.map((paragraph) => (
-        <Text key={paragraph} style={styles.explain}>
+        <Text key={paragraph} style={[text.body, numericText(paragraph)]}>
           {paragraph}
         </Text>
       ))}
@@ -373,8 +492,14 @@ function FilingScheduleNote({
 }
 
 function SourceLink({ label, url }: { label: string; url: string }) {
+  const [focused, setFocused] = React.useState(false);
+  const type = useCampaignMoneyTypography();
   return (
-    <Text style={styles.source} {...externalLinkProps(url, () => void Linking.openURL(url))}>
+    <Text
+      style={[styles.source, { fontSize: type.body }, focused && detailsStyles.focus]}
+      {...{ onFocus: () => setFocused(true), onBlur: () => setFocused(false) }}
+      {...externalLinkProps(url, () => void Linking.openURL(url))}
+    >
       {label}
     </Text>
   );
@@ -427,12 +552,36 @@ function OtherOfficeNote({ count }: { count: number }) {
  * which says when that committee's next report is due. It used to be a fixed
  * paragraph here describing Minnesota's calendar in general (#1642).
  */
-function FreshnessNote({ fetchedAt }: { fetchedAt: string | null }) {
-  const day = fetchedAt ? centralDateLabel(fetchedAt) : null;
-  if (!day) return null;
+function FreshnessNote({
+  fetchedAts,
+  onRefresh,
+}: {
+  fetchedAts: (string | null)[];
+  onRefresh: () => void;
+}) {
+  const text = useDetailsStyles();
+  if (!fetchedAts.length) return null;
+  const days = fetchedAts.map((date) => (date ? centralDateLabel(date) : null));
+  const day = days[0];
+  if (!day || days.some((value) => value !== day))
+    return (
+      <View style={styles.freshness}>
+        <Text style={text.small}>{copy.freshnessMismatch}</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onRefresh}
+          style={(state) => [
+            detailsStyles.control,
+            Boolean('focused' in state && state.focused) && detailsStyles.focus,
+          ]}
+        >
+          <Text style={detailsStyles.controlText}>{copy.refreshRecords}</Text>
+        </Pressable>
+      </View>
+    );
   return (
     <View style={styles.freshness}>
-      <Text style={styles.muted}>
+      <Text style={[text.small, text.numeric]}>
         We last downloaded Minnesota’s campaign finance files on {day}. That is when we checked, not
         the period this money covers.
       </Text>
@@ -454,32 +603,34 @@ const styles = StyleSheet.create({
     fontSize: 30,
     fontWeight: t.fontWeights.heavy,
     letterSpacing: -0.6,
-    color: t.colors.text.primary,
+    color: c.text,
   },
   h3: {
     fontFamily: t.typography.title,
     fontSize: 24,
     fontWeight: t.fontWeights.heavy,
     letterSpacing: -0.4,
-    color: t.colors.text.primary,
+    color: c.text,
   },
   eyebrow: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.meta,
-    fontWeight: t.fontWeights.bold,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
     letterSpacing: 0.6,
     textTransform: 'uppercase',
-    color: t.colors.text.muted,
+    color: c.muted,
     marginBottom: 6,
   },
   block: { gap: 12, marginTop: 8 },
   card: {
-    backgroundColor: t.colors.surfaces.base,
+    backgroundColor: c.background,
     borderWidth: 1,
-    borderColor: t.colors.alpha.ink08,
+    borderColor: c.border,
     borderRadius: t.radii.lg,
-    paddingVertical: 28,
-    paddingHorizontal: 28,
+    paddingTop: 30,
+    paddingBottom: 28,
+    paddingHorizontal: 32,
     gap: 16,
     ...(t.shadows.card as object),
   },
@@ -487,47 +638,41 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.bodyLg,
     lineHeight: 26,
-    color: t.colors.text.primary,
+    color: c.text,
   },
   muted: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     lineHeight: 22,
-    color: t.colors.text.muted,
+    color: c.muted,
   },
   explain: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     lineHeight: 22,
-    color: t.colors.text.secondary,
+    color: c.secondary,
   },
   source: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.meta,
-    color: t.colors.brand.base,
+    color: c.link,
     textDecorationLine: 'underline',
+    minHeight: 44,
+    paddingVertical: 12,
   },
   freshness: { gap: 8 },
-  years: { flexDirection: 'row', gap: 6 },
-  yearsFull: { alignSelf: 'stretch', gap: 8 },
-  yearButtonFull: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  yearButton: {
-    paddingVertical: 7,
-    paddingHorizontal: 16,
-    borderRadius: t.radii.pill,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink08,
-    backgroundColor: t.colors.surfaces.base,
+  cardMobile: { paddingHorizontal: 18, paddingVertical: 20 },
+  cardTablet: { paddingHorizontal: 26, paddingTop: 26, paddingBottom: 24 },
+  figures: {
+    flexDirection: 'row',
+    gap: 28,
+    borderTopWidth: 1,
+    borderTopColor: c.border,
+    paddingTop: 24,
   },
-  yearButtonActive: {
-    backgroundColor: t.colors.brand.base,
-    borderColor: t.colors.brand.base,
-  },
-  yearLabel: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.body,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.secondary,
-  },
-  yearLabelActive: { color: t.colors.surfaces.base },
+  figuresMobile: { flexDirection: 'column' },
+  figureColumn: { flex: 1, minWidth: 0 },
+  figureColumnMobile: { minWidth: 0 },
+  recordLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'center' },
+  recordLink: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44 },
 });

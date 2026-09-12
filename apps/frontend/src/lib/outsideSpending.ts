@@ -1,5 +1,6 @@
 import { formatDay, formatMoney } from './legislatorCampaignMoney';
 import { centralDateLabel, formatCount } from './moneyLanding';
+import type { CurrentClaimFreshness } from '../data/types';
 
 // Wording and figures for the outside-spending block on a legislator's profile
 // ([#1332](https://github.com/alethical-org/alethical/issues/1332)). Pure functions,
@@ -47,6 +48,9 @@ export interface OutsideSpendingCommittee {
 export interface OutsideSpendingYear {
   year: number;
   state: OutsideSpendingState;
+  /** Age of the confirmed ownership behind these figures, separate from the
+   * download date. Optional for older saved records; absence never means fresh. */
+  currentClaim?: CurrentClaimFreshness;
   /** Which download answered, so 2 years can be checked for agreeing on one. */
   snapshotId: string | null;
   /**
