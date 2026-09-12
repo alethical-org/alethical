@@ -126,6 +126,17 @@ describe('payments grouped by filing year and filer', () => {
       '2 payments from 2 spenders',
     );
   });
+  it('does not count unidentified rows as distinct filers', () => {
+    const rows = [p(), p({ filerRegistrationNumber: null }), p({ filerRegistrationNumber: null })];
+    const year = paymentsUnderNameYears(rows, false)[0];
+    expect(year.groups).toHaveLength(3);
+    for (const role of ['contributor', 'vendor', 'independent_vendor'] as const) {
+      expect(paymentsUnderNameYearCount(year, role)).toBe('3 payments');
+    }
+    const partial = paymentsUnderNameYears(rows, true)[0];
+    expect(paymentsUnderNameYearCount(partial, 'independent_vendor')).toBe('3 payments so far');
+    expect(year.groups.slice(1).every((group) => group.subtotal === null)).toBe(true);
+  });
   it('uses filed recipient type for donations and held register kinds for payees without guessing', () => {
     expect(paymentsUnderNameFilerKind(p({ filerEntityType: 'PTU' }), 'contributor')).toBe(
       'Party unit',

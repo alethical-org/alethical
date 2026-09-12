@@ -35,6 +35,10 @@ import {
   paymentsUnderNameYearCount,
   paymentsUnderNameFilerKind,
   YEAR_MAY_CONTINUE,
+  UNKNOWN_FILING_YEAR,
+  filerRegistrationLabel,
+  groupPaymentCount,
+  nonContributionReceiptLabel,
   nothingFiledTitle,
   RECORDS_UNAVAILABLE_TITLE,
   RECORDS_UNAVAILABLE_WHY,
@@ -314,7 +318,7 @@ export function PaymentRows({
               aria-level={2}
               style={[styles.yearHeading, { fontSize: isMobile ? 24 : isTablet ? 28 : 30 }]}
             >
-              {year.year ?? 'Year not given in the filing'}
+              {year.year ?? UNKNOWN_FILING_YEAR}
             </Text>
             {year.mayContinue ? <Text style={styles.yearWarning}>{YEAR_MAY_CONTINUE}</Text> : null}
           </View>
@@ -349,7 +353,7 @@ export function PaymentRows({
                       )}
                       {kind || registration ? (
                         <Text style={styles.filerMeta}>
-                          {[kind, registration ? `Registration ${registration}` : null]
+                          {[kind, registration ? filerRegistrationLabel(registration) : null]
                             .filter(Boolean)
                             .join(' · ')}
                         </Text>
@@ -360,7 +364,9 @@ export function PaymentRows({
                         {group.subtotal !== null ? (
                           <Text style={styles.subtotal}>{formatMoney(group.subtotal)}</Text>
                         ) : null}
-                        <Text style={styles.paymentCount}>{group.payments.length} payments</Text>
+                        <Text style={styles.paymentCount}>
+                          {groupPaymentCount(group.payments.length)}
+                        </Text>
                       </View>
                     ) : null}
                   </View>
@@ -368,6 +374,10 @@ export function PaymentRows({
                     {group.payments.map((payment, index) => {
                       const row = paymentUnderNameRow(payment, role, linkable);
                       const detail = role === 'contributor' ? payment.employer : payment.purpose;
+                      const receiptLabel =
+                        role === 'contributor'
+                          ? nonContributionReceiptLabel(payment.receiptType)
+                          : null;
                       const date = (
                         <Text
                           style={[
@@ -393,12 +403,8 @@ export function PaymentRows({
                               {detail}
                             </Text>
                           ) : null}
-                          {role === 'contributor' &&
-                          payment.receiptType &&
-                          payment.receiptType !== 'Contribution' ? (
-                            <Text style={styles.listMeta}>
-                              {payment.receiptType} — reported on its own schedule, not a donation
-                            </Text>
+                          {receiptLabel ? (
+                            <Text style={styles.listMeta}>{receiptLabel}</Text>
                           ) : null}
                           {row.inKind ? (
                             <Text style={styles.inKindChip}>{IN_KIND_CHIP.toUpperCase()}</Text>

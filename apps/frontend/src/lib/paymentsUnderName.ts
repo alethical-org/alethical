@@ -271,7 +271,7 @@ export function paymentUnderNameMeta(payment: PaymentUnderName, role: PaymentNam
     const kind = registerKindLabel(registerKindFromEntityType(payment.filerEntityType));
     if (kind) parts.push(kind);
     if (payment.receiptType && payment.receiptType !== 'Contribution') {
-      parts.push(`${payment.receiptType} — reported on its own schedule, not a donation`);
+      parts.push(nonContributionReceiptLabel(payment.receiptType)!);
     }
     return parts.join(' · ');
   }
@@ -328,6 +328,21 @@ export function committeesInRows(payments: readonly PaymentUnderName[]): number 
 }
 
 export const YEAR_MAY_CONTINUE = 'This year may continue below the cap';
+export const UNKNOWN_FILING_YEAR = 'Year not given in the filing';
+
+export function filerRegistrationLabel(registration: string): string {
+  return `Registration ${registration}`;
+}
+
+export function groupPaymentCount(count: number): string {
+  return `${formatCount(count)} ${count === 1 ? 'payment' : 'payments'}`;
+}
+
+export function nonContributionReceiptLabel(receiptType: string | null): string | null {
+  return receiptType && receiptType !== 'Contribution'
+    ? `${receiptType} — reported on its own schedule, not a donation`
+    : null;
+}
 
 export interface PaymentsUnderNameGroup {
   key: string;
@@ -406,8 +421,9 @@ export function paymentsUnderNameYearCount(
   year: PaymentsUnderNameYear,
   role: PaymentNameRole,
 ): string {
-  const payments = `${formatCount(year.paymentCount)} ${year.paymentCount === 1 ? 'payment' : 'payments'}`;
+  const payments = groupPaymentCount(year.paymentCount);
   if (year.mayContinue) return `${payments} so far`;
+  if (year.groups.some((group) => !group.newest.filerRegistrationNumber)) return payments;
   const count = year.groups.length;
   const unit = role === 'independent_vendor' ? 'spender' : 'committee';
   return `${payments} ${role === 'contributor' ? 'to' : 'from'} ${formatCount(count)} ${unit}${count === 1 ? '' : 's'}`;

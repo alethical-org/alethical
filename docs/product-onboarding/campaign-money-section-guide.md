@@ -353,7 +353,8 @@ than borrowing a day from another row.
 The year count says "{n} payments to {m} committees" for contributions, "{n} payments
 from {m} committees" for ordinary payments, or "{n} payments from {m} spenders" for
 independent payments. Counts describe the loaded records, never an inferred person's
-complete giving.
+complete giving. If a year contains a payment without a filer registration number,
+its count says only "{n} payments"; separate unnamed rows do not prove separate filers.
 
 Above the rows, one line says what is on the page, and it never says more than that. When
 nothing is held back it reads "9 payments, from 7 committees" — both counted from the rows
