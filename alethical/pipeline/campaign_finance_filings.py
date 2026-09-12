@@ -1128,6 +1128,8 @@ class FilingsRun:
     without_figures: list[tuple[str, int]] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     requested_filers: int = 0
+    # The directory may be reused while catalogues and figures are fetched anew.
+    directory_fetch_completed_at: Optional[datetime] = None
     # Whether --only-filers narrowed this run. Such a run may never publish, and it also
     # cannot check the pinned canary figures for filers it did not ask about, so the two
     # facts have to be told apart from a full run that lost a filer.
@@ -2072,6 +2074,7 @@ def rebuild_run_from_retained_archive(
     rebuilt: list[ParsedFiling] = []
     empties: list[tuple[str, int]] = []
     errors: list[str] = []
+    directory_completed: list[datetime] = []
     # Reading the object is itself a check on it. A truncated or damaged archive fails
     # inside gzip or inside json, and letting either escape as a stdlib error would hand
     # an operator a stack trace instead of the name of the object that is broken.
@@ -2116,6 +2119,7 @@ def rebuild_run_from_retained_archive(
         if not what.startswith("directory:"):
             continue
         kind = FilerKind(what.split(":", 1)[1])
+        directory_completed.append(datetime.fromisoformat(record["completed_at"]))
         payload = _payload_of(record)
         found, problems = parse_directory_payload(payload, kind)
         filers.extend(found)
@@ -2185,6 +2189,7 @@ def rebuild_run_from_retained_archive(
 
     was = run.record_set_hash
     run.filers = filers
+    run.directory_fetch_completed_at = max(directory_completed, default=None)
     run.reports = reports
     run.filings = rebuilt
     run.without_figures = empties
@@ -2230,6 +2235,11 @@ def _payload_of(record: dict) -> Any:
 def _measurements_json(run: FilingsRun) -> dict:
     return {
         "requested_filers": run.requested_filers,
+        "directory_fetch_completed_at": (
+            run.directory_fetch_completed_at.isoformat()
+            if run.directory_fetch_completed_at is not None
+            else None
+        ),
         "filers_by_kind": {
             kind.value: sum(1 for filer in run.filers if filer.kind is kind)
             for kind in FilerKind
@@ -2586,6 +2596,10 @@ def load_campaign_finance_filings(
                 response = saved_directory[kind]
                 filers, errors = parse_directory_payload(response.json(), kind)
             archive.write(f"directory:{kind.value}", response)
+            run.directory_fetch_completed_at = max(
+                run.directory_fetch_completed_at or response.completed_at,
+                response.completed_at,
+            )
             run.errors.extend(errors)
             run.filers.extend(filers)
             log(

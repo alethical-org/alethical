@@ -34,7 +34,8 @@ outside the repository in its saved recovery checkpoint.
 1. Ship the saved-directory input, source-copy checks and necessary legacy PDF
    layout support. Test damaged archives, preserved filer-years, retired verdicts,
    independent results and legacy schedules. Complete current-head checks and live
-   backend deployment.
+   backend deployment. Keep the directory capture time in the existing snapshot
+   measurements and use it for register dates, including retained-archive replay.
 2. Wait for the parent build owner to confirm the approved Money out card
    correction and source-specific freshness wording are live. The historical
    refresh must not start before those corrections.
@@ -72,3 +73,9 @@ outside the repository in its saved recovery checkpoint.
 - Scoped and full Board requests wait for the card, source-date wording and
   server checks to be live. Money in runs before money out so the latter can
   read any newly kept report documents.
+
+- Keep the existing cache policy for this run. The canonical API answers have a
+  60-second fresh window plus 300 seconds for background refresh; page HTML has
+  300 plus 300 seconds. Read back current answers after those windows. This is
+  bounded refresh, not a global cache purge; the separate clearing-key work remains
+  [issue 1979](https://github.com/alethical-org/alethical/issues/1979).

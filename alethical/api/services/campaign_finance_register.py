@@ -412,13 +412,32 @@ def _as_utc(value: Optional[datetime]) -> Optional[datetime]:
 
 
 def _snapshot_date(snapshot) -> Optional[date]:
-    """The day the register and catalogue were copied, as a calendar date.
+    """The day the report catalogue and totals were copied, as a calendar date.
 
     Read off ``fetch_completed_at``, the end of the run's fetch window rather than an
     instant, matching what ``cf_release`` serves for the downloads. In UTC, because the
     calendar day depends on the zone the instant is read in.
     """
     completed = _as_utc(getattr(snapshot, "fetch_completed_at", None))
+    return completed.date() if completed is not None else None
+
+
+def _register_completed_at(snapshot) -> Optional[datetime]:
+    """Date the directory bytes were copied, including reuse in a newer filings run."""
+    captured = (getattr(snapshot, "measurements", None) or {}).get(
+        "directory_fetch_completed_at"
+    )
+    if captured is None:
+        # Earlier snapshots copied the directory in the same fetch as their reports.
+        return _as_utc(getattr(snapshot, "fetch_completed_at", None))
+    try:
+        return _as_utc(datetime.fromisoformat(captured))
+    except (TypeError, ValueError):
+        return None
+
+
+def _register_date(snapshot) -> Optional[date]:
+    completed = _register_completed_at(snapshot)
     return completed.date() if completed is not None else None
 
 
@@ -454,7 +473,7 @@ def register_summary(db: Session) -> RegisterSummary:
             state=UNAVAILABLE,
             filer_count=None,
             by_kind=None,
-            as_of=_snapshot_date(snapshot),
+            as_of=_register_date(snapshot),
             snapshot_id=snapshot.id,
             reason=ROWS_REPLACED,
         )
@@ -466,7 +485,7 @@ def register_summary(db: Session) -> RegisterSummary:
         state=REPORTED,
         filer_count=total,
         by_kind=by_kind,
-        as_of=_snapshot_date(snapshot),
+        as_of=_register_date(snapshot),
         snapshot_id=snapshot.id,
         reason=None,
     )
@@ -639,7 +658,7 @@ def register_entry(db: Session, registration_number: str) -> RegisterEntry:
                 district=None,
                 registration_date=None,
                 termination_date=None,
-                as_of=_snapshot_date(snapshot),
+                as_of=_register_date(snapshot),
                 reason=ROWS_REPLACED,
             )
         return RegisterEntry(
@@ -651,7 +670,7 @@ def register_entry(db: Session, registration_number: str) -> RegisterEntry:
             district=None,
             registration_date=None,
             termination_date=None,
-            as_of=_snapshot_date(snapshot),
+            as_of=_register_date(snapshot),
             reason=None,
         )
     kind = filer.kind
@@ -664,7 +683,7 @@ def register_entry(db: Session, registration_number: str) -> RegisterEntry:
         district=filer.district,
         registration_date=filer.registration_date,
         termination_date=filer.termination_date,
-        as_of=_snapshot_date(snapshot),
+        as_of=_register_date(snapshot),
         reason=None,
     )
 
@@ -1035,7 +1054,7 @@ def freshness(db: Session, release) -> Freshness:
     snapshot = live_filings_snapshot(db)
     return Freshness(
         downloads_fetched_at=_as_utc(getattr(release, "fetched_at", None)),
-        register_fetched_at=_as_utc(getattr(snapshot, "fetch_completed_at", None)),
+        register_fetched_at=_register_completed_at(snapshot),
         release_id=getattr(release, "id", None),
     )
 

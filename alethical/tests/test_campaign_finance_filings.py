@@ -984,13 +984,18 @@ def test_asking_about_two_years_of_one_segment_costs_one_request(
 # --- Keeping the bytes -------------------------------------------------------
 
 
-def saved_directory(board: FakeBoard, path: Path) -> Path:
+def saved_directory(
+    board: FakeBoard, path: Path, *, captured: datetime | None = None
+) -> Path:
     archive = filings.ResponseArchive(str(path))
     for kind in FilerKind:
         response, _, errors = filings.fetch_directory(
             filings.http_session(), kind, board.base_url
         )
         assert not errors
+        if captured is not None:
+            response.started_at = captured
+            response.completed_at = captured
         archive.write(f"directory:{kind.value}", response)
     archive.close()
     board.requests_seen.clear()
@@ -1000,10 +1005,18 @@ def saved_directory(board: FakeBoard, path: Path) -> Path:
 def test_saved_directory_keeps_scope_but_fetches_every_catalogue_and_segment(
     db, board, store, tmp_path
 ) -> None:
-    held = saved_directory(board, tmp_path / "directory.jsonl.gz")
+    captured = datetime(2026, 8, 12, 6, 0, tzinfo=UTC)
+    held = saved_directory(board, tmp_path / "directory.jsonl.gz", captured=captured)
     originals = filings.saved_directory_responses(str(held))
     board.directory_returns_false.update(FilerKind)
     first = run(db, board, store, directory_archive=str(held))
+    assert first.directory_fetch_completed_at == captured
+    first_snapshot = db.get(models.CampaignFinanceFilingSnapshot, first.snapshot_id)
+    assert (
+        first_snapshot.measurements["directory_fetch_completed_at"]
+        == captured.isoformat()
+    )
+    assert first_snapshot.fetch_completed_at > captured
     assert first.requested_filers == sum(map(len, DIRECTORY_ROWS.values()))
     assert len(board.requests_seen) == first.requested_filers * 2
     assert first.response_count == len(board.requests_seen) + 3
@@ -1016,6 +1029,11 @@ def test_saved_directory_keeps_scope_but_fetches_every_catalogue_and_segment(
         db, first.record_set_hash, store=store, log=lambda _: None
     )
     assert published.published
+    assert published.directory_fetch_completed_at == captured
+    assert (
+        filings.live_filings_snapshot(db).measurements["directory_fetch_completed_at"]
+        == captured.isoformat()
+    )
     board.empty_filers.add("18999")
     replacement = run(db, board, store, directory_archive=str(held))
     assert (
@@ -1023,6 +1041,19 @@ def test_saved_directory_keeps_scope_but_fetches_every_catalogue_and_segment(
         == "failed"
     )
     assert not replacement.published
+
+
+def test_a_fresh_directory_dates_its_own_source_responses(db, board, store, tmp_path):
+    result = run(db, board, store)
+    path = tmp_path / "fresh-directory.jsonl.gz"
+    path.write_bytes(store.objects[result.archive_key])
+    responses = filings.saved_directory_responses(str(path))
+    completed = max(response.completed_at for response in responses.values())
+    assert result.fetch_started_at <= completed <= result.fetch_completed_at
+    snapshot = db.get(models.CampaignFinanceFilingSnapshot, result.snapshot_id)
+    assert (
+        snapshot.measurements["directory_fetch_completed_at"] == completed.isoformat()
+    )
 
 
 @pytest.mark.parametrize("damage", ["missing", "duplicate", "hash"])

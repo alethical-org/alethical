@@ -856,8 +856,10 @@ receipt date. The previous generation is kept for 1 replacement cycle.
 
 **Freshness follows each source.** A filings refresh dates the newly copied totals
 and catalogues; it does not change the bulk-payments download date. Reused directory
-responses retain their earlier capture dates. A page describing a shared date must
-say which sources that date covers.
+responses retain their earlier capture dates, also recorded as
+`directory_fetch_completed_at` in the existing snapshot measurements. Register
+answers use that date; catalogue answers keep the new run date. A page describing
+a shared date must say which sources that date covers.
 
 **Publishing a quarantined set: name its hash and do not fetch again.** A first run has
 nothing to compare against, so it quarantines by design, exactly as the downloads do. The

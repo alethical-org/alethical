@@ -586,6 +586,45 @@ def test_each_copy_of_the_data_carries_its_own_date(client, db) -> None:
     assert data["release_id"] == str(release.id)
 
 
+@pytest.mark.parametrize(
+    "captured, expected_day",
+    [
+        ("2026-09-12T06:00:00+00:00", "2026-09-12"),
+        ("2026-08-12T06:00:00+00:00", "2026-08-12"),
+    ],
+)
+def test_register_dates_follow_directory_bytes_without_redating_reports_or_payments(
+    client, db, captured, expected_day
+) -> None:
+    _published_release(db, fetched=datetime(2026, 9, 1, 2, 54, tzinfo=UTC))
+    snapshot = _filings_snapshot(
+        db,
+        fetched=datetime(2026, 9, 12, 14, 0, tzinfo=UTC),
+        filer_count=1,
+        report_count=1,
+    )
+    snapshot.measurements = {"directory_fetch_completed_at": captured}
+    db.commit()
+    _filer(db, snapshot, CANDIDATE, office="Senate", district="55")
+    _report(db, snapshot, CANDIDATE)
+    summary = client.get(SUMMARY).json()["data"]
+    assert summary["register"]["as_of"] == expected_day
+    assert summary["contests"]["as_of"] == expected_day
+    assert summary["freshness"]["register_fetched_at"].startswith(expected_day)
+    assert summary["freshness"]["downloads_fetched_at"].startswith("2026-09-01")
+    committee = client.get(f"/api/v1/committees/{CANDIDATE}/finance?year=2026")
+    assert committee.status_code == 200
+    assert committee.json()["data"]["register"]["as_of"] == expected_day
+    for route in ("committees", "races?year=2026", "search?q=Port"):
+        response = client.get(f"/api/v1/campaign-finance/{route}")
+        assert response.status_code == 200
+        assert response.json()["data"]["as_of"] == expected_day
+    for route in (FILINGS, f"/api/v1/committees/{CANDIDATE}/filings"):
+        response = client.get(route)
+        assert response.status_code == 200
+        assert response.json()["data"]["as_of"] == "2026-09-12"
+
+
 def test_the_as_of_date_names_the_day_the_run_finished_in_utc(client, db) -> None:
     """A run that finished just after midnight UTC must not be dated to the day before.
 
