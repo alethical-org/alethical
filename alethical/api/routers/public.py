@@ -3653,6 +3653,10 @@ def outside_spending_record(
     exact filed name and say ``grouping_basis=exact_name``. The 3 direction figures
     gain their own ``*_spender_count``. Raw rows remain available without this flag.
 
+    Both forms carry ``snapshot_id`` for the independent-expenditures file and
+    ``release_id`` for the published 3-file release. A caller can pin figures and
+    expanded payments to the same source copy instead of mixing different downloads.
+
     404 means the number is in neither our copy of the Board's register nor this file,
     which is a statement about our records. 503 means we hold no usable release.
     """
@@ -3709,6 +3713,7 @@ def _outside_spending_payload(result: OutsideSpendingPage) -> dict:
         "dataset": "independent_expenditures",
         "source_url": result.source_url,
         "release_id": str(result.release_id),
+        "snapshot_id": str(result.snapshot_id),
         "fetched_at": result.fetched_at,
     }
     if result.groups is not None:

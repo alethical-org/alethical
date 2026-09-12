@@ -125,6 +125,10 @@ def test_grouped_route_has_one_list_and_raw_route_keeps_its_existing_shape(clien
     response = client.get(URL, params={**params, "group_by": "spender"})
     assert response.status_code == 200
     grouped = response.json()["data"]
+    for payload in (raw, grouped):
+        assert payload["snapshot_id"] == str(published.independent.id)
+        assert payload["release_id"] == str(published.release.id)
+        assert payload["snapshot_id"] != payload["release_id"]
     assert "groups" not in raw and "group_by" not in raw
     assert "supporting_spender_count" not in raw["figures"]
     assert "rows" not in grouped and "page" not in grouped
@@ -147,6 +151,7 @@ def test_grouped_route_has_one_list_and_raw_route_keeps_its_existing_shape(clien
         URL, params={**params, "year": 2024, "group_by": "spender"}
     ).json()["data"]
     assert empty["groups"] == [] and empty["figures"] is None
+    assert empty["snapshot_id"] == grouped["snapshot_id"]
     assert empty["state"] != "reported"
 
 

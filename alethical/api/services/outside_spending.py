@@ -262,6 +262,7 @@ class OutsideSpendingPage:
     figures: Optional[OutsideSpendingFigures]
     source_url: Optional[str]
     release_id: UUID
+    snapshot_id: UUID
     fetched_at: Optional[datetime]
     groups: Optional[tuple[OutsideSpendingGroup, ...]] = None
 
@@ -594,6 +595,7 @@ def outside_spending(
             figures=None,
             source_url=release.independent_expenditures.source_url,
             release_id=release.id,
+            snapshot_id=release.independent_expenditures.snapshot_id,
             fetched_at=release.fetched_at,
             groups=() if group_by_spender else None,
         )
@@ -687,6 +689,7 @@ def outside_spending(
         figures=figures,
         source_url=release.independent_expenditures.source_url,
         release_id=release.id,
+        snapshot_id=release.independent_expenditures.snapshot_id,
         fetched_at=release.fetched_at,
         groups=groups,
     )
