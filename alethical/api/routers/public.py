@@ -3611,6 +3611,7 @@ def outside_spending_record(
     year: int | None = Query(default=None, ge=2015, le=2100),
     sort: Literal["newest", "largest"] = Query(default="newest"),
     page: int = Query(default=1, ge=1),
+    group_by: Literal["spender"] | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
     """The outside-spending record, one subject at a time
@@ -3646,9 +3647,23 @@ def outside_spending_record(
     largest first, which is honest inside one subject and only there. ``page`` is
     1-based over pages of 50 rows; ``page.total_rows`` counts every matching row.
 
+    ``group_by=spender`` requires ``about`` and ``year``. It returns all ``groups``
+    for that committee-year in largest-first order instead of ``rows`` and ``page``.
+    Each group is one registration number and direction; missing numbers group by the
+    exact filed name and say ``grouping_basis=exact_name``. The 3 direction figures
+    gain their own ``*_spender_count``. Raw rows remain available without this flag.
+
+    Both forms carry ``snapshot_id`` for the independent-expenditures file and
+    ``release_id`` for the published 3-file release. A caller can pin figures and
+    expanded payments to the same source copy instead of mixing different downloads.
+
     404 means the number is in neither our copy of the Board's register nor this file,
     which is a statement about our records. 503 means we hold no usable release.
     """
+    if group_by is not None and (about is None or year is None):
+        raise HTTPException(
+            status_code=422, detail="group_by=spender requires about and year"
+        )
     release = _resolve_campaign_finance_release(db)
     try:
         result = outside_spending_record_page(
@@ -3659,6 +3674,7 @@ def outside_spending_record(
             year=year,
             sort=sort,
             page_number=page,
+            group_by_spender=group_by == "spender",
         )
     except UnknownOutsideSpendingSubject:
         raise HTTPException(
@@ -3678,7 +3694,7 @@ def _outside_spending_payload(result: OutsideSpendingPage) -> dict:
         payload = asdict(value)
         return payload
 
-    return {
+    payload = {
         "state": result.state,
         "about": subject(result.about),
         "spender": subject(result.spender),
@@ -3697,8 +3713,15 @@ def _outside_spending_payload(result: OutsideSpendingPage) -> dict:
         "dataset": "independent_expenditures",
         "source_url": result.source_url,
         "release_id": str(result.release_id),
+        "snapshot_id": str(result.snapshot_id),
         "fetched_at": result.fetched_at,
     }
+    if result.groups is not None:
+        payload.pop("rows")
+        payload.pop("page")
+        payload["group_by"] = "spender"
+        payload["groups"] = [asdict(group) for group in result.groups]
+    return payload
 
 
 @router.get("/campaign-finance/payments-under-name", response_model=DetailResponse)
