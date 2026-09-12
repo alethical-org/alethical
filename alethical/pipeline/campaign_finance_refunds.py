@@ -70,6 +70,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
+from alethical.pipeline.campaign_finance_filings import live_filings_snapshot
 from alethical.pipeline.raw_file_store import sha256_of_file
 
 # The two files the Board publishes each year.
@@ -1031,19 +1032,15 @@ def registered_candidates(
 ) -> tuple[Optional[uuid.UUID], list[RegisteredCandidate]]:
     """The register's own description of each confirmed committee.
 
-    Read from the newest filings snapshot, because that is the set ``cf_filer`` is keyed
-    to and it is replaced on every filings run. A committee with no row in it yields
-    nothing, so its refund rows stay unattached rather than matching on 2 fields out of 3.
+    Read only the filings snapshot named by the published pointer. A newer fetch may
+    still be quarantined and have no filer rows. With no published directory or no row
+    for a committee, yield nothing rather than guessing any of the 3 matching fields.
     """
     wanted = list(registration_numbers)
     if not wanted:
         return None, []
-    newest = db.execute(
-        select(schema.CampaignFinanceFilingSnapshot.id)
-        .order_by(schema.CampaignFinanceFilingSnapshot.created_at.desc())
-        .limit(1)
-    ).scalar_one_or_none()
-    if newest is None:
+    snapshot = live_filings_snapshot(db)
+    if snapshot is None:
         return None, []
     rows = db.execute(
         select(
@@ -1053,11 +1050,11 @@ def registered_candidates(
             schema.CampaignFinanceFiler.office,
             schema.CampaignFinanceFiler.district,
         ).where(
-            schema.CampaignFinanceFiler.snapshot_id == newest,
+            schema.CampaignFinanceFiler.snapshot_id == snapshot.id,
             schema.CampaignFinanceFiler.registration_number.in_(wanted),
         )
     ).all()
-    return newest, [
+    return snapshot.id, [
         RegisteredCandidate(
             registration_number=row[0],
             candidate_name=row[1],

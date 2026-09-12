@@ -52,6 +52,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
+from alethical.pipeline.campaign_finance_filings import live_filings_snapshot
 
 # One year's answer, and the block's overall answer. The same 4 words, so a page never has
 # to learn 2 vocabularies for one idea.
@@ -89,22 +90,18 @@ def _file_name(url: str) -> str:
 
 
 def _registered_since(db: Session, registration_number: str) -> Optional[int]:
-    """The year this committee registered, as the newest filer directory records it.
+    """The year this committee registered, from the published filer directory.
 
     Used only to stop the list running back through years the committee did not exist for.
     Listing those as ``not_matched`` would say we looked for a line that should have been
     there, which is not true and reads as a failure of ours.
     """
-    newest = db.execute(
-        select(schema.CampaignFinanceFilingSnapshot.id)
-        .order_by(schema.CampaignFinanceFilingSnapshot.created_at.desc())
-        .limit(1)
-    ).scalar_one_or_none()
-    if newest is None:
+    snapshot = live_filings_snapshot(db)
+    if snapshot is None:
         return None
     registered = db.execute(
         select(schema.CampaignFinanceFiler.registration_date).where(
-            schema.CampaignFinanceFiler.snapshot_id == newest,
+            schema.CampaignFinanceFiler.snapshot_id == snapshot.id,
             schema.CampaignFinanceFiler.registration_number == registration_number,
         )
     ).scalar_one_or_none()

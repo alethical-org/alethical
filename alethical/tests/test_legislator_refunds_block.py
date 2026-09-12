@@ -155,13 +155,20 @@ def _abeler(db) -> str:
 
     _release(db)
     snapshot = models.CampaignFinanceFilingSnapshot(
-        status=models.CampaignFinanceSnapshotStatus.fetched,
+        status=models.CampaignFinanceSnapshotStatus.loaded,
         fetch_started_at=datetime(2026, 9, 12, tzinfo=UTC),
         fetch_completed_at=datetime(2026, 9, 12, tzinfo=UTC),
         validation_json={},
     )
     db.add(snapshot)
     db.flush()
+    db.execute(
+        text(
+            "INSERT INTO cf_filing_current (id, snapshot_id) VALUES (true, :sid) "
+            "ON CONFLICT (id) DO UPDATE SET snapshot_id = EXCLUDED.snapshot_id"
+        ),
+        {"sid": snapshot.id},
+    )
     db.add(
         models.CampaignFinanceFiler(
             snapshot_id=snapshot.id,
@@ -290,7 +297,8 @@ def test_the_years_run_wider_than_the_year_the_request_asked_for(db, client):
     assert [row["year"] for row in block["years"]] == [2025, 2024, 2017, 2016]
 
 
-def test_years_before_the_committee_registered_are_left_out(db, client):
+@pytest.mark.parametrize("status", [None, "fetched", "quarantined"])
+def test_years_before_the_committee_registered_are_left_out(db, client, status):
     legislator_id = _abeler(db)
     # His earlier House committee's line, in a year his Senate committee did not exist.
     _summary(
@@ -300,6 +308,8 @@ def test_years_before_the_committee_registered_are_left_out(db, client):
     )
     db.commit()
 
+    if status is not None:
+        _unpublished_directory(db, status)
     block = _refunds(client, legislator_id)
 
     assert 2013 not in [row["year"] for row in block["years"]]
@@ -324,3 +334,73 @@ def test_holding_no_summaries_at_all_is_a_fact_about_us(db, client):
 
     assert block["state"] == "unavailable"
     assert block["years"] == []
+
+
+def _unpublished_directory(db, status):
+    from alethical.db import models
+
+    # A new fetch is recorded before validation or publication, without filer rows.
+    db.add(
+        models.CampaignFinanceFilingSnapshot(
+            status=getattr(models.CampaignFinanceSnapshotStatus, status),
+            created_at=datetime(2027, 1, 1, tzinfo=UTC),
+            fetch_started_at=datetime(2027, 1, 1, tzinfo=UTC),
+            fetch_completed_at=datetime(2027, 1, 1, tzinfo=UTC),
+            validation_json={},
+        )
+    )
+    db.commit()
+
+
+@pytest.mark.parametrize("status", ["fetched", "quarantined"])
+def test_unpublished_directory_preserves_refund_matches_and_registration_floor(
+    db, client, status
+):
+    from alethical.pipeline.campaign_finance_refunds import match_summary_rows
+
+    legislator_id = _abeler(db)
+    published_id = db.execute(
+        text("SELECT snapshot_id FROM cf_filing_current WHERE id = true")
+    ).scalar_one()
+    _summary(
+        db,
+        2013,
+        rows=[("Abeler II, Jim", "House", "35A", 19, "1450.00", None)],
+    )
+    _unpublished_directory(db, status)
+    summary_id = db.execute(
+        text("SELECT id FROM cf_refund_summary WHERE year = 2025")
+    ).scalar_one()
+
+    assert match_summary_rows(db, summary_id, log=lambda _: None) == (1, 0)
+    match = db.execute(
+        text(
+            "SELECT matched_registration_number, matched_against_filing_snapshot_id "
+            "FROM cf_refund_row WHERE summary_id = :sid"
+        ),
+        {"sid": summary_id},
+    ).one()
+    assert tuple(match) == (ABELER_SENATE, published_id)
+    db.commit()
+    block = _refunds(client, legislator_id)
+    assert [row["year"] for row in block["years"]] == [2025, 2024, 2017, 2016]
+    assert block["years"][0]["amount_refunded"] == "14216.47"
+
+
+@pytest.mark.parametrize("pointer_state", ["absent", "empty"])
+def test_without_a_published_directory_no_register_fields_are_guessed(
+    db, pointer_state
+):
+    from alethical.api.services.committee_refunds import _registered_since
+    from alethical.pipeline.campaign_finance_refunds import registered_candidates
+
+    _abeler(db)
+    # Even a populated directory is not a source unless the current pointer names it.
+    if pointer_state == "absent":
+        db.execute(text("DELETE FROM cf_filing_current"))
+    else:
+        db.execute(text("UPDATE cf_filing_current SET snapshot_id = NULL"))
+    db.commit()
+
+    assert _registered_since(db, ABELER_SENATE) is None
+    assert registered_candidates(db, registration_numbers=[ABELER_SENATE]) == (None, [])
