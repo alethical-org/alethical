@@ -120,6 +120,9 @@ SELECT registration_number, filing_year, status, reason, stated_itemized,
        report_type, amendment_index, self_test, checked_at
   FROM cf_stated_spending
  WHERE snapshot_id = :snapshot
+   AND filings_snapshot_id = (
+       SELECT snapshot_id FROM cf_filing_current WHERE id IS TRUE
+   )
    AND registration_number = :reg_num
 """
 
@@ -132,8 +135,8 @@ def stated_spending(
 ) -> list[StatedSpending]:
     """Every stored answer for one committee, newest year last.
 
-    Scoped to the release's own expenditures snapshot, so an answer about payments that
-    have since been replaced is never returned. A year with no stored answer is simply
+    Scoped to both the release's expenditures snapshot and the current filings copy,
+    so replacing either source makes its old verdict unavailable. A year with no answer is
     absent; use ``stated_spending_for_year`` when a page needs one year and needs the
     difference between "no answer" and "a clean answer" spelled out.
     """
@@ -198,6 +201,8 @@ def committee_years_whose_spending_disagrees(
         text(
             "SELECT registration_number, filing_year FROM cf_stated_spending "
             " WHERE snapshot_id = :snapshot AND status = 'disagrees'"
+            " AND filings_snapshot_id = (SELECT snapshot_id "
+            "FROM cf_filing_current WHERE id IS TRUE)"
         ),
         {"snapshot": release.expenditures.snapshot_id},
     ).all()

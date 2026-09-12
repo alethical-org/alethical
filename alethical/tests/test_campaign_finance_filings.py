@@ -14,6 +14,7 @@ page or a chunked body.
 from __future__ import annotations
 
 import hashlib
+import gzip
 import json
 import threading
 from dataclasses import dataclass, field
@@ -981,6 +982,100 @@ def test_asking_about_two_years_of_one_segment_costs_one_request(
 
 
 # --- Keeping the bytes -------------------------------------------------------
+
+
+def saved_directory(
+    board: FakeBoard, path: Path, *, captured: datetime | None = None
+) -> Path:
+    archive = filings.ResponseArchive(str(path))
+    for kind in FilerKind:
+        response, _, errors = filings.fetch_directory(
+            filings.http_session(), kind, board.base_url
+        )
+        assert not errors
+        if captured is not None:
+            response.started_at = captured
+            response.completed_at = captured
+        archive.write(f"directory:{kind.value}", response)
+    archive.close()
+    board.requests_seen.clear()
+    return path
+
+
+def test_saved_directory_keeps_scope_but_fetches_every_catalogue_and_segment(
+    db, board, store, tmp_path
+) -> None:
+    captured = datetime(2026, 8, 12, 6, 0, tzinfo=UTC)
+    held = saved_directory(board, tmp_path / "directory.jsonl.gz", captured=captured)
+    originals = filings.saved_directory_responses(str(held))
+    board.directory_returns_false.update(FilerKind)
+    first = run(db, board, store, directory_archive=str(held))
+    assert first.directory_fetch_completed_at == captured
+    first_snapshot = db.get(models.CampaignFinanceFilingSnapshot, first.snapshot_id)
+    assert (
+        first_snapshot.measurements["directory_fetch_completed_at"]
+        == captured.isoformat()
+    )
+    assert first_snapshot.fetch_completed_at > captured
+    assert first.requested_filers == sum(map(len, DIRECTORY_ROWS.values()))
+    assert len(board.requests_seen) == first.requested_filers * 2
+    assert first.response_count == len(board.requests_seen) + 3
+    retained = tmp_path / "retained.jsonl.gz"
+    retained.write_bytes(store.objects[first.archive_key])
+    assert filings.saved_directory_responses(str(retained)) == originals
+
+    # It remains the ordinary full replacement and can publish after its checks.
+    published = filings.publish_stored_filings(
+        db, first.record_set_hash, store=store, log=lambda _: None
+    )
+    assert published.published
+    assert published.directory_fetch_completed_at == captured
+    assert (
+        filings.live_filings_snapshot(db).measurements["directory_fetch_completed_at"]
+        == captured.isoformat()
+    )
+    board.empty_filers.add("18999")
+    replacement = run(db, board, store, directory_archive=str(held))
+    assert (
+        checks_of(replacement)["no_published_filer_year_lost_its_figures"].status
+        == "failed"
+    )
+    assert not replacement.published
+
+
+def test_a_fresh_directory_dates_its_own_source_responses(db, board, store, tmp_path):
+    result = run(db, board, store)
+    path = tmp_path / "fresh-directory.jsonl.gz"
+    path.write_bytes(store.objects[result.archive_key])
+    responses = filings.saved_directory_responses(str(path))
+    completed = max(response.completed_at for response in responses.values())
+    assert result.fetch_started_at <= completed <= result.fetch_completed_at
+    snapshot = db.get(models.CampaignFinanceFilingSnapshot, result.snapshot_id)
+    assert (
+        snapshot.measurements["directory_fetch_completed_at"] == completed.isoformat()
+    )
+
+
+@pytest.mark.parametrize("damage", ["missing", "duplicate", "hash"])
+def test_saved_directory_must_be_complete_and_intact_before_any_request(
+    db, board, store, tmp_path, damage
+) -> None:
+    path = saved_directory(board, tmp_path / "directory.jsonl.gz")
+    with gzip.open(path, "rt") as handle:
+        records = [json.loads(line) for line in handle]
+    if damage == "missing":
+        records.pop()
+    elif damage == "duplicate":
+        records.append(records[0])
+    else:
+        records[0]["sha256"] = "0" * 64
+    with gzip.open(path, "wt") as handle:
+        for record in records:
+            handle.write(json.dumps(record) + "\n")
+    with pytest.raises(filings.CampaignFinanceFilingsRefusal, match="saved directory"):
+        run(db, board, store, directory_archive=str(path))
+    assert board.requests_seen == []
+    assert store.objects == {}
 
 
 def test_every_response_is_kept_and_each_figure_names_the_line_it_came_from(

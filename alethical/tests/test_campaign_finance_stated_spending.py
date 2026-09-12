@@ -620,6 +620,32 @@ def test_a_stored_verdict_reads_back_for_the_release_it_was_made_about(
         {("19004", 2025)}
     )
 
+    replacement = seed_filings_snapshot(db, reported={("19004", 2025): "2100.00"})
+    assert replacement.id != snapshot.id
+    assert (
+        service.stated_spending_for_year(db, release, "19004", 2025).status
+        == service.NOT_RUN
+    )
+    assert service.committee_years_whose_spending_disagrees(db, release) == frozenset()
+    assert (
+        spending.stated_spending_coverage(db, release.expenditures.snapshot_id) is None
+    )
+
+    spending.store_verdicts(
+        db,
+        release.expenditures.snapshot_id,
+        replacement.id,
+        [
+            spending.Verdict(
+                registration_number="19004",
+                filing_year=2025,
+                status=Status.agrees,
+                reason="new filing copy checked",
+            )
+        ],
+    )
+    assert service.stated_spending_for_year(db, release, "19004", 2025).figures_agree
+
 
 def test_a_committee_year_nobody_has_checked_reads_as_not_run(db, board, store) -> None:
     """A fact about us, and never a verdict about the committee."""

@@ -281,7 +281,9 @@ class ReportDocument:
     page_count: int = 0
 
 
-def extract_lines(body: bytes) -> tuple[list[str], Optional[int]]:
+def extract_lines(
+    body: bytes, *, layout: bool = False
+) -> tuple[list[str], Optional[int]]:
     """The document's text, one entry per line, in the order it is printed.
 
     Returns an empty list and a ``None`` page count when the bytes will not open as a
@@ -292,7 +294,15 @@ def extract_lines(body: bytes) -> tuple[list[str], Optional[int]]:
 
     try:
         reader = PdfReader(io.BytesIO(body))
-        pages = [page.extract_text() or "" for page in reader.pages]
+        pages = [
+            (
+                page.extract_text(extraction_mode="layout")
+                if layout
+                else page.extract_text()
+            )
+            or ""
+            for page in reader.pages
+        ]
     except (PyPdfError, ValueError, KeyError, TypeError, OSError):
         return [], None
     return "\n".join(pages).splitlines(), len(pages)
@@ -333,10 +343,9 @@ def parse_report_document(body: bytes) -> ReportDocument:
     pair once at the end of its rows; a second pair inside one block would mean the
     heading scan lost a boundary, and that is reported rather than resolved by guessing.
 
-    A repeated schedule code is an error too. Every document measured prints each code
-    exactly once even where 1,776 lines of donors sit between the heading and the
-    totals, so a repeat means either a page header this parser started reading as a
-    heading or a document shape nobody has seen.
+    A repeated schedule code is an error too. Older forms repeat the code in page
+    headers and footers; those headings are joined before the totals are read,
+    without discarding a second pair of totals.
     """
     lines, page_count = extract_lines(body)
     if page_count is None:
@@ -345,9 +354,63 @@ def parse_report_document(body: bytes) -> ReportDocument:
             "the bytes start like a document but will not open as one"
         )
         return document
+    # CF Reporter (held 2022 filings) stores text in drawing order, putting the
+    # amounts before their row labels. Its compact schedule codes distinguish it
+    # from the current form. Layout extraction restores the printed table rows;
+    # current documents keep their existing extraction and interpretation.
+    legacy = any(
+        re.match(r"^\s*Schedule\s+[A-Z]\d[A-Z0-9]*-\S", line) for line in lines
+    )
+    if legacy:
+        lines, layout_page_count = extract_lines(body, layout=True)
+        if layout_page_count is None:
+            return ReportDocument(
+                page_count=page_count,
+                errors=["the older document's printed table layout could not be read"],
+            )
+        lines = normalize_legacy_schedule_lines(lines)
     document = schedules_from_lines(lines)
     document.page_count = page_count
     return document
+
+
+def normalize_legacy_schedule_lines(lines: list[str]) -> list[str]:
+    """Translate the old form's printed labels, retaining its totals verbatim.
+
+    Page headers and footers repeat the schedule name. They do not start a new
+    schedule. A second pair of totals still remains visible to the strict reader.
+    """
+    normalized: list[str] = []
+    current: Optional[str] = None
+    for line in lines:
+        stripped = line.strip()
+        heading = SCHEDULE_HEADING.match(stripped)
+        if heading is not None:
+            code = heading.group("code")
+            title = stripped[heading.end("code") :].strip()
+            aliases = {
+                "A1-LB": "A1 - LOB",
+                "A1-PTY": "A1 - PTY/TERM PCC",
+            }
+            code = aliases.get(code, re.sub(r"\s*-\s*", " - ", code))
+            if code == "B1" and title.startswith("Expenditures"):
+                code = "B1 - EXP"
+            if code == "B3" and title.startswith("Independent Expenditures"):
+                code = "B3A - IE"
+            if code == current:
+                continue
+            current = code
+            normalized.append(f"Schedule {code}   {title}")
+            continue
+        stripped = re.sub(r"^(Total of (?:non-)?itemized):", r"\1", stripped)
+        stripped = re.sub(
+            r"^Total Itemized Expenditures:", "Total of itemized", stripped
+        )
+        stripped = re.sub(
+            r"^Total Unitemized Expenditures:", "Total of non-itemized", stripped
+        )
+        normalized.append(stripped)
+    return normalized
 
 
 def schedules_from_lines(lines: list[str]) -> ReportDocument:
@@ -398,7 +461,12 @@ def schedules_from_lines(lines: list[str]) -> ReportDocument:
         if code is None:
             continue
         found = ITEMIZED_TOTAL.match(stripped)
-        if found is not None and itemized is None:
+        if found is not None:
+            if itemized is not None:
+                document.errors.append(
+                    f"schedule {code}'s itemized total appears more than once"
+                )
+                continue
             itemized = _parse_amounts(found.group("amounts"))
             if itemized is None:
                 document.errors.append(
@@ -406,7 +474,12 @@ def schedules_from_lines(lines: list[str]) -> ReportDocument:
                 )
             continue
         found = NON_ITEMIZED_TOTAL.match(stripped)
-        if found is not None and non_itemized is None:
+        if found is not None:
+            if non_itemized is not None:
+                document.errors.append(
+                    f"schedule {code}'s non-itemized total appears more than once"
+                )
+                continue
             non_itemized = _parse_amounts(found.group("amounts"))
             if non_itemized is None:
                 document.errors.append(

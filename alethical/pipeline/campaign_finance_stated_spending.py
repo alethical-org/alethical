@@ -802,7 +802,8 @@ def stated_spending_coverage(
     rows = db.execute(
         text(
             "SELECT status, count(*), max(checked_at) FROM cf_stated_spending "
-            " WHERE snapshot_id = :snapshot GROUP BY status"
+            " WHERE snapshot_id = :snapshot AND filings_snapshot_id = "
+            "(SELECT snapshot_id FROM cf_filing_current WHERE id IS TRUE) GROUP BY status"
         ),
         {"snapshot": expenditures_snapshot_id},
     ).all()
