@@ -388,8 +388,10 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   82 cash payments, 74 printed names and $39,950; 3 trimmed 4-digit ZIPs account for
   $1,250 that must remain unknown. Its current empty-reference test proves payment
   arithmetic only, never geography. Both public response paths, reference parsing,
-  copy-bound checks and separate-committee amounts have local tests. The optional
-  reference loader withholds an unreadable file without failing other money blocks.
+  copy-bound checks and separate-committee amounts pass 69 focused checks. Independent
+  review is complete. The optional reference loader withholds an unreadable file without
+  failing other money blocks. All 2,631 server tests pass on the saved commit before upload;
+  lint, format, database type, dependency and command-inventory checks pass too.
   Before release, copy the complete authenticated national ZIP-to-county workbook,
   record its actual quarter-end/copy time/hash, validate the real columns and all
   rows, generate the versioned map with the manual command, and add the real sample
