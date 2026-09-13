@@ -10,6 +10,7 @@ import {
   boardRecordUrl,
   committeeNameWithNumber,
 } from '../boardRecordLink';
+import { inKindDonationsNote, NOT_A_DONATION_HEADING } from '../contributionFigures';
 import { describe, expect, it } from 'vitest';
 
 import { reportedThroughLabel } from '../legislatorCampaignMoney';
@@ -65,7 +66,6 @@ import {
   MONEY_IN_UNNAMED_LABEL,
   MONEY_OUT_HEADING,
   NAMED_DONATIONS_LINK_LABEL,
-  NOT_A_DONATION_HEADING,
   HIDDEN_RECEIPT_KIND,
   shownReceiptRows,
   downloadsPageUrl,
@@ -80,7 +80,6 @@ import {
   isBallotQuestionFiler,
   isInKind,
   MONEY_OUT_REPORTED_LABEL,
-  inKindDonationsNote,
   UNNAMED_PAYMENT_PARTY,
   notFoundBody,
   notFoundTitle,
@@ -525,26 +524,21 @@ describe('money out', () => {
     // reported total draws ABOVE this line, and what draws below it is "Donations with
     // nobody's name on them" — a different figure — which only appears when the split is
     // shown, so on a withheld split "the total below" pointed at nothing at all.
-    for (const namesTheChip of [true, false]) {
-      const note = inKindDonationsNote('$19,899.45', namesTheChip);
-      expect(note).toContain('$19,899.45');
-      expect(note).toContain('goods and services rather than money');
-      expect(note).toContain('separately from the reported total');
-      // No positional word, on either surface, however either one is laid out later.
-      for (const positional of ['below', 'above the', 'the total below', 'beneath']) {
-        expect(note.toLowerCase()).not.toContain(positional);
-      }
+    const note = inKindDonationsNote('$19,899.45');
+    expect(note).toBe(
+      '$19,899.45 more came as goods and services rather than money, which Minnesota ' +
+        'counts separately.',
+    );
+    // No positional word, on any surface, however each one is laid out later.
+    for (const positional of ['below', 'above the', 'the total below', 'beneath']) {
+      expect(note.toLowerCase()).not.toContain(positional);
     }
   });
 
-  it('the chip is named on 2 surfaces and not the third, and nothing else differs', () => {
-    // Closing that gap would change what a profile reader sees, which is not this fix.
-    const withChip = inKindDonationsNote('$1,000.00', true);
-    const without = inKindDonationsNote('$1,000.00', false);
-    expect(withChip).toContain('donated goods or services');
-    expect(without).not.toContain('donated goods or services');
-    // The claim itself is identical: strip the marker and the 2 are the same sentence.
-    expect(withChip.replace(' (donated goods or services)', '')).toBe(without);
+  it('says this money is extra, so no reader adds it to the figures above', () => {
+    // "more" is the whole claim: goods and services sit outside Minnesota's reported
+    // contributions figure rather than inside it (#2182).
+    expect(inKindDonationsNote('$1,000.00')).toContain('$1,000.00 more came as');
   });
 });
 
@@ -766,7 +760,7 @@ describe('the 2 money cards’ fixed labels, shared by both surfaces', () => {
     expect(MONEY_OUT_REPORTED_LABEL).toBe('Expenditures');
     // Ruled 2 Sep 2026: the card heading 2 elements above already says "Money in", and
     // the rows show that each is reported on its own line.
-    expect(NOT_A_DONATION_HEADING).toBe('Not a donation');
+    expect(NOT_A_DONATION_HEADING).toBe('Not a contribution');
     // Ruled 11 Sep 2026: the link opens the Board's downloads page, not the download.
     expect(NAMED_DONATIONS_LINK_LABEL).toBe('Minnesota’s campaign-finance downloads');
     // The one off-site label on these pages, and it names the record the click

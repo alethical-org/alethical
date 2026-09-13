@@ -339,16 +339,10 @@ export const MONEY_IN_NAMED_LABEL = 'Itemized contributions';
  *  Eugene, 11 Sep 2026). The sentence under it says what the word means. */
 export const MONEY_IN_UNNAMED_LABEL = 'Non-itemized contributions';
 
-/** The heading over the receipt rows that are not donations — a loan, a public
- *  subsidy, interest. Short because the card heading 2 elements above already says
- *  "Money in", and the rows themselves show that each is reported on its own line
- *  (ruled by Eugene, 2 Sep 2026, in the campaign-money design's copy proposals). */
-export const NOT_A_DONATION_HEADING = 'Not a donation';
-
 /**
  * The receipt kind the cards do not draw (ruled by Eugene, 11 Sep 2026). Matched against
  * the served value exactly: `Miscellaneous` is the Board's own kind on the contributions
- * file, and a page that hides it draws no `Not a donation` heading when no row is left.
+ * file, and a page that hides it draws no `Not a contribution` heading when no row is left.
  * Every other kind (a public subsidy, interest, a loan) still draws with its own label.
  */
 export const HIDDEN_RECEIPT_KIND = 'Miscellaneous';
@@ -464,34 +458,6 @@ export const PAGE_CAP = 250;
 /** The marker on a donated-goods-or-services row. It stays inside the totals,
  *  because that is how the state accounts for it. */
 export const IN_KIND_CHIP = 'Donated goods or services';
-
-/**
- * The one sentence naming how much of the named donations was goods and services.
- *
- * **One function because 3 renderers were writing it 2 different ways, and one of the 2
- * was wrong.** The committee page and the server-rendered first response both said "The
- * state counts those separately from the reported total"; the legislator profile said
- * "separately from the total below". On the profile the reported total draws ABOVE this
- * line, and the figure that draws below it is "Donations with nobody's name on them",
- * which is a different figure derived from the reported total rather than the total
- * itself. Worse, that lower figure only draws when the split is shown, so on a profile
- * with a withheld split the sentence pointed at nothing at all.
- *
- * So the wording names the figure rather than its position, which is what makes it
- * correct on both surfaces however either one is laid out later.
- *
- * `namesTheChip` exists because 2 of the 3 places name the marker a row carries
- * (`IN_KIND_CHIP`) and the profile does not, and closing that gap would change what a
- * reader sees rather than fixing what is wrong. Presentation stays where it was; only
- * the claim is unified.
- */
-export function inKindDonationsNote(amount: string, namesTheChip: boolean): string {
-  const marker = namesTheChip ? ` (${IN_KIND_CHIP.toLowerCase()})` : '';
-  return (
-    `${amount} of the donations above were goods and services rather than money${marker}. ` +
-    'The state counts those separately from the reported total.'
-  );
-}
 
 export function isInKind(inKind: string | null | undefined): boolean {
   return inKind === 'Yes';

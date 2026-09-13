@@ -800,6 +800,7 @@ function PaymentsSection({
             <View style={styles.card}>
               <CommitteeDonations
                 headingLevel={2}
+                isBallot={isBallotQuestionFiler(money.entitySubType)}
                 committee={money}
                 year={year}
                 releaseId={money.releaseId}

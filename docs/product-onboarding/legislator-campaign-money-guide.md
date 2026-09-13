@@ -302,19 +302,22 @@ by Eugene on 11 Sep 2026:
 - **Itemized contributions.** The state publishes a spreadsheet of the donations it
   required each committee to name. This is what that spreadsheet holds for the year, with
   the dates of the first and last payment. Always drawn: a real amount, or the words
-  "Not reported", never a blank. Directly under it, before the goods-and-services line
-  where one draws, a fixed sentence says what the figure is and states the naming rule.
-  It is the one place on the card that rule is stated, and on a legislator's committee it
-  reads exactly:
+  "Not reported", never a blank.
 
-  > Donations where the filing names who gave. Named donors include people, lobbyists,
-  > other campaigns, political committees and funds, and party organisations. Minnesota
-  > requires a committee to name a donor once that donor has given more than $200 in
-  > total for the year; a committee may name a smaller donor but does not have to.
+Beside the donor chart the card carries figures and nothing else: the sentence explaining
+both labels is the chart's own opening paragraph, a few lines above
+([#2182](https://github.com/alethical-org/alethical/issues/2182)). Where no chart draws —
+the committee page's Filings and "Spent by them" tabs — each figure keeps its own sentence
+under it, and the itemized one reads exactly:
 
-  The committee page prints a second version of it for a ballot-question committee, whose
-  line is $500 ([`campaign-money-section-guide.md`](campaign-money-section-guide.md)
-  under Money in); a legislator's committee is never one.
+> Donations where the filing names who gave. Named donors include people, lobbyists,
+> other campaigns, political committees and funds, and party organisations. Minnesota
+> requires a committee to name a donor once that donor has given more than $200 in
+> total for the year; a committee may name a smaller donor but does not have to.
+
+The committee page prints a second version of it for a ballot-question committee, whose
+line is $500 ([`campaign-money-section-guide.md`](campaign-money-section-guide.md)
+under Money in); a legislator's committee is never one.
 
 The official figures and evidence use the shared
 [MoneyCards.tsx](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/campaignMoney/MoneyCards.tsx),
@@ -326,13 +329,14 @@ the profile's mix-by-year chart stays on the profile.
 
 **Non-itemized contributions** appears only when the server supplies a checked split.
 The profile shows its dollar amount in the summary and its share in the donor chart;
-there is no separate percentage below the summary amount. The fixed sentence says:
+there is no separate percentage below the summary amount. Away from the chart its own
+fixed sentence says:
 
 > Donations inside the committee's reported total whose givers the state's public file
 > does not name.
 
-It repeats no threshold, because the itemized sentence above it has already stated the
-rule once and one fact at 2 places on a card is the repeat Eugene ruled out.
+Both labels are printed once and explained once, wherever the explanation happens to sit,
+because one fact at 2 places on a card is the repeat Eugene ruled out.
 
 **Read the $200 as the donor's yearly total, never the size of a single gift.** 327,759 of
 the 583,152 published donation rows are individually under $200 and are named anyway,
@@ -344,8 +348,12 @@ campaign may name a smaller donor if it chooses. At least one does, so a page sa
 impossible is caught by any reader who opens that filing and finds a $75 donor listed by name
 ([#1755](https://github.com/alethical-org/alethical/issues/1755)).
 
-Money in that is not a donation — a public subsidy, interest, a loan — is listed
-separately under its own heading, "Not a donation", with the state's own label. It is never
+Money in that is not a contribution — a public subsidy, interest, a loan — is listed
+separately under its own heading, "Not a contribution", with the state's own label. The
+heading says contribution rather than donation because a donated good or service **is** a
+donation and is counted inside Itemized contributions above, so a reader told the chart
+leaves goods out would otherwise come looking for them here
+([#2182](https://github.com/alethical-org/alethical/issues/2182)). It is never
 added to the donation figure, because the filing carries it on a different schedule and the
 Board's own totals exclude it. **A row the state types `Miscellaneous` is not drawn** (ruled
 by Eugene, 11 Sep 2026), and when that was the only such row the heading is not drawn
@@ -357,23 +365,60 @@ The address the server sends is the bulk download itself, which streams a 9 MB s
 spreadsheet with no page behind it, so the card strips the `?download=` part and links to
 the page that download lives on.
 
-### Who gave, by kind of donor
+### Who gave
 
 **The donor breakdown is the prominent chart inside each committee's card**, before the
 compact summary figures and grouped payment list. It explains where the money came from
-by cash amount, not by number of names. Its labels carry the kind, amount, percentage and
-count of printed names, so the circle is not the only way to read it. Choosing a named
-kind opens its matching contribution tab. The categories have the same names and order
-as those tabs, including Candidate Committee together with Political Committee/Fund in
-**Committees & Funds**. The count uses exact printed names across that combined category,
-so a name appearing under both source kinds counts once. Amounts keep the existing
-whole-dollar format; the underlying sums retain every decimal place.
+by cash amount, not by number of names. The heading is **Who gave**, with
+" (named donations only)" added in the state below where we hold no official total. It no
+longer says "by kind of donor": the slices carry the kinds as their own labels, and the
+largest slice on many committees is Non-itemized contributions, which is not a kind of
+donor at all ([#2182](https://github.com/alethical-org/alethical/issues/2182)).
+
+**One paragraph under the heading explains both money-in labels.** It is the one place on
+the tab that states Minnesota's naming rule, and beside a committee whose filing does not
+name every dollar it reads exactly:
+
+> Shares of the contributions this committee reported, not counting donated goods and
+> services. The filing names who gave for **itemized contributions** and not for
+> **non-itemized contributions**. Minnesota requires naming once a donor's giving passes
+> $200 for the year, and a committee may name smaller donors.
+
+The 2 label words are the only bold ones, so a reader matches the same words here and on
+the card. A ballot-question committee's line is $500 and its sentence says so. The last 2
+sentences are dropped wherever no Non-itemized figure draws, because there is then only 1
+contribution figure and nothing to tell apart; in the named-donations-only state the
+opening sentence instead reads "Shares of the named donations this year, not counting
+donated goods and services."
+
+**The chart is downloaded separately from the rest of the page, and the paragraph is not.**
+While that piece is arriving, or if it fails, the 2 sentences explaining the labels still
+draw above the cards, because
+[`.claude/rules/grounded-answers.md`](https://github.com/alethical-org/alethical/blob/main/.claude/rules/grounded-answers.md)
+rule 12 does not let 2 money figures stand with no sentence saying what separates them.
+The same 2 sentences print in the text served to a reader whose browser runs no JavaScript;
+the sentence describing the circle does not, because no circle is served there.
+
+**Each slice gets one legend row**, left to right: a coloured square, the kind, its count
+of printed names, its amount and its share. On a phone the count drops to its own line
+under the kind. **No row is a link, a button or a tab stop** — reaching a kind's names is
+the job of the tab strip directly below — so the circle itself carries the text
+alternative a screen reader reads, listing every kind and its share. A faint rule above
+the Non-itemized row is what holds it apart from the named kinds.
+
+The categories have the same names and order as the tabs below, including Candidate
+Committee together with Political Committee/Fund in **Committees & Funds**. The count uses
+exact printed names across that combined category, so a name appearing under both source
+kinds counts once. Amounts keep the existing whole-dollar format; the underlying sums
+retain every decimal place.
 
 When the server marks the split as `shown`, the base is the committee's official cash
 contribution total. The named cash slices and the unnamed cash slice must add exactly to
 that total before anything is drawn. A zero unnamed amount does not draw an empty slice.
 When the server says `no_reported_total`, the heading says “named donations only” and the
-base is the cash contributions in the complete named list. It shows no unnamed slice.
+base is the cash contributions in the complete named list. It shows no unnamed slice. The
+ring is drawn in one contiguous piece with no white cut between neighbouring slices, and
+the figure in its middle stands alone, with no grey word beneath it.
 
 A missing list, a failed download, a changed release during paging, an unreadable amount,
 a negative cash amount or an unknown cash-versus-goods marker prevents a chart from
@@ -381,8 +426,14 @@ pretending to be complete. Other withheld split states retain their own explanat
 No named rows gets its own sentence rather than a circle claiming a reported zero.
 
 **Goods and services stay out of every cash slice.** Their value remains in the named
-contribution figure and payment list, with each such payment marked. The explanatory
-sentence appears once beneath the chart, not again in the summary. An all-goods year
+contribution figure and payment list, with each such payment marked. One sentence beneath
+the chart says so, and it never repeats in the summary:
+
+> $5,000 more came as goods and services rather than money, which Minnesota counts
+> separately.
+
+"more" is the whole claim: this money sits outside the reported contributions figure rather
+than inside it, so no reader adds it to anything above. An all-goods year
 does not turn into a cash chart showing a misleading zero.
 
 ### The names and payments under each committee

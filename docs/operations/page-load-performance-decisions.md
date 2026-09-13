@@ -579,8 +579,32 @@ reported `First-load budget passed: 338333 bytes` on 13 September at 04:41:02 UT
 The uploaded source is a clean archive of commit `a30d7941`; no local logs, caches
 or settings files were uploaded. The build used the production target with
 `--skip-domain`. Vercel assigned only its project `.vercel.app` alias; the public
-`www.alethical.com` address still served `a8e42d9a` afterward. The size limit is now
-339,072 bytes, the hosted figure plus the existing 739-byte headroom.
+`www.alethical.com` address still served `a8e42d9a` afterward.
+
+The size limit is **339,888 bytes**, the hosted figure for the Campaign money tab's
+contribution-label work plus the same 739-byte headroom. Vercel measured 339,149 bytes
+for it on 13 September 2026
+([deployment dpl_37gz5j4F52gyt7W68pH3PK3CR77N](https://vercel.com/alethical/alethical-web/37gz5j4F52gyt7W68pH3PK3CR77N),
+[issue 2182](https://github.com/alethical-org/alethical/issues/2182)).
+
+**That 239-byte rise is compression packing, not source size, and the distinction
+decides whether chasing it is worth anything.** Measured against `origin/main` on one
+machine: of the 2 files the change touches inside this program,
+`lib/legislatorCampaignMoney.ts` ends byte-identical and `lib/committeeMoneyShared.ts`
+ends 62 characters shorter. The user-facing heading "Not a donation" became "Not a
+contribution", and 4 characters pack differently against the rest of a 1.25 MB file.
+Local and hosted builds moved in opposite directions while this was chased: a source
+edit that cut 90 bytes locally added 30 hosted. **At this margin the hosted number is
+the only one that means anything, and no edit inside the diff can be tuned to buy bytes
+back.**
+
+**The real cost sits upstream of any limit.** `lib/committeeMoneyShared.ts` and
+`lib/legislatorCampaignMoney.ts` are about 67 KB of campaign-money source, and both are
+inside the program every reader downloads before anything draws, because
+`navigation/webRoutes.ts` and `hooks/useAppQueries.ts` each import a few names from
+them. A reader who only ever opens a bill page pays for all of it. Splitting those few
+names into their own small modules would free far more than any copy change spends, and
+it is the work to do before this limit is raised again.
 
 **HTML-linked bytes are not all the JavaScript a page requests.** The local browser
 also fetched each requested screen and, where needed, its later details chunks.

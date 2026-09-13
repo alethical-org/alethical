@@ -10,8 +10,10 @@ const { renderToStaticMarkup } = require('react-dom/server') as {
 vi.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: vi.fn() }) }));
 
 vi.mock('react-native-svg', () => ({
-  default: ({ children }: { children?: React.ReactNode }) => <svg>{children}</svg>,
-  Circle: () => <circle />,
+  default: ({ children, ...props }: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props}>{children}</svg>
+  ),
+  Circle: (props: React.SVGProps<SVGCircleElement>) => <circle {...props} />,
 }));
 
 import { committeePaymentsReceivedFromPayload } from '../../../data/api';
@@ -59,6 +61,7 @@ function breakdown({
   split = namedSplit,
   complete = true,
   failed = false,
+  isBallot = false,
 } = {}) {
   return (
     <DonorBreakdown
@@ -67,7 +70,7 @@ function breakdown({
       year={2025}
       complete={complete}
       failed={failed}
-      onSelectTab={vi.fn()}
+      isBallot={isBallot}
     />
   );
 }
@@ -113,22 +116,25 @@ function click(element: Element | null | undefined) {
 }
 
 describe('the donor chart explains what its cash shares represent', () => {
-  it('opens the combined committee tab from the combined cash slice', () => {
-    const onSelect = vi.fn();
-    const view = mount(
-      <DonorBreakdown
-        payments={realPayments}
-        split={namedSplit}
-        year={2025}
-        complete
-        failed={false}
-        onSelectTab={onSelect}
-      />,
+  it('groups every candidate committee into one legend row rather than naming each', () => {
+    const view = markup(breakdown());
+    expect(view.textContent).toContain('Committees & Funds');
+    expect(view.textContent).toContain('35 names');
+    expect(view.textContent).not.toContain('Candidate Committee');
+  });
+
+  it('leaves the legend a list: no row is a control and none takes a tab stop', () => {
+    const view = mount(breakdown());
+    // Reaching a kind's names is the tab strip's job, directly below the legend (#2182).
+    const legend = view.querySelectorAll(
+      '[role="button"], button, a, [tabindex], [aria-label*="Open this contribution tab"]',
     );
-    const button = view.querySelector('[aria-label^="Committees & Funds, 35 names, $16,550"]');
-    click(button);
-    expect(onSelect).toHaveBeenCalledWith('committees');
-    expect(view.querySelector('[aria-label^="Candidate Committee,"]')).toBeNull();
+    expect(legend).toHaveLength(0);
+    // What a screen reader is handed for the picture, now that the rows carry nothing.
+    const alt = view.querySelector('svg')!.getAttribute('aria-label')!;
+    expect(alt).toContain('Who gave:');
+    expect(alt).toContain('Committees & Funds');
+    expect(alt).toMatch(/\d%/);
   });
 
   it('does not describe an unnamed slice when the reported total is entirely named', () => {
@@ -149,22 +155,6 @@ describe('the donor chart explains what its cash shares represent', () => {
     expect(view.textContent).not.toContain('Non-itemized contributions');
   });
 
-  it('opens the matching list when the reader selects a named chart category', () => {
-    const onSelect = vi.fn();
-    const view = mount(
-      <DonorBreakdown
-        payments={[gift()]}
-        split={namedSplit}
-        year={2025}
-        complete
-        failed={false}
-        onSelectTab={onSelect}
-      />,
-    );
-    click(view.querySelector('[aria-label*="Open this contribution tab"]'));
-    expect(onSelect).toHaveBeenCalledWith('individuals');
-  });
-
   it('does not draw the chart or its percentages before every donation page arrives', () => {
     for (const failed of [false, true]) {
       const view = markup(breakdown({ complete: false, failed }));
@@ -177,8 +167,13 @@ describe('the donor chart explains what its cash shares represent', () => {
   it('draws the real sample as named cash only when no official total is held', () => {
     const view = markup(breakdown());
     expect(view.querySelector('svg')).not.toBeNull();
-    expect(view.textContent).toContain('named donations only');
-    expect(view.textContent).toContain('named cash donations');
+    expect(view.textContent).toContain('Who gave (named donations only)');
+    expect(view.textContent).toContain(
+      'Shares of the named donations this year, not counting donated goods and services.',
+    );
+    // No reported total here, so no non-itemized figure and nothing to define.
+    expect(view.textContent).not.toContain('$200');
+    expect(view.textContent).not.toContain('The filing names who gave for');
     expect(view.querySelectorAll('circle').length).toBeGreaterThan(0);
   });
 
@@ -198,8 +193,7 @@ describe('the donor chart explains what its cash shares represent', () => {
     expect(view.querySelector('svg')).not.toBeNull();
     expect(view.textContent).toContain('50%');
     expect(view.textContent).toContain('1 name');
-    // The unnamed half has no button promising a list of identifiable donors.
-    expect(view.querySelectorAll('[aria-label*="Open this contribution tab"]')).toHaveLength(1);
+    expect(view.textContent).toContain('Non-itemized contributions');
   });
 
   it.each<SplitState>([
@@ -238,7 +232,9 @@ describe('the donor chart explains what its cash shares represent', () => {
     );
     expect(view.querySelector('svg')).toBeNull();
     expect(view.textContent).not.toContain('$0');
-    expect(view.textContent?.match(/were goods and services rather than money/g)).toHaveLength(1);
+    expect(view.textContent?.match(/came as goods and services rather than money/g)).toHaveLength(
+      1,
+    );
   });
 
   it('withholds a cash chart whose complete rows do not match the served named amount', () => {

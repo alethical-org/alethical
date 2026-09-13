@@ -1,7 +1,12 @@
 import { Component, lazy, Suspense, type ComponentProps, type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { requestReleaseReload } from '../../lib/releaseReload';
-import { moneyDetailsPageCopy as copy } from '../../lib/campaignMoneyDetailsPageCopy';
+import {
+  moneyDetailsPageCopy as copy,
+  namedMoneyDefinition,
+} from '../../lib/campaignMoneyDetailsPageCopy';
+import { unnamedFigureDraws } from '../../lib/contributionFigures';
+import { Dek } from './ContributionLabelsNote';
 import { useDetailsStyles } from './detailsStyles';
 import type * as Details from './MoneyDetailsBundle';
 
@@ -49,11 +54,19 @@ function FailedDetails({ message }: { message: string }) {
 }
 export function CommitteeDonations(props: ComponentProps<typeof Details.CommitteeDonations>) {
   const s = useDetailsStyles();
+  // What separates the 2 contribution figures. The chart normally carries it in its dek,
+  // and the chart arrives in a separately downloaded piece, so both fallbacks draw it
+  // themselves: the money cards below them are already showing both figures, and rule 12
+  // does not let those stand with no sentence between them (#2182).
+  const definition = unnamedFigureDraws(props.committee.split)
+    ? namedMoneyDefinition(props.isBallot ?? false)
+    : [];
   return (
     <DetailsBoundary
       fallback={
         <>
           <FailedDetails message={copy.chartFailed} />
+          <Dek segments={definition} />
           {props.children}
         </>
       }
@@ -62,6 +75,7 @@ export function CommitteeDonations(props: ComponentProps<typeof Details.Committe
         fallback={
           <>
             <Text style={s.body}>{copy.chartLoading}</Text>
+            <Dek segments={definition} />
             {props.children}
           </>
         }

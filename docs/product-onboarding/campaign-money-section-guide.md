@@ -668,15 +668,21 @@ Top to bottom:
    says its calendar is its own. If our own data service stops answering, the page keeps
    the figures it already had and says they are held until it answers — never expiring
    on a timer.
-5. **Who gave, by kind of donor**, above the summary cards. This is the same chart as
-   the legislator tab, read for this registration number and selected year. A safe,
-   checked split includes Non-itemized contributions as its own grey slice. Without an
-   official total, the chart says “named donations only” and divides the complete named
-   cash list. A withheld split, failed read or incomplete list gets its own explanation,
-   never a partly drawn whole. Cash determines the slices; donated goods and services
-   remain in the named amounts and payment rows, with their explanation under the chart.
-   The solid colors, category order, legend and category controls are shared with the
-   legislator tab. Selecting a named category opens its payment tab.
+5. **Who gave**, above the summary cards. This is the same chart as the legislator tab,
+   read for this registration number and selected year. A safe, checked split includes
+   Non-itemized contributions as its own grey slice. Without an official total, the chart
+   says “named donations only” and divides the complete named cash list. A withheld split,
+   failed read or incomplete list gets its own explanation, never a partly drawn whole.
+   Cash determines the slices; donated goods and services remain in the named amounts and
+   payment rows, with their explanation under the chart. The solid colors, category order
+   and legend are shared with the legislator tab.
+
+   **Its opening paragraph is the one place both money-in labels are explained**
+   ([#2182](https://github.com/alethical-org/alethical/issues/2182)), and a
+   ballot-question committee's copy of it carries $500 rather than $200. **No legend row
+   is a link, a button or a tab stop**: reaching a category's names is the job of the tab
+   strip below, and the circle itself carries the text alternative naming every kind and
+   its share.
 
    This view reads no legislator link to establish whose figures to show. The committee
    registration number is its scope, including when no member is confirmed or a previous
@@ -691,9 +697,9 @@ Top to bottom:
    shows the in-kind donations and says it holds no official total it can stand behind
    rather than printing a $0 the filing's own Total column contradicts (16 committee-years
    across 2024 to 2026, 11 Sep 2026). The labels are the filing's own words
-   (ruled by Eugene, 11 Sep 2026). Directly under the itemized figure a fixed sentence says
-   what it is and states the naming rule, the one place on the card that rule appears. On
-   most pages it reads exactly:
+   (ruled by Eugene, 11 Sep 2026). Where no chart draws — the Filings and Spent by them
+   tabs — a fixed sentence directly under the itemized figure says what it is and states
+   the naming rule. On most pages it reads exactly:
 
    > Donations where the filing names who gave. Named donors include people, lobbyists,
    > other campaigns, political committees and funds, and party organisations. Minnesota
@@ -707,11 +713,14 @@ Top to bottom:
 
    The split into named and unnamed money is decided by the server before the page ever
    sees it, and the page never subtracts. When the split is safe, the "Non-itemized
-   contributions" figure appears with one sentence under it, the same for every kind of
-   filer and repeating no threshold: "Donations inside the committee's reported total whose
-   givers the state's public file does not name." The chart uses that split only after
+   contributions" figure appears, and away from the chart it carries one sentence of its
+   own, the same for every kind of filer and repeating no threshold: "Donations inside the
+   committee's reported total whose givers the state's public file does not name." Beside
+   the chart both labels are explained once in its opening paragraph instead, and the card
+   is figures only. The chart uses that split only after
    the complete named cash rows agree with it. Receipts that are
-   not donations (a public subsidy, interest, a loan) sit under a "Not a donation" heading
+   not contributions (a public subsidy, interest, a loan) sit under a "Not a contribution"
+   heading
    with the state's own label; **a row the state types `Miscellaneous` is not drawn, and
    with no other row the heading is not drawn either** (ruled 11 Sep 2026). The card ends
    with the link "Minnesota's campaign-finance downloads", which opens the Board's downloads
@@ -721,7 +730,7 @@ Top to bottom:
    with the legislator profile. Both put the donor chart first, keep the goods-and-services
    explanation under that chart and omit a separate unnamed percentage below the summary.
    On Filings and Spent by them, where the chart is absent, the summary keeps its own
-   goods-and-services and withheld-split explanations.
+   goods-and-services, withheld-split and label explanations.
    In each case where a split would state something false — the two figures cover
    different periods, the sources disagree, our copy of the donation list is missing
    named money the filing carries, the committee corrected its report after we copied the

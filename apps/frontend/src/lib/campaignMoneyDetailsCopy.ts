@@ -1,23 +1,45 @@
 /** Fixed reader text for the legislator's contribution details. */
-import { moneyDetailsPageCopy } from './campaignMoneyDetailsPageCopy';
+import {
+  dekText,
+  moneyDetailsPageCopy,
+  namedMoneyDefinition,
+  type DekSegment,
+} from './campaignMoneyDetailsPageCopy';
+
+export { dekText, namedMoneyDefinition, type DekSegment };
 
 export const moneyDetailsCopy = {
   ...moneyDetailsPageCopy,
-  chartHeading: (namedOnly: boolean) =>
-    `Who gave, by kind of donor${namedOnly ? ' (named donations only)' : ''}`,
+  chartHeading: (namedOnly: boolean) => `Who gave${namedOnly ? ' (named donations only)' : ''}`,
   chartUnavailable: 'We cannot draw this breakdown from the payment amounts we hold.',
-  chartExplanation: (namedOnly: boolean, hasUnnamed: boolean) =>
-    `${
-      namedOnly
-        ? 'Each slice is a share of the named cash donations in this year.'
-        : 'Each slice is a share of the cash contributions this committee reported for the period above.'
-    } Named donations use the same categories as the tabs below, with other candidate committees included in Committees & Funds.${hasUnnamed ? ' The last slice is money whose givers the state’s public file does not name.' : ''}`,
-  baseLabel: (namedOnly: boolean) => (namedOnly ? 'named' : 'reported'),
+  /**
+   * The dek above the donut (#2182).
+   *
+   * The opening sentence names what the slices are shares of and what they leave out.
+   * `cash` left it: the Board's own word is fair for a card payment or a cheque and a
+   * reader can read it as notes and coins, while the exclusion the chart really makes is
+   * donated goods and services, which the sentence now states outright.
+   *
+   * `hasUnnamed` is the card's own non-itemized figure, not the chart's last slice, so the
+   * sentences defining the 2 labels draw wherever both labelled figures do. That is rule
+   * 12's requirement that a page say what the difference between its 2 numbers is.
+   */
+  chartExplanation: (namedOnly: boolean, hasUnnamed: boolean, isBallot: boolean): DekSegment[] => [
+    {
+      text: namedOnly
+        ? 'Shares of the named donations this year, not counting donated goods and services.'
+        : 'Shares of the contributions this committee reported, not counting donated goods and ' +
+          'services.',
+    },
+    ...(hasUnnamed ? [{ text: ' ' }, ...namedMoneyDefinition(isBallot)] : []),
+  ],
   kindMissing: 'Kind not given',
   names: (count: number) => `${count} ${count === 1 ? 'name' : 'names'}`,
   payments: (count: number) => `${count} ${count === 1 ? 'payment' : 'payments'}`,
-  sliceAction: (kind: string, count: number, amount: string | null, percent: number) =>
-    `${kind}, ${count} ${count === 1 ? 'name' : 'names'}, ${amount}, ${percent} percent. Open this contribution tab`,
+  /** The donut's own text alternative, one kind and its share per entry. The legend
+   *  beside it is a list rather than a set of controls (#2182), so nothing in it carries
+   *  a label of its own and this is what a screen reader is given for the picture. */
+  chartAlternative: (parts: readonly string[]) => `Who gave: ${parts.join(', ')}`,
   tabsLabel: 'Contribution kinds and expenditures',
   listLoading: 'Loading the complete payment list…',
   listFailed:

@@ -102,7 +102,8 @@ import {
 } from '../../../lib/committeeConfirmation';
 import { useOutsideSpending } from '../../../hooks/useAppQueries';
 import { CONFIRMED_MEMBER_WITHHELD_LINE } from '../../../lib/committeeMoney';
-import { inKindDonationsNote, MONEY_OUT_ZERO_NOTE } from '../../../lib/committeeMoneyShared';
+import { MONEY_OUT_ZERO_NOTE } from '../../../lib/committeeMoneyShared';
+import { inKindDonationsNote } from '../../../lib/contributionFigures';
 import { splitExplanation } from '../../../lib/legislatorCampaignMoney';
 import type { RootScreenProps, RootStackParamList } from '../../../navigation/types';
 import type { CommitteeConfirmation, CommitteeOutsideSpendingRow } from '../../../data/types';
@@ -443,10 +444,10 @@ describe('one committee shares the donation browser', () => {
 
   it('reads only the candidate year, prints its real rows and groups ABOUT spending once', async () => {
     await render();
-    expect(host.textContent).toContain('Who gave, by kind of donor (named donations only)');
+    expect(host.textContent).toContain('Who gave (named donations only)');
     expect(
       [...host.querySelectorAll('[role=heading]')]
-        .find((node) => node.textContent?.startsWith('Who gave, by kind of donor'))
+        .find((node) => node.textContent?.startsWith('Who gave'))
         ?.getAttribute('aria-level'),
     ).toBe('2');
     expect(host.textContent).toContain('Named total in this tab:');
@@ -586,8 +587,8 @@ describe('one committee shares the donation browser', () => {
       shape();
       await render();
       expect(host.textContent).toContain(splitExplanation('sources_disagree'));
-      expect(host.textContent).toContain(inKindDonationsNote('$25', true));
-      expect(host.textContent).not.toContain('Who gave, by kind of donor');
+      expect(host.textContent).toContain(inKindDonationsNote('$25'));
+      expect(host.textContent).not.toContain('Who gave');
       expect(request).not.toHaveBeenCalled();
     },
   );
