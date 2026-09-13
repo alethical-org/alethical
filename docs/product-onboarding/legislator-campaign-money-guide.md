@@ -168,6 +168,12 @@ and the 3 lines under it come off that decision's own stored record: how the fil
 related to the member's, what Minnesota's register of registered candidates said about the
 account, and what the party money said.
 
+The date comes from the stored decision. It opens the block without a label above it,
+in Libre Franklin at weight 800 with equal-width digits. The date, the line above the
+block and the evidence underneath share the same left edge, with 18px of padding above
+the block. The evidence is a plain list with no bullets or left indent, set at 15px in
+the secondary text colour (`#4f5651`), with 4px between items.
+
 **Read off the decision, never recomputed.** A later download can rename a committee or move
 a candidate's register row, and the card still describes what the reviewer actually saw. The
 point of showing it is that a reader can hold us to the decision we made rather than to what
@@ -204,6 +210,7 @@ The buttons offer **every calendar year from 2015 through the current year**, ne
 first. In 2026 that is 12 years; in 2027 it becomes 13. The year in
 `/legislators/<name>?tab=money&year=2025` controls the committee figures, donation lists
 and outside spending together. There is no All years sum or cross-member comparison.
+The year pills still wrap onto another line when needed.
 
 A dashed outline identifies a year for which the answers from our data service say the
 shown committees have named donations only, without an official total. It is not a fixed
@@ -289,6 +296,32 @@ about the same committee the dates describe. In a year where the committee filed
 no panel draws, and that row still draws under the card's heading: it is the only way from
 the card to the committee's own page, and the emptiest year is when a reader most wants it.
 
+### The filing-schedule note
+
+Each committee's filing-schedule note sits at the top of its card, 10px below the
+record-link row and above the chart. It describes when new figures can appear for the
+whole committee. Every schedule state uses this
+same position. The note is regular 15px text in the secondary colour (`#4f5651`), with
+22.5px between lines and equal-width digits. It is not included in the server text
+served to a browser that runs no JavaScript.
+
+When the calendar has not been copied in, the wording is:
+
+> We cannot say when this committee's next report is due. We have not yet copied in
+> Minnesota's {viewedYear} filing calendar for this kind of candidate. The gap is ours
+> and says nothing about this committee's own filing.
+
+When the committee is on the ballot, the wording is:
+
+> This committee is on the {year} ballot, so it files on Minnesota's election-year
+> schedule. Its next report, the “{name}”, is due {due} and covers {start} to {end}.
+> New money appears here only when a report is filed.
+
+The year is the year being viewed. The report name and dates come from the committee's
+actual schedule; the example dates in a design never replace them. Any required
+pre-general exemption stays with its report date. The other schedule states keep their
+existing meaning.
+
 ### Money in
 
 Two figures, and they are different things. Their labels are the filing's own words, ruled
@@ -359,7 +392,7 @@ Board's own totals exclude it. **A row the state types `Miscellaneous` is not dr
 by Eugene, 11 Sep 2026), and when that was the only such row the heading is not drawn
 either. Every other kind still is.
 
-The link at the foot of the card, **Minnesota's campaign-finance downloads**, opens the
+The money-in block's **Minnesota's campaign-finance downloads** link opens the
 Board's downloads page (`https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/`).
 The address the server sends is the bulk download itself, which streams a 9 MB statewide
 spreadsheet with no page behind it, so the card strips the `?download=` part and links to
@@ -444,6 +477,17 @@ contribution has another kind. Candidate Committee rows sit in Committees & Fund
 keep the “Candidate committee” label. The original kind remains on each payment even
 though the chart and tab combine those 2 committee kinds.
 
+The tabs form 1 underlined row, without boxes. Each name is 17px and bold (weight 700),
+with its count beside it in a separate 15px span at weight 800, such as **Individuals 74**,
+with no parentheses. Tabs are at least 44px tall. The chosen tab has dark text and a 3px
+underline; its state does not rely on colour alone. At widths below 768px the row scrolls
+sideways by swipe or keyboard, with 20px gaps and no visible scrollbar. At wider widths
+the gaps are 26px. The row never wraps, unlike the year pills.
+
+The tab strip takes 1 keyboard tab stop. Left and Right arrow keys move between tabs;
+Home and End move to the first and last tabs. The chosen tab tells screen readers that
+it is selected (`aria-selected`), and keyboard movement keeps the chosen tab in view.
+
 Only rows the state labels `Contribution` enter the contribution tabs, name counts or
 donor charts. Subsidies, interest and loans are not gifts. Expenditures holds the
 committee's ordinary payments out, never the separate independent-spending file.
@@ -455,28 +499,57 @@ as “Name not given in the filing” and does not add a made-up person to the n
 The tab count says names; the count line separately says how many payment rows it holds.
 Neither claims a number of distinct people.
 
+Names sit in a list with a line above it and a fine line under each row, without separate
+cards, rounded corners or row shadows. Each row is at least 60px high, with 12px above
+and below its contents and 2px at the sides. The name and right-aligned total are 17px
+and bold (weight 700). A single quiet 15px line keeps the filed employer, any existing
+kind label and payment count together, separated by “·”, in `#6b716b`. A group with
+1 payment says “1 payment”, such as “Self Employed · 1 payment”.
+
 The list first shows 10 groups, with a button to show the rest. This is only a display
 choice: every page of received and made payments must arrive before the list publishes
 counts or totals. Requests fetch up to 250 rows at a time, require the same release
 throughout and check the final row count. A failed or incomplete read shows a retry
 message, not the first page's subtotal as though it were the whole year. Repeated-looking
 payments are kept, never silently removed.
+The show-more button fits its label instead of stretching across the list. It is at
+least 44px tall, with 18px side padding, a 12px corner radius and a light border.
 
 Search narrows names inside the chosen tab. The 5 orders are largest amount, smallest
 amount, name A to Z, newest date and oldest date. A missing date always goes last. A
 group's newest or oldest payment controls its date order. Search and the 10-group display
 limit do not change the whole-tab name count, payment count or total.
 
-Opening a group's amount and expand control shows every underlying payment, with its
-own date and amount; missing dates say so. Payments out also show the filed purpose,
-kind and location where those fields exist. Goods-and-services rows carry their marker.
+The search field and sort button are both 46px tall. The search field has 10px rounded
+corners and the sort button has 12px rounded corners. The sort
+menu opens 6px below its own button, with their right edges aligned; it is at least
+220px wide, with 6px inside padding and 44px options. A green check marks the chosen
+order. The purple ring marks keyboard focus alone and follows each control's own shape.
+
+The whole-tab count and total share 1 unboxed row, 14px below the controls. The left
+side says, for example, “74 names · 82 payments”; the right says “Named total in this
+tab: $39,950”. Both use equal-width digits at 15px. The count is weight 800; the total's
+label is regular and its figure is weight 800. The row wraps when needed, with a 6px
+vertical gap and a 20px horizontal gap, without a filled background.
+
+A separate 44px button beside the total opens every underlying payment. Its 18px
+chevron turns when opened, and its screen-reader label names the group and reports
+whether it is open (`aria-expanded`). The opened payments are indented 18px and
+separated by dashed lines. Each payment keeps its own date and amount; missing dates
+say so. The date uses a 104px column at 15px and weight 800; the amount is right-aligned
+at 15px and weight 700, with equal-width digits throughout. On a phone the date and
+amount share the first line, with the filed description underneath. Payments out also
+show the filed purpose, kind and location where those fields exist. Goods-and-services
+rows carry their marker.
 All amounts are summed with exact decimal arithmetic inside this committee alone.
 
 A registered committee's name is an ordinary link to
 `/money/committees/{name}-{number}` only when the current responses say that number has
 a page. It can be opened in a new tab or copied. Private donor and vendor names are plain
-text on this profile; the expand control is separate from any committee link. Donor
-overlap and individual donor profiles are outside this build. The existing exact-name
+text on this profile, as is any committee name without an available destination. Valid
+committee links are green (`#0f7a45`) and underlined; the expand control is separate
+from any committee link. Donor overlap and individual donor profiles are outside this
+build. The existing exact-name
 lookup at `/money/payments?name=…&role=contributor` remains a separate feature, not proof
 that 2 records belong to the same person.
 
@@ -869,8 +942,8 @@ above exists to prevent.
 **The profile uses Libre Franklin for amounts, dates, registration numbers and counts.**
 Lines containing numbers use a heavier weight and equal-width digits, so changing a
 number does not move the figures beside it. The filing's period uses a slightly lighter
-weight. JetBrains Mono remains on short lettered labels, such as WHAT A PERSON CHECKED
-and DONATED GOODS OR SERVICES.
+weight, and the filing-schedule note uses regular weight. JetBrains Mono remains on
+short lettered labels, such as DONATED GOODS OR SERVICES.
 
 **A line that stands on its own carries no full stop at the end.** That covers a caption,
 a date or meta line, a label, a one-line description, and any stack of those — including
@@ -972,8 +1045,8 @@ calendar" and "nothing is due yet" are different facts, and letting the first re
 the second tells a reader something false about a named politician's duty to report.
 That is [grounded-answers.md rule 12](https://github.com/alethical-org/alethical/blob/main/.claude/rules/grounded-answers.md)'s
 missing-versus-zero rule applied to dates instead of to money. All 3 of ours share a
-closing line — _"That gap is on our side and says nothing about this committee's own
-filing"_ — so they read as one class.
+closing line, _"The gap is ours and says nothing about this committee's own filing."_,
+so they read as 1 class.
 
 **Two things this wording never does, each pinned by its own test:**
 

@@ -444,6 +444,12 @@ function CommitteeCard({
       </Text>
     </Pressable>
   );
+  const recordAndSchedule = (
+    <View style={styles.recordAndSchedule}>
+      {ourRecord}
+      <FilingScheduleNote schedule={committee.filingSchedule} year={year} />
+    </View>
+  );
   return (
     <CampaignMoneyCardTheme>
       <View style={{ gap: 12 }}>
@@ -476,7 +482,7 @@ function CommitteeCard({
                 committee.registrationNumber,
                 year,
               )}
-              ourRecord={ourRecord}
+              ourRecord={recordAndSchedule}
               covered
               isMobile={isMobile}
             />
@@ -498,7 +504,7 @@ function CommitteeCard({
                   the only way from this card to everything we hold on the committee,
                   and losing it in the emptiest year is losing it where a reader most
                   wants more. */}
-              {ourRecord}
+              {recordAndSchedule}
             </>
           )}
           <CommitteeDonations
@@ -531,11 +537,7 @@ function CommitteeCard({
               </View>
             </View>
           </CommitteeDonations>
-          <FilingScheduleNote schedule={committee.filingSchedule} year={year} />
-          {/* Who checked that this account is this member's, and what they read. At the foot
-          of the card and inside it, beside the filing-schedule note and for the same
-          reason: it is a statement about this one account rather than about Minnesota
-          in general. */}
+          {/* The stored check belongs to this committee, at the foot of its card. */}
           <CheckedByBlock checked={committee.checked} />
         </View>
       </View>
@@ -550,10 +552,8 @@ function CommitteeCard({
 /**
  * Why this committee has what it has for this year, in its own words.
  *
- * Inside the card and at its foot, because it is a statement about this committee's
- * own reporting duty rather than about Minnesota in general. The fixed paragraph it
- * replaces sat once at the bottom of the tab and recited the state's calendar, so a
- * reader had to work out which half of it applied to the member on screen (#1642).
+ * Below the record-link row and above the chart, because it describes how current
+ * this committee's figures are rather than qualifying the names list alone.
  *
  * Every sentence and every date comes from `lib/legislatorCampaignMoney.ts`. One
  * paragraph per element, so a printed exemption sits under the date it qualifies
@@ -566,13 +566,12 @@ function FilingScheduleNote({
   schedule: CampaignCommitteeMoney['filingSchedule'];
   year: CampaignMoneyYear;
 }) {
-  const text = useDetailsStyles();
   const paragraphs = filingScheduleNote(schedule, year);
   if (!paragraphs.length) return null;
   return (
-    <View style={styles.block}>
+    <View style={styles.schedule}>
       {paragraphs.map((paragraph) => (
-        <Text key={paragraph} style={[text.body, numericText(paragraph)]}>
+        <Text key={paragraph} style={styles.scheduleText}>
           {paragraph}
         </Text>
       ))}
@@ -694,7 +693,17 @@ const styles = StyleSheet.create({
     color: c.muted,
     marginBottom: 6,
   },
-  block: { gap: 12, marginTop: 8 },
+  recordAndSchedule: { gap: 10 },
+  schedule: { gap: 12 },
+  scheduleText: {
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    fontWeight: '400',
+    lineHeight: 22.5,
+    color: c.secondary,
+    fontVariant: ['tabular-nums'],
+    ...({ textWrap: 'pretty' } as object),
+  },
   card: committeeCardStyles.card,
   body: {
     fontFamily: t.typography.body,

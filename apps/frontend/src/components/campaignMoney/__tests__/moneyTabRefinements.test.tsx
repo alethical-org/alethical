@@ -94,10 +94,10 @@ function committee(overrides: Partial<CampaignCommitteeMoney> = {}): CampaignCom
   };
 }
 
-function render(committees: CampaignCommitteeMoney[]) {
+function render(committees: CampaignCommitteeMoney[], year = 2026) {
   const money: LegislatorCampaignMoney = {
     legislatorId: 'jim-abeler',
-    year: 2026,
+    year,
     linkState: 'confirmed',
     currentClaim: { servedAgeMs: 0, validatedAt: '2026-09-01T18:33:35.639027Z' },
     committees,
@@ -108,7 +108,7 @@ function render(committees: CampaignCommitteeMoney[]) {
   return renderToStaticMarkup(
     <CampaignMoneyTab
       legislatorName="Sen. Jim Abeler"
-      year={2026}
+      year={year}
       onSelectYear={vi.fn()}
       money={money}
       isLoading={false}
@@ -127,6 +127,70 @@ function doc(html: string): Document {
 }
 
 describe('the money tab after the 13 Sep refinements', () => {
+  it.each([
+    {
+      year: 2025,
+      schedule: { ...committee().filingSchedule!, state: 'calendar_not_transcribed' as const },
+      expected:
+        "We cannot say when this committee's next report is due. We have not yet copied in Minnesota's 2025 filing calendar for this kind of candidate. The gap is ours and says nothing about this committee's own filing.",
+    },
+    {
+      year: 2031,
+      schedule: {
+        ...committee().filingSchedule!,
+        nextReportName: 'Pre-primary report',
+        nextReportDueOn: '2031-07-27',
+        periodStart: '2031-01-01',
+        periodEnd: '2031-07-20',
+      },
+      expected:
+        "This committee is on the 2031 ballot, so it files on Minnesota's election-year schedule. Its next report, the “Pre-primary report”, is due Jul 27, 2031 and covers Jan 1 to Jul 20, 2031. New money appears here only when a report is filed.",
+    },
+  ])(
+    'puts the $year filing note once below the record row and above the figures',
+    ({ year, schedule, expected }) => {
+      for (const through of ['2026-07-20', null]) {
+        const host = document.createElement('div');
+        host.innerHTML = render(
+          [
+            committee({
+              filingSchedule: schedule,
+              split: { ...committee().split, reportedThrough: through },
+            }),
+          ],
+          year,
+        );
+        document.body.append(host);
+        try {
+          expect(host.textContent?.split(expected)).toHaveLength(2);
+          const paragraph = [...host.querySelectorAll<HTMLElement>('*')].find(
+            (node) => node.childElementCount === 0 && node.textContent === expected,
+          )!;
+          expect(paragraph).toBeTruthy();
+          const record = [...host.querySelectorAll('a')].find((node) =>
+            node.textContent?.startsWith(moneyDetailsPageCopy.fullRecord),
+          )!;
+          const note = paragraph.parentElement!;
+          expect(note.previousElementSibling).toBe(record);
+          expect(getComputedStyle(note.parentElement!).gap).toBe('10px');
+          const style = getComputedStyle(paragraph);
+          expect(style.fontSize).toBe('15px');
+          expect(style.fontWeight).toBe('400');
+          expect(style.lineHeight).toBe('22.5px');
+          expect(style.fontVariant).toBe('tabular-nums');
+          const figures = [...host.querySelectorAll('[role="heading"]')].find(
+            (node) => node.textContent === 'Money in',
+          )!;
+          expect(
+            note.compareDocumentPosition(figures) & Node.DOCUMENT_POSITION_FOLLOWING,
+          ).toBeTruthy();
+        } finally {
+          host.remove();
+        }
+      }
+    },
+  );
+
   it('puts the registration number on the name line and drops the eyebrow above it', () => {
     const page = doc(render([committee()]));
     const heading = [...page.querySelectorAll('[role="heading"]')].find((node) =>

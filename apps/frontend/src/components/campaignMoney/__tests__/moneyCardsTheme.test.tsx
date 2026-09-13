@@ -144,7 +144,7 @@ describe('profile styling for shared money cards', () => {
     expect(getComputedStyle(row).outlineWidth).not.toBe('2px');
   });
 
-  it('uses Libre Franklin and tabular digits for amounts, dates and counts, keeping lettered labels mono', () => {
+  it('uses Libre Franklin and tabular digits for amounts, dates and counts', () => {
     const profile = mount.querySelector('#profile')!;
     const defaults = mount.querySelector('#default')!;
     for (const text of [
@@ -166,12 +166,39 @@ describe('profile styling for shared money cards', () => {
     expect(getComputedStyle(exact(defaults, 'Jan 1 to Jul 20, 2026')).fontFamily).toBe(
       fontFamily(t.typography.mono),
     );
-    expect(getComputedStyle(exact(profile, 'WHAT A PERSON CHECKED')).fontFamily).toBe(
-      fontFamily(t.typography.mono),
-    );
+    expect(profile.textContent).not.toContain('WHAT A PERSON CHECKED');
     expect(getComputedStyle(exact(profile, 'The filing covers these dates.')).fontWeight).not.toBe(
       '800',
     );
+  });
+
+  it('opens the checked block on its date and aligns the plain evidence list beneath it', () => {
+    const profile = mount.querySelector('#profile')!;
+    const date = exact(profile, 'Checked by Alethical on Aug 30, 2026');
+    const block = date.parentElement!;
+    expect(block.firstElementChild).toBe(date);
+    const dateStyle = getComputedStyle(date);
+    expect(dateStyle.fontSize).toBe('15px');
+    expect(dateStyle.fontWeight).toBe('800');
+    expect(getComputedStyle(block).paddingTop).toBe('18px');
+    const evidence = date.nextElementSibling!;
+    expect(evidence.getAttribute('role')).toBe('list');
+    expect(getComputedStyle(evidence).paddingLeft).toBe('0px');
+    expect(getComputedStyle(evidence).gap).toBe('4px');
+    expect(evidence.children).toHaveLength(3);
+    for (const sentence of evidence.children) {
+      expect(sentence.getAttribute('role')).toBe('listitem');
+      const sentenceStyle = getComputedStyle(sentence);
+      expect(sentenceStyle.fontSize).toBe('15px');
+      expect(sentenceStyle.fontWeight).toBe('400');
+      expect(sentenceStyle.color).toBe(color(c.secondary));
+    }
+  });
+
+  it('prints no checked block when no stored decision is held', () => {
+    act(() => root.render(<CheckedByBlock checked={null} />));
+    expect(mount.textContent).toBe('');
+    expect(mount.querySelector('[role="list"]')).toBeNull();
   });
 
   it('keeps missing spending as words and every displayed text color in the profile palette', () => {
