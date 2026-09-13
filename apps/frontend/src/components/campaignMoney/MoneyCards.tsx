@@ -691,7 +691,7 @@ const defaultStyles = StyleSheet.create({
     maxWidth: 1000,
   },
   checked: {
-    marginTop: 24,
+    marginTop: 16,
     paddingTop: 18,
     borderTopWidth: 1,
     borderTopColor: t.colors.alpha.ink08,
@@ -766,7 +766,12 @@ const profileStyles = StyleSheet.create({
   stampPeriodMuted: { ...defaultStyles.stampPeriodMuted, color: c.secondary },
   stampDetail: { ...defaultStyles.stampDetail, color: c.secondary },
   inlineLink: { ...defaultStyles.inlineLink, color: c.link },
-  checked: { ...defaultStyles.checked, borderTopColor: t.colors.alpha.ink08 },
+  checked: {
+    ...defaultStyles.checked,
+    // The committee card supplies a 16px gap, making 24px after the names/button.
+    marginTop: 8,
+    borderTopColor: t.colors.alpha.ink08,
+  },
   checkedHeading: { ...defaultStyles.checkedHeading, color: c.text },
   checkedSentence: { ...defaultStyles.checkedSentence, color: c.secondary },
 });

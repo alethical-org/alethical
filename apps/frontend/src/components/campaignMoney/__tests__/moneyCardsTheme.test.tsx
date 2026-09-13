@@ -181,7 +181,8 @@ describe('profile styling for shared money cards', () => {
     expect(dateStyle.fontSize).toBe('15px');
     expect(dateStyle.fontWeight).toBe('800');
     expect(getComputedStyle(block).paddingTop).toBe('18px');
-    expect(getComputedStyle(block).marginTop).toBe('24px');
+    // The profile card contributes the other 16px of the measured 24px gap.
+    expect(getComputedStyle(block).marginTop).toBe('8px');
     expect(getComputedStyle(block).borderTopColor).toBe('rgba(17, 21, 15, 0.08)');
     const evidence = date.nextElementSibling!;
     expect(evidence.getAttribute('role')).toBe('list');
