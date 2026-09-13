@@ -57,7 +57,10 @@ export function CommitteeRefundCard({ refunds, registrationNumber }: Props) {
     fontFamily: t.typography.mono,
     fontSize: 11,
     fontWeight: 700,
-    letterSpacing: '0.12em',
+    // Tighter on a phone, where the count column leaves 98px inside its border and
+    // CONTRIBUTIONS needs 103px at the wider tracking, so the heading broke mid-word and
+    // printed "CONTRIBUTION" over "S REFUNDED". Measured on the live page, 13 Sep 2026.
+    letterSpacing: isMobile ? '0.06em' : '0.12em',
     textTransform: 'uppercase',
     color: c.secondary,
     overflowWrap: 'anywhere',

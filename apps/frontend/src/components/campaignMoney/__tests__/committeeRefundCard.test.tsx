@@ -83,6 +83,14 @@ describe('the per-committee refund card', () => {
               ['168px', '18px'],
             ],
     );
+    // No heading word is ever broken across lines. CONTRIBUTIONS needs 103px at the
+    // wider tracking and the phone column leaves 98px inside its border, so the phone
+    // band tracks tighter rather than printing "CONTRIBUTION" over "S REFUNDED".
+    expect(
+      [...container.querySelectorAll<HTMLElement>('thead th')].map(
+        (cell) => cell.style.letterSpacing,
+      ),
+    ).toEqual(width < 768 ? ['0.06em', '0.06em', '0.06em'] : ['0.12em', '0.12em', '0.12em']);
     // The padding is on the heading cells alone, so the 2 caps lines separate while
     // every figure still lines up under its own heading.
     expect(
