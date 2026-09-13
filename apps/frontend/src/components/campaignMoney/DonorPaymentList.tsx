@@ -13,7 +13,7 @@ import {
   type MoneyDetailsSort,
   type MoneyDetailsTab,
 } from '../../lib/campaignMoneyDetails';
-import { committeeSlug } from '../../lib/committeeMoney';
+import { committeeSlug } from '../../lib/committeeMoneyShared';
 import { formatDay, formatMoney, isAmountAboveZero } from '../../lib/legislatorCampaignMoney';
 import { linkProps, routePath } from '../../navigation/links';
 import { numericText, useDetailsStyles } from './detailsStyles';

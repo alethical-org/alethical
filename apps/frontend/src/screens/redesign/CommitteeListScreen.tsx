@@ -32,7 +32,7 @@ import {
   registerCountLine,
   type CommitteeKindFilter,
 } from '../../lib/committeeList';
-import { closedChipLabel, committeeSlug } from '../../lib/committeeMoney';
+import { closedChipLabel, committeeSlug } from '../../lib/committeeMoneyShared';
 import {
   directoryJumpPages,
   directoryPageNumber,

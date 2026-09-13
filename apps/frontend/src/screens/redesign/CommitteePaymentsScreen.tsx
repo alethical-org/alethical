@@ -11,34 +11,36 @@ import { useResponsive } from '../../hooks/useResponsive';
 import {
   CAP_NOTE,
   capNextLabel,
-  committeeSlug,
-  coveredPeriodDetail,
-  coveredPeriodLine,
   emptyListTitle,
   emptyListWhy,
-  isBallotQuestionFiler,
-  IN_KIND_CHIP,
   listLinkNote,
   madePaymentRow,
-  notFoundBody,
-  notFoundTitle,
   PAYMENTS_TAB_LABELS,
   PAYMENTS_LOAD_ERROR,
   paymentsUnavailable,
   paymentsDirection,
   paymentsEyebrow,
-  paymentsTabFromParam,
   paymentsTitle,
-  paymentFilesDownloadedLine,
   receivedPaymentRow,
+  showingLine,
+} from '../../lib/committeePaymentsPage';
+import {
+  committeeSlug,
+  coveredPeriodDetail,
+  coveredPeriodLine,
+  isBallotQuestionFiler,
+  IN_KIND_CHIP,
+  notFoundBody,
+  notFoundTitle,
+  paymentsTabFromParam,
+  paymentFilesDownloadedLine,
   registerKindFromEntityType,
   registrationNumberFromSlug,
-  showingLine,
   staleHoldNote,
   uncoveredPeriodDetail,
   uncoveredPeriodLine,
   type PaymentsTab,
-} from '../../lib/committeeMoney';
+} from '../../lib/committeeMoneyShared';
 import { campaignMoneyYear } from '../../lib/legislatorCampaignMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { useDocumentTitle } from '../../navigation/documentTitle';
@@ -319,7 +321,7 @@ function PaymentRows({
   onMore: () => void;
   navigation: RootScreenProps<'CommitteePayments'>['navigation'];
 }) {
-  // The 2 row shapers live in lib/committeeMoney.ts, so the line this screen
+  // The 2 row shapers live in lib/committeePaymentsPage.ts, so the line this screen
   // draws and the line the first server response carries are the same characters
   // rather than 2 similar sentences (#1812).
   const shaped = rows.map((payment, index) => {

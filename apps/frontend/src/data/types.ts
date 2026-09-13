@@ -863,6 +863,22 @@ export interface ConfirmedCommitteeMember {
   checked: CommitteeMatchCheck | null;
 }
 
+/** A current relationship, fetched and aged independently of dated figures. */
+export interface CommitteeConfirmation {
+  registrationNumber: string;
+  /** The one legislator a **person** has confirmed this committee belongs to, or
+   *  null. Never derived from a name, a score, or any agreement between rules: it
+   *  is a row somebody signed (design §5.1). Null is the ordinary answer and means
+   *  only that nobody has confirmed one — never that the committee is nobody's, and
+   *  never that a rejection was recorded, which is a decision about our own proposal
+   *  rather than a claim about the committee (§7). */
+  confirmedFor: ConfirmedCommitteeMember | null;
+  /** How old `confirmedFor` is. A confirmation can be taken back, so past the
+   *  deadline in `lib/currentClaimFreshness.ts` the page withholds the member's
+   *  name and keeps the dated figures. */
+  currentClaim: CurrentClaimFreshness;
+}
+
 export interface CommitteeMoney {
   releaseId?: string;
   /** Spending ABOUT this registration, independent of confirmed ownership. */
@@ -890,17 +906,6 @@ export interface CommitteeMoney {
    *  freshness date, printed in Central time. Never the period money covers. */
   fetchedAt: string | null;
   register: CommitteeRegisterEntry;
-  /** The one legislator a **person** has confirmed this committee belongs to, or
-   *  null. Never derived from a name, a score, or any agreement between rules: it
-   *  is a row somebody signed (design §5.1). Null is the ordinary answer and means
-   *  only that nobody has confirmed one — never that the committee is nobody's, and
-   *  never that a rejection was recorded, which is a decision about our own proposal
-   *  rather than a claim about the committee (§7). */
-  confirmedFor: ConfirmedCommitteeMember | null;
-  /** How old `confirmedFor` is. A confirmation can be taken back, so past the
-   *  deadline in `lib/currentClaimFreshness.ts` the page withholds the member's
-   *  name and keeps the dated figures. */
-  currentClaim: CurrentClaimFreshness;
   moneyIn: {
     state: MoneyBlockState;
     itemizedContributionTotal: string | null;
@@ -1075,7 +1080,7 @@ export interface CommitteeFilingsPage {
 /** One row of the register as the committees list draws it (GET
  *  /campaign-finance/committees). `subType` is the Board's own code and
  *  deliberately not a label: the wording a reader sees is derived in one place
- *  (`committeeEyebrow` in lib/committeeMoney.ts) so this list cannot label a
+ *  (`committeeEyebrow` in lib/committeeMoneyShared.ts) so this list cannot label a
  *  filer differently from its own page. `office` and `district` are null on most
  *  rows and that is the register, not a gap — 0 of the 299 party units carry
  *  one. */

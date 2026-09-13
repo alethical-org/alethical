@@ -38,6 +38,7 @@ import {
   getCampaignFinanceSummaryFromApi,
   getCommitteeFilingsFromApi,
   getCommitteeFinanceFromApi,
+  getCommitteeConfirmationFromApi,
   getCommitteePaymentsMadeFromApi,
   getCommitteePaymentsReceivedFromApi,
   getOutsideSpendingFromApi,
@@ -61,7 +62,6 @@ import {
   sendChatMessageToApi,
   setTrackedBillFromApi,
   setTrackedCommitteeFromApi,
-  type ApiCommitteeMoneyPayload,
   type ApiCommitteePaymentsPayload,
 } from '../data/api';
 import {
@@ -85,7 +85,7 @@ import {
   committeePaymentsListQueryKey,
   FIRST_PAYMENTS_LIMIT,
   PAGE_CAP,
-} from '../lib/committeeMoney';
+} from '../lib/committeeMoneyShared';
 import {
   getCampaignFinanceRacesFromApiPayload,
   moneyByRaceQueryKey,
@@ -98,6 +98,11 @@ import {
 import { readerIsSavingData } from '../lib/dataSaving';
 import { campaignMoneyYear } from '../lib/legislatorCampaignMoney';
 import { seededQuery } from '../lib/pageData';
+import {
+  committeeConfirmationQueryKey,
+  committeeConfirmationFromPayload,
+  type ApiCommitteeConfirmationPayload,
+} from '../lib/committeeConfirmation';
 import { metaQueryKey, policyAreasQueryKey, sessionsQueryKey } from '../lib/searchPageReads';
 import {
   outsideSpendingLoadFailure,
@@ -623,11 +628,21 @@ export function useCommitteeMoney(registrationNumber: string | null, year: numbe
     // Both committee addresses are served with this read already made, for the
     // year the address asked for, so the page draws its figures at once instead
     // of replacing its own served words with loading placeholders (issue 2024).
-    // `servedAgeMs: 0` because a seeded answer's whole age rides in
-    // `initialDataUpdatedAt` (`lib/pageData.ts`), so adding it here would count
-    // the shared caches twice and withhold the confirmed member early.
-    ...seededQuery(key, (payload: ApiCommitteeMoneyPayload) =>
-      committeeFinanceFromPayload(payload, { servedAgeMs: 0 }),
+    ...seededQuery(key, committeeFinanceFromPayload),
+    enabled: Boolean(registrationNumber),
+    retry: false,
+  });
+}
+
+/** Only this small answer carries the expiring claim about whose committee it is. */
+export function useCommitteeConfirmation(registrationNumber: string | null) {
+  const key = committeeConfirmationQueryKey(registrationNumber);
+  return useQuery({
+    queryKey: key,
+    queryFn: () => getCommitteeConfirmationFromApi(registrationNumber ?? ''),
+    // The seed's whole age is in initialDataUpdatedAt, so do not add it twice.
+    ...seededQuery(key, (payload: ApiCommitteeConfirmationPayload) =>
+      committeeConfirmationFromPayload(payload, { servedAgeMs: 0 }),
     ),
     enabled: Boolean(registrationNumber),
     retry: false,
@@ -808,6 +823,11 @@ export function usePrefetchCommitteeMoney() {
     void queryClient.prefetchQuery({
       queryKey: committeeMoneyQueryKey(registrationNumber, year),
       queryFn: () => getCommitteeFinanceFromApi(registrationNumber, year),
+      retry: false,
+    });
+    void queryClient.prefetchQuery({
+      queryKey: committeeConfirmationQueryKey(registrationNumber),
+      queryFn: () => getCommitteeConfirmationFromApi(registrationNumber),
       retry: false,
     });
     void screenLoaderForPath(routePath.moneyCommittee(slug))?.();

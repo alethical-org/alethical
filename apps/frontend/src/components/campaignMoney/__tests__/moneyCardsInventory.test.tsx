@@ -56,7 +56,7 @@ import {
   MONEY_OUT_OFFICIAL_MISSING,
   NAMED_DONATIONS_LINK_LABEL,
   NOT_A_DONATION_HEADING,
-} from '../../../lib/committeeMoney';
+} from '../../../lib/committeeMoneyShared';
 import { MATCH_CHECK_LABEL, reportedThroughLabel } from '../../../lib/legislatorCampaignMoney';
 
 /** A confirmed committee with a full year of figures, shaped like the live API. */

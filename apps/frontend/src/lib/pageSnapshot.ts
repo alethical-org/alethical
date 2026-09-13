@@ -12,6 +12,8 @@ import {
   statusLabel,
 } from './billDetail';
 import { citationSectionHref } from './billText';
+import type { CommitteeConfirmation } from '../data/types';
+import { CONFIRMATION_UNAVAILABLE_LINE } from './committeeConfirmation';
 import {
   committeeMoneyPreferences,
   committeeMoneyPreferenceParams,
@@ -73,25 +75,30 @@ import type { MoneyByRacePage } from '../data/types';
 import {
   CLOSED_EMPTY_VALUE,
   CLOSED_MONEY_IN_WHY,
-  closedChipLabel,
   closedPeriodDetail,
   closedPeriodLine,
-  committeeEyebrow,
-  committeeSlug,
   COMMITTEE_MONEY_SECTION_LABEL,
   COMMITTEE_TAB_LABELS,
   confirmedMemberLinkLabel,
   confirmedMemberMoneyPath,
-  coveredPeriodDetail,
-  coveredPeriodLine,
-  emptyListTitle,
-  emptyListWhy,
   EMPTY_YEAR_VALUE,
   emptyYearMoneyInWhy,
+  NOT_IN_REGISTER_LINE,
+  RECORD_COVERS_HEADING,
+  recordCoverageLines,
+  registeredForLine,
+  whoseCommitteeText,
+  yearDisplayState,
+} from './committeeMoney';
+import {
+  closedChipLabel,
+  committeeEyebrow,
+  committeeSlug,
+  coveredPeriodDetail,
+  coveredPeriodLine,
   IN_KIND_CHIP,
   isBallotQuestionFiler,
   downloadsPageUrl,
-  listLinkNote,
   MONEY_IN_NAMED_LABEL,
   MONEY_IN_REPORTED_LABEL,
   MONEY_IN_UNNAMED_LABEL,
@@ -102,27 +109,26 @@ import {
   inKindDonationsNote,
   itemizedContributionsNote,
   paymentFilesDownloadedLine,
-  paymentRowHref,
   shownReceiptRows,
-  NOT_IN_REGISTER_LINE,
+  type PaymentsTab,
+  registerKindFromEntityType,
+  uncoveredPeriodDetail,
+  uncoveredPeriodLine,
+  unnamedMoneyExplanation,
+  ZERO_REPORTED_NOTE,
+} from './committeeMoneyShared';
+import {
+  emptyListTitle,
+  emptyListWhy,
+  listLinkNote,
+  paymentRowHref,
   paymentsEyebrow,
   paymentsTitle,
   PAYMENTS_LOAD_ERROR,
   paymentsUnavailable,
-  type PaymentsTab,
-  RECORD_COVERS_HEADING,
-  recordCoverageLines,
-  registeredForLine,
-  registerKindFromEntityType,
   showingLine,
-  uncoveredPeriodDetail,
-  uncoveredPeriodLine,
-  unnamedMoneyExplanation,
-  whoseCommitteeText,
-  yearDisplayState,
-  ZERO_REPORTED_NOTE,
   type PaymentRow,
-} from './committeeMoney';
+} from './committeePaymentsPage';
 import {
   campaignMoneyYears,
   formatMoney,
@@ -1231,7 +1237,7 @@ export function moneySearchPageSnapshot(): PageSnapshot {
   };
 }
 
-/** One committee-year, exactly as `/committees/{number}/finance` serves it. */
+/** One committee-year's dated records, without the separate current ownership answer. */
 export interface CommitteeMoneySnapshotSource {
   registration_number?: string | null;
   committee_name?: string | null;
@@ -1247,10 +1253,6 @@ export interface CommitteeMoneySnapshotSource {
     district?: string | null;
     registration_date?: string | null;
     termination_date?: string | null;
-  } | null;
-  confirmed_for?: {
-    slug?: string | null;
-    full_name?: string | null;
   } | null;
   money_in?: {
     state?: string | null;
@@ -1426,7 +1428,12 @@ export function committeeSnapshotName(
 export function committeePageSnapshot(
   money: CommitteeMoneySnapshotSource,
   fallbackRegistrationNumber: string,
-  view: { tab?: string; category?: string; sort?: string } = {},
+  view: {
+    tab?: string;
+    category?: string;
+    sort?: string;
+    confirmedFor?: CommitteeConfirmation['confirmedFor'];
+  } = {},
 ): PageSnapshot {
   const identity = committeeIdentity(money, fallbackRegistrationNumber);
   const split = money.split ?? {};
@@ -1442,12 +1449,9 @@ export function committeePageSnapshot(
     return `/money/committees/${encodeURIComponent(identity.slug)}?${query}`;
   };
   const closed = identity.state === 'closed-empty';
-  // Both fields or nothing, matching the app's own mapper: the sentence naming a
-  // member is also the link to them, so a name with no address is half a fact.
-  const confirmedMember =
-    money.confirmed_for?.slug && money.confirmed_for.full_name
-      ? { slug: money.confirmed_for.slug, fullName: money.confirmed_for.full_name }
-      : null;
+  // Undefined means the separate current read failed; null is a complete answer
+  // that nobody is confirmed. Financial records never answer this question.
+  const confirmedMember = view.confirmedFor ?? null;
 
   const moneyInBlocks: SnapshotBlock[] = [];
   const moneyOutBlocks: SnapshotBlock[] = [];
@@ -1547,7 +1551,11 @@ export function committeePageSnapshot(
     heading: identity.name,
     subheading: identity.subheading,
     bodyHeading: '',
-    body: [whoseCommitteeText(identity.registerKind, money.entity_sub_type, confirmedMember)],
+    body: [
+      view.confirmedFor === undefined
+        ? CONFIRMATION_UNAVAILABLE_LINE
+        : whoseCommitteeText(identity.registerKind, money.entity_sub_type, confirmedMember),
+    ],
     bodyIsList: false,
     facts: [],
     sections: [

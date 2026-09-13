@@ -15,7 +15,7 @@ import { useDebouncedSearchCommit } from '../../hooks/useDebouncedSearchCommit';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useSearchMetric } from '../../hooks/useSearchMetric';
 import { committeeRowMeta } from '../../lib/committeeList';
-import { closedChipLabel, committeeSlug } from '../../lib/committeeMoney';
+import { closedChipLabel, committeeSlug } from '../../lib/committeeMoneyShared';
 import {
   BROWSE_ALL_COMMITTEES,
   countedUpToNote,

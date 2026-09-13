@@ -1,3 +1,7 @@
+import {
+  CONFIRMATION_LOADING_LINE,
+  CONFIRMATION_UNAVAILABLE_LINE,
+} from '../../lib/committeeConfirmation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -28,10 +32,11 @@ import {
 import { TrackCommitteeButton } from '../../components/campaignMoney/TrackCommitteeButton';
 import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
-import type { CommitteeMoney } from '../../data/types';
+import type { CommitteeConfirmation, CommitteeMoney } from '../../data/types';
 import {
   useCommitteeFilingsList,
   useCommitteeMoney,
+  useCommitteeConfirmation,
   useOutsideSpending,
   usePrefetchCommitteeMoney,
   usePrefetchLegislator,
@@ -43,17 +48,12 @@ import {
   AMENDED_CHIP,
   CLOSED_EMPTY_VALUE,
   CLOSED_MONEY_IN_WHY,
-  closedChipLabel,
   closedPeriodDetail,
   closedPeriodLine,
-  committeeEyebrow,
-  committeeSlug,
   committeeTabFromParam,
   COMMITTEE_TAB_LABELS,
   COMMITTEE_MONEY_SECTION_LABEL,
   confirmedMemberLinkLabel,
-  coveredPeriodDetail,
-  coveredPeriodLine,
   EMPTY_YEAR_VALUE,
   emptyYearMoneyInWhy,
   filingIsAmended,
@@ -66,15 +66,7 @@ import {
   FILINGS_HEADLINE,
   FILINGS_PERIOD_NOTE,
   FILINGS_UNAVAILABLE,
-  isBallotQuestionFiler,
-  IN_KIND_CHIP,
-  MONEY_IN_HEADING,
-  MONEY_IN_REPORTED_LABEL,
-  notFoundBody,
-  notFoundTitle,
-  OUTSIDE_ABOUT_INTRO,
   OUTSIDE_BY_ALL_YEARS,
-  OUTSIDE_NEVER_ADDED,
   OUTSIDE_SORT_LABELS,
   outsideCountLine,
   outsideCounterparty,
@@ -86,14 +78,8 @@ import {
   RECORD_COVERS_HEADING,
   recordCoverageLines,
   registeredForLine,
-  registerKindFromEntityType,
-  registrationNumberFromSlug,
   stampThroughDate,
-  staleHoldNote,
-  paymentFilesDownloadedLine,
   NOT_IN_REGISTER_LINE,
-  uncoveredPeriodDetail,
-  uncoveredPeriodLine,
   unlistedReportsLine,
   whoseCommitteeText,
   yearDisplayState,
@@ -102,6 +88,27 @@ import {
   type OutsideSpendingSort,
   type OutsideSpendingTab,
 } from '../../lib/committeeMoney';
+import {
+  closedChipLabel,
+  committeeEyebrow,
+  committeeSlug,
+  coveredPeriodDetail,
+  coveredPeriodLine,
+  isBallotQuestionFiler,
+  IN_KIND_CHIP,
+  MONEY_IN_HEADING,
+  MONEY_IN_REPORTED_LABEL,
+  notFoundBody,
+  notFoundTitle,
+  OUTSIDE_ABOUT_INTRO,
+  OUTSIDE_NEVER_ADDED,
+  registerKindFromEntityType,
+  registrationNumberFromSlug,
+  staleHoldNote,
+  paymentFilesDownloadedLine,
+  uncoveredPeriodDetail,
+  uncoveredPeriodLine,
+} from '../../lib/committeeMoneyShared';
 import { campaignMoneyYear, formatMoney } from '../../lib/legislatorCampaignMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { publicPageUrl, type ShareContent } from '../../lib/share';
@@ -188,6 +195,8 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
 
   const moneyQuery = useCommitteeMoney(registrationNumber, year);
   const money = moneyQuery.data ?? null;
+  const confirmationQuery = useCommitteeConfirmation(registrationNumber);
+  const confirmation = confirmationQuery.data;
   const notFound = moneyQuery.data === null && !moneyQuery.isPending && !moneyQuery.isError;
 
   // Whose committee this is can be taken back after it was confirmed, so it is the
@@ -197,9 +206,9 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
   // answer, which would read as 1970 and withhold on a page that has nothing to
   // withhold, so it is only passed once there is data.
   const confirmedMemberWithheld = useCurrentClaimExpiry({
-    servedAgeMs: money?.currentClaim.servedAgeMs,
-    dataUpdatedAt: money ? moneyQuery.dataUpdatedAt : undefined,
-    refetch: moneyQuery.refetch,
+    servedAgeMs: confirmation?.currentClaim.servedAgeMs,
+    dataUpdatedAt: confirmation ? confirmationQuery.dataUpdatedAt : undefined,
+    refetch: confirmationQuery.refetch,
   });
 
   // The canonical forward: an old or misspelled name part lands here by the
@@ -275,6 +284,8 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
               isMobile={isMobile}
               isHoldingStale={moneyQuery.isError}
               confirmedMemberWithheld={confirmedMemberWithheld}
+              confirmation={confirmation}
+              confirmationPending={confirmationQuery.isPending}
               onSelectYear={onSelectYear}
               onSelectTab={onSelectTab}
               navigation={navigation}
@@ -369,6 +380,8 @@ function CommitteeBody({
   isMobile,
   isHoldingStale,
   confirmedMemberWithheld,
+  confirmation,
+  confirmationPending,
   onSelectYear,
   onSelectTab,
   navigation,
@@ -384,6 +397,8 @@ function CommitteeBody({
   isMobile: boolean;
   isHoldingStale: boolean;
   confirmedMemberWithheld: boolean;
+  confirmation: CommitteeConfirmation | undefined;
+  confirmationPending: boolean;
   onSelectYear: (year: number) => void;
   onSelectTab: (tab: CommitteeTab) => void;
   navigation: RootScreenProps<'CommitteeMoney'>['navigation'];
@@ -417,7 +432,7 @@ function CommitteeBody({
   // the answer carried. Withholding is only ever about naming somebody: where the
   // answer already names nobody there is nothing to withhold, and an out-of-date
   // "nobody has confirmed one" can at worst under-claim, never misname a person.
-  const nameableMember = confirmedMemberWithheld ? null : money.confirmedFor;
+  const nameableMember = confirmedMemberWithheld ? null : (confirmation?.confirmedFor ?? null);
   const warmConfirmedFor = () => {
     if (nameableMember) {
       prefetchLegislator(nameableMember.slug);
@@ -469,9 +484,13 @@ function CommitteeBody({
           {/* Never `whoseCommitteeText(..., null)` while withholding: that sentence
               says nobody has confirmed a member, which is a different fact and
               false here. A withheld claim gets its own words. */}
-          {confirmedMemberWithheld && money.confirmedFor
-            ? CONFIRMED_MEMBER_WITHHELD_LINE
-            : whoseCommitteeText(registerKind, money.entitySubType, nameableMember)}
+          {!confirmation
+            ? confirmationPending
+              ? CONFIRMATION_LOADING_LINE
+              : CONFIRMATION_UNAVAILABLE_LINE
+            : confirmedMemberWithheld && confirmation.confirmedFor
+              ? CONFIRMED_MEMBER_WITHHELD_LINE
+              : whoseCommitteeText(registerKind, money.entitySubType, nameableMember)}
         </Text>
         {/* What the person read, under the sentence saying they read it. A reader who
             arrived here rather than at a profile came asking whose committee this is,

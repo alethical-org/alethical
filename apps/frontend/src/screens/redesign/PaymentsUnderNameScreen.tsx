@@ -7,7 +7,7 @@ import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDeve
 import { Skeleton } from '../../components/Skeleton';
 import { usePaymentsUnderName } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
-import { committeeSlug, IN_KIND_CHIP } from '../../lib/committeeMoney';
+import { committeeSlug, IN_KIND_CHIP } from '../../lib/committeeMoneyShared';
 import {
   centralDateLabel,
   RECORD_DOES_NOT_COVER,

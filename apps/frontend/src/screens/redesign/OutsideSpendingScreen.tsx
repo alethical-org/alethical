@@ -6,7 +6,7 @@ import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDeve
 import { Skeleton } from '../../components/Skeleton';
 import { useOutsideSpendingRecord, usePrefetchCommitteeMoney } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
-import { committeeSlug, registerKindLabel } from '../../lib/committeeMoney';
+import { committeeSlug, registerKindLabel } from '../../lib/committeeMoneyShared';
 import { campaignMoneyYears, formatMoney } from '../../lib/legislatorCampaignMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
 import {

@@ -997,11 +997,23 @@ they are reachable only as the target of an independent expenditure.
 `year` is **required** (`ge=2015, le=2100`, no default), for the same reason as the endpoint
 above: a defaulted year silently answers about a different period than the caller meant.
 
+[Issue 2126](https://github.com/alethical-org/alethical/issues/2126) separates the dated
+record from the current ownership claim. `include_confirmation` defaults to `true`,
+so older clients keep the complete mixed answer and its short cache window. The
+frontend requests `?year=2025&include_confirmation=false`: that answer omits
+`confirmed_for` and `current_claim_validated_at` and performs no confirmation lookup.
+Only a successful anonymous `GET` of this explicit variant receives
+`MONEY_RECORDS_CACHE_CONTROL` (`public, max-age=300, stale-while-revalidate=86400,
+stale-if-error=604800`). An authorization header or a failed read cannot receive
+that longer window. The path alone stays off `MONEY_RECORD_PATHS` because it also
+serves the compatible mixed answer.
+
 **No figure here is summed by the API layer.** Every total comes from
 `alethical/pipeline/campaign_finance_reader.py` ([#1330](https://github.com/alethical-org/alethical/issues/1330)),
 which is the single home for the source behaviours that make a plausible query silently wrong.
-This endpoint adds only what a page needs and a command-line reader does not: who a
-registration number belongs to, a per-block state instead of an exception, what an empty answer
+This endpoint adds what a page needs and a command-line reader does not: the current
+ownership claim on the compatible mixed answer only, a per-block state instead of an
+exception, what an empty answer
 *means*, and independent spending aimed **at** the committee (a different question from the
 reader's `independent_spending_by`, which is money the filer *spent*).
 
@@ -1025,7 +1037,8 @@ special-election filer whose second report series the Board's route does not ret
 **`confirmed_for` is the reverse of the legislator endpoint's `link_state`, added
 [#1680](https://github.com/alethical-org/alethical/issues/1680).** It carries `legislator_id`,
 `slug` and `full_name` where a **person** has confirmed this committee belongs to that member,
-and `null` otherwise, which is every committee in production today. Never derived: no score,
+and `null` otherwise. In the dated-only variant both claim fields are absent. Never
+derived: no score,
 threshold or name match ever creates one, and a stored *rejection* answers `null`, exactly as
 nobody having looked does, because a rejection is a decision about our own proposal and never a
 reader-facing claim about the committee (§7). Since
@@ -1153,16 +1166,44 @@ approximation as the period. Almost every Minnesota report runs from
 no surface may hardcode 1 January either. `fetched_at` is the release's single freshness date
 and is never the period a figure covers: that is per filing and always earlier.
 
-The whole response resolves from **one** release id, returned as `release_id`. Section H is
+The dated figures resolve from **one** release id, returned as `release_id`. The
+current confirmation is read independently of that release. Section H is
 explicit that re-resolving per query can pair one day's income with another day's spending.
 
-- **404** — this registration number appears in no dataset of the current release. A statement
-  about our records: the Board's registered-filer directory (§9.7) decides whether a committee
-  exists and nothing here reads it yet, so no client may phrase it as "no such committee".
+- **404** — this registration number appears in neither the register we hold nor any
+  dataset of the current release. A registered committee with no money rows receives
+  200 with each block's own absence state. This is a statement about our copies,
+  so no client may phrase a 404 as "no such committee".
 - **503** — no usable release at all. Also a fact about us.
 
-**Not wired to any client yet.** No file under `apps/frontend/src` references it; the display
-belongs to [#1329](https://github.com/alethical-org/alethical/issues/1329)'s campaign money tab.
+The committee screen and its first HTML response use the dated-only variant, keyed by
+registration number and year. They read the current confirmation separately, keyed only
+by registration number. The full committee payments address needs only dated finance
+and its first 50 payment rows, with no confirmation request.
+
+#### `GET /api/v1/committees/{registration_number}/confirmation`
+
+The current ownership answer for 1 registration number, added for
+[issue 2126](https://github.com/alethical-org/alethical/issues/2126). It has no year
+parameter or financial-release dependency and does not read financial records.
+Its detail response contains `registration_number`, `current_claim_validated_at` and
+`confirmed_for`. The latter is either explicit `null` or the complete existing object:
+`legislator_id`, `slug`, `full_name` and `checked`. `checked` is `null` when no stored
+basis exists; otherwise it contains `checked_on`, `name_evidence`, `register_verdict`
+and `party_agreement`.
+
+A successful `null` means no current confirmation is held for that number. It
+does not distinguish an unreviewed proposal, a rejection or a withdrawal, and is not
+a finding that the committee does not exist. A failed lookup remains a failed read,
+never a successful `null`. Anonymous successful reads retain `PUBLIC_CACHE_CONTROL`
+(`public, max-age=60, stale-while-revalidate=300`).
+
+The 4 conceptual current reads are this confirmation, legislator campaign finance,
+campaign-finance name search and campaign-finance summary. The default mixed finance
+answer is a compatibility alias carrying the same current confirmation, so it also
+keeps the short window. Dated finance has no current-claim clock to renew.
+The 20-minute end-to-end deadline is unchanged; its arithmetic and partial-read
+behavior are in [page-load-performance-decisions.md](../operations/page-load-performance-decisions.md).
 
 #### `GET /api/v1/committees/{registration_number}/payments`
 
@@ -1578,7 +1619,7 @@ because the committee page already reads the same field (as `entity_sub_type` on
 `/committees/{registration_number}/finance`): without it the same filer would read "Political
 committee or fund" on this list and "Ballot question committee" on its own page, and a reader who
 noticed would trust neither. **The label is derived in exactly one place** —
-`committeeEyebrow` in `apps/frontend/src/lib/committeeMoney.ts`, which the committee page ships —
+`committeeEyebrow` in `apps/frontend/src/lib/committeeMoneyShared.ts`, which the committee page ships —
 so the 2 surfaces cannot diverge, and a second expansion written in the API would be that
 divergence rather than a guard against it. Only the 8 documented codes are served: 6 naming a
 finer kind of committee or fund (`PC`, `PF`, `IEC`, `IEF`, `BC`, `BF`) and 2 naming which layer of

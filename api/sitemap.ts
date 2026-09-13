@@ -1,6 +1,6 @@
 import { publicPageUrl } from "../apps/frontend/src/lib/share";
 import { indexedResearch, piecePath } from "../apps/frontend/src/lib/research";
-import { committeeSlug } from "../apps/frontend/src/lib/committeeMoney";
+import { committeeSlug } from "../apps/frontend/src/lib/committeeMoneyShared";
 import { COMMITTEE_PAGE_SIZE } from "../apps/frontend/src/lib/committeeList";
 import {
   BILL_DIRECTORY_PAGE_SIZE,

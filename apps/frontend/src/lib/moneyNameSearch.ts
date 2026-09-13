@@ -230,7 +230,7 @@ export const GROUP_EMPTY = 'Nothing here carries that spelling.';
  * correct answer with a failure card a reader cannot tell apart from "nothing is
  * filed under this name" (issue #2048).
  *
- * Worded off `staleHoldNote` in `lib/committeeMoney.ts`, which a committee page
+ * Worded off `staleHoldNote` in `lib/committeeMoneyShared.ts`, which a committee page
  * has printed for months, so the 2 surfaces explain the same condition the same
  * way. No date: the served answer carries no checked-on stamp to print.
  */

@@ -106,13 +106,14 @@ describe('how old a current claim is allowed to be', () => {
   });
 
   it('asks again only for the reads whose answer can go wrong silently', () => {
-    expect(claimsSomethingCurrent(['committee-money', '17868', 2026])).toBe(true);
+    expect(claimsSomethingCurrent(['committee-confirmation', '17868'])).toBe(true);
     expect(claimsSomethingCurrent(['legislator-campaign-money', 'jim-abeler', 2026])).toBe(true);
     expect(claimsSomethingCurrent(['campaign-finance-name-search', 'abeler', 5])).toBe(true);
     expect(claimsSomethingCurrent(['campaign-finance-summary'])).toBe(true);
 
     // Dated records, deliberately left alone: each carries the period it covers
     // and the day we copied it, so an old one is labelled rather than wrong.
+    expect(claimsSomethingCurrent(['committee-money', '17868', 2026])).toBe(false);
     expect(claimsSomethingCurrent(['committee-payments', '17868', 'received', 2026])).toBe(false);
     expect(claimsSomethingCurrent(['committee-filings', '17868'])).toBe(false);
     expect(claimsSomethingCurrent(['payments-under-name', 'Acme', 'gave'])).toBe(false);
@@ -147,7 +148,7 @@ describe('the app and the API agree on which answers carry a current claim', () 
     const apiPaths = [
       '/api/v1/campaign-finance/search',
       '/api/v1/campaign-finance/summary',
-      '/api/v1/committees/{registration_number}/finance',
+      '/api/v1/committees/{registration_number}/confirmation',
       '/api/v1/legislators/{legislator_id}/campaign-finance',
     ];
     for (const path of apiPaths) {
@@ -160,7 +161,7 @@ describe('the app and the API agree on which answers carry a current claim', () 
     expect(currentClaimQueryRoots()).toEqual([
       'campaign-finance-name-search',
       'campaign-finance-summary',
-      'committee-money',
+      'committee-confirmation',
       'legislator-campaign-money',
     ]);
   });

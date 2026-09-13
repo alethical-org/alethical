@@ -1,4 +1,4 @@
-import { registrationNumberFromSlug } from '../lib/committeeMoney';
+import { registrationNumberFromSlug } from '../lib/committeeMoneyShared';
 import { paymentNameRole } from '../lib/paymentsUnderName';
 import { pieceAddressFolder, researchBySlug } from '../lib/research';
 import type { MainTabParamList, RootStackParamList } from './types';

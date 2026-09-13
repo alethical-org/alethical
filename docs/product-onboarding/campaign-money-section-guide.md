@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneyByRaceScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/screens/redesign/PaymentsUnderNameScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/components/campaignMoney/TrackCommitteeButton.tsx, apps/frontend/src/lib/trackCommitteeButton.ts, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts, apps/frontend/src/components/read/SetBox.tsx, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyByRace.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/lib/paymentsUnderName.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/screens/redesign/OutsideSpendingScreen.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/outside_spending.py, apps/frontend/src/lib/pageData.ts, apps/frontend/src/components/campaignMoney/CommitteeDonations.tsx, apps/frontend/src/components/campaignMoney/DonorBreakdown.tsx, apps/frontend/src/components/campaignMoney/DonorPaymentList.tsx, apps/frontend/src/components/campaignMoney/GroupedOutsideSpending.tsx -->
+<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneyByRaceScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/screens/redesign/PaymentsUnderNameScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/components/campaignMoney/TrackCommitteeButton.tsx, apps/frontend/src/lib/trackCommitteeButton.ts, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts, apps/frontend/src/components/read/SetBox.tsx, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyByRace.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/lib/paymentsUnderName.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/screens/redesign/OutsideSpendingScreen.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/outside_spending.py, apps/frontend/src/lib/pageData.ts, apps/frontend/src/components/campaignMoney/CommitteeDonations.tsx, apps/frontend/src/components/campaignMoney/DonorBreakdown.tsx, apps/frontend/src/components/campaignMoney/DonorPaymentList.tsx, apps/frontend/src/components/campaignMoney/GroupedOutsideSpending.tsx, apps/frontend/src/lib/committeeConfirmation.ts, apps/frontend/src/lib/committeePaymentsPage.ts, apps/frontend/src/lib/committeeMoneyShared.ts -->
 
 <!-- describes: apps/frontend/src/components/campaignMoney/MoneyDetailsBundle.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsOnDemand.tsx, apps/frontend/src/hooks/useCampaignMoneyYearStates.ts, apps/frontend/src/lib/committeeMoneyPreferences.ts, apps/frontend/src/lib/campaignMoneyDetailsPageCopy.ts, apps/frontend/src/lib/campaignMoneyPreferences.ts, apps/frontend/src/lib/groupedOutsideSpendingCopy.ts, apps/frontend/src/lib/committeeOutsideSpending.ts -->
 
@@ -598,7 +598,20 @@ Top to bottom:
    following a committee while signed out is deliberately not built
    ([#1943](https://github.com/alethical-org/alethical/issues/1943)).
 
-2. **Whose committee it is.** Until a person at Alethical has checked, the page attaches
+2. **Whose committee it is.** The committee’s filed money and the claim about whose
+   committee it is arrive independently. The money read follows the registration
+   number and chosen year; the confirmation follows the registration number alone.
+   Choosing a year or refreshing figures never renews a confirmation.
+
+   While the first check is pending, the line reads “Checking whose committee this
+   is…”. If that check fails, it reads “We could not check whose committee this is.
+   The money shown here is the committee’s own filed record.” The figures remain
+   readable. The first HTML response requests both answers together; a failed
+   confirmation prevents that partial response being saved for later readers and
+   leaves the browser to retry it.
+
+   After a successful check returning no confirmed member, the page uses its
+   existing explanation: until a person at Alethical has checked, it attaches
    the money to nobody and says why: the filed name is the filer's own wording, not a
    confirmation by anyone. A party unit, caucus, fund, or ballot-question committee gets
    its own sentence, because for those there is no person to attach at all.
@@ -627,11 +640,12 @@ Top to bottom:
    **And the naming has a shelf life.** A confirmation can be taken back, so the page
    only repeats one it has been able to check inside the last 20 minutes. Past that it
    asks our data service again; if that answer cannot be got, the card stops naming the
-   member and says so in its own words, and every figure on the page stays exactly where
-   it is with its own dates. It never falls back to the "nobody has confirmed one"
+   member, removes the member link and the evidence of who checked the match, and
+   keeps the existing explanation that the confirmation could not be rechecked.
+   Every figure stays where it is with its own dates. It never falls back to the "nobody has confirmed one"
    sentence, because somebody has, and saying otherwise would be plainly false. In
-   ordinary use a reader never sees this: the recheck takes under a second, and it is the
-   reader whose connection or our service has failed who gets the withheld version rather
+   ordinary use the recheck runs behind the accepted figures. A reader whose
+   connection or our service has failed gets the withheld version rather
    than a name nobody is standing behind. The deadline and the arithmetic behind the 20
    minutes are in
    [`docs/operations/page-load-performance-decisions.md`](../operations/page-load-performance-decisions.md)
@@ -894,6 +908,9 @@ motion and announce themselves to screen readers.
 
 The full list behind a committee's figures — every named payment, largest first, with each
 payment's own date. The Who gave / Where it went choice and the year are in the address.
+The first response reads the dated committee figures and the first 50 payments
+concurrently. It does not request whose committee it is: no current member claim
+is needed to read this registration’s own payments.
 The page loads 50 first, then up to 250 at a time; the capped-list card says the cap is ours,
 not the filing's, offers the next 250, and links to the filing itself on the Board's site.
 The version that arrives from the server carries the first 50 rows the address asks for, in the
@@ -901,7 +918,11 @@ direction and the year it names, so a shared "Where it went" link opens on payme
 than on donations in. "Showing X of Y" is a measured count served with the rows, never a guess. The same naming rules apply: a
 loan is labelled as reported on its own schedule rather than reading as a gift, transfers
 read "Money given to another campaign" and open no name lookup, and a registered filer's
-number opens its committee page where any other name opens its own exact spelling.
+number opens its committee page. Other linked names open payments filed under that exact
+spelling; a name alone does not identify a person or business. Names with no supported
+destination remain plain text, including a transfer to a committee whose page is not
+held. The explanation beneath received and made payments states these 2 destinations;
+its existing threshold clause remains absent on ballot-question committee pages.
 
 A failed payment read, including an unavailable response, uses this page's could-not-load
 sentence. It never prints a

@@ -12,7 +12,7 @@ undoing now writes, and they are grouped around the 2 things it has to get right
   database's own check constraint rather than only against the review tool, because a
   guarantee in code is only as good as the next caller.
 
-Needs the local Postgres on port 54329.
+Uses the test runner's temporary PostgreSQL server.
 """
 
 from __future__ import annotations
@@ -97,7 +97,7 @@ def a_confirmed_link(db, legislator, registration: str, decision=CONFIRMED):
 # --- A withdrawn confirmation stops reading as confirmed --------------------------------
 
 
-def test_the_committee_page_stops_naming_the_member_after_a_withdrawal(db):
+def test_the_committee_page_stops_naming_the_member_after_a_withdrawal(db, client):
     # The leak this closes. Whose committee it is, read from the committee's side, is a
     # single query on ``decision = 'confirmed'``, so moving the row's own decision is what
     # takes it out -- no reader had to be found and edited for this to hold.
@@ -105,10 +105,16 @@ def test_the_committee_page_stops_naming_the_member_after_a_withdrawal(db):
     a_confirmed_link(db, member, "18229")
     before = confirmed_member_for_committee(db, "18229")
     assert before is not None and before.legislator_id == member.id
+    response = client.get("/api/v1/committees/18229/confirmation")
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["confirmed_for"]["legislator_id"] == str(member.id)
 
     withdraw_confirmation(db, "18229", reason=REASON, withdrawn_by=SIGNATURE)
 
     assert confirmed_member_for_committee(db, "18229") is None
+    response = client.get("/api/v1/committees/18229/confirmation")
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["confirmed_for"] is None
 
 
 def test_the_profile_says_checked_and_none_confirmed_rather_than_never_checked(db):
@@ -245,7 +251,7 @@ def test_two_live_confirmations_of_one_number_are_still_blocked(db):
         db.flush()
 
 
-def test_a_withdrawn_number_can_be_confirmed_to_a_different_legislator(db):
+def test_a_withdrawn_number_can_be_confirmed_to_a_different_legislator(db, client):
     # The correction the January 2027 roster turn actually produces: an account confirmed
     # to the wrong person. Without this the withdrawal would be unusable, because the
     # partial unique index would still hold the number against the first legislator.
@@ -258,3 +264,7 @@ def test_a_withdrawn_number_can_be_confirmed_to_a_different_legislator(db):
     now = confirmed_member_for_committee(db, "18229")
     assert now is not None and now.legislator_id == right.id
     assert link_state(db, wrong.id) == LINK_REVIEWED_NONE_CONFIRMED
+    response = client.get("/api/v1/committees/18229/confirmation")
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["confirmed_for"]["legislator_id"] == str(right.id)
+    assert str(wrong.id) not in response.text

@@ -8,7 +8,11 @@
 // watching: following a committee is a bookmark, nothing notifies anybody, and a
 // committee filed under "no change" would claim a check nobody performs.
 
-import { committeeEyebrow, committeeSlug, registerKindFromEntityType } from './committeeMoney';
+import {
+  committeeEyebrow,
+  committeeSlug,
+  registerKindFromEntityType,
+} from './committeeMoneyShared';
 
 /** The h1. One word, because the page now holds 2 kinds of thing. */
 export const TRACKED_TITLE = 'Tracked';

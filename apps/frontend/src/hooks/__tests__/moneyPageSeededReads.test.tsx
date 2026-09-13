@@ -17,7 +17,10 @@ vi.mock('../../providers/AuthProvider', () => ({
 }));
 
 import { committeeRegisterQueryKey } from '../../lib/committeeList';
-import { committeeMoneyQueryKey, committeePaymentsListQueryKey } from '../../lib/committeeMoney';
+import {
+  committeeMoneyQueryKey,
+  committeePaymentsListQueryKey,
+} from '../../lib/committeeMoneyShared';
 import { createAppQueryClient } from '../../lib/appQueryClient';
 import { moneyByRaceQueryKey } from '../../lib/moneyByRace';
 import { campaignFinanceSummaryQueryKey } from '../../lib/moneyLanding';

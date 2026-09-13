@@ -38,7 +38,7 @@ import {
   registerKindFromEntityType,
   registerKindLabel,
   UNNAMED_PAYMENT_PARTY,
-} from './committeeMoney';
+} from './committeeMoneyShared';
 import { formatDay, formatMoney } from './legislatorCampaignMoney';
 import { formatCount } from './moneyLanding';
 

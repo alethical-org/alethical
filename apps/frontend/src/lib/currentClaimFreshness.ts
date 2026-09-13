@@ -91,7 +91,7 @@ export function currentClaimDeadlineFitsTheChain(): boolean {
  * expires is a claim that somebody currently holds an office, or that a committee
  * currently belongs to a named member.
  *
- * - `committee-money` serves `confirmed_for`, the member a person signed off.
+ * - `committee-confirmation` serves `confirmed_for`, the member a person signed off.
  * - `legislator-campaign-money` serves `link_state`.
  * - `campaign-finance-name-search` rows carry chamber, district and party.
  * - `campaign-finance-summary` counts who sits and how many links are live.
@@ -101,7 +101,7 @@ export function currentClaimDeadlineFitsTheChain(): boolean {
  * list and that one name the same 4 reads, so they cannot drift apart.
  */
 const CURRENT_CLAIM_QUERY_ROOTS = new Set([
-  'committee-money',
+  'committee-confirmation',
   'legislator-campaign-money',
   'campaign-finance-name-search',
   'campaign-finance-summary',

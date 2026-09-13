@@ -9,7 +9,11 @@ import {
   getGroupedOutsideSpending,
 } from '../../data/groupedOutsideSpending';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
-import { committeeSlug, OUTSIDE_ABOUT_INTRO, OUTSIDE_NEVER_ADDED } from '../../lib/committeeMoney';
+import {
+  committeeSlug,
+  OUTSIDE_ABOUT_INTRO,
+  OUTSIDE_NEVER_ADDED,
+} from '../../lib/committeeMoneyShared';
 import { formatDay, formatMoney } from '../../lib/legislatorCampaignMoney';
 import {
   OUTSIDE_GROUP_COPY as copy,

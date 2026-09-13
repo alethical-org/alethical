@@ -5,7 +5,7 @@ import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDeve
 import { Skeleton } from '../../components/Skeleton';
 import { useCampaignFinanceRaces, usePrefetchCommitteeMoney } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
-import { closedChipLabel, committeeSlug } from '../../lib/committeeMoney';
+import { closedChipLabel, committeeSlug } from '../../lib/committeeMoneyShared';
 import { campaignMoneyYear } from '../../lib/legislatorCampaignMoney';
 import {
   ALL_OFFICES_LABEL,

@@ -3,82 +3,27 @@ import { brotliCompressSync, constants } from 'node:zlib';
 import { pathToFileURL } from 'node:url';
 
 /**
- * How many bytes a reader downloads before this app can draw anything.
+ * Compressed bytes for exactly the program files named by the built HTML.
  *
- * A page names 3 files in its HTML and cannot start without all 3, so this is
- * what every reader pays on a first visit whatever address they opened. It sat
- * at 598,799 bytes in 1 file until each screen moved into its own download
- * (#1966), and at 451,044 until everything sign-in followed, the client that
- * talks to the sign-in service included (#1976). Only the files the built page
- * names count: everything else is fetched later by the part that needs it.
+ * The production web export keeps shared screen code with the screens that need
+ * it, so its HTML names 1 index file containing the startup program and runtime.
+ * Read the HTML rather than assuming a file count. Later screen and details
+ * downloads are measured separately in real browser checks.
  *
- * The limit is a ratchet set just above what the build actually produces, not a
- * target to grow into. It exists so the number cannot quietly grow back, which
- * is how it reached 598,799 unnoticed. Lower it whenever a change lands under
- * it; raise it only with a measurement and a reason, in the same change that
- * makes the file bigger.
+ * Set this ratchet from Vercel's hosted production build, never a local export,
+ * even when the local export includes production settings. Lower it with a
+ * measured reduction; raise it only with a hosted measurement and a reason.
  *
- * `docs/operations/page-load-performance-decisions.md` § Each screen downloads
- * with its own route holds the measurements and the floor this cannot go below.
+ * Vercel measured 338,333 bytes for committed source a30d7941 on 13 September
+ * 2026 (deployment dpl_2wadpZBF3EsRdzsM97axhR8FuBsE, production target without
+ * the public domain). The 339,072 limit leaves the existing 739-byte headroom.
+ * The dated measurements and release contract live
+ * in docs/operations/page-load-performance-decisions.md.
+ *
+ * https://github.com/alethical-org/alethical/issues/2012
+ * https://github.com/alethical-org/alethical/issues/2052
  */
-// The private account list stays in its screen chunk. The combined account and
-// SEO release measures 389,521 bytes in Vercel's build, leaving 479 bytes here.
-// Keep this tied to the hosted result, since local configuration changes size.
-//
-// **Measure this on Vercel, never on a laptop, and the gap is 542 bytes.** A local
-// build of commit 01ffcbb0 produced 390,219 bytes where Vercel's build of that same
-// commit produced 390,761, all of it in `index-*.js`, whose content hash differs
-// between the 2 because the build inlines configuration a laptop does not hold. A
-// ratchet set from the smaller number is a ratchet the hosted build then fails, and
-// a failed build does not deploy: production served no merge for 50 minutes on
-// 8 Sep 2026 while 4 commits sat merged and unshipped, the first of them the very
-// change that had just moved this limit from a local reading
-// ([issue 2052](https://github.com/alethical-org/alethical/issues/2052)).
-//
-// So the figure here is Vercel's own: 390,761 bytes for 01ffcbb0, plus 739 for the
-// next change to spend, which is more than the measured gap so a hosted build cannot
-// fail a limit a local build passed by a whisker.
-//
-// What the bytes above 390,000 buy, and what was done before spending them. The
-// end-to-end freshness deadline (issue 2023) is a bound on how old a claim naming a
-// real person can be by the time somebody reads it, which was previously unbounded
-// for an open tab. Before that limit moved, the 2 withheld sentences moved into the
-// 2 screens that draw them (`lib/committeeMoney.ts`,
-// `lib/legislatorCampaignMoney.ts`), taking 475 bytes off every page that will never
-// print them; and folding the age-reading fetch helper into `publicApiRequest` made
-// the first load 409 bytes BIGGER, because that function has dozens of callers and
-// the wrapper's returned object inlines into each, so the duplication in
-// `data/api.ts` is deliberate and its comment says so.
-//
-// Moved again for issue 2024, to Vercel's own 391,582 bytes for the committee
-// record-reuse change plus the same 739 to spend. What the 297 bytes above the
-// previous figure buy: a committee's own page and its payments view hand their
-// records to the app in the first response, so a reader reads real figures where
-// the served words used to be swapped for loading placeholders. The bytes are 3
-// key builders and the seeding they are wired into, in `hooks/useAppQueries.ts`
-// and `data/api.ts`, both of which every reader downloads.
-//
-// **There are no cheap 39,747 bytes here, and the reading that said there were is
-// the trap to avoid** ([issue 2070](https://github.com/alethical-org/alethical/issues/2070),
-// closed on the measurement). Every sentence a committee's money page can print is
-// in this download, paid for by somebody opening the homepage, because the address
-// reader imports 1 function from a file that then reaches all of them:
-// `navigation/webRoutes.ts` -> `lib/paymentsUnderName.ts` -> `lib/committeeMoney.ts`.
-// That file is 39,747 bytes of the built program and **4,997 bytes of what a reader
-// downloads**, because this limit counts compressed bytes and prose beside prose
-// compresses about 3 to 1. Read a module's cost the way this limit does, or a saving
-// comes out 3 times too big.
-//
-// And cutting the chain does not pay, because a part 2 or more screens read moves into
-// `__common-*.js`, which a page names in its HTML and every reader downloads too. Built
-// and measured 8 Sep 2026: with no first-load file importing `lib/committeeMoney.ts` at
-// all, the module moved out of `index-*.js` into the smaller `__common-*.js`, where it
-// compresses worse, and the first load came out **1,013 bytes bigger**. Getting it out of
-// both is worth 3,984 bytes and needs exactly 1 screen left reading it, where 7 read it
-// and 48% of the file is words a legislator's profile draws as well.
-// `docs/operations/page-load-performance-decisions.md` § Which of the 3 files a shared
-// part lands in holds the probe that established the rule.
-export const FIRST_LOAD_LIMIT = 392321;
+export const FIRST_LOAD_LIMIT = 339072;
 
 /**
  * The exact settings Vercel compresses with, so this reports the bytes a reader
@@ -104,7 +49,7 @@ export function productionBytes(source) {
  *
  * These are what a reader waits on: the browser will not run the app until all
  * of them have arrived. Everything else in the build is fetched later, by the
- * screen that needs it, and a reader downloads at most 1 of those per page.
+ * screen or later details that need it.
  *
  * Read rather than guessed. This used to keep every built file whose name did
  * not end in `Screen*.js`, which charged a reader for files no page names: the
@@ -192,8 +137,8 @@ export function checkFirstLoadBudget(
     throw new Error(
       `Every reader now downloads ${enforced} bytes before this app can draw, over the ${limit}-byte limit by ${enforced - limit}.${projected}\n${lines}\n` +
         'Move what a first page does not need into the screen that needs it, or raise the limit in ' +
-        'apps/frontend/scripts/check-first-load-budget.mjs from the figure a build WITH its settings ' +
-        'produced, never from one without them.',
+        'apps/frontend/scripts/check-first-load-budget.mjs from Vercel’s hosted production measurement, ' +
+        'never from a local build, even one with production settings.',
     );
   }
   return total;
@@ -226,7 +171,7 @@ async function checkBuiltFirstLoad() {
     `First-load budget passed: ${enforced} bytes of ${FIRST_LOAD_LIMIT} across ${files.length} files ` +
       `(${measured.map((f) => `${f.name.split('-')[0]} ${f.bytes}`).join(', ')})` +
       (carriesItsSettings
-        ? ' — this build inlined its settings, so this figure is the one to move the limit from.'
+        ? ' — settings are included. Only Vercel’s hosted production measurement may set the limit.'
         : `\n  This build inlined no settings, so it measured ${total}; the +${HOSTED_BUILD_EXCESS_BYTES} is what a build with them adds. ` +
           "Never move the limit from this run's number."),
   );

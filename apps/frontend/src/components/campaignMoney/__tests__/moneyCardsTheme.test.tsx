@@ -12,7 +12,7 @@ import {
   MoneyOutBlock,
 } from '../MoneyCards';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../../lib/campaignMoneyColors';
-import { MONEY_OUT_OFFICIAL_MISSING } from '../../../lib/committeeMoney';
+import { MONEY_OUT_OFFICIAL_MISSING } from '../../../lib/committeeMoneyShared';
 import { theme as t } from '../../../theme/tokens';
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT =

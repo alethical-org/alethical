@@ -1,4 +1,4 @@
-"""What the committee page's two routes serve beyond the money blocks (#1442, phase 2).
+"""What the committee routes serve beyond the money blocks (#1442, phase 2).
 
 The committee money page draws things the download release alone cannot say: the
 register's own kind for the header, the termination date that makes a closed committee
@@ -10,7 +10,7 @@ money, and a money gap never denies a registered committee its page.
 Display rules under test: `.claude/rules/grounded-answers.md` rule 12 and
 `docs/architecture/campaign-finance-system-design.md` §7.
 
-Needs the local Postgres on port 54329.
+Uses the test runner's temporary PostgreSQL server.
 """
 
 from __future__ import annotations
@@ -21,8 +21,10 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import text
 
+from alethical.api.routers import public
 from alethical.db import models
 from alethical.db.session import get_session_factory
 from alethical.tests.filed_figures import (
@@ -565,6 +567,215 @@ def test_whose_committee_it_is_does_not_change_with_the_filing_year(db, client):
         )
         assert response.status_code == 200, response.text
         assert response.json()["data"]["confirmed_for"] is not None
+
+
+# --- A current confirmation can be read without the dated money -----------------
+
+
+def test_confirmation_null_is_a_success_without_a_financial_release(
+    db, client, monkeypatch
+):
+    def no_financial_dependency(*args, **kwargs):
+        pytest.fail("a current confirmation must not read a financial release")
+
+    monkeypatch.setattr(
+        public, "current_campaign_finance_release", no_financial_dependency
+    )
+    checked_at = datetime(2026, 9, 12, 12, 0, tzinfo=UTC)
+    monkeypatch.setattr(public, "_utc_now", lambda: checked_at)
+
+    response = client.get(f"/api/v1/committees/{CANDIDATE}/confirmation")
+
+    assert response.status_code == 200, response.text
+    assert response.headers["cache-control"] == public.PUBLIC_CACHE_CONTROL
+    assert response.json()["data"] == {
+        "registration_number": CANDIDATE,
+        "current_claim_validated_at": "2026-09-12T12:00:00Z",
+        "confirmed_for": None,
+    }
+
+
+@pytest.mark.parametrize(
+    "basis",
+    [
+        None,
+        {
+            "name_evidence_as_reviewed": "surname_only",
+            "filer_directory_as_reviewed": "unknown",
+            "party_agreement_as_reviewed": "no_party_money",
+            "records_through_as_reviewed": "2026-07-20",
+        },
+    ],
+)
+def test_confirmation_and_legacy_finance_serve_the_same_complete_claim(
+    db, client, monkeypatch, basis
+):
+    _committee_with_money(db)
+    legislator = _confirm(
+        db,
+        CANDIDATE,
+        decision=models.CommitteeLinkReviewDecision.confirmed,
+        basis=basis,
+    )
+    checked_at = datetime(2026, 9, 12, 12, 0, tzinfo=UTC)
+    monkeypatch.setattr(public, "_utc_now", lambda: checked_at)
+    legacy = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2025}
+    )
+    assert legacy.status_code == 200, legacy.text
+
+    # Withhold the financial release after proving legacy parity. The ownership
+    # answer must still name the member and the evidence a person recorded.
+    db.execute(text("UPDATE cf_current_release SET release_id = NULL"))
+    db.commit()
+    response = client.get(f"/api/v1/committees/{CANDIDATE}/confirmation")
+    assert response.status_code == 200, response.text
+    data = response.json()["data"]
+    assert data == {
+        key: legacy.json()["data"][key]
+        for key in (
+            "registration_number",
+            "current_claim_validated_at",
+            "confirmed_for",
+        )
+    }
+    confirmed = data["confirmed_for"]
+    assert confirmed["legislator_id"] == str(legislator[0])
+    assert confirmed["slug"] == legislator[1]
+    assert confirmed["full_name"] == legislator[2]
+    if basis:
+        assert confirmed["checked"] == {
+            "checked_on": confirmed["checked"]["checked_on"],
+            "name_evidence": "surname_only",
+            "register_verdict": "unknown",
+            "party_agreement": "no_party_money",
+        }
+        assert confirmed["checked"]["checked_on"]
+    else:
+        assert confirmed["checked"] is None
+    assert response.headers["cache-control"] == public.PUBLIC_CACHE_CONTROL
+    assert legacy.headers["cache-control"] == public.PUBLIC_CACHE_CONTROL
+
+
+def test_confirmation_rejection_is_null_without_exposing_its_basis(db, client):
+    _confirm(
+        db,
+        CANDIDATE,
+        decision=models.CommitteeLinkReviewDecision.rejected,
+        basis={
+            "name_evidence_as_reviewed": "surname_only",
+            "filer_directory_as_reviewed": "different_person",
+            "party_agreement_as_reviewed": "disagrees",
+        },
+    )
+    response = client.get(f"/api/v1/committees/{CANDIDATE}/confirmation")
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["confirmed_for"] is None
+    assert "different_person" not in response.text
+
+
+def test_a_failed_confirmation_read_is_not_a_successful_null(db, client, monkeypatch):
+    def unavailable(*args, **kwargs):
+        raise HTTPException(status_code=503, detail="confirmation read unavailable")
+
+    monkeypatch.setattr(public, "confirmed_member_for_committee", unavailable)
+    response = client.get(f"/api/v1/committees/{CANDIDATE}/confirmation")
+    assert response.status_code == 503
+    assert "data" not in response.json()
+    assert "cache-control" not in response.headers
+
+
+def test_dated_finance_omits_current_claims_and_never_reads_them(
+    db, client, monkeypatch
+):
+    _committee_with_money(db)
+    _confirm(db, CANDIDATE, decision=models.CommitteeLinkReviewDecision.confirmed)
+    legacy = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2025}
+    )
+    assert legacy.status_code == 200, legacy.text
+    expected = legacy.json()["data"]
+    assert expected.pop("confirmed_for") is not None
+    assert expected.pop("current_claim_validated_at")
+
+    def no_current_claim_lookup(*args, **kwargs):
+        pytest.fail("the dated financial answer must not look up a confirmation")
+
+    monkeypatch.setattr(
+        public, "confirmed_member_for_committee", no_current_claim_lookup
+    )
+    response = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance",
+        params={"year": 2025, "include_confirmation": "false"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["data"] == expected
+    assert "confirmed_for" not in response.text
+    assert "current_claim_validated_at" not in response.text
+    assert response.headers["cache-control"] == public.MONEY_RECORDS_CACHE_CONTROL
+    assert legacy.headers["cache-control"] == public.PUBLIC_CACHE_CONTROL
+
+
+@pytest.mark.parametrize("include_confirmation", ["true", "false"])
+def test_authenticated_finance_does_not_get_the_shared_cache_window(
+    db, client, include_confirmation
+):
+    _committee_with_money(db)
+    response = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance",
+        params={"year": 2025, "include_confirmation": include_confirmation},
+        headers={"Authorization": "Bearer test-not-a-real-token"},
+    )
+    assert response.status_code == 200, response.text
+    assert "cache-control" not in response.headers
+
+
+def test_explicit_confirmation_finance_keeps_the_legacy_short_window(db, client):
+    _committee_with_money(db)
+    response = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance",
+        params={"year": 2025, "include_confirmation": "true"},
+    )
+    assert response.status_code == 200, response.text
+    assert "confirmed_for" in response.json()["data"]
+    assert response.headers["cache-control"] == public.PUBLIC_CACHE_CONTROL
+
+
+def test_authenticated_confirmation_does_not_get_a_shared_cache_window(db, client):
+    response = client.get(
+        f"/api/v1/committees/{CANDIDATE}/confirmation",
+        headers={"Authorization": "Bearer test-not-a-real-token"},
+    )
+    assert response.status_code == 200, response.text
+    assert "cache-control" not in response.headers
+
+
+@pytest.mark.parametrize("status", [404, 422, 503])
+def test_failed_dated_finance_does_not_get_the_long_window(db, client, status):
+    registration = CANDIDATE
+    params = {"year": 2025, "include_confirmation": "false"}
+    if status == 404:
+        _committee_with_money(db)
+        registration = "99999"
+    elif status == 422:
+        params.pop("year")
+    response = client.get(f"/api/v1/committees/{registration}/finance", params=params)
+    assert response.status_code == status, response.text
+    assert "cache-control" not in response.headers
+
+
+@pytest.mark.parametrize("method", ["POST", "HEAD"])
+@pytest.mark.parametrize("route", ["finance", "confirmation"])
+def test_non_get_committee_reads_do_not_get_shared_cache_headers(
+    db, client, method, route
+):
+    response = client.request(
+        method,
+        f"/api/v1/committees/{CANDIDATE}/{route}",
+        params={"year": 2025, "include_confirmation": "false"},
+    )
+    assert response.status_code == 405
+    assert "cache-control" not in response.headers
 
 
 # --- The split block on /finance ------------------------------------------------

@@ -1,6 +1,6 @@
-<!-- describes: .github/workflows/production-release-failed.yml, apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py, scripts/report_origin_share_by_address.py -->
+<!-- describes: .github/workflows/production-release-failed.yml, apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py, scripts/report_origin_share_by_address.py, apps/frontend/src/lib/committeeConfirmation.ts -->
 
-<!-- describes: apps/frontend/src/components/campaignMoney/MoneyDetailsBundle.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsOnDemand.tsx, apps/frontend/src/lib/committeeOutsideSpending.ts -->
+<!-- describes: apps/frontend/metro.config.js, patches/@expo__metro-config@57.0.7.patch, pnpm-workspace.yaml, pnpm-lock.yaml, apps/frontend/scripts/__tests__/sharedScreenChunks.test.ts, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeePaymentsPage.ts, apps/frontend/src/lib/committeeMoneyShared.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsBundle.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsOnDemand.tsx, apps/frontend/src/lib/committeeOutsideSpending.ts -->
 
 # Page-load performance decisions
 
@@ -19,7 +19,7 @@ The Aug 7, 2026 production audit found:
 - A cold phone legislator profile requested 100 chief-authored bills, about 47 KB, and the request took about 1.56 seconds.
 - Cached public reads commonly took 60 to 90 ms; uncached reads commonly took 500 to 1,600 ms.
 
-Each release issue records a fresh before-and-after measurement because the shared file changes whenever `main` changes.
+Each release issue records a fresh before-and-after measurement because the startup program changes whenever `main` changes.
 
 ## Current record freshness
 
@@ -43,12 +43,12 @@ the records behind them change at genuinely different rates.
 | Layer | Header | Where it is set |
 |---|---|---|
 | Cloudflare, bill / vote / legislator reads | `public, max-age=60, stale-while-revalidate=300` | `PUBLIC_CACHE_CONTROL` in `alethical/api/routers/public.py` |
-| Cloudflare, the 5 named campaign-money record reads | `public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800` | `MONEY_RECORDS_CACHE_CONTROL`, same file, granted only to the paths in `MONEY_RECORD_PATHS` by `public_cache_control_for_path` |
+| Cloudflare, the 5 named campaign-money record reads and explicit dated-only committee finance | `public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800` | `MONEY_RECORDS_CACHE_CONTROL`, same file, granted to `MONEY_RECORD_PATHS` by `public_cache_control_for_path`, and by the finance handler only after a successful anonymous `GET` with `include_confirmation=false` |
 | Vercel, in front of the page HTML | `public, max-age=0, s-maxage=300, stale-while-revalidate=300, stale-if-error=300` | `OK_CACHE` in `api/page.ts` |
 
-**Bill, vote and legislator reads keep the short window, and 5 named
-campaign-money record reads get the longer one.** The 2 differ because the records
-behind them change at genuinely different rates.
+**Bill, vote and legislator reads keep the short window. The 5 named
+campaign-money record reads and explicit dated-only committee finance get the longer
+one.** The 2 differ because the records behind them change at genuinely different rates.
 `.github/workflows/vote-backfill.yml` re-reads and writes votes every day at 09:00
 UTC, so bill and vote records change daily; a long stale window there would hand a
 reader a week-old bill status, the harm
@@ -58,9 +58,11 @@ production's snapshot was dated 2026-08-12 when this was measured on 4 Sep 2026,
 23 days old. One window set from the money cadence and applied to both was wrong
 for bill reads.
 
-**The 5 are named one at a time, and the shape of an address grants nothing.** A
-path not on the list gets the short window, so a route nobody has classified is
-safe by default rather than by where somebody filed it.
+**The 5 paths are named one at a time, and the shape of an address grants nothing.**
+The finance path remains short by default for compatible mixed responses. Only its
+explicit `include_confirmation=false` variant can receive the dated window, after a
+successful anonymous `GET`. An unclassified route, an authorized request or a failed
+read never gains that window from a query parameter alone.
 
 | Long window | Short window |
 |---|---|
@@ -68,7 +70,8 @@ safe by default rather than by where somebody filed it.
 | `/api/v1/campaign-finance/filings` | `/api/v1/campaign-finance/summary` |
 | `/api/v1/campaign-finance/outside-spending` | `/api/v1/legislators/{id}/campaign-finance` |
 | `/api/v1/campaign-finance/payments-under-name` | `/api/v1/committees/{registration_number}/finance` |
-| `/api/v1/campaign-finance/races` | every other public read |
+| `/api/v1/campaign-finance/races` | `/api/v1/committees/{registration_number}/confirmation` |
+| `/api/v1/committees/{registration_number}/finance?year=2025&include_confirmation=false` | every other public read |
 
 **The test is what an answer CLAIMS, never whether it names a person.** A person's
 name printed inside an accepted filing is a dated record: the filing happened, its
@@ -78,7 +81,7 @@ claim may not be held that long, and both change with no money load involved:
 | Claim | Where it is served | What moves it |
 |---|---|---|
 | somebody currently holds an office (`chamber`, `district_code`, `party`) | `/campaign-finance/search`, and `sitting_member_count` on `/campaign-finance/summary` | an election, a resignation |
-| a committee currently belongs to a named member (`confirmed_for`, `link_state`) | `/legislators/{id}/campaign-finance`, `/committees/{registration_number}/finance`, and `confirmed_member_count` on `/campaign-finance/summary` | a confirmation, or one taken back |
+| a committee currently belongs to a named member (`confirmed_for`, `link_state`) | `/legislators/{id}/campaign-finance`, `/committees/{registration_number}/confirmation`, the compatible mixed `/finance` answer, and `confirmed_member_count` on `/campaign-finance/summary` | a confirmation, or one taken back |
 
 A confirmation can be taken back. `withdrawn` is a real third decision state with
 its own `withdrawn_at`, `withdrawal_reason` and `withdrawn_by`
@@ -123,8 +126,9 @@ path with its own state and stored reason
 is what a held copy would break, by keeping a page asserting a relationship between
 a named person and money that nobody stands behind any more. It is live rather than
 theoretical: all 200 sitting members had a confirmed committee on 4 Sep 2026, and
-`GET /api/v1/committees/{registration_number}/finance` returns that person in
-`confirmed_for`, which the served committee page prints.
+the mixed `GET /api/v1/committees/{registration_number}/finance` answer carried that
+person in `confirmed_for`. The committee HTML now reads that claim independently
+from `/confirmation`; separating the API reads does not lengthen the HTML window.
 
 **All 3 of the page's windows are 5 minutes, and each one has to be**, which is why
 the header carries no long value at all:
@@ -202,7 +206,8 @@ rather than the 4 listed above.
 what stops a *stale* copy; the reason a response that can name a person is capped
 is what happens in the window before a correction has propagated. So a
 pure-figures route can lengthen once clearing is proven, and
-`committees/{registration_number}/finance` (which returns `confirmed_for`),
+`committees/{registration_number}/confirmation`, its compatible mixed `/finance`
+answer (which also returns `confirmed_for`),
 `legislators/{id}/campaign-finance` and every page the page function serves cannot.
 The rule and where each side currently sits are in §23 of
 [`docs/architecture/page-metadata-for-search-and-sharing-decisions.md`](../architecture/page-metadata-for-search-and-sharing-decisions.md).
@@ -242,6 +247,15 @@ chosen beside them:
 `currentClaimDeadlineFitsTheChain` asserts that sum in a test, so raising a cache
 window without raising the deadline fails rather than quietly outliving the figure
 published here.
+
+The 4 conceptual current reads are committee confirmation, legislator campaign
+finance, campaign-finance name search and campaign-finance summary. Their query
+roots are `committee-confirmation`, `legislator-campaign-money`,
+`campaign-finance-name-search` and `campaign-finance-summary`. The default mixed
+finance endpoint is a compatibility alias for the same current claim, not a fifth
+conceptual read. The dated-only finance query is keyed by registration and year;
+confirmation is keyed by registration alone. Only a confirmation refresh renews
+that committee ownership claim. Changing year or refreshing figures cannot.
 
 **Past the deadline the relationship is withheld and every dated figure stays.**
 That split is the whole point: a filing carries the period it covers and the day we
@@ -362,9 +376,12 @@ could request so the idle gap was guaranteed rather than assumed.
 
 Screen code is downloaded on demand when the router first needs its screen group
 ([#1966](https://github.com/alethical-org/alethical/issues/1966),
-[#491](https://github.com/alethical-org/alethical/issues/491)). A page names 3 files in its
-HTML — the Expo runtime, a shared file of parts more than 1 screen uses, and the program
-every page needs — and the app fetches the screen file for the address it was asked for.
+[#491](https://github.com/alethical-org/alethical/issues/491)). The 13 September local
+web export for [issue 2012](https://github.com/alethical-org/alethical/issues/2012)
+names 1 `index-*.js` file in its HTML, with the Expo runtime inside it. The app then
+fetches the screen files it needs. The earlier production build named 3 files: the
+runtime, shared code and entry program. The dated measurements below describe that
+earlier shape; the new local result and its tradeoff have their own section below.
 `docs/operations/deployment.md` § What a web release ships owns the mechanics.
 
 The `/site-metrics` and `/admin/metrics` screens share 1 on-demand download through
@@ -391,57 +408,81 @@ page: 17,736 bytes and the whole marketing page, for a reader who was never goin
 service included** ([#1976](https://github.com/alethical-org/alethical/issues/1976)). The
 section below owns that change and its measurements.
 
-### Which of the 3 files a shared part lands in, and why 2 screens is the whole threshold
+### The 8 September build: 2 screens put a shared part in the first download
 
-A part 1 screen reads is downloaded with that screen and costs a reader who never opens it
-nothing. A part 2 or more screens read goes into the shared file every reader downloads
-(`__common-*.js`). There is no third outcome. Measured 8 Sep 2026 with 2 probe modules built
+In that build, a part 1 screen read was downloaded with that screen and cost a reader
+who never opened it nothing. A part 2 or more screens read went into the shared file
+every reader downloaded (`__common-*.js`). Measured 8 Sep 2026 with 2 probe modules built
 for the purpose: the one imported by 1 screen landed in that screen's own file, and the one
 imported by 2 screens landed in `__common-*.js`.
 
-So taking a part out of the program every page needs (`index-*.js`) buys a reader nothing
-unless exactly 1 screen is left reading it, and it can cost. Brotli compresses a file against
+Under that build rule, taking a part out of the program every page needs
+(`index-*.js`) bought a reader nothing unless exactly 1 screen was left reading it,
+and it could cost. Brotli compresses a file against
 the text already in that file, and `__common-*.js` is a sixth the size of `index-*.js`, so the
 same part is dearer in the smaller one. Measured 8 Sep 2026 on
 [`lib/committeeMoney.ts`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/lib/committeeMoney.ts):
 5,064 bytes inside `index-*.js`, 6,077 inside `__common-*.js`, for the identical file.
 
 Read a module's cost in the bytes a reader receives, never in the bytes the file holds.
-`lib/committeeMoney.ts` is 16,528 bytes of the built program once minified and 4,997 bytes of
-what a reader downloads, because English prose beside more English prose compresses about
+On 8 September, `lib/committeeMoney.ts` was 16,528 bytes of the built program once
+minified and 4,997 bytes of what a reader downloaded, because English prose beside more English prose compresses about
 3 to 1. A saving quoted from the first number is roughly 3 times the saving there is.
 
 ### What every committee page's words cost a reader who opens the homepage
 
-`lib/committeeMoney.ts` holds every sentence a committee's money page can print, and the
-address table reaches it through
+On 8 September 2026, `lib/committeeMoney.ts` held every sentence a committee's money
+page could print, and the address table reached it through
 [`lib/paymentsUnderName.ts`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/lib/paymentsUnderName.ts),
-so every reader downloads all of them. It is 4,997 bytes of the 391,752-byte first load,
+so every reader downloaded all of them. It cost 4,997 bytes of the 391,752-byte first load,
 about 1 byte in 78.
 
-Removing it from the browser entirely measures 387,768 bytes, and that floor is not
-reachable. 48% of the file, counted in source characters, is read by 2 or more screens: the
+In that 8 September build, removing it from the browser entirely measured 387,768
+bytes, a floor the then-current shared-code rule could not reach. 48% of the file,
+counted in source characters, was read by 2 or more screens: the
 money cards a legislator's profile draws are the same cards a committee page draws
 ([`components/campaignMoney/MoneyCards.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/campaignMoney/MoneyCards.tsx)),
-and 3 more screens read the closed-committee chip. That half lands in `__common-*.js`
-wherever it is put, so a reader still pays it. Cutting the other half loose measures about
+and 3 more screens read the closed-committee chip. That half landed in `__common-*.js`
+wherever it was put, so a reader still paid it. Cutting the other half loose measured about
 2,000 bytes, against splitting 1,530 lines of reader-facing sentences 3 ways under a rule
 that no word may change.
 
-That measurement closes
+That measurement originally closed
 [issue 2070](https://github.com/alethical-org/alethical/issues/2070), which was filed
 against the 39,747-byte reading and asked for a ratchet cut. Doing exactly what it asked —
 leaving no first-load file importing that module — was built and measured on 8 Sep 2026 and
 made the first load 1,013 bytes **bigger**, because the module left `index-*.js` for the
 dearer `__common-*.js` and 7 screens still read it.
 
-**Moving code out of the program every page needs usually saves a reader nothing, and this is
-the trap to know about before planning any more of it.** A page names 3 files, and 1 of them
-is the shared file holding parts that more than 1 screen uses. The web build fills that file
-itself, with everything 2 or more later downloads both want (`extractCommonChunk`,
-`@expo/metro-config`), and the page names it, so it is paid on a first visit exactly as the
-program is. Code taken out of the program does not leave the first load; it lands there.
-Three measurements, all on the production build:
+The ordered campaign-money speed work reopened
+[issue 2070](https://github.com/alethical-org/alethical/issues/2070) on 13 September.
+It moves the genuinely single-screen parts instead of moving the entire module into
+the common download. The 49 committee-screen exports stay in `lib/committeeMoney.ts`,
+21 standalone-payment exports move to `lib/committeePaymentsPage.ts`, and the 48
+shared exports live in `lib/committeeMoneyShared.ts`. Both browser screens and the
+first-HTML readers use these same definitions. Every original declaration and every
+reader-facing string is preserved.
+
+Measured with the actual public production settings and a cleared export cache,
+the intermediate first download fell from 392,674 to **389,287 bytes**, a saving of
+**3,387 bytes** after the separate ownership-read change. The entry program fell
+from 340,333 to 336,944 bytes; the common file changed from 50,725 to 50,727; the
+runtime stayed at 1,616. This is a configured local comparison, not a hosted result
+or permission to lower the production limit. The subsequent local shared-code
+change is recorded below; hosted production measurements remain pending.
+
+`committeePageImports.test.ts` follows value imports from the entry and every lazy
+screen. Each route-only text file must have no entry path and exactly its own
+screen as a consumer. In-memory bad imports prove it catches both a first-load
+edge and an unintended second screen consuming the route-only words.
+The 2,695-test frontend suite passes. Docs check: the API contract and reader
+wording are unchanged by this move; this decision record owns the download change.
+
+**The earlier production build moved shared code between first-load files.** Its
+HTML named 3 files, including one holding parts used by more than 1 screen. Expo
+filled that file with `extractCommonChunk` in `@expo/metro-config`, so moving code
+out of the entry program did not necessarily remove a byte from the first download.
+These 3 production measurements predate the 13 September serializer change:
 
 - Taking the committee-money library out of the router's reach, which counting source bytes
   said was worth 5,697, saved **21 bytes**: the program lost 32 and the shared file gained 11.
@@ -452,11 +493,10 @@ Three measurements, all on the production build:
   and saved **50,963**: the program lost 38,927 and the shared file lost 12,036 as well,
   because what came out of both went into a download only a reader who signs in fetches.
 
-So a saving is only real when the code ends up somewhere a reader does not always fetch, which
-means being wanted by exactly 1 later download. Counting bytes in the program measures where
-code sits, never what a reader downloads. **The way to tell the difference is to build it and
-read the 3 named files**, which is what `apps/frontend/scripts/check-first-load-budget.mjs`
-reports on every build.
+Under that earlier rule, leaving the first download required exactly 1 later
+consumer. Counting bytes in the entry program alone measured where code sat, not
+what a reader downloaded. The budget check counts every program file named by the
+HTML, whatever their number (`apps/frontend/scripts/check-first-load-budget.mjs`).
 
 **And that check cannot see a deferred download that something asks for anyway, so compare it
 against a real browser rather than assuming they agree.** It counts the files the built page
@@ -468,15 +508,15 @@ landed **before** the app first drew. The check reported 439,253 and a reader wa
 452,893. Nothing about either number looked wrong. A deferral is only real once a browser has
 been watched not making the request.
 
-**The 300,000-byte target on
-[#1966](https://github.com/alethical-org/alethical/issues/1966) is not reachable by loading
-things later.** Below every saving sits the framework the whole app is built on:
+**The earlier evaluation found no deferral path to the 300,000-byte target on
+[#1966](https://github.com/alethical-org/alethical/issues/1966).** It measured the
+framework beneath the app:
 `react-native-web` 249,244 minified bytes, `react-dom` 178,881, React Navigation about
-158,000, the query library 79,724 and `react-native-svg` 47,415. Reaching 300,000 would mean
-changing that foundation, not deferring more of our own code. What is left of our own movable
-code — the bill-page formatting, the committee-money display code, the text of the published
-pieces — is all in the trap above: every one of those is wanted by 2 or more screens, so
-deferring it moves it to the shared file and saves a reader nothing.
+158,000, the query library 79,724 and `react-native-svg` 47,415. Its conclusion depended
+on the then-current rule that code used by 2 screens entered the first download.
+The 13 September local change removes that rule for production web exports and
+reaches 338,333 compressed bytes, still above 300,000. The earlier figures remain
+evidence of that build, not a lower bound for a different serializer.
 
 The 2 costs, both accepted:
 
@@ -487,6 +527,95 @@ The 2 costs, both accepted:
 - **A later click waits for a screen nobody has downloaded yet.** These files are small,
   and warming the next screen on hover is a separate item on
   [#1966](https://github.com/alethical-org/alethical/issues/1966).
+
+## Shared screen code stays with the screen, 13 September 2026
+
+[Issue 2012’s local result](https://github.com/alethical-org/alethical/issues/2012#issuecomment-5651104226)
+follows [issue 2070’s helper split](https://github.com/alethical-org/alethical/issues/2070#issuecomment-5651083520).
+The local output uses the actual production settings. Vercel’s separate
+production-target build of committed source `a30d7941` measures the same 338,333
+bytes. The public-domain release and its timing checks remain pending.
+
+The smaller attempted change was to remove the common script from the generated
+HTML without changing its contents. That measured 338,560 compressed HTML-linked
+program bytes, but all 4 public money roots showed “This page hit a problem”. Expo’s
+runtime did not fetch the absent common file automatically. Removing a script tag
+alone is rejected; each requested screen must contain the code it needs.
+
+The accepted local change is a pinned pnpm patch to `@expo/metro-config@57.0.7`,
+enabled by `serializer.alethicalKeepSharedWithScreens` in
+`apps/frontend/metro.config.js`. The guard applies only to a production web client
+export. After Expo removes startup dependencies from later chunks, the patch skips
+`extractCommonChunk`. Each lazy chunk keeps its complete synchronous dependency
+closure; nested lazy imports remain separate downloads. Modules already in the
+startup program are not copied into every screen.
+
+Expo’s own Metro runtime (`@expo/cli/build/metro-require/require`) handles those
+chunks. Repeated `__d` definitions use the same Metro module IDs and are ignored
+after the first registration, so shared state remains 1 live instance when another
+screen loads. Expo’s existing content hashes and asynchronous filename mapping
+remain in use. There is no output postprocessor or custom production loader.
+Native, development, non-export, Node and React Server builds retain upstream
+common extraction, as does a build without the opt-in flag.
+
+The cost is repeated download bytes when a reader visits several screens that share
+code. The code runs as 1 instance, but its definition can travel in more than 1
+screen file. An Expo version update also requires maintaining or removing this
+small pinned patch and rerunning its serializer checks; the pnpm patch and lockfile
+record exactly which dependency it changes.
+
+| Build stage | HTML-linked compressed program bytes | Scope |
+| --- | ---: | --- |
+| Public before baseline | 392,136 | Published release from the 12 September baseline below |
+| Separate confirmation read | 392,674 | Local production-configured build |
+| Split committee helpers | 389,287 | Local production-configured build |
+| Keep shared code with screens | 338,333 | Local production-configured build |
+
+The final local stage saves 50,954 bytes against the helper split and 53,803 against
+the public baseline. Its HTML names 1 index file with the runtime inside, and no
+common script. Vercel’s
+[hosted build](https://vercel.com/alethical/alethical-web/2wadpZBF3EsRdzsM97axhR8FuBsE)
+reported `First-load budget passed: 338333 bytes` on 13 September at 04:41:02 UTC.
+The uploaded source is a clean archive of commit `a30d7941`; no local logs, caches
+or settings files were uploaded. The build used the production target with
+`--skip-domain`. Vercel assigned only its project `.vercel.app` alias; the public
+`www.alethical.com` address still served `a8e42d9a` afterward. The size limit is now
+339,072 bytes, the hosted figure plus the existing 739-byte headroom.
+
+**HTML-linked bytes are not all the JavaScript a page requests.** The local browser
+also fetched each requested screen and, where needed, its later details chunks.
+The following totals count those requested application program files with the same
+compressed-byte method. They exclude API data, images and fonts; they are not total
+page transfer sizes or promises for a visitor’s network connection.
+
+| Local direct visit | Requested application program bytes, including the first file |
+| --- | ---: |
+| `/money` | 362,134 |
+| `/money/committees` | 369,103 |
+| `/money/races` | 359,383 |
+| `/money/outside-spending` | 363,478 |
+| `/money/committees/gottfried-david-house-committee-19193?year=2025` | 400,323 |
+| `/legislators/jim-abeler?tab=money&year=2025` | 418,658 |
+
+The local browser matrix covered 10 screens at phone and desktop widths, 20 direct
+visits, without a rendering failure or horizontal overflow. The Abeler desktop run
+logged a failed 502 resource request, so that result is not a claim that every
+network request succeeded. A separate fresh-context phone/desktop reader pass
+completed all requested money routes, including real outside-spending totals, the
+committee filters and expansions, linked committee and named-payment navigation,
+year, Filings, Share and Back. Bills, Votes, Bill Text and the Abeler money tab
+also loaded. That independent pass recorded no script/console errors, HTTP errors,
+unintended document reloads or horizontal overflow. It used the same read-only
+local public-data proxy, so final public-domain timing and live checks remain
+pending. Its exact evidence is `/tmp/2012-independent-reader/report.md`.
+
+The 12 focused tests call the installed patched serializer and run its output with
+Expo’s actual runtime. They cover both screen orders, 1 shared live instance,
+nested imports, a target already in its own chunk, content-hash changes and all
+excluded build modes. Type checking also passes. Docs check: the affected loading
+sections and moved-helper references were read and updated; previous 3-file
+measurements remain dated history, and reader-facing words and financial contracts
+are unchanged by these 2 download changes.
 
 ## Sign-in is fetched when someone signs in
 
@@ -505,7 +634,7 @@ Private account visibility ([issue 2014](https://github.com/alethical-org/alethi
 adds the administrator route and a shared permission check. Its account-list parsing and
 search request load only with `/admin/users`. The release measures **389,116 bytes**:
 337,513 for the program, 49,987 shared, and 1,616 runtime. This is 826 bytes (0.21%) above
-the 388,290-byte baseline. The limit is 390,000 bytes to admit this measured feature;
+the 388,290-byte baseline. The limit for that release was 390,000 bytes to admit this measured feature;
 the private list itself is not a cost paid by public readers.
 
 The end-to-end freshness deadline
@@ -515,7 +644,7 @@ deadline, the 4 read names it applies to, and the arithmetic that reads a cache'
 do not download is the 2 sentences a withheld claim prints, which moved into the 2 screens that
 draw them and took 475 bytes back off every other page.
 
-**The limit is 391,500 bytes and every figure setting it is Vercel's own build, because a local
+**The 8 September limit was 391,500 bytes, set from Vercel's own build because a local
 build reads 542 bytes smaller and a limit set from the smaller number stops the deploy.** Measured
 on commit `01ffcbb0`: this Mac builds 390,219 bytes where Vercel builds 390,761, the whole
 difference in `index-*.js`, whose content hash differs between the 2 because the build inlines
@@ -689,12 +818,54 @@ and written out on the other seeds nothing while the page still works, so the mi
 invisible in every screenshot and every test of what the page draws. What settles it is
 the browser's own request list: `/bills` made 4 data-service reads and now makes 1.
 
+## Committee money load baseline, 12 September 2026
+
+[Issue 2126’s public baseline](https://github.com/alethical-org/alethical/issues/2126#issuecomment-5650886167)
+records the starting release, browser traces, decoded response sizes and 28-day
+origin shares for the 3-part speed work. These are before measurements, not results
+of the finance/confirmation split. Chromium used a 1280 × 900 viewport with no
+synthetic network or CPU slowdown. Each first visit had an empty browser cache;
+the repeat used the same browser context. Database coldness was not established.
+All 3 visits selected 2025.
+
+| Address | Donor list ready, first / repeat | History ready, first / repeat |
+| --- | --- | --- |
+| `/legislators/jim-abeler?tab=money&year=2025` | 6.320 s / 0.722 s | 12.967 s / 0.741 s |
+| `/money/committees/100-percent-future-fund-41363?year=2025` | 1.422 s / 0.429 s | No history requested |
+| `/money/committees/mn-dfl-state-central-committee-20003?year=2025` | 7.133 s / 0.443 s | No history requested |
+
+Committee 41363 led the 28-day finance traffic: it had
+287 estimated requests from 275 observations, excluding verified bots. Committee
+20003 was also sampled for its large payment list. Decoded API response bytes were
+302,683 for Abeler, 14,720 for 41363 and 994,708 for 20003. Abeler’s 31 response
+events include browser-cache events and are not 31 network transfers. His selected
+2025 received-payments read took 4.233 s with `EXPIRED`; the 2024 history read took
+3.625 s with `EXPIRED`.
+
+Across 16 August to 12 September, finance had 8,560 observations and 8,806 estimated
+requests: 84.76% rebuilt at the origin and 78.38% made the reader wait. Payments
+had 5,111 observations and 5,587 estimated requests: 94.68% and 91.32%, respectively.
+Ineligible and bypassed requests were excluded. The finance split changes the
+explicit dated-finance cache policy; it does not lengthen the payment-route policy.
+All sampled donor lists completed without a failed state or page error. The DFL
+repeat’s outside-spending recheck took about 23.5 s after donors were ready, so its
+20-second network-idle wait expired; donor readiness is not background completion.
+
+The public first-load program was 392,136 compressed bytes against the unchanged
+392,321-byte limit. After measurements remain open until the completed 3-part
+change is released: repeat these addresses and browser conditions, report final
+program bytes, donor/history readiness, response sizes and origin shares, and name
+the deployed commit. Local intermediate measurements belong on
+[issue 2126](https://github.com/alethical-org/alethical/issues/2126) with their exact
+build identity and must not be labelled as a live improvement.
+
 ## What a committee's own pages carry in their first response
 
 `/money/committees/{name}-{number}` and its `/payments` view are served with the reads
 the page function already made handed on inside the same response, under the keys the
 app's own hooks ask for (`committeeMoneyQueryKey` and
-`committeePaymentsListQueryKey` in `apps/frontend/src/lib/committeeMoney.ts`, seeded
+`committeePaymentsListQueryKey` in `apps/frontend/src/lib/committeeMoneyShared.ts`, plus
+`committeeConfirmationQueryKey` in `apps/frontend/src/lib/committeeConfirmation.ts`, seeded
 through `apps/frontend/src/lib/pageData.ts`). Before this, both addresses read a
 committee's figures to write the words a reader sees, handed on nothing, and the app then
 asked the data service for the identical answer and replaced those served words with
@@ -722,7 +893,7 @@ answer: the registration number comes out of the address and the year out of
 `campaignMoneyYear`. The payments view used to wait for the figures before asking for the
 rows, which put a whole round trip into its first response for nothing.
 
-**A seeded committee answer carries `servedAgeMs: 0`, and that is not a rounding.** The
+**A seeded committee confirmation carries `servedAgeMs: 0`, and that is not a rounding.** The
 whole age of a seeded answer rides in React Query's `initialDataUpdatedAt`
 (`seededClaimAgeMs`), so passing the API cache's age into the shaped answer as well counts
 the shared caches twice: a 16-minute claim reads as 22 minutes, past a deadline it has not
@@ -730,16 +901,28 @@ reached, and the page then withholds a member nobody has withdrawn.
 `apps/frontend/src/hooks/__tests__/currentClaimAgeEndToEnd.test.tsx` fails on exactly that
 mistake.
 
-**The figures read is still requested, and the wait for it is what is gone.** It carries
-`confirmed_for`, the member a person signed this committee off to, which is a claim about
-the state of the world right now, so a seeded copy is stale on arrival by design: the page
-it travelled in can have sat in the page cache for 10 minutes and the app's own freshness
-window is 5. The reader gets the real figures in the first paint and the recheck happens
-behind them without blanking anything. On `/payments`, the carried first page removes
-the matching initial payment request. The redesigned committee chart and tabs still
+**The current claim is rechecked independently of the figures.** The committee HTML
+asks for dated finance and confirmation concurrently and carries separate seeds.
+Confirmation is stale on arrival by design: the page it travelled in can have sat in
+the HTML cache for 10 minutes. Its recheck runs behind the accepted figures. Dated
+finance has the ordinary dated-record query behavior and does not renew that claim.
+A first confirmation failure keeps the figures and the neutral ownership explanation,
+uses `no-store`, and carries no failed confirmation seed. An explicit successful
+`null` retains the existing kind-specific prose.
+
+On `/payments`, dated finance and the first 50 rows run concurrently, and no
+confirmation is requested or seeded. The carried first page removes the matching
+initial payment request. The redesigned committee chart and tabs still
 need their complete selected-year payment reads. The old 6-row hooks and their
 unused query key are removed with that redesign, so every page no longer downloads
 readers that no screen uses.
+
+The first pending confirmation says “Checking whose committee this is…”. Its first
+unavailable answer says “We could not check whose committee this is. The money shown
+here is the committee’s own filed record.” An expired previously known confirmation
+keeps `CONFIRMED_MEMBER_WITHHELD_LINE`, removes the member name, link and checked
+evidence, and leaves the dated money visible. A read failure never becomes the prose
+for a successful unconfirmed committee.
 
 Measured 8 Sep 2026 against the live release and the live data service, with the page
 cache deliberately missed on every read.
@@ -832,8 +1015,9 @@ measurement of them.
 | Drawing 10 cards | 84 ms | 2% |
 | **Main content** | **3,832 ms** | |
 
-The program is 389,512 bytes over the wire and is the same 3 files every address names, so
-most of this page's wait belongs to the shared first download above, not to the bill list.
+In this dated measurement, the program was 389,512 bytes over the wire across the
+same 3 files every address named, so most of this page's wait belonged to the
+shared first download, not to the bill list.
 The `/bills` screen's own file is 4,793 bytes. Everything the page itself owns, the list
 request and the drawing, is 574 ms.
 

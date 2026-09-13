@@ -8,7 +8,7 @@ from typing import Any, Literal
 from uuid import UUID
 
 import requests
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import and_, case, func, or_, select, text, tuple_
 from sqlalchemy.orm import Session, selectinload
 
@@ -233,8 +233,14 @@ MONEY_RECORDS_CACHE_CONTROL = (
 #   * `/api/v1/campaign-finance/summary` -- `sitting_member_count` counts who holds
 #     office now, and `confirmed_member_count` counts live person-to-committee
 #     confirmations.
-#   * `/api/v1/committees/{registration_number}/finance` -- serves `confirmed_for`.
+#   * `/api/v1/committees/{registration_number}/confirmation` -- serves `confirmed_for`.
 #   * `/api/v1/legislators/{legislator_id}/campaign-finance` -- serves `link_state`.
+#
+# The legacy `/committees/{registration_number}/finance` answer includes that same
+# confirmation by default and therefore also stays short. Its explicit
+# `include_confirmation=false` variant omits the current claim and sets the dated
+# window in the handler after a successful anonymous GET. A path alone cannot
+# distinguish these 2 answers, so the numeric committee path stays off this list.
 #
 # Both `search` and `summary` may move onto this list the day their current-office
 # figures are separated from their dated record figures, and not before.
@@ -276,8 +282,9 @@ def _utc_now() -> datetime:
 def current_claim_validated_at() -> datetime:
     """The moment this request confirmed a claim about the state of the world now.
 
-    Served in the body of the 4 reads named above, and it is a THIRD kind of date
-    that must never be confused with the 2 already on these payloads:
+    Served in the body of the 4 reads named above and the legacy mixed finance
+    answer. It is a THIRD kind of date that must never be confused with the 2
+    already on these payloads:
 
     * ``reported_through`` and ``last_payment_on`` are the period a figure covers.
     * ``fetched_at`` and ``as_of`` are the day we copied a download or the register
@@ -3098,13 +3105,67 @@ def legislator_independent_spending(
     )
 
 
+def _committee_confirmation_payload(db: Session, registration_number: str) -> dict:
+    """The same live claim for the separate reader and the legacy mixed answer."""
+    confirmed_member = confirmed_member_for_committee(db, registration_number)
+    return {
+        "current_claim_validated_at": current_claim_validated_at(),
+        "confirmed_for": (
+            {
+                "legislator_id": str(confirmed_member.legislator_id),
+                "slug": confirmed_member.slug,
+                "full_name": confirmed_member.full_name,
+                # What a person read and when, carried with their signed conclusion.
+                "checked": (
+                    {
+                        "checked_on": confirmed_member.checked.checked_on,
+                        "name_evidence": confirmed_member.checked.name_evidence,
+                        "register_verdict": confirmed_member.checked.register_verdict,
+                        "party_agreement": confirmed_member.checked.party_agreement,
+                    }
+                    if confirmed_member.checked
+                    else None
+                ),
+            }
+            if confirmed_member is not None
+            else None
+        ),
+    }
+
+
+@router.get(
+    "/committees/{registration_number}/confirmation",
+    response_model=DetailResponse,
+)
+def committee_confirmation(
+    registration_number: str,
+    db: Session = Depends(get_db),
+):
+    """A person's current confirmation of whose committee this is, without money.
+
+    Independent of the financial release and the year a reader selected. A successful
+    ``confirmed_for: null`` means no current confirmation is held for this number;
+    it does not reveal a rejection or withdrawal. A failed lookup remains a failed
+    request, never a successful null. The normal short public cache policy applies.
+    """
+    return DetailResponse(
+        data={
+            "registration_number": registration_number,
+            **_committee_confirmation_payload(db, registration_number),
+        }
+    )
+
+
 @router.get(
     "/committees/{registration_number}/finance",
     response_model=DetailResponse,
 )
 def committee_finance_for_year(
     registration_number: str,
+    request: Request,
+    response: Response,
     year: int = Query(ge=2015, le=2100),
+    include_confirmation: bool = True,
     db: Session = Depends(get_db),
 ):
     """One campaign committee's money in and money out for one year.
@@ -3150,6 +3211,13 @@ def committee_finance_for_year(
     says so is a separate question whose answer is currently no. At most one legislator can come back,
     guaranteed by the partial unique index on a confirmed registration number rather
     than by this code.
+
+    The default answer keeps this current claim for existing readers and therefore
+    keeps its short cache window. ``include_confirmation=false`` omits both
+    ``confirmed_for`` and ``current_claim_validated_at`` without looking up a
+    confirmation. That dated-only answer gets the money-record cache window on a
+    successful anonymous GET. Readers can then load the separate ``/confirmation``
+    answer without tying the committee's own figures to the lifetime of a claim.
 
     Read ``state`` on each block before its numbers:
 
@@ -3262,10 +3330,13 @@ def committee_finance_for_year(
             ),
         )
     spending = finance.independent_spending
-    # Read after the money, and never allowed to change it: whose committee this is
-    # is a fact a person wrote down, and a committee page is complete without it.
-    confirmed_member = confirmed_member_for_committee(db, registration_number)
-    return DetailResponse(
+    # The default retains the legacy claim; the dated variant does not even read it.
+    confirmation = (
+        _committee_confirmation_payload(db, registration_number)
+        if include_confirmation
+        else {}
+    )
+    answer = DetailResponse(
         data={
             "registration_number": finance.committee.registration_number,
             "committee_name": finance.committee.name,
@@ -3286,35 +3357,7 @@ def committee_finance_for_year(
                 "as_of": register.as_of,
                 "reason": register.reason,
             },
-            # A claim about right now, so it expires; the record dates beside it do
-            # not (``current_claim_validated_at``, issue 2023).
-            "current_claim_validated_at": current_claim_validated_at(),
-            "confirmed_for": (
-                {
-                    "legislator_id": str(confirmed_member.legislator_id),
-                    "slug": confirmed_member.slug,
-                    "full_name": confirmed_member.full_name,
-                    # What the person read, and when. The profile prints this per
-                    # account already; a reader who arrives at the committee page came
-                    # asking whose committee this is, so it belongs here most of all.
-                    "checked": (
-                        {
-                            "checked_on": confirmed_member.checked.checked_on,
-                            "name_evidence": confirmed_member.checked.name_evidence,
-                            "register_verdict": (
-                                confirmed_member.checked.register_verdict
-                            ),
-                            "party_agreement": (
-                                confirmed_member.checked.party_agreement
-                            ),
-                        }
-                        if confirmed_member.checked
-                        else None
-                    ),
-                }
-                if confirmed_member is not None
-                else None
-            ),
+            **confirmation,
             "split": {
                 "state": split.state,
                 "reported_total": split.reported_total,
@@ -3409,6 +3452,13 @@ def committee_finance_for_year(
             },
         }
     )
+    if (
+        not include_confirmation
+        and request.method == "GET"
+        and "authorization" not in request.headers
+    ):
+        response.headers["Cache-Control"] = MONEY_RECORDS_CACHE_CONTROL
+    return answer
 
 
 def _payment_page_payload(page: PaymentPage) -> dict:

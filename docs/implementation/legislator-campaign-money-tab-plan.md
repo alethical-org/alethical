@@ -208,7 +208,7 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   The full 2,625 frontend and 2,549 server tests, queue and production checks passed.
   The [job 1 live report](https://github.com/alethical-org/alethical/issues/2140#issuecomment-5649547058)
   records the evidence. Its task-owned worktree and branch are removed.
-- [ ] Job 2, [issue 2166](https://github.com/alethical-org/alethical/issues/2166):
+- [x] Job 2, [issue 2166](https://github.com/alethical-org/alethical/issues/2166):
   reuse B's contribution-kind chart,
   non-itemized slice, 5 fixed tabs, conditional Other tab and grouped outside
   spending on `/money/committees/<slug>`. Keep its Year, Track, Share and Filings
@@ -272,22 +272,94 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   HTML carries that release; its actual first-load program measures 392,156 bytes
   against the unchanged 392,321-byte limit. No size guard or provider setting changed.
   The frontend suite passed 2,642 tests and the backend suite passed 2,549.
-- The final production reader pass found 1 remaining Job 2 defect: Back restores
-  the reading position after opening another committee, but loses a nondefault
-  donor category and sort. [Issue 2166](https://github.com/alethical-org/alethical/issues/2166)
-  is reopened for the repair in `/private/tmp/alethical-2166-committee-back-state`
-  on `codex/2166-committee-back-state`, based on the live release. The repair
-  keeps those choices in the committee address, so Back and shared links restore
-  them together with the selected year. Fresh links without choices keep defaults.
-  Root owns integration and release. The existing worker owns the focused code and tests.
-  The repair passes 2,666 frontend tests, type and formatting checks. Its configured
-  production build measures 392,136 bytes against the unchanged 392,321-byte limit.
-  The independent browser pass and release are the next checks.
-- The same live pass covered candidate 19193, party 20003 and Abeler on desktop
-  and phone. Complete lists, expanded payments, Filings and the all-years Spent by
-  them explanation remain usable; Abeler's refund card retains the 2024 unpublished
-  count. Job 3 waits for the Back-navigation repair's live check and completion
-  report. Jobs 3 onward keep their approved order. The historical replacement is held.
+- Job 2's Back repair is live through [pull request 2168](https://github.com/alethical-org/alethical/pull/2168)
+  at [commit a8e42d9a](https://github.com/alethical-org/alethical/commit/a8e42d9aea31c74127ede728551f9e579fd1f33b).
+  Back, shared links, year changes and Filings preserve donor category and sort in
+  the address. Independent desktop and phone checks passed; phone Back returned
+  to the exact reading position and desktop differed by 0.5 pixels. Abeler's chart
+  and refund table stayed intact. The public first download measures 392,136 bytes.
+  The [job 2 live report](https://github.com/alethical-org/alethical/issues/2140#issuecomment-5650739782)
+  completes the gate for Job 3. Issue 2166 is closed and archived as Done.
+- Job 3 is active in `/private/tmp/alethical-2126-campaign-money-speed` on
+  `codex/2126-campaign-money-speed`, based on the live repair. The
+  [before-change measurements](https://github.com/alethical-org/alethical/issues/2126#issuecomment-5650886167)
+  cover Abeler, the busiest committee by 28-day financial-read traffic (41363),
+  and the large DFL list (20003). Abeler's donor-ready time was 6.320 seconds with
+  an empty browser cache and 0.722 on repeat; history was 12.967 and 0.741 seconds.
+- The chosen split preserves the default short-lived mixed `/finance` response
+  for existing clients, adds `include_confirmation=false` for dated figures only,
+  and serves current ownership at `/committees/{registration_number}/confirmation`.
+  Only the explicit dated response earns the existing 5-minute/day/week money
+  cache policy. The confirmation keeps the 60-second policy and independent
+  20-minute deadline. Initial HTML reads and seeds the 2 separately; an unavailable
+  confirmation leaves the committee's figures visible and uses a neutral sentence.
+- Root owns browser data shaping, hooks, the committee screen, integration, records
+  and release. Separate helpers own the backend and initial-HTML paths with focused
+  tests. Finish this split and measure its effect before proceeding to the prose
+  import removal and then shared-screen loading. Intermediate build measurements
+  identify each change; only production figures may set the first-load size limit.
+- The 2126 split passes 2,690 frontend tests, 186 focused server tests, type checks
+  and an independent code review. A phone/desktop local browser read passed normal,
+  first-failed and expired-confirmation states with retained figures and donor rows,
+  no script errors and no phone overflow. The local adapter used real public records;
+  it is not a production latency check. The configured intermediate build is 392,674
+  bytes, 538 above baseline and 353 over the unchanged limit. The
+  [first-stage result](https://github.com/alethical-org/alethical/issues/2126#issuecomment-5651013218)
+  records this unfinished budget state before the 2 planned download reductions.
+  Source and build evidence remain under `/tmp/2126-baseline/`, `/tmp/2126-reader/`
+  and `/tmp/2126-stage-build.log`.
+- The 2070 prose move is complete locally: 49 committee-only exports, 21
+  full-payment-view exports and 48 shared exports now have separate modules.
+  All original declarations and reader strings are preserved. The graph test
+  rejects both first-load imports and a second screen importing route-only text;
+  its deliberate bad-import cases pass. All 2,695 frontend tests pass. A fixed
+  10-millisecond wait in the existing failed-payments test now waits for its
+  expected visible error, preserving its assertions under concurrent test load.
+  The configured intermediate first download is 389,287 bytes, 3,387 below the
+  preceding stage, against the unchanged 392,321 limit. Evidence:
+  `/tmp/2070-stage-build.log`, `/tmp/2070-full-frontend.log` and
+  `/tmp/2070-import-boundary-after.log`.
+- The 2012 implementation is complete locally: a pinned, opt-in Expo serializer
+  patch keeps shared screen dependencies with each requesting screen rather than
+  adding them to the HTML's initial program. Startup dependencies remain shared
+  through the entry file; Expo's runtime and content-hash propagation stay intact.
+  It applies only to production web client exports, with 12 real serializer/runtime
+  tests for both visit orders, single shared state, nested imports, changed hashes
+  and all excluded build modes. The original no-common-script-only probe failed
+  all 4 money roots and is rejected.
+- The configured local export is 338,333 compressed bytes in 1 HTML-named index
+  file, 50,954 below the 2070 stage and 53,803 below the public baseline. The full
+  frontend suite passes 2,707 tests; the amended budget coverage adds 1 passing
+  test. An independent review found no correctness finding: all 34 exported
+  JavaScript files have complete required module sets, across 1,468 definitions.
+  Evidence: `/tmp/2012-stage-build.log`, `/tmp/2012-full-frontend.log`,
+  `/tmp/2012-browser/report.json`, `/tmp/2012-independent-reader/`.
+- All 2,566 server tests pass. The hosted production-target build of clean committed
+  source `a30d7941`, deployment `dpl_2wadpZBF3EsRdzsM97axhR8FuBsE`, reports 338,333
+  compressed bytes. The limit is 339,072, keeping 739 bytes of headroom. The build
+  used `--skip-domain`: only its project `.vercel.app` alias was assigned, and
+  `www.alethical.com` retained `a8e42d9a`. Evidence:
+  `/tmp/2012-hosted-deploy.log`, `/tmp/2012-hosted-deployment.json`,
+  `/tmp/2012-clean-hosted-manifest.json`, `/tmp/2126-full-backend.log`.
+- The separate fresh-context phone/desktop reader pass is complete. Real outside
+  spending, committee categories, expansions, linked names, year, Filings, Share,
+  Back, bill Votes/Text and Abeler campaign money pass without browser errors,
+  failed HTTP responses, extra document reloads or horizontal overflow. It found
+  a pre-existing full-payment-list footer wrongly saying paid names stay plain
+  text. The repair is saved in commit `0648ba84` for
+  [issue 2169](https://github.com/alethical-org/alethical/issues/2169), with 69
+  focused tests passing. The explanation keeps exact-spelling lookup distinct
+  from confirmed identity; routing and threshold clauses are unchanged.
+- Final local release checks pass all 2,708 frontend tests and the configured
+  production export at 338,335 bytes against the hosted-derived 339,072 limit.
+  The 2-byte change from the hosted measurement follows the payment-footer
+  correction. Evidence: `/tmp/2126-release-frontend.log` and
+  `/tmp/2126-release-build.log`.
+- Release remains active: open 1 Job 3 pull request,
+  clear current-head and queue checks, read live frontend/backend deployment
+  identities and repeat the original empty-browser/warm measurements.
+- Jobs 4 through 5f retain their stated sequence. Action 4 Liberty PAC's historical
+  replacement remains held with no additional source attempts or publication.
 
 
 ## Approved data-only queue after follow-on jobs 1 through 4

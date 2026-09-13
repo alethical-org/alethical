@@ -202,7 +202,9 @@ and `guide`.
 filed disclosure document a report, and **21 distinct reader-facing strings** in
 `apps/frontend/src/lib/committeeMoney.ts` alone use the word for that document, including a counter
 rendering "16 reports filed" and an ordering line reading "by the period each report covers".
-Counted 27 Aug 2026; every one of the 21 is about filing to the Board. Renaming a public record to
+Counted 27 Aug 2026, before the 13 September helper split into `committeeMoney.ts`,
+`committeePaymentsPage.ts` and `committeeMoneyShared.ts`; the count describes the
+original file, and every one of the 21 is about filing to the Board. Renaming a public record to
 free the word is not available, so our own writing is the half that moves.
 
 **Why "Guide" rather than "Explainer".** "Explainer" names a publishing format; "Guide" states the
