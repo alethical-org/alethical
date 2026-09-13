@@ -1,0 +1,20 @@
+diff --git a/build/serializer/serializeChunks.js b/build/serializer/serializeChunks.js
+index 1e5c59867bc9e987989a7b25793158f145771226..8f4f7fc3c485ce2eeeca331ae8cbc8f09f2a6174 100644
+--- a/build/serializer/serializeChunks.js
++++ b/build/serializer/serializeChunks.js
+@@ -58,7 +58,14 @@ async function graphToSerialAssetsAsync(config, serializeChunkOptions, ...props)
+     const entryChunk = findEntryChunk(chunks, entryFile);
+     if (entryChunk) {
+         removeEntryDepsFromAsyncChunks(entryChunk, chunks);
+-        const commonChunk = extractCommonChunk(chunks, graph, options);
++        // Alethical's web export keeps each lazy screen's synchronous closure.
++        // Startup modules have already been removed; Metro keeps one instance
++        // when another screen later registers the same module ID.
++        const keepSharedWithScreens = config.serializer?.alethicalKeepSharedWithScreens === true &&
++            graph.transformOptions.platform === 'web' && !options.dev &&
++            (graph.transformOptions.customTransformOptions?.environment ?? 'client') === 'client' &&
++            options.serializerOptions?.exporting === true;
++        const commonChunk = keepSharedWithScreens ? undefined : extractCommonChunk(chunks, graph, options);
+         if (commonChunk) {
+             entryChunk.requiredChunks.add(commonChunk);
+             chunks.add(commonChunk);

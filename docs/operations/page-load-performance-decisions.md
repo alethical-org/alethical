@@ -1,6 +1,6 @@
 <!-- describes: .github/workflows/production-release-failed.yml, apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py, scripts/report_origin_share_by_address.py, apps/frontend/src/lib/committeeConfirmation.ts -->
 
-<!-- describes: apps/frontend/src/components/campaignMoney/MoneyDetailsBundle.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsOnDemand.tsx, apps/frontend/src/lib/committeeOutsideSpending.ts -->
+<!-- describes: apps/frontend/metro.config.js, patches/@expo__metro-config@57.0.7.patch, pnpm-workspace.yaml, pnpm-lock.yaml, apps/frontend/scripts/__tests__/sharedScreenChunks.test.ts, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeePaymentsPage.ts, apps/frontend/src/lib/committeeMoneyShared.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsBundle.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsOnDemand.tsx, apps/frontend/src/lib/committeeOutsideSpending.ts -->
 
 # Page-load performance decisions
 
@@ -19,7 +19,7 @@ The Aug 7, 2026 production audit found:
 - A cold phone legislator profile requested 100 chief-authored bills, about 47 KB, and the request took about 1.56 seconds.
 - Cached public reads commonly took 60 to 90 ms; uncached reads commonly took 500 to 1,600 ms.
 
-Each release issue records a fresh before-and-after measurement because the shared file changes whenever `main` changes.
+Each release issue records a fresh before-and-after measurement because the startup program changes whenever `main` changes.
 
 ## Current record freshness
 
@@ -376,9 +376,12 @@ could request so the idle gap was guaranteed rather than assumed.
 
 Screen code is downloaded on demand when the router first needs its screen group
 ([#1966](https://github.com/alethical-org/alethical/issues/1966),
-[#491](https://github.com/alethical-org/alethical/issues/491)). A page names 3 files in its
-HTML — the Expo runtime, a shared file of parts more than 1 screen uses, and the program
-every page needs — and the app fetches the screen file for the address it was asked for.
+[#491](https://github.com/alethical-org/alethical/issues/491)). The 13 September local
+web export for [issue 2012](https://github.com/alethical-org/alethical/issues/2012)
+names 1 `index-*.js` file in its HTML, with the Expo runtime inside it. The app then
+fetches the screen files it needs. The earlier production build named 3 files: the
+runtime, shared code and entry program. The dated measurements below describe that
+earlier shape; the new local result and its tradeoff have their own section below.
 `docs/operations/deployment.md` § What a web release ships owns the mechanics.
 
 The `/site-metrics` and `/admin/metrics` screens share 1 on-demand download through
@@ -405,24 +408,25 @@ page: 17,736 bytes and the whole marketing page, for a reader who was never goin
 service included** ([#1976](https://github.com/alethical-org/alethical/issues/1976)). The
 section below owns that change and its measurements.
 
-### Which of the 3 files a shared part lands in, and why 2 screens is the whole threshold
+### The 8 September build: 2 screens put a shared part in the first download
 
-A part 1 screen reads is downloaded with that screen and costs a reader who never opens it
-nothing. A part 2 or more screens read goes into the shared file every reader downloads
-(`__common-*.js`). There is no third outcome. Measured 8 Sep 2026 with 2 probe modules built
+In that build, a part 1 screen read was downloaded with that screen and cost a reader
+who never opened it nothing. A part 2 or more screens read went into the shared file
+every reader downloaded (`__common-*.js`). Measured 8 Sep 2026 with 2 probe modules built
 for the purpose: the one imported by 1 screen landed in that screen's own file, and the one
 imported by 2 screens landed in `__common-*.js`.
 
-So taking a part out of the program every page needs (`index-*.js`) buys a reader nothing
-unless exactly 1 screen is left reading it, and it can cost. Brotli compresses a file against
+Under that build rule, taking a part out of the program every page needs
+(`index-*.js`) bought a reader nothing unless exactly 1 screen was left reading it,
+and it could cost. Brotli compresses a file against
 the text already in that file, and `__common-*.js` is a sixth the size of `index-*.js`, so the
 same part is dearer in the smaller one. Measured 8 Sep 2026 on
 [`lib/committeeMoney.ts`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/lib/committeeMoney.ts):
 5,064 bytes inside `index-*.js`, 6,077 inside `__common-*.js`, for the identical file.
 
 Read a module's cost in the bytes a reader receives, never in the bytes the file holds.
-`lib/committeeMoney.ts` is 16,528 bytes of the built program once minified and 4,997 bytes of
-what a reader downloads, because English prose beside more English prose compresses about
+On 8 September, `lib/committeeMoney.ts` was 16,528 bytes of the built program once
+minified and 4,997 bytes of what a reader downloaded, because English prose beside more English prose compresses about
 3 to 1. A saving quoted from the first number is roughly 3 times the saving there is.
 
 ### What every committee page's words cost a reader who opens the homepage
@@ -433,12 +437,13 @@ page could print, and the address table reached it through
 so every reader downloaded all of them. It cost 4,997 bytes of the 391,752-byte first load,
 about 1 byte in 78.
 
-Removing it from the browser entirely measures 387,768 bytes, and that floor is not
-reachable. 48% of the file, counted in source characters, is read by 2 or more screens: the
+In that 8 September build, removing it from the browser entirely measured 387,768
+bytes, a floor the then-current shared-code rule could not reach. 48% of the file,
+counted in source characters, was read by 2 or more screens: the
 money cards a legislator's profile draws are the same cards a committee page draws
 ([`components/campaignMoney/MoneyCards.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/campaignMoney/MoneyCards.tsx)),
-and 3 more screens read the closed-committee chip. That half lands in `__common-*.js`
-wherever it is put, so a reader still pays it. Cutting the other half loose measures about
+and 3 more screens read the closed-committee chip. That half landed in `__common-*.js`
+wherever it was put, so a reader still paid it. Cutting the other half loose measured about
 2,000 bytes, against splitting 1,530 lines of reader-facing sentences 3 ways under a rule
 that no word may change.
 
@@ -463,24 +468,21 @@ the intermediate first download fell from 392,674 to **389,287 bytes**, a saving
 **3,387 bytes** after the separate ownership-read change. The entry program fell
 from 340,333 to 336,944 bytes; the common file changed from 50,725 to 50,727; the
 runtime stayed at 1,616. This is a configured local comparison, not a hosted result
-or permission to lower the production limit. The final shared-code change and the
-production measurements still follow in
-[issue 2012](https://github.com/alethical-org/alethical/issues/2012).
+or permission to lower the production limit. The subsequent local shared-code
+change is recorded below; hosted production measurements remain pending.
 
 `committeePageImports.test.ts` follows value imports from the entry and every lazy
 screen. Each route-only text file must have no entry path and exactly its own
 screen as a consumer. In-memory bad imports prove it catches both a first-load
-edge and a second screen silently moving the words into the common download.
+edge and an unintended second screen consuming the route-only words.
 The 2,695-test frontend suite passes. Docs check: the API contract and reader
 wording are unchanged by this move; this decision record owns the download change.
 
-**Moving code out of the program every page needs usually saves a reader nothing, and this is
-the trap to know about before planning any more of it.** A page names 3 files, and 1 of them
-is the shared file holding parts that more than 1 screen uses. The web build fills that file
-itself, with everything 2 or more later downloads both want (`extractCommonChunk`,
-`@expo/metro-config`), and the page names it, so it is paid on a first visit exactly as the
-program is. Code taken out of the program does not leave the first load; it lands there.
-Three measurements, all on the production build:
+**The earlier production build moved shared code between first-load files.** Its
+HTML named 3 files, including one holding parts used by more than 1 screen. Expo
+filled that file with `extractCommonChunk` in `@expo/metro-config`, so moving code
+out of the entry program did not necessarily remove a byte from the first download.
+These 3 production measurements predate the 13 September serializer change:
 
 - Taking the committee-money library out of the router's reach, which counting source bytes
   said was worth 5,697, saved **21 bytes**: the program lost 32 and the shared file gained 11.
@@ -491,11 +493,10 @@ Three measurements, all on the production build:
   and saved **50,963**: the program lost 38,927 and the shared file lost 12,036 as well,
   because what came out of both went into a download only a reader who signs in fetches.
 
-So a saving is only real when the code ends up somewhere a reader does not always fetch, which
-means being wanted by exactly 1 later download. Counting bytes in the program measures where
-code sits, never what a reader downloads. **The way to tell the difference is to build it and
-read the 3 named files**, which is what `apps/frontend/scripts/check-first-load-budget.mjs`
-reports on every build.
+Under that earlier rule, leaving the first download required exactly 1 later
+consumer. Counting bytes in the entry program alone measured where code sat, not
+what a reader downloaded. The budget check counts every program file named by the
+HTML, whatever their number (`apps/frontend/scripts/check-first-load-budget.mjs`).
 
 **And that check cannot see a deferred download that something asks for anyway, so compare it
 against a real browser rather than assuming they agree.** It counts the files the built page
@@ -507,15 +508,15 @@ landed **before** the app first drew. The check reported 439,253 and a reader wa
 452,893. Nothing about either number looked wrong. A deferral is only real once a browser has
 been watched not making the request.
 
-**The 300,000-byte target on
-[#1966](https://github.com/alethical-org/alethical/issues/1966) is not reachable by loading
-things later.** Below every saving sits the framework the whole app is built on:
+**The earlier evaluation found no deferral path to the 300,000-byte target on
+[#1966](https://github.com/alethical-org/alethical/issues/1966).** It measured the
+framework beneath the app:
 `react-native-web` 249,244 minified bytes, `react-dom` 178,881, React Navigation about
-158,000, the query library 79,724 and `react-native-svg` 47,415. Reaching 300,000 would mean
-changing that foundation, not deferring more of our own code. What is left of our own movable
-code — the bill-page formatting, the committee-money display code, the text of the published
-pieces — is all in the trap above: every one of those is wanted by 2 or more screens, so
-deferring it moves it to the shared file and saves a reader nothing.
+158,000, the query library 79,724 and `react-native-svg` 47,415. Its conclusion depended
+on the then-current rule that code used by 2 screens entered the first download.
+The 13 September local change removes that rule for production web exports and
+reaches 338,333 compressed bytes, still above 300,000. The earlier figures remain
+evidence of that build, not a lower bound for a different serializer.
 
 The 2 costs, both accepted:
 
@@ -526,6 +527,83 @@ The 2 costs, both accepted:
 - **A later click waits for a screen nobody has downloaded yet.** These files are small,
   and warming the next screen on hover is a separate item on
   [#1966](https://github.com/alethical-org/alethical/issues/1966).
+
+## Shared screen code stays with the screen, local build 13 September 2026
+
+[Issue 2012’s local result](https://github.com/alethical-org/alethical/issues/2012#issuecomment-5651104226)
+follows [issue 2070’s helper split](https://github.com/alethical-org/alethical/issues/2070#issuecomment-5651083520).
+The output is built with the actual production settings. These are local build and
+browser results, not a hosted release or a new production limit.
+
+The smaller attempted change was to remove the common script from the generated
+HTML without changing its contents. That measured 338,560 compressed HTML-linked
+program bytes, but all 4 public money roots showed “This page hit a problem”. Expo’s
+runtime did not fetch the absent common file automatically. Removing a script tag
+alone is rejected; each requested screen must contain the code it needs.
+
+The accepted local change is a pinned pnpm patch to `@expo/metro-config@57.0.7`,
+enabled by `serializer.alethicalKeepSharedWithScreens` in
+`apps/frontend/metro.config.js`. The guard applies only to a production web client
+export. After Expo removes startup dependencies from later chunks, the patch skips
+`extractCommonChunk`. Each lazy chunk keeps its complete synchronous dependency
+closure; nested lazy imports remain separate downloads. Modules already in the
+startup program are not copied into every screen.
+
+Expo’s own Metro runtime (`@expo/cli/build/metro-require/require`) handles those
+chunks. Repeated `__d` definitions use the same Metro module IDs and are ignored
+after the first registration, so shared state remains 1 live instance when another
+screen loads. Expo’s existing content hashes and asynchronous filename mapping
+remain in use. There is no output postprocessor or custom production loader.
+Native, development, non-export, Node and React Server builds retain upstream
+common extraction, as does a build without the opt-in flag.
+
+The cost is repeated download bytes when a reader visits several screens that share
+code. The code runs as 1 instance, but its definition can travel in more than 1
+screen file. An Expo version update also requires maintaining or removing this
+small pinned patch and rerunning its serializer checks; the pnpm patch and lockfile
+record exactly which dependency it changes.
+
+| Build stage | HTML-linked compressed program bytes | Scope |
+| --- | ---: | --- |
+| Public before baseline | 392,136 | Published release from the 12 September baseline below |
+| Separate confirmation read | 392,674 | Local production-configured build |
+| Split committee helpers | 389,287 | Local production-configured build |
+| Keep shared code with screens | 338,333 | Local production-configured build |
+
+The final local stage saves 50,954 bytes against the helper split and 53,803 against
+the public baseline. Its HTML names 1 index file with the runtime inside, and no
+common script. **The guard stays at 392,321 bytes until a hosted production
+measurement exists.** No local number here authorizes lowering that limit.
+
+**HTML-linked bytes are not all the JavaScript a page requests.** The local browser
+also fetched each requested screen and, where needed, its later details chunks.
+The following totals count those requested application program files with the same
+compressed-byte method. They exclude API data, images and fonts; they are not total
+page transfer sizes or promises for a visitor’s network connection.
+
+| Local direct visit | Requested application program bytes, including the first file |
+| --- | ---: |
+| `/money` | 362,134 |
+| `/money/committees` | 369,103 |
+| `/money/races` | 359,383 |
+| `/money/outside-spending` | 363,478 |
+| `/money/committees/gottfried-david-house-committee-19193?year=2025` | 400,323 |
+| `/legislators/jim-abeler?tab=money&year=2025` | 418,658 |
+
+The local browser matrix covered 10 screens at phone and desktop widths, 20 direct
+visits, without a rendering failure or horizontal overflow. The Abeler desktop run
+logged a failed 502 resource request, so that result is not a claim that every
+network request succeeded. Outside-spending readiness remains under review; this
+matrix is not a completed all-data-readiness verdict. Hosted timings, final public
+program sizes and the fresh-context live review remain pending.
+
+The 12 focused tests call the installed patched serializer and run its output with
+Expo’s actual runtime. They cover both screen orders, 1 shared live instance,
+nested imports, a target already in its own chunk, content-hash changes and all
+excluded build modes. Type checking also passes. Docs check: the affected loading
+sections and moved-helper references were read and updated; previous 3-file
+measurements remain dated history, and reader-facing words and financial contracts
+are unchanged by these 2 download changes.
 
 ## Sign-in is fetched when someone signs in
 
@@ -544,7 +622,7 @@ Private account visibility ([issue 2014](https://github.com/alethical-org/alethi
 adds the administrator route and a shared permission check. Its account-list parsing and
 search request load only with `/admin/users`. The release measures **389,116 bytes**:
 337,513 for the program, 49,987 shared, and 1,616 runtime. This is 826 bytes (0.21%) above
-the 388,290-byte baseline. The limit is 390,000 bytes to admit this measured feature;
+the 388,290-byte baseline. The limit for that release was 390,000 bytes to admit this measured feature;
 the private list itself is not a cost paid by public readers.
 
 The end-to-end freshness deadline
@@ -554,7 +632,7 @@ deadline, the 4 read names it applies to, and the arithmetic that reads a cache'
 do not download is the 2 sentences a withheld claim prints, which moved into the 2 screens that
 draw them and took 475 bytes back off every other page.
 
-**The limit is 391,500 bytes and every figure setting it is Vercel's own build, because a local
+**The 8 September limit was 391,500 bytes, set from Vercel's own build because a local
 build reads 542 bytes smaller and a limit set from the smaller number stops the deploy.** Measured
 on commit `01ffcbb0`: this Mac builds 390,219 bytes where Vercel builds 390,761, the whole
 difference in `index-*.js`, whose content hash differs between the 2 because the build inlines
@@ -774,7 +852,7 @@ build identity and must not be labelled as a live improvement.
 `/money/committees/{name}-{number}` and its `/payments` view are served with the reads
 the page function already made handed on inside the same response, under the keys the
 app's own hooks ask for (`committeeMoneyQueryKey` and
-`committeePaymentsListQueryKey` in `apps/frontend/src/lib/committeeMoney.ts`, plus
+`committeePaymentsListQueryKey` in `apps/frontend/src/lib/committeeMoneyShared.ts`, plus
 `committeeConfirmationQueryKey` in `apps/frontend/src/lib/committeeConfirmation.ts`, seeded
 through `apps/frontend/src/lib/pageData.ts`). Before this, both addresses read a
 committee's figures to write the words a reader sees, handed on nothing, and the app then
@@ -925,8 +1003,9 @@ measurement of them.
 | Drawing 10 cards | 84 ms | 2% |
 | **Main content** | **3,832 ms** | |
 
-The program is 389,512 bytes over the wire and is the same 3 files every address names, so
-most of this page's wait belongs to the shared first download above, not to the bill list.
+In this dated measurement, the program was 389,512 bytes over the wire across the
+same 3 files every address named, so most of this page's wait belonged to the
+shared first download, not to the bill list.
 The `/bills` screen's own file is 4,793 bytes. Everything the page itself owns, the list
 request and the drawing, is 574 ms.
 

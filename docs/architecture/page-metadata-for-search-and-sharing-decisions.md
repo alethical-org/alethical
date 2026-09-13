@@ -1,4 +1,4 @@
-<!-- describes: api/page.ts, api/sitemap.ts, apps/frontend/src/lib/share.ts, apps/frontend/src/navigation/documentTitle.ts, apps/frontend/public/index.html, apps/frontend/public/robots.txt, apps/frontend/scripts/generate-brand-assets.mjs, vercel.json -->
+<!-- describes: api/page.ts, api/sitemap.ts, apps/frontend/src/lib/share.ts, apps/frontend/src/navigation/documentTitle.ts, apps/frontend/public/index.html, apps/frontend/public/robots.txt, apps/frontend/scripts/generate-brand-assets.mjs, vercel.json, apps/frontend/src/lib/committeePaymentsPage.ts, apps/frontend/src/lib/committeeMoneyShared.ts -->
 
 # What each page tells search engines and link previews — decisions
 
@@ -1495,7 +1495,10 @@ hit. So the guarantee is the same 2-part one, and it was strengthened rather tha
 pieces of wording and 3 pieces of logic that lived inside the screens moved into the framework-free
 libraries the server reads — the landing's heading, its sentence, its 2 lane cards and its
 freshness note into `lib/moneyLanding.ts`; the year's display state and the 2 payment-row shapers
-into `lib/committeeMoney.ts`. The screens now import what they used to spell out, so a served line
+into `lib/committeeMoney.ts`. Since the 13 September helper split, the year state
+stays there, while the 2 payment-row shapers live in `lib/committeePaymentsPage.ts`;
+shared formatting and query keys live in `lib/committeeMoneyShared.ts`. The screens
+and first-response builders still import the same definitions, so a served line
 and a drawn line are the same characters. A drift alarm reads all 4 screen files and fails if any
 of them stops calling those helpers, or grows a literal copy of one.
 

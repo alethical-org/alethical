@@ -1619,7 +1619,7 @@ because the committee page already reads the same field (as `entity_sub_type` on
 `/committees/{registration_number}/finance`): without it the same filer would read "Political
 committee or fund" on this list and "Ballot question committee" on its own page, and a reader who
 noticed would trust neither. **The label is derived in exactly one place** —
-`committeeEyebrow` in `apps/frontend/src/lib/committeeMoney.ts`, which the committee page ships —
+`committeeEyebrow` in `apps/frontend/src/lib/committeeMoneyShared.ts`, which the committee page ships —
 so the 2 surfaces cannot diverge, and a second expansion written in the API would be that
 divergence rather than a guard against it. Only the 8 documented codes are served: 6 naming a
 finer kind of committee or fund (`PC`, `PF`, `IEC`, `IEF`, `BC`, `BF`) and 2 naming which layer of

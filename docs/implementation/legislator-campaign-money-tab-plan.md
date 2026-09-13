@@ -318,7 +318,29 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   The configured intermediate first download is 389,287 bytes, 3,387 below the
   preceding stage, against the unchanged 392,321 limit. Evidence:
   `/tmp/2070-stage-build.log`, `/tmp/2070-full-frontend.log` and
-  `/tmp/2070-import-boundary-after.log`. The next active step is 2012.
+  `/tmp/2070-import-boundary-after.log`.
+- The 2012 implementation is complete locally: a pinned, opt-in Expo serializer
+  patch keeps shared screen dependencies with each requesting screen rather than
+  adding them to the HTML's initial program. Startup dependencies remain shared
+  through the entry file; Expo's runtime and content-hash propagation stay intact.
+  It applies only to production web client exports, with 12 real serializer/runtime
+  tests for both visit orders, single shared state, nested imports, changed hashes
+  and all excluded build modes. The original no-common-script-only probe failed
+  all 4 money roots and is rejected.
+- The configured local export is 338,333 compressed bytes in 1 HTML-named index
+  file, 50,954 below the 2070 stage and 53,803 below the public baseline. The full
+  frontend suite passes 2,707 tests; the amended budget coverage adds 1 passing
+  test. An independent review found no correctness finding: all 34 exported
+  JavaScript files have complete required module sets, across 1,468 definitions.
+  Evidence: `/tmp/2012-stage-build.log`, `/tmp/2012-full-frontend.log`,
+  `/tmp/2012-browser/report.json`, `/tmp/2012-independent-reader/`.
+- Release remains active: finish the full server checks and fresh-context browser
+  report, measure a hosted production build without assigning the public domain,
+  then lower the numeric limit from that hosted evidence. The 392,321 limit stays
+  unchanged until that result exists. Archive only committed source for the
+  unpromoted build, excluding local caches and logs. Open 1 Job 3 pull request,
+  clear current-head and queue checks, read live frontend/backend deployment
+  identities and repeat the original empty-browser/warm measurements.
 - Jobs 4 through 5f retain their stated sequence. Action 4 Liberty PAC's historical
   replacement remains held with no additional source attempts or publication.
 

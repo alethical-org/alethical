@@ -54,4 +54,5 @@ overrides:
   uuid: 11.1.1 # eas-cli, Expo telemetry, and xcode use compatible v1/v4/validate APIs
   yaml: 2.8.4 # eas-cli held 2.6.0; dedupes onto metro-config's copy
 patchedDependencies:
+  "@expo/metro-config@57.0.7": patches/@expo__metro-config@57.0.7.patch
   ts-deepmerge@8.0.0: patches/ts-deepmerge@8.0.0.patch

@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, api/page.ts, alethical/api/routers/me.py, alethical/api/services/ask_router.py, alethical/pipeline/rag_ingest.py, alethical/logging.py, alethical/monitoring.py, railway.json, vercel.json -->
+<!-- describes: apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, api/page.ts, alethical/api/routers/me.py, alethical/api/services/ask_router.py, alethical/pipeline/rag_ingest.py, alethical/logging.py, alethical/monitoring.py, railway.json, vercel.json, apps/frontend/metro.config.js, patches/@expo__metro-config@57.0.7.patch, pnpm-workspace.yaml, pnpm-lock.yaml -->
 
 # Production setup and recovery
 
@@ -180,12 +180,19 @@ After Vercel assigns the production domain, update Railway's `ALETHICAL_CORS_ORI
 
 ### What a web release ships
 
-A page loads 3 files by name from the built HTML: the Expo runtime, a shared file of
-parts more than one screen uses, and the program every page needs. Each screen is a
-fourth file, fetched by the app for the address the reader asked for
-(`apps/frontend/src/navigation/screenChunks.ts`). A reader opening a campaign-money page
-therefore never downloads the bill page, either chat screen, the address lookup or the
-traffic dashboard.
+The production web export names 1 `index-*.js` file in its HTML, containing the
+startup program and Expo runtime. The app fetches the screen files it needs for the
+requested address (`apps/frontend/src/navigation/screenChunks.ts`). Shared code that
+is not needed at startup travels with those screens, so a campaign-money reader
+does not fetch the bill screen, chat screens, address lookup or traffic dashboard.
+
+This uses a pinned `@expo/metro-config@57.0.7` patch, enabled in
+`apps/frontend/metro.config.js` only for production web client exports. Each later
+chunk keeps its required synchronous dependencies; Expo's existing runtime keeps
+shared modules as 1 live instance. Native, development and server builds retain
+the upstream behavior. The patch must be reviewed when Expo changes. The local
+measurements, repeated-download tradeoff and pending hosted proof are in
+[page-load-performance-decisions.md](page-load-performance-decisions.md).
 
 The 2 sign-in surfaces are fetched the same way, by the app rather than by the page: the
 dialog after the app can draw, because it is rendered on every page, and the email-link
@@ -201,10 +208,11 @@ file that fails or takes more than 4 seconds lets the app start anyway.
 The build refuses a release that breaks any of 3 rules: exactly 1 file may be named
 `index-*.js` (`scripts/optimize-release-program.mjs`, `scripts/check-release-assets.mjs`),
 no file at all may carry the full icon registry (`scripts/check-icon-bundle.mjs`), and the
-3 files a page names must together stay under a byte limit set just above what the build
-produces today (`scripts/check-first-load-budget.mjs`). That limit is measured the way
-production compresses, and it is a ratchet: lower it when a change lands under it, and raise
-it only with a measurement and a reason in the same change.
+program files named by the HTML must together stay under the production-derived
+byte limit (`scripts/check-first-load-budget.mjs`). The check counts those files
+regardless of their number; it does not count later screen downloads. The limit
+stays at 392,321 bytes until a hosted production measurement supports changing it.
+A smaller local export alone cannot lower that limit.
 
 ### Frontend first-load recovery
 

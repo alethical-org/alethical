@@ -27,9 +27,15 @@ describe('firstLoadFiles', () => {
     ]);
   });
 
+  it('counts a single startup file without charging for later screen code', () => {
+    const html = '<script src="/_expo/static/js/web/index-abc.js" defer></script>';
+    expect(firstLoadFiles(html)).toEqual(['index-abc.js']);
+    expect(checkFirstLoadBudget([{ name: firstLoadFiles(html)[0], bytes: 338333 }])).toBe(338333);
+  });
+
   it('never counts a file the page does not name, whatever it is called', () => {
     // Every other built file is fetched later, by the part that needs it, and a
-    // reader downloads at most 1 of them per page. Counting them charged a
+    // reader fetches the screen and later details it needs. Counting them charged a
     // reader 12,529 bytes for a sign-in dialog and an email-link page nobody
     // had opened (#1976).
     const named = firstLoadFiles(BUILT_PAGE);
@@ -93,7 +99,7 @@ describe('checkFirstLoadBudget', () => {
   it('tells a settings-less build never to move the limit from its own number', () => {
     expect(() =>
       checkFirstLoadBudget([{ name: 'index-abc.js', bytes: 500_000 }], 1_000, false),
-    ).toThrow(/from the figure a build WITH its settings produced, never from one without them/);
+    ).toThrow(/from Vercel’s hosted production measurement, never from a local build/);
   });
 
   it('adds nothing to a build that inlined its settings, whose total is what deploys', () => {
