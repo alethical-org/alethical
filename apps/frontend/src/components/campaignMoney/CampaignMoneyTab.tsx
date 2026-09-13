@@ -66,9 +66,12 @@ import {
 import { CommitteeRefundCard } from './CommitteeRefundCard';
 import { useCampaignMoneyYearStates } from '../../hooks/useCampaignMoneyYearStates';
 import { LinkArrow } from '../LinkArrow';
-import { committeeSlug, FILED_REPORTS_LINK_LABEL } from '../../lib/committeeMoneyShared';
+import {
+  boardRecordUrl,
+  committeeNumberSuffix,
+  committeeSlug,
+} from '../../lib/committeeMoneyShared';
 import { paymentDateRangeLabel, splitExplanation } from '../../lib/legislatorCampaignMoney';
-import { BOARD_VIEWER } from './MoneyCards';
 import { linkProps, routePath } from '../../navigation/links';
 import {
   DEFAULT_MONEY_DETAILS_PREFERENCES,
@@ -171,24 +174,25 @@ export function CampaignMoneyTab({
     namesOnlyYears.add(year);
 
   return (
-    <View style={styles.wrap}>
+    <View style={styles.wrap} role="region" aria-label="Campaign money">
       {/* This tab is the one money surface showing dollar figures, and it is
           still partially built (#1642, #1645, #1650, #1663). Boxed rather than
           full-bleed: the tab opens inside a content column, below the profile
           header and the tab row. */}
       <UnderDevelopmentNotice variant="inset" />
 
-      <View style={styles.head}>
-        <Text accessibilityRole="header" aria-level={2} style={[styles.h2, { fontSize: type.h2 }]}>
-          Campaign money
-        </Text>
-        <YearControl
-          year={year}
-          onSelect={onSelectYear}
-          namesOnlyYears={namesOnlyYears}
-          years={campaignMoneyHistoryYears()}
-        />
-      </View>
+      {/* No visible heading: the tab bar directly above carries the word "Campaign
+          money" and this is the selected tab, so a heading repeating it is 1 word
+          charged for twice. The region keeps the name on `styles.wrap` above, so a
+          screen reader still hears what it is. */}
+      {/* The year control is the tab's first row, left-aligned at the gutter rather
+          than sharing a line with a heading. It draws its own visible "Year" label. */}
+      <YearControl
+        year={year}
+        onSelect={onSelectYear}
+        namesOnlyYears={namesOnlyYears}
+        years={campaignMoneyHistoryYears()}
+      />
 
       {/* A failed recheck leaves the previous answer in place, so a fault is only a
           FAILURE CARD when there is nothing to show. Gated on `isError` alone, one
@@ -249,7 +253,7 @@ export function CampaignMoneyTab({
           <OutsideYearCommitteeCards committees={money.committeesOutsideThisYear} year={year} />
         ) : (
           <View style={styles.card}>
-            <Text accessibilityRole="header" aria-level={3} style={styles.h3}>
+            <Text accessibilityRole="header" aria-level={2} style={styles.h3}>
               {confirmedElsewhereHeading(year, money.committeesOutsideThisYear)}
             </Text>
             <Text style={styles.body}>
@@ -351,10 +355,10 @@ function OutsideYearCommitteeCards({
         <Text style={styles.eyebrow}>
           {year} · REGISTRATION {committee.registrationNumber}
         </Text>
-        <Text accessibilityRole="header" aria-level={3} style={[styles.h3, { fontSize: type.h3 }]}>
+        <Text accessibilityRole="header" aria-level={2} style={[styles.h3, { fontSize: type.h3 }]}>
           {committee.committeeNameAsReviewed}
         </Text>
-        <Text accessibilityRole="header" aria-level={4} style={styles.explain}>
+        <Text accessibilityRole="header" aria-level={3} style={styles.explain}>
           {confirmedElsewhereHeading(year, [committee])}
         </Text>
         <Text style={[styles.body, { fontSize: type.body }]}>
@@ -379,7 +383,7 @@ function OutsideYearCommitteeCards({
 function UnconfirmedPanel() {
   return (
     <View style={styles.card}>
-      <Text accessibilityRole="header" aria-level={3} style={styles.h3}>
+      <Text accessibilityRole="header" aria-level={2} style={styles.h3}>
         We have not matched this member to their committee yet
       </Text>
       <Text style={styles.body}>{LINK_UNCONFIRMED_EXPLANATION}</Text>
@@ -420,6 +424,29 @@ function CommitteeCard({
     slug: committeeSlug(name, committee.registrationNumber),
     year: String(year),
   };
+  const ourRecord = (
+    <Pressable
+      style={(state) => [
+        styles.recordLink,
+        Boolean('focused' in state && state.focused) && detailsStyles.focus,
+      ]}
+      {...linkProps(routePath.moneyCommittee(recordParams.slug, { year: recordParams.year }), () =>
+        navigation.navigate('CommitteeMoney', recordParams),
+      )}
+    >
+      {/* Label and arrow are 1 inline run with a no-break space between them, so on a
+          phone, where the label wraps to 2 lines, the arrow stays against the last
+          word instead of being centred against the wrapped block with roughly 140px
+          of empty space in front of it. */}
+      <Text style={[styles.recordLinkLabel, { fontSize: type.small }]}>
+        {copy.fullRecord}
+        <Text style={styles.arrowRun}>
+          {'\u00a0'}
+          <LinkArrow color={c.link} />
+        </Text>
+      </Text>
+    </Pressable>
+  );
   return (
     <CampaignMoneyCardTheme>
       <View style={{ gap: 12 }}>
@@ -427,50 +454,56 @@ function CommitteeCard({
           <Text style={text.body}>{splitExplanation(committee.split.state)}</Text>
         ) : null}
         <View style={[styles.card, isTablet && styles.cardTablet, isMobile && styles.cardMobile]}>
-          <Text style={styles.eyebrow}>
-            {committee.office ? `${committee.office} · ` : ''}
-            {year} · REGISTRATION {committee.registrationNumber}
-          </Text>
+          {/* The registration number rides on the name line, in the state's own
+              listing format. The eyebrow that used to sit above carried 3 facts and
+              2 of them were already on the page: the chamber is in the profile's own
+              h1 and the line under it, and the year is set by the control directly
+              above this card. */}
           <Text
             accessibilityRole="header"
-            aria-level={3}
+            aria-level={2}
             style={[styles.h3, { fontSize: type.h3 }, numericText(name)]}
           >
-            {name}
+            {name}{' '}
+            <Text style={styles.numberRun}>
+              {committeeNumberSuffix(committee.registrationNumber)}
+            </Text>
           </Text>
 
           {through ? (
             <FilingStamp
               line={coveredPeriodLine(through, periodStart)}
               detail={coveredPeriodDetail(through, null, { reportedPeriodStart: periodStart })}
-              showLink={false}
+              boardRecordUrl={boardRecordUrl(
+                committee.registerKind,
+                committee.registrationNumber,
+                year,
+              )}
+              ourRecord={ourRecord}
               covered
               isMobile={isMobile}
             />
-          ) : paymentDateRangeLabel(
-              committee.split.firstPaymentOn,
-              committee.split.lastPaymentOn,
-            ) ? (
-            <Text style={[text.body, text.numeric]}>
-              {paymentDateRangeLabel(committee.split.firstPaymentOn, committee.split.lastPaymentOn)}
-            </Text>
-          ) : null}
-          <View style={styles.recordLinks}>
-            <SourceLink label={FILED_REPORTS_LINK_LABEL} url={BOARD_VIEWER} />
-            <Pressable
-              style={(state) => [
-                styles.recordLink,
-                Boolean('focused' in state && state.focused) && detailsStyles.focus,
-              ]}
-              {...linkProps(
-                routePath.moneyCommittee(recordParams.slug, { year: recordParams.year }),
-                () => navigation.navigate('CommitteeMoney', recordParams),
-              )}
-            >
-              <Text style={[styles.source, { fontSize: type.body }]}>{copy.fullRecord}</Text>
-              <LinkArrow color={c.link} />
-            </Pressable>
-          </View>
+          ) : (
+            <>
+              {paymentDateRangeLabel(
+                committee.split.firstPaymentOn,
+                committee.split.lastPaymentOn,
+              ) ? (
+                <Text style={[text.body, text.numeric]}>
+                  {paymentDateRangeLabel(
+                    committee.split.firstPaymentOn,
+                    committee.split.lastPaymentOn,
+                  )}
+                </Text>
+              ) : null}
+              {/* The row belongs inside the stamp panel, whose subject it shares. A
+                  year with no filing draws no panel, and the row still draws: it is
+                  the only way from this card to everything we hold on the committee,
+                  and losing it in the emptiest year is losing it where a reader most
+                  wants more. */}
+              {ourRecord}
+            </>
+          )}
           <CommitteeDonations
             committee={committee}
             year={year}
@@ -647,20 +680,6 @@ function FreshnessNote({
 
 const styles = StyleSheet.create({
   wrap: { gap: 24 },
-  head: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  h2: {
-    fontFamily: t.typography.title,
-    fontSize: 30,
-    fontWeight: t.fontWeights.heavy,
-    letterSpacing: -0.6,
-    color: c.text,
-  },
   h3: {
     fontFamily: t.typography.title,
     fontSize: 24,
@@ -706,6 +725,23 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingVertical: 12,
   },
+  // A row link, not a link inside a sentence: its position and its trailing arrow
+  // say where it goes, so it carries no underline. The 44px target lives on the
+  // pressable around it.
+  recordLinkLabel: {
+    fontFamily: t.typography.body,
+    fontWeight: t.fontWeights.bold,
+    color: c.link,
+  },
+  // The no-break space alone does not hold a drawn arrow against the last word: the
+  // arrow is its own inline box, so the browser breaks in front of it and drops it to
+  // the left edge of the next line. Forbidding a break inside this run keeps the space
+  // and the arrow with the word before them, and a label too long for the line then
+  // wraps at an earlier word and carries the arrow down with it.
+  arrowRun: { ...({ whiteSpace: 'nowrap' } as object) },
+  // Same reason as `arrowRun`: a hyphen is a place a browser may break a line, so
+  // without this the card ends a line on a dangling `-` and strands the number.
+  numberRun: { ...({ whiteSpace: 'nowrap' } as object) },
   freshness: { gap: 8 },
   cardMobile: committeeCardStyles.mobile,
   cardTablet: committeeCardStyles.tablet,
@@ -719,6 +755,5 @@ const styles = StyleSheet.create({
   figuresMobile: { flexDirection: 'column' },
   figureColumn: { flex: 1, minWidth: 0 },
   figureColumnMobile: { minWidth: 0 },
-  recordLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'center' },
   recordLink: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44 },
 });

@@ -65,6 +65,7 @@ function committee(overrides: Partial<CampaignCommitteeMoney> = {}): CampaignCom
     committeeNameAsReviewed: 'Putnam, Aric Senate Committee',
     committeeName: 'Putnam, Aric Senate Committee',
     office: 'Senate',
+    registerKind: 'candidate_committee',
     checked: {
       checkedOn: '2026-08-30',
       nameEvidence: 'exact',

@@ -108,8 +108,16 @@ unfinished clerical job of ours.
 
 A member can hold more than one committee, because Minnesota registers one per office.
 17 sitting members tie to more than one, and 8 have 2 or more live at the same time. So
-the tab shows **one card per committee**, each headed with the office it is for, the
-year, and the committee's registration number.
+the tab shows **one card per committee**, each headed with the committee's registered
+name and its registration number, in the state's own listing format:
+
+> Abeler, Jim Senate Committee - 17868
+
+That one line replaced a small grey line above it that used to read `SENATE · 2026 ·
+REGISTRATION 17868`. Two of those three facts were already on the page: the chamber is in
+the profile's own big heading and the line under it, and the year is set by the year
+buttons directly above the card. Only the registration number was new, so it moved onto
+the name.
 
 **The cards are never added together, and a member with more than one is told so before
 they read a single figure.** Above their cards the tab says:
@@ -183,6 +191,16 @@ before them would print no lines at all rather than a vaguer version.
 
 ### The year switch
 
+The year buttons are the first thing on the tab, behind a small label reading **Year**.
+The tab carries no heading of its own: the tab strip directly above it says "Campaign
+money" and this is the selected tab, so a heading repeating that word said it twice. A
+screen reader still hears what the area is, because the area itself is named.
+
+The red strip at the top of the tab stays. It reads "Under development. This section does
+not yet cover lobbying.", and it describes the whole money section rather than this one
+page, so it comes off every money page at once when lobbying ships
+([issue 2181](https://github.com/alethical-org/alethical/issues/2181)).
+
 The buttons offer **every calendar year from 2015 through the current year**, newest
 first. In 2026 that is 12 years; in 2027 it becomes 13. The year in
 `/legislators/<name>?tab=money&year=2025` controls the committee figures, donation lists
@@ -230,16 +248,58 @@ registration had ended when it had not. The 1 it was right about is Paul Novotny
 its absence covers 2 cases we cannot tell apart, still open and missing from the filer list
 we hold, which is why both get the same honest wording.
 
+### The filing stamp, and the 2 ways out of the card
+
+Under the committee's name sits a grey panel. Its first line is the period the figures
+cover, taken from the report itself. Under that, in ordinary type rather than bold, are
+2 sentences:
+
+> The committee filed this report with the Minnesota Campaign Finance Board, which prints
+> both dates. The Board's record for this committee lists every report it filed, under
+> Reports and Data.
+
+The second sentence starts on its own line, a hair under the first. Where the report
+names only an end date and no start, the first sentence reads "which prints the date"
+instead. Those are the only 2 forms, and the same 2 sentences print here, on a
+committee's own page at `/money/committees/<name>-<number>`, and on that committee's
+payments list. One wording, so the 3 pages cannot drift apart.
+
+**The words "The Board's record for this committee" are a link, and they open that
+committee's own page on the Board's site.** Minnesota gives every registered filer a page
+keyed on the registration number the card prints, and the kind of filer decides the part
+of the address in front of that number:
+
+| What our copy of the register calls the filer | What the address says |
+| --- | --- |
+| Candidate committee | `candidates` |
+| Party unit | `party-unit` |
+| Political committee or fund | `political-committee-fund` |
+
+So Jim Abeler's Senate committee opens at
+`https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/17868/2026/`, and
+the year on the end is the year the card is showing, so the Board's page opens on the same
+period. Until 13 September 2026 every committee on the site pointed at the Board's
+**candidate** name search instead, which cannot find a party unit or a political fund at
+all ([issue 2179](https://github.com/alethical-org/alethical/issues/2179)). Where our copy
+of the state's filer list does not carry the number, the link opens the page listing all 3
+of the Board's searches rather than guessing one.
+
+The panel's last row is a link on our own site, **Everything we hold on this committee**,
+which opens `/money/committees/<name>-<number>`. It sits inside the panel because it is
+about the same committee the dates describe. In a year where the committee filed nothing,
+no panel draws, and that row still draws under the card's heading: it is the only way from
+the card to the committee's own page, and the emptiest year is when a reader most wants it.
+
 ### Money in
 
 Two figures, and they are different things. Their labels are the filing's own words, ruled
 by Eugene on 11 Sep 2026:
 
 - **Total contributions.** The committee's own report, drawn only when we hold its total.
-  The date the report runs to, and the link to the state's site where its filed reports
-  can be looked up by registration number, sit once in a filing stamp above the money-in
-  and money-out blocks rather than under either figure: one filing produces both, so
-  stating it per figure would state one fact twice.
+  The date the report runs to, and the way out to the committee's record on the state's
+  site, sit once in a grey filing stamp above the money-in and money-out blocks rather
+  than under either figure: one filing produces both, so stating it per figure would state
+  one fact twice.
 - **Itemized contributions.** The state publishes a spreadsheet of the donations it
   required each committee to name. This is what that spreadsheet holds for the year, with
   the dates of the first and last payment. Always drawn: a real amount, or the words

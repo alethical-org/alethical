@@ -30,9 +30,9 @@ export function DonorBreakdown({
   complete,
   failed,
   onSelectTab,
-  headingLevel = 4,
+  headingLevel = 3,
 }: {
-  headingLevel?: 2 | 4;
+  headingLevel?: 2 | 3;
   payments: CommitteeReceivedPayment[];
   split: Split;
   year: number;

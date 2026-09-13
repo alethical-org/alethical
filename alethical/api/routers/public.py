@@ -4776,6 +4776,10 @@ def legislator_campaign_finance(
                         entry.finance.committee.name if entry.finance else None
                     ),
                     "office": entry.office_as_reviewed,
+                    # Which of the register's 3 kinds this filer is, so the card can
+                    # build the Board's own address for this committee instead of
+                    # sending every kind to the candidate name search (#2179).
+                    "register_kind": entry.register_kind,
                     # What a person read when they confirmed this account is this member's,
                     # and the day they did. Served rather than recomputed, so the card
                     # states the basis of the decision that was made instead of what

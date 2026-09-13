@@ -60,7 +60,7 @@ export function CommitteeRefundCard({ refunds, registrationNumber }: Props) {
       <Text
         nativeID={titleId}
         accessibilityRole="header"
-        aria-level={3}
+        aria-level={2}
         style={[styles.heading, { fontSize: type.h3 }]}
       >
         {copy.heading}

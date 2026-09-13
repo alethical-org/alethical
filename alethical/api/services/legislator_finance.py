@@ -257,6 +257,15 @@ class LegislatorCommitteeMoney:
     registration_number: str
     committee_name_as_reviewed: str
     office_as_reviewed: str | None
+    #: Which of the register's 3 kinds this filer is, from the same filer snapshot the
+    #: closing dates come from. Served so the card can build the Board's own address
+    #: for this committee: the Board keys a filer's page on the registration number,
+    #: and the path segment in front of it says which kind of filer it is
+    #: ([#2179](https://github.com/alethical-org/alethical/issues/2179)). ``None``
+    #: means our copy of the filer list does not carry the number, and the card then
+    #: links to the page listing all 3 searches rather than guessing a segment that
+    #: would land in a search the filer cannot appear in.
+    register_kind: str | None
     finance: CommitteeFinance | None
     split: NamedMoneySplit
     #: Which of the 6 filing-schedule states this committee-year is in, so the tab can
@@ -895,6 +904,7 @@ def legislator_finance(
     other_office = len(confirmed) - len(links)
     withheld = reader.filer_years_that_must_not_show_a_split(db, release)
     committees: list[LegislatorCommitteeMoney] = []
+    register_kinds = _register_kinds(db, [row.registration_number for row in links])
     for link in sorted(links, key=lambda row: row.registration_number):
         finance = committee_finance(
             db, release, registration_number=link.registration_number, year=year
@@ -917,6 +927,7 @@ def legislator_finance(
                     registration_number=link.registration_number,
                     committee_name_as_reviewed=link.committee_name_as_reviewed,
                     office_as_reviewed=link.office_as_reviewed,
+                    register_kind=register_kinds.get(link.registration_number),
                     finance=None,
                     stated_by_kind=by_kind,
                     donor_states=by_state,
@@ -947,6 +958,7 @@ def legislator_finance(
                 registration_number=link.registration_number,
                 committee_name_as_reviewed=link.committee_name_as_reviewed,
                 office_as_reviewed=link.office_as_reviewed,
+                register_kind=register_kinds.get(link.registration_number),
                 finance=finance,
                 stated_by_kind=by_kind,
                 donor_states=by_state,
@@ -1035,6 +1047,35 @@ def _committees_outside_this_year(
         )
         for link in sorted(links, key=lambda row: row.registration_number)
     )
+
+
+def _register_kinds(db: Session, registration_numbers: list[str]) -> dict[str, str]:
+    """Each committee's kind as our copy of the Board's filer list records it.
+
+    A missing row is a missing key rather than a guessed kind: the caller's fallback
+    is the Board's own page listing all 3 searches, and that is honest where a guessed
+    path segment would send the reader into a search the filer cannot appear in.
+    """
+    schema = load_schema()
+    # The same snapshot ``_closing_dates`` and the filing schedule read, so a
+    # committee cannot read as one kind on one part of the page and another elsewhere.
+    snapshot = live_filings_snapshot(db)
+    if snapshot is None or not registration_numbers:
+        return {}
+    rows = db.execute(
+        select(
+            schema.CampaignFinanceFiler.registration_number,
+            schema.CampaignFinanceFiler.kind,
+        ).where(
+            schema.CampaignFinanceFiler.snapshot_id == snapshot.id,
+            schema.CampaignFinanceFiler.registration_number.in_(registration_numbers),
+        )
+    ).all()
+    return {
+        row[0]: (row[1].value if hasattr(row[1], "value") else str(row[1]))
+        for row in rows
+        if row[1] is not None
+    }
 
 
 def _closing_dates(

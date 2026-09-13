@@ -42,7 +42,7 @@ export function CommitteeMixHistory({
   );
   return (
     <View style={styles.card}>
-      <Text accessibilityRole="header" aria-level={3} style={s.heading}>
+      <Text accessibilityRole="header" aria-level={2} style={s.heading}>
         {copy.historyHeading}
       </Text>
       <Text style={[s.name, numericText(committeeName)]}>{committeeName}</Text>

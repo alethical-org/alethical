@@ -142,6 +142,7 @@ def _committee(
         registration_number=registration_number,
         committee_name_as_reviewed="A Committee",
         office_as_reviewed="Senate",
+        register_kind="candidate_committee",
         finance=finance,
         donor_states=DonorStates(
             state="reported",

@@ -24,7 +24,7 @@ export function CommitteeDonations({
   headingLevel,
 }: {
   committee: Pick<CampaignCommitteeMoney, 'registrationNumber' | 'split'>;
-  headingLevel?: 2 | 4;
+  headingLevel?: 2 | 3;
   year: number;
   releaseId?: string;
   onRefresh: () => void;

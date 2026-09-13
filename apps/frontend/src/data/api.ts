@@ -617,6 +617,7 @@ interface ApiLegislatorCampaignMoneyPayload {
     committee_name_as_reviewed: string;
     committee_name?: string | null;
     office?: string | null;
+    register_kind?: string | null;
     checked?: {
       checked_on: string;
       name_evidence?: string | null;
@@ -2559,6 +2560,7 @@ export async function getLegislatorCampaignMoneyFromApi(
       committeeNameAsReviewed: committee.committee_name_as_reviewed,
       committeeName: committee.committee_name ?? null,
       office: committee.office ?? null,
+      registerKind: committee.register_kind ?? null,
       checked: committee.checked
         ? {
             checkedOn: committee.checked.checked_on,

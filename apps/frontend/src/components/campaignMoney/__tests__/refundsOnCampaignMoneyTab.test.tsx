@@ -42,6 +42,7 @@ function committee(registration: '17868' | '15667'): CampaignCommitteeMoney {
     committeeNameAsReviewed: `Fixture Senate committee ${registration}`,
     committeeName: `Fixture Senate committee ${registration}`,
     office: 'Senate',
+    registerKind: 'candidate_committee',
     checked: null,
     moneyIn: null,
     moneyOut: null,
