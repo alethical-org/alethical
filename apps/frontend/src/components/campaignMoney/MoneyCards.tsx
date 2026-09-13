@@ -691,7 +691,7 @@ const defaultStyles = StyleSheet.create({
     maxWidth: 1000,
   },
   checked: {
-    marginTop: 16,
+    marginTop: 24,
     paddingTop: 18,
     borderTopWidth: 1,
     borderTopColor: t.colors.alpha.ink08,
@@ -766,7 +766,7 @@ const profileStyles = StyleSheet.create({
   stampPeriodMuted: { ...defaultStyles.stampPeriodMuted, color: c.secondary },
   stampDetail: { ...defaultStyles.stampDetail, color: c.secondary },
   inlineLink: { ...defaultStyles.inlineLink, color: c.link },
-  checked: { ...defaultStyles.checked, borderTopColor: c.border },
+  checked: { ...defaultStyles.checked, borderTopColor: t.colors.alpha.ink08 },
   checkedHeading: { ...defaultStyles.checkedHeading, color: c.text },
   checkedSentence: { ...defaultStyles.checkedSentence, color: c.secondary },
 });

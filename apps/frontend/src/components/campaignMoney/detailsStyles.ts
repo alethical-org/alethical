@@ -62,7 +62,7 @@ export const detailsStyles = StyleSheet.create({
 const typeBands = {
   computer: { h2: 34, h3: 24, body: 17, small: 15, figure: 36, donutCenter: 20, legendMin: 380 },
   tablet: { h2: 30, h3: 22, body: 16, small: 15, figure: 32, donutCenter: 18, legendMin: 320 },
-  phone: { h2: 26, h3: 20, body: 15, small: 14, figure: 28, donutCenter: 16, legendMin: 240 },
+  phone: { h2: 26, h3: 20, body: 15, small: 15, figure: 28, donutCenter: 16, legendMin: 240 },
 };
 
 export function useCampaignMoneyTypography() {

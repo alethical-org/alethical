@@ -486,7 +486,8 @@ contribution has another kind. Candidate Committee rows sit in Committees & Fund
 keep the “Candidate committee” label. The original kind remains on each payment even
 though the chart and tab combine those 2 committee kinds.
 
-The tabs form 1 underlined row, without boxes. Each name is 17px and bold (weight 700),
+The tabs form 1 underlined row, without boxes or a full-width line above them.
+The row starts 30px below the Money in and Money out blocks. Each name is 17px and bold (weight 700),
 with its count beside it in a separate 15px span at weight 800, such as **Individuals 74**,
 with no parentheses. Tabs are at least 44px tall. The chosen tab has dark text and a 3px
 underline; its state does not rely on colour alone. At widths below 768px the row scrolls
@@ -508,10 +509,11 @@ as “Name not given in the filing” and does not add a made-up person to the n
 The tab count says names; the count line separately says how many payment rows it holds.
 Neither claims a number of distinct people.
 
-Names sit in a list with a line above it and a fine line under each row, without separate
-cards, rounded corners or row shadows. Each row is at least 60px high, with 12px above
+Names sit in a list with a fine line only between adjacent rows, without separate
+cards, rounded corners or row shadows. There is no line above the first name or below
+the last name. Each row is at least 60px high, with 12px above
 and below its contents and 2px at the sides. The name and right-aligned total are 17px
-and bold (weight 700). A single quiet 15px line keeps the filed employer, any existing
+and bold (weight 700). A single quiet 15px line at normal weight (400) keeps the filed employer, any existing
 kind label and payment count together, separated by “·”, in `#6b716b`. A group with
 1 payment says “1 payment”, such as “Self Employed · 1 payment”.
 
@@ -523,6 +525,9 @@ message, not the first page's subtotal as though it were the whole year. Repeate
 payments are kept, never silently removed.
 The show-more button fits its label instead of stretching across the list. It is at
 least 44px tall, with 18px side padding, a 12px corner radius and a light border.
+It sits 14px below the last name. The checked block begins 24px below this button, or
+below the last name when no button is needed. Its fine top line is the only full-width
+line there, with 18px between the line and the checked text.
 
 Search narrows names inside the chosen tab. The 5 orders are largest amount, smallest
 amount, name A to Z, newest date and oldest date. A missing date always goes last. A
@@ -885,7 +890,11 @@ saying zero:
 Under the figures, a ruled list headed **Who spent** groups the selected year's payments
 by the group that spent them, matching **Who gave** inside the committee cards above.
 Each row carries the spender's name, a chip reading **Supporting**, **Opposing** or
-**Not stated**, and `Registration 12345 · 3 payments` beneath. The chip prints the same
+**Not stated**, and `Registration 12345 · 3 payments` beneath at normal weight (400). On computers
+and tablets the chip occupies its own aligned column between the name and amount; on
+a phone it sits beside the name. Supporting has dark text and a dark outline, Opposing
+has white text on a dark fill, and Not stated has muted text and a dashed outline.
+The chip prints the same
 word the row's spoken label gives a screen reader, and the filing's own `For` and
 `Against` never reach a reader: the 2 figures above already read **Spent supporting
 them** and **Spent opposing them**, so a second vocabulary 3 rows later would describe
@@ -893,6 +902,10 @@ one distinction twice. Opening a group shows the payments behind it. Supporting,
 opposing and any unspecified direction remain separate, including when the same spender
 appears in more than 1 direction. No amount is moved between directions or combined with
 the candidate's own receipts or ordinary payments out.
+
+The payment-date line sits below the spender list, 14px above the source links, at
+normal weight (400). Small explanatory text throughout the money section is at least
+15px, including on phones. This includes refund notes and **Count not published**.
 
 **The card's only link goes to the Board's downloads page, and a line under it names the
 file.** The link reads **Minnesota's campaign-finance downloads**, the same words the
