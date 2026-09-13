@@ -1,6 +1,6 @@
 # Alethical Backend API System Design
 
-<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/services/independent_spending.py, alethical/api/services/committee_finance.py, alethical/api/services/committee_stated_by_kind.py, alethical/api/services/committee_donor_states.py, alethical/api/services/zip_state_reference.py, scripts/build_zip_state_reference.py, alethical/api/services/legislator_finance.py, alethical/api/services/campaign_finance_payments.py, alethical/api/services/campaign_finance_register.py, alethical/api/auth.py, alethical/api/services/auth.py -->
+<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/services/independent_spending.py, alethical/api/services/committee_finance.py, alethical/api/services/committee_stated_by_kind.py, alethical/api/services/committee_donor_states.py, alethical/api/services/committee_name_connections.py, alethical/api/services/zip_state_reference.py, scripts/build_zip_state_reference.py, alethical/api/services/legislator_finance.py, alethical/api/services/campaign_finance_payments.py, alethical/api/services/campaign_finance_register.py, alethical/api/auth.py, alethical/api/services/auth.py -->
 
 Status: **design reference, not an inventory of what exists.** Much of this document is the
 target shape rather than the shipped API, so every unbuilt endpoint is marked **NOT BUILT**
@@ -791,7 +791,7 @@ release:**
   it ([#1902](https://github.com/alethical-org/alethical/issues/1902)).
   **It means only what it says, which it did not until 2 Sep 2026.** The committee set was
   filtered by the reviewed years stored against a match, and those years are what the reviewer
-  saw in the *donations* download — the last year the committee reported raising money. A
+  saw in the _donations_ download — the last year the committee reported raising money. A
   committee that raised nothing in a year can still have money spent about it that year, so 36
   members whose committees somebody had confirmed were answered `link_unconfirmed`, and 2 of
   them had real 2026 money suppressed. Corrected in
@@ -921,16 +921,16 @@ divide a committee's money into named and unnamed, and the same object is served
 drift. Counts measured against the live release on 19 Aug 2026 across all 11,065
 committee-years it covers:
 
-| `split.state` | What it means | Count |
-| --- | --- | --- |
-| `shown` | `unnamed_total` is real: the reported total minus the named **cash** payments we hold | 3,062 |
-| `no_reported_total` | No official total this page may print for the year, so there is no whole to divide | 7,442 |
-| `no_named_payments` | The filing reports money, we hold no named payment of it, and nobody has read the filing to find out whether it named any | 468 |
-| `sources_disagree` | The check against the committee's own filed report found the 2 official figures differ | 62, and **42** once the part-year reading below is applied |
-| `periods_differ` | The 2 figures cover different periods, so their difference is not a fact about donors | 16 |
-| `named_payments_not_in_our_copy` | The filing names donors and our copy of the download holds no row at all for the committee-year | 14 |
-| `reported_total_predates_a_correction` | The subtraction refuses to run and the Board's catalogue records the committee refiling the year's report | 1 |
-| `figures_do_not_line_up` | The subtraction refuses to run and nothing we hold says why | 0 |
+| `split.state`                          | What it means                                                                                                             | Count                                                      |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `shown`                                | `unnamed_total` is real: the reported total minus the named **cash** payments we hold                                     | 3,062                                                      |
+| `no_reported_total`                    | No official total this page may print for the year, so there is no whole to divide                                        | 7,442                                                      |
+| `no_named_payments`                    | The filing reports money, we hold no named payment of it, and nobody has read the filing to find out whether it named any | 468                                                        |
+| `sources_disagree`                     | The check against the committee's own filed report found the 2 official figures differ                                    | 62, and **42** once the part-year reading below is applied |
+| `periods_differ`                       | The 2 figures cover different periods, so their difference is not a fact about donors                                     | 16                                                         |
+| `named_payments_not_in_our_copy`       | The filing names donors and our copy of the download holds no row at all for the committee-year                           | 14                                                         |
+| `reported_total_predates_a_correction` | The subtraction refuses to run and the Board's catalogue records the committee refiling the year's report                 | 1                                                          |
+| `figures_do_not_line_up`               | The subtraction refuses to run and nothing we hold says why                                                               | 0                                                          |
 
 **Only `sources_disagree` may say Minnesota's 2 publications contradict each other, and until
 Aug 19 2026 three states shared it.** An empty download and a negative subtraction both landed
@@ -1016,8 +1016,8 @@ which is the single home for the source behaviours that make a plausible query s
 This endpoint adds what a page needs and a command-line reader does not: the current
 ownership claim on the compatible mixed answer only, a per-block state instead of an
 exception, what an empty answer
-*means*, and independent spending aimed **at** the committee (a different question from the
-reader's `independent_spending_by`, which is money the filer *spent*).
+_means_, and independent spending aimed **at** the committee (a different question from the
+reader's `independent_spending_by`, which is money the filer _spent_).
 
 **Every itemized figure in `money_in` and `money_out` is a sum of rows, never a committee's
 filed total.** Minnesota names a donor
@@ -1042,7 +1042,7 @@ special-election filer whose second report series the Board's route does not ret
 `slug` and `full_name` where a **person** has confirmed this committee belongs to that member,
 and `null` otherwise. In the dated-only variant both claim fields are absent. Never
 derived: no score,
-threshold or name match ever creates one, and a stored *rejection* answers `null`, exactly as
+threshold or name match ever creates one, and a stored _rejection_ answers `null`, exactly as
 nobody having looked does, because a rejection is a decision about our own proposal and never a
 reader-facing claim about the committee (§7). Since
 [#1902](https://github.com/alethical-org/alethical/issues/1902) a **withdrawn** confirmation
@@ -1081,6 +1081,36 @@ explicit `Other` belongs to the Other line. The block remains independent of whe
 files name any payments for the committee, including an official zero with an agreeing check.
 If any line's difference is negative, the block instead carries `state: sources_disagree` and
 an empty `lines` list, so no unsupported line figure reaches a client.
+
+**`name_connections` counts other candidate registrations under the same printed name**
+([issue 2145](https://github.com/alethical-org/alethical/issues/2145)). Both committee-finance
+response variants and each confirmed legislator committee carry the same block, scoped to
+that committee and source calendar year. It does not depend on the filing-total checks:
+this calculation uses only named rows from the held contributions copy, including older
+years. It does not prove that matching names belong to the same person.
+
+- `state` is `reported` when Individual-kind Contribution rows name at least 1 contributor.
+  `year` is the requested year and `matching` is always `exact_printed_name`.
+- `denominator` counts distinct printed names on those rows. `numerator` counts names also
+  appearing on an Individual-kind Contribution row to at least 1 other registration whose
+  `recipient_type` is `PCC`, in that same year and source copy. No case folding, trimming,
+  initials matching or other normalization is applied. Cash and donated goods or services
+  both count; other receipt types, donor kinds and recipient kinds do not.
+- `distribution` always has 5 rows, with `other_committees` equal to `0`, `1`, `2`, `3`,
+  and `4+`, plus `names`. Repeated payments to the same registration count once; the
+  selected registration never counts as another committee. The buckets add to the
+  denominator and all except `0` add to the numerator.
+- `top_names` contains up to 5 objects with `name` and `other_committees`, ordered by
+  descending count and then exact-name C ordering for reproducible ties. Names with zero
+  other registrations remain eligible when fewer than 5 names have a positive count.
+- With no matching names, `state` is `not_reported` for a year the contribution file covers,
+  or `unavailable` for a year it does not. Both counts are null and both lists empty; neither
+  state claims zero giving. A removed source copy raises the existing unavailable response.
+
+No money figure, donor identity, recipient list, or cross-year total is returned. Existing
+outer release identifiers and copy dates identify the source. The block does not combine
+results for multiple confirmed committees. Future display must state the exact-spelling
+method beside any counts; this server change adds no visible chart or ranking.
 
 **`donor_states` reports Individual-kind contributions by state for 1 calendar year**
 ([issue 2146](https://github.com/alethical-org/alethical/issues/2146)). It is the same optional
@@ -1163,7 +1193,7 @@ so a populated request costs nothing extra.
 
 **The whole request reads one instant of the database** (`SET TRANSACTION ISOLATION LEVEL
 REPEATABLE READ`, issued as the first statement of the request's transaction). Resolving the
-release once fixes *which* release is read; this fixes *whether its rows are still there* from
+release once fixes _which_ release is read; this fixes _whether its rows are still there_ from
 the first statement to the last. Without it, 2 publishes landing mid-request take the named
 release's rows away halfway through, and money out reads "not reported" after money in has
 already reported a figure — section H's exact forbidden case, arrived at by a race rather than
@@ -1189,7 +1219,7 @@ own labels in `by_type`. In 2025 candidate committees filed 6,781 rows typed
 `Campaign Expenditure` and none typed `General Expenditure` while party units filed 7,524 the
 other way round, so any single-label filter reports a whole kind of filer as having spent
 nothing. `unpaid_total` is a separate column of the filing and not a subset of the total: the
-download's `Amount` is the filing's *total* column and a row can be unpaid.
+download's `Amount` is the filing's _total_ column and a row can be unpaid.
 
 `money_out.stated_spending_state` says whether this committee-year's own filed report was read
 against the payment rows we hold, and it is answered separately from `stated_split_state`
@@ -1221,7 +1251,7 @@ a person's committees cannot be added together.
 directly. It is the one block where a committee with no rows reads as a measured **0**: nobody
 filed an independent expenditure about them at all, which is a finding rather than a gap.
 **Not "none over $200".** That qualifier was here and was false: the $200 in
-`.claude/rules/grounded-answers.md` rule 12 is a *donor's* yearly aggregate on the
+`.claude/rules/grounded-answers.md` rule 12 is a _donor's_ yearly aggregate on the
 **contributions** file and is not a floor on this one — 17,194 of this file's 41,130 rows are
 under $200, 13,393 under $100, minimum $0.00 (measured 13 Aug 2026). So a surface may not
 describe these figures as only the large payments.
@@ -1386,8 +1416,8 @@ one other, in 6,464 groups, and one group holds 119 identical rows. Nothing dedu
 different day's data.
 
 - **200 with `state: "not_reported"`** on the name route — no row carries this exact spelling.
-  Deliberately not a 404: the Board's directory decides whether a *committee* exists and nothing
-  decides whether a *person* does, so all we know is that the string matched nothing.
+  Deliberately not a 404: the Board's directory decides whether a _committee_ exists and nothing
+  decides whether a _person_ does, so all we know is that the string matched nothing.
 - **404 on the committee route** — this registration number appears in no dataset of the current
   release, resolved with the same `find_committee` the `finance` route uses so the 2 cannot
   disagree about whether a committee exists. Without it an unknown number reads as
@@ -1572,7 +1602,7 @@ undated row below every dated one would drop a 2026 report whose document is an 
 below dated reports from 2023, at the top of a feed of the newest filings. A report is always
 received after its period closes **except when it is not** — a terminating committee files its final
 report at termination, and 7 of the 3,735 dated reports are received before their period ends, every
-one of them a terminated filer (measured 31 Aug 2026). So the period end is *usually* the earliest
+one of them a terminated filer (measured 31 Aug 2026). So the period end is _usually_ the earliest
 its filing can have been, which is enough to place an undated row and not enough to assert as an
 invariant. Using it to place a row invents nothing either way. The served `filed_date` stays `null`, which is the whole
 difference between ranking and claiming.
@@ -1645,8 +1675,8 @@ because "identical on every period measured" is not "cannot differ" and only one
 the sentence claims.
 
 **20 Jul 2026 is a deadline all 3 filer kinds share**, so a sentence naming that period does not
-silently speak for filers on another calendar: all 1,203 rows are the same report, the *2026
-Pre-Primary Report*, filed by 473 committees and funds, 435 candidate committees and 295 party
+silently speak for filers on another calendar: all 1,203 rows are the same report, the _2026
+Pre-Primary Report_, filed by 473 committees and funds, 435 candidate committees and 295 party
 units. Measured for this period, not a rule about every period — filer kinds do file to different
 calendars (§7), so a surface naming a period must not assume the next one is shared. #1677's acceptance criterion ("the count must describe exactly the set
 the rows come from") and its example sentence ("N committees filed for this period") pull apart
@@ -1729,8 +1759,7 @@ no published layer, and the honest line for them is the register's own word, "Pa
 
 **A client must not fill that gap from the filer's name.** 21 registered filers are named exactly
 `Nth Congressional District <party>`, and **3 of the 21 are political committees or funds rather
-than party units** — 20733 and 20726, the Green Party's 4th and 5th district organisations, and
-41427. A layer read off a name would publish our reading of an organisation in the Board's voice
+than party units** — 20733 and 20726, the Green Party's 4th and 5th district organisations, and 41427. A layer read off a name would publish our reading of an organisation in the Board's voice
 and would already be wrong about 3 named political organisations
 (`.claude/rules/grounded-answers.md` rule 3). Measured read-only against release
 `3f2bdf90-a4e3-4cf2-b8f1-6024167da680` and register snapshot
@@ -1847,17 +1876,17 @@ organisation's money under another's name, with nothing on screen that could tel
 **Five groups, always all 5, always in the same order**, even when a group is empty — so a client
 can never read a missing group as "no matches" when it meant "we did not look":
 
-| group | what it holds |
-|---|---|
-| `people` | the 200 sitting legislators, **and only them** |
-| `committees` | the register, the one group whose rows carry an identifier that survives a name change |
-| `gave` | distinct contributor names, with how many payments carry each |
-| `got_paid` | distinct vendor names from the expenditures download |
-| `got_paid_independent` | distinct vendor names from the independent-expenditures download |
+| group                  | what it holds                                                                          |
+| ---------------------- | -------------------------------------------------------------------------------------- |
+| `people`               | the 200 sitting legislators, **and only them**                                         |
+| `committees`           | the register, the one group whose rows carry an identifier that survives a name change |
+| `gave`                 | distinct contributor names, with how many payments carry each                          |
+| `got_paid`             | distinct vendor names from the expenditures download                                   |
+| `got_paid_independent` | distinct vendor names from the independent-expenditures download                       |
 
 **A person is a result only where we hold a record of them beyond these filings.** Everyone else
 who appears on a filing resolves to what they filed, because a page about a donor would be a page
-about a *spelling* that still looks like a page about a human being
+about a _spelling_ that still looks like a page about a human being
 (`docs/architecture/campaign-finance-system-design.md` §5).
 
 **The 2 expenditure files are 2 groups and their counts are never added.** 491 rows of the
