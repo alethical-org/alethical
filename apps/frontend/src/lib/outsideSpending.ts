@@ -1,3 +1,6 @@
+/** Shared by the summary card and the grouped selected-year list. */
+export const OUTSIDE_SPENDING_CARD_HEADING = 'Spending by Outside Groups';
+
 import { formatDay, formatMoney } from './legislatorCampaignMoney';
 import { centralDateLabel, formatCount } from './moneyLanding';
 import type { CurrentClaimFreshness } from '../data/types';

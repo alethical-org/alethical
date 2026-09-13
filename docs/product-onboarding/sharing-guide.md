@@ -133,12 +133,15 @@ would have no link anywhere on the site. **One committee**
 arrives with its filed name, the register's kind and its registration number, the seat it registered
 for where the register states one, the sentence saying whose committee it is — carrying, once a
 person here has confirmed the link, that member's name and an ordinary link to their campaign money
-— the period its figures cover, both money-in figures and both money-out figures with the sentences
-that say why they differ and the sentences that say whether anybody compared them against the
-report the committee filed, and the day we copied the files. **Its payments page** arrives with the same identity and period plus
+— the period its figures cover, its held official contribution total and itemized contributions,
+the official spending total when held or the sentence saying Alethical does not hold it, and the
+day we copied the files. Its money-in figures keep their source and split explanations. The first
+response links to the selected year's full received and outgoing lists, the year choices and
+Filings. The donor chart and grouped tabs appear after their complete selected-year records load.
+**Its payments page** arrives with the same identity and period plus
 the first 50 named payments, each with its own date and amount. Every one of those figures goes
-through the same functions the screen uses, so a missing figure reads "Not reported" and a filed zero
-reads "$0.00", and a test fails if the served page ever prints an amount the filing does not carry
+through the same functions the screen uses, so a missing itemized figure reads "Not reported" and a filed zero
+reads "$0", and a test fails if the served page ever prints an amount the filing does not carry
 ([`.claude/rules/grounded-answers.md` rule 12](../../.claude/rules/grounded-answers.md)). A year named in the
 address is the year those figures are for, and on the payments page a direction named in the address
 is the direction those payments go, so a shared link never opens on an answer to a different
@@ -200,9 +203,10 @@ per-piece decision described in
 [campaign-money-section-guide.md](campaign-money-section-guide.md) — a piece marked to be skipped is
 served in full and still asks to be skipped.
 
-**Every word of it is a word the page itself then shows, and the page adds none of its own.**
-There is no separate version written for robots. The second half of that sentence is the harder
-half: a former member's served page said only their name while the app redrew it about a second
+**The first response and the running app use the same facts and fixed wording.**
+The app can add records and controls as they load, but it cannot add unsupported claims.
+There is no separate version written for robots. A former member's served page said only
+their name while the app redrew it about a second
 later as `Sen. <name>` of `Senate District Unknown`, with a party and 3 committees the record does
 not hold ([#2061](https://github.com/alethical-org/alethical/issues/2061)). Both halves now decide
 it with the same 2 shared functions (`currentChamber` and `servesNow` in

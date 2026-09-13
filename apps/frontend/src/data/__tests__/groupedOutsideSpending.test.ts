@@ -37,6 +37,8 @@ function grouped(about = '1', amount: string | null = '10.00', count = 2) {
       year: 2025,
       release_id: 'release-1',
       snapshot_id: 'download-1',
+      source_url: 'https://cfb.mn.gov/',
+      fetched_at: '2026-09-01',
       group_by: 'spender',
       groups: [
         {
@@ -99,11 +101,35 @@ function page(rows = [payment(1), payment(2)], number = 1, total = 2, more = fal
 beforeEach(() => request.mockReset());
 
 describe('complete outside spending reads', () => {
+  it('learns the download ID for a committee only within its finance release', async () => {
+    request.mockResolvedValueOnce(grouped());
+    await expect(
+      getGroupedOutsideSpending(year({ snapshotId: null }), undefined, 'release-1'),
+    ).resolves.toMatchObject({ releaseId: 'release-1', snapshotId: 'download-1' });
+    expect(request).toHaveBeenCalledTimes(1);
+    request.mockResolvedValueOnce(grouped());
+    await expect(
+      getGroupedOutsideSpending(year({ snapshotId: null }), undefined, 'release-2'),
+    ).rejects.toMatchObject({ reason: 'release_changed' });
+    request.mockResolvedValueOnce({ data: { ...grouped().data, snapshot_id: null } });
+    await expect(
+      getGroupedOutsideSpending(year({ snapshotId: null }), undefined, 'release-1'),
+    ).rejects.toMatchObject({ reason: 'missing_snapshot' });
+  });
+
+  it('requires an existing download or committee finance release before requesting groups', async () => {
+    await expect(getGroupedOutsideSpending(year({ snapshotId: null }))).rejects.toMatchObject({
+      reason: 'unavailable',
+    });
+    expect(request).not.toHaveBeenCalled();
+  });
+
   it('makes one grouped request per confirmed committee without loading raw payments', async () => {
     request.mockResolvedValueOnce(grouped());
     request.mockResolvedValueOnce(grouped('2', '0.20', 1));
     const result = await getGroupedOutsideSpending(
       year({
+        supporting: 10.2,
         supportingPayments: 3,
         committees: [
           ...year().committees,
@@ -126,7 +152,9 @@ describe('complete outside spending reads', () => {
     body.data.figures.opposing_amount = null as unknown as string;
     body.data.figures.direction_not_recorded_amount = null as unknown as string;
     request.mockResolvedValueOnce(body);
-    const result = await getGroupedOutsideSpending(year());
+    const result = await getGroupedOutsideSpending(
+      year({ supporting: null, opposing: null, directionNotRecorded: null }),
+    );
     expect(result.figures.map((figure) => figure.amount)).toEqual([null, null, null]);
   });
 
@@ -180,10 +208,25 @@ describe('complete outside spending reads', () => {
     });
   });
 
+  it('rejects changed amounts or source metadata even within the same release and counts', async () => {
+    request.mockResolvedValueOnce(grouped('1', '11.00'));
+    await expect(
+      getGroupedOutsideSpending(year({ snapshotId: null }), undefined, 'release-1'),
+    ).rejects.toMatchObject({ reason: 'summary_changed' });
+    for (const field of ['source_url', 'fetched_at'] as const) {
+      request.mockResolvedValueOnce({ data: { ...grouped().data, [field]: 'different' } });
+      await expect(
+        getGroupedOutsideSpending(year({ snapshotId: null }), undefined, 'release-1'),
+      ).rejects.toMatchObject({ reason: 'source_changed' });
+    }
+  });
+
   it('recognizes a confirmed no-row committee without treating an unavailable file as zero', async () => {
     const empty = { ...grouped().data, state: 'not_reported', groups: [], figures: null };
     request.mockResolvedValueOnce({ data: empty });
-    expect((await getGroupedOutsideSpending(year({ supportingPayments: 0 }))).groups).toEqual([]);
+    expect(
+      (await getGroupedOutsideSpending(year({ supporting: 0, supportingPayments: 0 }))).groups,
+    ).toEqual([]);
     request.mockResolvedValueOnce({ data: { ...empty, state: 'unavailable' } });
     await expect(getGroupedOutsideSpending(year({ supportingPayments: 0 }))).rejects.toMatchObject({
       reason: 'unavailable',
@@ -192,7 +235,9 @@ describe('complete outside spending reads', () => {
 
   it('loads all 50-row pages and preserves separate payments with the same date and amount', async () => {
     request.mockResolvedValueOnce(grouped('1', '255.00', 51));
-    const summary = await getGroupedOutsideSpending(year({ supportingPayments: 51 }));
+    const summary = await getGroupedOutsideSpending(
+      year({ supporting: 255, supportingPayments: 51 }),
+    );
     request.mockResolvedValueOnce(
       page(
         Array.from({ length: 50 }, (_, index) => payment(index + 1)),

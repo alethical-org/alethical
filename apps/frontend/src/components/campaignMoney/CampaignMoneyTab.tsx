@@ -57,11 +57,14 @@ import {
   MoneyOutBlock,
 } from './MoneyCards';
 import { YearControl } from './YearControl';
-import { CommitteeMixHistory } from './CommitteeMixHistory';
+import {
+  CommitteeMixHistory,
+  CommitteeDonations,
+  GroupedOutsideSpending,
+  OutsideSpendingCard,
+} from './MoneyDetailsOnDemand';
 import { CommitteeRefundCard } from './CommitteeRefundCard';
-import { useCampaignMoneyYearStates } from '../../hooks/useCampaignMoneyDetails';
-import { CommitteeDonations } from './CommitteeDonations';
-import { GroupedOutsideSpending } from './GroupedOutsideSpending';
+import { useCampaignMoneyYearStates } from '../../hooks/useCampaignMoneyYearStates';
 import { LinkArrow } from '../LinkArrow';
 import { committeeSlug, FILED_REPORTS_LINK_LABEL } from '../../lib/committeeMoney';
 import { paymentDateRangeLabel, splitExplanation } from '../../lib/legislatorCampaignMoney';
@@ -70,8 +73,8 @@ import { linkProps, routePath } from '../../navigation/links';
 import {
   DEFAULT_MONEY_DETAILS_PREFERENCES,
   type MoneyDetailsPreferences,
-} from '../../lib/campaignMoneyDetails';
-import { moneyDetailsCopy as copy } from '../../lib/campaignMoneyDetailsCopy';
+} from '../../lib/campaignMoneyPreferences';
+import { moneyDetailsPageCopy as copy } from '../../lib/campaignMoneyDetailsPageCopy';
 import {
   committeeCardStyles,
   detailsStyles,
@@ -79,7 +82,6 @@ import {
   useCampaignMoneyTypography,
   useDetailsStyles,
 } from './detailsStyles';
-import { OutsideSpendingCard } from '../legislator/OutsideSpendingCard';
 import { UnderDevelopmentNotice } from './UnderDevelopmentNotice';
 import { externalLinkProps } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';

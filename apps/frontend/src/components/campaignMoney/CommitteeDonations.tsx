@@ -21,8 +21,10 @@ export function CommitteeDonations({
   children,
   preferences,
   onPreferences,
+  headingLevel,
 }: {
-  committee: CampaignCommitteeMoney;
+  committee: Pick<CampaignCommitteeMoney, 'registrationNumber' | 'split'>;
+  headingLevel?: 2 | 4;
   year: number;
   releaseId?: string;
   onRefresh: () => void;
@@ -30,7 +32,7 @@ export function CommitteeDonations({
   preferences: MoneyDetailsPreferences;
   onPreferences: (preferences: MoneyDetailsPreferences) => void;
 }) {
-  const details = useCampaignMoneyDetails(committee.registrationNumber, year);
+  const details = useCampaignMoneyDetails(committee.registrationNumber, year, { history: false });
   const groups = useMemo(
     () => [
       ...groupContributionPayments(
@@ -57,6 +59,7 @@ export function CommitteeDonations({
   return (
     <View style={s.section}>
       <DonorBreakdown
+        headingLevel={headingLevel}
         payments={details.received.data?.payments ?? []}
         split={committee.split}
         year={year}

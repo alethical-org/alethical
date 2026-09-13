@@ -74,6 +74,8 @@ import {
   closedPeriodLine,
   committeeEyebrow,
   committeeSlug,
+  COMMITTEE_MONEY_SECTION_LABEL,
+  COMMITTEE_TAB_LABELS,
   confirmedMemberLinkLabel,
   confirmedMemberMoneyPath,
   coveredPeriodDetail,
@@ -118,6 +120,7 @@ import {
   type PaymentRow,
 } from './committeeMoney';
 import {
+  campaignMoneyYears,
   formatMoney,
   moneyFigure,
   paymentCountLabel,
@@ -1568,9 +1571,21 @@ export function committeePageSnapshot(
           ]
         : []),
       {
-        label: paymentsTitle('gave'),
-        href: `/money/committees/${encodeURIComponent(identity.slug)}/payments`,
+        label: COMMITTEE_MONEY_SECTION_LABEL,
+        href: `/money/committees/${encodeURIComponent(identity.slug)}?year=${year}`,
       },
+      ...campaignMoneyYears().map((option) => ({
+        label: `Year ${option}`,
+        href: `/money/committees/${encodeURIComponent(identity.slug)}?year=${option}`,
+      })),
+      {
+        label: COMMITTEE_TAB_LABELS.filings,
+        href: `/money/committees/${encodeURIComponent(identity.slug)}?year=${year}&tab=filings`,
+      },
+      ...(['gave', 'spent'] as const).map((tab) => ({
+        label: COMMITTEE_TAB_LABELS[tab],
+        href: `/money/committees/${encodeURIComponent(identity.slug)}/payments?tab=${tab}&year=${year}`,
+      })),
       ...(moneyIn.source_url
         ? [{ label: NAMED_DONATIONS_LINK_LABEL, href: downloadsPageUrl(moneyIn.source_url) }]
         : []),

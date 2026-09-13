@@ -1,9 +1,10 @@
 /** Fixed reader text for the legislator's contribution details. */
+import { moneyDetailsPageCopy } from './campaignMoneyDetailsPageCopy';
+
 export const moneyDetailsCopy = {
+  ...moneyDetailsPageCopy,
   chartHeading: (namedOnly: boolean) =>
     `Who gave, by kind of donor${namedOnly ? ' (named donations only)' : ''}`,
-  chartLoading: 'Loading the contribution breakdown…',
-  chartFailed: 'We could not load the complete donation list, so the chart is withheld.',
   chartUnavailable: 'We cannot draw this breakdown from the payment amounts we hold.',
   chartExplanation: (namedOnly: boolean, hasUnnamed: boolean) =>
     `${
@@ -45,14 +46,10 @@ export const moneyDetailsCopy = {
   sort: 'Sort names',
   currentSort: (label: string) => `Sort names, currently ${label}`,
   sortOption: (label: string, selected: boolean) => `${label}${selected ? ', selected' : ''}`,
-  fullRecord: 'This committee’s full record',
   historyHeading: 'How the mix of named donors changed by year',
   historyExplanation:
     'Named donations only. Money the state’s file does not name cannot be split by kind.',
   historyEmpty: 'No named rows',
   historyUnavailable: 'A cash breakdown is unavailable',
   chooseYear: (year: number) => `Choose ${year}`,
-  freshnessMismatch:
-    'We cannot give these money records one shared download date. Their recorded dates differ or a date is missing.',
-  refreshRecords: 'Check these records again',
 } as const;

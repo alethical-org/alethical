@@ -1546,8 +1546,9 @@ section's other filtered views already do.
 - **It does not put the payments page in a sitemap.** It is a second view of one record, reachable
   by an ordinary link from the record itself, and listing both would ask Google to crawl the same
   committee twice.
-- **It does not serve the committee page's 6-row payment previews.** Those are a preview of a list
-  that has its own page, and that page serves the list in full.
+- **It does not serve the committee page's donor chart or grouped payment tabs.** Those wait
+  for complete lists after the app starts. The separate payments address serves its first
+  50 rows in the response and adds later pages when the reader asks.
 - **It does not change what a person sees**, apart from the register's numbered pages replacing its
   "Show more" button — which is the change §20.5 rule 2 requires and the whole reason the other
   1,553 pages were unreachable.
@@ -1611,10 +1612,12 @@ ask for, and the app draws it with no request of its own.** The transport is a
 The 5 top-level money addresses were served their records first; a committee's own page and
 its payments view were not, so those 2 kept the second fetch this section removes
 ([issue 2024](https://github.com/alethical-org/alethical/issues/2024)). They now carry the
-committee's figures for the year the address asks for, the payments page in the direction it
-asks for, and on the committee page the short list of 6 behind the tab it names. An address
-naming the filings tab or an outside-spending tab carries no payments list, and none of this
-changes any address's `noindex` or its canonical address: §22's table is unchanged.
+committee's figures for the year the address asks for and, on `/payments`, its first payment
+page in the direction it asks for. The redesigned committee screen no longer consumes a
+6-payment seed. It loads complete selected-year received and made lists for its donor chart
+and grouped tabs after the app starts, so the old short read is removed from the first
+response. None of this changes an address's `noindex` or canonical address: §22's table is
+unchanged.
 
 Two things specific to these 2 addresses, with their measured figures, are in
 [`docs/operations/page-load-performance-decisions.md`](../operations/page-load-performance-decisions.md)

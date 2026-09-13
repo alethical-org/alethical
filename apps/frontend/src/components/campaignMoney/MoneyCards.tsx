@@ -36,10 +36,9 @@
  * fact twice. A figure's own period note returns only where its coverage date differs
  * from the stamp's (`reportedThroughNote`).
  *
- * On the redesigned profile, `withDonorBreakdown` lets the chart own the percentage,
+ * Beside the shared donor chart, `withDonorBreakdown` lets the chart own the percentage,
  * goods-and-services and withheld-split explanation once. The amount rows stay here.
- * The profile theme supplies its palette and type sizes; the committee page keeps its
- * existing styles and full explanation inventory.
+ * The shared theme supplies the palette and type sizes on profile and committee pages.
  */
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, Text, View, type TextProps, type TextStyle } from 'react-native';
@@ -123,7 +122,7 @@ type Band = { isMobile: boolean };
 type CardStyles = { [Key in keyof typeof defaultStyles]: TextStyle };
 const ProfileCardTheme = createContext<CardStyles | null>(null);
 
-/** Opt in the profile's shared cards without changing the committee page's styling. */
+/** Apply the shared palette and responsive type on either money surface. */
 export function CampaignMoneyCardTheme({ children }: { children: ReactNode }) {
   const type = useCampaignMoneyTypography();
   const small = { fontSize: type.small, lineHeight: type.small * 1.5 };
@@ -235,7 +234,7 @@ export function MoneyInBlock({
   withDonorBreakdown = false,
 }: {
   surface: MoneyCardSurface;
-  /** The profile chart already states the split and goods-and-services explanation. */
+  /** The shared chart already states the split and goods-and-services explanation. */
   withDonorBreakdown?: boolean;
   split: SplitLike;
   moneyIn: MoneyInLike | null;

@@ -54,20 +54,14 @@ import {
 } from "../apps/frontend/src/lib/outsideSpending";
 import {
   FIRST_PAYMENTS_LIMIT,
-  PAYMENTS_LOAD_ERROR,
-  paymentsTitle,
   paymentsUnavailable,
   committeeMoneyQueryKey,
   committeePaymentsListQueryKey,
-  committeePaymentsQueryKey,
-  committeeTabFromParam,
   madePaymentRow,
   paymentsDirection,
   paymentsTabFromParam,
   receivedPaymentRow,
   registrationNumberFromSlug,
-  SHORT_PAYMENTS_LIMIT,
-  type CommitteeTab,
 } from "../apps/frontend/src/lib/committeeMoney";
 import { campaignMoneyYear } from "../apps/frontend/src/lib/legislatorCampaignMoney";
 import {
@@ -826,42 +820,17 @@ async function committeePayments(
   }
 }
 
-/**
- * Which short payments list the committee page's own screen reads for the tab the
- * ADDRESS asks for, or `null` where that tab reads no payments at all.
- *
- * The filings tab and the 2 outside-spending tabs read other files, so an address
- * naming one of them is served no payments seed and nothing is wasted reading one.
- * A tab the screen later swaps out — an outside-spending tab this filer has no
- * rows in falls back to who-gave — fetches its list exactly as it did before.
- */
-function shortPaymentsDirection(tab: CommitteeTab): "received" | "made" | null {
-  if (tab === "gave") return "received";
-  if (tab === "spent") return "made";
-  return null;
-}
-
 async function committeeContent(
   slug: string,
   requestedYear: string | undefined,
-  requestedTab: string | undefined,
 ): Promise<PageContent> {
   const { registrationNumber, year } = committeeRead(slug, requestedYear);
-  const direction = shortPaymentsDirection(committeeTabFromParam(requestedTab));
-  // Neither read needs the other's answer: the number comes out of the address
-  // and the year out of `campaignMoneyYear`, so waiting for the figures before
-  // asking for the rows would add a whole round trip for nothing (issue 2024).
-  const [finance, shortList] = await Promise.all([
-    committeeFinance(registrationNumber, year),
-    direction
-      ? committeePayments(registrationNumber, {
-          direction,
-          year,
-          limit: SHORT_PAYMENTS_LIMIT,
-        })
-      : Promise.resolve(null),
-  ]);
-  const { money, validatedAgeMs } = finance;
+  // The snapshot uses finance alone. The app reads complete selected-year payment
+  // lists under its own keys, so a short payments seed would not be consumed.
+  const { money, validatedAgeMs } = await committeeFinance(
+    registrationNumber,
+    year,
+  );
   const data: PageDataEntry[] = [
     {
       key: committeeMoneyQueryKey(registrationNumber, year),
@@ -869,33 +838,8 @@ async function committeeContent(
       validatedAgeMs,
     },
   ];
-  const failedPayments = Boolean(
-    direction && paymentsUnavailable(shortList?.state),
-  );
-  if (direction && shortList && !failedPayments) {
-    data.push({
-      key: committeePaymentsQueryKey({
-        registrationNumber,
-        direction,
-        year,
-        limit: SHORT_PAYMENTS_LIMIT,
-        offset: 0,
-      }),
-      payload: shortList,
-    });
-  }
   const snapshot = committeePageSnapshot(money, registrationNumber);
-  if (failedPayments) {
-    snapshot.sections = [
-      ...(snapshot.sections ?? []),
-      {
-        heading: paymentsTitle(direction === "made" ? "spent" : "gave"),
-        body: [PAYMENTS_LOAD_ERROR],
-      },
-    ];
-  }
   return {
-    noStore: failedPayments,
     metadata: committeeMoneyPageMetadata(slug, "page", {
       name: committeeSnapshotName(money, registrationNumber),
       canonicalSlug:
@@ -1158,7 +1102,7 @@ async function contentFor(
         ? outsideSpendingContent()
         : headOnly(outsideSpendingPageMetadata(target.params));
     case "moneyCommittee":
-      return committeeContent(target.slug, target.year, target.tab);
+      return committeeContent(target.slug, target.year);
     case "moneyCommitteePayments":
       return committeePaymentsContent(target.slug, target.year, target.tab);
     case "privacy":

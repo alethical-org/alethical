@@ -4,6 +4,13 @@ import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock(
+  '../../../hooks/useCampaignMoneyYearStates',
+  () => import('../../../hooks/useCampaignMoneyDetails'),
+);
+
+vi.mock('../MoneyDetailsOnDemand', () => import('../MoneyDetailsBundle'));
+
 vi.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: vi.fn() }) }));
 vi.mock('react-native-svg', () => ({
   default: ({ children }: { children?: React.ReactNode }) => <svg>{children}</svg>,

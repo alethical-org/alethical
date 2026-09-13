@@ -1,5 +1,7 @@
 <!-- describes: .github/workflows/production-release-failed.yml, apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py, scripts/report_origin_share_by_address.py -->
 
+<!-- describes: apps/frontend/src/components/campaignMoney/MoneyDetailsBundle.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsOnDemand.tsx, apps/frontend/src/lib/committeeOutsideSpending.ts -->
+
 # Page-load performance decisions
 
 **Net:** Improve the shared first download and the saved Ask path without changing what readers see or how current the record is. Keep every option that delays another click, risks stale data, or depends on experimental routing out of the automatic safe-work lane.
@@ -691,7 +693,7 @@ the browser's own request list: `/bills` made 4 data-service reads and now makes
 
 `/money/committees/{name}-{number}` and its `/payments` view are served with the reads
 the page function already made handed on inside the same response, under the keys the
-app's own hooks ask for (`committeeMoneyQueryKey`, `committeePaymentsQueryKey` and
+app's own hooks ask for (`committeeMoneyQueryKey` and
 `committeePaymentsListQueryKey` in `apps/frontend/src/lib/committeeMoney.ts`, seeded
 through `apps/frontend/src/lib/pageData.ts`). Before this, both addresses read a
 committee's figures to write the words a reader sees, handed on nothing, and the app then
@@ -699,14 +701,23 @@ asked the data service for the identical answer and replaced those served words 
 loading placeholders while it waited
 ([issue 2024](https://github.com/alethical-org/alethical/issues/2024)).
 
-**Three reads are carried and one is chosen by the address.** The committee's figures for
-the year the address asks for; the full payments page on the payments view, in the year and
-the direction the address asks for; and, on the committee page itself, the short list of 6
-behind whichever tab the address names. An address naming the filings tab or an
-outside-spending tab is served no payments list at all, because its screen reads a
-different file and reading one would be work nobody uses.
+**The committee figures are carried on both addresses; a payment page is carried on
+`/payments`.** Both follow the year in the address, and the payment page also follows its
+requested direction. The redesigned committee screen loads its complete selected-year
+received and made lists after the app starts, in requests of up to 250 rows. It uses
+separate complete-list keys and publishes no donor chart, grouping or sum from a short
+page. Its old 6-payment read and seed are removed because no rendered list consumes them.
+The profile's history read is disabled on this committee screen.
 
-**The 2 reads run together rather than one after the other.** Neither needs the other's
+The shared chart, payment browser and outside-spender code also arrives only when a
+money view needs it. Both routes use the same on-demand module; importing the same
+components directly from 2 route bundles would otherwise put them in the shared first
+download for unrelated pages. This preserves the existing production-derived size limit.
+The legislator tab's outside-spending fallback card uses that same module, including
+its loading and failed-read states. A failed code download stays inside the details
+section and leaves the independently accepted filing figures on screen.
+
+**The 2 reads on `/payments` run together rather than one after the other.** Neither needs the other's
 answer: the registration number comes out of the address and the year out of
 `campaignMoneyYear`. The payments view used to wait for the figures before asking for the
 rows, which put a whole round trip into its first response for nothing.
@@ -724,13 +735,17 @@ mistake.
 the state of the world right now, so a seeded copy is stale on arrival by design: the page
 it travelled in can have sat in the page cache for 10 minutes and the app's own freshness
 window is 5. The reader gets the real figures in the first paint and the recheck happens
-behind them without blanking anything. Only the payments reads are removed outright.
+behind them without blanking anything. On `/payments`, the carried first page removes
+the matching initial payment request. The redesigned committee chart and tabs still
+need their complete selected-year payment reads. The old 6-row hooks and their
+unused query key are removed with that redesign, so every page no longer downloads
+readers that no screen uses.
 
 Measured 8 Sep 2026 against the live release and the live data service, with the page
 cache deliberately missed on every read.
 
-The measurements below describe that release. The first payment read is now 50 rows,
-followed by up to 250 per request, to leave more room inside the 5-second first-response
+The measurements below describe that release. On `/payments`, the first payment read is
+now 50 rows, followed by up to 250 per request, to leave more room inside the 5-second first-response
 deadline. A failed payment read uses the existing could-not-load words and prevents
 success caching of that partial response ([issue 2068](https://github.com/alethical-org/alethical/issues/2068)).
 
@@ -748,11 +763,13 @@ served, so the last row of that table was the worst case for that release rather
 middling one. The rows were already in the response as text either way: the payments
 snapshot printed every one of them.
 
-**The short list of 6 is carried and the outside-spending presence reads are not.** The
-short list costs about 600 to 750 gzipped bytes and removes a read of the same size. Each
-outside-spending read answers a different question about the same filer, returns a page of
-50 rows, and its answer is not in the served text at all, so carrying both would add
-bytes a reader's screen does not already hold.
+**The redesigned committee screen retains 1 outside-spending presence read.** It asks
+whether this filer spent about other committees, for the separate Spent by them view;
+that first page contains up to 50 rows and is not embedded in the first response.
+Spending about this committee instead uses the selected-year finance summary and a
+matching grouped request. Opening a spender obtains the complete underlying payment
+list from the same source copy. The September 8 table's 6-row seed and 2 presence-read
+comparison describe the earlier screen, not this request shape.
 
 ## A failed list read holds the space the placeholder rows held
 

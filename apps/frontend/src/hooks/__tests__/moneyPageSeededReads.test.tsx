@@ -17,12 +17,7 @@ vi.mock('../../providers/AuthProvider', () => ({
 }));
 
 import { committeeRegisterQueryKey } from '../../lib/committeeList';
-import {
-  committeeMoneyQueryKey,
-  committeePaymentsListQueryKey,
-  committeePaymentsQueryKey,
-  SHORT_PAYMENTS_LIMIT,
-} from '../../lib/committeeMoney';
+import { committeeMoneyQueryKey, committeePaymentsListQueryKey } from '../../lib/committeeMoney';
 import { createAppQueryClient } from '../../lib/appQueryClient';
 import { moneyByRaceQueryKey } from '../../lib/moneyByRace';
 import { campaignFinanceSummaryQueryKey } from '../../lib/moneyLanding';
@@ -34,7 +29,6 @@ import {
   useCampaignFinanceSummary,
   useCommitteeMoney,
   useCommitteePaymentsList,
-  useCommitteePaymentsReceived,
   useOutsideSpendingRecord,
 } from '../useAppQueries';
 
@@ -313,34 +307,6 @@ describe('a money screen draws the served records on its first render', () => {
 
     expect(passes[0].isPending).toBe(true);
     expect(passes[0].data).toBeUndefined();
-  });
-
-  it('has the committee page’s short list of who gave', () => {
-    seed(
-      renderPageData([
-        {
-          key: committeePaymentsQueryKey({
-            registrationNumber: '41363',
-            direction: 'received',
-            year: 2025,
-            limit: SHORT_PAYMENTS_LIMIT,
-            offset: 0,
-          }),
-          payload: RECEIVED,
-        },
-      ]),
-    );
-
-    const passes = renderOnce(() =>
-      useCommitteePaymentsReceived('41363', 2025, { limit: SHORT_PAYMENTS_LIMIT }),
-    );
-
-    expect(passes[0].isPending).toBe(false);
-    expect(passes[0].data).toMatchObject({
-      state: 'reported',
-      totalPayments: 24,
-      payments: [{ contributor: 'Ulasich, Andrew', amount: '25.0000' }],
-    });
   });
 
   it('has the full payments view’s first page, as its first page', () => {

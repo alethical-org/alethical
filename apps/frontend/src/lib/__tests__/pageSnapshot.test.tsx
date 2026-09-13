@@ -116,7 +116,7 @@ const {
   ZERO_REPORTED_NOTE,
 } = await import('../committeeMoney');
 const { registerCountLine } = await import('../committeeList');
-const { formatDay, formatMoney } = await import('../legislatorCampaignMoney');
+const { campaignMoneyYears, formatDay, formatMoney } = await import('../legislatorCampaignMoney');
 const {
   centralDateLabel,
   FILES_LAST_COPIED_LABEL,
@@ -1440,8 +1440,28 @@ describe('a committee’s record in the first response', () => {
 
   it('links its own payments list and the register it came from', () => {
     const hrefs = snapshot.links.map((link) => link.href);
-    expect(hrefs).toContain('/money/committees/jane-fonda-climate-pac-41326/payments');
+    expect(hrefs).toContain(
+      '/money/committees/jane-fonda-climate-pac-41326/payments?tab=gave&year=2026',
+    );
+    expect(hrefs).toContain(
+      '/money/committees/jane-fonda-climate-pac-41326/payments?tab=spent&year=2026',
+    );
+    expect(hrefs).toContain('/money/committees/jane-fonda-climate-pac-41326?year=2026&tab=filings');
     expect(hrefs).toContain('/money/committees');
+  });
+
+  it('keeps the chosen year on section and full-list links with only the committee year choices', () => {
+    const older = committeePageSnapshot({ ...committeeFixture, year: 2025 }, '41326');
+    expect(
+      older.links
+        .filter((link) =>
+          ['Who gave', 'Where it went', 'Filings', 'Campaign money'].includes(link.label),
+        )
+        .every((link) => link.href.includes('year=2025')),
+    ).toBe(true);
+    expect(
+      older.links.filter((link) => link.label.startsWith('Year ')).map((link) => link.label),
+    ).toEqual(campaignMoneyYears().map((year) => `Year ${year}`));
   });
 
   /**

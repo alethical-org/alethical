@@ -25,12 +25,8 @@ type Payload = ApiCommitteePaymentsPayload & {
   year?: number;
   direction?: string;
 };
-export class MoneyDetailsReadError extends Error {
-  constructor(public readonly reason: string) {
-    super(reason);
-    this.name = 'MoneyDetailsReadError';
-  }
-}
+import { MoneyDetailsReadError } from './moneyDetailsReadError';
+export { MoneyDetailsReadError } from './moneyDetailsReadError';
 const asText = (value: unknown) => (typeof value === 'string' ? value : null);
 function receivedRow(row: Record<string, unknown>): DetailedReceivedPayment {
   return {

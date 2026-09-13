@@ -12,6 +12,11 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock(
+  '../../../hooks/useCampaignMoneyYearStates',
+  () => import('../../../hooks/useCampaignMoneyDetails'),
+);
+
 vi.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: vi.fn() }) }));
 
 const { renderToStaticMarkup } = require('react-dom/server') as {

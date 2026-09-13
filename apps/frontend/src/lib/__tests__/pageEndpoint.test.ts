@@ -2226,35 +2226,35 @@ describe('a committee page hands its records to the app', () => {
     expect(finance?.validatedAgeMs).toBe(42_000);
   });
 
-  it('hands over the short list for the tab the address asks for, and no other', async () => {
-    stubCommittee();
+  it.each(['', 'gave', 'spent', 'filings', 'about', 'by'])(
+    'serves committee tab %s from finance alone, without a payment request or false failure',
+    async (tab) => {
+      const calls: string[] = [];
+      stubNetwork((url) => {
+        calls.push(url);
+        return new URL(url).pathname.endsWith('/payments')
+          ? { status: 500 }
+          : { status: 200, payload: { data: FINANCE } };
+      });
 
-    const { body } = await serve({
-      path: `/money/committees/${SLUG}`,
-      year: '2026',
-      tab: 'spent',
-    });
+      const { body, headers, status } = await serve({
+        path: `/money/committees/${SLUG}`,
+        year: '2026',
+        ...(tab ? { tab } : {}),
+      });
 
-    const list = servedData(body).find((entry) => entry.key[0] === 'committee-payments');
-    expect(list?.key).toEqual(['committee-payments', '41326', 'made', 2026, 6, 0]);
-    expect(list?.payload).toMatchObject({ payments: [{ vendor_name: 'Square Space' }] });
-    // Donations under a payments-out heading is the worst thing this page can
-    // print (issue 2038), so the direction not asked for is never handed over.
-    expect(servedData(body).some((entry) => entry.key[2] === 'received')).toBe(false);
-  });
-
-  it('reads no payments at all for a tab that shows none', async () => {
-    const { calls } = stubCommittee();
-
-    const { body } = await serve({
-      path: `/money/committees/${SLUG}`,
-      year: '2026',
-      tab: 'filings',
-    });
-
-    expect(calls.some((url) => url.includes('/payments'))).toBe(false);
-    expect(servedData(body).map((entry) => entry.key[0])).toEqual(['committee-money']);
-  });
+      expect(calls.map((url) => new URL(url).pathname + new URL(url).search)).toEqual([
+        '/api/v1/committees/41326/finance?year=2026',
+      ]);
+      expect(status).toBe(200);
+      expect(body).toContain('Jane Fonda Climate PAC');
+      expect(body).not.toContain('We couldn’t load these payments right now.');
+      expect(headers.get('Cache-Control')).toContain('s-maxage=300');
+      expect(servedData(body).map((entry) => entry.key)).toEqual([
+        ['committee-money', '41326', 2026],
+      ]);
+    },
+  );
 
   it('hands the payments view its own first page, in the requested year and direction', async () => {
     stubCommittee();
@@ -2286,8 +2286,6 @@ describe('a committee page hands its records to the app', () => {
   it.each([
     ['full', 'gave', 'rejected'],
     ['full', 'spent', 'unavailable'],
-    ['short', 'gave', 'rejected'],
-    ['short', 'spent', 'unavailable'],
   ])(
     'keeps a %s %s payment read failure truthful and uncacheable (%s)',
     async (view, tab, failure) => {

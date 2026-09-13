@@ -16,6 +16,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+vi.mock(
+  '../../../hooks/useCampaignMoneyYearStates',
+  () => import('../../../hooks/useCampaignMoneyDetails'),
+);
+
+vi.mock('../MoneyDetailsOnDemand', () => import('../MoneyDetailsBundle'));
+
 vi.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: vi.fn() }) }));
 
 const { renderToStaticMarkup } = require('react-dom/server') as {

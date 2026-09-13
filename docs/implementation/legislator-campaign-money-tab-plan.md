@@ -196,12 +196,20 @@ its own worktree off current `origin/main`, through the merge queue and a live c
 Every pull request carries `Net:` and `Docs check:` lines. The campaign-finance
 architecture record stays unchanged; proposed changes go on each job's issue.
 
-- [ ] Job 1, [issue 2068](https://github.com/alethical-org/alethical/issues/2068):
+- [x] Job 1, [issue 2068](https://github.com/alethical-org/alethical/issues/2068):
   reduce the first payments read or warm it so a cold read fits its deadline.
   Any remaining read failure uses the existing load-failed state, never the empty
   donation sentence. Pin failed-read rendering and check MN DFL State Central's
-  live committee page.
-- [ ] Job 2: open a dedicated issue, then reuse B's contribution-kind chart,
+  live committee page. [Pull request 2165](https://github.com/alethical-org/alethical/pull/2165)
+  is live at [commit 3e76927c](https://github.com/alethical-org/alethical/commit/3e76927c1ef28a2a00a3a23d7f9543d4a3ab8083).
+  Its first full-list response now contains 50 rows; later requests add up to 250.
+  The measured public first response fell from 4.988346 seconds to 0.910471 seconds
+  (both cache misses). An independent browser read reached all 890 rows in order.
+  The full 2,625 frontend and 2,549 server tests, queue and production checks passed.
+  The [job 1 live report](https://github.com/alethical-org/alethical/issues/2140#issuecomment-5649547058)
+  records the evidence. Its task-owned worktree and branch are removed.
+- [ ] Job 2, [issue 2166](https://github.com/alethical-org/alethical/issues/2166):
+  reuse B's contribution-kind chart,
   non-itemized slice, 5 fixed tabs, conditional Other tab and grouped outside
   spending on `/money/committees/<slug>`. Keep its Year, Track, Share and Filings
   controls. Its own committee needs no legislator-confirmation gate, and committees
@@ -243,11 +251,12 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   retries returned the same 243-byte HTTP 200 response with empty 2026/2027
   arrays. C is stopped, with the exact responses, hashes, report and old record
   on [issue 2142](https://github.com/alethical-org/alethical/issues/2142#issuecomment-5649077696).
-- F's data contract is saved in its own worktree
-  `/private/tmp/alethical-2147-refund-card`, branch `codex/2147-legislator-refund-card`.
-  It includes source metadata, all-year refunds for outside-year confirmed
-  committees, and truthful failure states. 96 backend integration checks, 4 API
-  conversion checks and frontend type checking pass. The card and source fields are live in [pull request 2162](https://github.com/alethical-org/alethical/pull/2162).
+- F's card and data contract are live in
+  [pull request 2162](https://github.com/alethical-org/alethical/pull/2162), including
+  source metadata, all-year refunds for outside-year confirmed committees and
+  truthful failure states. The complete frontend and server suites and 28 rendered
+  refund cases passed. Its task-owned worktree and branch are removed; the release
+  evidence remains linked from [issue 2147](https://github.com/alethical-org/alethical/issues/2147#issuecomment-5649341095).
 - F source enrichment completed for the 12 published candidate summaries. Only
   source metadata changed; the readback preserves all amounts, matches, copy dates
   and missing-year records. The API fields are live.
@@ -256,9 +265,33 @@ architecture record stays unchanged; proposed changes go on each job's issue.
 - A new attempted consultation with the permitted Claude session was rejected by
   automatic approval review for including run status and preservation instructions.
   No message from that attempt was sent; the assessment continues locally.
-- Job 1 is assigned to internal worker `/root/refund_live_reader`, using a new
-  worktree for [issue 2068](https://github.com/alethical-org/alethical/issues/2068).
-  Root owns the delivery-record release in parallel; jobs 2 onward retain their order.
+- Job 1 is complete, as recorded above. Job 2 is in
+  [pull request 2167](https://github.com/alethical-org/alethical/pull/2167), using
+  `/private/tmp/alethical-2166-committee-donor-tabs` on
+  `codex/2166-committee-donor-tabs`, based on
+  [commit 3e76927c](https://github.com/alethical-org/alethical/commit/3e76927c1ef28a2a00a3a23d7f9543d4a3ab8083).
+  Root owns integration and release; internal worker `/root/official_spending_cards`
+  completed the frontend and the independent reader corrections. Donor category and
+  sort survive an uncached year load; Filings and Spent by them retain their explanations.
+  The unused initial 6-payment read and its client hooks are removed; the full-payment
+  address keeps its first 50 rows. Shared details load on demand, with local failure
+  handling that leaves accepted figures and refunds visible.
+  The final frontend suite passes 2,642 tests in 214 files; the backend passed 2,549.
+  Types, asset, icon, document-reference and quoted-text checks pass. The clean build
+  with all 6 production public settings measures 392,156 bytes against the unchanged
+  392,321 limit. Vercel withholds the 2 public Supabase values from its settings export;
+  these are read from the current live program, and their provider metadata records
+  no change since May 22. The other 4 values come from the production export.
+  Preview has only its API setting: its actual 392,064 bytes fit, but the unchanged
+  guard projects 542 more for settings Preview intentionally lacks and reports 392,606.
+  No guard, limit or provider setting was changed. The production configuration passes;
+  required queue checks and the actual production release remain the release gates.
+  Phone/browser checks cover candidate 19193 and party 20003, complete and expanded
+  payments, saved category/sort, Filings and Spent by them. A linked committee now opens
+  at its title, and Back restores the source position. Spent by them states that its
+  list covers all years. The GitHub test waits for the complete payment list instead
+  of assuming its code arrives in 20ms. Final release checks remain. Jobs 3 onward
+  keep their approved order and have not started.
 
 
 ## Approved data-only queue after follow-on jobs 1 through 4

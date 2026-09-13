@@ -347,18 +347,6 @@ export function committeeMoneyQueryKey(
   return ['committee-money', registrationNumber, year];
 }
 
-/** One page of a committee's short payments list, in one direction. */
-export function committeePaymentsQueryKey(options: {
-  registrationNumber: string | null;
-  direction: 'received' | 'made';
-  year: number;
-  limit: number;
-  offset: number;
-}): readonly unknown[] {
-  const { registrationNumber, direction, year, limit, offset } = options;
-  return ['committee-payments', registrationNumber, direction, year, limit, offset];
-}
-
 /** The full payments view's accumulating list, in one direction. */
 export function committeePaymentsListQueryKey(options: {
   registrationNumber: string | null;
@@ -373,9 +361,6 @@ export function committeePaymentsListQueryKey(options: {
 export function paymentsDirection(tab: PaymentsTab): 'received' | 'made' {
   return tab === 'gave' ? 'received' : 'made';
 }
-
-/** How many rows the committee page's short list asks for. */
-export const SHORT_PAYMENTS_LIMIT = 6;
 
 // --- The period stamp ------------------------------------------------------------
 
@@ -732,24 +717,7 @@ export const COMMITTEE_TAB_LABELS: Record<CommitteeTab, string> = {
   about: 'Spent about them',
   by: 'Spent by them',
 };
-
-/**
- * Which tabs a committee's page carries, in strip order.
- *
- * The first 3 always. Each outside-spending tab follows THIS filer's own rows in
- * that direction, never its kind (ruled 2 Sep 2026): no rows means we cannot tell
- * "spent nothing" from "we hold nothing", so there is no empty state to draw and no
- * tab either. A caucus committee that spends independently carries "Spent by them";
- * a candidate committee nobody spent about carries no "Spent about them"; a
- * ballot-question filer carries whichever direction its rows support, which today is
- * neither.
- */
-export function committeeTabs(presence: { spentAbout: boolean; spentBy: boolean }): CommitteeTab[] {
-  const tabs: CommitteeTab[] = ['gave', 'spent', 'filings'];
-  if (presence.spentAbout) tabs.push('about');
-  if (presence.spentBy) tabs.push('by');
-  return tabs;
-}
+export const COMMITTEE_MONEY_SECTION_LABEL = 'Campaign money';
 
 // --- The 2 outside-spending tabs' rows and lines ---------------------------------------
 
@@ -757,6 +725,9 @@ export function committeeTabs(presence: { spentAbout: boolean; spentBy: boolean 
 export const OUTSIDE_ABOUT_INTRO =
   'What other groups spent about this committee, filed independently of it. This ' +
   'committee neither received nor controlled any of it.';
+
+/** The retained spender list spans the file, independently of the cards' year. */
+export const OUTSIDE_BY_ALL_YEARS = 'This list shows payments from all years in the state’s file.';
 
 /**
  * Above the rows on both tabs, verbatim: this file is never added to the ordinary

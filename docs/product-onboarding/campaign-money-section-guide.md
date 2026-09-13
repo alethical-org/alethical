@@ -1,4 +1,6 @@
-<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneyByRaceScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/screens/redesign/PaymentsUnderNameScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/components/campaignMoney/TrackCommitteeButton.tsx, apps/frontend/src/lib/trackCommitteeButton.ts, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts, apps/frontend/src/components/read/SetBox.tsx, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyByRace.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/lib/paymentsUnderName.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/screens/redesign/OutsideSpendingScreen.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/outside_spending.py, apps/frontend/src/lib/pageData.ts -->
+<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneyByRaceScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/screens/redesign/PaymentsUnderNameScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/components/campaignMoney/TrackCommitteeButton.tsx, apps/frontend/src/lib/trackCommitteeButton.ts, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts, apps/frontend/src/components/read/SetBox.tsx, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyByRace.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/lib/paymentsUnderName.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/screens/redesign/OutsideSpendingScreen.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/outside_spending.py, apps/frontend/src/lib/pageData.ts, apps/frontend/src/components/campaignMoney/CommitteeDonations.tsx, apps/frontend/src/components/campaignMoney/DonorBreakdown.tsx, apps/frontend/src/components/campaignMoney/DonorPaymentList.tsx, apps/frontend/src/components/campaignMoney/GroupedOutsideSpending.tsx -->
+
+<!-- describes: apps/frontend/src/components/campaignMoney/MoneyDetailsBundle.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsOnDemand.tsx, apps/frontend/src/hooks/useCampaignMoneyYearStates.ts, apps/frontend/src/lib/campaignMoneyDetailsPageCopy.ts, apps/frontend/src/lib/campaignMoneyPreferences.ts, apps/frontend/src/lib/groupedOutsideSpendingCopy.ts, apps/frontend/src/lib/committeeOutsideSpending.ts -->
 
 # How the Campaign money section works
 
@@ -651,7 +653,21 @@ Top to bottom:
    says its calendar is its own. If our own data service stops answering, the page keeps
    the figures it already had and says they are held until it answers — never expiring
    on a timer.
-5. **Money in — two numbers, both correct.** "Total contributions", the total the committee
+5. **Who gave, by kind of donor**, above the summary cards. This is the same chart as
+   the legislator tab, read for this registration number and selected year. A safe,
+   checked split includes Non-itemized contributions as its own grey slice. Without an
+   official total, the chart says “named donations only” and divides the complete named
+   cash list. A withheld split, failed read or incomplete list gets its own explanation,
+   never a partly drawn whole. Cash determines the slices; donated goods and services
+   remain in the named amounts and payment rows, with their explanation under the chart.
+   The solid colors, category order, legend and category controls are shared with the
+   legislator tab. Selecting a named category opens its payment tab.
+
+   This view reads no legislator link to establish whose figures to show. The committee
+   registration number is its scope, including when no member is confirmed or a previous
+   confirmation expires. It does not load the profile's 12-year mix chart.
+
+6. **Money in — two numbers, both correct.** "Total contributions", the total the committee
    itself reported to the state, drawn only when the filing's total exists, and "Itemized
    contributions", the donations we can list with a donor's name, drawn always — a real
    amount or the words "Not reported", never a blank. The reported figure is the filing's
@@ -678,9 +694,8 @@ Top to bottom:
    sees it, and the page never subtracts. When the split is safe, the "Non-itemized
    contributions" figure appears with one sentence under it, the same for every kind of
    filer and repeating no threshold: "Donations inside the committee's reported total whose
-   givers the state's public file does not name." This committee route draws no chart.
-   The profile route can chart a server-approved split after its complete named cash
-   rows agree with that split. Receipts that are
+   givers the state's public file does not name." The chart uses that split only after
+   the complete named cash rows agree with it. Receipts that are
    not donations (a public subsidy, interest, a loan) sit under a "Not a donation" heading
    with the state's own label; **a row the state types `Miscellaneous` is not drawn, and
    with no other row the heading is not drawn either** (ruled 11 Sep 2026). The card ends
@@ -688,10 +703,11 @@ Top to bottom:
    page rather than the 9 MB bulk download the server's address points at: the page strips
    the `?download=` part, so a new release id cannot break the link. The official figures
    share [MoneyCards.tsx](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/campaignMoney/MoneyCards.tsx)
-   with the legislator profile, but the layouts differ. The profile redesign puts the
-   donor chart first, moves the goods-and-services explanation under that chart and
-   removes the separate unnamed percentage below the summary. This committee route keeps
-   its existing summary and tabs. In each case where a split would state something false — the two figures cover
+   with the legislator profile. Both put the donor chart first, keep the goods-and-services
+   explanation under that chart and omit a separate unnamed percentage below the summary.
+   On Filings and Spent by them, where the chart is absent, the summary keeps its own
+   goods-and-services and withheld-split explanations.
+   In each case where a split would state something false — the two figures cover
    different periods, the sources disagree, our copy of the donation list is missing
    named money the filing carries, the committee corrected its report after we copied the
    official total, the two figures simply will not line up, there are no named payments,
@@ -709,7 +725,7 @@ Top to bottom:
    [#1648](https://github.com/alethical-org/alethical/issues/1648)). Each route now says
    only what its own evidence supports; the sentence about a disagreement over donations is
    left to the one check that actually compares the 2 publications about donations. Money out
-   has its own such check, described in item 6, and the 2 must not be read as one. The full
+   has its own such check, described in item 7, and the 2 must not be read as one. The full
    list of states and
    their counts is in
    [`legislator-campaign-money-guide.md`](legislator-campaign-money-guide.md), which
@@ -727,7 +743,7 @@ Top to bottom:
    say whether a reader loaded one. The other 17 keep the sentence, because a difference
    the threshold does not explain is a real finding.
 
-6. **Money out shows only the official figure.** “Expenditures” is the committee's
+7. **Money out shows only the official figure.** “Expenditures” is the committee's
    reported money-out total for the period, including a verified $0, with its own period
    note where that differs from the period panel's. A zero carries its own sentence:
    “The committee’s own report states $0 in expenditures. That is the filing’s own zero,
@@ -742,26 +758,48 @@ Top to bottom:
 
    Calculated sums belong beside their payment rows, never on the summary card. Named
    payments can include transfers to other committees and goods and services; their rows
-   remain on the Where it went tab and the every-payment page. The comparison against
+   remain on the Expenditures tab and the every-payment page. The comparison against
    the filed report still runs and is served, but the card prints no verdict. A held
    official total stays visible even when that comparison is unproved. The shared
    wording and source details are in
    [`legislator-campaign-money-guide.md`](legislator-campaign-money-guide.md), under
    Money out and Where the data comes from.
 
-7. **Three tabs on every page, and up to 2 more. The first two — Who gave and Where it went** — the six largest payments,
-   ranked largest first (honest inside one committee; never across committees), each
-   naming the filing's own type. **Every count is a count of payments, never of donors**:
-   the filings carry printed names with no identifier, and one person appears under
-   several spellings ("Messinger, Alida" / "Messinger, Alida R" / "Messinger, Alida
-   Rockefelle" are 3 strings in the live files), so "N donors" would be a claim the data
-   cannot back — the same failure as vouching for a list's completeness. Donated goods
-   and services carry a marker and stay inside the totals, because that is how the state
-   counts them. A registration number we hold as a filer opens that
-   committee's page; any other printed name opens the payments filed under that exact
-   spelling, which is a spelling and never a person (Eugene's ruling of 1 Sep 2026, and
-   the reason the 3 Messinger strings above stay 3 lists rather than becoming 1).
-8. **The third tab — Filings**: every report the Board's catalogue records this committee
+8. **The donor and payment browser**, under the summaries. The fixed tabs are
+   Individuals, Lobbyists, Committees & Funds, Party Units and Expenditures; Other kinds
+   appears only when the received Contribution rows need it. Other candidate committees
+   sit under Committees & Funds and retain the filed kind on their rows. The donor tabs
+   include only receipts typed Contribution. Other receipts remain reachable through the
+   full **Who gave** list, while **Where it went** opens every named outgoing payment.
+
+   Every page must arrive from the same release before counts, sums, grouping or sorting
+   claim a complete list. Failed reads keep the load-failed words and withhold those
+   figures, never the sentence saying the file names no payments. Each exact printed name
+   groups only this committee's payments in this year and category. Different spellings
+   stay separate, and repeated-looking rows are kept. Counts say names and payments,
+   never donors. The Expenditures sum appears only here, beside its rows, as
+   “Total of listed payments in this tab: {amount}”. The outgoing-payment naming
+   threshold remains $200 for every filer kind, including ballot-question committees;
+   the $500 ballot-question threshold applies to incoming donations instead
+   ([Minnesota Statutes 10A.20, subdivision 3(h), (q)](https://www.revisor.mn.gov/statutes/cite/10A.20#stat.10A.20.3),
+   retained in [2026 chapter 101, section 14](https://www.revisor.mn.gov/laws/2026/0/101/laws.0.14.0#laws.0.14.0)).
+
+   Search narrows the loaded names without changing the tab's whole count or total.
+   Sorts are Largest first, Smallest first, Name A to Z, Newest first and Oldest first.
+   A group opens its underlying payments, including dates, filed employer or purpose,
+   amounts and donated-goods markers. Known committee numbers open their committee
+   addresses. These controls and words are the same components as the legislator tab.
+   A year change keeps the category and sort but clears search, open rows and display cap.
+   Opening a different committee starts at its title. Browser Back restores the position
+   left on the previous committee; controls within a committee keep the current position.
+
+   A section selector keeps **Campaign money**, **Filings**, and **Spent by them** where
+   the latter has records. Its address choices remain `gave`, `filings` and `by`.
+   An older `tab=spent` link opens Expenditures; `tab=about` opens the selected year's
+   grouped outside spending. The separate `/payments?tab=gave|spent&year=…` addresses
+   retain their complete received and outgoing lists.
+
+9. **Filings**: every report the Board's catalogue records this committee
    as having filed, all years at once, with no amounts anywhere — it is a list of
    filings, not of money. Newest first, and the tab says in which sense: by the day the
    Board received a report where its filing record carries one, and by the period it
@@ -783,31 +821,26 @@ Top to bottom:
    viewer; there are no per-report links, because the Board serves report documents
    through a form a link cannot reach, and not at all for most years before 2023 — a row
    of dead links would be worse than one honest step.
-   8a. **Two more tabs, each drawn only where this filer has rows in Minnesota's
-   independent-expenditures file, in that direction — per filer, never per kind of
-   committee.** "Spent about them" lists what other groups spent for or against this
-   committee, filed independently of it; "Spent by them" lists what this filer spent about
-   other committees. No rows means no tab, and no empty state either: "spent nothing" and
-   "we hold nothing" cannot be told apart in this file. These are the one place the money
-   section says "spent", because this is spending, by others, and on a candidate's own
-   page a large figure that is not their money is the most misreadable thing on the
-   screen. Above the rows on both tabs sits the sentence saying this file is never added
-   to the ordinary expenditures file (491 rows coincide with an expenditure row and whether
-   that is one payment filed twice or 2 that coincide is not established). Each row is one
-   served payment: the other committee with its registration number (a link only where we
-   hold a page for it; where our copy of the Board's register lacks the number, the words
-   "Not in our copy of the Board's register" sit in the number's place), SUPPORTING or
-   OPPOSING as the filing says, the purpose and the vendor (each printing "No purpose
-   given in the filing" or "No vendor named in the filing" when the filing leaves it
-   blank), the filing's own expenditure type, the row's own payment date, the amount and
-   any unpaid part directly under it. Rows come 50 at a time, NEWEST FIRST by default or
-   LARGEST FIRST on request, and the count line reads "12 payments about 5 committees",
-   "1 payment about 1 committee", or "Showing 6 of 12 payments" while the list is cut.
-   Nothing is summed across rows, and no year filter applies: outside spending is filed by
-   election cycle rather than by the filing year the page's control selects, so each row
-   carries its own date. The tab and the sort are read from the address (`?tab=about`,
-   `?tab=by`) so a shared link opens the same view.
-9. **What this record covers**: filed with the Board, nothing before 2015, unions don't
+10. **Spending by Outside Groups**, after the committee's own payment browser. It
+    follows the selected year and groups spending about this registration number by
+    spender, with For and Against separate. A spender on both sides keeps both groups.
+    Missing spender numbers group only by exact filed name. Every group can open the
+    complete payments from the same source copy. The chart and source dates for the
+    committee's own money do not establish the outside file's date or completeness.
+    A failed grouped read keeps any independently served figures and says the list
+    failed; it never invents a count of spenders.
+
+    **Spent by them** remains a separate all-years view of this committee's spending
+    about other committees, at `tab=by`. Its introduction states: “This list shows payments
+    from all years in the state’s file.” It keeps the existing Newest first and Largest
+    first sorts and 50-row pages. Each row carries the other committee, direction,
+    purpose, vendor, filed type, payment date, amount and any unpaid part. Missing fields
+    keep their existing words. A link appears only where the held register supplies a
+    destination. This file is never added to ordinary expenditures: 491 source rows
+    coincide with an expenditure row, and the records do not establish whether those
+    are 1 payment filed twice or 2 payments that coincide.
+
+11. **What this record covers**: filed with the Board, nothing before 2015, unions don't
    report here — and the donor sentence, which names **$200** on most pages and **$500**
    on a ballot-question committee's page. Each page states only its own figure, because
    the risk is a reader taking one kind of committee's line for another's. $500 is what
@@ -827,9 +860,11 @@ across the whole design set:
   a 50-cent row would read as a committee that reported nothing.
 - **One typeface for money.** Every amount is set in the same face as the big totals
   (Libre Franklin). The legislator profile and `/money/payments` also use Libre Franklin
-  for dates, registration numbers and counts, with equal-width digits. The unchanged
-  committee, search and list screens retain their monospaced dates, registration numbers
-  and count lines. Short capital labels keep their existing typeface.
+  for dates, registration numbers and counts, with equal-width digits. The shared donor
+  and outside-spender components use those same equal-width digits on committee pages.
+  The remaining committee fields, search and list screens retain their
+  monospaced dates, registration numbers and count lines. Short capital labels keep their
+  existing typeface.
 - **No full stop at the end of a line that stands alone** — a caption, a date or meta
   line, a label, a one-line card description, and any stack or column of those, including
   the "What this record covers" block on both this page and the section landing. An
@@ -857,8 +892,8 @@ loan is labelled as reported on its own schedule rather than reading as a gift, 
 read "Money given to another campaign" and open no name lookup, and a registered filer's
 number opens its committee page where any other name opens its own exact spelling.
 
-A failed payment read, including an unavailable response, uses the existing could-not-load
-sentence on both this page and the committee's short payment list. It never prints a
+A failed payment read, including an unavailable response, uses this page's could-not-load
+sentence. It never prints a
 no-donors or no-payments heading. A first response with a failed payment read keeps the
 committee's identity and known figures, carries no successful payment seed, and uses
 `Cache-Control: no-store` so a later reader can retry immediately. Successful responses

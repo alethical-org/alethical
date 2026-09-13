@@ -9,7 +9,7 @@ import {
   getGroupedOutsideSpending,
 } from '../../data/groupedOutsideSpending';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
-import { committeeSlug } from '../../lib/committeeMoney';
+import { committeeSlug, OUTSIDE_ABOUT_INTRO, OUTSIDE_NEVER_ADDED } from '../../lib/committeeMoney';
 import { formatDay, formatMoney } from '../../lib/legislatorCampaignMoney';
 import {
   OUTSIDE_GROUP_COPY as copy,
@@ -25,6 +25,7 @@ import {
   type OutsideSpenderGroup,
 } from '../../lib/groupedOutsideSpending';
 import {
+  OUTSIDE_SPENDING_CARD_HEADING as OUTSIDE_SPENDING_HEADING,
   isMeasuredZero,
   outsideSpendingCoverage,
   outsideSpendingFigures,
@@ -37,25 +38,33 @@ import { useResponsive } from '../../hooks/useResponsive';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import type { RootStackParamList } from '../../navigation/types';
 import { LinkArrow } from '../LinkArrow';
-import { OUTSIDE_SPENDING_HEADING } from '../legislator/OutsideSpendingCard';
 import { numericText, useCampaignMoneyTypography, useDetailsStyles } from './detailsStyles';
 
 export interface GroupedOutsideSpendingProps {
   year: OutsideSpendingYear;
   onOpenSource: (url: string) => void;
   enabled?: boolean;
+  surface?: 'profile' | 'committee';
+  releaseId?: string;
 }
 
 export function GroupedOutsideSpending(props: GroupedOutsideSpendingProps) {
   const scope = JSON.stringify([
     props.year.year,
     props.year.snapshotId,
+    props.releaseId,
     props.year.committees.map((committee) => committee.registrationNumber).sort(),
   ]);
   return <OutsideYear key={scope} {...props} />;
 }
 
-function OutsideYear({ year, onOpenSource, enabled = true }: GroupedOutsideSpendingProps) {
+function OutsideYear({
+  year,
+  onOpenSource,
+  enabled = true,
+  surface = 'profile',
+  releaseId,
+}: GroupedOutsideSpendingProps) {
   const { isMobile, isTablet } = useResponsive();
   const s = useDetailsStyles();
   const type = useCampaignMoneyTypography();
@@ -66,14 +75,25 @@ function OutsideYear({ year, onOpenSource, enabled = true }: GroupedOutsideSpend
   const unavailable = outsideSpendingUnavailableReason(year);
   const zero = isMeasuredZero(year);
   const canRead =
-    enabled && !unavailable && !zero && Boolean(year.snapshotId) && registrations.length > 0;
+    enabled &&
+    !unavailable &&
+    !zero &&
+    Boolean(year.snapshotId || (surface === 'committee' && releaseId)) &&
+    registrations.length > 0;
   const groupedQuery = useQuery({
-    queryKey: ['campaign-money-outside-groups', year.year, year.snapshotId, registrations],
-    queryFn: ({ signal }) => getGroupedOutsideSpending(year, signal),
+    queryKey: [
+      'campaign-money-outside-groups',
+      year.year,
+      year.snapshotId,
+      registrations,
+      releaseId,
+    ],
+    queryFn: ({ signal }) => getGroupedOutsideSpending(year, signal, releaseId),
     enabled: canRead,
     retry: false,
     refetchOnWindowFocus: false,
   });
+  const readFailed = groupedQuery.isError || (enabled && !unavailable && !zero && !canRead);
   const grouped = groupedQuery.isError ? undefined : groupedQuery.data;
   const paymentsQuery = useQuery({
     queryKey: [
@@ -90,7 +110,7 @@ function OutsideYear({ year, onOpenSource, enabled = true }: GroupedOutsideSpend
   });
   const period = outsideSpendingPeriod(year);
   const count = outsideSpendingPaymentCount(year);
-  const coverage = outsideSpendingCoverage(year);
+  const coverage = surface === 'profile' ? outsideSpendingCoverage(year) : null;
   // The existing summary remains readable if the new grouped read fails. It has no
   // spender counts, so the fallback never pretends to know how many groups paid.
   const figures = grouped
@@ -110,11 +130,15 @@ function OutsideYear({ year, onOpenSource, enabled = true }: GroupedOutsideSpend
       <Text accessibilityRole="header" aria-level={2} style={[s.heading, styles.heading]}>
         {OUTSIDE_SPENDING_HEADING}
       </Text>
-      <Text style={s.body}>{copy.explainer}</Text>
+      <Text style={s.body}>
+        {surface === 'committee' ? `${OUTSIDE_ABOUT_INTRO} ${OUTSIDE_NEVER_ADDED}` : copy.explainer}
+      </Text>
       {unavailable ? (
         <Text style={s.body}>{unavailable}</Text>
       ) : zero ? (
-        <Text style={[s.body, s.numeric]}>{outsideCheckedZeroLabel(year.year)}</Text>
+        <Text style={[s.body, s.numeric]}>
+          {outsideCheckedZeroLabel(year.year, surface === 'committee' ? 'committee' : 'legislator')}
+        </Text>
       ) : (
         <>
           <View style={styles.figures}>
@@ -177,8 +201,8 @@ function OutsideYear({ year, onOpenSource, enabled = true }: GroupedOutsideSpend
               </View>
             ) : (
               <View style={s.section}>
-                <Text accessibilityRole={groupedQuery.isError ? 'alert' : undefined} style={s.body}>
-                  {groupedQuery.isError ? copy.failed : copy.loading}
+                <Text accessibilityRole={readFailed ? 'alert' : undefined} style={s.body}>
+                  {readFailed ? copy.failed : copy.loading}
                 </Text>
                 {groupedQuery.isError ? (
                   <Retry onPress={() => void groupedQuery.refetch()} />
