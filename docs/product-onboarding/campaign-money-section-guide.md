@@ -658,11 +658,18 @@ Top to bottom:
    one against that end (so "Figures for Jan 1, 2026 – Jul 20, 2026"), and otherwise the
    panel says "through" alone — a start is never assumed, because a special-election
    filer's period does not open on 1 January. Beside it is the link to the
-   committee's filed reports on the Board's own site. The date at the foot of the page
-   names the payment files it covers and explains that report totals are copied
-   separately. The payment-file date never dates the report totals or the register.
-   The same distinction appears on the committee's every-payment view and in the first
-   response served for both addresses. The filing's period and link live here, once,
+   committee's filed reports on the Board's own site. The note at the foot names both
+   source-copy dates: “We downloaded Minnesota’s payment files on Sep 1, 2026 and its
+   report totals on Aug 11, 2026. Neither is the period the money covers.” The payment
+   date comes from the stored bulk-file download time (`fetched_at`); the report date
+   comes from the published filing source's own stored fetch completion time
+   (`report_totals_copied_at`). Neither a report's receipt date nor a later publication
+   of stored records replaces that source date. Neither date dates the register.
+   Both dates print in Minnesota time. Without a report-copy date, it reads:
+   “We downloaded Minnesota’s payment files on Sep 1, 2026, which is not the period the
+   money covers. The report totals were copied separately.” The committee's footnote
+   uses regular weight 400 and 15px text. The same date distinction appears on the
+   committee's every-payment view and in the first response served for both addresses. The filing's period and link live here, once,
    above both money cards and never inside one: one filing produces both
    cards, so stating any of it per card would state one fact twice. A party unit's panel
    says its calendar is its own. If our own data service stops answering, the page keeps
