@@ -487,6 +487,30 @@ describe('the filing schedule note, one committee at a time', () => {
     );
   });
 
+  it.each([2015, 2021, 2024, 2025])(
+    'describes the selected past year %i with no future deadline',
+    (year) => {
+      expect(filingScheduleNote(gap('on_the_ballot'), year, 2026)).toEqual([
+        `This committee was on the ${year} ballot and followed Minnesota's election-year filing schedule.`,
+      ]);
+      expect(filingScheduleNote(gap('not_on_the_ballot'), year, 2026)).toEqual([
+        `This committee was not on the ${year} ballot. Minnesota's schedule for candidates not running required a year-end report.`,
+      ]);
+      for (const schedule of [onTheBallot, notOnTheBallot]) {
+        const text = filingScheduleNote(schedule, year, 2026).join(' ');
+        expect(text).not.toMatch(
+          /next report|is due|New money|not money going unreported|not yet copied/,
+        );
+      }
+    },
+  );
+
+  it('keeps current-year schedule wording even when its next report is missing', () => {
+    const text = filingScheduleNote(gap('on_the_ballot'), 2026, 2026).join(' ');
+    expect(text).toContain('This committee is on the 2026 ballot');
+    expect(text).toContain('New money appears here only when a report is filed.');
+  });
+
   it('keeps both years when the next report covers more than one year', () => {
     const text = said({ ...onTheBallot, periodStart: '2098-12-15' });
     expect(text).toContain('and covers Dec 15, 2098 to Oct 19, 2099');

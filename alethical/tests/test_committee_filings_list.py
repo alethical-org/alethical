@@ -326,8 +326,7 @@ def test_a_period_start_comes_off_the_boards_own_calendar_or_not_at_all(
         year=2024,
         report_type="YE",
         report_name="2024 Year-End Report",
-        # No transcribed calendar prints a start for this end, so the row reads
-        # "covers through 31 Dec 2024" rather than an assumed 1 January.
+        # The historical calendar prints this start; it is no longer a missing source.
         cut_off=date(2024, 12, 31),
     )
 
@@ -335,8 +334,8 @@ def test_a_period_start_comes_off_the_boards_own_calendar_or_not_at_all(
 
     assert rows[0]["period_start"] == PRE_PRIMARY_START.isoformat()
     assert rows[0]["period_start_source"] == "board_calendar"
-    assert rows[1]["period_start"] is None
-    assert rows[1]["period_start_source"] is None
+    assert rows[1]["period_start"] == "2024-01-01"
+    assert rows[1]["period_start_source"] == "board_calendar"
 
 
 def test_a_special_election_filers_period_start_is_withheld_not_assumed(
