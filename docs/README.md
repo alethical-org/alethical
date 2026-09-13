@@ -55,6 +55,7 @@ things work in practice and are the place to start if you're new.
 - [Design principles](design/design-principles.md) — green system's design intent + visual/interaction/accessibility rules; brief for Claude Design
 - [UI copy guide](design/ui-copy-guide.md) — voice and tone
 - [Committee money page design prompt](design/committee-money-page-design-prompt.md) — frozen Claude Design request for #1442's committee money screen (dated 18 Aug 2026)
+- [Campaign money final review prompt](implementation/campaign-money-final-review-prompt.md) — the released non-lobbying changes, live checks and work that remains on hold
 - [Campaign money design handoff](design/handoff-campaign-money/) — the accepted Claude Design set for the whole money section (round 6, 18 Aug 2026): the plan and landing, the route map, the 4 list screens, the committee page, the report and its shelf, both profile surfaces, and the measured facts they rest on. Includes [the first piece's source text](design/handoff-campaign-money/follow-the-money-report.md), which has since posted as our live research at `/read/research/the-money-only-goes-one-way`
 
 ## Reader guides
