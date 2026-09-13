@@ -5,7 +5,7 @@ import {
   moneyDetailsPageCopy as copy,
   namedMoneyDefinition,
 } from '../../lib/campaignMoneyDetailsPageCopy';
-import { unnamedFigureDraws } from '../../lib/legislatorCampaignMoney';
+import { unnamedFigureDraws } from '../../lib/contributionFigures';
 import { Dek } from './ContributionLabelsNote';
 import { useDetailsStyles } from './detailsStyles';
 import type * as Details from './MoneyDetailsBundle';

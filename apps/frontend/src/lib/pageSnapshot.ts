@@ -91,6 +91,7 @@ import {
   yearDisplayState,
 } from './committeeMoney';
 import { dekText, namedMoneyDefinition } from './campaignMoneyDetailsCopy';
+import { unnamedFigureDraws } from './contributionFigures';
 import {
   closedChipLabel,
   committeeEyebrow,
@@ -137,7 +138,6 @@ import {
   paymentCountLabel,
   splitExplanation,
   statedSplitNote,
-  unnamedFigureDraws,
   type MoneyBlockState,
   type SplitState,
 } from './legislatorCampaignMoney';

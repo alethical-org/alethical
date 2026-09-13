@@ -14,7 +14,7 @@ import {
   moneyDetailsCopy as copy,
   namedMoneyDefinition,
 } from '../campaignMoneyDetailsCopy';
-import { unnamedFigureDraws } from '../legislatorCampaignMoney';
+import { unnamedFigureDraws } from '../contributionFigures';
 
 const SHARES =
   'Shares of the contributions this committee reported, not counting donated goods and ' +

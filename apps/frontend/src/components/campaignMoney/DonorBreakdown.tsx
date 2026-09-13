@@ -10,10 +10,10 @@ import {
   formatMoney,
   isAmountAboveZero,
   splitExplanation,
-  unnamedFigureDraws,
   type SplitState,
 } from '../../lib/legislatorCampaignMoney';
 import { Dek } from './ContributionLabelsNote';
+import { unnamedFigureDraws } from '../../lib/contributionFigures';
 import { numericText, useCampaignMoneyTypography, useDetailsStyles } from './detailsStyles';
 import { moneyDetailsCopy as copy, namedMoneyDefinition } from '../../lib/campaignMoneyDetailsCopy';
 

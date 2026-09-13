@@ -48,6 +48,7 @@ import { Linking, StyleSheet, Text, View, type TextProps, type TextStyle } from 
 
 import { BOARD_RECORD_LINK_LABEL, BOARD_RECORD_SENTENCE_TAIL } from '../../lib/boardRecordLink';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
+import { unnamedFigureDraws } from '../../lib/contributionFigures';
 
 import {
   downloadsPageUrl,
@@ -76,7 +77,6 @@ import {
   paymentDateRangeLabel,
   splitExplanation,
   statedSplitNote,
-  unnamedFigureDraws,
   unnamedShareLabel,
   type CommitteeMatchCheck,
   type MoneyBlockState,
