@@ -403,6 +403,15 @@ one: see the box below before writing one.**
   Source: [`LoadingButton.tsx`, `LoadingButton`, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/components/auth/LoadingButton.tsx#L19-L145)
   and [`SignInDialog.tsx`, `SignInDialog`, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/components/auth/SignInDialog.tsx#L486-L493)
   ([#1533](https://github.com/alethical-org/alethical/issues/1533)).
+- **A link's mark is whatever the drawing gives it (Eugene, 13 Sep 2026).** A row link ends with
+  the arrow Design drew on it, and a link that leaves the site keeps the diagonal where Design drew
+  that. Follow the drawing rather than inventing a scheme across surfaces, and never strip a mark a
+  drawing shows because a neighbouring surface has none.
+- **A surface whose own drawing carries no mark is left alone rather than retrofitted.** Consistency
+  arrives with the next drawing of that surface, never as a sweep across surfaces nobody has
+  redrawn. A sweep changes screens no one has looked at, which is how a small visual decision turns
+  into a release with no reviewer.
+
 
 ## 4. What to avoid (directionally wrong for Alethical)
 
