@@ -13,7 +13,9 @@ const state = vi.hoisted(() => ({
   pending: false,
   expired: false,
   by: false,
+  byRows: [] as CommitteeOutsideSpendingRow[],
 }));
+const navigate = vi.hoisted(() => vi.fn());
 vi.mock(
   '../../../components/campaignMoney/MoneyDetailsOnDemand',
   () => import('../../../components/campaignMoney/MoneyDetailsBundle'),
@@ -29,7 +31,13 @@ vi.mock('../../../hooks/useAppQueries', () => ({
   useOutsideSpending: vi.fn(() => ({
     data: {
       pages: [
-        { state: state.by ? 'reported' : 'not_reported', rows: [], totalRows: state.by ? 1 : null },
+        {
+          state: state.by ? 'reported' : 'not_reported',
+          rows: state.byRows,
+          totalRows: state.by ? Math.max(1, state.byRows.length) : null,
+          committeeCount: state.byRows.length ? 1 : null,
+          spenderCount: null,
+        },
       ],
     },
     isPending: false,
@@ -47,7 +55,7 @@ vi.mock('../../../hooks/useCurrentClaimExpiry', () => ({
   useCurrentClaimExpiry: () => state.expired,
 }));
 vi.mock('../../../navigation/documentTitle', () => ({ useDocumentTitle: () => {} }));
-vi.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: vi.fn() }) }));
+vi.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate }) }));
 vi.mock('../../../data/api', async (original) => ({
   ...(await original<Record<string, unknown>>()),
   publicApiRequest: vi.fn(),
@@ -82,6 +90,12 @@ import {
 } from '../../../lib/committeeMoney';
 import { splitExplanation } from '../../../lib/legislatorCampaignMoney';
 import type { RootScreenProps } from '../../../navigation/types';
+import type { CommitteeOutsideSpendingRow } from '../../../data/types';
+import {
+  initializeWebHistory,
+  pushWebHistory,
+  readCurrentScrollPosition,
+} from '../../../navigation/webHistory';
 // Public API envelopes copied 12 September 2026. These are complete pages, with
 // their source, release, download date and original row counts retained.
 import candidateFinance from './fixtures/committee-money/19193-finance-2025.json';
@@ -130,7 +144,7 @@ function shape() {
 }
 function click(element: Element | null | undefined) {
   expect(element).toBeTruthy();
-  act(() => element!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  act(() => element!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
 }
 function button(label: string) {
   return [...host.querySelectorAll('[role="button"],button')].find(
@@ -148,6 +162,8 @@ beforeEach(() => {
   state.pending = false;
   state.expired = false;
   state.by = false;
+  state.byRows = [];
+  navigate.mockClear();
   shape();
   request.mockReset();
   request.mockImplementation(async (path) => {
@@ -170,9 +186,121 @@ afterEach(() => {
   act(() => root.unmount());
   host.remove();
   client.clear();
+  window.sessionStorage.clear();
+  window.history.replaceState({}, '', '/');
+  vi.unstubAllGlobals();
 });
 
 describe('one committee shares the donation browser', () => {
+  it('opens another committee at its title and restores the prior committee’s position on Back', async () => {
+    const frames = new Map<number, FrameRequestCallback>();
+    let frameId = 0;
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      frames.set(++frameId, callback);
+      return frameId;
+    });
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
+    const flushFrames = () =>
+      act(() => {
+        const pending = [...frames.values()];
+        frames.clear();
+        pending.forEach((frame) => frame(0));
+      });
+    const sourcePath = `/money/committees/${params.slug}?year=2025`;
+    window.history.replaceState({}, '', sourcePath);
+    initializeWebHistory();
+    await render();
+    flushFrames();
+    const sourceScroll = host.querySelector<HTMLElement>('[data-testid="committee-money-scroll"]')!;
+    act(() => {
+      sourceScroll.scrollTop = 640;
+      sourceScroll.dispatchEvent(new Event('scroll'));
+    });
+    await vi.waitFor(() => expect(readCurrentScrollPosition()).toBe(640));
+    const sourceEntry = window.history.state;
+
+    const spenderLink = [...host.querySelectorAll('a')].find(
+      (node) => node.textContent === 'MN DFL State Central Committee',
+    );
+    expect(spenderLink?.getAttribute('href')).toBe(
+      '/money/committees/mn-dfl-state-central-committee-20003?year=2025',
+    );
+    click(spenderLink);
+    expect(navigate).toHaveBeenLastCalledWith('CommitteeMoney', {
+      slug: 'mn-dfl-state-central-committee-20003',
+      year: '2025',
+    });
+    payload = structuredClone(partyFinance.data) as ApiCommitteeMoneyPayload;
+    params = navigate.mock.lastCall![1];
+    shape();
+    await render();
+    // RootNavigator writes the destination history entry after the new screen
+    // renders. Restoration must wait for that entry, not read the source's 640.
+    pushWebHistory(`/money/committees/${params.slug}?year=2025`);
+    flushFrames();
+    const targetScroll = host.querySelector<HTMLElement>('[data-testid="committee-money-scroll"]')!;
+    expect(targetScroll.scrollTop).toBe(0);
+    expect(host.textContent).toContain('MN DFL State Central Committee');
+    expect(button('2025')?.getAttribute('aria-pressed')).toBe('true');
+
+    // A list control stays on this committee and must not jump to its title.
+    act(() => {
+      targetScroll.scrollTop = 420;
+    });
+    click(tab('Expenditures'));
+    flushFrames();
+    expect(targetScroll.scrollTop).toBe(420);
+    expect(tab('Expenditures')?.getAttribute('aria-selected')).toBe('true');
+
+    window.history.replaceState(sourceEntry, '', sourcePath);
+    payload = structuredClone(candidateFinance.data) as ApiCommitteeMoneyPayload;
+    params = { slug: 'gottfried-david-house-committee-19193', year: '2025' };
+    shape();
+    await render();
+    flushFrames();
+    expect(
+      host.querySelector<HTMLElement>('[data-testid="committee-money-scroll"]')?.scrollTop,
+    ).toBe(640);
+  });
+
+  it('labels Spent by them as all years and keeps payments outside the cards’ selected year', async () => {
+    params.tab = 'by';
+    state.by = true;
+    state.byRows = [2026, 2024].map((year) => ({
+      spender: 'Example spender',
+      spenderRegistrationNumber: '20003',
+      spenderInRegister: true,
+      spenderLinkable: true,
+      aboutCommitteeName: 'Example candidate',
+      aboutCommitteeRegistrationNumber: '19193',
+      aboutCommitteeInRegister: true,
+      aboutCommitteeLinkable: false,
+      direction: 'For',
+      directionAsFiled: 'For',
+      purpose: 'Printing',
+      vendorName: 'Example printer',
+      expenditureType: 'Advertising',
+      inKind: false,
+      paidOn: `${year}-01-12`,
+      year,
+      amount: '25',
+      unpaidAmount: null,
+      recordNumber: year,
+    }));
+    await render();
+    expect(host.textContent).toContain(
+      'This list shows payments from all years in the state’s file.',
+    );
+    expect(host.textContent).toContain('PAID JAN 12, 2026');
+    expect(host.textContent).toContain('PAID JAN 12, 2024');
+    expect(vi.mocked(useOutsideSpending).mock.lastCall).toEqual([{ spender: '19193' }, 'newest']);
+    params = { ...params, tab: 'gave' };
+    await render();
+    expect(host.textContent).not.toContain(
+      'This list shows payments from all years in the state’s file.',
+    );
+  });
+
   it('reads only the candidate year, prints its real rows and groups ABOUT spending once', async () => {
     await render();
     expect(host.textContent).toContain('Who gave, by kind of donor (named donations only)');

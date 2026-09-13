@@ -790,6 +790,8 @@ Top to bottom:
    amounts and donated-goods markers. Known committee numbers open their committee
    addresses. These controls and words are the same components as the legislator tab.
    A year change keeps the category and sort but clears search, open rows and display cap.
+   Opening a different committee starts at its title. Browser Back restores the position
+   left on the previous committee; controls within a committee keep the current position.
 
    A section selector keeps **Campaign money**, **Filings**, and **Spent by them** where
    the latter has records. Its address choices remain `gave`, `filings` and `by`.
@@ -829,7 +831,8 @@ Top to bottom:
     failed; it never invents a count of spenders.
 
     **Spent by them** remains a separate all-years view of this committee's spending
-    about other committees, at `tab=by`. It keeps the existing Newest first and Largest
+    about other committees, at `tab=by`. Its introduction states: “This list shows payments
+    from all years in the state’s file.” It keeps the existing Newest first and Largest
     first sorts and 50-row pages. Each row carries the other committee, direction,
     purpose, vendor, filed type, payment date, amount and any unpaid part. Missing fields
     keep their existing words. A link appears only where the held register supplies a

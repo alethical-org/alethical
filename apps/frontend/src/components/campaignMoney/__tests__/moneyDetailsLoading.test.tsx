@@ -22,6 +22,7 @@ import {
   CommitteeDonations,
   GroupedOutsideSpending,
   CommitteeMixHistory,
+  OutsideSpendingCard,
 } from '../MoneyDetailsOnDemand';
 import { requestReleaseReload } from '../../../lib/releaseReload';
 import { moneyDetailsPageCopy as copy } from '../../../lib/campaignMoneyDetailsPageCopy';
@@ -40,6 +41,7 @@ it('keeps accepted summaries while the optional chunk loads and after recovery i
   const donations = {} as ComponentProps<typeof CommitteeDonations>;
   const outside = {} as ComponentProps<typeof GroupedOutsideSpending>;
   const history = {} as ComponentProps<typeof CommitteeMixHistory>;
+  const outsideSummary = {} as ComponentProps<typeof OutsideSpendingCard>;
   await act(async () =>
     root.render(
       <>
@@ -48,6 +50,7 @@ it('keeps accepted summaries while the optional chunk loads and after recovery i
         </CommitteeDonations>
         <GroupedOutsideSpending {...outside} />
         <CommitteeMixHistory {...history} />
+        <OutsideSpendingCard {...outsideSummary} />
       </>,
     ),
   );

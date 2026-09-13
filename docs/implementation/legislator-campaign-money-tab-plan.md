@@ -270,27 +270,28 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   `/private/tmp/alethical-2166-committee-donor-tabs` on
   `codex/2166-committee-donor-tabs`, based on
   [commit 3e76927c](https://github.com/alethical-org/alethical/commit/3e76927c1ef28a2a00a3a23d7f9543d4a3ab8083).
-  Internal worker `/root/official_spending_cards` owns the frontend; root owns
-  reader-guide changes, integration and release. Tests now preserve donor category
-  and sort across an uncached year load, and retain split and donated-goods
-  explanations in sections without the chart. The unused initial 6-payment read
-  and its unused client hooks are removed; the separate full-payment address keeps
-  its first 50 rows. Shared
-  details load on demand to preserve the unchanged 392,321-byte first-load limit.
-  A local import-failure boundary keeps accepted summary figures visible if chart
-  code cannot load. Before obsolete short-list code was removed, the formatted frontend suite passed
-  2,641 tests in 214 files and the backend passed 2,549. After cleanup, 207 focused
-  tests and the 10 donor-browser tests pass; types, assets, icons and whitespace
-  checks pass. With the live public settings, the clean build is 392,010 bytes
-  against the unchanged 392,321 limit. The settings-free build including its
-  existing settings allowance is 392,109. The hosted preview result remains pending.
-  The live base is 391,176 bytes by the same compression method. Browser flows
-  pass for candidate 19193 and party 20003, including complete groups, expanded
-  payments, retained category/sort across an uncached year, and preserved Filings
-  and Spent by them views. The GitHub test now waits for the actual completed
-  payment list instead of assuming its first code download finishes in 20ms.
-  Final release checks remain. Jobs 3
-  onward keep their approved order and have not started.
+  Root owns integration and release; internal worker `/root/official_spending_cards`
+  completed the frontend and the independent reader corrections. Donor category and
+  sort survive an uncached year load; Filings and Spent by them retain their explanations.
+  The unused initial 6-payment read and its client hooks are removed; the full-payment
+  address keeps its first 50 rows. Shared details load on demand, with local failure
+  handling that leaves accepted figures and refunds visible.
+  The final frontend suite passes 2,642 tests in 214 files; the backend passed 2,549.
+  Types, asset, icon, document-reference and quoted-text checks pass. The clean build
+  with all 6 production public settings measures 392,156 bytes against the unchanged
+  392,321 limit. Vercel withholds the 2 public Supabase values from its settings export;
+  these are read from the current live program, and their provider metadata records
+  no change since May 22. The other 4 values come from the production export.
+  Preview has only its API setting: its actual 392,064 bytes fit, but the unchanged
+  guard projects 542 more for settings Preview intentionally lacks and reports 392,606.
+  No guard, limit or provider setting was changed. The production configuration passes;
+  required queue checks and the actual production release remain the release gates.
+  Phone/browser checks cover candidate 19193 and party 20003, complete and expanded
+  payments, saved category/sort, Filings and Spent by them. A linked committee now opens
+  at its title, and Back restores the source position. Spent by them states that its
+  list covers all years. The GitHub test waits for the complete payment list instead
+  of assuming its code arrives in 20ms. Final release checks remain. Jobs 3 onward
+  keep their approved order and have not started.
 
 
 ## Approved data-only queue after follow-on jobs 1 through 4

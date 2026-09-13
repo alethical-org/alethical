@@ -5,6 +5,8 @@ import { CampaignMoneyTab } from '../CampaignMoneyTab';
 import { CURRENT_CLAIM_MAX_AGE_MS } from '../../../lib/currentClaimFreshness';
 import { refundFixture } from './refundFixtures';
 
+vi.mock('../MoneyDetailsOnDemand', () => import('../MoneyDetailsBundle'));
+
 vi.mock(
   '../../../hooks/useCampaignMoneyYearStates',
   () => import('../../../hooks/useCampaignMoneyDetails'),

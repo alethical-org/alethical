@@ -726,6 +726,9 @@ export const OUTSIDE_ABOUT_INTRO =
   'What other groups spent about this committee, filed independently of it. This ' +
   'committee neither received nor controlled any of it.';
 
+/** The retained spender list spans the file, independently of the cards' year. */
+export const OUTSIDE_BY_ALL_YEARS = 'This list shows payments from all years in the state’s file.';
+
 /**
  * Above the rows on both tabs, verbatim: this file is never added to the ordinary
  * expenditures file. 491 rows share a spender, name, amount and date with an

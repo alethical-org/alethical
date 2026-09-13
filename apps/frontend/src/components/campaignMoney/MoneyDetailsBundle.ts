@@ -3,3 +3,4 @@
 export { CommitteeDonations } from './CommitteeDonations';
 export { GroupedOutsideSpending } from './GroupedOutsideSpending';
 export { CommitteeMixHistory } from './CommitteeMixHistory';
+export { OutsideSpendingCard } from '../legislator/OutsideSpendingCard';

@@ -13,6 +13,9 @@ const load = () =>
   }));
 const Donations = lazy(() => load().then((module) => ({ default: module.CommitteeDonations })));
 const Outside = lazy(() => load().then((module) => ({ default: module.GroupedOutsideSpending })));
+const OutsideSummary = lazy(() =>
+  load().then((module) => ({ default: module.OutsideSpendingCard })),
+);
 const History = lazy(() => load().then((module) => ({ default: module.CommitteeMixHistory })));
 
 // Optional details must never remove the accepted filing figures if a release's
@@ -68,16 +71,28 @@ export function CommitteeDonations(props: ComponentProps<typeof Details.Committe
     </DetailsBoundary>
   );
 }
-export function GroupedOutsideSpending(
-  props: ComponentProps<typeof Details.GroupedOutsideSpending>,
-) {
+function OutsideDetails({ children }: { children: ReactNode }) {
   const s = useDetailsStyles();
   return (
     <DetailsBoundary fallback={<FailedDetails message={copy.outsideFailed} />}>
-      <Suspense fallback={<Text style={s.body}>{copy.outsideLoading}</Text>}>
-        <Outside {...props} />
-      </Suspense>
+      <Suspense fallback={<Text style={s.body}>{copy.outsideLoading}</Text>}>{children}</Suspense>
     </DetailsBoundary>
+  );
+}
+export function GroupedOutsideSpending(
+  props: ComponentProps<typeof Details.GroupedOutsideSpending>,
+) {
+  return (
+    <OutsideDetails>
+      <Outside {...props} />
+    </OutsideDetails>
+  );
+}
+export function OutsideSpendingCard(props: ComponentProps<typeof Details.OutsideSpendingCard>) {
+  return (
+    <OutsideDetails>
+      <OutsideSummary {...props} />
+    </OutsideDetails>
   );
 }
 export function CommitteeMixHistory(props: ComponentProps<typeof Details.CommitteeMixHistory>) {

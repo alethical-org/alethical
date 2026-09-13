@@ -61,6 +61,7 @@ import {
   CommitteeMixHistory,
   CommitteeDonations,
   GroupedOutsideSpending,
+  OutsideSpendingCard,
 } from './MoneyDetailsOnDemand';
 import { CommitteeRefundCard } from './CommitteeRefundCard';
 import { useCampaignMoneyYearStates } from '../../hooks/useCampaignMoneyYearStates';
@@ -81,7 +82,6 @@ import {
   useCampaignMoneyTypography,
   useDetailsStyles,
 } from './detailsStyles';
-import { OutsideSpendingCard } from '../legislator/OutsideSpendingCard';
 import { UnderDevelopmentNotice } from './UnderDevelopmentNotice';
 import { externalLinkProps } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';

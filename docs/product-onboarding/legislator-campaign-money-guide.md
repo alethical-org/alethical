@@ -29,6 +29,10 @@ candidate committees included in Committees & Funds, and keeping the existing
 whole-dollar display. Each payment's original kind remains available. The donut, its
 legend and the history bars use the final shared solid colour map.
 
+The chart, grouped payment lists and outside-spending cards share 1 code download,
+requested when a money view opens. Loading or failure of that download stays within
+the details section; accepted official figures and the refund cards remain visible.
+
 The shared missing official money-out wording comes from
 [pull request 2155](https://github.com/alethical-org/alethical/pull/2155). The ordinary
 full-replacement refresh for 2022–2026 uses the intact saved directory of 1,603 filers

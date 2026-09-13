@@ -713,6 +713,9 @@ The shared chart, payment browser and outside-spender code also arrives only whe
 money view needs it. Both routes use the same on-demand module; importing the same
 components directly from 2 route bundles would otherwise put them in the shared first
 download for unrelated pages. This preserves the existing production-derived size limit.
+The legislator tab's outside-spending fallback card uses that same module, including
+its loading and failed-read states. A failed code download stays inside the details
+section and leaves the independently accepted filing figures on screen.
 
 **The 2 reads on `/payments` run together rather than one after the other.** Neither needs the other's
 answer: the registration number comes out of the address and the year out of

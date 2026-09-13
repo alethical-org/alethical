@@ -37,6 +37,7 @@ import {
 } from '../../hooks/useAppQueries';
 import { useCurrentClaimExpiry } from '../../hooks/useCurrentClaimExpiry';
 import { useResponsive } from '../../hooks/useResponsive';
+import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import {
   AMENDED_CHIP,
   CLOSED_EMPTY_VALUE,
@@ -71,6 +72,7 @@ import {
   notFoundBody,
   notFoundTitle,
   OUTSIDE_ABOUT_INTRO,
+  OUTSIDE_BY_ALL_YEARS,
   OUTSIDE_NEVER_ADDED,
   OUTSIDE_SORT_LABELS,
   outsideCountLine,
@@ -247,7 +249,7 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
 
   return (
     <PageBackground>
-      <ScrollView contentContainerStyle={styles.page}>
+      <CommitteeScroll key={registrationNumber}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
 
         {/* The money section is still being built — lobbying is not loaded
@@ -306,8 +308,24 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
           )}
         </Container>
         <Footer />
-      </ScrollView>
+      </CommitteeScroll>
     </PageBackground>
+  );
+}
+
+// A same-screen link changes the committee without replacing the navigation
+// route. Give each committee its own inner scroller and browser Back position;
+// changing the year or a list control keeps the current scroller.
+function CommitteeScroll({ children }: { children: ReactNode }) {
+  const scrollRestoration = useHistoryScrollRestoration();
+  return (
+    <ScrollView
+      {...scrollRestoration}
+      testID="committee-money-scroll"
+      contentContainerStyle={styles.page}
+    >
+      {children}
+    </ScrollView>
   );
 }
 
@@ -885,6 +903,7 @@ function OutsideSpendingPanel({
     <>
       <View style={styles.outsideIntro}>
         {tab === 'about' ? <Text style={styles.explain}>{OUTSIDE_ABOUT_INTRO}</Text> : null}
+        {tab === 'by' ? <Text style={styles.explain}>{OUTSIDE_BY_ALL_YEARS}</Text> : null}
         <Text style={styles.explain}>{OUTSIDE_NEVER_ADDED}</Text>
       </View>
       <View style={styles.listHead}>
