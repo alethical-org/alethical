@@ -1916,6 +1916,14 @@ for a rule somebody needs while doing arithmetic 3 months from now.
   arithmetic hat, and the fix is the same, compare reported totals to reported totals or say in
   the sentence which coverage each side has.
 
+**The under-development strip is a statement about the whole money section, so it stays on
+every money surface until lobbying ships and then comes off all of them in one release
+(Eugene, 13 Sep 2026).** Its sentence names a gap the section still has, so a page that drops
+it while its siblings keep it makes the section say 2 different things about itself.
+`apps/frontend/src/components/campaignMoney/UnderDevelopmentNotice.tsx` carries the mechanics:
+deleting that file and its call sites is the whole removal, and it has no dismiss control, flag
+or expiry, because shipping the work is what takes it down.
+
 ---
 
 ## 8. Row counts are measurements, not requirements
