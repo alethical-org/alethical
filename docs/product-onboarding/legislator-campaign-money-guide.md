@@ -113,11 +113,10 @@ name and its registration number, in the state's own listing format:
 
 > Abeler, Jim Senate Committee - 17868
 
-That one line replaced a small grey line above it that used to read `SENATE · 2026 ·
-REGISTRATION 17868`. Two of those three facts were already on the page: the chamber is in
-the profile's own big heading and the line under it, and the year is set by the year
-buttons directly above the card. Only the registration number was new, so it moved onto
-the name.
+Nothing above that line repeats the chamber or the year. Both are already on the page:
+the chamber is in the profile's own big heading and the line under it, and the year is
+set by the year buttons directly above the card. The registration number is the one fact
+neither of those carries, which is why it rides on the name.
 
 **The cards are never added together, and a member with more than one is told so before
 they read a single figure.** Above their cards the tab says:
@@ -278,11 +277,11 @@ of the address in front of that number:
 So Jim Abeler's Senate committee opens at
 `https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/17868/2026/`, and
 the year on the end is the year the card is showing, so the Board's page opens on the same
-period. Until 13 September 2026 every committee on the site pointed at the Board's
-**candidate** name search instead, which cannot find a party unit or a political fund at
-all ([issue 2179](https://github.com/alethical-org/alethical/issues/2179)). Where our copy
-of the state's filer list does not carry the number, the link opens the page listing all 3
-of the Board's searches rather than guessing one.
+period. Where our copy of the state's filer list does not carry the number, the link opens
+the page listing all 3 of the Board's searches. It never guesses a segment: the Board's
+candidate search cannot find a party unit or a political fund at all, so a guess would land
+a reader in a search their committee can never appear in
+([issue 2179](https://github.com/alethical-org/alethical/issues/2179)).
 
 The panel's last row is a link on our own site, **Everything we hold on this committee**,
 which opens `/money/committees/<name>-<number>`. It sits inside the panel because it is
