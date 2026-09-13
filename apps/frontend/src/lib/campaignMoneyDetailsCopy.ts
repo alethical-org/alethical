@@ -68,9 +68,8 @@ export const moneyDetailsCopy = {
   sort: 'Sort names',
   currentSort: (label: string) => `Sort names, currently ${label}`,
   sortOption: (label: string, selected: boolean) => `${label}${selected ? ', selected' : ''}`,
-  historyHeading: 'How the mix of named donors changed by year',
-  historyExplanation:
-    'Named donations only. Money the state’s file does not name cannot be split by kind.',
+  historyHeading: 'How the mix of itemized contributions changed by year',
+  historyExplanation: 'Non-itemized contributions cannot be split by kind',
   historyEmpty: 'No named rows',
   historyUnavailable: 'A cash breakdown is unavailable',
   chooseYear: (year: number) => `Choose ${year}`,

@@ -116,7 +116,7 @@ function render(committees: CampaignCommitteeMoney[]): string {
   );
 }
 
-const MIX = 'How the mix of named donors changed by year';
+const MIX = 'How the mix of itemized contributions changed by year';
 // Static markup escapes the apostrophe, so the heading is matched as it is served.
 const REFUNDS = 'Refunds Minnesota paid this committee&#x27;s donors';
 const OUTSIDE = 'Spending by outside groups';

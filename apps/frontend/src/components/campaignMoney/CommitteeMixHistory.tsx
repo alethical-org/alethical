@@ -1,5 +1,5 @@
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type TextStyle } from 'react-native';
 
 import { useCampaignMoneyDetails } from '../../hooks/useCampaignMoneyDetails';
 import { prepareContributionChart } from '../../lib/campaignMoneyDetails';
@@ -9,7 +9,6 @@ import { moneyDetailsCopy as copy } from '../../lib/campaignMoneyDetailsCopy';
 /** Each history belongs to one registration, even on a profile with several accounts. */
 export function CommitteeMixHistory({
   registrationNumber,
-  committeeName,
   year,
   releaseId,
   onSelectYear,
@@ -45,8 +44,7 @@ export function CommitteeMixHistory({
       <Text accessibilityRole="header" aria-level={2} style={s.heading}>
         {copy.historyHeading}
       </Text>
-      <Text style={[s.name, numericText(committeeName)]}>{committeeName}</Text>
-      <Text style={s.body}>{copy.historyExplanation}</Text>
+      <Text style={[s.body, styles.explanation]}>{copy.historyExplanation}</Text>
       <View>
         {charts.map(({ year: rowYear, chart }) => (
           <View key={rowYear} style={styles.row}>
@@ -111,6 +109,7 @@ const styles = StyleSheet.create({
     borderColor: c.border,
     borderRadius: 16,
   },
+  explanation: { maxWidth: undefined, textWrap: 'pretty' } as TextStyle,
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 44 },
   year: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 10, borderRadius: 8 },
   active: { backgroundColor: c.tile },
