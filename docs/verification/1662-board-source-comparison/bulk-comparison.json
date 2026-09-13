@@ -1,0 +1,857 @@
+{
+  "published_release_id": "af236cca-a4f8-4efe-9a3a-025259ea380e",
+  "measured_on": "2026-09-13",
+  "datasets": [
+    {
+      "dataset": "contributions",
+      "fetched_at": "2026-09-13 05:29:01.406570+00:00",
+      "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-2113865252",
+      "download_id": "-2113865252",
+      "filename": "All - Itemized Contributions Received Of Over $200 - Campaign Finance.csv",
+      "content_hash": "c98485e9cb6c917e54a40ca32910820fa34b56730dc86c1f0b4da90f6e171a6f",
+      "byte_size": 82867824,
+      "held": {
+        "id": "5b892996-14ce-4992-87ed-b825400beb26",
+        "download_id": "-2113865252",
+        "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-2113865252",
+        "content_hash": "b90b6c2091c532a0f792a5e4f5d6c7ffca3fb09b3c7a0f0979a3a491e903da04",
+        "record_set_hash": "a0951be1d1426462cb4fd818a5ef06ffb894447e87a7dc6d759ccec4f0fe5851",
+        "byte_size": 82574439,
+        "row_count": 583222,
+        "column_names": [
+          "Recipient reg num",
+          "Recipient",
+          "Recipient type",
+          "Recipient subtype",
+          "Amount",
+          "Receipt date",
+          "Year",
+          "Contributor",
+          "Contrib Reg Num",
+          "Contrib type",
+          "Receipt type",
+          "In kind?",
+          "In-kind descr",
+          "Contrib zip",
+          "Contrib Employer name"
+        ],
+        "amount_sum": "800677413.1700",
+        "negative_amount_sum": "-350.0000",
+        "blank_date_count": 0,
+        "distinct_row_count": 573899,
+        "distinct_filer_count": 2786,
+        "rows_by_year": {
+          "2015": 30955,
+          "2016": 34306,
+          "2017": 30045,
+          "2018": 55992,
+          "2019": 29059,
+          "2020": 45719,
+          "2021": 41747,
+          "2022": 95439,
+          "2023": 34843,
+          "2024": 58035,
+          "2025": 71985,
+          "2026": 55097
+        },
+        "blank_counts_by_column": {
+          "Year": 0,
+          "Amount": 0,
+          "In kind?": 0,
+          "Recipient": 0,
+          "Contrib zip": 855,
+          "Contributor": 1800,
+          "Contrib type": 967,
+          "Receipt date": 0,
+          "Receipt type": 0,
+          "In-kind descr": 567797,
+          "Recipient type": 0,
+          "Contrib Reg Num": 497451,
+          "Recipient reg num": 0,
+          "Recipient subtype": 301988,
+          "Contrib Employer name": 87424
+        },
+        "malformed_quote_record_count": 18,
+        "created_at": "2026-09-01 18:31:54.356455+00:00",
+        "compressed_hash": "c2231240eaa7ad6671e1aa0462280fdade5830fd11d0463b1068212565100f00",
+        "compressed_byte_size": 18862597
+      },
+      "new": {
+        "record_set_hash": "cdb78e24a0dd539fc729df7c0cfbcc8ac6dd6acbce23379d33e1320a6761b656",
+        "row_count": 584814,
+        "column_names": [
+          "Recipient reg num",
+          "Recipient",
+          "Recipient type",
+          "Recipient subtype",
+          "Amount",
+          "Receipt date",
+          "Year",
+          "Contributor",
+          "Contrib Reg Num",
+          "Contrib type",
+          "Receipt type",
+          "In kind?",
+          "In-kind descr",
+          "Contrib zip",
+          "Contrib Employer name"
+        ],
+        "amount_sum": "803107984.7700",
+        "negative_amount_sum": "-350.0000",
+        "blank_date_count": 0,
+        "distinct_row_count": 575450,
+        "distinct_filer_count": 2795,
+        "rows_by_year": {
+          "2015": 31064,
+          "2016": 34306,
+          "2017": 30166,
+          "2018": 55992,
+          "2019": 29161,
+          "2020": 45719,
+          "2021": 41748,
+          "2022": 95439,
+          "2023": 34963,
+          "2024": 58118,
+          "2025": 73024,
+          "2026": 55114
+        },
+        "blank_counts_by_column": {
+          "Recipient reg num": 0,
+          "Recipient": 0,
+          "Recipient type": 0,
+          "Recipient subtype": 303066,
+          "Amount": 0,
+          "Receipt date": 0,
+          "Year": 0,
+          "Contributor": 1831,
+          "Contrib Reg Num": 498819,
+          "Contrib type": 968,
+          "Receipt type": 0,
+          "In kind?": 0,
+          "In-kind descr": 569351,
+          "Contrib zip": 858,
+          "Contrib Employer name": 87585
+        },
+        "malformed_quote_record_count": 18
+      },
+      "comparison": {
+        "added_rows": 9997,
+        "removed_rows": 8405,
+        "same_position_rows": 51,
+        "same_records": false,
+        "same_bytes": false,
+        "same_columns": true,
+        "column_blank_changes": {
+          "Recipient subtype": {
+            "held": 301988,
+            "new": 303066
+          },
+          "Contributor": {
+            "held": 1800,
+            "new": 1831
+          },
+          "Contrib Reg Num": {
+            "held": 497451,
+            "new": 498819
+          },
+          "Contrib type": {
+            "held": 967,
+            "new": 968
+          },
+          "In-kind descr": {
+            "held": 567797,
+            "new": 569351
+          },
+          "Contrib zip": {
+            "held": 855,
+            "new": 858
+          },
+          "Contrib Employer name": {
+            "held": 87424,
+            "new": 87585
+          }
+        },
+        "amount_by_year_held": {
+          "2015": "25161026.2400",
+          "2022": "164903726.1200",
+          "2026": "66212698.4100",
+          "2017": "25117823.5500",
+          "2020": "87971832.0200",
+          "2019": "29118780.9500",
+          "2024": "93405418.0900",
+          "2021": "38124491.1000",
+          "2018": "114272591.0200",
+          "2025": "50299341.8000",
+          "2016": "68855469.5700",
+          "2023": "37234214.3000"
+        },
+        "amount_by_year_new": {
+          "2015": "25219733.2000",
+          "2022": "164903726.1200",
+          "2026": "67871048.4100",
+          "2017": "25180567.6900",
+          "2020": "87971832.0200",
+          "2019": "29169370.9700",
+          "2024": "93357029.8300",
+          "2021": "38124532.5900",
+          "2018": "114272591.0200",
+          "2025": "50923530.8600",
+          "2016": "68855469.5700",
+          "2023": "37258552.4900"
+        }
+      },
+      "audit_checks": [
+        {
+          "name": "download_is_the_expected_file",
+          "status": "passed"
+        },
+        {
+          "name": "parses_completely",
+          "status": "passed"
+        },
+        {
+          "name": "previous_release_to_compare_against",
+          "status": "passed"
+        },
+        {
+          "name": "row_count_within_band",
+          "status": "passed"
+        },
+        {
+          "name": "byte_size_within_band",
+          "status": "passed"
+        },
+        {
+          "name": "amount_sum_within_band",
+          "status": "passed"
+        },
+        {
+          "name": "repeat_row_share_within_band",
+          "status": "passed"
+        },
+        {
+          "name": "no_published_year_lost_rows",
+          "status": "passed"
+        },
+        {
+          "name": "no_new_blank_dates_or_amounts",
+          "status": "passed"
+        },
+        {
+          "name": "reported_totals_reconcile",
+          "status": "not_run"
+        },
+        {
+          "name": "registration_numbers_resolve_to_a_known_filer",
+          "status": "not_run"
+        },
+        {
+          "name": "reported_itemized_split_matches_ours",
+          "status": "not_run"
+        }
+      ],
+      "audit_check_scope": "Local structural/band validation only. No filings context or split verdicts were supplied to this audit; not_run does not mean production has no filings snapshot. No verdicts were recalculated or written."
+    },
+    {
+      "dataset": "expenditures",
+      "fetched_at": "2026-09-13 05:29:54.055752+00:00",
+      "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-1890073264",
+      "download_id": "-1890073264",
+      "filename": "All - Itemized General Expenditures and Contributions Made Of Over $200 - Campaign Finance.csv",
+      "content_hash": "e4c8700ed8570ccfa7ab0a443f47d96240727ce30a31081467f72dedd28c39d0",
+      "byte_size": 67128752,
+      "held": {
+        "id": "9d48f29c-0def-4f12-b94e-f5128e8f1886",
+        "download_id": "-1890073264",
+        "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-1890073264",
+        "content_hash": "0484f582efaa75a102b8e24a0838aee925fdc6dc7aae94f2bf429ea1dac69ac8",
+        "record_set_hash": "d67d13391ba5e8164cad9fd941129b180a6381b07707887ecf187b2e2b5fc038",
+        "byte_size": 67079418,
+        "row_count": 377974,
+        "column_names": [
+          "Committee reg num",
+          "Committee name",
+          "Entity type",
+          "Entity sub-type",
+          "Vendor name",
+          "Vendor city",
+          "Vendor state",
+          "Vendor zip",
+          "Amount",
+          "Unpaid amount",
+          "Date",
+          "Purpose",
+          "Year",
+          "Type",
+          "In-kind descr",
+          "In-kind?",
+          "Affected committee name",
+          "Affected committee reg num"
+        ],
+        "amount_sum": "712450334.8498",
+        "negative_amount_sum": "-1182.8700",
+        "blank_date_count": 0,
+        "distinct_row_count": 367933,
+        "distinct_filer_count": 3047,
+        "rows_by_year": {
+          "2015": 16907,
+          "2016": 37884,
+          "2017": 19590,
+          "2018": 52867,
+          "2019": 20476,
+          "2020": 40254,
+          "2021": 18567,
+          "2022": 54556,
+          "2023": 19987,
+          "2024": 44505,
+          "2025": 28540,
+          "2026": 23841
+        },
+        "blank_counts_by_column": {
+          "Date": 0,
+          "Type": 0,
+          "Year": 0,
+          "Amount": 0,
+          "Purpose": 61225,
+          "In-kind?": 0,
+          "Vendor zip": 70833,
+          "Entity type": 0,
+          "Vendor city": 64139,
+          "Vendor name": 1049,
+          "Vendor state": 64056,
+          "In-kind descr": 356855,
+          "Unpaid amount": 0,
+          "Committee name": 0,
+          "Entity sub-type": 217442,
+          "Committee reg num": 0,
+          "Affected committee name": 316169,
+          "Affected committee reg num": 316148
+        },
+        "malformed_quote_record_count": 17,
+        "created_at": "2026-09-01 18:33:56.735038+00:00",
+        "compressed_hash": "8cd7a4b2498ee05e2af773a883213a4b89bbaf6cb821eaf93c7c5e2da5405fd3",
+        "compressed_byte_size": 9213148
+      },
+      "new": {
+        "record_set_hash": "e60ae6914b19185e3f0ed50e01351fbbda6825c4795361cbc2299b602ff20c4b",
+        "row_count": 377857,
+        "column_names": [
+          "Committee reg num",
+          "Committee name",
+          "Entity type",
+          "Entity sub-type",
+          "Vendor name",
+          "Vendor city",
+          "Vendor state",
+          "Vendor zip",
+          "Amount",
+          "Unpaid amount",
+          "Date",
+          "Purpose",
+          "Year",
+          "Type",
+          "In-kind descr",
+          "In-kind?",
+          "Affected committee name",
+          "Affected committee reg num"
+        ],
+        "amount_sum": "712319689.6598",
+        "negative_amount_sum": "-1182.8700",
+        "blank_date_count": 0,
+        "distinct_row_count": 368777,
+        "distinct_filer_count": 3051,
+        "rows_by_year": {
+          "2015": 17005,
+          "2016": 37884,
+          "2017": 19709,
+          "2018": 52867,
+          "2019": 20661,
+          "2020": 40253,
+          "2021": 18567,
+          "2022": 54556,
+          "2023": 20014,
+          "2024": 43600,
+          "2025": 28836,
+          "2026": 23905
+        },
+        "blank_counts_by_column": {
+          "Committee reg num": 0,
+          "Committee name": 0,
+          "Entity type": 0,
+          "Entity sub-type": 217987,
+          "Vendor name": 1001,
+          "Vendor city": 64178,
+          "Vendor state": 64096,
+          "Vendor zip": 70842,
+          "Amount": 0,
+          "Unpaid amount": 0,
+          "Date": 0,
+          "Purpose": 61259,
+          "Year": 0,
+          "Type": 0,
+          "In-kind descr": 356718,
+          "In-kind?": 0,
+          "Affected committee name": 316015,
+          "Affected committee reg num": 315994
+        },
+        "malformed_quote_record_count": 18
+      },
+      "comparison": {
+        "added_rows": 4800,
+        "removed_rows": 4917,
+        "same_position_rows": 196,
+        "same_records": false,
+        "same_bytes": false,
+        "same_columns": true,
+        "column_blank_changes": {
+          "Entity sub-type": {
+            "held": 217442,
+            "new": 217987
+          },
+          "Vendor name": {
+            "held": 1049,
+            "new": 1001
+          },
+          "Vendor city": {
+            "held": 64139,
+            "new": 64178
+          },
+          "Vendor state": {
+            "held": 64056,
+            "new": 64096
+          },
+          "Vendor zip": {
+            "held": 70833,
+            "new": 70842
+          },
+          "Purpose": {
+            "held": 61225,
+            "new": 61259
+          },
+          "In-kind descr": {
+            "held": 356855,
+            "new": 356718
+          },
+          "Affected committee name": {
+            "held": 316169,
+            "new": 316015
+          },
+          "Affected committee reg num": {
+            "held": 316148,
+            "new": 315994
+          }
+        },
+        "amount_by_year_held": {
+          "2015": "23674282.0300",
+          "2016": "64490785.3300",
+          "2017": "20827027.6600",
+          "2018": "104883453.0800",
+          "2019": "25165508.3478",
+          "2020": "85584716.8370",
+          "2021": "26734993.7200",
+          "2022": "148103109.3850",
+          "2023": "30898264.3800",
+          "2024": "90546118.4500",
+          "2025": "44794611.1300",
+          "2026": "46747464.5000"
+        },
+        "amount_by_year_new": {
+          "2015": "23755188.2700",
+          "2016": "64490785.3300",
+          "2017": "20946787.5900",
+          "2018": "104883453.0800",
+          "2019": "25257168.0678",
+          "2020": "85584263.8370",
+          "2021": "26734993.7200",
+          "2022": "148103109.3850",
+          "2023": "30924215.9700",
+          "2024": "89671529.2100",
+          "2025": "45197271.8900",
+          "2026": "46770923.3100"
+        }
+      },
+      "audit_checks": [
+        {
+          "name": "download_is_the_expected_file",
+          "status": "passed"
+        },
+        {
+          "name": "parses_completely",
+          "status": "passed"
+        },
+        {
+          "name": "previous_release_to_compare_against",
+          "status": "passed"
+        },
+        {
+          "name": "row_count_within_band",
+          "status": "passed"
+        },
+        {
+          "name": "byte_size_within_band",
+          "status": "passed"
+        },
+        {
+          "name": "amount_sum_within_band",
+          "status": "passed"
+        },
+        {
+          "name": "repeat_row_share_within_band",
+          "status": "passed"
+        },
+        {
+          "name": "no_published_year_lost_rows",
+          "status": "failed"
+        },
+        {
+          "name": "no_new_blank_dates_or_amounts",
+          "status": "passed"
+        },
+        {
+          "name": "reported_totals_reconcile",
+          "status": "not_run"
+        },
+        {
+          "name": "registration_numbers_resolve_to_a_known_filer",
+          "status": "not_run"
+        },
+        {
+          "name": "reported_itemized_split_matches_ours",
+          "status": "not_run"
+        }
+      ],
+      "audit_check_scope": "Local structural/band validation only. No filings context or split verdicts were supplied to this audit; not_run does not mean production has no filings snapshot. No verdicts were recalculated or written."
+    },
+    {
+      "dataset": "independent_expenditures",
+      "fetched_at": "2026-09-13 05:30:05.429504+00:00",
+      "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-617535497",
+      "download_id": "-617535497",
+      "filename": "All - Itemized Independent Expenditures Of Over $200 - Campaign Finance.csv",
+      "content_hash": "ecf0c3e9f2917316f9a44a4a73e1a0e95ac26086a5c28b6ba4fa44cb51633210",
+      "byte_size": 9089054,
+      "held": {
+        "id": "589ef156-a1ee-4806-a01d-1588a98bd65a",
+        "download_id": "-617535497",
+        "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-617535497",
+        "content_hash": "53c75b4fe423ce3da56a0e766b7927d990593b28d136a54d0543f0c3afb4a82a",
+        "record_set_hash": "541d2a5ea6400e5d3d92b82b71937533fbd07b7a939744149d7636cd2cb869d4",
+        "byte_size": 9080784,
+        "row_count": 41130,
+        "column_names": [
+          "Spender",
+          "Spender Reg Num",
+          "Spender type",
+          "Spender sub-type",
+          "Affected Comte Name",
+          "Affected Cmte Reg Num",
+          "For /Against",
+          "Year",
+          "Date",
+          "Type",
+          "Amount",
+          "Unpaid amount",
+          "In kind?",
+          "In kind descr",
+          "Purpose",
+          "Vendor name",
+          "Vendor city",
+          "Vendor State",
+          "Vendor zip"
+        ],
+        "amount_sum": "178579449.6700",
+        "negative_amount_sum": "0.0000",
+        "blank_date_count": 0,
+        "distinct_row_count": 39969,
+        "distinct_filer_count": 250,
+        "rows_by_year": {
+          "2015": 23,
+          "2016": 8822,
+          "2017": 48,
+          "2018": 4405,
+          "2019": 179,
+          "2020": 9544,
+          "2021": 107,
+          "2022": 7876,
+          "2023": 653,
+          "2024": 6799,
+          "2025": 2327,
+          "2026": 347
+        },
+        "blank_counts_by_column": {
+          "Date": 0,
+          "Type": 0,
+          "Year": 0,
+          "Amount": 0,
+          "Purpose": 798,
+          "Spender": 0,
+          "In kind?": 0,
+          "Vendor zip": 1863,
+          "Vendor city": 1851,
+          "Vendor name": 1697,
+          "For /Against": 0,
+          "Spender type": 0,
+          "Vendor State": 1850,
+          "In kind descr": 40143,
+          "Unpaid amount": 0,
+          "Spender Reg Num": 0,
+          "Spender sub-type": 275,
+          "Affected Comte Name": 258,
+          "Affected Cmte Reg Num": 36
+        },
+        "malformed_quote_record_count": 0,
+        "created_at": "2026-08-12 02:52:02.759153+00:00",
+        "compressed_hash": "d2382f73059887ce5377dd65d2592bbcfd3bb7b36b44d45da63353cd7f4d1cbe",
+        "compressed_byte_size": 787636
+      },
+      "new": {
+        "record_set_hash": "6b9a306caa9cb1bb202fca05f5ee853ba6542b9d65613219b9024478d5b7cea2",
+        "row_count": 41141,
+        "column_names": [
+          "Spender",
+          "Spender Reg Num",
+          "Spender type",
+          "Spender sub-type",
+          "Affected Comte Name",
+          "Affected Cmte Reg Num",
+          "For /Against",
+          "Year",
+          "Date",
+          "Type",
+          "Amount",
+          "Unpaid amount",
+          "In kind?",
+          "In kind descr",
+          "Purpose",
+          "Vendor name",
+          "Vendor city",
+          "Vendor State",
+          "Vendor zip"
+        ],
+        "amount_sum": "180173400.09",
+        "negative_amount_sum": "0",
+        "blank_date_count": 0,
+        "distinct_row_count": 39980,
+        "distinct_filer_count": 249,
+        "rows_by_year": {
+          "2015": 23,
+          "2016": 8822,
+          "2017": 48,
+          "2018": 4405,
+          "2019": 179,
+          "2020": 9544,
+          "2021": 107,
+          "2022": 7876,
+          "2023": 653,
+          "2024": 6798,
+          "2025": 2325,
+          "2026": 361
+        },
+        "blank_counts_by_column": {
+          "Spender": 0,
+          "Spender Reg Num": 0,
+          "Spender type": 0,
+          "Spender sub-type": 275,
+          "Affected Comte Name": 253,
+          "Affected Cmte Reg Num": 31,
+          "For /Against": 0,
+          "Year": 0,
+          "Date": 0,
+          "Type": 0,
+          "Amount": 0,
+          "Unpaid amount": 0,
+          "In kind?": 0,
+          "In kind descr": 40154,
+          "Purpose": 798,
+          "Vendor name": 1696,
+          "Vendor city": 1850,
+          "Vendor State": 1849,
+          "Vendor zip": 1862
+        },
+        "malformed_quote_record_count": 0
+      },
+      "comparison": {
+        "added_rows": 221,
+        "removed_rows": 210,
+        "same_position_rows": 1,
+        "same_records": false,
+        "same_bytes": false,
+        "same_columns": true,
+        "column_blank_changes": {
+          "Affected Comte Name": {
+            "held": 258,
+            "new": 253
+          },
+          "Affected Cmte Reg Num": {
+            "held": 36,
+            "new": 31
+          },
+          "In kind descr": {
+            "held": 40143,
+            "new": 40154
+          },
+          "Vendor name": {
+            "held": 1697,
+            "new": 1696
+          },
+          "Vendor city": {
+            "held": 1851,
+            "new": 1850
+          },
+          "Vendor State": {
+            "held": 1850,
+            "new": 1849
+          },
+          "Vendor zip": {
+            "held": 1863,
+            "new": 1862
+          }
+        },
+        "amount_by_year_held": {
+          "2018": "33136516.35",
+          "2020": "25934943.19",
+          "2016": "21300427.48",
+          "2019": "849565.39",
+          "2026": "2676024.65",
+          "2025": "4066260.89",
+          "2017": "139426.85",
+          "2022": "62917642.92",
+          "2024": "25852545.40",
+          "2023": "1511689.56",
+          "2015": "36597.82",
+          "2021": "157809.17"
+        },
+        "amount_by_year_new": {
+          "2018": "33136516.35",
+          "2019": "849565.39",
+          "2020": "25934943.19",
+          "2016": "21300427.48",
+          "2025": "4061011.60",
+          "2026": "4270054.57",
+          "2017": "139426.85",
+          "2022": "62917642.92",
+          "2024": "25857715.19",
+          "2023": "1511689.56",
+          "2015": "36597.82",
+          "2021": "157809.17"
+        }
+      },
+      "audit_checks": [
+        {
+          "name": "download_is_the_expected_file",
+          "status": "passed"
+        },
+        {
+          "name": "parses_completely",
+          "status": "passed"
+        },
+        {
+          "name": "previous_release_to_compare_against",
+          "status": "passed"
+        },
+        {
+          "name": "row_count_within_band",
+          "status": "passed"
+        },
+        {
+          "name": "byte_size_within_band",
+          "status": "passed"
+        },
+        {
+          "name": "amount_sum_within_band",
+          "status": "passed"
+        },
+        {
+          "name": "repeat_row_share_within_band",
+          "status": "passed"
+        },
+        {
+          "name": "no_published_year_lost_rows",
+          "status": "passed"
+        },
+        {
+          "name": "no_new_blank_dates_or_amounts",
+          "status": "passed"
+        },
+        {
+          "name": "reported_totals_reconcile",
+          "status": "not_run"
+        },
+        {
+          "name": "registration_numbers_resolve_to_a_known_filer",
+          "status": "not_run"
+        },
+        {
+          "name": "reported_itemized_split_matches_ours",
+          "status": "not_run"
+        }
+      ],
+      "audit_check_scope": "Local structural/band validation only. No filings context or split verdicts were supplied to this audit; not_run does not mean production has no filings snapshot. No verdicts were recalculated or written."
+    }
+  ],
+  "single_field_comparisons": {
+    "contributions": {
+      "Amount": 7,
+      "Contributor": 2267,
+      "Contrib Reg Num": 5,
+      "Contrib type": 6,
+      "Receipt type": 4930,
+      "In-kind descr": 35,
+      "Contrib zip": 121,
+      "Contrib Employer name": 824
+    },
+    "expenditures": {
+      "Vendor name": 63,
+      "Vendor city": 1,
+      "Amount": 1,
+      "Unpaid amount": 5,
+      "Date": 1,
+      "Purpose": 3282,
+      "Type": 1
+    },
+    "independent_expenditures": {
+      "For /Against": 1,
+      "Purpose": 188
+    }
+  },
+  "type_transitions": {
+    "contributions": {
+      "column": "Receipt type",
+      "matched_one_column_pairs": [
+        {
+          "old": "Miscellaneous",
+          "new": "Miscellaneous Income",
+          "count": 4463
+        },
+        {
+          "old": "Miscellaneous",
+          "new": "Loan Payable",
+          "count": 443
+        }
+      ],
+      "ambiguous_groups": 12
+    },
+    "expenditures": {
+      "column": "Type",
+      "matched_one_column_pairs": [
+        {
+          "old": "Non-Campaign Disbursement",
+          "new": "Campaign Expenditure",
+          "count": 1
+        }
+      ],
+      "ambiguous_groups": 0
+    },
+    "independent_expenditures": {
+      "column": "For /Against",
+      "matched_one_column_pairs": [
+        {
+          "old": "Against",
+          "new": "For",
+          "count": 1
+        }
+      ],
+      "ambiguous_groups": 0
+    }
+  }
+}

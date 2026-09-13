@@ -215,7 +215,7 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   controls. Its own committee needs no legislator-confirmation gate, and committees
   are never added together. Shared elements use shared words. Update the campaign
   money section reader guide and close the issue with this job's pull request.
-- [ ] Job 3, [issue 2126](https://github.com/alethical-org/alethical/issues/2126),
+- [x] Job 3, [issue 2126](https://github.com/alethical-org/alethical/issues/2126),
   [issue 2070](https://github.com/alethical-org/alethical/issues/2070) and
   [issue 2012](https://github.com/alethical-org/alethical/issues/2012): record cold
   and warm production loads for the sample profile tab and busiest committee on
@@ -355,9 +355,35 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   The 2-byte change from the hosted measurement follows the payment-footer
   correction. Evidence: `/tmp/2126-release-frontend.log` and
   `/tmp/2126-release-build.log`.
-- Release remains active: open 1 Job 3 pull request,
-  clear current-head and queue checks, read live frontend/backend deployment
-  identities and repeat the original empty-browser/warm measurements.
+- Job 3 is live through [pull request 2170](https://github.com/alethical-org/alethical/pull/2170),
+  release `5c03d2303a670e5251270ac5245657a4a9d5a68b`. Both deployments,
+  current-head and queue checks passed. All 2,708 frontend and 2,566 server tests
+  passed. A fresh-context reader passed desktop and phone flows across 58 saved
+  states, with no application error, HTTP failure, overflow or unexpected reload.
+  The public starting program is 338,335 compressed bytes, 53,801 below the
+  392,136-byte baseline. The [live measurements](https://github.com/alethical-org/alethical/issues/2126#issuecomment-5651371391)
+  preserve all 6 visits, including the slower DFL repeat, and distinguish an empty
+  browser cache from the unproven state of the database/CDN cache. The
+  [parent report](https://github.com/alethical-org/alethical/issues/2140#issuecomment-5651375262)
+  completes the gate for Job 4.
+- Job 4 is active in `/private/tmp/alethical-1662-source-comparison` on
+  `codex/1662-compare-reposted-sources`, based on that release. Compare all 3
+  newly fetched bulk files with the saved live release, and 20 held reports across
+  2022 through 2026, 4 per year across filer kinds and original/amended reports.
+  Production access is read-only; source copies and scripts stay under
+  `/tmp/1662-bulk-comparison/` and `/tmp/1662-report-comparison/`. Commit only
+  sanitized measurements and the reproducible method, never raw private reports.
+  Exclude Action 4 Liberty 41173 from further individual requests. The comparison
+  is complete: all 3 files parse, but 2024 spending loses 905 rows and fails the
+  existing past-year guard. All 20 sampled PDFs are byte-identical to their held
+  copies. [Issue 2171](https://github.com/alethical-org/alethical/issues/2171) records
+  the required missing-row investigation; the payment refresh is not safe to
+  publish. The [dated audit](../verification/1662-board-source-comparison/report.md)
+  and sanitized JSON evidence are ready for this job's pull request. Release the
+  audit through the queue, read back its committed files, report on
+  [issue 1662](https://github.com/alethical-org/alethical/issues/1662) and
+  [issue 2140](https://github.com/alethical-org/alethical/issues/2140), then start 5a.
+  No new data or verdict is published by the audit.
 - Jobs 4 through 5f retain their stated sequence. Action 4 Liberty PAC's historical
   replacement remains held with no additional source attempts or publication.
 
