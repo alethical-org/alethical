@@ -1924,6 +1924,13 @@ it while its siblings keep it makes the section say 2 different things about its
 deleting that file and its call sites is the whole removal, and it has no dismiss control, flag
 or expiry, because shipping the work is what takes it down.
 
+**A committee card never loses its route to everything we hold on that committee, least of all
+in an empty year (13 Sep 2026).** That link sits inside the filing stamp's panel, whose subject
+it shares. A year the committee filed nothing draws no panel at all, so in that year the link
+draws under the card's heading instead of vanishing with the panel. The year with the least on
+the card is the year a reader most wants the fuller record, which is why it is the one element
+an empty year may not take with it.
+
 ---
 
 ## 8. Row counts are measurements, not requirements
