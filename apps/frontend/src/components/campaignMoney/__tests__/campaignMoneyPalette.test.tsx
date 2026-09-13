@@ -163,5 +163,7 @@ it('reserves grey for unnamed contributions and keeps every slice distinct from 
   expect(
     [...container.querySelectorAll('circle')].map((circle) => circle.getAttribute('stroke')),
   ).toEqual(namedColors);
-  expect(container.textContent).not.toContain('Non-itemized contributions');
+  expect(container.querySelector('#donut')?.textContent).not.toContain(
+    'Non-itemized contributions',
+  );
 });

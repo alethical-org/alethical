@@ -107,10 +107,10 @@ unfinished clerical job of ours.
 ## What the tab shows once a member is matched
 
 **Everything about one committee stays together, and the block repeats for each one.**
-A committee's card comes first, then that committee's **How the mix of named donors
-changed by year** chart, then its **Refunds Minnesota paid this committee's donors**
-card. The mix chart is the same donor picture as **Who gave** inside the card, drawn
-across years instead of inside one, so the 2 sit together. **Spending by outside groups**
+A committee's card comes first, then that committee's **How the mix of itemized
+contributions changed by year** chart, then its **Refunds Minnesota paid this
+committee's donors** card. The mix chart repeats the donor kinds from **Who gave**
+across years, using only itemized contributions. **Spending by outside groups**
 draws once, below every committee block, because it covers all of a member's confirmed
 committees at once and cannot sit inside any one of them. The tab's own download date is
 the last line on the page.
@@ -562,13 +562,22 @@ build. The existing exact-name
 lookup at `/money/payments?name=…&role=contributor` remains a separate feature, not proof
 that 2 records belong to the same person.
 
-### How the mix changed by year
+### How the mix of itemized contributions changed by year
 
 Directly below its own committee's card, and above that committee's refunds card, each
-committee has its own history from 2015 through the current year. Each year's bar uses that year's named cash contributions only. Unnamed money and
-goods and services never enter those shares. Its categories match the donor tabs and
-the selected-year chart. A year with no named rows is labelled as
-such, and a year whose cash amounts cannot support a chart says a breakdown is unavailable.
+committee has its own history from 2015 through the current year. The heading reads
+“How the mix of itemized contributions changed by year”. The card does not repeat the
+committee's name, because it sits inside that committee's own block.
+
+The note reads “Non-itemized contributions cannot be split by kind”, with no final
+period. It uses the card's full available width with `text-wrap: pretty`. Neither
+contribution term receives separate bold emphasis here.
+
+Each year's bar uses that year's itemized cash contributions only. Non-itemized money
+and goods and services never enter those shares. Its categories keep the donor-tab
+labels: Individuals, Lobbyists, Committees & Funds, Party Units, and Other kinds when
+present. A year with no named rows is labelled as such, and a year whose cash amounts
+cannot support a chart says a breakdown is unavailable.
 
 The history starts loading after the selected year's received and made lists finish.
 It appears only after all requested years arrive from the same release as the selected
