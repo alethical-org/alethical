@@ -1,4 +1,4 @@
-<!-- describes: .github/workflows/production-release-failed.yml, apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py, scripts/report_origin_share_by_address.py -->
+<!-- describes: .github/workflows/production-release-failed.yml, apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py, scripts/report_origin_share_by_address.py, apps/frontend/src/lib/committeeConfirmation.ts -->
 
 <!-- describes: apps/frontend/src/components/campaignMoney/MoneyDetailsBundle.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsOnDemand.tsx, apps/frontend/src/lib/committeeOutsideSpending.ts -->
 
@@ -43,12 +43,12 @@ the records behind them change at genuinely different rates.
 | Layer | Header | Where it is set |
 |---|---|---|
 | Cloudflare, bill / vote / legislator reads | `public, max-age=60, stale-while-revalidate=300` | `PUBLIC_CACHE_CONTROL` in `alethical/api/routers/public.py` |
-| Cloudflare, the 5 named campaign-money record reads | `public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800` | `MONEY_RECORDS_CACHE_CONTROL`, same file, granted only to the paths in `MONEY_RECORD_PATHS` by `public_cache_control_for_path` |
+| Cloudflare, the 5 named campaign-money record reads and explicit dated-only committee finance | `public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800` | `MONEY_RECORDS_CACHE_CONTROL`, same file, granted to `MONEY_RECORD_PATHS` by `public_cache_control_for_path`, and by the finance handler only after a successful anonymous `GET` with `include_confirmation=false` |
 | Vercel, in front of the page HTML | `public, max-age=0, s-maxage=300, stale-while-revalidate=300, stale-if-error=300` | `OK_CACHE` in `api/page.ts` |
 
-**Bill, vote and legislator reads keep the short window, and 5 named
-campaign-money record reads get the longer one.** The 2 differ because the records
-behind them change at genuinely different rates.
+**Bill, vote and legislator reads keep the short window. The 5 named
+campaign-money record reads and explicit dated-only committee finance get the longer
+one.** The 2 differ because the records behind them change at genuinely different rates.
 `.github/workflows/vote-backfill.yml` re-reads and writes votes every day at 09:00
 UTC, so bill and vote records change daily; a long stale window there would hand a
 reader a week-old bill status, the harm
@@ -58,9 +58,11 @@ production's snapshot was dated 2026-08-12 when this was measured on 4 Sep 2026,
 23 days old. One window set from the money cadence and applied to both was wrong
 for bill reads.
 
-**The 5 are named one at a time, and the shape of an address grants nothing.** A
-path not on the list gets the short window, so a route nobody has classified is
-safe by default rather than by where somebody filed it.
+**The 5 paths are named one at a time, and the shape of an address grants nothing.**
+The finance path remains short by default for compatible mixed responses. Only its
+explicit `include_confirmation=false` variant can receive the dated window, after a
+successful anonymous `GET`. An unclassified route, an authorized request or a failed
+read never gains that window from a query parameter alone.
 
 | Long window | Short window |
 |---|---|
@@ -68,7 +70,8 @@ safe by default rather than by where somebody filed it.
 | `/api/v1/campaign-finance/filings` | `/api/v1/campaign-finance/summary` |
 | `/api/v1/campaign-finance/outside-spending` | `/api/v1/legislators/{id}/campaign-finance` |
 | `/api/v1/campaign-finance/payments-under-name` | `/api/v1/committees/{registration_number}/finance` |
-| `/api/v1/campaign-finance/races` | every other public read |
+| `/api/v1/campaign-finance/races` | `/api/v1/committees/{registration_number}/confirmation` |
+| `/api/v1/committees/{registration_number}/finance?year=2025&include_confirmation=false` | every other public read |
 
 **The test is what an answer CLAIMS, never whether it names a person.** A person's
 name printed inside an accepted filing is a dated record: the filing happened, its
@@ -78,7 +81,7 @@ claim may not be held that long, and both change with no money load involved:
 | Claim | Where it is served | What moves it |
 |---|---|---|
 | somebody currently holds an office (`chamber`, `district_code`, `party`) | `/campaign-finance/search`, and `sitting_member_count` on `/campaign-finance/summary` | an election, a resignation |
-| a committee currently belongs to a named member (`confirmed_for`, `link_state`) | `/legislators/{id}/campaign-finance`, `/committees/{registration_number}/finance`, and `confirmed_member_count` on `/campaign-finance/summary` | a confirmation, or one taken back |
+| a committee currently belongs to a named member (`confirmed_for`, `link_state`) | `/legislators/{id}/campaign-finance`, `/committees/{registration_number}/confirmation`, the compatible mixed `/finance` answer, and `confirmed_member_count` on `/campaign-finance/summary` | a confirmation, or one taken back |
 
 A confirmation can be taken back. `withdrawn` is a real third decision state with
 its own `withdrawn_at`, `withdrawal_reason` and `withdrawn_by`
@@ -123,8 +126,9 @@ path with its own state and stored reason
 is what a held copy would break, by keeping a page asserting a relationship between
 a named person and money that nobody stands behind any more. It is live rather than
 theoretical: all 200 sitting members had a confirmed committee on 4 Sep 2026, and
-`GET /api/v1/committees/{registration_number}/finance` returns that person in
-`confirmed_for`, which the served committee page prints.
+the mixed `GET /api/v1/committees/{registration_number}/finance` answer carried that
+person in `confirmed_for`. The committee HTML now reads that claim independently
+from `/confirmation`; separating the API reads does not lengthen the HTML window.
 
 **All 3 of the page's windows are 5 minutes, and each one has to be**, which is why
 the header carries no long value at all:
@@ -202,7 +206,8 @@ rather than the 4 listed above.
 what stops a *stale* copy; the reason a response that can name a person is capped
 is what happens in the window before a correction has propagated. So a
 pure-figures route can lengthen once clearing is proven, and
-`committees/{registration_number}/finance` (which returns `confirmed_for`),
+`committees/{registration_number}/confirmation`, its compatible mixed `/finance`
+answer (which also returns `confirmed_for`),
 `legislators/{id}/campaign-finance` and every page the page function serves cannot.
 The rule and where each side currently sits are in §23 of
 [`docs/architecture/page-metadata-for-search-and-sharing-decisions.md`](../architecture/page-metadata-for-search-and-sharing-decisions.md).
@@ -242,6 +247,15 @@ chosen beside them:
 `currentClaimDeadlineFitsTheChain` asserts that sum in a test, so raising a cache
 window without raising the deadline fails rather than quietly outliving the figure
 published here.
+
+The 4 conceptual current reads are committee confirmation, legislator campaign
+finance, campaign-finance name search and campaign-finance summary. Their query
+roots are `committee-confirmation`, `legislator-campaign-money`,
+`campaign-finance-name-search` and `campaign-finance-summary`. The default mixed
+finance endpoint is a compatibility alias for the same current claim, not a fifth
+conceptual read. The dated-only finance query is keyed by registration and year;
+confirmation is keyed by registration alone. Only a confirmation refresh renews
+that committee ownership claim. Changing year or refreshing figures cannot.
 
 **Past the deadline the relationship is withheld and every dated figure stays.**
 That split is the whole point: a filing carries the period it covers and the day we
@@ -689,12 +703,54 @@ and written out on the other seeds nothing while the page still works, so the mi
 invisible in every screenshot and every test of what the page draws. What settles it is
 the browser's own request list: `/bills` made 4 data-service reads and now makes 1.
 
+## Committee money load baseline, 12 September 2026
+
+[Issue 2126’s public baseline](https://github.com/alethical-org/alethical/issues/2126#issuecomment-5650886167)
+records the starting release, browser traces, decoded response sizes and 28-day
+origin shares for the 3-part speed work. These are before measurements, not results
+of the finance/confirmation split. Chromium used a 1280 × 900 viewport with no
+synthetic network or CPU slowdown. Each first visit had an empty browser cache;
+the repeat used the same browser context. Database coldness was not established.
+All 3 visits selected 2025.
+
+| Address | Donor list ready, first / repeat | History ready, first / repeat |
+| --- | --- | --- |
+| `/legislators/jim-abeler?tab=money&year=2025` | 6.320 s / 0.722 s | 12.967 s / 0.741 s |
+| `/money/committees/100-percent-future-fund-41363?year=2025` | 1.422 s / 0.429 s | No history requested |
+| `/money/committees/mn-dfl-state-central-committee-20003?year=2025` | 7.133 s / 0.443 s | No history requested |
+
+Committee 41363 led the 28-day finance traffic: it had
+287 estimated requests from 275 observations, excluding verified bots. Committee
+20003 was also sampled for its large payment list. Decoded API response bytes were
+302,683 for Abeler, 14,720 for 41363 and 994,708 for 20003. Abeler’s 31 response
+events include browser-cache events and are not 31 network transfers. His selected
+2025 received-payments read took 4.233 s with `EXPIRED`; the 2024 history read took
+3.625 s with `EXPIRED`.
+
+Across 16 August to 12 September, finance had 8,560 observations and 8,806 estimated
+requests: 84.76% rebuilt at the origin and 78.38% made the reader wait. Payments
+had 5,111 observations and 5,587 estimated requests: 94.68% and 91.32%, respectively.
+Ineligible and bypassed requests were excluded. The finance split changes the
+explicit dated-finance cache policy; it does not lengthen the payment-route policy.
+All sampled donor lists completed without a failed state or page error. The DFL
+repeat’s outside-spending recheck took about 23.5 s after donors were ready, so its
+20-second network-idle wait expired; donor readiness is not background completion.
+
+The public first-load program was 392,136 compressed bytes against the unchanged
+392,321-byte limit. After measurements remain open until the completed 3-part
+change is released: repeat these addresses and browser conditions, report final
+program bytes, donor/history readiness, response sizes and origin shares, and name
+the deployed commit. Local intermediate measurements belong on
+[issue 2126](https://github.com/alethical-org/alethical/issues/2126) with their exact
+build identity and must not be labelled as a live improvement.
+
 ## What a committee's own pages carry in their first response
 
 `/money/committees/{name}-{number}` and its `/payments` view are served with the reads
 the page function already made handed on inside the same response, under the keys the
 app's own hooks ask for (`committeeMoneyQueryKey` and
-`committeePaymentsListQueryKey` in `apps/frontend/src/lib/committeeMoney.ts`, seeded
+`committeePaymentsListQueryKey` in `apps/frontend/src/lib/committeeMoney.ts`, plus
+`committeeConfirmationQueryKey` in `apps/frontend/src/lib/committeeConfirmation.ts`, seeded
 through `apps/frontend/src/lib/pageData.ts`). Before this, both addresses read a
 committee's figures to write the words a reader sees, handed on nothing, and the app then
 asked the data service for the identical answer and replaced those served words with
@@ -722,7 +778,7 @@ answer: the registration number comes out of the address and the year out of
 `campaignMoneyYear`. The payments view used to wait for the figures before asking for the
 rows, which put a whole round trip into its first response for nothing.
 
-**A seeded committee answer carries `servedAgeMs: 0`, and that is not a rounding.** The
+**A seeded committee confirmation carries `servedAgeMs: 0`, and that is not a rounding.** The
 whole age of a seeded answer rides in React Query's `initialDataUpdatedAt`
 (`seededClaimAgeMs`), so passing the API cache's age into the shaped answer as well counts
 the shared caches twice: a 16-minute claim reads as 22 minutes, past a deadline it has not
@@ -730,16 +786,28 @@ reached, and the page then withholds a member nobody has withdrawn.
 `apps/frontend/src/hooks/__tests__/currentClaimAgeEndToEnd.test.tsx` fails on exactly that
 mistake.
 
-**The figures read is still requested, and the wait for it is what is gone.** It carries
-`confirmed_for`, the member a person signed this committee off to, which is a claim about
-the state of the world right now, so a seeded copy is stale on arrival by design: the page
-it travelled in can have sat in the page cache for 10 minutes and the app's own freshness
-window is 5. The reader gets the real figures in the first paint and the recheck happens
-behind them without blanking anything. On `/payments`, the carried first page removes
-the matching initial payment request. The redesigned committee chart and tabs still
+**The current claim is rechecked independently of the figures.** The committee HTML
+asks for dated finance and confirmation concurrently and carries separate seeds.
+Confirmation is stale on arrival by design: the page it travelled in can have sat in
+the HTML cache for 10 minutes. Its recheck runs behind the accepted figures. Dated
+finance has the ordinary dated-record query behavior and does not renew that claim.
+A first confirmation failure keeps the figures and the neutral ownership explanation,
+uses `no-store`, and carries no failed confirmation seed. An explicit successful
+`null` retains the existing kind-specific prose.
+
+On `/payments`, dated finance and the first 50 rows run concurrently, and no
+confirmation is requested or seeded. The carried first page removes the matching
+initial payment request. The redesigned committee chart and tabs still
 need their complete selected-year payment reads. The old 6-row hooks and their
 unused query key are removed with that redesign, so every page no longer downloads
 readers that no screen uses.
+
+The first pending confirmation says “Checking whose committee this is…”. Its first
+unavailable answer says “We could not check whose committee this is. The money shown
+here is the committee’s own filed record.” An expired previously known confirmation
+keeps `CONFIRMED_MEMBER_WITHHELD_LINE`, removes the member name, link and checked
+evidence, and leaves the dated money visible. A read failure never becomes the prose
+for a successful unconfirmed committee.
 
 Measured 8 Sep 2026 against the live release and the live data service, with the page
 cache deliberately missed on every read.

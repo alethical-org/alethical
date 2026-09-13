@@ -44,6 +44,11 @@ import {
 } from "../apps/frontend/src/lib/pageData";
 import { servedClaimAgeMs } from "../apps/frontend/src/lib/currentClaimFreshness";
 import {
+  committeeConfirmationFromPayload,
+  committeeConfirmationQueryKey,
+  type ApiCommitteeConfirmationPayload,
+} from "../apps/frontend/src/lib/committeeConfirmation";
+import {
   campaignFinanceFilingsQueryKey,
   campaignFinanceSummaryQueryKey,
 } from "../apps/frontend/src/lib/moneyLanding";
@@ -191,7 +196,7 @@ const API_TIMEOUT_MS = 5000;
 // `.claude/rules/grounded-answers.md` rule 3 is what it breaks: the page keeps
 // asserting a relationship between a named person and money that nobody stands
 // behind. It is live rather than theoretical -- all 200 sitting members had a
-// confirmed committee on 4 Sep 2026, and `/committees/{number}/finance` returns
+// confirmed committee on 4 Sep 2026, and `/committees/{number}/confirmation` returns
 // that person in `confirmed_for`, which `committeePageSnapshot` prints.
 //
 // All 3 windows are 5 minutes, and each had to come down for its own reason:
@@ -776,21 +781,40 @@ function committeeRead(
 }
 
 /**
- * The finance read, with how old its current claim already was.
- *
- * Read with its age because the answer names the member a person signed this
- * committee off to, which somebody can take back, so it expires (issue 2023).
- * The age travels on the seeded entry rather than being assumed, which is what
- * lets the loaded page measure the claim instead of treating it as new.
+ * Dated records only. Drop legacy relationship fields as well, so an older
+ * backend during deployment cannot put a current claim into the financial seed.
  */
 async function committeeFinance(
   registrationNumber: string,
   year: number,
-): Promise<{ money: CommitteeMoneySnapshotSource; validatedAgeMs: number }> {
-  const read = await getCurrentClaimRead<CommitteeMoneySnapshotSource>(
-    `/committees/${encodeURIComponent(registrationNumber)}/finance?year=${year}`,
+): Promise<CommitteeMoneySnapshotSource> {
+  const {
+    confirmed_for: _confirmedFor,
+    current_claim_validated_at: _currentClaimValidatedAt,
+    ...money
+  } = await getApiData<CommitteeMoneySnapshotSource & {
+    confirmed_for?: unknown;
+    current_claim_validated_at?: unknown;
+  }>(
+    `/committees/${encodeURIComponent(registrationNumber)}/finance?year=${year}&include_confirmation=false`,
   );
-  return { money: read.data, validatedAgeMs: read.validatedAgeMs };
+  return money;
+}
+
+/** A failed ownership read leaves the dated record available without a claim. */
+async function committeeConfirmation(registrationNumber: string) {
+  try {
+    const read = await getCurrentClaimRead<ApiCommitteeConfirmationPayload>(
+      `/committees/${encodeURIComponent(registrationNumber)}/confirmation`,
+    );
+    if (read.data?.registration_number !== registrationNumber) return null;
+    const confirmation = committeeConfirmationFromPayload(read.data, {
+      servedAgeMs: read.validatedAgeMs,
+    });
+    return { ...read, confirmation };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -826,21 +850,31 @@ async function committeeContent(
   view: { tab?: string; category?: string; sort?: string },
 ): Promise<PageContent> {
   const { registrationNumber, year } = committeeRead(slug, requestedYear);
-  // The snapshot uses finance alone. The app reads complete selected-year payment
-  // lists under its own keys, so a short payments seed would not be consumed.
-  const { money, validatedAgeMs } = await committeeFinance(
-    registrationNumber,
-    year,
-  );
+  // Neither read needs the other's answer. Payment lists use their own complete
+  // selected-year reads in the app, so a short payment seed would not be consumed.
+  const [money, confirmationRead] = await Promise.all([
+    committeeFinance(registrationNumber, year),
+    committeeConfirmation(registrationNumber),
+  ]);
   const data: PageDataEntry[] = [
     {
       key: committeeMoneyQueryKey(registrationNumber, year),
       payload: money,
-      validatedAgeMs,
     },
   ];
-  const snapshot = committeePageSnapshot(money, registrationNumber, view);
+  if (confirmationRead) {
+    data.push({
+      key: committeeConfirmationQueryKey(registrationNumber),
+      payload: confirmationRead.data,
+      validatedAgeMs: confirmationRead.validatedAgeMs,
+    });
+  }
+  const snapshot = committeePageSnapshot(money, registrationNumber, {
+    ...view,
+    confirmedFor: confirmationRead?.confirmation.confirmedFor,
+  });
   return {
+    noStore: confirmationRead === null,
     metadata: committeeMoneyPageMetadata(slug, "page", {
       name: committeeSnapshotName(money, registrationNumber),
       canonicalSlug:
@@ -876,7 +910,7 @@ async function committeePaymentsContent(
   // Neither read needs the other's answer, so they run together. This address
   // used to wait for the figures before asking for the rows, which added the
   // whole payments round trip to the first response for nothing (issue 2024).
-  const [finance, payments] = await Promise.all([
+  const [money, payments] = await Promise.all([
     committeeFinance(registrationNumber, year),
     committeePayments(registrationNumber, {
       direction,
@@ -884,7 +918,6 @@ async function committeePaymentsContent(
       limit: FIRST_PAYMENTS_LIMIT,
     }),
   ]);
-  const { money, validatedAgeMs } = finance;
   const linkable = new Set<string>(
     payments?.linkable_registration_numbers ?? [],
   );
@@ -892,7 +925,6 @@ async function committeePaymentsContent(
     {
       key: committeeMoneyQueryKey(registrationNumber, year),
       payload: money,
-      validatedAgeMs,
     },
   ];
   const failedPayments = paymentsUnavailable(payments?.state);

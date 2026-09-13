@@ -10,6 +10,8 @@ vi.hoisted(() => {
 });
 const state = vi.hoisted(() => ({
   money: {} as unknown,
+  confirmation: undefined as CommitteeConfirmation | undefined,
+  confirmationPending: false,
   pending: false,
   expired: false,
   by: false,
@@ -22,6 +24,11 @@ vi.mock(
 );
 
 vi.mock('../../../hooks/useAppQueries', () => ({
+  useCommitteeConfirmation: () => ({
+    data: state.confirmation,
+    isPending: state.confirmationPending,
+    refetch: vi.fn(),
+  }),
   useCommitteeMoney: () => ({
     data: state.money,
     isPending: state.pending,
@@ -88,6 +95,11 @@ import {
   publicApiRequest,
   type ApiCommitteeMoneyPayload,
 } from '../../../data/api';
+import {
+  committeeConfirmationFromPayload,
+  CONFIRMATION_LOADING_LINE,
+  CONFIRMATION_UNAVAILABLE_LINE,
+} from '../../../lib/committeeConfirmation';
 import { useOutsideSpending } from '../../../hooks/useAppQueries';
 import {
   CONFIRMED_MEMBER_WITHHELD_LINE,
@@ -96,7 +108,7 @@ import {
 } from '../../../lib/committeeMoney';
 import { splitExplanation } from '../../../lib/legislatorCampaignMoney';
 import type { RootScreenProps, RootStackParamList } from '../../../navigation/types';
-import type { CommitteeOutsideSpendingRow } from '../../../data/types';
+import type { CommitteeConfirmation, CommitteeOutsideSpendingRow } from '../../../data/types';
 import {
   consumeWebHistoryReplaceMark,
   initializeWebHistory,
@@ -162,7 +174,7 @@ async function render() {
   });
 }
 function shape() {
-  state.money = committeeFinanceFromPayload(payload, { servedAgeMs: 0 });
+  state.money = committeeFinanceFromPayload(payload);
 }
 function click(element: Element | null | undefined) {
   expect(element).toBeTruthy();
@@ -183,6 +195,8 @@ beforeEach(() => {
   params = { slug: 'gottfried-david-house-committee-19193', year: '2025' };
   state.pending = false;
   state.expired = false;
+  state.confirmationPending = false;
+  state.confirmation = committeeConfirmationFromPayload(candidateFinance.data, { servedAgeMs: 0 });
   state.by = false;
   state.byRows = [];
   navigate.mockClear();
@@ -472,10 +486,11 @@ describe('one committee shares the donation browser', () => {
   it('shows an unconfirmed party unit with its unnamed slice, all payments, and authoritative outside zero', async () => {
     payload = structuredClone(partyFinance.data) as ApiCommitteeMoneyPayload;
     params.slug = 'mn-dfl-state-central-committee-20003';
+    state.confirmation = committeeConfirmationFromPayload(partyFinance.data, { servedAgeMs: 0 });
     state.by = true;
     shape();
     await render();
-    expect(payload.confirmed_for).toBeNull();
+    expect(partyFinance.data.confirmed_for).toBeNull();
     expect(host.textContent).toContain('Non-itemized contributions');
     expect(host.textContent).toContain('$5,996');
     expect(host.textContent).toContain(
@@ -488,6 +503,23 @@ describe('one committee shares the donation browser', () => {
     expect(host.textContent).toContain('Total of listed payments in this tab: $5,150,294');
     expect(vi.mocked(useOutsideSpending)).toHaveBeenCalledWith({ spender: '20003' }, 'newest');
   });
+
+  it.each([true, false])(
+    'keeps figures and rows with no ownership answer, pending=%s',
+    async (pending) => {
+      state.confirmation = undefined;
+      state.confirmationPending = pending;
+      await render();
+      expect(host.textContent).toContain(
+        pending ? CONFIRMATION_LOADING_LINE : CONFIRMATION_UNAVAILABLE_LINE,
+      );
+      expect(host.textContent).not.toContain(CONFIRMED_MEMBER_WITHHELD_LINE);
+      expect(host.textContent).not.toContain('Nobody at Alethical');
+      expect(host.textContent).toContain('$59,950');
+      expect(host.textContent).toContain('DFL House Caucus');
+      expect(host.querySelector('a[href*="/legislators/"]')).toBeNull();
+    },
+  );
 
   it('keeps committee figures and rows after the member ownership claim expires', async () => {
     state.expired = true;

@@ -71,7 +71,7 @@ describe('app query refresh', () => {
    */
   it('refreshes a stale money read that names who currently holds office', async () => {
     const request = vi.fn(async () => 'new');
-    const key = ['committee-money', '17868', 2026];
+    const key = ['committee-confirmation', '17868'];
     const { client, query, unsubscribe } = activeQuery(key, request);
     client.setQueryData(key, 'old', { updatedAt: Date.now() - APP_QUERY_STALE_TIME - 1 });
 
@@ -95,12 +95,14 @@ describe('app query refresh', () => {
     unsubscribe();
   });
 
-  it('leaves a stale read of dated filings alone on focus', async () => {
+  it.each([
+    ['committee-payments', '17868', 'received', 2026],
+    ['committee-money', '17868', 2026],
+  ])('leaves a stale read of dated records alone on focus: %j', async (...key) => {
     // Deliberate, and the reason is not caution: these figures carry the period
     // they cover and the day we copied them, so rechecking on every tab switch
     // would spend a request to redraw the same labelled number.
     const request = vi.fn(async () => 'new');
-    const key = ['committee-payments', '17868', 'received', 2026];
     const { client, query, unsubscribe } = activeQuery(key, request);
     client.setQueryData(key, 'old', { updatedAt: Date.now() - APP_QUERY_STALE_TIME - 1 });
 

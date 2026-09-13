@@ -6709,8 +6709,7 @@ def test_a_read_claiming_who_currently_holds_office_gets_the_short_window(client
 
 
 def test_a_read_naming_a_confirmed_committee_for_a_member_gets_the_short_window(client):
-    """Three reads say a committee currently belongs to a named member, and all
-    three keep the short window.
+    """Current committee-ownership answers, including legacy finance, stay short.
 
     A confirmation can be taken back: `withdrawn` is a real third decision state
     with its own `withdrawn_at`, `withdrawal_reason` and `withdrawn_by`
@@ -6723,7 +6722,8 @@ def test_a_read_naming_a_confirmed_committee_for_a_member_gets_the_short_window(
     different kind of wrong from an out-of-date figure carrying its own date.
 
     `confirmed_member_count` on the summary is the same claim counted, so it is read
-    through a real request. The 2 per-member routes need a seeded money release to
+    through a real request, as is the separate confirmation answer, which does not
+    need a money release. The 2 mixed finance routes need a seeded money release to
     answer 200, which this fixture has not got, so real paths for them go through the
     decision function the middleware itself calls.
     """
@@ -6732,6 +6732,9 @@ def test_a_read_naming_a_confirmed_committee_for_a_member_gets_the_short_window(
     assert summary.headers["Cache-Control"] == SHORT_WINDOW
     confirmations = summary.json()["data"]["legislator_committee_confirmations"]
     assert "confirmed_member_count" in confirmations
+    confirmation = client.get("/api/v1/committees/41363/confirmation")
+    assert confirmation.status_code == 200
+    assert confirmation.headers["Cache-Control"] == SHORT_WINDOW
 
     for identity_bearing in (
         "/api/v1/legislators/abc-123/campaign-finance",
@@ -6884,8 +6887,11 @@ def test_a_signed_in_read_is_never_given_a_shared_window(client, auth_headers):
 
 
 def test_only_the_5_named_money_record_reads_get_the_long_window(client):
-    """Every public read the app serves, put through the real decision, and exactly
-    5 come back with the long window.
+    """The path-based default grants exactly 5 routes the long window.
+
+    Committee finance's explicit dated-only query is tested against a real numeric
+    request in test_committee_page_reads.py. A path alone deliberately cannot grant
+    that window, because the default finance answer still carries a current claim.
 
     This is the guard the address-prefix rule could not give us. Under a prefix a
     route was granted the long window by where its address sat, so an answer that

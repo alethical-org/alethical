@@ -8,6 +8,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import billFixture from './fixtures/bill-page-snapshot.json';
 import committeeFixture from './fixtures/committee-money-page-snapshot.json';
+import { CONFIRMATION_UNAVAILABLE_LINE } from '../committeeConfirmation';
 import { emptyListTitle, madePaymentRow, paymentsEyebrow, paymentsTitle } from '../committeeMoney';
 import committeeEmptyYearFixture from './fixtures/committee-empty-year-snapshot.json';
 import committeePaymentsFixture from './fixtures/committee-payments-page-snapshot.json';
@@ -1318,7 +1319,7 @@ describe('the register serves an ordinary link per filer, on numbered pages', ()
 });
 
 describe('a committee’s record in the first response', () => {
-  const snapshot = committeePageSnapshot(committeeFixture, '41326');
+  const snapshot = committeePageSnapshot(committeeFixture, '41326', { confirmedFor: null });
   const html = renderPageSnapshot(snapshot);
   const text = visibleText(html);
   const split = committeeFixture.split;
@@ -1438,6 +1439,33 @@ describe('a committee’s record in the first response', () => {
     expect(snapshot.body).toEqual([whoseCommitteeText('political_committee_or_fund', 'PC', null)]);
   });
 
+  it('uses a neutral gap when the separate ownership answer is missing', () => {
+    const unavailable = committeePageSnapshot(committeeFixture, '41326');
+
+    expect(unavailable.body).toEqual([CONFIRMATION_UNAVAILABLE_LINE]);
+    expect(unavailable.links.some((link) => link.href?.startsWith('/legislators/'))).toBe(false);
+    expect(unavailable.sections).toEqual(snapshot.sections);
+  });
+
+  it.each([undefined, null])(
+    'ignores legacy ownership fields on the financial answer (%s)',
+    (confirmedFor) => {
+      const legacyMoney = {
+        ...committeeFixture,
+        confirmed_for: { slug: 'wrong-person', full_name: 'Wrong Person' },
+      };
+      const result = committeePageSnapshot(legacyMoney, '41326', { confirmedFor });
+
+      expect(result.body).toEqual(
+        confirmedFor === undefined
+          ? [CONFIRMATION_UNAVAILABLE_LINE]
+          : [whoseCommitteeText('political_committee_or_fund', 'PC', null)],
+      );
+      expect(renderPageSnapshot(result)).not.toContain('Wrong Person');
+      expect(result.links.some((link) => link.href?.startsWith('/legislators/'))).toBe(false);
+    },
+  );
+
   it('links its own payments list and the register it came from', () => {
     const hrefs = snapshot.links.map((link) => link.href);
     expect(hrefs).toContain(
@@ -1511,13 +1539,14 @@ describe('a committee’s record in the first response', () => {
    * finding, that 1,553 of 1,603 committee pages had no link anywhere on the site).
    */
   it('serves the confirmed member’s sentence and a real link to their money', () => {
-    const confirmed = committeePageSnapshot(
-      {
-        ...committeeFixture,
-        confirmed_for: { slug: 'melissa-hortman', full_name: 'Melissa Hortman' },
+    const confirmed = committeePageSnapshot(committeeFixture, '41326', {
+      confirmedFor: {
+        legislatorId: 'melissa-id',
+        slug: 'melissa-hortman',
+        fullName: 'Melissa Hortman',
+        checked: null,
       },
-      '41326',
-    );
+    });
     expect(confirmed.body).toEqual([
       whoseCommitteeText('political_committee_or_fund', 'PC', {
         slug: 'melissa-hortman',

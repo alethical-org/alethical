@@ -55,7 +55,7 @@ The response headers that drive the cache are **already live** (PR #363):
 
 ```
 Cache-Control: public, max-age=60, stale-while-revalidate=300                             # anonymous bill / vote / legislator reads
-Cache-Control: public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800   # the 5 named campaign-money record reads
+Cache-Control: public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800   # the 5 named record paths and explicit dated-only committee finance
 Cache-Control: private, no-store                                                          # signed-in / tracking reads
 ```
 
@@ -69,7 +69,17 @@ reader be handed a week-old bill status, which is the harm
 `.claude/rules/grounded-answers.md` rule 7 names: "a status-stale answer
 misframes enacted law as a pending proposal."
 
-**Five named campaign-money record reads get the longer window**, because a load
+**The 5 named campaign-money record paths and the explicit dated-only committee
+finance variant get the longer window.** The finance variant is
+`/api/v1/committees/{registration_number}/finance?year=2025&include_confirmation=false`;
+it omits the ownership claim and performs no confirmation lookup. Its handler grants
+the longer window only after a successful anonymous `GET`. The default mixed finance
+answer remains compatible with older clients and keeps the short window, as does
+`/api/v1/committees/{registration_number}/confirmation`. Query variants remain distinct
+saved answers; this change adds no custom cache key or clearing mechanism
+([issue 2126](https://github.com/alethical-org/alethical/issues/2126)).
+
+The original longer-window choice followed the money load cadence: a load
 is human-triggered and on no schedule: production's snapshot was dated 2026-08-12
 when this was measured on 4 Sep 2026, 23 days old. Against that, the old 60 s
 plus 5 minutes was minutes, so any gap over 5 minutes between readers sent the
@@ -228,7 +238,11 @@ The test that decides membership is what an answer *claims*, never whether it na
 a person: a person's name inside an accepted filing is a dated record and is fine on
 the long window; a claim that somebody currently holds an office, or that a committee
 currently belongs to a named member, is not. The list and that reasoning live beside
-the code that applies them, in `alethical/api/routers/public.py`.
+the code that applies them, in `alethical/api/routers/public.py`. The finance path
+alone is deliberately absent from `MONEY_RECORD_PATHS`: its default answer contains
+a current claim, and only the explicitly dated-only successful anonymous variant
+qualifies. The confirmation answer retains `public, max-age=60,
+stale-while-revalidate=300` and has no financial-release or year dependency.
 
 A signed-in reader's response is never held at a shared cache: the middleware
 skips any request carrying `Authorization`, pinned by

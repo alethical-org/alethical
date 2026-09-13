@@ -194,6 +194,14 @@ cut-off such as “before 2025”. A button promises a way to read that year's r
 that we hold a complete report for it. The answers used to style these buttons never
 renew or replace the current committee-confirmation check.
 
+The separate `/money/committees/{name}-{number}` address now reads the committee’s
+dated finance and current confirmation independently. Its confirmation follows the
+registration alone, not the chosen year; a finance refresh cannot renew it. That
+change does not remove this profile’s confirmed-member gate or change its
+20-minute deadline. The committee address’s pending, failed and expired ownership
+states are described in
+[campaign-money-section-guide.md](https://github.com/alethical-org/alethical/blob/main/docs/product-onboarding/campaign-money-section-guide.md).
+
 Calendar years, because that is the unit Minnesota's own reports use. This is not the
 same control as the session pill on the Overview tab, which counts a two-year
 legislature.

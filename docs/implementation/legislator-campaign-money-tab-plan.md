@@ -208,7 +208,7 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   The full 2,625 frontend and 2,549 server tests, queue and production checks passed.
   The [job 1 live report](https://github.com/alethical-org/alethical/issues/2140#issuecomment-5649547058)
   records the evidence. Its task-owned worktree and branch are removed.
-- [ ] Job 2, [issue 2166](https://github.com/alethical-org/alethical/issues/2166):
+- [x] Job 2, [issue 2166](https://github.com/alethical-org/alethical/issues/2166):
   reuse B's contribution-kind chart,
   non-itemized slice, 5 fixed tabs, conditional Other tab and grouped outside
   spending on `/money/committees/<slug>`. Keep its Year, Track, Share and Filings
@@ -272,22 +272,44 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   HTML carries that release; its actual first-load program measures 392,156 bytes
   against the unchanged 392,321-byte limit. No size guard or provider setting changed.
   The frontend suite passed 2,642 tests and the backend suite passed 2,549.
-- The final production reader pass found 1 remaining Job 2 defect: Back restores
-  the reading position after opening another committee, but loses a nondefault
-  donor category and sort. [Issue 2166](https://github.com/alethical-org/alethical/issues/2166)
-  is reopened for the repair in `/private/tmp/alethical-2166-committee-back-state`
-  on `codex/2166-committee-back-state`, based on the live release. The repair
-  keeps those choices in the committee address, so Back and shared links restore
-  them together with the selected year. Fresh links without choices keep defaults.
-  Root owns integration and release. The existing worker owns the focused code and tests.
-  The repair passes 2,666 frontend tests, type and formatting checks. Its configured
-  production build measures 392,136 bytes against the unchanged 392,321-byte limit.
-  The independent browser pass and release are the next checks.
-- The same live pass covered candidate 19193, party 20003 and Abeler on desktop
-  and phone. Complete lists, expanded payments, Filings and the all-years Spent by
-  them explanation remain usable; Abeler's refund card retains the 2024 unpublished
-  count. Job 3 waits for the Back-navigation repair's live check and completion
-  report. Jobs 3 onward keep their approved order. The historical replacement is held.
+- Job 2's Back repair is live through [pull request 2168](https://github.com/alethical-org/alethical/pull/2168)
+  at [commit a8e42d9a](https://github.com/alethical-org/alethical/commit/a8e42d9aea31c74127ede728551f9e579fd1f33b).
+  Back, shared links, year changes and Filings preserve donor category and sort in
+  the address. Independent desktop and phone checks passed; phone Back returned
+  to the exact reading position and desktop differed by 0.5 pixels. Abeler's chart
+  and refund table stayed intact. The public first download measures 392,136 bytes.
+  The [job 2 live report](https://github.com/alethical-org/alethical/issues/2140#issuecomment-5650739782)
+  completes the gate for Job 3. Issue 2166 is closed and archived as Done.
+- Job 3 is active in `/private/tmp/alethical-2126-campaign-money-speed` on
+  `codex/2126-campaign-money-speed`, based on the live repair. The
+  [before-change measurements](https://github.com/alethical-org/alethical/issues/2126#issuecomment-5650886167)
+  cover Abeler, the busiest committee by 28-day financial-read traffic (41363),
+  and the large DFL list (20003). Abeler's donor-ready time was 6.320 seconds with
+  an empty browser cache and 0.722 on repeat; history was 12.967 and 0.741 seconds.
+- The chosen split preserves the default short-lived mixed `/finance` response
+  for existing clients, adds `include_confirmation=false` for dated figures only,
+  and serves current ownership at `/committees/{registration_number}/confirmation`.
+  Only the explicit dated response earns the existing 5-minute/day/week money
+  cache policy. The confirmation keeps the 60-second policy and independent
+  20-minute deadline. Initial HTML reads and seeds the 2 separately; an unavailable
+  confirmation leaves the committee's figures visible and uses a neutral sentence.
+- Root owns browser data shaping, hooks, the committee screen, integration, records
+  and release. Separate helpers own the backend and initial-HTML paths with focused
+  tests. Finish this split and measure its effect before proceeding to the prose
+  import removal and then shared-screen loading. Intermediate build measurements
+  identify each change; only production figures may set the first-load size limit.
+- The 2126 split passes 2,690 frontend tests, 186 focused server tests, type checks
+  and an independent code review. A phone/desktop local browser read passed normal,
+  first-failed and expired-confirmation states with retained figures and donor rows,
+  no script errors and no phone overflow. The local adapter used real public records;
+  it is not a production latency check. The configured intermediate build is 392,674
+  bytes, 538 above baseline and 353 over the unchanged limit. The
+  [first-stage result](https://github.com/alethical-org/alethical/issues/2126#issuecomment-5651013218)
+  records this unfinished budget state before the 2 planned download reductions.
+  Source and build evidence remain under `/tmp/2126-baseline/`, `/tmp/2126-reader/`
+  and `/tmp/2126-stage-build.log`. The next active step is 2070.
+- Jobs 4 through 5f retain their stated sequence. Action 4 Liberty PAC's historical
+  replacement remains held with no additional source attempts or publication.
 
 
 ## Approved data-only queue after follow-on jobs 1 through 4

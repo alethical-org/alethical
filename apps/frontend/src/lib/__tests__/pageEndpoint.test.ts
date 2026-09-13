@@ -12,6 +12,8 @@ import { MONEY_ONLY_GOES_ONE_WAY } from '../researchPieces/moneyOnlyGoesOneWay';
 import { WHO_HAS_TO_REPORT_THEIR_MONEY } from '../researchPieces/whoHasToReportTheirMoney';
 import { escapeHtml } from '../share';
 import { API_SHARED_CACHE_MAX_AGE_MS } from '../currentClaimFreshness';
+import { CONFIRMATION_UNAVAILABLE_LINE } from '../committeeConfirmation';
+import { whoseCommitteeText } from '../committeeMoney';
 
 const { readPageShell } = vi.hoisted(() => ({ readPageShell: vi.fn() }));
 
@@ -1773,7 +1775,9 @@ describe('a committee address naming a year is answered in that year', () => {
     const { status } = await serve({ path: `/money/committees/${SLUG}`, year: '2025' });
 
     expect(status).toBe(200);
-    expect(calls).toContain('https://api.alethical.com/api/v1/committees/41326/finance?year=2025');
+    expect(calls).toContain(
+      'https://api.alethical.com/api/v1/committees/41326/finance?year=2025&include_confirmation=false',
+    );
     expect(calls.some((url) => url.includes('year=2026'))).toBe(false);
   });
 
@@ -1794,7 +1798,9 @@ describe('a committee address naming a year is answered in that year', () => {
 
     const { body } = await serve({ path: `/money/committees/${SLUG}` });
 
-    expect(calls).toContain('https://api.alethical.com/api/v1/committees/41326/finance?year=2026');
+    expect(calls).toContain(
+      'https://api.alethical.com/api/v1/committees/41326/finance?year=2026&include_confirmation=false',
+    );
     expect(body).toContain('$360');
   });
 
@@ -1874,7 +1880,9 @@ describe('a committee address naming a year is answered in that year', () => {
     });
 
     expect(status).toBe(200);
-    expect(calls).toContain('https://api.alethical.com/api/v1/committees/41326/finance?year=2025');
+    expect(calls).toContain(
+      'https://api.alethical.com/api/v1/committees/41326/finance?year=2025&include_confirmation=false',
+    );
     expect(calls.some((url) => url.includes('/payments') && url.includes('year=2025'))).toBe(true);
     expect(calls.some((url) => url.includes('year=2026'))).toBe(false);
   });
@@ -2102,12 +2110,6 @@ describe('a committee page hands its records to the app', () => {
     entity_sub_type: 'PC',
     year: 2026,
     fetched_at: '2026-08-12T02:54:22.402100Z',
-    confirmed_for: {
-      legislator_id: 'a1',
-      slug: 'jane-fonda',
-      full_name: 'Jane Fonda',
-    },
-    current_claim_validated_at: '2026-09-08T11:54:00.000Z',
     register: {
       state: 'reported',
       kind: 'political_committee_or_fund',
@@ -2130,6 +2132,22 @@ describe('a committee page hands its records to the app', () => {
       reported_total: '2700.0000',
       reported_through: '2026-07-20',
       by_type: [],
+    },
+  };
+
+  const CONFIRMATION = {
+    registration_number: '41326',
+    current_claim_validated_at: '2026-09-08T11:54:00.000Z',
+    confirmed_for: {
+      legislator_id: 'a1',
+      slug: 'jane-fonda',
+      full_name: 'Jane Fonda',
+      checked: {
+        checked_on: '2026-09-01',
+        name_evidence: 'Registered name matches',
+        register_verdict: 'Matches',
+        party_agreement: 'Matches',
+      },
     },
   };
 
@@ -2199,7 +2217,11 @@ describe('a committee page hands its records to the app', () => {
           ok: true,
           status: 200,
           json: async () => ({
-            data: isPayments ? paymentsPayload(parsed.searchParams.get('direction')) : FINANCE,
+            data: isPayments
+              ? paymentsPayload(parsed.searchParams.get('direction'))
+              : parsed.pathname.endsWith('/confirmation')
+                ? CONFIRMATION
+                : FINANCE,
           }),
           headers: {
             get: (name: string) =>
@@ -2221,20 +2243,174 @@ describe('a committee page hands its records to the app', () => {
     const finance = servedData(body).find((entry) => entry.key[0] === 'committee-money');
     expect(finance?.key).toEqual(['committee-money', '41326', 2026]);
     expect(finance?.payload).toMatchObject({ registration_number: '41326', year: 2026 });
-    // The claim about whose committee this is expires, so its age travels with it
-    // rather than being assumed (issue 2023).
-    expect(finance?.validatedAgeMs).toBe(42_000);
+    expect(finance?.payload).toEqual(FINANCE);
+    expect(finance).not.toHaveProperty('validatedAgeMs');
+    const confirmation = servedData(body).find(
+      (entry) => entry.key[0] === 'committee-confirmation',
+    );
+    expect(confirmation).toEqual({
+      key: ['committee-confirmation', '41326'],
+      payload: CONFIRMATION,
+      validatedAgeMs: 42_000,
+    });
+    expect(body).toContain('href="/legislators/jane-fonda?tab=money"');
+  });
+
+  it('starts the figures and the ownership check together', async () => {
+    const { state } = stubCommittee();
+
+    await serve({ path: `/money/committees/${SLUG}`, year: '2026' });
+
+    expect(state.mostAtOnce).toBe(2);
+  });
+
+  it('uses the existing age fallback only for the separate ownership answer', async () => {
+    stubCommittee();
+
+    const { body } = await serve({ path: `/money/committees/${SLUG}`, year: '2026' });
+
+    expect(servedData(body).map((entry) => entry.validatedAgeMs)).toEqual([
+      undefined,
+      API_SHARED_CACHE_MAX_AGE_MS,
+    ]);
+  });
+
+  it('treats an explicit unconfirmed answer as complete, with ordinary kind prose', async () => {
+    const confirmation = { ...CONFIRMATION, confirmed_for: null };
+    stubNetwork((url) => ({
+      status: 200,
+      payload: { data: new URL(url).pathname.endsWith('/confirmation') ? confirmation : FINANCE },
+      age: 7,
+    }));
+
+    const { body, headers, status } = await serve({
+      path: `/money/committees/${SLUG}`,
+      year: '2026',
+    });
+
+    expect(status).toBe(200);
+    expect(body).toContain('$2,700');
+    expect(body).toContain(
+      escapeHtml(whoseCommitteeText('political_committee_or_fund', 'PC', null)),
+    );
+    expect(body).not.toContain(CONFIRMATION_UNAVAILABLE_LINE);
+    expect(body).not.toContain('/legislators/jane-fonda');
+    expect(headers.get('Cache-Control')).toContain('s-maxage=300');
+    expect(servedData(body)[1]).toEqual({
+      key: ['committee-confirmation', '41326'],
+      payload: confirmation,
+      validatedAgeMs: 7_000,
+    });
+  });
+
+  it.each([
+    { name: 'failed request', status: 500 },
+    { name: 'missing confirmation endpoint', status: 404 },
+    { name: 'missing answer', status: 200, payload: { registration_number: '41326' } },
+    {
+      name: 'incomplete member',
+      status: 200,
+      payload: { ...CONFIRMATION, confirmed_for: { slug: 'jane-fonda' } },
+    },
+    {
+      name: 'different committee',
+      status: 200,
+      payload: { ...CONFIRMATION, registration_number: '41327' },
+    },
+  ])(
+    'keeps filed money available after $name without seeding an ownership answer',
+    async (failure) => {
+      stubNetwork((url) =>
+        new URL(url).pathname.endsWith('/confirmation')
+          ? { status: failure.status, payload: { data: failure.payload } }
+          : { status: 200, payload: { data: FINANCE }, age: 42 },
+      );
+
+      const { body, headers, status } = await serve({
+        path: `/money/committees/${SLUG}`,
+        year: '2026',
+        category: 'committees',
+        sort: 'smallest',
+      });
+
+      expect(status).toBe(200);
+      expect(body).toContain('$2,700');
+      expect(body).toContain(CONFIRMATION_UNAVAILABLE_LINE);
+      expect(body).not.toContain('/legislators/jane-fonda');
+      expect(body).not.toContain(
+        escapeHtml(whoseCommitteeText('political_committee_or_fund', 'PC', null)),
+      );
+      expect(headers.get('Cache-Control')).toBe('no-store');
+      expect(servedData(body)).toEqual([
+        { key: ['committee-money', '41326', 2026], payload: FINANCE },
+      ]);
+      expect(body).toContain(
+        `href="/money/committees/${SLUG}?year=2025&amp;category=committees&amp;sort=smallest"`,
+      );
+    },
+  );
+
+  it.each(['', '/payments'])(
+    'removes legacy current claims from the dated finance seed at %s',
+    async (suffix) => {
+      stubNetwork((url) => ({
+        status: 200,
+        payload: {
+          data: new URL(url).pathname.endsWith('/confirmation')
+            ? { ...CONFIRMATION, confirmed_for: null }
+            : new URL(url).pathname.endsWith('/payments')
+              ? paymentsPayload('received')
+              : {
+                  ...FINANCE,
+                  confirmed_for: CONFIRMATION.confirmed_for,
+                  current_claim_validated_at: CONFIRMATION.current_claim_validated_at,
+                },
+        },
+        age: 42,
+      }));
+
+      const { body } = await serve({ path: `/money/committees/${SLUG}${suffix}`, year: '2026' });
+
+      expect(servedData(body)[0]).toEqual({
+        key: ['committee-money', '41326', 2026],
+        payload: FINANCE,
+      });
+      expect(body).not.toContain('/legislators/jane-fonda');
+    },
+  );
+
+  it('cannot replace failed financial records with a successful ownership answer', async () => {
+    stubNetwork((url) =>
+      new URL(url).pathname.endsWith('/confirmation')
+        ? { status: 200, payload: { data: CONFIRMATION } }
+        : { status: 500 },
+    );
+
+    const { body, headers, status } = await serve({
+      path: `/money/committees/${SLUG}`,
+      year: '2026',
+    });
+
+    expect(status).toBe(503);
+    expect(headers.get('Cache-Control')).toBe('no-store');
+    expect(servedData(body)).toEqual([]);
+    expect(body).not.toContain('$2,700');
   });
 
   it.each(['', 'gave', 'spent', 'filings', 'about', 'by'])(
-    'serves committee tab %s from finance alone, without a payment request or false failure',
+    'serves committee tab %s from finance and confirmation, without a payment request or false failure',
     async (tab) => {
       const calls: string[] = [];
       stubNetwork((url) => {
         calls.push(url);
         return new URL(url).pathname.endsWith('/payments')
           ? { status: 500 }
-          : { status: 200, payload: { data: FINANCE } };
+          : {
+              status: 200,
+              payload: {
+                data: new URL(url).pathname.endsWith('/confirmation') ? CONFIRMATION : FINANCE,
+              },
+            };
       });
 
       const { body, headers, status } = await serve({
@@ -2244,7 +2420,8 @@ describe('a committee page hands its records to the app', () => {
       });
 
       expect(calls.map((url) => new URL(url).pathname + new URL(url).search)).toEqual([
-        '/api/v1/committees/41326/finance?year=2026',
+        '/api/v1/committees/41326/finance?year=2026&include_confirmation=false',
+        '/api/v1/committees/41326/confirmation',
       ]);
       expect(status).toBe(200);
       expect(body).toContain('Jane Fonda Climate PAC');
@@ -2252,6 +2429,7 @@ describe('a committee page hands its records to the app', () => {
       expect(headers.get('Cache-Control')).toContain('s-maxage=300');
       expect(servedData(body).map((entry) => entry.key)).toEqual([
         ['committee-money', '41326', 2026],
+        ['committee-confirmation', '41326'],
       ]);
     },
   );
@@ -2273,16 +2451,18 @@ describe('a committee page hands its records to the app', () => {
     );
     expect(body).toContain(`href="/money/committees/${SLUG}/payments?tab=gave&amp;year=2026"`);
     expect(calls.map((url) => new URL(url).pathname + new URL(url).search)).toEqual([
-      '/api/v1/committees/41326/finance?year=2026',
+      '/api/v1/committees/41326/finance?year=2026&include_confirmation=false',
+      '/api/v1/committees/41326/confirmation',
     ]);
     expect(servedData(body).map((entry) => entry.key)).toEqual([
       ['committee-money', '41326', 2026],
+      ['committee-confirmation', '41326'],
     ]);
     expect(headers.get('Cache-Control')).toContain('s-maxage=300');
   });
 
   it('hands the payments view its own first page, in the requested year and direction', async () => {
-    stubCommittee();
+    const { calls } = stubCommittee({ age: 42 });
 
     const { body } = await serve({
       path: `/money/committees/${SLUG}/payments`,
@@ -2294,6 +2474,9 @@ describe('a committee page hands its records to the app', () => {
       ['committee-money', '41326', 2026],
       ['committee-payments-list', '41326', 'made', 2026],
     ]);
+    expect(calls).toHaveLength(2);
+    expect(calls.some((url) => url.includes('/confirmation'))).toBe(false);
+    expect(servedData(body).every((entry) => entry.validatedAgeMs === undefined)).toBe(true);
   });
 
   it('reads the figures and the rows at the same time, not one after the other', async () => {

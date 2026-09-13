@@ -14,6 +14,7 @@ vi.mock(
 );
 
 vi.mock('../../../hooks/useAppQueries', () => ({
+  useCommitteeConfirmation: () => ({ data: undefined, isPending: false }),
   useCommitteeMoney: () => ({ data: state.money, isPending: false, isError: false }),
   useCommitteePaymentsList: () => state.query,
   useOutsideSpending: () => ({ data: { pages: [] }, isPending: false, isError: false }),
@@ -60,19 +61,16 @@ describe.each(['full', 'browser'])('%s payment list', (view) => {
     ['spent', 'unavailable'],
     ['gave', 'missing'],
   ])('shows the existing error words on a %s %s read', async (tab, failure) => {
-    state.money = committeeFinanceFromPayload(
-      {
-        registration_number: '20003',
-        committee_name: 'MN DFL State Central Committee',
-        entity_type: 'PTY',
-        year: 2025,
-        register: { state: 'reported', name: 'MN DFL State Central Committee', kind: 'party_unit' },
-        split: { state: 'shown', reported_total: '100', named_total: '100' },
-        money_in: { state: 'reported' },
-        money_out: { state: 'reported' },
-      },
-      { servedAgeMs: 0 },
-    );
+    state.money = committeeFinanceFromPayload({
+      registration_number: '20003',
+      committee_name: 'MN DFL State Central Committee',
+      entity_type: 'PTY',
+      year: 2025,
+      register: { state: 'reported', name: 'MN DFL State Central Committee', kind: 'party_unit' },
+      split: { state: 'shown', reported_total: '100', named_total: '100' },
+      money_in: { state: 'reported' },
+      money_out: { state: 'reported' },
+    });
     const page = failure === 'missing' ? null : { state: 'unavailable', payments: [] };
     state.query = {
       data: failure === 'rejected' ? undefined : view === 'full' ? { pages: [page] } : page,

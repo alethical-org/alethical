@@ -1,4 +1,8 @@
 import { Platform } from 'react-native';
+import {
+  committeeConfirmationFromPayload,
+  type ApiCommitteeConfirmationPayload,
+} from '../lib/committeeConfirmation';
 import { adminAccessFromPayload } from '../lib/adminAccess';
 import {
   completeDanglingTitle,
@@ -3295,9 +3299,6 @@ interface ApiCommitteeRegisterPayload {
 }
 
 export interface ApiCommitteeMoneyPayload {
-  /** When the origin last confirmed `confirmed_for`. A validation time, never a
-   *  record date (`alethical/api/routers/public.py`). */
-  current_claim_validated_at?: string | null;
   release_id?: string;
   independent_spending?: CommitteeMoney['independentSpendingSource'];
   registration_number: string;
@@ -3307,17 +3308,6 @@ export interface ApiCommitteeMoneyPayload {
   year: number;
   fetched_at?: string | null;
   register?: ApiCommitteeRegisterPayload | null;
-  confirmed_for?: {
-    legislator_id?: string | null;
-    slug?: string | null;
-    full_name?: string | null;
-    checked?: {
-      checked_on: string;
-      name_evidence?: string | null;
-      register_verdict?: string | null;
-      party_agreement?: string | null;
-    } | null;
-  } | null;
   money_in?: {
     state: string;
     itemized_contribution_total?: string | null;
@@ -3373,17 +3363,8 @@ function committeeBlockState(
  * the first response and shaped by this same function (`lib/pageData.ts`, issue
  * 2024). A seeded figure and a fetched figure cannot differ, because there is one
  * shaper and it is this one.
- *
- * `servedAgeMs` is the age this answer carries that React Query's own
- * `dataUpdatedAt` does not already record, so a screen adds the two without
- * double-counting (`data/types.ts`, `CurrentClaimFreshness`). A fetched answer
- * passes what the shared caches reported; a seeded one passes 0, because its whole
- * age travelled in `initialDataUpdatedAt`.
  */
-export function committeeFinanceFromPayload(
-  payload: ApiCommitteeMoneyPayload,
-  options: { servedAgeMs: number },
-): CommitteeMoney {
+export function committeeFinanceFromPayload(payload: ApiCommitteeMoneyPayload): CommitteeMoney {
   const register = payload.register ?? undefined;
   return {
     releaseId: payload.release_id,
@@ -3406,33 +3387,6 @@ export function committeeFinanceFromPayload(
       registrationDate: register?.registration_date ?? null,
       terminationDate: register?.termination_date ?? null,
       asOf: register?.as_of ?? null,
-    },
-    // All 3 fields or nothing: a confirmed member with no address to send a reader
-    // to is a half-fact, and the sentence that names them is also the link out.
-    confirmedFor:
-      payload.confirmed_for?.legislator_id &&
-      payload.confirmed_for.slug &&
-      payload.confirmed_for.full_name
-        ? {
-            legislatorId: payload.confirmed_for.legislator_id,
-            slug: payload.confirmed_for.slug,
-            fullName: payload.confirmed_for.full_name,
-            // Separately optional from the 3 above: a decision written before the basis
-            // columns landed is still a real confirmation, and the page says so without
-            // describing evidence it does not hold.
-            checked: payload.confirmed_for.checked
-              ? {
-                  checkedOn: payload.confirmed_for.checked.checked_on,
-                  nameEvidence: payload.confirmed_for.checked.name_evidence ?? null,
-                  registerVerdict: payload.confirmed_for.checked.register_verdict ?? null,
-                  partyAgreement: payload.confirmed_for.checked.party_agreement ?? null,
-                }
-              : null,
-          }
-        : null,
-    currentClaim: {
-      servedAgeMs: options.servedAgeMs,
-      validatedAt: payload.current_claim_validated_at ?? null,
     },
     moneyIn: {
       state: committeeBlockState(payload.money_in?.state),
@@ -3488,16 +3442,27 @@ export async function getCommitteeFinanceFromApi(
   year: number,
 ): Promise<CommitteeMoney | null> {
   try {
-    const response = await publicApiRequestWithAge<DetailResponse<ApiCommitteeMoneyPayload>>(
-      `/committees/${encodeURIComponent(registrationNumber)}/finance?year=${year}`,
+    const response = await publicApiRequest<DetailResponse<ApiCommitteeMoneyPayload>>(
+      `/committees/${encodeURIComponent(registrationNumber)}/finance?year=${year}&include_confirmation=false`,
     );
-    return committeeFinanceFromPayload(response.body.data, {
-      servedAgeMs: servedClaimAgeMs(response.ageSeconds),
-    });
+    return committeeFinanceFromPayload(response.data);
   } catch (error) {
     if (isNotFoundError(error)) return null;
     throw error;
   }
+}
+
+/** A failed or missing confirmation is never a successful answer naming nobody. */
+export async function getCommitteeConfirmationFromApi(registrationNumber: string) {
+  const response = await publicApiRequestWithAge<DetailResponse<ApiCommitteeConfirmationPayload>>(
+    `/committees/${encodeURIComponent(registrationNumber)}/confirmation`,
+  );
+  if (response.body.data?.registration_number !== registrationNumber) {
+    throw new Error('Committee confirmation registration does not match');
+  }
+  return committeeConfirmationFromPayload(response.body.data, {
+    servedAgeMs: servedClaimAgeMs(response.ageSeconds),
+  });
 }
 
 export interface ApiCommitteePaymentsPayload {

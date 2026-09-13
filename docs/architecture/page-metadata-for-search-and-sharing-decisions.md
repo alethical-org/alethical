@@ -1612,17 +1612,37 @@ ask for, and the app draws it with no request of its own.** The transport is a
 The 5 top-level money addresses were served their records first; a committee's own page and
 its payments view were not, so those 2 kept the second fetch this section removes
 ([issue 2024](https://github.com/alethical-org/alethical/issues/2024)). They now carry the
-committee's figures for the year the address asks for and, on `/payments`, its first payment
+committee's dated figures for the year the address asks for and, on `/payments`, its first payment
 page in the direction it asks for. The redesigned committee screen no longer consumes a
 6-payment seed. It loads complete selected-year received and made lists for its donor chart
 and grouped tabs after the app starts, so the old short read is removed from the first
-response. None of this changes an address's `noindex` or canonical address: §22's table is
-unchanged.
+response.
+
+For [issue 2126](https://github.com/alethical-org/alethical/issues/2126), the committee
+HTML reads `finance?year=2025&include_confirmation=false` and `/confirmation`
+concurrently. It serves whole payloads separately: finance under its registration
+and year key, confirmation under its registration-only key. The latter carries
+`current_claim_validated_at` and the complete `confirmed_for` object, including
+`checked`, or an explicit successful `null`. No confirmation lookup depends on a
+financial release or selected year.
+
+A failed or incomplete confirmation retains the committee’s filed figures and the
+line “We could not check whose committee this is. The money shown here is the
+committee’s own filed record.” That partial HTML response uses `no-store` and
+omits the failed confirmation seed, so the browser can retry. A successful explicit
+`null` keeps the existing kind-specific explanation. Finance failure retains its
+existing response behavior.
+
+The full `/payments` HTML reads only dated finance and the first 50 rows,
+concurrently, with no confirmation request or seed. Its existing failed-payment
+words and `no-store` behavior remain. None of this changes an address's `noindex`
+or canonical address: §22's table is unchanged.
 
 Two things specific to these 2 addresses, with their measured figures, are in
 [`docs/operations/page-load-performance-decisions.md`](../operations/page-load-performance-decisions.md)
-("What a committee's own pages carry in their first response"): why the figures read is still
-requested while the wait for it is gone, and why a seeded answer's own `servedAgeMs` must be 0.
+("What a committee's own pages carry in their first response"): why only the
+confirmation recheck renews the ownership claim, and why a seeded confirmation
+answer's own `servedAgeMs` must be 0.
 
 ### This response's cache window is now a data freshness window
 
@@ -1643,8 +1663,10 @@ designed path with its own state, stored reason and review script
 page asserting a relationship between a named person and money that nobody stands
 behind any more, which is `.claude/rules/grounded-answers.md` rule 3, and no warm cache
 is worth a week of it. It is live rather than theoretical: all 200 sitting members had
-a confirmed committee on 4 Sep 2026, and `/committees/{number}/finance` returns that
-person in `confirmed_for`, which `committeePageSnapshot` prints.
+a confirmed committee on 4 Sep 2026, and the mixed `/committees/{number}/finance`
+answer then supplied that person in `confirmed_for`. The committee snapshot now
+gets that claim from `/confirmation`, separately from dated finance. The HTML still
+carries both kinds of record and keeps the same short window.
 
 **Each of the 3 had to come down, and shortening only one of them shortens nothing.**
 `s-maxage` is the floor: inside it Vercel answers from what it holds and does not call
@@ -1674,12 +1696,22 @@ uncached money answer fast may remove the reason for any long window
 ([pull request 1987](https://github.com/alethical-org/alethical/pull/1987), targeting
 under 0.3 s).
 
-Where each side sits today: this function is 5 minutes on all 3 windows, and the data
-service holds a day for money reads
-(`MONEY_RECORDS_CACHE_CONTROL` in `alethical/api/routers/public.py`, not this file's to
-change). The 2 identity-bearing routes there —
-`committees/{registration_number}/finance`, which returns `confirmed_for`, and
-`legislators/{id}/campaign-finance` — belong on the short window by the same rule.
+Where each side sits today: this function is 5 minutes on all 3 windows. The data
+service grants the dated money window to 5 named record paths and successful
+anonymous `GET` requests for `finance?year=2025&include_confirmation=false`
+(`MONEY_RECORDS_CACHE_CONTROL` in `alethical/api/routers/public.py`). The default
+mixed finance answer remains compatible and short. `/confirmation`, legislator
+campaign finance, campaign-finance search and campaign-finance summary also keep
+the short window because they carry current claims.
+
+The ownership deadline remains 20 minutes: at most 6 minutes in the API cache,
+10 in the HTML cache and 4 in the browser. Only the independent confirmation
+refresh renews that committee claim. Changing year or refreshing dated finance
+cannot. If a known confirmation expires, the browser retains
+`CONFIRMED_MEMBER_WITHHELD_LINE`, removes the member’s name, link and checked
+evidence, and keeps the committee’s dated figures. The browser’s first pending
+claim says “Checking whose committee this is…”, rather than implying a completed
+check found no confirmed member.
 
 **Read this before lengthening anything on the strength of automatic clearing.** Proving
 that held copies clear themselves lifts the cap on a pure-figures route. It does not lift

@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // build-time constant Node does not supply.
 vi.hoisted(() => {
   (globalThis as { __DEV__?: boolean }).__DEV__ = false;
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 });
 vi.mock('../../providers/AuthProvider', () => ({
   useAuth: () => ({ accessToken: null, user: null, session: null }),
@@ -18,6 +19,7 @@ vi.mock('../../providers/AuthProvider', () => ({
 import { createAppQueryClient } from '../../lib/appQueryClient';
 import { committeeRegisterQueryKey } from '../../lib/committeeList';
 import { committeeMoneyQueryKey } from '../../lib/committeeMoney';
+import { committeeConfirmationQueryKey } from '../../lib/committeeConfirmation';
 import {
   API_SHARED_CACHE_MAX_AGE_MS,
   currentClaimAgeMs,
@@ -31,6 +33,7 @@ import {
   useCampaignFinanceSummary,
   useCampaignFinanceCommittees,
   useCommitteeMoney,
+  useCommitteeConfirmation,
 } from '../useAppQueries';
 import { useCurrentClaimExpiry } from '../useCurrentClaimExpiry';
 
@@ -101,11 +104,15 @@ const FINANCE = {
   year: 2025,
   fetched_at: '2026-09-01T12:00:00Z',
   register: { state: 'reported', name: '100 Percent Future Fund' },
-  confirmed_for: { legislator_id: 'abc', slug: 'erin-murphy', full_name: 'Erin Murphy' },
-  current_claim_validated_at: '2026-09-07T11:54:00.000Z',
   split: { state: 'shown', reported_total: '880.0000', named_total: '700.0000' },
   money_in: { state: 'reported' },
   money_out: { state: 'reported' },
+};
+
+const CONFIRMATION = {
+  registration_number: '41363',
+  confirmed_for: { legislator_id: 'abc', slug: 'erin-murphy', full_name: 'Erin Murphy' },
+  current_claim_validated_at: '2026-09-07T11:54:00.000Z',
 };
 
 type Seen = { isStale: boolean; dataUpdatedAt: number; hasData: boolean };
@@ -232,8 +239,8 @@ describe('an answer embedded in a page reaches the app with its real age', () =>
     seed(
       renderPageData([
         {
-          key: committeeMoneyQueryKey('41363', 2025),
-          payload: FINANCE,
+          key: committeeConfirmationQueryKey('41363'),
+          payload: CONFIRMATION,
           validatedAgeMs: API_SHARED_CACHE_MAX_AGE_MS,
         },
       ]),
@@ -241,7 +248,7 @@ describe('an answer embedded in a page reaches the app with its real age', () =>
 
     const passes: { servedAgeMs: number | undefined; dataUpdatedAt: number }[] = [];
     function Probe() {
-      const query = useCommitteeMoney('41363', 2025);
+      const query = useCommitteeConfirmation('41363');
       passes.push({
         servedAgeMs: query.data?.currentClaim.servedAgeMs,
         dataUpdatedAt: query.dataUpdatedAt,
@@ -270,6 +277,78 @@ describe('an answer embedded in a page reaches the app with its real age', () =>
     expect(ageNow).toBe(API_SHARED_CACHE_MAX_AGE_MS + PAGE_SHARED_CACHE_MAX_AGE_MS);
     expect(ageNow).toBe(16 * 60_000);
     expect(currentClaimIsWithheld(ageNow)).toBe(false);
+  });
+});
+
+describe('dated money and current confirmation have independent clocks', () => {
+  it('keeps figures after a failed confirmation recheck and never renews the claim with a financial refresh', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+    vi.setSystemTime(NOON);
+    seed(
+      renderPageData([
+        { key: committeeMoneyQueryKey('41363', 2025), payload: FINANCE },
+        {
+          key: committeeConfirmationQueryKey('41363'),
+          payload: CONFIRMATION,
+          validatedAgeMs: API_SHARED_CACHE_MAX_AGE_MS,
+        },
+      ]),
+    );
+    const host = document.createElement('div');
+    document.body.append(host);
+    const client = createAppQueryClient();
+    const root = createRoot(host);
+    function Probe() {
+      const money = useCommitteeMoney('41363', 2025);
+      const claim = useCommitteeConfirmation('41363');
+      const withheld = useCurrentClaimExpiry({
+        servedAgeMs: claim.data?.currentClaim.servedAgeMs,
+        dataUpdatedAt: claim.data ? claim.dataUpdatedAt : undefined,
+        refetch: claim.refetch,
+      });
+      return (
+        <div>
+          <span data-money>{money.data?.split.reportedTotal}</span>
+          <span data-member>{withheld ? 'withheld' : claim.data?.confirmedFor?.fullName}</span>
+        </div>
+      );
+    }
+    act(() => {
+      root.render(
+        <QueryClientProvider client={client}>
+          <Probe />
+        </QueryClientProvider>,
+      );
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    const claimKey = committeeConfirmationQueryKey('41363');
+    const acceptedAt = client.getQueryState(claimKey)!.dataUpdatedAt;
+    expect(acceptedAt).toBe(NOON.getTime() - 16 * 60_000);
+    expect(host.querySelector('[data-member]')!.textContent).toBe('Erin Murphy');
+    expect(host.querySelector('[data-money]')!.textContent).toBe('880.0000');
+
+    await act(async () => {
+      // The first confirmation refresh fails, but its accepted data is retained.
+      await client.refetchQueries({ queryKey: claimKey });
+      await vi.advanceTimersByTimeAsync(3 * 60_000);
+      const financeKey = committeeMoneyQueryKey('41363', 2025);
+      client.setQueryData(financeKey, client.getQueryData(financeKey));
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(client.getQueryState(claimKey)!.status).toBe('error');
+    expect(client.getQueryState(claimKey)!.dataUpdatedAt).toBe(acceptedAt);
+    expect(host.querySelector('[data-member]')!.textContent).toBe('Erin Murphy');
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(host.querySelector('[data-member]')!.textContent).toBe('withheld');
+    expect(host.querySelector('[data-money]')!.textContent).toBe('880.0000');
+    expect(client.getQueryState(claimKey)!.dataUpdatedAt).toBe(acceptedAt);
+    act(() => root.unmount());
+    client.clear();
   });
 });
 
