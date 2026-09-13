@@ -33,7 +33,6 @@ import {
   notFoundBody,
   notFoundTitle,
   paymentsTabFromParam,
-  paymentFilesDownloadedLine,
   registerKindFromEntityType,
   registrationNumberFromSlug,
   staleHoldNote,
@@ -41,6 +40,7 @@ import {
   uncoveredPeriodLine,
   type PaymentsTab,
 } from '../../lib/committeeMoneyShared';
+import { paymentFilesDownloadedLine } from '../../lib/campaignMoneyDetailsPageCopy';
 import {
   BOARD_RECORD_LINK_LABEL,
   BOARD_RECORD_SENTENCE_TAIL,

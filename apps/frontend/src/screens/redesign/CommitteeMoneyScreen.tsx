@@ -105,10 +105,10 @@ import {
   registerKindFromEntityType,
   registrationNumberFromSlug,
   staleHoldNote,
-  paymentFilesDownloadedLine,
   uncoveredPeriodDetail,
   uncoveredPeriodLine,
 } from '../../lib/committeeMoneyShared';
+import { paymentFilesDownloadedLine } from '../../lib/campaignMoneyDetailsPageCopy';
 import { campaignMoneyYear, formatMoney } from '../../lib/legislatorCampaignMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { publicPageUrl, type ShareContent } from '../../lib/share';

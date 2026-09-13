@@ -639,8 +639,13 @@ amounts. Both amounts are the Board's own, read at source on 13 September 2026.
 
 The table keeps **Year**, **Contributions refunded**, and **Amount refunded** in
 3 columns, including on a phone. The 2 figure columns hold a fixed width for the screen
-width (220 and 150 on a computer, 180 and 130 on a tablet, 96 and 92 on a phone) and the
-year column takes what is left, so the amounts line up down the page. It lists all held refund years newest first,
+width (236 and 168 on a computer, 216 and 158 on a tablet, 104 and 96 on a phone) and the
+year column takes what is left, so the count and the amount sit beside each other and the
+amounts line up down the page. Each heading cell carries a left gap of its own (18 on a
+computer and a tablet, 6 on a phone) so the 2 capitalised headings separate while every
+cell stays flush right; the figures below them carry no such gap, so each still lines up
+under its own heading. The introduction above the table runs the card's full width, the
+same measure as the table. It lists all held refund years newest first,
 regardless of the campaign-money year selected above it. Amounts use the tab's
 existing dollar formatting. The source amount $14,216.47 therefore displays as
 $14,216, with its cents preserved in the data.
@@ -660,20 +665,34 @@ refund row is 2017, so his card has no 2016 gap. Dibble's Senate committee (1566
 has matching 2015 and 2017 rows, so its card does show 2016.
 
 A reported amount with a blank count keeps its amount and reads **Count not
-published** in the count cell. Abeler's 2024 therefore reads **Count not published**
+published** in the count cell, drawn lighter and smaller than the figures around it so
+an absent count cannot read as a value. Abeler's 2024 therefore reads **Count not published**
 and **$10,508**. A missing count is never rendered as zero or an empty cell. The Board's
 [2024 candidate summary](https://cfb.mn.gov/pdf/publications/public_subsidy/historical/2024_refunds_cand.pdf)
 has 334 candidate rows, all with blank counts, and 5 total rows. Senate district
 numbers belong to the office column and are never treated as refund counts.
 
-The note **The Board counts a married couple filing jointly as one contribution**
-appears when the source files for the reported rows carry that counting note.
-A second line reads
-**Rows from the Board's yearly refund summary whose candidate name, office and
-party match this committee's registration exactly**. The only link in the card is
-**Board summary files last copied {newest copy date}**, pointing to the Board's
-program page recorded by the import. Year cells are not links. Adding this source
-information to an already-held file does not change its copy date or its figures.
+Under the table sit 3 plain notes, in this order, with no bullets and no dot at the end
+of any of them:
+
+> The Board counts a married couple filing jointly as one contribution
+
+> Matched to the Board's yearly summary by candidate name, office and party
+
+> Board summary files copied {newest copy date}
+
+The first appears only when the source files for the reported rows carry that counting
+note, and the second only when the card holds a reported row. **The copy date is a note
+rather than a link.** As a link its words were a date, so anyone reading a screen
+reader's list of links was told when we copied something and never where the link went,
+and it was the only link on this tab with no arrow after it.
+
+Below the notes is the card's only link, **The Board's refund summaries**, carrying the
+same arrow as every other off-site link on this tab and pointing to the Board's program
+page recorded by the import. Where no address is recorded, the copy date still prints as
+a note and no link is drawn at all, because a link pointed at a nearly-right page lies
+about where it goes. Year cells are not links. Adding this source information to an
+already-held file does not change its copy date or its figures.
 
 When no candidate row matches, the card keeps its heading, introduction, and
 copied-files link, and says:
@@ -1043,10 +1062,22 @@ An explaining paragraph inside a card keeps every full stop it has, however shor
    all, because the Board's own service answers a request for a year it has no report
    for with the _previous_ year's figures and nothing in the answer says so.
 3. **One shared freshness date at the foot of the tab** — shown only when the displayed
-   campaign-payment and outside-spending files support the same download date. The note
-   names payment files and explains that report totals are copied separately. It is not
-   the period the money covers. If payment-file dates differ or a date is missing, the tab explains
+   campaign-payment and outside-spending files support the same download date. It reads:
+
+   > We downloaded Minnesota's payment files on Sep 1, 2026, which is not the period the
+   > money covers. The report totals were copied separately.
+
+   The date itself never breaks across 2 lines, so a narrow column cannot leave a line
+   ending "on Sep 1," that reads as one date running into the next clause. The line is
+   drawn at the ordinary body weight rather than bold: it is the least important line on
+   the tab and it used to be the only bold one and the only one smaller than the notes in
+   the cards above it. If payment-file dates differ or a date is missing, the tab explains
    that it cannot state a shared date and lets the reader check the records again.
+
+   The day the report totals were copied is not served to the page yet, so the line says
+   they were copied separately without saying when. Once that second date is served it
+   becomes one sentence naming both days
+   ([issue 2192](https://github.com/alethical-org/alethical/issues/2192)).
 
 **A fourth kind of time exists and is deliberately not printed here.** Our data service
 also reports when it last confirmed that these committees are still this member's, and

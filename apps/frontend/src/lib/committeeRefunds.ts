@@ -17,11 +17,19 @@ export const refundCopy = {
   notPublished: 'Not published',
   countNotPublished: 'Count not published',
   notPublishedDetail: (year: number) => `The Board published no summary for ${year}`,
+  // Its own line rather than the date's, because a link whose words are a date tells a
+  // reader in a screen reader's list of links when we copied something and never where
+  // it goes. "The Board's" rather than "Minnesota's": 2 other link labels on this tab
+  // already open with Minnesota's, and the 2 notes above this one say the Board twice.
+  summaries: "The Board's refund summaries",
   unavailable: 'Not yet copied by Alethical',
   jointFilingNote: 'The Board counts a married couple filing jointly as one contribution',
-  sourceMethod:
-    "Rows from the Board's yearly refund summary whose candidate name, office and party match this committee's registration exactly",
-  copiedOn: (day: string) => `Board summary files last copied ${day}`,
+  // 18 words to 11. `exactly` goes with them: a match on 3 fields is exact or it is not
+  // a match.
+  sourceMethod: "Matched to the Board's yearly summary by candidate name, office and party",
+  // `last` goes: a date already says it was the last time, and the note above it and the
+  // tab's own freshness line both say `copied` alone for the same act.
+  copiedOn: (day: string) => `Board summary files copied ${day}`,
   notMatched:
     "The Board's refund summaries name no row for this committee's candidate, office and party.",
 } as const;

@@ -7,6 +7,7 @@ import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 import { refundCopy as copy, visibleRefundYears } from '../../lib/committeeRefunds';
 import { formatDay, formatMoney } from '../../lib/legislatorCampaignMoney';
 import { externalLinkProps } from '../../navigation/links';
+import { LinkArrow } from '../LinkArrow';
 import { theme as t } from '../../theme/tokens';
 import { committeeCardStyles, detailsStyles, useCampaignMoneyTypography } from './detailsStyles';
 
@@ -24,10 +25,15 @@ export function CommitteeRefundCard({ refunds, registrationNumber }: Props) {
     reported.length > 0 && reported.every((row) => row.jointFilingCountsAsOne === true);
   const copiedDay = formatDay(refunds.copiedOn);
   // The 2 figure columns hold a fixed width per band and the year column takes what is
-  // left, so the amounts line up down the page instead of moving with the widest year.
-  // All 3 columns stay on a phone, as drawn: a table that stays a table is easier to
-  // scan, and 96 + 92 leaves the year column about 150px at 375 (#2186).
-  const figureColumns = isMobile ? [96, 92] : isTablet ? [180, 130] : [220, 150];
+  // left, so the count and the amount sit beside each other and the amounts line up down
+  // the page. All 3 columns stay on a phone, as drawn: a table that stays a table is
+  // easier to scan. The left padding is on the HEADING cells only, so the 2 caps lines
+  // separate while every cell stays flush right and each figure keeps its own column.
+  const [countColumn, amountColumn, headingGap] = isMobile
+    ? [104, 96, 6]
+    : isTablet
+      ? [216, 158, 18]
+      : [236, 168, 18];
   const titleId = `committee-${registrationNumber}-refunds-title`;
   const cell: React.CSSProperties = {
     padding: '14px 0',
@@ -39,7 +45,12 @@ export function CommitteeRefundCard({ refunds, registrationNumber }: Props) {
   };
   const head: React.CSSProperties = {
     boxSizing: 'border-box',
-    padding: '0 0 10px',
+    // Written long rather than as one `padding` line, because each heading cell adds its
+    // own left padding and a shorthand beside a longhand is decided by order.
+    paddingTop: 0,
+    paddingRight: 0,
+    paddingBottom: 10,
+    paddingLeft: 0,
     borderBottom: '1px solid rgba(17,21,15,0.16)',
     textAlign: 'right',
     verticalAlign: 'bottom',
@@ -106,13 +117,10 @@ export function CommitteeRefundCard({ refunds, registrationNumber }: Props) {
               <th scope="col" style={{ ...head, textAlign: 'left' }}>
                 {copy.columns[0]}
               </th>
-              <th
-                scope="col"
-                style={{ ...head, width: figureColumns[0], paddingLeft: 8, paddingRight: 8 }}
-              >
+              <th scope="col" style={{ ...head, width: countColumn, paddingLeft: headingGap }}>
                 {copy.columns[1]}
               </th>
-              <th scope="col" style={{ ...head, width: figureColumns[1] }}>
+              <th scope="col" style={{ ...head, width: amountColumn, paddingLeft: headingGap }}>
                 {copy.columns[2]}
               </th>
             </tr>
@@ -139,10 +147,10 @@ export function CommitteeRefundCard({ refunds, registrationNumber }: Props) {
                       <td
                         style={{
                           ...cell,
-                          paddingLeft: 8,
-                          paddingRight: 8,
+                          // Lighter and smaller than the figures around it, so an absent
+                          // count cannot read as a value.
                           ...(row.contributionsRefunded === null
-                            ? { color: c.secondary, fontSize: type.small }
+                            ? { color: c.muted, fontWeight: 600, fontSize: type.small }
                             : {}),
                         }}
                       >
@@ -210,31 +218,32 @@ export function CommitteeRefundCard({ refunds, registrationNumber }: Props) {
             {copy.sourceMethod}
           </Text>
         ) : null}
+        {/* A date, so it is a note rather than a link. As a link its words told a reader
+            meeting it in a screen reader's list of links when we copied something and
+            never where it went, and it was the only link on this tab with no arrow. */}
         {copiedDay ? (
-          refunds.sourceUrl ? (
-            <Pressable
-              {...externalLinkProps(
-                refunds.sourceUrl,
-                () => void Linking.openURL(refunds.sourceUrl!),
-              )}
-              style={(state) => [
-                styles.sourceLink,
-                Boolean('focused' in state && state.focused) && detailsStyles.focus,
-              ]}
-            >
-              <Text
-                style={[styles.sourceText, { fontSize: type.small, lineHeight: type.small * 1.5 }]}
-              >
-                {copy.copiedOn(copiedDay)}
-              </Text>
-            </Pressable>
-          ) : (
-            <Text style={[styles.body, { fontSize: type.small, lineHeight: type.small * 1.5 }]}>
-              {copy.copiedOn(copiedDay)}
-            </Text>
-          )
+          <Text style={[styles.body, { fontSize: type.small, lineHeight: type.small * 1.5 }]}>
+            {copy.copiedOn(copiedDay)}
+          </Text>
         ) : null}
       </View>
+      {/* The link the date used to be, saying where it goes, with the arrow every other
+          off-site link on this tab carries. It draws only where an address is served: a
+          link pointed at a wrong-but-existing page lies about where it goes. */}
+      {refunds.sourceUrl ? (
+        <Pressable
+          {...externalLinkProps(refunds.sourceUrl, () => void Linking.openURL(refunds.sourceUrl!))}
+          style={(state) => [
+            styles.sourceLink,
+            Boolean('focused' in state && state.focused) && detailsStyles.focus,
+          ]}
+        >
+          <Text style={[styles.sourceText, { fontSize: type.small, lineHeight: type.small * 1.5 }]}>
+            {copy.summaries}
+          </Text>
+          <LinkArrow color={c.link} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -251,11 +260,14 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.body,
     fontVariant: ['tabular-nums'],
     color: c.secondary,
-    maxWidth: 820,
   },
   notes: { marginTop: 18, gap: 7 },
   sourceLink: {
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
     minHeight: 44,
     justifyContent: 'center',
     paddingVertical: 10,
