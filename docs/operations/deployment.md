@@ -190,8 +190,8 @@ This uses a pinned `@expo/metro-config@57.0.7` patch, enabled in
 `apps/frontend/metro.config.js` only for production web client exports. Each later
 chunk keeps its required synchronous dependencies; Expo's existing runtime keeps
 shared modules as 1 live instance. Native, development and server builds retain
-the upstream behavior. The patch must be reviewed when Expo changes. The local
-measurements, repeated-download tradeoff and pending hosted proof are in
+the upstream behavior. The patch must be reviewed when Expo changes. The hosted
+measurement and repeated-download tradeoff are in
 [page-load-performance-decisions.md](page-load-performance-decisions.md).
 
 The 2 sign-in surfaces are fetched the same way, by the app rather than by the page: the
@@ -211,8 +211,8 @@ no file at all may carry the full icon registry (`scripts/check-icon-bundle.mjs`
 program files named by the HTML must together stay under the production-derived
 byte limit (`scripts/check-first-load-budget.mjs`). The check counts those files
 regardless of their number; it does not count later screen downloads. The limit
-stays at 392,321 bytes until a hosted production measurement supports changing it.
-A smaller local export alone cannot lower that limit.
+is 339,072 bytes, from Vercel’s 338,333-byte production-target build plus 739
+bytes of headroom. A smaller local export alone cannot lower that limit.
 
 ### Frontend first-load recovery
 

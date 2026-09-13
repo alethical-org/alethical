@@ -528,12 +528,13 @@ The 2 costs, both accepted:
   and warming the next screen on hover is a separate item on
   [#1966](https://github.com/alethical-org/alethical/issues/1966).
 
-## Shared screen code stays with the screen, local build 13 September 2026
+## Shared screen code stays with the screen, 13 September 2026
 
 [Issue 2012’s local result](https://github.com/alethical-org/alethical/issues/2012#issuecomment-5651104226)
 follows [issue 2070’s helper split](https://github.com/alethical-org/alethical/issues/2070#issuecomment-5651083520).
-The output is built with the actual production settings. These are local build and
-browser results, not a hosted release or a new production limit.
+The local output uses the actual production settings. Vercel’s separate
+production-target build of committed source `a30d7941` measures the same 338,333
+bytes. The public-domain release and its timing checks remain pending.
 
 The smaller attempted change was to remove the common script from the generated
 HTML without changing its contents. That measured 338,560 compressed HTML-linked
@@ -572,8 +573,14 @@ record exactly which dependency it changes.
 
 The final local stage saves 50,954 bytes against the helper split and 53,803 against
 the public baseline. Its HTML names 1 index file with the runtime inside, and no
-common script. **The guard stays at 392,321 bytes until a hosted production
-measurement exists.** No local number here authorizes lowering that limit.
+common script. Vercel’s
+[hosted build](https://vercel.com/alethical/alethical-web/2wadpZBF3EsRdzsM97axhR8FuBsE)
+reported `First-load budget passed: 338333 bytes` on 13 September at 04:41:02 UTC.
+The uploaded source is a clean archive of commit `a30d7941`; no local logs, caches
+or settings files were uploaded. The build used the production target with
+`--skip-domain`. Vercel assigned only its project `.vercel.app` alias; the public
+`www.alethical.com` address still served `a8e42d9a` afterward. The size limit is now
+339,072 bytes, the hosted figure plus the existing 739-byte headroom.
 
 **HTML-linked bytes are not all the JavaScript a page requests.** The local browser
 also fetched each requested screen and, where needed, its later details chunks.
@@ -593,9 +600,14 @@ page transfer sizes or promises for a visitor’s network connection.
 The local browser matrix covered 10 screens at phone and desktop widths, 20 direct
 visits, without a rendering failure or horizontal overflow. The Abeler desktop run
 logged a failed 502 resource request, so that result is not a claim that every
-network request succeeded. Outside-spending readiness remains under review; this
-matrix is not a completed all-data-readiness verdict. Hosted timings, final public
-program sizes and the fresh-context live review remain pending.
+network request succeeded. A separate fresh-context phone/desktop reader pass
+completed all requested money routes, including real outside-spending totals, the
+committee filters and expansions, linked committee and named-payment navigation,
+year, Filings, Share and Back. Bills, Votes, Bill Text and the Abeler money tab
+also loaded. That independent pass recorded no script/console errors, HTTP errors,
+unintended document reloads or horizontal overflow. It used the same read-only
+local public-data proxy, so final public-domain timing and live checks remain
+pending. Its exact evidence is `/tmp/2012-independent-reader/report.md`.
 
 The 12 focused tests call the installed patched serializer and run its output with
 Expo’s actual runtime. They cover both screen orders, 1 shared live instance,

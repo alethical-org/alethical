@@ -334,11 +334,21 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   JavaScript files have complete required module sets, across 1,468 definitions.
   Evidence: `/tmp/2012-stage-build.log`, `/tmp/2012-full-frontend.log`,
   `/tmp/2012-browser/report.json`, `/tmp/2012-independent-reader/`.
-- Release remains active: finish the full server checks and fresh-context browser
-  report, measure a hosted production build without assigning the public domain,
-  then lower the numeric limit from that hosted evidence. The 392,321 limit stays
-  unchanged until that result exists. Archive only committed source for the
-  unpromoted build, excluding local caches and logs. Open 1 Job 3 pull request,
+- All 2,566 server tests pass. The hosted production-target build of clean committed
+  source `a30d7941`, deployment `dpl_2wadpZBF3EsRdzsM97axhR8FuBsE`, reports 338,333
+  compressed bytes. The limit is 339,072, keeping 739 bytes of headroom. The build
+  used `--skip-domain`: only its project `.vercel.app` alias was assigned, and
+  `www.alethical.com` retained `a8e42d9a`. Evidence:
+  `/tmp/2012-hosted-deploy.log`, `/tmp/2012-hosted-deployment.json`,
+  `/tmp/2012-clean-hosted-manifest.json`, `/tmp/2126-full-backend.log`.
+- The separate fresh-context phone/desktop reader pass is complete. Real outside
+  spending, committee categories, expansions, linked names, year, Filings, Share,
+  Back, bill Votes/Text and Abeler campaign money pass without browser errors,
+  failed HTTP responses, extra document reloads or horizontal overflow. It found
+  a pre-existing full-payment-list footer wrongly saying paid names stay plain
+  text. A focused consistency repair is being prepared in the same release,
+  keeping exact-spelling lookup distinct from confirmed identity.
+- Release remains active: open 1 Job 3 pull request,
   clear current-head and queue checks, read live frontend/backend deployment
   identities and repeat the original empty-browser/warm measurements.
 - Jobs 4 through 5f retain their stated sequence. Action 4 Liberty PAC's historical

@@ -14,15 +14,16 @@ import { pathToFileURL } from 'node:url';
  * even when the local export includes production settings. Lower it with a
  * measured reduction; raise it only with a hosted measurement and a reason.
  *
- * The current 392,321 limit is the hosted 391,582 result for committee record
- * reuse plus 739 bytes of headroom. It stays until the shared-screen change has
- * its own hosted measurement. The dated measurements and release contract live
+ * Vercel measured 338,333 bytes for committed source a30d7941 on 13 September
+ * 2026 (deployment dpl_2wadpZBF3EsRdzsM97axhR8FuBsE, production target without
+ * the public domain). The 339,072 limit leaves the existing 739-byte headroom.
+ * The dated measurements and release contract live
  * in docs/operations/page-load-performance-decisions.md.
  *
  * https://github.com/alethical-org/alethical/issues/2012
  * https://github.com/alethical-org/alethical/issues/2052
  */
-export const FIRST_LOAD_LIMIT = 392321;
+export const FIRST_LOAD_LIMIT = 339072;
 
 /**
  * The exact settings Vercel compresses with, so this reports the bytes a reader

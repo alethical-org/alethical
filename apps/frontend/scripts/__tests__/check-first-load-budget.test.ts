@@ -53,10 +53,13 @@ describe('firstLoadFiles', () => {
 describe('checkFirstLoadBudget', () => {
   it('passes when the first load fits', () => {
     expect(
-      checkFirstLoadBudget([
-        { name: 'index-abc.js', bytes: 300000 },
-        { name: '__common-def.js', bytes: 40000 },
-      ]),
+      checkFirstLoadBudget(
+        [
+          { name: 'index-abc.js', bytes: 300000 },
+          { name: '__common-def.js', bytes: 40000 },
+        ],
+        350000,
+      ),
     ).toBe(340000);
   });
 
@@ -126,27 +129,15 @@ describe('checkFirstLoadBudget', () => {
     expect(firstLoadCarriesItsSettings('EXPO_PUBLIC_SUPABASE_URL')).toBe(false);
   });
 
-  it('keeps the limit at or above the hosted figure it was set from', () => {
-    // Vercel measured 391,582 for the committee record-reuse change (issue 2024).
-    // A limit below that is a limit the deploying build cannot meet, which is the
-    // whole defect.
-    expect(FIRST_LOAD_LIMIT).toBeGreaterThanOrEqual(391_582);
-    // And the room left over must cover the gap, or a passing unhosted build could
-    // still be a failing hosted one.
-    expect(FIRST_LOAD_LIMIT - 391_582).toBeGreaterThanOrEqual(HOSTED_BUILD_EXCESS_BYTES);
+  it('leaves room above the hosted production measurement', () => {
+    // Vercel's production target built committed source a30d7941 as 338,333 bytes.
+    // dpl_2wadpZBF3EsRdzsM97axhR8FuBsE, 13 September 2026.
+    expect(FIRST_LOAD_LIMIT).toBeGreaterThanOrEqual(338_333);
+    expect(FIRST_LOAD_LIMIT - 338_333).toBeGreaterThanOrEqual(HOSTED_BUILD_EXCESS_BYTES);
   });
 
-  it('holds a limit no bigger than what the build produces today', () => {
-    // A limit far above the real size would let the file grow back unnoticed,
-    // which is the whole reason this check exists.
-    // Every figure here is Vercel's own build, because a local build of the same
-    // commit reads 542 bytes smaller and a ratchet set from the smaller number is
-    // one the hosted build then fails, which stops the deploy
-    // ([issue 2052](https://github.com/alethical-org/alethical/issues/2052)).
-    // Vercel built 391,582 bytes for the committee record-reuse change, so the
-    // ratchet sits 739 above that for the next change to spend, the same room the
-    // figure before it left.
-    expect(FIRST_LOAD_LIMIT).toBeLessThanOrEqual(392321);
+  it('keeps the ratchet at the hosted figure plus its existing headroom', () => {
+    expect(FIRST_LOAD_LIMIT).toBeLessThanOrEqual(339_072);
   });
 });
 
