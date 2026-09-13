@@ -78,6 +78,7 @@ from alethical.api.services.campaign_finance_search import (
     search as search_campaign_finance_names,
 )
 from alethical.api.services.committee_stated_by_kind import stated_by_kind
+from alethical.api.services.committee_donor_states import donor_states
 from alethical.api.services.committee_finance import (
     Committee as CampaignCommittee,
     CommitteeFinance,
@@ -3307,6 +3308,7 @@ def committee_finance_for_year(
                 ),
             )
         by_kind = stated_by_kind(db, release, registration_number, year)
+        by_state = donor_states(db, release, registration_number, year)
         split = (
             split_for_committee(
                 db,
@@ -3361,6 +3363,7 @@ def committee_finance_for_year(
             },
             **confirmation,
             **({"stated_by_kind": asdict(by_kind)} if by_kind is not None else {}),
+            **({"donor_states": asdict(by_state)} if by_state is not None else {}),
             "split": {
                 "state": split.state,
                 "reported_total": split.reported_total,
@@ -4839,6 +4842,11 @@ def legislator_campaign_finance(
                     **(
                         {"stated_by_kind": asdict(entry.stated_by_kind)}
                         if entry.stated_by_kind is not None
+                        else {}
+                    ),
+                    **(
+                        {"donor_states": asdict(entry.donor_states)}
+                        if entry.donor_states is not None
                         else {}
                     ),
                     "money_in": (

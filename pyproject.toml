@@ -68,6 +68,8 @@ dependencies = [
   # stated subtotal is read per schedule and the payment rows keep coming from the
   # bulk download (§2.3).
   "pypdf>=6.15.0",
+  # Manual HUD ZIP-reference workbook import; API requests read packaged JSON.
+  "openpyxl==3.1.5",
 ]
 
 [tool.uv]
