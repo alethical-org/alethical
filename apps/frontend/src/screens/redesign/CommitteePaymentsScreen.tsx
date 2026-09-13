@@ -235,7 +235,14 @@ export function CommitteePaymentsScreen({
                   <Text style={styles.stampDetail}>{staleHoldNote(null)}</Text>
                 ) : null}
                 {checkedOn ? (
-                  <Text style={styles.stampDetail}>{paymentFilesDownloadedLine(checkedOn)}</Text>
+                  <Text style={styles.stampDetail}>
+                    {paymentFilesDownloadedLine(
+                      checkedOn,
+                      money?.reportTotalsCopiedAt
+                        ? centralDateLabel(money.reportTotalsCopiedAt)
+                        : null,
+                    )}
+                  </Text>
                 ) : null}
               </View>
 

@@ -801,6 +801,8 @@ export interface LegislatorCampaignMoney {
   /** The day we downloaded Minnesota's files. Not the period the money covers,
    *  which is per committee and always earlier. */
   fetchedAt: string | null;
+  /** The report source’s own copy time, separate from the payment files. */
+  reportTotalsCopiedAt?: string | null;
   committees: CampaignCommitteeMoney[];
   /** Confirmed committees left out because they are for a race other than a
    *  legislative seat. Counted rather than dropped in silence, so a reader who knows
@@ -907,9 +909,11 @@ export interface CommitteeMoney {
   /** The Board's sub-type code (CAU a caucus, BC/BF a ballot-question filer). */
   entitySubType: string | null;
   year: number;
-  /** ISO timestamp we last copied Minnesota's downloads — the page's one
-   *  freshness date, printed in Central time. Never the period money covers. */
+  /** ISO timestamp we last copied Minnesota's payment downloads, printed in
+   *  Central time. Never the period money covers. */
   fetchedAt: string | null;
+  /** The report source’s own copy time, separate from the payment files. */
+  reportTotalsCopiedAt?: string | null;
   register: CommitteeRegisterEntry;
   moneyIn: {
     state: MoneyBlockState;

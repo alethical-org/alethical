@@ -578,7 +578,12 @@ function CommitteeBody({
       </View>
 
       {checkedOn ? (
-        <Text style={styles.freshness}>{paymentFilesDownloadedLine(checkedOn)}</Text>
+        <Text style={styles.freshness}>
+          {paymentFilesDownloadedLine(
+            checkedOn,
+            money.reportTotalsCopiedAt ? centralDateLabel(money.reportTotalsCopiedAt) : null,
+          )}
+        </Text>
       ) : null}
     </View>
   );
@@ -1522,9 +1527,10 @@ const styles = StyleSheet.create({
   freshness: {
     marginTop: 16,
     fontFamily: t.typography.body,
-    fontSize: t.fontSizes.meta,
-    lineHeight: 20,
-    color: t.colors.text.muted,
+    fontSize: 15,
+    lineHeight: 22.5,
+    fontWeight: '400',
+    color: t.colors.text.secondary,
   },
   buttonRow: {
     marginTop: 22,

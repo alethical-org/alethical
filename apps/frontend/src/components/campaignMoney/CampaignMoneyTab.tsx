@@ -340,6 +340,7 @@ export function CampaignMoneyTab({
       )}
 
       <FreshnessNote
+        reportTotalsCopiedAt={money?.reportTotalsCopiedAt}
         fetchedAts={[
           ...(money ? [money.fetchedAt] : []),
           ...(selectedOutsideYear?.state === 'reported' ? [selectedOutsideYear.fetchedAt] : []),
@@ -663,9 +664,11 @@ function OtherOfficeNote({ count }: { count: number }) {
  * paragraph here describing Minnesota's calendar in general (#1642).
  */
 function FreshnessNote({
+  reportTotalsCopiedAt,
   fetchedAts,
   onRefresh,
 }: {
+  reportTotalsCopiedAt?: string | null;
   fetchedAts: (string | null)[];
   onRefresh: () => void;
 }) {
@@ -694,7 +697,12 @@ function FreshnessNote({
       {/* The ordinary body weight, not the heavy one: this is the least important line
           on the tab and it was the only bold one, and the only one under the 15px the
           notes inside the cards above it use. Tabular figures stay, for the date. */}
-      <Text style={[text.small, styles.freshnessLine]}>{paymentFilesDownloadedLine(day)}</Text>
+      <Text style={[text.small, styles.freshnessLine]}>
+        {paymentFilesDownloadedLine(
+          day,
+          reportTotalsCopiedAt ? centralDateLabel(reportTotalsCopiedAt) : null,
+        )}
+      </Text>
     </View>
   );
 }
@@ -774,7 +782,13 @@ const styles = StyleSheet.create({
   // without this the card ends a line on a dangling `-` and strands the number.
   numberRun: { ...({ whiteSpace: 'nowrap' } as object) },
   freshness: { gap: 8 },
-  freshnessLine: { fontVariant: ['tabular-nums'] },
+  freshnessLine: {
+    fontVariant: ['tabular-nums'],
+    color: c.secondary,
+    fontSize: 15,
+    lineHeight: 22.5,
+    fontWeight: '400',
+  },
   cardMobile: committeeCardStyles.mobile,
   cardTablet: committeeCardStyles.tablet,
   // Two cards rather than 2 bare columns divided by a rule (#2182). They wrap on their

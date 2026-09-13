@@ -85,7 +85,10 @@ function committee(registration: '17868' | '15667'): CampaignCommitteeMoney {
   };
 }
 
-function render(committees: CampaignCommitteeMoney[]): string {
+function render(
+  committees: CampaignCommitteeMoney[],
+  reportTotalsCopiedAt?: string | null,
+): string {
   const money: LegislatorCampaignMoney = {
     legislatorId: 'fixture-member',
     year: 2025,
@@ -96,6 +99,7 @@ function render(committees: CampaignCommitteeMoney[]): string {
     committeesOutsideThisYear: [],
     otherOfficeCommittees: 0,
     fetchedAt: '2026-09-12T12:00:00Z',
+    reportTotalsCopiedAt,
   } as LegislatorCampaignMoney;
   return renderToStaticMarkup(
     <QueryClientProvider client={new QueryClient()}>
@@ -148,5 +152,20 @@ describe('the order of the Campaign money tab', () => {
     // It covers both committees at once, so it draws once and below all of them.
     expect(html.split(OUTSIDE)).toHaveLength(2);
     expect(at(OUTSIDE)).toBeGreaterThan(at('committee-15667-refunds'));
+  });
+});
+
+describe('the tab dates both sources at its foot', () => {
+  it('prints the separately copied totals date in Minnesota time', () => {
+    const html = render([committee('17868')], '2026-08-12T02:00:00Z');
+    expect(html).toContain('and its report totals on Aug 11,\u00a02026.');
+    expect(html).toContain('Neither is the period the money covers.');
+    expect(html).not.toContain('The report totals were copied separately.');
+  });
+
+  it('retains the honest one-date line when the response has no report date', () => {
+    const html = render([committee('17868')]);
+    expect(html).toContain('The report totals were copied separately.');
+    expect(html).not.toContain('and its report totals on');
   });
 });
