@@ -340,7 +340,7 @@ export function CampaignMoneyTab({
       )}
 
       <FreshnessNote
-        reportTotalsCopiedAt={money?.reportTotalsCopiedAt}
+        filingsCopiedAt={money?.filingsCopiedAt}
         fetchedAts={[
           ...(money ? [money.fetchedAt] : []),
           ...(selectedOutsideYear?.state === 'reported' ? [selectedOutsideYear.fetchedAt] : []),
@@ -664,11 +664,11 @@ function OtherOfficeNote({ count }: { count: number }) {
  * paragraph here describing Minnesota's calendar in general (#1642).
  */
 function FreshnessNote({
-  reportTotalsCopiedAt,
+  filingsCopiedAt,
   fetchedAts,
   onRefresh,
 }: {
-  reportTotalsCopiedAt?: string | null;
+  filingsCopiedAt?: string | null;
   fetchedAts: (string | null)[];
   onRefresh: () => void;
 }) {
@@ -700,7 +700,7 @@ function FreshnessNote({
       <Text style={[text.small, styles.freshnessLine]}>
         {paymentFilesDownloadedLine(
           day,
-          reportTotalsCopiedAt ? centralDateLabel(reportTotalsCopiedAt) : null,
+          filingsCopiedAt ? centralDateLabel(filingsCopiedAt) : null,
         )}
       </Text>
     </View>

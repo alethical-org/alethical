@@ -1080,7 +1080,7 @@ An explaining paragraph inside a card keeps every full stop it has, however shor
 
    The payment date is the stored download time for Minnesota's bulk payment files
    (`fetched_at`). The report date is the end of the published filing source's own
-   stored fetch window (`report_totals_copied_at`, read from
+   stored fetch window (`filings_copied_at`, read from
    `cf_filing_snapshot.fetch_completed_at` through `cf_filing_current`). Neither a
    report's receipt date nor the day Alethical publishes stored records replaces it.
    Both dates print in Minnesota time. The same wording appears on the committee's

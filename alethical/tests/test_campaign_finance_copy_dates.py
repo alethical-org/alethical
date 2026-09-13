@@ -6,7 +6,7 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import text
 
-from alethical.api.services.committee_finance import report_totals_copied_at
+from alethical.api.services.committee_finance import filings_copied_at
 from alethical.db import models
 from alethical.db.session import get_session_factory
 from alethical.tests.filed_figures import FETCHED_AT, publish_filings_snapshot
@@ -48,15 +48,15 @@ def test_the_date_follows_the_published_source_not_the_newest_fetch(db):
     )
     db.add(newer)
     db.commit()
-    assert report_totals_copied_at(db) == FETCHED_AT
+    assert filings_copied_at(db) == FETCHED_AT
     # Republishing stored bytes must not renew their copy date.
     current = db.get(models.CampaignFinanceFilingSnapshot, published)
     current.updated_at = newer_date
     db.commit()
-    assert report_totals_copied_at(db) == FETCHED_AT
+    assert filings_copied_at(db) == FETCHED_AT
     db.execute(text("UPDATE cf_filing_current SET snapshot_id = :id"), {"id": newer.id})
     db.commit()
-    assert report_totals_copied_at(db) == newer_date
+    assert filings_copied_at(db) == newer_date
 
 
 @pytest.mark.parametrize("with_filings", [False, True])
@@ -78,7 +78,7 @@ def test_both_routes_serve_the_report_date_beside_the_payment_date(
         data = response.json()["data"]
         assert data["fetched_at"]
         if with_filings:
-            assert datetime.fromisoformat(data["report_totals_copied_at"]) == FETCHED_AT
-            assert data["report_totals_copied_at"] != data["fetched_at"]
+            assert datetime.fromisoformat(data["filings_copied_at"]) == FETCHED_AT
+            assert data["filings_copied_at"] != data["fetched_at"]
         else:
-            assert data["report_totals_copied_at"] is None
+            assert data["filings_copied_at"] is None

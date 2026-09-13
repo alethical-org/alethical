@@ -1437,7 +1437,7 @@ describe('a committee’s record in the first response', () => {
 
   it('dates report totals on the payment-list text view too', () => {
     const dated = committeePaymentsPageSnapshot(
-      { ...committeeFixture, report_totals_copied_at: '2026-08-11T12:00:00Z' },
+      { ...committeeFixture, filings_copied_at: '2026-08-11T12:00:00Z' },
       '41326',
       { state: 'reported', rows: [], totalPayments: 0 },
       'gave',
@@ -1449,7 +1449,7 @@ describe('a committee’s record in the first response', () => {
 
   it('prints the report source copy date separately from the coverage period', () => {
     const dated = committeePageSnapshot(
-      { ...committeeFixture, report_totals_copied_at: '2026-08-11T12:00:00Z' },
+      { ...committeeFixture, filings_copied_at: '2026-08-11T12:00:00Z' },
       '41326',
     );
     const datedText = visibleText(renderPageSnapshot(dated));

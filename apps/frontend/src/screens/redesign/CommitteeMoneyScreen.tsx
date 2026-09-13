@@ -581,7 +581,7 @@ function CommitteeBody({
         <Text style={styles.freshness}>
           {paymentFilesDownloadedLine(
             checkedOn,
-            money.reportTotalsCopiedAt ? centralDateLabel(money.reportTotalsCopiedAt) : null,
+            money.filingsCopiedAt ? centralDateLabel(money.filingsCopiedAt) : null,
           )}
         </Text>
       ) : null}

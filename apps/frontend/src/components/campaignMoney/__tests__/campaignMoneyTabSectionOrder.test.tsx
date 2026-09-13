@@ -85,10 +85,7 @@ function committee(registration: '17868' | '15667'): CampaignCommitteeMoney {
   };
 }
 
-function render(
-  committees: CampaignCommitteeMoney[],
-  reportTotalsCopiedAt?: string | null,
-): string {
+function render(committees: CampaignCommitteeMoney[], filingsCopiedAt?: string | null): string {
   const money: LegislatorCampaignMoney = {
     legislatorId: 'fixture-member',
     year: 2025,
@@ -99,7 +96,7 @@ function render(
     committeesOutsideThisYear: [],
     otherOfficeCommittees: 0,
     fetchedAt: '2026-09-12T12:00:00Z',
-    reportTotalsCopiedAt,
+    filingsCopiedAt,
   } as LegislatorCampaignMoney;
   return renderToStaticMarkup(
     <QueryClientProvider client={new QueryClient()}>

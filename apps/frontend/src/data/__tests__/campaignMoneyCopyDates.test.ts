@@ -16,10 +16,10 @@ describe('source dates survive the API mapping separately', () => {
       registration_number: '17868',
       year: 2025,
       fetched_at: paymentDate,
-      report_totals_copied_at: copiedAt,
+      filings_copied_at: copiedAt,
     });
     expect(money.fetchedAt).toBe(paymentDate);
-    expect(money.reportTotalsCopiedAt).toBe(copiedAt ?? null);
+    expect(money.filingsCopiedAt).toBe(copiedAt ?? null);
   });
 
   it.each([reportDate, null, undefined])(
@@ -34,7 +34,7 @@ describe('source dates survive the API mapping separately', () => {
               link_state: 'unconfirmed',
               release_id: 'fixture-release',
               fetched_at: paymentDate,
-              report_totals_copied_at: copiedAt,
+              filings_copied_at: copiedAt,
               committees: [],
             },
           }),
@@ -42,7 +42,7 @@ describe('source dates survive the API mapping separately', () => {
       );
       const money = await getLegislatorCampaignMoneyFromApi('fixture-member', 2025);
       expect(money.fetchedAt).toBe(paymentDate);
-      expect(money.reportTotalsCopiedAt).toBe(copiedAt ?? null);
+      expect(money.filingsCopiedAt).toBe(copiedAt ?? null);
     },
   );
 });

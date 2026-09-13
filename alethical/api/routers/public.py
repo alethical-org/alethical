@@ -81,7 +81,7 @@ from alethical.api.services.committee_stated_by_kind import stated_by_kind
 from alethical.api.services.committee_donor_states import donor_states
 from alethical.api.services.committee_name_connections import name_connections
 from alethical.api.services.committee_finance import (
-    report_totals_copied_at,
+    filings_copied_at,
     Committee as CampaignCommittee,
     CommitteeFinance,
     ReleaseNoLongerHeld,
@@ -3352,7 +3352,7 @@ def committee_finance_for_year(
             "year": finance.year,
             "release_id": str(finance.release_id),
             "fetched_at": finance.fetched_at,
-            "report_totals_copied_at": report_totals_copied_at(db),
+            "filings_copied_at": filings_copied_at(db),
             "register": {
                 "state": register.state,
                 "kind": register.kind,
@@ -4765,7 +4765,7 @@ def legislator_campaign_finance(
             ],
             "release_id": str(release.id),
             "fetched_at": release.fetched_at,
-            "report_totals_copied_at": report_totals_copied_at(db),
+            "filings_copied_at": filings_copied_at(db),
             "committees": [
                 {
                     "registration_number": entry.registration_number,

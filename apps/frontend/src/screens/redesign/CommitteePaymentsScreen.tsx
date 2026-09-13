@@ -238,9 +238,7 @@ export function CommitteePaymentsScreen({
                   <Text style={styles.stampDetail}>
                     {paymentFilesDownloadedLine(
                       checkedOn,
-                      money?.reportTotalsCopiedAt
-                        ? centralDateLabel(money.reportTotalsCopiedAt)
-                        : null,
+                      money?.filingsCopiedAt ? centralDateLabel(money.filingsCopiedAt) : null,
                     )}
                   </Text>
                 ) : null}

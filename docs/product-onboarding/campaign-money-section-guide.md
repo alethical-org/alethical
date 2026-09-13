@@ -663,7 +663,7 @@ Top to bottom:
    report totals on Aug 11, 2026. Neither is the period the money covers.” The payment
    date comes from the stored bulk-file download time (`fetched_at`); the report date
    comes from the published filing source's own stored fetch completion time
-   (`report_totals_copied_at`). Neither a report's receipt date nor a later publication
+   (`filings_copied_at`). Neither a report's receipt date nor a later publication
    of stored records replaces that source date. Neither date dates the register.
    Both dates print in Minnesota time. Without a report-copy date, it reads:
    “We downloaded Minnesota’s payment files on Sep 1, 2026, which is not the period the

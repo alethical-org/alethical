@@ -285,7 +285,7 @@ class CommitteeFinance:
     independent_spending: IndependentSpendingAbout
 
 
-def report_totals_copied_at(db: Session) -> datetime | None:
+def filings_copied_at(db: Session) -> datetime | None:
     """End of the published filing source's own fetch window, never its publish date.
 
     The same current-snapshot pointer selects the report totals. A newer unpublished
