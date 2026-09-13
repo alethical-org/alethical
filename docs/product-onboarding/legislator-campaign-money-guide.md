@@ -689,7 +689,9 @@ count, not a money total or a claim that spelling identifies a person.
 All 3 cards require the selected year's agreeing stated-split check. A missing
 filing and a check without agreement use the same accepted held sentences, which
 describe what Alethical can show rather than claiming the committee failed to file.
-A failed read uses the card's load-failed sentence, never an empty state. Loading
+An explicitly withheld 5-line block also keeps the filing card held, even when the
+overall split agrees: the server currently supplies these lines only for candidate
+committees. A failed read uses the card's load-failed sentence, never an empty state. Loading
 keeps each heading above a labelled placeholder, with its pulse suppressed when a
 reader requests reduced motion. Missing blocks in an older cached response never
 become zeros. The filing card keeps its 5 rows when there are no itemized individual

@@ -309,7 +309,17 @@ describe('all donation-card states', () => {
       payment('100.0000', { contributor: null, contributorType: 'Individual', inKind: 'Yes' }),
     ],
   ])('does not claim there were no individual donations for %s', (_case, individualPayment) => {
+    const cash = individualPayment.inKind === 'No' ? individualPayment.amount! : '0';
     const noUsableNames = committee({
+      donorStates: {
+        ...source.donor_states,
+        rows: [{ state: 'unknown', names: 0, cash_total: cash }],
+        summary: {
+          minnesota: { names: 0, cash_total: '0' },
+          other_states: { names: 0, cash_total: '0' },
+          unknown: { names: 0, cash_total: cash },
+        },
+      },
       nameConnections: {
         ...source.name_connections,
         state: 'not_reported',
@@ -319,9 +329,12 @@ describe('all donation-card states', () => {
         top_names: [],
       },
     });
-    const connections = cards(
+    const [, locations, connections] = cards(
       render({ committee: noUsableNames, payments: [individualPayment] }),
-    )[2];
+    );
+    expect(locations.textContent).not.toContain('list names no individual donations');
+    if (cash === '0') expect(locations.querySelector('[role="alert"]')).not.toBeNull();
+    else expect(locations.textContent).toContain('$500');
 
     expect(connections.querySelector('[role="alert"]')?.textContent).toBe(
       'We couldn’t load these matches right now. Please try again in a moment.',
@@ -391,4 +404,19 @@ describe('several other states', () => {
     expect(locations.textContent).toContain('California2$200');
     expect(locations.textContent).toContain('Wisconsin3$300');
   });
+});
+
+it('holds the filing card when the server explicitly withholds its five lines', () => {
+  const page = render({
+    registerKind: 'political_fund',
+    committee: committee({ statedByKind: null }),
+  });
+  const [filing, connections] = cards(page);
+  expect(cards(page)).toHaveLength(2);
+  expect(filing.textContent).toContain(
+    'This card needs a filed report for 2025 and our own figures checked against it. We do not yet have both, so no figures are drawn here.',
+  );
+  expect(filing.querySelector('table')).toBeNull();
+  expect(filing.querySelector('[role="alert"]')).toBeNull();
+  expect(connections.textContent).toContain('19 of 74 names');
 });

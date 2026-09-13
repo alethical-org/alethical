@@ -86,7 +86,8 @@ export function CommitteeDonationCardsView({
       <DonationCard index={0} registration={committee.registrationNumber}>
         {state !== 'drawn' ? (
           <CardState state={state} index={0} year={year} />
-        ) : committee.statedByKind?.state === 'sources_disagree' ? (
+        ) : committee.statedByKind === null ||
+          committee.statedByKind?.state === 'sources_disagree' ? (
           <CardState state="held" index={0} year={year} />
         ) : committee.statedByKind?.state === 'reported' ? (
           <FiledLines block={committee.statedByKind} payments={payments} />
