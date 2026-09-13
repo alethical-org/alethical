@@ -10,6 +10,7 @@
  * reader now that it carries no visible heading of its own, and the arrow that has to
  * stay against the last word of a label wrapping to 2 lines on a phone.
  */
+import { BOARD_RECORD_LINK_LABEL, BOARD_VIEWER_INDEX } from '../../../lib/boardRecordLink';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock(
@@ -47,11 +48,7 @@ vi.mock('../../../hooks/useCampaignMoneyDetails', () => ({
 
 import { CampaignMoneyTab } from '../CampaignMoneyTab';
 import type { CampaignCommitteeMoney, LegislatorCampaignMoney } from '../../../data/types';
-import {
-  BOARD_RECORD_LINK_LABEL,
-  BOARD_VIEWER_INDEX,
-  FILING_SOURCE_BOTH_DATES,
-} from '../../../lib/committeeMoneyShared';
+import { FILING_SOURCE_BOTH_DATES } from '../../../lib/committeeMoneyShared';
 import { moneyDetailsPageCopy } from '../../../lib/campaignMoneyDetailsPageCopy';
 
 function committee(overrides: Partial<CampaignCommitteeMoney> = {}): CampaignCommitteeMoney {

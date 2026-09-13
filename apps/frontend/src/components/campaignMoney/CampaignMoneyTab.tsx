@@ -66,11 +66,8 @@ import {
 import { CommitteeRefundCard } from './CommitteeRefundCard';
 import { useCampaignMoneyYearStates } from '../../hooks/useCampaignMoneyYearStates';
 import { LinkArrow } from '../LinkArrow';
-import {
-  boardRecordUrl,
-  committeeNumberSuffix,
-  committeeSlug,
-} from '../../lib/committeeMoneyShared';
+import { boardRecordUrl, committeeNumberSuffix } from '../../lib/boardRecordLink';
+import { committeeSlug } from '../../lib/committeeMoneyShared';
 import { paymentDateRangeLabel, splitExplanation } from '../../lib/legislatorCampaignMoney';
 import { linkProps, routePath } from '../../navigation/links';
 import {

@@ -43,11 +43,10 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, Text, View, type TextProps, type TextStyle } from 'react-native';
 
+import { BOARD_RECORD_LINK_LABEL, BOARD_RECORD_SENTENCE_TAIL } from '../../lib/boardRecordLink';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 
 import {
-  BOARD_RECORD_LINK_LABEL,
-  BOARD_RECORD_SENTENCE_TAIL,
   downloadsPageUrl,
   inKindDonationsNote,
   itemizedContributionsNote,

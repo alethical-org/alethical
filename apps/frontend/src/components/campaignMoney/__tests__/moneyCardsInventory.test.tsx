@@ -10,6 +10,7 @@
  * `Miscellaneous`, a money-out card that identifies its figure's source, and the
  * evidence block at the card's foot.
  */
+import { BOARD_RECORD_LINK_LABEL } from '../../../lib/boardRecordLink';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock(
@@ -48,7 +49,6 @@ vi.mock('../../../hooks/useCampaignMoneyDetails', () => ({
 import { CampaignMoneyTab } from '../CampaignMoneyTab';
 import type { CampaignCommitteeMoney, LegislatorCampaignMoney } from '../../../data/types';
 import {
-  BOARD_RECORD_LINK_LABEL,
   itemizedContributionsNote,
   MONEY_IN_NAMED_LABEL,
   MONEY_IN_REPORTED_LABEL,

@@ -3,6 +3,13 @@
  * confident wrong sentence (#1442 phase 2; grounded-answers.md rule 12;
  * campaign-finance-system-design.md §7).
  */
+import {
+  BOARD_RECORD_LINK_LABEL,
+  BOARD_RECORD_SENTENCE_TAIL,
+  BOARD_VIEWER_INDEX,
+  boardRecordUrl,
+  committeeNameWithNumber,
+} from '../boardRecordLink';
 import { describe, expect, it } from 'vitest';
 
 import { reportedThroughLabel } from '../legislatorCampaignMoney';
@@ -50,11 +57,6 @@ import {
 import {
   OUTSIDE_ABOUT_INTRO,
   OUTSIDE_NEVER_ADDED,
-  BOARD_RECORD_LINK_LABEL,
-  BOARD_RECORD_SENTENCE_TAIL,
-  BOARD_VIEWER_INDEX,
-  boardRecordUrl,
-  committeeNameWithNumber,
   FILING_SOURCE_BOTH_DATES,
   FILING_SOURCE_ONE_DATE,
   MONEY_IN_HEADING,

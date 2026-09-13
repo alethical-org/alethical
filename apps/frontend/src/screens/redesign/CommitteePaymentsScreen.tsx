@@ -25,9 +25,6 @@ import {
   showingLine,
 } from '../../lib/committeePaymentsPage';
 import {
-  BOARD_RECORD_LINK_LABEL,
-  BOARD_RECORD_SENTENCE_TAIL,
-  boardRecordUrl,
   committeeSlug,
   coveredPeriodDetail,
   coveredPeriodLine,
@@ -44,6 +41,11 @@ import {
   uncoveredPeriodLine,
   type PaymentsTab,
 } from '../../lib/committeeMoneyShared';
+import {
+  BOARD_RECORD_LINK_LABEL,
+  BOARD_RECORD_SENTENCE_TAIL,
+  boardRecordUrl,
+} from '../../lib/boardRecordLink';
 import { campaignMoneyYear } from '../../lib/legislatorCampaignMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { useDocumentTitle } from '../../navigation/documentTitle';

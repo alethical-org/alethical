@@ -11,7 +11,7 @@ import {
   MoneyInBlock,
   MoneyOutBlock,
 } from '../MoneyCards';
-import { BOARD_RECORD_LINK_LABEL } from '../../../lib/committeeMoneyShared';
+import { BOARD_RECORD_LINK_LABEL } from '../../../lib/boardRecordLink';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../../lib/campaignMoneyColors';
 import { MONEY_OUT_OFFICIAL_MISSING } from '../../../lib/committeeMoneyShared';
 import { theme as t } from '../../../theme/tokens';

@@ -29,6 +29,7 @@ import {
   MoneyOutBlock,
 } from '../../components/campaignMoney/MoneyCards';
 import { TrackCommitteeButton } from '../../components/campaignMoney/TrackCommitteeButton';
+import { BOARD_RECORD_LINK_LABEL, boardRecordUrl } from '../../lib/boardRecordLink';
 import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import type { CommitteeConfirmation, CommitteeMoney } from '../../data/types';
@@ -101,8 +102,6 @@ import {
   notFoundTitle,
   OUTSIDE_ABOUT_INTRO,
   OUTSIDE_NEVER_ADDED,
-  boardRecordUrl,
-  BOARD_RECORD_LINK_LABEL,
   registerKindFromEntityType,
   registrationNumberFromSlug,
   staleHoldNote,
