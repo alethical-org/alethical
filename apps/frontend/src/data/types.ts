@@ -864,6 +864,20 @@ export interface ConfirmedCommitteeMember {
 }
 
 export interface CommitteeMoney {
+  releaseId?: string;
+  /** Spending ABOUT this registration, independent of confirmed ownership. */
+  independentSpendingSource?: {
+    state: string;
+    supporting?: string | null;
+    opposing?: string | null;
+    direction_not_recorded?: string | null;
+    supporting_payments?: number | null;
+    opposing_payments?: number | null;
+    direction_not_recorded_payments?: number | null;
+    first_payment_on?: string | null;
+    last_payment_on?: string | null;
+    source_url?: string | null;
+  } | null;
   registrationNumber: string;
   /** The name the current download carries (the filer's own wording). */
   committeeName: string | null;

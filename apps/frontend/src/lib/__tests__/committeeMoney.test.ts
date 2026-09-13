@@ -11,7 +11,6 @@ import {
   CAP_NOTE,
   COMMITTEE_TAB_LABELS,
   committeeTabFromParam,
-  committeeTabs,
   NO_PURPOSE_GIVEN,
   NO_VENDOR_NAMED,
   OUTSIDE_ABOUT_INTRO,
@@ -782,27 +781,6 @@ describe('the 2 outside-spending tabs', () => {
     expect(committeeTabFromParam('about')).toBe('about');
     expect(committeeTabFromParam('by')).toBe('by');
     expect(committeeTabFromParam('nonsense')).toBe('gave');
-  });
-
-  it('a tab follows the filer’s own rows in that direction, never its kind', () => {
-    expect(committeeTabs({ spentAbout: false, spentBy: false })).toEqual([
-      'gave',
-      'spent',
-      'filings',
-    ]);
-    expect(committeeTabs({ spentAbout: true, spentBy: false })).toEqual([
-      'gave',
-      'spent',
-      'filings',
-      'about',
-    ]);
-    // A caucus committee: spends about others, nobody spends about it.
-    expect(committeeTabs({ spentAbout: false, spentBy: true })).toEqual([
-      'gave',
-      'spent',
-      'filings',
-      'by',
-    ]);
   });
 
   it('sorts newest first by default, and names both sorts', () => {

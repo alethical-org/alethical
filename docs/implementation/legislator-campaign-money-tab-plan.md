@@ -196,12 +196,20 @@ its own worktree off current `origin/main`, through the merge queue and a live c
 Every pull request carries `Net:` and `Docs check:` lines. The campaign-finance
 architecture record stays unchanged; proposed changes go on each job's issue.
 
-- [ ] Job 1, [issue 2068](https://github.com/alethical-org/alethical/issues/2068):
+- [x] Job 1, [issue 2068](https://github.com/alethical-org/alethical/issues/2068):
   reduce the first payments read or warm it so a cold read fits its deadline.
   Any remaining read failure uses the existing load-failed state, never the empty
   donation sentence. Pin failed-read rendering and check MN DFL State Central's
-  live committee page.
-- [ ] Job 2: open a dedicated issue, then reuse B's contribution-kind chart,
+  live committee page. [Pull request 2165](https://github.com/alethical-org/alethical/pull/2165)
+  is live at [commit 3e76927c](https://github.com/alethical-org/alethical/commit/3e76927c1ef28a2a00a3a23d7f9543d4a3ab8083).
+  Its first full-list response now contains 50 rows; later requests add up to 250.
+  The measured public first response fell from 4.988346 seconds to 0.910471 seconds
+  (both cache misses). An independent browser read reached all 890 rows in order.
+  The full 2,625 frontend and 2,549 server tests, queue and production checks passed.
+  The [job 1 live report](https://github.com/alethical-org/alethical/issues/2140#issuecomment-5649547058)
+  records the evidence. Its task-owned worktree and branch are removed.
+- [ ] Job 2, [issue 2166](https://github.com/alethical-org/alethical/issues/2166):
+  reuse B's contribution-kind chart,
   non-itemized slice, 5 fixed tabs, conditional Other tab and grouped outside
   spending on `/money/committees/<slug>`. Keep its Year, Track, Share and Filings
   controls. Its own committee needs no legislator-confirmation gate, and committees
@@ -243,11 +251,12 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   retries returned the same 243-byte HTTP 200 response with empty 2026/2027
   arrays. C is stopped, with the exact responses, hashes, report and old record
   on [issue 2142](https://github.com/alethical-org/alethical/issues/2142#issuecomment-5649077696).
-- F's data contract is saved in its own worktree
-  `/private/tmp/alethical-2147-refund-card`, branch `codex/2147-legislator-refund-card`.
-  It includes source metadata, all-year refunds for outside-year confirmed
-  committees, and truthful failure states. 96 backend integration checks, 4 API
-  conversion checks and frontend type checking pass. The card and source fields are live in [pull request 2162](https://github.com/alethical-org/alethical/pull/2162).
+- F's card and data contract are live in
+  [pull request 2162](https://github.com/alethical-org/alethical/pull/2162), including
+  source metadata, all-year refunds for outside-year confirmed committees and
+  truthful failure states. The complete frontend and server suites and 28 rendered
+  refund cases passed. Its task-owned worktree and branch are removed; the release
+  evidence remains linked from [issue 2147](https://github.com/alethical-org/alethical/issues/2147#issuecomment-5649341095).
 - F source enrichment completed for the 12 published candidate summaries. Only
   source metadata changed; the readback preserves all amounts, matches, copy dates
   and missing-year records. The API fields are live.
@@ -256,9 +265,25 @@ architecture record stays unchanged; proposed changes go on each job's issue.
 - A new attempted consultation with the permitted Claude session was rejected by
   automatic approval review for including run status and preservation instructions.
   No message from that attempt was sent; the assessment continues locally.
-- Job 1 is assigned to internal worker `/root/refund_live_reader`, using a new
-  worktree for [issue 2068](https://github.com/alethical-org/alethical/issues/2068).
-  Root owns the delivery-record release in parallel; jobs 2 onward retain their order.
+- Job 1 is complete, as recorded above. Job 2 is building in
+  `/private/tmp/alethical-2166-committee-donor-tabs` on
+  `codex/2166-committee-donor-tabs`, based on
+  [commit 3e76927c](https://github.com/alethical-org/alethical/commit/3e76927c1ef28a2a00a3a23d7f9543d4a3ab8083).
+  Internal worker `/root/official_spending_cards` owns the frontend; root owns
+  reader-guide changes, integration and release. Tests now preserve donor category
+  and sort across an uncached year load, and retain split and donated-goods
+  explanations in sections without the chart. The unused initial 6-payment read
+  is removed; the separate full-payment address keeps its first 50 rows. Shared
+  details load on demand to preserve the unchanged 392,321-byte first-load limit.
+  A local import-failure boundary keeps accepted summary figures visible if chart
+  code cannot load. The final formatted frontend suite passes 2,641 tests in 214
+  files; types, assets, icons and whitespace checks pass. With the live public
+  settings, the clean build is 392,203 bytes against the unchanged 392,321 limit.
+  The live base is 391,176 bytes by the same compression method. Browser flows
+  pass for candidate 19193 and party 20003, including complete groups, expanded
+  payments, retained category/sort across an uncached year, and preserved Filings
+  and Spent by them views. Final export smoke checks and release remain. Jobs 3
+  onward keep their approved order and have not started.
 
 
 ## Approved data-only queue after follow-on jobs 1 through 4

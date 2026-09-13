@@ -5,6 +5,11 @@ import { CampaignMoneyTab } from '../CampaignMoneyTab';
 import { CURRENT_CLAIM_MAX_AGE_MS } from '../../../lib/currentClaimFreshness';
 import { refundFixture } from './refundFixtures';
 
+vi.mock(
+  '../../../hooks/useCampaignMoneyYearStates',
+  () => import('../../../hooks/useCampaignMoneyDetails'),
+);
+
 vi.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: vi.fn() }) }));
 vi.mock('react-native-svg', () => ({
   default: ({ children }: { children?: React.ReactNode }) => <svg>{children}</svg>,

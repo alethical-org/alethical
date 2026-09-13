@@ -1,0 +1,85 @@
+{
+  "data": {
+    "state": "reported",
+    "about": {
+      "registration_number": "19193",
+      "name": "Gottfried, David House Committee",
+      "in_register": true,
+      "linkable": true,
+      "kind": "candidate_committee",
+      "office": "House",
+      "district": "40B",
+      "confirmed_member": { "slug": "david-gottfried", "full_name": "David Gottfried" }
+    },
+    "spender": null,
+    "year": 2025,
+    "sort": "largest",
+    "figures": {
+      "row_count": 12,
+      "rows_missing_an_amount": 0,
+      "amount_total": "195219.3500",
+      "supporting_count": 9,
+      "supporting_amount": "173279.0300",
+      "opposing_count": 3,
+      "opposing_amount": "21940.3200",
+      "direction_not_recorded_count": 0,
+      "direction_not_recorded_amount": "0.0000",
+      "in_kind_count": 0,
+      "first_year": 2025,
+      "last_year": 2025,
+      "first_paid_on": "2025-01-23",
+      "last_paid_on": "2025-05-06",
+      "committee_count": 1,
+      "spender_count": 4,
+      "committees_not_linkable": 0,
+      "supporting_spender_count": 3,
+      "opposing_spender_count": 1,
+      "direction_not_recorded_spender_count": 0
+    },
+    "dataset": "independent_expenditures",
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-617535497",
+    "release_id": "af236cca-a4f8-4efe-9a3a-025259ea380e",
+    "snapshot_id": "589ef156-a1ee-4806-a01d-1588a98bd65a",
+    "fetched_at": "2026-09-01T18:33:35.639027Z",
+    "group_by": "spender",
+    "groups": [
+      {
+        "spender": "DFL House Caucus",
+        "spender_registration_number": "20006",
+        "spender_linkable": true,
+        "direction": "For",
+        "amount": "132276.1500",
+        "row_count": 3,
+        "grouping_basis": "registration_number"
+      },
+      {
+        "spender": "MN DFL State Central Committee",
+        "spender_registration_number": "20003",
+        "spender_linkable": true,
+        "direction": "For",
+        "amount": "39578.4800",
+        "row_count": 5,
+        "grouping_basis": "registration_number"
+      },
+      {
+        "spender": "HRCC",
+        "spender_registration_number": "20010",
+        "spender_linkable": true,
+        "direction": "Against",
+        "amount": "21940.3200",
+        "row_count": 3,
+        "grouping_basis": "registration_number"
+      },
+      {
+        "spender": "MN AFL-CIO",
+        "spender_registration_number": "30025",
+        "spender_linkable": true,
+        "direction": "For",
+        "amount": "1424.4000",
+        "row_count": 1,
+        "grouping_basis": "registration_number"
+      }
+    ]
+  },
+  "links": null
+}

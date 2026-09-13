@@ -56,6 +56,8 @@ interface OutsidePayload {
   year: number | null;
   snapshot_id: string | null;
   release_id: string | null;
+  source_url?: string | null;
+  fetched_at?: string | null;
   group_by?: string;
   groups?: GroupPayload[];
   rows?: PaymentPayload[];
@@ -173,14 +175,14 @@ function checkGroupFigures(groups: OutsideSpenderGroup[], figures: FiguresPayloa
   });
 }
 
-/** One complete grouped request per confirmed committee, before any detail request. */
+/** One complete grouped request per scoped committee, before any detail request. */
 export async function getGroupedOutsideSpending(
   year: OutsideSpendingYear,
   signal?: AbortSignal,
+  expectedReleaseId?: string,
 ): Promise<GroupedOutsideSpending> {
   signal?.throwIfAborted();
-  requireRead(year.state === 'reported' && year.snapshotId, 'unavailable');
-  const snapshotId = year.snapshotId;
+  requireRead(year.state === 'reported' && (year.snapshotId || expectedReleaseId), 'unavailable');
   const registrations = [
     ...new Set(year.committees.map((committee) => committee.registrationNumber)),
   ].sort();
@@ -193,7 +195,13 @@ export async function getGroupedOutsideSpending(
         signal,
       );
       signal?.throwIfAborted();
-      checkScope(data, about, year.year, snapshotId);
+      requireRead(
+        typeof data.snapshot_id === 'string' && data.snapshot_id.length > 0,
+        'missing_snapshot',
+      );
+      checkScope(data, about, year.year, year.snapshotId ?? data.snapshot_id, expectedReleaseId);
+      if (year.sourceUrl) requireRead(data.source_url === year.sourceUrl, 'source_changed');
+      if (year.fetchedAt) requireRead(data.fetched_at === year.fetchedAt, 'source_changed');
       requireRead(data.group_by === 'spender' && Array.isArray(data.groups), 'invalid_groups');
       const groups = data.groups.map((row) => shapeGroup(row, about));
       requireRead(
@@ -206,6 +214,11 @@ export async function getGroupedOutsideSpending(
     }),
   );
   const releaseId = responses[0].data.release_id!;
+  const snapshotId = responses[0].data.snapshot_id!;
+  requireRead(
+    responses.every(({ data }) => data.snapshot_id === snapshotId),
+    'snapshot_changed',
+  );
   requireRead(
     responses.every(({ data }) => data.release_id === releaseId),
     'release_changed',
@@ -229,8 +242,17 @@ export async function getGroupedOutsideSpending(
     year.opposingPayments,
     year.directionNotRecordedPayments,
   ];
+  const summaryAmounts = [year.supporting, year.opposing, year.directionNotRecorded];
   figures.forEach((figure, index) => {
     requireRead(summaryCounts[index] === figure.paymentCount, 'summary_changed');
+    // The summary already holds numeric amounts; compare at that same boundary.
+    // Null is a withheld figure and can never be replaced with a sum of rows.
+    requireRead(
+      figure.amount === null
+        ? summaryAmounts[index] === null
+        : summaryAmounts[index] !== null && Number(figure.amount) === summaryAmounts[index],
+      'summary_changed',
+    );
   });
   return {
     year: year.year,

@@ -7,6 +7,7 @@ import { LinkArrow } from '../LinkArrow';
 import { useHover } from '../billDetail/interactions';
 import { formatMoney } from '../../lib/legislatorCampaignMoney';
 import {
+  OUTSIDE_SPENDING_CARD_HEADING as OUTSIDE_SPENDING_HEADING,
   isMeasuredZero,
   outsideSpendingCoverage,
   outsideSpendingFetchedOn,
@@ -46,7 +47,7 @@ import {
  * this section headed "Independent spending"; that difference is unresolved and is
  * not settled by editing here.
  */
-export const OUTSIDE_SPENDING_HEADING = 'Spending by Outside Groups';
+export { OUTSIDE_SPENDING_CARD_HEADING as OUTSIDE_SPENDING_HEADING } from '../../lib/outsideSpending';
 
 export function OutsideSpendingCard({
   years,

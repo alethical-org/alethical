@@ -1,5 +1,7 @@
 # How the Campaign money tab works (plain-English guide)
 
+<!-- describes: apps/frontend/src/components/campaignMoney/MoneyDetailsBundle.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsOnDemand.tsx, apps/frontend/src/hooks/useCampaignMoneyYearStates.ts, apps/frontend/src/lib/campaignMoneyDetailsPageCopy.ts, apps/frontend/src/lib/campaignMoneyPreferences.ts, apps/frontend/src/lib/groupedOutsideSpendingCopy.ts, apps/frontend/src/data/moneyDetailsReadError.ts -->
+
 <!-- describes: apps/frontend/src/components/campaignMoney/CampaignMoneyTabOnDemand.tsx, apps/frontend/src/components/campaignMoney/YearControl.tsx, apps/frontend/src/components/campaignMoney/GroupedOutsideSpending.tsx, apps/frontend/src/lib/campaignMoneyColors.ts, apps/frontend/src/data/groupedOutsideSpending.ts, apps/frontend/src/lib/groupedOutsideSpending.ts -->
 
 <!-- describes: apps/frontend/src/components/campaignMoney/CommitteeDonations.tsx, apps/frontend/src/components/campaignMoney/DonorBreakdown.tsx, apps/frontend/src/components/campaignMoney/DonorPaymentList.tsx, apps/frontend/src/components/campaignMoney/CommitteeMixHistory.tsx, apps/frontend/src/components/campaignMoney/MoneyCards.tsx, apps/frontend/src/lib/campaignMoneyDetails.ts, apps/frontend/src/data/campaignMoneyDetails.ts, apps/frontend/src/hooks/useCampaignMoneyDetails.ts, apps/frontend/src/components/campaignMoney/CampaignMoneyTab.tsx, apps/frontend/src/components/legislator/OutsideSpendingCard.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/independent_spending.py, apps/frontend/src/components/campaignMoney/LegislatorProfileTabs.tsx, apps/frontend/src/lib/legislatorCampaignMoney.ts, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, alethical/api/services/legislator_finance.py, alethical/api/services/committee_amount.py, alethical/api/routers/public.py -->
@@ -241,13 +243,15 @@ by Eugene on 11 Sep 2026:
 
   The committee page prints a second version of it for a ballot-question committee, whose
   line is $500 ([`campaign-money-section-guide.md`](campaign-money-section-guide.md)
-  item 5); a legislator's committee is never one.
+  under Money in); a legislator's committee is never one.
 
-The official figures and evidence still use the shared
+The official figures and evidence use the shared
 [MoneyCards.tsx](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/campaignMoney/MoneyCards.tsx),
-but the 2 routes have different layouts. `/legislators/<name>?tab=money` adds the donor
-chart and full grouped lists. `/money/committees/{name}-{number}` keeps its existing
-summary and payment tabs.
+and both `/legislators/<name>?tab=money` and `/money/committees/{name}-{number}` put
+the same donor chart before the summary and the same grouped payment tabs below it.
+The committee address scopes every figure to its own registration, without requiring
+a legislator match. It keeps its own year choices, Track, Share and Filings controls;
+the profile's mix-by-year chart stays on the profile.
 
 **Non-itemized contributions** appears only when the server supplies a checked split.
 The profile shows its dollar amount in the summary and its share in the donor chart;

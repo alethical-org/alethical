@@ -3298,6 +3298,8 @@ export interface ApiCommitteeMoneyPayload {
   /** When the origin last confirmed `confirmed_for`. A validation time, never a
    *  record date (`alethical/api/routers/public.py`). */
   current_claim_validated_at?: string | null;
+  release_id?: string;
+  independent_spending?: CommitteeMoney['independentSpendingSource'];
   registration_number: string;
   committee_name?: string | null;
   entity_type?: string | null;
@@ -3384,6 +3386,8 @@ export function committeeFinanceFromPayload(
 ): CommitteeMoney {
   const register = payload.register ?? undefined;
   return {
+    releaseId: payload.release_id,
+    independentSpendingSource: payload.independent_spending,
     registrationNumber: payload.registration_number,
     // The downloads spell a missing name as an empty string; a page must not
     // render a heading out of it.

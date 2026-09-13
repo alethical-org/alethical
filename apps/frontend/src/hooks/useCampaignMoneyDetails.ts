@@ -1,11 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import {
-  getCampaignMoneyHistory,
-  getCampaignMoneyYearState,
-  getCompleteCampaignMoneyPayments,
-  MoneyDetailsReadError,
-  type CampaignMoneyYearState,
-} from '../data/campaignMoneyDetails';
+import { MoneyDetailsReadError } from '../data/moneyDetailsReadError';
 
 export function campaignMoneyHistoryYears(today: Date = new Date()) {
   return Array.from(
@@ -22,20 +16,30 @@ const retryCompleteRead = (attempt: number, error: Error) =>
 export function useCampaignMoneyDetails(
   registrationNumber: string,
   year: number,
-  options: { enabled?: boolean } = {},
+  options: { enabled?: boolean; history?: boolean } = {},
 ) {
   const enabled = Boolean(registrationNumber) && (options.enabled ?? true);
   const received = useQuery({
     queryKey: ['campaign-money-details', registrationNumber, year, 'received'],
-    queryFn: ({ signal }) =>
-      getCompleteCampaignMoneyPayments(registrationNumber, year, 'received', signal),
+    queryFn: async ({ signal }) =>
+      (await import('../data/campaignMoneyDetails')).getCompleteCampaignMoneyPayments(
+        registrationNumber,
+        year,
+        'received',
+        signal,
+      ),
     enabled,
     retry: retryCompleteRead,
   });
   const made = useQuery({
     queryKey: ['campaign-money-details', registrationNumber, year, 'made'],
-    queryFn: ({ signal }) =>
-      getCompleteCampaignMoneyPayments(registrationNumber, year, 'made', signal),
+    queryFn: async ({ signal }) =>
+      (await import('../data/campaignMoneyDetails')).getCompleteCampaignMoneyPayments(
+        registrationNumber,
+        year,
+        'made',
+        signal,
+      ),
     enabled,
     retry: retryCompleteRead,
   });
@@ -47,16 +51,16 @@ export function useCampaignMoneyDetails(
     received.data.releaseId === made.data.releaseId;
   const history = useQuery({
     queryKey: ['campaign-money-history', registrationNumber, received.data?.releaseId],
-    queryFn: ({ signal }) => {
+    queryFn: async ({ signal }) => {
       if (!received.data) throw new MoneyDetailsReadError('selected_year_not_ready');
-      return getCampaignMoneyHistory(
+      return (await import('../data/campaignMoneyDetails')).getCampaignMoneyHistory(
         registrationNumber,
         CAMPAIGN_MONEY_HISTORY_YEARS,
         received.data,
         signal,
       );
     },
-    enabled: enabled && selectedComplete,
+    enabled: enabled && selectedComplete && (options.history ?? true),
     retry: false,
   });
   return {
@@ -72,27 +76,4 @@ export function useCampaignMoneyDetails(
     releaseMismatch:
       received.isSuccess && made.isSuccess && received.data.releaseId !== made.data.releaseId,
   };
-}
-
-/** Only year-button styling. These reads never establish a committee's confirmation.
- * An absent committee is unknown; callers must not infer a missing official total. */
-export function useCampaignMoneyYearStates(
-  legislatorId: string,
-  years: readonly number[],
-  options: { enabled?: boolean } = {},
-) {
-  return useQuery({
-    queryKey: ['campaign-money-year-states', legislatorId, [...years]],
-    queryFn: async ({ signal }) => {
-      const states: CampaignMoneyYearState[] = [];
-      // Deliberately sequential. The selected year's actual card takes priority.
-      for (const year of years) {
-        signal.throwIfAborted();
-        states.push(await getCampaignMoneyYearState(legislatorId, year, signal));
-      }
-      return states;
-    },
-    enabled: Boolean(legislatorId) && (options.enabled ?? true),
-    retry: false,
-  });
 }

@@ -1,0 +1,85 @@
+{
+  "data": {
+    "registration_number": "19193",
+    "committee_name": "Gottfried, David House Committee",
+    "entity_type": "PCC",
+    "entity_sub_type": null,
+    "year": 2025,
+    "release_id": "af236cca-a4f8-4efe-9a3a-025259ea380e",
+    "fetched_at": "2026-09-01T18:33:35.639027Z",
+    "register": {
+      "state": "reported",
+      "kind": "candidate_committee",
+      "name": "Gottfried, David House Committee",
+      "party": "DFL",
+      "office": "House",
+      "district": "40B",
+      "registration_date": "2024-12-30",
+      "termination_date": null,
+      "as_of": "2026-08-12",
+      "reason": null
+    },
+    "current_claim_validated_at": "2026-09-13T00:16:00.342052Z",
+    "confirmed_for": {
+      "legislator_id": "a4d84a30-51e3-4c56-a196-c7d15d25eb23",
+      "slug": "david-gottfried",
+      "full_name": "David Gottfried",
+      "checked": {
+        "checked_on": "2026-08-31",
+        "name_evidence": "exact",
+        "register_verdict": "same_seat",
+        "party_agreement": "agrees"
+      }
+    },
+    "split": {
+      "state": "no_reported_total",
+      "reported_total": null,
+      "reported_through": null,
+      "named_total": "59950.1700",
+      "named_payments": 117,
+      "named_cash_total": "59950.1700",
+      "named_in_kind_total": "0.0000",
+      "unnamed_total": null,
+      "stated_split_state": "not_checked",
+      "first_payment_on": "2025-01-03",
+      "last_payment_on": "2025-12-22"
+    },
+    "money_in": {
+      "state": "reported",
+      "itemized_contribution_total": "59950.1700",
+      "itemized_contribution_payments": 117,
+      "other_receipts": [],
+      "reported_total": null,
+      "reported_through": null,
+      "reported_period_start": null,
+      "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-2113865252"
+    },
+    "money_out": {
+      "state": "reported",
+      "itemized_payment_total": "104004.1100",
+      "itemized_payments": 30,
+      "in_kind_total": "0",
+      "reported_total": null,
+      "reported_through": null,
+      "stated_spending_state": "not_checked",
+      "by_type": [
+        { "type": "Campaign Expenditure", "total": "97004.1100", "payments": 29 },
+        { "type": "Contribution", "total": "7000.0000", "payments": 1 }
+      ],
+      "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-1890073264"
+    },
+    "independent_spending": {
+      "state": "reported",
+      "supporting": "173279.0300",
+      "opposing": "21940.3200",
+      "direction_not_recorded": "0",
+      "supporting_payments": 9,
+      "opposing_payments": 3,
+      "direction_not_recorded_payments": 0,
+      "first_payment_on": "2025-01-23",
+      "last_payment_on": "2025-05-06",
+      "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-617535497"
+    }
+  },
+  "links": null
+}

@@ -732,24 +732,7 @@ export const COMMITTEE_TAB_LABELS: Record<CommitteeTab, string> = {
   about: 'Spent about them',
   by: 'Spent by them',
 };
-
-/**
- * Which tabs a committee's page carries, in strip order.
- *
- * The first 3 always. Each outside-spending tab follows THIS filer's own rows in
- * that direction, never its kind (ruled 2 Sep 2026): no rows means we cannot tell
- * "spent nothing" from "we hold nothing", so there is no empty state to draw and no
- * tab either. A caucus committee that spends independently carries "Spent by them";
- * a candidate committee nobody spent about carries no "Spent about them"; a
- * ballot-question filer carries whichever direction its rows support, which today is
- * neither.
- */
-export function committeeTabs(presence: { spentAbout: boolean; spentBy: boolean }): CommitteeTab[] {
-  const tabs: CommitteeTab[] = ['gave', 'spent', 'filings'];
-  if (presence.spentAbout) tabs.push('about');
-  if (presence.spentBy) tabs.push('by');
-  return tabs;
-}
+export const COMMITTEE_MONEY_SECTION_LABEL = 'Campaign money';
 
 // --- The 2 outside-spending tabs' rows and lines ---------------------------------------
 

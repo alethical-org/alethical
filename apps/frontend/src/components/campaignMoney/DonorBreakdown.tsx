@@ -30,7 +30,9 @@ export function DonorBreakdown({
   complete,
   failed,
   onSelectTab,
+  headingLevel = 4,
 }: {
+  headingLevel?: 2 | 4;
   payments: CommitteeReceivedPayment[];
   split: Split;
   year: number;
@@ -49,7 +51,7 @@ export function DonorBreakdown({
   const explanation = splitExplanation(split.state);
   return (
     <View style={[s.section, styles.wrap]}>
-      <Text accessibilityRole="header" aria-level={4} style={s.heading}>
+      <Text accessibilityRole="header" aria-level={headingLevel} style={s.heading}>
         {copy.chartHeading(namesOnly)}
       </Text>
       {!complete ? (
