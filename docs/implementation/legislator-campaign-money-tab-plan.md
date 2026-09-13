@@ -379,22 +379,20 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   records 32 focused tests, 2,588 server tests, all required release checks, 9 public
   API cases, and a fresh reader at computer and phone sizes. No page or source data
   changed. Its completed worktree was removed after matching the live tree.
-- Job 5b is prepared in `/private/tmp/alethical-2146-donor-states` on
-  `codex/2146-donor-states`, in
-  [pull request 2176](https://github.com/alethical-org/alethical/pull/2176). The
-  [source progress report](https://github.com/alethical-org/alethical/issues/2146#issuecomment-5652007985)
-  records why USPS postal-facility states cannot substitute for the full HUD file.
-  Eugene supplied HUD sign-in on 2026-09-13. The complete national 2026 Q2 workbook
-  is copied and `alethical/api/data/zip_states.json` is generated. The
-  [reference check](../verification/2146-donor-state-reference.md) records 54,570
-  rows, 39,484 ZIPs, 39,284 state assignments and 200 retained as unknown. The held
-  17868/2025 fixture reconciles $38,700 across 71 printed names to Minnesota and
-  $1,250 across 3 printed names to unknown, with no other-state cash. Both totals
-  come from the same 82 cash payments. New assertions exercise this real reference
-  through both committee response variants and the legislator response. The
-  downloaded `GEOID` header and its 9 incomplete county codes are tested too.
-  Current-head checks, independent source review, the merge queue and live responses
-  remain required before completion. Jobs 5c through 5f retain their order.
+- Job 5b is live through [pull request 2176](https://github.com/alethical-org/alethical/pull/2176).
+  The [live report](https://github.com/alethical-org/alethical/issues/2146#issuecomment-5653393694)
+  records 74 focused and 2,636 server tests, the combined merge checks, 7 public
+  response cases and independent source and reader checks. The national HUD reference
+  has 39,484 ZIPs, with 200 retained as unknown. Abeler's 2025 Individual cash totals
+  reconcile at $38,700 for Minnesota and $1,250 unknown. Display still waits for Design.
+- Job 5c is active in `/private/tmp/alethical-2145-exact-name-connections` on
+  `codex/2145-exact-name-connections`. Its independently collected held fixture has
+  82 selected payment rows, 74 exact names and 47 rows to other PCC registrations.
+  Exactly 19 of the 74 names occur at another candidate registration in 2025.
+  Distribution: 55 / 11 / 5 / 1 / 2 names across 0 / 1 / 2 / 3 / 4+ other registrations.
+  The calculation preserves exact spelling and repeated payments while counting each
+  other registration once. Tests, release checks and public response checks are required
+  before completion; no page changes. Jobs 5d through 5f retain their order and holds.
 - Jobs 4 through 5f retain their stated sequence. Action 4 Liberty PAC's historical
   replacement for 41173/2026 remains held with no additional source attempts or
   publication. The 2024 spending replacement remains held for the 905-row loss in
@@ -435,7 +433,7 @@ each job's issue. Comment on issue 2140 after all 4 merge.
   adding 2 committees together. All 2,588 server tests, independent review, current
   change and merge-queue checks, 9 public API cases, and the fresh browser reader
   pass. The live release and report are linked above.
-- [ ] 5b, [issue 2146](https://github.com/alethical-org/alethical/issues/2146): import
+- [x] 5b, [issue 2146](https://github.com/alethical-org/alethical/issues/2146): import
   the HUD USPS ZIP crosswalk or USPS 3-digit prefix ranges into a manually refreshed
   reference table; record the chosen source and its date. On the same 2 responses,
   candidate committees only and only after an agreeing split check, serve

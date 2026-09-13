@@ -101,6 +101,10 @@ from alethical.api.services.committee_filing_schedule import (
 )
 from alethical.api.services.committee_stated_by_kind import StatedByKind, stated_by_kind
 from alethical.api.services.committee_donor_states import DonorStates, donor_states
+from alethical.api.services.committee_name_connections import (
+    NameConnections,
+    name_connections,
+)
 from alethical.api.services.committee_finance import (
     NOT_REPORTED,
     CommitteeFinance,
@@ -278,6 +282,7 @@ class LegislatorCommitteeMoney:
     refunds: CommitteeRefunds | None = None
     stated_by_kind: StatedByKind | None = None
     donor_states: DonorStates | None = None
+    name_connections: NameConnections | None = None
 
 
 @dataclass(frozen=True)
@@ -901,6 +906,7 @@ def legislator_finance(
         schedule = committee_filing_schedule(db, link.registration_number, year=year)
         by_kind = stated_by_kind(db, release, link.registration_number, year)
         by_state = donor_states(db, release, link.registration_number, year)
+        connections = name_connections(db, release, link.registration_number, year)
         if finance is None:
             # A confirmed link to a registration number the current release holds no
             # record of. That is a fact about our download, not about the committee,
@@ -914,6 +920,7 @@ def legislator_finance(
                     finance=None,
                     stated_by_kind=by_kind,
                     donor_states=by_state,
+                    name_connections=connections,
                     schedule=schedule,
                     checked=_match_check(link),
                     refunds=refunds_for_committee(
@@ -943,6 +950,7 @@ def legislator_finance(
                 finance=finance,
                 stated_by_kind=by_kind,
                 donor_states=by_state,
+                name_connections=connections,
                 schedule=schedule,
                 checked=_match_check(link),
                 refunds=refunds_for_committee(

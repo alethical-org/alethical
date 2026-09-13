@@ -943,8 +943,10 @@ describes records and the page frames them.
   `alethical/api/services/legislator_finance.py`, served by
   `GET /api/v1/legislators/{id}/campaign-finance?year=YYYY`.
   `alethical/pipeline/campaign_finance_reader.py` reads the saved payment files.
-  Separate services read filed figures and calculate the optional `stated_by_kind`
-  and `donor_states` blocks; the tab does not display those optional blocks yet.
+  Separate services read filed figures and calculate the optional `stated_by_kind`,
+  `donor_states`, and `name_connections` blocks; the tab does not display those blocks yet.
+  The name comparison counts exact printed spellings shared with other candidate
+  registrations in the same year; it does not identify people or add their money.
   Every amount is stamped with the committee that reported it so a person's committees
   cannot be added together (`alethical/api/services/committee_amount.py`).
 

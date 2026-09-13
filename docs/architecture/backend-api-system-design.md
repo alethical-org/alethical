@@ -1,6 +1,6 @@
 # Alethical Backend API System Design
 
-<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/services/independent_spending.py, alethical/api/services/committee_finance.py, alethical/api/services/committee_stated_by_kind.py, alethical/api/services/committee_donor_states.py, alethical/api/services/zip_state_reference.py, scripts/build_zip_state_reference.py, alethical/api/services/legislator_finance.py, alethical/api/services/campaign_finance_payments.py, alethical/api/services/campaign_finance_register.py, alethical/api/auth.py, alethical/api/services/auth.py -->
+<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/services/independent_spending.py, alethical/api/services/committee_finance.py, alethical/api/services/committee_stated_by_kind.py, alethical/api/services/committee_donor_states.py, alethical/api/services/committee_name_connections.py, alethical/api/services/zip_state_reference.py, scripts/build_zip_state_reference.py, alethical/api/services/legislator_finance.py, alethical/api/services/campaign_finance_payments.py, alethical/api/services/campaign_finance_register.py, alethical/api/auth.py, alethical/api/services/auth.py -->
 
 Status: **design reference, not an inventory of what exists.** Much of this document is the
 target shape rather than the shipped API, so every unbuilt endpoint is marked **NOT BUILT**
@@ -1081,6 +1081,36 @@ explicit `Other` belongs to the Other line. The block remains independent of whe
 files name any payments for the committee, including an official zero with an agreeing check.
 If any line's difference is negative, the block instead carries `state: sources_disagree` and
 an empty `lines` list, so no unsupported line figure reaches a client.
+
+**`name_connections` counts other candidate registrations under the same printed name**
+([issue 2145](https://github.com/alethical-org/alethical/issues/2145)). Both committee-finance
+response variants and each confirmed legislator committee carry the same block, scoped to
+that committee and source calendar year. It does not depend on the filing-total checks:
+this calculation uses only named rows from the held contributions copy, including older
+years. It does not prove that matching names belong to the same person.
+
+- `state` is `reported` when Individual-kind Contribution rows name at least 1 contributor.
+  `year` is the requested year and `matching` is always `exact_printed_name`.
+- `denominator` counts distinct printed names on those rows. `numerator` counts names also
+  appearing on an Individual-kind Contribution row to at least 1 other registration whose
+  `recipient_type` is `PCC`, in that same year and source copy. No case folding, trimming,
+  initials matching or other normalization is applied. Cash and donated goods or services
+  both count; other receipt types, donor kinds and recipient kinds do not.
+- `distribution` always has 5 rows, with `other_committees` equal to `0`, `1`, `2`, `3`,
+  and `4+`, plus `names`. Repeated payments to the same registration count once; the
+  selected registration never counts as another committee. The buckets add to the
+  denominator and all except `0` add to the numerator.
+- `top_names` contains up to 5 objects with `name` and `other_committees`, ordered by
+  descending count and then exact-name C ordering for reproducible ties. Names with zero
+  other registrations remain eligible when fewer than 5 names have a positive count.
+- With no matching names, `state` is `not_reported` for a year the contribution file covers,
+  or `unavailable` for a year it does not. Both counts are null and both lists empty; neither
+  state claims zero giving. A removed source copy raises the existing unavailable response.
+
+No money figure, donor identity, recipient list, or cross-year total is returned. Existing
+outer release identifiers and copy dates identify the source. The block does not combine
+results for multiple confirmed committees. Future display must state the exact-spelling
+method beside any counts; this server change adds no visible chart or ranking.
 
 **`donor_states` reports Individual-kind contributions by state for 1 calendar year**
 ([issue 2146](https://github.com/alethical-org/alethical/issues/2146)). It is the same optional

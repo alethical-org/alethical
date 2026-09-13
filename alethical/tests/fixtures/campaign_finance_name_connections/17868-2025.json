@@ -1,0 +1,1652 @@
+{
+  "collected_at": "2026-09-13T12:51:23.223777+00:00",
+  "current": {
+    "release_id": "af236cca-a4f8-4efe-9a3a-025259ea380e",
+    "contributions_snapshot_id": "5b892996-14ce-4992-87ed-b825400beb26",
+    "filings_snapshot_id": "9cd121a0-4fd2-467e-b4a4-5c3c600febfb"
+  },
+  "contribution_source": {
+    "id": "5b892996-14ce-4992-87ed-b825400beb26",
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-2113865252",
+    "download_id": "-2113865252",
+    "content_disposition_filename": "All - Itemized Contributions Received Of Over $200 - Campaign Finance.csv",
+    "content_hash": "b90b6c2091c532a0f792a5e4f5d6c7ffca3fb09b3c7a0f0979a3a491e903da04",
+    "record_set_hash": "a0951be1d1426462cb4fd818a5ef06ffb894447e87a7dc6d759ccec4f0fe5851",
+    "row_count": 583222,
+    "created_at": "2026-09-01 18:31:54.356455+00:00"
+  },
+  "registration_number": "17868",
+  "year": 2025,
+  "target_rows": [
+    {
+      "row_number": 69,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Yusuf, Ahmed Abdi"
+    },
+    {
+      "row_number": 901,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Bloom, Kathleen A"
+    },
+    {
+      "row_number": 5136,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Erickson, Kent J DC"
+    },
+    {
+      "row_number": 38310,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Praught, Bradley"
+    },
+    {
+      "row_number": 40096,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Nystrom, Peter"
+    },
+    {
+      "row_number": 45961,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Erickson, Joy"
+    },
+    {
+      "row_number": 51397,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Praught, Debrorah"
+    },
+    {
+      "row_number": 53526,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Nystrom, Mary Ann"
+    },
+    {
+      "row_number": 54509,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Fredericks, Matthew"
+    },
+    {
+      "row_number": 57119,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Erickson, Joy"
+    },
+    {
+      "row_number": 68589,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Sullivan, Patrick P"
+    },
+    {
+      "row_number": 75167,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Niederer, Chris"
+    },
+    {
+      "row_number": 81047,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Waddell III, Calli"
+    },
+    {
+      "row_number": 89111,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Deal, Pam"
+    },
+    {
+      "row_number": 97219,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Elemo, Lataa"
+    },
+    {
+      "row_number": 110247,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Abdullahi, Siyad"
+    },
+    {
+      "row_number": 112400,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Nystrom, Brian"
+    },
+    {
+      "row_number": 114379,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Bari, Abdullahi"
+    },
+    {
+      "row_number": 117575,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Smith, Lisa"
+    },
+    {
+      "row_number": 120077,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Waddell III, Robert"
+    },
+    {
+      "row_number": 122239,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Hoevt, Andreas"
+    },
+    {
+      "row_number": 124642,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Daud, Safia"
+    },
+    {
+      "row_number": 136114,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Nystrom, Gretta"
+    },
+    {
+      "row_number": 137465,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Harut, Zahnia"
+    },
+    {
+      "row_number": 140061,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Clapper, Karen"
+    },
+    {
+      "row_number": 165070,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Koch, Frank"
+    },
+    {
+      "row_number": 177865,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Dirir, Zahra"
+    },
+    {
+      "row_number": 178826,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Schardin, Michael"
+    },
+    {
+      "row_number": 198321,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Ahmed, Amal"
+    },
+    {
+      "row_number": 198698,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Hayden, Bonnie"
+    },
+    {
+      "row_number": 212762,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Brost, Barbro"
+    },
+    {
+      "row_number": 213288,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Dock, Gerald"
+    },
+    {
+      "row_number": 217120,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Fredericks, Matthew"
+    },
+    {
+      "row_number": 238854,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Mohamed, Farah M"
+    },
+    {
+      "row_number": 258264,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Steinhauser, Daniel"
+    },
+    {
+      "row_number": 261342,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Hussein, Jamal"
+    },
+    {
+      "row_number": 269832,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Waddell III, Calli"
+    },
+    {
+      "row_number": 290958,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Kratsch, Charles"
+    },
+    {
+      "row_number": 292933,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Smith, Moses Sarah"
+    },
+    {
+      "row_number": 294679,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Khalif, Musab"
+    },
+    {
+      "row_number": 296161,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Wardere, Khadar"
+    },
+    {
+      "row_number": 297164,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Sioris, Leo"
+    },
+    {
+      "row_number": 299232,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Kearns, Clayton"
+    },
+    {
+      "row_number": 315476,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Arens, Duane"
+    },
+    {
+      "row_number": 321030,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Mottaz, Thomas"
+    },
+    {
+      "row_number": 322532,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Ahmed, Osman"
+    },
+    {
+      "row_number": 328394,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Clapper, James"
+    },
+    {
+      "row_number": 334982,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Ulrich, Robert"
+    },
+    {
+      "row_number": 338723,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Hayden, Michael"
+    },
+    {
+      "row_number": 344304,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Dock, Cathrine"
+    },
+    {
+      "row_number": 359855,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Lindau, Philip"
+    },
+    {
+      "row_number": 369372,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Volker, Arthur K"
+    },
+    {
+      "row_number": 373445,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Martin, Robert"
+    },
+    {
+      "row_number": 383098,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Erickson, Kent J DC"
+    },
+    {
+      "row_number": 389454,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Spell, William"
+    },
+    {
+      "row_number": 401754,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Munira, Adam"
+    },
+    {
+      "row_number": 413029,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Warsame, Abdi"
+    },
+    {
+      "row_number": 415881,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Waddell III, Robert"
+    },
+    {
+      "row_number": 426206,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Cullen, Jerry"
+    },
+    {
+      "row_number": 454425,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Zehnder, Chad"
+    },
+    {
+      "row_number": 456818,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Sailer, Caroline Brost"
+    },
+    {
+      "row_number": 475540,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Zehnder, Chad"
+    },
+    {
+      "row_number": 487348,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Mohamud, Hiba"
+    },
+    {
+      "row_number": 487836,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Kubei, Arnold"
+    },
+    {
+      "row_number": 491791,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Ya, Ahmay"
+    },
+    {
+      "row_number": 494539,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Kelly, Anne"
+    },
+    {
+      "row_number": 495477,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Cullen, Mark"
+    },
+    {
+      "row_number": 499733,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Hassan, Mohamed"
+    },
+    {
+      "row_number": 504537,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Volker, Arthur K"
+    },
+    {
+      "row_number": 506683,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Sahara, Ali"
+    },
+    {
+      "row_number": 514443,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Jim, Deal"
+    },
+    {
+      "row_number": 515602,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Spell, Tiki"
+    },
+    {
+      "row_number": 518382,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Mohamod, Jama"
+    },
+    {
+      "row_number": 527213,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Farah, Yasmin"
+    },
+    {
+      "row_number": 548764,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Dovolis, Barbara"
+    },
+    {
+      "row_number": 549982,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Sailer, Caroline Brost"
+    },
+    {
+      "row_number": 552685,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Smith, Gary"
+    },
+    {
+      "row_number": 554920,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Niederer, John"
+    },
+    {
+      "row_number": 565461,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Abdulle, Ikraan"
+    },
+    {
+      "row_number": 571679,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Hoeft, Amy"
+    },
+    {
+      "row_number": 575169,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Santrizos, Nicholas"
+    },
+    {
+      "row_number": 580096,
+      "year": 2025,
+      "recipient_reg_num": "17868",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Haselow, RE"
+    }
+  ],
+  "other_pcc_rows": [
+    {
+      "row_number": 43,
+      "year": 2025,
+      "recipient_reg_num": "17653",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Kratsch, Charles"
+    },
+    {
+      "row_number": 4146,
+      "year": 2025,
+      "recipient_reg_num": "19205",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Nystrom, Peter"
+    },
+    {
+      "row_number": 10167,
+      "year": 2025,
+      "recipient_reg_num": "15667",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Haselow, RE"
+    },
+    {
+      "row_number": 22189,
+      "year": 2025,
+      "recipient_reg_num": "19316",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Hayden, Michael"
+    },
+    {
+      "row_number": 32594,
+      "year": 2025,
+      "recipient_reg_num": "18509",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Sullivan, Patrick P"
+    },
+    {
+      "row_number": 57336,
+      "year": 2025,
+      "recipient_reg_num": "18727",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Erickson, Joy"
+    },
+    {
+      "row_number": 58489,
+      "year": 2025,
+      "recipient_reg_num": "19005",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Kratsch, Charles"
+    },
+    {
+      "row_number": 59889,
+      "year": 2025,
+      "recipient_reg_num": "18773",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Nystrom, Brian"
+    },
+    {
+      "row_number": 74768,
+      "year": 2025,
+      "recipient_reg_num": "17962",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Haselow, RE"
+    },
+    {
+      "row_number": 88986,
+      "year": 2025,
+      "recipient_reg_num": "19202",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Ahmed, Osman"
+    },
+    {
+      "row_number": 96067,
+      "year": 2025,
+      "recipient_reg_num": "19205",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Nystrom, Brian"
+    },
+    {
+      "row_number": 99376,
+      "year": 2025,
+      "recipient_reg_num": "18917",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Kratsch, Charles"
+    },
+    {
+      "row_number": 109638,
+      "year": 2025,
+      "recipient_reg_num": "19205",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Nystrom, Mary Ann"
+    },
+    {
+      "row_number": 120572,
+      "year": 2025,
+      "recipient_reg_num": "18135",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Mottaz, Thomas"
+    },
+    {
+      "row_number": 121884,
+      "year": 2025,
+      "recipient_reg_num": "18727",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Kratsch, Charles"
+    },
+    {
+      "row_number": 128286,
+      "year": 2025,
+      "recipient_reg_num": "18135",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Kearns, Clayton"
+    },
+    {
+      "row_number": 130922,
+      "year": 2025,
+      "recipient_reg_num": "17919",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Kratsch, Charles"
+    },
+    {
+      "row_number": 131845,
+      "year": 2025,
+      "recipient_reg_num": "18781",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Jim, Deal"
+    },
+    {
+      "row_number": 135919,
+      "year": 2025,
+      "recipient_reg_num": "18135",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Schardin, Michael"
+    },
+    {
+      "row_number": 146256,
+      "year": 2025,
+      "recipient_reg_num": "18430",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Kratsch, Charles"
+    },
+    {
+      "row_number": 147251,
+      "year": 2025,
+      "recipient_reg_num": "19205",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Nystrom, Brian"
+    },
+    {
+      "row_number": 152241,
+      "year": 2025,
+      "recipient_reg_num": "19205",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Nystrom, Peter"
+    },
+    {
+      "row_number": 153852,
+      "year": 2025,
+      "recipient_reg_num": "19223",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Kratsch, Charles"
+    },
+    {
+      "row_number": 175375,
+      "year": 2025,
+      "recipient_reg_num": "18457",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Niederer, Chris"
+    },
+    {
+      "row_number": 195185,
+      "year": 2025,
+      "recipient_reg_num": "18873",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Kratsch, Charles"
+    },
+    {
+      "row_number": 197782,
+      "year": 2025,
+      "recipient_reg_num": "19202",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Ahmed, Osman"
+    },
+    {
+      "row_number": 260907,
+      "year": 2025,
+      "recipient_reg_num": "17319",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Arens, Duane"
+    },
+    {
+      "row_number": 281757,
+      "year": 2025,
+      "recipient_reg_num": "17919",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Jim, Deal"
+    },
+    {
+      "row_number": 296210,
+      "year": 2025,
+      "recipient_reg_num": "17950",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Cullen, Mark"
+    },
+    {
+      "row_number": 302085,
+      "year": 2025,
+      "recipient_reg_num": "19119",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Ulrich, Robert"
+    },
+    {
+      "row_number": 302945,
+      "year": 2025,
+      "recipient_reg_num": "19218",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Lindau, Philip"
+    },
+    {
+      "row_number": 321613,
+      "year": 2025,
+      "recipient_reg_num": "18773",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Nystrom, Mary Ann"
+    },
+    {
+      "row_number": 352907,
+      "year": 2025,
+      "recipient_reg_num": "19218",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Nystrom, Brian"
+    },
+    {
+      "row_number": 362462,
+      "year": 2025,
+      "recipient_reg_num": "17919",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Jim, Deal"
+    },
+    {
+      "row_number": 364766,
+      "year": 2025,
+      "recipient_reg_num": "18550",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Lindau, Philip"
+    },
+    {
+      "row_number": 369654,
+      "year": 2025,
+      "recipient_reg_num": "19205",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Nystrom, Mary Ann"
+    },
+    {
+      "row_number": 379576,
+      "year": 2025,
+      "recipient_reg_num": "19261",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Lindau, Philip"
+    },
+    {
+      "row_number": 438153,
+      "year": 2025,
+      "recipient_reg_num": "17319",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Cullen, Mark"
+    },
+    {
+      "row_number": 446640,
+      "year": 2025,
+      "recipient_reg_num": "13262",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Lindau, Philip"
+    },
+    {
+      "row_number": 450209,
+      "year": 2025,
+      "recipient_reg_num": "19261",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Hayden, Michael"
+    },
+    {
+      "row_number": 510744,
+      "year": 2025,
+      "recipient_reg_num": "18830",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Lindau, Philip"
+    },
+    {
+      "row_number": 528385,
+      "year": 2025,
+      "recipient_reg_num": "17319",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Fredericks, Matthew"
+    },
+    {
+      "row_number": 529189,
+      "year": 2025,
+      "recipient_reg_num": "18129",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Kratsch, Charles"
+    },
+    {
+      "row_number": 534266,
+      "year": 2025,
+      "recipient_reg_num": "18135",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Schardin, Michael"
+    },
+    {
+      "row_number": 554890,
+      "year": 2025,
+      "recipient_reg_num": "18781",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Kratsch, Charles"
+    },
+    {
+      "row_number": 577570,
+      "year": 2025,
+      "recipient_reg_num": "19239",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Lindau, Philip"
+    },
+    {
+      "row_number": 581488,
+      "year": 2025,
+      "recipient_reg_num": "18845",
+      "recipient_type": "PCC",
+      "receipt_type": "Contribution",
+      "contrib_type": "Individual",
+      "contributor": "Kratsch, Charles"
+    }
+  ],
+  "expected": {
+    "denominator": 74,
+    "numerator": 19,
+    "distribution": {
+      "0": 55,
+      "1": 11,
+      "2": 5,
+      "3": 1,
+      "4+": 2
+    },
+    "per_name": [
+      {
+        "contributor": "Abdullahi, Siyad",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Abdulle, Ikraan",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Ahmed, Amal",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Ahmed, Osman",
+        "other_pcc_count": 1,
+        "other_pcc_registration_numbers": ["19202"]
+      },
+      {
+        "contributor": "Arens, Duane",
+        "other_pcc_count": 1,
+        "other_pcc_registration_numbers": ["17319"]
+      },
+      {
+        "contributor": "Bari, Abdullahi",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Bloom, Kathleen A",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Brost, Barbro",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Clapper, James",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Clapper, Karen",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Cullen, Jerry",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Cullen, Mark",
+        "other_pcc_count": 2,
+        "other_pcc_registration_numbers": ["17319", "17950"]
+      },
+      {
+        "contributor": "Daud, Safia",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Deal, Pam",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Dirir, Zahra",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Dock, Cathrine",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Dock, Gerald",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Dovolis, Barbara",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Elemo, Lataa",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Erickson, Joy",
+        "other_pcc_count": 1,
+        "other_pcc_registration_numbers": ["18727"]
+      },
+      {
+        "contributor": "Erickson, Kent J DC",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Farah, Yasmin",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Fredericks, Matthew",
+        "other_pcc_count": 1,
+        "other_pcc_registration_numbers": ["17319"]
+      },
+      {
+        "contributor": "Harut, Zahnia",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Haselow, RE",
+        "other_pcc_count": 2,
+        "other_pcc_registration_numbers": ["15667", "17962"]
+      },
+      {
+        "contributor": "Hassan, Mohamed",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Hayden, Bonnie",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Hayden, Michael",
+        "other_pcc_count": 2,
+        "other_pcc_registration_numbers": ["19261", "19316"]
+      },
+      {
+        "contributor": "Hoeft, Amy",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Hoevt, Andreas",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Hussein, Jamal",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Jim, Deal",
+        "other_pcc_count": 2,
+        "other_pcc_registration_numbers": ["17919", "18781"]
+      },
+      {
+        "contributor": "Kearns, Clayton",
+        "other_pcc_count": 1,
+        "other_pcc_registration_numbers": ["18135"]
+      },
+      {
+        "contributor": "Kelly, Anne",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Khalif, Musab",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Koch, Frank",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Kratsch, Charles",
+        "other_pcc_count": 11,
+        "other_pcc_registration_numbers": [
+          "17653",
+          "17919",
+          "18129",
+          "18430",
+          "18727",
+          "18781",
+          "18845",
+          "18873",
+          "18917",
+          "19005",
+          "19223"
+        ]
+      },
+      {
+        "contributor": "Kubei, Arnold",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Lindau, Philip",
+        "other_pcc_count": 6,
+        "other_pcc_registration_numbers": [
+          "13262",
+          "18550",
+          "18830",
+          "19218",
+          "19239",
+          "19261"
+        ]
+      },
+      {
+        "contributor": "Martin, Robert",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Mohamed, Farah M",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Mohamod, Jama",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Mohamud, Hiba",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Mottaz, Thomas",
+        "other_pcc_count": 1,
+        "other_pcc_registration_numbers": ["18135"]
+      },
+      {
+        "contributor": "Munira, Adam",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Niederer, Chris",
+        "other_pcc_count": 1,
+        "other_pcc_registration_numbers": ["18457"]
+      },
+      {
+        "contributor": "Niederer, John",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Nystrom, Brian",
+        "other_pcc_count": 3,
+        "other_pcc_registration_numbers": ["18773", "19205", "19218"]
+      },
+      {
+        "contributor": "Nystrom, Gretta",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Nystrom, Mary Ann",
+        "other_pcc_count": 2,
+        "other_pcc_registration_numbers": ["18773", "19205"]
+      },
+      {
+        "contributor": "Nystrom, Peter",
+        "other_pcc_count": 1,
+        "other_pcc_registration_numbers": ["19205"]
+      },
+      {
+        "contributor": "Praught, Bradley",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Praught, Debrorah",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Sahara, Ali",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Sailer, Caroline Brost",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Santrizos, Nicholas",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Schardin, Michael",
+        "other_pcc_count": 1,
+        "other_pcc_registration_numbers": ["18135"]
+      },
+      {
+        "contributor": "Sioris, Leo",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Smith, Gary",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Smith, Lisa",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Smith, Moses Sarah",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Spell, Tiki",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Spell, William",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Steinhauser, Daniel",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Sullivan, Patrick P",
+        "other_pcc_count": 1,
+        "other_pcc_registration_numbers": ["18509"]
+      },
+      {
+        "contributor": "Ulrich, Robert",
+        "other_pcc_count": 1,
+        "other_pcc_registration_numbers": ["19119"]
+      },
+      {
+        "contributor": "Volker, Arthur K",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Waddell III, Calli",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Waddell III, Robert",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Wardere, Khadar",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Warsame, Abdi",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Ya, Ahmay",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Yusuf, Ahmed Abdi",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      },
+      {
+        "contributor": "Zehnder, Chad",
+        "other_pcc_count": 0,
+        "other_pcc_registration_numbers": []
+      }
+    ],
+    "top_five": [
+      {
+        "contributor": "Kratsch, Charles",
+        "other_pcc_count": 11,
+        "other_pcc_registration_numbers": [
+          "17653",
+          "17919",
+          "18129",
+          "18430",
+          "18727",
+          "18781",
+          "18845",
+          "18873",
+          "18917",
+          "19005",
+          "19223"
+        ]
+      },
+      {
+        "contributor": "Lindau, Philip",
+        "other_pcc_count": 6,
+        "other_pcc_registration_numbers": [
+          "13262",
+          "18550",
+          "18830",
+          "19218",
+          "19239",
+          "19261"
+        ]
+      },
+      {
+        "contributor": "Nystrom, Brian",
+        "other_pcc_count": 3,
+        "other_pcc_registration_numbers": ["18773", "19205", "19218"]
+      },
+      {
+        "contributor": "Cullen, Mark",
+        "other_pcc_count": 2,
+        "other_pcc_registration_numbers": ["17319", "17950"]
+      },
+      {
+        "contributor": "Haselow, RE",
+        "other_pcc_count": 2,
+        "other_pcc_registration_numbers": ["15667", "17962"]
+      }
+    ]
+  },
+  "collation": {
+    "attname": "contributor",
+    "collname": "default",
+    "collprovider": "d",
+    "collisdeterministic": true,
+    "datcollate": "en_US.UTF-8",
+    "datctype": "en_US.UTF-8",
+    "considerations": "The text column uses deterministic default collation with database locale en_US.UTF-8. Deterministic equality breaks collation ties by bytes, so ordinary contributor equality in the existing lookup keeps differing strings separate. Locale ORDER BY is a separate concern: it may differ from Python character ordering even when equality is exact. Fixture membership uses explicit COLLATE C; expected tie ordering uses Python character ordering. Use explicit C ordering if exact reproducible character tie order is intended."
+  },
+  "method": "Held current production release read in a read-only repeatable-read transaction with 30-second statement timeout. Target includes every 2025 Individual-kind Contribution row for registration 17868. Other rows include every same-snapshot same-year Individual-kind Contribution to another recipient_type PCC registration under an exactly identical printed contributor string (SQL COLLATE C equality). Rows are retained without deduplication. Python exact string keys and sets of other PCC registration strings independently derive counts. Denominator excludes null or empty names, with no whitespace trimming, case folding, punctuation changes, accent folding or Unicode normalization. Top five orders count descending then Python character name ascending. No Board request, source refresh, production write or historical job.",
+  "existing_name_lookup": {
+    "router_file": "alethical/api/routers/public.py",
+    "router_function": "payments_under_one_printed_name",
+    "router_lines": "3783-3829",
+    "service_file": "alethical/api/services/campaign_finance_payments.py",
+    "service_functions": ["payments_from_contributor", "_payments", "_fetch"],
+    "service_lines": "898-931; 414-481",
+    "behavior": "Query name is passed unchanged to payments_from_contributor, forwarded as key_value, and matched with bound SQL contributor = :key. No strip, case fold, punctuation rewrite, accent fold or Unicode normalization. API query validation allows 1 to 200 characters. Other receipt and donor kinds are not filtered by this general lookup; the new connection evidence explicitly filters Individual and Contribution."
+  }
+}
