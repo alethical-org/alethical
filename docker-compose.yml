@@ -63,7 +63,7 @@ services:
       retries: 12
 
   frontend:
-    image: node:22-bookworm-slim
+    image: node:26-bookworm-slim
     container_name: alethical-frontend
     working_dir: /app
     environment:
