@@ -189,11 +189,6 @@ function OutsideYear({
               </View>
             ))}
           </View>
-          {period ? (
-            <Text style={[s.small, s.numeric]}>
-              {count === 1 ? copy.paymentMade : copy.paymentsMade} {period}
-            </Text>
-          ) : null}
           {coverage ? <Text style={[s.small, numericText(coverage)]}>{coverage}</Text> : null}
           <View style={[s.section, s.rule]}>
             <Text accessibilityRole="header" aria-level={3} style={[s.body, styles.subheading]}>
@@ -243,18 +238,25 @@ function OutsideYear({
           lives on, derived from the served address rather than typed in (#2186). The
           line below names the Board's own row on that page, so a reader knows which
           file these figures came from; "its" is the page named directly above it. */}
-      <View style={styles.sourceBlock}>
-        <Pressable
-          {...externalLinkProps(downloadsHref, () => onOpenSource(downloadsHref))}
-          style={(state) => [
-            styles.source,
-            Boolean('focused' in state && state.focused) && s.focus,
-          ]}
-        >
-          <Text style={[s.small, s.link, styles.sourceLabel]}>{NAMED_DONATIONS_LINK_LABEL}</Text>
-          <LinkArrow color={c.link} />
-        </Pressable>
-        <Text style={[s.small, styles.sourceFile]}>{copy.sourceFile}</Text>
+      <View style={styles.foot}>
+        {!unavailable && !zero && period ? (
+          <Text style={[s.small, styles.plainNumbers]}>
+            {count === 1 ? copy.paymentMade : copy.paymentsMade} {period}
+          </Text>
+        ) : null}
+        <View style={styles.sourceBlock}>
+          <Pressable
+            {...externalLinkProps(downloadsHref, () => onOpenSource(downloadsHref))}
+            style={(state) => [
+              styles.source,
+              Boolean('focused' in state && state.focused) && s.focus,
+            ]}
+          >
+            <Text style={[s.small, s.link, styles.sourceLabel]}>{NAMED_DONATIONS_LINK_LABEL}</Text>
+            <LinkArrow color={c.link} />
+          </Pressable>
+          <Text style={[s.small, styles.sourceFile]}>{copy.sourceFile}</Text>
+        </View>
       </View>
     </View>
   );
@@ -315,6 +317,7 @@ function SpenderRow({
 }) {
   const s = useDetailsStyles();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { isMobile, isTablet } = useResponsive();
   const name = group.name ?? copy.unknownName;
   const direction = outsideDirectionLabel(group.direction);
   const route =
@@ -322,22 +325,23 @@ function SpenderRow({
       ? { slug: committeeSlug(name, group.registrationNumber), year: String(year) }
       : null;
   const href = route ? routePath.moneyCommittee(route.slug, { year: route.year }) : null;
-  // The filing's own side, in the same 3 treatments the drawing gives it: supporting
-  // green on a light green border, opposing ink on a faint ink border, and an unstated
-  // side dashed so it cannot be mistaken for either.
-  const color =
-    group.direction === 'For' ? c.link : group.direction === 'Against' ? c.text : c.muted;
-  const borderColor =
-    group.direction === 'For'
-      ? c.hoverBorder
-      : group.direction === 'Against'
-        ? c.chipBorder
-        : c.border;
+  const stance = (
+    <Text
+      style={[
+        s.small,
+        styles.direction,
+        group.direction === 'Against' && styles.opposing,
+        group.direction === 'not recorded' && styles.notStated,
+      ]}
+    >
+      {direction}
+    </Text>
+  );
   const meta = `${outsideRegistrationLabel(group.registrationNumber)} · ${outsidePaymentCountLabel(group.paymentCount)}`;
   return (
     <View style={styles.group}>
-      <View style={styles.groupHead}>
-        <View style={styles.identity}>
+      <View style={[styles.groupHead, isMobile && styles.groupHeadMobile]}>
+        <View style={[styles.identity, isMobile && styles.identityMobile]}>
           <View style={styles.nameLine}>
             {href && route ? (
               <Text
@@ -349,19 +353,13 @@ function SpenderRow({
             ) : (
               <Text style={[s.name, numericText(name)]}>{name}</Text>
             )}
-            <Text
-              style={[
-                s.small,
-                styles.direction,
-                { color, borderColor },
-                group.direction === 'not recorded' && { borderStyle: 'dashed' },
-              ]}
-            >
-              {direction}
-            </Text>
+            {isMobile ? stance : null}
           </View>
-          <Text style={[s.small, s.numeric]}>{meta}</Text>
+          <Text style={[s.small, styles.plainNumbers]}>{meta}</Text>
         </View>
+        {!isMobile ? (
+          <View style={[styles.stanceColumn, isTablet && styles.stanceColumnTablet]}>{stance}</View>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           aria-expanded={expanded}
@@ -372,7 +370,15 @@ function SpenderRow({
             Boolean('focused' in state && state.focused) && s.focus,
           ]}
         >
-          <Text style={s.amount}>{formatMoney(group.amount) ?? copy.unknownAmount}</Text>
+          <Text
+            style={[
+              s.amount,
+              !isMobile && styles.amountColumn,
+              !isMobile && isTablet && styles.amountColumnTablet,
+            ]}
+          >
+            {formatMoney(group.amount) ?? copy.unknownAmount}
+          </Text>
           <Chevron open={expanded} />
         </Pressable>
       </View>
@@ -450,22 +456,38 @@ const styles = StyleSheet.create({
   group: { borderBottomWidth: 1, borderBottomColor: c.border },
   groupHead: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 14,
     alignItems: 'center',
     minHeight: 60,
     paddingVertical: 6,
   },
-  identity: { flexGrow: 1, flexShrink: 1, flexBasis: 220, minWidth: 0, gap: 3 },
+  groupHeadMobile: { flexWrap: 'wrap' },
+  identity: { flex: 1, minWidth: 0, gap: 3 },
+  // Keep the phone's existing name/chip flow; the amount can wrap below it.
+  identityMobile: { flexBasis: 220 },
+  stanceColumn: { minWidth: 104, flexGrow: 0, flexShrink: 0, alignItems: 'flex-start' },
+  stanceColumnTablet: { minWidth: 100 },
+  amountColumn: { minWidth: 120, flexShrink: 0, textAlign: 'right' },
+  amountColumnTablet: { minWidth: 110 },
+  plainNumbers: { fontWeight: '400', fontVariant: ['tabular-nums'] },
   nameLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   nameLink: { minHeight: 44, paddingVertical: 10 },
   direction: {
+    color: c.text,
+    borderColor: 'rgba(17,21,15,0.4)',
     borderWidth: 1,
     borderRadius: 7,
     paddingVertical: 1,
     paddingHorizontal: 7,
     fontSize: 12,
     fontWeight: '800',
+  },
+  opposing: { color: c.background, backgroundColor: c.text, borderColor: c.text },
+  notStated: {
+    color: c.muted,
+    borderColor: 'rgba(17,21,15,0.3)',
+    borderStyle: 'dashed',
+    fontWeight: '700',
   },
   expand: {
     minHeight: 44,
@@ -486,6 +508,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
+  foot: { gap: 14 },
   sourceBlock: { gap: 2 },
   // Tabular figures so "$200" sits straight, but the ordinary body weight: it is a
   // sentence about the file, not a figure of its own.

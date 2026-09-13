@@ -8,7 +8,8 @@ vi.mock('../../../data/groupedOutsideSpending', () => ({
   getGroupedOutsideSpending: vi.fn(),
   getCompleteOutsideSpendingPayments: vi.fn(),
 }));
-vi.mock('../../../hooks/useResponsive', () => ({ useResponsive: () => ({ isMobile: false }) }));
+const band = vi.hoisted(() => ({ isMobile: false, isTablet: false }));
+vi.mock('../../../hooks/useResponsive', () => ({ useResponsive: () => band }));
 vi.mock('../../LinkArrow', () => ({ LinkArrow: () => null }));
 vi.mock('react-native-svg', () => ({
   default: ({ children }: { children?: React.ReactNode }) => <svg>{children}</svg>,
@@ -162,6 +163,8 @@ function expand(): HTMLElement {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  band.isMobile = false;
+  band.isTablet = false;
   loadGroups.mockResolvedValue(grouped);
   loadPayments.mockResolvedValue(payments);
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
@@ -177,6 +180,76 @@ afterEach(() => {
 });
 
 describe('outside spender list on the campaign money tab', () => {
+  function textLine(text: string) {
+    return [...mount.querySelectorAll<HTMLElement>('*')]
+      .filter((node) => node.textContent === text)
+      .at(-1)!;
+  }
+
+  it.each([
+    ['computer', false, false, '104px', '120px'],
+    ['tablet', false, true, '100px', '110px'],
+    ['phone', true, false, null, null],
+  ] as const)(
+    'keeps stance and amount columns aligned on %s',
+    async (_label, mobile, tablet, stanceWidth, amountWidth) => {
+      band.isMobile = mobile;
+      band.isTablet = tablet;
+      await render();
+      const stance = textLine('Supporting');
+      const identity = mount.querySelector(
+        'a[href="/money/committees/example-fund-900?year=2025"]',
+      )!.parentElement!;
+      if (mobile) {
+        expect(stance.parentElement).toBe(identity);
+        expect(getComputedStyle(identity.parentElement!).flexBasis).toBe('220px');
+      } else {
+        expect(stance.parentElement).not.toBe(identity);
+        expect(getComputedStyle(stance.parentElement!).minWidth).toBe(stanceWidth);
+        expect(getComputedStyle(stance.parentElement!).flexShrink).toBe('0');
+        const amount = [...expand().querySelectorAll('*')].find(
+          (node) => node.textContent === '$10',
+        )!;
+        expect(getComputedStyle(amount).minWidth).toBe(amountWidth);
+        expect(getComputedStyle(amount).textAlign).toBe('right');
+      }
+    },
+  );
+
+  it('uses neutral outlined, filled and dashed stance chips', async () => {
+    await render();
+    const support = getComputedStyle(textLine('Supporting'));
+    const oppose = getComputedStyle(textLine('Opposing'));
+    const unstated = getComputedStyle(textLine('Not stated'));
+    expect(support.color).toBe('rgb(17, 21, 15)');
+    expect(support.borderColor).toBe('rgba(17, 21, 15, 0.4)');
+    expect(oppose.color).toBe('rgb(255, 255, 255)');
+    expect(oppose.backgroundColor).toBe('rgb(17, 21, 15)');
+    expect(oppose.borderColor).toBe('rgb(17, 21, 15)');
+    expect(unstated.color).toBe('rgb(107, 113, 107)');
+    expect(unstated.borderStyle).toBe('dashed');
+    expect(unstated.fontWeight).toBe('700');
+  });
+
+  it('puts ordinary-weight payment dates below the list and 14px before its source block', async () => {
+    band.isMobile = true;
+    await render();
+    const date = textLine('Payments made Jan 1, 2025 to Feb 1, 2025');
+    const meta = textLine('Registration 900 · 2 payments');
+    expect(date).toBeDefined();
+    expect(meta.compareDocumentPosition(date) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(getComputedStyle(date).fontWeight).toBe('400');
+    // jsdom lets RN Web's default font shorthand override inline size.
+    // The browser check also pins the computed size; here pin the actual output.
+    expect(date.style.fontSize).toBe('15px');
+    expect(getComputedStyle(meta).fontWeight).toBe('400');
+    expect(meta.style.fontSize).toBe('15px');
+    expect(getComputedStyle(date.parentElement!).gap).toBe('14px');
+    expect(date.nextElementSibling?.textContent).toContain(
+      'Minnesota’s campaign-finance downloads',
+    );
+  });
+
   it('renders distinct directions, links only linkable groups, and loads payment details on expansion', async () => {
     await render();
     expect(loadGroups).toHaveBeenCalledTimes(1);

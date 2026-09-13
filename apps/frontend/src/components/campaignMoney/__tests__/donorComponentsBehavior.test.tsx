@@ -248,6 +248,36 @@ describe('the donor chart explains what its cash shares represent', () => {
 });
 
 describe('the donor list preserves the complete filed record', () => {
+  it.each([2, 12])('draws dividers only between the visible names in a %i-name list', (count) => {
+    const groups = groupContributionPayments(
+      Array.from({ length: count }, (_, index) => gift({ contributor: `Example ${index}` })),
+    );
+    const view = mount(list({ groups }));
+    expect(getComputedStyle(view.firstElementChild!).borderTopWidth).not.toBe('1px');
+    const expanders = [...view.querySelectorAll('[aria-label^="Show the "]')];
+    const rows = expanders.map((button) => button.parentElement!.parentElement!);
+    expect(rows).toHaveLength(Math.min(count, 10));
+    for (const [index, row] of rows.entries()) {
+      expect(getComputedStyle(row).borderTopWidth === '1px').toBe(index > 0);
+      expect(getComputedStyle(row).borderBottomWidth).not.toBe('1px');
+    }
+    const button = [...view.querySelectorAll('[role="button"]')].find((node) =>
+      node.textContent?.startsWith('Show the other'),
+    );
+    expect(Boolean(button)).toBe(count > 10);
+    if (button) expect(getComputedStyle(button.parentElement!).gap).toBe('14px');
+  });
+
+  it('keeps a row employer and payment count at ordinary weight', () => {
+    const view = mount(
+      list({ groups: groupContributionPayments([gift({ employer: 'Twin Pines Insurance' })]) }),
+    );
+    const line = [...view.querySelectorAll('*')]
+      .filter((node) => node.textContent === 'Twin Pines Insurance · 1 payment')
+      .at(-1)!;
+    expect(getComputedStyle(line).fontWeight).toBe('400');
+  });
+
   it('keeps the 5 fixed tabs when empty without inventing an Other category', () => {
     const view = markup(list({ groups: [] }));
     const tabs = Array.from(view.querySelectorAll('[role="tab"]')).map((tab) => tab.textContent);

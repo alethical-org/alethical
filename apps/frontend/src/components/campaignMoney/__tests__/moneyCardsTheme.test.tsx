@@ -181,6 +181,9 @@ describe('profile styling for shared money cards', () => {
     expect(dateStyle.fontSize).toBe('15px');
     expect(dateStyle.fontWeight).toBe('800');
     expect(getComputedStyle(block).paddingTop).toBe('18px');
+    // The profile card contributes the other 16px of the measured 24px gap.
+    expect(getComputedStyle(block).marginTop).toBe('8px');
+    expect(getComputedStyle(block).borderTopColor).toBe('rgba(17, 21, 15, 0.08)');
     const evidence = date.nextElementSibling!;
     expect(evidence.getAttribute('role')).toBe('list');
     expect(getComputedStyle(evidence).paddingLeft).toBe('0px');
@@ -204,7 +207,7 @@ describe('profile styling for shared money cards', () => {
   it('keeps missing spending as words and every displayed text color in the profile palette', () => {
     const profile = mount.querySelector('#profile')!;
     const unavailable = exact(profile, MONEY_OUT_OFFICIAL_MISSING);
-    expect(getComputedStyle(unavailable).fontSize).toBe('14px');
+    expect(getComputedStyle(unavailable).fontSize).toBe('15px');
     expect(getComputedStyle(unavailable).color).toBe(color(c.secondary));
     const palette = new Set(Object.values(c).map(color));
     for (const element of profile.querySelectorAll<HTMLElement>('*')) {

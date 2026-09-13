@@ -89,7 +89,7 @@ export function DonorPaymentList({
   const current = MONEY_DETAILS_TABS.find((item) => item.id === tab)!;
   const isExpenditures = tab === 'expenditures';
   return (
-    <View style={[s.section, s.rule]}>
+    <View style={[s.section, styles.section]}>
       <View role="tablist" aria-label={copy.tabsLabel} style={styles.tabsScroll} {...tabKeys}>
         <View style={[styles.tabs, isMobile && styles.tabsMobile]}>
           {tabs.map((item, index) => (
@@ -191,11 +191,12 @@ export function DonorPaymentList({
             </View>
             {isExpenditures ? <Text style={s.small}>{copy.listedSpendingNote}</Text> : null}
             {visible.length ? (
-              <View style={styles.rows}>
-                {visible.map((group) => (
+              <View>
+                {visible.map((group, index) => (
                   <PaymentGroup
                     key={group.key}
                     group={group}
+                    first={index === 0}
                     year={year}
                     expanded={open.has(group.key)}
                     onToggle={() =>
@@ -239,11 +240,13 @@ export function DonorPaymentList({
 
 function PaymentGroup({
   group,
+  first,
   year,
   expanded,
   onToggle,
 }: {
   group: MoneyDetailsGroup;
+  first: boolean;
   year: number;
   expanded: boolean;
   onToggle: () => void;
@@ -264,7 +267,7 @@ function PaymentGroup({
     copy.payments(count),
   ].join(' · ');
   return (
-    <View style={styles.group}>
+    <View style={!first && styles.group}>
       <View
         onPointerEnter={() => setHovered(true)}
         onPointerLeave={() => setHovered(false)}
@@ -491,6 +494,8 @@ function Chevron({ size }: { size: number }) {
 }
 
 const styles = StyleSheet.create({
+  // The containing section supplies the other 18px of the 30px gap.
+  section: { paddingTop: 12 },
   tabsScroll: {
     flexWrap: 'nowrap',
     margin: -4,
@@ -599,8 +604,7 @@ const styles = StyleSheet.create({
   countText: { fontSize: 15, color: c.secondary, fontWeight: '800', fontVariant: ['tabular-nums'] },
   totalText: { fontSize: 15, color: c.secondary, fontWeight: '400', fontVariant: ['tabular-nums'] },
   totalAmount: { color: c.text, fontWeight: '800' },
-  rows: { borderTopWidth: 1, borderTopColor: 'rgba(17,21,15,0.08)' },
-  group: { borderBottomWidth: 1, borderBottomColor: 'rgba(17,21,15,0.08)' },
+  group: { borderTopWidth: 1, borderTopColor: 'rgba(17,21,15,0.08)' },
   groupHead: {
     flexDirection: 'row',
     alignItems: 'center',
