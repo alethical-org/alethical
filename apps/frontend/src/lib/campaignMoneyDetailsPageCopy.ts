@@ -50,3 +50,26 @@ export const moneyDetailsPageCopy = {
     'We cannot give these money records one shared download date. Their recorded dates differ or a date is missing.',
   refreshRecords: 'Check these records again',
 } as const;
+
+/**
+ * The date under every money surface: the day we downloaded Minnesota's bulk payment
+ * files, and what that date is not.
+ *
+ * It lives here rather than in `committeeMoneyShared.ts` because that module is read by
+ * the startup program, so every reader of every page downloads its words before anything
+ * can draw, and this sentence is only ever printed on a money surface
+ * ([issue 2184](https://github.com/alethical-org/alethical/issues/2184)).
+ *
+ * The report totals are copied on their own day and that second date is not served yet
+ * ([issue 2192](https://github.com/alethical-org/alethical/issues/2192)), so the sentence
+ * says they were copied separately without claiming when.
+ *
+ * The date keeps a no-break space inside it, so a narrow column cannot leave a line
+ * ending "…on Sep 1," and read as a date running into the next clause.
+ */
+export function paymentFilesDownloadedLine(day: string): string {
+  return (
+    `We downloaded Minnesota’s payment files on ${day.replace(/,\s/, ',\u00a0')}, ` +
+    'which is not the period the money covers. The report totals were copied separately.'
+  );
+}

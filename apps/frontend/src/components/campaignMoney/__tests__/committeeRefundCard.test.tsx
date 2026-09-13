@@ -13,6 +13,10 @@ vi.mock('../../../hooks/useResponsive', () => ({
     isDesktop: responsive.width >= 1100,
   }),
 }));
+vi.mock('react-native-svg', () => ({
+  default: ({ children }: { children?: React.ReactNode }) => <svg>{children}</svg>,
+  Path: () => <path />,
+}));
 const { renderToStaticMarkup } = require('react-dom/server') as typeof import('react-dom/server');
 
 function render(refunds: CommitteeRefunds | undefined = refundFixture()) {
@@ -56,14 +60,34 @@ describe('the per-committee refund card', () => {
     // The 2 figure columns hold a fixed width per band and the year column takes what
     // is left, so all 3 still fit a 375px phone.
     expect(
-      [...container.querySelectorAll<HTMLElement>('thead th')].map((cell) => cell.style.width),
+      [...container.querySelectorAll<HTMLElement>('thead th')].map((cell) => [
+        cell.style.width,
+        cell.style.paddingLeft,
+      ]),
     ).toEqual(
       width < 768
-        ? ['', '96px', '92px']
+        ? [
+            ['', '0px'],
+            ['104px', '6px'],
+            ['96px', '6px'],
+          ]
         : width < 1100
-          ? ['', '180px', '130px']
-          : ['', '220px', '150px'],
+          ? [
+              ['', '0px'],
+              ['216px', '18px'],
+              ['158px', '18px'],
+            ]
+          : [
+              ['', '0px'],
+              ['236px', '18px'],
+              ['168px', '18px'],
+            ],
     );
+    // The padding is on the heading cells alone, so the 2 caps lines separate while
+    // every figure still lines up under its own heading.
+    expect(
+      [...row(container, 2025)!.cells].map((cell) => (cell as HTMLElement).style.paddingLeft),
+    ).toEqual(['0px', '0px', '0px']);
     expect(row(container, 2016)).toBeUndefined();
     expect(row(container, 2015)).toBeUndefined();
     expect(container.querySelector('tfoot')).toBeNull();
@@ -133,9 +157,8 @@ describe('the per-committee refund card', () => {
     expect(container.querySelector('table')).toBeNull();
     expect(container.textContent).not.toContain('$0');
     expect(container.querySelectorAll('a')).toHaveLength(1);
-    expect(container.querySelector('a')?.textContent).toBe(
-      'Board summary files last copied Sep 10, 2026',
-    );
+    expect(container.querySelector('a')?.textContent).toContain("The Board's refund summaries");
+    expect(container.textContent).toContain('Board summary files copied Sep 10, 2026');
     expect(container.querySelector('a')?.getAttribute('href')).toBe(refunds.sourceUrl);
   });
 
@@ -157,7 +180,7 @@ describe('the per-committee refund card', () => {
     expect(container.textContent).not.toContain('last copied');
   });
 
-  it('uses exactly the stored program link and copy date without linking years', () => {
+  it('says where the link goes and keeps the copy date as a note', () => {
     const refunds = {
       ...refundFixture(),
       sourceUrl: 'https://cfb.mn.gov/stored-program-page',
@@ -167,10 +190,17 @@ describe('the per-committee refund card', () => {
     const links = container.querySelectorAll('a');
     expect(links).toHaveLength(1);
     expect(links[0].getAttribute('href')).toBe(refunds.sourceUrl);
-    expect(links[0].textContent).toBe('Board summary files last copied Sep 10, 2026');
+    // The link's words say where it goes. A date said when we copied something and left
+    // a screen reader's list of links carrying a date that pointed nowhere.
+    expect(links[0].textContent).toContain("The Board's refund summaries");
+    expect(links[0].textContent).not.toContain('Sep 10, 2026');
+    expect(container.textContent).toContain('Board summary files copied Sep 10, 2026');
     expect(container.querySelector('table a')).toBeNull();
+    // No address served: the date still prints and no link is drawn, because a link
+    // pointed at a wrong-but-existing page lies about where it goes.
     const withoutSource = render({ ...refunds, sourceUrl: null });
     expect(withoutSource.querySelector('a')).toBeNull();
+    expect(withoutSource.textContent).toContain('Board summary files copied Sep 10, 2026');
   });
 
   it.each([false, null])(

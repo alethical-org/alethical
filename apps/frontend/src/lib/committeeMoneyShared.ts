@@ -283,14 +283,6 @@ export function staleHoldNote(checkedOn: string | null): string {
   );
 }
 
-/** The bulk-payment copy has its own date, separate from the filing totals. */
-export function paymentFilesDownloadedLine(day: string): string {
-  return (
-    `We last downloaded Minnesota’s payment files on ${day}. ` +
-    'The report totals are copied separately. This is a download date, not the period the money covers.'
-  );
-}
-
 /** A committee whose own report totals zero: a verified zero, drawn as the number
  *  it is, with the sentence that stops it reading as a gap (rule 12). */
 export const ZERO_REPORTED_NOTE =

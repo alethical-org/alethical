@@ -1439,7 +1439,7 @@ describe('a committee’s record in the first response', () => {
     expect(text).toContain(coveredPeriodLine(split.reported_through, '2026-01-01'));
     expect(text).toContain(centralDateLabel(committeeFixture.fetched_at));
     expect(text).toContain('Minnesota’s payment files');
-    expect(text).toContain('The report totals are copied separately');
+    expect(text).toContain('The report totals were copied separately');
     expect(text).not.toContain('Checked against our copy of the Board’s files');
   });
 

@@ -399,7 +399,7 @@ describe('independent outside-money confirmation and shared download dates', () 
     setOutside({ fetchedAt: '2026-09-11T10:00:00Z' });
     render(2025, data(2025));
     expect(container.textContent).toContain(moneyDetailsCopy.freshnessMismatch);
-    expect(container.textContent).not.toContain('We last downloaded Minnesota');
+    expect(container.textContent).not.toContain('We downloaded Minnesota');
     expect(container.textContent).not.toContain('Copied from the state on');
     click(
       Array.from(container.querySelectorAll('[role="button"]')).find(
@@ -413,10 +413,14 @@ describe('independent outside-money confirmation and shared download dates', () 
   it('dates the payment files once without assigning that date to report totals', () => {
     setOutside();
     render(2025, data(2025));
-    expect(container.textContent?.match(/We last downloaded Minnesota/g)).toHaveLength(1);
+    expect(container.textContent?.match(/We downloaded Minnesota/g)).toHaveLength(1);
     expect(container.textContent).toContain('Minnesota’s payment files');
-    expect(container.textContent).toContain('The report totals are copied separately');
+    expect(container.textContent).toContain('The report totals were copied separately');
     expect(container.textContent).toContain('not the period the money covers');
+    // The date stays whole, so a narrow column cannot end a line on "…on Sep 1," and
+    // read as one date running into the next clause.
+    expect(container.textContent).toContain('Sep 12,\u00a02026');
+    expect(container.textContent).not.toContain('Sep 12, 2026');
     expect(container.textContent).not.toContain(moneyDetailsCopy.freshnessMismatch);
     expect(container.textContent).not.toContain('Check these records again');
     expect(container.textContent).not.toContain('Copied from the state on');

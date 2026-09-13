@@ -112,7 +112,6 @@ import {
   NAMED_DONATIONS_LINK_LABEL,
   reportedThroughNote,
   itemizedContributionsNote,
-  paymentFilesDownloadedLine,
   shownReceiptRows,
   type PaymentsTab,
   registerKindFromEntityType,
@@ -121,6 +120,7 @@ import {
   unnamedMoneyExplanation,
   ZERO_REPORTED_NOTE,
 } from './committeeMoneyShared';
+import { paymentFilesDownloadedLine } from './campaignMoneyDetailsPageCopy';
 import {
   emptyListTitle,
   emptyListWhy,

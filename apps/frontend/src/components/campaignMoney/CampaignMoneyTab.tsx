@@ -44,7 +44,6 @@ import {
   committeeSlug,
   coveredPeriodDetail,
   coveredPeriodLine,
-  paymentFilesDownloadedLine,
   staleHoldNote,
 } from '../../lib/committeeMoneyShared';
 import { centralDateLabel } from '../../lib/moneyLanding';
@@ -75,7 +74,10 @@ import {
   DEFAULT_MONEY_DETAILS_PREFERENCES,
   type MoneyDetailsPreferences,
 } from '../../lib/campaignMoneyPreferences';
-import { moneyDetailsPageCopy as copy } from '../../lib/campaignMoneyDetailsPageCopy';
+import {
+  moneyDetailsPageCopy as copy,
+  paymentFilesDownloadedLine,
+} from '../../lib/campaignMoneyDetailsPageCopy';
 import {
   committeeCardStyles,
   detailsStyles,
@@ -689,7 +691,10 @@ function FreshnessNote({
     );
   return (
     <View style={styles.freshness}>
-      <Text style={[text.small, text.numeric]}>{paymentFilesDownloadedLine(day)}</Text>
+      {/* The ordinary body weight, not the heavy one: this is the least important line
+          on the tab and it was the only bold one, and the only one under the 15px the
+          notes inside the cards above it use. Tabular figures stay, for the date. */}
+      <Text style={[text.small, styles.freshnessLine]}>{paymentFilesDownloadedLine(day)}</Text>
     </View>
   );
 }
@@ -769,6 +774,7 @@ const styles = StyleSheet.create({
   // without this the card ends a line on a dangling `-` and strands the number.
   numberRun: { ...({ whiteSpace: 'nowrap' } as object) },
   freshness: { gap: 8 },
+  freshnessLine: { fontVariant: ['tabular-nums'] },
   cardMobile: committeeCardStyles.mobile,
   cardTablet: committeeCardStyles.tablet,
   // Two cards rather than 2 bare columns divided by a rule (#2182). They wrap on their
