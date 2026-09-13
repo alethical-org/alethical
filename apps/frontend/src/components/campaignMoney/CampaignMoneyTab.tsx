@@ -509,8 +509,8 @@ function CommitteeCard({
             preferences={preferences}
             onPreferences={onPreferences}
           >
-            <View style={[styles.figures, isMobile && styles.figuresMobile]}>
-              <View style={isMobile ? styles.figureColumnMobile : styles.figureColumn}>
+            <View style={styles.figures}>
+              <View style={styles.figureColumn}>
                 <MoneyInBlock
                   surface="profile"
                   withDonorBreakdown
@@ -521,7 +521,7 @@ function CommitteeCard({
                   isMobile={isMobile}
                 />
               </View>
-              <View style={isMobile ? styles.figureColumnMobile : styles.figureColumn}>
+              <View style={styles.figureColumn}>
                 <MoneyOutBlock
                   surface="profile"
                   moneyOut={committee.moneyOut}
@@ -742,15 +742,22 @@ const styles = StyleSheet.create({
   freshness: { gap: 8 },
   cardMobile: committeeCardStyles.mobile,
   cardTablet: committeeCardStyles.tablet,
-  figures: {
-    flexDirection: 'row',
-    gap: 28,
-    borderTopWidth: 1,
-    borderTopColor: c.border,
-    paddingTop: 24,
+  // Two cards rather than 2 bare columns divided by a rule (#2182). They wrap on their
+  // own at 270px, so the phone band needs no separate direction: the same row becomes a
+  // stack when only one card fits.
+  figures: { flexDirection: 'row', flexWrap: 'wrap', gap: 18, alignItems: 'flex-start' },
+  figureColumn: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 270,
+    minWidth: 0,
+    backgroundColor: c.tile,
+    borderWidth: 1,
+    borderColor: c.shadow,
+    borderRadius: 14,
+    paddingTop: 18,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
-  figuresMobile: { flexDirection: 'column' },
-  figureColumn: { flex: 1, minWidth: 0 },
-  figureColumnMobile: { minWidth: 0 },
   recordLink: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44 },
 });

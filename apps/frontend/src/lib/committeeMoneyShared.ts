@@ -339,16 +339,24 @@ export const MONEY_IN_NAMED_LABEL = 'Itemized contributions';
  *  Eugene, 11 Sep 2026). The sentence under it says what the word means. */
 export const MONEY_IN_UNNAMED_LABEL = 'Non-itemized contributions';
 
-/** The heading over the receipt rows that are not donations — a loan, a public
+/** The heading over the receipt rows that are not contributions — a loan, a public
  *  subsidy, interest. Short because the card heading 2 elements above already says
  *  "Money in", and the rows themselves show that each is reported on its own line
- *  (ruled by Eugene, 2 Sep 2026, in the campaign-money design's copy proposals). */
-export const NOT_A_DONATION_HEADING = 'Not a donation';
+ *  (ruled by Eugene, 2 Sep 2026, in the campaign-money design's copy proposals).
+ *
+ *  "Contribution", not "donation" (#2182). A donated good or service **is** a donation,
+ *  and it sits inside the Itemized contributions figure above rather than under this
+ *  heading, so a reader who meets the chart's "not counting donated goods and services"
+ *  and then this heading was invited to look for those goods here, where they never are.
+ *  Nothing under this heading is a contribution at all: a loan is repaid, a public
+ *  subsidy comes from the state, interest comes from a bank. It also matches the 3 rows
+ *  above it, every one labelled a contribution, so the reader matches 1 word not 2. */
+export const NOT_A_DONATION_HEADING = 'Not a contribution';
 
 /**
  * The receipt kind the cards do not draw (ruled by Eugene, 11 Sep 2026). Matched against
  * the served value exactly: `Miscellaneous` is the Board's own kind on the contributions
- * file, and a page that hides it draws no `Not a donation` heading when no row is left.
+ * file, and a page that hides it draws no `Not a contribution` heading when no row is left.
  * Every other kind (a public subsidy, interest, a loan) still draws with its own label.
  */
 export const HIDDEN_RECEIPT_KIND = 'Miscellaneous';
@@ -466,30 +474,21 @@ export const PAGE_CAP = 250;
 export const IN_KIND_CHIP = 'Donated goods or services';
 
 /**
- * The one sentence naming how much of the named donations was goods and services.
+ * The one sentence naming how much came as goods and services rather than money.
  *
- * **One function because 3 renderers were writing it 2 different ways, and one of the 2
- * was wrong.** The committee page and the server-rendered first response both said "The
- * state counts those separately from the reported total"; the legislator profile said
- * "separately from the total below". On the profile the reported total draws ABOVE this
- * line, and the figure that draws below it is "Donations with nobody's name on them",
- * which is a different figure derived from the reported total rather than the total
- * itself. Worse, that lower figure only draws when the split is shown, so on a profile
- * with a withheld split the sentence pointed at nothing at all.
+ * One function, drawn identically wherever it appears, because 3 renderers once wrote it
+ * 2 different ways and one of the 2 pointed at a figure that was not there. The wording
+ * names what the money is rather than where another figure sits, which is what keeps it
+ * correct on the chart, on either money card and in the text served without JavaScript,
+ * however any of them is laid out later.
  *
- * So the wording names the figure rather than its position, which is what makes it
- * correct on both surfaces however either one is laid out later.
- *
- * `namesTheChip` exists because 2 of the 3 places name the marker a row carries
- * (`IN_KIND_CHIP`) and the profile does not, and closing that gap would change what a
- * reader sees rather than fixing what is wrong. Presentation stays where it was; only
- * the claim is unified.
+ * `more` is doing real work: this money sits outside the reported contributions figure
+ * rather than inside it, so a reader must not add it to anything above (#2182).
  */
-export function inKindDonationsNote(amount: string, namesTheChip: boolean): string {
-  const marker = namesTheChip ? ` (${IN_KIND_CHIP.toLowerCase()})` : '';
+export function inKindDonationsNote(amount: string): string {
   return (
-    `${amount} of the donations above were goods and services rather than money${marker}. ` +
-    'The state counts those separately from the reported total.'
+    `${amount} more came as goods and services rather than money, which Minnesota ` +
+    'counts separately.'
   );
 }
 

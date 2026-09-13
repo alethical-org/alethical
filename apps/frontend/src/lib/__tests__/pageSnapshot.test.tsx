@@ -9,6 +9,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import billFixture from './fixtures/bill-page-snapshot.json';
 import committeeFixture from './fixtures/committee-money-page-snapshot.json';
 import { CONFIRMATION_UNAVAILABLE_LINE } from '../committeeConfirmation';
+import { dekText, namedMoneyDefinition } from '../campaignMoneyDetailsCopy';
 import {
   emptyListTitle,
   madePaymentRow,
@@ -1357,7 +1358,12 @@ describe('a committee’s record in the first response', () => {
     expect(text).toContain(formatMoney(split.reported_total));
     expect(text).toContain(formatMoney(split.named_total));
     expect(text).toContain(formatMoney(split.unnamed_total));
-    expect(text).toContain(unnamedMoneyExplanation(false));
+    // Beside 2 contribution figures the served text carries the chart's own defining
+    // sentences, which is rule 12's requirement that a page say what separates them. The
+    // donut is not served, so its opening sentence describes nothing here and stays out.
+    expect(text).toContain(dekText(namedMoneyDefinition(false)));
+    expect(text).not.toContain(unnamedMoneyExplanation(false));
+    expect(text).not.toContain('Shares of the contributions this committee reported');
   });
 
   // Ruled by Eugene, 11 Sep 2026: the money-out section is the filing's own figure
@@ -1419,13 +1425,13 @@ describe('a committee’s record in the first response', () => {
       { receipt_type: 'Public Subsidy', total: '3000.00', payments: 1 },
       { receipt_type: 'Miscellaneous', total: '375.00', payments: 1 },
     ]);
-    expect(subsidy).toContain('Not a donation');
+    expect(subsidy).toContain('Not a contribution');
     expect(subsidy).toContain('Public Subsidy · $3,000 · 1 payment');
     expect(subsidy).not.toContain('Miscellaneous');
     const onlyMisc = withReceipts([
       { receipt_type: 'Miscellaneous', total: '375.00', payments: 1 },
     ]);
-    expect(onlyMisc).not.toContain('Not a donation');
+    expect(onlyMisc).not.toContain('Not a contribution');
     expect(onlyMisc).not.toContain('$375');
   });
 

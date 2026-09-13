@@ -253,6 +253,28 @@ export function reportedThroughLabel(through: string | null | undefined): string
  * income and miscellaneous income, so a share "of the money raised" would be a share of
  * a larger number than the one it was taken from.
  */
+/**
+ * Whether the Non-itemized contributions figure draws at all.
+ *
+ * One rule, read by the Money in card, by the chart's dek and by the text served without
+ * JavaScript, because those 3 must agree: `.claude/rules/grounded-answers.md` rule 12
+ * requires a page carrying both contribution figures to say what the difference between
+ * them is, and the sentence saying so now lives in the dek. A page that drew the figure
+ * from one condition and its explanation from another could show one without the other.
+ *
+ * A reported zero is its own state with its own sentence, and no split of nothing.
+ */
+export function unnamedFigureDraws(split: {
+  state: string;
+  reportedTotal: string | null;
+  namedTotal?: string | null;
+  unnamedTotal: string | null;
+}): boolean {
+  if (split.state !== 'shown' || split.unnamedTotal === null) return false;
+  const reportedZero = Number(split.reportedTotal) === 0 && (split.namedTotal ?? null) === null;
+  return !reportedZero;
+}
+
 export function unnamedShareLabel(
   unnamed: number | string | null | undefined,
   reported: number | string | null | undefined,

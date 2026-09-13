@@ -26,6 +26,7 @@ import {
 } from '../MoneyDetailsOnDemand';
 import { requestReleaseReload } from '../../../lib/releaseReload';
 import { moneyDetailsPageCopy as copy } from '../../../lib/campaignMoneyDetailsPageCopy';
+import { dekText, namedMoneyDefinition } from '../../../lib/campaignMoneyDetailsCopy';
 import type { ComponentProps } from 'react';
 
 const host = document.createElement('div');
@@ -38,7 +39,19 @@ afterEach(() => {
 it('keeps accepted summaries while the optional chunk loads and after recovery is declined', async () => {
   const error = vi.spyOn(console, 'error').mockImplementation(() => {});
   document.body.append(host);
-  const donations = {} as ComponentProps<typeof CommitteeDonations>;
+  // A real split, because the chart's dek is what explains the 2 contribution figures in
+  // the cards below it, and those cards are exactly what this test proves stay put.
+  const donations = {
+    committee: {
+      registrationNumber: '18430',
+      split: {
+        state: 'shown',
+        reportedTotal: '216054.0000',
+        namedTotal: '151614.0000',
+        unnamedTotal: '66840.0000',
+      },
+    },
+  } as unknown as ComponentProps<typeof CommitteeDonations>;
   const outside = {} as ComponentProps<typeof GroupedOutsideSpending>;
   const history = {} as ComponentProps<typeof CommitteeMixHistory>;
   const outsideSummary = {} as ComponentProps<typeof OutsideSpendingCard>;
@@ -57,6 +70,9 @@ it('keeps accepted summaries while the optional chunk loads and after recovery i
   expect(host.textContent).toContain('Official spending $5261240');
   expect(host.textContent).toContain(copy.chartLoading);
   expect(host.textContent).toContain(copy.outsideLoading);
+  // Rule 12: the 2 figures never stand with no sentence between them, not even for the
+  // moment the separately downloaded chart takes to arrive.
+  expect(host.textContent).toContain(dekText(namedMoneyDefinition(false)));
   await act(async () => {
     chunk.reject(new Error('release chunk missing'));
     await chunk.promise.catch(() => {});
@@ -67,6 +83,7 @@ it('keeps accepted summaries while the optional chunk loads and after recovery i
   expect(requestReleaseReload).toHaveBeenCalled();
   expect(host.textContent).toContain('Official spending $5261240');
   expect(host.textContent).toContain(copy.chartFailed);
+  expect(host.textContent).toContain(dekText(namedMoneyDefinition(false)));
   expect(host.textContent).toContain(copy.outsideFailed);
   expect(host.textContent).toContain(copy.refreshRecords);
   expect(host.textContent).not.toContain('This page hit a problem');

@@ -6,7 +6,7 @@
  * Rendered, not source-checked, for the reason `campaignMoneyTabDrawsOutsideSpending`
  * gives: an element can be imported and called and still never reach a reader. What
  * these tests pin is what a reader meets — the named figure that is never blank, the
- * filing's link stated once, the label "Not a donation" over every receipt kind but
+ * filing's link stated once, the label "Not a contribution" over every receipt kind but
  * `Miscellaneous`, a money-out card that identifies its figure's source, and the
  * evidence block at the card's foot.
  */
@@ -52,12 +52,14 @@ import {
   itemizedContributionsNote,
   MONEY_IN_NAMED_LABEL,
   MONEY_IN_REPORTED_LABEL,
+  MONEY_IN_UNNAMED_LABEL,
   MONEY_OUT_REPORTED_LABEL,
   MONEY_OUT_OFFICIAL_MISSING,
   NAMED_DONATIONS_LINK_LABEL,
   NOT_A_DONATION_HEADING,
 } from '../../../lib/committeeMoneyShared';
 import { MATCH_CHECK_LABEL, reportedThroughLabel } from '../../../lib/legislatorCampaignMoney';
+import { dekText, namedMoneyDefinition } from '../../../lib/campaignMoneyDetailsCopy';
 
 /** A confirmed committee with a full year of figures, shaped like the live API. */
 function committee(overrides: Partial<CampaignCommitteeMoney> = {}): CampaignCommitteeMoney {
@@ -164,6 +166,14 @@ const text = (html: string) =>
     .replace(/&#x27;/g, "'")
     .replace(/\s+/g, ' ');
 
+/** What a reader actually reads. `text` above puts a space at every tag boundary, which
+ *  splits a sentence whose emphasised words are their own inline elements. */
+const domText = (html: string) => {
+  const host = document.createElement('div');
+  host.innerHTML = html;
+  return (host.textContent ?? '').replace(/\s+/g, ' ');
+};
+
 /** The 2 money cards alone: from the money-in heading to the outside-spending card. */
 const cards = (html: string) => {
   const plain = text(html);
@@ -218,7 +228,7 @@ describe('the money cards on the profile, at the final inventory', () => {
     expect(html).toContain('Everything we hold on this committee');
   });
 
-  it('labels the rows that are not donations "Not a donation", and hides Miscellaneous', () => {
+  it('labels the rows that are not contributions "Not a contribution", and hides Miscellaneous', () => {
     const html = text(render([committee()]));
     expect(html).toContain(`${NOT_A_DONATION_HEADING} Public Subsidy`);
     expect(html).not.toContain('Miscellaneous');
@@ -272,13 +282,27 @@ describe('the money cards on the profile, at the final inventory', () => {
     expect(raw).not.toContain('?download=');
   });
 
-  // Ruled by Eugene, 11 Sep 2026: the naming rule is stated once on the card, in the
-  // sentence under the itemized figure, and the non-itemized sentence repeats no figure.
-  it('states the $200 naming rule exactly once, under the itemized figure', () => {
-    const html = cards(render([committee()]));
-    expect(html).toContain(itemizedContributionsNote(false));
+  // The naming rule is stated once on the whole tab, in the chart's dek above the cards,
+  // and the cards beside that chart are figures only (#2182).
+  it('states the $200 naming rule exactly once, above the cards and not inside them', () => {
+    const html = domText(render([committee()]));
+    expect(html).toContain(dekText(namedMoneyDefinition(false)));
     expect(html.split('$200').length - 1).toBe(1);
-    expect(html).toContain('whose givers the state’s public file does not name');
+    const inCards = cards(render([committee()]));
+    expect(inCards).not.toContain('$200');
+    expect(inCards).not.toContain(itemizedContributionsNote(false));
+    expect(inCards).not.toContain('whose givers the state’s public file does not name');
+  });
+
+  // Rule 12: a page carrying both contribution figures says what the difference between
+  // them is. The dek carries that sentence, so it draws even while the donut is loading.
+  it('explains the 2 contribution figures even before the chart itself can draw', () => {
+    const html = domText(render([committee()]));
+    expect(html).toContain(`${MONEY_IN_NAMED_LABEL}$151,614`);
+    expect(html).toContain(`${MONEY_IN_UNNAMED_LABEL}$66,840`);
+    expect(html).toContain('The filing names who gave for itemized contributions');
+    // The donut's own sentence describes a picture that is not there yet.
+    expect(html).not.toContain('Shares of the contributions this committee reported');
   });
 
   it('leaves the unnamed share in the lead chart instead of repeating it under the figure', () => {

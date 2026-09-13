@@ -19,9 +19,11 @@
  *   c. The named figure — ALWAYS present: a real amount, or the words "Not reported"
  *      set as words and never in the amount face. Never blank.
  *   d. The goods-and-services line — only when named payments include some above zero.
- *   e. The unnamed figure with its threshold sentence — when the split is shown.
+ *   e. The unnamed figure with its threshold sentence — when the split is shown. Beside
+ *      the chart the sentence moves into the chart's dek, which is then the one place
+ *      both contribution labels are explained (#2182); the figure itself stays here.
  *   f. That state's own withheld sentence in (e)'s position — when it is not.
- *   g. "Not a donation" rows — only when the filing carries other receipt kinds, and
+ *   g. "Not a contribution" rows — only when the filing carries other receipt kinds, and
  *      never a `Miscellaneous` row (ruled by Eugene, 11 Sep 2026); the heading goes with
  *      the last row.
  *   h. The source link to the Board's downloads page — whenever a download address is
@@ -37,7 +39,8 @@
  * from the stamp's (`reportedThroughNote`).
  *
  * Beside the shared donor chart, `withDonorBreakdown` lets the chart own the percentage,
- * goods-and-services and withheld-split explanation once. The amount rows stay here.
+ * goods-and-services, withheld-split and contribution-label explanations once. The amount
+ * rows stay here.
  * The shared theme supplies the palette and type sizes on profile and committee pages.
  */
 import { createContext, useContext, useState, type ReactNode } from 'react';
@@ -73,6 +76,7 @@ import {
   paymentDateRangeLabel,
   splitExplanation,
   statedSplitNote,
+  unnamedFigureDraws,
   unnamedShareLabel,
   type CommitteeMatchCheck,
   type MoneyBlockState,
@@ -288,7 +292,7 @@ export function MoneyInBlock({
   // (c) draws whatever the block's state: a null block on the profile is a committee
   // the downloads hold no row for, and "Not reported" is what that reads as.
   const named = moneyFigure(moneyIn?.state ?? 'not_reported', split.namedTotal);
-  const unnamed = split.state === 'shown' ? formatMoney(split.unnamedTotal) : null;
+  const unnamed = unnamedFigureDraws(split) ? formatMoney(split.unnamedTotal) : null;
   // Only a real amount earns the goods-and-services line; a filed $0.00 of it is
   // ordinary, not a caveat. Read through the shared helper rather than `Number()`:
   // turning a committee's amount into a number is the first step of the combined
@@ -337,20 +341,20 @@ export function MoneyInBlock({
         />
       )}
 
-      {/* What the itemized figure is, directly under it and before the goods-and-services
-          line: the one place on the card that states the naming rule (ruled by Eugene,
-          11 Sep 2026). Absent only where the figure itself gives way to the filed zero. */}
-      {reportedZero ? null : (
+      {/* What the itemized figure is, and the naming rule behind it. Drawn only where no
+          chart accompanies the card: beside the chart, its dek is the one place both
+          contribution labels are explained, and repeating them here would state the same
+          rule twice on one screen (#2182). Absent too where the figure itself gives way
+          to the filed zero. */}
+      {reportedZero || withDonorBreakdown ? null : (
         <CardText style={styles.explain}>{itemizedContributionsNote(isBallot)}</CardText>
       )}
 
       {inKind && !withDonorBreakdown ? (
-        <CardText style={styles.explain}>
-          {inKindDonationsNote(inKind, surface === 'committee')}
-        </CardText>
+        <CardText style={styles.explain}>{inKindDonationsNote(inKind)}</CardText>
       ) : null}
 
-      {split.state === 'shown' && unnamed !== null && !reportedZero ? (
+      {unnamed !== null ? (
         <>
           <Figure
             label={MONEY_IN_UNNAMED_LABEL}
@@ -362,7 +366,9 @@ export function MoneyInBlock({
             }
             isMobile={isMobile}
           />
-          <CardText style={styles.explain}>{unnamedMoneyExplanation(isBallot)}</CardText>
+          {withDonorBreakdown ? null : (
+            <CardText style={styles.explain}>{unnamedMoneyExplanation(isBallot)}</CardText>
+          )}
           {checkNote ? <CardText style={styles.explain}>{checkNote}</CardText> : null}
         </>
       ) : null}
@@ -493,18 +499,22 @@ export function Figure({
   const styles = useCardStyles();
   return (
     <View style={styles.figure}>
-      <CardText style={[styles.figureLabel, isMobile && styles.figureLabelMobile]}>
-        {label}
-      </CardText>
-      <CardText
-        style={
-          isFigure
-            ? [styles.figureValue, isMobile && styles.figureValueMobile]
-            : styles.figureStandIn
-        }
-      >
-        {value}
-      </CardText>
+      {/* Label left, figure right, on one baseline (#2182). Stacking them doubled both
+          columns' height and lost the alignment down the right edge of the card. */}
+      <View style={styles.figureLine}>
+        <CardText style={[styles.figureLabel, isMobile && styles.figureLabelMobile]}>
+          {label}
+        </CardText>
+        <CardText
+          style={
+            isFigure
+              ? [styles.figureValue, isMobile && styles.figureValueMobile]
+              : styles.figureStandIn
+          }
+        >
+          {value}
+        </CardText>
+      </View>
       {note ? <CardText style={styles.figureNote}>{note}</CardText> : null}
     </View>
   );
@@ -567,6 +577,12 @@ const defaultStyles = StyleSheet.create({
     color: t.colors.text.secondary,
   },
   figure: { gap: 2 },
+  figureLine: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   // A reader-sentence label takes sentence case at 14px computer / 13px phone, weight
   // 600. These stopped being field names when they became sentences, and a tracked
   // mono uppercase version wrapped to 2 lines in a phone column and shouted.
@@ -575,6 +591,7 @@ const defaultStyles = StyleSheet.create({
     fontSize: 14,
     fontWeight: t.fontWeights.semibold,
     color: t.colors.text.secondary,
+    flexShrink: 1,
   },
   figureLabelMobile: { fontSize: 13 },
   // Every dollar figure shares one face: the big-total font, never the mono that

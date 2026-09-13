@@ -22,9 +22,13 @@ export function CommitteeDonations({
   preferences,
   onPreferences,
   headingLevel,
+  isBallot = false,
 }: {
   committee: Pick<CampaignCommitteeMoney, 'registrationNumber' | 'split'>;
   headingLevel?: 2 | 3;
+  /** A ballot-question filer's naming line is $500 rather than $200, so the dek above
+   *  the chart has to know which kind of filer this page is about. */
+  isBallot?: boolean;
   year: number;
   releaseId?: string;
   onRefresh: () => void;
@@ -65,7 +69,7 @@ export function CommitteeDonations({
         year={year}
         complete={details.selectedComplete && !failed}
         failed={failed}
-        onSelectTab={(tab) => onPreferences({ ...preferences, tab })}
+        isBallot={isBallot}
       />
       {children}
       <DonorPaymentList

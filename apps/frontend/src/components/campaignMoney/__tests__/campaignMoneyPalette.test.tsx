@@ -75,7 +75,6 @@ function draw(unnamed: boolean) {
             year={2025}
             complete
             failed={false}
-            onSelectTab={vi.fn()}
           />
         </div>
         <div id="history">
@@ -117,8 +116,11 @@ it('uses each solid kind colour in the donut, its square swatch and every year b
   expect(circles.map((circle) => circle.getAttribute('stroke'))).toEqual(colors);
   expect(container.querySelector('svg')!.getAttribute('viewBox')).toBe('0 0 180 180');
   circles.forEach((circle) => {
+    // One contiguous ring: a slice is drawn at its own size, with no white cut taken off
+    // it for its neighbour (#2182), and the ring is 30 units thick rather than 22.
     const length = Number(circle.getAttribute('stroke-dasharray')!.split(' ')[0]);
-    expect(length).toBeCloseTo((Math.PI * 140) / 6 - 3, 5);
+    expect(length).toBeCloseTo((Math.PI * 140) / 6, 5);
+    expect(circle.getAttribute('stroke-width')).toBe('30');
   });
   expect(swatches('#donut div').map((swatch) => getComputedStyle(swatch).backgroundColor)).toEqual(
     colors.map(rgb),

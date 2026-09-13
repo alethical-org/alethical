@@ -90,6 +90,7 @@ import {
   whoseCommitteeText,
   yearDisplayState,
 } from './committeeMoney';
+import { dekText, namedMoneyDefinition } from './campaignMoneyDetailsCopy';
 import {
   closedChipLabel,
   committeeEyebrow,
@@ -136,6 +137,7 @@ import {
   paymentCountLabel,
   splitExplanation,
   statedSplitNote,
+  unnamedFigureDraws,
   type MoneyBlockState,
   type SplitState,
 } from './legislatorCampaignMoney';
@@ -1468,7 +1470,7 @@ export function committeePageSnapshot(
   } else {
     const reported = formatMoney(split.reported_total ?? null);
     const named = moneyFigure(committeeBlockState(moneyIn.state), split.named_total ?? null);
-    const unnamed = split.state === 'shown' ? formatMoney(split.unnamed_total ?? null) : null;
+    const unnamed = formatMoney(split.unnamed_total ?? null);
     const inKind =
       Number(split.named_in_kind_total ?? 0) > 0
         ? formatMoney(split.named_in_kind_total ?? null)
@@ -1479,6 +1481,14 @@ export function committeePageSnapshot(
       split.state === 'shown' &&
       Number(split.reported_total) === 0 &&
       (split.named_total ?? null) === null;
+    // The same rule the live card reads, so the served text and the card can never draw
+    // the non-itemized figure and its explaining sentences apart from each other.
+    const hasUnnamed = unnamedFigureDraws({
+      state: split.state ?? 'no_reported_total',
+      reportedTotal: split.reported_total ?? null,
+      namedTotal: split.named_total ?? null,
+      unnamedTotal: split.unnamed_total ?? null,
+    });
     // The filing's coverage date is stated once, in the period section above the
     // cards; a figure carries its own only where its date differs from that one.
     const stampThrough = split.reported_through ?? moneyOut.reported_through ?? null;
@@ -1496,12 +1506,21 @@ export function committeePageSnapshot(
         : []),
       ...(reportedZero
         ? [ZERO_REPORTED_NOTE]
-        : [`${MONEY_IN_NAMED_LABEL}: ${named.text}`, itemizedContributionsNote(identity.isBallot)]),
-      ...(inKind ? [inKindDonationsNote(inKind, true)] : []),
-      ...(split.state === 'shown' && unnamed !== null && !reportedZero
+        : [
+            `${MONEY_IN_NAMED_LABEL}: ${named.text}`,
+            // The card's own sentence, drawn only where the live page has no chart to
+            // carry it: with both contribution figures present, the dek's sentences below
+            // define both labels and this would say the naming rule twice.
+            ...(hasUnnamed ? [] : [itemizedContributionsNote(identity.isBallot)]),
+          ]),
+      ...(inKind ? [inKindDonationsNote(inKind)] : []),
+      ...(hasUnnamed
         ? [
             `${MONEY_IN_UNNAMED_LABEL}: ${unnamed}`,
-            unnamedMoneyExplanation(identity.isBallot),
+            // The chart's dek, which this text does not otherwise carry: the donut is not
+            // served, so its opening sentence describes nothing here, while the 2
+            // sentences defining the labels are what rule 12 requires beside 2 figures.
+            dekText(namedMoneyDefinition(identity.isBallot)),
             statedSplitNote(split.stated_split_state) ?? '',
           ]
         : []),

@@ -443,10 +443,10 @@ describe('one committee shares the donation browser', () => {
 
   it('reads only the candidate year, prints its real rows and groups ABOUT spending once', async () => {
     await render();
-    expect(host.textContent).toContain('Who gave, by kind of donor (named donations only)');
+    expect(host.textContent).toContain('Who gave (named donations only)');
     expect(
       [...host.querySelectorAll('[role=heading]')]
-        .find((node) => node.textContent?.startsWith('Who gave, by kind of donor'))
+        .find((node) => node.textContent?.startsWith('Who gave'))
         ?.getAttribute('aria-level'),
     ).toBe('2');
     expect(host.textContent).toContain('Named total in this tab:');
@@ -586,8 +586,8 @@ describe('one committee shares the donation browser', () => {
       shape();
       await render();
       expect(host.textContent).toContain(splitExplanation('sources_disagree'));
-      expect(host.textContent).toContain(inKindDonationsNote('$25', true));
-      expect(host.textContent).not.toContain('Who gave, by kind of donor');
+      expect(host.textContent).toContain(inKindDonationsNote('$25'));
+      expect(host.textContent).not.toContain('Who gave');
       expect(request).not.toHaveBeenCalled();
     },
   );
