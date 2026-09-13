@@ -8,9 +8,10 @@ historical totals and payments grouped by name, each with a pull request and liv
 
 ## Remaining-work boundaries
 
-Eugene resumed this task's remaining non-lobbying work on 13 September 2026.
-The pause on both lobbying jobs remains in force. Completion of a screen change
-does not complete either held source replacement.
+Eugene's active order is this documentation release, then the 3 donation cards in
+[issue 2205](https://github.com/alethical-org/alethical/issues/2205), then lobbying
+data and lobbying pages. Completion of a screen change does not complete either
+held source replacement.
 
 - The names redesign in [pull request 2189](https://github.com/alethical-org/alethical/pull/2189)
   and the itemized-history wording in [pull request 2196](https://github.com/alethical-org/alethical/pull/2196)
@@ -18,27 +19,77 @@ does not complete either held source replacement.
   and [history release report](https://github.com/alethical-org/alethical/issues/2191#issuecomment-5654830093)
   record required checks and phone, tablet and computer behavior. Their completed
   worktrees and branches are removed.
-- Jobs 5a, 5b and 5c are released server additions. Displays for the filing's
-  contributor lines, donor states and shared printed names still require their
-  separately accepted Design briefs; the server releases do not authorize those displays.
+- Jobs 5a, 5b and 5c are released server additions. Their 3 displays are now
+  authorized by [issue 2205](https://github.com/alethical-org/alethical/issues/2205)
+  and the accepted `Alethical UX (17).zip`. Build them after this documentation
+  release merges, from a fresh branch based on current `origin/main`.
 - [Issue 2142](https://github.com/alethical-org/alethical/issues/2142) and
   [issue 2150](https://github.com/alethical-org/alethical/issues/2150) remain held at
   Action 4 Liberty PAC's missing 2026 record. All 3 authorized retries are exhausted.
   The complete saved replacement and recovery evidence remain available; no further
   totals fetch, source substitution or publication is authorized by this close-out.
+  Reading a complete official financial summary, including balances and coverage
+  end, would be new ingestion work and requires Eugene's explicit go. A later
+  termination report cannot stand in for an earlier report with a different period.
 - The next bulk-payment replacement remains held under
   [issue 2171](https://github.com/alethical-org/alethical/issues/2171). Read-only
   investigation of its 905-row loss may proceed. A finding that explains some removed
-  rows does not waive the existing whole-replacement checks.
+  rows does not waive the existing whole-replacement checks. The
+  [bounded report follow-up](https://github.com/alethical-org/alethical/issues/2171#issuecomment-5655320945)
+  records 38 net-loss count comparisons and 4 deeper report comparisons. It
+  corrects 1 preliminary parser mistake and leaves the unexplained differences
+  explicit; it is not a complete reconciliation or permission to publish.
 - [Issue 2192](https://github.com/alethical-org/alethical/issues/2192), serving and
-  displaying the report totals' own copy date, and
-  [issue 2194](https://github.com/alethical-org/alethical/issues/2194), transcribing
-  older filing calendars, are separate open follow-ups. The names and history
-  releases do not complete them.
-- [Lobbying data](https://github.com/alethical-org/alethical/issues/2163) and
-  [lobbying pages](https://github.com/alethical-org/alethical/issues/2164) stay paused
-  until Eugene resumes them. Remind him after each completed build; do not create
-  a scheduled continuation or resume either job from this checkpoint.
+  displaying the report totals' own copy date, is live in
+  [pull request 2202](https://github.com/alethical-org/alethical/pull/2202).
+  [Issue 2194](https://github.com/alethical-org/alethical/issues/2194), transcribing
+  older filing calendars, is live in
+  [pull request 2204](https://github.com/alethical-org/alethical/pull/2204).
+  The accepted list, outside-spending and phone-text corrections in
+  [issue 2199](https://github.com/alethical-org/alethical/issues/2199) are live in
+  [pull request 2203](https://github.com/alethical-org/alethical/pull/2203).
+- [Lobbying data](https://github.com/alethical-org/alethical/issues/2163) follows
+  the live donation cards, then [lobbying pages](https://github.com/alethical-org/alethical/issues/2164)
+  follows the live data. Eugene authorized finishing both after the other work;
+  the accepted 5e/5f briefs below still define their scope. No scheduled paid run.
+
+## 13 September source-date, calendar and layout release
+
+The final combined code is
+[commit 76ea5041](https://github.com/alethical-org/alethical/commit/76ea5041386e02fce68d2a8edd97e45e32ef927d).
+All 3 pull requests passed their own full checks and the merge queue's combined
+checks. Both website and API deployments succeeded. The public HTML carries that
+commit, and its actual first download is 338,170 bytes against the unchanged
+339,072-byte ceiling. Each branch was also measured on the host with production
+settings before queuing; no fixed local-to-host adjustment authorized release.
+
+The live legislator and committee responses date the payment files to
+1 September 2026 and report totals to 12 August 2026. The latter comes from the
+published filing snapshot's `fetch_completed_at`, not its publication date or a
+newer unpublished run. Committee and full-payment HTML include both dates before
+JavaScript runs. The profile prints the same 2-date note after it loads.
+
+The source-backed calendar addition preserves 22 official PDFs and 84 report rows.
+Public reads cover all 12 Abeler year selections and 3 Gottfried year selections.
+Abeler's held regular committee-years resolve to the appropriate on/off-ballot
+schedule; 2015 has no selected committee. Gottfried retains the distinct
+missing-evidence and special-election states. Historical known schedules do not
+invent future dates. The full calendar source record is in
+[campaign-finance-calendars.md](../evidence/campaign-finance-calendars.md).
+
+Every sampled response retains financial release
+`af236cca-a4f8-4efe-9a3a-025259ea380e`. Abeler's 2025 money-in, money-out, split,
+refunds and 3 existing data-only additions compare unchanged before and after.
+Both held source replacements, the 3 donation cards and lobbying remain outside
+this completed code release. The active order above governs the remaining builds.
+
+A fresh live reader passed 375, 900 and 1440 widths, keyboard category selection,
+name search, expansion/collapse, the 2025 show-more control from 10 to 74 names,
+and outside-spending links. The final profile displays both copy dates, past-tense
+2021/2025 off-ballot notes and the 2022 on-ballot note. The 2024 refund count remains
+“Count not published” beside $10,508. The committee's dated cache briefly served
+the supported old-response fallback, then completed its ordinary background
+refresh; the normal address and full-payment view both show the 2 dates.
 
 ## Completed server change
 
@@ -214,8 +265,9 @@ mixed-release source-link gap cleared after the API deployed and the canonical
   with every pull request, live result, held portion and finding for the architecture owner.
 - [x] Leave [campaign-finance-system-design.md](../architecture/campaign-finance-system-design.md)
   unchanged in this task; its owner receives findings through issue 2140.
-- [ ] After all changes are live, give Eugene 1 complete prompt for Claude to review
-  the approved decisions, implementation, checks, live results and remaining limits.
+- [ ] After the donation cards and lobbying are live, update and provide
+  [campaign-money-final-review-prompt.md](campaign-money-final-review-prompt.md)
+  for Claude to review the decisions, implementation, checks and remaining limits.
 
 No paid run, real user message or destructive production change is authorized by this plan.
 
