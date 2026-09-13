@@ -49,3 +49,36 @@ the first call is not evidence of an empty database cache or a system-wide worst
 No index, storage, scheduled work or page change is required for this calculation.
 The [API response record](../architecture/backend-api-system-design.md) defines the served
 block, absent-year states, exact-spelling boundary and count ordering.
+
+## Live response and existing-screen check
+
+The released calculation in [pull request 2178](https://github.com/alethical-org/alethical/pull/2178)
+passed an independent recheck on 13 September 2026, at 17:44:33 to 17:44:34 UTC.
+All 5 ordinary public requests returned HTTP 200, without a cache-busting parameter:
+
+| Public request | Result |
+| --- | --- |
+| [Committee 17868, 2025](https://api.alethical.com/api/v1/committees/17868/finance?year=2025) | 19 of 74 exact names; distribution 55, 11, 5, 1, 2 |
+| [Dated committee 17868, 2025](https://api.alethical.com/api/v1/committees/17868/finance?year=2025&include_confirmation=false) | The same complete name-connections block |
+| [Jim Abeler, 2025](https://api.alethical.com/api/v1/legislators/jim-abeler/campaign-finance?year=2025) | The same complete name-connections block on committee 17868 |
+| [Committee 17868, 2027](https://api.alethical.com/api/v1/committees/17868/finance?year=2027) | Unavailable; null numerator and denominator; empty distribution and top-name lists |
+| [Committee 20003, 2025](https://api.alethical.com/api/v1/committees/20003/finance?year=2025) | 17 of 30 exact names; distribution 13, 9, 4, 0, 4 |
+
+The distribution order is 0, 1, 2, 3 and 4 or more other candidate registrations.
+Each reported distribution sums to its denominator; its nonzero-connection buckets
+sum to its numerator. Abeler's top 5 and exact-spelling method match the fixture
+above. Every response identifies data release `af236cca-a4f8-4efe-9a3a-025259ea380e`,
+copied at `2026-09-01T18:33:35.639027Z`. The responses carry no backend code-commit
+field, so the data identity is not presented as a server deployment identity.
+
+Chrome opened the existing [Jim Abeler money tab](https://www.alethical.com/legislators/jim-abeler?tab=money&year=2025)
+on website release [e02171ea](https://github.com/alethical-org/alethical/commit/e02171eaf689c5d8746ef7f67b99044d1c0f314c).
+At 1512 pixels, changing 2025 to 2024 and back updated both year selections,
+report dates and the name/payment counts: 74/82, 35/36, then 74/82. The screen
+did not overflow sideways. No shared-name visualization is claimed: this release
+adds server data, and its display still awaits Design.
+
+Direct navigation to the API host was blocked by Chrome with
+`ERR_BLOCKED_BY_CLIENT`. The 5 JSON comparisons therefore used independent HTTP
+requests; the browser portion checked the existing public screen only. Browser
+permissions were unchanged, and no published data or source check was changed.
