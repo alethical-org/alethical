@@ -64,8 +64,12 @@ $230.59/month.
   - $60 Vercel Pro for 3 deploying people.
   - $32.59 projected GitHub Actions overage.
 
-The free version is now implemented in `ci.yml`. TruffleHog checks every PR and
-`main` push for confirmed live credentials and candidates it could not verify.
+The free version is implemented in `ci.yml`. TruffleHog checks every PR,
+`main` push and merge-queue group for live credentials and candidates it could not
+verify. Queue scans use the event's recorded base and head commits, covering the
+combined queued changes without rescanning unrelated history. The pinned action
+selects its own boundaries for ordinary pull requests and pushes; a manually
+started workflow retains its full-history scan.
 Only its Lob check is off: Alethical has no Lob account or code, and Lob's key
 shape also matches ordinary Python test names. Every other check stays on.
 A separate full-history scan checked 1,298 revisions and about 74 MB, finding 0
