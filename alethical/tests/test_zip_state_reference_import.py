@@ -43,11 +43,61 @@ def test_a_territory_is_not_printed_as_an_ordinary_state():
     assert result == {"00901": None}
 
 
+def test_downloaded_geoid_columns_keep_incomplete_and_cross_state_zips_unknown():
+    # Exact rows/columns from ZIP-COUNTY_062026.xlsx, downloaded 2026-09-13.
+    result, count = parse_rows(
+        [
+            (
+                "ZIP",
+                "GEOID",
+                "CITY",
+                "STATE",
+                "RES_RATIO",
+                "BUS_RATIO",
+                "OTH_RATIO",
+                "TOT_RATIO",
+            ),
+            ("77352", "48", "LIVINGSTON", "TX", 1, 1, 1, 1),
+            ("96799", "60", "PAGO PAGO", "AS", 0, 0, 1, 1),
+            (
+                "42223",
+                "21047",
+                "FORT CAMPBELL",
+                "KY",
+                0.089132507149666,
+                0.41766467065868,
+                0.30639730639731,
+                0.10643367752184,
+            ),
+            (
+                "42223",
+                "47125",
+                "FORT CAMPBELL",
+                "KY",
+                0.91086749285033,
+                0.58233532934132,
+                0.69360269360269,
+                0.89356632247816,
+            ),
+        ]
+    )
+    assert count == 4
+    assert result == {"42223": None, "77352": None, "96799": None}
+
+
+def test_a_missing_county_on_one_row_keeps_the_whole_zip_unknown():
+    result, count = parse_rows([("ZIP", "GEOID"), ("12345", "27"), ("12345", "27001")])
+    assert count == 2
+    assert result == {"12345": None}
+
+
 @pytest.mark.parametrize(
     "rows",
     [
         [("DELIVERY ZIPCODE", "PHYSICAL STATE"), ("09012", "NJ")],
         [("ZIP", "COUNTY", "ZIP"), ("10001", "36061", "10001")],
+        [("ZIP", "COUNTY", "GEOID"), ("10001", "36061", "36061")],
+        [("ZIP", "GEOID"), ("10001", "99")],
         [("ZIP", "COUNTY"), ("10001",)],
         [("ZIP", "COUNTY"), ("10001", "99001")],
         [("ZIP", "COUNTY"), ("1001", "36061")],

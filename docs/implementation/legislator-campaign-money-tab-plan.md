@@ -380,23 +380,21 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   API cases, and a fresh reader at computer and phone sizes. No page or source data
   changed. Its completed worktree was removed after matching the live tree.
 - Job 5b is prepared in `/private/tmp/alethical-2146-donor-states` on
-  `codex/2146-donor-states`, with release held for signed-in HUD access. The
+  `codex/2146-donor-states`, in
+  [pull request 2176](https://github.com/alethical-org/alethical/pull/2176). The
   [source progress report](https://github.com/alethical-org/alethical/issues/2146#issuecomment-5652007985)
   records why USPS postal-facility states cannot substitute for the full HUD file.
-  No `alethical/api/data/zip_states.json` has been generated: no real HUD file has
-  been copied, and the real state allocation remains unproved. The held fixture has
-  82 cash payments, 74 printed names and $39,950; 3 trimmed 4-digit ZIPs account for
-  $1,250 that must remain unknown. Its current empty-reference test proves payment
-  arithmetic only, never geography. Both public response paths, reference parsing,
-  copy-bound checks and separate-committee amounts pass 69 focused checks. Independent
-  review is complete. The optional reference loader withholds an unreadable file without
-  failing other money blocks. All 2,631 server tests pass on the saved commit before upload;
-  lint, format, database type, dependency and command-inventory checks pass too.
-  Before release, copy the complete authenticated national ZIP-to-county workbook,
-  record its actual quarter-end/copy time/hash, validate the real columns and all
-  rows, generate the versioned map with the manual command, and add the real sample
-  state reconciliation. Complete source validation, current-head checks, the merge
-  queue and live responses remain required. Jobs 5c through 5f retain their order.
+  Eugene supplied HUD sign-in on 2026-09-13. The complete national 2026 Q2 workbook
+  is copied and `alethical/api/data/zip_states.json` is generated. The
+  [reference check](../verification/2146-donor-state-reference.md) records 54,570
+  rows, 39,484 ZIPs, 39,284 state assignments and 200 retained as unknown. The held
+  17868/2025 fixture reconciles $38,700 across 71 printed names to Minnesota and
+  $1,250 across 3 printed names to unknown, with no other-state cash. Both totals
+  come from the same 82 cash payments. New assertions exercise this real reference
+  through both committee response variants and the legislator response. The
+  downloaded `GEOID` header and its 9 incomplete county codes are tested too.
+  Current-head checks, independent source review, the merge queue and live responses
+  remain required before completion. Jobs 5c through 5f retain their order.
 - Jobs 4 through 5f retain their stated sequence. Action 4 Liberty PAC's historical
   replacement for 41173/2026 remains held with no additional source attempts or
   publication. The 2024 spending replacement remains held for the 905-row loss in

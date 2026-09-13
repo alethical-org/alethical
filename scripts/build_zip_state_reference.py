@@ -70,20 +70,32 @@ def source_code(value: object) -> str:
 def parse_rows(rows) -> tuple[dict[str, str | None], int]:
     iterator = iter(rows)
     headers = tuple(str(value).strip().upper() for value in next(iterator, ()))
-    if len(set(headers)) != len(headers) or not {"ZIP", "COUNTY"} <= set(headers):
-        raise ValueError("Expected HUD ZIP-to-county columns ZIP and COUNTY")
-    zip_index, county_index = headers.index("ZIP"), headers.index("COUNTY")
-    states: dict[str, set[str]] = defaultdict(set)
+    county_headers = {"COUNTY", "GEOID"} & set(headers)
+    if (
+        len(set(headers)) != len(headers)
+        or "ZIP" not in headers
+        or len(county_headers) != 1
+    ):
+        raise ValueError("Expected HUD ZIP and one county column, COUNTY or GEOID")
+    zip_index = headers.index("ZIP")
+    county_index = headers.index(next(iter(county_headers)))
+    states: dict[str, set[str | None]] = defaultdict(set)
     count = 0
     for values in iterator:
         if not any(value not in (None, "") for value in values):
             continue
         if len(values) != len(headers):
             raise ValueError("A HUD reference row has a different number of columns")
-        zipcode, county = (
-            source_code(values[zip_index]),
-            source_code(values[county_index]),
-        )
+        zipcode = source_code(values[zip_index])
+        county_value = values[county_index]
+        # The downloaded 2026 Q2 GEOID column has 9 state-only codes. They
+        # do not establish a county: retain their ZIPs as unknown, including
+        # when another row for the ZIP does name a county. Never pad the code.
+        if isinstance(county_value, str) and county_value.strip() in STATE_CODES:
+            states[zipcode].add(None)
+            count += 1
+            continue
+        county = source_code(county_value)
         state = STATE_CODES.get(county[:2])
         if state is None:
             raise ValueError("The HUD county code has an unrecognized state")

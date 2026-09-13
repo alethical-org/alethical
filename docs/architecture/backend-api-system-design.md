@@ -1111,7 +1111,8 @@ The block has `state: reported`, `year`, `rows[]`, `summary`, and `reference`:
 The reference is a checked-in lookup table at `alethical/api/data/zip_states.json`, loaded once
 per server process and refreshed by hand through a pull request. Run
 `scripts/build_zip_state_reference.py` over the full national HUD ZIP-to-county workbook with
-its actual quarter-end and copy time. The script validates the 2 source columns, every code,
+its actual quarter-end and copy time. The script validates ZIP and the county column
+(`COUNTY` in the published description, `GEOID` in the downloaded 2026 Q2 workbook), every code,
 and national state coverage, and records the input hash. The state-coverage check catches a
 state-only extract; it does not prove every county row is present. The complete authenticated
 workbook and real allocation check are required before a new reference is released. The spreadsheet reader is a declared
@@ -1119,6 +1120,11 @@ command dependency; API requests read only the resulting table. The command perf
 database write or recurring refresh. A new file version takes effect with the server release.
 
 A ZIP with counties in multiple states remains unknown, as does an unsupported jurisdiction.
+The 2026 Q2 workbook also has 9 rows carrying only a 2-digit state code in `GEOID`;
+their ZIPs remain unknown because those rows do not establish a county. Those codes are
+not padded into county identifiers, and the accompanying mailing-state column does not
+fill the gap. The [2026 Q2 reference check](../verification/2146-donor-state-reference.md)
+records the complete source, its hash, every unassigned category and the real sample.
 The lookup covers the 50 states and DC; it never assigns overseas military ZIPs the state of a
 US sorting facility. HUD excludes PO-box-only ZIPs and cannot locate some other ZIPs, so unmatched
 ZIPs remain unknown. The preferred mailing state and address ratios never decide a donor's state.

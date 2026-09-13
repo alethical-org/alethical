@@ -13,7 +13,7 @@ from sqlalchemy import text
 
 from alethical.api.services import committee_donor_states as service
 from alethical.api.services.committee_finance import current_release
-from alethical.api.services.zip_state_reference import ZipStateReference
+from alethical.api.services.zip_state_reference import REFERENCE_PATH, ZipStateReference
 from alethical.db import models
 from alethical.db.session import get_session_factory
 from alethical.pipeline.campaign_finance_reader import ReleaseNoLongerHeld
@@ -107,14 +107,19 @@ def _seed_real(db):
     return fixture
 
 
-def test_held_rows_preserve_cash_and_names_on_both_routes_without_inventing_states(
-    db, client, monkeypatch, reference
+@pytest.mark.parametrize("use_published_reference", [False, True])
+def test_held_rows_preserve_cash_and_names_on_both_routes(
+    db, client, monkeypatch, reference, use_published_reference
 ):
     fixture = _seed_real(db)
-    # This test has no geographical mappings. It proves the real donation
-    # arithmetic and route parity, not the pending HUD state assignments.
-    empty_reference = replace(reference, states={})
-    monkeypatch.setattr(service, "load_zip_state_reference", lambda: empty_reference)
+    # The empty lookup proves that missing matches do not become guessed states;
+    # the published HUD lookup pins the actual state allocation of the same rows.
+    selected_reference = (
+        ZipStateReference(**json.loads(REFERENCE_PATH.read_text()))
+        if use_published_reference
+        else replace(reference, states={})
+    )
+    monkeypatch.setattr(service, "load_zip_state_reference", lambda: selected_reference)
     assert len(fixture["rows"]) == 82
     assert len({row["contributor"] for row in fixture["rows"]}) == 74
     short = [row for row in fixture["rows"] if len(row["contrib_zip"].strip()) < 5]
@@ -142,15 +147,28 @@ def test_held_rows_preserve_cash_and_names_on_both_routes_without_inventing_stat
     assert blocks[0] == blocks[1] == blocks[2]
     block = blocks[0]
     assert block["state"] == "reported" and block["year"] == 2025
-    assert block["rows"] == [
-        {"state": "unknown", "names": 74, "cash_total": "39950.0000"}
-    ]
+    expected_rows = (
+        [
+            {"state": "MN", "names": 71, "cash_total": "38700.0000"},
+            {"state": "unknown", "names": 3, "cash_total": "1250.0000"},
+        ]
+        if use_published_reference
+        else [{"state": "unknown", "names": 74, "cash_total": "39950.0000"}]
+    )
+    assert block["rows"] == expected_rows
+    assert sum(Decimal(row["cash_total"]) for row in block["rows"]) == Decimal("39950")
     assert block["summary"] == {
-        "minnesota": {"names": 0, "cash_total": "0"},
+        "minnesota": {
+            "names": 71 if use_published_reference else 0,
+            "cash_total": "38700.0000" if use_published_reference else "0",
+        },
         "other_states": {"names": 0, "cash_total": "0"},
-        "unknown": {"names": 74, "cash_total": "39950.0000"},
+        "unknown": {
+            "names": 3 if use_published_reference else 74,
+            "cash_total": "1250.0000" if use_published_reference else "39950.0000",
+        },
     }
-    assert block["reference"] == empty_reference.public_metadata()
+    assert block["reference"] == selected_reference.public_metadata()
     # Only state aggregates and source metadata may cross the public boundary.
     assert set(block) == {"state", "year", "rows", "summary", "reference"}
     assert all(set(row) == {"state", "names", "cash_total"} for row in block["rows"])
