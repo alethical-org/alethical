@@ -682,10 +682,10 @@ of any of them:
 > Board summary files copied {newest copy date}
 
 The first appears only when the source files for the reported rows carry that counting
-note, and the second only when the card holds a reported row. **The copy date is a note
-rather than a link.** As a link its words were a date, so anyone reading a screen
-reader's list of links was told when we copied something and never where the link went,
-and it was the only link on this tab with no arrow after it.
+note, and the second only when the card holds a reported row. **The copy date is a note,
+never a link.** A link's words have to say where it goes, and a date says when we copied
+something, so a date is never the words of a link here: in a screen reader's list of
+links it would name a day and no destination.
 
 Below the notes is the card's only link, **The Board's refund summaries**, carrying the
 same arrow as every other off-site link on this tab and pointing to the Board's program
@@ -1069,10 +1069,10 @@ An explaining paragraph inside a card keeps every full stop it has, however shor
 
    The date itself never breaks across 2 lines, so a narrow column cannot leave a line
    ending "on Sep 1," that reads as one date running into the next clause. The line is
-   drawn at the ordinary body weight rather than bold: it is the least important line on
-   the tab and it used to be the only bold one and the only one smaller than the notes in
-   the cards above it. If payment-file dates differ or a date is missing, the tab explains
-   that it cannot state a shared date and lets the reader check the records again.
+   drawn at the ordinary body weight and at the same size as the notes inside the cards
+   above it, never heavier and never smaller: it is the least important line on the tab.
+   If payment-file dates differ or a date is missing, the tab explains that it cannot
+   state a shared date and lets the reader check the records again.
 
    The day the report totals were copied is not served to the page yet, so the line says
    they were copied separately without saying when. Once that second date is served it
