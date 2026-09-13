@@ -1,5 +1,5 @@
 /** Shared by the summary card and the grouped selected-year list. */
-export const OUTSIDE_SPENDING_CARD_HEADING = 'Spending by Outside Groups';
+export const OUTSIDE_SPENDING_CARD_HEADING = 'Spending by outside groups';
 
 import { formatDay, formatMoney } from './legislatorCampaignMoney';
 import { centralDateLabel, formatCount } from './moneyLanding';
@@ -278,28 +278,24 @@ export function outsideSpendingLoadFailure(year: number): OutsideSpendingYear {
 /**
  * The sentence naming which committees a year's figures cover, or null.
  *
- * Required, not decoration. The figures are a sum across every committee a person has
- * confirmed, and 2 things follow that a bare total hides. A member can hold several
- * committees while only 1 has been reviewed, so the total may cover a fraction of their
- * money; and a member can hold committees for different offices, which the sum combines.
- * Naming them makes the figures speak for exactly what they cover -- the same division of
- * labour rule 11 sets, where the model describes records and the layout owns the scope.
+ * It exists to say what a total ADDS TOGETHER, so it draws only where there is more
+ * than one committee to add. With a single confirmed committee the committee card
+ * directly above these figures already names it, and a sentence naming it again below
+ * prints one fact twice (#2186).
  *
- * §7 of the campaign-finance design asks for this directly: a figure must say which
- * committee it belongs to rather than only which year.
+ * The office in brackets after each name is gone with it: every one of the 771
+ * registered candidate committees carries its office inside its registered name
+ * (checked against the Board's own list, 13 Sep 2026), so the bracket repeated the
+ * name beside it.
+ *
+ * No terminal period: the line sits alone under the payment dates, and every other
+ * note in that foot carries none.
  */
 export function outsideSpendingCoverage(year: OutsideSpendingYear): string | null {
-  if (year.state !== 'reported' || year.committees.length === 0) return null;
-  const named = year.committees.map((committee) =>
-    committee.office ? `${committee.name} (${committee.office})` : committee.name,
-  );
-  const list =
-    named.length === 1
-      ? named[0]
-      : `${named.slice(0, -1).join(', ')} and ${named[named.length - 1]}`;
-  return named.length === 1
-    ? `Covers the one committee somebody has confirmed is theirs: ${list}. Any committee of theirs nobody has checked yet is not in these figures.`
-    : `Covers the ${named.length} committees somebody has confirmed are theirs, added together: ${list}. Any committee of theirs nobody has checked yet is not in these figures.`;
+  if (year.state !== 'reported' || year.committees.length < 2) return null;
+  const named = year.committees.map((committee) => committee.name);
+  const list = `${named.slice(0, -1).join(', ')} and ${named[named.length - 1]}`;
+  return `Covers ${named.length} committees added together: ${list}`;
 }
 
 /**

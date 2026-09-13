@@ -10,6 +10,10 @@ vi.mock('../../../data/groupedOutsideSpending', () => ({
 }));
 vi.mock('../../../hooks/useResponsive', () => ({ useResponsive: () => ({ isMobile: false }) }));
 vi.mock('../../LinkArrow', () => ({ LinkArrow: () => null }));
+vi.mock('react-native-svg', () => ({
+  default: ({ children }: { children?: React.ReactNode }) => <svg>{children}</svg>,
+  Path: () => <path />,
+}));
 const navigate = vi.hoisted(() => vi.fn());
 vi.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate }) }));
 
@@ -48,8 +52,21 @@ const year: OutsideSpendingYear = {
   directionNotRecordedPayments: 1,
   firstPaymentOn: '2025-01-01',
   lastPaymentOn: '2025-02-01',
-  sourceUrl: 'https://cfb.mn.gov/reports-and-data/',
+  // The address the server really sends: the bulk download itself, query and all.
+  sourceUrl:
+    'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-617535497',
   fetchedAt: '2026-09-01',
+};
+
+/** The one state where every figure is a checked 0: the link is confirmed, the
+ *  download covers the year, and no group filed a payment. */
+const checkedZero: OutsideSpendingYear = {
+  ...year,
+  supporting: 0,
+  supportingPayments: 0,
+  opposing: 0,
+  opposingPayments: 0,
+  directionNotRecordedPayments: 0,
 };
 
 const registeredIdentity = outsideSpenderIdentity('900', 'Example Fund');
@@ -120,11 +137,15 @@ async function settle() {
   });
 }
 
-async function render(selected = year) {
+async function render(selected = year, notOnTheBallot = false) {
   await act(async () =>
     root.render(
       <QueryClientProvider client={client}>
-        <GroupedOutsideSpending year={selected} onOpenSource={vi.fn()} />
+        <GroupedOutsideSpending
+          year={selected}
+          onOpenSource={vi.fn()}
+          notOnTheBallot={notOnTheBallot}
+        />
       </QueryClientProvider>,
     ),
   );
@@ -132,7 +153,9 @@ async function render(selected = year) {
 }
 
 function expand(): HTMLElement {
-  const button = mount.querySelector('[aria-label="Show 2 payments from Example Fund, For"]');
+  const button = mount.querySelector(
+    '[aria-label="Show 2 payments from Example Fund, Supporting"]',
+  );
   expect(button).not.toBeNull();
   return button as HTMLElement;
 }
@@ -158,7 +181,7 @@ describe('outside spender list on the campaign money tab', () => {
     await render();
     expect(loadGroups).toHaveBeenCalledTimes(1);
     expect(loadPayments).not.toHaveBeenCalled();
-    expect(mount.textContent).toContain('Spending by Outside Groups');
+    expect(mount.textContent).toContain('Spending by outside groups');
     expect(mount.textContent).toContain('2 payments · 1 spender');
     expect(mount.textContent).toContain('Not stated');
     expect(mount.textContent).not.toContain('Copied from the state');
@@ -237,18 +260,69 @@ describe('outside spender list on the campaign money tab', () => {
   });
 
   it('keeps the checked-zero sentence and makes no list request for it', async () => {
-    await render({
-      ...year,
-      supporting: 0,
-      supportingPayments: 0,
-      opposing: 0,
-      opposingPayments: 0,
-      directionNotRecordedPayments: 0,
-    });
+    await render(checkedZero);
     expect(mount.textContent).toContain(
-      'No outside group reported spending anything to support or oppose this legislator in 2025.',
+      'No outside group reported spending to support or oppose this legislator in 2025.',
     );
+    // A card that defines outside spending and then says there was none of it hands the
+    // reader a definition of something not on the page.
+    expect(mount.textContent).not.toContain('It never passes through their campaign');
     expect(loadGroups).not.toHaveBeenCalled();
-    expect(mount.querySelector('a[href="https://cfb.mn.gov/reports-and-data/"]')).not.toBeNull();
+    expect(
+      mount.querySelector(
+        'a[href="https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  it('names the ballot only in a year whose own filing record says they were off it', async () => {
+    await render(checkedZero, true);
+    expect(mount.textContent).toContain(
+      'No outside group reported spending to support or oppose this legislator in 2025, when they ' +
+        'were not on the ballot.',
+    );
+  });
+
+  it('prints $0 and 0 payments on a side no group filed, rather than a sentence', async () => {
+    loadGroups.mockResolvedValue({
+      ...grouped,
+      groups: grouped.groups.filter((group) => group.direction === 'For'),
+      figures: outsideSpenderFigures(grouped.groups.filter((row) => row.direction === 'For')),
+    });
+    await render();
+    expect(mount.textContent).toContain('Spent supporting them');
+    expect(mount.textContent).toContain('Spent opposing them');
+    // A checked zero reads as 0 (`.claude/rules/grounded-answers.md` rule 12), and
+    // replacing one figure with a sentence breaks the pair a reader is comparing.
+    expect(mount.textContent).toContain('$0');
+    expect(mount.textContent).toContain('0 payments');
+    expect(mount.textContent).not.toContain('No group reported spending to support them');
+  });
+
+  it('says Supporting and Opposing on the chip and in the row a screen reader hears', async () => {
+    await render();
+    expect(mount.textContent).toContain('Supporting');
+    expect(mount.textContent).toContain('Opposing');
+    // The 2 figures above already read "Spent supporting them" and "Spent opposing
+    // them", so the filing's own For and Against never reach a reader.
+    expect(mount.textContent).not.toContain('For');
+    expect(mount.textContent).not.toContain('Against');
+    const spoken = [...mount.querySelectorAll('[aria-label]')].map((node) =>
+      node.getAttribute('aria-label'),
+    );
+    expect(spoken).toContain('Show 2 payments from Example Fund, Supporting');
+    expect(spoken.some((label) => label?.includes(', For'))).toBe(false);
+  });
+
+  it('links the downloads page the served address sits on, and names the file', async () => {
+    await render();
+    const link = mount.querySelector<HTMLAnchorElement>(
+      'a[href="https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/"]',
+    );
+    expect(link).not.toBeNull();
+    expect(link?.textContent).toContain('Minnesota’s campaign-finance downloads');
+    expect(mount.textContent).toContain(
+      'These figures come from its file “Itemized independent expenditures of over $200”',
+    );
   });
 });

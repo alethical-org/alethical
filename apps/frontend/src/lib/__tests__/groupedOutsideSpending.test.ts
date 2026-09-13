@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   combineOutsideSpenders,
+  outsideCheckedZeroLabel,
+  outsideDirectionLabel,
+  outsideExpansionLabel,
   outsideSpenderFigures,
   outsideSpenderIdentity,
   outsideSpenderKey,
@@ -99,5 +102,27 @@ describe('outside spending identities and exact amounts', () => {
       group('1', '900', 'New name', 'For', '10', 2),
     );
     expect(selected.map((payment) => payment.recordNumber)).toEqual([2, 1]);
+  });
+});
+
+describe('the words a checked zero and a direction chip print', () => {
+  it('names the year on screen, and the ballot only where we hold that fact', () => {
+    expect(outsideCheckedZeroLabel(2026)).toBe(
+      'No outside group reported spending to support or oppose this legislator in 2026.',
+    );
+    expect(outsideCheckedZeroLabel(2021, 'legislator', true)).toBe(
+      'No outside group reported spending to support or oppose this legislator in 2021, when ' +
+        'they were not on the ballot.',
+    );
+    expect(outsideCheckedZeroLabel(2021, 'committee', true)).toContain('when it was not on');
+  });
+
+  it('prints the chip and the spoken row label from one word', () => {
+    expect(outsideDirectionLabel('For')).toBe('Supporting');
+    expect(outsideDirectionLabel('Against')).toBe('Opposing');
+    expect(outsideDirectionLabel('not recorded')).toBe('Not stated');
+    expect(outsideExpansionLabel(group('1', '900', 'Example Fund', 'For', '5', 2), false)).toBe(
+      'Show 2 payments from Example Fund, Supporting',
+    );
   });
 });

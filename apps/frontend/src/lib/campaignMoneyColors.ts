@@ -19,6 +19,7 @@ export const CAMPAIGN_MONEY_COLORS = {
   fieldFocusRing: 'rgba(91,48,214,0.22)',
   background: '#ffffff',
   border: theme.colors.alpha.ink12,
+  chipBorder: theme.colors.alpha.ink40,
   tile: '#f5f6f4',
   shadow: 'rgba(17,21,15,0.08)',
 } as const;

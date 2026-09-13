@@ -38,11 +38,29 @@ export interface OutsideGroupPayment {
 
 export { OUTSIDE_GROUP_COPY } from './groupedOutsideSpendingCopy';
 
+/**
+ * The one sentence a checked zero prints, in the year the reader is looking at.
+ *
+ * `anything` is gone: "reported spending to support or oppose" already carries it.
+ *
+ * The closing clause draws only where we hold that this year's ballot did not carry
+ * them, and it is the whole reason the sentence earns its space. A zero in an off year
+ * is the ordinary state rather than a finding, and a reader meeting a bare zero cannot
+ * tell nothing-spent from nothing-held. The filing-schedule note carries the ballot
+ * fact too, but it sits at the top of the tab while this card is well below it.
+ *
+ * `when` places the 2 facts in the same year and claims nothing about why the total is
+ * zero (#2186, and `.claude/rules/grounded-answers.md` rule 3).
+ */
 export function outsideCheckedZeroLabel(
   year: number,
   subject: 'legislator' | 'committee' = 'legislator',
+  notOnTheBallot = false,
 ): string {
-  return `No outside group reported spending anything to support or oppose this ${subject} in ${year}.`;
+  const ballot = notOnTheBallot
+    ? `, when ${subject === 'committee' ? 'it was' : 'they were'} not on the ballot`
+    : '';
+  return `No outside group reported spending to support or oppose this ${subject} in ${year}${ballot}.`;
 }
 
 export function outsideRegistrationLabel(registration: string | null): string {
@@ -67,8 +85,18 @@ export function outsideSpenderKey(identity: string, direction: OutsideDirection)
   return JSON.stringify([identity, direction]);
 }
 
+/**
+ * The filing's own `For` and `Against`, in the words the rest of the card uses.
+ *
+ * The 2 figures above the list read "Spent supporting them" and "Spent opposing them",
+ * so a chip switching to a second vocabulary 3 rows later described the same
+ * distinction twice. One function, so the chip and the row's spoken label can never
+ * say different words (#2186).
+ */
 export function outsideDirectionLabel(direction: OutsideDirection): string {
-  return direction === 'not recorded' ? 'Not stated' : direction;
+  if (direction === 'For') return 'Supporting';
+  if (direction === 'Against') return 'Opposing';
+  return 'Not stated';
 }
 
 /** Exact comparisons share the source's 4-decimal precision. Nulls sort last. */

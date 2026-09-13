@@ -23,6 +23,11 @@ export function CommitteeRefundCard({ refunds, registrationNumber }: Props) {
   const jointNote =
     reported.length > 0 && reported.every((row) => row.jointFilingCountsAsOne === true);
   const copiedDay = formatDay(refunds.copiedOn);
+  // The 2 figure columns hold a fixed width per band and the year column takes what is
+  // left, so the amounts line up down the page instead of moving with the widest year.
+  // All 3 columns stay on a phone, as drawn: a table that stays a table is easier to
+  // scan, and 96 + 92 leaves the year column about 150px at 375 (#2186).
+  const figureColumns = isMobile ? [96, 92] : isTablet ? [180, 130] : [220, 150];
   const titleId = `committee-${registrationNumber}-refunds-title`;
   const cell: React.CSSProperties = {
     padding: '14px 0',
@@ -98,13 +103,16 @@ export function CommitteeRefundCard({ refunds, registrationNumber }: Props) {
           </caption>
           <thead>
             <tr>
-              <th scope="col" style={{ ...head, textAlign: 'left', width: '20%' }}>
+              <th scope="col" style={{ ...head, textAlign: 'left' }}>
                 {copy.columns[0]}
               </th>
-              <th scope="col" style={{ ...head, width: '42%', paddingLeft: 8, paddingRight: 8 }}>
+              <th
+                scope="col"
+                style={{ ...head, width: figureColumns[0], paddingLeft: 8, paddingRight: 8 }}
+              >
                 {copy.columns[1]}
               </th>
-              <th scope="col" style={{ ...head, width: '38%' }}>
+              <th scope="col" style={{ ...head, width: figureColumns[1] }}>
                 {copy.columns[2]}
               </th>
             </tr>

@@ -40,6 +40,8 @@ import {
   confirmedCommitteesWithheldLine,
 } from '../../lib/legislatorCampaignMoney';
 import {
+  BOARD_DOWNLOADS_URL,
+  committeeSlug,
   coveredPeriodDetail,
   coveredPeriodLine,
   paymentFilesDownloadedLine,
@@ -67,7 +69,6 @@ import { CommitteeRefundCard } from './CommitteeRefundCard';
 import { useCampaignMoneyYearStates } from '../../hooks/useCampaignMoneyYearStates';
 import { LinkArrow } from '../LinkArrow';
 import { boardRecordUrl, committeeNumberSuffix } from '../../lib/boardRecordLink';
-import { committeeSlug } from '../../lib/committeeMoneyShared';
 import { paymentDateRangeLabel, splitExplanation } from '../../lib/legislatorCampaignMoney';
 import { linkProps, routePath } from '../../navigation/links';
 import {
@@ -86,9 +87,6 @@ import { UnderDevelopmentNotice } from './UnderDevelopmentNotice';
 import { externalLinkProps } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
 import { outsideSpendingLoadFailure } from '../../lib/outsideSpending';
-
-/** The Board's own page, which is where every figure on this tab comes from. */
-const BOARD_URL = 'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/';
 
 type Props = {
   legislatorName: string;
@@ -170,6 +168,29 @@ export function CampaignMoneyTab({
   )
     namesOnlyYears.add(year);
 
+  // Everything about one committee stays together, in the order a reader meets it:
+  // the card's figures and names list, then the same donor picture drawn across years,
+  // then that committee's refunds (#2186). The mix chart used to draw at the foot of
+  // the tab, which put a different subject from a different source between a reader and
+  // the continuation of the picture they were just looking at.
+  const mixHistoryFor = (committee: CampaignCommitteeMoney) =>
+    money && !isLoading && !committeesWithheld ? (
+      <CommitteeMixHistory
+        registrationNumber={committee.registrationNumber}
+        committeeName={committee.committeeName || committee.committeeNameAsReviewed}
+        year={year}
+        releaseId={money.releaseId}
+        onSelectYear={onSelectYear}
+      />
+    ) : null;
+  // Said only where this year's own filing record says it, and only where it says it
+  // for every committee on the page: a zero with no ballot fact beside it is silent
+  // rather than guessed at (`.claude/rules/grounded-answers.md` rule 12).
+  const notOnTheBallot = Boolean(
+    money?.committees.length &&
+    money.committees.every((committee) => committee.filingSchedule.state === 'not_on_the_ballot'),
+  );
+
   return (
     <View style={styles.wrap} role="region" aria-label="Campaign money">
       {/* This tab is the one money surface showing dollar figures, and it is
@@ -230,6 +251,7 @@ export function CampaignMoneyTab({
               year={year}
               releaseId={money.releaseId}
               onRefresh={refetchMoney}
+              mixHistory={mixHistoryFor(committee)}
               {...cardPreferences(committee.registrationNumber)}
             />
           ))}
@@ -272,6 +294,7 @@ export function CampaignMoneyTab({
               year={year}
               releaseId={money.releaseId}
               onRefresh={refetchMoney}
+              mixHistory={mixHistoryFor(committee)}
               {...cardPreferences(committee.registrationNumber)}
             />
           ))}
@@ -295,7 +318,11 @@ export function CampaignMoneyTab({
       !outsideSpending.isLoading &&
       !outsideSpending.isError &&
       selectedOutsideYear?.state === 'reported' ? (
-        <GroupedOutsideSpending year={selectedOutsideYear} onOpenSource={onOpenSource} />
+        <GroupedOutsideSpending
+          year={selectedOutsideYear}
+          onOpenSource={onOpenSource}
+          notOnTheBallot={notOnTheBallot}
+        />
       ) : (
         <OutsideSpendingCard
           years={
@@ -310,18 +337,6 @@ export function CampaignMoneyTab({
         />
       )}
 
-      {money && !isLoading && !committeesWithheld
-        ? money.committees.map((committee) => (
-            <CommitteeMixHistory
-              key={committee.registrationNumber}
-              registrationNumber={committee.registrationNumber}
-              committeeName={committee.committeeName || committee.committeeNameAsReviewed}
-              year={year}
-              releaseId={money.releaseId}
-              onSelectYear={onSelectYear}
-            />
-          ))
-        : null}
       <FreshnessNote
         fetchedAts={[
           ...(money ? [money.fetchedAt] : []),
@@ -386,7 +401,7 @@ function UnconfirmedPanel() {
       <Text style={styles.body}>{LINK_UNCONFIRMED_EXPLANATION}</Text>
       <SourceLink
         label="Minnesota Campaign Finance Board — campaign finance downloads"
-        url={BOARD_URL}
+        url={BOARD_DOWNLOADS_URL}
       />
     </View>
   );
@@ -397,6 +412,7 @@ function CommitteeCard({
   year,
   releaseId,
   onRefresh,
+  mixHistory,
   preferences,
   onPreferences,
 }: {
@@ -404,6 +420,9 @@ function CommitteeCard({
   year: CampaignMoneyYear;
   releaseId?: string;
   onRefresh: () => void;
+  /** This committee's own year-by-year donor chart, drawn between its figures and its
+   *  refunds so one committee's block is never split by another subject. */
+  mixHistory: React.ReactNode;
   preferences: MoneyDetailsPreferences;
   onPreferences: (preferences: MoneyDetailsPreferences) => void;
 }) {
@@ -539,6 +558,7 @@ function CommitteeCard({
           <CheckedByBlock checked={committee.checked} />
         </View>
       </View>
+      {mixHistory}
       <CommitteeRefundCard
         refunds={committee.refunds}
         registrationNumber={committee.registrationNumber}

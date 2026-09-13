@@ -123,17 +123,19 @@ function refundCards(container: HTMLElement) {
 function assertSeparatedCards(container: HTMLElement) {
   const cards = refundCards(container);
   expect(cards).toHaveLength(2);
+  const html = container.innerHTML;
   for (const registration of ['17868', '15667']) {
     const card = container.querySelector<HTMLElement>(
       `[data-testid="committee-${registration}-refunds"]`,
     )!;
     expect(card).not.toBeNull();
-    const preceding = card.previousElementSibling!;
-    expect(preceding.textContent).toContain(`Fixture Senate committee ${registration}`);
-    expect(preceding.querySelector('[data-testid$="-refunds"]')).toBeNull();
-    expect(container.innerHTML.indexOf(card.outerHTML)).toBeLessThan(
-      container.innerHTML.indexOf('Spending by Outside Groups'),
+    expect(card.querySelector('[data-testid$="-refunds"]')).toBeNull();
+    // Its own committee is named above it and outside spending sits below every block,
+    // whether or not that committee's year-by-year chart has arrived between the 2.
+    expect(html.indexOf(`Fixture Senate committee ${registration}`)).toBeLessThan(
+      html.indexOf(card.outerHTML),
     );
+    expect(html.indexOf(card.outerHTML)).toBeLessThan(html.indexOf('Spending by outside groups'));
   }
   expect(cards[0].textContent).toContain('$14,216');
   expect(cards[0].textContent).not.toContain('$1,448');

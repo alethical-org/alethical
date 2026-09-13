@@ -106,6 +106,15 @@ unfinished clerical job of ours.
 
 ## What the tab shows once a member is matched
 
+**Everything about one committee stays together, and the block repeats for each one.**
+A committee's card comes first, then that committee's **How the mix of named donors
+changed by year** chart, then its **Refunds Minnesota paid this committee's donors**
+card. The mix chart is the same donor picture as **Who gave** inside the card, drawn
+across years instead of inside one, so the 2 sit together. **Spending by outside groups**
+draws once, below every committee block, because it covers all of a member's confirmed
+committees at once and cannot sit inside any one of them. The tab's own download date is
+the last line on the page.
+
 A member can hold more than one committee, because Minnesota registers one per office.
 17 sitting members tie to more than one, and 8 have 2 or more live at the same time. So
 the tab shows **one card per committee**, each headed with the committee's registered
@@ -482,8 +491,8 @@ that 2 records belong to the same person.
 
 ### How the mix changed by year
 
-Below outside spending, each committee has its own history from 2015 through the current
-year. Each year's bar uses that year's named cash contributions only. Unnamed money and
+Directly below its own committee's card, and above that committee's refunds card, each
+committee has its own history from 2015 through the current year. Each year's bar uses that year's named cash contributions only. Unnamed money and
 goods and services never enter those shares. Its categories match the donor tabs and
 the selected-year chart. A year with no named rows is labelled as
 such, and a year whose cash amounts cannot support a chart says a breakdown is unavailable.
@@ -537,21 +546,28 @@ prints it. A held official total stays visible even when that comparison is unpr
 the comparison does not decide whether the total exists. Its mechanics are under "Where
 the data comes from" below.
 
-### Refunds the state paid to donors
+### Refunds Minnesota paid a committee's donors
 
-Directly below each confirmed committee's card is a separate card headed **Refunds
-the state paid to this committee's donors**. It shows the state's payments back to
-that committee's donors, never money the committee received. Each committee keeps
+Below each confirmed committee's own year-by-year chart is a separate card headed
+**Refunds Minnesota paid this committee's donors**. It shows the state's payments back
+to that committee's donors, never money the committee received. Each committee keeps
 its own card, and no year or page total is calculated.
 
 The introduction reads:
 
 > Minnesota pays a resident back for a gift to a state candidate, up to $75 a year for
-> 1 person and $150 for a married couple filing together. This is money the state
+> one person and $150 for a married couple filing jointly. This is money the state
 > returned to donors, not money the committee received.
 
+**filing jointly**, the same words as the note under the table, because that is the
+Board's own wording and the phrase a reader meets on the refund form. **one person**
+rather than the numeral, which put a third figure in a sentence that already carries 2
+amounts. Both amounts are the Board's own, read at source on 13 September 2026.
+
 The table keeps **Year**, **Contributions refunded**, and **Amount refunded** in
-3 columns, including on a phone. It lists all held refund years newest first,
+3 columns, including on a phone. The 2 figure columns hold a fixed width for the screen
+width (220 and 150 on a computer, 180 and 130 on a tablet, 96 and 92 on a phone) and the
+year column takes what is left, so the amounts line up down the page. It lists all held refund years newest first,
 regardless of the campaign-money year selected above it. Amounts use the tab's
 existing dollar formatting. The source amount $14,216.47 therefore displays as
 $14,216, with its cents preserved in the data.
@@ -616,6 +632,23 @@ only the committee cards above would miss it entirely and have no way to know it
 missing. That is why this block sits on the same tab, below them, and never has its
 figures added to theirs.
 
+**It draws once, at the foot of the tab, below every committee block.** It covers every
+committee somebody has confirmed is this member's, added together, so it cannot sit
+inside one committee's block. Its heading is **Spending by outside groups**, in the same
+sentence case as every heading beside it.
+
+Above the figures it says, and nowhere else on the tab:
+
+> Money that groups other than this legislator's campaign told the state they spent to
+> support or oppose them. It never passes through their campaign, so their campaign's own
+> reports do not show it.
+
+**told the state they spent**, never **spent**: these are payments a group reported, and
+nothing here can know about spending nobody filed. That sentence is **absent in the year
+nobody reported anything**, because a card that explains what outside spending is and
+then says there was none of it hands the reader a definition of something not on the
+page. Every other state keeps it, including a year we could not load.
+
 **It was on no page at all between 18 and 2 September 2026, and this section described it
 as visible throughout.** [#1329](https://github.com/alethical-org/alethical/issues/1329)
 moved campaign money onto its own tab, deleted the block's 2 renders from the desktop and
@@ -642,11 +675,24 @@ not the payments behind another. Below them the block states the span the paymen
 actually fall in, rather than assuming a year runs from 1 January, which a
 special-election filer's report does not.
 
-**And it names the committees the figures cover.** The figures add up every committee
-somebody has confirmed belongs to this legislator, and a bare total would hide two things:
-a member can hold several committees while only 1 has been reviewed, so the total can be a
-fraction of their money presented as all of it, and a member can hold committees for
-different offices, which the total would combine.
+**It names the committees only where the figures add more than one together.** The line
+exists to say what a total sums, so with a single confirmed committee there is nothing to
+say: the committee card above already carries the name, and repeating it below is one
+fact printed twice. With 2 or more it reads:
+
+> Covers 2 committees added together: Abeler, Jim Senate Committee and Abeler, Jim
+> Governor Committee
+
+The registered names in full, with no office in brackets after them, because every one of
+the 771 registered candidate committees carries its office inside its registered name
+(checked against the Board's own list on 13 September 2026). No dot at the end of the
+sentence, the period, because the line sits alone under the payment dates and every other
+note in that foot has none.
+
+Why it matters where it draws: a member can hold several committees while only 1 has been
+reviewed, so a bare combined total can be a fraction of their money presented as all of
+it, and a member can hold committees for different offices, which the total would
+combine.
 
 **The 2 sides are never added, subtracted or netted against each other**, and never drawn
 as opposing halves of one shape. That a group spent money opposing a lawmaker is a fact
@@ -701,9 +747,24 @@ checked separately.
 saying zero:
 
 1. **Real figures**, using the tab's shared amount formatter.
-2. **A checked zero** — no outside group reported spending anything about this legislator
-   that year. The committee is confirmed and the download covers the year, so this is a
-   published finding.
+2. **A checked zero** — no outside group reported spending about this legislator that
+   year. The committee is confirmed and the download covers the year, so this is a
+   published finding. It reads:
+
+   > No outside group reported spending to support or oppose this legislator in 2026.
+
+   In a year we hold that their committee was not on the ballot, the same sentence gains
+   a closing clause and the year still prints once:
+
+   > No outside group reported spending to support or oppose this legislator in 2021,
+   > when they were not on the ballot.
+
+   That clause draws only from that year's own filing record, and only when it says so
+   for every committee on the page. It says nothing about **why** the total is zero: a
+   zero in an off year is the ordinary state rather than a finding, and a reader meeting
+   a bare zero has no way to tell nothing-spent from nothing-held. The filing-schedule
+   note inside each committee card carries the ballot fact too, but it sits far above
+   this card.
 3. **No confirmed committee yet** — **0 of the 200 sitting members, as of the end of the
    31 August 2026 review sitting.** All 200 had at least one confirmed account on that day.
    This read "56 of the 200" earlier the same day, while that sitting was still running.
@@ -718,11 +779,31 @@ saying zero:
    unknown amount, because a figure short by an unknown amount and printed without a mark
    looks verified and is wrong.
 
-Under each direction, the accepted redesign groups the selected year's payments by the
-committee that spent them. Opening a group shows the payments behind it. Supporting,
+Under the figures, a ruled list headed **Who spent** groups the selected year's payments
+by the group that spent them, matching **Who gave** inside the committee cards above.
+Each row carries the spender's name, a chip reading **Supporting**, **Opposing** or
+**Not stated**, and `Registration 12345 · 3 payments` beneath. The chip prints the same
+word the row's spoken label gives a screen reader, and the filing's own `For` and
+`Against` never reach a reader: the 2 figures above already read **Spent supporting
+them** and **Spent opposing them**, so a second vocabulary 3 rows later would describe
+one distinction twice. Opening a group shows the payments behind it. Supporting,
 opposing and any unspecified direction remain separate, including when the same spender
 appears in more than 1 direction. No amount is moved between directions or combined with
 the candidate's own receipts or ordinary payments out.
+
+**The card's only link goes to the Board's downloads page, and a line under it names the
+file.** The link reads **Minnesota's campaign-finance downloads**, the same words the
+money-in card uses for the same place, and beneath it, not a link:
+
+> These figures come from its file "Itemized independent expenditures of over $200"
+
+That is the Board's own row label on that page, read there on 13 September 2026, and
+**its** means the page named on the line above. The address is built from the one the
+service sends by cutting everything from the question mark onwards, exactly as the
+money-in card does, so a future release number cannot break it. The address the service
+sends is the bulk download itself, which streams a statewide spreadsheet with nothing
+readable behind it, and the word **filings** was the state's own word for the reports a
+committee files, which that file is not.
 
 The shared payment-file freshness note appears once at the foot of the tab. It does
 not date the separately copied report totals. The outside-spending card
