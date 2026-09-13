@@ -202,6 +202,7 @@ describe('outside spender list on the campaign money tab', () => {
       )!.parentElement!;
       if (mobile) {
         expect(stance.parentElement).toBe(identity);
+        expect(getComputedStyle(identity.parentElement!).flexBasis).toBe('220px');
       } else {
         expect(stance.parentElement).not.toBe(identity);
         expect(getComputedStyle(stance.parentElement!).minWidth).toBe(stanceWidth);

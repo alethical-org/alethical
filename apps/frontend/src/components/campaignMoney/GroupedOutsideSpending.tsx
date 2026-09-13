@@ -341,7 +341,7 @@ function SpenderRow({
   return (
     <View style={styles.group}>
       <View style={[styles.groupHead, isMobile && styles.groupHeadMobile]}>
-        <View style={styles.identity}>
+        <View style={[styles.identity, isMobile && styles.identityMobile]}>
           <View style={styles.nameLine}>
             {href && route ? (
               <Text
@@ -463,6 +463,8 @@ const styles = StyleSheet.create({
   },
   groupHeadMobile: { flexWrap: 'wrap' },
   identity: { flex: 1, minWidth: 0, gap: 3 },
+  // Keep the phone's existing name/chip flow; the amount can wrap below it.
+  identityMobile: { flexBasis: 220 },
   stanceColumn: { minWidth: 104, flexGrow: 0, flexShrink: 0, alignItems: 'flex-start' },
   stanceColumnTablet: { minWidth: 100 },
   amountColumn: { minWidth: 120, flexShrink: 0, textAlign: 'right' },
