@@ -1,6 +1,6 @@
 # Alethical Backend API System Design
 
-<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/services/independent_spending.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_payments.py, alethical/api/services/campaign_finance_register.py, alethical/api/auth.py, alethical/api/services/auth.py -->
+<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/services/independent_spending.py, alethical/api/services/committee_finance.py, alethical/api/services/committee_stated_by_kind.py, alethical/api/services/legislator_finance.py, alethical/api/services/campaign_finance_payments.py, alethical/api/services/campaign_finance_register.py, alethical/api/auth.py, alethical/api/services/auth.py -->
 
 Status: **design reference, not an inventory of what exists.** Much of this document is the
 target shape rather than the shipped API, so every unbuilt endpoint is marked **NOT BUILT**
@@ -858,8 +858,9 @@ because all 200 sitting members do appear in the Board's register), `confirmed`.
 
 Returns `legislator_id`, `year`, `link_state`, `other_office_committees`, and `committees[]`.
 Each committee carries `registration_number`, `committee_name`, `office`, the same `money_in`
-/ `money_out` / `independent_spending` blocks the committee endpoint serves, a `split`, and a
-`refunds` block this endpoint serves and the committee endpoint does not.
+/ `money_out` / `independent_spending` blocks the committee endpoint serves, a `split`, a
+`stated_by_kind` block when its evidence is complete, and a `refunds` block this endpoint serves
+and the committee endpoint does not.
 
 **`refunds` is the state's own record, in its own block**
 ([#2147](https://github.com/alethical-org/alethical/issues/2147)). Minnesota pays a resident
@@ -1017,7 +1018,8 @@ exception, what an empty answer
 *means*, and independent spending aimed **at** the committee (a different question from the
 reader's `independent_spending_by`, which is money the filer *spent*).
 
-**Every figure is a sum of itemized rows, never a committee's total.** Minnesota names a donor
+**Every itemized figure in `money_in` and `money_out` is a sum of rows, never a committee's
+filed total.** Minnesota names a donor
 only once their giving passes $200 in aggregate within a calendar year, so the listed payments
 always add up to less than the committee reported raising — around 4 dollars in 10 go unnamed
 on a typical filing (`docs/architecture/campaign-finance-system-design.md` §9.5). Every field
@@ -1058,6 +1060,26 @@ Its 8 states, their counts, and the 2 rules that ride on them are tabled under
 `GET /api/v1/legislators/{legislator_id}/campaign-finance` above rather than repeated, because
 one drifting copy of that table is how the two surfaces would come to disagree about the same
 committee. Read `split.state` before drawing any composition.
+
+**`stated_by_kind` is the filed contribution schedule beside matching named cash, and is shared
+by both committee-finance responses** ([issue 2144](https://github.com/alethical-org/alethical/issues/2144)).
+It is present only for a candidate committee when the current contributions copy and current
+filings copy have an agreeing stated-split verdict for the same committee and year, the filing
+holds all 5 contribution lines, its coverage ends in that year at the verdict's matching cutoff,
+and the filer has no special-election report series. Missing, unproved or unmapped input omits
+the whole block; a blank source kind is never guessed to be `Other`.
+
+The block carries `state`, `reported_through`, and `lines[]`. A `reported` block has 5 lines in
+the filing's order. Each line carries `line_key`, `label_as_filed`, `stated_total`,
+`itemized_cash_total`, and `difference`. Named cash includes only rows typed `Contribution` for
+the same year, excludes rows marked `In-kind? Yes`, includes undated rows as the existing split
+comparison does, and excludes dated rows after `reported_through`. A contribution row typed
+`Candidate Committee` belongs to the party-unit line because Minnesota files those together.
+`Self` belongs to Individuals, as the held 19492/2026 report records it on A1 - IND; only an
+explicit `Other` belongs to the Other line. The block remains independent of whether the bulk
+files name any payments for the committee, including an official zero with an agreeing check.
+If any line's difference is negative, the block instead carries `state: sources_disagree` and
+an empty `lines` list, so no unsupported line figure reaches a client.
 
 **Read each block's `state` before its numbers:**
 

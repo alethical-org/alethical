@@ -1,0 +1,230 @@
+{
+  "collected_at": "2026-09-13T06:37:41.680811+00:00",
+  "current": {
+    "release_id": "af236cca-a4f8-4efe-9a3a-025259ea380e",
+    "contributions_snapshot_id": "5b892996-14ce-4992-87ed-b825400beb26",
+    "filings_snapshot_id": "9cd121a0-4fd2-467e-b4a4-5c3c600febfb"
+  },
+  "filing": {
+    "id": "ddf5db29-28a8-4d34-bb83-2e624a1b9fea",
+    "snapshot_id": "9cd121a0-4fd2-467e-b4a4-5c3c600febfb",
+    "registration_number": "18807",
+    "filer_kind": "candidate_committee",
+    "filing_year": 2024,
+    "segment_start": 2024,
+    "segment_end": 2025,
+    "block_heading": "2024 - Election year",
+    "reported_through": "2024-12-31",
+    "response_hash": "c9b985e1c13d7d7b0c356364ff1c5af52c236ee42ca5bd28170bcecf14c74b99",
+    "archive_line": 569
+  },
+  "figures": [
+    {
+      "line_key": "committee_fund_contributions",
+      "label_as_served": "Committee/fund contributions",
+      "amount": "2950.0000"
+    },
+    {
+      "line_key": "individuals_contributions",
+      "label_as_served": "Individuals contributions",
+      "amount": "25054.2800"
+    },
+    {
+      "line_key": "lobbyist_contributions",
+      "label_as_served": "Lobbyist contributions",
+      "amount": "1400.0100"
+    },
+    {
+      "line_key": "other_contributions",
+      "label_as_served": "Other contributions",
+      "amount": "1000.0000"
+    },
+    {
+      "line_key": "party_unit_contributions",
+      "label_as_served": "Party unit contributions",
+      "amount": "0.0000"
+    }
+  ],
+  "verdict": {
+    "snapshot_id": "5b892996-14ce-4992-87ed-b825400beb26",
+    "filings_snapshot_id": "9cd121a0-4fd2-467e-b4a4-5c3c600febfb",
+    "registration_number": "18807",
+    "filing_year": 2024,
+    "status": "agrees",
+    "reason": "the filing states 15841.01 of itemized contributions through 2024-12-31 and we hold 56 rows totalling 15841.0100. Reader check: 5 of 5 schedules match the Board's own totals route (A1 - IND, A1 - LOB, A1 - PCF, A1 - PTY/TERM PCC, A1 - OTH)",
+    "self_test": "passed",
+    "report_type": "YE",
+    "amendment_index": 6,
+    "cut_off_date": "2024-12-31",
+    "document_hash": "7f213e5c6e64e4d542c6e754c6ce269cd2545b2aa4972d7f2090c1ffeb9c4c06",
+    "document_byte_size": 48824,
+    "stated_itemized": "15841.0100",
+    "stated_itemized_cash": "15841.0100",
+    "stated_non_itemized": "14563.2800",
+    "ours_itemized": "15841.0100",
+    "ours_itemized_cash": "15841.0100",
+    "checked_at": "2026-09-02 04:52:45.974411+00:00"
+  },
+  "method": "Current published snapshot IDs checked in a read-only repeatable-read transaction. Every Contribution row occurrence for this committee-year is retained with receipt_date; no names or contact fields were selected. Cash sums use the stored verdict cutoff including undated rows and lower(coalesce(in_kind,empty)) <> yes. No Board call, loader, refresh, verdict recalculation, production write or repo edit. The held schedule evidence was previously read from the exact existing body named by this same verdict, with compressed and original hashes checked.",
+  "contribution_source": {
+    "id": "5b892996-14ce-4992-87ed-b825400beb26",
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-2113865252",
+    "download_id": "-2113865252",
+    "content_hash": "b90b6c2091c532a0f792a5e4f5d6c7ffca3fb09b3c7a0f0979a3a491e903da04",
+    "record_set_hash": "a0951be1d1426462cb4fd818a5ef06ffb894447e87a7dc6d759ccec4f0fe5851",
+    "row_count": 583222,
+    "created_at": "2026-09-01 18:31:54.356455+00:00"
+  },
+  "filing_source": {
+    "id": "9cd121a0-4fd2-467e-b4a4-5c3c600febfb",
+    "fetch_started_at": "2026-08-12 20:54:25.503249+00:00",
+    "fetch_completed_at": "2026-08-12 21:34:26.606333+00:00",
+    "record_set_hash": "1938210310e5bb54845f790d6715df391793d64a21f945afc37bba75f89edf5d",
+    "compressed_hash": "cdb861e2f42e3bc56e4e406306a3ac6b9202c4579136be21eb721f22446fb0c0",
+    "response_count": 4812,
+    "years": [
+      2025,
+      2026
+    ],
+    "segments": [
+      [
+        2024,
+        2025
+      ],
+      [
+        2026,
+        2027
+      ]
+    ]
+  },
+  "stored_schedule_evidence": {
+    "registration_number": "18807",
+    "filing_year": 2024,
+    "document_hash": "7f213e5c6e64e4d542c6e754c6ce269cd2545b2aa4972d7f2090c1ffeb9c4c06",
+    "cut_off_date": "2024-12-31",
+    "byte_size": 48824,
+    "compressed_hash": "5b451e7a38f4da64f7089b96a11d4b0b958e48355b4160f97145f6154b9e9024",
+    "created_at": "2026-08-18 13:09:41.736146+00:00",
+    "hash_matches": true,
+    "schedule_headings": [
+      "Schedule A1 - IND   Contributions from Individuals",
+      "Schedule A1 - LOB   Contributions from Lobbyists",
+      "Schedule A1 - PCF   Contributions from Political Committees and Political Funds",
+      "Schedule A1 - OTH   Contributions from Other Sources",
+      "Schedule A2 - PS   Receipts from Public Subsidy Payment",
+      "Schedule A2 - MISC   Receipts from Miscellaneous Income",
+      "Schedule B1 - CE   Campaign Expenditures",
+      "Schedule B1 - NCD   Non-Campaign Disbursements",
+      "Schedule B2 - PTY   Contributions to Political Party Units"
+    ],
+    "parse_errors": [],
+    "contribution_schedules": {
+      "A1 - IND": {
+        "itemized": [
+          "12591.01",
+          "0.00",
+          "12591.01"
+        ],
+        "non_itemized": [
+          "12463.27",
+          "0.00",
+          "12463.27"
+        ]
+      },
+      "A1 - LOB": {
+        "itemized": [
+          "0.00",
+          "0.00",
+          "0.00"
+        ],
+        "non_itemized": [
+          "1400.01",
+          "0.00",
+          "1400.01"
+        ]
+      },
+      "A1 - PCF": {
+        "itemized": [
+          "2250.00",
+          "0.00",
+          "2250.00"
+        ],
+        "non_itemized": [
+          "700.00",
+          "0.00",
+          "700.00"
+        ]
+      },
+      "A1 - OTH": {
+        "itemized": [
+          "1000.00",
+          "0.00",
+          "1000.00"
+        ],
+        "non_itemized": [
+          "0.00",
+          "0.00",
+          "0.00"
+        ]
+      }
+    }
+  },
+  "rows": [
+    {"row_number": 3489, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "250.0000", "receipt_date": "2024-07-09"},
+    {"row_number": 4969, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "240.1900", "receipt_date": "2024-02-23"},
+    {"row_number": 34771, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "250.0000", "receipt_date": "2024-01-25"},
+    {"row_number": 35121, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "500.0000", "receipt_date": "2024-10-18"},
+    {"row_number": 49930, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "20.2200", "receipt_date": "2024-09-30"},
+    {"row_number": 58240, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "250.0000", "receipt_date": "2024-02-05"},
+    {"row_number": 58420, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "240.1700", "receipt_date": "2024-02-23"},
+    {"row_number": 85384, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "20.2200", "receipt_date": "2024-04-30"},
+    {"row_number": 90931, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "20.2200", "receipt_date": "2024-06-30"},
+    {"row_number": 100926, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "50.0000", "receipt_date": "2024-10-22"},
+    {"row_number": 119723, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "100.0000", "receipt_date": "2024-05-19"},
+    {"row_number": 120163, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "500.0000", "receipt_date": "2024-09-27"},
+    {"row_number": 130726, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "960.9200", "receipt_date": "2024-04-27"},
+    {"row_number": 148506, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "20.2200", "receipt_date": "2024-11-30"},
+    {"row_number": 156766, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "240.1700", "receipt_date": "2024-02-22"},
+    {"row_number": 159449, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "150.0000", "receipt_date": "2024-02-05"},
+    {"row_number": 181102, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "20.2200", "receipt_date": "2024-05-30"},
+    {"row_number": 204027, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "250.0000", "receipt_date": "2024-02-04"},
+    {"row_number": 216053, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "250.0000", "receipt_date": "2024-01-30"},
+    {"row_number": 229072, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "8.3300", "receipt_date": "2024-10-23"},
+    {"row_number": 242965, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "40.0000", "receipt_date": "2024-09-03"},
+    {"row_number": 249247, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "20.2200", "receipt_date": "2024-12-30"},
+    {"row_number": 263305, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "250.0000", "receipt_date": "2024-09-20"},
+    {"row_number": 273052, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Political Committee/Fund", "in_kind": "No", "amount": "250.0000", "receipt_date": "2024-10-03"},
+    {"row_number": 279453, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "300.0000", "receipt_date": "2024-10-24"},
+    {"row_number": 307062, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "100.0000", "receipt_date": "2024-07-16"},
+    {"row_number": 315715, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "480.2000", "receipt_date": "2024-04-11"},
+    {"row_number": 326461, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "960.9200", "receipt_date": "2024-04-27"},
+    {"row_number": 331556, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "250.0000", "receipt_date": "2024-02-05"},
+    {"row_number": 348347, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "20.2200", "receipt_date": "2024-02-29"},
+    {"row_number": 348751, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Other", "in_kind": "No", "amount": "1000.0000", "receipt_date": "2024-10-21"},
+    {"row_number": 355569, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "250.0000", "receipt_date": "2024-02-05"},
+    {"row_number": 361556, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "250.0000", "receipt_date": "2024-07-16"},
+    {"row_number": 364361, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "20.2200", "receipt_date": "2024-03-30"},
+    {"row_number": 371151, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "60.0000", "receipt_date": "2024-09-05"},
+    {"row_number": 380393, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Political Committee/Fund", "in_kind": "No", "amount": "250.0000", "receipt_date": "2024-06-07"},
+    {"row_number": 385001, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "20.2200", "receipt_date": "2024-08-30"},
+    {"row_number": 391187, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "25.0000", "receipt_date": "2024-10-23"},
+    {"row_number": 407888, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "1000.0000", "receipt_date": "2024-06-04"},
+    {"row_number": 410948, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "250.0000", "receipt_date": "2024-02-06"},
+    {"row_number": 413625, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "250.0000", "receipt_date": "2024-08-05"},
+    {"row_number": 414626, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "240.1700", "receipt_date": "2024-03-12"},
+    {"row_number": 448838, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Political Committee/Fund", "in_kind": "No", "amount": "1000.0000", "receipt_date": "2024-01-31"},
+    {"row_number": 452612, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "960.9400", "receipt_date": "2024-03-04"},
+    {"row_number": 475548, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Political Committee/Fund", "in_kind": "No", "amount": "100.0000", "receipt_date": "2024-02-05"},
+    {"row_number": 483892, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "250.0000", "receipt_date": "2024-07-04"},
+    {"row_number": 487597, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "250.0000", "receipt_date": "2024-02-05"},
+    {"row_number": 501315, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Political Committee/Fund", "in_kind": "No", "amount": "500.0000", "receipt_date": "2024-09-05"},
+    {"row_number": 502757, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Political Committee/Fund", "in_kind": "No", "amount": "150.0000", "receipt_date": "2024-09-25"},
+    {"row_number": 508871, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "20.2200", "receipt_date": "2024-10-30"},
+    {"row_number": 517246, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "480.4200", "receipt_date": "2024-02-26"},
+    {"row_number": 518584, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "960.9400", "receipt_date": "2024-03-20"},
+    {"row_number": 519040, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "250.0000", "receipt_date": "2024-02-05"},
+    {"row_number": 521722, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "20.2200", "receipt_date": "2024-07-30"},
+    {"row_number": 544230, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "250.0000", "receipt_date": "2024-02-05"},
+    {"row_number": 553362, "year": 2024, "receipt_type": "Contribution", "contrib_type": "Individual", "in_kind": "No", "amount": "20.2200", "receipt_date": "2024-01-30"}
+  ]
+}
