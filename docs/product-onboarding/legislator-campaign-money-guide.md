@@ -939,12 +939,14 @@ describes records and the page frames them.
   wherever a committee spends that way
   ([`campaign-finance-system-design.md`](../architecture/campaign-finance-system-design.md)
   §2.1, campaign finance).
-- **The reading and the split** are
+- **The separate committee records** are assembled by
   `alethical/api/services/legislator_finance.py`, served by
-  `GET /api/v1/legislators/{id}/campaign-finance?year=YYYY`. No money is summed there:
-  every figure comes from `alethical/pipeline/campaign_finance_reader.py`, and every
-  figure is stamped with the committee that reported it so a person's committees cannot
-  be added together (`alethical/api/services/committee_amount.py`).
+  `GET /api/v1/legislators/{id}/campaign-finance?year=YYYY`.
+  `alethical/pipeline/campaign_finance_reader.py` reads the saved payment files.
+  Separate services read filed figures and calculate the optional `stated_by_kind`
+  and `donor_states` blocks; the tab does not display those optional blocks yet.
+  Every amount is stamped with the committee that reported it so a person's committees
+  cannot be added together (`alethical/api/services/committee_amount.py`).
 
 ## What happens to reader data
 

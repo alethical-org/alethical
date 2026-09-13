@@ -374,11 +374,27 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   [4-job parent report](https://github.com/alethical-org/alethical/issues/2140#issuecomment-5651630102)
   completes the gate for Job 5a. The separate scanner repair is live through
   [pull request 2174](https://github.com/alethical-org/alethical/pull/2174).
-- Job 5a is active in `/private/tmp/alethical-2144-stated-by-kind` on
-  `codex/2144-stated-contributions-by-kind`. It adds the shared `stated_by_kind`
-  response to committee finance and each confirmed legislator committee under the
-  evidence limits in [issue 2144](https://github.com/alethical-org/alethical/issues/2144).
-  It changes no page. Tests, release checks and a live response remain pending.
+- Job 5a is live through [pull request 2175](https://github.com/alethical-org/alethical/pull/2175).
+  Its [live report](https://github.com/alethical-org/alethical/issues/2144#issuecomment-5651881159)
+  records 32 focused tests, 2,588 server tests, all required release checks, 9 public
+  API cases, and a fresh reader at computer and phone sizes. No page or source data
+  changed. Its completed worktree was removed after matching the live tree.
+- Job 5b is prepared in `/private/tmp/alethical-2146-donor-states` on
+  `codex/2146-donor-states`, in
+  [pull request 2176](https://github.com/alethical-org/alethical/pull/2176). The
+  [source progress report](https://github.com/alethical-org/alethical/issues/2146#issuecomment-5652007985)
+  records why USPS postal-facility states cannot substitute for the full HUD file.
+  Eugene supplied HUD sign-in on 2026-09-13. The complete national 2026 Q2 workbook
+  is copied and `alethical/api/data/zip_states.json` is generated. The
+  [reference check](../verification/2146-donor-state-reference.md) records 54,570
+  rows, 39,484 ZIPs, 39,284 state assignments and 200 retained as unknown. The held
+  17868/2025 fixture reconciles $38,700 across 71 printed names to Minnesota and
+  $1,250 across 3 printed names to unknown, with no other-state cash. Both totals
+  come from the same 82 cash payments. New assertions exercise this real reference
+  through both committee response variants and the legislator response. The
+  downloaded `GEOID` header and its 9 incomplete county codes are tested too.
+  Current-head checks, independent source review, the merge queue and live responses
+  remain required before completion. Jobs 5c through 5f retain their order.
 - Jobs 4 through 5f retain their stated sequence. Action 4 Liberty PAC's historical
   replacement for 41173/2026 remains held with no additional source attempts or
   publication. The 2024 spending replacement remains held for the 905-row loss in
@@ -394,7 +410,7 @@ display work awaits a separate accepted Design brief. Do not edit the architectu
 record. Send findings and completion, with the pull request and live result, to
 each job's issue. Comment on issue 2140 after all 4 merge.
 
-- [ ] 5a, [issue 2144](https://github.com/alethical-org/alethical/issues/2144): add
+- [x] 5a, [issue 2144](https://github.com/alethical-org/alethical/issues/2144): add
   `stated_by_kind` to committee finance and legislator campaign finance only when
   both current source copies have the year's agreeing stated-split check. Candidate
   committees only: require all 5 filing lines, the same year and coverage cutoff,
@@ -416,8 +432,9 @@ each job's issue. Comment on issue 2140 after all 4 merge.
   19492/2026 Self cash on Individuals, and 18807/2024 explicit Other cash. Undated
   rows stay included, and a missing source kind withholds the block. The new figures
   remain available for a proved zero without named rows and retain the guard against
-  adding 2 committees together. Full server checks, independent review, the pull
-  request, merge queue, and live response checks remain before completion.
+  adding 2 committees together. All 2,588 server tests, independent review, current
+  change and merge-queue checks, 9 public API cases, and the fresh browser reader
+  pass. The live release and report are linked above.
 - [ ] 5b, [issue 2146](https://github.com/alethical-org/alethical/issues/2146): import
   the HUD USPS ZIP crosswalk or USPS 3-digit prefix ranges into a manually refreshed
   reference table; record the chosen source and its date. On the same 2 responses,

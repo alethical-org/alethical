@@ -100,6 +100,7 @@ from alethical.api.services.committee_filing_schedule import (
     committee_filing_schedule,
 )
 from alethical.api.services.committee_stated_by_kind import StatedByKind, stated_by_kind
+from alethical.api.services.committee_donor_states import DonorStates, donor_states
 from alethical.api.services.committee_finance import (
     NOT_REPORTED,
     CommitteeFinance,
@@ -276,6 +277,7 @@ class LegislatorCommitteeMoney:
     #: (``alethical/api/services/committee_refunds.py``).
     refunds: CommitteeRefunds | None = None
     stated_by_kind: StatedByKind | None = None
+    donor_states: DonorStates | None = None
 
 
 @dataclass(frozen=True)
@@ -820,6 +822,30 @@ def reported_by_one_committee(
         entry,
         finance=finance,
         split=split,
+        donor_states=(
+            replace(
+                entry.donor_states,
+                rows=tuple(
+                    replace(row, cash_total=reported_by(number, row.cash_total))
+                    for row in entry.donor_states.rows
+                ),
+                summary=replace(
+                    entry.donor_states.summary,
+                    **{
+                        name: replace(
+                            getattr(entry.donor_states.summary, name),
+                            cash_total=reported_by(
+                                number,
+                                getattr(entry.donor_states.summary, name).cash_total,
+                            ),
+                        )
+                        for name in ("minnesota", "other_states", "unknown")
+                    },
+                ),
+            )
+            if entry.donor_states is not None
+            else None
+        ),
         stated_by_kind=(
             replace(
                 entry.stated_by_kind,
@@ -874,6 +900,7 @@ def legislator_finance(
         # committee absent from one can still be answered from the other.
         schedule = committee_filing_schedule(db, link.registration_number, year=year)
         by_kind = stated_by_kind(db, release, link.registration_number, year)
+        by_state = donor_states(db, release, link.registration_number, year)
         if finance is None:
             # A confirmed link to a registration number the current release holds no
             # record of. That is a fact about our download, not about the committee,
@@ -886,6 +913,7 @@ def legislator_finance(
                     office_as_reviewed=link.office_as_reviewed,
                     finance=None,
                     stated_by_kind=by_kind,
+                    donor_states=by_state,
                     schedule=schedule,
                     checked=_match_check(link),
                     refunds=refunds_for_committee(
@@ -914,6 +942,7 @@ def legislator_finance(
                 office_as_reviewed=link.office_as_reviewed,
                 finance=finance,
                 stated_by_kind=by_kind,
+                donor_states=by_state,
                 schedule=schedule,
                 checked=_match_check(link),
                 refunds=refunds_for_committee(

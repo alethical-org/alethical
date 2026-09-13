@@ -28,6 +28,7 @@ first and follow the link for the part you need.
 | Storing data | Postgres 17 with the `pgvector` add-on | `docker-compose.yml` (local), Supabase (production) |
 | Keeping the exact files we downloaded | Supabase Storage, reached over the S3 protocol (`boto3`) | `alethical/pipeline/raw_file_store.py` |
 | Reading a committee's filed money report | `pypdf`, pure Python with no system libraries behind it | `alethical/pipeline/campaign_finance_report_documents.py` |
+| Preparing the manual ZIP-to-state reference | `openpyxl` reads the official HUD workbook; web requests use the prepared JSON | `scripts/build_zip_state_reference.py`, `alethical/api/services/zip_state_reference.py` |
 | Sign-in | Supabase Auth | `alethical/api/auth.py`, `alethical/api/services/auth.py` |
 | Background jobs | `oban`, a queue that lives in Postgres | `oban.toml`, `alethical/pipeline/oban.py` |
 | Writing bill summaries | Anthropic (Claude) | `alethical/pipeline/anthropic_enrichment.py` |
@@ -188,13 +189,15 @@ line. Setup, verification, incident use, cost, and the buy-versus-build decision
 
 ## 10. Tests
 
-pytest, 36 test files under `alethical/tests/`. Two groups matter more than the rest:
+pytest tests under `alethical/tests/`. Two groups matter more than the rest:
 
 - `test_api_contract.py` and `test_ask_scenarios.py` hold the product promises: an answer
   must cite a real source or refuse, and a signed-in chat must keep working
   (`.claude/rules/grounded-answers.md` rules 1 and 8).
-- Tests that write to the database need the local Postgres container running. Tests that only
-  check logic do not.
+- Each server test run starts its own temporary Postgres, after proving that the connection
+  belongs to that run. Docker and its cached test image must be ready. The shared development
+  database is not used. [CONTRIBUTING.md, manual server tests](../../CONTRIBUTING.md#manual-server-tests-use-a-temporary-postgres)
+  owns setup and the safety checks.
 
 ## What the backend deliberately does not have
 

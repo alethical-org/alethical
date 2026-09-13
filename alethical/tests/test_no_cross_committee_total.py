@@ -48,6 +48,12 @@ from alethical.api.services.committee_amount import (
     CrossCommitteeTotal,
     reported_by,
 )
+from alethical.api.services.committee_donor_states import (
+    DonorStateAmounts,
+    DonorStateRow,
+    DonorStateSummary,
+    DonorStates,
+)
 from alethical.api.services.committee_filing_schedule import (
     NOT_ON_THE_BALLOT,
     CommitteeFilingSchedule,
@@ -137,6 +143,21 @@ def _committee(
         committee_name_as_reviewed="A Committee",
         office_as_reviewed="Senate",
         finance=finance,
+        donor_states=DonorStates(
+            state="reported",
+            year=2026,
+            rows=(
+                DonorStateRow(1, contributions, "MN"),
+                DonorStateRow(1, Decimal("100"), "WI"),
+                DonorStateRow(1, Decimal("25"), "unknown"),
+            ),
+            summary=DonorStateSummary(
+                minnesota=DonorStateAmounts(1, contributions),
+                other_states=DonorStateAmounts(1, Decimal("100")),
+                unknown=DonorStateAmounts(1, Decimal("25")),
+            ),
+            reference={},
+        ),
         stated_by_kind=StatedByKind(
             "reported",
             date(2026, 7, 20),
@@ -230,6 +251,20 @@ def test_every_figure_on_a_card_refuses_the_same_way():
                 getattr(second.stated_by_kind.lines[0], field),
             )
         )
+    assert first.donor_states is not None and second.donor_states is not None
+    pairs.extend(
+        (left.cash_total, right.cash_total)
+        for left, right in zip(
+            first.donor_states.rows, second.donor_states.rows, strict=True
+        )
+    )
+    pairs.extend(
+        (
+            getattr(first.donor_states.summary, category).cash_total,
+            getattr(second.donor_states.summary, category).cash_total,
+        )
+        for category in ("minnesota", "other_states", "unknown")
+    )
     for left, right in pairs:
         assert isinstance(left, CommitteeAmount) and isinstance(right, CommitteeAmount)
         with pytest.raises(CrossCommitteeTotal):
