@@ -1,45 +1,12 @@
 /** Fixed reader text for the legislator's contribution details. */
-import { moneyDetailsPageCopy } from './campaignMoneyDetailsPageCopy';
+import {
+  dekText,
+  moneyDetailsPageCopy,
+  namedMoneyDefinition,
+  type DekSegment,
+} from './campaignMoneyDetailsPageCopy';
 
-/** One run of the chart's dek. `bold` marks the 2 words a reader matches against the
- *  labels on the money cards, so the emphasis and the labels can never drift apart. */
-export type DekSegment = { text: string; bold?: boolean };
-
-/** The dek run as one string: what a text-only surface prints, and what a test pins. */
-export function dekText(segments: readonly DekSegment[]): string {
-  return segments.map((segment) => segment.text).join('');
-}
-
-/**
- * What separates the 2 contribution figures, and Minnesota's rule behind the split.
- *
- * The one place both terms are explained (#2182). It used to be 2 grey paragraphs under
- * the figures on the Money in card (`itemizedContributionsNote`, `unnamedMoneyExplanation`),
- * which still draw wherever the chart is absent; where the chart draws, its dek carries
- * them instead and the card is figures only.
- *
- * `.claude/rules/grounded-answers.md` rule 12 decides both halves of the naming sentence:
- * it states when a name is **required**, never that a smaller donor goes unnamed, and it
- * keeps the clause saying a committee may name smaller donors, because filer 18135's 2026
- * pre-general itemizes 215 donors at or under $200 and a reader meeting a named $50
- * donation would otherwise read our page as wrong. A ballot-question filer's line is $500,
- * from Minnesota Statutes 10A.20 subd. 3(c) and the Board's own handbook for those filers.
- */
-export function namedMoneyDefinition(isBallot: boolean): DekSegment[] {
-  return [
-    { text: 'The filing names who gave for ' },
-    { text: 'itemized contributions', bold: true },
-    { text: ' and not for ' },
-    { text: 'non-itemized contributions', bold: true },
-    {
-      text: isBallot
-        ? '. Minnesota requires naming once a donor’s giving passes $500 for the year, the ' +
-          'line for a ballot-question committee, and a committee may name smaller donors.'
-        : '. Minnesota requires naming once a donor’s giving passes $200 for the year, and a ' +
-          'committee may name smaller donors.',
-    },
-  ];
-}
+export { dekText, namedMoneyDefinition, type DekSegment };
 
 export const moneyDetailsCopy = {
   ...moneyDetailsPageCopy,

@@ -1,7 +1,7 @@
 import { StyleSheet, Text } from 'react-native';
 
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
-import { type DekSegment } from '../../lib/campaignMoneyDetailsCopy';
+import { type DekSegment } from '../../lib/campaignMoneyDetailsPageCopy';
 import { useDetailsStyles } from './detailsStyles';
 
 /**

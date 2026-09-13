@@ -1,8 +1,10 @@
 import { Component, lazy, Suspense, type ComponentProps, type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { requestReleaseReload } from '../../lib/releaseReload';
-import { moneyDetailsPageCopy as copy } from '../../lib/campaignMoneyDetailsPageCopy';
-import { namedMoneyDefinition } from '../../lib/campaignMoneyDetailsCopy';
+import {
+  moneyDetailsPageCopy as copy,
+  namedMoneyDefinition,
+} from '../../lib/campaignMoneyDetailsPageCopy';
 import { unnamedFigureDraws } from '../../lib/legislatorCampaignMoney';
 import { Dek } from './ContributionLabelsNote';
 import { useDetailsStyles } from './detailsStyles';
