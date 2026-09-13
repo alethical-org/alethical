@@ -49,6 +49,11 @@ export const detailsStyles = StyleSheet.create({
   },
   controlText: { fontFamily: t.typography.body, fontSize: 17, fontWeight: '700', color: c.text },
   focus: { outlineColor: c.focus, outlineWidth: 2, outlineStyle: 'solid', outlineOffset: 2 },
+  namesFocus: {
+    borderColor: c.fieldFocusBorder,
+    boxShadow: `0 0 0 3px ${c.fieldFocusRing}`,
+    ...({ outlineStyle: 'none' } as object),
+  },
   horizontal: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   rule: { borderTopWidth: 1, borderTopColor: c.border, paddingTop: 22 },
 });

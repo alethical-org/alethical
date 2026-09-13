@@ -72,7 +72,6 @@ import {
 import {
   formatMoney,
   isAmountAboveZero,
-  MATCH_CHECK_LABEL,
   matchCheckSentences,
   moneyFigure,
   paymentCountLabel,
@@ -148,7 +147,6 @@ export function CampaignMoneyCardTheme({ children }: { children: ReactNode }) {
     source: { ...profileStyles.source, fontSize: type.small },
     stampPeriodMuted: { ...profileStyles.stampPeriodMuted, ...body },
     stampDetail: { ...profileStyles.stampDetail, ...small },
-    checkedSentence: { ...profileStyles.checkedSentence, ...small },
   };
   return <ProfileCardTheme.Provider value={styles}>{children}</ProfileCardTheme.Provider>;
 }
@@ -438,8 +436,7 @@ export function MoneyOutBlock({
 
 /**
  * What a person read before attaching this account to a member, at the foot of the
- * card on both surfaces (rule D6 of the campaign-money phone-band sheet: a hairline
- * above, a mono label, 16px of space, and the sentences a step under body size).
+ * card on both surfaces: the dated check followed by its stored evidence.
  *
  * Renders nothing when the decision carries no stored basis. An absent record is not a
  * weaker record to describe loosely; it is nothing to say.
@@ -448,14 +445,19 @@ export function CheckedByBlock({ checked }: { checked: CommitteeMatchCheck | nul
   const styles = useCardStyles();
   const sentences = matchCheckSentences(checked);
   if (!sentences.length) return null;
+  const [heading, ...evidence] = sentences;
   return (
     <View style={styles.checked}>
-      <CardText style={styles.checkedLabel}>{MATCH_CHECK_LABEL.toUpperCase()}</CardText>
-      {sentences.map((sentence) => (
-        <CardText key={sentence} style={styles.checkedSentence}>
-          {sentence}
-        </CardText>
-      ))}
+      <CardText style={styles.checkedHeading}>{heading}</CardText>
+      {evidence.length ? (
+        <View role="list" style={styles.checkedItems}>
+          {evidence.map((sentence) => (
+            <CardText role="listitem" numeric={false} key={sentence} style={styles.checkedSentence}>
+              {sentence}
+            </CardText>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -688,27 +690,27 @@ const defaultStyles = StyleSheet.create({
     color: t.colors.text.secondary,
     maxWidth: 1000,
   },
-  // Rule D6: a hairline above, a mono label, 16px of real space, and the sentences a
-  // step under body size so the reader meets them as provenance rather than argument.
   checked: {
     marginTop: 16,
-    paddingTop: 16,
+    paddingTop: 18,
     borderTopWidth: 1,
     borderTopColor: t.colors.alpha.ink08,
     gap: 4,
   },
-  checkedLabel: {
-    fontFamily: t.typography.mono,
-    fontSize: 11,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.3,
-    color: t.colors.text.secondary,
-    marginBottom: 4,
+  checkedHeading: {
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+    lineHeight: 22.5,
+    color: t.colors.text.primary,
   },
+  checkedItems: { gap: 4, paddingLeft: 0, ...({ listStyle: 'none' } as object) },
   checkedSentence: {
     fontFamily: t.typography.body,
-    fontSize: 15.5,
-    lineHeight: 22,
+    fontSize: 15,
+    fontWeight: '400',
+    lineHeight: 22.5,
     color: t.colors.text.secondary,
   },
 });
@@ -765,6 +767,6 @@ const profileStyles = StyleSheet.create({
   stampDetail: { ...defaultStyles.stampDetail, color: c.secondary },
   inlineLink: { ...defaultStyles.inlineLink, color: c.link },
   checked: { ...defaultStyles.checked, borderTopColor: c.border },
-  checkedLabel: { ...defaultStyles.checkedLabel, color: c.muted },
+  checkedHeading: { ...defaultStyles.checkedHeading, color: c.text },
   checkedSentence: { ...defaultStyles.checkedSentence, color: c.secondary },
 });

@@ -311,9 +311,9 @@ describe('the money cards on the profile, at the final inventory', () => {
     );
   });
 
-  it('closes each card with what a person checked, under its own label', () => {
+  it('closes each card with the checked date, without repeating what the block is', () => {
     const html = text(render([committee()]));
-    expect(html).toContain(MATCH_CHECK_LABEL.toUpperCase());
+    expect(html).not.toContain(MATCH_CHECK_LABEL.toUpperCase());
     expect(html).toContain('Checked by Alethical on Aug 30, 2026');
   });
 

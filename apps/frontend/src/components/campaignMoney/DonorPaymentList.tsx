@@ -1,6 +1,8 @@
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
+import { useResponsive } from '../../hooks/useResponsive';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../../navigation/types';
 
@@ -42,6 +44,7 @@ export function DonorPaymentList({
   onSelectSort?: (sort: MoneyDetailsSort) => void;
 }) {
   const s = useDetailsStyles();
+  const { isMobile } = useResponsive();
   const [query, setQuery] = useState('');
   const { focused, focusProps } = useFieldFocus();
   const [localSort, setLocalSort] = useState<MoneyDetailsSort>('largest');
@@ -70,7 +73,9 @@ export function DonorPaymentList({
             ? tabs.length - 1
             : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
       onSelectTab(tabs[next].id);
-      (tabButtons.current[next] as unknown as { focus?: () => void } | null)?.focus?.();
+      const nextButton = tabButtons.current[next] as unknown as HTMLElement | null;
+      nextButton?.focus?.({ preventScroll: true });
+      nextButton?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     },
   };
   useEffect(() => {
@@ -85,35 +90,48 @@ export function DonorPaymentList({
   const isExpenditures = tab === 'expenditures';
   return (
     <View style={[s.section, s.rule]}>
-      <View role="tablist" aria-label={copy.tabsLabel} style={s.horizontal} {...tabKeys}>
-        {tabs.map((item, index) => (
-          <Pressable
-            key={item.id}
-            ref={(node) => {
-              tabButtons.current[index] = node;
-            }}
-            accessibilityRole="tab"
-            aria-selected={tab === item.id}
-            aria-controls={panelId}
-            tabIndex={index === keyboardTabIndex ? 0 : -1}
-            onPress={() => onSelectTab(item.id)}
-            style={(state) => [
-              s.control,
-              tab === item.id && styles.active,
-              Boolean('hovered' in state && state.hovered) && { borderColor: c.hoverBorder },
-              Boolean('focused' in state && state.focused) && s.focus,
-            ]}
-          >
-            <Text
-              style={[s.controlText, tab !== item.id && { color: c.muted }, ready && s.numeric]}
+      <View role="tablist" aria-label={copy.tabsLabel} style={styles.tabsScroll} {...tabKeys}>
+        <View style={[styles.tabs, isMobile && styles.tabsMobile]}>
+          {tabs.map((item, index) => (
+            <Pressable
+              key={item.id}
+              ref={(node) => {
+                tabButtons.current[index] = node;
+              }}
+              accessibilityRole="tab"
+              aria-selected={tab === item.id}
+              aria-controls={panelId}
+              tabIndex={index === keyboardTabIndex ? 0 : -1}
+              onPress={() => onSelectTab(item.id)}
+              style={(state) => [
+                styles.tab,
+                Boolean('focused' in state && state.focused) && s.namesFocus,
+                tab === item.id && styles.activeTab,
+              ]}
             >
-              {item.label}
-              {ready ? ` (${tabDetails(groups, item.id).nameCount})` : ''}
-            </Text>
-          </Pressable>
-        ))}
+              {(state) => (
+                <Text
+                  style={[
+                    s.controlText,
+                    styles.tabLabel,
+                    tab !== item.id &&
+                      !(state as { hovered?: boolean }).hovered &&
+                      styles.inactiveTab,
+                  ]}
+                >
+                  {item.label}
+                  {ready ? (
+                    <Text
+                      style={styles.tabCount}
+                    >{` ${tabDetails(groups, item.id).nameCount}`}</Text>
+                  ) : null}
+                </Text>
+              )}
+            </Pressable>
+          ))}
+        </View>
       </View>
-      <View nativeID={panelId} role="tabpanel" aria-label={current.label} style={s.section}>
+      <View nativeID={panelId} role="tabpanel" aria-label={current.label} style={styles.panel}>
         {!ready ? (
           <View style={s.section}>
             <Text accessibilityRole={failed ? 'alert' : undefined} style={s.body}>
@@ -125,7 +143,7 @@ export function DonorPaymentList({
                 onPress={onRetry}
                 style={(state) => [
                   s.control,
-                  Boolean('focused' in state && state.focused) && s.focus,
+                  Boolean('focused' in state && state.focused) && s.namesFocus,
                 ]}
               >
                 <Text style={s.controlText}>{copy.retry}</Text>
@@ -158,12 +176,14 @@ export function DonorPaymentList({
               <SortMenu key={`${year}-${tab}`} value={sort} onSelect={setSort} />
             </View>
             <View style={styles.counts}>
-              <Text style={[s.small, s.numeric]}>
+              <Text style={[s.small, styles.countText]}>
                 {copy.counts(data.nameCount, data.paymentCount)}
               </Text>
-              <Text style={[s.small, s.numeric]}>
+              <Text style={[s.small, styles.totalText]}>
                 {copy.tabTotal(isExpenditures)}
-                {formatMoney(data.amount) ?? copy.totalMissing}
+                <Text style={styles.totalAmount}>
+                  {formatMoney(data.amount) ?? copy.totalMissing}
+                </Text>
                 {isAmountAboveZero(data.inKindAmount)
                   ? copy.goodsShare(formatMoney(data.inKindAmount))
                   : ''}
@@ -199,11 +219,13 @@ export function DonorPaymentList({
                 accessibilityRole="button"
                 style={(state) => [
                   s.control,
-                  Boolean('focused' in state && state.focused) && s.focus,
+                  styles.showMore,
+                  Boolean('hovered' in state && state.hovered) && styles.showMoreHover,
+                  Boolean('focused' in state && state.focused) && s.namesFocus,
                 ]}
                 onPress={() => setShowAll(true)}
               >
-                <Text style={[s.controlText, s.numeric]}>
+                <Text style={[s.controlText, styles.showMoreText]}>
                   {copy.showRemaining(shown.length - 10, isExpenditures)}
                 </Text>
               </Pressable>
@@ -228,18 +250,30 @@ function PaymentGroup({
 }) {
   const s = useDetailsStyles();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const { isMobile } = useResponsive();
   const slug = group.linkableRegistrationNumber
     ? committeeSlug(group.name, group.linkableRegistrationNumber)
     : null;
   const href = slug ? routePath.moneyCommittee(slug, { year: String(year) }) : null;
   const count = group.payments.length;
+  const [hovered, setHovered] = useState(false);
+  const details = [
+    ...group.employers,
+    ...(group.types.includes('Candidate Committee') ? [copy.candidateCommittee] : []),
+    ...(group.tab === 'other' ? group.types.filter(Boolean) : []),
+    copy.payments(count),
+  ].join(' · ');
   return (
     <View style={styles.group}>
-      <View style={styles.groupHead}>
+      <View
+        onPointerEnter={() => setHovered(true)}
+        onPointerLeave={() => setHovered(false)}
+        style={[styles.groupHead, hovered && styles.groupHovered]}
+      >
         <View style={styles.identity}>
           {href && slug ? (
             <Text
-              style={[s.name, s.link, styles.nameLink, numericText(group.name)]}
+              style={[s.name, s.link, numericText(group.name), styles.name, styles.nameLink]}
               {...linkProps(href, () =>
                 navigation.navigate('CommitteeMoney', { slug, year: String(year) }),
               )}
@@ -247,25 +281,13 @@ function PaymentGroup({
               {group.name}
             </Text>
           ) : (
-            <Text style={[s.name, numericText(group.name)]}>{group.name}</Text>
+            <Text style={[s.name, numericText(group.name), styles.name]}>{group.name}</Text>
           )}
-          {group.employers.map((employer) => (
-            <Text key={employer} style={[s.small, numericText(employer)]}>
-              {employer}
-            </Text>
-          ))}
-          {group.types.includes('Candidate Committee') ? (
-            <Text style={s.small}>{copy.candidateCommittee}</Text>
-          ) : null}
-          {group.tab === 'other'
-            ? group.types.filter(Boolean).map((kind) => (
-                <Text key={kind} style={[s.small, numericText(kind)]}>
-                  {kind}
-                </Text>
-              ))
-            : null}
-          <Text style={[s.small, s.numeric]}>{copy.payments(count)}</Text>
+          <Text style={[s.small, styles.rowDetails]}>{details}</Text>
         </View>
+        <Text style={[s.amount, styles.groupAmount]}>
+          {formatMoney(group.amount) ?? copy.amountMissing}
+        </Text>
         <Pressable
           onPress={onToggle}
           aria-expanded={expanded}
@@ -273,55 +295,72 @@ function PaymentGroup({
           accessibilityLabel={copy.expandPayments(expanded, count, group.name)}
           style={(state) => [
             styles.expand,
-            Boolean('focused' in state && state.focused) && s.focus,
+            Boolean('focused' in state && state.focused) && s.namesFocus,
           ]}
         >
-          <Text style={s.amount}>{formatMoney(group.amount) ?? copy.amountMissing}</Text>
-          <Text aria-hidden style={[s.name, styles.chevron]}>
-            {expanded ? '−' : '+'}
-          </Text>
+          <View style={[styles.chevron, expanded && styles.chevronOpen]}>
+            <Chevron size={18} />
+          </View>
         </Pressable>
       </View>
       {expanded ? (
-        <View>
+        <View style={styles.payments}>
           {group.payments.map((payment, index) => {
             const received = 'receivedOn' in payment;
             const date = received ? payment.receivedOn : payment.paidOn;
+            const hasDetails =
+              payment.inKind === 'Yes' ||
+              (!received &&
+                (payment.vendorCity ||
+                  payment.vendorState ||
+                  payment.purpose ||
+                  payment.expenditureType));
             return (
-              <View key={index} style={styles.payment}>
-                <View style={styles.identity}>
-                  <Text style={[s.small, numericText(date)]}>
-                    {formatDay(date) ?? copy.dateMissing}
-                  </Text>
-                  {!received ? (
-                    <>
-                      {[payment.vendorCity, payment.vendorState].filter(Boolean).length ? (
-                        <Text
-                          style={[
-                            s.small,
-                            numericText([payment.vendorCity, payment.vendorState].join(' ')),
-                          ]}
-                        >
-                          {[payment.vendorCity, payment.vendorState].filter(Boolean).join(', ')}
-                        </Text>
-                      ) : null}
-                      {payment.purpose ? (
-                        <Text style={[s.small, numericText(payment.purpose)]}>
-                          {payment.purpose}
-                        </Text>
-                      ) : null}
-                      {payment.expenditureType ? (
-                        <Text style={[s.small, numericText(payment.expenditureType)]}>
-                          {payment.expenditureType}
-                        </Text>
-                      ) : null}
-                    </>
-                  ) : null}
-                  {payment.inKind === 'Yes' ? (
-                    <Text style={[s.small, s.lettered]}>{copy.inKindMarker}</Text>
-                  ) : null}
-                </View>
-                <Text style={[s.small, s.numeric]}>
+              <View key={index} style={[styles.payment, isMobile && styles.paymentMobile]}>
+                <Text style={[s.small, styles.paymentDate]}>
+                  {formatDay(date) ?? copy.dateMissing}
+                </Text>
+                {hasDetails ? (
+                  <View style={[styles.paymentDetails, isMobile && styles.paymentDetailsMobile]}>
+                    {!received ? (
+                      <>
+                        {[payment.vendorCity, payment.vendorState].filter(Boolean).length ? (
+                          <Text
+                            style={[
+                              s.small,
+                              numericText([payment.vendorCity, payment.vendorState].join(' ')),
+                              styles.paymentText,
+                            ]}
+                          >
+                            {[payment.vendorCity, payment.vendorState].filter(Boolean).join(', ')}
+                          </Text>
+                        ) : null}
+                        {payment.purpose ? (
+                          <Text style={[s.small, numericText(payment.purpose), styles.paymentText]}>
+                            {payment.purpose}
+                          </Text>
+                        ) : null}
+                        {payment.expenditureType ? (
+                          <Text
+                            style={[
+                              s.small,
+                              numericText(payment.expenditureType),
+                              styles.paymentText,
+                            ]}
+                          >
+                            {payment.expenditureType}
+                          </Text>
+                        ) : null}
+                      </>
+                    ) : null}
+                    {payment.inKind === 'Yes' ? (
+                      <Text style={[s.small, s.lettered]}>{copy.inKindMarker}</Text>
+                    ) : null}
+                  </View>
+                ) : null}
+                <Text
+                  style={[s.small, styles.paymentAmount, isMobile && styles.paymentAmountMobile]}
+                >
                   {formatMoney(payment.amount) ?? copy.amountMissing}
                 </Text>
               </View>
@@ -388,9 +427,14 @@ function SortMenu({
           setCursor(MONEY_DETAILS_SORTS.findIndex((item) => item.id === value));
           setOpen(!open);
         }}
-        style={(state) => [s.control, Boolean('focused' in state && state.focused) && s.focus]}
+        style={(state) => [
+          styles.sortButton,
+          Boolean('hovered' in state && state.hovered) && styles.sortHovered,
+          Boolean('focused' in state && state.focused) && s.namesFocus,
+        ]}
       >
-        <Text style={s.controlText}>{label}</Text>
+        <Text style={[s.controlText, styles.sortLabel]}>{label}</Text>
+        <Chevron size={16} />
       </Pressable>
       {open ? (
         <View role="menu" aria-label={copy.sort} style={styles.menu}>
@@ -407,12 +451,23 @@ function SortMenu({
                 close();
               }}
               style={(state) => [
-                s.control,
                 styles.menuItem,
-                Boolean('focused' in state && state.focused) && s.focus,
+                Boolean('hovered' in state && state.hovered) && styles.menuItemHovered,
+                Boolean('focused' in state && state.focused) && s.namesFocus,
               ]}
             >
-              <Text style={s.controlText}>{item.label}</Text>
+              <Text style={[s.controlText, styles.menuLabel]}>{item.label}</Text>
+              {item.id === value ? (
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <Path
+                    d="m5 12 4 4L19 6"
+                    stroke={c.link}
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Svg>
+              ) : null}
             </Pressable>
           ))}
         </View>
@@ -421,15 +476,65 @@ function SortMenu({
   );
 }
 
+function Chevron({ size }: { size: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <Path
+        d="m6 9 6 6 6-6"
+        stroke={c.secondary}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 const styles = StyleSheet.create({
-  active: { borderColor: c.link, backgroundColor: c.tile },
-  toolbar: { zIndex: 2, alignItems: 'stretch' },
+  tabsScroll: {
+    flexWrap: 'nowrap',
+    margin: -4,
+    padding: 4,
+    ...({ overflowX: 'auto', scrollbarWidth: 'none' } as object),
+  },
+  tabs: {
+    minWidth: '100%',
+    ...({ width: 'max-content' } as object),
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    gap: 26,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(17,21,15,0.1)',
+  },
+  tabsMobile: { gap: 20 },
+  tab: {
+    minHeight: 44,
+    flexShrink: 0,
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+    paddingTop: 0,
+    paddingBottom: 12,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    borderBottomWidth: 3,
+    marginBottom: -1,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+    ...({ outlineStyle: 'none' } as object),
+  },
+  activeTab: { borderBottomColor: c.text },
+  tabLabel: { fontSize: 17, fontWeight: '700', ...({ whiteSpace: 'nowrap' } as object) },
+  tabCount: { fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  inactiveTab: { color: c.muted },
+  panel: { gap: 14, minWidth: 0 },
+  toolbar: { zIndex: 2, alignItems: 'stretch', justifyContent: 'flex-end' },
   search: {
     flexGrow: 1,
     flexBasis: 220,
     minWidth: 0,
-    minHeight: 46,
-    padding: 12,
+    height: 46,
+    paddingHorizontal: 12,
+    paddingVertical: 0,
     borderWidth: 1,
     borderColor: c.border,
     borderRadius: 10,
@@ -440,42 +545,132 @@ const styles = StyleSheet.create({
     borderBottomColor: c.fieldFocusBorder,
     boxShadow: `0 0 0 3px ${c.fieldFocusRing}`,
   },
-  sortWrap: { minWidth: 170 },
+  sortWrap: { alignSelf: 'flex-start' },
+  sortButton: {
+    height: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingLeft: 16,
+    paddingRight: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.18)',
+    backgroundColor: c.background,
+    ...({ outlineStyle: 'none' } as object),
+  },
+  sortLabel: { fontSize: 17, fontWeight: '700' },
+  sortHovered: { borderColor: 'rgba(17,21,15,0.36)' },
   sortRaised: { zIndex: 3 },
   menu: {
     position: 'absolute',
-    top: 50,
+    top: '100%',
+    marginTop: 6,
     right: 0,
-    minWidth: 190,
+    minWidth: 220,
     backgroundColor: c.background,
     padding: 6,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: c.border,
-    boxShadow: `0 8px 24px ${c.shadow}`,
+    borderColor: 'rgba(17,21,15,0.12)',
+    boxShadow: '0 12px 32px rgba(17,21,15,0.12)',
   },
-  menuItem: { borderWidth: 0 },
-  counts: { gap: 8, backgroundColor: c.tile, padding: 16, borderRadius: 12 },
-  rows: { gap: 10 },
-  group: { borderWidth: 1, borderColor: c.border, borderRadius: 12, overflow: 'hidden' },
-  groupHead: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
-  identity: { flex: 1, minWidth: 0, gap: 4 },
-  nameLink: { minHeight: 44, paddingVertical: 10 },
-  expand: {
+  menuItem: {
+    minHeight: 44,
+    borderRadius: 8,
+    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 12,
-    minHeight: 60,
-    padding: 6,
-    flexShrink: 1,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    ...({ outlineStyle: 'none' } as object),
   },
-  chevron: { width: 20, textAlign: 'center' },
+  menuItemHovered: { backgroundColor: '#f3f5f4' },
+  menuLabel: { fontSize: 17, fontWeight: '600' },
+  counts: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    rowGap: 6,
+    columnGap: 20,
+  },
+  countText: { fontSize: 15, color: c.secondary, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  totalText: { fontSize: 15, color: c.secondary, fontWeight: '400', fontVariant: ['tabular-nums'] },
+  totalAmount: { color: c.text, fontWeight: '800' },
+  rows: { borderTopWidth: 1, borderTopColor: 'rgba(17,21,15,0.08)' },
+  group: { borderBottomWidth: 1, borderBottomColor: 'rgba(17,21,15,0.08)' },
+  groupHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 60,
+    paddingVertical: 12,
+    paddingHorizontal: 2,
+    gap: 12,
+  },
+  groupHovered: { backgroundColor: '#fafbfa' },
+  identity: { flex: 1, minWidth: 0, gap: 4 },
+  name: { fontSize: 17, fontWeight: '700' },
+  nameLink: { ...({ textUnderlineOffset: '2px' } as object) },
+  rowDetails: {
+    fontSize: 15,
+    lineHeight: 22.5,
+    fontWeight: '400',
+    color: c.muted,
+    fontVariant: ['tabular-nums'],
+  },
+  groupAmount: { fontSize: 17, fontWeight: '700' },
+  expand: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    ...({ outlineStyle: 'none' } as object),
+  },
+  chevron: { ...({ transition: 'transform .15s' } as object) },
+  chevronOpen: { transform: [{ rotate: '180deg' }] },
+  payments: { marginLeft: 18, paddingBottom: 10 },
   payment: {
     borderTopWidth: 1,
-    borderTopColor: c.border,
-    padding: 16,
+    borderTopColor: 'rgba(17,21,15,0.12)',
+    borderStyle: 'dashed',
+    paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 16,
+    gap: 12,
   },
+  paymentMobile: { flexWrap: 'wrap', rowGap: 6 },
+  paymentDate: {
+    width: 104,
+    flexShrink: 0,
+    fontSize: 15,
+    fontWeight: '800',
+    color: c.text,
+    fontVariant: ['tabular-nums'],
+  },
+  paymentDetails: { flex: 1, minWidth: 0, gap: 4 },
+  paymentDetailsMobile: { flexBasis: '100%', ...({ order: 3 } as object) },
+  paymentText: { fontSize: 15, fontWeight: '400', fontVariant: ['tabular-nums'] },
+  paymentAmount: {
+    marginLeft: 'auto',
+    fontSize: 15,
+    fontWeight: '700',
+    color: c.text,
+    fontVariant: ['tabular-nums'],
+  },
+  paymentAmountMobile: { ...({ order: 2 } as object) },
+  showMore: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 18,
+    paddingVertical: 0,
+    borderRadius: 12,
+    borderColor: 'rgba(17,21,15,0.16)',
+  },
+  showMoreHover: { borderColor: c.hoverBorder },
+  showMoreText: { fontSize: 17, fontWeight: '700', fontVariant: ['tabular-nums'] },
 });

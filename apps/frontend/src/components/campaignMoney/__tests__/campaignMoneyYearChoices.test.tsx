@@ -344,7 +344,7 @@ describe('reader choices across a campaign-money year change', () => {
     ).toBeNull();
     render(2024, data(2024));
 
-    expect(selectedTab(list())).toBe('Committees & Funds (12)');
+    expect(selectedTab(list())).toBe('Committees & Funds 12');
     expect(selectedSort(list())).toContain('Newest first');
     expect(list().querySelector('input')?.value).toBe('');
     expect(list().querySelector('[role="menu"]')).toBeNull();
@@ -359,17 +359,17 @@ describe('reader choices across a campaign-money year change', () => {
     chooseSort(list(0), 'Newest first');
     chooseTab(list(1), 'Expenditures');
     chooseSort(list(1), 'Oldest first');
-    expect(selectedTab(list(0))).toBe('Committees & Funds (12)');
+    expect(selectedTab(list(0))).toBe('Committees & Funds 12');
     expect(selectedSort(list(0))).toContain('Newest first');
-    expect(selectedTab(list(1))).toBe('Expenditures (0)');
+    expect(selectedTab(list(1))).toBe('Expenditures 0');
     expect(selectedSort(list(1))).toContain('Oldest first');
 
     render(2024, undefined);
     // Reverse the returned order to prove the saved choices follow registration, not position.
     render(2024, data(2024, ['18430', '17868']));
-    expect(selectedTab(list(0))).toBe('Expenditures (0)');
+    expect(selectedTab(list(0))).toBe('Expenditures 0');
     expect(selectedSort(list(0))).toContain('Oldest first');
-    expect(selectedTab(list(1))).toBe('Committees & Funds (12)');
+    expect(selectedTab(list(1))).toBe('Committees & Funds 12');
     expect(selectedSort(list(1))).toContain('Newest first');
   });
 });
