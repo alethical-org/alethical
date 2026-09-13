@@ -26,6 +26,7 @@ from alethical.api.routers.ask import router as ask_router
 from alethical.api.routers.contact import router as contact_router
 from alethical.api.routers.internal import router as internal_router
 from alethical.api.routers.me import router as me_router
+from alethical.api.routers.lobbying import router as lobbying_router
 from alethical.api.routers.pending_actions import router as pending_actions_router
 from alethical.api.routers.public import public_cache_control_for_path
 from alethical.api.routers.public import router as public_router
@@ -159,6 +160,7 @@ def create_app() -> FastAPI:
 
     app.include_router(admin_router, prefix="/api/v1", tags=["admin"])
     app.include_router(public_router, prefix="/api/v1", tags=["public"])
+    app.include_router(lobbying_router, prefix="/api/v1", tags=["lobbying"])
     app.include_router(site_metrics_router, prefix="/api/v1", tags=["site-metrics"])
     app.include_router(ask_router, prefix="/api/v1", tags=["ask"])
     app.include_router(contact_router, prefix="/api/v1", tags=["contact"])

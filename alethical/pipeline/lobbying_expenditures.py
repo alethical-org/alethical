@@ -326,7 +326,11 @@ class ResolvedDownload:
 
 
 def resolve_download(
-    http: requests.Session, landing_page: str = LANDING_PAGE
+    http: requests.Session,
+    landing_page: str = LANDING_PAGE,
+    *,
+    heading: str = HEADING,
+    row_label: str = ROW_LABEL,
 ) -> ResolvedDownload:
     """Find the "Principal expenditures - 2009 - Present" download on the landing page.
 
@@ -345,12 +349,12 @@ def resolve_download(
 
     matches: list[ResolvedDownload] = []
     for section in re.split(r"<h1[^>]*>", page)[1:]:
-        heading, _, body = section.partition("</h1>")
-        if HEADING not in _strip_tags(heading).lower():
+        section_heading, _, body = section.partition("</h1>")
+        if heading not in _strip_tags(section_heading).lower():
             continue
         for row in re.findall(r"<tr[^>]*>(.*?)</tr>", body, re.S):
             cells = re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", row, re.S)
-            if not cells or _strip_tags(cells[0]).lower() != ROW_LABEL:
+            if not cells or _strip_tags(cells[0]).lower() != row_label:
                 continue
             link = DOWNLOAD_LINK.search(row)
             if not link:
@@ -360,8 +364,8 @@ def resolve_download(
 
     if len(matches) != 1:
         raise LobbyingRefusal(
-            f"Expected exactly 1 {ROW_LABEL!r} download under a heading containing "
-            f"{HEADING!r} on {landing_page}, found {len(matches)}. The page's labels "
+            f"Expected exactly 1 {row_label!r} download under a heading containing "
+            f"{heading!r} on {landing_page}, found {len(matches)}. The page's labels "
             "have changed, so refusing to guess which file is which."
         )
     return matches[0]
@@ -1034,6 +1038,7 @@ def publish(
     approved_hash: Optional[str] = None,
     store: Any = None,
     directory: Optional[str] = None,
+    commit: bool = True,
 ) -> uuid.UUID:
     """Load the rows and move the live pointer, in one transaction.
 
@@ -1146,7 +1151,8 @@ def publish(
         ),
         {"snapshot": snapshot.id},
     )
-    db.commit()
+    if commit:
+        db.commit()
     return snapshot.id
 
 
@@ -1167,10 +1173,22 @@ def prune(db: Session) -> tuple[int, int]:
         .where(schema.LobbyingExpenditureSnapshot.status == SnapshotStatus.loaded)
         .order_by(schema.LobbyingExpenditureSnapshot.fetch_completed_at.desc())
     ).all()
+    # A restored release can be older than two later copies. Keep the pair that
+    # publication actually replaced, not the two greatest copy timestamps.
+    protected: set[uuid.UUID] = set()
+    paired_pointer = db.get(schema.LobbyingCurrentRelease, True, populate_existing=True)
+    if paired_pointer and paired_pointer.release_id:
+        pair = db.get(schema.LobbyingRelease, paired_pointer.release_id)
+        if pair:
+            protected.add(pair.expenditure_snapshot_id)
+            if pair.previous_release_id:
+                previous = db.get(schema.LobbyingRelease, pair.previous_release_id)
+                if previous:
+                    protected.add(previous.expenditure_snapshot_id)
     stale: list[Any] = []
     spared = 0
     for snapshot in loaded:
-        if live is not None and snapshot.id == live.id:
+        if (live is not None and snapshot.id == live.id) or snapshot.id in protected:
             continue
         if spared < KEEP_SUPERSEDED_GENERATIONS:
             spared += 1

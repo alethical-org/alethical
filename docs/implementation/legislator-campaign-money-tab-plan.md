@@ -8,10 +8,9 @@ historical totals and payments grouped by name, each with a pull request and liv
 
 ## Remaining-work boundaries
 
-Eugene's active order is this documentation release, then the 3 donation cards in
-[issue 2205](https://github.com/alethical-org/alethical/issues/2205), then lobbying
-data and lobbying pages. Completion of a screen change does not complete either
-held source replacement.
+The documentation release and the 3 donation cards are live. Eugene's active
+order is now lobbying data, then lobbying pages. Completion of a screen change
+does not complete either held source replacement.
 
 - The names redesign in [pull request 2189](https://github.com/alethical-org/alethical/pull/2189)
   and the itemized-history wording in [pull request 2196](https://github.com/alethical-org/alethical/pull/2196)
@@ -19,10 +18,11 @@ held source replacement.
   and [history release report](https://github.com/alethical-org/alethical/issues/2191#issuecomment-5654830093)
   record required checks and phone, tablet and computer behavior. Their completed
   worktrees and branches are removed.
-- Jobs 5a, 5b and 5c are released server additions. Their 3 displays are now
-  authorized by [issue 2205](https://github.com/alethical-org/alethical/issues/2205)
-  and the accepted `Alethical UX (17).zip`. Build them after this documentation
-  release merges, from a fresh branch based on current `origin/main`.
+- Jobs 5a, 5b and 5c and their 3 displays are live in
+  [pull request 2207](https://github.com/alethical-org/alethical/pull/2207).
+  The [donation-card release report](https://github.com/alethical-org/alethical/issues/2205#issuecomment-5656712673)
+  records all 7 states, the source figures, phone/tablet/computer checks and the
+  338,288-byte hosted first download against the 339,072-byte ceiling.
 - [Issue 2142](https://github.com/alethical-org/alethical/issues/2142) and
   [issue 2150](https://github.com/alethical-org/alethical/issues/2150) remain held at
   Action 4 Liberty PAC's missing 2026 record. All 3 authorized retries are exhausted.
@@ -647,8 +647,8 @@ so one round must never overwrite the other.
 - [x] Carry the 3 served blocks through both frontend response readers, preserving amounts, omissions and held states
 - [x] Add 3 shared cards after each committee's own money and before its history, with the location card absent on non-candidate committees
 - [x] Pin real 17868/2025 figures, both empty causes, loading/failure, location absence and no postcode output
-- [ ] Browser-check all widths, measure the hosted production-settings build, then use the merge queue and check the live release
-- [ ] Report on the existing issue and update the final review checkpoint
+- [x] Browser-check all widths, measure the hosted production-settings build, then use the merge queue and check the live release
+- [x] Report on the existing issue and update the final review checkpoint
 
 The closing-committee note counts payments, including repeated payments from the same
 committee. It does not call the payment count a count of committees. The cash rows are
@@ -659,4 +659,27 @@ these cards are live; the 2 held replacement jobs stay held.
 Browser checks cover 1440px, 834px and 390px. The tablet money column uses the
 accepted 32px gutter instead of the overview's 640px maximum. Empty messages require
 absence of individual Contribution rows, not merely absence of usable printed names.
-The frontend suite passes 2,801 tests; hosted size and release checks remain next.
+The released change passes 2,802 frontend tests and 2,752 backend tests.
+[Pull request 2207](https://github.com/alethical-org/alethical/pull/2207) passed the
+merge queue and is live at commit `cf03e289`. Its hosted and live first-download
+measurements both read 338,288 bytes against the unchanged 339,072-byte ceiling.
+The [release report](https://github.com/alethical-org/alethical/issues/2205#issuecomment-5656712673)
+records all figures, withheld states, phone/tablet/computer checks and the existing
+candidate-only filing-line source restriction.
+
+
+## Resumed lobbying delivery
+
+The donation cards are live and reported. Eugene's instruction to finish lobbying
+after everything else now starts
+[issue 2163](https://github.com/alethical-org/alethical/issues/2163), followed by
+[issue 2164](https://github.com/alethical-org/alethical/issues/2164) only after the
+data and lookups are live. The 2 held source replacements remain untouched.
+
+- [ ] Import the current lobbyist list with the principal spending file as 1 dated release; discard contact fields before storage
+- [ ] Prove registration and principal IDs against all relevant published rows
+- [ ] Serve the detail, summary, paginated list and search reads needed by the accepted lobbying screens
+- [ ] Complete tests, migration round trip and an independent read of publication safeguards
+- [ ] Merge the data change, run the reviewed import with rollback retained, check live responses and report on the existing issue
+- [ ] Build the accepted lobbying screens and links, remove the under-development strip in that display release, check live and report
+- [ ] Update the complete Claude review prompt and final programme report after both releases

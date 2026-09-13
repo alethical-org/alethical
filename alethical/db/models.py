@@ -3491,6 +3491,112 @@ class LobbyingExpenditureFetchObservation(UUIDPrimaryKeyMixin, TimestampMixin, B
     __table_args__ = (Index("ix_lobbying_fetch_observation_started", "started_at"),)
 
 
+# --- Lobbying: current registrations and coherent paired releases ------------
+
+
+class LobbyistSnapshot(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """One copy of the active list, retaining only its public names and links.
+
+    Source contacts never reach this table or object storage. Hash and byte count
+    identify the response; record_set_hash identifies the retained safe fields.
+    Each fetch gets its own row so a repeated file still has a real copy date.
+    """
+
+    __tablename__ = "lobbyist_snapshot"
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    download_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    record_set_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    fetch_started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    fetch_completed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    row_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    association_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    unparsed_association_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[CampaignFinanceSnapshotStatus] = mapped_column(
+        SQLEnum(CampaignFinanceSnapshotStatus, name="cf_snapshot_status"),
+        nullable=False,
+    )
+    validation_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    __table_args__ = (Index("ix_lobbyist_snapshot_copied", "fetch_completed_at"),)
+
+
+class LobbyistRow(Base):
+    """Only the active list's names and registration number, never contacts."""
+
+    __tablename__ = "lobbyist_row"
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("lobbyist_snapshot.id", ondelete="CASCADE"), primary_key=True
+    )
+    registration_number: Mapped[str] = mapped_column(String(20), primary_key=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    formatted_name: Mapped[str] = mapped_column(Text, nullable=False)
+    first_name: Mapped[Optional[str]] = mapped_column(Text)
+    middle_initial: Mapped[Optional[str]] = mapped_column(Text)
+    last_name: Mapped[Optional[str]] = mapped_column(Text)
+    __table_args__ = (Index("ix_lobbyist_row_name", "name"),)
+
+
+class LobbyistAssociation(Base):
+    """An ordered organisation entry exactly as the active list names it."""
+
+    __tablename__ = "lobbyist_association"
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    registration_number: Mapped[str] = mapped_column(String(20), primary_key=True)
+    position: Mapped[int] = mapped_column(Integer, primary_key=True)
+    entity_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    principal_name: Mapped[str] = mapped_column(Text, nullable=False)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["snapshot_id", "registration_number"],
+            ["lobbyist_row.snapshot_id", "lobbyist_row.registration_number"],
+            ondelete="CASCADE",
+            name="fk_lobbyist_association_row",
+        ),
+        Index("ix_lobbyist_association_entity", "entity_id", "snapshot_id"),
+    )
+
+
+class LobbyingRelease(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """The two copies published together, with one observed copy date."""
+
+    __tablename__ = "lobbying_release"
+    previous_release_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("lobbying_release.id", name="fk_lobbying_release_previous")
+    )
+    expenditure_snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(
+            "lobbying_expenditure_snapshot.id", name="fk_lobbying_release_expenditure"
+        ),
+        nullable=False,
+    )
+    lobbyist_snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("lobbyist_snapshot.id"), nullable=False
+    )
+    fetch_started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    copied_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    __table_args__ = (Index("ix_lobbying_release_copied", "copied_at"),)
+
+
+class LobbyingCurrentRelease(TimestampMixin, Base):
+    """A single pointer changes only when both complete copies can publish."""
+
+    __tablename__ = "lobbying_current_release"
+    id: Mapped[bool] = mapped_column(
+        Boolean, primary_key=True, default=True, server_default=text("true")
+    )
+    release_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("lobbying_release.id")
+    )
+    __table_args__ = (CheckConstraint("id", name="single_row"),)
+
+
 def bill_detail_stmt(
     bill_id: uuid.UUID,
     user_id: Optional[uuid.UUID] = None,

@@ -50,6 +50,8 @@ from alethical.api.services.campaign_finance_search import (
     GAVE,
     GOT_PAID,
     GOT_PAID_INDEPENDENT,
+    LOBBYISTS,
+    PRINCIPALS,
     NO_RELEASE,
     PEOPLE,
     QUERY_TOO_SHORT,
@@ -819,9 +821,15 @@ def test_every_group_is_returned_even_when_it_is_empty(client, db) -> None:
         GAVE,
         GOT_PAID,
         GOT_PAID_INDEPENDENT,
+        LOBBYISTS,
+        PRINCIPALS,
     ]
-    assert all(group["state"] == NOT_REPORTED for group in data["groups"])
-    assert all(group["total"] == 0 for group in data["groups"])
+    assert all(group["state"] == NOT_REPORTED for group in data["groups"][:5])
+    assert all(group["total"] == 0 for group in data["groups"][:5])
+    assert all(
+        group["state"] == UNAVAILABLE and group["total"] is None
+        for group in data["groups"][5:]
+    )
 
 
 def test_a_query_shorter_than_the_index_can_answer_says_so_rather_than_nothing_found(
@@ -938,6 +946,8 @@ def test_the_employer_column_is_not_searched_and_has_no_group(client, db) -> Non
         GAVE,
         GOT_PAID,
         GOT_PAID_INDEPENDENT,
+        LOBBYISTS,
+        PRINCIPALS,
     ]
     assert all(group["results"] == [] for group in data["groups"])
 

@@ -172,18 +172,16 @@ pipeline-work target:
 load-campaign-finance target="local" dry="true":
   uv run python scripts/load_campaign_finance.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }}
 
-# Load Minnesota's lobbying principal-expenditure download as a dated set that
-# replaces the previous one (#1862). It exists so the $886 million lobbying figure in
-# our research piece "The Money Only Goes One Way" recomputes from data we hold.
-# Dry-run by default, same as above, and a real run needs the same 4 storage values.
-#   just load-lobbying                               # dry run against local
-#   just load-lobbying local false                   # publish locally
-#   just load-lobbying production false              # publish to production
-# A first import has nothing to compare against, so it quarantines by design. Read
-# the printed measurements, then publish it by naming its record hash:
-#   uv run python scripts/load_lobbying_expenditures.py --target local --publish-hash H
+# Copy the active lobbyist list and principal spending file in 1 dated release.
+# A dry run writes neither database rows nor stored source objects.
+#   just load-lobbying                         # inspect locally
+#   just load-lobbying production              # inspect against the live baseline
+#   just load-lobbying production false        # publish a validated replacement
+# For the first active-list import, review the printed safe record hash and pass
+# --publish-lobbyist-hash through scripts/load_lobbying.py. Existing principal
+# spending checks still apply. The earlier expenditure-only CLI stays available.
 load-lobbying target="local" dry="true":
-  uv run python scripts/load_lobbying_expenditures.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }}
+  uv run python scripts/load_lobbying.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }}
 
 # Load Minnesota's yearly Political Contribution Refund summaries (#2147). The state
 # pays a resident back for a gift to a state candidate's committee or a party unit,
