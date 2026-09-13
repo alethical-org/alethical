@@ -1,7 +1,7 @@
 # Legislator Campaign money tab delivery
 
 This is the delivery checkpoint for [issue 2140](https://github.com/alethical-org/alethical/issues/2140),
-updated 12 September 2026. A–F code changes are live; the historical replacement
+updated 13 September 2026. A–F code changes are live; the historical replacement
 remains stopped under its missing-record guard.
 The accepted work includes the profile, outside spending, spending-card correction,
 historical totals and payments grouped by name, each with a pull request and live check.
@@ -225,13 +225,13 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   the code shared by 2 screens with those screens. Measure after each step and post
   before/after results on its issue. Only production measurements may set the
   first-load size limit. Deliver the 3 ordered changes in this job's single pull request.
-- [ ] Job 4, [issue 1662](https://github.com/alethical-org/alethical/issues/1662):
+- [x] Job 4, [issue 1662](https://github.com/alethical-org/alethical/issues/1662):
   before the next scheduled refresh, re-download the 3 bulk files and 20 already-held
   reports across kinds and years. Compare records and document bytes; report row
   counts, columns, amounts, amendment handling, changes and unchanged fields.
   Make no production data change. File each loader/check-breaking difference with
   evidence as a separate issue. State on issue 1662 whether the next refresh is safe.
-- [ ] After job 4's report, comment on issue 2140 with all 4 pull requests and any
+- [x] After job 4's report, comment on issue 2140 with all 4 pull requests and any
   architecture findings, then report completion of this set. The subsequently approved data-only jobs
   below follow this set; the accepted lobbying display is job 5f after 5e is live.
 
@@ -366,26 +366,23 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   browser cache from the unproven state of the database/CDN cache. The
   [parent report](https://github.com/alethical-org/alethical/issues/2140#issuecomment-5651375262)
   completes the gate for Job 4.
-- Job 4 is active in `/private/tmp/alethical-1662-source-comparison` on
-  `codex/1662-compare-reposted-sources`, based on that release. Compare all 3
-  newly fetched bulk files with the saved live release, and 20 held reports across
-  2022 through 2026, 4 per year across filer kinds and original/amended reports.
-  Production access is read-only; source copies and scripts stay under
-  `/tmp/1662-bulk-comparison/` and `/tmp/1662-report-comparison/`. Commit only
-  sanitized measurements and the reproducible method, never raw private reports.
-  Exclude Action 4 Liberty 41173 from further individual requests. The comparison
-  is complete: all 3 files parse, but 2024 spending loses 905 rows and fails the
-  existing past-year guard. All 20 sampled PDFs are byte-identical to their held
-  copies. [Issue 2171](https://github.com/alethical-org/alethical/issues/2171) records
-  the required missing-row investigation; the payment refresh is not safe to
-  publish. The [dated audit](../verification/1662-board-source-comparison/report.md)
-  and sanitized JSON evidence are ready for this job's pull request. Release the
-  audit through the queue, read back its committed files, report on
-  [issue 1662](https://github.com/alethical-org/alethical/issues/1662) and
-  [issue 2140](https://github.com/alethical-org/alethical/issues/2140), then start 5a.
-  No new data or verdict is published by the audit.
+- Job 4 is live through [pull request 2172](https://github.com/alethical-org/alethical/pull/2172).
+  Its [audited evidence and final report](https://github.com/alethical-org/alethical/issues/1662#issuecomment-5651629978)
+  found all 20 sampled reports byte-identical to the held copies, while the 2024
+  spending download loses 905 rows and remains unsafe to publish under
+  [issue 2171](https://github.com/alethical-org/alethical/issues/2171). The
+  [4-job parent report](https://github.com/alethical-org/alethical/issues/2140#issuecomment-5651630102)
+  completes the gate for Job 5a. The separate scanner repair is live through
+  [pull request 2174](https://github.com/alethical-org/alethical/pull/2174).
+- Job 5a is active in `/private/tmp/alethical-2144-stated-by-kind` on
+  `codex/2144-stated-contributions-by-kind`. It adds the shared `stated_by_kind`
+  response to committee finance and each confirmed legislator committee under the
+  evidence limits in [issue 2144](https://github.com/alethical-org/alethical/issues/2144).
+  It changes no page. Tests, release checks and a live response remain pending.
 - Jobs 4 through 5f retain their stated sequence. Action 4 Liberty PAC's historical
-  replacement remains held with no additional source attempts or publication.
+  replacement for 41173/2026 remains held with no additional source attempts or
+  publication. The 2024 spending replacement remains held for the 905-row loss in
+  [issue 2171](https://github.com/alethical-org/alethical/issues/2171).
 
 
 ## Approved data-only queue after follow-on jobs 1 through 4
@@ -399,12 +396,28 @@ each job's issue. Comment on issue 2140 after all 4 merge.
 
 - [ ] 5a, [issue 2144](https://github.com/alethical-org/alethical/issues/2144): add
   `stated_by_kind` to committee finance and legislator campaign finance only when
-  the year's stated-split check agrees. Serve the 5 filing lines from
+  both current source copies have the year's agreeing stated-split check. Candidate
+  committees only: require all 5 filing lines, the same year and coverage cutoff,
+  and no special-election report series. Serve the 5 filing lines from
   `cf_filing_figure`: individuals, lobbyist, committee_fund, party_unit, other
-  contributions, with each filing total, matching itemized cash and difference.
+  contributions. The block carries `state`, `reported_through`, and `lines[]`, with
+  each line's `line_key`, `label_as_filed`, `stated_total`, `itemized_cash_total`
+  and `difference`.
+  Matching cash uses Contribution rows for that year, excludes `In-kind? Yes`,
+  includes undated rows and excludes dated rows after the filing cutoff.
   Candidate Committee contribution rows belong under party_unit, matching the
   filing's combined party-unit/terminating-candidate heading. Any negative
-  difference yields `sources_disagree` with no figures. Pin 17868/2025.
+  difference yields `sources_disagree` with no figures. Missing, unproved or
+  unmapped inputs omit the block; a blank kind is never guessed to be Other.
+  Serve the same block on both committee-finance cache variants and on every
+  confirmed committee in a legislator's campaign-finance response. Pin 17868/2025.
+  The shared response is implemented with 32 passing focused tests. Real fixtures
+  preserve 134 Abeler/2025 payment rows, the 19287/2026 date-boundary case,
+  19492/2026 Self cash on Individuals, and 18807/2024 explicit Other cash. Undated
+  rows stay included, and a missing source kind withholds the block. The new figures
+  remain available for a proved zero without named rows and retain the guard against
+  adding 2 committees together. Full server checks, independent review, the pull
+  request, merge queue, and live response checks remain before completion.
 - [ ] 5b, [issue 2146](https://github.com/alethical-org/alethical/issues/2146): import
   the HUD USPS ZIP crosswalk or USPS 3-digit prefix ranges into a manually refreshed
   reference table; record the chosen source and its date. On the same 2 responses,

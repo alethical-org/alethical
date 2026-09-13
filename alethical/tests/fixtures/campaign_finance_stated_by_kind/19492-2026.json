@@ -1,0 +1,146 @@
+{
+  "collected_at": "2026-09-13T06:37:41.542901+00:00",
+  "current": {
+    "release_id": "af236cca-a4f8-4efe-9a3a-025259ea380e",
+    "contributions_snapshot_id": "5b892996-14ce-4992-87ed-b825400beb26",
+    "filings_snapshot_id": "9cd121a0-4fd2-467e-b4a4-5c3c600febfb"
+  },
+  "filing": {
+    "id": "191288c2-1e6b-4993-b851-c4db995469ed",
+    "snapshot_id": "9cd121a0-4fd2-467e-b4a4-5c3c600febfb",
+    "registration_number": "19492",
+    "filer_kind": "candidate_committee",
+    "filing_year": 2026,
+    "segment_start": 2026,
+    "segment_end": 2027,
+    "block_heading": "2026 - Election year",
+    "reported_through": "2026-07-20",
+    "response_hash": "b2e02b0b282511fe76797556686c328bf58a566885b34c9f21e301fc8ee2911b",
+    "archive_line": 1197
+  },
+  "figures": [
+    {
+      "line_key": "committee_fund_contributions",
+      "label_as_served": "Committee/fund contributions",
+      "amount": "0.0000"
+    },
+    {
+      "line_key": "individuals_contributions",
+      "label_as_served": "Individuals contributions",
+      "amount": "1400.0000"
+    },
+    {
+      "line_key": "lobbyist_contributions",
+      "label_as_served": "Lobbyist contributions",
+      "amount": "0.0000"
+    },
+    {
+      "line_key": "other_contributions",
+      "label_as_served": "Other contributions",
+      "amount": "0.0000"
+    },
+    {
+      "line_key": "party_unit_contributions",
+      "label_as_served": "Party unit contributions",
+      "amount": "76.0000"
+    }
+  ],
+  "verdict": {
+    "snapshot_id": "5b892996-14ce-4992-87ed-b825400beb26",
+    "filings_snapshot_id": "9cd121a0-4fd2-467e-b4a4-5c3c600febfb",
+    "registration_number": "19492",
+    "filing_year": 2026,
+    "status": "agrees",
+    "reason": "the filing states 1300.00 of itemized contributions through 2026-07-20 and we hold 1 rows totalling 1300.0000. Reader check: 5 of 5 schedules match the Board's own totals route (A1 - IND, A1 - LOB, A1 - PCF, A1 - PTY/TERM PCC, A1 - OTH)",
+    "self_test": "passed",
+    "report_type": "C",
+    "amendment_index": 0,
+    "cut_off_date": "2026-07-20",
+    "document_hash": "356d523a6e42cee6fab00532e04d77ebd83324690decf15dc17dd86b22357d2c",
+    "document_byte_size": 16745,
+    "stated_itemized": "1300.0000",
+    "stated_itemized_cash": "1300.0000",
+    "stated_non_itemized": "176.0000",
+    "ours_itemized": "1300.0000",
+    "ours_itemized_cash": "1300.0000",
+    "checked_at": "2026-09-02 04:53:13.446697+00:00"
+  },
+  "method": "Current published snapshot IDs checked in a read-only repeatable-read transaction. Every Contribution row occurrence for this committee-year is retained with receipt_date; no names or contact fields were selected. Cash sums use the stored verdict cutoff including undated rows and lower(coalesce(in_kind,empty)) <> yes. No Board call, loader, refresh, verdict recalculation, production write or repo edit. The held schedule evidence was previously read from the exact existing body named by this same verdict, with compressed and original hashes checked.",
+  "contribution_source": {
+    "id": "5b892996-14ce-4992-87ed-b825400beb26",
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-2113865252",
+    "download_id": "-2113865252",
+    "content_hash": "b90b6c2091c532a0f792a5e4f5d6c7ffca3fb09b3c7a0f0979a3a491e903da04",
+    "record_set_hash": "a0951be1d1426462cb4fd818a5ef06ffb894447e87a7dc6d759ccec4f0fe5851",
+    "row_count": 583222,
+    "created_at": "2026-09-01 18:31:54.356455+00:00"
+  },
+  "filing_source": {
+    "id": "9cd121a0-4fd2-467e-b4a4-5c3c600febfb",
+    "fetch_started_at": "2026-08-12 20:54:25.503249+00:00",
+    "fetch_completed_at": "2026-08-12 21:34:26.606333+00:00",
+    "record_set_hash": "1938210310e5bb54845f790d6715df391793d64a21f945afc37bba75f89edf5d",
+    "compressed_hash": "cdb861e2f42e3bc56e4e406306a3ac6b9202c4579136be21eb721f22446fb0c0",
+    "response_count": 4812,
+    "years": [
+      2025,
+      2026
+    ],
+    "segments": [
+      [
+        2024,
+        2025
+      ],
+      [
+        2026,
+        2027
+      ]
+    ]
+  },
+  "stored_schedule_evidence": {
+    "registration_number": "19492",
+    "filing_year": 2026,
+    "document_hash": "356d523a6e42cee6fab00532e04d77ebd83324690decf15dc17dd86b22357d2c",
+    "cut_off_date": "2026-07-20",
+    "byte_size": 16745,
+    "compressed_hash": "a583e0f14071e21293d2379419817c549fb585e667131bf9cfedbfaa1f81f417",
+    "created_at": "2026-08-18 13:57:02.126380+00:00",
+    "hash_matches": true,
+    "schedule_headings": [
+      "Schedule A1 - IND   Contributions from Individuals",
+      "Schedule A1 - PTY/TERM PCC   Contributions from",
+      "Schedule B1 - CE   Campaign Expenditures",
+      "Schedule B1 - NCD   Non-Campaign Disbursements"
+    ],
+    "parse_errors": [],
+    "contribution_schedules": {
+      "A1 - IND": {
+        "itemized": [
+          "1300.00",
+          "0.00",
+          "1300.00"
+        ],
+        "non_itemized": [
+          "100.00",
+          "0.00",
+          "100.00"
+        ]
+      },
+      "A1 - PTY/TERM PCC": {
+        "itemized": [
+          "0.00",
+          "0.00",
+          "0.00"
+        ],
+        "non_itemized": [
+          "76.00",
+          "0.00",
+          "76.00"
+        ]
+      }
+    }
+  },
+  "rows": [
+    {"row_number": 77999, "year": 2026, "receipt_type": "Contribution", "contrib_type": "Self", "in_kind": "No", "amount": "1300.0000", "receipt_date": "2026-06-30"}
+  ]
+}

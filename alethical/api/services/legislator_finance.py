@@ -99,6 +99,7 @@ from alethical.api.services.committee_filing_schedule import (
     CommitteeFilingSchedule,
     committee_filing_schedule,
 )
+from alethical.api.services.committee_stated_by_kind import StatedByKind, stated_by_kind
 from alethical.api.services.committee_finance import (
     NOT_REPORTED,
     CommitteeFinance,
@@ -274,6 +275,7 @@ class LegislatorCommitteeMoney:
     #: is never added to anything in ``finance``
     #: (``alethical/api/services/committee_refunds.py``).
     refunds: CommitteeRefunds | None = None
+    stated_by_kind: StatedByKind | None = None
 
 
 @dataclass(frozen=True)
@@ -814,7 +816,29 @@ def reported_by_one_committee(
         named_in_kind_total=reported_by(number, entry.split.named_in_kind_total),
         unnamed_total=reported_by(number, entry.split.unnamed_total),
     )
-    return replace(entry, finance=finance, split=split)
+    return replace(
+        entry,
+        finance=finance,
+        split=split,
+        stated_by_kind=(
+            replace(
+                entry.stated_by_kind,
+                lines=tuple(
+                    replace(
+                        line,
+                        stated_total=reported_by(number, line.stated_total),
+                        itemized_cash_total=reported_by(
+                            number, line.itemized_cash_total
+                        ),
+                        difference=reported_by(number, line.difference),
+                    )
+                    for line in entry.stated_by_kind.lines
+                ),
+            )
+            if entry.stated_by_kind is not None
+            else None
+        ),
+    )
 
 
 def legislator_finance(
@@ -849,6 +873,7 @@ def legislator_finance(
         # comes off the Board's filings snapshot rather than off this release, so a
         # committee absent from one can still be answered from the other.
         schedule = committee_filing_schedule(db, link.registration_number, year=year)
+        by_kind = stated_by_kind(db, release, link.registration_number, year)
         if finance is None:
             # A confirmed link to a registration number the current release holds no
             # record of. That is a fact about our download, not about the committee,
@@ -860,6 +885,7 @@ def legislator_finance(
                     committee_name_as_reviewed=link.committee_name_as_reviewed,
                     office_as_reviewed=link.office_as_reviewed,
                     finance=None,
+                    stated_by_kind=by_kind,
                     schedule=schedule,
                     checked=_match_check(link),
                     refunds=refunds_for_committee(
@@ -887,6 +913,7 @@ def legislator_finance(
                 committee_name_as_reviewed=link.committee_name_as_reviewed,
                 office_as_reviewed=link.office_as_reviewed,
                 finance=finance,
+                stated_by_kind=by_kind,
                 schedule=schedule,
                 checked=_match_check(link),
                 refunds=refunds_for_committee(

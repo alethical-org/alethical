@@ -61,6 +61,7 @@ from alethical.api.services.committee_finance import (
     MoneyOut,
     ReceiptTypeTotal,
 )
+from alethical.api.services.committee_stated_by_kind import StatedByKind, StatedKindLine
 from alethical.api.services.committee_stated_spending import NOT_RUN
 from alethical.api.services.legislator_finance import (
     LINK_CONFIRMED,
@@ -136,6 +137,19 @@ def _committee(
         committee_name_as_reviewed="A Committee",
         office_as_reviewed="Senate",
         finance=finance,
+        stated_by_kind=StatedByKind(
+            "reported",
+            date(2026, 7, 20),
+            (
+                StatedKindLine(
+                    "party_unit_contributions",
+                    "Party unit contributions",
+                    contributions,
+                    contributions,
+                    Decimal(0),
+                ),
+            ),
+        ),
         split=split,
         schedule=CommitteeFilingSchedule(NOT_ON_THE_BALLOT),
     )
@@ -207,6 +221,15 @@ def test_every_figure_on_a_card_refuses_the_same_way():
         (first.split.named_in_kind_total, second.split.named_in_kind_total),
         (first.split.unnamed_total, second.split.unnamed_total),
     ]
+    assert first.stated_by_kind is not None
+    assert second.stated_by_kind is not None
+    for field in ("stated_total", "itemized_cash_total", "difference"):
+        pairs.append(
+            (
+                getattr(first.stated_by_kind.lines[0], field),
+                getattr(second.stated_by_kind.lines[0], field),
+            )
+        )
     for left, right in pairs:
         assert isinstance(left, CommitteeAmount) and isinstance(right, CommitteeAmount)
         with pytest.raises(CrossCommitteeTotal):
