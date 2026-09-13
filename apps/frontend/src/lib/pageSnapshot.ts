@@ -13,6 +13,10 @@ import {
 } from './billDetail';
 import { citationSectionHref } from './billText';
 import {
+  committeeMoneyPreferences,
+  committeeMoneyPreferenceParams,
+} from './committeeMoneyPreferences';
+import {
   currentChamber,
   legislativeServiceFromHistory,
   legislatorDisplayName,
@@ -1422,12 +1426,21 @@ export function committeeSnapshotName(
 export function committeePageSnapshot(
   money: CommitteeMoneySnapshotSource,
   fallbackRegistrationNumber: string,
+  view: { tab?: string; category?: string; sort?: string } = {},
 ): PageSnapshot {
   const identity = committeeIdentity(money, fallbackRegistrationNumber);
   const split = money.split ?? {};
   const moneyIn = money.money_in ?? {};
   const moneyOut = money.money_out ?? {};
   const year = money.year ?? new Date().getFullYear();
+  const donorParams = committeeMoneyPreferenceParams(committeeMoneyPreferences(view));
+  const committeeViewPath = (nextYear: number, tab?: string) => {
+    const query = new URLSearchParams({ year: String(nextYear) });
+    if (tab) query.set('tab', tab);
+    if (donorParams.category) query.set('category', donorParams.category);
+    if (donorParams.sort) query.set('sort', donorParams.sort);
+    return `/money/committees/${encodeURIComponent(identity.slug)}?${query}`;
+  };
   const closed = identity.state === 'closed-empty';
   // Both fields or nothing, matching the app's own mapper: the sentence naming a
   // member is also the link to them, so a name with no address is half a fact.
@@ -1572,15 +1585,15 @@ export function committeePageSnapshot(
         : []),
       {
         label: COMMITTEE_MONEY_SECTION_LABEL,
-        href: `/money/committees/${encodeURIComponent(identity.slug)}?year=${year}`,
+        href: committeeViewPath(year),
       },
       ...campaignMoneyYears().map((option) => ({
         label: `Year ${option}`,
-        href: `/money/committees/${encodeURIComponent(identity.slug)}?year=${option}`,
+        href: committeeViewPath(option, view.tab === 'spent' ? 'gave' : view.tab),
       })),
       {
         label: COMMITTEE_TAB_LABELS.filings,
-        href: `/money/committees/${encodeURIComponent(identity.slug)}?year=${year}&tab=filings`,
+        href: committeeViewPath(year, 'filings'),
       },
       ...(['gave', 'spent'] as const).map((tab) => ({
         label: COMMITTEE_TAB_LABELS[tab],

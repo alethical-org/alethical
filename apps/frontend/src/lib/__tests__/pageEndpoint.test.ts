@@ -2256,6 +2256,31 @@ describe('a committee page hands its records to the app', () => {
     },
   );
 
+  it('serves donor choices in committee navigation without changing the finance read or cache contract', async () => {
+    const { calls } = stubCommittee();
+    const { body, headers } = await serve({
+      path: `/money/committees/${SLUG}`,
+      year: '2026',
+      tab: 'filings',
+      category: 'committees',
+      sort: 'smallest',
+    });
+    expect(body).toContain(
+      `href="/money/committees/${SLUG}?year=2026&amp;tab=filings&amp;category=committees&amp;sort=smallest"`,
+    );
+    expect(body).toContain(
+      `href="/money/committees/${SLUG}?year=2025&amp;tab=filings&amp;category=committees&amp;sort=smallest"`,
+    );
+    expect(body).toContain(`href="/money/committees/${SLUG}/payments?tab=gave&amp;year=2026"`);
+    expect(calls.map((url) => new URL(url).pathname + new URL(url).search)).toEqual([
+      '/api/v1/committees/41326/finance?year=2026',
+    ]);
+    expect(servedData(body).map((entry) => entry.key)).toEqual([
+      ['committee-money', '41326', 2026],
+    ]);
+    expect(headers.get('Cache-Control')).toContain('s-maxage=300');
+  });
+
   it('hands the payments view its own first page, in the requested year and direction', async () => {
     stubCommittee();
 
