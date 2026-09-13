@@ -10,10 +10,10 @@ established is reported as unknown and never defaulted onto one
 
 Two halves, and the split is the point:
 
-* ``CALENDARS`` is the Board's own annual disclosure calendars, hand-transcribed from
-  the PDFs it publishes. 4 short documents a year, produced once in July and not
-  revised, so next year's update is an edit to this file rather than an investigation.
-  ``SOURCE_URLS`` and ``TRANSCRIBED_ON`` record where each was read from and when.
+* ``CALENDARS`` holds the Board's published disclosure calendars for 2015–2026.
+  ``CALENDAR_SOURCES`` records each year/class source and reading date. Historical
+  source PDFs and their hashes are kept with the focused tests; the original 2026
+  party/fund entries remain here. New years require reading the actual calendars.
 * ``classify`` decides which calendar a committee is on, from the Board's own record of
   what it has already scheduled for that committee. It writes nothing, reads no
   database and no clock; the caller hands it rows and a date.
@@ -86,9 +86,11 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Iterable, Optional, Sequence
 
+from alethical.pipeline.campaign_finance_calendar_sources import TRANSCRIPTIONS
+
 
 class CalendarKey(enum.Enum):
-    """One of the Board's 4 annual disclosure calendars.
+    """A population covered by the Board's annual disclosure calendars.
 
     Named for the population each covers rather than for its filename, because the
     filenames are not promised to be stable across years while the population is what
@@ -96,6 +98,9 @@ class CalendarKey(enum.Enum):
     """
 
     legislative_candidate_filing_for_office = "legislative_candidate_filing_for_office"
+    constitutional_or_appellate_candidate_filing_for_office = (
+        "constitutional_or_appellate_candidate_filing_for_office"
+    )
     candidate_not_filing_for_office = "candidate_not_filing_for_office"
     state_party_or_legislative_caucus = "state_party_or_legislative_caucus"
     political_committee_or_fund = "political_committee_or_fund"
@@ -105,6 +110,9 @@ class CalendarKey(enum.Enum):
 # https://cfb.mn.gov/reports-and-data/self-help/data-downloads/ under Disclosure
 # Publications -> Calendars. All 4 URLs verified resolving on 12 Aug 2026.
 SOURCE_URLS: dict[CalendarKey, str] = {
+    CalendarKey.constitutional_or_appellate_candidate_filing_for_office: (
+        "https://cfb.mn.gov/pdf/calendars/2026_const_offices_appellate_court.pdf"
+    ),
     CalendarKey.legislative_candidate_filing_for_office: (
         "https://cfb.mn.gov/pdf/calendars/2026_senate_house_district_court.pdf"
     ),
@@ -147,6 +155,7 @@ class UnknownBecause(enum.Enum):
     ([#1642](https://github.com/alethical-org/alethical/issues/1642)).
     """
 
+    no_reports_for_year = "no_reports_for_year"
     special_election_series = "special_election_series"
     calendar_not_transcribed = "calendar_not_transcribed"
     evidence_predates_the_first_election_report = (
@@ -353,6 +362,46 @@ CALENDARS: dict[tuple[CalendarKey, int], tuple[CalendarEntry, ...]] = {
 }
 
 
+# Each historical row has its own source, reading date, and content hash. The legacy
+# SOURCE_URLS names the 2026 set; callers needing another year use CALENDAR_SOURCES.
+CALENDAR_SOURCES = {
+    (key, 2026): {"url": url, "transcribed_on": TRANSCRIBED_ON}
+    for key, url in SOURCE_URLS.items()
+}
+FILING_OFFICES_BY_YEAR = {
+    (CalendarKey.legislative_candidate_filing_for_office, 2026): frozenset(
+        {"House", "Senate", "District Court"}
+    )
+}
+for _year, _key, _filename, _sha256, _offices, _reports in TRANSCRIPTIONS:
+    _calendar = CalendarKey(_key)
+    CALENDARS[(_calendar, _year)] = tuple(
+        CalendarEntry(
+            name,
+            date.fromisoformat(start),
+            date.fromisoformat(end),
+            date.fromisoformat(due),
+            condition,
+        )
+        for name, start, end, due, condition in _reports
+    )
+    CALENDAR_SOURCES[(_calendar, _year)] = {
+        "url": "https://cfb.mn.gov/pdf/calendars/" + _filename,
+        "transcribed_on": date(2026, 9, 13),
+        "sha256": _sha256,
+    }
+    if _offices:
+        FILING_OFFICES_BY_YEAR[(_calendar, _year)] = frozenset(_offices)
+
+# These are actual general calendars, not years selected by odd/even arithmetic.
+# They publish annual receipts/expenditures reports for regular candidate committees.
+GENERAL_CALENDAR_YEARS = frozenset({2015, 2017, 2019, 2021, 2023, 2025})
+
+# The 2016 calendar calls the pre-primary "First Report". Its printed primary-election
+# section supplies this identity; the report title alone cannot do so.
+FIRST_ELECTION_REPORT_DUE = {2016: date(2016, 7, 25)}
+
+
 # --- Reading the Board's own report names ----------------------------------------
 #
 # **Match on the report's name, never on its type letter.** The letters are not stable
@@ -398,6 +447,11 @@ def first_election_report_due(
     Taken from the printed calendar rather than from a rule about Minnesota's election
     timetable, because the timetable is not ours to assert and the calendar states it.
     """
+    if (
+        calendar is CalendarKey.legislative_candidate_filing_for_office
+        and year in FIRST_ELECTION_REPORT_DUE
+    ):
+        return FIRST_ELECTION_REPORT_DUE[year]
     entries = CALENDARS.get((calendar, year))
     if not entries:
         return None
@@ -423,27 +477,13 @@ def next_report_after(
 
 
 def calendar_for(
-    schedule_class: ScheduleClass, office: Optional[str]
+    schedule_class: ScheduleClass, office: Optional[str], year: int = 2026
 ) -> Optional[CalendarKey]:
-    """Which transcribed calendar governs a candidate committee, or None.
-
-    Only the 2 candidate calendars are transcribed, covering legislative and
-    district-court seats, which is the population a legislator's page needs
-    ([#1375](https://github.com/alethical-org/alethical/issues/1375), Out of scope). A
-    statewide or appellate candidate on this year's ballot is on a fifth calendar we
-    have not transcribed -- ``2026 Disclosure Calendar for Candidates for Constitutional
-    Offices and Appellate Courts``, which the not-filing calendar names and this batch
-    did not include -- so returning None makes that surface as unknown rather than as a
-    legislative deadline applied to the wrong race.
-
-    The not-filing calendar needs no office test: its printed scope
-    (``NOT_FILING_SCOPE_SENTENCE``) excludes candidates whose seat is on the ballot and
-    nobody else, so it covers every candidate committee that is not, whatever seat its
-    candidate last sought.
-    """
+    """Resolve the office against that year's printed scope, never today's scope."""
     if schedule_class is ScheduleClass.filing_for_office:
-        if (office or "").strip() in LEGISLATIVE_AND_DISTRICT_COURT_OFFICES:
-            return CalendarKey.legislative_candidate_filing_for_office
+        for (key, calendar_year), offices in FILING_OFFICES_BY_YEAR.items():
+            if calendar_year == year and (office or "").strip() in offices:
+                return key
         return None
     if schedule_class is ScheduleClass.not_filing_for_office:
         return CalendarKey.candidate_not_filing_for_office
@@ -460,8 +500,7 @@ def printed_period_start_for_end(period_end: date) -> Optional[date]:
     carries a printed start, read off a document rather than assumed.
 
     ``None`` in 2 cases, and both are the "covers through" state rather than a fault:
-    no transcribed calendar names this end (every year before 2025's year-end, since
-    only the 2026 calendars are transcribed), or 2 of them disagree about the start. The
+    no transcribed calendar names this end, or 2 of them disagree about the start. The
     calendars agree on every end they share today; the disagreement branch exists so a
     future transcription cannot introduce one silently.
 
@@ -536,7 +575,7 @@ def classify(
         )
 
     if any(names_an_election_report(report.report_name) for report in for_year):
-        calendar = calendar_for(ScheduleClass.filing_for_office, office)
+        calendar = calendar_for(ScheduleClass.filing_for_office, office, year)
         if calendar is None:
             return Determination(
                 registration_number=registration_number,
@@ -557,6 +596,33 @@ def classify(
             established=(
                 f"the state scheduled a pre-election report for this committee for "
                 f"{year}, so it is on the ballot"
+            ),
+        )
+
+    if year < evidence_read_on.year and not for_year:
+        return Determination(
+            registration_number=registration_number,
+            year=year,
+            schedule_class=ScheduleClass.unknown,
+            unknown_because=UnknownBecause.no_reports_for_year,
+            reason=f"our catalogue has no reports for this committee in {year}, so it cannot establish its historical schedule",
+        )
+
+    if year in GENERAL_CALENDAR_YEARS and (office or "").strip() in (
+        LEGISLATIVE_AND_DISTRICT_COURT_OFFICES
+    ):
+        # An annual-only regular calendar is positive source evidence. A special
+        # election or contradictory election report was handled above, before this.
+        return _with_next_report(
+            registration_number=registration_number,
+            year=year,
+            schedule_class=ScheduleClass.not_filing_for_office,
+            calendar=CalendarKey.candidate_not_filing_for_office,
+            as_of=as_of,
+            established=(
+                f"the Board's {year} general disclosure calendar gives regular "
+                "candidate committees only annual reports; this committee has "
+                "no special-election or regular election report for that year"
             ),
         )
 
@@ -595,7 +661,7 @@ def classify(
             ),
         )
 
-    calendar = calendar_for(ScheduleClass.not_filing_for_office, office)
+    calendar = calendar_for(ScheduleClass.not_filing_for_office, office, year)
     assert calendar is not None  # this class always resolves to the not-filing calendar
     return _with_next_report(
         registration_number=registration_number,
@@ -641,8 +707,7 @@ def _with_next_report(
             calendar=calendar,
             reason=(
                 f"{established}. Every report on the {year} calendar has come due, and "
-                f"the {year + 1} calendar has not been transcribed, so the next due "
-                "date is not known"
+                "this selected year has no upcoming report"
             ),
         )
     return Determination(

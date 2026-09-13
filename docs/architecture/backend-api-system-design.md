@@ -1268,8 +1268,19 @@ organisation.
 happen to hold: that approximates a fact the source states exactly, and a surface would show the
 approximation as the period. Almost every Minnesota report runs from
 1 January and a special-election filer's does not — filer 19223 reports from 11 July 2025 — so
-no surface may hardcode 1 January either. `fetched_at` is the release's single freshness date
-and is never the period a figure covers: that is per filing and always earlier.
+no surface may hardcode 1 January either. `fetched_at` is when the published payment
+files were copied. Both the committee and legislator finance responses also carry
+`filings_copied_at`, a nullable ISO timestamp from the published
+`cf_filing_current` → `cf_filing_snapshot.fetch_completed_at`. It names when the
+Board's report totals were copied, not report receipt, period coverage or publication.
+
+`filing_schedule` describes the selected committee-year. Published candidate calendars
+cover 2015–2026, with each year's actual office scope preserved. Historical
+`on_the_ballot` and `not_on_the_ballot` states remain known after every printed deadline
+has passed; their next-report fields are then null. A null upcoming date does not make
+a copied calendar missing. A missing calendar, special election, and historical year
+with no catalogued report remain separate unknown cases. Source copies, date checks
+and the scope table are in [campaign-finance-calendars.md](../evidence/campaign-finance-calendars.md).
 
 The dated figures resolve from **one** release id, returned as `release_id`. The
 current confirmation is read independently of that release. Section H is
@@ -1637,8 +1648,10 @@ reads "covers through {period_end}". §7 forbids hardcoding 1 January, so a star
 where one of the Board's own transcribed disclosure calendars prints it against that period end
 (`period_start_source: "board_calendar"`, from `CALENDARS` in
 `alethical/pipeline/campaign_finance_filing_calendars.py`), and never for a filer with a
-special-election report that year — filer 19223's 2025 period opens 11 July (§9.5). Only the 2026
-calendars are transcribed, so 2024 and earlier carry no start.
+special-election report that year — filer 19223's 2025 period opens 11 July (§9.5).
+The 2015–2026 calendars supply their printed starts, including the previous year's
+annual report shown on each calendar. An end absent from those sources, or with
+conflicting starts, still carries no start.
 
 `state` decides whether `filings` may be read: `reported` means the rows are real, `unavailable`
 with a `reason` means `no_filings_snapshot` or `rows_replaced`. An empty list is never a claim

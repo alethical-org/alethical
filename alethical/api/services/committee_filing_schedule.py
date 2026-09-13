@@ -47,6 +47,7 @@ from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
 from alethical.pipeline.campaign_finance_filing_calendars import (
+    CALENDARS,
     CataloguedReport,
     Determination,
     ScheduleClass,
@@ -241,11 +242,11 @@ def schedule_for_display(
 
     The order is load-bearing in the same way ``classify``'s is. A closed registration
     owes nothing whatever else is true of it, so it is decided first. The 2 unknowns
-    that are not about a missing calendar are decided next, because both of them can
+    that are not about a missing calendar are decided next, because they can
     reach here carrying no next report and would otherwise be swallowed by the
     calendar case. What is left with no next report is a calendar we have not
-    transcribed -- a year we never typed in, a schedule whose entries ran out, or a
-    seat on one of the calendars this batch did not include.
+    transcribed only when that year/class is absent. A copied historical calendar
+    keeps its known ballot state after all its dates have passed, with no next report.
     """
     if isinstance(answer, ScheduleUnavailable):
         # All 3 of ``ScheduleUnavailable``'s states are the same fact to a reader: our
@@ -258,10 +259,10 @@ def schedule_for_display(
         )
     if answer.unknown_because is UnknownBecause.special_election_series:
         return CommitteeFilingSchedule(state=SPECIAL_ELECTION_FILER)
-    if (
-        answer.unknown_because
-        is UnknownBecause.evidence_predates_the_first_election_report
-    ):
+    if answer.unknown_because in {
+        UnknownBecause.evidence_predates_the_first_election_report,
+        UnknownBecause.no_reports_for_year,
+    }:
         # Our filings were read before the state had scheduled the year's first
         # election report, so this committee carrying none proves nothing. Grouped with
         # the unreadable-filings state rather than with the calendar one, because it is
@@ -269,6 +270,15 @@ def schedule_for_display(
         return CommitteeFilingSchedule(state=FILINGS_CANNOT_ANSWER)
     report = answer.next_report
     if report is None:
+        if answer.calendar is not None and (answer.calendar, answer.year) in CALENDARS:
+            # A finished historical schedule is still known. No future date is implied.
+            return CommitteeFilingSchedule(
+                state=(
+                    ON_THE_BALLOT
+                    if answer.schedule_class is ScheduleClass.filing_for_office
+                    else NOT_ON_THE_BALLOT
+                )
+            )
         return CommitteeFilingSchedule(state=CALENDAR_NOT_TRANSCRIBED)
     return CommitteeFilingSchedule(
         state=(

@@ -311,14 +311,13 @@ def test_a_special_election_filer_is_unknown_rather_than_placed_on_the_regular_s
 
 
 def test_a_seat_whose_calendar_is_not_transcribed_gets_no_date() -> None:
-    """A statewide or appellate candidate on this year's ballot is on a 5th calendar we
-    have not transcribed. The class is known and the date is not, and inventing one from
+    """An unrecognized office has no established calendar. The class is known and the date is not, and inventing one from
     the legislative calendar would apply the wrong race's deadlines."""
-    placed = place(office="Governor", catalogued=[PRE_PRIMARY])
+    placed = place(office="Unsupported office", catalogued=[PRE_PRIMARY])
     assert placed.schedule_class is ScheduleClass.filing_for_office
     assert placed.next_report is None
     assert placed.calendar is None
-    assert "Governor" in placed.reason
+    assert "Unsupported office" in placed.reason
 
 
 def test_a_year_with_no_transcribed_calendar_is_unknown_rather_than_last_years_dates() -> (
@@ -485,7 +484,11 @@ def test_coverage_counts_what_could_not_be_placed_and_says_why(db) -> None:
             ("22222", "House", None),  # not on the ballot
             ("33333", "House", date(2026, 7, 28)),  # terminated
             ("44444", "House", None),  # special election, unplaceable
-            ("55555", "Governor", None),  # on the ballot, calendar not transcribed
+            (
+                "55555",
+                "Unsupported office",
+                None,
+            ),  # on the ballot, calendar not transcribed
         ],
         reports=[
             ("11111", 2026, "2026 Pre-Primary Report", False),
@@ -690,10 +693,14 @@ def test_a_year_we_never_transcribed_is_the_untranscribed_calendar_state() -> No
 
 
 def test_a_seat_on_a_calendar_this_batch_left_out_is_the_same_state() -> None:
-    """On the ballot, and for a statewide seat whose calendar we did not transcribe. It
+    """On the ballot, and for an office whose calendar we did not transcribe. It
     has no date, so it may not be worded as a schedule."""
     shown = service.schedule_for_display(
-        place(catalogued=[PRE_PRIMARY], office="Gov", as_of=date(2026, 8, 12))
+        place(
+            catalogued=[PRE_PRIMARY],
+            office="Unsupported office",
+            as_of=date(2026, 8, 12),
+        )
     )
     assert shown.state == service.CALENDAR_NOT_TRANSCRIBED
 

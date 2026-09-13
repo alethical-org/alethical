@@ -757,12 +757,18 @@ const OUR_GAP_CLOSER = "The gap is ours and says nothing about this committee's 
 export function filingScheduleNote(
   schedule: FilingSchedule | null | undefined,
   year: number,
+  currentYear = new Date().getUTCFullYear(),
 ): string[] {
   // A response with no schedule block is our gap like any other, and reads as one.
   if (!schedule) return cannotSayBecause(ourFilingsCannotAnswer(year));
 
   switch (schedule.state) {
     case 'on_the_ballot': {
+      if (year < currentYear) {
+        return [
+          `This committee was on the ${year} ballot and followed Minnesota's election-year filing schedule.`,
+        ];
+      }
       const timing = nextReportSentence(schedule);
       return [
         `This committee is on the ${year} ballot, so it files on Minnesota's ` +
@@ -773,6 +779,11 @@ export function filingScheduleNote(
       ];
     }
     case 'not_on_the_ballot': {
+      if (year < currentYear) {
+        return [
+          `This committee was not on the ${year} ballot. Minnesota's schedule for candidates not running required a year-end report.`,
+        ];
+      }
       const timing = nextReportSentence(schedule);
       return [
         `This committee is not on the ${year} ballot, so Minnesota puts it on the ` +

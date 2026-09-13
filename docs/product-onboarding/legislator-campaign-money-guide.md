@@ -320,11 +320,22 @@ When the calendar has not been copied in, the wording is:
 > Minnesota's {viewedYear} filing calendar for this kind of candidate. The gap is ours
 > and says nothing about this committee's own filing.
 
-When the committee is on the ballot, the wording is:
+For a current or future year when the committee is on the ballot, the wording is:
 
 > This committee is on the {year} ballot, so it files on Minnesota's election-year
 > schedule. Its next report, the “{name}”, is due {due} and covers {start} to {end}.
 > New money appears here only when a report is filed.
+
+For a past year with a known on-ballot schedule, the wording is:
+
+> This committee was on the {year} ballot and followed Minnesota's election-year filing schedule.
+
+For a past year with a known off-ballot schedule, the wording is:
+
+> This committee was not on the {year} ballot. Minnesota's schedule for candidates not running required a year-end report.
+
+These past-year sentences print no future deadline or promise of new money, including
+when every upcoming-report field is null. Missing sources keep their separate gap states.
 
 The year is the year being viewed. The report name and dates come from the committee's
 actual schedule; the example dates in a design never replace them. Any required
@@ -1152,7 +1163,7 @@ into our wording.
 | The reader is told                                                                                                                                                 | When                                                                          |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
 | It is on this year's ballot, so it is on the election-year schedule, and its next report is named with its due date and the stretch of time it covers              | The state has scheduled a pre-primary or pre-general report for it this year  |
-| It is not on this year's ballot, so it is on the schedule for candidates who are not running, which asks for a report once a year rather than around each election | The year's election reports have come due and the state scheduled none for it |
+| It is not on this year's ballot, so it is on the schedule for candidates who are not running, which asks for a report once a year rather than around each election | A published annual-only calendar applies, or election reports came due and the state scheduled none |
 | It closed its registration with the state on a named day, so no further report is due from it                                                                      | The Board's filer record carries a termination date                           |
 
 **The other 3 are our own unfinished work, and every one says so:**
@@ -1160,8 +1171,8 @@ into our wording.
 | The reader is told                                                                                                                    | When                                                                                                                    |
 | ------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | We cannot say, because it filed for a special election and special elections run on their own set of periods we have not written down | It has a special-election report this year                                                                              |
-| We cannot say, because we have not yet copied in the filing calendar covering this committee for this year                            | The year is one we have not transcribed, or the seat is a statewide or appellate one on a calendar this batch left out  |
-| We cannot say, because our copy of the state's own list of filings cannot answer it                                                   | No filings copied at all, this committee absent from the copy we have, or a copy taken too early to settle the question |
+| We cannot say, because we have not yet copied in the filing calendar covering this committee for this year                            | The year or office is not covered by a copied calendar  |
+| We cannot say, because our copy of the state's own list of filings cannot answer it                                                   | No filings copied, no record for this committee-year, or evidence read too early |
 
 **Keeping those two halves apart is the whole point.** "We have not typed in that
 calendar" and "nothing is due yet" are different facts, and letting the first read like
@@ -1184,10 +1195,13 @@ so they read as 1 class.
   a deadline for the losers; hiding the date would give the wrong answer to everyone
   else. So the exemption travels with the date, on its own line under it.
 
-**One thing to expect and not mistake for a fault:** only Minnesota's 2026 calendars
-have been transcribed, so switching the year to 2025 puts most committees into the
-"we have not copied in that calendar" sentence. That is the honest answer, and copying
-in another year's calendars is an edit to one file.
+Minnesota's published candidate calendars are transcribed for 2015–2026. Each year
+uses its actual office groups; the general annual calendars are not inferred from an
+election cycle. The [calendar source evidence](../evidence/campaign-finance-calendars.md)
+records every copied PDF and the checks against its printed dates. A known historical
+schedule remains known after all its deadlines pass. A historical committee-year with
+no catalogued report stays unreadable, rather than placing a later committee on an
+earlier year's ballot schedule.
 
 The states come from `alethical/api/services/committee_filing_schedule.py`, which reads
 the Board's own filer record and its own report catalogue. The words come from
