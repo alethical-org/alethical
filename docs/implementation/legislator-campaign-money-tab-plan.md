@@ -346,8 +346,15 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   Back, bill Votes/Text and Abeler campaign money pass without browser errors,
   failed HTTP responses, extra document reloads or horizontal overflow. It found
   a pre-existing full-payment-list footer wrongly saying paid names stay plain
-  text. A focused consistency repair is being prepared in the same release,
-  keeping exact-spelling lookup distinct from confirmed identity.
+  text. The repair is saved in commit `0648ba84` for
+  [issue 2169](https://github.com/alethical-org/alethical/issues/2169), with 69
+  focused tests passing. The explanation keeps exact-spelling lookup distinct
+  from confirmed identity; routing and threshold clauses are unchanged.
+- Final local release checks pass all 2,708 frontend tests and the configured
+  production export at 338,335 bytes against the hosted-derived 339,072 limit.
+  The 2-byte change from the hosted measurement follows the payment-footer
+  correction. Evidence: `/tmp/2126-release-frontend.log` and
+  `/tmp/2126-release-build.log`.
 - Release remains active: open 1 Job 3 pull request,
   clear current-head and queue checks, read live frontend/backend deployment
   identities and repeat the original empty-browser/warm measurements.
