@@ -91,7 +91,11 @@ import {
   yearDisplayState,
 } from './committeeMoney';
 import { dekText, namedMoneyDefinition } from './campaignMoneyDetailsCopy';
-import { unnamedFigureDraws } from './contributionFigures';
+import {
+  inKindDonationsNote,
+  NOT_A_DONATION_HEADING,
+  unnamedFigureDraws,
+} from './contributionFigures';
 import {
   closedChipLabel,
   committeeEyebrow,
@@ -106,9 +110,7 @@ import {
   MONEY_IN_UNNAMED_LABEL,
   moneyOutSummary,
   NAMED_DONATIONS_LINK_LABEL,
-  NOT_A_DONATION_HEADING,
   reportedThroughNote,
-  inKindDonationsNote,
   itemizedContributionsNote,
   paymentFilesDownloadedLine,
   shownReceiptRows,

@@ -10,6 +10,7 @@ import {
   boardRecordUrl,
   committeeNameWithNumber,
 } from '../boardRecordLink';
+import { inKindDonationsNote, NOT_A_DONATION_HEADING } from '../contributionFigures';
 import { describe, expect, it } from 'vitest';
 
 import { reportedThroughLabel } from '../legislatorCampaignMoney';
@@ -65,7 +66,6 @@ import {
   MONEY_IN_UNNAMED_LABEL,
   MONEY_OUT_HEADING,
   NAMED_DONATIONS_LINK_LABEL,
-  NOT_A_DONATION_HEADING,
   HIDDEN_RECEIPT_KIND,
   shownReceiptRows,
   downloadsPageUrl,
@@ -80,7 +80,6 @@ import {
   isBallotQuestionFiler,
   isInKind,
   MONEY_OUT_REPORTED_LABEL,
-  inKindDonationsNote,
   UNNAMED_PAYMENT_PARTY,
   notFoundBody,
   notFoundTitle,

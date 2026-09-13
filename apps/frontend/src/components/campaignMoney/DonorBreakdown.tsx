@@ -5,7 +5,6 @@ import Svg, { Circle } from 'react-native-svg';
 import type { CommitteeReceivedPayment } from '../../data/types';
 import { useResponsive } from '../../hooks/useResponsive';
 import { prepareContributionChart } from '../../lib/campaignMoneyDetails';
-import { inKindDonationsNote } from '../../lib/committeeMoneyShared';
 import {
   formatMoney,
   isAmountAboveZero,
@@ -13,7 +12,7 @@ import {
   type SplitState,
 } from '../../lib/legislatorCampaignMoney';
 import { Dek } from './ContributionLabelsNote';
-import { unnamedFigureDraws } from '../../lib/contributionFigures';
+import { inKindDonationsNote, unnamedFigureDraws } from '../../lib/contributionFigures';
 import { numericText, useCampaignMoneyTypography, useDetailsStyles } from './detailsStyles';
 import { moneyDetailsCopy as copy, namedMoneyDefinition } from '../../lib/campaignMoneyDetailsCopy';
 

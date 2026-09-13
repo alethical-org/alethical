@@ -48,11 +48,14 @@ import { Linking, StyleSheet, Text, View, type TextProps, type TextStyle } from 
 
 import { BOARD_RECORD_LINK_LABEL, BOARD_RECORD_SENTENCE_TAIL } from '../../lib/boardRecordLink';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
-import { unnamedFigureDraws } from '../../lib/contributionFigures';
+import {
+  inKindDonationsNote,
+  NOT_A_DONATION_HEADING,
+  unnamedFigureDraws,
+} from '../../lib/contributionFigures';
 
 import {
   downloadsPageUrl,
-  inKindDonationsNote,
   itemizedContributionsNote,
   MONEY_IN_HEADING,
   MONEY_IN_NAMED_LABEL,
@@ -61,7 +64,6 @@ import {
   MONEY_OUT_HEADING,
   moneyOutSummary,
   NAMED_DONATIONS_LINK_LABEL,
-  NOT_A_DONATION_HEADING,
   reportedThroughNote,
   shownReceiptRows,
   unnamedMoneyExplanation,

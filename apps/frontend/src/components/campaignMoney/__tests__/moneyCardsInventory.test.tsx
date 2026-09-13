@@ -56,10 +56,10 @@ import {
   MONEY_OUT_REPORTED_LABEL,
   MONEY_OUT_OFFICIAL_MISSING,
   NAMED_DONATIONS_LINK_LABEL,
-  NOT_A_DONATION_HEADING,
 } from '../../../lib/committeeMoneyShared';
 import { MATCH_CHECK_LABEL, reportedThroughLabel } from '../../../lib/legislatorCampaignMoney';
 import { dekText, namedMoneyDefinition } from '../../../lib/campaignMoneyDetailsCopy';
+import { NOT_A_DONATION_HEADING } from '../../../lib/contributionFigures';
 
 /** A confirmed committee with a full year of figures, shaped like the live API. */
 function committee(overrides: Partial<CampaignCommitteeMoney> = {}): CampaignCommitteeMoney {
