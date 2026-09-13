@@ -1,6 +1,6 @@
 # Alethical Backend API System Design
 
-<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/services/independent_spending.py, alethical/api/services/committee_finance.py, alethical/api/services/committee_stated_by_kind.py, alethical/api/services/committee_donor_states.py, alethical/api/services/committee_name_connections.py, alethical/api/services/zip_state_reference.py, scripts/build_zip_state_reference.py, alethical/api/services/legislator_finance.py, alethical/api/services/campaign_finance_payments.py, alethical/api/services/campaign_finance_register.py, alethical/api/auth.py, alethical/api/services/auth.py -->
+<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/services/independent_spending.py, alethical/api/services/committee_finance.py, alethical/api/services/committee_stated_by_kind.py, alethical/api/services/committee_donor_states.py, alethical/api/services/committee_name_connections.py, alethical/api/services/zip_state_reference.py, scripts/build_zip_state_reference.py, alethical/api/services/legislator_finance.py, alethical/api/services/campaign_finance_payments.py, alethical/api/services/campaign_finance_register.py, alethical/api/services/campaign_finance_search.py, alethical/api/services/lobbying.py, alethical/api/auth.py, alethical/api/services/auth.py -->
 
 Status: **design reference, not an inventory of what exists.** Much of this document is the
 target shape rather than the shipped API, so every unbuilt endpoint is marked **NOT BUILT**
@@ -1887,7 +1887,7 @@ different organisation**, the Green Party and the Republican Party of the same d
 (#1661). A correction on this data does not fix a typo; it silently hands a reader one
 organisation's money under another's name, with nothing on screen that could tell them.
 
-**Five groups, always all 5, always in the same order**, even when a group is empty — so a client
+**7 groups, always all 7, always in the same order**, even when a group is empty — so a client
 can never read a missing group as "no matches" when it meant "we did not look":
 
 | group | what it holds |
@@ -1897,6 +1897,8 @@ can never read a missing group as "no matches" when it meant "we did not look":
 | `gave` | distinct contributor names, with how many payments carry each |
 | `got_paid` | distinct vendor names from the expenditures download |
 | `got_paid_independent` | distinct vendor names from the independent-expenditures download |
+| `lobbyists` | current registered lobbyists, matched on their filed name, with registration number and distinct principal count |
+| `principals` | distinct entity IDs from both lobbying files, using the spending file's name where held; otherwise the active list's printed name |
 
 **A person is a result only where we hold a record of them beyond these filings.** Everyone else
 who appears on a filing resolves to what they filed, because a page about a donor would be a page
@@ -1928,6 +1930,93 @@ the read would fall back to scanning all 583,152 contribution rows.
 `as_of` and `snapshot_id` name the register copy; `release_id` names the download release the
 3 name groups were read from. A missing release empties those 3 groups with `no_release` while the
 register and the legislators still answer.
+
+The 2 lobbying groups use the same literal, case-insensitive name containment. They
+have separate counts and `lobbying_release_id` / `lobbying_copied_at` provenance.
+A missing lobbying release leaves those groups `unavailable` without changing the
+other 5. A principal result carries `linkable`, `state`, its own
+`latest_reported_year`, and `source_latest_year` for the complete spending file's
+coverage. An ID found only in the active list has `state: no_spending_rows`, no
+reported year and no link. The number, not a similar name, establishes a link.
+
+### Lobbying
+
+All 5 routes below use the ordinary `DetailResponse` envelope. One repeatable-read
+database view pins one published pair of files. The shared fields are `release_id`,
+`copied_at`, and `sources` containing `expenditures` and `lobbyists` source URLs.
+`copied_at` is the completion of the run that copied both files, including an
+unchanged spending file. If either complete row set is unavailable, the pair is
+`unavailable`; a failed read is never an empty-result claim.
+
+No response includes a street, city, state, ZIP, telephone or email field. Money
+stays a decimal string exactly from a source row, or `null` for blank. A source
+`.0000` is zero. No route computes a sum across years, committees or principals.
+The current active list establishes registration today, never a past employment
+relationship.
+
+#### `GET /api/v1/lobbying/summary`
+
+`registered_lobbyists` counts distinct registration numbers today.
+`principals_reporting` counts distinct spending-file entity IDs in
+`latest_reported_year`, the newest year with any of the 6 amount fields present.
+A row with all 6 blank does not count. `first_year` and `last_year` describe the
+held spending rows, separately from the newest reported year. Counts and years
+are `null` when the pair is unavailable.
+
+#### `GET /api/v1/lobbying/principals` and `GET /api/v1/lobbying/lobbyists`
+
+Both accept `q` (optional, at most 200 characters), `limit` (1 to 50, default 50)
+and `offset` (0 or more). They return the whole matching `total` before paging,
+`limit`, `offset`, `has_more`, `q` and `matched_on: substring_of_the_filed_name`.
+Rows are alphabetical by filed name, with the source number breaking ties.
+
+The principals list counts distinct entity IDs across both files. It prefers the
+newest spending row's name; an ID found only in the active list stays plain text
+with `state: no_spending_rows` and `linkable: false`. Each row's
+`latest_reported_year` is its own newest nonblank spending year. The response's
+year names the spending file's coverage. Lobbyist rows carry their registration
+number, filed and formatted names, and a count of distinct current principal IDs.
+
+#### `GET /api/v1/lobbying/principals/{entity_id}`
+
+`name` comes from the spending file's newest row. `latest_reported_year` belongs
+to this entity; `source_latest_year` belongs to the whole spending file.
+
+- `spending`: `state` and `rows`, newest year first. Each row has `year`,
+  `record_number`, `total_spent`, `puc_lobbying_amount`,
+  `general_lobbying_amount`, `legislative_lobbying_amount`,
+  `administrative_lobbying_amount` and `mgu_lobbying_amount`.
+- `lobbyists`: `state`, whole distinct-registration `total` and current rows with
+  registration number, filed/formatted name, `principal_name_as_listed` and
+  `principal_name_differs`. The latter compares the printed principal names
+  character for character; it does not overwrite either spelling.
+
+No spending rows gives `state: no_spending_rows` and no invented principal name.
+No active lobbyist gives that section `not_reported`. These are separate sections.
+
+#### `GET /api/v1/lobbying/lobbyists/{registration_number}`
+
+The path requires a positive numeric registration number. An absent positive
+number gives `not_registered_today`, even when past donations exist. Zero and
+non-numeric values are rejected; blank registrations cannot become one person.
+
+- `principals`: current rows in source order, with whole distinct-ID `total`,
+  entity ID, printed name, `spending_name`, position, `state` and `linkable`.
+  An unresolved ID stays `no_spending_rows` and unlinked.
+- `contributions`: every row in the published campaign-finance release with
+  `contrib_type: Lobbyist`, `receipt_type: Contribution`, and that exact
+  `contrib_reg_num`. It groups years newest first, then the receiving committee's
+  registration number. Each committee carries the newest row's name, its register
+  `kind`, `recipient_type`, linkability and payment count. Payment rows preserve
+  filed contributor name, employer, amount, date, in-kind fields and record number.
+  Repeated rows remain payments. No subtotal is added.
+
+The contribution section has its own `release_id`, `copied_at` and `source_url`.
+The lobbying copy date must never imply that the older contribution file was
+recopied. A missing contribution release gives `unavailable`; a held file with no
+matching donations gives `not_reported`. Whole payment and committee counts appear
+before any client-side cap. Where the donation's typed name differs from the
+active list under the same registration number, both names remain available.
 
 ### Districts and Lookup
 

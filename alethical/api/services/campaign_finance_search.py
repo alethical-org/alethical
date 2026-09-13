@@ -81,13 +81,14 @@ served state rather than an error: the page says "type at least 3 characters", n
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from alethical.api.services import lobbying
 from alethical.api.services.campaign_finance_register import (
     CommitteeRow,
     CommitteesPage,
@@ -160,6 +161,8 @@ COMMITTEES = "committees"
 GAVE = "gave"
 GOT_PAID = "got_paid"
 GOT_PAID_INDEPENDENT = "got_paid_independent"
+LOBBYISTS = "lobbyists"
+PRINCIPALS = "principals"
 
 #: Which column of which download each name group reads, and the ``role`` a caller hands
 #: straight back to ``/campaign-finance/payments-under-name`` to open that name's
@@ -219,6 +222,21 @@ class PaymentNameResult:
 
 
 @dataclass(frozen=True)
+class LobbyingNameResult:
+    """An exact filed name with the source's own identifier and link state."""
+
+    kind: str
+    name: str
+    registration_number: str | None = None
+    entity_id: int | None = None
+    principal_count: int | None = None
+    latest_reported_year: int | None = None
+    source_latest_year: int | None = None
+    linkable: bool = True
+    state: str = REPORTED
+
+
+@dataclass(frozen=True)
 class ResultGroup:
     """One group of results, with its own state so one gap cannot blank the others.
 
@@ -258,6 +276,8 @@ class SearchAnswer:
     snapshot_id: Optional[UUID]
     release_id: Optional[UUID]
     reason: Optional[str]
+    lobbying_release_id: Optional[UUID] = None
+    lobbying_copied_at: Optional[datetime] = None
 
 
 def _empty_group(kind: str, *, state: str, reason: Optional[str]) -> ResultGroup:
@@ -282,7 +302,15 @@ def _too_short(query: str) -> SearchAnswer:
         counted_up_to=COUNTED_UP_TO,
         groups=tuple(
             _empty_group(kind, state=UNAVAILABLE, reason=QUERY_TOO_SHORT)
-            for kind in (PEOPLE, COMMITTEES, GAVE, GOT_PAID, GOT_PAID_INDEPENDENT)
+            for kind in (
+                PEOPLE,
+                COMMITTEES,
+                GAVE,
+                GOT_PAID,
+                GOT_PAID_INDEPENDENT,
+                LOBBYISTS,
+                PRINCIPALS,
+            )
         ),
         as_of=None,
         snapshot_id=None,
@@ -324,6 +352,43 @@ def search(db: Session, release, *, query: str, limit: int) -> SearchAnswer:
                 column=column,
             )
         )
+    pair = lobbying.published_pair(db)
+    for kind, page, key in (
+        (
+            LOBBYISTS,
+            lobbying.lobbyists_page(db, pair, limit=limit, offset=0, query=typed),
+            "lobbyists",
+        ),
+        (
+            PRINCIPALS,
+            lobbying.principals_page(db, pair, limit=limit, offset=0, query=typed),
+            "principals",
+        ),
+    ):
+        groups.append(
+            ResultGroup(
+                kind=kind,
+                state=page["state"],
+                total=page["total"],
+                at_least=None,
+                has_more=page["has_more"],
+                reason="no_lobbying_release" if pair is None else None,
+                results=tuple(
+                    LobbyingNameResult(
+                        kind="lobbyist" if kind == LOBBYISTS else "principal",
+                        name=row["name"],
+                        registration_number=row.get("registration_number"),
+                        entity_id=row.get("entity_id"),
+                        principal_count=row.get("principal_count"),
+                        latest_reported_year=row.get("latest_reported_year"),
+                        source_latest_year=page.get("latest_reported_year"),
+                        linkable=row.get("linkable", True),
+                        state=row.get("state", REPORTED),
+                    )
+                    for row in page[key]
+                ),
+            )
+        )
     return SearchAnswer(
         # The answer as a whole is reported whenever anything could be searched. Each
         # group carries its own state, so a missing release empties 3 groups rather than
@@ -334,6 +399,8 @@ def search(db: Session, release, *, query: str, limit: int) -> SearchAnswer:
         min_query_length=MIN_QUERY_LENGTH,
         counted_up_to=COUNTED_UP_TO,
         groups=tuple(groups),
+        lobbying_release_id=pair.id if pair else None,
+        lobbying_copied_at=pair.copied_at if pair else None,
         as_of=register.as_of,
         snapshot_id=register.snapshot_id,
         release_id=getattr(release, "id", None),

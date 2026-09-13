@@ -71,6 +71,7 @@ from alethical.api.services.campaign_finance_register import (
 )
 from alethical.api.services.campaign_finance_races import races as candidate_races
 from alethical.api.services.campaign_finance_search import (
+    LobbyingNameResult,
     MAX_PER_GROUP,
     CommitteeRow,
     PaymentNameResult,
@@ -4435,7 +4436,7 @@ def campaign_finance_search(
     limit: int = Query(default=5, ge=1, le=MAX_PER_GROUP),
     db: Session = Depends(get_db),
 ):
-    """One typed name, matched across 4 kinds of record and grouped by what each one is.
+    """One typed name, matched across the money records and grouped by what each one is.
 
     **Exactly what was typed, and no did-you-mean anywhere.** Case-insensitive
     containment, no closest spelling, no similarity, no suggestion. Not caution: 178
@@ -4445,7 +4446,7 @@ def campaign_finance_search(
     does not fix a typo, it hands a reader one organisation's money under another's name
     with nothing on screen to reveal it.
 
-    Five groups, always all 5, always in this order, even when empty -- so a caller can
+    Seven groups, always all 7, always in this order, even when empty -- so a caller can
     never read a missing group as "no matches" when it meant "we did not look":
 
     * ``people`` -- **the 200 sitting legislators, and only them.** A person is a result
@@ -4462,6 +4463,11 @@ def campaign_finance_search(
       and 491 rows of the independent file share a spender, vendor, amount and date with
       an expenditures row; whether that is one payment filed twice or two that coincide
       is not established.
+
+    * ``lobbyists`` and ``principals`` -- the paired lobbying copy, counted separately.
+      Lobbyist names use current registration numbers; principal names prefer the
+      spending file. A principal named only in the active list is plain with
+      ``no_spending_rows``, never a link to figures we do not hold.
 
     A name row carries the ``role`` that ``/campaign-finance/payments-under-name`` takes,
     verbatim, so a caller opens that name's payments without translating anything.
@@ -4522,6 +4528,10 @@ def campaign_finance_search(
                 }
                 for group in answer.groups
             ],
+            "lobbying_release_id": str(answer.lobbying_release_id)
+            if answer.lobbying_release_id
+            else None,
+            "lobbying_copied_at": answer.lobbying_copied_at,
             "as_of": answer.as_of,
             "snapshot_id": str(answer.snapshot_id) if answer.snapshot_id else None,
             "release_id": str(answer.release_id) if answer.release_id else None,
@@ -4573,6 +4583,18 @@ def _search_result_payload(row) -> dict:
             "name": row.name,
             "role": row.role,
             "payment_count": row.payment_count,
+        }
+    if isinstance(row, LobbyingNameResult):
+        return {
+            "kind": row.kind,
+            "name": row.name,
+            "registration_number": row.registration_number,
+            "entity_id": row.entity_id,
+            "principal_count": row.principal_count,
+            "latest_reported_year": row.latest_reported_year,
+            "source_latest_year": row.source_latest_year,
+            "linkable": row.linkable,
+            "state": row.state,
         }
     payload = _committee_payload(row)
     # 2 different meanings of "kind" meet here: what this result *is*, and which of the

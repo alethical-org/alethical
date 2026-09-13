@@ -102,6 +102,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [Production setup and recovery](operations/deployment.md) — rebuild order, setting owners, Railway and Vercel releases, and Supabase callbacks
 - [How a legislator is matched to their campaign account](operations/how-a-legislator-is-matched-to-their-campaign-account.md) — the public audit record of the one decision no machine may make: what we claim, the 3 pieces of evidence a person reads, who signs, how a wrong match surfaces, how to challenge one, and where all 200 sitting members stand today
 - [What runs, when, and what it costs](operations/jobs-and-scripts.md) — every GitHub workflow, command-line tool, and job-driven AI cost
+- [Copying the Board's lobbying files](operations/lobbying-source-import.md) — the paired import, contact-field exclusion, link checks and rollback
 - [Local code checks](operations/local-code-checks.md) — shared setup, selected-file formatting, exact-commit upload checks, and staged GitHub description-check activation
 - [Error monitoring](operations/error-monitoring.md) — which server failures alert through Sentry, the privacy limits, setup, incident checks, and why Alethical buys this instead of building it
 - [Repo and service settings](operations/repo-and-service-settings.md) — every setting that controls the project but doesn't live in the repo, and its intended value
