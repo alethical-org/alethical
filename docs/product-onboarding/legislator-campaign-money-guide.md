@@ -653,7 +653,9 @@ year column takes what is left, so the count and the amount sit beside each othe
 amounts line up down the page. Each heading cell carries a left gap of its own (18 on a
 computer and a tablet, 6 on a phone) so the 2 capitalised headings separate while every
 cell stays flush right; the figures below them carry no such gap, so each still lines up
-under its own heading. The introduction above the table runs the card's full width, the
+under its own heading. On a phone the 2 headings are set with tighter spacing between
+their letters, because **Contributions refunded** needs more room than that column leaves
+and would otherwise be broken in the middle of the word. The introduction above the table runs the card's full width, the
 same measure as the table. It lists all held refund years newest first,
 regardless of the campaign-money year selected above it. Amounts use the tab's
 existing dollar formatting. The source amount $14,216.47 therefore displays as
