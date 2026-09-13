@@ -664,12 +664,13 @@ Top to bottom:
    date comes from the stored bulk-file download time (`fetched_at`); the report date
    comes from the published filing source's own stored fetch completion time
    (`filings_copied_at`). Neither a report's receipt date nor a later publication
-   of stored records replaces that source date. Neither date dates the register.
+   of stored records replaces that source date. Neither says when the register was copied.
    Both dates print in Minnesota time. Without a report-copy date, it reads:
    “We downloaded Minnesota’s payment files on Sep 1, 2026, which is not the period the
    money covers. The report totals were copied separately.” The committee's footnote
    uses regular weight 400 and 15px text. The same date distinction appears on the
-   committee's every-payment view and in the first response served for both addresses. The filing's period and link live here, once,
+   committee's every-payment view and in the first response served for both addresses.
+   The filing's period and link live here, once,
    above both money cards and never inside one: one filing produces both
    cards, so stating any of it per card would state one fact twice. A party unit's panel
    says its calendar is its own. If our own data service stops answering, the page keeps
