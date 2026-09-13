@@ -390,7 +390,7 @@ describe('independent outside-money confirmation and shared download dates', () 
   it('shows the outside group and direction summary while its own ownership check is fresh', () => {
     setOutside();
     render(2025, data(2025));
-    expect(container.textContent).toContain('Spending by Outside Groups');
+    expect(container.textContent).toContain('Spending by outside groups');
     expect(container.textContent).toContain('Outside Example Fund');
     expect(container.textContent).toContain('Spent supporting them');
   });

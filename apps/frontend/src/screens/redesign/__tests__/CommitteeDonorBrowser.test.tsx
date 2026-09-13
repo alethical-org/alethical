@@ -102,7 +102,7 @@ import {
 } from '../../../lib/committeeConfirmation';
 import { useOutsideSpending } from '../../../hooks/useAppQueries';
 import { CONFIRMED_MEMBER_WITHHELD_LINE } from '../../../lib/committeeMoney';
-import { MONEY_OUT_ZERO_NOTE } from '../../../lib/committeeMoneyShared';
+import { downloadsPageUrl, MONEY_OUT_ZERO_NOTE } from '../../../lib/committeeMoneyShared';
 import { inKindDonationsNote } from '../../../lib/contributionFigures';
 import { splitExplanation } from '../../../lib/legislatorCampaignMoney';
 import type { RootScreenProps, RootStackParamList } from '../../../navigation/types';
@@ -463,11 +463,16 @@ describe('one committee shares the donation browser', () => {
     expect(request.mock.calls.some(([path]) => path.includes('about=19193'))).toBe(true);
     expect(host.querySelectorAll('[role="tab"]')).toHaveLength(5);
     expect(host.textContent).not.toContain('FILING YEAR');
+    // The served address is the bulk download itself; the link lands on the page that
+    // download sits on, derived from it rather than typed in (#2186).
     const source = [...host.querySelectorAll('a')].find((node) =>
-      node.textContent?.includes('Minnesota Campaign Finance Board filings'),
+      node.textContent?.includes('Minnesota’s campaign-finance downloads'),
     );
     expect(source?.getAttribute('href')).toBe(
-      candidateFinance.data.independent_spending.source_url,
+      downloadsPageUrl(candidateFinance.data.independent_spending.source_url),
+    );
+    expect(host.textContent).toContain(
+      'These figures come from its file “Itemized independent expenditures of over $200”',
     );
     const fullLinks = [...host.querySelectorAll('a')].filter((node) =>
       ['Who gave', 'Where it went'].some((label) => node.textContent?.startsWith(label)),
@@ -492,7 +497,7 @@ describe('one committee shares the donation browser', () => {
     expect(host.textContent).toContain('Non-itemized contributions');
     expect(host.textContent).toContain('$5,996');
     expect(host.textContent).toContain(
-      'No outside group reported spending anything to support or oppose this committee in 2025.',
+      'No outside group reported spending to support or oppose this committee in 2025.',
     );
     expect(host.textContent).toContain('Spent by them');
     expect(request.mock.calls).toHaveLength(9);
@@ -620,7 +625,7 @@ describe('one committee shares the donation browser', () => {
       params.slug = 'mn-dfl-state-central-committee-20003';
       shape();
       await render();
-      expect(host.textContent).not.toContain('No outside group reported spending anything');
+      expect(host.textContent).not.toContain('No outside group reported spending to support');
       expect(host.textContent).toContain('We cannot show a figure right now');
     },
   );

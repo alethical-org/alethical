@@ -855,9 +855,12 @@ Top to bottom:
    viewer; there are no per-report links, because the Board serves report documents
    through a form a link cannot reach, and not at all for most years before 2023 — a row
    of dead links would be worse than one honest step.
-10. **Spending by Outside Groups**, after the committee's own payment browser. It
+10. **Spending by outside groups**, after the committee's own payment browser. It
     follows the selected year and groups spending about this registration number by
-    spender, with For and Against separate. A spender on both sides keeps both groups.
+    spender, with supporting and opposing separate. Each spender's chip reads
+    **Supporting**, **Opposing** or **Not stated**, in the same words the row gives a
+    screen reader, rather than the filing's own For and Against. A spender on both sides
+    keeps both groups.
     Missing spender numbers group only by exact filed name. Every group can open the
     complete payments from the same source copy. The chart and source dates for the
     committee's own money do not establish the outside file's date or completeness.

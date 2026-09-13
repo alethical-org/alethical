@@ -155,7 +155,7 @@ describe('the Campaign money tab draws outside spending', () => {
     // The approved money design draws this section headed "Independent spending".
     // Changing the shipped string is a copy decision, so it fails here rather than
     // passing quietly because a drawing showed something else.
-    expect(OUTSIDE_SPENDING_HEADING).toBe('Spending by Outside Groups');
+    expect(OUTSIDE_SPENDING_HEADING).toBe('Spending by outside groups');
   });
 
   it('puts the card on the page with its figures', () => {

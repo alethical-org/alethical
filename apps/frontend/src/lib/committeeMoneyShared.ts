@@ -369,6 +369,11 @@ export function shownReceiptRows<T>(
  */
 export const NAMED_DONATIONS_LINK_LABEL = 'Minnesota’s campaign-finance downloads';
 
+/** The Board's downloads page itself, for a card whose year served no address at all.
+ *  One definition, because the money tab and the outside-spending card both link it. */
+export const BOARD_DOWNLOADS_URL =
+  'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/';
+
 /** The page a Board bulk-download address lives on: the same address with its
  *  `?download=<id>` query removed. An address with no query comes back as it is. */
 export function downloadsPageUrl(sourceUrl: string): string {

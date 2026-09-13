@@ -177,7 +177,7 @@ const domText = (html: string) => {
 /** The 2 money cards alone: from the money-in heading to the outside-spending card. */
 const cards = (html: string) => {
   const plain = text(html);
-  return plain.slice(plain.indexOf('Money in'), plain.indexOf('Spending by Outside Groups'));
+  return plain.slice(plain.indexOf('Money in'), plain.indexOf('Spending by outside groups'));
 };
 
 describe('the money cards on the profile, at the final inventory', () => {

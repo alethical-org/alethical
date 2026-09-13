@@ -10,7 +10,10 @@ import {
 } from '../../data/groupedOutsideSpending';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 import {
+  BOARD_DOWNLOADS_URL,
   committeeSlug,
+  downloadsPageUrl,
+  NAMED_DONATIONS_LINK_LABEL,
   OUTSIDE_ABOUT_INTRO,
   OUTSIDE_NEVER_ADDED,
 } from '../../lib/committeeMoneyShared';
@@ -41,6 +44,8 @@ import {
 import { useResponsive } from '../../hooks/useResponsive';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import type { RootStackParamList } from '../../navigation/types';
+import Svg, { Path } from 'react-native-svg';
+
 import { LinkArrow } from '../LinkArrow';
 import { numericText, useCampaignMoneyTypography, useDetailsStyles } from './detailsStyles';
 
@@ -50,6 +55,9 @@ export interface GroupedOutsideSpendingProps {
   enabled?: boolean;
   surface?: 'profile' | 'committee';
   releaseId?: string;
+  /** True only where we hold that this year's ballot did not carry the subject. The
+   *  checked-zero sentence says so; in every other year it stays silent. */
+  notOnTheBallot?: boolean;
 }
 
 export function GroupedOutsideSpending(props: GroupedOutsideSpendingProps) {
@@ -68,6 +76,7 @@ function OutsideYear({
   enabled = true,
   surface = 'profile',
   releaseId,
+  notOnTheBallot = false,
 }: GroupedOutsideSpendingProps) {
   const { isMobile, isTablet } = useResponsive();
   const s = useDetailsStyles();
@@ -115,6 +124,7 @@ function OutsideYear({
   const period = outsideSpendingPeriod(year);
   const count = outsideSpendingPaymentCount(year);
   const coverage = surface === 'profile' ? outsideSpendingCoverage(year) : null;
+  const downloadsHref = year.sourceUrl ? downloadsPageUrl(year.sourceUrl) : BOARD_DOWNLOADS_URL;
   // The existing summary remains readable if the new grouped read fails. It has no
   // spender counts, so the fallback never pretends to know how many groups paid.
   const figures = grouped
@@ -134,14 +144,26 @@ function OutsideYear({
       <Text accessibilityRole="header" aria-level={2} style={[s.heading, styles.heading]}>
         {OUTSIDE_SPENDING_HEADING}
       </Text>
-      <Text style={s.body}>
-        {surface === 'committee' ? `${OUTSIDE_ABOUT_INTRO} ${OUTSIDE_NEVER_ADDED}` : copy.explainer}
-      </Text>
+      {/* Absent in the checked-zero state, and only there: a card that explains what
+          outside spending is and then says there was none of it hands the reader a
+          definition of something not on the page. Every other state still draws it,
+          because in those the sentence is the only thing saying what the card is about. */}
+      {zero ? null : (
+        <Text style={s.body}>
+          {surface === 'committee'
+            ? `${OUTSIDE_ABOUT_INTRO} ${OUTSIDE_NEVER_ADDED}`
+            : copy.explainer}
+        </Text>
+      )}
       {unavailable ? (
         <Text style={s.body}>{unavailable}</Text>
       ) : zero ? (
         <Text style={[s.body, s.numeric]}>
-          {outsideCheckedZeroLabel(year.year, surface === 'committee' ? 'committee' : 'legislator')}
+          {outsideCheckedZeroLabel(
+            year.year,
+            surface === 'committee' ? 'committee' : 'legislator',
+            notOnTheBallot,
+          )}
         </Text>
       ) : (
         <>
@@ -216,19 +238,48 @@ function OutsideYear({
           </View>
         </>
       )}
-      {year.sourceUrl ? (
+      {/* The served address is the bulk download itself, which streams a statewide
+          spreadsheet with no page behind it, so the link lands on the page that download
+          lives on, derived from the served address rather than typed in (#2186). The
+          line below names the Board's own row on that page, so a reader knows which
+          file these figures came from; "its" is the page named directly above it. */}
+      <View style={styles.sourceBlock}>
         <Pressable
-          {...externalLinkProps(year.sourceUrl, () => onOpenSource(year.sourceUrl!))}
+          {...externalLinkProps(downloadsHref, () => onOpenSource(downloadsHref))}
           style={(state) => [
             styles.source,
             Boolean('focused' in state && state.focused) && s.focus,
           ]}
         >
-          <Text style={[s.small, s.link, styles.sourceLabel]}>{copy.source}</Text>
+          <Text style={[s.small, s.link, styles.sourceLabel]}>{NAMED_DONATIONS_LINK_LABEL}</Text>
           <LinkArrow color={c.link} />
         </Pressable>
-      ) : null}
+        <Text style={[s.small, styles.sourceFile]}>{copy.sourceFile}</Text>
+      </View>
     </View>
+  );
+}
+
+/** Drawn rather than typed, like `LinkArrow`: the text characters this replaces landed
+ *  at a different size on every operating system. It turns over when the row opens. */
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <Svg
+      width={18}
+      height={18}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+      style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }}
+    >
+      <Path
+        d="M6 9 L12 15 L18 9"
+        stroke={c.secondary}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
   );
 }
 
@@ -271,38 +322,45 @@ function SpenderRow({
       ? { slug: committeeSlug(name, group.registrationNumber), year: String(year) }
       : null;
   const href = route ? routePath.moneyCommittee(route.slug, { year: route.year }) : null;
+  // The filing's own side, in the same 3 treatments the drawing gives it: supporting
+  // green on a light green border, opposing ink on a faint ink border, and an unstated
+  // side dashed so it cannot be mistaken for either.
   const color =
     group.direction === 'For' ? c.link : group.direction === 'Against' ? c.text : c.muted;
+  const borderColor =
+    group.direction === 'For'
+      ? c.hoverBorder
+      : group.direction === 'Against'
+        ? c.chipBorder
+        : c.border;
+  const meta = `${outsideRegistrationLabel(group.registrationNumber)} · ${outsidePaymentCountLabel(group.paymentCount)}`;
   return (
     <View style={styles.group}>
       <View style={styles.groupHead}>
         <View style={styles.identity}>
-          {href && route ? (
-            <Text
-              style={[s.name, s.link, styles.nameLink, numericText(name)]}
-              {...linkProps(href, () => navigation.navigate('CommitteeMoney', route))}
-            >
-              {name}
-            </Text>
-          ) : (
-            <Text style={[s.name, numericText(name)]}>{name}</Text>
-          )}
-          <Text style={[s.small, numericText(outsideRegistrationLabel(group.registrationNumber))]}>
-            {outsideRegistrationLabel(group.registrationNumber)}
-          </Text>
-          <View style={s.horizontal}>
+          <View style={styles.nameLine}>
+            {href && route ? (
+              <Text
+                style={[s.name, s.link, styles.nameLink, numericText(name)]}
+                {...linkProps(href, () => navigation.navigate('CommitteeMoney', route))}
+              >
+                {name}
+              </Text>
+            ) : (
+              <Text style={[s.name, numericText(name)]}>{name}</Text>
+            )}
             <Text
               style={[
                 s.small,
                 styles.direction,
-                { color, borderColor: group.direction === 'For' ? c.link : c.border },
+                { color, borderColor },
                 group.direction === 'not recorded' && { borderStyle: 'dashed' },
               ]}
             >
               {direction}
             </Text>
-            <Text style={[s.small, s.numeric]}>{outsidePaymentCountLabel(group.paymentCount)}</Text>
           </View>
+          <Text style={[s.small, s.numeric]}>{meta}</Text>
         </View>
         <Pressable
           accessibilityRole="button"
@@ -315,9 +373,7 @@ function SpenderRow({
           ]}
         >
           <Text style={s.amount}>{formatMoney(group.amount) ?? copy.unknownAmount}</Text>
-          <Text aria-hidden style={s.name}>
-            {expanded ? '−' : '+'}
-          </Text>
+          <Chevron open={expanded} />
         </Pressable>
       </View>
       {expanded ? (
@@ -390,10 +446,18 @@ const styles = StyleSheet.create({
   figureLabel: { fontWeight: '600', color: c.secondary },
   figureAmount: { letterSpacing: -0.36 },
   paymentNumber: { color: c.text },
-  rows: { gap: 10 },
-  group: { borderWidth: 1, borderColor: c.border, borderRadius: 12, overflow: 'hidden' },
-  groupHead: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, alignItems: 'center', padding: 16 },
-  identity: { flexGrow: 1, flexShrink: 1, flexBasis: 220, minWidth: 0, gap: 5 },
+  rows: { borderTopWidth: 1, borderTopColor: c.border },
+  group: { borderBottomWidth: 1, borderBottomColor: c.border },
+  groupHead: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 14,
+    alignItems: 'center',
+    minHeight: 60,
+    paddingVertical: 6,
+  },
+  identity: { flexGrow: 1, flexShrink: 1, flexBasis: 220, minWidth: 0, gap: 3 },
+  nameLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   nameLink: { minHeight: 44, paddingVertical: 10 },
   direction: {
     borderWidth: 1,
@@ -414,14 +478,18 @@ const styles = StyleSheet.create({
     gap: 16,
     padding: 10,
   },
-  payments: { borderTopWidth: 1, borderTopColor: c.border },
-  payment: { gap: 8, padding: 16, borderBottomWidth: 1, borderBottomColor: c.border },
+  payments: { paddingLeft: 18, paddingBottom: 12 },
+  payment: { gap: 8, paddingVertical: 8, borderTopWidth: 1, borderTopColor: c.border },
   paymentHeading: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     gap: 12,
   },
+  sourceBlock: { gap: 2 },
+  // Tabular figures so "$200" sits straight, but the ordinary body weight: it is a
+  // sentence about the file, not a figure of its own.
+  sourceFile: { fontVariant: ['tabular-nums'] },
   source: { minHeight: 44, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
   sourceLabel: { fontWeight: '700' },
 });

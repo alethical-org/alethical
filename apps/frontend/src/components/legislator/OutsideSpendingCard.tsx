@@ -6,6 +6,8 @@ import { externalLinkProps } from '../../navigation/links';
 import { LinkArrow } from '../LinkArrow';
 import { useHover } from '../billDetail/interactions';
 import { formatMoney } from '../../lib/legislatorCampaignMoney';
+import { downloadsPageUrl, NAMED_DONATIONS_LINK_LABEL } from '../../lib/committeeMoneyShared';
+import { OUTSIDE_GROUP_COPY, outsideCheckedZeroLabel } from '../../lib/groupedOutsideSpending';
 import {
   OUTSIDE_SPENDING_CARD_HEADING as OUTSIDE_SPENDING_HEADING,
   isMeasuredZero,
@@ -83,14 +85,11 @@ export function OutsideSpendingCard({
       >
         {OUTSIDE_SPENDING_HEADING}
       </Text>
-      {/* "have told the state they spent", not "spent": these figures are the payments
-          groups have reported, and nothing here can know about spending nobody filed. The
-          first wording read as a complete account of all outside spending. */}
-      <Text style={styles.explainer}>
-        Money that groups other than this legislator&apos;s campaign have told the state they spent
-        to support or oppose them. It does not go to their campaign and appears nowhere in the
-        reports their campaign files, so reading only those reports leaves this money out.
-      </Text>
+      {/* "told the state they spent", not "spent": these figures are the payments groups
+          have reported, and nothing here can know about spending nobody filed. One
+          sentence rather than the shared copy's constant, because this card and the
+          grouped one must say the same thing (`lib/groupedOutsideSpendingCopy.ts`). */}
+      <Text style={styles.explainer}>{OUTSIDE_GROUP_COPY.explainer}</Text>
       {isLoading ? (
         <View style={styles.loading}>
           <ActivityIndicator color={t.colors.brand.base} />
@@ -114,9 +113,9 @@ export function OutsideSpendingCard({
       {sourceUrl ? (
         <View style={styles.sourceRow}>
           <SourceLink
-            label="Minnesota Campaign Finance Board filings"
-            href={sourceUrl}
-            onPress={() => onOpenSource(sourceUrl)}
+            label={NAMED_DONATIONS_LINK_LABEL}
+            href={downloadsPageUrl(sourceUrl)}
+            onPress={() => onOpenSource(downloadsPageUrl(sourceUrl))}
           />
           {showFreshness && fetchedOn ? (
             <Text style={styles.fetched}>Copied from the state on {fetchedOn}</Text>
@@ -147,10 +146,7 @@ function YearBlock({ year }: { year: OutsideSpendingYear }) {
         // The one place a 0 is honest here: the link is confirmed, the download covers
         // the year, and no group filed a payment. That is a checked finding, so it is
         // stated as one instead of being drawn as an empty figure.
-        <Text style={styles.note}>
-          No outside group reported spending anything to support or oppose this legislator in{' '}
-          {year.year}.
-        </Text>
+        <Text style={styles.note}>{outsideCheckedZeroLabel(year.year)}</Text>
       ) : (
         <>
           <View style={styles.figureRow}>

@@ -48,7 +48,22 @@ describe('the per-committee refund card', () => {
     ).toBe(true);
     expect(cells(row(container, 2025))).toEqual(['2025', '180', '$14,216']);
     expect(cells(row(container, 2021))).toEqual(['2021', '54', '$4,158']);
+    // A year the Board published an amount for but no count. Never a zero and never a
+    // dash: it is our gap in their file, not a committee that refunded nothing
+    // (`.claude/rules/grounded-answers.md` rule 12).
     expect(cells(row(container, 2024))).toEqual(['2024', 'Count not published', '$10,508']);
+    expect(cells(row(container, 2024))).not.toContain('0');
+    // The 2 figure columns hold a fixed width per band and the year column takes what
+    // is left, so all 3 still fit a 375px phone.
+    expect(
+      [...container.querySelectorAll<HTMLElement>('thead th')].map((cell) => cell.style.width),
+    ).toEqual(
+      width < 768
+        ? ['', '96px', '92px']
+        : width < 1100
+          ? ['', '180px', '130px']
+          : ['', '220px', '150px'],
+    );
     expect(row(container, 2016)).toBeUndefined();
     expect(row(container, 2015)).toBeUndefined();
     expect(container.querySelector('tfoot')).toBeNull();
@@ -108,7 +123,7 @@ describe('the per-committee refund card', () => {
       amountRefunded: null,
     }));
     const container = render(refunds);
-    expect(container.textContent).toContain("Refunds the state paid to this committee's donors");
+    expect(container.textContent).toContain("Refunds Minnesota paid this committee's donors");
     expect(container.textContent).toContain(
       'This is money the state returned to donors, not money the committee received.',
     );

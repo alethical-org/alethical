@@ -305,12 +305,11 @@ describe('outsideSpendingSharedReason', () => {
 });
 
 describe('outsideSpendingCoverage', () => {
-  it('names the one confirmed committee, and says an unchecked one is not counted', () => {
-    // A member can hold several committees while only 1 has been reviewed, so a bare
-    // total can be a fraction of their money presented as all of it.
-    const coverage = outsideSpendingCoverage(REPORTED);
-    expect(coverage).toContain('Fateh, Omar Senate Committee (State Senator)');
-    expect(coverage).toContain('nobody has checked yet is not in these figures');
+  it('says nothing about a single committee, which the card above already names', () => {
+    // The line exists to say what a total ADDS TOGETHER. With 1 committee there is
+    // nothing to add, and the committee card directly above these figures carries the
+    // name already, so printing it again is one fact charged for twice.
+    expect(outsideSpendingCoverage(REPORTED)).toBeNull();
   });
 
   it('names every committee when a total adds more than one together', () => {
@@ -324,10 +323,14 @@ describe('outsideSpendingCoverage', () => {
         { registrationNumber: '19205', name: 'House Committee', office: 'State Representative' },
       ],
     });
-    expect(coverage).toContain('2 committees');
-    expect(coverage).toContain('Senate Committee (State Senator)');
-    expect(coverage).toContain('House Committee (State Representative)');
-    expect(coverage).toContain('added together');
+    expect(coverage).toBe(
+      'Covers 2 committees added together: Senate Committee and House Committee',
+    );
+    // The office in brackets is gone: every registered candidate committee carries its
+    // office inside its own registered name. And no terminal period, because the line
+    // sits alone under the payment dates.
+    expect(coverage).not.toContain('(State Senator)');
+    expect(coverage?.endsWith('.')).toBe(false);
   });
 
   it('says nothing when there is no figure for it to scope', () => {
