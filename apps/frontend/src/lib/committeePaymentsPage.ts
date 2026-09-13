@@ -55,16 +55,15 @@ export function capNextLabel(shown: number, total: number): string {
 }
 
 /**
- * The sentence under a list saying which names open a page. Only a name carrying a
- * registration number this release holds as a filer opens — a private donor is not
- * a profile, and a business has no number at all. The threshold clause is left off
- * a ballot-question committee's page entirely (rule 12, as amended).
+ * Linked held registration numbers open committee records; other linked names open
+ * exact-spelling payment records, never a person or business profile. Names without
+ * a supported destination stay unlinked. The threshold clause is left off a
+ * ballot-question committee's page entirely (rule 12, as amended).
  */
 export function listLinkNote(tab: PaymentsTab, isBallot: boolean): string {
   const opens =
-    tab === 'gave'
-      ? 'Committees, party units and funds open a page — they carry a registration number we can identify them by. A private donor’s name is not a profile, and never becomes one here.'
-      : 'Committees and party units open a page — they carry a registration number we can identify them by. A business or person that only got paid has none, so its name stays plain text.';
+    'A linked committee name opens its registered committee’s page. Other linked names open ' +
+    'payments filed under that exact spelling. A name alone does not identify a person or business.';
   if (isBallot) return opens;
   const threshold =
     tab === 'gave'

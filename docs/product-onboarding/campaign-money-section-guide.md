@@ -918,7 +918,11 @@ direction and the year it names, so a shared "Where it went" link opens on payme
 than on donations in. "Showing X of Y" is a measured count served with the rows, never a guess. The same naming rules apply: a
 loan is labelled as reported on its own schedule rather than reading as a gift, transfers
 read "Money given to another campaign" and open no name lookup, and a registered filer's
-number opens its committee page where any other name opens its own exact spelling.
+number opens its committee page. Other linked names open payments filed under that exact
+spelling; a name alone does not identify a person or business. Names with no supported
+destination remain plain text, including a transfer to a committee whose page is not
+held. The explanation beneath received and made payments states these 2 destinations;
+its existing threshold clause remains absent on ballot-question committee pages.
 
 A failed payment read, including an unavailable response, uses this page's could-not-load
 sentence. It never prints a

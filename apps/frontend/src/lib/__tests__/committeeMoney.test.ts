@@ -356,6 +356,9 @@ describe('money out', () => {
       // The exact address the navigation module builds for this screen. Pinned
       // literally so a change to either side fails rather than drifting.
       expect(paymentRowHref(row)).toBe('/money/payments?name=Messinger%2C+Alida&role=contributor');
+      expect(listLinkNote('gave', false)).toContain(
+        'Other linked names open payments filed under that exact spelling.',
+      );
     });
 
     it('does NOT join 2 spellings of one name, which is the whole ruling', () => {
@@ -413,6 +416,11 @@ describe('money out', () => {
         role: 'vendor',
         name: 'Acme Printing',
       });
+      const postalPayment = madePaymentRow({ ...payment, vendorName: 'US Post Office' }, new Set());
+      expect(paymentRowHref(postalPayment)).toBe('/money/payments?name=US+Post+Office&role=vendor');
+      expect(listLinkNote('spent', false)).toContain(
+        'Other linked names open payments filed under that exact spelling.',
+      );
     });
 
     it('never sends a transfer to the vendor column, because the row shows a committee', () => {
@@ -487,8 +495,16 @@ describe('the payments view', () => {
     // The ordinary note names the threshold as the point a name becomes REQUIRED,
     // rather than as a line below which nobody is named (#1755).
     expect(listLinkNote('gave', false)).toContain('more than $200 in total for the year');
-    expect(listLinkNote('gave', true)).not.toContain('$200');
-    expect(listLinkNote('spent', true)).not.toContain('$200');
+    expect(listLinkNote('spent', false)).toContain(
+      'payments to them pass $200 in total for the year',
+    );
+    const explanation =
+      'A linked committee name opens its registered committee’s page. Other linked names open ' +
+      'payments filed under that exact spelling. A name alone does not identify a person or business.';
+    for (const tab of ['gave', 'spent'] as const) {
+      expect(listLinkNote(tab, true)).toBe(explanation);
+      expect(listLinkNote(tab, false).startsWith(explanation)).toBe(true);
+    }
   });
 
   it('an empty year’s list says which year, and that older payments stay put', () => {
