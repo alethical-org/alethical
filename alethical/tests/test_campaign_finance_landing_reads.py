@@ -802,7 +802,7 @@ def test_a_special_election_filers_period_start_is_withheld_not_assumed(
 
 
 def test_a_year_with_no_transcribed_calendar_has_no_start(client, db) -> None:
-    """Only the 2026 calendars are transcribed, so an older report reads "covers through".
+    """A report earlier than the preserved calendars reads "covers through".
 
     The alternative is asserting 1 January from the pattern the newer calendars follow,
     which is the assumption §7 exists to stop.
@@ -813,9 +813,9 @@ def test_a_year_with_no_transcribed_calendar_has_no_start(client, db) -> None:
         db,
         snapshot,
         CANDIDATE,
-        year=2024,
-        report_name="2024 Year End Report",
-        cut_off=date(2024, 12, 31),
+        year=2013,
+        report_name="2013 Year End Report",
+        cut_off=date(2013, 12, 31),
     )
 
     row = client.get(FILINGS).json()["data"]["filings"][0]

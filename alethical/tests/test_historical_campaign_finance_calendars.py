@@ -99,8 +99,12 @@ def historical(year, office="Senate", election=False, **overrides):
 
 
 @pytest.mark.parametrize("year", range(2015, 2027))
-@pytest.mark.parametrize("office", ["House", "Senate"])
-def test_every_sitting_legislator_year_has_a_source_backed_schedule(year, office):
+@pytest.mark.parametrize(
+    "office", ["House", "Senate", "District Court", "Governor", "Appellate Court"]
+)
+def test_every_regular_candidate_year_has_a_source_backed_off_ballot_schedule(
+    year, office
+):
     answer = historical(year, office)
     assert answer.schedule_class is ScheduleClass.not_filing_for_office
     assert answer.calendar is not None

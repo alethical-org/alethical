@@ -86,7 +86,10 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Iterable, Optional, Sequence
 
-from alethical.pipeline.campaign_finance_calendar_sources import TRANSCRIPTIONS
+from alethical.pipeline.campaign_finance_calendar_sources import (
+    TRANSCRIPTIONS,
+    TRANSCRIBED_ON as HISTORICAL_TRANSCRIBED_ON,
+)
 
 
 class CalendarKey(enum.Enum):
@@ -387,7 +390,7 @@ for _year, _key, _filename, _sha256, _offices, _reports in TRANSCRIPTIONS:
     )
     CALENDAR_SOURCES[(_calendar, _year)] = {
         "url": "https://cfb.mn.gov/pdf/calendars/" + _filename,
-        "transcribed_on": date(2026, 9, 13),
+        "transcribed_on": date.fromisoformat(HISTORICAL_TRANSCRIBED_ON),
         "sha256": _sha256,
     }
     if _offices:
@@ -418,11 +421,9 @@ FIRST_ELECTION_REPORT_DUE = {2016: date(2016, 7, 25)}
 # series that ``CataloguedReport.special_election`` already flags.
 _ELECTION_REPORT = re.compile(r"pre[\s_-]*(?:prim|gen)", re.IGNORECASE)
 
-# The offices the legislative and district-court calendar covers, as the Board's filer
-# directory spells them (``cf_filer.office``).
-LEGISLATIVE_AND_DISTRICT_COURT_OFFICES = frozenset(
-    {"House", "Senate", "District Court"}
-)
+# The general annual calendars cover the regular candidate classes, including
+# constitutional and appellate offices, with the Board's filer-directory labels.
+CANDIDATE_OFFICES = frozenset().union(*FILING_OFFICES_BY_YEAR.values())
 
 
 def names_an_election_report(report_name: str) -> bool:
@@ -495,7 +496,7 @@ def printed_period_start_for_end(period_end: date) -> Optional[date]:
 
     ``docs/architecture/campaign-finance-system-design.md`` §7 (Display rules) forbids
     hardcoding 1 January as a period start, because a special-election filer's period
-    does not open there. This is the grounded alternative: the 4 transcribed calendars
+    does not open there. This is the grounded alternative: the transcribed calendars
     each print both ends of every periodic report, so a period end that appears on them
     carries a printed start, read off a document rather than assumed.
 
@@ -608,9 +609,7 @@ def classify(
             reason=f"our catalogue has no reports for this committee in {year}, so it cannot establish its historical schedule",
         )
 
-    if year in GENERAL_CALENDAR_YEARS and (office or "").strip() in (
-        LEGISLATIVE_AND_DISTRICT_COURT_OFFICES
-    ):
+    if year in GENERAL_CALENDAR_YEARS and (office or "").strip() in CANDIDATE_OFFICES:
         # An annual-only regular calendar is positive source evidence. A special
         # election or contradictory election report was handled above, before this.
         return _with_next_report(
