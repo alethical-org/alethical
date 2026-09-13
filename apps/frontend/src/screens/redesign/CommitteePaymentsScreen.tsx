@@ -41,6 +41,11 @@ import {
   uncoveredPeriodLine,
   type PaymentsTab,
 } from '../../lib/committeeMoneyShared';
+import {
+  BOARD_RECORD_LINK_LABEL,
+  BOARD_RECORD_SENTENCE_TAIL,
+  boardRecordUrl,
+} from '../../lib/boardRecordLink';
 import { campaignMoneyYear } from '../../lib/legislatorCampaignMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { useDocumentTitle } from '../../navigation/documentTitle';
@@ -63,8 +68,6 @@ import { theme as t } from '../../theme/tokens';
  * of them, and they are public. "Showing X of Y" uses the served count, measured
  * with the same filter as the rows.
  */
-
-const BOARD_VIEWER = 'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/';
 
 function BackChevron() {
   return (
@@ -114,6 +117,9 @@ export function CommitteePaymentsScreen({
       : registerKindFromEntityType(money.entityType)
     : null;
   const isBallot = money ? isBallotQuestionFiler(money.entitySubType) : false;
+  // This filer's own record on the Board's site, keyed by the registration number
+  // and by which of the register's 3 kinds it is (#2179).
+  const boardUrl = boardRecordUrl(registerKind, registrationNumber ?? '', year);
   const checkedOn = money?.fetchedAt ? centralDateLabel(money.fetchedAt) : null;
 
   const pages = (list.data?.pages ?? []).filter(
@@ -196,12 +202,28 @@ export function CommitteePaymentsScreen({
                         )}
                       </Text>
                     ) : null}
-                    <Text style={styles.stampDetail}>
-                      {coveredPeriodDetail(money?.split.reportedThrough ?? null, null, {
-                        isPartyUnit: registerKind === 'party_unit',
-                        reportedPeriodStart: money?.moneyIn.reportedPeriodStart ?? null,
-                      })}
-                    </Text>
+                    {/* 2 sentences, 1 block, 5px apart against the 8px the panel puts
+                        between its own children: the second reads as a new sentence
+                        rather than as a wrap of the first, which on a phone wraps to 3
+                        lines. Both keep their terminal period because they are prose
+                        in one block, not a stack of standalone lines. */}
+                    <View style={styles.stampSentences}>
+                      <Text style={styles.stampDetail}>
+                        {coveredPeriodDetail(money?.split.reportedThrough ?? null, null, {
+                          isPartyUnit: registerKind === 'party_unit',
+                          reportedPeriodStart: money?.moneyIn.reportedPeriodStart ?? null,
+                        })}
+                      </Text>
+                      <Text style={styles.stampDetail}>
+                        <Text
+                          style={styles.inlineLink}
+                          {...externalLinkProps(boardUrl, () => void Linking.openURL(boardUrl))}
+                        >
+                          {BOARD_RECORD_LINK_LABEL}
+                        </Text>
+                        {BOARD_RECORD_SENTENCE_TAIL}
+                      </Text>
+                    </View>
                   </>
                 ) : (
                   <>
@@ -283,6 +305,7 @@ export function CommitteePaymentsScreen({
                   total={total}
                   linkable={linkable}
                   isBallot={isBallot}
+                  boardUrl={boardUrl}
                   hasNextPage={Boolean(list.hasNextPage)}
                   isFetchingNextPage={list.isFetchingNextPage}
                   onMore={() => void list.fetchNextPage()}
@@ -304,6 +327,7 @@ function PaymentRows({
   total,
   linkable,
   isBallot,
+  boardUrl,
   hasNextPage,
   isFetchingNextPage,
   onMore,
@@ -316,6 +340,7 @@ function PaymentRows({
   total: number | null;
   linkable: Set<string>;
   isBallot: boolean;
+  boardUrl: string;
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
   onMore: () => void;
@@ -415,9 +440,9 @@ function PaymentRows({
             </Pressable>
             <Text
               style={styles.source}
-              {...externalLinkProps(BOARD_VIEWER, () => void Linking.openURL(BOARD_VIEWER))}
+              {...externalLinkProps(boardUrl, () => void Linking.openURL(boardUrl))}
             >
-              Open the filing itself
+              {BOARD_RECORD_LINK_LABEL}
             </Text>
           </View>
         </View>
@@ -528,6 +553,14 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.bodyLg,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.secondary,
+  },
+  stampSentences: { gap: 5 },
+  inlineLink: {
+    fontFamily: t.typography.body,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.brand.base,
+    textDecorationLine: 'underline',
+    ...({ textUnderlineOffset: 3 } as object),
   },
   stampDetail: {
     fontFamily: t.typography.body,

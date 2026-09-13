@@ -10,6 +10,7 @@
  * `Miscellaneous`, a money-out card that identifies its figure's source, and the
  * evidence block at the card's foot.
  */
+import { BOARD_RECORD_LINK_LABEL } from '../../../lib/boardRecordLink';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock(
@@ -48,7 +49,6 @@ vi.mock('../../../hooks/useCampaignMoneyDetails', () => ({
 import { CampaignMoneyTab } from '../CampaignMoneyTab';
 import type { CampaignCommitteeMoney, LegislatorCampaignMoney } from '../../../data/types';
 import {
-  FILED_REPORTS_LINK_LABEL,
   itemizedContributionsNote,
   MONEY_IN_NAMED_LABEL,
   MONEY_IN_REPORTED_LABEL,
@@ -66,6 +66,7 @@ function committee(overrides: Partial<CampaignCommitteeMoney> = {}): CampaignCom
     committeeNameAsReviewed: 'Putnam, Aric Senate Committee',
     committeeName: 'Putnam, Aric Senate Committee',
     office: 'Senate',
+    registerKind: 'candidate_committee',
     checked: {
       checkedOn: '2026-08-30',
       nameEvidence: 'exact',
@@ -172,7 +173,7 @@ const cards = (html: string) => {
 describe('the money cards on the profile, at the final inventory', () => {
   it('draws the filing’s period and link once, in the stamp, and not under a figure', () => {
     const html = text(render([committee()]));
-    expect(html.split(FILED_REPORTS_LINK_LABEL).length - 1).toBe(1);
+    expect(html.split(BOARD_RECORD_LINK_LABEL).length - 1).toBe(1);
     expect(html).toContain('Figures for Jan 1, 2026 – Jul 20, 2026');
     // Both figures run to the stamp's date, so neither repeats it.
     expect(html).not.toContain(reportedThroughLabel('2026-07-20') as string);
@@ -209,8 +210,12 @@ describe('the money cards on the profile, at the final inventory', () => {
     expect(html).toContain(`${MONEY_IN_NAMED_LABEL} Not reported`);
     // And the reported-total slot is simply absent, never a second "Not reported".
     expect(html).not.toContain(MONEY_IN_REPORTED_LABEL);
-    expect(html).toContain(FILED_REPORTS_LINK_LABEL);
-    expect(html).not.toContain('The committee’s own report to the state covers');
+    // No filing covers the year, so no stamp draws, and the link lives inside the
+    // stamp's sentence: a state with no sentence has no link to give.
+    expect(html).not.toContain(BOARD_RECORD_LINK_LABEL);
+    // The way to everything we hold on the committee survives that state, because it
+    // is the only route off this card and the emptiest year is when it is wanted most.
+    expect(html).toContain('Everything we hold on this committee');
   });
 
   it('labels the rows that are not donations "Not a donation", and hides Miscellaneous', () => {

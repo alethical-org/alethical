@@ -11,6 +11,7 @@ import {
   MoneyInBlock,
   MoneyOutBlock,
 } from '../MoneyCards';
+import { BOARD_RECORD_LINK_LABEL } from '../../../lib/boardRecordLink';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../../lib/campaignMoneyColors';
 import { MONEY_OUT_OFFICIAL_MISSING } from '../../../lib/committeeMoneyShared';
 import { theme as t } from '../../../theme/tokens';
@@ -28,7 +29,7 @@ function Cards() {
         detail="The filing covers these dates."
         notes={['134 payments in 2026']}
         covered
-        showLink
+        boardRecordUrl="https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/18430/2026/"
         isMobile={false}
       />
       <Figure label="Reported contributions" value="$1,000" note="Through Jul 20, 2026" isMobile />
@@ -122,17 +123,25 @@ describe('profile styling for shared money cards', () => {
     expect(anchors).toHaveLength(2);
     for (const anchor of anchors) {
       expect(getComputedStyle(anchor).color).toBe(color(c.link));
-      expect(getComputedStyle(anchor).minHeight).toBe('44px');
       expect(anchor.getAttribute('href')).toMatch(/^https:\/\/cfb\.mn\.gov\//);
     }
+    // The stamp's link is the sentence's own subject, so it is body copy: underlined
+    // the way a link inside a paragraph is, and never padded out to a row's 44px
+    // target. The card's row links keep that target.
+    const inline = anchors.find((a) => a.textContent === BOARD_RECORD_LINK_LABEL)!;
+    const row = anchors.find((a) => a !== inline)!;
+    expect(getComputedStyle(inline).minHeight).not.toBe('44px');
+    expect(getComputedStyle(inline).textDecorationLine).toBe('underline');
+    expect(inline.textContent).toBe(BOARD_RECORD_LINK_LABEL);
+    expect(getComputedStyle(row).minHeight).toBe('44px');
     const oldLink = defaults.querySelector('a')!;
     expect(getComputedStyle(oldLink).color).toBe(color(t.colors.brand.base));
     expect(getComputedStyle(oldLink).minHeight).not.toBe('44px');
-    act(() => anchors[0].focus());
-    expect(getComputedStyle(anchors[0]).outlineColor).toBe(color(c.focus));
-    expect(getComputedStyle(anchors[0]).outlineWidth).toBe('2px');
-    act(() => anchors[0].blur());
-    expect(getComputedStyle(anchors[0]).outlineWidth).not.toBe('2px');
+    act(() => row.focus());
+    expect(getComputedStyle(row).outlineColor).toBe(color(c.focus));
+    expect(getComputedStyle(row).outlineWidth).toBe('2px');
+    act(() => row.blur());
+    expect(getComputedStyle(row).outlineWidth).not.toBe('2px');
   });
 
   it('uses Libre Franklin and tabular digits for amounts, dates and counts, keeping lettered labels mono', () => {

@@ -3,6 +3,13 @@
  * confident wrong sentence (#1442 phase 2; grounded-answers.md rule 12;
  * campaign-finance-system-design.md §7).
  */
+import {
+  BOARD_RECORD_LINK_LABEL,
+  BOARD_RECORD_SENTENCE_TAIL,
+  BOARD_VIEWER_INDEX,
+  boardRecordUrl,
+  committeeNameWithNumber,
+} from '../boardRecordLink';
 import { describe, expect, it } from 'vitest';
 
 import { reportedThroughLabel } from '../legislatorCampaignMoney';
@@ -50,7 +57,8 @@ import {
 import {
   OUTSIDE_ABOUT_INTRO,
   OUTSIDE_NEVER_ADDED,
-  FILED_REPORTS_LINK_LABEL,
+  FILING_SOURCE_BOTH_DATES,
+  FILING_SOURCE_ONE_DATE,
   MONEY_IN_HEADING,
   MONEY_IN_NAMED_LABEL,
   MONEY_IN_REPORTED_LABEL,
@@ -273,8 +281,9 @@ describe('the period stamp', () => {
   it('states the coverage end and never assumes a start', () => {
     expect(coveredPeriodLine('2026-07-20')).toBe('Figures through Jul 20, 2026');
     const detail = coveredPeriodDetail('2026-07-20', 'Aug 11, 2026');
-    expect(detail).toContain('covers through Jul 20, 2026');
-    expect(detail).toContain('no start is assumed');
+    // The dated heading directly above prints the date, so the sentence under it
+    // says where the date came from rather than printing it a second time.
+    expect(detail).toContain(FILING_SOURCE_ONE_DATE);
     expect(detail).toContain('taken Aug 11, 2026');
     expect(detail).not.toContain('Jan 1');
   });
@@ -286,10 +295,81 @@ describe('the period stamp', () => {
     const detail = coveredPeriodDetail('2026-07-20', 'Aug 11, 2026', {
       reportedPeriodStart: '2026-01-01',
     });
-    expect(detail).toContain('covers Jan 1, 2026 through Jul 20, 2026');
-    expect(detail).toContain('the Board’s own published filing calendar');
+    expect(detail).toContain(FILING_SOURCE_BOTH_DATES);
     // No printed start, no start — never an assumed January.
     expect(coveredPeriodLine('2026-11-16', null)).toBe('Figures through Nov 16, 2026');
+  });
+
+  // The 2 forms are 1 wording on the legislator profile's money tab, a committee's
+  // own page and that committee's payments list, and they differ in 1 clause: the
+  // heading above prints 2 dates in the first and 1 in the second (design handoff of
+  // 13 Sep 2026, item 4).
+  it('prints the same 2 sentences whatever page the stamp draws on', () => {
+    expect(FILING_SOURCE_BOTH_DATES).toBe(
+      'The committee filed this report with the Minnesota Campaign Finance Board, ' +
+        'which prints both dates.',
+    );
+    expect(FILING_SOURCE_ONE_DATE).toBe(
+      'The committee filed this report with the Minnesota Campaign Finance Board, ' +
+        'which prints the date.',
+    );
+    expect(`${BOARD_RECORD_LINK_LABEL}${BOARD_RECORD_SENTENCE_TAIL}`).toBe(
+      'The Board’s record for this committee lists every report it filed, under Reports and Data.',
+    );
+    // Neither form interpolates a date, so a stale figure cannot reach them.
+    for (const sentence of [FILING_SOURCE_BOTH_DATES, FILING_SOURCE_ONE_DATE]) {
+      expect(sentence).not.toMatch(/\d/);
+    }
+  });
+
+  // The party-unit sentence and the download date still ride on the first sentence,
+  // ahead of the line break that starts the Board-record sentence.
+  it('keeps the download date and the party-unit calendar on the first sentence', () => {
+    const detail = coveredPeriodDetail('2026-07-20', 'Aug 11, 2026', {
+      isPartyUnit: true,
+      reportedPeriodStart: '2026-01-01',
+    });
+    expect(detail.startsWith(FILING_SOURCE_BOTH_DATES)).toBe(true);
+    expect(detail).toContain('taken Aug 11, 2026');
+    expect(detail).toContain('Party units file on their own calendar');
+    expect(detail).not.toContain(BOARD_RECORD_LINK_LABEL);
+  });
+
+  // One path segment per kind, the selected year on the end, and a kind we do not
+  // hold falling back to the page listing all 3 searches. Verified against the
+  // Board's own viewers on 13 Sep 2026 (#2179).
+  it('builds the Board’s address from the filer’s kind, its number and the year', () => {
+    expect(boardRecordUrl('candidate_committee', '17868', 2026)).toBe(
+      'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/17868/2026/',
+    );
+    expect(boardRecordUrl('party_unit', '20982', 2026)).toBe(
+      'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/party-unit/20982/2026/',
+    );
+    expect(boardRecordUrl('political_committee_or_fund', '30706', 2026)).toBe(
+      'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/political-committee-fund/30706/2026/',
+    );
+    // The year picks the Board's own 2-year segment rather than being ignored.
+    expect(boardRecordUrl('candidate_committee', '17868', 2024)).toBe(
+      'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/17868/2024/',
+    );
+    // An unknown kind never guesses a segment: a party unit sent to the candidate
+    // search cannot be found there at all, which is the defect this replaces.
+    expect(boardRecordUrl(null, '17868', 2026)).toBe(BOARD_VIEWER_INDEX);
+    expect(boardRecordUrl('something_new', '17868', 2026)).toBe(BOARD_VIEWER_INDEX);
+    expect(BOARD_VIEWER_INDEX).toBe(
+      'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/',
+    );
+  });
+
+  // A long name may wrap before the hyphen and never between the hyphen and the
+  // number, so the space after the hyphen is a no-break space.
+  it('keeps the registration number against the hyphen on the name line', () => {
+    expect(committeeNameWithNumber('Abeler, Jim Senate Committee', '17868')).toBe(
+      'Abeler, Jim Senate Committee -\u00a017868',
+    );
+    expect(committeeNameWithNumber('Abeler, Jim Senate Committee', null)).toBe(
+      'Abeler, Jim Senate Committee',
+    );
   });
 
   it('a party unit’s stamp says its calendar is its own', () => {
@@ -689,9 +769,9 @@ describe('the 2 money cards’ fixed labels, shared by both surfaces', () => {
     expect(NOT_A_DONATION_HEADING).toBe('Not a donation');
     // Ruled 11 Sep 2026: the link opens the Board's downloads page, not the download.
     expect(NAMED_DONATIONS_LINK_LABEL).toBe('Minnesota’s campaign-finance downloads');
-    expect(FILED_REPORTS_LINK_LABEL).toBe(
-      'This committee’s filed reports, on the state’s own site',
-    );
+    // The one off-site label on these pages, and it names the record the click
+    // actually opens rather than a document (#2179).
+    expect(BOARD_RECORD_LINK_LABEL).toBe('The Board’s record for this committee');
   });
 
   it('never calls money out spent, spending or expenses', () => {
@@ -708,7 +788,7 @@ describe('the 2 money cards’ fixed labels, shared by both surfaces', () => {
       MONEY_OUT_REPORTED_LABEL,
       NOT_A_DONATION_HEADING,
       NAMED_DONATIONS_LINK_LABEL,
-      FILED_REPORTS_LINK_LABEL,
+      BOARD_RECORD_LINK_LABEL,
     ]) {
       expect(label.endsWith('.')).toBe(false);
     }

@@ -43,11 +43,11 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, Text, View, type TextProps, type TextStyle } from 'react-native';
 
+import { BOARD_RECORD_LINK_LABEL, BOARD_RECORD_SENTENCE_TAIL } from '../../lib/boardRecordLink';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 
 import {
   downloadsPageUrl,
-  FILED_REPORTS_LINK_LABEL,
   inKindDonationsNote,
   itemizedContributionsNote,
   MONEY_IN_HEADING,
@@ -81,11 +81,6 @@ import {
 import { externalLinkProps } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
 import { useCampaignMoneyTypography } from './detailsStyles';
-
-/** The Board's own lookup page. A search, not a per-committee address — a guessed
- *  deep link that lands on the wrong committee is worse than one extra step. */
-export const BOARD_VIEWER =
-  'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/';
 
 export type MoneyCardSurface = 'committee' | 'profile';
 
@@ -187,22 +182,32 @@ function CardText({
 
 /**
  * The filing's facts, once, above both cards: the period its figures cover, the
- * sentence saying how that period was read, and the link to the filing on the Board's
- * own site. `link` is drawn only when a filing exists to open; the committee page's
- * empty and closed years pass none.
+ * sentence saying where those dates came from, and the way out to the Board's own
+ * record for this committee.
+ *
+ * `boardRecordUrl` is the address of that committee's own page on the Board's site,
+ * and passing null draws no second sentence: the link is inside the sentence, so a
+ * state with nothing to link has nothing to say either (design handoff of
+ * 13 Sep 2026, items 4 and 5).
+ *
+ * `ourRecord` is the legislator profile's own row out to everything we hold on the
+ * committee, drawn as the panel's last row. The committee page passes none, because
+ * that page is what the row points at.
  */
 export function FilingStamp({
   line,
   detail,
   notes = [],
-  showLink,
+  boardRecordUrl = null,
+  ourRecord = null,
   covered,
   isMobile,
 }: {
   line: string | null;
   detail: string;
   notes?: string[];
-  showLink: boolean;
+  boardRecordUrl?: string | null;
+  ourRecord?: ReactNode;
   covered: boolean;
 } & Band) {
   const styles = useCardStyles();
@@ -213,14 +218,49 @@ export function FilingStamp({
           {line}
         </CardText>
       ) : null}
-      <CardText style={styles.stampDetail}>{detail}</CardText>
+      {/* 2 sentences, 1 block. The second starts on its own line so the link that
+          opens it sits in a fixed place at every width instead of wherever the first
+          sentence happens to end, and the 5px is what separates a new sentence from a
+          wrap of the old one on a phone. They keep both terminal periods because they
+          are prose in one block rather than a stack of standalone lines.
+          `numeric` is off: the auto-detector sets weight 800 on any string carrying a
+          digit, and the appended download date was making this whole sentence bold. */}
+      <View style={styles.stampSentences}>
+        <CardText numeric={false} style={styles.stampDetail}>
+          {detail}
+        </CardText>
+        {boardRecordUrl ? (
+          <CardText numeric={false} style={styles.stampDetail}>
+            <InlineBoardRecordLink url={boardRecordUrl} />
+            {BOARD_RECORD_SENTENCE_TAIL}
+          </CardText>
+        ) : null}
+      </View>
       {notes.map((note) => (
         <CardText key={note} style={styles.stampDetail}>
           {note}
         </CardText>
       ))}
-      {showLink ? <SourceLink label={FILED_REPORTS_LINK_LABEL} url={BOARD_VIEWER} /> : null}
+      {ourRecord}
     </View>
+  );
+}
+
+/** The sentence's own subject, so it is body copy rather than a row: underlined the
+ *  way a link inside a paragraph is marked, and never padded to a 44px target. */
+function InlineBoardRecordLink({ url }: { url: string }) {
+  const styles = useCardStyles();
+  const [focused, setFocused] = useState(false);
+  return (
+    <CardText
+      numeric={false}
+      style={[styles.stampDetail, styles.inlineLink, focused && styles.sourceFocused]}
+      {...externalLinkProps(url, () => void Linking.openURL(url))}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+    >
+      {BOARD_RECORD_LINK_LABEL}
+    </CardText>
   );
 }
 
@@ -423,7 +463,7 @@ export function CardHeading({
   return (
     <CardText
       accessibilityRole="header"
-      aria-level={surface === 'committee' ? 2 : 4}
+      aria-level={surface === 'committee' ? 2 : 3}
       style={surface === 'committee' ? styles.headingCommittee : styles.headingProfile}
     >
       {children}
@@ -597,6 +637,18 @@ const defaultStyles = StyleSheet.create({
     gap: 8,
   },
   stampMobile: { padding: 16 },
+  // 5px, against the 8px the stamp's own gap puts between this block and the dated
+  // heading above it: enough to read as a new sentence, too little to read as a new
+  // paragraph.
+  stampSentences: { gap: 5 },
+  inlineLink: {
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.brand.base,
+    textDecorationLine: 'underline',
+    // Web-only, and absent from React Native's style types, so it takes the same
+    // cast the shared card shadow does.
+    ...({ textUnderlineOffset: 3 } as object),
+  },
   stampPeriod: {
     fontFamily: t.typography.mono,
     fontSize: 12,
@@ -692,6 +744,7 @@ const profileStyles = StyleSheet.create({
   },
   stampPeriodMuted: { ...defaultStyles.stampPeriodMuted, color: c.secondary },
   stampDetail: { ...defaultStyles.stampDetail, color: c.secondary },
+  inlineLink: { ...defaultStyles.inlineLink, color: c.link },
   checked: { ...defaultStyles.checked, borderTopColor: c.border },
   checkedLabel: { ...defaultStyles.checkedLabel, color: c.muted },
   checkedSentence: { ...defaultStyles.checkedSentence, color: c.secondary },

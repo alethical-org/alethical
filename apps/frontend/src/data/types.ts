@@ -614,6 +614,11 @@ export interface CampaignCommitteeMoney {
   /** Which office the committee is for. Keeps a race for another office off this
    *  page, which no filing supports putting here. */
   office: string | null;
+  /** Which of the register's 3 kinds this filer is, from our copy of the Board's
+   *  registered-filer directory. The card builds the Board's own address for the
+   *  committee from it, and a null sends the reader to the page listing all 3
+   *  searches rather than into one that cannot contain the filer (#2179). */
+  registerKind: string | null;
   /** What a person read when they confirmed this account is this member's, and the day
    *  they did. Read off the stored decision and never recomputed, so a later download
    *  changing a name does not rewrite the basis of a decision already made. Null only for

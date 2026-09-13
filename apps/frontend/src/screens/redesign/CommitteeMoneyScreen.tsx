@@ -20,7 +20,6 @@ import { committeeOutsideSpending } from '../../lib/committeeOutsideSpending';
 import { detailsStyles } from '../../components/campaignMoney/detailsStyles';
 import { YearControl } from '../../components/campaignMoney/YearControl';
 import {
-  BOARD_VIEWER,
   CardHeading,
   CampaignMoneyCardTheme,
   CheckedByBlock,
@@ -30,6 +29,7 @@ import {
   MoneyOutBlock,
 } from '../../components/campaignMoney/MoneyCards';
 import { TrackCommitteeButton } from '../../components/campaignMoney/TrackCommitteeButton';
+import { BOARD_RECORD_LINK_LABEL, boardRecordUrl } from '../../lib/boardRecordLink';
 import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import type { CommitteeConfirmation, CommitteeMoney } from '../../data/types';
@@ -412,6 +412,10 @@ function CommitteeBody({
       : registerKindFromEntityType(money.entityType);
   const isBallot = isBallotQuestionFiler(money.entitySubType);
   const isPartyUnit = registerKind === 'party_unit';
+  // This filer's own record on the Board's site, keyed by the number the page
+  // already prints. One address for all 3 kinds sent a party unit and a political
+  // fund to the candidate name search, which cannot contain either (#2179).
+  const boardUrl = boardRecordUrl(registerKind, registrationNumber, year);
   const name = money.register.name ?? money.committeeName ?? `Committee ${registrationNumber}`;
   const eyebrow = committeeEyebrow(registerKind, money.entitySubType);
   const registeredFor = registeredForLine({
@@ -528,6 +532,7 @@ function CommitteeBody({
         state={state}
         year={year}
         isPartyUnit={isPartyUnit}
+        boardUrl={boardUrl}
         isHoldingStale={isHoldingStale}
         isMobile={isMobile}
       />
@@ -538,6 +543,7 @@ function CommitteeBody({
         tab={tab}
         slug={committeeSlug(name, registrationNumber)}
         registrationNumber={registrationNumber}
+        boardUrl={boardUrl}
         onSelectTab={onSelectTab}
         onRefresh={onRefresh}
         navigation={navigation}
@@ -551,6 +557,7 @@ function CommitteeBody({
               state={state}
               year={year}
               isBallot={isBallot}
+              boardUrl={boardUrl}
               otherYear={otherYear}
               isMobile={isMobile}
               onSelectYear={onSelectYear}
@@ -582,6 +589,7 @@ function PeriodStamp({
   state,
   year,
   isPartyUnit,
+  boardUrl,
   isHoldingStale,
   isMobile,
 }: {
@@ -589,6 +597,7 @@ function PeriodStamp({
   state: 'closed-empty' | 'empty-year' | 'figures';
   year: number;
   isPartyUnit: boolean;
+  boardUrl: string;
   isHoldingStale: boolean;
   isMobile: boolean;
 }) {
@@ -617,7 +626,7 @@ function PeriodStamp({
         line={line}
         detail={detail}
         notes={isHoldingStale ? [staleHoldNote(null)] : []}
-        showLink={state === 'figures' && through !== null}
+        boardRecordUrl={state === 'figures' && through !== null ? boardUrl : null}
         covered={covered}
         isMobile={isMobile}
       />
@@ -630,6 +639,7 @@ function MoneyInCard({
   state,
   year,
   isBallot,
+  boardUrl,
   otherYear,
   isMobile,
   onSelectYear,
@@ -639,6 +649,7 @@ function MoneyInCard({
   state: 'closed-empty' | 'empty-year' | 'figures';
   year: number;
   isBallot: boolean;
+  boardUrl: string;
   otherYear: number;
   isMobile: boolean;
   onSelectYear: (year: number) => void;
@@ -664,9 +675,9 @@ function MoneyInCard({
           {closed ? (
             <Text
               style={styles.source}
-              {...externalLinkProps(BOARD_VIEWER, () => void Linking.openURL(BOARD_VIEWER))}
+              {...externalLinkProps(boardUrl, () => void Linking.openURL(boardUrl))}
             >
-              Read the final report on the Board’s site
+              {BOARD_RECORD_LINK_LABEL}
             </Text>
           ) : null}
           <Pressable onPress={() => onSelectYear(otherYear)} accessibilityRole="button">
@@ -713,6 +724,7 @@ function PaymentsSection({
   tab: addressedTab,
   slug,
   registrationNumber,
+  boardUrl,
   onSelectTab,
   onRefresh,
   navigation,
@@ -725,6 +737,7 @@ function PaymentsSection({
   tab: CommitteeTab;
   slug: string;
   registrationNumber: string;
+  boardUrl: string;
   onSelectTab: (tab: CommitteeTab) => void;
   onRefresh: () => void;
   navigation: RootScreenProps<'CommitteeMoney'>['navigation'];
@@ -768,7 +781,7 @@ function PaymentsSection({
         {section === 'filings' ? (
           <>
             {children(false)}
-            <FilingsList registrationNumber={registrationNumber} />
+            <FilingsList registrationNumber={registrationNumber} boardUrl={boardUrl} />
           </>
         ) : section === 'by' ? (
           <>
@@ -1050,7 +1063,13 @@ function OutsideSpendingPanel({
  *   per-report link would be dead for most rows. One link under the list opens
  *   the Board's own viewer, where every report here can be pulled up.
  */
-function FilingsList({ registrationNumber }: { registrationNumber: string }) {
+function FilingsList({
+  registrationNumber,
+  boardUrl,
+}: {
+  registrationNumber: string;
+  boardUrl: string;
+}) {
   const query = useCommitteeFilingsList(registrationNumber);
   const pages = query.data?.pages ?? [];
   const firstPage = pages[0];
@@ -1139,9 +1158,9 @@ function FilingsList({ registrationNumber }: { registrationNumber: string }) {
       <Text style={styles.linkNote}>{FILINGS_PERIOD_NOTE}</Text>
       <Text
         style={[styles.source, styles.filingsSource]}
-        {...externalLinkProps(BOARD_VIEWER, () => void Linking.openURL(BOARD_VIEWER))}
+        {...externalLinkProps(boardUrl, () => void Linking.openURL(boardUrl))}
       >
-        This committee’s filed reports, on the state’s own site
+        {BOARD_RECORD_LINK_LABEL}
       </Text>
     </>
   );

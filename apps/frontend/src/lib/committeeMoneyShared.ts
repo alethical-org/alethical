@@ -220,6 +220,19 @@ export function coveredPeriodLine(
   return start ? `Figures for ${start} – ${day}` : `Figures through ${day}`;
 }
 
+/**
+ * The filing stamp's first sentence, in its 2 forms (design handoff of 13 Sep 2026,
+ * item 4). Neither interpolates a date, because the dated heading directly above the
+ * sentence already prints the dates and printing them twice in 2 lines is 1 fact
+ * charged for twice. The 2 differ in 1 clause only, and they are written out in full
+ * rather than assembled from parts so that a reader of this file sees each sentence
+ * whole and a test can pin it word for word.
+ */
+export const FILING_SOURCE_BOTH_DATES =
+  'The committee filed this report with the Minnesota Campaign Finance Board, which prints both dates.';
+export const FILING_SOURCE_ONE_DATE =
+  'The committee filed this report with the Minnesota Campaign Finance Board, which prints the date.';
+
 /** The stamp's detail sentence under a covered period. `checkedOn` is the day we
  *  copied the Board's files, already printed as a Minnesota (Central-time) day. */
 export function coveredPeriodDetail(
@@ -231,8 +244,8 @@ export function coveredPeriodDetail(
   const start = formatDay(options.reportedPeriodStart);
   const coverage = day
     ? start
-      ? `The committee’s own report to the state covers ${start} through ${day}. The end is read off the filing and the start off the Board’s own published filing calendar — nothing is assumed.`
-      : `The committee’s own report to the state covers through ${day}. The coverage end is read off the filing — no start is assumed.`
+      ? FILING_SOURCE_BOTH_DATES
+      : FILING_SOURCE_ONE_DATE
     : 'The dates on this page are read off the filings themselves.';
   const checked = checkedOn
     ? ` Checked against our copy of the Board’s files, taken ${checkedOn}.`
@@ -349,12 +362,6 @@ export function shownReceiptRows<T>(
 ): T[] {
   return (rows ?? []).filter((row) => kindOf(row) !== HIDDEN_RECEIPT_KIND);
 }
-
-/** The link to the Board's own viewer, where a reader looks the filing up by its
- *  registration number. Drawn once per page, in the filing stamp above both cards,
- *  never inside one: one filing produces both cards, so a link inside money in alone
- *  makes that card look like it owns the filing. */
-export const FILED_REPORTS_LINK_LABEL = 'This committee’s filed reports, on the state’s own site';
 
 /**
  * The source link at the foot of the money-in card, to the Board's downloads page.
