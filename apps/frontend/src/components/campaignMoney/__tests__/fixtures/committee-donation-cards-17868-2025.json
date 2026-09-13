@@ -1,0 +1,308 @@
+{
+  "registration_number": "17868",
+  "committee_name_as_reviewed": "Abeler, Jim Senate Committee",
+  "committee_name": "Abeler, Jim Senate Committee",
+  "office": "Senate",
+  "register_kind": "candidate_committee",
+  "checked": {
+    "checked_on": "2026-08-31",
+    "name_evidence": "exact",
+    "register_verdict": "same_seat",
+    "party_agreement": "agrees"
+  },
+  "refunds": {
+    "state": "reported",
+    "source_url": "https://cfb.mn.gov/citizen-resources/board-programs/public-subsidy-of-campaigns/historical-use-of-public-subsidy-program/",
+    "copied_on": "2026-09-12",
+    "years": [
+      {
+        "year": 2026,
+        "state": "not_published",
+        "contributions_refunded": null,
+        "amount_refunded": null,
+        "source_file_name": null,
+        "copied_on": null,
+        "joint_filing_counts_as_one": null
+      },
+      {
+        "year": 2025,
+        "state": "reported",
+        "contributions_refunded": 180,
+        "amount_refunded": "14216.47",
+        "source_file_name": "2025_refunds_cand.pdf",
+        "copied_on": "2026-09-12",
+        "joint_filing_counts_as_one": true
+      },
+      {
+        "year": 2024,
+        "state": "reported",
+        "contributions_refunded": null,
+        "amount_refunded": "10508.22",
+        "source_file_name": "2024_refunds_cand.pdf",
+        "copied_on": "2026-09-12",
+        "joint_filing_counts_as_one": true
+      },
+      {
+        "year": 2023,
+        "state": "reported",
+        "contributions_refunded": 71,
+        "amount_refunded": "5925.00",
+        "source_file_name": "2023_refunds_cand.pdf",
+        "copied_on": "2026-09-12",
+        "joint_filing_counts_as_one": true
+      },
+      {
+        "year": 2022,
+        "state": "reported",
+        "contributions_refunded": 49,
+        "amount_refunded": "3582.80",
+        "source_file_name": "2022_refunds_cand.pdf",
+        "copied_on": "2026-09-12",
+        "joint_filing_counts_as_one": true
+      },
+      {
+        "year": 2021,
+        "state": "reported",
+        "contributions_refunded": 54,
+        "amount_refunded": "4158.33",
+        "source_file_name": "2021_refunds_cand.pdf",
+        "copied_on": "2026-09-12",
+        "joint_filing_counts_as_one": true
+      },
+      {
+        "year": 2020,
+        "state": "reported",
+        "contributions_refunded": 70,
+        "amount_refunded": "4975.00",
+        "source_file_name": "2020_refunds_cand.pdf",
+        "copied_on": "2026-09-12",
+        "joint_filing_counts_as_one": true
+      },
+      {
+        "year": 2019,
+        "state": "reported",
+        "contributions_refunded": 89,
+        "amount_refunded": "6656.66",
+        "source_file_name": "2019_refunds_cand.pdf",
+        "copied_on": "2026-09-12",
+        "joint_filing_counts_as_one": true
+      },
+      {
+        "year": 2018,
+        "state": "reported",
+        "contributions_refunded": 41,
+        "amount_refunded": "3297.61",
+        "source_file_name": "2018_refunds_cand.pdf",
+        "copied_on": "2026-09-12",
+        "joint_filing_counts_as_one": true
+      },
+      {
+        "year": 2017,
+        "state": "reported",
+        "contributions_refunded": 34,
+        "amount_refunded": "2523.33",
+        "source_file_name": "2017_refunds_cand.pdf",
+        "copied_on": "2026-09-12",
+        "joint_filing_counts_as_one": true
+      },
+      {
+        "year": 2016,
+        "state": "not_published",
+        "contributions_refunded": null,
+        "amount_refunded": null,
+        "source_file_name": null,
+        "copied_on": null,
+        "joint_filing_counts_as_one": null
+      },
+      {
+        "year": 2015,
+        "state": "not_matched",
+        "contributions_refunded": null,
+        "amount_refunded": null,
+        "source_file_name": "2015_refunds_cand.pdf",
+        "copied_on": "2026-09-12",
+        "joint_filing_counts_as_one": true
+      }
+    ]
+  },
+  "stated_by_kind": {
+    "state": "reported",
+    "reported_through": "2025-12-31",
+    "lines": [
+      {
+        "line_key": "individuals_contributions",
+        "label_as_filed": "Individuals contributions",
+        "stated_total": "66203.7500",
+        "itemized_cash_total": "39950.0000",
+        "difference": "26253.7500"
+      },
+      {
+        "line_key": "lobbyist_contributions",
+        "label_as_filed": "Lobbyist contributions",
+        "stated_total": "4300.0000",
+        "itemized_cash_total": "1400.0000",
+        "difference": "2900.0000"
+      },
+      {
+        "line_key": "committee_fund_contributions",
+        "label_as_filed": "Committee/fund contributions",
+        "stated_total": "17300.0000",
+        "itemized_cash_total": "16050.0000",
+        "difference": "1250.0000"
+      },
+      {
+        "line_key": "party_unit_contributions",
+        "label_as_filed": "Party unit contributions",
+        "stated_total": "9900.0000",
+        "itemized_cash_total": "9700.0000",
+        "difference": "200.0000"
+      },
+      {
+        "line_key": "other_contributions",
+        "label_as_filed": "Other contributions",
+        "stated_total": "0.0000",
+        "itemized_cash_total": "0",
+        "difference": "0.0000"
+      }
+    ]
+  },
+  "donor_states": {
+    "state": "reported",
+    "year": 2025,
+    "rows": [
+      {
+        "names": 71,
+        "cash_total": "38700.0000",
+        "state": "MN"
+      },
+      {
+        "names": 3,
+        "cash_total": "1250.0000",
+        "state": "unknown"
+      }
+    ],
+    "summary": {
+      "minnesota": {
+        "names": 71,
+        "cash_total": "38700.0000"
+      },
+      "other_states": {
+        "names": 0,
+        "cash_total": "0"
+      },
+      "unknown": {
+        "names": 3,
+        "cash_total": "1250.0000"
+      }
+    },
+    "reference": {
+      "source_url": "https://www.huduser.gov/portal/datasets/usps_crosswalk.html",
+      "as_of": "2026-06-30",
+      "copied_at": "2026-09-13T12:19:46.695703+00:00",
+      "content_hash": "1175d0496ea66ec6a571ce47adb63502ef8485b20e8f1ded635ea0ff351f5627"
+    }
+  },
+  "name_connections": {
+    "state": "reported",
+    "year": 2025,
+    "matching": "exact_printed_name",
+    "numerator": 19,
+    "denominator": 74,
+    "distribution": [
+      {
+        "other_committees": "0",
+        "names": 55
+      },
+      {
+        "other_committees": "1",
+        "names": 11
+      },
+      {
+        "other_committees": "2",
+        "names": 5
+      },
+      {
+        "other_committees": "3",
+        "names": 1
+      },
+      {
+        "other_committees": "4+",
+        "names": 2
+      }
+    ],
+    "top_names": [
+      {
+        "name": "Kratsch, Charles",
+        "other_committees": 11
+      },
+      {
+        "name": "Lindau, Philip",
+        "other_committees": 6
+      },
+      {
+        "name": "Nystrom, Brian",
+        "other_committees": 3
+      },
+      {
+        "name": "Cullen, Mark",
+        "other_committees": 2
+      },
+      {
+        "name": "Haselow, RE",
+        "other_committees": 2
+      }
+    ]
+  },
+  "money_in": {
+    "state": "reported",
+    "itemized_contribution_total": "67100.0000",
+    "itemized_contribution_payments": 134,
+    "other_receipts": [],
+    "reported_period_start": "2025-01-01",
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-2113865252"
+  },
+  "money_out": {
+    "state": "reported",
+    "itemized_payment_total": "31861.3200",
+    "itemized_payments": 30,
+    "in_kind_total": "0",
+    "reported_total": "33006.2900",
+    "reported_through": "2025-12-31",
+    "stated_spending_state": "agrees",
+    "by_type": [
+      {
+        "type": "Campaign Expenditure",
+        "total": "11942.5000",
+        "payments": 19
+      },
+      {
+        "type": "Non-Campaign Disbursement",
+        "total": "19918.8200",
+        "payments": 11
+      }
+    ],
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-1890073264"
+  },
+  "split": {
+    "state": "shown",
+    "reported_total": "97703.7500",
+    "reported_through": "2025-12-31",
+    "named_total": "67100.0000",
+    "named_payments": 134,
+    "named_cash_total": "67100.0000",
+    "named_in_kind_total": "0.0000",
+    "unnamed_total": "30603.7500",
+    "stated_split_state": "agrees",
+    "first_payment_on": "2025-01-07",
+    "last_payment_on": "2025-12-31"
+  },
+  "filing_schedule": {
+    "state": "not_on_the_ballot",
+    "next_report_name": null,
+    "next_report_due_on": null,
+    "period_start": null,
+    "period_end": null,
+    "condition": null,
+    "terminated_on": null
+  }
+}

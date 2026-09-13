@@ -63,3 +63,125 @@ export function inKindDonationsNote(amount: string): string {
     'counts separately.'
   );
 }
+
+/** Fixed words for the 3 selected-year cards. This module is never a startup import. */
+export const donationCardsCopy = {
+  headings: [
+    'What the committee’s own report says',
+    'Where itemized individual donations came from',
+    'Names that also gave to other candidates',
+  ],
+  introduction:
+    'The five contribution lines the committee wrote on its own report, each beside what the state’s itemized list adds up to',
+  columns: ['Reported in the filing', 'Itemized in the state’s list', 'Difference'],
+  total: 'All five added up',
+  differenceBefore:
+    'The difference is money the filing reports without a giver’s name attached. Added up it is the ',
+  differenceTerm: 'Non-itemized',
+  differenceAfter: ' contributions figure',
+  chartName: 'Who gave',
+  closingAfter: ' counts under Committees & Funds instead',
+  closingBefore: (amount: string, payments: number) =>
+    payments === 1
+      ? `${amount} of this line is 1 payment from a closing candidate committee passing on its balance, which `
+      : `${amount} of this line is ${payments.toLocaleString('en-US')} payments from closing candidate committees passing on their balances, which `,
+  places: ['Minnesota', 'Other states', 'Unknown'],
+  contributionLine: 'Contribution line',
+  state: 'State',
+  names: 'Names',
+  amount: 'Amount',
+  locationNotes: [
+    'Counts individual donors only',
+    'Unknown means the state’s file carries no usable postcode for that donation. It never means the money came from outside Minnesota',
+  ],
+  caveat:
+    'Matched on the exact spelling in the state’s file. The same spelling is not proof of the same person, and 2 spellings of one person stay separate',
+  connectionsHeadline: (matched: number, names: number) =>
+    `${matched.toLocaleString('en-US')} of ${names.toLocaleString('en-US')} names`,
+  distributionHeading: 'How many other candidates',
+  highestHeading: 'The five highest',
+  otherCandidates: 'Other candidates',
+  buckets: ['no other candidate', 'one', 'two', 'three', 'four or more'],
+  held: [
+    (year: number) =>
+      `This card needs a filed report for ${year} and our own figures checked against it. We do not yet have both, so no figures are drawn here.`,
+    (year: number) =>
+      `We draw this only from a year whose donations we have checked against a filed report. ${year} is not yet one of them, so there is nothing here.`,
+    (year: number) =>
+      `No names are matched for ${year}. We match only from a year whose donations we have checked against a filed report, and that is not yet the case here.`,
+  ],
+  emptyLocations: (year: number) =>
+    `The state’s list names no individual donations for this committee in ${year}.`,
+  emptyConnections: (year: number) =>
+    `With no itemized individual donations in ${year}, there is no name to match against other candidates.`,
+  failed: [
+    'We couldn’t load this comparison right now.',
+    'We couldn’t load where these donations came from right now.',
+    'We couldn’t load these matches right now.',
+  ],
+  retry: 'Please try again in a moment.',
+  loading: 'Loading',
+};
+
+// Only a 2-letter state value reaches this formatter; never an address or postcode.
+export const donorStateNames: Record<string, string> = {
+  AL: 'Alabama',
+  AK: 'Alaska',
+  AZ: 'Arizona',
+  AR: 'Arkansas',
+  CA: 'California',
+  CO: 'Colorado',
+  CT: 'Connecticut',
+  DE: 'Delaware',
+  DC: 'District of Columbia',
+  FL: 'Florida',
+  GA: 'Georgia',
+  HI: 'Hawaii',
+  ID: 'Idaho',
+  IL: 'Illinois',
+  IN: 'Indiana',
+  IA: 'Iowa',
+  KS: 'Kansas',
+  KY: 'Kentucky',
+  LA: 'Louisiana',
+  ME: 'Maine',
+  MD: 'Maryland',
+  MA: 'Massachusetts',
+  MI: 'Michigan',
+  MN: 'Minnesota',
+  MS: 'Mississippi',
+  MO: 'Missouri',
+  MT: 'Montana',
+  NE: 'Nebraska',
+  NV: 'Nevada',
+  NH: 'New Hampshire',
+  NJ: 'New Jersey',
+  NM: 'New Mexico',
+  NY: 'New York',
+  NC: 'North Carolina',
+  ND: 'North Dakota',
+  OH: 'Ohio',
+  OK: 'Oklahoma',
+  OR: 'Oregon',
+  PA: 'Pennsylvania',
+  RI: 'Rhode Island',
+  SC: 'South Carolina',
+  SD: 'South Dakota',
+  TN: 'Tennessee',
+  TX: 'Texas',
+  UT: 'Utah',
+  VT: 'Vermont',
+  VA: 'Virginia',
+  WA: 'Washington',
+  WV: 'West Virginia',
+  WI: 'Wisconsin',
+  WY: 'Wyoming',
+  AS: 'American Samoa',
+  GU: 'Guam',
+  MP: 'Northern Mariana Islands',
+  PR: 'Puerto Rico',
+  VI: 'U.S. Virgin Islands',
+  AA: 'Armed Forces Americas',
+  AE: 'Armed Forces Europe',
+  AP: 'Armed Forces Pacific',
+};

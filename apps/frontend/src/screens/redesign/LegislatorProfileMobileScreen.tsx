@@ -59,6 +59,7 @@ import {
   publicPageUrl,
 } from '../../lib/share';
 import { useDocumentTitle } from '../../navigation/documentTitle';
+import { useResponsive } from '../../hooks/useResponsive';
 
 const isWeb = Platform.OS === 'web';
 const COLUMN_MAX = 640;
@@ -365,6 +366,7 @@ function AskCard({ chips, onAsk }: { chips: string[]; onAsk: (q: string) => void
 
 // ── mobile screen ─────────────────────────────────────────────────────────────
 export function LegislatorProfileMobileScreen() {
+  const { isTablet } = useResponsive();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { isTracked, toggleTrack } = useBillTracking();
@@ -586,7 +588,7 @@ export function LegislatorProfileMobileScreen() {
 
               {activeTab === 'money' ? (
                 <View style={styles.section}>
-                  <View style={styles.column}>
+                  <View style={[styles.column, isTablet && styles.moneyTabletColumn]}>
                     <CampaignMoneyTab
                       legislatorName={legislatorDisplayName(leg.name, leg.chamber)}
                       year={moneyYear}
@@ -969,6 +971,8 @@ const styles = StyleSheet.create({
   // of background below it.
   scrollContent: { flexGrow: 1 },
   column: { width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center', paddingHorizontal: 20 },
+  // The money tables need the accepted tablet gutter, not the overview's narrow column.
+  moneyTabletColumn: { maxWidth: '100%', paddingHorizontal: 32 },
   // skeleton loading state (mirrors hero + first card)
   skGap8: { marginTop: 8 },
   skGap16: { marginTop: 16 },

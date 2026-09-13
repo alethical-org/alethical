@@ -1265,3 +1265,21 @@ not before, and a person decides every such link rather than software proposing 
   that name so the search can be shared; it is not stored against a reader. Searching
   within a legislator profile's already-loaded payment tab stays in the browser and
   does not change the address.
+
+
+### Selected-year donation cards on a committee record
+
+The Campaign money section at `/money/committees/<slug>` uses the same 3 cards as
+the legislator tab: **What the committee’s own report says**, **Where itemized
+individual donations came from**, and **Names that also gave to other candidates**.
+They follow that committee's own chart and payment list and precede outside
+spending. The selected year and that committee's checked source blocks govern the
+figures. The location card is absent on funds and party organisations. No legislator
+confirmation is needed to read a committee's own money. Track, Share, year choices
+and Filings keep their existing behaviour.
+
+The full card descriptions, source limits and empty/loading states are in the
+[legislator campaign-money guide](legislator-campaign-money-guide.md#the-3-selected-year-donation-cards).
+
+Docs check: [Issue 2205](https://github.com/alethical-org/alethical/issues/2205) adds
+the shared donation cards without adding a server route or changing a money source.

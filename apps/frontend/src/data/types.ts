@@ -594,6 +594,50 @@ export interface CommitteeRefunds {
   }[];
 }
 
+export interface CommitteeStatedByKind {
+  state: string;
+  reported_through: string;
+  lines: {
+    line_key: string;
+    label_as_filed: string;
+    stated_total: string;
+    itemized_cash_total: string;
+    difference: string;
+  }[];
+}
+
+interface CommitteeDonorStateAmounts {
+  names: number;
+  cash_total: string;
+}
+
+export interface CommitteeDonorStates {
+  state: string;
+  year: number;
+  rows: (CommitteeDonorStateAmounts & { state: string })[];
+  summary: {
+    minnesota: CommitteeDonorStateAmounts;
+    other_states: CommitteeDonorStateAmounts;
+    unknown: CommitteeDonorStateAmounts;
+  };
+  reference: {
+    source_url: string;
+    as_of: string;
+    copied_at: string;
+    content_hash: string;
+  };
+}
+
+export interface CommitteeNameConnections {
+  state: string;
+  year: number;
+  matching: string;
+  numerator: number | null;
+  denominator: number | null;
+  distribution: { other_committees: string; names: number }[];
+  top_names: { name: string; other_committees: number }[];
+}
+
 /**
  * One committee's campaign money for one year, as
  * `GET /api/v1/legislators/{id}/campaign-finance` reports it (#1329).
@@ -627,6 +671,9 @@ export interface CampaignCommitteeMoney {
   /** All held refund years, unaffected by the selected campaign-money year.
    * Omitted only by older cached responses. */
   refunds?: CommitteeRefunds;
+  statedByKind?: CommitteeStatedByKind | null;
+  donorStates?: CommitteeDonorStates | null;
+  nameConnections?: CommitteeNameConnections | null;
   moneyIn: {
     state: MoneyBlockState;
     itemizedContributionTotal: string | null;
@@ -888,6 +935,9 @@ export interface CommitteeConfirmation {
 
 export interface CommitteeMoney {
   releaseId?: string;
+  statedByKind?: CommitteeStatedByKind | null;
+  donorStates?: CommitteeDonorStates | null;
+  nameConnections?: CommitteeNameConnections | null;
   /** Spending ABOUT this registration, independent of confirmed ownership. */
   independentSpendingSource?: {
     state: string;
