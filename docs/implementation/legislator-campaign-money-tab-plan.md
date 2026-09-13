@@ -8,9 +8,10 @@ historical totals and payments grouped by name, each with a pull request and liv
 
 ## Remaining-work boundaries
 
-Eugene resumed this task's remaining non-lobbying work on 13 September 2026.
-The pause on both lobbying jobs remains in force. Completion of a screen change
-does not complete either held source replacement.
+Eugene's active order is this documentation release, then the 3 donation cards in
+[issue 2205](https://github.com/alethical-org/alethical/issues/2205), then lobbying
+data and lobbying pages. Completion of a screen change does not complete either
+held source replacement.
 
 - The names redesign in [pull request 2189](https://github.com/alethical-org/alethical/pull/2189)
   and the itemized-history wording in [pull request 2196](https://github.com/alethical-org/alethical/pull/2196)
@@ -18,9 +19,10 @@ does not complete either held source replacement.
   and [history release report](https://github.com/alethical-org/alethical/issues/2191#issuecomment-5654830093)
   record required checks and phone, tablet and computer behavior. Their completed
   worktrees and branches are removed.
-- Jobs 5a, 5b and 5c are released server additions. Displays for the filing's
-  contributor lines, donor states and shared printed names still require their
-  separately accepted Design briefs; the server releases do not authorize those displays.
+- Jobs 5a, 5b and 5c are released server additions. Their 3 displays are now
+  authorized by [issue 2205](https://github.com/alethical-org/alethical/issues/2205)
+  and the accepted `Alethical UX (17).zip`. Build them after this documentation
+  release merges, from a fresh branch based on current `origin/main`.
 - [Issue 2142](https://github.com/alethical-org/alethical/issues/2142) and
   [issue 2150](https://github.com/alethical-org/alethical/issues/2150) remain held at
   Action 4 Liberty PAC's missing 2026 record. All 3 authorized retries are exhausted.
@@ -46,12 +48,12 @@ does not complete either held source replacement.
   The accepted list, outside-spending and phone-text corrections in
   [issue 2199](https://github.com/alethical-org/alethical/issues/2199) are live in
   [pull request 2203](https://github.com/alethical-org/alethical/pull/2203).
-- [Lobbying data](https://github.com/alethical-org/alethical/issues/2163) and
-  [lobbying pages](https://github.com/alethical-org/alethical/issues/2164) stay paused
-  until Eugene resumes them. Remind him after each completed build; do not create
-  a scheduled continuation or resume either job from this checkpoint.
+- [Lobbying data](https://github.com/alethical-org/alethical/issues/2163) follows
+  the live donation cards, then [lobbying pages](https://github.com/alethical-org/alethical/issues/2164)
+  follows the live data. Eugene authorized finishing both after the other work;
+  the accepted 5e/5f briefs below still define their scope. No scheduled paid run.
 
-## 13 September final non-lobbying release
+## 13 September source-date, calendar and layout release
 
 The final combined code is
 [commit 76ea5041](https://github.com/alethical-org/alethical/commit/76ea5041386e02fce68d2a8edd97e45e32ef927d).
@@ -78,8 +80,8 @@ invent future dates. The full calendar source record is in
 Every sampled response retains financial release
 `af236cca-a4f8-4efe-9a3a-025259ea380e`. Abeler's 2025 money-in, money-out, split,
 refunds and 3 existing data-only additions compare unchanged before and after.
-Both held source replacements and all 3 undrawn displays remain outside this
-completed code release. Lobbying remains paused.
+Both held source replacements, the 3 donation cards and lobbying remain outside
+this completed code release. The active order above governs the remaining builds.
 
 A fresh live reader passed 375, 900 and 1440 widths, keyboard category selection,
 name search, expansion/collapse, the 2025 show-more control from 10 to 74 names,
@@ -263,7 +265,7 @@ mixed-release source-link gap cleared after the API deployed and the canonical
   with every pull request, live result, held portion and finding for the architecture owner.
 - [x] Leave [campaign-finance-system-design.md](../architecture/campaign-finance-system-design.md)
   unchanged in this task; its owner receives findings through issue 2140.
-- [x] After the approved non-lobbying changes are live, provide
+- [ ] After the donation cards and lobbying are live, update and provide
   [campaign-money-final-review-prompt.md](campaign-money-final-review-prompt.md)
   for Claude to review the decisions, implementation, checks and remaining limits.
 

@@ -1,6 +1,6 @@
 # Campaign money final review prompt
 
-Net: Review the completed non-lobbying release and its explicit holds.
+Net: Review the completed source-date, calendar and layout release, with the donation cards and lobbying queued separately.
 
 ## Prompt
 
@@ -43,10 +43,10 @@ A fresh live reader passed 375/900/1440 layouts, keyboard tabs, name search, exp
 Public API reads covered all 12 Abeler year selections and 3 Gottfried selections. They retain financial release af236cca-a4f8-4efe-9a3a-025259ea380e. Abeler's 2025 money-in, money-out, split, refunds and 3 data-only blocks are unchanged before/after. Calendar and date deployment replaced no financial data.
 
 Remaining work and boundaries:
-- The 3 displays for the filing's 5 contributor lines, donor states and shared printed names still need accepted Design briefs. Their server data is live; no existing drawing covers those displays. Do not build them.
+- The 3 displays for the filing's 5 contributor lines, donor states and shared printed names are authorized under https://github.com/alethical-org/alethical/issues/2205 using Alethical UX (17).zip. They start after this documentation release merges. Their server data is live. They are not part of the completed release described here.
 - Historical official totals remain stopped on https://github.com/alethical-org/alethical/issues/2142 and https://github.com/alethical-org/alethical/issues/2150. Preserve the published record and the complete saved replacement. All 3 authorized Action 4 Liberty PAC retries are exhausted. A later termination report covers a different period and cannot replace the earlier record. Reading complete financial-summary documents, including balances and coverage end, is new ingestion work requiring Eugene's explicit go.
 - The payment replacement remains stopped on https://github.com/alethical-org/alethical/issues/2171. Its 2024 section loses 905 rows and $874,589.24. The read-only follow-up screened the 38 net-loss counts and examined 4 reports in depth; it is not a complete reconciliation. The findings and parser correction are here: https://github.com/alethical-org/alethical/issues/2171#issuecomment-5655320945 . No finding waives the preservation check.
-- Lobbying data https://github.com/alethical-org/alethical/issues/2163 and pages https://github.com/alethical-org/alethical/issues/2164 remain paused. Remind Eugene after each completed build; do not schedule a paid reminder or resume them.
+- Lobbying data https://github.com/alethical-org/alethical/issues/2163 follows the live donation cards, then pages https://github.com/alethical-org/alethical/issues/2164 follows the live data. Eugene authorized finishing that sequence. This review grants no additional build or data-replacement permission and schedules no paid run.
 
 No edits to docs/architecture/campaign-finance-system-design.md. Put any proposed architecture correction on the relevant issue for its owner. Prose and layout changes are easy to reverse; replacing source data is consequential and still held.
 
