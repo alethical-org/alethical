@@ -1,6 +1,6 @@
 # How sharing works
 
-<!-- describes: apps/frontend/src/lib/share.ts, apps/frontend/src/lib/pageSnapshot.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/lib/legislatorProfile.ts, apps/frontend/src/components/billDetail/SharePopover.tsx, apps/frontend/src/components/share/MobileShareSheet.tsx, apps/frontend/src/screens/redesign/BillDetailScreen.tsx, apps/frontend/src/screens/redesign/BillDetailWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/navigation/documentTitle.ts, apps/frontend/public/index.html, apps/frontend/public/robots.txt, apps/frontend/scripts/generate-brand-assets.mjs, api/page.ts, api/sitemap.ts, vercel.json -->
+<!-- describes: apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/lib/committeeMoneyPreferences.ts, apps/frontend/src/lib/share.ts, apps/frontend/src/lib/pageSnapshot.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/lib/legislatorProfile.ts, apps/frontend/src/components/billDetail/SharePopover.tsx, apps/frontend/src/components/share/MobileShareSheet.tsx, apps/frontend/src/screens/redesign/BillDetailScreen.tsx, apps/frontend/src/screens/redesign/BillDetailWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/navigation/documentTitle.ts, apps/frontend/public/index.html, apps/frontend/public/robots.txt, apps/frontend/scripts/generate-brand-assets.mjs, api/page.ts, api/sitemap.ts, vercel.json -->
 
 Share sends the page a reader chose, with enough plain-language context for another person to know why the link matters. Copy link remains the dependable choice when another app cannot accept prepared text.
 
@@ -11,6 +11,7 @@ Share sends the page a reader chose, with enough plain-language context for anot
 | Bill       | Bill code, session year, and the short plain-language title | The first sentence of the plain-language summary                                           | The bill profile, without a selected tab                                                                             |
 | Legislator | Name, plus chamber and district when serving now            | A fixed sentence naming committees, chief-authored bills, and contact information          | The readable legislator profile address                                                                              |
 | Ask answer | The reader's question                                       | A fixed sentence saying the answer is cited and links to the official record               | The public Ask address, keeping only the question, bill, legislator, and saved-suggestion fields needed to rebuild it |
+| Committee money | The committee's filed name and campaign money | A fixed sentence identifying the committee's record and Minnesota's filings | The committee address, keeping the selected year and section plus the nondefault donor category and sort |
 
 A bill's title reads `HF 719 (2025): Statewide Capital Projects and Bonding Bill`. The year is there
 because bill numbers repeat every two years, so the number alone never identifies one bill for good.
@@ -39,9 +40,11 @@ section is added to or removed from the profile, this sentence changes with it**
 otherwise we advertise a capability we do not ship
 (`.claude/rules/grounded-answers.md` rule 6).
 
-The title, description, and link shown in the Share panel are the same source values used for every
-destination, for the browser tab, and for what a search engine reads. One file
-(`apps/frontend/src/lib/share.ts`) generates all of them, so the three cannot say different things.
+The Share panel uses the same prepared title, description, and link for each destination.
+The bill, legislator and Ask share text comes from `apps/frontend/src/lib/share.ts`.
+The committee screen supplies its record-specific share text and selected address
+(`apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx`). Browser-tab titles
+and search previews use the page's metadata, drawn from the same record fields.
 
 ## What each destination receives
 
@@ -137,7 +140,12 @@ person here has confirmed the link, that member's name and an ordinary link to t
 the official spending total when held or the sentence saying Alethical does not hold it, and the
 day we copied the files. Its money-in figures keep their source and split explanations. The first
 response links to the selected year's full received and outgoing lists, the year choices and
-Filings. The donor chart and grouped tabs appear after their complete selected-year records load.
+Filings. Those Year and Filings links keep the selected donor category and sort.
+The donor chart and grouped tabs appear after their complete selected-year records load.
+The shared committee address restores the same donor category and sort when the app starts;
+those choices do not change the financial facts in the first response. Individuals and
+Largest first are the defaults and need no address fields. An explicit category takes
+precedence over an older `tab=spent` address.
 **Its payments page** arrives with the same identity and period plus
 the first 50 named payments, each with its own date and amount. Every one of those figures goes
 through the same functions the screen uses, so a missing itemized figure reads "Not reported" and a filed zero

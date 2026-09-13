@@ -1450,6 +1450,46 @@ describe('a committee’s record in the first response', () => {
     expect(hrefs).toContain('/money/committees');
   });
 
+  it('keeps donor choices on served committee section and year links, but not standalone payment links', () => {
+    const chosen = committeePageSnapshot({ ...committeeFixture, year: 2025 }, '41326', {
+      tab: 'filings',
+      category: 'committees',
+      sort: 'smallest',
+    });
+    const links = chosen.links.filter(
+      (link) =>
+        ['Campaign money', 'Filings'].includes(link.label) || link.label.startsWith('Year '),
+    );
+    for (const link of links) {
+      const query = new URL(link.href, 'https://example.test').searchParams;
+      expect(query.get('category')).toBe('committees');
+      expect(query.get('sort')).toBe('smallest');
+      if (link.label !== 'Campaign money') expect(query.get('tab')).toBe('filings');
+    }
+    expect(
+      chosen.links.filter((link) => link.href.includes('/payments?')).map((link) => link.href),
+    ).toEqual([
+      '/money/committees/jane-fonda-climate-pac-41326/payments?tab=gave&year=2025',
+      '/money/committees/jane-fonda-climate-pac-41326/payments?tab=spent&year=2025',
+    ]);
+  });
+
+  it('materializes legacy Expenditures on served section links and respects explicit Individuals', () => {
+    const legacy = committeePageSnapshot(committeeFixture, '41326', { tab: 'spent' });
+    expect(legacy.links.find((link) => link.label === 'Filings')?.href).toContain(
+      'category=expenditures',
+    );
+    const explicit = committeePageSnapshot(committeeFixture, '41326', {
+      tab: 'spent',
+      category: 'individuals',
+    });
+    expect(explicit.links.find((link) => link.label === 'Filings')?.href).not.toContain(
+      'category=',
+    );
+    const year = explicit.links.find((link) => link.label.startsWith('Year '))!;
+    expect(year.href).toContain('tab=gave');
+  });
+
   it('keeps the chosen year on section and full-list links with only the committee year choices', () => {
     const older = committeePageSnapshot({ ...committeeFixture, year: 2025 }, '41326');
     expect(

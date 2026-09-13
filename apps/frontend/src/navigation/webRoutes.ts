@@ -23,7 +23,14 @@ type WebRouteTarget =
   | { kind: 'read' }
   | { kind: 'research'; slug: string }
   | { kind: 'guide'; slug: string }
-  | { kind: 'moneyCommittee'; slug: string; tab?: string; year?: string }
+  | {
+      kind: 'moneyCommittee';
+      slug: string;
+      tab?: string;
+      year?: string;
+      category?: string;
+      sort?: string;
+    }
   | { kind: 'moneyCommitteePayments'; slug: string; tab?: string; year?: string }
   | { kind: 'moneyCommitteeList'; params: Record<string, string> }
   | { kind: 'moneyByRace'; params: Record<string, string> }
@@ -389,7 +396,12 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
       year: searchParams.get('year') ?? undefined,
     };
     if (segments.length === 3) {
-      return { kind: 'moneyCommittee', ...params };
+      return {
+        kind: 'moneyCommittee',
+        ...params,
+        category: searchParams.get('category') ?? undefined,
+        sort: searchParams.get('sort') ?? undefined,
+      };
     }
     if (segments.length === 4 && segments[3] === 'payments') {
       return { kind: 'moneyCommitteePayments', ...params };
@@ -634,6 +646,12 @@ export function pathForRoute(activeRoute: {
       if (activeRoute.params?.year) {
         params.set('year', String(activeRoute.params.year));
       }
+      if (activeRoute.name === 'CommitteeMoney') {
+        const { category, sort, tab } = activeRoute.params ?? {};
+        if (category && (category !== 'individuals' || tab === 'spent'))
+          params.set('category', String(category));
+        if (sort && sort !== 'largest') params.set('sort', String(sort));
+      }
       const query = params.toString();
       return query ? `${path}?${query}` : path;
     }
@@ -788,27 +806,19 @@ export function stateFromPathname(pathname: string): WebNavigationState {
         index: 1,
       };
     case 'moneyCommittee':
+    case 'moneyCommitteePayments': {
+      const { kind, ...params } = target;
       return {
         routes: [
           homeTabs,
           {
-            name: 'CommitteeMoney',
-            params: { slug: target.slug, tab: target.tab, year: target.year },
+            name: kind === 'moneyCommittee' ? 'CommitteeMoney' : 'CommitteePayments',
+            params,
           },
         ],
         index: 1,
       };
-    case 'moneyCommitteePayments':
-      return {
-        routes: [
-          homeTabs,
-          {
-            name: 'CommitteePayments',
-            params: { slug: target.slug, tab: target.tab, year: target.year },
-          },
-        ],
-        index: 1,
-      };
+    }
     case 'moneyCommitteeList':
       return {
         routes: [homeTabs, { name: 'CommitteeList', params: target.params }],

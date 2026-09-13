@@ -61,9 +61,15 @@ vi.mock('../../../data/api', async (original) => ({
   publicApiRequest: vi.fn(),
 }));
 vi.mock('../../../components/campaignMoney/TrackCommitteeButton', () => ({
-  TrackCommitteeButton: () => null,
+  TrackCommitteeButton: ({ beside }: { beside: ReactNode }) => beside,
 }));
-vi.mock('../../../components/billDetail/SharePopover', () => ({ SharePopover: () => null }));
+vi.mock('../../../components/billDetail/SharePopover', () => ({
+  SharePopover: ({ content }: { content: { url: string } }) => (
+    <a data-testid="share-url" href={content.url}>
+      Share
+    </a>
+  ),
+}));
 vi.mock('../../../theme/primitives', () => ({
   Container: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   PageBackground: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -89,13 +95,16 @@ import {
   MONEY_OUT_ZERO_NOTE,
 } from '../../../lib/committeeMoney';
 import { splitExplanation } from '../../../lib/legislatorCampaignMoney';
-import type { RootScreenProps } from '../../../navigation/types';
+import type { RootScreenProps, RootStackParamList } from '../../../navigation/types';
 import type { CommitteeOutsideSpendingRow } from '../../../data/types';
 import {
+  consumeWebHistoryReplaceMark,
   initializeWebHistory,
+  replaceWebHistoryPath,
   pushWebHistory,
   readCurrentScrollPosition,
 } from '../../../navigation/webHistory';
+import { pathForRoute, stateFromPathname } from '../../../navigation/webRoutes';
 // Public API envelopes copied 12 September 2026. These are complete pages, with
 // their source, release, download date and original row counts retained.
 import candidateFinance from './fixtures/committee-money/19193-finance-2025.json';
@@ -110,25 +119,38 @@ let host: HTMLDivElement;
 let root: ReturnType<typeof createRoot>;
 let client: QueryClient;
 let payload: ApiCommitteeMoneyPayload;
-let params: { slug: string; year: string; tab?: string };
+let params: RootStackParamList['CommitteeMoney'];
+const setParams = vi.fn((next: Partial<typeof params>) => {
+  params = { ...params, ...next };
+  root.render(screen());
+  // RootNavigator writes address changes after rendering the route. Its replace
+  // marker must retain this visit's history identity and saved scroll position.
+  const path = pathForRoute({ name: 'CommitteeMoney', params });
+  if (path !== window.location.pathname + window.location.search) {
+    if (consumeWebHistoryReplaceMark()) replaceWebHistoryPath(path);
+    else pushWebHistory(path);
+  }
+});
+const navigation = { navigate, push: vi.fn(), setParams };
+function screen() {
+  return (
+    <QueryClientProvider client={client}>
+      <CommitteeMoneyScreen
+        {...({ route: { params }, navigation } as unknown as RootScreenProps<'CommitteeMoney'>)}
+      />
+    </QueryClientProvider>
+  );
+}
+function paramsFromAddress(path: string) {
+  return stateFromPathname(path).routes.at(-1)!.params as typeof params;
+}
 const request = vi.mocked(publicApiRequest);
 const rows = {
   '19193': { received: candidateReceived, made: candidateMade },
   '20003': { received: partyReceived, made: partyMade },
 };
 async function render() {
-  await act(async () =>
-    root.render(
-      <QueryClientProvider client={client}>
-        <CommitteeMoneyScreen
-          {...({
-            route: { params },
-            navigation: { navigate: vi.fn(), push: vi.fn(), setParams: vi.fn() },
-          } as unknown as RootScreenProps<'CommitteeMoney'>)}
-        />
-      </QueryClientProvider>,
-    ),
-  );
+  await act(async () => root.render(screen()));
   // The first dynamic payment-reader import can outlast a fixed sleep on CI.
   // Wait for the actual read and its rendered result, including every page.
   await vi.waitFor(async () => {
@@ -164,6 +186,8 @@ beforeEach(() => {
   state.by = false;
   state.byRows = [];
   navigate.mockClear();
+  setParams.mockClear();
+  consumeWebHistoryReplaceMark();
   shape();
   request.mockReset();
   request.mockImplementation(async (path) => {
@@ -192,7 +216,7 @@ afterEach(() => {
 });
 
 describe('one committee shares the donation browser', () => {
-  it('opens another committee at its title and restores the prior committee’s position on Back', async () => {
+  it('restores the prior committee’s donor kind, sort and position on Back', async () => {
     const frames = new Map<number, FrameRequestCallback>();
     let frameId = 0;
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
@@ -206,17 +230,26 @@ describe('one committee shares the donation browser', () => {
         frames.clear();
         pending.forEach((frame) => frame(0));
       });
-    const sourcePath = `/money/committees/${params.slug}?year=2025`;
-    window.history.replaceState({}, '', sourcePath);
+    window.history.replaceState({}, '', `/money/committees/${params.slug}?year=2025`);
     initializeWebHistory();
     await render();
     flushFrames();
+    const initialEntry = window.history.state;
     const sourceScroll = host.querySelector<HTMLElement>('[data-testid="committee-money-scroll"]')!;
     act(() => {
       sourceScroll.scrollTop = 640;
       sourceScroll.dispatchEvent(new Event('scroll'));
     });
     await vi.waitFor(() => expect(readCurrentScrollPosition()).toBe(640));
+    // No scroll event follows the control choices. Replacing the address must
+    // preserve the entry that already holds 640, rather than create an empty one.
+    click(tab('Committees & Funds'));
+    click(host.querySelector('[aria-label^="Sort names, currently"]'));
+    click(host.querySelector('[aria-label="Smallest first"]'));
+    expect(window.history.state).toEqual(initialEntry);
+    expect(readCurrentScrollPosition()).toBe(640);
+    const sourcePath = window.location.pathname + window.location.search;
+    expect(sourcePath).toContain('category=committees&sort=smallest');
     const sourceEntry = window.history.state;
 
     const spenderLink = [...host.querySelectorAll('a')].find(
@@ -248,19 +281,115 @@ describe('one committee shares the donation browser', () => {
       targetScroll.scrollTop = 420;
     });
     click(tab('Expenditures'));
+    click(host.querySelector('[aria-label^="Sort names, currently"]'));
+    click(host.querySelector('[aria-label="Name A to Z"]'));
     flushFrames();
     expect(targetScroll.scrollTop).toBe(420);
     expect(tab('Expenditures')?.getAttribute('aria-selected')).toBe('true');
 
     window.history.replaceState(sourceEntry, '', sourcePath);
     payload = structuredClone(candidateFinance.data) as ApiCommitteeMoneyPayload;
-    params = { slug: 'gottfried-david-house-committee-19193', year: '2025' };
+    params = paramsFromAddress(sourcePath);
     shape();
     await render();
     flushFrames();
     expect(
       host.querySelector<HTMLElement>('[data-testid="committee-money-scroll"]')?.scrollTop,
     ).toBe(640);
+    expect(tab('Committees & Funds')?.getAttribute('aria-selected')).toBe('true');
+    expect(
+      host.querySelector('[aria-label^="Sort names, currently"]')?.getAttribute('aria-label'),
+    ).toContain('Smallest first');
+  });
+
+  it('opens a shared donor view on reload and starts an unrelated committee with defaults', async () => {
+    const shared = `/money/committees/${params.slug}?year=2025&category=committees&sort=smallest`;
+    window.history.replaceState({}, '', shared);
+    initializeWebHistory();
+    params = paramsFromAddress(shared);
+    await render();
+    expect(tab('Committees & Funds')?.getAttribute('aria-selected')).toBe('true');
+    expect(
+      host.querySelector('[aria-label^="Sort names, currently"]')?.getAttribute('aria-label'),
+    ).toContain('Smallest first');
+    const share = new URL(host.querySelector('[data-testid="share-url"]')!.getAttribute('href')!);
+    expect(share.searchParams.get('category')).toBe('committees');
+    expect(share.searchParams.get('sort')).toBe('smallest');
+    expect(share.searchParams.get('year')).toBe('2025');
+    act(() => root.unmount());
+    root = createRoot(host);
+    params = paramsFromAddress(shared);
+    await render();
+    expect(tab('Committees & Funds')?.getAttribute('aria-selected')).toBe('true');
+    expect(
+      host.querySelector('[aria-label^="Sort names, currently"]')?.getAttribute('aria-label'),
+    ).toContain('Smallest first');
+
+    payload = structuredClone(partyFinance.data) as ApiCommitteeMoneyPayload;
+    params = { slug: 'mn-dfl-state-central-committee-20003', year: '2025' };
+    shape();
+    await render();
+    expect(tab('Individuals')?.getAttribute('aria-selected')).toBe('true');
+    expect(
+      host.querySelector('[aria-label^="Sort names, currently"]')?.getAttribute('aria-label'),
+    ).toContain('Largest first');
+  });
+
+  it('keeps explicit donor choices when an old committee name is corrected in the address and Share', async () => {
+    params = { slug: 'old-name-19193', year: '2025', category: 'committees', sort: 'smallest' };
+    window.history.replaceState({}, '', pathForRoute({ name: 'CommitteeMoney', params }));
+    initializeWebHistory();
+    const entry = window.history.state;
+    await render();
+    expect(window.history.state).toEqual(entry);
+    expect(params).toMatchObject({
+      slug: 'gottfried-david-house-committee-19193',
+      category: 'committees',
+      sort: 'smallest',
+    });
+    expect(window.location.pathname).toBe(
+      '/money/committees/gottfried-david-house-committee-19193',
+    );
+    expect(window.location.search).toContain('category=committees&sort=smallest');
+    expect(host.querySelector('[data-testid="share-url"]')?.getAttribute('href')).toContain(
+      '/gottfried-david-house-committee-19193?',
+    );
+    expect(tab('Committees & Funds')?.getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('keeps legacy Expenditures through section and year controls, while explicit choices override the legacy address', async () => {
+    params.tab = 'spent';
+    await render();
+    expect(tab('Expenditures')?.getAttribute('aria-selected')).toBe('true');
+    click(button('Filings'));
+    expect(params).toMatchObject({ tab: 'filings', category: 'expenditures' });
+    click(button('Campaign money'));
+    expect(tab('Expenditures')?.getAttribute('aria-selected')).toBe('true');
+    click(button('2026'));
+    expect(params).toMatchObject({ year: '2026', category: 'expenditures' });
+
+    params = { ...params, year: '2025', tab: 'spent', category: 'committees', sort: 'smallest' };
+    await render();
+    expect(tab('Committees & Funds')?.getAttribute('aria-selected')).toBe('true');
+    click(tab('Individuals'));
+    expect(params.tab).toBe('gave');
+    expect(params.category).toBeUndefined();
+    expect(params.sort).toBe('smallest');
+    click(host.querySelector('[aria-label^="Sort names, currently"]'));
+    click(host.querySelector('[aria-label="Largest first"]'));
+    expect(window.location.search).not.toMatch(/category=|sort=/);
+  });
+
+  it('does not leave a replace mark when the chosen category is selected again', async () => {
+    window.history.replaceState({}, '', pathForRoute({ name: 'CommitteeMoney', params }));
+    initializeWebHistory();
+    await render();
+    click(tab('Individuals'));
+    expect(setParams).not.toHaveBeenCalled();
+    expect(consumeWebHistoryReplaceMark()).toBe(false);
+    const entry = window.history.state;
+    click(button('2026'));
+    expect(window.history.state).not.toEqual(entry);
   });
 
   it('labels Spent by them as all years and keeps payments outside the cards’ selected year', async () => {

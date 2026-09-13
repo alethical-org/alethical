@@ -1,6 +1,6 @@
 <!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneyByRaceScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/screens/redesign/PaymentsUnderNameScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/components/campaignMoney/TrackCommitteeButton.tsx, apps/frontend/src/lib/trackCommitteeButton.ts, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts, apps/frontend/src/components/read/SetBox.tsx, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyByRace.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/lib/paymentsUnderName.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/screens/redesign/OutsideSpendingScreen.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/outside_spending.py, apps/frontend/src/lib/pageData.ts, apps/frontend/src/components/campaignMoney/CommitteeDonations.tsx, apps/frontend/src/components/campaignMoney/DonorBreakdown.tsx, apps/frontend/src/components/campaignMoney/DonorPaymentList.tsx, apps/frontend/src/components/campaignMoney/GroupedOutsideSpending.tsx -->
 
-<!-- describes: apps/frontend/src/components/campaignMoney/MoneyDetailsBundle.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsOnDemand.tsx, apps/frontend/src/hooks/useCampaignMoneyYearStates.ts, apps/frontend/src/lib/campaignMoneyDetailsPageCopy.ts, apps/frontend/src/lib/campaignMoneyPreferences.ts, apps/frontend/src/lib/groupedOutsideSpendingCopy.ts, apps/frontend/src/lib/committeeOutsideSpending.ts -->
+<!-- describes: apps/frontend/src/components/campaignMoney/MoneyDetailsBundle.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsOnDemand.tsx, apps/frontend/src/hooks/useCampaignMoneyYearStates.ts, apps/frontend/src/lib/committeeMoneyPreferences.ts, apps/frontend/src/lib/campaignMoneyDetailsPageCopy.ts, apps/frontend/src/lib/campaignMoneyPreferences.ts, apps/frontend/src/lib/groupedOutsideSpendingCopy.ts, apps/frontend/src/lib/committeeOutsideSpending.ts -->
 
 # How the Campaign money section works
 
@@ -568,8 +568,9 @@ One committee's money for one year, from Minnesota's own filings. The number at 
 of the address is the committee's registration number with the state, and it is the only
 part that has to be right: committee names collide and numbers do not, so an old or
 misspelled name part still lands on the right page, and the address then quietly corrects
-itself to the current spelling. The chosen year and tab ride in the address, so a shared
-link shows the receiver exactly what the sender saw.
+itself to the current spelling. The chosen year, section (Campaign money, Filings or
+Spent by them), donor category and sort ride in the address, so a shared link opens the
+same view.
 
 Top to bottom:
 
@@ -790,8 +791,18 @@ Top to bottom:
    amounts and donated-goods markers. Known committee numbers open their committee
    addresses. These controls and words are the same components as the legislator tab.
    A year change keeps the category and sort but clears search, open rows and display cap.
-   Opening a different committee starts at its title. Browser Back restores the position
-   left on the previous committee; controls within a committee keep the current position.
+   The category and sort ride in the address, such as
+   `?year=2025&category=committees&sort=smallest`, so Share, a copied address, reload and
+   Browser Back restore the same donor view. Defaults are omitted from the address.
+   Changing the category or sort rewrites the current visit's address without adding a
+   Back stop, and keeps its saved scroll position. Opening a different committee starts
+   at its title; Browser Back restores the category, sort and position left on the source
+   visit, even after different choices on the next committee. A fresh address with no
+   donor choices starts with Individuals and Largest first. An older `tab=spent` address
+   starts with Expenditures unless an explicit category selects something else.
+   Section and year controls retain these choices, including the implicit Expenditures
+   choice on an older address. The first HTML response keeps them on its Year and Filings
+   links too; the separate every-payment addresses retain their own existing parameters.
 
    A section selector keeps **Campaign money**, **Filings**, and **Spent by them** where
    the latter has records. Its address choices remain `gave`, `filings` and `by`.

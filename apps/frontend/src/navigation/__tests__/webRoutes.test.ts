@@ -490,7 +490,62 @@ describe('campaign money routes', () => {
       slug: 'smith-andrew-house-committee-18833',
       tab: undefined,
       year: undefined,
+      category: undefined,
+      sort: undefined,
     });
+  });
+
+  it('round-trips a committee donor category and sort for shared links and Back', () => {
+    const url =
+      '/money/committees/mn-dfl-state-central-committee-20003?year=2025&category=committees&sort=smallest';
+    const active = stateFromPathname(url).routes.at(-1)!;
+    expect(active).toMatchObject({
+      name: 'CommitteeMoney',
+      params: { category: 'committees', sort: 'smallest', year: '2025' },
+    });
+    expect(
+      pathForRoute({ name: 'CommitteeMoney', params: active.params as Record<string, unknown> }),
+    ).toBe(url);
+  });
+
+  it('omits ordinary donor defaults but retains an explicit Individuals choice on legacy spent', () => {
+    const params = {
+      slug: 'example-20003',
+      year: '2025',
+      category: 'individuals',
+      sort: 'largest',
+    };
+    expect(pathForRoute({ name: 'CommitteeMoney', params })).toBe(
+      '/money/committees/example-20003?year=2025',
+    );
+    const legacy = pathForRoute({ name: 'CommitteeMoney', params: { ...params, tab: 'spent' } });
+    expect(legacy).toBe('/money/committees/example-20003?tab=spent&year=2025&category=individuals');
+    expect(stateFromPathname(legacy).routes.at(-1)).toMatchObject({
+      params: { tab: 'spent', category: 'individuals' },
+    });
+  });
+
+  it('keeps donor-browser choices separate from the standalone payments address', () => {
+    const url =
+      '/money/committees/example-20003/payments?tab=spent&year=2025&category=committees&sort=smallest';
+    expect(targetFromPathname(url)).toEqual({
+      kind: 'moneyCommitteePayments',
+      slug: 'example-20003',
+      tab: 'spent',
+      year: '2025',
+    });
+    expect(
+      pathForRoute({
+        name: 'CommitteePayments',
+        params: {
+          slug: 'example-20003',
+          tab: 'spent',
+          year: '2025',
+          category: 'committees',
+          sort: 'smallest',
+        },
+      }),
+    ).toBe('/money/committees/example-20003/payments?tab=spent&year=2025');
   });
 
   it('round-trips a search through /money/search', () => {

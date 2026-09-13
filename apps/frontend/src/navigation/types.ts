@@ -79,7 +79,7 @@ export type RootStackParamList = {
   // collide, numbers do not — so an old or misspelled name part still lands on
   // the page. `tab` and `year` ride in the address so a shared link carries what
   // the sender saw.
-  CommitteeMoney: { slug: string; tab?: string; year?: string };
+  CommitteeMoney: { slug: string; tab?: string; year?: string; category?: string; sort?: string };
   CommitteePayments: { slug: string; tab?: string; year?: string };
   // The register of filers, A to Z. The name box, the kind filter and the
   // numbered page all ride in the address, so a narrowed or paged list is

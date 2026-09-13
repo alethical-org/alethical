@@ -823,6 +823,7 @@ async function committeePayments(
 async function committeeContent(
   slug: string,
   requestedYear: string | undefined,
+  view: { tab?: string; category?: string; sort?: string },
 ): Promise<PageContent> {
   const { registrationNumber, year } = committeeRead(slug, requestedYear);
   // The snapshot uses finance alone. The app reads complete selected-year payment
@@ -838,7 +839,7 @@ async function committeeContent(
       validatedAgeMs,
     },
   ];
-  const snapshot = committeePageSnapshot(money, registrationNumber);
+  const snapshot = committeePageSnapshot(money, registrationNumber, view);
   return {
     metadata: committeeMoneyPageMetadata(slug, "page", {
       name: committeeSnapshotName(money, registrationNumber),
@@ -1102,7 +1103,7 @@ async function contentFor(
         ? outsideSpendingContent()
         : headOnly(outsideSpendingPageMetadata(target.params));
     case "moneyCommittee":
-      return committeeContent(target.slug, target.year);
+      return committeeContent(target.slug, target.year, target);
     case "moneyCommitteePayments":
       return committeePaymentsContent(target.slug, target.year, target.tab);
     case "privacy":

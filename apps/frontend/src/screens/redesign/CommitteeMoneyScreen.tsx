@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -7,10 +7,11 @@ import {
   CommitteeDonations,
   GroupedOutsideSpending,
 } from '../../components/campaignMoney/MoneyDetailsOnDemand';
+import type { MoneyDetailsPreferences } from '../../lib/campaignMoneyPreferences';
 import {
-  DEFAULT_MONEY_DETAILS_PREFERENCES,
-  type MoneyDetailsPreferences,
-} from '../../lib/campaignMoneyPreferences';
+  committeeMoneyPreferences,
+  committeeMoneyPreferenceParams,
+} from '../../lib/committeeMoneyPreferences';
 import { committeeOutsideSpending } from '../../lib/committeeOutsideSpending';
 import { detailsStyles } from '../../components/campaignMoney/detailsStyles';
 import { YearControl } from '../../components/campaignMoney/YearControl';
@@ -174,41 +175,16 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
   const registrationNumber = registrationNumberFromSlug(slug);
   const year = campaignMoneyYear(route.params?.year);
   const tab = committeeTabFromParam(route.params?.tab);
-  const initialPreferences = () => ({
-    ...DEFAULT_MONEY_DETAILS_PREFERENCES,
-    ...(tab === 'spent' ? { tab: 'expenditures' as const } : {}),
-  });
-  // This state survives an uncached year's loading screen. Only the committee's
-  // identity or an explicit legacy list address resets the chosen donor kind.
-  const [detailState, setDetailState] = useState(() => ({
-    registrationNumber,
-    preferences: initialPreferences(),
-  }));
-  const previousTab = useRef(tab);
-  useEffect(() => {
-    const oldTab = previousTab.current;
-    setDetailState((previous) => {
-      if (previous.registrationNumber !== registrationNumber) {
-        return { registrationNumber, preferences: initialPreferences() };
-      }
-      const nextTab =
-        tab === 'spent'
-          ? 'expenditures'
-          : tab === 'gave' && oldTab === 'spent'
-            ? 'individuals'
-            : null;
-      return nextTab
-        ? { ...previous, preferences: { ...previous.preferences, tab: nextTab } }
-        : previous;
+  const preferences = committeeMoneyPreferences(route.params ?? {});
+  const onPreferences = (next: MoneyDetailsPreferences) => {
+    if (next.tab === preferences.tab && next.sort === preferences.sort) return;
+    // Keep these choices on the same visit, alongside its saved scroll position.
+    markNextWebHistoryChangeAsReplace();
+    navigation.setParams({
+      ...committeeMoneyPreferenceParams(next),
+      ...(tab === 'spent' ? { tab: 'gave' } : {}),
     });
-    previousTab.current = tab;
-  }, [registrationNumber, tab]);
-  const preferences =
-    detailState.registrationNumber === registrationNumber
-      ? detailState.preferences
-      : initialPreferences();
-  const onPreferences = (next: MoneyDetailsPreferences) =>
-    setDetailState({ registrationNumber, preferences: next });
+  };
 
   const moneyQuery = useCommitteeMoney(registrationNumber, year);
   const money = moneyQuery.data ?? null;
@@ -245,7 +221,8 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
   );
 
   const onSelectYear = (next: number) => navigation.setParams({ year: String(next) });
-  const onSelectTab = (next: CommitteeTab) => navigation.setParams({ tab: next });
+  const onSelectTab = (next: CommitteeTab) =>
+    navigation.setParams({ ...committeeMoneyPreferenceParams(preferences), tab: next });
 
   return (
     <PageBackground>
@@ -453,7 +430,11 @@ function CommitteeBody({
     subject: 'committee',
     description: `${name}’s campaign money record, from Minnesota’s own filings.`,
     url: publicPageUrl(
-      `/money/committees/${committeeSlug(name, registrationNumber)}?tab=${tab}&year=${year}`,
+      routePath.moneyCommittee(committeeSlug(name, registrationNumber), {
+        tab: tab === 'spent' ? 'gave' : tab,
+        year: String(year),
+        ...committeeMoneyPreferenceParams(preferences),
+      }),
     ),
   };
 

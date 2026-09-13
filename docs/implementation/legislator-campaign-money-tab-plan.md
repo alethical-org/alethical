@@ -265,33 +265,29 @@ architecture record stays unchanged; proposed changes go on each job's issue.
 - A new attempted consultation with the permitted Claude session was rejected by
   automatic approval review for including run status and preservation instructions.
   No message from that attempt was sent; the assessment continues locally.
-- Job 1 is complete, as recorded above. Job 2 is in
-  [pull request 2167](https://github.com/alethical-org/alethical/pull/2167), using
-  `/private/tmp/alethical-2166-committee-donor-tabs` on
-  `codex/2166-committee-donor-tabs`, based on
-  [commit 3e76927c](https://github.com/alethical-org/alethical/commit/3e76927c1ef28a2a00a3a23d7f9543d4a3ab8083).
-  Root owns integration and release; internal worker `/root/official_spending_cards`
-  completed the frontend and the independent reader corrections. Donor category and
-  sort survive an uncached year load; Filings and Spent by them retain their explanations.
-  The unused initial 6-payment read and its client hooks are removed; the full-payment
-  address keeps its first 50 rows. Shared details load on demand, with local failure
-  handling that leaves accepted figures and refunds visible.
-  The final frontend suite passes 2,642 tests in 214 files; the backend passed 2,549.
-  Types, asset, icon, document-reference and quoted-text checks pass. The clean build
-  with all 6 production public settings measures 392,156 bytes against the unchanged
-  392,321 limit. Vercel withholds the 2 public Supabase values from its settings export;
-  these are read from the current live program, and their provider metadata records
-  no change since May 22. The other 4 values come from the production export.
-  Preview has only its API setting: its actual 392,064 bytes fit, but the unchanged
-  guard projects 542 more for settings Preview intentionally lacks and reports 392,606.
-  No guard, limit or provider setting was changed. The production configuration passes;
-  required queue checks and the actual production release remain the release gates.
-  Phone/browser checks cover candidate 19193 and party 20003, complete and expanded
-  payments, saved category/sort, Filings and Spent by them. A linked committee now opens
-  at its title, and Back restores the source position. Spent by them states that its
-  list covers all years. The GitHub test waits for the complete payment list instead
-  of assuming its code arrives in 20ms. Final release checks remain. Jobs 3 onward
-  keep their approved order and have not started.
+- Job 1 is complete, as recorded above. Job 2's main change is live through
+  [pull request 2167](https://github.com/alethical-org/alethical/pull/2167) at
+  [commit 1bec452c](https://github.com/alethical-org/alethical/commit/1bec452c06e72e3706e7dc317706baa1b2b25f98).
+  All required queue checks and both production deployments passed. The public
+  HTML carries that release; its actual first-load program measures 392,156 bytes
+  against the unchanged 392,321-byte limit. No size guard or provider setting changed.
+  The frontend suite passed 2,642 tests and the backend suite passed 2,549.
+- The final production reader pass found 1 remaining Job 2 defect: Back restores
+  the reading position after opening another committee, but loses a nondefault
+  donor category and sort. [Issue 2166](https://github.com/alethical-org/alethical/issues/2166)
+  is reopened for the repair in `/private/tmp/alethical-2166-committee-back-state`
+  on `codex/2166-committee-back-state`, based on the live release. The repair
+  keeps those choices in the committee address, so Back and shared links restore
+  them together with the selected year. Fresh links without choices keep defaults.
+  Root owns integration and release. The existing worker owns the focused code and tests.
+  The repair passes 2,666 frontend tests, type and formatting checks. Its configured
+  production build measures 392,136 bytes against the unchanged 392,321-byte limit.
+  The independent browser pass and release are the next checks.
+- The same live pass covered candidate 19193, party 20003 and Abeler on desktop
+  and phone. Complete lists, expanded payments, Filings and the all-years Spent by
+  them explanation remain usable; Abeler's refund card retains the 2024 unpublished
+  count. Job 3 waits for the Back-navigation repair's live check and completion
+  report. Jobs 3 onward keep their approved order. The historical replacement is held.
 
 
 ## Approved data-only queue after follow-on jobs 1 through 4
