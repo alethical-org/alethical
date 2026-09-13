@@ -269,7 +269,7 @@ class IndependentSpendingAbout:
 class CommitteeFinance:
     """Everything one committee's page may show for one year, from one release.
 
-    ``fetched_at`` is the single freshness date §7 requires, and it is **not** the
+    ``fetched_at`` dates the payment files, and it is **not** the
     period the money covers: the period is per filing, always earlier, and stated by
     ``money_in.reported_through`` where a filing supplies it. No surface may hardcode
     1 January as a period start -- filer 19223 reports from 11 July 2025 -- and this
@@ -283,6 +283,23 @@ class CommitteeFinance:
     money_in: MoneyIn
     money_out: MoneyOut
     independent_spending: IndependentSpendingAbout
+
+
+def filings_copied_at(db: Session) -> datetime | None:
+    """End of the published filing source's own fetch window, never its publish date.
+
+    The same current-snapshot pointer selects the report totals. A newer unpublished
+    run, a report's receipt date, and the payment release cannot date those figures.
+    No current filing source means no date, even when payment files are available.
+    Call inside the request's pinned database view so the figures and date agree.
+    """
+    snapshot = schema.CampaignFinanceFilingSnapshot
+    pointer = schema.CampaignFinanceFilingCurrentSnapshot
+    return db.execute(
+        select(snapshot.fetch_completed_at)
+        .join(pointer, pointer.snapshot_id == snapshot.id)
+        .where(pointer.id.is_(True))
+    ).scalar_one_or_none()
 
 
 def pin_to_one_view(db: Session) -> None:

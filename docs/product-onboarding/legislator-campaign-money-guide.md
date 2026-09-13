@@ -112,8 +112,8 @@ contributions changed by year** chart, then its **Refunds Minnesota paid this
 committee's donors** card. The mix chart repeats the donor kinds from **Who gave**
 across years, using only itemized contributions. **Spending by outside groups**
 draws once, below every committee block, because it covers all of a member's confirmed
-committees at once and cannot sit inside any one of them. The tab's own download date is
-the last line on the page.
+committees at once and cannot sit inside any one of them. The tab's source-copy dates
+are the last line on the page.
 
 A member can hold more than one committee, because Minnesota registers one per office.
 17 sitting members tie to more than one, and 8 have 2 or more live at the same time. So
@@ -921,9 +921,9 @@ sends is the bulk download itself, which streams a statewide spreadsheet with no
 readable behind it, and the word **filings** was the state's own word for the reports a
 committee files, which that file is not.
 
-The shared payment-file freshness note appears once at the foot of the tab. It does
-not date the separately copied report totals. The outside-spending card
-does not repeat a download date. Its payment dates still describe its own source rows.
+The shared freshness note appears once at the foot of the tab. It dates Minnesota’s
+payment files and the separately copied report totals. The outside-spending card does
+not repeat a download date. Its payment dates still describe its own source rows.
 The complete grouped answer supplies each spender's amount and count. Opening a group
 loads its complete payment list from the same published copy. Existing direction totals
 stay visible if grouped details cannot load; a partial list never supplies a total.
@@ -1085,23 +1085,30 @@ An explaining paragraph inside a card keeps every full stop it has, however shor
    2026". A total whose coverage date falls outside the year on screen is not shown at
    all, because the Board's own service answers a request for a year it has no report
    for with the _previous_ year's figures and nothing in the answer says so.
-3. **One shared freshness date at the foot of the tab** — shown only when the displayed
-   campaign-payment and outside-spending files support the same download date. It reads:
+3. **Both source-copy dates at the foot of the tab**, shown when the displayed
+   campaign-payment and outside-spending files support the same payment-file date:
 
-   > We downloaded Minnesota's payment files on Sep 1, 2026, which is not the period the
+   > We downloaded Minnesota’s payment files on Sep 1, 2026 and its report totals on
+   > Aug 11, 2026. Neither is the period the money covers.
+
+   The payment date is the stored download time for Minnesota's bulk payment files
+   (`fetched_at`). The report date is the end of the published filing source's own
+   stored fetch window (`filings_copied_at`, read from
+   `cf_filing_snapshot.fetch_completed_at` through `cf_filing_current`). Neither a
+   report's receipt date nor the day Alethical publishes stored records replaces it.
+   Both dates print in Minnesota time. The same wording appears on the committee's
+   money and payment pages and their text-only versions.
+
+   If the report-copy date is unavailable, the line keeps this exact fallback:
+
+   > We downloaded Minnesota’s payment files on Sep 1, 2026, which is not the period the
    > money covers. The report totals were copied separately.
 
-   The date itself never breaks across 2 lines, so a narrow column cannot leave a line
-   ending "on Sep 1," that reads as one date running into the next clause. The line is
-   drawn at the ordinary body weight and at the same size as the notes inside the cards
-   above it, never heavier and never smaller: it is the least important line on the tab.
-   If payment-file dates differ or a date is missing, the tab explains that it cannot
+   Each date keeps its comma and year together. The note uses regular weight 400,
+   15px text and the same grey as the other explanatory notes (`#4f5651`), including
+   on a phone. It stays at the foot of the tab, above the site footer. If payment-file
+   dates differ or a payment-file date is missing, the tab explains that it cannot
    state a shared date and lets the reader check the records again.
-
-   The day the report totals were copied is not served to the page yet, so the line says
-   they were copied separately without saying when. Once that second date is served it
-   becomes one sentence naming both days
-   ([issue 2192](https://github.com/alethical-org/alethical/issues/2192)).
 
 **A fourth kind of time exists and is deliberately not printed here.** Our data service
 also reports when it last confirmed that these committees are still this member's, and

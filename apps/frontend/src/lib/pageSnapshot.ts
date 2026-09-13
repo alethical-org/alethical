@@ -1249,6 +1249,7 @@ export interface CommitteeMoneySnapshotSource {
   entity_sub_type?: string | null;
   year?: number | null;
   fetched_at?: string | null;
+  filings_copied_at?: string | null;
   register?: {
     state?: string | null;
     kind?: string | null;
@@ -1299,6 +1300,7 @@ interface CommitteeIdentity {
   eyebrow: string | null;
   subheading: string;
   checkedOn: string | null;
+  filingsCopiedOn: string | null;
   state: 'closed-empty' | 'empty-year' | 'figures';
   periodLine: string | null;
   periodDetail: string;
@@ -1389,6 +1391,7 @@ function committeeIdentity(
     }),
     state,
     checkedOn,
+    filingsCopiedOn: money.filings_copied_at ? centralDateLabel(money.filings_copied_at) : null,
     periodLine:
       state === 'closed-empty'
         ? closedPeriodLine(register.termination_date)
@@ -1587,7 +1590,9 @@ export function committeePageSnapshot(
             kind: 'prose',
             lines: [
               identity.periodDetail,
-              ...(identity.checkedOn ? [paymentFilesDownloadedLine(identity.checkedOn)] : []),
+              ...(identity.checkedOn
+                ? [paymentFilesDownloadedLine(identity.checkedOn, identity.filingsCopiedOn)]
+                : []),
             ],
           },
         ],
@@ -1689,7 +1694,9 @@ export function committeePaymentsPageSnapshot(
             kind: 'prose',
             lines: [
               identity.periodDetail,
-              ...(identity.checkedOn ? [paymentFilesDownloadedLine(identity.checkedOn)] : []),
+              ...(identity.checkedOn
+                ? [paymentFilesDownloadedLine(identity.checkedOn, identity.filingsCopiedOn)]
+                : []),
             ],
           },
         ],

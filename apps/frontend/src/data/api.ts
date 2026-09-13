@@ -612,6 +612,7 @@ interface ApiLegislatorCampaignMoneyPayload {
   }[];
   release_id: string;
   fetched_at?: string | null;
+  filings_copied_at?: string | null;
   committees: {
     registration_number: string;
     committee_name_as_reviewed: string;
@@ -2548,6 +2549,7 @@ export async function getLegislatorCampaignMoneyFromApi(
     linkState: payload.link_state,
     currentClaim: currentClaimFreshness(payload.current_claim_validated_at, response.ageSeconds),
     fetchedAt: payload.fetched_at ?? null,
+    filingsCopiedAt: payload.filings_copied_at ?? null,
     otherOfficeCommittees: payload.other_office_committees ?? 0,
     committeesOutsideThisYear: (payload.committees_outside_this_year ?? []).map((entry) => ({
       registrationNumber: entry.registration_number,
@@ -3309,6 +3311,7 @@ export interface ApiCommitteeMoneyPayload {
   entity_sub_type?: string | null;
   year: number;
   fetched_at?: string | null;
+  filings_copied_at?: string | null;
   register?: ApiCommitteeRegisterPayload | null;
   money_in?: {
     state: string;
@@ -3379,6 +3382,7 @@ export function committeeFinanceFromPayload(payload: ApiCommitteeMoneyPayload): 
     entitySubType: payload.entity_sub_type ?? null,
     year: payload.year,
     fetchedAt: payload.fetched_at ?? null,
+    filingsCopiedAt: payload.filings_copied_at ?? null,
     register: {
       state: committeeRegisterState(register?.state),
       kind: register?.kind ?? null,

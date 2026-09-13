@@ -1435,6 +1435,29 @@ describe('a committee’s record in the first response', () => {
     expect(onlyMisc).not.toContain('$375');
   });
 
+  it('dates report totals on the payment-list text view too', () => {
+    const dated = committeePaymentsPageSnapshot(
+      { ...committeeFixture, filings_copied_at: '2026-08-11T12:00:00Z' },
+      '41326',
+      { state: 'reported', rows: [], totalPayments: 0 },
+      'gave',
+    );
+    expect(visibleText(renderPageSnapshot(dated))).toContain(
+      'and its report totals on Aug 11, 2026. Neither is the period the money covers.',
+    );
+  });
+
+  it('prints the report source copy date separately from the coverage period', () => {
+    const dated = committeePageSnapshot(
+      { ...committeeFixture, filings_copied_at: '2026-08-11T12:00:00Z' },
+      '41326',
+    );
+    const datedText = visibleText(renderPageSnapshot(dated));
+    expect(datedText).toContain('and its report totals on Aug 11, 2026.');
+    expect(datedText).toContain('Neither is the period the money covers.');
+    expect(datedText).not.toContain('The report totals were copied separately.');
+  });
+
   it('separates the filing period from the payment files download date', () => {
     expect(text).toContain(coveredPeriodLine(split.reported_through, '2026-01-01'));
     expect(text).toContain(centralDateLabel(committeeFixture.fetched_at));
