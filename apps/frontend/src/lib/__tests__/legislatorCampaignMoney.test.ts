@@ -479,11 +479,28 @@ describe('the filing schedule note, one committee at a time', () => {
   const said = (schedule: FilingSchedule) => filingScheduleNote(schedule, 2099).join(' ');
 
   it('says a committee on the ballot owes a named report on a named date', () => {
-    const text = said(onTheBallot);
-    expect(text).toContain('is on the 2099 ballot');
-    expect(text).toContain('“Pre-general report of receipts and expenditures”');
-    expect(text).toContain('due Oct 26, 2099');
-    expect(text).toContain('covering Jan 1, 2099 to Oct 19, 2099');
+    expect(filingScheduleNote(onTheBallot, 2099)[0]).toBe(
+      "This committee is on the 2099 ballot, so it files on Minnesota's election-year schedule. " +
+        'Its next report, the “Pre-general report of receipts and expenditures”, is due ' +
+        'Oct 26, 2099 and covers Jan 1 to Oct 19, 2099. ' +
+        'New money appears here only when a report is filed.',
+    );
+  });
+
+  it('keeps both years when the next report covers more than one year', () => {
+    const text = said({ ...onTheBallot, periodStart: '2098-12-15' });
+    expect(text).toContain('and covers Dec 15, 2098 to Oct 19, 2099');
+  });
+
+  it.each([2031, 2099])('uses the viewed year %i in both new filing-note states', (year) => {
+    expect(filingScheduleNote(onTheBallot, year)[0]).toContain(
+      `This committee is on the ${year} ballot, so it files on Minnesota's election-year schedule.`,
+    );
+    expect(filingScheduleNote(gap('calendar_not_transcribed'), year)).toEqual([
+      "We cannot say when this committee's next report is due. " +
+        `We have not yet copied in Minnesota's ${year} filing calendar for this kind of candidate. ` +
+        "The gap is ours and says nothing about this committee's own filing.",
+    ]);
   });
 
   it('says a committee not on the ballot owes nothing until its once-a-year report', () => {
@@ -503,19 +520,21 @@ describe('the filing schedule note, one committee at a time', () => {
 
   it('says a special-election filer runs on periods we have not written down', () => {
     const text = said(gap('special_election_filer'));
-    expect(text).toContain('We cannot say when this committee’s next report is due');
+    expect(text).toContain("We cannot say when this committee's next report is due");
     expect(text).toContain('special elections run on their own set of filing periods');
   });
 
   it('says an untranscribed calendar is a calendar we have not copied in', () => {
     const text = said(gap('calendar_not_transcribed'));
-    expect(text).toContain('We cannot say when this committee’s next report is due');
-    expect(text).toContain('we have not yet copied in the one covering this committee');
+    expect(text).toContain("We cannot say when this committee's next report is due");
+    expect(text).toContain(
+      "We have not yet copied in Minnesota's 2099 filing calendar for this kind of candidate.",
+    );
   });
 
   it('says our own copy of the filings is what cannot answer', () => {
     const text = said(gap('filings_cannot_answer'));
-    expect(text).toContain('We cannot say when this committee’s next report is due');
+    expect(text).toContain("We cannot say when this committee's next report is due");
     expect(text).toContain('Our copy of the state’s own list of filings cannot answer it');
   });
 
@@ -535,13 +554,13 @@ describe('the filing schedule note, one committee at a time', () => {
       'filings_cannot_answer',
     ] as const) {
       const text = said(gap(state));
-      expect(text).toContain('That gap is on our side');
+      expect(text).toContain("The gap is ours and says nothing about this committee's own filing.");
       expect(text).not.toMatch(/due \d/);
       expect(text).not.toMatch(/nothing is due|not required to report/i);
     }
     for (const schedule of [onTheBallot, notOnTheBallot, closed]) {
       expect(said(schedule)).not.toContain('We cannot say');
-      expect(said(schedule)).not.toContain('That gap is on our side');
+      expect(said(schedule)).not.toContain('The gap is ours');
     }
   });
 
@@ -587,7 +606,7 @@ describe('the filing schedule note, one committee at a time', () => {
   });
 
   it('treats a missing schedule block as our gap, never as a committee-side fact', () => {
-    expect(filingScheduleNote(undefined, 2099).join(' ')).toContain('That gap is on our side');
+    expect(filingScheduleNote(undefined, 2099).join(' ')).toContain('The gap is ours');
   });
 });
 

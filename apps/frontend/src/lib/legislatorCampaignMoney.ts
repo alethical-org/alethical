@@ -730,8 +730,7 @@ export type FilingSchedule = {
  * not typed in that calendar" drifts towards reading like "nothing is due", which is
  * the rule 12 failure this whole function exists to prevent.
  */
-const OUR_GAP_CLOSER =
-  'That gap is on our side and says nothing about this committee’s own filing.';
+const OUR_GAP_CLOSER = "The gap is ours and says nothing about this committee's own filing.";
 
 /**
  * Minnesota publishes on a schedule, and this says which schedule THIS committee is
@@ -766,10 +765,10 @@ export function filingScheduleNote(
     case 'on_the_ballot': {
       const timing = nextReportSentence(schedule);
       return [
-        `This committee is on the ${year} ballot, so Minnesota puts it on the ` +
-          'election-year filing schedule.' +
+        `This committee is on the ${year} ballot, so it files on Minnesota's ` +
+          'election-year schedule.' +
           (timing ? ` ${timing}` : '') +
-          ' Minnesota publishes this money when a report is filed, not day by day.',
+          ' New money appears here only when a report is filed.',
         ...conditionParagraph(schedule),
       ];
     }
@@ -802,9 +801,7 @@ export function filingScheduleNote(
       );
     case 'calendar_not_transcribed':
       return cannotSayBecause(
-        'Minnesota publishes a separate filing calendar for each kind of candidate and ' +
-          `each year, and we have not yet copied in the one covering this committee for ` +
-          `${year}.`,
+        `We have not yet copied in Minnesota's ${year} filing calendar for this kind of candidate.`,
       );
     case 'filings_cannot_answer':
       return cannotSayBecause(ourFilingsCannotAnswer(year));
@@ -824,7 +821,7 @@ function ourFilingsCannotAnswer(year: number): string {
 
 /** One of the 3 states that are about us, in the shape all 3 share. */
 function cannotSayBecause(middle: string): string[] {
-  return [`We cannot say when this committee’s next report is due. ${middle} ${OUR_GAP_CLOSER}`];
+  return [`We cannot say when this committee's next report is due. ${middle} ${OUR_GAP_CLOSER}`];
 }
 
 /**
@@ -838,8 +835,10 @@ function nextReportSentence(schedule: FilingSchedule): string | null {
   if (!schedule.nextReportName || !due) return null;
   const start = formatDay(schedule.periodStart);
   const end = formatDay(schedule.periodEnd);
-  const covering = start && end ? `, covering ${start} to ${end}` : '';
-  return `Its next report to the state is the “${schedule.nextReportName}”, due ${due}${covering}.`;
+  const sameYear = schedule.periodStart?.slice(0, 4) === schedule.periodEnd?.slice(0, 4);
+  const rangeStart = sameYear ? start?.replace(/, \d{4}$/, '') : start;
+  const covering = rangeStart && end ? ` and covers ${rangeStart} to ${end}` : '';
+  return `Its next report, the “${schedule.nextReportName}”, is due ${due}${covering}.`;
 }
 
 /**

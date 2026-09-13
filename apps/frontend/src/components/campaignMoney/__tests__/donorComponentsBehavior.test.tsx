@@ -14,6 +14,7 @@ vi.mock('react-native-svg', () => ({
     <svg {...props}>{children}</svg>
   ),
   Circle: (props: React.SVGProps<SVGCircleElement>) => <circle {...props} />,
+  Path: (props: React.SVGProps<SVGPathElement>) => <path {...props} />,
 }));
 
 import { committeePaymentsReceivedFromPayload } from '../../../data/api';
@@ -251,11 +252,11 @@ describe('the donor list preserves the complete filed record', () => {
     const view = markup(list({ groups: [] }));
     const tabs = Array.from(view.querySelectorAll('[role="tab"]')).map((tab) => tab.textContent);
     expect(tabs).toEqual([
-      'Individuals (0)',
-      'Lobbyists (0)',
-      'Committees & Funds (0)',
-      'Party Units (0)',
-      'Expenditures (0)',
+      'Individuals 0',
+      'Lobbyists 0',
+      'Committees & Funds 0',
+      'Party Units 0',
+      'Expenditures 0',
     ]);
     expect(view.textContent).toContain('names no individual');
   });
@@ -299,7 +300,7 @@ describe('the donor list preserves the complete filed record', () => {
 
   it('labels real-sample printed names and payment rows separately', () => {
     const view = markup(list());
-    expect(view.textContent).toContain('Individuals (74)');
+    expect(view.textContent).toContain('Individuals 74');
     expect(view.textContent).toContain('74 names · 82 payments');
     expect(view.textContent).toContain('Named total in this tab:');
   });
@@ -363,5 +364,114 @@ describe('the donor list preserves the complete filed record', () => {
     const view = markup(list({ groups: groupContributionPayments([gift({ contributor: null })]) }));
     expect(view.textContent).toMatch(/0 names · 1 payment/);
     expect(view.textContent).toContain('Name not given in the filing');
+  });
+});
+
+describe('the accepted names-section controls', () => {
+  it('uses one tab stop and keeps a visible underline while arrow keys move through tabs', () => {
+    function InteractiveList() {
+      const [tab, setTab] = React.useState<MoneyDetailsTab>('individuals');
+      return (
+        <DonorPaymentList
+          groups={realGroups}
+          tab={tab}
+          year={2025}
+          ready
+          failed={false}
+          onSelectTab={setTab}
+          onRetry={vi.fn()}
+        />
+      );
+    }
+    const view = mount(<InteractiveList />);
+    const tabs = Array.from(view.querySelectorAll<HTMLElement>('[role="tab"]'));
+    const expectChosen = (index: number) => {
+      expect(tabs.filter((tab) => tab.tabIndex === 0)).toEqual([tabs[index]]);
+      expect(tabs.filter((tab) => tab.getAttribute('aria-selected') === 'true')).toEqual([
+        tabs[index],
+      ]);
+      expect(getComputedStyle(tabs[index]).borderBottomWidth).toBe('3px');
+      expect(getComputedStyle(tabs[index]).borderBottomColor).toBe('rgb(17, 21, 15)');
+    };
+    expectChosen(0);
+    expect(tabs[0].textContent).toBe('Individuals 74');
+    expect(getComputedStyle(view.querySelector('[role="tablist"]')!).flexWrap).toBe('nowrap');
+    const scroll = vi.fn();
+    tabs[1].scrollIntoView = scroll;
+    act(() =>
+      tabs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })),
+    );
+    expectChosen(1);
+    expect(document.activeElement).toBe(tabs[1]);
+    expect(scroll).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' });
+    act(() => tabs[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true })));
+    expectChosen(tabs.length - 1);
+    act(() =>
+      tabs
+        .at(-1)!
+        .dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })),
+    );
+    expectChosen(0);
+    act(() =>
+      tabs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })),
+    );
+    expectChosen(tabs.length - 1);
+    act(() =>
+      tabs.at(-1)!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true })),
+    );
+    expectChosen(0);
+  });
+
+  it('keeps the employer and singular payment count in one quiet second line', () => {
+    const view = mount(
+      list({ groups: groupContributionPayments([gift({ employer: 'Self Employed' })]) }),
+    );
+    const details = Array.from(view.querySelectorAll('div')).find(
+      (element) => element.textContent === 'Self Employed · 1 payment',
+    );
+    expect(details).toBeDefined();
+    expect(getComputedStyle(details!).fontSize).toBe('15px');
+    expect(['400', 'normal']).toContain(getComputedStyle(details!).fontWeight);
+    expect(getComputedStyle(details!).color).toBe('rgb(107, 113, 107)');
+    const expand = view.querySelector<HTMLElement>(
+      '[aria-label="Show the 1 payment from Amy Example"]',
+    )!;
+    expect(expand.textContent).not.toMatch(/[+−]/);
+    expect(expand.querySelector('svg')).not.toBeNull();
+    expect(getComputedStyle(expand).width).toBe('44px');
+    click(expand);
+    expect(expand.getAttribute('aria-expanded')).toBe('true');
+    expect(view.textContent).toContain('Jan 10, 2025');
+  });
+
+  it('prints a committee name with no available page as plain text', () => {
+    const committee = realGroups.find((group) => group.linkableRegistrationNumber)!;
+    const view = markup(
+      list({ groups: [{ ...committee, linkableRegistrationNumber: null }], tab: committee.tab }),
+    );
+    expect(view.textContent).toContain(committee.name);
+    expect(view.querySelector('a')).toBeNull();
+  });
+
+  it('marks the chosen sort with a check independently of keyboard focus and closes with Escape', () => {
+    const view = mount(list());
+    const button = view.querySelector<HTMLElement>('[aria-haspopup="menu"]')!;
+    click(button);
+    const options = Array.from(view.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+    expect(options[0].querySelector('path[stroke="#0f7a45"]')).not.toBeNull();
+    act(() =>
+      options[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })),
+    );
+    expect(document.activeElement).toBe(options[1]);
+    expect(options[0].querySelector('path[stroke="#0f7a45"]')).not.toBeNull();
+    expect(options[1].querySelector('svg')).toBeNull();
+    act(() =>
+      options[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })),
+    );
+    expect(view.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(button);
+    click(button);
+    click(view.querySelectorAll('[role="menuitem"]')[1]);
+    expect(button.textContent).toBe('Smallest first');
   });
 });
