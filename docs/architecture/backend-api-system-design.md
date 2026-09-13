@@ -1,6 +1,6 @@
 # Alethical Backend API System Design
 
-<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/services/independent_spending.py, alethical/api/services/committee_finance.py, alethical/api/services/committee_stated_by_kind.py, alethical/api/services/legislator_finance.py, alethical/api/services/campaign_finance_payments.py, alethical/api/services/campaign_finance_register.py, alethical/api/auth.py, alethical/api/services/auth.py -->
+<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/services/independent_spending.py, alethical/api/services/committee_finance.py, alethical/api/services/committee_stated_by_kind.py, alethical/api/services/committee_donor_states.py, alethical/api/services/zip_state_reference.py, scripts/build_zip_state_reference.py, alethical/api/services/legislator_finance.py, alethical/api/services/campaign_finance_payments.py, alethical/api/services/campaign_finance_register.py, alethical/api/auth.py, alethical/api/services/auth.py -->
 
 Status: **design reference, not an inventory of what exists.** Much of this document is the
 target shape rather than the shipped API, so every unbuilt endpoint is marked **NOT BUILT**
@@ -859,7 +859,8 @@ because all 200 sitting members do appear in the Board's register), `confirmed`.
 Returns `legislator_id`, `year`, `link_state`, `other_office_committees`, and `committees[]`.
 Each committee carries `registration_number`, `committee_name`, `office`, the same `money_in`
 / `money_out` / `independent_spending` blocks the committee endpoint serves, a `split`, a
-`stated_by_kind` block when its evidence is complete, and a `refunds` block this endpoint serves
+`stated_by_kind` block when its evidence is complete, a `donor_states` block when eligible,
+and a `refunds` block this endpoint serves
 and the committee endpoint does not.
 
 **`refunds` is the state's own record, in its own block**
@@ -1080,6 +1081,52 @@ explicit `Other` belongs to the Other line. The block remains independent of whe
 files name any payments for the committee, including an official zero with an agreeing check.
 If any line's difference is negative, the block instead carries `state: sources_disagree` and
 an empty `lines` list, so no unsupported line figure reaches a client.
+
+**`donor_states` reports Individual-kind contributions by state for 1 calendar year**
+([issue 2146](https://github.com/alethical-org/alethical/issues/2146)). It is the same optional
+block on both committee-finance responses and each confirmed legislator committee. It requires
+a candidate filing, an agreeing stated-split check tied to both current source copies, matching
+coverage year and cutoff, and no special-election report series. Missing or unusable reference data, or
+unreadable cash inputs, omit the block; a missing reference never makes every donor “unknown”.
+
+The block has `state: reported`, `year`, `rows[]`, `summary`, and `reference`:
+
+- Each row has `state` (a 2-letter state/DC code, or `unknown`), `names` (distinct printed
+  names), and `cash_total`. Rows are alphabetical with `unknown` last, including a zero
+  unknown row when every location resolves.
+- `summary` has `minnesota`, `other_states`, and `unknown`, each with `names` and
+  `cash_total`. Cash partitions exactly. Names are distinct within each bucket, including
+  across states in `other_states`; 1 spelling can occur in multiple buckets, so those name
+  counts must not be added as a count of people.
+- Only source rows typed `Individual` and `Contribution` in the requested source `Year`
+  contribute. Names include donated goods or services; cash excludes their amounts. `Self`,
+  lobbyists and other kinds do not enter this breakdown. Like the donor list, the scope is
+  the bulk file's calendar year, including dated rows after a part-year report's cutoff.
+  This is not a subtraction from the report's official total or a claim to reproduce it.
+- `reference` carries `source_url`, `as_of` (the ZIP reference's quarter-end), `copied_at`,
+  and `content_hash` (SHA-256 of the input file). No ZIP, contributor name, address or
+  county code is served. Each committee's row and summary amounts retain the existing
+  guard against adding 2 committees together.
+
+The reference is a checked-in lookup table at `alethical/api/data/zip_states.json`, loaded once
+per server process and refreshed by hand through a pull request. Run
+`scripts/build_zip_state_reference.py` over the full national HUD ZIP-to-county workbook with
+its actual quarter-end and copy time. The script validates the 2 source columns, every code,
+and national state coverage, and records the input hash. The state-coverage check catches a
+state-only extract; it does not prove every county row is present. The complete authenticated
+workbook and real allocation check are required before a new reference is released. The spreadsheet reader is a declared
+command dependency; API requests read only the resulting table. The command performs no network call,
+database write or recurring refresh. A new file version takes effect with the server release.
+
+A ZIP with counties in multiple states remains unknown, as does an unsupported jurisdiction.
+The lookup covers the 50 states and DC; it never assigns overseas military ZIPs the state of a
+US sorting facility. HUD excludes PO-box-only ZIPs and cannot locate some other ZIPs, so unmatched
+ZIPs remain unknown. The preferred mailing state and address ratios never decide a donor's state.
+Donor input is trimmed first, and must match exactly 5 ASCII digits or a complete ZIP+4 form
+(9 digits or 5 digits, a hyphen, then 4 digits). Missing, malformed, shorter and unmatched values
+remain unknown; missing leading zeros are never supplied. Applying this dated reference to an
+older contribution describes the filed ZIP through that reference, not historical residence.
+[HUD's source description](https://www.huduser.gov/portal/datasets/usps_crosswalk.html)
 
 **Read each block's `state` before its numbers:**
 
