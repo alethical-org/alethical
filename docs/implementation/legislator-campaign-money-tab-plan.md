@@ -6,6 +6,40 @@ remains stopped under its missing-record guard.
 The accepted work includes the profile, outside spending, spending-card correction,
 historical totals and payments grouped by name, each with a pull request and live check.
 
+## Remaining-work boundaries
+
+Eugene resumed this task's remaining non-lobbying work on 13 September 2026.
+The pause on both lobbying jobs remains in force. Completion of a screen change
+does not complete either held source replacement.
+
+- The names redesign in [pull request 2189](https://github.com/alethical-org/alethical/pull/2189)
+  and the itemized-history wording in [pull request 2196](https://github.com/alethical-org/alethical/pull/2196)
+  are live. Their [names release report](https://github.com/alethical-org/alethical/issues/2185#issuecomment-5654665942)
+  and [history release report](https://github.com/alethical-org/alethical/issues/2191#issuecomment-5654830093)
+  record required checks and phone, tablet and computer behavior. Their completed
+  worktrees and branches are removed.
+- Jobs 5a, 5b and 5c are released server additions. Displays for the filing's
+  contributor lines, donor states and shared printed names still require their
+  separately accepted Design briefs; the server releases do not authorize those displays.
+- [Issue 2142](https://github.com/alethical-org/alethical/issues/2142) and
+  [issue 2150](https://github.com/alethical-org/alethical/issues/2150) remain held at
+  Action 4 Liberty PAC's missing 2026 record. All 3 authorized retries are exhausted.
+  The complete saved replacement and recovery evidence remain available; no further
+  totals fetch, source substitution or publication is authorized by this close-out.
+- The next bulk-payment replacement remains held under
+  [issue 2171](https://github.com/alethical-org/alethical/issues/2171). Read-only
+  investigation of its 905-row loss may proceed. A finding that explains some removed
+  rows does not waive the existing whole-replacement checks.
+- [Issue 2192](https://github.com/alethical-org/alethical/issues/2192), serving and
+  displaying the report totals' own copy date, and
+  [issue 2194](https://github.com/alethical-org/alethical/issues/2194), transcribing
+  older filing calendars, are separate open follow-ups. The names and history
+  releases do not complete them.
+- [Lobbying data](https://github.com/alethical-org/alethical/issues/2163) and
+  [lobbying pages](https://github.com/alethical-org/alethical/issues/2164) stay paused
+  until Eugene resumes them. Remind him after each completed build; do not create
+  a scheduled continuation or resume either job from this checkpoint.
+
 ## Completed server change
 
 - [x] Group outside spending by spender and direction without changing raw payment rows.
@@ -51,7 +85,8 @@ covering [issue 2143](https://github.com/alethical-org/alethical/issues/2143).
   were approved on 12 September 2026: chart categories match donor tabs, with candidate
   committees in Committees & Funds, and the existing whole-dollar formatter remains.
 - [x] Merge through the queue after the answers are implemented and check the live profile.
-- [ ] Remove the completed build branches and worktrees after the remaining deliveries.
+- [x] Remove the completed build branches and worktrees. Keep the held historical
+  replacement's worktree and recovery evidence until that separate job is resolved.
 
 The complete frontend suite passed 2,550 tests after integrating the approved spending
 and source-date wording, and the backend suite passed 2,451 tests. Type checking, package compatibility,
@@ -385,14 +420,21 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   response cases and independent source and reader checks. The national HUD reference
   has 39,484 ZIPs, with 200 retained as unknown. Abeler's 2025 Individual cash totals
   reconcile at $38,700 for Minnesota and $1,250 unknown. Display still waits for Design.
-- Job 5c is active in `/private/tmp/alethical-2145-exact-name-connections` on
-  `codex/2145-exact-name-connections`. Its independently collected held fixture has
+- Job 5c is live through [pull request 2178](https://github.com/alethical-org/alethical/pull/2178),
+  released as [commit 9dde20bc](https://github.com/alethical-org/alethical/commit/9dde20bccf25098905ceb0cf2d3fed507a0973e1).
+  Its independently collected held fixture has
   82 selected payment rows, 74 exact names and 47 rows to other PCC registrations.
   Exactly 19 of the 74 names occur at another candidate registration in 2025.
   Distribution: 55 / 11 / 5 / 1 / 2 names across 0 / 1 / 2 / 3 / 4+ other registrations.
   The calculation preserves exact spelling and repeated payments while counting each
-  other registration once. Tests, release checks and public response checks are required
-  before completion; no page changes. Jobs 5d through 5f retain their order and holds.
+  other registration once. The release passed 17 focused tests, 2,643 server tests,
+  current-change and merge-queue checks, and 5 ordinary public response checks.
+  The resumed independent check passed all 5 normal public response addresses and
+  the existing Abeler money tab's 2025 to 2024 to 2025 year changes. Direct API
+  navigation was blocked by Chrome; response comparisons used ordinary HTTP reads,
+  while browser checks covered the existing screen. The [dated evidence](../verification/2145-exact-name-connections.md#live-response-and-existing-screen-check)
+  keeps those checks separate. No page changed. Its completed worktree and branch
+  are removed. Jobs 5d through 5f retain their order and holds.
 - Jobs 4 through 5f retain their stated sequence. Action 4 Liberty PAC's historical
   replacement for 41173/2026 remains held with no additional source attempts or
   publication. The 2024 spending replacement remains held for the 905-row loss in
@@ -441,7 +483,7 @@ each job's issue. Comment on issue 2140 after all 4 merge.
   cash by state, including unknown for missing, unmatched or shorter-than-5-digit
   ZIPs, and Minnesota/other-states/unknown summary. Never serve ZIPs. Pin 17868/2025
   cash reconciliation and a 4-digit ZIP as unknown.
-- [ ] 5c, [issue 2145](https://github.com/alethical-org/alethical/issues/2145): for
+- [x] 5c, [issue 2145](https://github.com/alethical-org/alethical/issues/2145): for
   each distinct printed individual contributor name in the committee-year, count
   other PCC candidate registrations with a Contribution under exactly that spelling
   in the same year. No normalization beyond payments-under-name. Serve distribution
