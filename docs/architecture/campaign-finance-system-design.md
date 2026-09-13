@@ -1931,6 +1931,15 @@ draws under the card's heading instead of vanishing with the panel. The year wit
 the card is the year a reader most wants the fuller record, which is why it is the one element
 an empty year may not take with it.
 
+**A column heading never breaks a word. Where a drawn width and a drawn letter-spacing cannot
+both hold, the letter-spacing gives way (13 Sep 2026).** Measured on the live refunds table at
+375 pixels: the uppercase word CONTRIBUTIONS needs 103 pixels at 11px with 0.12em of tracking,
+and the drawn 104-pixel column leaves 98 inside its padding, so the cell broke the word and
+printed CONTRIBUTION above S REFUNDED. Tightening that band's tracking to 0.06em fits the word
+with room to spare and changes nothing a reader can name, where widening the column would have
+taken 5 pixels from the year beside it. The widths are what Design laid out and the tracking is
+the half a build may adjust, so the tracking is what moves.
+
 ---
 
 ## 8. Row counts are measurements, not requirements
