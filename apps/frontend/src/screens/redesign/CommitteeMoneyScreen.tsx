@@ -28,6 +28,7 @@ import {
   MoneyInBlock,
   MoneyOutBlock,
 } from '../../components/campaignMoney/MoneyCards';
+import { CommitteeDonationCards } from '../../components/campaignMoney/CommitteeDonationCards';
 import { TrackCommitteeButton } from '../../components/campaignMoney/TrackCommitteeButton';
 import { BOARD_RECORD_LINK_LABEL, boardRecordUrl } from '../../lib/boardRecordLink';
 import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
@@ -832,6 +833,16 @@ function PaymentsSection({
                 ))}
               </View>
             </View>
+            <CommitteeDonationCards
+              committee={money}
+              year={year}
+              registerKind={
+                money.register.state === 'reported'
+                  ? money.register.kind
+                  : registerKindFromEntityType(money.entityType)
+              }
+              releaseId={money.releaseId}
+            />
             <GroupedOutsideSpending
               surface="committee"
               year={committeeOutsideSpending(money)}

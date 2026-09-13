@@ -56,6 +56,9 @@ import {
   CommitteeOutsideSpendingRow,
   CommitteeMadePayment,
   CommitteeMoney,
+  CommitteeDonorStates,
+  CommitteeNameConnections,
+  CommitteeStatedByKind,
   TrackedCommittee,
   CommitteePaymentsPage,
   CommitteeReceivedPayment,
@@ -626,6 +629,9 @@ interface ApiLegislatorCampaignMoneyPayload {
       party_agreement?: string | null;
     } | null;
     refunds?: ApiCommitteeRefundsPayload | null;
+    stated_by_kind?: CommitteeStatedByKind | null;
+    donor_states?: CommitteeDonorStates | null;
+    name_connections?: CommitteeNameConnections | null;
     money_in?: {
       state: NonNullable<LegislatorCampaignMoney['committees'][number]['moneyIn']>['state'];
       itemized_contribution_total?: string | null;
@@ -668,6 +674,22 @@ interface ApiLegislatorCampaignMoneyPayload {
       terminated_on?: string | null;
     } | null;
   }[];
+}
+
+function donationCardBlocks(payload: {
+  stated_by_kind?: CommitteeStatedByKind | null;
+  donor_states?: CommitteeDonorStates | null;
+  name_connections?: CommitteeNameConnections | null;
+}) {
+  return {
+    ...(payload.stated_by_kind !== undefined
+      ? { statedByKind: payload.stated_by_kind }
+      : undefined),
+    ...(payload.donor_states !== undefined ? { donorStates: payload.donor_states } : undefined),
+    ...(payload.name_connections !== undefined
+      ? { nameConnections: payload.name_connections }
+      : undefined),
+  };
 }
 
 interface ApiLegislatorVotePayload {
@@ -2572,6 +2594,7 @@ export async function getLegislatorCampaignMoneyFromApi(
           }
         : null,
       refunds: mapCommitteeRefunds(committee.refunds),
+      ...donationCardBlocks(committee),
       moneyIn: committee.money_in
         ? {
             state: committee.money_in.state,
@@ -3305,6 +3328,9 @@ interface ApiCommitteeRegisterPayload {
 export interface ApiCommitteeMoneyPayload {
   release_id?: string;
   independent_spending?: CommitteeMoney['independentSpendingSource'];
+  stated_by_kind?: CommitteeStatedByKind | null;
+  donor_states?: CommitteeDonorStates | null;
+  name_connections?: CommitteeNameConnections | null;
   registration_number: string;
   committee_name?: string | null;
   entity_type?: string | null;
@@ -3374,6 +3400,7 @@ export function committeeFinanceFromPayload(payload: ApiCommitteeMoneyPayload): 
   return {
     releaseId: payload.release_id,
     independentSpendingSource: payload.independent_spending,
+    ...donationCardBlocks(payload),
     registrationNumber: payload.registration_number,
     // The downloads spell a missing name as an empty string; a page must not
     // render a heading out of it.

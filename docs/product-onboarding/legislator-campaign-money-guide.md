@@ -4,7 +4,7 @@
 
 <!-- describes: apps/frontend/src/components/campaignMoney/CampaignMoneyTabOnDemand.tsx, apps/frontend/src/components/campaignMoney/YearControl.tsx, apps/frontend/src/components/campaignMoney/GroupedOutsideSpending.tsx, apps/frontend/src/lib/campaignMoneyColors.ts, apps/frontend/src/data/groupedOutsideSpending.ts, apps/frontend/src/lib/groupedOutsideSpending.ts -->
 
-<!-- describes: apps/frontend/src/components/campaignMoney/CommitteeDonations.tsx, apps/frontend/src/components/campaignMoney/DonorBreakdown.tsx, apps/frontend/src/components/campaignMoney/DonorPaymentList.tsx, apps/frontend/src/components/campaignMoney/CommitteeMixHistory.tsx, apps/frontend/src/components/campaignMoney/MoneyCards.tsx, apps/frontend/src/lib/campaignMoneyDetails.ts, apps/frontend/src/data/campaignMoneyDetails.ts, apps/frontend/src/hooks/useCampaignMoneyDetails.ts, apps/frontend/src/components/campaignMoney/CampaignMoneyTab.tsx, apps/frontend/src/components/legislator/OutsideSpendingCard.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/independent_spending.py, apps/frontend/src/components/campaignMoney/LegislatorProfileTabs.tsx, apps/frontend/src/lib/legislatorCampaignMoney.ts, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, alethical/api/services/legislator_finance.py, alethical/api/services/committee_amount.py, alethical/api/routers/public.py -->
+<!-- describes: apps/frontend/src/components/campaignMoney/CommitteeDonationCards.tsx, apps/frontend/src/components/campaignMoney/CommitteeDonations.tsx, apps/frontend/src/components/campaignMoney/DonorBreakdown.tsx, apps/frontend/src/components/campaignMoney/DonorPaymentList.tsx, apps/frontend/src/components/campaignMoney/CommitteeMixHistory.tsx, apps/frontend/src/components/campaignMoney/MoneyCards.tsx, apps/frontend/src/lib/campaignMoneyDetails.ts, apps/frontend/src/data/campaignMoneyDetails.ts, apps/frontend/src/hooks/useCampaignMoneyDetails.ts, apps/frontend/src/components/campaignMoney/CampaignMoneyTab.tsx, apps/frontend/src/components/legislator/OutsideSpendingCard.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/independent_spending.py, apps/frontend/src/components/campaignMoney/LegislatorProfileTabs.tsx, apps/frontend/src/lib/legislatorCampaignMoney.ts, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, alethical/api/services/legislator_finance.py, alethical/api/services/committee_amount.py, alethical/api/routers/public.py -->
 
 Every current Minnesota House and Senate member's profile page has two tabs:
 **Overview**, which is the page as it has always been, and **Campaign money**, which
@@ -107,8 +107,10 @@ unfinished clerical job of ours.
 ## What the tab shows once a member is matched
 
 **Everything about one committee stays together, and the block repeats for each one.**
-A committee's card comes first, then that committee's **How the mix of itemized
-contributions changed by year** chart, then its **Refunds Minnesota paid this
+A committee's card comes first, then its 3 selected-year donation cards: **What the
+committee’s own report says**, **Where itemized individual donations came from**, and
+**Names that also gave to other candidates**. Then come that committee's **How the mix
+of itemized contributions changed by year** chart and its **Refunds Minnesota paid this
 committee's donors** card. The mix chart repeats the donor kinds from **Who gave**
 across years, using only itemized contributions. **Spending by outside groups**
 draws once, below every committee block, because it covers all of a member's confirmed
@@ -643,6 +645,70 @@ committee-year is still stored and served (`stated_spending_state`); the card ju
 prints it. A held official total stays visible even when that comparison is unproved;
 the comparison does not decide whether the total exists. Its mechanics are under "Where
 the data comes from" below.
+
+### The 3 selected-year donation cards
+
+[Issue 2205](https://github.com/alethical-org/alethical/issues/2205) adds 3 separate
+cards before the history chart. Each uses the selected committee and year. The
+committee's own `/money/committees/<slug>` page uses the same cards in its Campaign
+money section, without needing a legislator confirmation.
+
+**What the committee’s own report says** prints the 5 filing lines beside the
+itemized cash assigned to each line and their difference. Its final row, **All five
+added up**, adds the unrounded source amounts before cutting cents for display. The
+difference column's total equals the chart's Non-itemized contributions figure.
+The row totals live beside their 5 source rows, rather than in the summary above.
+
+A filing's party-unit line also contains cash from terminating candidate committees.
+The note on that row prints the amount and the number of payments, including 2
+payments with the same date and amount. It explains that **Who gave** puts those
+payments under **Committees & Funds**. It counts payments rather than claiming each
+payment represents a different committee. The note uses only cash Contribution
+rows through the filing's coverage end, including undated rows as the source
+comparison does. For 17868 in 2025, it is 1 payment of $500. The 5-line totals are
+$97,703 reported, $67,100 itemized cash and $30,603 difference.
+
+**Where itemized individual donations came from** shows Minnesota, other states and
+unknown, with a name count and cash amount for each. Other-state rows expand into
+full state names. A checked zero stays $0. No individual donation rows produces the
+selected year's empty sentence. Cash with no printed name remains visible in its
+state bucket; a missing name never means that no donation exists. A postcode never reaches the rendered output,
+including hidden labels, attributes and tooltips. The entire card is absent for
+funds and party organisations, with no heading or reserved gap. For 17868 in 2025:
+Minnesota 71 names / $38,700; other states 0 / $0; unknown 3 / $1,250. A printed name
+can occur in more than 1 state, so the card does not invent a total count across
+state rows.
+
+**Names that also gave to other candidates** prints the exact-spelling numerator and
+denominator beside its caveat that spelling is not identity. It draws a 22px bar
+with 5 neutral greys, a swatch and count for each of 0, 1, 2, 3 and 4 or more other
+candidate committees, and the 5 highest names. For 17868 in 2025 the headline is
+19 of 74 names, and the distribution is 55 / 11 / 5 / 1 / 2. This is a same-year
+count, not a money total or a claim that spelling identifies a person.
+
+All 3 cards require the selected year's agreeing stated-split check. A missing
+filing and a check without agreement use the same accepted held sentences, which
+describe what Alethical can show rather than claiming the committee failed to file.
+An explicitly withheld 5-line block also keeps the filing card held, even when the
+overall split agrees: the server currently supplies these lines only for candidate
+committees. A failed read uses the card's load-failed sentence, never an empty state. Loading
+keeps each heading above a labelled placeholder, with its pulse suppressed when a
+reader requests reduced motion. Missing blocks in an older cached response never
+become zeros. The filing card keeps its 5 rows when there are no itemized individual
+donations; the other 2 show their selected-year empty sentences. If donation rows
+exist but none carries a usable name, the names card uses its load-failed words
+rather than saying there were no individual donations.
+
+The card surfaces use the existing committee card's border, padding and shadow.
+The filing table stacks each kind into 3 labelled figures below 768px; the location
+table keeps 3 columns. The name distribution and highest-name tables stack below
+768px. The size changes at 768px and 1100px follow the tab's existing text sizes,
+including 15px small text on a phone. The money section uses 32px side margins on
+tablets instead of the overview's 640px maximum column, so the fixed table columns
+leave enough space for the contribution-line labels.
+
+Docs check: The 3 selected-year cards, their order, checked and empty states, exact
+spelling caveat, payment-count note and location privacy match the shared component.
 
 ### Refunds Minnesota paid a committee's donors
 

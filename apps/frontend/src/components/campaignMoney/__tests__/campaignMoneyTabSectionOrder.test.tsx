@@ -2,7 +2,7 @@
 /**
  * What a reader meets, and in what order, on a legislator's Campaign money tab (#2186).
  *
- * Everything about one committee stays together: its own card, then the same donor
+ * Everything about one committee stays together: its own card, then the 3 donation cards, then the donor
  * picture drawn across years, then the refunds Minnesota paid its donors. Outside
  * spending draws once, below every committee block, because it covers all of them at
  * once and cannot sit inside one.
@@ -123,10 +123,13 @@ const REFUNDS = 'Refunds Minnesota paid this committee&#x27;s donors';
 const OUTSIDE = 'Spending by outside groups';
 
 describe('the order of the Campaign money tab', () => {
-  it('keeps one committee together: its card, its chart, then its refunds', () => {
+  it('keeps one committee together: its card, 3 donation cards, its chart, then its refunds', () => {
     const html = render([committee('17868')]);
     const order = [
       html.indexOf('Fixture Senate committee 17868'),
+      html.indexOf('committee-17868-donation-card-0'),
+      html.indexOf('committee-17868-donation-card-1'),
+      html.indexOf('committee-17868-donation-card-2'),
       html.indexOf(MIX),
       html.indexOf('committee-17868-refunds'),
       html.indexOf(OUTSIDE),
@@ -142,6 +145,11 @@ describe('the order of the Campaign money tab', () => {
     const second = at('Fixture Senate committee 15667');
     // The first committee's chart and refunds both land before the second one starts,
     // so no committee's block is split by another committee's.
+    for (const index of [0, 1, 2]) {
+      expect(at(`committee-17868-donation-card-${index}`)).toBeLessThan(at(MIX));
+      expect(at(`committee-15667-donation-card-${index}`)).toBeGreaterThan(second);
+      expect(at(`committee-15667-donation-card-${index}`)).toBeLessThan(at(MIX, second));
+    }
     expect(at(MIX)).toBeLessThan(second);
     expect(at('committee-17868-refunds')).toBeLessThan(second);
     expect(at(MIX, second)).toBeGreaterThan(second);

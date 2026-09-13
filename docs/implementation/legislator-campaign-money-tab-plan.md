@@ -636,3 +636,27 @@ so one round must never overwrite the other.
   reader guide. Own worktree, PR, checks, merge queue and live review remain
   required; report on both issues 2164 and 2140. Architecture findings go to the
   issue, never into campaign-finance-system-design.md from this task.
+
+
+## Donation-card build checkpoint, 13 September 2026
+
+[Issue 2205](https://github.com/alethical-org/alethical/issues/2205) starts from main after
+[pull request 2206](https://github.com/alethical-org/alethical/pull/2206).
+
+- [x] Read the accepted UX (17) build facts and all 7 drawing states at all 3 widths
+- [x] Carry the 3 served blocks through both frontend response readers, preserving amounts, omissions and held states
+- [x] Add 3 shared cards after each committee's own money and before its history, with the location card absent on non-candidate committees
+- [x] Pin real 17868/2025 figures, both empty causes, loading/failure, location absence and no postcode output
+- [ ] Browser-check all widths, measure the hosted production-settings build, then use the merge queue and check the live release
+- [ ] Report on the existing issue and update the final review checkpoint
+
+The closing-committee note counts payments, including repeated payments from the same
+committee. It does not call the payment count a count of committees. The cash rows are
+bounded by the filing's coverage end, including undated rows as the source comparison does.
+No new server work or production data refresh is part of this build. Lobbying starts after
+these cards are live; the 2 held replacement jobs stay held.
+
+Browser checks cover 1440px, 834px and 390px. The tablet money column uses the
+accepted 32px gutter instead of the overview's 640px maximum. Empty messages require
+absence of individual Contribution rows, not merely absence of usable printed names.
+The frontend suite passes 2,801 tests; hosted size and release checks remain next.

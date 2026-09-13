@@ -1,3 +1,4 @@
+import { CommitteeDonationCards } from './CommitteeDonationCards';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 /**
  * The Campaign money tab on a legislator's profile (#1329).
@@ -563,6 +564,12 @@ function CommitteeCard({
           <CheckedByBlock checked={committee.checked} />
         </View>
       </View>
+      <CommitteeDonationCards
+        committee={committee}
+        year={year}
+        registerKind={committee.registerKind}
+        releaseId={releaseId}
+      />
       {mixHistory}
       <CommitteeRefundCard
         refunds={committee.refunds}
