@@ -734,7 +734,9 @@ it travelled in can have sat in the page cache for 10 minutes and the app's own 
 window is 5. The reader gets the real figures in the first paint and the recheck happens
 behind them without blanking anything. On `/payments`, the carried first page removes
 the matching initial payment request. The redesigned committee chart and tabs still
-need their complete selected-year payment reads.
+need their complete selected-year payment reads. The old 6-row hooks and their
+unused query key are removed with that redesign, so every page no longer downloads
+readers that no screen uses.
 
 Measured 8 Sep 2026 against the live release and the live data service, with the page
 cache deliberately missed on every read.

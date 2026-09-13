@@ -1225,13 +1225,6 @@ const styles = StyleSheet.create({
   yearRow: { marginTop: 20, flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
   // Phone band: the label sits above 2 equal halves of the row, never beside pills.
   yearRowMobile: { flexDirection: 'column', flexWrap: 'nowrap', alignItems: 'stretch', gap: 8 },
-  yearLabel: {
-    fontFamily: t.typography.mono,
-    fontSize: 11,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.3,
-    color: t.colors.text.muted,
-  },
   stampWrap: { marginTop: 20 },
   // `flex-start`, never `stretch`: each card is as tall as its own data and is never
   // levelled against its neighbour. Money out holds fewer elements and looks it.
@@ -1274,25 +1267,7 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.brand.base,
   },
-  listSection: { marginTop: 30 },
-  // Wraps rather than scrolling sideways: 5 tabs take 2 lines at 375, and the active
-  // one keeps its underline on whichever line it lands.
-  tabsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    columnGap: 30,
-    borderBottomWidth: 1,
-    borderBottomColor: t.colors.alpha.ink08,
-  },
-  tab: { paddingBottom: 12 },
   tabActive: { borderBottomWidth: 2, borderBottomColor: t.colors.text.primary, marginBottom: -1 },
-  tabLabel: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.bodyLg,
-    fontWeight: t.fontWeights.semibold,
-    color: t.colors.text.secondary,
-  },
-  tabLabelActive: { color: t.colors.text.primary, fontWeight: t.fontWeights.bold },
   listHead: {
     marginTop: 20,
     flexDirection: 'row',
@@ -1449,15 +1424,6 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: t.colors.text.secondary,
   },
-  listBar: {
-    width: 160,
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: t.colors.surfaces.s100,
-    overflow: 'hidden',
-    display: 'flex',
-  },
-  listBarFill: { height: '100%', backgroundColor: t.colors.brand.bright },
   // Every dollar amount on this section takes the body face, the one the big totals
   // already use (ruled 1 Sep 2026, #1924). Mono stays for dates, registration numbers
   // and small labels, so the 2 faces separate 2 kinds of thing rather than 2 kinds of
@@ -1470,7 +1436,6 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
-  listAmountMobile: { width: undefined, flexShrink: 0 },
   seeAll: {
     marginTop: 14,
     flexDirection: 'row',

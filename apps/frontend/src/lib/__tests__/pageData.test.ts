@@ -7,11 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { committeeRegisterQueryKey } from '../committeeList';
-import {
-  committeeMoneyQueryKey,
-  committeePaymentsListQueryKey,
-  committeePaymentsQueryKey,
-} from '../committeeMoney';
+import { committeeMoneyQueryKey, committeePaymentsListQueryKey } from '../committeeMoney';
 import { moneyByRaceQueryKey } from '../moneyByRace';
 import { campaignFinanceFilingsQueryKey, campaignFinanceSummaryQueryKey } from '../moneyLanding';
 import { outsideSpendingRecordQueryKey } from '../outsideSpending';
@@ -180,15 +176,6 @@ describe('the seeded keys are the keys the app asks for', () => {
     ).toEqual(['outside-spending-record', '20963', null, 2026, 'largest', 2]);
     expect(committeeMoneyQueryKey('41326', 2026)).toEqual(['committee-money', '41326', 2026]);
     expect(
-      committeePaymentsQueryKey({
-        registrationNumber: '41326',
-        direction: 'received',
-        year: 2026,
-        limit: 6,
-        offset: 0,
-      }),
-    ).toEqual(['committee-payments', '41326', 'received', 2026, 6, 0]);
-    expect(
       committeePaymentsListQueryKey({
         registrationNumber: '41326',
         direction: 'made',
@@ -207,7 +194,6 @@ describe('the seeded keys are the keys the app asks for', () => {
       'committeeRegisterQueryKey',
       'outsideSpendingRecordQueryKey',
       'committeeMoneyQueryKey',
-      'committeePaymentsQueryKey',
       'committeePaymentsListQueryKey',
     ]) {
       expect(hooks).toContain(`${builder}(`);

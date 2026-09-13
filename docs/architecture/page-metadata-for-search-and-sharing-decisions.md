@@ -1546,8 +1546,9 @@ section's other filtered views already do.
 - **It does not put the payments page in a sitemap.** It is a second view of one record, reachable
   by an ordinary link from the record itself, and listing both would ask Google to crawl the same
   committee twice.
-- **It does not serve the committee page's 6-row payment previews.** Those are a preview of a list
-  that has its own page, and that page serves the list in full.
+- **It does not serve the committee page's donor chart or grouped payment tabs.** Those wait
+  for complete lists after the app starts. The separate payments address serves its first
+  50 rows in the response and adds later pages when the reader asks.
 - **It does not change what a person sees**, apart from the register's numbered pages replacing its
   "Show more" button — which is the change §20.5 rule 2 requires and the whole reason the other
   1,553 pages were unreachable.

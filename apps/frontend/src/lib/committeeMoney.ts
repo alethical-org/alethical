@@ -347,18 +347,6 @@ export function committeeMoneyQueryKey(
   return ['committee-money', registrationNumber, year];
 }
 
-/** One page of a committee's short payments list, in one direction. */
-export function committeePaymentsQueryKey(options: {
-  registrationNumber: string | null;
-  direction: 'received' | 'made';
-  year: number;
-  limit: number;
-  offset: number;
-}): readonly unknown[] {
-  const { registrationNumber, direction, year, limit, offset } = options;
-  return ['committee-payments', registrationNumber, direction, year, limit, offset];
-}
-
 /** The full payments view's accumulating list, in one direction. */
 export function committeePaymentsListQueryKey(options: {
   registrationNumber: string | null;
@@ -373,9 +361,6 @@ export function committeePaymentsListQueryKey(options: {
 export function paymentsDirection(tab: PaymentsTab): 'received' | 'made' {
   return tab === 'gave' ? 'received' : 'made';
 }
-
-/** How many rows the committee page's short list asks for. */
-export const SHORT_PAYMENTS_LIMIT = 6;
 
 // --- The period stamp ------------------------------------------------------------
 

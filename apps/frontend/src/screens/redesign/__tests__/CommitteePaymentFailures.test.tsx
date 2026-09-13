@@ -16,8 +16,6 @@ vi.mock(
 vi.mock('../../../hooks/useAppQueries', () => ({
   useCommitteeMoney: () => ({ data: state.money, isPending: false, isError: false }),
   useCommitteePaymentsList: () => state.query,
-  useCommitteePaymentsReceived: () => state.query,
-  useCommitteePaymentsMade: () => state.query,
   useOutsideSpending: () => ({ data: { pages: [] }, isPending: false, isError: false }),
   usePrefetchCommitteeMoney: () => () => {},
   usePrefetchLegislator: () => () => {},

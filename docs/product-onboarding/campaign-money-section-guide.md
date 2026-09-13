@@ -889,8 +889,8 @@ loan is labelled as reported on its own schedule rather than reading as a gift, 
 read "Money given to another campaign" and open no name lookup, and a registered filer's
 number opens its committee page where any other name opens its own exact spelling.
 
-A failed payment read, including an unavailable response, uses the existing could-not-load
-sentence on both this page and the committee's short payment list. It never prints a
+A failed payment read, including an unavailable response, uses this page's could-not-load
+sentence. It never prints a
 no-donors or no-payments heading. A first response with a failed payment read keeps the
 committee's identity and known figures, carries no successful payment seed, and uses
 `Cache-Control: no-store` so a later reader can retry immediately. Successful responses

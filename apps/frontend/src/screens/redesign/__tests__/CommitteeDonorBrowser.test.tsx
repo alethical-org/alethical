@@ -115,8 +115,14 @@ async function render() {
       </QueryClientProvider>,
     ),
   );
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 20));
+  // The first dynamic payment-reader import can outlast a fixed sleep on CI.
+  // Wait for the actual read and its rendered result, including every page.
+  await vi.waitFor(async () => {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(client.isFetching()).toBe(0);
+    expect(host.textContent).not.toContain('Loading the complete payment list…');
   });
 }
 function shape() {

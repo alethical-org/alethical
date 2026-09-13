@@ -83,8 +83,6 @@ import { COMMITTEE_PAGE_SIZE, committeeRegisterQueryKey } from '../lib/committee
 import {
   committeeMoneyQueryKey,
   committeePaymentsListQueryKey,
-  committeePaymentsQueryKey,
-  SHORT_PAYMENTS_LIMIT,
   FIRST_PAYMENTS_LIMIT,
   PAGE_CAP,
 } from '../lib/committeeMoney';
@@ -636,40 +634,6 @@ export function useCommitteeMoney(registrationNumber: string | null, year: numbe
   });
 }
 
-/** The largest payments into a committee for one year, for the page's short list. */
-export function useCommitteePaymentsReceived(
-  registrationNumber: string | null,
-  year: number,
-  options: { limit?: number; offset?: number; enabled?: boolean } = {},
-) {
-  const limit = options.limit ?? SHORT_PAYMENTS_LIMIT;
-  const offset = options.offset ?? 0;
-  const key = committeePaymentsQueryKey({
-    registrationNumber,
-    direction: 'received',
-    year,
-    limit,
-    offset,
-  });
-  return useQuery({
-    queryKey: key,
-    queryFn: () =>
-      getCommitteePaymentsReceivedFromApi(registrationNumber ?? '', {
-        year,
-        sort: 'amount',
-        limit,
-        offset,
-      }),
-    // A committee address asking for the who-gave tab is served this short list
-    // already read, so its 6 rows are on screen with the figures above them
-    // rather than a request later (issue 2024).
-    ...seededQuery(key, committeePaymentsReceivedFromPayload),
-    enabled: Boolean(registrationNumber) && (options.enabled ?? true),
-    retry: false,
-    placeholderData: keepPreviousData,
-  });
-}
-
 /**
  * The first read carries 50 rows; later reads carry up to 250, largest first.
  * Advance by rows actually received so a smaller seeded page skips nothing.
@@ -788,38 +752,6 @@ export function useCommitteeFilingsList(
       lastPage.hasMore ? allPages.length * 100 : undefined,
     enabled: Boolean(registrationNumber) && (options.enabled ?? true),
     retry: false,
-  });
-}
-
-/** The largest payments out of a committee for one year. */
-export function useCommitteePaymentsMade(
-  registrationNumber: string | null,
-  year: number,
-  options: { limit?: number; offset?: number; enabled?: boolean } = {},
-) {
-  const limit = options.limit ?? SHORT_PAYMENTS_LIMIT;
-  const offset = options.offset ?? 0;
-  const key = committeePaymentsQueryKey({
-    registrationNumber,
-    direction: 'made',
-    year,
-    limit,
-    offset,
-  });
-  return useQuery({
-    queryKey: key,
-    queryFn: () =>
-      getCommitteePaymentsMadeFromApi(registrationNumber ?? '', {
-        year,
-        sort: 'amount',
-        limit,
-        offset,
-      }),
-    // The same for an address asking for the where-it-went tab (issue 2024).
-    ...seededQuery(key, committeePaymentsMadeFromPayload),
-    enabled: Boolean(registrationNumber) && (options.enabled ?? true),
-    retry: false,
-    placeholderData: keepPreviousData,
   });
 }
 

@@ -265,7 +265,8 @@ architecture record stays unchanged; proposed changes go on each job's issue.
 - A new attempted consultation with the permitted Claude session was rejected by
   automatic approval review for including run status and preservation instructions.
   No message from that attempt was sent; the assessment continues locally.
-- Job 1 is complete, as recorded above. Job 2 is building in
+- Job 1 is complete, as recorded above. Job 2 is in
+  [pull request 2167](https://github.com/alethical-org/alethical/pull/2167), using
   `/private/tmp/alethical-2166-committee-donor-tabs` on
   `codex/2166-committee-donor-tabs`, based on
   [commit 3e76927c](https://github.com/alethical-org/alethical/commit/3e76927c1ef28a2a00a3a23d7f9543d4a3ab8083).
@@ -273,16 +274,22 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   reader-guide changes, integration and release. Tests now preserve donor category
   and sort across an uncached year load, and retain split and donated-goods
   explanations in sections without the chart. The unused initial 6-payment read
-  is removed; the separate full-payment address keeps its first 50 rows. Shared
+  and its unused client hooks are removed; the separate full-payment address keeps
+  its first 50 rows. Shared
   details load on demand to preserve the unchanged 392,321-byte first-load limit.
   A local import-failure boundary keeps accepted summary figures visible if chart
-  code cannot load. The final formatted frontend suite passes 2,641 tests in 214
-  files; types, assets, icons and whitespace checks pass. With the live public
-  settings, the clean build is 392,203 bytes against the unchanged 392,321 limit.
+  code cannot load. Before obsolete short-list code was removed, the formatted frontend suite passed
+  2,641 tests in 214 files and the backend passed 2,549. After cleanup, 207 focused
+  tests and the 10 donor-browser tests pass; types, assets, icons and whitespace
+  checks pass. With the live public settings, the clean build is 392,010 bytes
+  against the unchanged 392,321 limit. The settings-free build including its
+  existing settings allowance is 392,109. The hosted preview result remains pending.
   The live base is 391,176 bytes by the same compression method. Browser flows
   pass for candidate 19193 and party 20003, including complete groups, expanded
   payments, retained category/sort across an uncached year, and preserved Filings
-  and Spent by them views. Final export smoke checks and release remain. Jobs 3
+  and Spent by them views. The GitHub test now waits for the actual completed
+  payment list instead of assuming its first code download finishes in 20ms.
+  Final release checks remain. Jobs 3
   onward keep their approved order and have not started.
 
 
