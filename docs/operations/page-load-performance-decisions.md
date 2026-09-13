@@ -427,10 +427,10 @@ what a reader downloads, because English prose beside more English prose compres
 
 ### What every committee page's words cost a reader who opens the homepage
 
-`lib/committeeMoney.ts` holds every sentence a committee's money page can print, and the
-address table reaches it through
+On 8 September 2026, `lib/committeeMoney.ts` held every sentence a committee's money
+page could print, and the address table reached it through
 [`lib/paymentsUnderName.ts`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/lib/paymentsUnderName.ts),
-so every reader downloads all of them. It is 4,997 bytes of the 391,752-byte first load,
+so every reader downloaded all of them. It cost 4,997 bytes of the 391,752-byte first load,
 about 1 byte in 78.
 
 Removing it from the browser entirely measures 387,768 bytes, and that floor is not
@@ -442,12 +442,37 @@ wherever it is put, so a reader still pays it. Cutting the other half loose meas
 2,000 bytes, against splitting 1,530 lines of reader-facing sentences 3 ways under a rule
 that no word may change.
 
-That measurement closes
+That measurement originally closed
 [issue 2070](https://github.com/alethical-org/alethical/issues/2070), which was filed
 against the 39,747-byte reading and asked for a ratchet cut. Doing exactly what it asked —
 leaving no first-load file importing that module — was built and measured on 8 Sep 2026 and
 made the first load 1,013 bytes **bigger**, because the module left `index-*.js` for the
 dearer `__common-*.js` and 7 screens still read it.
+
+The ordered campaign-money speed work reopened
+[issue 2070](https://github.com/alethical-org/alethical/issues/2070) on 13 September.
+It moves the genuinely single-screen parts instead of moving the entire module into
+the common download. The 49 committee-screen exports stay in `lib/committeeMoney.ts`,
+21 standalone-payment exports move to `lib/committeePaymentsPage.ts`, and the 48
+shared exports live in `lib/committeeMoneyShared.ts`. Both browser screens and the
+first-HTML readers use these same definitions. Every original declaration and every
+reader-facing string is preserved.
+
+Measured with the actual public production settings and a cleared export cache,
+the intermediate first download fell from 392,674 to **389,287 bytes**, a saving of
+**3,387 bytes** after the separate ownership-read change. The entry program fell
+from 340,333 to 336,944 bytes; the common file changed from 50,725 to 50,727; the
+runtime stayed at 1,616. This is a configured local comparison, not a hosted result
+or permission to lower the production limit. The final shared-code change and the
+production measurements still follow in
+[issue 2012](https://github.com/alethical-org/alethical/issues/2012).
+
+`committeePageImports.test.ts` follows value imports from the entry and every lazy
+screen. Each route-only text file must have no entry path and exactly its own
+screen as a consumer. In-memory bad imports prove it catches both a first-load
+edge and a second screen silently moving the words into the common download.
+The 2,695-test frontend suite passes. Docs check: the API contract and reader
+wording are unchanged by this move; this decision record owns the download change.
 
 **Moving code out of the program every page needs usually saves a reader nothing, and this is
 the trap to know about before planning any more of it.** A page names 3 files, and 1 of them

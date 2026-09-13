@@ -3,7 +3,7 @@
  * ("Money lists web.dc.html" screen A; `.claude/rules/grounded-answers.md`
  * rule 12; `docs/architecture/campaign-finance-system-design.md` §7).
  *
- * Framework-free, in the style of lib/committeeMoney.ts, whose label functions
+ * Framework-free, in the style of lib/committeeMoneyShared.ts, whose label functions
  * this reuses rather than restates: the same filer must not read one way on this
  * list and another on its own page, so `committeeEyebrow` there is the only
  * place a kind becomes words.
@@ -23,7 +23,7 @@
  *   landing once said 1,336 filers on a day the register held 1,603.
  */
 
-import { committeeEyebrow, formatDay } from './committeeMoney';
+import { committeeEyebrow, formatDay } from './committeeMoneyShared';
 import { formatCount } from './moneyLanding';
 
 /** The register's own 3 kinds, plus the unfiltered view. The register holds 3

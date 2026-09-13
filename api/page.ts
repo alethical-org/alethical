@@ -59,15 +59,17 @@ import {
 } from "../apps/frontend/src/lib/outsideSpending";
 import {
   FIRST_PAYMENTS_LIMIT,
-  paymentsUnavailable,
   committeeMoneyQueryKey,
   committeePaymentsListQueryKey,
+  paymentsTabFromParam,
+  registrationNumberFromSlug,
+} from "../apps/frontend/src/lib/committeeMoneyShared";
+import {
+  paymentsUnavailable,
   madePaymentRow,
   paymentsDirection,
-  paymentsTabFromParam,
   receivedPaymentRow,
-  registrationNumberFromSlug,
-} from "../apps/frontend/src/lib/committeeMoney";
+} from "../apps/frontend/src/lib/committeePaymentsPage";
 import { campaignMoneyYear } from "../apps/frontend/src/lib/legislatorCampaignMoney";
 import {
   BILL_DIRECTORY_PAGE_SIZE,
@@ -792,10 +794,12 @@ async function committeeFinance(
     confirmed_for: _confirmedFor,
     current_claim_validated_at: _currentClaimValidatedAt,
     ...money
-  } = await getApiData<CommitteeMoneySnapshotSource & {
-    confirmed_for?: unknown;
-    current_claim_validated_at?: unknown;
-  }>(
+  } = await getApiData<
+    CommitteeMoneySnapshotSource & {
+      confirmed_for?: unknown;
+      current_claim_validated_at?: unknown;
+    }
+  >(
     `/committees/${encodeURIComponent(registrationNumber)}/finance?year=${year}&include_confirmation=false`,
   );
   return money;

@@ -307,7 +307,18 @@ architecture record stays unchanged; proposed changes go on each job's issue.
   [first-stage result](https://github.com/alethical-org/alethical/issues/2126#issuecomment-5651013218)
   records this unfinished budget state before the 2 planned download reductions.
   Source and build evidence remain under `/tmp/2126-baseline/`, `/tmp/2126-reader/`
-  and `/tmp/2126-stage-build.log`. The next active step is 2070.
+  and `/tmp/2126-stage-build.log`.
+- The 2070 prose move is complete locally: 49 committee-only exports, 21
+  full-payment-view exports and 48 shared exports now have separate modules.
+  All original declarations and reader strings are preserved. The graph test
+  rejects both first-load imports and a second screen importing route-only text;
+  its deliberate bad-import cases pass. All 2,695 frontend tests pass. A fixed
+  10-millisecond wait in the existing failed-payments test now waits for its
+  expected visible error, preserving its assertions under concurrent test load.
+  The configured intermediate first download is 389,287 bytes, 3,387 below the
+  preceding stage, against the unchanged 392,321 limit. Evidence:
+  `/tmp/2070-stage-build.log`, `/tmp/2070-full-frontend.log` and
+  `/tmp/2070-import-boundary-after.log`. The next active step is 2012.
 - Jobs 4 through 5f retain their stated sequence. Action 4 Liberty PAC's historical
   replacement remains held with no additional source attempts or publication.
 

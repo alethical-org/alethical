@@ -18,7 +18,7 @@ vi.mock('../../providers/AuthProvider', () => ({
 
 import { createAppQueryClient } from '../../lib/appQueryClient';
 import { committeeRegisterQueryKey } from '../../lib/committeeList';
-import { committeeMoneyQueryKey } from '../../lib/committeeMoney';
+import { committeeMoneyQueryKey } from '../../lib/committeeMoneyShared';
 import { committeeConfirmationQueryKey } from '../../lib/committeeConfirmation';
 import {
   API_SHARED_CACHE_MAX_AGE_MS,

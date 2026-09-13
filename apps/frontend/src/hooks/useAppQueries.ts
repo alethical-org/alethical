@@ -85,7 +85,7 @@ import {
   committeePaymentsListQueryKey,
   FIRST_PAYMENTS_LIMIT,
   PAGE_CAP,
-} from '../lib/committeeMoney';
+} from '../lib/committeeMoneyShared';
 import {
   getCampaignFinanceRacesFromApiPayload,
   moneyByRaceQueryKey,

@@ -2094,7 +2094,7 @@ describe('a committee payments address naming a direction is answered in that di
  * Two properties no other case can see:
  *
  * - **Every seeded key is the key the app's own hook asks for.** They come from
- *   the same functions in `lib/committeeMoney.ts` that the hooks call, so a key
+ *   the same functions in `lib/committeeMoneyShared.ts` that the hooks call, so a key
  *   cannot drift. A drifted key does not fail loudly: the app quietly fetches
  *   again and the second wait comes back unnoticed.
  * - **The figures and the rows are read together.** Neither read needs the

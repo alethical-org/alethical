@@ -8,7 +8,7 @@
  * named figure off entirely, and each labelled money out's category rows differently.
  * One component means a fix to a sentence lands on both pages at once.
  *
- * Every word here comes from `lib/committeeMoney.ts` or `lib/legislatorCampaignMoney.ts`;
+ * Every word here comes from `lib/committeeMoneyShared.ts` or `lib/legislatorCampaignMoney.ts`;
  * this file chooses where things sit and nothing about what they claim. The 8-element
  * inventory it draws (campaign-money design, master prompt of 1 Sep 2026, PART 1 item 2;
  * `.claude/rules/grounded-answers.md` rule 12):
@@ -62,7 +62,7 @@ import {
   shownReceiptRows,
   unnamedMoneyExplanation,
   ZERO_REPORTED_NOTE,
-} from '../../lib/committeeMoney';
+} from '../../lib/committeeMoneyShared';
 import {
   formatMoney,
   isAmountAboveZero,

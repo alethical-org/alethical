@@ -101,11 +101,8 @@ import {
   CONFIRMATION_UNAVAILABLE_LINE,
 } from '../../../lib/committeeConfirmation';
 import { useOutsideSpending } from '../../../hooks/useAppQueries';
-import {
-  CONFIRMED_MEMBER_WITHHELD_LINE,
-  inKindDonationsNote,
-  MONEY_OUT_ZERO_NOTE,
-} from '../../../lib/committeeMoney';
+import { CONFIRMED_MEMBER_WITHHELD_LINE } from '../../../lib/committeeMoney';
+import { inKindDonationsNote, MONEY_OUT_ZERO_NOTE } from '../../../lib/committeeMoneyShared';
 import { splitExplanation } from '../../../lib/legislatorCampaignMoney';
 import type { RootScreenProps, RootStackParamList } from '../../../navigation/types';
 import type { CommitteeConfirmation, CommitteeOutsideSpendingRow } from '../../../data/types';

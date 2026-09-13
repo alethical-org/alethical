@@ -5,7 +5,7 @@ import Svg, { Circle } from 'react-native-svg';
 import type { CommitteeReceivedPayment } from '../../data/types';
 import { useResponsive } from '../../hooks/useResponsive';
 import { prepareContributionChart, type MoneyDetailsTab } from '../../lib/campaignMoneyDetails';
-import { inKindDonationsNote } from '../../lib/committeeMoney';
+import { inKindDonationsNote } from '../../lib/committeeMoneyShared';
 import {
   formatMoney,
   isAmountAboveZero,

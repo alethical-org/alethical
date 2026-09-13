@@ -44,7 +44,7 @@ import {
   coveredPeriodLine,
   paymentFilesDownloadedLine,
   staleHoldNote,
-} from '../../lib/committeeMoney';
+} from '../../lib/committeeMoneyShared';
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { useLegislatorOutsideSpending } from '../../hooks/useAppQueries';
 import { useCurrentClaimExpiry } from '../../hooks/useCurrentClaimExpiry';
@@ -66,7 +66,7 @@ import {
 import { CommitteeRefundCard } from './CommitteeRefundCard';
 import { useCampaignMoneyYearStates } from '../../hooks/useCampaignMoneyYearStates';
 import { LinkArrow } from '../LinkArrow';
-import { committeeSlug, FILED_REPORTS_LINK_LABEL } from '../../lib/committeeMoney';
+import { committeeSlug, FILED_REPORTS_LINK_LABEL } from '../../lib/committeeMoneyShared';
 import { paymentDateRangeLabel, splitExplanation } from '../../lib/legislatorCampaignMoney';
 import { BOARD_VIEWER } from './MoneyCards';
 import { linkProps, routePath } from '../../navigation/links';

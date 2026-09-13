@@ -101,14 +101,16 @@ describe.each(['full', 'browser'])('%s payment list', (view) => {
         </QueryClientProvider>,
       ),
     );
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 10));
+    await vi.waitFor(async () => {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(host.textContent).toContain(
+        view === 'full'
+          ? 'We couldn’t load these payments right now.'
+          : 'We could not load the complete payment list',
+      );
     });
-    expect(host.textContent).toContain(
-      view === 'full'
-        ? 'We couldn’t load these payments right now.'
-        : 'We could not load the complete payment list',
-    );
     expect(host.textContent).not.toContain('No donors named');
     expect(host.textContent).not.toContain('No payments named');
     expect(host.querySelector('[role="alert"]')).not.toBeNull();

@@ -1,5 +1,5 @@
 import { plainBillSummary } from './billDetail';
-import { registrationNumberFromSlug } from './committeeMoney';
+import { registrationNumberFromSlug } from './committeeMoneyShared';
 import { directoryPagePath } from './directoryPagination';
 import { paymentNameRole, paymentsUnderNameHeading } from './paymentsUnderName';
 import {

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { committeeRegisterQueryKey } from '../committeeList';
-import { committeeMoneyQueryKey, committeePaymentsListQueryKey } from '../committeeMoney';
+import { committeeMoneyQueryKey, committeePaymentsListQueryKey } from '../committeeMoneyShared';
 import { moneyByRaceQueryKey } from '../moneyByRace';
 import { campaignFinanceFilingsQueryKey, campaignFinanceSummaryQueryKey } from '../moneyLanding';
 import { outsideSpendingRecordQueryKey } from '../outsideSpending';

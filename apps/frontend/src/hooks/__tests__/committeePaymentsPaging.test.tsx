@@ -11,7 +11,7 @@ vi.hoisted(() => {
 vi.mock('../../providers/AuthProvider', () => ({
   useAuth: () => ({ accessToken: null, user: null, session: null }),
 }));
-import { committeePaymentsListQueryKey } from '../../lib/committeeMoney';
+import { committeePaymentsListQueryKey } from '../../lib/committeeMoneyShared';
 import { createAppQueryClient } from '../../lib/appQueryClient';
 import { renderPageData, resetSeededPayloadsForTests } from '../../lib/pageData';
 import { useCommitteePaymentsList } from '../useAppQueries';

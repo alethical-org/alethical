@@ -24,7 +24,7 @@
  * another on its own page.
  */
 
-import { coveredPeriodLine } from './committeeMoney';
+import { coveredPeriodLine } from './committeeMoneyShared';
 import {
   formatDay,
   formatMoney,

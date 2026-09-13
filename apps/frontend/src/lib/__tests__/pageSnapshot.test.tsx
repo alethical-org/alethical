@@ -9,7 +9,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import billFixture from './fixtures/bill-page-snapshot.json';
 import committeeFixture from './fixtures/committee-money-page-snapshot.json';
 import { CONFIRMATION_UNAVAILABLE_LINE } from '../committeeConfirmation';
-import { emptyListTitle, madePaymentRow, paymentsEyebrow, paymentsTitle } from '../committeeMoney';
+import {
+  emptyListTitle,
+  madePaymentRow,
+  paymentsEyebrow,
+  paymentsTitle,
+} from '../committeePaymentsPage';
 import committeeEmptyYearFixture from './fixtures/committee-empty-year-snapshot.json';
 import committeePaymentsFixture from './fixtures/committee-payments-page-snapshot.json';
 import legislatorFixture from './fixtures/legislator-page-snapshot.json';
@@ -102,20 +107,17 @@ const {
   committeeSlug,
   MONEY_OUT_OFFICIAL_MISSING,
   MONEY_OUT_ZERO_NOTE,
-  EMPTY_YEAR_VALUE,
-  emptyYearMoneyInWhy,
   coveredPeriodLine,
-  listLinkNote,
   MONEY_IN_REPORTED_LABEL,
   MONEY_OUT_REPORTED_LABEL,
   NAMED_DONATIONS_LINK_LABEL,
-  receivedPaymentRow,
-  showingLine,
   uncoveredPeriodLine,
   unnamedMoneyExplanation,
-  whoseCommitteeText,
   ZERO_REPORTED_NOTE,
-} = await import('../committeeMoney');
+} = await import('../committeeMoneyShared');
+const { EMPTY_YEAR_VALUE, emptyYearMoneyInWhy, whoseCommitteeText } =
+  await import('../committeeMoney');
+const { listLinkNote, receivedPaymentRow, showingLine } = await import('../committeePaymentsPage');
 const { registerCountLine } = await import('../committeeList');
 const { campaignMoneyYears, formatDay, formatMoney } = await import('../legislatorCampaignMoney');
 const {

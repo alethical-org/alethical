@@ -1080,7 +1080,7 @@ export interface CommitteeFilingsPage {
 /** One row of the register as the committees list draws it (GET
  *  /campaign-finance/committees). `subType` is the Board's own code and
  *  deliberately not a label: the wording a reader sees is derived in one place
- *  (`committeeEyebrow` in lib/committeeMoney.ts) so this list cannot label a
+ *  (`committeeEyebrow` in lib/committeeMoneyShared.ts) so this list cannot label a
  *  filer differently from its own page. `office` and `district` are null on most
  *  rows and that is the register, not a gap — 0 of the 299 party units carry
  *  one. */

@@ -18,7 +18,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { GestureResponderEvent } from 'react-native';
 
-import { confirmedMemberMoneyPath, paymentRowHref } from '../../lib/committeeMoney';
+import { confirmedMemberMoneyPath } from '../../lib/committeeMoney';
+import { paymentRowHref } from '../../lib/committeePaymentsPage';
 import { backLinkProps, externalLinkProps, linkProps, pressInsideLink, routePath } from '../links';
 
 /** A click event shaped like the one react-native-web hands to `onPress` on web. */
@@ -224,10 +225,10 @@ describe('pressInsideLink keeps a control inside a link from firing that link', 
 });
 
 describe("a payment row's name link matches the route it opens (#1331)", () => {
-  // The snapshot builds this address by hand, because the navigation module
-  // imports from `lib/committeeMoney` and cannot be imported back. So the 2 are
-  // pinned against each other here: change either side and this fails, which is
-  // what the comment on `paymentRowHref` promises.
+  // The navigation module reads address helpers from `lib/committeeMoneyShared`.
+  // The snapshot's payment address builder lives in `lib/committeePaymentsPage`,
+  // so the 2 spellings stay pinned against each other here: change either side
+  // and this fails, which is what the comment on `paymentRowHref` promises.
   it('paymentRowHref agrees with routePath.moneyPaymentsUnderName, character for character', () => {
     for (const [name, role] of [
       ['Messinger, Alida', 'contributor'],
