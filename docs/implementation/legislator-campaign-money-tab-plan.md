@@ -704,3 +704,8 @@ The joined display build passes 2,908 frontend tests and TypeScript. Local phone
 and tablet reads show the real lobbying counts, separate source dates and
 Kozak's 3 separate 2025 payments to committee 17868. The hosted size check,
 independent reader check, merge and live confirmation remain before completion.
+
+The first hosted check of commit `168e6693` measured 339,142 compressed bytes,
+70 over the unchanged 339,072 ceiling. The name-search row shaper now loads with
+the search request instead of the startup program. The mapping and its source
+fields are unchanged; a second hosted check is required before upload.
