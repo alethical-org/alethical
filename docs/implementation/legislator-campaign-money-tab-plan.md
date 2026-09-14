@@ -716,3 +716,14 @@ row and group shapers load with the search request; the public domain was not
 promoted during this measurement. The independent browser check is pending an
 automatic approval review that continues to treat the previously paused lobbying
 work as paused; Eugene has been asked to confirm the resumed browser check.
+
+The display is in [draft pull request 2209](https://github.com/alethical-org/alethical/pull/2209).
+The automatic preview exposed a separate checker defect: it added a fixed 542 bytes
+and rejected an actual 338,978-byte preview as 339,520, while production measured
+338,820. The ineffective directory-copy extraction was reverted. The check now
+enforces actual bytes against the same 339,072 ceiling, retaining the requirement
+for a hosted production measurement. All 15 checker tests pass, including a real
+1-byte excess with and without settings. Both hosted builds of
+`86c7c3c25ecdfdf04eea6e85c90332d95e35910e` are ready: production 338,820 and preview
+338,978. Neither measurement moved the public domain. The independent browser
+approval, merge queue and live review remain pending.
