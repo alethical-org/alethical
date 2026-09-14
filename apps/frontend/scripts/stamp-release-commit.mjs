@@ -22,8 +22,7 @@ import { pathToFileURL } from 'node:url';
  * for that same commit. A deploying build inlines the 6 public `EXPO_PUBLIC_*`
  * settings and a checkout has none, so that name differs by construction, and a
  * check keyed on it would fire on every single merge. See
- * `apps/frontend/scripts/check-first-load-budget.mjs`'s
- * `HOSTED_BUILD_EXCESS_BYTES` for the same measurement from the size side.
+ * the hosted size evidence in `docs/operations/page-load-performance-decisions.md`.
  *
  * So the page says the commit outright. One read of one address then answers
  * "what is live", exactly, with no build and no Vercel credentials, which is what

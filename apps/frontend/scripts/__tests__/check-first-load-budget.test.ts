@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   FIRST_LOAD_LIMIT,
-  HOSTED_BUILD_EXCESS_BYTES,
   checkFirstLoadBudget,
   firstLoadCarriesItsSettings,
   firstLoadFiles,
@@ -79,37 +78,53 @@ describe('checkFirstLoadBudget', () => {
     ).toThrow(/460000 bytes[\s\S]*over the 445000-byte limit by 15000[\s\S]*index-abc\.js/);
   });
 
-  /**
-   * The 8 September 2026 incident, as a case. A build that is not the host's is a
-   * SMALLER build of the same code, so its own total fitting proves nothing: the
-   * limit was set to 390,500 from a local 389,961 and Vercel then measured 390,761
-   * and refused to deploy 4 merges
-   * (https://github.com/alethical-org/alethical/issues/2052).
-   */
-  it('fails a settings-less build on what a build with settings will measure', () => {
-    // 389,961 is the exact local figure that set the limit 261 bytes too low.
-    const measured = [{ name: 'index-abc.js', bytes: 389_961 }];
+  it('reports the actual hosted preview size without predicting production from a fixed offset', () => {
+    // Same code, hosted on 14 Sep: preview 338,978, production 338,820.
+    // The retired +542 estimate rejected the preview at a fictional 339,520.
+    expect(
+      checkFirstLoadBudget([{ name: 'index-preview.js', bytes: 338_978 }], FIRST_LOAD_LIMIT, false),
+    ).toBe(338_978);
+    expect(
+      checkFirstLoadBudget(
+        [{ name: 'index-production.js', bytes: 338_820 }],
+        FIRST_LOAD_LIMIT,
+        true,
+      ),
+    ).toBe(338_820);
+  });
 
-    // Its own total fits 390,500 with 539 to spare, which is what made it look safe.
-    expect(() => checkFirstLoadBudget(measured, 390_500, true)).not.toThrow();
-
-    // Read as the settings-less build it was, it is over, and it says so.
-    expect(() => checkFirstLoadBudget(measured, 390_500, false)).toThrow(
-      /390503 bytes[\s\S]*over the 390500-byte limit by 3[\s\S]*inlined no settings, so it measured 389961/,
+  it('requires production to pass its own measured size even when a smaller build passes', () => {
+    expect(checkFirstLoadBudget([{ name: 'index-local.js', bytes: 389_961 }], 390_500, false)).toBe(
+      389_961,
     );
-  });
-
-  it('tells a settings-less build never to move the limit from its own number', () => {
     expect(() =>
-      checkFirstLoadBudget([{ name: 'index-abc.js', bytes: 500_000 }], 1_000, false),
-    ).toThrow(/from Vercel’s hosted production measurement, never from a local build/);
+      checkFirstLoadBudget([{ name: 'index-production.js', bytes: 390_761 }], 390_500, true),
+    ).toThrow(/390761 bytes[\s\S]*over the 390500-byte limit by 261/);
   });
 
-  it('adds nothing to a build that inlined its settings, whose total is what deploys', () => {
-    const atTheLimit = [{ name: 'index-abc.js', bytes: 391_500 }];
+  it('enforces the same hard boundary with or without settings', () => {
+    for (const hasSettings of [false, true]) {
+      expect(
+        checkFirstLoadBudget(
+          [{ name: 'index.js', bytes: FIRST_LOAD_LIMIT }],
+          FIRST_LOAD_LIMIT,
+          hasSettings,
+        ),
+      ).toBe(FIRST_LOAD_LIMIT);
+      expect(() =>
+        checkFirstLoadBudget(
+          [{ name: 'index.js', bytes: FIRST_LOAD_LIMIT + 1 }],
+          FIRST_LOAD_LIMIT,
+          hasSettings,
+        ),
+      ).toThrow(/over the 339072-byte limit by 1/);
+    }
+  });
 
-    expect(() => checkFirstLoadBudget(atTheLimit, 391_500, true)).not.toThrow();
-    expect(() => checkFirstLoadBudget(atTheLimit, 391_500, false)).toThrow();
+  it('does not let a settings-less build establish a production limit', () => {
+    expect(() =>
+      checkFirstLoadBudget([{ name: 'index.js', bytes: 500_000 }], 1_000, false),
+    ).toThrow(/from Vercel’s hosted production measurement, never from a local build/);
   });
 
   /**
@@ -133,7 +148,7 @@ describe('checkFirstLoadBudget', () => {
     // Vercel's production target built committed source a30d7941 as 338,333 bytes.
     // dpl_2wadpZBF3EsRdzsM97axhR8FuBsE, 13 September 2026.
     expect(FIRST_LOAD_LIMIT).toBeGreaterThanOrEqual(338_333);
-    expect(FIRST_LOAD_LIMIT - 338_333).toBeGreaterThanOrEqual(HOSTED_BUILD_EXCESS_BYTES);
+    expect(FIRST_LOAD_LIMIT - 338_333).toBe(739);
   });
 
   it('keeps the ratchet at the hosted figure plus its existing headroom', () => {
