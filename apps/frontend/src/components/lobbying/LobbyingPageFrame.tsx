@@ -155,6 +155,8 @@ function BackArrow() {
 }
 
 const card: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
   marginTop: 22,
   background: '#ffffff',
   border: '1px solid rgba(17,21,15,0.08)',
