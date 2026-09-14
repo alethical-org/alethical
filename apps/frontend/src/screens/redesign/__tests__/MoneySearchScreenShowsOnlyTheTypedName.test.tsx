@@ -175,7 +175,12 @@ describe('lobbying search groups keep their own counts and proven destinations',
   it('draws the real current registration separately from the 2 payment-name spellings', async () => {
     serve({ Kozak: { data: lobbyingLive.kozak } });
     const page = openSearchPage('Kozak');
-    await settle();
+    // The result mapper loads with the first search. Wait for its visible result,
+    // not a fixed number of timer turns that can finish before the import.
+    await vi.waitFor(async () => {
+      await settle();
+      expect(section(page.host, 'LOBBYISTS')).toBeDefined();
+    });
     const group = section(page.host, 'LOBBYISTS')!;
     expect(group.textContent).toContain('1 MATCH');
     expect(group.textContent).toContain('Registration 141 · 13 principals today');
