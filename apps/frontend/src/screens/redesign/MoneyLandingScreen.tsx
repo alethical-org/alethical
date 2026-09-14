@@ -4,7 +4,8 @@ import Svg, { Path } from 'react-native-svg';
 
 import { Skeleton } from '../../components/Skeleton';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
-import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
+import { useLobbyingSummary } from '../../hooks/useLobbying';
+import { MONEY_LANE_LOBBYING, lobbyistLaneCount } from '../../lib/lobbyingDirectoryCopy';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
   useCampaignFinanceFilings,
@@ -23,6 +24,7 @@ import {
   FILES_LAST_COPIED_NOTE,
   LANE_COUNT_UNITS,
   MONEY_LANDING_HEADING,
+  MONEY_LANDING_COVERAGE_HEADING,
   MONEY_LANDING_RECORD_DOES_NOT_COVER,
   MONEY_LANDING_SEARCH_NOTE,
   MONEY_LANDING_SUBTITLE,
@@ -31,7 +33,6 @@ import {
   MONEY_LANE_LEGISLATORS,
   MONEY_LANE_OUTSIDE_SPENDING,
   MONEY_LANE_WHO_GOT_PAID,
-  RECORD_DOES_NOT_COVER_HEADING,
   RECORD_DOES_NOT_COVER_NOTE,
   RESEARCH_ROW_EMPTY,
   RESEARCH_ROW_LABEL,
@@ -98,7 +99,7 @@ function LaneCard({
   title: string;
   body: string;
   /** Null draws nothing in the slot — no label, dash or placeholder. The Who got
-   *  paid card is null by design (ruled 8 Sep 2026); the other 4 are null only
+   *  paid card is null by design (ruled 8 Sep 2026); the other 5 are null only
    *  while their count is not served. */
   countLine: string | null;
   href: string;
@@ -124,6 +125,7 @@ function LaneCard({
 export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding'>) {
   const { isMobile } = useResponsive();
   const summaryQuery = useCampaignFinanceSummary();
+  const lobbyingQuery = useLobbyingSummary();
   const filingsQuery = useCampaignFinanceFilings(5);
   // Once this page's own 2 reads have answered, quietly load the records behind
   // its destinations, so clicking one does not start a slow read from nothing
@@ -175,11 +177,6 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
       <ScrollView contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
 
-        {/* The section is partially built and nothing else on the page says so
-            at a glance. Scrolls away with the top of the page; deleting the
-            element and its component file is the whole removal. */}
-        <UnderDevelopmentNotice />
-
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
           <Text
             accessibilityRole="header"
@@ -208,14 +205,8 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
             <Text style={styles.searchNote}>{MONEY_LANDING_SEARCH_NOTE}</Text>
           </View>
 
-          {/* The lanes into the records. All 5 open something now that the
-              who-got-paid lane is settled as search-only (#1780) and the race and
-              outside-spending pages are live (#1954, #1945). Counts bind to the
-              live summary or do not appear. The row wraps rather than pinning 5
-              columns: the section's one width switch is 768, so this layout has
-              to hold at 800 as well as 1600, and 5 fixed columns at 800 would be
-              about 118px each, which no card survives. At a wide screen the 5 sit
-              in 1 row; at 800 they wrap into 2 rows; below 768 they stack. */}
+          {/* All 6 destinations remain visible. Each live count belongs to its
+              own source; cards wrap at tablet widths and stack on the phone. */}
           <View style={[styles.laneRow, isMobile && styles.laneRowMobile]}>
             <LaneCard
               title={MONEY_LANE_LEGISLATORS.title}
@@ -262,6 +253,18 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
               onOpen={() => navigation.navigate('OutsideSpending')}
               stacked={isMobile}
             />
+            <LaneCard
+              title={MONEY_LANE_LOBBYING.title}
+              body={MONEY_LANE_LOBBYING.body}
+              countLine={lobbyistLaneCount(
+                lobbyingQuery.data?.state === 'reported'
+                  ? lobbyingQuery.data.registered_lobbyists
+                  : null,
+              )}
+              href={routePath.lobbying()}
+              onOpen={() => navigation.navigate('LobbyingLanding')}
+              stacked={isMobile}
+            />
           </View>
 
           {/* Two short blocks, side by side from 768 up and stacked below: the
@@ -301,7 +304,7 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                 stated once on this page, in the Legislators lane, and not again
                 here. */}
             <View style={[styles.infoCard, isMobile && styles.stackedCard]}>
-              <Text style={styles.infoLabel}>{RECORD_DOES_NOT_COVER_HEADING.toUpperCase()}</Text>
+              <Text style={styles.infoLabel}>{MONEY_LANDING_COVERAGE_HEADING.toUpperCase()}</Text>
               <View style={styles.notCoveredList}>
                 {MONEY_LANDING_RECORD_DOES_NOT_COVER.map((line) => (
                   <Text key={line} style={styles.notCoveredLine}>
@@ -452,12 +455,10 @@ const styles = StyleSheet.create({
   },
   laneRow: { marginTop: 40, flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
   laneRowMobile: { marginTop: 32, flexDirection: 'column', gap: 16 },
-  // The basis is what decides the wrap: 5 × 208 + 4 gaps fits inside the 1,328px row a
-  // 1440 screen leaves, and 3 fit across the 688px row an 800 screen leaves, so the 5
-  // wrap into 2 rows there rather than crushing to 118px each.
+  // Six readable cards share a wide row; narrower rows wrap before text is cramped.
   laneCard: {
     flex: 1,
-    flexBasis: 208,
+    flexBasis: 180,
     minWidth: 0,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
@@ -498,7 +499,8 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
     paddingTop: 18,
     color: t.colors.text.greenOnLight,
-    fontFamily: t.typography.mono,
+    fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
     fontSize: 13,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.8,

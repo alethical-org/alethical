@@ -43,6 +43,26 @@ export const screenChunks = {
     import('../screens/redesign/SearchLegislatorsScreen').then((m) => ({
       default: m.SearchLegislatorsScreen,
     })),
+  LobbyingLanding: () =>
+    import('../screens/redesign/LobbyingLandingScreen').then((m) => ({
+      default: m.LobbyingLandingScreen,
+    })),
+  LobbyingPrincipals: () =>
+    import('../screens/redesign/LobbyingPrincipalsScreen').then((m) => ({
+      default: m.LobbyingPrincipalsScreen,
+    })),
+  LobbyingLobbyists: () =>
+    import('../screens/redesign/LobbyingLobbyistsScreen').then((m) => ({
+      default: m.LobbyingLobbyistsScreen,
+    })),
+  LobbyingPrincipal: () =>
+    import('../screens/redesign/LobbyingPrincipalScreen').then((m) => ({
+      default: m.LobbyingPrincipalScreen,
+    })),
+  LobbyingLobbyist: () =>
+    import('../screens/redesign/LobbyingLobbyistScreen').then((m) => ({
+      default: m.LobbyingLobbyistScreen,
+    })),
   MoneyLanding: () =>
     import('../screens/redesign/MoneyLandingScreen').then((m) => ({
       default: m.MoneyLandingScreen,

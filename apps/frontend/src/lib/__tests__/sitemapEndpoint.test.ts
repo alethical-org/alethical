@@ -9,7 +9,7 @@ import { indexedResearch, piecePath } from '../research';
  * adds one to the sitemap, and this stops failing on every publish for a reason
  * that is not a defect.
  */
-const FIXED_PAGE_ROWS = 14;
+const FIXED_PAGE_ROWS = 17;
 /** The numbered directory rows the live counts add: 2 for bills, 1 for
  *  legislators, 2 for the register of campaign committees. */
 const DIRECTORY_PAGE_ROWS = 5;
@@ -82,6 +82,9 @@ describe('sitemap endpoint', () => {
       '/legislators',
       '/find-my-legislator',
       '/money',
+      '/money/lobbying',
+      '/money/lobbying/principals',
+      '/money/lobbying/lobbyists',
       '/money/committees',
       '/read',
       '/about',
@@ -139,7 +142,7 @@ describe('sitemap endpoint', () => {
       expect(body).not.toContain(`<loc>https://www.alethical.com${retired}</loc>`);
     }
     expect(body).not.toContain('<lastmod>');
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 
   it('keeps the fixed public pages available when directory counts cannot be read', async () => {
@@ -159,6 +162,85 @@ describe('sitemap endpoint', () => {
     );
     expect(body).not.toContain('?page=');
   });
+
+  it('lists all lobbying directory pages from the whole live counts at 50 names per page', async () => {
+    const fetchSpy = vi.fn(async (address: string) => {
+      if (address.includes('/api/v1/lobbying/')) {
+        return {
+          ok: true,
+          json: async () => ({
+            data: {
+              state: 'reported',
+              total: address.includes('/principals?') ? 3443 : 1665,
+            },
+          }),
+        };
+      }
+      return { ok: false, status: 503 };
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const recorder = responseRecorder();
+
+    await handler({ query: { section: 'pages' } }, recorder.response);
+
+    const { body, status } = recorder.read();
+    expect(status).toBe(200);
+    for (const [kind, lastPage] of [
+      ['principals', 69],
+      ['lobbyists', 34],
+    ] as const) {
+      expect(
+        body.match(new RegExp(`<loc>https://www.alethical.com/money/lobbying/${kind}</loc>`, 'g')),
+      ).toHaveLength(1);
+      expect(body).not.toContain(`/money/lobbying/${kind}?page=1</loc>`);
+      for (let page = 2; page <= lastPage; page += 1) {
+        expect(body).toContain(
+          `<loc>https://www.alethical.com/money/lobbying/${kind}?page=${page}</loc>`,
+        );
+      }
+      expect(body).not.toContain(`/money/lobbying/${kind}?page=${lastPage + 1}</loc>`);
+    }
+    expect(body.match(/<url>/g)).toHaveLength(FIXED_PAGE_ROWS + 68 + 33 + indexedResearch().length);
+    expect(body).not.toContain('<lastmod>');
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it.each([
+    { state: 'unavailable', total: 3443 },
+    { state: 'reported', total: null },
+  ])(
+    'keeps the fixed principal address and other lobbying pages when its count is $state/$total',
+    async (principalCount) => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (address: string) => {
+          if (address.includes('/api/v1/lobbying/')) {
+            return {
+              ok: true,
+              json: async () => ({
+                data: address.includes('/principals?')
+                  ? principalCount
+                  : { state: 'reported', total: 1665 },
+              }),
+            };
+          }
+          return { ok: false, status: 503 };
+        }),
+      );
+      const recorder = responseRecorder();
+
+      await handler({ query: { section: 'pages' } }, recorder.response);
+
+      const { body, status } = recorder.read();
+      expect(status).toBe(200);
+      expect(body).toContain('<loc>https://www.alethical.com/money/lobbying/principals</loc>');
+      expect(body).not.toContain('/money/lobbying/principals?page=');
+      expect(body).toContain(
+        '<loc>https://www.alethical.com/money/lobbying/lobbyists?page=34</loc>',
+      );
+      expect(body.match(/<url>/g)).toHaveLength(FIXED_PAGE_ROWS + 33 + indexedResearch().length);
+    },
+  );
 
   it('renders a loc and lastmod per bill, omitting lastmod when absent', async () => {
     vi.stubGlobal(

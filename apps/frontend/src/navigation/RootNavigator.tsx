@@ -65,6 +65,11 @@ const CommitteeMoneyScreen = loadOnDemand(screenChunks.CommitteeMoney);
 const CommitteePaymentsScreen = loadOnDemand(screenChunks.CommitteePayments);
 const MoneySearchScreen = loadOnDemand(screenChunks.MoneySearch);
 const PaymentsUnderNameScreen = loadOnDemand(screenChunks.PaymentsUnderName);
+const LobbyingLandingScreen = loadOnDemand(screenChunks.LobbyingLanding);
+const LobbyingPrincipalsScreen = loadOnDemand(screenChunks.LobbyingPrincipals);
+const LobbyingLobbyistsScreen = loadOnDemand(screenChunks.LobbyingLobbyists);
+const LobbyingPrincipalScreen = loadOnDemand(screenChunks.LobbyingPrincipal);
+const LobbyingLobbyistScreen = loadOnDemand(screenChunks.LobbyingLobbyist);
 const MoneyLandingScreen = loadOnDemand(screenChunks.MoneyLanding);
 const OutsideSpendingScreen = loadOnDemand(screenChunks.OutsideSpending);
 const MoneyByRaceScreen = loadOnDemand(screenChunks.MoneyByRace);
@@ -691,6 +696,31 @@ export function RootNavigator() {
             <Stack.Screen
               name="Legislators"
               component={SearchLegislatorsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="LobbyingLanding"
+              component={LobbyingLandingScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="LobbyingPrincipals"
+              component={LobbyingPrincipalsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="LobbyingLobbyists"
+              component={LobbyingLobbyistsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="LobbyingPrincipal"
+              component={LobbyingPrincipalScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="LobbyingLobbyist"
+              component={LobbyingLobbyistScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

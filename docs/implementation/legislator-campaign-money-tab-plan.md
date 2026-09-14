@@ -676,10 +676,54 @@ after everything else now starts
 [issue 2164](https://github.com/alethical-org/alethical/issues/2164) only after the
 data and lookups are live. The 2 held source replacements remain untouched.
 
-- [ ] Import the current lobbyist list with the principal spending file as 1 dated release; discard contact fields before storage
-- [ ] Prove registration and principal IDs against all relevant published rows
-- [ ] Serve the detail, summary, paginated list and search reads needed by the accepted lobbying screens
-- [ ] Complete tests, migration round trip and an independent read of publication safeguards
-- [ ] Merge the data change, run the reviewed import with rollback retained, check live responses and report on the existing issue
+- [x] Import the current lobbyist list with the principal spending file as 1 dated release; discard contact fields before storage
+- [x] Prove registration and principal IDs against all relevant published rows
+- [x] Serve the detail, summary, paginated list and search reads needed by the accepted lobbying screens
+- [x] Complete tests, migration round trip and an independent read of publication safeguards
+- [x] Merge the data change, run the reviewed import with rollback retained, check live responses and report on the existing issue
 - [ ] Build the accepted lobbying screens and links, remove the under-development strip in that display release, check live and report
 - [ ] Update the complete Claude review prompt and final programme report after both releases
+
+
+The data release is live through [pull request 2208](https://github.com/alethical-org/alethical/pull/2208).
+The pair copied on 13 September 2026 holds 1,665 lobbyists and 5,395 associations;
+the same 17,842 principal-spending rows remain intact. The live report is on
+[issue 2163](https://github.com/alethical-org/alethical/issues/2163#issuecomment-5657161988).
+
+The lobbying screen build starts from main commit d4d65981 in its own worktree.
+- [x] Connect all 5 direct addresses, first responses, metadata and numbered directory links
+- [x] Build the accepted landing, both lists and both record screens with source-specific states
+- [x] Add the 2 search groups and registration-based expanded donation panels
+- [x] Remove the lobbying notice from all money surfaces in the same release
+- [x] Remove the proven redundant committee-link read without changing response fields
+- [x] Pin real rows, blank/zero states, card paging, directory paging and exact link identity
+- [ ] Check all 3 layout bands, hosted first-download size and a fresh product review
+- [ ] Complete merge queue, live checks, reader guides and final programme/review reports
+
+The joined display build passes 2,909 frontend tests, 2,791 server tests and TypeScript. Local phone
+and tablet reads show the real lobbying counts, separate source dates and
+Kozak's 3 separate 2025 payments to committee 17868. The hosted size check,
+independent reader check, merge and live confirmation remain before completion.
+
+The first hosted check of commit `168e6693` measured 339,142 compressed bytes,
+70 over the unchanged 339,072 ceiling. The name-search row shaper now loads with
+the search request instead of the startup program. The mapping and its source
+fields are unchanged; a second hosted check is required before upload.
+
+The final hosted production-mode measurement at commit `112c698538f11fa15ccae1d70026c45a1a5019e6`
+is 338,820 compressed bytes against the unchanged 339,072 ceiling. The search-only
+row and group shapers load with the search request; the public domain was not
+promoted during this measurement. The independent browser check is pending an
+automatic approval review that continues to treat the previously paused lobbying
+work as paused; Eugene has been asked to confirm the resumed browser check.
+
+The display is in [draft pull request 2209](https://github.com/alethical-org/alethical/pull/2209).
+The automatic preview exposed a separate checker defect: it added a fixed 542 bytes
+and rejected an actual 338,978-byte preview as 339,520, while production measured
+338,820. The ineffective directory-copy extraction was reverted. The check now
+enforces actual bytes against the same 339,072 ceiling, retaining the requirement
+for a hosted production measurement. All 15 checker tests pass, including a real
+1-byte excess with and without settings. Both hosted builds of
+`86c7c3c25ecdfdf04eea6e85c90332d95e35910e` are ready: production 338,820 and preview
+338,978. Neither measurement moved the public domain. The independent browser
+approval, merge queue and live review remain pending.

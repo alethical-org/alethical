@@ -1184,6 +1184,16 @@ export interface CommitteeRegisterPage {
 /** One result row of the name search. Each carries its own `kind` so a caller
  *  reads the row rather than inferring its shape from the group it arrived in. */
 export type NameSearchRow =
+  | { kind: 'lobbyist'; name: string; registrationNumber: string; principalCount: number | null }
+  | {
+      kind: 'principal';
+      name: string;
+      entityId: number;
+      latestReportedYear: number | null;
+      sourceLatestYear: number | null;
+      linkable: boolean;
+      state: string;
+    }
   | {
       kind: 'person';
       legislatorId: string;

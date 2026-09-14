@@ -39,6 +39,8 @@ describe('all 5 groups are drawn, in the server’s own order', () => {
       'gave',
       'got_paid',
       'got_paid_independent',
+      'lobbyists',
+      'principals',
     ]);
   });
 

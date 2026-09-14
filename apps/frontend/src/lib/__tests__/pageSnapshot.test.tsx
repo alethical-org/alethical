@@ -858,7 +858,11 @@ describe('the piece snapshot serves the piece’s own writing, unchanged', () =>
         if (block.kind === 'prose') served.push(...block.lines);
         else if (block.kind === 'bullets') served.push(...block.items);
         else if (block.kind === 'links') served.push(...block.items.map((item) => item.label));
-        else served.push(...block.columns, ...block.rows.flat());
+        else
+          served.push(
+            ...block.columns,
+            ...block.rows.flat().map((cell) => (typeof cell === 'string' ? cell : cell.text)),
+          );
       }
     }
 
@@ -1203,8 +1207,9 @@ describe('the money landing serves the section’s own words and a live count', 
       '/money/committees',
       '/money/races',
       '/money/outside-spending',
+      '/money/lobbying',
     ]);
-    expect(snapshot.records?.slice(2)).toEqual([
+    expect(snapshot.records?.slice(2, 4)).toEqual([
       {
         label: MONEY_LANE_BY_RACE.title,
         detail: MONEY_LANE_BY_RACE.body,

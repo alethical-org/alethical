@@ -7,7 +7,6 @@ import {
   RowArrow,
 } from '../../components/campaignMoney/MoneyListRows';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
-import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import type { NameSearchGroup, NameSearchRow } from '../../data/types';
 import { useCampaignFinanceNameSearch } from '../../hooks/useAppQueries';
@@ -24,6 +23,9 @@ import {
   HELD_RESULTS_NOTE,
   groupCountLabel,
   groupHeading,
+  lobbyingSearchMeta,
+  principalWithoutSpending,
+  seeAllLobbyingLabel,
   groupNote,
   hasAnyResult,
   NAME_SEARCH_EMPTY_QUERY_TITLE,
@@ -162,11 +164,6 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
       <ScrollView contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
 
-        {/* The money section is still being built — lobbying is not loaded, and no
-            sitting member's committee has been confirmed by a person yet — and
-            nothing else on the page says so at a glance. */}
-        <UnderDevelopmentNotice />
-
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
           <Pressable
             {...linkProps(routePath.money(), () => navigation.navigate('MoneyLanding'))}
@@ -275,7 +272,12 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
               <View style={styles.groups}>
                 {NAME_SEARCH_GROUP_ORDER.map((kind) => {
                   const group = groups.find((candidate) => candidate.kind === kind);
-                  if (!group) return null;
+                  if (
+                    !group ||
+                    ((kind === 'lobbyists' || kind === 'principals') &&
+                      group.state === 'not_reported')
+                  )
+                    return null;
                   return (
                     <ResultGroup
                       key={kind}
@@ -338,7 +340,26 @@ function ResultGroup({
 }) {
   const heading = groupHeading(kind);
   const count = groupCountLabel(group.total, group.atLeast);
-  const seeAll = kind === 'committees' ? seeAllCommitteesLabel(group.total, group.hasMore) : null;
+  const lobbyingKind = kind === 'lobbyists' || kind === 'principals' ? kind : null;
+  const seeAll =
+    lobbyingKind && group.hasMore
+      ? seeAllLobbyingLabel(lobbyingKind, group.total)
+      : kind === 'committees'
+        ? seeAllCommitteesLabel(group.total, group.hasMore)
+        : null;
+  const params = { q: query.trim() || undefined };
+  const moreHref =
+    lobbyingKind === 'lobbyists'
+      ? routePath.lobbyingLobbyists(params)
+      : lobbyingKind === 'principals'
+        ? routePath.lobbyingPrincipals(params)
+        : routePath.moneyCommittees(params);
+  const openMore = () =>
+    lobbyingKind === 'lobbyists'
+      ? navigation.navigate('LobbyingLobbyists', params)
+      : lobbyingKind === 'principals'
+        ? navigation.navigate('LobbyingPrincipals', params)
+        : navigation.navigate('CommitteeList', params);
 
   return (
     <View style={styles.group}>
@@ -371,12 +392,7 @@ function ResultGroup({
       )}
 
       {seeAll ? (
-        <Pressable
-          {...linkProps(routePath.moneyCommittees({ q: query.trim() || undefined }), () =>
-            navigation.navigate('CommitteeList', { q: query.trim() || undefined }),
-          )}
-          style={styles.seeAll}
-        >
+        <Pressable {...linkProps(moreHref, openMore)} style={styles.seeAll}>
           <Text style={styles.seeAllLabel}>{seeAll}</Text>
         </Pressable>
       ) : null}
@@ -453,6 +469,42 @@ function ResultRow({
             <RowArrow />
           </>
         )}
+      </MoneyListRow>
+    );
+  }
+
+  if (row.kind === 'lobbyist' || row.kind === 'principal') {
+    const isLobbyist = row.kind === 'lobbyist';
+    const slug = committeeSlug(
+      row.name,
+      String(isLobbyist ? row.registrationNumber : row.entityId),
+    );
+    const linkable = isLobbyist || row.linkable;
+    const href = isLobbyist ? routePath.lobbyingLobbyist(slug) : routePath.lobbyingPrincipal(slug);
+    return (
+      <MoneyListRow
+        isMobile={isMobile}
+        first={first}
+        link={
+          linkable
+            ? {
+                href,
+                onPress: () =>
+                  isLobbyist
+                    ? navigation.push('LobbyingLobbyist', { slug })
+                    : navigation.push('LobbyingPrincipal', { slug }),
+              }
+            : null
+        }
+      >
+        <View style={styles.rowText}>
+          <Text style={styles.rowName}>{row.name}</Text>
+          <Text style={styles.rowMeta}>{lobbyingSearchMeta(row)}</Text>
+          {!isLobbyist && !row.linkable ? (
+            <Text style={styles.rowMeta}>{principalWithoutSpending(row.sourceLatestYear)}</Text>
+          ) : null}
+        </View>
+        {!isMobile && linkable ? <RowArrow /> : null}
       </MoneyListRow>
     );
   }

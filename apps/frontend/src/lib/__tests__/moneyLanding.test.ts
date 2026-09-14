@@ -138,7 +138,7 @@ describe('the does-not-cover block', () => {
   });
 
   it('names the two permanent source gaps', () => {
-    expect(RECORD_DOES_NOT_COVER[0]).toBe('Nothing before 2015');
+    expect(RECORD_DOES_NOT_COVER[0]).toBe('No campaign payments held before 2015');
     expect(RECORD_DOES_NOT_COVER[1]).toBe('Unions don’t report to this board at all');
   });
 

@@ -212,10 +212,13 @@ The tab carries no heading of its own: the tab strip directly above it says "Cam
 money" and this is the selected tab, so a heading repeating that word said it twice. A
 screen reader still hears what the area is, because the area itself is named.
 
-The red strip at the top of the tab stays. It reads "Under development. This section does
-not yet cover lobbying.", and it describes the whole money section rather than this one
-page, so it comes off every money page at once when lobbying ships
-([issue 2181](https://github.com/alethical-org/alethical/issues/2181)).
+The former lobbying-under-development strip is removed from this tab and every money
+page in the lobbying release. The Lobbyists tab now opens registration details inside
+expanded rows; the filed employer text remains. Current registrations link to the
+lobbyist's `/money/lobbying/lobbyists/<name>-<registration>` address. A changed spelling
+is stated, and an absent current registration remains plain. Distinct registration
+numbers under one printed name are never merged into a person. See
+[lobbying-guide.md](lobbying-guide.md).
 
 The buttons offer **every calendar year from 2015 through the current year**, newest
 first. In 2026 that is 12 years; in 2027 it becomes 13. The year in
@@ -1362,3 +1365,8 @@ The tab needs no sign-in and stores nothing about who read it. Payment requests 
 Alethical's own data service; searching the loaded names stays in the browser. Committee
 names with a known destination open `/money/committees/{name}-{number}`. Official-source
 links open the Minnesota Campaign Finance Board's website.
+
+
+Docs check: The lobbying display release removes the former section notice and adds
+registration-based expanded links on both legislator and committee donation lists.
+The existing year controls, contribution figures and source checks are unchanged.

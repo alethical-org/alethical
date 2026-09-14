@@ -47,8 +47,8 @@ asks what a reader gets rather than what a deployment did.
 production served ``index-c9122423...`` for that same commit. A deploying build
 inlines the 6 public ``EXPO_PUBLIC_*`` settings and a checkout has none, so that
 content hash differs by construction and a check keyed on it would fire on every
-merge (``apps/frontend/scripts/check-first-load-budget.mjs``'s
-``HOSTED_BUILD_EXCESS_BYTES`` is the same measurement from the size side).
+merge. The same build-setting difference is recorded in
+``docs/operations/page-load-performance-decisions.md``.
 
 Reads 1 public page and the local git history. No database, no credentials, no
 Vercel token, no paid call.

@@ -20,6 +20,9 @@ type WebRouteTarget =
   | { kind: 'legislators'; params: Record<string, string> }
   | { kind: 'findMyLegislator'; address?: string }
   | { kind: 'moneyLanding' }
+  | { kind: 'lobbyingLanding' }
+  | { kind: 'lobbyingPrincipals' | 'lobbyingLobbyists'; params: Record<string, string> }
+  | { kind: 'lobbyingPrincipal' | 'lobbyingLobbyist'; slug: string }
   | { kind: 'read' }
   | { kind: 'research'; slug: string }
   | { kind: 'guide'; slug: string }
@@ -369,6 +372,26 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     return { kind: 'paymentsUnderName', name, role };
   }
 
+  if (segments[0] === 'money' && segments[1] === 'lobbying') {
+    if (segments.length === 2) return { kind: 'lobbyingLanding' };
+    const principals = segments[2] === 'principals';
+    if (!principals && segments[2] !== 'lobbyists') return { kind: 'notFound', path: pathname };
+    if (segments.length === 3) {
+      const params: Record<string, string> = {};
+      for (const key of ['q', 'page']) {
+        const value = searchParams.get(key);
+        if (value) params[key] = value;
+      }
+      return { kind: principals ? 'lobbyingPrincipals' : 'lobbyingLobbyists', params };
+    }
+    if (segments.length === 4) {
+      const slug = decodeURIComponent(segments[3]);
+      if (registrationNumberFromSlug(slug))
+        return { kind: principals ? 'lobbyingPrincipal' : 'lobbyingLobbyist', slug };
+    }
+    return { kind: 'notFound', path: pathname };
+  }
+
   // Money by race (issue #1954): every candidate committee grouped by the office
   // and district it registered for. The office chip rides in the query string.
   if (segments.length === 2 && segments[0] === 'money' && segments[1] === 'races') {
@@ -585,6 +608,24 @@ export function pathForRoute(activeRoute: {
     }
     case 'MoneyLanding':
       return '/money';
+    case 'LobbyingLanding':
+      return '/money/lobbying';
+    case 'LobbyingPrincipals':
+    case 'LobbyingLobbyists': {
+      const base =
+        activeRoute.name === 'LobbyingPrincipals'
+          ? '/money/lobbying/principals'
+          : '/money/lobbying/lobbyists';
+      const params = new URLSearchParams();
+      for (const key of ['q', 'page']) {
+        const value = activeRoute.params?.[key];
+        if (value) params.set(key, String(value));
+      }
+      return params.size ? `${base}?${params}` : base;
+    }
+    case 'LobbyingPrincipal':
+    case 'LobbyingLobbyist':
+      return `/money/lobbying/${activeRoute.name === 'LobbyingPrincipal' ? 'principals' : 'lobbyists'}/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
     case 'Read':
       return '/read';
     case 'Research':
@@ -783,6 +824,32 @@ export function stateFromPathname(pathname: string): WebNavigationState {
     case 'legislators':
       return {
         routes: [homeTabs, { name: 'Legislators', params: target.params }],
+        index: 1,
+      };
+    case 'lobbyingLanding':
+      return { routes: [homeTabs, { name: 'LobbyingLanding' }], index: 1 };
+    case 'lobbyingPrincipals':
+    case 'lobbyingLobbyists':
+      return {
+        routes: [
+          homeTabs,
+          {
+            name: target.kind === 'lobbyingPrincipals' ? 'LobbyingPrincipals' : 'LobbyingLobbyists',
+            params: target.params,
+          },
+        ],
+        index: 1,
+      };
+    case 'lobbyingPrincipal':
+    case 'lobbyingLobbyist':
+      return {
+        routes: [
+          homeTabs,
+          {
+            name: target.kind === 'lobbyingPrincipal' ? 'LobbyingPrincipal' : 'LobbyingLobbyist',
+            params: { slug: target.slug },
+          },
+        ],
         index: 1,
       };
     case 'moneyLanding':

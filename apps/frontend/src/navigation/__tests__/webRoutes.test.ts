@@ -777,25 +777,10 @@ describe('Search dropdown Campaign money row', () => {
     expect(item?.isNew).toBe(true);
   });
 
-  // This replaces the tripwire #1700 left here, which failed if the row named a
-  // search before the search worked. Eugene retired that rule on 20 Aug 2026:
-  // /money opens with its own under-development notice, so the row may say what
-  // the section is for. What the tripwire was protecting still matters, so it is
-  // re-pointed rather than deleted — the guard is now on the NOTICE, not on the
-  // wording. If /money stops declaring itself unfinished while its search is
-  // still a picture, this fails and the row goes back to describing the record.
-  it('may name the search only while /money declares itself unfinished', () => {
+  it('keeps money search reachable after lobbying is released', () => {
     const item = IA.find((entry) => entry.id === 'search-campaign-money');
     expect(item?.description).toBe('Search any name to find people, committees, and who got paid');
-    // The notice is what makes the claim honest, so the guard reads the real
-    // component rather than trusting a comment. Its own file states that
-    // deleting the element and the file is the whole removal, so a missing file
-    // is exactly the condition this needs to catch.
-    const notice = readFileSync(
-      join(__dirname, '../../components/campaignMoney/UnderDevelopmentNotice.tsx'),
-      'utf8',
-    );
-    expect(notice).toMatch(/under development/i);
+    expect(targetFromPathname('/money/lobbying')).toEqual({ kind: 'lobbyingLanding' });
   });
 });
 
@@ -827,5 +812,32 @@ describe('Mobile menu roadmap row', () => {
 
   it('offers no More Tracking chip', () => {
     expect(mobileNavRoadmapLabels()).not.toContain('More Tracking');
+  });
+});
+
+describe('lobbying addresses', () => {
+  it.each([
+    ['/money/lobbying', 'LobbyingLanding'],
+    ['/money/lobbying/principals', 'LobbyingPrincipals'],
+    ['/money/lobbying/lobbyists', 'LobbyingLobbyists'],
+    ['/money/lobbying/principals/a-different-name-2263', 'LobbyingPrincipal'],
+    ['/money/lobbying/lobbyists/a-different-name-141', 'LobbyingLobbyist'],
+  ])('opens %s directly and keeps its address', (path, name) => {
+    const state = stateFromPathname(path);
+    expect(state?.routes[1]?.name).toBe(name);
+    expect(pathForRoute(state!.routes[1] as Parameters<typeof pathForRoute>[0])).toBe(path);
+  });
+  it.each(['principals', 'lobbyists'])('retains %s name and numbered page', (kind) => {
+    const path = `/money/lobbying/${kind}?q=Mary+Ann&page=2`;
+    const state = stateFromPathname(path);
+    expect(state?.routes[1]?.params).toEqual({ q: 'Mary Ann', page: '2' });
+    expect(pathForRoute(state!.routes[1] as Parameters<typeof pathForRoute>[0])).toBe(path);
+  });
+  it.each([
+    '/money/lobbying/unknown',
+    '/money/lobbying/principals/no-number',
+    '/money/lobbying/lobbyists/name-141/extra',
+  ])('rejects %s', (path) => {
+    expect(targetFromPathname(path).kind).toBe('notFound');
   });
 });

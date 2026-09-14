@@ -21,6 +21,7 @@ import { linkProps, routePath } from '../../navigation/links';
 import { numericText, useDetailsStyles } from './detailsStyles';
 import { moneyDetailsCopy as copy } from '../../lib/campaignMoneyDetailsCopy';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
+import { LobbyingDonationContext } from '../lobbying/LobbyingDonationContext';
 
 export function DonorPaymentList({
   groups,
@@ -254,9 +255,10 @@ function PaymentGroup({
   const s = useDetailsStyles();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { isMobile } = useResponsive();
-  const slug = group.linkableRegistrationNumber
-    ? committeeSlug(group.name, group.linkableRegistrationNumber)
-    : null;
+  const slug =
+    group.tab !== 'lobbyists' && group.linkableRegistrationNumber
+      ? committeeSlug(group.name, group.linkableRegistrationNumber)
+      : null;
   const href = slug ? routePath.moneyCommittee(slug, { year: String(year) }) : null;
   const count = group.payments.length;
   const [hovered, setHovered] = useState(false);
@@ -308,6 +310,7 @@ function PaymentGroup({
       </View>
       {expanded ? (
         <View style={styles.payments}>
+          <LobbyingDonationContext group={group} year={year} />
           {group.payments.map((payment, index) => {
             const received = 'receivedOn' in payment;
             const date = received ? payment.receivedOn : payment.paidOn;

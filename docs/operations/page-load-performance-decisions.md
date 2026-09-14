@@ -690,24 +690,18 @@ telling a session to take this figure from the hosted build already existed, was
 was quoted in the commit message that then ignored it, so 4 merges sat unshipped for 50
 minutes. Words were the wrong instrument.
 
-- **A build that inlined no settings is checked against what a build with them will
-  measure.** `HOSTED_BUILD_EXCESS_BYTES` is 542, measured on commit `01ffcbb0` where a
-  settings-less build produced 390,219 and Vercel produced 390,761. Such a build adds that
-  before comparing, and reports the sum rather than its own number, so a passing line can
-  never be quoted as headroom the deploy does not have. Replayed against the incident:
-  389,961 plus 542 is 390,503, which fails the 390,500 limit that was set from it. Its
-  honest limit is that it is one measurement of one commit, so a future commit with a
-  larger gap could still pass here and fail there.
+- **Every build enforces its actual measured bytes; only hosted production establishes
+  production headroom.** The earlier fixed `+542` adjustment was retired by
+  [pull request 2209](https://github.com/alethical-org/alethical/pull/2209), following
+  Eugene's instruction to use hosted measurements without a fixed local-to-host
+  adjustment. Hosted source `112c698538f11fa15ccae1d70026c45a1a5019e6` measured
+  338,820 bytes with production settings; the same app code in the pull-request
+  preview measured 338,978. Adding 542 falsely described the preview as 339,520
+  and refused it against the unchanged 339,072 limit. The difference changes with
+  the code and settings and can have either sign. A preview or local pass never
+  substitutes for the production build's own enforced measurement. The settings
+  marker remains diagnostic and does not add bytes that nobody downloads.
 
-  **The condition is what the built program CONTAINS, not where it ran, and getting that
-  wrong the first time is worth recording.** This first keyed on Vercel's own `VERCEL=1`,
-  which asks "is this the host" when the question is "did this build have its settings".
-  The main checkout holds a `.env`, so a build there inlines real values and is already the
-  size the host produces; adding the excess there would have failed a build that would
-  have deployed. `firstLoadCarriesItsSettings` now reads the program for a Supabase
-  address instead, because that setting is the one a deployable build cannot work without
-  and the one a worktree never has: measured 8 Sep 2026, 1 hit in the live program and 0
-  in a worktree's build.
 - **A failed production release opens an issue by itself**
   (`.github/workflows/production-release-failed.yml`), on the `deployment_status` event,
   for the `Production` environment only, reusing one issue across a run of failures and
@@ -715,49 +709,22 @@ minutes. Words were the wrong instrument.
   cause will not be a byte count, and the thing that went wrong on 8 September was nobody
   looking rather than nobody knowing where to look.
 
-**Rejected: committing the public settings so a local build has no gap to project.** All 6
-`EXPO_PUBLIC_*` values already ship inside the program every reader downloads, so a committed copy
-exposes nothing new, and it would make a worktree measure exactly what the host measures. It still
-loses. This repository is public, so it would put 2 permanently readable credential-shaped strings
-in it, including a Supabase publishable key, where a secret scanner has to be taught to ignore them
-and a future reader has to be told they are safe. What that buys is only that 2 numbers match, and
-`firstLoadCarriesItsSettings` already asks the built program what it contains rather than trusting
-either number. A real standing risk for a cosmetic gain. Revisit only if the settings ever have to
-be present for a local build to be correct rather than merely to be the same size.
+**Rejected on 8 September: committing the public settings to reproduce that build.**
+The 6 public values already appeared in the delivered app, but copying them into this
+public repository would add credential-shaped strings, including the publishable key,
+that scanners and future readers would need to classify. Matching that one measurement
+was not worth that burden. Matching settings does not guarantee matching local and hosted
+sizes; the source, dependencies and transformations also matter. The settings marker is
+now diagnostic only, and the hosted production result is the release evidence.
 
-**And the reason nobody could confirm the cause for hours: the build reuses a cached translation of
-each module, so setting a variable and rebuilding produces a byte-identical program.** Two sessions
-each set `EXPO_PUBLIC_API_URL`, measured no change, and concluded the settings were not inlined.
-An empty `TMPDIR` plus `--clear` on the export reproduces the host: the program's content hash
-changes and `api.alethical.com` appears where a cached build had it 0 times. Measured 8 Sep 2026.
-The arithmetic is worth keeping because no one would predict it from the code: 261 raw bytes of
-settings become 1,510 after the optimiser and 542 compressed, since the values are high-entropy
-strings that compress poorly and change what the minifier can fold. Two other candidates were ruled
-out by measurement rather than argument, and both are cheap to re-test: the host's Node 24 against a
-local 22 produces byte-identical output on the same source, and 2 consecutive local builds are
-byte-identical, so it is not build-to-build noise.
+**The 8 September cache observation, not a general size guarantee.** Setting a public
+variable and rebuilding reused cached module translations and initially changed no bytes.
+An empty `TMPDIR` with `--clear` made the setting appear in that source's output. For
+that source, 261 raw setting bytes became 1,510 after optimization and 542 compressed;
+Node 22 and 24 produced matching local output, as did 2 consecutive local builds.
+Those observations explain that incident. They do not establish a fixed adjustment for
+later source revisions, as the 14 September hosted pair above demonstrates.
 
-**Rejected: committing the public settings so a local build has no gap to project.** All 6
-`EXPO_PUBLIC_*` values already ship inside the program every reader downloads, so a committed copy
-exposes nothing new, and it would make a worktree measure exactly what the host measures. It still
-loses. This repository is public, so it would put 2 permanently readable credential-shaped strings
-in it, including a Supabase publishable key, where a secret scanner has to be taught to ignore them
-and a future reader has to be told they are safe. What that buys is only that 2 numbers match, and
-`firstLoadCarriesItsSettings` already asks the built program what it contains rather than trusting
-either number. A real standing risk for a cosmetic gain. Revisit only if the settings ever have to
-be present for a local build to be correct rather than merely to be the same size.
-
-**And the reason nobody could confirm the cause for hours: the build reuses a cached translation of
-each module, so setting a variable and rebuilding produces a byte-identical program.** Two sessions
-each set `EXPO_PUBLIC_API_URL`, measured no change, and concluded the settings were not inlined.
-An empty `TMPDIR` plus `--clear` on the export reproduces the host: the program's content hash
-changes and `api.alethical.com` appears where a cached build had it 0 times. Measured 8 Sep 2026.
-The arithmetic is worth keeping because no one would predict it from the code: 261 raw bytes of
-settings become 1,510 after the optimiser and 542 compressed, since the values are high-entropy
-strings that compress poorly and change what the minifier can fold. Two other candidates were ruled
-out by measurement rather than argument, and both are cheap to re-test: the host's Node 24 against a
-local 22 produces byte-identical output on the same source, and 2 consecutive local builds are
-byte-identical, so it is not build-to-build noise.
 
 **`lib/auth/signInWorkPending.ts` is the whole design, and it answers 1 question: does this page
 load have sign-in work to do?** It says yes when a session is saved in this browser, when the

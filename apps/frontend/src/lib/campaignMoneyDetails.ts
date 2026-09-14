@@ -86,6 +86,8 @@ export interface MoneyDetailsGroup {
   newestDate: string | null;
   oldestDate: string | null;
   linkableRegistrationNumber: string | null;
+  /** Keep every proven destination when one printed name carries several numbers. */
+  linkableRegistrationNumbers?: string[];
 }
 
 function dateOf(payment: MoneyDetailsPayment): string | null {
@@ -147,6 +149,9 @@ function groupPayments(
           ? row.contributorRegistrationNumber
           : row.affectedCommitteeRegistrationNumber,
       ),
+    );
+    group.linkableRegistrationNumbers = [...numbers].filter(
+      (number): number is string => Boolean(number) && linkable.includes(number!),
     );
     if (numbers.size === 1) {
       const [number] = numbers;

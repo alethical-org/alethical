@@ -31,7 +31,6 @@ import {
 import { CommitteeDonationCards } from '../../components/campaignMoney/CommitteeDonationCards';
 import { TrackCommitteeButton } from '../../components/campaignMoney/TrackCommitteeButton';
 import { BOARD_RECORD_LINK_LABEL, boardRecordUrl } from '../../lib/boardRecordLink';
-import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import type { CommitteeConfirmation, CommitteeMoney } from '../../data/types';
 import {
@@ -238,12 +237,6 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
     <PageBackground>
       <CommitteeScroll key={registrationNumber}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
-
-        {/* The money section is still being built — lobbying is not loaded
-            (#1862), and the challenger and fuller outside-spending surfaces do
-            not exist — and nothing else on the page says so at a glance.
-            Deleting the element and its component file is the whole removal. */}
-        <UnderDevelopmentNotice />
 
         {/* Every state of this page holds a screenful, so the footer below it
             starts under the fold and nothing a reader can see moves when the

@@ -1242,6 +1242,7 @@ export function Pagination({
   jumpPages,
   pageHref,
   onPageSelect,
+  variant,
 }: {
   page: number;
   totalPages?: number;
@@ -1257,6 +1258,7 @@ export function Pagination({
   jumpPages?: readonly number[];
   pageHref?: (page: number) => string;
   onPageSelect?: (page: number) => void;
+  variant?: 'lobbying';
 }) {
   if (!hasPrev && !hasNext) return null;
   return (
@@ -1264,6 +1266,7 @@ export function Pagination({
       <View style={styles.pagination}>
         <PageButton
           direction="prev"
+          variant={variant}
           disabled={!hasPrev}
           href={prevHref}
           onPress={() => {
@@ -1273,12 +1276,16 @@ export function Pagination({
         />
         {/* aria-live: announce the new page number to screen readers, since the
             results below swap silently. */}
-        <Text style={styles.pageLabel} accessibilityLiveRegion="polite">
+        <Text
+          style={[styles.pageLabel, variant === 'lobbying' && styles.lobbyingPaginationText]}
+          accessibilityLiveRegion="polite"
+        >
           Page <Text style={styles.pageLabelNum}>{page}</Text>
           {typeof totalPages === 'number' ? ` of ${totalPages}` : ''}
         </Text>
         <PageButton
           direction="next"
+          variant={variant}
           disabled={!hasNext}
           href={nextHref}
           onPress={() => {
@@ -1289,7 +1296,11 @@ export function Pagination({
       </View>
       {jumpPages?.length && pageHref && onPageSelect ? (
         <View style={styles.pageJumps}>
-          <Text style={styles.pageJumpLabel}>Jump to page</Text>
+          <Text
+            style={[styles.pageJumpLabel, variant === 'lobbying' && styles.lobbyingPaginationText]}
+          >
+            Jump to page
+          </Text>
           {jumpPages.map((target) => (
             <Pressable
               key={target}
@@ -1299,7 +1310,12 @@ export function Pagination({
               })}
               style={styles.pageJumpLink}
             >
-              <Text style={styles.pageJumpText}>{`Page ${target}`}</Text>
+              <Text
+                style={[
+                  styles.pageJumpText,
+                  variant === 'lobbying' && styles.lobbyingPaginationText,
+                ]}
+              >{`Page ${target}`}</Text>
             </Pressable>
           ))}
         </View>
@@ -1313,11 +1329,13 @@ function PageButton({
   disabled,
   onPress,
   href,
+  variant,
 }: {
   direction: 'prev' | 'next';
   disabled: boolean;
   onPress: () => void;
   href?: string;
+  variant?: 'lobbying';
 }) {
   const [hovered, hover] = useHover();
   const color = disabled
@@ -1342,7 +1360,13 @@ function PageButton({
       ]}
     >
       {direction === 'prev' ? <Icon size={15} color={color} strokeWidth={2.2} /> : null}
-      <Text style={[styles.pageBtnText, { color }]}>
+      <Text
+        style={[
+          styles.pageBtnText,
+          { color },
+          variant === 'lobbying' && styles.lobbyingPaginationText,
+        ]}
+      >
         {direction === 'prev' ? 'Previous' : 'Next'}
       </Text>
       {direction === 'next' ? <Icon size={15} color={color} strokeWidth={2.2} /> : null}
@@ -1993,6 +2017,7 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.small,
     fontWeight: t.fontWeights.bold,
   },
+  lobbyingPaginationText: { fontSize: 15, fontVariant: ['tabular-nums'] },
   pageLabel: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.small,

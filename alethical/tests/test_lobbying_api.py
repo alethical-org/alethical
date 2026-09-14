@@ -9,7 +9,7 @@ import re
 import uuid
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import event, text
 from fastapi.testclient import TestClient
 
 from alethical.api.services import lobbying
@@ -190,6 +190,35 @@ def test_real_kozak_payments_group_by_year_and_committee_without_totals(client, 
     for group in groups:
         assert "total" not in group and "amount" not in group
     assert "total" not in data["contributions"]
+
+
+def test_observed_recipients_are_linkable_without_reading_their_other_payments(db):
+    _pair(db)
+    _payments(db)
+    # A held payment proves this recipient has a committee page even when the
+    # current register has no matching row. Do not turn registration into a gate.
+    db.execute(text("DELETE FROM cf_filer WHERE registration_number = '17868'"))
+    db.commit()
+    statements = []
+
+    def record_query(_connection, _cursor, statement, *_rest):
+        statements.append(statement)
+
+    connection = db.connection()
+    event.listen(connection, "before_cursor_execute", record_query)
+    try:
+        data = lobbying._contributions(db, "141")
+    finally:
+        event.remove(connection, "before_cursor_execute", record_query)
+    groups = [group for year in data["years"] for group in year["committees"]]
+    assert {group["registration_number"] for group in groups} == {"17868", "20006"}
+    assert all(group["linkable"] for group in groups)
+    abeler = next(group for group in groups if group["registration_number"] == "17868")
+    assert abeler["kind"] is None
+    assert abeler["payment_count"] == 3
+    # Reading this lobbyist's recipients already proves their existence. Looking
+    # up every expenditure of those recipients added seconds on the live record.
+    assert not any("cf_expenditure_row" in statement for statement in statements)
 
 
 def test_principal_uses_spending_name_and_retains_blank_and_zero(client, db):

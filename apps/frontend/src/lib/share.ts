@@ -38,7 +38,8 @@ const LEGISLATOR_LIST_SUBJECT = 'Minnesota House and Senate members';
 export const X_SHORT_LINK_LENGTH = 23;
 const X_TEXT_LENGTH = 280 - X_SHORT_LINK_LENGTH - 1;
 
-export type ShareSubject = 'bill' | 'legislator' | 'answer' | 'research' | 'guide' | 'committee';
+export type ShareSubject =
+  'bill' | 'legislator' | 'answer' | 'research' | 'guide' | 'committee' | 'principal' | 'lobbyist';
 
 export interface ShareContent {
   subject: ShareSubject;
