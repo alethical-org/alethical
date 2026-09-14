@@ -1,4 +1,4 @@
-import { MONEY_LANE_LOBBYING, lobbyistLaneCount } from './lobbyingDirectoryCopy';
+import { MONEY_LANE_LOBBYING, lobbyistLaneCount } from './lobbyingLinkCopy';
 import {
   authorNameOnly,
   bienniumEyebrow,

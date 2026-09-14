@@ -28,7 +28,7 @@
  */
 
 import { formatCount } from './moneyLanding';
-export { lobbyingNoSpendingRows as principalWithoutSpending } from './lobbyingDirectoryCopy';
+export { lobbyingNoSpendingRows as principalWithoutSpending } from './lobbyingLinkCopy';
 
 /** The server's own group names, in the order it always returns them. */
 export type NameSearchGroupKind =

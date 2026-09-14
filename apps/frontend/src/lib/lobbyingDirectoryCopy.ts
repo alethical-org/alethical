@@ -49,16 +49,9 @@ export const LOBBYING_DIRECTORY_COPY = {
   },
 } as const;
 
-export const MONEY_LANE_LOBBYING = {
-  title: 'Lobbying',
-  body: 'Who is registered to lobby the state, who they represent, and what those organisations report spending each year',
-} as const;
+export { MONEY_LANE_LOBBYING, lobbyistLaneCount, lobbyingNoSpendingRows } from './lobbyingLinkCopy';
 
 const count = (value: number) => value.toLocaleString('en-US');
-
-export function lobbyistLaneCount(value: number | null | undefined): string | null {
-  return value == null ? null : `${count(value)} REGISTERED TODAY`;
-}
 
 export function principalLaneCount(
   value: number | null | undefined,
@@ -77,12 +70,6 @@ export function lobbyingPrincipalCount(value: number): string {
 
 export function lobbyingLatestYear(year: number | null): string | null {
   return year == null ? null : `Latest reported year ${year}`;
-}
-
-export function lobbyingNoSpendingRows(year: number | null): string {
-  return year == null
-    ? "No spending rows in the Board's file, so no page to open"
-    : `No spending rows in the Board's file through ${year}, so no page to open`;
 }
 
 export function lobbyingShowingLine(

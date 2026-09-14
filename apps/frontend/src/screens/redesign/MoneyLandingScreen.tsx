@@ -5,7 +5,7 @@ import Svg, { Path } from 'react-native-svg';
 import { Skeleton } from '../../components/Skeleton';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
 import { useLobbyingSummary } from '../../hooks/useLobbying';
-import { MONEY_LANE_LOBBYING, lobbyistLaneCount } from '../../lib/lobbyingDirectoryCopy';
+import { MONEY_LANE_LOBBYING, lobbyistLaneCount } from '../../lib/lobbyingLinkCopy';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
   useCampaignFinanceFilings,
