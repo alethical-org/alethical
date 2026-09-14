@@ -32,7 +32,7 @@ function dayLabel(isoDate: string): string {
  *  No terminal full stop on any of the 3 (ruled 1 Sep 2026, #1924): each stands on
  *  its own line, and the same block on a committee page is worded identically. */
 export const RECORD_DOES_NOT_COVER = [
-  'Nothing before 2015',
+  'No campaign payments held before 2015',
   'Unions don’t report to this board at all',
   'Donors who gave $200 or less in total for the year need not be named',
 ] as const;
@@ -44,6 +44,8 @@ export const RECORD_DOES_NOT_COVER = [
  * record's properties, and the card kept only what the lane does. The other pages that
  * draw the 3-line block are not the landing and keep the 3.
  */
+export const MONEY_LANDING_COVERAGE_HEADING = 'What the campaign files do not cover';
+
 export const MONEY_LANDING_RECORD_DOES_NOT_COVER = [
   ...RECORD_DOES_NOT_COVER,
   'No list of every payee — a paid name carries only its spelling on the filing',

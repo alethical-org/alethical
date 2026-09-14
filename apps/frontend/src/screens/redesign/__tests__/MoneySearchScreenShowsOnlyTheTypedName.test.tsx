@@ -51,6 +51,7 @@ vi.mock('@react-navigation/native', () => ({
 import { createAppQueryClient } from '../../../lib/appQueryClient';
 import { resetSeededPayloadsForTests } from '../../../lib/pageData';
 import { MoneySearchScreen } from '../MoneySearchScreen';
+import lobbyingLive from '../../../data/__tests__/fixtures/lobbying-search-live.json';
 
 /**
  * What the page says is a claim about the name in its own heading (issue #2020).
@@ -121,6 +122,7 @@ function openSearchPage(firstQuery: string) {
   });
 
   return {
+    host,
     words: () => host.textContent ?? '',
     type: (next: string) => act(() => setQuery?.(next)),
   };
@@ -139,6 +141,123 @@ afterEach(() => {
   document.body.innerHTML = '';
   resetSeededPayloadsForTests();
   vi.unstubAllGlobals();
+});
+
+describe('lobbying search groups keep their own counts and proven destinations', () => {
+  function section(host: HTMLElement, title: string) {
+    return [...host.querySelectorAll('[role="heading"]')].find((node) => node.textContent === title)
+      ?.parentElement?.parentElement;
+  }
+  function combinedAnswer() {
+    return {
+      data: {
+        ...lobbyingLive.kozak,
+        groups: lobbyingLive.kozak.groups.map((group) =>
+          group.kind === 'principals'
+            ? {
+                ...group,
+                state: 'reported',
+                total: 2,
+                results: [lobbyingLive.linked_principal, lobbyingLive.list_only_principal].map(
+                  (row) => ({
+                    ...row,
+                    kind: 'principal',
+                    source_latest_year: lobbyingLive.source_latest_year,
+                  }),
+                ),
+              }
+            : group,
+        ),
+      },
+    };
+  }
+
+  it('draws the real current registration separately from the 2 payment-name spellings', async () => {
+    serve({ Kozak: { data: lobbyingLive.kozak } });
+    const page = openSearchPage('Kozak');
+    await settle();
+    const group = section(page.host, 'LOBBYISTS')!;
+    expect(group.textContent).toContain('1 MATCH');
+    expect(group.textContent).toContain('Registration 141 · 13 principals today');
+    expect(group.querySelector('a')?.getAttribute('href')).toBe(
+      '/money/lobbying/lobbyists/kozak-andrew-141',
+    );
+    const payments = section(page.host, 'NAMES THAT GAVE')!;
+    expect(payments.textContent).toContain('2 MATCHES');
+    expect(payments.textContent).toContain('Kozak, Andrew V');
+    expect(payments.querySelector('a')?.getAttribute('href')).toContain('/money/payments?name=');
+    expect(section(page.host, 'PRINCIPALS')).toBeUndefined();
+  });
+
+  it('keeps an active-list-only principal plain and prints the source coverage beside it', async () => {
+    serve({ Kozak: combinedAnswer() });
+    const page = openSearchPage('Kozak');
+    await settle();
+    const group = section(page.host, 'PRINCIPALS')!;
+    expect(group.textContent).toContain('2 MATCHES');
+    expect(group.textContent).toContain(lobbyingLive.list_only_principal.name);
+    expect(group.textContent).toContain(
+      "No spending rows in the Board's file through 2025, so no page to open",
+    );
+    expect(group.textContent).toContain('Entity 7325 · Latest reported year 2017');
+    expect([...group.querySelectorAll('a')].map((link) => link.getAttribute('href'))).toEqual([
+      '/money/lobbying/principals/actwireless-7325',
+    ]);
+    const plainName = [...group.querySelectorAll('*')].find(
+      (node) => node.textContent === lobbyingLive.list_only_principal.name,
+    )!;
+    expect(plainName.closest('a,[role="link"]')).toBeNull();
+  });
+
+  it('shows the whole group count before capped results and opens its numbered directory', async () => {
+    const payload = combinedAnswer();
+    payload.data.groups = payload.data.groups.map((group) =>
+      group.kind === 'lobbyists' ? { ...group, total: 60, has_more: true } : group,
+    );
+    serve({ Kozak: payload });
+    const page = openSearchPage('Kozak');
+    await settle();
+    const group = section(page.host, 'LOBBYISTS')!;
+    expect(group.textContent).toContain('60 MATCHES');
+    expect(group.textContent).toContain('See all 60 lobbyists');
+    expect(
+      [...group.querySelectorAll('a')]
+        .find((link) => link.textContent === 'See all 60 lobbyists')
+        ?.getAttribute('href'),
+    ).toBe('/money/lobbying/lobbyists?q=Kozak');
+  });
+
+  it('keeps a failed lobbying group visible beside successful results without saying 0 matches', async () => {
+    const payload = combinedAnswer();
+    // Deliberately leave stale rows on this failed group: the response reader must discard them.
+    const failed = payload.data.groups.map((group) =>
+      group.kind === 'principals' ? { ...group, state: 'unavailable', total: null } : group,
+    );
+    serve({ Kozak: { data: { ...payload.data, groups: failed } } });
+    const page = openSearchPage('Kozak');
+    await settle();
+    const group = section(page.host, 'PRINCIPALS')!;
+    expect(group.textContent).toContain('gap on our side');
+    expect(group.textContent).not.toContain('0 MATCHES');
+    expect(group.textContent).not.toContain('Nothing here carries that spelling');
+    expect(group.textContent).not.toContain(lobbyingLive.list_only_principal.name);
+    expect(section(page.host, 'LOBBYISTS')?.textContent).toContain('Kozak, Andrew');
+  });
+
+  it('does not claim no name exists when the lobbying files could not be searched', async () => {
+    const groups = lobbyingLive.kozak.groups.map((group) => ({
+      ...group,
+      state:
+        group.kind === 'principals' || group.kind === 'lobbyists' ? 'unavailable' : 'not_reported',
+      total: group.kind === 'principals' || group.kind === 'lobbyists' ? null : 0,
+      results: [],
+    }));
+    serve({ Kozak: { data: { ...lobbyingLive.kozak, groups } } });
+    const page = openSearchPage('Kozak');
+    await settle();
+    expect(page.words()).toContain('We could not search all of these records just now');
+    expect(page.words()).not.toContain('Nothing is filed under');
+  });
 });
 
 /** Answers each name from `answers`; anything absent never answers at all. */

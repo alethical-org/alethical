@@ -2931,6 +2931,12 @@ interface ApiNameSearchRowPayload {
   termination_date?: string | null;
   role?: string | null;
   payment_count?: number | null;
+  entity_id?: number | null;
+  principal_count?: number | null;
+  latest_reported_year?: number | null;
+  source_latest_year?: number | null;
+  linkable?: boolean;
+  state?: string;
 }
 
 interface ApiNameSearchPayload {
@@ -2971,6 +2977,23 @@ function nameSearchGroupState(state: string | undefined): NameSearchGroup['state
 /** One served result row, read by its own `kind` rather than by the group it
  *  arrived in — which is what would break the day a group holds 2 shapes. */
 function nameSearchRow(row: ApiNameSearchRowPayload): NameSearchRow | null {
+  if (row.kind === 'lobbyist' && row.registration_number)
+    return {
+      kind: 'lobbyist',
+      name: row.name ?? '',
+      registrationNumber: row.registration_number,
+      principalCount: row.principal_count ?? null,
+    };
+  if (row.kind === 'principal' && row.entity_id != null)
+    return {
+      kind: 'principal',
+      name: row.name ?? '',
+      entityId: row.entity_id,
+      latestReportedYear: row.latest_reported_year ?? null,
+      sourceLatestYear: row.source_latest_year ?? null,
+      linkable: row.linkable === true,
+      state: row.state ?? 'unavailable',
+    };
   if (row.kind === 'person') {
     return {
       kind: 'person',

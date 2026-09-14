@@ -676,10 +676,31 @@ after everything else now starts
 [issue 2164](https://github.com/alethical-org/alethical/issues/2164) only after the
 data and lookups are live. The 2 held source replacements remain untouched.
 
-- [ ] Import the current lobbyist list with the principal spending file as 1 dated release; discard contact fields before storage
-- [ ] Prove registration and principal IDs against all relevant published rows
-- [ ] Serve the detail, summary, paginated list and search reads needed by the accepted lobbying screens
-- [ ] Complete tests, migration round trip and an independent read of publication safeguards
-- [ ] Merge the data change, run the reviewed import with rollback retained, check live responses and report on the existing issue
+- [x] Import the current lobbyist list with the principal spending file as 1 dated release; discard contact fields before storage
+- [x] Prove registration and principal IDs against all relevant published rows
+- [x] Serve the detail, summary, paginated list and search reads needed by the accepted lobbying screens
+- [x] Complete tests, migration round trip and an independent read of publication safeguards
+- [x] Merge the data change, run the reviewed import with rollback retained, check live responses and report on the existing issue
 - [ ] Build the accepted lobbying screens and links, remove the under-development strip in that display release, check live and report
 - [ ] Update the complete Claude review prompt and final programme report after both releases
+
+
+The data release is live through [pull request 2208](https://github.com/alethical-org/alethical/pull/2208).
+The pair copied on 13 September 2026 holds 1,665 lobbyists and 5,395 associations;
+the same 17,842 principal-spending rows remain intact. The live report is on
+[issue 2163](https://github.com/alethical-org/alethical/issues/2163#issuecomment-5657161988).
+
+The lobbying screen build starts from main commit d4d65981 in its own worktree.
+- [x] Connect all 5 direct addresses, first responses, metadata and numbered directory links
+- [x] Build the accepted landing, both lists and both record screens with source-specific states
+- [x] Add the 2 search groups and registration-based expanded donation panels
+- [x] Remove the lobbying notice from all money surfaces in the same release
+- [x] Remove the proven redundant committee-link read without changing response fields
+- [x] Pin real rows, blank/zero states, card paging, directory paging and exact link identity
+- [ ] Check all 3 layout bands, hosted first-download size and a fresh product review
+- [ ] Complete merge queue, live checks, reader guides and final programme/review reports
+
+The joined display build passes 2,908 frontend tests and TypeScript. Local phone
+and tablet reads show the real lobbying counts, separate source dates and
+Kozak's 3 separate 2025 payments to committee 17868. The hosted size check,
+independent reader check, merge and live confirmation remain before completion.

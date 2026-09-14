@@ -28,10 +28,17 @@
  */
 
 import { formatCount } from './moneyLanding';
+export { lobbyingNoSpendingRows as principalWithoutSpending } from './lobbyingDirectoryCopy';
 
 /** The server's own group names, in the order it always returns them. */
 export type NameSearchGroupKind =
-  'people' | 'committees' | 'gave' | 'got_paid' | 'got_paid_independent';
+  | 'people'
+  | 'committees'
+  | 'gave'
+  | 'got_paid'
+  | 'got_paid_independent'
+  | 'lobbyists'
+  | 'principals';
 
 /**
  * The order the page draws the groups in, and every slot it draws. The server
@@ -46,9 +53,13 @@ export const NAME_SEARCH_GROUP_ORDER: readonly NameSearchGroupKind[] = [
   'gave',
   'got_paid',
   'got_paid_independent',
+  'lobbyists',
+  'principals',
 ] as const;
 
 const GROUP_HEADINGS: Record<NameSearchGroupKind, string> = {
+  lobbyists: 'LOBBYISTS',
+  principals: 'PRINCIPALS',
   people: 'PEOPLE',
   committees: 'COMMITTEES',
   gave: 'NAMES THAT GAVE',
@@ -66,6 +77,8 @@ export function groupHeading(kind: NameSearchGroupKind): string {
  * told will infer, and the inferences available here are all wrong.
  */
 const GROUP_NOTES: Record<NameSearchGroupKind, string> = {
+  lobbyists: 'Everyone registered to lobby today, and the organisations each one represents',
+  principals: "Organisations named in the Board's lobbying spending file or current lobbyist list",
   people:
     'A person is a result only where we hold a record of them beyond these filings — the 200 ' +
     'sitting legislators. Everyone else on a filing resolves to what they filed.',
@@ -174,7 +187,7 @@ export const NAME_SEARCH_EMPTY_QUERY_TITLE = 'Type a name to search';
 
 export const NAME_SEARCH_EMPTY_QUERY_WHY =
   'This searches Minnesota state campaign filings by the name each record was filed under — a ' +
-  'legislator, a committee, a party unit, a donor, or a business that got paid.';
+  'legislator, a committee, a party unit, a donor, or a business that got paid. It also searches the Board’s current lobbyist list and yearly principal spending file.';
 
 /** Below the index's floor. A served state, not an error: a trigram index holds
  *  no whole trigram for a 2-character query, so searching on one would fall back
@@ -266,3 +279,19 @@ export const NOT_ALL_SEARCHED_WHY =
   'Part of our copy of Minnesota’s files did not answer, so an empty result here is not a ' +
   'statement that nothing is filed under that name. This is a gap on our side. Try again in a ' +
   'moment.';
+
+export function lobbyingSearchMeta(
+  row:
+    | { kind: 'lobbyist'; registrationNumber: string; principalCount: number | null }
+    | { kind: 'principal'; entityId: number; latestReportedYear: number | null },
+): string {
+  if (row.kind === 'lobbyist')
+    return `Registration ${row.registrationNumber}${row.principalCount == null ? '' : ` · ${formatCount(row.principalCount)} ${row.principalCount === 1 ? 'principal' : 'principals'} today`}`;
+  return `Entity ${row.entityId}${row.latestReportedYear == null ? '' : ` · Latest reported year ${row.latestReportedYear}`}`;
+}
+export function seeAllLobbyingLabel(
+  kind: 'lobbyists' | 'principals',
+  total: number | null,
+): string {
+  return total == null ? `Browse all ${kind}` : `See all ${formatCount(total)} ${kind}`;
+}

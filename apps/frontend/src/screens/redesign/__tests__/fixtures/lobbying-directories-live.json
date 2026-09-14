@@ -1,0 +1,701 @@
+{
+  "summary": {
+    "release_id": "70f958f3-e559-4b1b-8cc0-1edd60422799",
+    "copied_at": "2026-09-13T23:41:21.934688Z",
+    "sources": {
+      "expenditures": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/?download=-728390027",
+      "lobbyists": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/?download=-161966777"
+    },
+    "first_year": 2014,
+    "last_year": 2025,
+    "state": "reported",
+    "registered_lobbyists": 1665,
+    "principals_reporting": 1748,
+    "latest_reported_year": 2025
+  },
+  "lobbyists_page_2": {
+    "release_id": "70f958f3-e559-4b1b-8cc0-1edd60422799",
+    "copied_at": "2026-09-13T23:41:21.934688Z",
+    "sources": {
+      "expenditures": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/?download=-728390027",
+      "lobbyists": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/?download=-161966777"
+    },
+    "limit": 50,
+    "offset": 50,
+    "q": "",
+    "matched_on": "substring_of_the_filed_name",
+    "state": "reported",
+    "total": 1665,
+    "has_more": true,
+    "lobbyists": [
+      {
+        "registration_number": "182",
+        "name": "Askelin, Laura",
+        "formatted_name": "Laura Askelin",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "4717",
+        "name": "Askew, Andrew",
+        "formatted_name": "Andrew Askew",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "6367",
+        "name": "Atkinson, Jim",
+        "formatted_name": "Jim Atkinson",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5112",
+        "name": "Aumock, Christopher",
+        "formatted_name": "Christopher Aumock",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "1399",
+        "name": "Austin, Paul",
+        "formatted_name": "Paul Austin",
+        "principal_count": 2
+      },
+      {
+        "registration_number": "4700",
+        "name": "Axvig, Adam",
+        "formatted_name": "Adam Axvig",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "4630",
+        "name": "Babel, Britta",
+        "formatted_name": "Britta Babel",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "854",
+        "name": "Backhaus, Amber L",
+        "formatted_name": "Amber L Backhaus",
+        "principal_count": 14
+      },
+      {
+        "registration_number": "3514",
+        "name": "Bacon, Dana",
+        "formatted_name": "Dana Bacon",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "9511",
+        "name": "Bagley, Lester",
+        "formatted_name": "Lester Bagley",
+        "principal_count": 2
+      },
+      {
+        "registration_number": "5261",
+        "name": "Baglio, Ben",
+        "formatted_name": "Ben Baglio",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "218",
+        "name": "Bagnoli, Joseph T",
+        "formatted_name": "Joseph T Bagnoli",
+        "principal_count": 56
+      },
+      {
+        "registration_number": "6032",
+        "name": "Bahr, Malissa",
+        "formatted_name": "Malissa Bahr",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "4590",
+        "name": "Bailey, Dana",
+        "formatted_name": "Dana Bailey",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "4677",
+        "name": "Bains, Anjali K",
+        "formatted_name": "Anjali K Bains",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "6283",
+        "name": "Baker, Melinda",
+        "formatted_name": "Melinda Baker",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5282",
+        "name": "Bakk, Thomas Melvin",
+        "formatted_name": "Thomas Melvin Bakk",
+        "principal_count": 3
+      },
+      {
+        "registration_number": "6077",
+        "name": "Bakken, Shelli D",
+        "formatted_name": "Shelli D Bakken",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5873",
+        "name": "Barba-Cook, Charlie",
+        "formatted_name": "Charlie Barba-Cook",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5790",
+        "name": "Barbour, Priscilla",
+        "formatted_name": "Priscilla Barbour",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5730",
+        "name": "Barlow, Ryan P",
+        "formatted_name": "Ryan P Barlow",
+        "principal_count": 2
+      },
+      {
+        "registration_number": "5691",
+        "name": "Barmore, Dave",
+        "formatted_name": "Dave Barmore",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "6150",
+        "name": "Barnhardt, Riley J",
+        "formatted_name": "Riley J Barnhardt",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5024",
+        "name": "Barthel, Steven",
+        "formatted_name": "Steven Barthel",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5047",
+        "name": "Barthol, Chirstopher",
+        "formatted_name": "Chirstopher Barthol",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "6186",
+        "name": "Bartlett-Chase, Meghanne",
+        "formatted_name": "Meghanne Bartlett-Chase",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5370",
+        "name": "Bates, JaNa\u00e9",
+        "formatted_name": "JaNa\u00e9 Bates",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5728",
+        "name": "Bauer-Yuen, Ashley",
+        "formatted_name": "Ashley Bauer-Yuen",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5543",
+        "name": "Bauer, Cody M",
+        "formatted_name": "Cody M Bauer",
+        "principal_count": 3
+      },
+      {
+        "registration_number": "2196",
+        "name": "Bauer, Jeffrey P",
+        "formatted_name": "Jeffrey P Bauer",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "3315",
+        "name": "Beard, Michael L",
+        "formatted_name": "Michael L Beard",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "3102",
+        "name": "Beauchamp, Scott",
+        "formatted_name": "Scott Beauchamp",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "4543",
+        "name": "Beckman, Alison",
+        "formatted_name": "Alison Beckman",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "6248",
+        "name": "Beemer, Tyler",
+        "formatted_name": "Tyler Beemer",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "4286",
+        "name": "Beere, Colin",
+        "formatted_name": "Colin Beere",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5451",
+        "name": "Bell, Brian B",
+        "formatted_name": "Brian B Bell",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "4234",
+        "name": "Belladonna-Carrera, Annastacia",
+        "formatted_name": "Annastacia Belladonna-Carrera",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5545",
+        "name": "Bellamy, Maria",
+        "formatted_name": "Maria Bellamy",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5833",
+        "name": "Belz, Pamela",
+        "formatted_name": "Pamela Belz",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "4349",
+        "name": "Benner, Patrick",
+        "formatted_name": "Patrick Benner",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5199",
+        "name": "Bennett, Catherine",
+        "formatted_name": "Catherine Bennett",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "1111",
+        "name": "Bennett, Cory R",
+        "formatted_name": "Cory R Bennett",
+        "principal_count": 10
+      },
+      {
+        "registration_number": "5122",
+        "name": "Benson-Staebler, David",
+        "formatted_name": "David Benson-Staebler",
+        "principal_count": 2
+      },
+      {
+        "registration_number": "5590",
+        "name": "Benson, Michelle",
+        "formatted_name": "Michelle Benson",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "6414",
+        "name": "Berbig, Sheighlyn",
+        "formatted_name": "Sheighlyn Berbig",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5158",
+        "name": "Berg-Moberg, Graham",
+        "formatted_name": "Graham Berg-Moberg",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "4218",
+        "name": "Berg, Erin Hanafin",
+        "formatted_name": "Erin Hanafin Berg",
+        "principal_count": 2
+      },
+      {
+        "registration_number": "5664",
+        "name": "Berg, Joshua D",
+        "formatted_name": "Joshua D Berg",
+        "principal_count": 3
+      },
+      {
+        "registration_number": "6128",
+        "name": "Bergen, Olivia",
+        "formatted_name": "Olivia Bergen",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5511",
+        "name": "Berger, Alicia",
+        "formatted_name": "Alicia Berger",
+        "principal_count": 1
+      }
+    ]
+  },
+  "principals_page_2": {
+    "release_id": "70f958f3-e559-4b1b-8cc0-1edd60422799",
+    "copied_at": "2026-09-13T23:41:21.934688Z",
+    "sources": {
+      "expenditures": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/?download=-728390027",
+      "lobbyists": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/?download=-161966777"
+    },
+    "limit": 50,
+    "offset": 50,
+    "q": "",
+    "matched_on": "substring_of_the_filed_name",
+    "state": "reported",
+    "total": 3443,
+    "has_more": true,
+    "latest_reported_year": 2025,
+    "principals": [
+      {
+        "entity_id": 7325,
+        "name": "ACTWireless",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2017
+      },
+      {
+        "entity_id": 8421,
+        "name": "ADL Midwest (Anti-Defamation League)",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 8300,
+        "name": "Adobe Inc.",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 6809,
+        "name": "Adolfson & Peterson Construction",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2015
+      },
+      {
+        "entity_id": 8192,
+        "name": "AdvaMed",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2023
+      },
+      {
+        "entity_id": 7817,
+        "name": "Advance MN",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 6954,
+        "name": "Advanced Dermatology & Cosmetic Institute PA",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2015
+      },
+      {
+        "entity_id": 6489,
+        "name": "Advanced Disposal Services",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2020
+      },
+      {
+        "entity_id": 8373,
+        "name": "Advanced Engineering and Environmental Services, LLC",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 7143,
+        "name": "Advanced Research Corporation dba ARC",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2017
+      },
+      {
+        "entity_id": 8003,
+        "name": "Advanced Volumetric Alliance (AVA)",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 6559,
+        "name": "AdvanceEd",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2014
+      },
+      {
+        "entity_id": 6167,
+        "name": "Advantage Capital Partners",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 6445,
+        "name": "Advocates for Human Rights",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 1744,
+        "name": "Advocating Change Together",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2019
+      },
+      {
+        "entity_id": 8490,
+        "name": "AECOM",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 6835,
+        "name": "AEG Facilities LLC",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2015
+      },
+      {
+        "entity_id": 6206,
+        "name": "Aeon",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 7021,
+        "name": "Aero Service Group",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2018
+      },
+      {
+        "entity_id": 8440,
+        "name": "Aerostich Riderwear",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 8453,
+        "name": "AES Clean Energy Development LLC",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 3436,
+        "name": "Aetna, Inc.",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2021
+      },
+      {
+        "entity_id": 7197,
+        "name": "Affordable Cremation of Southwest Minnesota",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2018
+      },
+      {
+        "entity_id": 7326,
+        "name": "Affordable Equity Partners, Inc.",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2017
+      },
+      {
+        "entity_id": 7802,
+        "name": "Affordable Homeschool Testing Services",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2021
+      },
+      {
+        "entity_id": 7692,
+        "name": "Affordable Housing Construction Coalition",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2020
+      },
+      {
+        "entity_id": 1521,
+        "name": "AFLAC",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 8666,
+        "name": "African American Child Wellness Institute, Inc.",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 7684,
+        "name": "African American Registry",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2021
+      },
+      {
+        "entity_id": 7950,
+        "name": "African Career Education & Resource, Inc. (ACER)",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 8398,
+        "name": "African Community Economic Development",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 6470,
+        "name": "African Development Center",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 7812,
+        "name": "African Economic Development Solutions",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 3071,
+        "name": "AFSCME 65",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 900,
+        "name": "AFSCME Council 5",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 8231,
+        "name": "AFSCME International Union",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 6165,
+        "name": "Ag Processing. Inc, a Cooperative",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 8631,
+        "name": "Agape Social Impact Solutions LLC",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 8081,
+        "name": "Agate Housing and Services",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 8428,
+        "name": "AGC America, Inc. and subsidiaries",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 5124,
+        "name": "Aggregate & Ready Mix Assn of MN",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 6941,
+        "name": "AGNL Health LLC",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2017
+      },
+      {
+        "entity_id": 269,
+        "name": "AHIP (Americas Health Ins Plans)",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 2800,
+        "name": "AIG, Inc. (American International Group)",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 7829,
+        "name": "AIR Distribution USA, Inc",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 8030,
+        "name": "Air-Conditioning, Heating, and Refrigeration Institute (AHRI)",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 7712,
+        "name": "Airbnb, Inc.",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 5716,
+        "name": "Aircraft Owners and Pilots Assn (AOPA)",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2022
+      },
+      {
+        "entity_id": 8385,
+        "name": "Airline Pilots Assn Intl",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 8553,
+        "name": "Aitkin Public Schools ISD#1",
+        "state": "no_spending_rows",
+        "linkable": false,
+        "latest_reported_year": null
+      }
+    ]
+  }
+}

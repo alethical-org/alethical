@@ -86,7 +86,6 @@ import {
   useCampaignMoneyTypography,
   useDetailsStyles,
 } from './detailsStyles';
-import { UnderDevelopmentNotice } from './UnderDevelopmentNotice';
 import { externalLinkProps } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
 import { outsideSpendingLoadFailure } from '../../lib/outsideSpending';
@@ -200,7 +199,6 @@ export function CampaignMoneyTab({
           still partially built (#1642, #1645, #1650, #1663). Boxed rather than
           full-bleed: the tab opens inside a content column, below the profile
           header and the tab row. */}
-      <UnderDevelopmentNotice variant="inset" />
 
       {/* No visible heading: the tab bar directly above carries the word "Campaign
           money" and this is the selected tab, so a heading repeating it is 1 word

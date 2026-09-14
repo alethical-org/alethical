@@ -1,0 +1,121 @@
+{
+  "kozak": {
+    "current_claim_validated_at": "2026-09-13T23:42:20.774496Z",
+    "state": "reported",
+    "q": "Kozak, Andrew",
+    "matched_on": "substring_of_the_filed_name",
+    "min_query_length": 3,
+    "counted_up_to": 200,
+    "groups": [
+      {
+        "kind": "people",
+        "state": "not_reported",
+        "results": [],
+        "total": 0,
+        "at_least": null,
+        "has_more": false,
+        "reason": null
+      },
+      {
+        "kind": "committees",
+        "state": "not_reported",
+        "results": [],
+        "total": 0,
+        "at_least": null,
+        "has_more": false,
+        "reason": null
+      },
+      {
+        "kind": "gave",
+        "state": "reported",
+        "results": [
+          {
+            "kind": "payment_name",
+            "name": "Kozak, Andrew",
+            "role": "contributor",
+            "payment_count": 91
+          },
+          {
+            "kind": "payment_name",
+            "name": "Kozak, Andrew V",
+            "role": "contributor",
+            "payment_count": 147
+          }
+        ],
+        "total": 2,
+        "at_least": null,
+        "has_more": false,
+        "reason": null
+      },
+      {
+        "kind": "got_paid",
+        "state": "not_reported",
+        "results": [],
+        "total": 0,
+        "at_least": null,
+        "has_more": false,
+        "reason": null
+      },
+      {
+        "kind": "got_paid_independent",
+        "state": "not_reported",
+        "results": [],
+        "total": 0,
+        "at_least": null,
+        "has_more": false,
+        "reason": null
+      },
+      {
+        "kind": "lobbyists",
+        "state": "reported",
+        "results": [
+          {
+            "kind": "lobbyist",
+            "name": "Kozak, Andrew",
+            "registration_number": "141",
+            "entity_id": null,
+            "principal_count": 13,
+            "latest_reported_year": null,
+            "source_latest_year": null,
+            "linkable": true,
+            "state": "reported"
+          }
+        ],
+        "total": 1,
+        "at_least": null,
+        "has_more": false,
+        "reason": null
+      },
+      {
+        "kind": "principals",
+        "state": "not_reported",
+        "results": [],
+        "total": 0,
+        "at_least": null,
+        "has_more": false,
+        "reason": null
+      }
+    ],
+    "lobbying_release_id": "70f958f3-e559-4b1b-8cc0-1edd60422799",
+    "lobbying_copied_at": "2026-09-13T23:41:21.934688Z",
+    "as_of": "2026-08-12",
+    "snapshot_id": "9cd121a0-4fd2-467e-b4a4-5c3c600febfb",
+    "release_id": "af236cca-a4f8-4efe-9a3a-025259ea380e",
+    "reason": null
+  },
+  "linked_principal": {
+    "entity_id": 7325,
+    "name": "ACTWireless",
+    "state": "reported",
+    "linkable": true,
+    "latest_reported_year": 2017
+  },
+  "list_only_principal": {
+    "entity_id": 8553,
+    "name": "Aitkin Public Schools ISD#1",
+    "state": "no_spending_rows",
+    "linkable": false,
+    "latest_reported_year": null
+  },
+  "source_latest_year": 2025
+}

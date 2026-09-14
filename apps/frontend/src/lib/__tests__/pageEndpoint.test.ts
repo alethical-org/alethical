@@ -14,6 +14,7 @@ import { escapeHtml } from '../share';
 import { API_SHARED_CACHE_MAX_AGE_MS } from '../currentClaimFreshness';
 import { CONFIRMATION_UNAVAILABLE_LINE } from '../committeeConfirmation';
 import { whoseCommitteeText } from '../committeeMoney';
+import lobbyingLive from '../../data/__tests__/fixtures/lobbying-live.json';
 
 const { readPageShell } = vi.hoisted(() => ({ readPageShell: vi.fn() }));
 
@@ -1337,7 +1338,7 @@ describe('the records a money page hands to the app', () => {
     expect(served[0].payload).toEqual(races);
   });
 
-  it('hands /money its 2 reads, made together', async () => {
+  it('hands /money its 3 reads, started together, with lobbying in its own source envelope', async () => {
     const summary = {
       register: { state: 'reported', filer_count: 1603 },
       legislator_committee_confirmations: {
@@ -1349,12 +1350,28 @@ describe('the records a money page hands to the app', () => {
       freshness: { downloads_fetched_at: '2026-09-01T12:00:00Z' },
     };
     const filings = { state: 'reported', ordered_by: 'filed_date', filings: [] };
-    stubNetwork((url) => ({
-      status: 200,
-      payload: { data: url.includes('/filings') ? filings : summary },
-    }));
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      const path = new URL(url).pathname + new URL(url).search;
+      calls.push(path);
+      const data =
+        path === '/api/v1/lobbying/summary'
+          ? lobbyingLive.summary
+          : path === '/api/v1/campaign-finance/filings?limit=5'
+            ? filings
+            : summary;
+      return { status: 200, payload: { data } };
+    });
 
-    const { body } = await serve({ path: '/money' });
+    const response = serve({ path: '/money' });
+    // All requests begin before any request can answer. A serial implementation
+    // would have started only the first one at this point.
+    expect(calls).toEqual([
+      '/api/v1/campaign-finance/summary',
+      '/api/v1/campaign-finance/filings?limit=5',
+      '/api/v1/lobbying/summary',
+    ]);
+    const { body } = await response;
 
     expect(servedData(body)).toEqual([
       // The summary counts who sits right now, so it travels with the age it
@@ -1370,8 +1387,51 @@ describe('the records a money page hands to the app', () => {
       // Dated filings carry the period they cover and the day we copied them, so
       // they get no clock at all.
       { key: ['campaign-finance-filings', 5], payload: filings },
+      // The lobbying copy date belongs to its own 2 files and is not the
+      // campaign-finance summary's age or download date.
+      { key: ['lobbying-summary'], payload: { data: lobbyingLive.summary } },
     ]);
+    expect(body).toContain('1,665 REGISTERED TODAY');
   });
+
+  it.each(['unavailable', 'failed'])(
+    'keeps /money and both campaign reads when its lobbying summary is %s',
+    async (state) => {
+      const summary = { register: { state: 'reported', filer_count: 1603 } };
+      const filings = { state: 'reported', ordered_by: 'filed_date', filings: [] };
+      stubNetwork((url) => {
+        const path = new URL(url).pathname;
+        if (path === '/api/v1/lobbying/summary') {
+          return state === 'failed'
+            ? { status: 503 }
+            : {
+                status: 200,
+                payload: {
+                  data: {
+                    ...lobbyingLive.summary,
+                    state: 'unavailable',
+                    registered_lobbyists: null,
+                  },
+                },
+              };
+        }
+        return { status: 200, payload: { data: path.endsWith('/filings') ? filings : summary } };
+      });
+      const { body, status } = await serve({ path: '/money' });
+      expect(status).toBe(200);
+      expect(servedData(body)).toEqual([
+        {
+          key: ['campaign-finance-summary'],
+          payload: summary,
+          validatedAgeMs: API_SHARED_CACHE_MAX_AGE_MS,
+        },
+        { key: ['campaign-finance-filings', 5], payload: filings },
+      ]);
+      expect(body).toContain('href="/money/lobbying"');
+      expect(body).not.toContain('1,665 REGISTERED TODAY');
+      expect(body).not.toContain('0 REGISTERED TODAY');
+    },
+  );
 
   it('hands on the age a cache reported for a claim about who sits right now', async () => {
     const summary = {

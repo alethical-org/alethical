@@ -16,7 +16,12 @@ export function directoryPageNumber(value: string | null | undefined): number {
 }
 
 /** The 3 public directories that page by a numbered address. */
-export type DirectoryBasePath = '/bills' | '/legislators' | '/money/committees';
+export type DirectoryBasePath =
+  | '/bills'
+  | '/legislators'
+  | '/money/committees'
+  | '/money/lobbying/principals'
+  | '/money/lobbying/lobbyists';
 
 export function directoryPagePath(basePath: DirectoryBasePath, page: number): string {
   return page > 1 ? `${basePath}?page=${page}` : basePath;

@@ -8,7 +8,6 @@ import {
 } from '../../components/campaignMoney/MoneyListRows';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
 import { Pagination } from '../../components/search/searchPieces';
-import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton } from '../../components/Skeleton';
 import { useCampaignFinanceCommittees, usePrefetchCommitteeMoney } from '../../hooks/useAppQueries';
 import { useDebouncedSearchCommit } from '../../hooks/useDebouncedSearchCommit';
@@ -140,12 +139,6 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
     <PageBackground>
       <ScrollView contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
-
-        {/* The money section is still being built — lobbying is not loaded, and no
-            sitting member's committee has been confirmed by a person yet — and
-            nothing else on the page says so at a glance. Deleting the element and
-            its component file is the whole removal. */}
-        <UnderDevelopmentNotice />
 
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
           <Pressable

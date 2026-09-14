@@ -1,3 +1,22 @@
+import { lobbyingPageMetadata } from "../apps/frontend/src/lib/lobbyingMetadata";
+import {
+  lobbyingLandingSnapshot,
+  lobbyingDirectorySnapshot,
+  lobbyingPrincipalSnapshot,
+  lobbyingLobbyistSnapshot,
+} from "../apps/frontend/src/lib/lobbyingPageSnapshot";
+import {
+  lobbyingSummaryQueryKey,
+  lobbyingPrincipalQueryKey,
+  lobbyingLobbyistQueryKey,
+  lobbyingPrincipalsQueryKey,
+  lobbyingLobbyistsQueryKey,
+  type LobbyingSummary,
+  type LobbyingPrincipalsPage,
+  type LobbyingLobbyistsPage,
+  type LobbyingPrincipal,
+  type LobbyingLobbyist,
+} from "../apps/frontend/src/lib/lobbyingTypes";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { aboutPageSnapshot } from "../apps/frontend/src/lib/aboutUs";
@@ -63,6 +82,7 @@ import {
   committeePaymentsListQueryKey,
   paymentsTabFromParam,
   registrationNumberFromSlug,
+  committeeSlug,
 } from "../apps/frontend/src/lib/committeeMoneyShared";
 import {
   paymentsUnavailable,
@@ -640,7 +660,7 @@ async function moneyLandingContent(): Promise<PageContent> {
   // the second one costs the response no extra wait. `MoneySummaryPayload` names
   // only the fields the snapshot prints; the object seeded is everything the
   // service sent, which is what the app then shapes.
-  const [summaryRead, filings] = await Promise.all([
+  const [summaryRead, filings, lobbying] = await Promise.all([
     // Read with its age, because this answer counts who sits right now and how
     // many committee-to-member links are live, so it expires (issue 2023). The
     // filings beside it are dated records and carry no such clock.
@@ -650,6 +670,7 @@ async function moneyLandingContent(): Promise<PageContent> {
     getApiData<unknown>(
       `/campaign-finance/filings?limit=${MONEY_LANDING_FILINGS_LIMIT}`,
     ).catch(() => null),
+    getApiData<LobbyingSummary>("/lobbying/summary").catch(() => null),
   ]);
   const summary = summaryRead?.data ?? null;
   const data: PageDataEntry[] = [];
@@ -666,6 +687,9 @@ async function moneyLandingContent(): Promise<PageContent> {
       payload: filings,
     });
   }
+  if (lobbying && lobbying.state !== "unavailable") {
+    data.push({ key: lobbyingSummaryQueryKey(), payload: { data: lobbying } });
+  }
   return {
     metadata: STATIC_PAGE_METADATA["/money"],
     snapshot: renderPageSnapshot(
@@ -675,6 +699,8 @@ async function moneyLandingContent(): Promise<PageContent> {
             ? (summary.register.filer_count ?? null)
             : null,
         filesLastCopiedAt: summary?.freshness?.downloads_fetched_at ?? null,
+        registeredLobbyists:
+          lobbying?.state === "reported" ? lobbying.registered_lobbyists : null,
       }),
     ),
     data,
@@ -1045,6 +1071,99 @@ function isUnfilteredDirectory(params: Record<string, string>): boolean {
   return Object.keys(params).every((key) => key === "page");
 }
 
+async function lobbyingLandingContent(): Promise<PageContent> {
+  const payload = await getApiData<LobbyingSummary>("/lobbying/summary");
+  if (payload.state === "unavailable")
+    throw new DataUnavailable("lobbying sources unavailable");
+  return {
+    metadata: lobbyingPageMetadata("/money/lobbying", "Lobbying"),
+    snapshot: renderPageSnapshot(lobbyingLandingSnapshot(payload)),
+    data: [{ key: lobbyingSummaryQueryKey(), payload: { data: payload } }],
+  };
+}
+
+async function lobbyingDirectoryContent(
+  kind: "principals" | "lobbyists",
+  params: Record<string, string>,
+): Promise<PageContent> {
+  const page = directoryPageNumber(params.page);
+  const path = `/money/lobbying/${kind}`;
+  const name = kind === "principals" ? "Principals" : "Lobbyists";
+  const noindex = !isUnfilteredDirectory(params);
+  if (noindex)
+    return headOnly(
+      lobbyingPageMetadata(path, name, {
+        kind: "directory",
+        page,
+        noindex: true,
+      }),
+    );
+  const payload = await getApiData<
+    LobbyingPrincipalsPage | LobbyingLobbyistsPage
+  >(`/lobbying/${kind}?limit=50&offset=${(page - 1) * 50}`);
+  if (payload.state === "unavailable" || payload.total === null)
+    throw new DataUnavailable("lobbying directory unavailable");
+  if (page > directoryTotalPages(payload.total, 50))
+    throw new UnknownAddress("lobbying directory page outside range");
+  return {
+    metadata: lobbyingPageMetadata(
+      page > 1 ? `${path}?page=${page}` : path,
+      name,
+      { kind: "directory", page },
+    ),
+    snapshot: renderPageSnapshot(
+      lobbyingDirectorySnapshot(payload, kind, page),
+    ),
+    data: [
+      {
+        key:
+          kind === "principals"
+            ? lobbyingPrincipalsQueryKey({ page })
+            : lobbyingLobbyistsQueryKey({ page }),
+        payload: { data: payload },
+      },
+    ],
+  };
+}
+
+async function lobbyingRecordContent(
+  kind: "principals" | "lobbyists",
+  slug: string,
+): Promise<PageContent> {
+  const id = registrationNumberFromSlug(slug);
+  if (!id || Number(id) <= 0 || !Number.isSafeInteger(Number(id)))
+    throw new UnknownAddress("invalid lobbying identifier");
+  const payload = await getApiData<LobbyingPrincipal | LobbyingLobbyist>(
+    `/lobbying/${kind}/${id}`,
+  );
+  if (payload.state === "unavailable")
+    throw new DataUnavailable("lobbying record unavailable");
+  if ("entity_id" in payload && payload.state === "no_spending_rows")
+    throw new UnknownAddress("no principal spending record");
+  const name = payload.name ?? `Registration ${id}`;
+  const path = `/money/lobbying/${kind}/${encodeURIComponent(committeeSlug(name, id))}`;
+  return {
+    metadata: lobbyingPageMetadata(path, name, {
+      kind: "entity_id" in payload ? "principal" : "lobbyist",
+      noindex: payload.state === "not_registered_today",
+    }),
+    snapshot: renderPageSnapshot(
+      "entity_id" in payload
+        ? lobbyingPrincipalSnapshot(payload)
+        : lobbyingLobbyistSnapshot(payload),
+    ),
+    data: [
+      {
+        key:
+          kind === "principals"
+            ? lobbyingPrincipalQueryKey(id)
+            : lobbyingLobbyistQueryKey(id),
+        payload: { data: payload },
+      },
+    ],
+  };
+}
+
 async function contentFor(
   query: Record<string, QueryValue>,
 ): Promise<PageContent> {
@@ -1081,6 +1200,16 @@ async function contentFor(
       };
     case "moneyLanding":
       return moneyLandingContent();
+    case "lobbyingLanding":
+      return lobbyingLandingContent();
+    case "lobbyingPrincipals":
+      return lobbyingDirectoryContent("principals", target.params);
+    case "lobbyingLobbyists":
+      return lobbyingDirectoryContent("lobbyists", target.params);
+    case "lobbyingPrincipal":
+      return lobbyingRecordContent("principals", target.slug);
+    case "lobbyingLobbyist":
+      return lobbyingRecordContent("lobbyists", target.slug);
     case "read":
       // The /read page's own list, so the route to every posted piece exists before
       // any program runs (#1760). The registry is on the server already, so

@@ -2,7 +2,6 @@ import { useRef } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton } from '../../components/Skeleton';
 import { useOutsideSpendingRecord, usePrefetchCommitteeMoney } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -223,10 +222,6 @@ export function OutsideSpendingScreen({ navigation, route }: RootScreenProps<'Ou
     <PageBackground>
       <ScrollView contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
-
-        {/* The money section is still being built. Deleting the element and its
-            component file is the whole removal. */}
-        <UnderDevelopmentNotice />
 
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
           <ViewStrip view={view} address={address} navigation={navigation} />

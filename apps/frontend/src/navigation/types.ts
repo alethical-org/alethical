@@ -65,6 +65,11 @@ export type RootStackParamList = {
   // Campaign money section (campaign money IA handoff, Aug 2026). All public —
   // the section has no sign-in gate.
   MoneyLanding: undefined;
+  LobbyingLanding: undefined;
+  LobbyingPrincipals: { q?: string; page?: string } | undefined;
+  LobbyingLobbyists: { q?: string; page?: string } | undefined;
+  LobbyingPrincipal: { slug: string };
+  LobbyingLobbyist: { slug: string };
   Read: undefined;
   // One published piece of our own writing. Both names draw the same screen and
   // differ only in the address they write: a piece carrying the research trait

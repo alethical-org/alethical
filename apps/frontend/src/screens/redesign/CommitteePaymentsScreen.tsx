@@ -3,7 +3,6 @@ import Svg, { Path } from 'react-native-svg';
 
 import { YearControl } from '../../components/campaignMoney/YearControl';
 import { MoneyListRow, MoneyListRows } from '../../components/campaignMoney/MoneyListRows';
-import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton } from '../../components/Skeleton';
 import type { CommitteeMadePayment, CommitteeReceivedPayment } from '../../data/types';
 import { useCommitteeMoney, useCommitteePaymentsList } from '../../hooks/useAppQueries';
@@ -138,12 +137,6 @@ export function CommitteePaymentsScreen({
     <PageBackground>
       <ScrollView contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
-
-        {/* The money section is still being built — lobbying is not loaded, and no
-            sitting member's committee has been confirmed by a person yet — and
-            nothing else on the page says so at a glance. Deleting the element and
-            its component file is the whole removal. */}
-        <UnderDevelopmentNotice />
 
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
           <Pressable

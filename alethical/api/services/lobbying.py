@@ -14,7 +14,6 @@ from uuid import UUID
 from sqlalchemy import String, cast, func, or_, select, text, union_all
 from sqlalchemy.orm import Session
 
-from alethical.api.services.campaign_finance_payments import linkable_committees
 from alethical.api.services.campaign_finance_register import name_contains
 from alethical.api.services.committee_finance import current_release
 from alethical.db import models as schema
@@ -476,7 +475,10 @@ def _contributions(db: Session, registration_number: str) -> dict:
     numbers = sorted(
         {item.recipient_reg_num for item in rows if item.recipient_reg_num}
     )
-    linkable = linkable_committees(db, release, numbers)
+    # These numbers are recipients already observed in this pinned contribution
+    # snapshot, which proves they have held committee rows. Re-reading all their
+    # donations and expenditures to establish that same fact takes seconds.
+    linkable = frozenset(numbers)
     kinds = (
         dict(
             db.execute(

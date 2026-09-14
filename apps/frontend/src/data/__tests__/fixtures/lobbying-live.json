@@ -1,0 +1,5233 @@
+{
+  "summary": {
+    "release_id": "70f958f3-e559-4b1b-8cc0-1edd60422799",
+    "copied_at": "2026-09-13T23:41:21.934688Z",
+    "sources": {
+      "expenditures": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/?download=-728390027",
+      "lobbyists": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/?download=-161966777"
+    },
+    "first_year": 2014,
+    "last_year": 2025,
+    "state": "reported",
+    "registered_lobbyists": 1665,
+    "principals_reporting": 1748,
+    "latest_reported_year": 2025
+  },
+  "principal": {
+    "release_id": "70f958f3-e559-4b1b-8cc0-1edd60422799",
+    "copied_at": "2026-09-13T23:41:21.934688Z",
+    "sources": {
+      "expenditures": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/?download=-728390027",
+      "lobbyists": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/?download=-161966777"
+    },
+    "entity_id": 2263,
+    "state": "reported",
+    "name": "American Express",
+    "latest_reported_year": 2025,
+    "source_latest_year": 2025,
+    "spending": {
+      "state": "reported",
+      "rows": [
+        {
+          "year": 2025,
+          "record_number": 3010,
+          "puc_lobbying_amount": "0.0000",
+          "legislative_lobbying_amount": "35000.0000",
+          "administrative_lobbying_amount": "0.0000",
+          "mgu_lobbying_amount": "0.0000",
+          "general_lobbying_amount": "0.0000",
+          "total_spent": "35000.0000"
+        },
+        {
+          "year": 2024,
+          "record_number": 3009,
+          "puc_lobbying_amount": "0.0000",
+          "legislative_lobbying_amount": "36000.0000",
+          "administrative_lobbying_amount": "0.0000",
+          "mgu_lobbying_amount": "0.0000",
+          "general_lobbying_amount": "0.0000",
+          "total_spent": "36000.0000"
+        },
+        {
+          "year": 2023,
+          "record_number": 3008,
+          "puc_lobbying_amount": "0.0000",
+          "legislative_lobbying_amount": "0.0000",
+          "administrative_lobbying_amount": "0.0000",
+          "mgu_lobbying_amount": "0.0000",
+          "general_lobbying_amount": "36000.0000",
+          "total_spent": "36000.0000"
+        },
+        {
+          "year": 2022,
+          "record_number": 3007,
+          "puc_lobbying_amount": "0.0000",
+          "legislative_lobbying_amount": "0.0000",
+          "administrative_lobbying_amount": "0.0000",
+          "mgu_lobbying_amount": "0.0000",
+          "general_lobbying_amount": "36072.0000",
+          "total_spent": "36072.0000"
+        },
+        {
+          "year": 2021,
+          "record_number": 3006,
+          "puc_lobbying_amount": "0.0000",
+          "legislative_lobbying_amount": "0.0000",
+          "administrative_lobbying_amount": "0.0000",
+          "mgu_lobbying_amount": "0.0000",
+          "general_lobbying_amount": "40000.0000",
+          "total_spent": "40000.0000"
+        },
+        {
+          "year": 2020,
+          "record_number": 3005,
+          "puc_lobbying_amount": "0.0000",
+          "legislative_lobbying_amount": "0.0000",
+          "administrative_lobbying_amount": "0.0000",
+          "mgu_lobbying_amount": "0.0000",
+          "general_lobbying_amount": "40000.0000",
+          "total_spent": "40000.0000"
+        },
+        {
+          "year": 2019,
+          "record_number": 3004,
+          "puc_lobbying_amount": "0.0000",
+          "legislative_lobbying_amount": "0.0000",
+          "administrative_lobbying_amount": "0.0000",
+          "mgu_lobbying_amount": "0.0000",
+          "general_lobbying_amount": "40000.0000",
+          "total_spent": "40000.0000"
+        },
+        {
+          "year": 2018,
+          "record_number": 3003,
+          "puc_lobbying_amount": "0.0000",
+          "legislative_lobbying_amount": "0.0000",
+          "administrative_lobbying_amount": "0.0000",
+          "mgu_lobbying_amount": "0.0000",
+          "general_lobbying_amount": "40000.0000",
+          "total_spent": "40000.0000"
+        },
+        {
+          "year": 2017,
+          "record_number": 3002,
+          "puc_lobbying_amount": "0.0000",
+          "legislative_lobbying_amount": "0.0000",
+          "administrative_lobbying_amount": "0.0000",
+          "mgu_lobbying_amount": "0.0000",
+          "general_lobbying_amount": "36000.0000",
+          "total_spent": "36000.0000"
+        },
+        {
+          "year": 2016,
+          "record_number": 3001,
+          "puc_lobbying_amount": "0.0000",
+          "legislative_lobbying_amount": "0.0000",
+          "administrative_lobbying_amount": "0.0000",
+          "mgu_lobbying_amount": "0.0000",
+          "general_lobbying_amount": "35000.0000",
+          "total_spent": "35000.0000"
+        },
+        {
+          "year": 2015,
+          "record_number": 3000,
+          "puc_lobbying_amount": "0.0000",
+          "legislative_lobbying_amount": "0.0000",
+          "administrative_lobbying_amount": "0.0000",
+          "mgu_lobbying_amount": "0.0000",
+          "general_lobbying_amount": "35000.0000",
+          "total_spent": "35000.0000"
+        },
+        {
+          "year": 2014,
+          "record_number": 2999,
+          "puc_lobbying_amount": "0.0000",
+          "legislative_lobbying_amount": "0.0000",
+          "administrative_lobbying_amount": "0.0000",
+          "mgu_lobbying_amount": "0.0000",
+          "general_lobbying_amount": "35000.0000",
+          "total_spent": "35000.0000"
+        }
+      ]
+    },
+    "lobbyists": {
+      "state": "reported",
+      "total": 2,
+      "rows": [
+        {
+          "registration_number": "141",
+          "name": "Kozak, Andrew",
+          "formatted_name": "Andrew Kozak",
+          "principal_name_as_listed": "American Express",
+          "principal_name_differs": false
+        },
+        {
+          "registration_number": "2359",
+          "name": "Platto, Andrew",
+          "formatted_name": "Andrew Platto",
+          "principal_name_as_listed": "American Express",
+          "principal_name_differs": false
+        }
+      ]
+    }
+  },
+  "absent": {
+    "release_id": "70f958f3-e559-4b1b-8cc0-1edd60422799",
+    "copied_at": "2026-09-13T23:41:21.934688Z",
+    "sources": {
+      "expenditures": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/?download=-728390027",
+      "lobbyists": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/?download=-161966777"
+    },
+    "registration_number": "999999999",
+    "state": "not_registered_today",
+    "name": null,
+    "formatted_name": null,
+    "latest_reported_year": 2025,
+    "principals": {
+      "state": "not_registered_today",
+      "total": 0,
+      "rows": []
+    },
+    "contributions": {
+      "state": "not_reported",
+      "payment_count": 0,
+      "committee_count": 0,
+      "release_id": "af236cca-a4f8-4efe-9a3a-025259ea380e",
+      "copied_at": "2026-09-01T18:33:35.639027Z",
+      "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-2113865252",
+      "years": []
+    }
+  },
+  "lobbyists_page_2": {
+    "release_id": "70f958f3-e559-4b1b-8cc0-1edd60422799",
+    "copied_at": "2026-09-13T23:41:21.934688Z",
+    "sources": {
+      "expenditures": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/?download=-728390027",
+      "lobbyists": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/?download=-161966777"
+    },
+    "limit": 50,
+    "offset": 50,
+    "q": "",
+    "matched_on": "substring_of_the_filed_name",
+    "state": "reported",
+    "total": 1665,
+    "has_more": true,
+    "lobbyists": [
+      {
+        "registration_number": "182",
+        "name": "Askelin, Laura",
+        "formatted_name": "Laura Askelin",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "4717",
+        "name": "Askew, Andrew",
+        "formatted_name": "Andrew Askew",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "6367",
+        "name": "Atkinson, Jim",
+        "formatted_name": "Jim Atkinson",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5112",
+        "name": "Aumock, Christopher",
+        "formatted_name": "Christopher Aumock",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "1399",
+        "name": "Austin, Paul",
+        "formatted_name": "Paul Austin",
+        "principal_count": 2
+      },
+      {
+        "registration_number": "4700",
+        "name": "Axvig, Adam",
+        "formatted_name": "Adam Axvig",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "4630",
+        "name": "Babel, Britta",
+        "formatted_name": "Britta Babel",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "854",
+        "name": "Backhaus, Amber L",
+        "formatted_name": "Amber L Backhaus",
+        "principal_count": 14
+      },
+      {
+        "registration_number": "3514",
+        "name": "Bacon, Dana",
+        "formatted_name": "Dana Bacon",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "9511",
+        "name": "Bagley, Lester",
+        "formatted_name": "Lester Bagley",
+        "principal_count": 2
+      },
+      {
+        "registration_number": "5261",
+        "name": "Baglio, Ben",
+        "formatted_name": "Ben Baglio",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "218",
+        "name": "Bagnoli, Joseph T",
+        "formatted_name": "Joseph T Bagnoli",
+        "principal_count": 56
+      },
+      {
+        "registration_number": "6032",
+        "name": "Bahr, Malissa",
+        "formatted_name": "Malissa Bahr",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "4590",
+        "name": "Bailey, Dana",
+        "formatted_name": "Dana Bailey",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "4677",
+        "name": "Bains, Anjali K",
+        "formatted_name": "Anjali K Bains",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "6283",
+        "name": "Baker, Melinda",
+        "formatted_name": "Melinda Baker",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5282",
+        "name": "Bakk, Thomas Melvin",
+        "formatted_name": "Thomas Melvin Bakk",
+        "principal_count": 3
+      },
+      {
+        "registration_number": "6077",
+        "name": "Bakken, Shelli D",
+        "formatted_name": "Shelli D Bakken",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5873",
+        "name": "Barba-Cook, Charlie",
+        "formatted_name": "Charlie Barba-Cook",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5790",
+        "name": "Barbour, Priscilla",
+        "formatted_name": "Priscilla Barbour",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5730",
+        "name": "Barlow, Ryan P",
+        "formatted_name": "Ryan P Barlow",
+        "principal_count": 2
+      },
+      {
+        "registration_number": "5691",
+        "name": "Barmore, Dave",
+        "formatted_name": "Dave Barmore",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "6150",
+        "name": "Barnhardt, Riley J",
+        "formatted_name": "Riley J Barnhardt",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5024",
+        "name": "Barthel, Steven",
+        "formatted_name": "Steven Barthel",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5047",
+        "name": "Barthol, Chirstopher",
+        "formatted_name": "Chirstopher Barthol",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "6186",
+        "name": "Bartlett-Chase, Meghanne",
+        "formatted_name": "Meghanne Bartlett-Chase",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5370",
+        "name": "Bates, JaNaé",
+        "formatted_name": "JaNaé Bates",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5728",
+        "name": "Bauer-Yuen, Ashley",
+        "formatted_name": "Ashley Bauer-Yuen",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5543",
+        "name": "Bauer, Cody M",
+        "formatted_name": "Cody M Bauer",
+        "principal_count": 3
+      },
+      {
+        "registration_number": "2196",
+        "name": "Bauer, Jeffrey P",
+        "formatted_name": "Jeffrey P Bauer",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "3315",
+        "name": "Beard, Michael L",
+        "formatted_name": "Michael L Beard",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "3102",
+        "name": "Beauchamp, Scott",
+        "formatted_name": "Scott Beauchamp",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "4543",
+        "name": "Beckman, Alison",
+        "formatted_name": "Alison Beckman",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "6248",
+        "name": "Beemer, Tyler",
+        "formatted_name": "Tyler Beemer",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "4286",
+        "name": "Beere, Colin",
+        "formatted_name": "Colin Beere",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5451",
+        "name": "Bell, Brian B",
+        "formatted_name": "Brian B Bell",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "4234",
+        "name": "Belladonna-Carrera, Annastacia",
+        "formatted_name": "Annastacia Belladonna-Carrera",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5545",
+        "name": "Bellamy, Maria",
+        "formatted_name": "Maria Bellamy",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5833",
+        "name": "Belz, Pamela",
+        "formatted_name": "Pamela Belz",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "4349",
+        "name": "Benner, Patrick",
+        "formatted_name": "Patrick Benner",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5199",
+        "name": "Bennett, Catherine",
+        "formatted_name": "Catherine Bennett",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "1111",
+        "name": "Bennett, Cory R",
+        "formatted_name": "Cory R Bennett",
+        "principal_count": 10
+      },
+      {
+        "registration_number": "5122",
+        "name": "Benson-Staebler, David",
+        "formatted_name": "David Benson-Staebler",
+        "principal_count": 2
+      },
+      {
+        "registration_number": "5590",
+        "name": "Benson, Michelle",
+        "formatted_name": "Michelle Benson",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "6414",
+        "name": "Berbig, Sheighlyn",
+        "formatted_name": "Sheighlyn Berbig",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5158",
+        "name": "Berg-Moberg, Graham",
+        "formatted_name": "Graham Berg-Moberg",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "4218",
+        "name": "Berg, Erin Hanafin",
+        "formatted_name": "Erin Hanafin Berg",
+        "principal_count": 2
+      },
+      {
+        "registration_number": "5664",
+        "name": "Berg, Joshua D",
+        "formatted_name": "Joshua D Berg",
+        "principal_count": 3
+      },
+      {
+        "registration_number": "6128",
+        "name": "Bergen, Olivia",
+        "formatted_name": "Olivia Bergen",
+        "principal_count": 1
+      },
+      {
+        "registration_number": "5511",
+        "name": "Berger, Alicia",
+        "formatted_name": "Alicia Berger",
+        "principal_count": 1
+      }
+    ]
+  },
+  "principals_page_2": {
+    "release_id": "70f958f3-e559-4b1b-8cc0-1edd60422799",
+    "copied_at": "2026-09-13T23:41:21.934688Z",
+    "sources": {
+      "expenditures": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/?download=-728390027",
+      "lobbyists": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/?download=-161966777"
+    },
+    "limit": 50,
+    "offset": 50,
+    "q": "",
+    "matched_on": "substring_of_the_filed_name",
+    "state": "reported",
+    "total": 3443,
+    "has_more": true,
+    "latest_reported_year": 2025,
+    "principals": [
+      {
+        "entity_id": 7325,
+        "name": "ACTWireless",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2017
+      },
+      {
+        "entity_id": 8421,
+        "name": "ADL Midwest (Anti-Defamation League)",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 8300,
+        "name": "Adobe Inc.",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 6809,
+        "name": "Adolfson & Peterson Construction",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2015
+      },
+      {
+        "entity_id": 8192,
+        "name": "AdvaMed",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2023
+      },
+      {
+        "entity_id": 7817,
+        "name": "Advance MN",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 6954,
+        "name": "Advanced Dermatology & Cosmetic Institute PA",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2015
+      },
+      {
+        "entity_id": 6489,
+        "name": "Advanced Disposal Services",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2020
+      },
+      {
+        "entity_id": 8373,
+        "name": "Advanced Engineering and Environmental Services, LLC",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 7143,
+        "name": "Advanced Research Corporation dba ARC",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2017
+      },
+      {
+        "entity_id": 8003,
+        "name": "Advanced Volumetric Alliance (AVA)",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 6559,
+        "name": "AdvanceEd",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2014
+      },
+      {
+        "entity_id": 6167,
+        "name": "Advantage Capital Partners",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 6445,
+        "name": "Advocates for Human Rights",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 1744,
+        "name": "Advocating Change Together",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2019
+      },
+      {
+        "entity_id": 8490,
+        "name": "AECOM",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 6835,
+        "name": "AEG Facilities LLC",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2015
+      },
+      {
+        "entity_id": 6206,
+        "name": "Aeon",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 7021,
+        "name": "Aero Service Group",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2018
+      },
+      {
+        "entity_id": 8440,
+        "name": "Aerostich Riderwear",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 8453,
+        "name": "AES Clean Energy Development LLC",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 3436,
+        "name": "Aetna, Inc.",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2021
+      },
+      {
+        "entity_id": 7197,
+        "name": "Affordable Cremation of Southwest Minnesota",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2018
+      },
+      {
+        "entity_id": 7326,
+        "name": "Affordable Equity Partners, Inc.",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2017
+      },
+      {
+        "entity_id": 7802,
+        "name": "Affordable Homeschool Testing Services",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2021
+      },
+      {
+        "entity_id": 7692,
+        "name": "Affordable Housing Construction Coalition",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2020
+      },
+      {
+        "entity_id": 1521,
+        "name": "AFLAC",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 8666,
+        "name": "African American Child Wellness Institute, Inc.",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 7684,
+        "name": "African American Registry",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2021
+      },
+      {
+        "entity_id": 7950,
+        "name": "African Career Education & Resource, Inc. (ACER)",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 8398,
+        "name": "African Community Economic Development",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 6470,
+        "name": "African Development Center",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 7812,
+        "name": "African Economic Development Solutions",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 3071,
+        "name": "AFSCME 65",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 900,
+        "name": "AFSCME Council 5",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 8231,
+        "name": "AFSCME International Union",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 6165,
+        "name": "Ag Processing. Inc, a Cooperative",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 8631,
+        "name": "Agape Social Impact Solutions LLC",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 8081,
+        "name": "Agate Housing and Services",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 8428,
+        "name": "AGC America, Inc. and subsidiaries",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 5124,
+        "name": "Aggregate & Ready Mix Assn of MN",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 6941,
+        "name": "AGNL Health LLC",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2017
+      },
+      {
+        "entity_id": 269,
+        "name": "AHIP (Americas Health Ins Plans)",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 2800,
+        "name": "AIG, Inc. (American International Group)",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 7829,
+        "name": "AIR Distribution USA, Inc",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 8030,
+        "name": "Air-Conditioning, Heating, and Refrigeration Institute (AHRI)",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 7712,
+        "name": "Airbnb, Inc.",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 5716,
+        "name": "Aircraft Owners and Pilots Assn (AOPA)",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2022
+      },
+      {
+        "entity_id": 8385,
+        "name": "Airline Pilots Assn Intl",
+        "state": "reported",
+        "linkable": true,
+        "latest_reported_year": 2025
+      },
+      {
+        "entity_id": 8553,
+        "name": "Aitkin Public Schools ISD#1",
+        "state": "no_spending_rows",
+        "linkable": false,
+        "latest_reported_year": null
+      }
+    ]
+  },
+  "kozak": {
+    "release_id": "70f958f3-e559-4b1b-8cc0-1edd60422799",
+    "copied_at": "2026-09-13T23:41:21.934688Z",
+    "sources": {
+      "expenditures": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/?download=-728390027",
+      "lobbyists": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/?download=-161966777"
+    },
+    "registration_number": "141",
+    "state": "reported",
+    "name": "Kozak, Andrew",
+    "formatted_name": "Andrew Kozak",
+    "latest_reported_year": 2025,
+    "principals": {
+      "state": "reported",
+      "total": 13,
+      "rows": [
+        {
+          "entity_id": 2263,
+          "name": "American Express",
+          "spending_name": "American Express",
+          "position": 1,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 2897,
+          "name": "Catholic Eldercare, Inc.",
+          "spending_name": "Catholic Eldercare, Inc.",
+          "position": 2,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 309,
+          "name": "Ameriprise Financial Advisors",
+          "spending_name": "Ameriprise Financial Advisors",
+          "position": 3,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 4201,
+          "name": "Shakopee Mdewakanton Sioux (Dakota) Community",
+          "spending_name": "Shakopee Mdewakanton Sioux (Dakota) Community",
+          "position": 4,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 4968,
+          "name": "Dunwoody Institute",
+          "spending_name": "Dunwoody Institute",
+          "position": 5,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 5896,
+          "name": "J A Wedum Foundation",
+          "spending_name": "J A Wedum Foundation",
+          "position": 6,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 6768,
+          "name": "Twin Cities and Western Railroad Companies",
+          "spending_name": "Twin Cities and Western Railroad Companies",
+          "position": 7,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 7388,
+          "name": "Flint Hills Resources LLC",
+          "spending_name": "Flint Hills Resources LLC",
+          "position": 8,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 7710,
+          "name": "Fridley Housing & Redevelopment Authority",
+          "spending_name": "Fridley Housing & Redevelopment Authority",
+          "position": 9,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 7941,
+          "name": "MSP Small Business Concessions Alliance",
+          "spending_name": "MSP Small Business Concessions Alliance",
+          "position": 10,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 8150,
+          "name": "The Glenn Catholic Community",
+          "spending_name": "The Glenn Catholic Community",
+          "position": 11,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 8443,
+          "name": "Ivy Properties",
+          "spending_name": "Ivy Properties",
+          "position": 12,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 8887,
+          "name": "AMP Robotics Corporation",
+          "spending_name": null,
+          "position": 13,
+          "linkable": false,
+          "state": "no_spending_rows"
+        }
+      ]
+    },
+    "contributions": {
+      "state": "reported",
+      "payment_count": 240,
+      "committee_count": 34,
+      "release_id": "af236cca-a4f8-4efe-9a3a-025259ea380e",
+      "copied_at": "2026-09-01T18:33:35.639027Z",
+      "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-2113865252",
+      "years": [
+        {
+          "year": 2026,
+          "payment_count": 8,
+          "committees": [
+            {
+              "registration_number": "20006",
+              "name": "DFL House Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 352972,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2026-07-07",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 261761,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2026-02-04",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "18815",
+              "name": "Clardy, Mary Frances House Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 66065,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Voluntary Contribution Plan",
+                  "amount": "125.0000",
+                  "received_on": "2026-06-14",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 29463,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Voluntary Contribution Plan",
+                  "amount": "100.0000",
+                  "received_on": "2026-06-02",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 434993,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Voluntary Contribution Plan",
+                  "amount": "100.0000",
+                  "received_on": "2026-01-22",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "20011",
+              "name": "DFL Senate Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 495613,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2026-02-12",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 535514,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2026-02-09",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 484881,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2026-02-04",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            }
+          ],
+          "committee_count": 3
+        },
+        {
+          "year": 2025,
+          "payment_count": 9,
+          "committees": [
+            {
+              "registration_number": "20006",
+              "name": "DFL House Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 168673,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2025-12-16",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 546010,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "300.0000",
+                  "received_on": "2025-09-11",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 348178,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2025-01-13",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "17868",
+              "name": "Abeler, Jim Senate Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 367605,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisors",
+                  "amount": "200.0000",
+                  "received_on": "2025-11-26",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 454675,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2025-11-08",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 353526,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2025-08-21",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "20010",
+              "name": "HRCC",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 437025,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "Lobbyist, Lobbyist #141",
+                  "amount": "100.0000",
+                  "received_on": "2025-11-21",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 364602,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "Lobbyist, Lobbyist #141",
+                  "amount": "300.0000",
+                  "received_on": "2025-01-22",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "20011",
+              "name": "DFL Senate Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 503600,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2025-01-13",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            }
+          ],
+          "committee_count": 4
+        },
+        {
+          "year": 2024,
+          "payment_count": 25,
+          "committees": [
+            {
+              "registration_number": "20013",
+              "name": "Senate Victory Fund (SVF)",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 381490,
+                  "contributor_name": "Andrew, Kozak",
+                  "employer": "North State Advisors",
+                  "amount": "300.0000",
+                  "received_on": "2024-12-30",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 167554,
+                  "contributor_name": "Andrew, Kozak",
+                  "employer": "North State Advisors",
+                  "amount": "300.0000",
+                  "received_on": "2024-02-08",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "20010",
+              "name": "HRCC",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 294301,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "Lobbyist, Lobbyist #141",
+                  "amount": "300.0000",
+                  "received_on": "2024-12-30",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 227878,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "Lobbyist, Lobbyist #141",
+                  "amount": "100.0000",
+                  "received_on": "2024-08-26",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "20006",
+              "name": "DFL House Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 245202,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2024-12-17",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 87251,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2024-10-10",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 308905,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2024-10-08",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 69858,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2024-06-18",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 422174,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2024-02-06",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 350009,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2024-01-23",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 6
+            },
+            {
+              "registration_number": "20011",
+              "name": "DFL Senate Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 388777,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2024-12-11",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 343351,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2024-11-08",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 179435,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2024-09-24",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 133666,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "200.0000",
+                  "received_on": "2024-09-17",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 31266,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2024-09-12",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 535578,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2024-09-03",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 479478,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "200.0000",
+                  "received_on": "2024-08-26",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 76367,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2024-06-18",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 546735,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2024-02-07",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 9
+            },
+            {
+              "registration_number": "18767",
+              "name": "Hussein, Samakab House Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 400750,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "Lobbyist",
+                  "amount": "100.0000",
+                  "received_on": "2024-10-10",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 449325,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "Lobbyist",
+                  "amount": "100.0000",
+                  "received_on": "2024-08-02",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 345267,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "Lobbyist",
+                  "amount": "100.0000",
+                  "received_on": "2024-07-09",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "18266",
+              "name": "Kotyza-Witthuhn, Carlie House Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 75622,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": null,
+                  "amount": "50.0000",
+                  "received_on": "2024-08-06",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 91812,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": null,
+                  "amount": "150.0000",
+                  "received_on": "2024-06-25",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 433267,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": null,
+                  "amount": "100.0000",
+                  "received_on": "2024-02-08",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            }
+          ],
+          "committee_count": 6
+        },
+        {
+          "year": 2023,
+          "payment_count": 21,
+          "committees": [
+            {
+              "registration_number": "20011",
+              "name": "DFL Senate Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 353669,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2023-12-30",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 50693,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "200.0000",
+                  "received_on": "2023-12-30",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 77386,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2023-10-27",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 66969,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "300.0000",
+                  "received_on": "2023-10-03",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 204865,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2023-09-21",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 114873,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "500.0000",
+                  "received_on": "2023-08-10",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 23947,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2023-06-21",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 122831,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2023-01-02",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 8
+            },
+            {
+              "registration_number": "20006",
+              "name": "DFL House Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 412980,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2023-12-23",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 47874,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2023-11-14",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 357757,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "500.0000",
+                  "received_on": "2023-08-09",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 1120,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2023-08-09",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 428652,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2023-06-21",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 5
+            },
+            {
+              "registration_number": "18454",
+              "name": "Agbaje, Esther House Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 528624,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "Lobbyist",
+                  "amount": "50.0000",
+                  "received_on": "2023-08-24",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 258400,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "Lobbyist",
+                  "amount": "50.0000",
+                  "received_on": "2023-07-31",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 216138,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "Lobbyist",
+                  "amount": "100.0000",
+                  "received_on": "2023-06-28",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 383760,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "Lobbyist",
+                  "amount": "50.0000",
+                  "received_on": "2023-06-22",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 4
+            },
+            {
+              "registration_number": "18135",
+              "name": "Walz, Tim Gov Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 485494,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "500.0000",
+                  "received_on": "2023-06-27",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 448577,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "250.0000",
+                  "received_on": "2023-01-02",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "20013",
+              "name": "Senate Victory Fund (SVF)",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 152930,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": null,
+                  "amount": "300.0000",
+                  "received_on": "2023-06-22",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            },
+            {
+              "registration_number": "20010",
+              "name": "HRCC",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 540912,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisers  and  Assoc Inc, Lobbyist",
+                  "amount": "300.0000",
+                  "received_on": "2023-01-02",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            }
+          ],
+          "committee_count": 6
+        },
+        {
+          "year": 2022,
+          "payment_count": 20,
+          "committees": [
+            {
+              "registration_number": "20006",
+              "name": "DFL House Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 383339,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2022-12-19",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 84138,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2022-12-13",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 252716,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2022-06-27",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 471843,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2022-06-21",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 390729,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2022-01-27",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 238484,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2022-01-27",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 6
+            },
+            {
+              "registration_number": "20013",
+              "name": "Senate Victory Fund (SVF)",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 555454,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers",
+                  "amount": "300.0000",
+                  "received_on": "2022-12-15",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 495609,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers",
+                  "amount": "300.0000",
+                  "received_on": "2022-01-27",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "20438",
+              "name": "Fillmore County RPM",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 8870,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": null,
+                  "amount": "250.0000",
+                  "received_on": "2022-11-03",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 334945,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": null,
+                  "amount": "100.0000",
+                  "received_on": "2022-01-13",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "18135",
+              "name": "Walz, Tim Gov Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 248424,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "100.0000",
+                  "received_on": "2022-10-27",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 387688,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "100.0000",
+                  "received_on": "2022-10-21",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 305177,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "50.0000",
+                  "received_on": "2022-09-29",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 154132,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "200.0000",
+                  "received_on": "2022-09-13",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 148169,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "100.0000",
+                  "received_on": "2022-09-06",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 88343,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "150.0000",
+                  "received_on": "2022-08-24",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 241588,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "150.0000",
+                  "received_on": "2022-06-22",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 7
+            },
+            {
+              "registration_number": "20010",
+              "name": "HRCC",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 366067,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisers  and  Assoc Inc, Lobbyist",
+                  "amount": "250.0000",
+                  "received_on": "2022-09-26",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 163175,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisers  and  Assoc Inc, Lobbyist",
+                  "amount": "300.0000",
+                  "received_on": "2022-01-14",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "40821",
+              "name": "Pine Bend PAC",
+              "kind": "political_committee_or_fund",
+              "recipient_type": "PCF",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 232888,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers & Assoc Inc",
+                  "amount": "250.0000",
+                  "received_on": "2022-09-06",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            }
+          ],
+          "committee_count": 6
+        },
+        {
+          "year": 2021,
+          "payment_count": 24,
+          "committees": [
+            {
+              "registration_number": "15163",
+              "name": "Rest, Ann H Senate Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 451342,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisors",
+                  "amount": "150.0000",
+                  "received_on": "2021-12-29",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 369591,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2021-10-18",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 233165,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2021-01-04",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "20013",
+              "name": "Senate Victory Fund (SVF)",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 486398,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers",
+                  "amount": "300.0000",
+                  "received_on": "2021-12-20",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 404159,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers",
+                  "amount": "200.0000",
+                  "received_on": "2021-08-26",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 401119,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers",
+                  "amount": "300.0000",
+                  "received_on": "2021-06-17",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "18723",
+              "name": "Cumings, Paul House Committee",
+              "kind": null,
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 88494,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers & Assoc, Inc.",
+                  "amount": "100.0000",
+                  "received_on": "2021-12-07",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 116244,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers & Assoc, Inc.",
+                  "amount": "100.0000",
+                  "received_on": "2021-12-06",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 135397,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers & Assoc, Inc.",
+                  "amount": "100.0000",
+                  "received_on": "2021-11-13",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "20006",
+              "name": "DFL House Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 185159,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2021-12-06",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 38207,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2021-08-26",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 249264,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2021-07-19",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 540005,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2021-01-04",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 4
+            },
+            {
+              "registration_number": "20011",
+              "name": "DFL Senate Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 119675,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2021-10-25",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 172236,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2021-07-19",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 491265,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2021-01-04",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "41224",
+              "name": "Minneapolis Area DFL Seniors Caucus",
+              "kind": "political_committee_or_fund",
+              "recipient_type": "PCF",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 281821,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "retired",
+                  "amount": "250.0000",
+                  "received_on": "2021-10-05",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            },
+            {
+              "registration_number": "18135",
+              "name": "Walz, Tim Gov Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 175481,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "100.0000",
+                  "received_on": "2021-10-01",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 205386,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "250.0000",
+                  "received_on": "2021-09-15",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 538483,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "150.0000",
+                  "received_on": "2021-08-25",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 165445,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "250.0000",
+                  "received_on": "2021-07-12",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 4
+            },
+            {
+              "registration_number": "18129",
+              "name": "Stephenson, Zachary House Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 221550,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers & Assoc, Inc.",
+                  "amount": "150.0000",
+                  "received_on": "2021-07-20",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 33747,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers & Assoc, Inc.",
+                  "amount": "100.0000",
+                  "received_on": "2021-01-01",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "20010",
+              "name": "HRCC",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 95555,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisers  and  Assoc Inc, Adviser",
+                  "amount": "300.0000",
+                  "received_on": "2021-06-14",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            }
+          ],
+          "committee_count": 9
+        },
+        {
+          "year": 2020,
+          "payment_count": 23,
+          "committees": [
+            {
+              "registration_number": "20854",
+              "name": "36th Senate District DFL",
+              "kind": null,
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 325641,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers ",
+                  "amount": "150.0000",
+                  "received_on": "2020-12-31",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 267232,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers ",
+                  "amount": "100.0000",
+                  "received_on": "2020-10-11",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 364408,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers ",
+                  "amount": "100.0000",
+                  "received_on": "2020-02-12",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "20011",
+              "name": "DFL Senate Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 377112,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2020-12-08",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 11773,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2020-07-30",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 36126,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2020-06-30",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 236830,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2020-06-15",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 500712,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2020-06-01",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 52482,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2020-02-10",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 512780,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2020-01-17",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 7
+            },
+            {
+              "registration_number": "20006",
+              "name": "DFL House Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 214887,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2020-12-08",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 365633,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2020-10-20",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 62490,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2020-10-20",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 298474,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2020-09-20",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 107827,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2020-08-20",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 183197,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2020-07-20",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 289151,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2020-06-11",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 133643,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2020-05-27",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 183522,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2020-02-10",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 9
+            },
+            {
+              "registration_number": "15163",
+              "name": "Rest, Ann H Senate Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 235795,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisors",
+                  "amount": "200.0000",
+                  "received_on": "2020-07-18",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 145567,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2020-02-10",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "20010",
+              "name": "HRCC",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 113678,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers & Assoc Inc",
+                  "amount": "300.0000",
+                  "received_on": "2020-02-10",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            },
+            {
+              "registration_number": "20013",
+              "name": "Senate Victory Fund (SVF)",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 2815,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers",
+                  "amount": "300.0000",
+                  "received_on": "2020-02-05",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            }
+          ],
+          "committee_count": 6
+        },
+        {
+          "year": 2019,
+          "payment_count": 22,
+          "committees": [
+            {
+              "registration_number": "20011",
+              "name": "DFL Senate Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 59081,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2019-12-19",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 465917,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2019-09-11",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 327365,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2019-06-21",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 399965,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2019-01-08",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 4
+            },
+            {
+              "registration_number": "20006",
+              "name": "DFL House Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 482635,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2019-12-18",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 240205,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2019-10-02",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 383850,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2019-09-16",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 109641,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "25.0000",
+                  "received_on": "2019-09-16",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 515117,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2019-08-27",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 387230,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2019-08-19",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 397481,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2019-06-19",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 168782,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2019-01-07",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 8
+            },
+            {
+              "registration_number": "18135",
+              "name": "Walz, Tim Gov Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 187948,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "125.0000",
+                  "received_on": "2019-12-10",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 164004,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "250.0000",
+                  "received_on": "2019-09-02",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 11776,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "250.0000",
+                  "received_on": "2019-06-25",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 481132,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "100.0000",
+                  "received_on": "2019-06-19",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 312632,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "250.0000",
+                  "received_on": "2019-01-06",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 5
+            },
+            {
+              "registration_number": "40295",
+              "name": "Friends of DFL Women",
+              "kind": "political_committee_or_fund",
+              "recipient_type": "PCF",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 306853,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": null,
+                  "amount": "250.0000",
+                  "received_on": "2019-07-17",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            },
+            {
+              "registration_number": "20010",
+              "name": "HRCC",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 249171,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers & Assoc Inc",
+                  "amount": "300.0000",
+                  "received_on": "2019-06-19",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 396970,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers & Assoc Inc",
+                  "amount": "250.0000",
+                  "received_on": "2019-01-07",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "20013",
+              "name": "Senate Victory Fund (SVF)",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 240358,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers",
+                  "amount": "300.0000",
+                  "received_on": "2019-06-11",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 161749,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers",
+                  "amount": "300.0000",
+                  "received_on": "2019-01-03",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            }
+          ],
+          "committee_count": 6
+        },
+        {
+          "year": 2018,
+          "payment_count": 28,
+          "committees": [
+            {
+              "registration_number": "20006",
+              "name": "DFL House Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 423319,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2018-12-18",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 379160,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "500.0000",
+                  "received_on": "2018-12-11",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 80994,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2018-02-19",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "20013",
+              "name": "Senate Victory Fund (SVF)",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 421439,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers",
+                  "amount": "300.0000",
+                  "received_on": "2018-12-13",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 547086,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers",
+                  "amount": "100.0000",
+                  "received_on": "2018-02-19",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 485245,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers",
+                  "amount": "300.0000",
+                  "received_on": "2018-02-14",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "20011",
+              "name": "DFL Senate Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 303274,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2018-12-10",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 19004,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2018-12-10",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 386344,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2018-02-19",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 66111,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2018-02-19",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 4
+            },
+            {
+              "registration_number": "40821",
+              "name": "Pine Bend PAC",
+              "kind": "political_committee_or_fund",
+              "recipient_type": "PCF",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 211716,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers & Assoc Inc",
+                  "amount": "250.0000",
+                  "received_on": "2018-10-10",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            },
+            {
+              "registration_number": "13320",
+              "name": "Gunther, Robert C House Committee",
+              "kind": null,
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 433777,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "Self employed Lobbiest",
+                  "amount": "250.0000",
+                  "received_on": "2018-10-05",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            },
+            {
+              "registration_number": "18135",
+              "name": "Walz, Tim Gov Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 146479,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "200.0000",
+                  "received_on": "2018-09-14",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 48485,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "200.0000",
+                  "received_on": "2018-08-29",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 3188,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "100.0000",
+                  "received_on": "2018-05-31",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 381682,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors PAC",
+                  "amount": "100.0000",
+                  "received_on": "2018-02-07",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 4
+            },
+            {
+              "registration_number": "20438",
+              "name": "Fillmore County RPM",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 400286,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": null,
+                  "amount": "200.0000",
+                  "received_on": "2018-07-23",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 173244,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": null,
+                  "amount": "100.0000",
+                  "received_on": "2018-02-19",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 78832,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": null,
+                  "amount": "200.0000",
+                  "received_on": "2018-02-05",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "20010",
+              "name": "HRCC",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 152337,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers & Assoc Inc",
+                  "amount": "100.0000",
+                  "received_on": "2018-07-21",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 446922,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers & Assoc Inc",
+                  "amount": "300.0000",
+                  "received_on": "2018-02-12",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "18125",
+              "name": "Murphy, Erin Gov Committee",
+              "kind": null,
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 185432,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "Self-Employed",
+                  "amount": "100.0000",
+                  "received_on": "2018-07-20",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 256754,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "Self-Employed",
+                  "amount": "200.0000",
+                  "received_on": "2018-05-29",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 60415,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "Self-Employed",
+                  "amount": "200.0000",
+                  "received_on": "2018-02-18",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "18154",
+              "name": "Hilstrom, Debra Atty Gen Committee",
+              "kind": null,
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 272584,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers",
+                  "amount": "200.0000",
+                  "received_on": "2018-06-29",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 384502,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers",
+                  "amount": "50.0000",
+                  "received_on": "2018-01-25",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 140886,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers",
+                  "amount": "100.0000",
+                  "received_on": "2018-01-25",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "15677",
+              "name": "Hortman, Melissa A House Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 67478,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "lobbyist",
+                  "amount": "250.0000",
+                  "received_on": "2018-06-05",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            }
+          ],
+          "committee_count": 11
+        },
+        {
+          "year": 2017,
+          "payment_count": 20,
+          "committees": [
+            {
+              "registration_number": "18125",
+              "name": "Murphy, Erin Gov Committee",
+              "kind": null,
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 234889,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "Self-Employed",
+                  "amount": "100.0000",
+                  "received_on": "2017-12-12",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 188242,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "Self-Employed",
+                  "amount": "100.0000",
+                  "received_on": "2017-09-13",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 161911,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "Self-Employed",
+                  "amount": "100.0000",
+                  "received_on": "2017-06-29",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "20013",
+              "name": "Senate Victory Fund (SVF)",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 434227,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers",
+                  "amount": "300.0000",
+                  "received_on": "2017-12-07",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 6053,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers",
+                  "amount": "300.0000",
+                  "received_on": "2017-06-16",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 21435,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers",
+                  "amount": "300.0000",
+                  "received_on": "2017-01-02",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "20011",
+              "name": "DFL Senate Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 165182,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2017-12-06",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 538681,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2017-06-13",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 321478,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2017-01-02",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "20006",
+              "name": "DFL House Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 24990,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2017-12-06",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 316748,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2017-08-24",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 236764,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2017-06-12",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 130474,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2017-01-02",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 4
+            },
+            {
+              "registration_number": "17280",
+              "name": "Hayden, Jeffrey (Jeff) Senate Committee",
+              "kind": null,
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 520058,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North States Advisers & Assoc Inc.",
+                  "amount": "200.0000",
+                  "received_on": "2017-10-13",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 299095,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North States Advisers & Assoc Inc.",
+                  "amount": "100.0000",
+                  "received_on": "2017-09-07",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 334017,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North States Advisers & Assoc Inc.",
+                  "amount": "100.0000",
+                  "received_on": "2017-08-09",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 6502,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North States Advisers & Assoc Inc.",
+                  "amount": "200.0000",
+                  "received_on": "2017-06-21",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 4
+            },
+            {
+              "registration_number": "17313",
+              "name": "Smith, Dennis J House Committee",
+              "kind": null,
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 232143,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "north state advisors",
+                  "amount": "250.0000",
+                  "received_on": "2017-09-12",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            },
+            {
+              "registration_number": "20010",
+              "name": "HRCC",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 22186,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers & Assoc Inc",
+                  "amount": "300.0000",
+                  "received_on": "2017-06-26",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 565220,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers & Assoc Inc",
+                  "amount": "300.0000",
+                  "received_on": "2017-01-02",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            }
+          ],
+          "committee_count": 7
+        },
+        {
+          "year": 2016,
+          "payment_count": 19,
+          "committees": [
+            {
+              "registration_number": "20011",
+              "name": "DFL Senate Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 347885,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2016-10-28",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 216835,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2016-10-11",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 379194,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2016-06-30",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "20003",
+              "name": "MN DFL State Central Committee",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 4855,
+                  "contributor_name": "Kozak, Andy",
+                  "employer": "North Star Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2016-10-18",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 539839,
+                  "contributor_name": "Kozak, Andy",
+                  "employer": "North Star Advisors",
+                  "amount": "150.0000",
+                  "received_on": "2016-03-09",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "20006",
+              "name": "DFL House Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 310346,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2016-10-14",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 470023,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2016-06-29",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 258077,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "50.0000",
+                  "received_on": "2016-06-17",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 16900,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "200.0000",
+                  "received_on": "2016-06-17",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 4
+            },
+            {
+              "registration_number": "20010",
+              "name": "HRCC",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 307078,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers & Assoc Inc",
+                  "amount": "100.0000",
+                  "received_on": "2016-09-29",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 323135,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers & Assoc Inc",
+                  "amount": "300.0000",
+                  "received_on": "2016-06-15",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "16881",
+              "name": "Dayton, Mark B Gov Committee",
+              "kind": null,
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 441780,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisers",
+                  "amount": "125.0000",
+                  "received_on": "2016-09-09",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 465255,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisers",
+                  "amount": "250.0000",
+                  "received_on": "2016-03-07",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "20461",
+              "name": "45th Senate District DFL (Old)",
+              "kind": null,
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 114339,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": null,
+                  "amount": "100.0000",
+                  "received_on": "2016-08-11",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 455667,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": null,
+                  "amount": "250.0000",
+                  "received_on": "2016-03-13",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "20899",
+              "name": "6th Senate District DFL (Old)",
+              "kind": null,
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 413597,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisors & Assoc inc",
+                  "amount": "200.0000",
+                  "received_on": "2016-06-07",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 334289,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisors & Assoc inc",
+                  "amount": "100.0000",
+                  "received_on": "2016-03-21",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "20377",
+              "name": "2nd Senate District DFL (Old)",
+              "kind": null,
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 560278,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": null,
+                  "amount": "250.0000",
+                  "received_on": "2016-03-17",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            },
+            {
+              "registration_number": "15823",
+              "name": "Mahoney, Timothy C House Committee",
+              "kind": null,
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 510409,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": null,
+                  "amount": "250.0000",
+                  "received_on": "2016-02-26",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            }
+          ],
+          "committee_count": 9
+        },
+        {
+          "year": 2015,
+          "payment_count": 21,
+          "committees": [
+            {
+              "registration_number": "20011",
+              "name": "DFL Senate Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 284051,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2015-12-02",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 220234,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2015-06-30",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 47479,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2015-01-05",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "20010",
+              "name": "HRCC",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 267383,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers & Assoc Inc",
+                  "amount": "300.0000",
+                  "received_on": "2015-12-02",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 523423,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers & Assoc Inc",
+                  "amount": "300.0000",
+                  "received_on": "2015-06-24",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 215321,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers & Assoc Inc",
+                  "amount": "300.0000",
+                  "received_on": "2015-01-05",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "20006",
+              "name": "DFL House Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 249941,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2015-12-02",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 1557,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "300.0000",
+                  "received_on": "2015-09-17",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 155872,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2015-06-29",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 347816,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2015-01-05",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 4
+            },
+            {
+              "registration_number": "17280",
+              "name": "Hayden, Jeffrey (Jeff) Senate Committee",
+              "kind": null,
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 352844,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North States Advisers & Assoc Inc.",
+                  "amount": "250.0000",
+                  "received_on": "2015-10-19",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 48117,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North States Advisers & Assoc Inc.",
+                  "amount": "100.0000",
+                  "received_on": "2015-08-14",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 411450,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North States Advisers & Assoc Inc.",
+                  "amount": "100.0000",
+                  "received_on": "2015-01-05",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 3
+            },
+            {
+              "registration_number": "16664",
+              "name": "Sanders, Timothy (Tim) A House Committee",
+              "kind": null,
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 422155,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North Stae Advisers & Assoc Inc",
+                  "amount": "250.0000",
+                  "received_on": "2015-09-28",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            },
+            {
+              "registration_number": "17316",
+              "name": "Champion, Bobby Joe Senate Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 513418,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers & Assoc Inc",
+                  "amount": "250.0000",
+                  "received_on": "2015-09-22",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            },
+            {
+              "registration_number": "20347",
+              "name": "3rd Senate District DFL",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 311507,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": null,
+                  "amount": "250.0000",
+                  "received_on": "2015-07-29",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            },
+            {
+              "registration_number": "15777",
+              "name": "Skoe, Rod Senate Committee",
+              "kind": null,
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 577763,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": null,
+                  "amount": "250.0000",
+                  "received_on": "2015-07-20",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            },
+            {
+              "registration_number": "15163",
+              "name": "Rest, Ann H Senate Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 280837,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisors",
+                  "amount": "250.0000",
+                  "received_on": "2015-07-20",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 10438,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisors",
+                  "amount": "100.0000",
+                  "received_on": "2015-01-02",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "20013",
+              "name": "Senate Victory Fund (SVF)",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 341638,
+                  "contributor_name": "Kozak, Andrew",
+                  "employer": "North State Advisers",
+                  "amount": "300.0000",
+                  "received_on": "2015-06-16",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            },
+            {
+              "registration_number": "16881",
+              "name": "Dayton, Mark B Gov Committee",
+              "kind": null,
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 507844,
+                  "contributor_name": "Kozak, Andrew V",
+                  "employer": "North State Advisers",
+                  "amount": "250.0000",
+                  "received_on": "2015-01-04",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            }
+          ],
+          "committee_count": 11
+        }
+      ]
+    }
+  },
+  "long_list": {
+    "release_id": "70f958f3-e559-4b1b-8cc0-1edd60422799",
+    "copied_at": "2026-09-13T23:41:21.934688Z",
+    "sources": {
+      "expenditures": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/?download=-728390027",
+      "lobbyists": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/?download=-161966777"
+    },
+    "registration_number": "9865",
+    "state": "reported",
+    "name": "Larson, Daniel G",
+    "formatted_name": "Daniel G Larson",
+    "latest_reported_year": 2025,
+    "principals": {
+      "state": "reported",
+      "total": 86,
+      "rows": [
+        {
+          "entity_id": 1337,
+          "name": "MN Watersheds",
+          "spending_name": "MN Watersheds",
+          "position": 1,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 2194,
+          "name": "Sherburne County",
+          "spending_name": "Sherburne County",
+          "position": 2,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 2199,
+          "name": "MN Society of Anesthesiologists",
+          "spending_name": "MN Society of Anesthesiologists",
+          "position": 3,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 2216,
+          "name": "Thomson Reuters",
+          "spending_name": "Thomson Reuters",
+          "position": 4,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 2332,
+          "name": "MN Energy Resources Corp",
+          "spending_name": "MN Energy Resources Corp",
+          "position": 5,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 2342,
+          "name": "MN Academy of Ophthalmology",
+          "spending_name": "MN Academy of Ophthalmology",
+          "position": 6,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 2426,
+          "name": "MN Youth Intervention Programs Assn",
+          "spending_name": "MN Youth Intervention Programs Assn",
+          "position": 7,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 2549,
+          "name": "Blaine, City of",
+          "spending_name": null,
+          "position": 8,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 2606,
+          "name": "MN State Fire Chiefs Assn",
+          "spending_name": "MN State Fire Chiefs Assn",
+          "position": 9,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 2635,
+          "name": "Eden Prairie, City of",
+          "spending_name": null,
+          "position": 10,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 2769,
+          "name": "Fire Marshals Assn of MN",
+          "spending_name": "Fire Marshals Assn of MN",
+          "position": 11,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 2791,
+          "name": "Big Brothers Big Sisters Twin Cities",
+          "spending_name": "Big Brothers Big Sisters Twin Cities",
+          "position": 12,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 2895,
+          "name": "Leech Lake Reservation Business Comm",
+          "spending_name": "Leech Lake Reservation Business Comm",
+          "position": 13,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 2896,
+          "name": "Procter & Gamble",
+          "spending_name": "Procter & Gamble",
+          "position": 14,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 3132,
+          "name": "Rochester, City of",
+          "spending_name": null,
+          "position": 15,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 3347,
+          "name": "Plymouth, City of",
+          "spending_name": null,
+          "position": 16,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 3412,
+          "name": "Clear Channel Outdoor LLC",
+          "spending_name": "Clear Channel Outdoor LLC",
+          "position": 17,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 3446,
+          "name": "Maple Grove, City of",
+          "spending_name": null,
+          "position": 18,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 3587,
+          "name": "Mille Lacs Band of Ojibwe Indians-Corp Comm",
+          "spending_name": "Mille Lacs Band of Ojibwe Indians-Corp Comm",
+          "position": 19,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 3593,
+          "name": "Shakopee, City of",
+          "spending_name": null,
+          "position": 20,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 3758,
+          "name": "Fairmont, City of",
+          "spending_name": null,
+          "position": 21,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 3775,
+          "name": "Stillwater, City of",
+          "spending_name": null,
+          "position": 22,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 3934,
+          "name": "Wilderness Inquiry",
+          "spending_name": "Wilderness Inquiry",
+          "position": 23,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 4011,
+          "name": "Fairview Health Services",
+          "spending_name": "Fairview Health Services",
+          "position": 24,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 4071,
+          "name": "Elevator Industry Work Preservation Fund",
+          "spending_name": "Elevator Industry Work Preservation Fund",
+          "position": 25,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 4316,
+          "name": "Microsoft Corp",
+          "spending_name": "Microsoft Corp",
+          "position": 26,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 4347,
+          "name": "TTX Co",
+          "spending_name": "TTX Co",
+          "position": 27,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 438,
+          "name": "MN Multi-Housing Assn",
+          "spending_name": "MN Multi-Housing Assn",
+          "position": 28,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 4480,
+          "name": "Oak Park Heights, City of",
+          "spending_name": null,
+          "position": 29,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 4530,
+          "name": "Owatonna, City of",
+          "spending_name": "Owatonna, City of",
+          "position": 30,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 4625,
+          "name": "Burnsville, City of",
+          "spending_name": "Burnsville, City of",
+          "position": 31,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 465,
+          "name": "MN Assn of Realtors",
+          "spending_name": "MN Assn of Realtors",
+          "position": 32,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 4665,
+          "name": "Richfield, City of",
+          "spending_name": null,
+          "position": 33,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 471,
+          "name": "MN Automobile Dealers Assn (MADA)",
+          "spending_name": "MN Automobile Dealers Assn (MADA)",
+          "position": 34,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 4716,
+          "name": "Woodbury, City of",
+          "spending_name": null,
+          "position": 35,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 475,
+          "name": "MN Beer Wholesalers Assn",
+          "spending_name": "MN Beer Wholesalers Assn",
+          "position": 36,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 4785,
+          "name": "Chanhassen, City of",
+          "spending_name": null,
+          "position": 37,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 4881,
+          "name": "Columbia Heights, City of",
+          "spending_name": null,
+          "position": 38,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 500,
+          "name": "Parks & Trails Council of Minnesota",
+          "spending_name": "Parks & Trails Council of Minnesota",
+          "position": 39,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 5257,
+          "name": "MN Alliance of Boys & Girls Clubs",
+          "spending_name": "MN Alliance of Boys & Girls Clubs",
+          "position": 40,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 5281,
+          "name": "Hibbing, City of",
+          "spending_name": null,
+          "position": 41,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 5508,
+          "name": "DaVita, Inc.",
+          "spending_name": "DaVita, Inc.",
+          "position": 42,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 560,
+          "name": "ALLETE, Inc.",
+          "spending_name": "ALLETE, Inc.",
+          "position": 43,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 5616,
+          "name": "Independence City of",
+          "spending_name": null,
+          "position": 44,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 5737,
+          "name": "MN Chapter Intl Assn of Arson Investigators",
+          "spending_name": "MN Chapter Intl Assn of Arson Investigators",
+          "position": 45,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 601,
+          "name": "MN State Fire Dept Assn",
+          "spending_name": "MN State Fire Dept Assn",
+          "position": 46,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 6140,
+          "name": "Wayzata, City of",
+          "spending_name": null,
+          "position": 47,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 622,
+          "name": "MN Veterinary Medical Assn",
+          "spending_name": "MN Veterinary Medical Assn",
+          "position": 48,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 6399,
+          "name": "MN Radiological Society",
+          "spending_name": "MN Radiological Society",
+          "position": 49,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 6419,
+          "name": "MN Homeownership Center",
+          "spending_name": "MN Homeownership Center",
+          "position": 50,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 6436,
+          "name": "Embecta",
+          "spending_name": "Embecta",
+          "position": 51,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 6467,
+          "name": "MN Assn of County Health Plans (MACHP)",
+          "spending_name": "MN Assn of County Health Plans (MACHP)",
+          "position": 52,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 6515,
+          "name": "SAS Institute Inc",
+          "spending_name": "SAS Institute Inc",
+          "position": 53,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 6525,
+          "name": "Gopher State One Call, Inc.",
+          "spending_name": "Gopher State One Call, Inc",
+          "position": 54,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 6542,
+          "name": "Metro Minn Council on Graduate Medical Education",
+          "spending_name": "Metro Minn Council on Graduate Medical Education",
+          "position": 55,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 6631,
+          "name": "Intl Union of Allied Painters & Trades Dist Cncl 82",
+          "spending_name": "Intl Union of Allied Painters & Trades Dist Cncl 82",
+          "position": 56,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 6727,
+          "name": "MN Sports Facilities Authority",
+          "spending_name": "MN Sports Facilities Authority",
+          "position": 57,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 6827,
+          "name": "Autism Treatment Assn of Minnesota (ATAM)",
+          "spending_name": "Autism Treatment Assn of Minnesota (ATAM)",
+          "position": 58,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 6992,
+          "name": "Pesticide Action Network North America (PANNA)",
+          "spending_name": "Pesticide Action Network North America (PANNA)",
+          "position": 59,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 700,
+          "name": "Allied Waste Industries LLC",
+          "spending_name": "Allied Waste Industries LLC",
+          "position": 60,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 7033,
+          "name": "West St Paul, City of",
+          "spending_name": null,
+          "position": 61,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 7091,
+          "name": "ACT Education Corp (formerly ACT, Inc.)",
+          "spending_name": "ACT Education Corp (formerly ACT, Inc.)",
+          "position": 62,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 7122,
+          "name": "Nexus Diversified Community Services",
+          "spending_name": "Nexus Diversified Community Services",
+          "position": 63,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 7176,
+          "name": "Vadnais Heights, City of",
+          "spending_name": null,
+          "position": 64,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 741,
+          "name": "Pioneer Equipment Dealers Assn",
+          "spending_name": "Pioneer Equipment Dealers Assn",
+          "position": 65,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 7419,
+          "name": "Maplewood, City of",
+          "spending_name": null,
+          "position": 66,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 7536,
+          "name": "Becker, City of",
+          "spending_name": "Becker, City of",
+          "position": 67,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 7569,
+          "name": "Alliance for Ethical Healthcare",
+          "spending_name": "Alliance for Ethical Healthcare",
+          "position": 68,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 7637,
+          "name": "Motorola Solutions, Inc.",
+          "spending_name": "Motorola Solutions, Inc.",
+          "position": 69,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 7657,
+          "name": "Indian Health Board",
+          "spending_name": "Indian Health Board",
+          "position": 70,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 7678,
+          "name": "Prior Lake, City of",
+          "spending_name": null,
+          "position": 71,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 7791,
+          "name": "Watertown, City of",
+          "spending_name": "Watertown, City of",
+          "position": 72,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 7798,
+          "name": "Turo",
+          "spending_name": "Turo",
+          "position": 73,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 7852,
+          "name": "Chaska, City of",
+          "spending_name": "Chaska, City of",
+          "position": 74,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 7887,
+          "name": "Brooklyn Center, City of",
+          "spending_name": null,
+          "position": 75,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 8083,
+          "name": "Waconia, City of",
+          "spending_name": null,
+          "position": 76,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 8177,
+          "name": "Salvation Army Northern Division",
+          "spending_name": "Salvation Army Northern Division",
+          "position": 77,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 8488,
+          "name": "Twomagnets LLC d/b/a Clipboard Health",
+          "spending_name": "Twomagnets LLC d/b/a Clipboard Health",
+          "position": 78,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 8516,
+          "name": "McGraw Hill, LLC",
+          "spending_name": "McGraw Hill, LLC",
+          "position": 79,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 8525,
+          "name": "St Francis, City of",
+          "spending_name": "St Francis, City of",
+          "position": 80,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 8593,
+          "name": "C & G Management LLC",
+          "spending_name": "C & G Management LLC",
+          "position": 81,
+          "linkable": true,
+          "state": "reported"
+        },
+        {
+          "entity_id": 8773,
+          "name": "Isanti County",
+          "spending_name": null,
+          "position": 82,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 8846,
+          "name": "Coalition for Ticket Fairness",
+          "spending_name": null,
+          "position": 83,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 8874,
+          "name": "MN Cannabis Services (MCS)",
+          "spending_name": null,
+          "position": 84,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 8890,
+          "name": "Hunter Valley Estates",
+          "spending_name": null,
+          "position": 85,
+          "linkable": false,
+          "state": "no_spending_rows"
+        },
+        {
+          "entity_id": 8908,
+          "name": "Bayport, City of",
+          "spending_name": null,
+          "position": 86,
+          "linkable": false,
+          "state": "no_spending_rows"
+        }
+      ]
+    },
+    "contributions": {
+      "state": "reported",
+      "payment_count": 20,
+      "committee_count": 14,
+      "release_id": "af236cca-a4f8-4efe-9a3a-025259ea380e",
+      "copied_at": "2026-09-01T18:33:35.639027Z",
+      "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-2113865252",
+      "years": [
+        {
+          "year": 2026,
+          "payment_count": 1,
+          "committees": [
+            {
+              "registration_number": "18336",
+              "name": "Ellison, Keith Atty Gen Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 339826,
+                  "contributor_name": "Larson, Daniel G",
+                  "employer": "Lockridge Grindal Nauen",
+                  "amount": "1000.0000",
+                  "received_on": "2026-01-27",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            }
+          ],
+          "committee_count": 1
+        },
+        {
+          "year": 2025,
+          "payment_count": 2,
+          "committees": [
+            {
+              "registration_number": "18581",
+              "name": "McEwen, Jen Senate Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 224057,
+                  "contributor_name": "Larson, Daniel G",
+                  "employer": "Lockridge Grindal Nauen PLLP",
+                  "amount": "300.0000",
+                  "received_on": "2025-12-01",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            },
+            {
+              "registration_number": "18135",
+              "name": "Walz, Tim Gov Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 169914,
+                  "contributor_name": "Larson, Daniel G",
+                  "employer": "Lockridge Grindal Nauen",
+                  "amount": "250.0000",
+                  "received_on": "2025-09-11",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            }
+          ],
+          "committee_count": 2
+        },
+        {
+          "year": 2023,
+          "payment_count": 2,
+          "committees": [
+            {
+              "registration_number": "18135",
+              "name": "Walz, Tim Gov Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 98588,
+                  "contributor_name": "Larson, Daniel G",
+                  "employer": "Lockridge Grindal Nauen",
+                  "amount": "500.0000",
+                  "received_on": "2023-06-27",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            },
+            {
+              "registration_number": "18165",
+              "name": "Long, James (Jamie) House Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 442626,
+                  "contributor_name": "Larson, Daniel G",
+                  "employer": "Lockridge Grindal Naun",
+                  "amount": "250.0000",
+                  "received_on": "2023-05-31",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            }
+          ],
+          "committee_count": 2
+        },
+        {
+          "year": 2022,
+          "payment_count": 2,
+          "committees": [
+            {
+              "registration_number": "17653",
+              "name": "Simon, Steve Sec of State Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 571177,
+                  "contributor_name": "Larson, Daniel G",
+                  "employer": "Lockridge Grindal Nauen ",
+                  "amount": "500.0000",
+                  "received_on": "2022-10-24",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            },
+            {
+              "registration_number": "17310",
+              "name": "Dziedzic, Kari (Karen) Senate Committee",
+              "kind": null,
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 198004,
+                  "contributor_name": "Larson, Daniel G",
+                  "employer": "Lockridge Grindal Nauen Law ",
+                  "amount": "250.0000",
+                  "received_on": "2022-01-28",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            }
+          ],
+          "committee_count": 2
+        },
+        {
+          "year": 2021,
+          "payment_count": 2,
+          "committees": [
+            {
+              "registration_number": "18165",
+              "name": "Long, James (Jamie) House Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 111625,
+                  "contributor_name": "Larson, Daniel G",
+                  "employer": "Lockridge Grindal Naun",
+                  "amount": "250.0000",
+                  "received_on": "2021-10-20",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            },
+            {
+              "registration_number": "17919",
+              "name": "Frentz, Nick Andrew Senate Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 334079,
+                  "contributor_name": "Larson, Daniel G",
+                  "employer": "Lobbyist",
+                  "amount": "250.0000",
+                  "received_on": "2021-09-24",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            }
+          ],
+          "committee_count": 2
+        },
+        {
+          "year": 2019,
+          "payment_count": 1,
+          "committees": [
+            {
+              "registration_number": "20006",
+              "name": "DFL House Caucus",
+              "kind": "party_unit",
+              "recipient_type": "PTU",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 247458,
+                  "contributor_name": "Larson, Daniel",
+                  "employer": "Lockridge Grindal Nauen",
+                  "amount": "1000.0000",
+                  "received_on": "2019-10-29",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            }
+          ],
+          "committee_count": 1
+        },
+        {
+          "year": 2018,
+          "payment_count": 5,
+          "committees": [
+            {
+              "registration_number": "18135",
+              "name": "Walz, Tim Gov Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 12039,
+                  "contributor_name": "Larson, Daniel G",
+                  "employer": "Lockridge Grindal Nauen",
+                  "amount": "500.0000",
+                  "received_on": "2018-09-24",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 256400,
+                  "contributor_name": "Larson, Daniel G",
+                  "employer": "Lockridge Grindal Nauen",
+                  "amount": "40.0000",
+                  "received_on": "2018-09-11",
+                  "in_kind": "Yes",
+                  "in_kind_description": "Event Expenses"
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "18330",
+              "name": "Swanson, Lori Gov Committee",
+              "kind": null,
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 165789,
+                  "contributor_name": "Larson, Daniel G",
+                  "employer": "Lockridge Grindal Nauen PLLP",
+                  "amount": "500.0000",
+                  "received_on": "2018-07-29",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 450197,
+                  "contributor_name": "Larson, Daniel G",
+                  "employer": "Lockridge Grindal Nauen PLLP",
+                  "amount": "250.0000",
+                  "received_on": "2018-07-19",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "18274",
+              "name": "Winkler, Ryan House Committee",
+              "kind": null,
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 380924,
+                  "contributor_name": "Larson, Daniel G",
+                  "employer": "Lockridge Grindal Nauen",
+                  "amount": "250.0000",
+                  "received_on": "2018-06-15",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            }
+          ],
+          "committee_count": 3
+        },
+        {
+          "year": 2017,
+          "payment_count": 3,
+          "committees": [
+            {
+              "registration_number": "16870",
+              "name": "Thissen, Paul Gov Committee",
+              "kind": null,
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 195076,
+                  "contributor_name": "Larson, Daniel G",
+                  "employer": "Lockridge Grindal Nauen",
+                  "amount": "200.0000",
+                  "received_on": "2017-11-16",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                },
+                {
+                  "record_number": 263997,
+                  "contributor_name": "Larson, Daniel G",
+                  "employer": "Lockridge Grindal Nauen",
+                  "amount": "250.0000",
+                  "received_on": "2017-09-30",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 2
+            },
+            {
+              "registration_number": "15621",
+              "name": "Thissen, Paul C House Committee",
+              "kind": null,
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 246145,
+                  "contributor_name": "Larson, Daniel G",
+                  "employer": "Lockridge Grindal Nauen PLLP",
+                  "amount": "500.0000",
+                  "received_on": "2017-06-01",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            }
+          ],
+          "committee_count": 2
+        },
+        {
+          "year": 2015,
+          "payment_count": 2,
+          "committees": [
+            {
+              "registration_number": "17901",
+              "name": "Carlson, (Robert) Andrew House Committee",
+              "kind": null,
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 211214,
+                  "contributor_name": "Larson, Daniel G",
+                  "employer": null,
+                  "amount": "250.0000",
+                  "received_on": "2016-01-14",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            },
+            {
+              "registration_number": "17393",
+              "name": "Wiklund, Melissa Halvorson Senate Committee",
+              "kind": "candidate_committee",
+              "recipient_type": "PCC",
+              "linkable": true,
+              "payments": [
+                {
+                  "record_number": 321482,
+                  "contributor_name": "Larson, Daniel G",
+                  "employer": "Lockridge Grindal Nauen PLLP",
+                  "amount": "250.0000",
+                  "received_on": "2015-12-15",
+                  "in_kind": "No",
+                  "in_kind_description": null
+                }
+              ],
+              "payment_count": 1
+            }
+          ],
+          "committee_count": 2
+        }
+      ]
+    }
+  }
+}

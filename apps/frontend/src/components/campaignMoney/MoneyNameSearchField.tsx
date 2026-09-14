@@ -41,6 +41,9 @@ export function MoneyNameSearchField({
    *  not. */
   showSubmitButton = false,
   maxWidth = 760,
+  fieldHeight,
+  fieldFontSize,
+  stacked = false,
 }: {
   value: string;
   onChangeText: (next: string) => void;
@@ -50,6 +53,10 @@ export function MoneyNameSearchField({
   submitLabel?: string;
   showSubmitButton?: boolean;
   maxWidth?: number;
+  /** Lobbying uses measured heights at each band; existing callers keep their sizing. */
+  fieldHeight?: number;
+  fieldFontSize?: number;
+  stacked?: boolean;
 }) {
   const { focused, focusProps } = useFieldFocus();
   const [hovered, setHovered] = useState(false);
@@ -57,8 +64,21 @@ export function MoneyNameSearchField({
   return (
     <View style={[styles.wrap, { maxWidth }]}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
-      <View style={styles.row}>
-        <View style={[styles.box, ...fieldFocusRing(focused)]}>
+      <View style={[styles.row, fieldHeight != null && { gap: 12 }, stacked && styles.stackedRow]}>
+        <View
+          style={[
+            styles.box,
+            fieldHeight != null && {
+              height: fieldHeight,
+              minWidth: 0,
+              paddingVertical: 0,
+              paddingHorizontal: 20,
+              borderRadius: 14,
+            },
+            stacked && styles.stackedBox,
+            ...fieldFocusRing(focused),
+          ]}
+        >
           <MagnifierGlyph color={t.colors.text.faint} />
           <TextInput
             // The placeholder is the field's accessible name where no visible
@@ -75,7 +95,12 @@ export function MoneyNameSearchField({
             autoCorrect={false}
             autoCapitalize="none"
             spellCheck={false}
-            style={[styles.input, fieldOutlineReset]}
+            style={[
+              styles.input,
+              fieldHeight != null && { height: '100%' },
+              fieldFontSize != null && { fontSize: fieldFontSize },
+              fieldOutlineReset,
+            ]}
           />
         </View>
         {showSubmitButton ? (
@@ -84,9 +109,22 @@ export function MoneyNameSearchField({
             onHoverIn={() => setHovered(true)}
             onHoverOut={() => setHovered(false)}
             accessibilityRole="button"
-            style={[styles.button, hovered && styles.buttonHover]}
+            style={[
+              styles.button,
+              fieldHeight != null && {
+                minHeight: fieldHeight,
+                borderRadius: 14,
+                paddingHorizontal: 32,
+              },
+              stacked && styles.stackedButton,
+              hovered && styles.buttonHover,
+            ]}
           >
-            <Text style={styles.buttonLabel}>{submitLabel}</Text>
+            <Text
+              style={[styles.buttonLabel, fieldFontSize != null && { fontSize: fieldFontSize }]}
+            >
+              {submitLabel}
+            </Text>
           </Pressable>
         ) : null}
       </View>
@@ -105,6 +143,9 @@ const styles = StyleSheet.create({
     letterSpacing: 1.3,
     textTransform: 'uppercase',
   },
+  stackedRow: { flexDirection: 'column', flexWrap: 'nowrap', gap: 12 },
+  stackedBox: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: '100%' },
+  stackedButton: { width: '100%', alignItems: 'center' },
   row: { flexDirection: 'row', alignItems: 'stretch', gap: 10, flexWrap: 'wrap' },
   box: {
     flex: 1,

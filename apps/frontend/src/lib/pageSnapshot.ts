@@ -1,3 +1,4 @@
+import { MONEY_LANE_LOBBYING, lobbyistLaneCount } from './lobbyingDirectoryCopy';
 import {
   authorNameOnly,
   bienniumEyebrow,
@@ -149,6 +150,7 @@ import {
   FILES_LAST_COPIED_NOTE,
   laneCountLine,
   MONEY_LANDING_HEADING,
+  MONEY_LANDING_COVERAGE_HEADING,
   MONEY_LANDING_RECORD_DOES_NOT_COVER,
   MONEY_LANDING_SUBTITLE,
   MONEY_LANE_BY_RACE,
@@ -272,7 +274,13 @@ export interface SnapshotSectionItem {
 export type SnapshotBlock =
   | { kind: 'prose'; lines: string[] }
   | { kind: 'bullets'; items: string[] }
-  | { kind: 'table'; columns: string[]; rows: string[][] }
+  | {
+      kind: 'table';
+      columns: string[];
+      rows: (string | { text: string; colSpan: number })[][];
+      caption?: string;
+      rowHeaders?: boolean;
+    }
   /**
    * Real anchors inside a section's blocks. A published piece's sources name
    * official filing bodies, and rule 13 requires those to be named **and
@@ -937,6 +945,7 @@ function committeeBlockState(state: string | null | undefined): MoneyBlockState 
 }
 
 export interface MoneyLandingSnapshotSource {
+  registeredLobbyists?: number | null;
   /** The register's own size, read live. Null when the count is not served. */
   registerFilerCount: number | null;
   /** When we last copied the Board's files, as the served instant. */
@@ -977,6 +986,13 @@ export function moneyLandingPageSnapshot(source: MoneyLandingSnapshotSource): Pa
         detail: MONEY_LANE_OUTSIDE_SPENDING.body,
         href: OUTSIDE_SPENDING_PATH,
       },
+      {
+        label: MONEY_LANE_LOBBYING.title,
+        detail: [MONEY_LANE_LOBBYING.body, lobbyistLaneCount(source.registeredLobbyists)]
+          .filter(Boolean)
+          .join(' · '),
+        href: '/money/lobbying',
+      },
     ],
     // The one freshness date this page shows, with the sentence that says what it
     // is: the day we copied the files, never the period any money covers.
@@ -990,7 +1006,7 @@ export function moneyLandingPageSnapshot(source: MoneyLandingSnapshotSource): Pa
       : [],
     sections: [
       {
-        heading: RECORD_DOES_NOT_COVER_HEADING,
+        heading: MONEY_LANDING_COVERAGE_HEADING,
         body: [...MONEY_LANDING_RECORD_DOES_NOT_COVER],
         bodyIsList: true,
       },
@@ -1748,16 +1764,27 @@ function renderSnapshotBlock(block: SnapshotBlock): string {
   if (block.kind === 'links') {
     const links = block.items
       .map(
-        (item) => `<li><a href="${escapeHtml(item.href ?? '')}">${escapeHtml(item.label)}</a></li>`,
+        (item) =>
+          `<li>${item.href ? `<a href="${escapeHtml(item.href)}">${escapeHtml(item.label)}</a>` : escapeHtml(item.label)}${item.detail ? `<span class="ps-record-detail">${escapeHtml(item.detail)}</span>` : ''}</li>`,
       )
       .join('');
     return `<ul class="ps-list">${links}</ul>`;
   }
   const head = `<tr>${block.columns.map((column) => `<th>${escapeHtml(column)}</th>`).join('')}</tr>`;
   const body = block.rows
-    .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`)
+    .map(
+      (row) =>
+        `<tr>${row
+          .map((cell, index) => {
+            const tag = block.rowHeaders && index === 0 ? 'th' : 'td';
+            const span = typeof cell === 'string' ? '' : ` colspan="${cell.colSpan}"`;
+            const scope = tag === 'th' ? ' scope="row"' : '';
+            return `<${tag}${scope}${span}>${escapeHtml(typeof cell === 'string' ? cell : cell.text)}</${tag}>`;
+          })
+          .join('')}</tr>`,
+    )
     .join('');
-  return `<table class="ps-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+  return `<table class="ps-table">${block.caption ? `<caption>${escapeHtml(block.caption)}</caption>` : ''}<thead>${head}</thead><tbody>${body}</tbody></table>`;
 }
 
 /**

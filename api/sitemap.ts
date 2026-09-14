@@ -43,6 +43,9 @@ const FIXED_PAGES = [
   "/legislators",
   "/find-my-legislator",
   "/money",
+  "/money/lobbying",
+  "/money/lobbying/principals",
+  "/money/lobbying/lobbyists",
   "/money/committees",
   "/money/races",
   "/money/outside-spending",
@@ -82,7 +85,10 @@ function sitemapIndex(): string {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${children.join("\n")}\n</sitemapindex>`;
 }
 
-function pagesUrlset(data?: SitemapPayload): string {
+function pagesUrlset(
+  data?: SitemapPayload,
+  lobbyingCounts: Partial<Record<"principals" | "lobbyists", number>> = {},
+): string {
   const paths = [...FIXED_PAGES];
   // A posted piece is in the sitemap from the day it posts (Eugene, 25 Aug 2026).
   // `indexed` is true on everything we publish; it stays as a way to hold one back
@@ -124,6 +130,13 @@ function pagesUrlset(data?: SitemapPayload): string {
     ) {
       if (committeeTotal <= 0) break;
       paths.push(directoryPagePath("/money/committees", page));
+    }
+  }
+  for (const kind of ["principals", "lobbyists"] as const) {
+    const total = lobbyingCounts[kind];
+    if (total == null) continue;
+    for (let page = 2; page <= directoryTotalPages(total, 50); page += 1) {
+      paths.push(directoryPagePath(`/money/lobbying/${kind}`, page));
     }
   }
   return urlset(paths.map((path) => urlEntry(publicPageUrl(path))));
@@ -232,7 +245,35 @@ export default async function handler(
       // Fixed pages still help during a data outage. Numbered directory pages
       // return on the next hourly refresh once current counts are readable.
     }
-    sendXml(response, pagesUrlset(data));
+    const lobbyingCounts: Partial<Record<"principals" | "lobbyists", number>> =
+      {};
+    await Promise.all(
+      (["principals", "lobbyists"] as const).map(async (kind) => {
+        try {
+          const read = await fetch(
+            `${API_ORIGIN}/api/v1/lobbying/${kind}?limit=1&offset=0`,
+            {
+              headers: { Accept: "application/json" },
+              signal: AbortSignal.timeout(5000),
+            },
+          );
+          if (!read.ok) return;
+          const { data: page } = (await read.json()) as {
+            data: { state?: string; total?: number };
+          };
+          if (
+            page.state !== "unavailable" &&
+            typeof page.total === "number" &&
+            Number.isSafeInteger(page.total) &&
+            page.total >= 0
+          )
+            lobbyingCounts[kind] = page.total;
+        } catch {
+          /* Fixed destinations still remain reachable during a source outage. */
+        }
+      }),
+    );
+    sendXml(response, pagesUrlset(data, lobbyingCounts));
     return;
   }
 

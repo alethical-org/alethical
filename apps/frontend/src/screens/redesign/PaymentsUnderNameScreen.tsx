@@ -3,7 +3,6 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { MoneyListRow, MoneyListRows } from '../../components/campaignMoney/MoneyListRows';
-import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton } from '../../components/Skeleton';
 import { usePaymentsUnderName } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -129,7 +128,7 @@ export function PaymentsUnderNameScreen({
       <PageBackground>
         <ScrollView contentContainerStyle={styles.page}>
           <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
-          <UnderDevelopmentNotice />
+
           <Container
             style={[styles.main, isTablet && styles.mainTablet, isMobile && styles.mainMobile]}
           >
@@ -153,11 +152,6 @@ export function PaymentsUnderNameScreen({
     <PageBackground>
       <ScrollView contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
-
-        {/* The money section is still being built: lobbying is not loaded, and no
-            sitting member's committee has been confirmed by a person yet. Deleting
-            the element and its component file is the whole removal. */}
-        <UnderDevelopmentNotice />
 
         <Container
           style={[styles.main, isTablet && styles.mainTablet, isMobile && styles.mainMobile]}

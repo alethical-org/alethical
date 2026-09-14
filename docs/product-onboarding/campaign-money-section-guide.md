@@ -13,11 +13,11 @@ that exact spelling
 lives one level up, on the `/read` page, which the money landing points at. One piece is
 published there.
 
-The section is still marked under development on every page, because one thing a reader
-might expect is genuinely missing: **lobbying** is published by Minnesota and not loaded by
-us. The strip names that gap and nothing else; it makes no claim about the figures, which
-each carry their own period and freshness date. Challengers are on the money-by-race page at
-`/money/races` and outside spending has its own record page at `/money/outside-spending`.
+Lobbying is available at `/money/lobbying`, with current registrations, organisations
+and yearly spending. The earlier lobbying-under-development strip is removed from every
+money surface in this release. The separate campaign and lobbying files keep their own
+copy dates. Challengers remain at `/money/races`, and outside spending remains at
+`/money/outside-spending`. See [lobbying-guide.md](lobbying-guide.md).
 
 **"Report" means one thing on this site: the document a campaign files with the state.** Our
 own writing is **Research**, and a short piece explaining 1 term is a **Guide** (settled
@@ -95,8 +95,8 @@ Top to bottom:
    case arises. A query shorter than the search's own floor is not blocked here; the results
    page says "type at least 3 characters" instead, which is the true answer rather than a
    box that silently refuses.
-3. **Five lane cards, straight after the search, and all 5 open something.** Each is a raised
-   white card with a green arrow beside its title, and 4 of them end with a live count in
+3. **6 lane cards, straight after the search, and all 6 open something.** Each is a raised
+   white card with a green arrow beside its title, and 5 of them end with a live count in
    the same green, read from `/api/v1/campaign-finance/summary` and absent (never 0) when
    the server cannot count it: Legislators (links to the legislator directory — a member's
    money is a tab on the profile they already have; "200 MEMBERS"), Committees (links to
@@ -106,8 +106,9 @@ Top to bottom:
    figures"; "222 CONTESTS", one contest per office-and-district grouping the race page
    itself uses) and Outside spending (`/money/outside-spending`, what groups that are not
    the campaign spent for or against a candidate; "41,130 PAYMENTS", the number of rows in
-   the independent-expenditures file, never their sum). The counts quoted are the live
-   figures on 8 Sep 2026 and move with the data. **The Who got paid card's count slot is
+   the independent-expenditures file, never their sum). The sixth lane, Lobbying, opens `/money/lobbying` and reads its registered-today
+   count from `/api/v1/lobbying/summary`, separately from campaign figures. The campaign
+   counts quoted are the live figures on 8 Sep 2026 and move with the data. **The Who got paid card's count slot is
    empty, with no label, dash or placeholder** (ruled 8 Sep 2026): a grey "NOTHING TO COUNT"
    was proposed and refused, because the record holds hundreds of thousands of payment rows
    and that card searches them, and colour was its only signal. **That lane is a search
@@ -138,13 +139,10 @@ Top to bottom:
    itself, not gaps we can close". The confirmed-member count is stated once on the page, in
    the Legislators lane, and not repeated here (copy rule A, 1 Sep 2026). On a computer
    (768px and wider) this block sits beside the files-last-copied block; on a phone the two
-   stack. **Lobbying is deliberately not among them** (ruled 1 Sep 2026, campaign-money
-   design round 4): its absence is ours to close rather than a hole in what Minnesota
-   publishes, and the red under-development strip at the top of this same page already names
-   it — so a lobbying line here would state one fact at two levels of the page. The block
-   once carried a lobbying line; its history, including the 31 Aug 2026 rewording that kept
-   the spending we hold apart from the registrations we do not, is on
-   [#1862](https://github.com/alethical-org/alethical/issues/1862).
+   stack. **This block describes campaign files.** Its heading on `/money` is "What the campaign
+   files do not cover", and its first line reads "No campaign payments held before 2015".
+   Lobbying's own current-only and held-year limits appear at `/money/lobbying`.
+
 5. **Research** — a quiet row under the 2 blocks, labelled RESEARCH, carrying the newest
    research piece's title, its standfirst, its published and records-through dates, and a
    "Read the research" link that opens the piece itself. Research pieces only, never a
@@ -194,7 +192,7 @@ their device for reduced motion, and a hidden "Loading" note tells screen reader
 
 ## The search results page (`/money/search?q=…`)
 
-One typed name, matched across the 5 kinds of record Minnesota's files hold, grouped by
+One typed name, matched across the campaign and lobbying records we hold, grouped by
 what each match **is**. The typed name is in the address, so a results page is a link
 somebody can send, and the browser's Back button returns to it.
 
@@ -209,7 +207,7 @@ nothing on screen to reveal it.
 types a name, gets nothing, and is told nothing concludes that the person gave nothing,
 rather than that we do not hold the record.
 
-The 5 groups, always all 5, always in this order, and each drawn even when it holds
+The original 5 campaign groups stay in this order, and each is drawn even when it holds
 nothing — a group missing from the page would read as "nothing is filed" when it meant "we
 did not look":
 
@@ -1283,3 +1281,26 @@ The full card descriptions, source limits and empty/loading states are in the
 
 Docs check: [Issue 2205](https://github.com/alethical-org/alethical/issues/2205) adds
 the shared donation cards without adding a server route or changing a money source.
+
+
+## Lobbying links and search groups
+
+[Issue 2164](https://github.com/alethical-org/alethical/issues/2164) adds the Lobbyists and
+Principals groups after the original campaign search groups. Each has its own served count;
+no count is added across groups. A successfully searched empty lobbying group is omitted.
+An unavailable lobbying group remains visible with the existing could-not-search sentence.
+The Principals group includes IDs from both source files; an ID without spending rows is
+plain text with the Board-file coverage year. More results open the corresponding numbered
+list with the same typed name.
+
+In the Lobbyists donation tab, the employer and payment count stay under the printed name.
+Expanding the row reveals each distinct held registration and, when registered today, a
+link to the lobbyist's current principals. A different registered spelling is stated.
+A completed lookup absent from the current list says "not registered today" without a link;
+a missing number or failed lookup never makes that claim. Committees & Funds use the same
+expanded context with their existing linkable committee number. Several numbers under one
+printed name remain separate, without choosing a single identity.
+
+Docs check: The lobbying release updates all money entry points, search groups, expanded
+registration links and removal of the old under-development strip. The complete 5-address
+behavior is described in [lobbying-guide.md](lobbying-guide.md).
