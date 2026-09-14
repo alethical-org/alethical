@@ -700,7 +700,7 @@ The lobbying screen build starts from main commit d4d65981 in its own worktree.
 - [ ] Check all 3 layout bands, hosted first-download size and a fresh product review
 - [ ] Complete merge queue, live checks, reader guides and final programme/review reports
 
-The joined display build passes 2,908 frontend tests and TypeScript. Local phone
+The joined display build passes 2,909 frontend tests, 2,791 server tests and TypeScript. Local phone
 and tablet reads show the real lobbying counts, separate source dates and
 Kozak's 3 separate 2025 payments to committee 17868. The hosted size check,
 independent reader check, merge and live confirmation remain before completion.
@@ -709,3 +709,10 @@ The first hosted check of commit `168e6693` measured 339,142 compressed bytes,
 70 over the unchanged 339,072 ceiling. The name-search row shaper now loads with
 the search request instead of the startup program. The mapping and its source
 fields are unchanged; a second hosted check is required before upload.
+
+The final hosted production-mode measurement at commit `112c698538f11fa15ccae1d70026c45a1a5019e6`
+is 338,820 compressed bytes against the unchanged 339,072 ceiling. The search-only
+row and group shapers load with the search request; the public domain was not
+promoted during this measurement. The independent browser check is pending an
+automatic approval review that continues to treat the previously paused lobbying
+work as paused; Eugene has been asked to confirm the resumed browser check.

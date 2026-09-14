@@ -79,8 +79,8 @@ missing from the held list says "not registered today"; it can still have older 
 "Donations filed under this registration number" is a separate card. It finds Contribution
 rows of Lobbyist kind by registration number, never by name. Rows are grouped by year and
 receiving committee, with the committee's kind and a link only where records support one.
-Dates, filed employer text, amounts and donated-goods-or-services markers stay on the
-payment lines. A differently typed donor name remains visible. Repeated rows remain
+Dates, amounts and donated-goods-or-services markers stay on the payment lines.
+A differently typed donor name remains visible as "Filed as {name}". Repeated rows remain
 separate payments. No amount is added per committee, year or page.
 
 There is no sentence joining a client's spending to a legislator. Current principals and
