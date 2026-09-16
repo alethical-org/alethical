@@ -6,6 +6,7 @@ import { useCampaignFinanceRaces, usePrefetchCommitteeMoney } from '../../hooks/
 import { useResponsive } from '../../hooks/useResponsive';
 import { closedChipLabel, committeeSlug } from '../../lib/committeeMoneyShared';
 import { campaignMoneyYear } from '../../lib/legislatorCampaignMoney';
+import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
 import {
   ALL_OFFICES_LABEL,
   FILES_COPIED_LABEL,
@@ -135,7 +136,7 @@ export function MoneyByRaceScreen({ navigation, route }: RootScreenProps<'MoneyB
             {...linkProps(routePath.money(), () => navigation.navigate('MoneyLanding'))}
             style={styles.backLink}
           >
-            <Text style={styles.backLabel}>Follow the money</Text>
+            <Text style={styles.backLabel}>{MONEY_SECTION_NAME}</Text>
           </Pressable>
 
           <Text style={styles.eyebrow}>CAMPAIGN MONEY</Text>

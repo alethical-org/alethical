@@ -18,6 +18,10 @@ live feature.
   120px above it and 120px below. A signed-in reader's right-hand slot already
   holds their tracked bills, and a pitch must not take that away. On a phone it is
   the third item in the search cluster, because its own action is a third search.
+- The money card's headline is **Follow the money**. Its button says **Money in
+  politics**, without “Explore”, and opens `/money`. The headline is an invitation;
+  the button names the destination, matching the shared menu and the `/money` title.
+  [site-navigation-guide.md](site-navigation-guide.md#the-name-of-money) owns this distinction.
 - Keeping the card inside the hero has 2 visible consequences, both chosen
   deliberately (20 Aug 2026). The hero's background is a gradient measured as
   percentages of its own height, so a taller hero pushes the fade further down and

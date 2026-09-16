@@ -18,6 +18,7 @@ import {
   committeeMoneyPreferenceParams,
 } from '../../lib/committeeMoneyPreferences';
 import { committeeOutsideSpending } from '../../lib/committeeOutsideSpending';
+import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
 import { committeeCardStyles, detailsStyles } from '../../components/campaignMoney/detailsStyles';
 import { YearControl } from '../../components/campaignMoney/YearControl';
 import {
@@ -253,7 +254,7 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
               style={styles.backLink}
             >
               <BackChevron />
-              <Text style={styles.backLabel}>Campaign money</Text>
+              <Text style={styles.backLabel}>{MONEY_SECTION_NAME}</Text>
             </Pressable>
           </Container>
           {notFound && registrationNumber ? (
@@ -363,7 +364,7 @@ function NotFoundState({
       <Text style={styles.body}>{notFoundBody(registrationNumber)}</Text>
       <View style={styles.buttonRow}>
         <Pressable {...linkProps(routePath.money(), onMoney)} style={styles.primaryButton}>
-          <Text style={styles.primaryButtonLabel}>Open the money section</Text>
+          <Text style={styles.primaryButtonLabel}>{MONEY_SECTION_NAME}</Text>
         </Pressable>
         <Text
           style={styles.secondaryButton}

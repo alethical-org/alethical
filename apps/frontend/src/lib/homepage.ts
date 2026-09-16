@@ -1,3 +1,5 @@
+import { MONEY_SECTION_NAME } from './moneySectionName';
+
 /** Exact signed-out Home introduction used before and after the app starts. */
 export const HOME_PUBLIC_INTRO =
   'We read every bill so you don’t have to — what it says, where it stands, and how legislators voted. And the money: who gives, who spends, who gets paid, and who lobbies. Plain language, with every claim linked to the official record.';
@@ -35,4 +37,4 @@ export const MONEY_PROMO_HEADING = 'Follow the money';
 export const MONEY_PROMO_BODY =
   'Minnesota’s campaign and lobbying records — every figure read from the filings sent to the state, never a total we assembled.';
 export const MONEY_PROMO_COUNT_UNIT = 'registered campaigns, parties, and funds';
-export const MONEY_PROMO_CTA = 'Search the money records';
+export const MONEY_PROMO_CTA = MONEY_SECTION_NAME;

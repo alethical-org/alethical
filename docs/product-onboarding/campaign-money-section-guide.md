@@ -2,7 +2,7 @@
 
 <!-- describes: apps/frontend/src/components/campaignMoney/MoneyDetailsBundle.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsOnDemand.tsx, apps/frontend/src/hooks/useCampaignMoneyYearStates.ts, apps/frontend/src/lib/committeeMoneyPreferences.ts, apps/frontend/src/lib/campaignMoneyDetailsPageCopy.ts, apps/frontend/src/lib/campaignMoneyPreferences.ts, apps/frontend/src/lib/groupedOutsideSpendingCopy.ts, apps/frontend/src/lib/committeeOutsideSpending.ts -->
 
-# How the Campaign money section works
+# How the Money in politics section works
 
 **Net.** `/money` is the public front door to Minnesota's campaign-money and lobbying records, open to
 everyone with no sign-in. Typing a name in the box on it now works, the register of
@@ -30,6 +30,7 @@ permanently and straight to the `/read` address it belongs to, never through the
 
 - Choose **Search**, then **Money in politics** (marked with a green NEW chip) in the shared
   top menu, on a computer or in the phone menu.
+- Choose **Money in politics** on the homepage card headed **Follow the money**.
 - Open `/money` directly.
 - Type a name into the box on `/money` and press Enter or the Search button, which opens
   the results page at `/money/search?q=…`.
@@ -77,9 +78,15 @@ the files. If any of it is missing or unreadable the page just asks for the reco
 
 ## The landing page (`/money`)
 
+The heading, browser title and shared-link title name this destination **Money in
+politics**. Every link or empty-state button returning to `/money` uses that same
+name, including committee and lobbying pages. The homepage invitation and narrower
+Campaign money tabs keep their separate wording, as defined in
+[site-navigation-guide.md](site-navigation-guide.md#the-name-of-money).
+
 Top to bottom:
 
-1. **Title and one sentence** saying what the record is: "Search Minnesota’s published
+1. **Money in politics**, followed by one sentence saying what the record is: "Search Minnesota’s published
    campaign donations, payments, and lobbying records by name". It
    says donation and payment, never the filing system's "contribution and expenditure",
    because "expenditure" is the one word the rest of the section avoids for money out and
@@ -403,7 +410,7 @@ block the landing and the search carry.
 The whole register of everyone allowed to raise or spend money in Minnesota state politics,
 ordered by the name as filed, A to Z. The address forwarded to `/money` until this shipped.
 
-Above the title, “Follow the money” has a left-pointing arrow and links to `/money`.
+Above the title, “Money in politics” has a left-pointing arrow and links to `/money`.
 The arrow and label are one link, matching the return link on an individual committee’s page.
 
 The line above the rows says which of them this page holds: "Showing 551–600 of 1,603

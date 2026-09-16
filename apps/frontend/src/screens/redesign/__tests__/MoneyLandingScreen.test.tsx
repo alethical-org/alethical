@@ -110,6 +110,14 @@ function exactText(host: HTMLElement, words: string) {
 }
 
 describe('the money landing makes the reporting periods and destinations explicit', () => {
+  it('names the destination exactly as the menu and homepage button do', () => {
+    const { host } = mount();
+    expect(host.querySelector('[role="heading"][aria-level="1"]')?.textContent).toBe(
+      'Money in politics',
+    );
+    expect(host.textContent).not.toContain('Follow the money');
+  });
+
   it('labels a mixed-period list separately from the dated newest-period count', () => {
     const { host } = mount();
     const words = host.textContent!;

@@ -1,10 +1,12 @@
+import { MONEY_SECTION_NAME } from './moneySectionName';
+
 /** Fixed wording for the lazy lobbying landing and its 2 directories. */
 export const LOBBYING_DIRECTORY_PAGE_SIZE = 50;
 export type LobbyingDirectoryKind = 'lobbyists' | 'principals';
 
 export const LOBBYING_DIRECTORY_COPY = {
   title: 'Lobbying',
-  landingLabel: 'FOLLOW THE MONEY',
+  landingLabel: MONEY_SECTION_NAME.toUpperCase(),
   directoryLabel: 'LOBBYING',
   back: 'Go back',
   intro:

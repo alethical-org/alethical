@@ -1,6 +1,7 @@
 import { plainBillSummary } from './billDetail';
 import { registrationNumberFromSlug } from './committeeMoneyShared';
 import { directoryPagePath } from './directoryPagination';
+import { MONEY_SECTION_NAME } from './moneySectionName';
 import { paymentNameRole, paymentsUnderNameHeading } from './paymentsUnderName';
 import {
   READ_PAGE_HEADING,
@@ -524,8 +525,8 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
   // committees list exists (issue #1696) — until they shipped it deliberately
   // promised only the record (grounded-answers.md rule 2).
   '/money': pageMetadata({
-    title: titleFor('Follow the money'),
-    socialTitle: 'Follow the money',
+    title: titleFor(MONEY_SECTION_NAME),
+    socialTitle: MONEY_SECTION_NAME,
     description:
       'Contributions and spending for Minnesota state campaigns, as the state publishes them, searchable by the name each record was filed under.',
     canonicalPath: '/money',

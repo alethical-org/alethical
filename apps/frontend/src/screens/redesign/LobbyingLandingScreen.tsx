@@ -12,6 +12,7 @@ import {
   principalLaneCount,
 } from '../../lib/lobbyingDirectoryCopy';
 import { centralDateLabel } from '../../lib/moneyLanding';
+import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
 import { lobbyingPageMetadata } from '../../lib/lobbyingMetadata';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { linkProps, routePath } from '../../navigation/links';
@@ -52,7 +53,7 @@ export function LobbyingLandingScreen({ navigation }: RootScreenProps<'LobbyingL
             <Svg width={18} height={18} viewBox="0 0 24 24" aria-hidden>
               <Path d="M15 5 L8 12 L15 19" stroke="#4f5651" strokeWidth={2.2} fill="none" />
             </Svg>
-            <Text style={styles.backText}>{copy.back}</Text>
+            <Text style={styles.backText}>{MONEY_SECTION_NAME}</Text>
           </Pressable>
           <Text style={styles.eyebrow}>{copy.landingLabel}</Text>
           <Text

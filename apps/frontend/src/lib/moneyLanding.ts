@@ -18,6 +18,7 @@
 import type { MoneyFilingRow, MoneyFilingsFeed } from '../data/types';
 import { formatDay } from './legislatorCampaignMoney';
 import { UNION_FINANCES_NOTE } from './committeeMoneyShared';
+import { MONEY_SECTION_NAME } from './moneySectionName';
 
 /** A filing's plain date in the section's one form ("Jul 24, 2026"), or the raw
  *  value where it is not a date, so a row is never silently emptied. */
@@ -204,7 +205,7 @@ export function legislatorsLaneSentence(confirmation: {
  * one; it now opens the name search, which is the only honest way in — see
  * MONEY_LANE_WHO_GOT_PAID below.
  */
-export const MONEY_LANDING_HEADING = 'Follow the money';
+export const MONEY_LANDING_HEADING = MONEY_SECTION_NAME;
 
 /**
  * The subtitle and all 5 lane bodies end without a full stop (ruled 1 Sep 2026, #1924).

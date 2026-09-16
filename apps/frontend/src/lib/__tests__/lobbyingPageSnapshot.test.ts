@@ -51,7 +51,9 @@ describe('lobbying before the app starts', () => {
     expect(html).not.toContain('href=""');
   });
   it('lists both real directory destinations and source-scoped years', () => {
-    const html = renderPageSnapshot(lobbyingLandingSnapshot(live.summary as LobbyingSummary));
+    const snapshot = lobbyingLandingSnapshot(live.summary as LobbyingSummary);
+    expect(snapshot.links).toEqual([{ label: 'Money in politics', href: '/money' }]);
+    const html = renderPageSnapshot(snapshot);
     expect(html).toContain('/money/lobbying/lobbyists');
     expect(html).toContain('/money/lobbying/principals');
     expect(html).toContain('1,665 REGISTERED TODAY');
