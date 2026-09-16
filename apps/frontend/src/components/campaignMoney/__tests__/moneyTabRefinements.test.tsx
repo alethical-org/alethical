@@ -132,7 +132,7 @@ describe('the money tab after the 13 Sep refinements', () => {
       year: 2025,
       schedule: { ...committee().filingSchedule!, state: 'calendar_not_transcribed' as const },
       expected:
-        "We cannot say when this committee's next report is due. We have not yet copied in Minnesota's 2025 filing calendar for this kind of candidate. The gap is ours and says nothing about this committee's own filing.",
+        'We have not yet copied Minnesota’s 2025 filing calendar for this kind of candidate, so we cannot give its next report’s due date. This says nothing about the committee’s own filing.',
     },
     {
       year: 2031,
@@ -144,7 +144,7 @@ describe('the money tab after the 13 Sep refinements', () => {
         periodEnd: '2031-07-20',
       },
       expected:
-        "This committee is on the 2031 ballot, so it files on Minnesota's election-year schedule. Its next report, the “Pre-primary report”, is due Jul 27, 2031 and covers Jan 1 to Jul 20, 2031. New money appears here only when a report is filed.",
+        'This committee is on the 2031 ballot and follows Minnesota’s election-year filing schedule. Its next “Pre-primary report” is due Jul 27, 2031 and covers Jan 1 to Jul 20, 2031. New money appears here when a report is filed.',
     },
   ])(
     'puts the $year filing note once below the record row and above the figures',

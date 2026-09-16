@@ -771,10 +771,10 @@ export function filingScheduleNote(
       }
       const timing = nextReportSentence(schedule);
       return [
-        `This committee is on the ${year} ballot, so it files on Minnesota's ` +
-          'election-year schedule.' +
+        `This committee is on the ${year} ballot and follows Minnesota’s ` +
+          'election-year filing schedule.' +
           (timing ? ` ${timing}` : '') +
-          ' New money appears here only when a report is filed.',
+          ' New money appears here when a report is filed.',
         ...conditionParagraph(schedule),
       ];
     }
@@ -811,9 +811,11 @@ export function filingScheduleNote(
           'own set of filing periods that we have not written down.',
       );
     case 'calendar_not_transcribed':
-      return cannotSayBecause(
-        `We have not yet copied in Minnesota's ${year} filing calendar for this kind of candidate.`,
-      );
+      return [
+        `We have not yet copied Minnesota’s ${year} filing calendar for this kind of ` +
+          'candidate, so we cannot give its next report’s due date. ' +
+          'This says nothing about the committee’s own filing.',
+      ];
     case 'filings_cannot_answer':
       return cannotSayBecause(ourFilingsCannotAnswer(year));
     default:
@@ -830,7 +832,7 @@ function ourFilingsCannotAnswer(year: number): string {
   );
 }
 
-/** One of the 3 states that are about us, in the shape all 3 share. */
+/** The common shape for the special-election and filing-list gaps. */
 function cannotSayBecause(middle: string): string[] {
   return [`We cannot say when this committee's next report is due. ${middle} ${OUR_GAP_CLOSER}`];
 }
@@ -849,7 +851,7 @@ function nextReportSentence(schedule: FilingSchedule): string | null {
   const sameYear = schedule.periodStart?.slice(0, 4) === schedule.periodEnd?.slice(0, 4);
   const rangeStart = sameYear ? start?.replace(/, \d{4}$/, '') : start;
   const covering = rangeStart && end ? ` and covers ${rangeStart} to ${end}` : '';
-  return `Its next report, the “${schedule.nextReportName}”, is due ${due}${covering}.`;
+  return `Its next “${schedule.nextReportName}” is due ${due}${covering}.`;
 }
 
 /**

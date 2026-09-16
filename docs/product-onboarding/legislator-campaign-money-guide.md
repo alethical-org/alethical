@@ -324,15 +324,15 @@ served to a browser that runs no JavaScript.
 
 When the calendar has not been copied in, the wording is:
 
-> We cannot say when this committee's next report is due. We have not yet copied in
-> Minnesota's {viewedYear} filing calendar for this kind of candidate. The gap is ours
-> and says nothing about this committee's own filing.
+> We have not yet copied Minnesota’s {viewedYear} filing calendar for this kind of
+> candidate, so we cannot give its next report’s due date. This says nothing about
+> the committee’s own filing.
 
 For a current or future year when the committee is on the ballot, the wording is:
 
-> This committee is on the {year} ballot, so it files on Minnesota's election-year
-> schedule. Its next report, the “{name}”, is due {due} and covers {start} to {end}.
-> New money appears here only when a report is filed.
+> This committee is on the {year} ballot and follows Minnesota’s election-year
+> filing schedule. Its next “{name}” is due {due} and covers {start} to {end}.
+> New money appears here when a report is filed.
 
 For a past year with a known on-ballot schedule, the wording is:
 
@@ -1283,9 +1283,10 @@ into our wording.
 calendar" and "nothing is due yet" are different facts, and letting the first read like
 the second tells a reader something false about a named politician's duty to report.
 That is [grounded-answers.md rule 12](https://github.com/alethical-org/alethical/blob/main/.claude/rules/grounded-answers.md)'s
-missing-versus-zero rule applied to dates instead of to money. All 3 of ours share a
-closing line, _"The gap is ours and says nothing about this committee's own filing."_,
-so they read as 1 class.
+missing-versus-zero rule applied to dates instead of to money. The missing-calendar
+message ends _“This says nothing about the committee’s own filing.”_ The special-election
+and filing-list messages keep _"The gap is ours and says nothing about this committee's
+own filing."_ Each describes what Alethical lacks without claiming that a report was missed.
 
 **Two things this wording never does, each pinned by its own test:**
 
