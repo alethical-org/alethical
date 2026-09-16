@@ -879,6 +879,24 @@ The legislator tab's outside-spending fallback card uses that same module, inclu
 its loading and failed-read states. A failed code download stays inside the details
 section and leaves the independently accepted filing figures on screen.
 
+**The legislator tab fetches that shared module with its own code, and a card whose
+module has already arrived draws its chart in its first frame.** Fetched one after the
+other, a committee card drew 3 times: its figures alone, then the chart's frame, then the
+chart, which read as an old page being replaced by a new one. The tab's loader
+(`CampaignMoneyTabOnDemand.tsx`) downloads the tab, the shared module and the payment-read
+code together, the profile screens start that download as soon as the address names the
+tab rather than after the person's record lands, and the tab strip starts it when a pointer
+or keyboard focus reaches the **Campaign money** tab. The on-demand module keeps the arrived
+code and reads it synchronously instead of through `React.lazy`, whose already-resolved
+piece still drew a loading frame first. Measured on the live site before the change, the
+tab's code was requested 1.2 seconds after the profile's code, and the chart replaced the
+figures about 0.6 seconds after they drew.
+
+**The year buttons' 11 yearly reads run 3 at a time.** They ran one after another so
+the selected year's own payment reads would not compete with them, and the 11 reads took
+about 7 seconds on the live site. The API answered 4 of them at once in 0.6 seconds, so 3
+side by side finish in about 2 seconds while still leaving the selected year's reads room.
+
 **The 2 reads on `/payments` run together rather than one after the other.** Neither needs the other's
 answer: the registration number comes out of the address and the year out of
 `campaignMoneyYear`. The payments view used to wait for the figures before asking for the

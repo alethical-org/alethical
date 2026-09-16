@@ -18,8 +18,11 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { linkProps, routePath } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
+import { prefetchCampaignMoneyTab } from './CampaignMoneyTabOnDemand';
 
 export type ProfileTab = 'overview' | 'money';
+
+const prefetchMoney = () => void prefetchCampaignMoneyTab().catch(() => undefined);
 
 const TABS: { key: ProfileTab; label: string }[] = [
   { key: 'overview', label: 'Overview' },
@@ -54,6 +57,10 @@ export function LegislatorProfileTabs({
             // web, and "the page you are on" is what a screen reader announces for a
             // link in a set of links.
             aria-current={isActive ? 'page' : undefined}
+            // A pointer or keyboard focus arriving on the money tab is a reader heading
+            // there, so its pieces start downloading before the click lands.
+            onHoverIn={tab.key === 'money' ? prefetchMoney : undefined}
+            onFocus={tab.key === 'money' ? prefetchMoney : undefined}
             style={[styles.tab, isActive && styles.tabActive]}
           >
             <Text
