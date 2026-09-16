@@ -530,7 +530,8 @@ There is no separate unnamed percentage under the profile's summary amount. Miss
 unsafe or incomplete figures retain their own explanation instead of a misleading circle.
 
 The fixed tabs are Individuals, Lobbyists, Committees & Funds, Party Units and Expenditures.
-An Other kinds tab appears only where a contribution has another kind. Candidate Committee rows
+An Other kinds tab appears immediately before Expenditures only where a contribution has another kind.
+Contribution tabs keep chart order, with money out last, regardless of the figures. Candidate Committee rows
 sit in Committees & Funds and retain their filed kind. Contribution tabs include only
 `Contribution` receipts. Each group is 1 exact name within 1 committee, year and tab;
 spelling variants are not joined. Counts distinguish printed names from payment rows,
@@ -797,7 +798,7 @@ Top to bottom:
 
 8. **The donor and payment browser**, under the summaries. The fixed tabs are
    Individuals, Lobbyists, Committees & Funds, Party Units and Expenditures; Other kinds
-   appears only when the received Contribution rows need it. Other candidate committees
+   appears immediately before Expenditures only when the received Contribution rows need it. Other candidate committees
    sit under Committees & Funds and retain the filed kind on their rows. The donor tabs
    include only receipts typed Contribution. Other receipts remain reachable through the
    full **Who gave** list, while **Where it went** opens every named outgoing payment.

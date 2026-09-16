@@ -253,7 +253,8 @@ export function coveredPeriodDetail(
   const calendar = options.isPartyUnit
     ? ' Party units file on their own calendar, so these dates are the party-unit series’, not a candidate committee’s.'
     : '';
-  return coverage + checked + calendar;
+  const boundary = day && (checked || calendar) ? '.' : '';
+  return coverage + boundary + checked + calendar;
 }
 
 /** The stamp when no figures cover the selected year. */

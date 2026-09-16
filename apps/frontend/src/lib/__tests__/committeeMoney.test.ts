@@ -287,6 +287,20 @@ describe('the period stamp', () => {
     expect(detail).not.toContain('Jan 1');
   });
 
+  it.each([
+    { reportedPeriodStart: undefined, source: FILING_SOURCE_ONE_DATE },
+    { reportedPeriodStart: '2026-01-01', source: FILING_SOURCE_BOTH_DATES },
+  ])('separates joined stamp sentences after $source', ({ reportedPeriodStart, source }) => {
+    const options = { reportedPeriodStart };
+    expect(coveredPeriodDetail('2026-07-20', null, options)).toBe(source);
+    expect(coveredPeriodDetail('2026-07-20', 'Aug 11, 2026', options)).toBe(
+      `${source}. Checked against our copy of the Board’s files, taken Aug 11, 2026.`,
+    );
+    expect(coveredPeriodDetail('2026-07-20', null, { ...options, isPartyUnit: true })).toBe(
+      `${source}. Party units file on their own calendar, so these dates are the party-unit series’, not a candidate committee’s.`,
+    );
+  });
+
   it('shows both ends only when the Board’s own calendar prints the start', () => {
     expect(coveredPeriodLine('2026-07-20', '2026-01-01')).toBe(
       'Figures for Jan 1, 2026 – Jul 20, 2026',

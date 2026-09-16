@@ -275,10 +275,13 @@ cover, taken from the report itself. Under that, in ordinary type rather than bo
 2 sentences:
 
 > The committee filed this report with the Minnesota Campaign Finance Board, which prints
-> both dates. The Board's record for this committee lists every report it filed, under
-> Reports and Data.
+> both dates
 
-The second sentence starts on its own line, a hair under the first. Where the report
+> The Board's record for this committee lists every report it filed, under Reports and Data.
+
+The second sentence starts on its own line, a hair under the first. The standalone
+first sentence has no ending period; when a copy-date or party-unit explanation follows
+in the same paragraph, a period separates the sentences. Where the report
 names only an end date and no start, the first sentence reads "which prints the date"
 instead. Those are the only 2 forms, and the same 2 sentences print here, on a
 committee's own page at `/money/committees/<name>-<number>`, and on that committee's
@@ -498,7 +501,8 @@ does not turn into a cash chart showing a misleading zero.
 
 The fixed tabs are **Individuals, Lobbyists, Committees & Funds, Party Units, and
 Expenditures**. They stay visible when empty. An **Other kinds** tab appears only when a
-contribution has another kind. Candidate Committee rows sit in Committees & Funds and
+contribution has another kind, immediately before Expenditures. This keeps all money-in
+categories in chart order and money out last; counts and amounts never change the order. Candidate Committee rows sit in Committees & Funds and
 keep the “Candidate committee” label. The original kind remains on each payment even
 though the chart and tab combine those 2 committee kinds.
 

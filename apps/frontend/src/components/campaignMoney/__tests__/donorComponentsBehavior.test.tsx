@@ -294,6 +294,20 @@ describe('the donor list preserves the complete filed record', () => {
     expect(view.textContent).toContain('names no individual');
   });
 
+  it('keeps Other kinds with the contribution tabs and Expenditures last', () => {
+    const view = markup(
+      list({ groups: groupContributionPayments([gift({ contributorType: 'Future kind' })]) }),
+    );
+    expect(Array.from(view.querySelectorAll('[role="tab"]'), (tab) => tab.textContent)).toEqual([
+      'Individuals 0',
+      'Lobbyists 0',
+      'Committees & Funds 0',
+      'Party Units 0',
+      'Other kinds 1',
+      'Expenditures 0',
+    ]);
+  });
+
   it('opens all remaining real-sample groups without changing the complete counts', () => {
     const view = mount(list());
     expect(view.querySelectorAll('[aria-label^="Show the "]')).toHaveLength(10);
@@ -451,7 +465,10 @@ describe('the accepted names-section controls', () => {
       const [tab, setTab] = React.useState<MoneyDetailsTab>('individuals');
       return (
         <DonorPaymentList
-          groups={realGroups}
+          groups={groupContributionPayments([
+            ...realPayments,
+            gift({ contributorType: 'Future kind' }),
+          ])}
           tab={tab}
           year={2025}
           ready
@@ -473,6 +490,8 @@ describe('the accepted names-section controls', () => {
     };
     expectChosen(0);
     expect(tabs[0].textContent).toBe('Individuals 74');
+    expect(tabs[4].textContent).toBe('Other kinds 1');
+    expect(tabs[5].textContent).toBe('Expenditures 0');
     expect(getComputedStyle(view.querySelector('[role="tablist"]')!).flexWrap).toBe('nowrap');
     const scroll = vi.fn();
     tabs[1].scrollIntoView = scroll;
