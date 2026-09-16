@@ -403,6 +403,9 @@ block the landing and the search carry.
 The whole register of everyone allowed to raise or spend money in Minnesota state politics,
 ordered by the name as filed, A to Z. The address forwarded to `/money` until this shipped.
 
+Above the title, “Follow the money” has a left-pointing arrow and links to `/money`.
+The arrow and label are one link, matching the return link on an individual committee’s page.
+
 The line above the rows says which of them this page holds: "Showing 551–600 of 1,603
 registered filers".
 

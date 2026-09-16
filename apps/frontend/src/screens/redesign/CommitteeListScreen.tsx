@@ -7,6 +7,7 @@ import {
   RowArrow,
 } from '../../components/campaignMoney/MoneyListRows';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
+import { ChevronLeft } from '../../components/icons';
 import { Pagination } from '../../components/search/searchPieces';
 import { Skeleton } from '../../components/Skeleton';
 import { useCampaignFinanceCommittees, usePrefetchCommitteeMoney } from '../../hooks/useAppQueries';
@@ -144,6 +145,7 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
             {...linkProps(routePath.money(), () => navigation.navigate('MoneyLanding'))}
             style={styles.backLink}
           >
+            <ChevronLeft size={18} strokeWidth={2.2} color={t.colors.text.secondary} aria-hidden />
             <Text style={styles.backLabel}>Follow the money</Text>
           </Pressable>
 
@@ -359,7 +361,7 @@ const styles = StyleSheet.create({
   page: { flexGrow: 1 },
   main: { paddingTop: 28, paddingBottom: 64 },
   mainMobile: { paddingTop: 18 },
-  backLink: { alignSelf: 'flex-start' },
+  backLink: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
   backLabel: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
