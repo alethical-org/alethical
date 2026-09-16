@@ -170,11 +170,11 @@ describe('the donor chart explains what its cash shares represent', () => {
     expect(view.querySelector('svg')).not.toBeNull();
     expect(view.textContent).toContain('Who gave (named donations only)');
     expect(view.textContent).toContain(
-      'Shares of the named donations this year, not counting donated goods and services.',
+      'Shares of the named donations this year, excluding donated goods and services.',
     );
     // No reported total here, so no non-itemized figure and nothing to define.
     expect(view.textContent).not.toContain('$200');
-    expect(view.textContent).not.toContain('The filing names who gave for');
+    expect(view.textContent).not.toContain('Itemized contributions list donor names');
     expect(view.querySelectorAll('circle').length).toBeGreaterThan(0);
   });
 
@@ -253,7 +253,10 @@ describe('the donor list preserves the complete filed record', () => {
       Array.from({ length: count }, (_, index) => gift({ contributor: `Example ${index}` })),
     );
     const view = mount(list({ groups }));
-    expect(getComputedStyle(view.firstElementChild!).borderTopWidth).not.toBe('1px');
+    const paymentList = view.querySelector('[data-testid="payment-list-summary"]')!
+      .nextElementSibling as HTMLElement;
+    expect(getComputedStyle(paymentList).borderTopWidth).toBe('1px');
+    expect(getComputedStyle(paymentList).borderTopColor).toBe('rgba(17, 21, 15, 0.08)');
     const expanders = [...view.querySelectorAll('[aria-label^="Show the "]')];
     const rows = expanders.map((button) => button.parentElement!.parentElement!);
     expect(rows).toHaveLength(Math.min(count, 10));
@@ -291,6 +294,20 @@ describe('the donor list preserves the complete filed record', () => {
     expect(view.textContent).toContain('names no individual');
   });
 
+  it('keeps Other kinds with the contribution tabs and Expenditures last', () => {
+    const view = markup(
+      list({ groups: groupContributionPayments([gift({ contributorType: 'Future kind' })]) }),
+    );
+    expect(Array.from(view.querySelectorAll('[role="tab"]'), (tab) => tab.textContent)).toEqual([
+      'Individuals 0',
+      'Lobbyists 0',
+      'Committees & Funds 0',
+      'Party Units 0',
+      'Other kinds 1',
+      'Expenditures 0',
+    ]);
+  });
+
   it('opens all remaining real-sample groups without changing the complete counts', () => {
     const view = mount(list());
     expect(view.querySelectorAll('[aria-label^="Show the "]')).toHaveLength(10);
@@ -320,7 +337,7 @@ describe('the donor list preserves the complete filed record', () => {
     );
     expect(view.textContent).toContain('2 payments');
     expect(view.textContent).toContain('1 name · 2 payments');
-    expect(view.textContent).toContain('Total of listed payments in this tab:');
+    expect(view.textContent).toContain('Total itemized expenditures');
     click(view.querySelector('[aria-label="Show the 2 payments from Example Printer"]'));
     expect(view.textContent?.match(/Date not given in the public file/g)).toHaveLength(2);
     expect(view.textContent?.match(/Print leaflets/g)).toHaveLength(2);
@@ -332,7 +349,7 @@ describe('the donor list preserves the complete filed record', () => {
     const view = markup(list());
     expect(view.textContent).toContain('Individuals 74');
     expect(view.textContent).toContain('74 names · 82 payments');
-    expect(view.textContent).toContain('Named total in this tab:');
+    expect(view.textContent).toContain('Total itemized contributions');
   });
 
   it('does not print partial counts or totals while pages are missing', () => {
@@ -340,7 +357,7 @@ describe('the donor list preserves the complete filed record', () => {
     expect(view.textContent).toContain('Totals and name counts are withheld');
     expect(view.textContent).not.toContain('74 names');
     expect(view.textContent).not.toContain('Individuals (');
-    expect(view.textContent).not.toContain('Named total in this tab:');
+    expect(view.textContent).not.toContain('Total itemized contributions');
   });
 
   it('keeps private names plain and gives known committees ordinary links', () => {
@@ -378,7 +395,7 @@ describe('the donor list preserves the complete filed record', () => {
       gift({ contributor: 'Beth Example', amount: '200.00' }),
     ]);
     const view = mount(list({ groups }));
-    const before = view.textContent?.match(/Named total in this tab: [^A-Za-z]+/)?.[0];
+    const before = view.querySelector('[data-testid="payment-list-total"]')?.textContent;
     const input = view.querySelector('input')!;
     act(() => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'Amy');
@@ -388,6 +405,51 @@ describe('the donor list preserves the complete filed record', () => {
     expect(view.textContent).toContain(before);
     expect(view.textContent).toContain('Amy Example');
     expect(view.textContent).not.toContain('Beth Example');
+  });
+
+  it('aligns the summary with payment amounts and washes it in the selected kind color', () => {
+    const view = mount(
+      list({
+        groups: groupContributionPayments([gift({ inKind: 'Yes' })]),
+      }),
+    );
+    const summary = view.querySelector<HTMLElement>('[data-testid="payment-list-summary"]')!;
+    const total = view.querySelector<HTMLElement>('[data-testid="payment-list-total"]')!;
+    expect(getComputedStyle(summary).backgroundColor).toBe('rgba(20, 157, 91, 0.12)');
+    expect(getComputedStyle(summary).borderWidth).toBe('0px');
+    expect(getComputedStyle(summary).borderTopLeftRadius).toBe('10px');
+    expect(getComputedStyle(summary).paddingLeft).toBe('14px');
+    expect(getComputedStyle(summary).paddingRight).toBe('70px');
+    expect(getComputedStyle(total).fontWeight).toBe('800');
+    expect(view.textContent).toContain('of which $100 goods and services');
+    expect(total.textContent).toBe('$100');
+  });
+
+  it('uses the quiet neutral wash for expenditure totals', () => {
+    const expenditures = mount(
+      list({
+        groups: groupExpenditurePayments([
+          {
+            vendorName: 'Example Printer',
+            vendorCity: null,
+            vendorState: null,
+            affectedCommitteeName: null,
+            affectedCommitteeRegistrationNumber: null,
+            amount: '75.00',
+            paidOn: '2025-01-10',
+            expenditureType: 'Campaign Expenditure',
+            purpose: null,
+            inKind: 'No',
+          },
+        ]),
+        tab: 'expenditures',
+      }),
+    );
+    expect(
+      getComputedStyle(
+        expenditures.querySelector<HTMLElement>('[data-testid="payment-list-summary"]')!,
+      ).backgroundColor,
+    ).toBe('rgba(79, 86, 81, 0.12)');
   });
 
   it('keeps missing-name rows readable without counting a person', () => {
@@ -403,7 +465,10 @@ describe('the accepted names-section controls', () => {
       const [tab, setTab] = React.useState<MoneyDetailsTab>('individuals');
       return (
         <DonorPaymentList
-          groups={realGroups}
+          groups={groupContributionPayments([
+            ...realPayments,
+            gift({ contributorType: 'Future kind' }),
+          ])}
           tab={tab}
           year={2025}
           ready
@@ -425,6 +490,8 @@ describe('the accepted names-section controls', () => {
     };
     expectChosen(0);
     expect(tabs[0].textContent).toBe('Individuals 74');
+    expect(tabs[4].textContent).toBe('Other kinds 1');
+    expect(tabs[5].textContent).toBe('Expenditures 0');
     expect(getComputedStyle(view.querySelector('[role="tablist"]')!).flexWrap).toBe('nowrap');
     const scroll = vi.fn();
     tabs[1].scrollIntoView = scroll;

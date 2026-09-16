@@ -60,7 +60,7 @@ export const NOT_A_DONATION_HEADING = 'Not a contribution';
 export function inKindDonationsNote(amount: string): string {
   return (
     `${amount} more came as goods and services rather than money, which Minnesota ` +
-    'counts separately.'
+    'counts separately'
   );
 }
 
@@ -72,13 +72,10 @@ export const donationCardsCopy = {
     'Names that also gave to other candidates',
   ],
   introduction:
-    'The five contribution lines the committee wrote on its own report, each beside what the state’s itemized list adds up to',
+    'Contributions reported by the committee, beside itemized contributions in the state’s list',
   columns: ['Reported in the filing', 'Itemized in the state’s list', 'Difference'],
   total: 'All five added up',
-  differenceBefore:
-    'The difference is money the filing reports without a giver’s name attached. Added up it is the ',
-  differenceTerm: 'Non-itemized',
-  differenceAfter: ' contributions figure',
+  difference: 'The differences add up to total non-itemized contributions',
   chartName: 'Who gave',
   closingAfter: ' counts under Committees & Funds instead',
   closingBefore: (amount: string, payments: number) =>
@@ -111,9 +108,9 @@ export const donationCardsCopy = {
       `No names are matched for ${year}. We match only from a year whose donations we have checked against a filed report, and that is not yet the case here.`,
   ],
   emptyLocations: (year: number) =>
-    `The state’s list names no individual donations for this committee in ${year}.`,
+    `The state’s list names no individual donations for this committee in ${year}`,
   emptyConnections: (year: number) =>
-    `With no itemized individual donations in ${year}, there is no name to match against other candidates.`,
+    `With no itemized individual donations in ${year}, there is no name to match against other candidates`,
   failed: [
     'We couldn’t load this comparison right now.',
     'We couldn’t load where these donations came from right now.',

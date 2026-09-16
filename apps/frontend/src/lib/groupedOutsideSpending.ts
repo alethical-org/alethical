@@ -60,7 +60,7 @@ export function outsideCheckedZeroLabel(
   const ballot = notOnTheBallot
     ? `, when ${subject === 'committee' ? 'it was' : 'they were'} not on the ballot`
     : '';
-  return `No outside group reported spending to support or oppose this ${subject} in ${year}${ballot}.`;
+  return `No outside group reported spending to support or oppose this ${subject} in ${year}${ballot}`;
 }
 
 export function outsideRegistrationLabel(registration: string | null): string {

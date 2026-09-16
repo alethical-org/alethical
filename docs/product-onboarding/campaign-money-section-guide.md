@@ -530,7 +530,8 @@ There is no separate unnamed percentage under the profile's summary amount. Miss
 unsafe or incomplete figures retain their own explanation instead of a misleading circle.
 
 The fixed tabs are Individuals, Lobbyists, Committees & Funds, Party Units and Expenditures.
-An Other kinds tab appears only where a contribution has another kind. Candidate Committee rows
+An Other kinds tab appears immediately before Expenditures only where a contribution has another kind.
+Contribution tabs keep chart order, with money out last, regardless of the figures. Candidate Committee rows
 sit in Committees & Funds and retain their filed kind. Contribution tabs include only
 `Contribution` receipts. Each group is 1 exact name within 1 committee, year and tab;
 spelling variants are not joined. Counts distinguish printed names from payment rows,
@@ -780,8 +781,8 @@ Top to bottom:
    not a gap in our records.”
 
    With no official total, the card shows no amount and only **“We do not hold an
-   official spending total for this committee for this year.”** This is Alethical's data
-   gap, not a claim that the committee failed to file. The same sentence applies whether
+   official spending total for this committee for this year”**, which names Alethical's
+   data gap rather than claiming that the committee failed to file. The same sentence applies whether
    the named-payment rows contain an amount, a measured zero, no payments, or an
    unavailable amount. Empty and closed committee-years use it too, while the identity
    and money-in card retain their own explanation.
@@ -797,7 +798,7 @@ Top to bottom:
 
 8. **The donor and payment browser**, under the summaries. The fixed tabs are
    Individuals, Lobbyists, Committees & Funds, Party Units and Expenditures; Other kinds
-   appears only when the received Contribution rows need it. Other candidate committees
+   appears immediately before Expenditures only when the received Contribution rows need it. Other candidate committees
    sit under Committees & Funds and retain the filed kind on their rows. The donor tabs
    include only receipts typed Contribution. Other receipts remain reachable through the
    full **Who gave** list, while **Where it went** opens every named outgoing payment.
@@ -807,8 +808,11 @@ Top to bottom:
    figures, never the sentence saying the file names no payments. Each exact printed name
    groups only this committee's payments in this year and category. Different spellings
    stay separate, and repeated-looking rows are kept. Counts say names and payments,
-   never donors. The Expenditures sum appears only here, beside its rows, as
-   “Total of listed payments in this tab: {amount}”. The outgoing-payment naming
+   never donors. A light band uses the chosen donor kind's colour at 12% opacity and
+   labels donor totals “Total itemized contributions”; Expenditures uses `#4f5651` at
+   12% opacity and reads “Total itemized expenditures”. Neither label has a colon. The
+   amount lines up with the payment amounts below, and a goods-and-services note wraps
+   beneath it without moving that amount. The outgoing-payment naming
    threshold remains $200 for every filer kind, including ballot-question committees;
    the $500 ballot-question threshold applies to incoming donations instead
    ([Minnesota Statutes 10A.20, subdivision 3(h), (q)](https://www.revisor.mn.gov/statutes/cite/10A.20#stat.10A.20.3),

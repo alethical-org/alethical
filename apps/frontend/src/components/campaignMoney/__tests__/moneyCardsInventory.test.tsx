@@ -287,7 +287,7 @@ describe('the money cards on the profile, at the final inventory', () => {
   it('states the $200 naming rule exactly once, above the cards and not inside them', () => {
     const html = domText(render([committee()]));
     expect(html).toContain(dekText(namedMoneyDefinition(false)));
-    expect(html.split('$200').length - 1).toBe(1);
+    expect(html.split(dekText(namedMoneyDefinition(false))).length - 1).toBe(1);
     const inCards = cards(render([committee()]));
     expect(inCards).not.toContain('$200');
     expect(inCards).not.toContain(itemizedContributionsNote(false));
@@ -300,7 +300,7 @@ describe('the money cards on the profile, at the final inventory', () => {
     const html = domText(render([committee()]));
     expect(html).toContain(`${MONEY_IN_NAMED_LABEL}$151,614`);
     expect(html).toContain(`${MONEY_IN_UNNAMED_LABEL}$66,840`);
-    expect(html).toContain('The filing names who gave for itemized contributions');
+    expect(html).toContain('Itemized contributions list donor names and amounts');
     // The donut's own sentence describes a picture that is not there yet.
     expect(html).not.toContain('Shares of the contributions this committee reported');
   });

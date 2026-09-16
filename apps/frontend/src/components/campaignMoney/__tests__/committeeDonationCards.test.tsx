@@ -119,7 +119,7 @@ describe('drawn donation cards from committee 17868 in 2025', () => {
     ]);
 
     expect(filing.textContent).toContain(
-      'The five contribution lines the committee wrote on its own report, each beside what the state’s itemized list adds up to',
+      'Contributions reported by the committee, beside itemized contributions in the state’s list',
     );
     expect([...filing.querySelectorAll('thead th')].map((heading) => heading.textContent)).toEqual([
       '',
@@ -139,7 +139,7 @@ describe('drawn donation cards from committee 17868 in 2025', () => {
       '$500 of this line is 1 payment from a closing candidate committee passing on its balance, which Who gave counts under Committees & Funds instead',
     );
     expect(filing.textContent).toContain(
-      'The difference is money the filing reports without a giver’s name attached. Added up it is the Non-itemized contributions figure',
+      'The differences add up to total non-itemized contributions',
     );
     expect(filing.textContent?.match(/Who gave/g)).toHaveLength(1);
 
@@ -288,10 +288,10 @@ describe('all donation-card states', () => {
     });
     const page = render({ committee: empty, year });
     expect(cards(page)[1].textContent).toBe(
-      'Where itemized individual donations came fromThe state’s list names no individual donations for this committee in 2022.',
+      'Where itemized individual donations came fromThe state’s list names no individual donations for this committee in 2022',
     );
     expect(cards(page)[2].textContent).toBe(
-      'Names that also gave to other candidatesWith no itemized individual donations in 2022, there is no name to match against other candidates.',
+      'Names that also gave to other candidatesWith no itemized individual donations in 2022, there is no name to match against other candidates',
     );
   });
 
@@ -354,7 +354,7 @@ describe('all donation-card states', () => {
     };
     const locations = cards(render({ committee: committee({ donorStates }) }))[1];
     expect(locations.textContent).not.toContain(
-      'The state’s list names no individual donations for this committee in 2025.',
+      'The state’s list names no individual donations for this committee in 2025',
     );
     expect(cells(locations.querySelector('table')!)).toEqual([
       ['Minnesota', '0', '$0'],

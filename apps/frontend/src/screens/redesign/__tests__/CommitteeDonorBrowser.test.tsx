@@ -450,7 +450,7 @@ describe('one committee shares the donation browser', () => {
         .find((node) => node.textContent?.startsWith('Who gave'))
         ?.getAttribute('aria-level'),
     ).toBe('2');
-    expect(host.textContent).toContain('Named total in this tab:');
+    expect(host.textContent).toContain('Total itemized contributions');
     expect(host.textContent).toContain('$173,279');
     expect(host.textContent).toContain('DFL House Caucus');
     expect(host.textContent).not.toContain("this legislator's campaign");
@@ -482,8 +482,8 @@ describe('one committee shares the donation browser', () => {
       '/money/committees/gottfried-david-house-committee-19193/payments?tab=spent&year=2025',
     ]);
     click(tab('Expenditures'));
-    expect(host.textContent).toContain('Total of listed payments in this tab: $104,004');
-    expect(host.textContent?.match(/Total of listed payments in this tab:/g)).toHaveLength(1);
+    expect(host.textContent).toContain('Total itemized expenditures$104,004');
+    expect(host.textContent?.match(/Total itemized expenditures/g)).toHaveLength(1);
   });
 
   it('shows an unconfirmed party unit with its unnamed slice, all payments, and authoritative outside zero', async () => {
@@ -497,13 +497,13 @@ describe('one committee shares the donation browser', () => {
     expect(host.textContent).toContain('Non-itemized contributions');
     expect(host.textContent).toContain('$5,996');
     expect(host.textContent).toContain(
-      'No outside group reported spending to support or oppose this committee in 2025.',
+      'No outside group reported spending to support or oppose this committee in 2025',
     );
     expect(host.textContent).toContain('Spent by them');
     expect(request.mock.calls).toHaveLength(9);
     expect(request.mock.calls.every(([path]) => path.includes('/20003/payments'))).toBe(true);
     click(tab('Expenditures'));
-    expect(host.textContent).toContain('Total of listed payments in this tab: $5,150,294');
+    expect(host.textContent).toContain('Total itemized expenditures$5,150,294');
     expect(vi.mocked(useOutsideSpending)).toHaveBeenCalledWith({ spender: '20003' }, 'newest');
   });
 
@@ -576,7 +576,7 @@ describe('one committee shares the donation browser', () => {
     ).toContain('Name A to Z');
     expect(host.querySelectorAll('[aria-expanded="true"]')).toHaveLength(0);
     expect(host.textContent).toContain(
-      'The state’s file names no payees for this committee in 2026.',
+      'The state’s file names no payees for this committee in 2026',
     );
   });
 

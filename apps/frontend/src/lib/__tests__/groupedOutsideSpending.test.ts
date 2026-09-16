@@ -108,11 +108,11 @@ describe('outside spending identities and exact amounts', () => {
 describe('the words a checked zero and a direction chip print', () => {
   it('names the year on screen, and the ballot only where we hold that fact', () => {
     expect(outsideCheckedZeroLabel(2026)).toBe(
-      'No outside group reported spending to support or oppose this legislator in 2026.',
+      'No outside group reported spending to support or oppose this legislator in 2026',
     );
     expect(outsideCheckedZeroLabel(2021, 'legislator', true)).toBe(
       'No outside group reported spending to support or oppose this legislator in 2021, when ' +
-        'they were not on the ballot.',
+        'they were not on the ballot',
     );
     expect(outsideCheckedZeroLabel(2021, 'committee', true)).toContain('when it was not on');
   });

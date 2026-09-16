@@ -16,8 +16,8 @@ export const MONEY_DETAILS_TABS: readonly {
   { id: 'lobbyists', label: 'Lobbyists', emptyWord: 'lobbyists' },
   { id: 'committees', label: 'Committees & Funds', emptyWord: 'committees or funds' },
   { id: 'partyUnits', label: 'Party Units', emptyWord: 'party units' },
-  { id: 'expenditures', label: 'Expenditures', emptyWord: 'payees' },
   { id: 'other', label: 'Other kinds', emptyWord: 'donors of other kinds' },
+  { id: 'expenditures', label: 'Expenditures', emptyWord: 'payees' },
 ];
 export const MONEY_DETAILS_SORTS: readonly { id: MoneyDetailsSort; label: string }[] = [
   { id: 'largest', label: 'Largest first' },

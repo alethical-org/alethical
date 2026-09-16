@@ -287,6 +287,20 @@ describe('the period stamp', () => {
     expect(detail).not.toContain('Jan 1');
   });
 
+  it.each([
+    { reportedPeriodStart: undefined, source: FILING_SOURCE_ONE_DATE },
+    { reportedPeriodStart: '2026-01-01', source: FILING_SOURCE_BOTH_DATES },
+  ])('separates joined stamp sentences after $source', ({ reportedPeriodStart, source }) => {
+    const options = { reportedPeriodStart };
+    expect(coveredPeriodDetail('2026-07-20', null, options)).toBe(source);
+    expect(coveredPeriodDetail('2026-07-20', 'Aug 11, 2026', options)).toBe(
+      `${source}. Checked against our copy of the Board’s files, taken Aug 11, 2026.`,
+    );
+    expect(coveredPeriodDetail('2026-07-20', null, { ...options, isPartyUnit: true })).toBe(
+      `${source}. Party units file on their own calendar, so these dates are the party-unit series’, not a candidate committee’s.`,
+    );
+  });
+
   it('shows both ends only when the Board’s own calendar prints the start', () => {
     expect(coveredPeriodLine('2026-07-20', '2026-01-01')).toBe(
       'Figures for Jan 1, 2026 – Jul 20, 2026',
@@ -306,11 +320,11 @@ describe('the period stamp', () => {
   it('prints the same 2 sentences whatever page the stamp draws on', () => {
     expect(FILING_SOURCE_BOTH_DATES).toBe(
       'The committee filed this report with the Minnesota Campaign Finance Board, ' +
-        'which prints both dates.',
+        'which prints both dates',
     );
     expect(FILING_SOURCE_ONE_DATE).toBe(
       'The committee filed this report with the Minnesota Campaign Finance Board, ' +
-        'which prints the date.',
+        'which prints the date',
     );
     expect(`${BOARD_RECORD_LINK_LABEL}${BOARD_RECORD_SENTENCE_TAIL}`).toBe(
       'The Board’s record for this committee lists every report it filed, under Reports and Data.',
@@ -527,7 +541,7 @@ describe('money out', () => {
     const note = inKindDonationsNote('$19,899.45');
     expect(note).toBe(
       '$19,899.45 more came as goods and services rather than money, which Minnesota ' +
-        'counts separately.',
+        'counts separately',
     );
     // No positional word, on any surface, however each one is laid out later.
     for (const positional of ['below', 'above the', 'the total below', 'beneath']) {

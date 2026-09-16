@@ -11,7 +11,7 @@ export { dekText, namedMoneyDefinition, type DekSegment };
 export const moneyDetailsCopy = {
   ...moneyDetailsPageCopy,
   chartHeading: (namedOnly: boolean) => `Who gave${namedOnly ? ' (named donations only)' : ''}`,
-  chartUnavailable: 'We cannot draw this breakdown from the payment amounts we hold.',
+  chartUnavailable: 'We cannot draw this breakdown from the payment amounts we hold',
   /**
    * The dek above the donut (#2182).
    *
@@ -27,8 +27,8 @@ export const moneyDetailsCopy = {
   chartExplanation: (namedOnly: boolean, hasUnnamed: boolean, isBallot: boolean): DekSegment[] => [
     {
       text: namedOnly
-        ? 'Shares of the named donations this year, not counting donated goods and services.'
-        : 'Shares of the contributions this committee reported, not counting donated goods and ' +
+        ? 'Shares of the named donations this year, excluding donated goods and services.'
+        : 'Shares of the contributions this committee reported, excluding donated goods and ' +
           'services.',
     },
     ...(hasUnnamed ? [{ text: ' ' }, ...namedMoneyDefinition(isBallot)] : []),
@@ -49,13 +49,13 @@ export const moneyDetailsCopy = {
   counts: (names: number, payments: number) =>
     `${names} ${names === 1 ? 'name' : 'names'} · ${payments} ${payments === 1 ? 'payment' : 'payments'}`,
   tabTotal: (expenditures: boolean) =>
-    expenditures ? 'Total of listed payments in this tab: ' : 'Named total in this tab: ',
-  goodsShare: (amount: string | null) => `, of which ${amount} goods and services`,
+    expenditures ? 'Total itemized expenditures' : 'Total itemized contributions',
+  goodsShare: (amount: string | null) => `of which ${amount} goods and services`,
   listedSpendingNote:
     'Minnesota makes a committee name a recipient only once payments to them pass $200 in total for the year. The listed payments may leave out smaller payments whose recipients are not named.',
-  noSearchMatch: 'No names in this tab match that.',
+  noSearchMatch: 'No names in this tab match that',
   emptyTab: (word: string, year: number) =>
-    `The state’s file names no ${word} for this committee in ${year}.`,
+    `The state’s file names no ${word} for this committee in ${year}`,
   showRemaining: (count: number, expenditures: boolean) =>
     `Show the other ${count} ${expenditures ? (count === 1 ? 'payee' : 'payees') : count === 1 ? 'name' : 'names'}`,
   candidateCommittee: 'Candidate committee',

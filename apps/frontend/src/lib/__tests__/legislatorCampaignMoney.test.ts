@@ -1,3 +1,4 @@
+import { filingScheduleNote } from '../campaignMoneyFilingSchedule';
 /**
  * What the campaign money tab is allowed to put on screen (#1329).
  *
@@ -33,7 +34,6 @@ import {
   MATCH_CHECK_LABEL,
   matchCheckSentences,
   emptyStateFor,
-  filingScheduleNote,
   statedSplitNote,
   splitExplanation,
   unnamedShareLabel,
@@ -480,10 +480,10 @@ describe('the filing schedule note, one committee at a time', () => {
 
   it('says a committee on the ballot owes a named report on a named date', () => {
     expect(filingScheduleNote(onTheBallot, 2099)[0]).toBe(
-      "This committee is on the 2099 ballot, so it files on Minnesota's election-year schedule. " +
-        'Its next report, the “Pre-general report of receipts and expenditures”, is due ' +
+      'This committee is on the 2099 ballot and follows Minnesota’s election-year filing schedule. ' +
+        'Its next “Pre-general report of receipts and expenditures” is due ' +
         'Oct 26, 2099 and covers Jan 1 to Oct 19, 2099. ' +
-        'New money appears here only when a report is filed.',
+        'New money appears here when a report is filed.',
     );
   });
 
@@ -491,7 +491,7 @@ describe('the filing schedule note, one committee at a time', () => {
     'describes the selected past year %i with no future deadline',
     (year) => {
       expect(filingScheduleNote(gap('on_the_ballot'), year, 2026)).toEqual([
-        `This committee was on the ${year} ballot and followed Minnesota's election-year filing schedule.`,
+        `This committee was on the ${year} ballot and followed Minnesota's election-year filing schedule`,
       ]);
       expect(filingScheduleNote(gap('not_on_the_ballot'), year, 2026)).toEqual([
         `This committee was not on the ${year} ballot. Minnesota's schedule for candidates not running required a year-end report.`,
@@ -508,7 +508,7 @@ describe('the filing schedule note, one committee at a time', () => {
   it('keeps current-year schedule wording even when its next report is missing', () => {
     const text = filingScheduleNote(gap('on_the_ballot'), 2026, 2026).join(' ');
     expect(text).toContain('This committee is on the 2026 ballot');
-    expect(text).toContain('New money appears here only when a report is filed.');
+    expect(text).toContain('New money appears here when a report is filed.');
   });
 
   it('keeps both years when the next report covers more than one year', () => {
@@ -518,22 +518,23 @@ describe('the filing schedule note, one committee at a time', () => {
 
   it.each([2031, 2099])('uses the viewed year %i in both new filing-note states', (year) => {
     expect(filingScheduleNote(onTheBallot, year)[0]).toContain(
-      `This committee is on the ${year} ballot, so it files on Minnesota's election-year schedule.`,
+      `This committee is on the ${year} ballot and follows Minnesota’s election-year filing schedule.`,
     );
     expect(filingScheduleNote(gap('calendar_not_transcribed'), year)).toEqual([
-      "We cannot say when this committee's next report is due. " +
-        `We have not yet copied in Minnesota's ${year} filing calendar for this kind of candidate. ` +
-        "The gap is ours and says nothing about this committee's own filing.",
+      `We have not yet copied Minnesota’s ${year} filing calendar for this kind of candidate, ` +
+        'so we cannot give its next report’s due date. ' +
+        'This says nothing about the committee’s own filing.',
     ]);
   });
 
   it('says a committee not on the ballot owes nothing until its once-a-year report', () => {
     const text = said(notOnTheBallot);
-    expect(text).toContain('is not on the 2099 ballot');
-    expect(text).toContain('once a year');
-    expect(text).toContain('due Feb 1, 2100');
-    // The whole point of this state: an empty year is the schedule, not a silence.
-    expect(text).toContain('not money going unreported');
+    expect(text).toBe(
+      'This committee is not on the 2099 ballot, so Minnesota puts it on the schedule for ' +
+        'candidates who are not running, which asks for a report once a year rather than around each election. ' +
+        'Its next “2099 year-end report of receipts and expenditures” is due Feb 1, 2100 and covers Jan 1 to Dec 31, 2099. ' +
+        'A long stretch with nothing new here is that schedule working as written, not money going unreported.',
+    );
   });
 
   it('says a closed registration owes nothing further, and names the day it closed', () => {
@@ -550,10 +551,11 @@ describe('the filing schedule note, one committee at a time', () => {
 
   it('says an untranscribed calendar is a calendar we have not copied in', () => {
     const text = said(gap('calendar_not_transcribed'));
-    expect(text).toContain("We cannot say when this committee's next report is due");
+    expect(text).toContain('so we cannot give its next report’s due date');
     expect(text).toContain(
-      "We have not yet copied in Minnesota's 2099 filing calendar for this kind of candidate.",
+      'We have not yet copied Minnesota’s 2099 filing calendar for this kind of candidate',
     );
+    expect(text).not.toContain('The gap is ours');
   });
 
   it('says our own copy of the filings is what cannot answer', () => {
@@ -578,7 +580,11 @@ describe('the filing schedule note, one committee at a time', () => {
       'filings_cannot_answer',
     ] as const) {
       const text = said(gap(state));
-      expect(text).toContain("The gap is ours and says nothing about this committee's own filing.");
+      expect(text).toContain(
+        state === 'calendar_not_transcribed'
+          ? 'This says nothing about the committee’s own filing.'
+          : "The gap is ours and says nothing about this committee's own filing.",
+      );
       expect(text).not.toMatch(/due \d/);
       expect(text).not.toMatch(/nothing is due|not required to report/i);
     }

@@ -457,9 +457,7 @@ function FiledLines({
         </table>
       )}
       <Paragraph small muted>
-        {copy.differenceBefore}
-        <span style={{ whiteSpace: 'nowrap' }}>{copy.differenceTerm}</span>
-        {copy.differenceAfter}
+        {copy.difference}
       </Paragraph>
     </>
   );

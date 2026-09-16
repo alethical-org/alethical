@@ -17,19 +17,18 @@ import {
 import { unnamedFigureDraws } from '../contributionFigures';
 
 const SHARES =
-  'Shares of the contributions this committee reported, not counting donated goods and ' +
-  'services.';
+  'Shares of the contributions this committee reported, excluding donated goods and ' + 'services.';
 const NAMED_ONLY_SHARES =
-  'Shares of the named donations this year, not counting donated goods and services.';
+  'Shares of the named donations this year, excluding donated goods and services.';
 const DEFINITION =
-  'The filing names who gave for itemized contributions and not for non-itemized ' +
-  'contributions. Minnesota requires naming once a donor’s giving passes $200 for the ' +
-  'year, and a committee may name smaller donors.';
+  'Itemized contributions list donor names and amounts; non-itemized contributions ' +
+  'are reported as a combined total without names. Minnesota requires donors to be named ' +
+  'when their total giving exceeds $200 in a year; committees may also name donors who give $200 or less.';
 const BALLOT_DEFINITION =
-  'The filing names who gave for itemized contributions and not for non-itemized ' +
-  'contributions. Minnesota requires naming once a donor’s giving passes $500 for the ' +
-  'year, the line for a ballot-question committee, and a committee may name smaller ' +
-  'donors.';
+  'Itemized contributions list donor names and amounts; non-itemized contributions ' +
+  'are reported as a combined total without names. Minnesota requires donors to be named ' +
+  'when their total giving exceeds $500 in a year, the threshold for a ballot-question committee; ' +
+  'committees may also name donors who give $500 or less.';
 
 describe('the heading over the donor chart', () => {
   it('asks the reader’s own question and leaves the kinds to the slices', () => {
@@ -72,7 +71,7 @@ describe('the dek above the donor chart', () => {
       .chartExplanation(false, true, false)
       .filter((segment) => segment.bold)
       .map((segment) => segment.text);
-    expect(bold).toEqual(['itemized contributions', 'non-itemized contributions']);
+    expect(bold).toEqual(['Itemized contributions', 'non-itemized contributions']);
   });
 
   it('states when a name is required, never that a smaller donor goes unnamed', () => {
@@ -81,8 +80,11 @@ describe('the dek above the donor chart', () => {
     // $200, so a reader meeting a named $50 donation must not read our page as wrong.
     for (const isBallot of [false, true]) {
       const definition = dekText(namedMoneyDefinition(isBallot));
-      expect(definition).toContain('for the year');
-      expect(definition).toContain('a committee may name smaller donors');
+      expect(definition).toContain('their total giving exceeds');
+      expect(definition).toContain('in a year');
+      expect(definition).toContain(
+        `committees may also name donors who give $${isBallot ? 500 : 200} or less`,
+      );
       expect(definition).not.toMatch(/never named|not named|are never/i);
       expect(definition).not.toMatch(/under \$[25]00|below \$[25]00|less than \$[25]00/i);
     }
@@ -94,7 +96,7 @@ describe('the dek above the donor chart', () => {
     // word and a reader can fairly read it as notes and coins.
     for (const namedOnly of [false, true]) {
       const dek = dekText(copy.chartExplanation(namedOnly, true, false));
-      expect(dek).toContain('not counting donated goods and services');
+      expect(dek).toContain('excluding donated goods and services');
       expect(dek).not.toMatch(/\bcash\b/i);
     }
   });

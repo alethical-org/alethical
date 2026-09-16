@@ -335,7 +335,7 @@ describe('outside spender list on the campaign money tab', () => {
   it('keeps the checked-zero sentence and makes no list request for it', async () => {
     await render(checkedZero);
     expect(mount.textContent).toContain(
-      'No outside group reported spending to support or oppose this legislator in 2025.',
+      'No outside group reported spending to support or oppose this legislator in 2025',
     );
     // A card that defines outside spending and then says there was none of it hands the
     // reader a definition of something not on the page.
@@ -352,7 +352,7 @@ describe('outside spender list on the campaign money tab', () => {
     await render(checkedZero, true);
     expect(mount.textContent).toContain(
       'No outside group reported spending to support or oppose this legislator in 2025, when they ' +
-        'were not on the ballot.',
+        'were not on the ballot',
     );
   });
 

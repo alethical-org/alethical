@@ -24,23 +24,24 @@ export function dekText(segments: readonly DekSegment[]): string {
  */
 export function namedMoneyDefinition(isBallot: boolean): DekSegment[] {
   return [
-    { text: 'The filing names who gave for ' },
-    { text: 'itemized contributions', bold: true },
-    { text: ' and not for ' },
+    { text: 'Itemized contributions', bold: true },
+    { text: ' list donor names and amounts; ' },
     { text: 'non-itemized contributions', bold: true },
     {
-      text: isBallot
-        ? '. Minnesota requires naming once a donor’s giving passes $500 for the year, the ' +
-          'line for a ballot-question committee, and a committee may name smaller donors.'
-        : '. Minnesota requires naming once a donor’s giving passes $200 for the year, and a ' +
-          'committee may name smaller donors.',
+      text:
+        ' are reported as a combined total without names. ' +
+        (isBallot
+          ? 'Minnesota requires donors to be named when their total giving exceeds $500 in a year, ' +
+            'the threshold for a ballot-question committee; committees may also name donors who give $500 or less.'
+          : 'Minnesota requires donors to be named when their total giving exceeds $200 in a year; ' +
+            'committees may also name donors who give $200 or less.'),
     },
   ];
 }
 
 /** Small labels needed before the donation browser's code arrives. */
 export const moneyDetailsPageCopy = {
-  chartFailed: 'We could not load the complete donation list, so the chart is withheld.',
+  chartFailed: 'We could not load the complete donation list, so the chart is withheld',
   outsideFailed:
     'We could not load this right now. This is a problem at our end and says nothing about what was spent.',
   chartLoading: 'Loading the contribution breakdown…',

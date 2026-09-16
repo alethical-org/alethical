@@ -23,6 +23,11 @@ import { moneyDetailsCopy as copy } from '../../lib/campaignMoneyDetailsCopy';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { LobbyingDonationContext } from '../lobbying/LobbyingDonationContext';
 
+function wash(hex: string): string {
+  const value = Number.parseInt(hex.slice(1), 16);
+  return `rgba(${value >> 16},${(value >> 8) & 255},${value & 255},0.12)`;
+}
+
 export function DonorPaymentList({
   groups,
   year,
@@ -89,6 +94,7 @@ export function DonorPaymentList({
   const visible = showAll ? shown : shown.slice(0, 10);
   const current = MONEY_DETAILS_TABS.find((item) => item.id === tab)!;
   const isExpenditures = tab === 'expenditures';
+  const summaryColor = isExpenditures ? c.secondary : c[tab];
   return (
     <View style={[s.section, styles.section]}>
       <View role="tablist" aria-label={copy.tabsLabel} style={styles.tabsScroll} {...tabKeys}>
@@ -176,23 +182,32 @@ export function DonorPaymentList({
               />
               <SortMenu key={`${year}-${tab}`} value={sort} onSelect={setSort} />
             </View>
-            <View style={styles.counts}>
-              <Text style={[s.small, styles.countText]}>
+            <View
+              testID="payment-list-summary"
+              style={[styles.summary, { backgroundColor: wash(summaryColor) }]}
+            >
+              <Text style={[s.body, styles.countText]}>
                 {copy.counts(data.nameCount, data.paymentCount)}
               </Text>
-              <Text style={[s.small, styles.totalText]}>
-                {copy.tabTotal(isExpenditures)}
-                <Text style={styles.totalAmount}>
-                  {formatMoney(data.amount) ?? copy.totalMissing}
-                </Text>
-                {isAmountAboveZero(data.inKindAmount)
-                  ? copy.goodsShare(formatMoney(data.inKindAmount))
-                  : ''}
-              </Text>
+              <View style={styles.totalBlock}>
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>{copy.tabTotal(isExpenditures)}</Text>
+                  <Text testID="payment-list-total" style={[s.body, styles.totalAmount]}>
+                    {formatMoney(data.amount) ?? copy.totalMissing}
+                  </Text>
+                </View>
+                {isAmountAboveZero(data.inKindAmount) ? (
+                  <Text style={[s.small, styles.goodsShare]}>
+                    {copy.goodsShare(formatMoney(data.inKindAmount))}
+                  </Text>
+                ) : null}
+              </View>
             </View>
-            {isExpenditures ? <Text style={s.small}>{copy.listedSpendingNote}</Text> : null}
+            {isExpenditures ? (
+              <Text style={[s.small, styles.listedSpendingNote]}>{copy.listedSpendingNote}</Text>
+            ) : null}
             {visible.length ? (
-              <View>
+              <View style={styles.list}>
                 {visible.map((group, index) => (
                   <PaymentGroup
                     key={group.key}
@@ -212,7 +227,7 @@ export function DonorPaymentList({
                 ))}
               </View>
             ) : (
-              <Text style={[s.body, !query && s.numeric]}>
+              <Text style={[s.body, styles.emptyList, !query && s.numeric]}>
                 {query ? copy.noSearchMatch : copy.emptyTab(current.emptyWord, year)}
               </Text>
             )}
@@ -597,16 +612,49 @@ const styles = StyleSheet.create({
   },
   menuItemHovered: { backgroundColor: '#f3f5f4' },
   menuLabel: { fontSize: 17, fontWeight: '600' },
-  counts: {
+  summary: {
+    marginTop: 2,
+    marginHorizontal: -12,
+    paddingTop: 11,
+    paddingBottom: 12,
+    paddingLeft: 14,
+    paddingRight: 70,
+    borderRadius: 10,
     flexDirection: 'row',
+    alignItems: 'baseline',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
     rowGap: 6,
     columnGap: 20,
   },
-  countText: { fontSize: 15, color: c.secondary, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  totalText: { fontSize: 15, color: c.secondary, fontWeight: '400', fontVariant: ['tabular-nums'] },
-  totalAmount: { color: c.text, fontWeight: '800' },
+  countText: { color: c.text, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  totalBlock: { marginLeft: 'auto', minWidth: 0, maxWidth: '100%' },
+  totalRow: {
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'flex-end',
+    flexWrap: 'wrap',
+    rowGap: 4,
+    columnGap: 12,
+  },
+  totalLabel: { minWidth: 0, flexShrink: 1, fontSize: 15, color: c.secondary, fontWeight: '400' },
+  totalAmount: {
+    minWidth: 0,
+    marginLeft: 'auto',
+    color: c.text,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+    textAlign: 'right',
+  },
+  goodsShare: { color: c.secondary, textAlign: 'right' },
+  listedSpendingNote: { marginTop: 0 },
+  list: {
+    marginTop: -2,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(17,21,15,0.08)',
+  },
+  emptyList: { marginTop: -2 },
   group: { borderTopWidth: 1, borderTopColor: 'rgba(17,21,15,0.08)' },
   groupHead: {
     flexDirection: 'row',
