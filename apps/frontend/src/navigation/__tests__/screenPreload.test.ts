@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
 import { piecePath, piecesLabelledGuide, piecesLabelledResearch } from '../../lib/research';
@@ -54,5 +58,21 @@ describe('screenLoaderForPath', () => {
     const research = piecesLabelledResearch()[0];
     expect(screenLoaderForPath(piecePath(guide))).toBe(screenChunks.Research);
     expect(screenLoaderForPath(piecePath(research))).toBe(screenChunks.Research);
+  });
+});
+
+describe('fetching a screen ahead of time', () => {
+  const SOURCE = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), '..', 'screenPreload.ts'),
+    'utf8',
+  );
+
+  // Calling a loader directly downloads the piece and still leaves the first
+  // draw waiting on it, which cost every page 300 ms
+  // (https://github.com/alethical-org/alethical/issues/2222). Going through
+  // `loadAndRemember` is what lets the screen draw straight away.
+  it('goes through the loader that remembers what arrived', () => {
+    expect(SOURCE).toContain("import { loadAndRemember } from '../lib/loadOnDemand'");
+    expect(SOURCE).not.toMatch(/(?<!AndRemember\()\bload\(\)/);
   });
 });

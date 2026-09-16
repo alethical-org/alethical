@@ -1,3 +1,4 @@
+import { loadAndRemember } from '../lib/loadOnDemand';
 import { screenChunks, type ScreenChunkName, type ScreenLoader } from './screenChunks';
 import { stateFromPathname } from './webRoutes';
 
@@ -44,7 +45,7 @@ export function preloadScreenForPath(pathname: string, timeoutMs = 4000): Promis
     return Promise.resolve();
   }
   return Promise.race([
-    load().then(
+    loadAndRemember(load).then(
       () => undefined,
       () => undefined,
     ),
@@ -68,5 +69,5 @@ export function prefetchScreenForPath(pathname: string): void {
   if (!load) {
     return;
   }
-  void load().catch(() => undefined);
+  void loadAndRemember(load).catch(() => undefined);
 }

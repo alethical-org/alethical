@@ -1,4 +1,4 @@
-<!-- describes: .github/workflows/production-release-failed.yml, apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py, scripts/report_origin_share_by_address.py, apps/frontend/src/lib/committeeConfirmation.ts -->
+<!-- describes: .github/workflows/production-release-failed.yml, apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/loadOnDemand.tsx, apps/frontend/src/navigation/screenPreload.ts, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py, scripts/report_origin_share_by_address.py, apps/frontend/src/lib/committeeConfirmation.ts -->
 
 <!-- describes: apps/frontend/metro.config.js, patches/@expo__metro-config@57.0.7.patch, pnpm-workspace.yaml, pnpm-lock.yaml, apps/frontend/scripts/__tests__/sharedScreenChunks.test.ts, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeePaymentsPage.ts, apps/frontend/src/lib/committeeMoneyShared.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsBundle.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsOnDemand.tsx, apps/frontend/src/lib/committeeOutsideSpending.ts -->
 
@@ -527,6 +527,84 @@ The 2 costs, both accepted:
 - **A later click waits for a screen nobody has downloaded yet.** These files are small,
   and warming the next screen on hover is a separate item on
   [#1966](https://github.com/alethical-org/alethical/issues/1966).
+
+## The 300 ms every page waited before asking for a record, 16 September 2026
+
+**A screen's file was already in the browser and the screen still could not draw for
+300 ms, so every page's first record request left a third of a second late**
+([#2222](https://github.com/alethical-org/alethical/issues/2222)). The wait is gone:
+a piece the browser already holds is now drawn straight, with nothing held back.
+
+React's `lazy` can only read a downloaded piece through a promise, and a promise is
+answered after the draw that asked for it, so the first draw always puts an empty marker
+in that slot. React then refuses to reveal whatever replaces a marker until 300 ms have
+passed, so a slow piece cannot flash an empty box and disappear (`FALLBACK_THROTTLE_MS`
+in React). The screen's file is fetched before React starts
+(`apps/frontend/src/navigation/screenPreload.ts`) and then went through `lazy` anyway, so
+every address paid that 300 ms for a file it already had. The screen mounted 300 ms late,
+and the reads it fires on mount left with it.
+
+Measured against production on 16 September 2026, 1280x900, 5 loads of each address with a
+brand-new browser and no cache, on an unthrottled connection. The figure is the wait
+between the screen's own file finishing and the first request to the data service.
+
+| Address | Wait | Range |
+|---|---:|---|
+| `/` | 273 ms | 265 to 274 |
+| `/bills` | 273 ms | 262 to 279 |
+| `/bills/HF2` | 274 ms | 267 to 277 |
+| `/legislators` | 269 ms | 258 to 275 |
+| `/legislators/aaron-repinski` | 276 ms | 273 to 284 |
+| `/legislators/aaron-repinski?tab=money` | 274 ms | 257 to 276 |
+| `/money` | 267 ms | 251 to 272 |
+| `/money/search?q=smith` | 275 ms | 268 to 275 |
+
+40 loads across 8 addresses, every one between 251 and 284 ms, with no long task anywhere
+in the window and nothing downloading. A wait that is the same on every address, spends no
+processor time and waits on no answer is a clock rather than work, and the clock is that
+300 ms.
+
+**Named from a recording rather than guessed.** A Chrome trace of a first visit to
+`/legislators/aaron-repinski?tab=money` shows 955 tasks in the window adding up to 60 ms
+of work, a single timer installed for exactly the remaining part of a fixed deadline, and
+the deadline being React's own throttle: 2 separate timers set 44 ms apart, for 288 ms and
+244 ms, both landing on the same instant. The first record request left 16 ms after that
+instant.
+
+**Before and after, on the same local release build served beside a copy of the live data
+service**, 3 loads of each address at each speed. The figure is the moment the first record
+request left, counted from the start of the load.
+
+| Speed | Address | Before | After | Sooner |
+|---|---|---:|---:|---:|
+| Unthrottled | `/bills` | 451 ms | 157 ms | 294 ms |
+| Unthrottled | `/legislators/…?tab=money` | 447 ms | 165 ms | 282 ms |
+| 1,600 kbit, 150 ms, processor 4x slower | `/bills` | 8,014 ms | 7,759 ms | 255 ms |
+| 1,600 kbit, 150 ms, processor 4x slower | `/legislators/…?tab=money` | 8,402 ms | 8,131 ms | 271 ms |
+| 400 kbit, 400 ms, processor 6x slower | `/bills` | 8,001 ms | 7,780 ms | 221 ms |
+| 400 kbit, 400 ms, processor 6x slower | `/legislators/…?tab=money` | 8,392 ms | 8,150 ms | 242 ms |
+
+**The throttled totals belong to a plain local file server under an emulated slow
+connection and describe no visitor.** What the 2 columns share is the build, the server and
+the profile, so the difference between them is the finding and the totals are not.
+
+**The reader sees the app sooner too, not only the records.** On the same local build the
+app's own words reached the screen at 452 to 487 ms before and 145 to 146 ms after on
+`/bills`, because the empty marker was the whole page for those 300 ms. On production a
+server-written text snapshot covers that moment, so what a reader gains there is the app's
+own chrome and its records arriving earlier rather than an empty page ending sooner.
+
+**What still goes through the old path, deliberately.** A piece nobody fetched ahead of
+time still draws an empty marker and still waits: the footer's social links, the sign-in
+machinery, and a screen reached by a click that no hover warmed. None of them hold up a
+record request, because the screen around them has already drawn and already asked.
+
+**The same 300 ms returns the moment a piece is fetched by calling its loader directly**,
+because only `loadAndRemember` in `apps/frontend/src/lib/loadOnDemand.tsx` records what
+arrived. `apps/frontend/src/navigation/__tests__/screenPreload.test.ts` fails if the
+fetch-ahead path stops going through it, and
+`apps/frontend/src/lib/__tests__/loadOnDemand.test.tsx` fails if a piece the browser
+already holds goes back to drawing an empty marker first.
 
 ## Shared screen code stays with the screen, 13 September 2026
 
