@@ -22,10 +22,19 @@ export function Dek({ segments }: { segments: readonly DekSegment[] }) {
   const s = useDetailsStyles();
   if (segments.length === 0) return null;
   return (
-    <Text style={s.small}>
+    <Text style={[s.small, { maxWidth: 900 }]}>
       {segments.map((segment, index) => (
         <Text key={index} style={segment.bold ? styles.term : undefined}>
-          {segment.text}
+          {segment.bold && segment.text === 'non-itemized contributions' ? (
+            <>
+              <Text style={{ whiteSpace: 'nowrap' } as import('react-native').TextStyle}>
+                non-itemized
+              </Text>{' '}
+              contributions
+            </>
+          ) : (
+            segment.text
+          )}
         </Text>
       ))}
     </Text>

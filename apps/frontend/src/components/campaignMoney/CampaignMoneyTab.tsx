@@ -54,6 +54,7 @@ import { useResponsive } from '../../hooks/useResponsive';
 import {
   CampaignMoneyCardTheme,
   CheckedByBlock,
+  CampaignDownloadsLink,
   FilingStamp,
   MoneyInBlock,
   MoneyOutBlock,
@@ -121,6 +122,7 @@ export function CampaignMoneyTab({
   onOpenSource,
 }: Props) {
   const type = useCampaignMoneyTypography();
+  const { isMobile, isTablet } = useResponsive();
   // Keep reader choices above the loading branch: changing years temporarily
   // removes committee cards, but must not reset their chosen tab or sort.
   const [preferences, setPreferences] = React.useState<Record<string, MoneyDetailsPreferences>>({});
@@ -194,7 +196,11 @@ export function CampaignMoneyTab({
   );
 
   return (
-    <View style={styles.wrap} role="region" aria-label="Campaign money">
+    <View
+      style={[styles.wrap, { gap: isMobile ? 24 : isTablet ? 32 : 36 }]}
+      role="region"
+      aria-label="Campaign money"
+    >
       {/* This tab is the one money surface showing dollar figures, and it is
           still partially built (#1642, #1645, #1650, #1663). Boxed rather than
           full-bleed: the tab opens inside a content column, below the profile
@@ -431,7 +437,6 @@ function CommitteeCard({
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { isMobile, isTablet } = useResponsive();
   const type = useCampaignMoneyTypography();
-  const text = useDetailsStyles();
   const name = committee.committeeName || committee.committeeNameAsReviewed;
   // The filing's period and link, once, above both cards — never inside one. The
   // tab's own freshness note at the foot carries the day we copied the files, so the
@@ -474,9 +479,6 @@ function CommitteeCard({
   return (
     <CampaignMoneyCardTheme>
       <View style={{ gap: 12 }}>
-        {committee.split.state === 'no_reported_total' ? (
-          <Text style={text.body}>{splitExplanation(committee.split.state)}</Text>
-        ) : null}
         <View style={[styles.card, isTablet && styles.cardTablet, isMobile && styles.cardMobile]}>
           {/* The registration number rides on the name line, in the state's own
               listing format. The eyebrow that used to sit above carried 3 facts and
@@ -508,25 +510,22 @@ function CommitteeCard({
               isMobile={isMobile}
             />
           ) : (
-            <>
-              {paymentDateRangeLabel(
-                committee.split.firstPaymentOn,
-                committee.split.lastPaymentOn,
-              ) ? (
-                <Text style={[text.body, text.numeric]}>
-                  {paymentDateRangeLabel(
-                    committee.split.firstPaymentOn,
-                    committee.split.lastPaymentOn,
-                  )}
-                </Text>
-              ) : null}
-              {/* The row belongs inside the stamp panel, whose subject it shares. A
-                  year with no filing draws no panel, and the row still draws: it is
-                  the only way from this card to everything we hold on the committee,
-                  and losing it in the emptiest year is losing it where a reader most
-                  wants more. */}
-              {recordAndSchedule}
-            </>
+            <FilingStamp
+              line={
+                paymentDateRangeLabel(
+                  committee.split.firstPaymentOn,
+                  committee.split.lastPaymentOn,
+                ) ?? String(year)
+              }
+              detail={
+                committee.split.state === 'no_reported_total'
+                  ? (splitExplanation(committee.split.state) ?? '')
+                  : ''
+              }
+              ourRecord={recordAndSchedule}
+              covered
+              isMobile={isMobile}
+            />
           )}
           <CommitteeDonations
             committee={committee}
@@ -541,6 +540,7 @@ function CommitteeCard({
                 <MoneyInBlock
                   surface="profile"
                   withDonorBreakdown
+                  showSource={false}
                   split={committee.split}
                   moneyIn={committee.moneyIn}
                   isBallot={false}
@@ -559,7 +559,10 @@ function CommitteeCard({
             </View>
           </CommitteeDonations>
           {/* The stored check belongs to this committee, at the foot of its card. */}
-          <CheckedByBlock checked={committee.checked} />
+          <View style={styles.cardFoot}>
+            <CheckedByBlock checked={committee.checked} />
+            <CampaignDownloadsLink sourceUrl={committee.moneyIn?.sourceUrl} />
+          </View>
         </View>
       </View>
       <CommitteeDonationCards
@@ -799,7 +802,8 @@ const styles = StyleSheet.create({
   // Two cards rather than 2 bare columns divided by a rule (#2182). They wrap on their
   // own at 270px, so the phone band needs no separate direction: the same row becomes a
   // stack when only one card fits.
-  figures: { flexDirection: 'row', flexWrap: 'wrap', gap: 18, alignItems: 'flex-start' },
+  figures: { flexDirection: 'row', flexWrap: 'wrap', gap: 18, alignItems: 'stretch' },
+  cardFoot: { marginTop: 14, gap: 14 },
   figureColumn: {
     flexGrow: 1,
     flexShrink: 1,

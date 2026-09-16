@@ -108,8 +108,8 @@ unfinished clerical job of ours.
 
 **Everything about one committee stays together, and the block repeats for each one.**
 A committee's card comes first, then its 3 selected-year donation cards: **What the
-committee’s own report says**, **Where itemized individual donations came from**, and
-**Names that also gave to other candidates**. Then come that committee's **How the mix
+committee’s own report says**, **Where itemized individual contributions came from**, and
+**Contributor names also listed for other candidates**. Then come that committee's **How the mix
 of itemized contributions changed by year** chart and its **Refunds Minnesota paid this
 committee's donors** card. The mix chart repeats the donor kinds from **Who gave**
 across years, using only itemized contributions. **Spending by outside groups**
@@ -270,9 +270,9 @@ we hold, which is why both get the same honest wording.
 
 ### The filing stamp, and the 2 ways out of the card
 
-Under the committee's name sits a grey panel. Its first line is the period the figures
-cover, taken from the report itself. Under that, in ordinary type rather than bold, are
-2 sentences:
+Under the committee's name sits a grey panel in every year. When an official total
+is held, its first line is the period taken from the report. Under that, in ordinary
+type rather than bold, are 2 sentences:
 
 > The committee filed this report with the Minnesota Campaign Finance Board, which prints
 > both dates
@@ -283,7 +283,7 @@ The second sentence starts on its own line, a hair under the first. The standalo
 first sentence has no ending period; when a copy-date or party-unit explanation follows
 in the same paragraph, a period separates the sentences. Where the report
 names only an end date and no start, the first sentence reads "which prints the date"
-instead. Those are the only 2 forms, and the same 2 sentences print here, on a
+instead. These official-report forms also print on a
 committee's own page at `/money/committees/<name>-<number>`, and on that committee's
 payments list. One wording, so the 3 pages cannot drift apart.
 
@@ -292,11 +292,11 @@ committee's own page on the Board's site.** Minnesota gives every registered fil
 keyed on the registration number the card prints, and the kind of filer decides the part
 of the address in front of that number:
 
-| What our copy of the register calls the filer | What the address says |
-| --- | --- |
-| Candidate committee | `candidates` |
-| Party unit | `party-unit` |
-| Political committee or fund | `political-committee-fund` |
+| What our copy of the register calls the filer | What the address says      |
+| --------------------------------------------- | -------------------------- |
+| Candidate committee                           | `candidates`               |
+| Party unit                                    | `party-unit`               |
+| Political committee or fund                   | `political-committee-fund` |
 
 So Jim Abeler's Senate committee opens at
 `https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/17868/2026/`, and
@@ -309,9 +309,10 @@ a reader in a search their committee can never appear in
 
 The panel's last row is a link on our own site, **Everything we hold on this committee**,
 which opens `/money/committees/<name>-<number>`. It sits inside the panel because it is
-about the same committee the dates describe. In a year where the committee filed nothing,
-no panel draws, and that row still draws under the card's heading: it is the only way from
-the card to the committee's own page, and the emptiest year is when a reader most wants it.
+about the same committee the dates describe. Without a held official total, the panel
+uses the first and last payment dates, or the selected year when those dates are absent.
+Its explanation identifies the missing official total and the itemized source. It makes
+no claim about whether the committee filed. The record link and schedule remain inside.
 
 ### The filing-schedule note
 
@@ -360,8 +361,8 @@ by Eugene on 11 Sep 2026:
   site, sit once in a grey filing stamp above the money-in and money-out blocks rather
   than under either figure: one filing produces both, so stating it per figure would state
   one fact twice.
-- **Itemized contributions.** The state publishes a spreadsheet of the donations it
-  required each committee to name. This is what that spreadsheet holds for the year, with
+- **Itemized contributions.** The state publishes a spreadsheet of donations listed by name,
+  including smaller donations a committee chose to itemize. This is what that spreadsheet holds for the year, with
   the dates of the first and last payment. Always drawn: a real amount, or the words
   "Not reported", never a blank.
 
@@ -420,7 +421,7 @@ Board's own totals exclude it. **A row the state types `Miscellaneous` is not dr
 by Eugene, 11 Sep 2026), and when that was the only such row the heading is not drawn
 either. Every other kind still is.
 
-The money-in block's **Minnesota's campaign-finance downloads** link opens the
+The committee card's foot carries **Minnesota's campaign-finance downloads**, after and outside the human-check evidence. It opens the
 Board's downloads page (`https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/`).
 The address the server sends is the bulk download itself, which streams a 9 MB statewide
 spreadsheet with no page behind it, so the card strips the `?download=` part and links to
@@ -450,8 +451,8 @@ The 2 label words are the only bold ones, so a reader matches the same words her
 the card. A ballot-question committee's line is $500 and its sentence says so. The last 2
 sentences are dropped wherever no Non-itemized figure draws, because there is then only 1
 contribution figure and nothing to tell apart; in the named-donations-only state the
-opening sentence instead reads "Shares of the named donations this year, excluding
-donated goods and services."
+opening sentence instead reads "Shares of itemized contributions this year, excluding
+donated goods and services"
 
 **The chart is downloaded separately from the rest of the page, and the paragraph is not.**
 While that piece is arriving, or if it fails, the 2 sentences explaining the labels still
@@ -546,7 +547,7 @@ message, not the first page's subtotal as though it were the whole year. Repeate
 payments are kept, never silently removed.
 The show-more button fits its label instead of stretching across the list. It is at
 least 44px tall, with 18px side padding, a 12px corner radius and a light border.
-It sits 14px below the last name. The checked block begins 24px below this button, or
+It sits 14px below the last name. The checked block begins 30px below this button, or
 below the last name when no button is needed. Its fine top line is the only full-width
 line there, with 18px between the line and the checked text.
 
@@ -590,8 +591,8 @@ A registered committee's name is an ordinary link to
 a page. It can be opened in a new tab or copied. Private donor and vendor names are plain
 text on this profile, as is any committee name without an available destination. Valid
 committee links are green (`#0f7a45`) and underlined; the expand control is separate
-from any committee link. Donor overlap and individual donor profiles are outside this
-build. The existing exact-name
+from any committee link. The separate shared-name card compares exact contributor spellings across candidate
+committees; it does not establish individual identities. The existing exact-name
 lookup at `/money/payments?name=…&role=contributor` remains a separate feature, not proof
 that 2 records belong to the same person.
 
@@ -602,14 +603,12 @@ committee has its own history from 2015 through the current year. The heading re
 “How the mix of itemized contributions changed by year”. The card does not repeat the
 committee's name, because it sits inside that committee's own block.
 
-The note reads “Non-itemized contributions cannot be split by kind”, with no final
-period. It uses the card's full available width with `text-wrap: pretty`. Neither
-contribution term receives separate bold emphasis here.
+The note reads “Each bar shows the percentage of dollars from each donor kind, excluding donated goods and services”, with no final period. It has a 900px maximum width and `text-wrap: pretty`. Neither contribution term receives separate bold emphasis here.
 
 Each year's bar uses that year's itemized cash contributions only. Non-itemized money
 and goods and services never enter those shares. Its categories keep the donor-tab
 labels: Individuals, Lobbyists, Committees & Funds, Party Units, and Other kinds when
-present. A year with no named rows is labelled as such, and a year whose cash amounts
+present. A year with no itemized rows reads “No itemized contributions listed”, and a year whose cash amounts
 cannot support a chart says a breakdown is unavailable.
 
 The history starts loading after the selected year's received and made lists finish.
@@ -674,8 +673,7 @@ money section, without needing a legislator confirmation.
 **What the committee’s own report says** opens with “Contributions reported by the
 committee, beside itemized contributions in the state’s list”. It prints the 5 filing
 lines beside the itemized cash assigned to each line and their difference, followed by
-“The differences add up to total non-itemized contributions”. Its final row, **All five
-added up**, adds the unrounded source amounts before cutting cents for display. The
+“Non-itemized contributions = total contributions − itemized contributions”. Its final row, **Total**, adds the unrounded source amounts before cutting cents for display. The
 difference column's total equals the chart's Non-itemized contributions figure.
 The row totals live beside their 5 source rows, rather than in the summary above.
 
@@ -688,7 +686,7 @@ rows through the filing's coverage end, including undated rows as the source
 comparison does. For 17868 in 2025, it is 1 payment of $500. The 5-line totals are
 $97,703 reported, $67,100 itemized cash and $30,603 difference.
 
-**Where itemized individual donations came from** shows Minnesota, other states and
+**Where itemized individual contributions came from** shows Minnesota, other states and
 unknown, with a name count and cash amount for each. Other-state rows expand into
 full state names. A checked zero stays $0. No individual donation rows produces the
 selected year's empty sentence. Cash with no printed name remains visible in its
@@ -699,10 +697,10 @@ Minnesota 71 names / $38,700; other states 0 / $0; unknown 3 / $1,250. A printed
 can occur in more than 1 state, so the card does not invent a total count across
 state rows.
 
-**Names that also gave to other candidates** prints the exact-spelling numerator and
+**Contributor names also listed for other candidates** prints the exact-spelling numerator and
 denominator beside its caveat that spelling is not identity. It draws a 22px bar
 with 5 neutral greys, a swatch and count for each of 0, 1, 2, 3 and 4 or more other
-candidate committees, and the 5 highest names. For 17868 in 2025 the headline is
+candidate committees, and up to 5 names with the highest positive counts. Names with 0 other committees are omitted from that list. For 17868 in 2025 the headline is
 19 of 74 names, and the distribution is 55 / 11 / 5 / 1 / 2. This is a same-year
 count, not a money total or a claim that spelling identifies a person.
 
@@ -733,20 +731,14 @@ spelling caveat, payment-count note and location privacy match the shared compon
 ### Refunds Minnesota paid a committee's donors
 
 Below each confirmed committee's own year-by-year chart is a separate card headed
-**Refunds Minnesota paid this committee's donors**. It shows the state's payments back
+**Refunds Minnesota paid to this committee's donors**. It shows the state's payments back
 to that committee's donors, never money the committee received. Each committee keeps
 its own card, and no year or page total is calculated.
 
 The introduction reads:
 
-> Minnesota pays a resident back for a gift to a state candidate, up to $75 a year for
-> one person and $150 for a married couple filing jointly. This is money the state
-> returned to donors, not money the committee received.
-
-**filing jointly**, the same words as the note under the table, because that is the
-Board's own wording and the phrase a reader meets on the refund form. **one person**
-rather than the numeral, which put a third figure in a sentence that already carries 2
-amounts. Both amounts are the Board's own, read at source on 13 September 2026.
+> Minnesota refunds eligible contributions to state candidates, up to $75 per person or
+> $150 per married couple filing jointly each year. Refunds go to donors, not the committee.
 
 The table keeps **Year**, **Contributions refunded**, and **Amount refunded** in
 3 columns, including on a phone. The 2 figure columns hold a fixed width for the screen
@@ -757,8 +749,7 @@ computer and a tablet, 6 on a phone) so the 2 capitalised headings separate whil
 cell stays flush right; the figures below them carry no such gap, so each still lines up
 under its own heading. On a phone the 2 headings are set with tighter spacing between
 their letters, because **Contributions refunded** needs more room than that column leaves
-and would otherwise be broken in the middle of the word. The introduction above the table runs the card's full width, the
-same measure as the table. It lists all held refund years newest first,
+and would otherwise be broken in the middle of the word. The introduction above the table has a maximum width of 900px. It lists all held refund years newest first,
 regardless of the campaign-money year selected above it. Amounts use the tab's
 existing dollar formatting. The source amount $14,216.47 therefore displays as
 $14,216, with its cents preserved in the data.
@@ -788,9 +779,9 @@ numbers belong to the office column and are never treated as refund counts.
 Under the table sit 3 plain notes, in this order, with no bullets and no dot at the end
 of any of them:
 
-> The Board counts a married couple filing jointly as one contribution
+> A married couple filing jointly counts as 1 contribution
 
-> Matched to the Board's yearly summary by candidate name, office and party
+> Matched by exact candidate name, office and party in the Board's yearly summary
 
 > Board summary files copied {newest copy date}
 
@@ -970,6 +961,7 @@ saying zero:
    a bare zero has no way to tell nothing-spent from nothing-held. The filing-schedule
    note inside each committee card carries the ballot fact too, but it sits far above
    this card.
+
 3. **No confirmed committee yet** — **0 of the 200 sitting members, as of the end of the
    31 August 2026 review sitting.** All 200 had at least one confirmed account on that day.
    This read "56 of the 200" earlier the same day, while that sitting was still running.
@@ -1006,14 +998,14 @@ normal weight (400). Small explanatory text throughout the money section is at l
 
 **The card's only link goes to the Board's downloads page, and a line under it names the
 file.** The link reads **Minnesota's campaign-finance downloads**, the same words the
-money-in card uses for the same place, and beneath it, not a link:
+committee foot uses for the same place, and beneath it, not a link:
 
 > These figures come from its file "Itemized independent expenditures of over $200"
 
 That is the Board's own row label on that page, read there on 13 September 2026, and
 **its** means the page named on the line above. The address is built from the one the
 service sends by cutting everything from the question mark onwards, exactly as the
-money-in card does, so a future release number cannot break it. The address the service
+committee foot does, so a future release number cannot break it. The address the service
 sends is the bulk download itself, which streams a statewide spreadsheet with nothing
 readable behind it, and the word **filings** was the state's own word for the reports a
 committee files, which that file is not.
@@ -1045,14 +1037,14 @@ says why.
 | "The state's separate list of donations holds none of them for this year — so the names are missing from what we can show you, not from what the committee filed." | The filing names donors and our copy of the donation spreadsheet carries no row at all for that committee-year         | 14 committee-years                                                            |
 | "This committee filed its report for this year and then corrected it."                                                                                             | A subtraction refuses to run and the Board's catalogue records that the committee refiled the year's report            | 1 committee-year                                                              |
 | "These two figures will not line up, and we cannot tell why."                                                                                                      | A subtraction refuses to run and nothing we hold says why                                                              | 0 committee-years                                                             |
-| "The state has not published a report for this committee covering this year."                                                                                      | No official total we can stand behind for that year                                                                    | 7,442 committee-years                                                         |
+| "We do not hold an official contribution total for this committee for this year. The amounts listed come from itemized contributions in Minnesota’s file."         | No official total we can stand behind for that year                                                                    | 7,442 committee-years                                                         |
 | "We cannot tell whether every donor stayed under the naming threshold or whether donations are missing from the list."                                             | The committee reported money and the spreadsheet names none of it, and nobody has read the filing to find out which    | 468 committee-years                                                           |
 
 Counts measured against the live release on 19 August 2026, across every committee-year
 the release covers rather than candidate committees alone. They are evidence, not a
-requirement. Read them together: the 7,442 is mostly committee-years whose official total
-was never published rather than a failure of anything, and 3,062 committee-years do show a
-full split.
+requirement. In that release, 7,442 committee-years lacked an official total we could
+stand behind; that does not establish whether a committee filed. Another 3,062
+committee-years showed a full split.
 
 **And 20 of those 62 were never a disagreement, which is the correction of 28 August 2026.**
 Minnesota names only the donors who had passed $200 by a report's own cut-off date. Its
@@ -1266,18 +1258,18 @@ into our wording.
 
 **Three of the 6 are facts about the committee:**
 
-| The reader is told                                                                                                                                                 | When                                                                          |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| It is on this year's ballot, so it is on the election-year schedule, and its next report is named with its due date and the stretch of time it covers              | The state has scheduled a pre-primary or pre-general report for it this year  |
+| The reader is told                                                                                                                                                 | When                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| It is on this year's ballot, so it is on the election-year schedule, and its next report is named with its due date and the stretch of time it covers              | The state has scheduled a pre-primary or pre-general report for it this year                        |
 | It is not on this year's ballot, so it is on the schedule for candidates who are not running, which asks for a report once a year rather than around each election | A published annual-only calendar applies, or election reports came due and the state scheduled none |
-| It closed its registration with the state on a named day, so no further report is due from it                                                                      | The Board's filer record carries a termination date                           |
+| It closed its registration with the state on a named day, so no further report is due from it                                                                      | The Board's filer record carries a termination date                                                 |
 
 **The other 3 are our own unfinished work, and every one says so:**
 
-| The reader is told                                                                                                                    | When                                                                                                                    |
-| ------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| We cannot say, because it filed for a special election and special elections run on their own set of periods we have not written down | It has a special-election report this year                                                                              |
-| We cannot say, because we have not yet copied in the filing calendar covering this committee for this year                            | The year or office is not covered by a copied calendar  |
+| The reader is told                                                                                                                    | When                                                                             |
+| ------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| We cannot say, because it filed for a special election and special elections run on their own set of periods we have not written down | It has a special-election report this year                                       |
+| We cannot say, because we have not yet copied in the filing calendar covering this committee for this year                            | The year or office is not covered by a copied calendar                           |
 | We cannot say, because our copy of the state's own list of filings cannot answer it                                                   | No filings copied, no record for this committee-year, or evidence read too early |
 
 **Keeping those two halves apart is the whole point.** "We have not typed in that
@@ -1371,7 +1363,7 @@ opens. That split is deliberate: the data describes records and the page frames 
   `GET /api/v1/legislators/{id}/campaign-finance?year=YYYY`.
   `alethical/pipeline/campaign_finance_reader.py` reads the saved payment files.
   Separate services read filed figures and calculate the optional `stated_by_kind`,
-  `donor_states`, and `name_connections` blocks; the tab does not display those blocks yet.
+  `donor_states`, and `name_connections` blocks displayed by the 3 donation cards.
   The name comparison counts exact printed spellings shared with other candidate
   registrations in the same year; it does not identify people or add their money.
   Every amount is stamped with the committee that reported it so a person's committees
@@ -1384,7 +1376,44 @@ Alethical's own data service; searching the loaded names stays in the browser. C
 names with a known destination open `/money/committees/{name}-{number}`. Official-source
 links open the Minnesota Campaign Finance Board's website.
 
-
 Docs check: The lobbying display release removes the former section notice and adds
 registration-based expanded links on both legislator and committee donation lists.
 The existing year controls, contribution figures and source checks are unchanged.
+
+### Card spacing, labels and interactions
+
+The filing comparison retains its introduction. Its 3 figure headings read **Total
+contributions in report**, **Itemized contributions in state’s list**, and
+**Non-itemized contributions (calculated)**. Each heading uses 3 aligned lines on wide
+screens. The calculated total gets a pale grey background, with the amount aligned to
+its column. Closing-candidate notes count payments, never infer a committee count.
+
+The locations card ends with “Unknown means the state's file has no usable ZIP code to
+identify the donor's state”. ZIP values never reach visible or hidden page content.
+The shared-name caveat reads “Matched by exact spelling in the state's file. A match
+does not prove it is the same person; different spellings count separately.” Both
+numeric table headings name **Other candidate committees**; the name heading is
+**Names with the most matches**. Counts are 0, 1, 2, 3 and 4 or more.
+
+The history legend always follows Individuals, Lobbyists, Committees & Funds, Party
+Units, Other kinds, omitting kinds absent from every year. Leading empty years can be
+revealed with **Show earlier years** and hidden again; internal gaps stay visible.
+A completely empty history keeps its years visible. Every year remains available in
+the main year selector. Thin bars show a persistent percentage readout on pointer and
+keyboard interaction. A 44px **View percentages** button for each populated year also
+exposes every share for that year, including on touch screens. These are shares of
+itemized cash, not the donut's shares of total contributions.
+
+Every selected year has the grey period panel. Where no official contribution total
+is held, the panel contains the available payment dates (or the selected year when
+there are none), the missing-total explanation, the committee link and filing note.
+That explanation does not imply the committee failed to file or that smaller donors
+cannot be itemized. The human-check evidence and the downloads link remain separate.
+
+Card gaps are 36px on computers, 32px on tablets and 24px on phones. Introductions have
+a 900px maximum width. Money in and Money out stretch to equal height side by side;
+on phones each grows to fit its own contents. The committee foot starts 30px after
+the names section, and the downloads link sits 14px after the human-check block.
+
+Docs check: Updated the visible wording, period and source placement, card spacing,
+shared-name counts and accessible history interactions for the approved UX20 build.

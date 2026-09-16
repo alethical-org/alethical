@@ -127,6 +127,31 @@ function doc(html: string): Document {
 }
 
 describe('the money tab after the 13 Sep refinements', () => {
+  it('places the downloads link after the human check and outside that evidence block', () => {
+    const page = doc(
+      render([
+        committee({
+          checked: {
+            checkedOn: '2026-08-31',
+            nameEvidence: 'exact',
+            registerVerdict: 'same_seat',
+            partyAgreement: 'agrees',
+          },
+        }),
+      ]),
+    );
+    const source = [...page.querySelectorAll('a')].find((node) =>
+      node.textContent?.includes('Minnesota’s campaign-finance downloads'),
+    )!;
+    const check = source.previousElementSibling!;
+    expect(check.textContent).toContain('Checked by Alethical');
+    expect(check.querySelector('a')).toBeNull();
+    expect(check.contains(source)).toBe(false);
+    expect(source.getAttribute('href')).toBe(
+      'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/',
+    );
+  });
+
   it.each([
     {
       year: 2025,
@@ -281,7 +306,7 @@ describe('the money tab after the 13 Sep refinements', () => {
     expect(run.querySelector('svg')).not.toBeNull();
   });
 
-  it('keeps the way to everything we hold even in a year with no filing', () => {
+  it('keeps the period panel and record link when no official total is held', () => {
     const page = doc(
       render([
         committee({
@@ -291,7 +316,10 @@ describe('the money tab after the 13 Sep refinements', () => {
       ]),
     );
     expect(page.body.textContent).toContain(moneyDetailsPageCopy.fullRecord);
-    // No stamp draws, and the Board link lives inside the stamp's sentence.
+    expect(page.body.textContent).toContain('We do not hold an official contribution total');
+    expect(page.body.textContent).toContain('The amounts listed come from itemized contributions');
+    expect(page.body.textContent).toContain('Jan 6, 2026');
+    // No report-period link is inferred from payment dates.
     expect(page.body.textContent).not.toContain(BOARD_RECORD_LINK_LABEL);
   });
 });

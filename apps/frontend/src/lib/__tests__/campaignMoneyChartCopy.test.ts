@@ -19,7 +19,7 @@ import { unnamedFigureDraws } from '../contributionFigures';
 const SHARES =
   'Shares of the contributions this committee reported, excluding donated goods and ' + 'services.';
 const NAMED_ONLY_SHARES =
-  'Shares of the named donations this year, excluding donated goods and services.';
+  'Shares of itemized contributions this year, excluding donated goods and services';
 const DEFINITION =
   'Itemized contributions list donor names and amounts; non-itemized contributions ' +
   'are reported as a combined total without names. Minnesota requires donors to be named ' +
@@ -53,8 +53,9 @@ describe('the dek above the donor chart', () => {
   it('drops the last 2 sentences wherever no non-itemized figure draws', () => {
     for (const namedOnly of [false, true]) {
       const dek = dekText(copy.chartExplanation(namedOnly, false, false));
-      expect(dek).toBe(namedOnly ? NAMED_ONLY_SHARES : SHARES);
-      expect(dek).not.toContain('itemized contributions');
+      expect(dek).toBe(namedOnly ? NAMED_ONLY_SHARES : SHARES.slice(0, -1));
+      expect(dek).not.toMatch(/\.$/);
+      expect(dek).not.toContain('non-itemized contributions');
       expect(dek).not.toContain('$200');
     }
   });

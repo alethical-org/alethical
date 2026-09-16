@@ -119,7 +119,7 @@ function render(committees: CampaignCommitteeMoney[], filingsCopiedAt?: string |
 
 const MIX = 'How the mix of itemized contributions changed by year';
 // Static markup escapes the apostrophe, so the heading is matched as it is served.
-const REFUNDS = 'Refunds Minnesota paid this committee&#x27;s donors';
+const REFUNDS = 'Refunds Minnesota paid to this committee&#x27;s donors';
 const OUTSIDE = 'Spending by outside groups';
 
 describe('the order of the Campaign money tab', () => {

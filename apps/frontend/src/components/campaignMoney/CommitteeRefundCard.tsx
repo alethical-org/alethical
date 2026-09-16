@@ -85,7 +85,10 @@ export function CommitteeRefundCard({ refunds, registrationNumber }: Props) {
         {copy.heading}
       </Text>
       <Text
-        style={[styles.body, { fontSize: type.body, lineHeight: type.body * 1.55, marginTop: 12 }]}
+        style={[
+          styles.body,
+          { fontSize: type.body, lineHeight: type.body * 1.55, marginTop: 12, maxWidth: 900 },
+        ]}
       >
         {copy.introduction}
       </Text>

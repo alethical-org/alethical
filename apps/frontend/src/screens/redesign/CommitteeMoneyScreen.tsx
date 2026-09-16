@@ -23,6 +23,7 @@ import {
   CardHeading,
   CampaignMoneyCardTheme,
   CheckedByBlock,
+  CampaignDownloadsLink,
   Figure,
   FilingStamp,
   MoneyInBlock,
@@ -561,6 +562,7 @@ function CommitteeBody({
           </View>
         )}
       </PaymentsSection>
+      <CampaignDownloadsLink sourceUrl={money.moneyIn?.sourceUrl} />
 
       <View style={styles.coverageCard}>
         <Text style={styles.coverageHead}>{RECORD_COVERS_HEADING.toUpperCase()}</Text>
@@ -659,7 +661,7 @@ function MoneyInCard({
     // closed committee's final report we do not hold, and a year no filing covers.
     const closed = state === 'closed-empty';
     return (
-      <View style={styles.card}>
+      <View style={[styles.card, isMobile && styles.cardMobile]}>
         <CardHeading surface="committee">{MONEY_IN_HEADING}</CardHeading>
         <Figure
           label={MONEY_IN_REPORTED_LABEL}
@@ -690,10 +692,11 @@ function MoneyInCard({
     );
   }
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, isMobile && styles.cardMobile]}>
       <MoneyInBlock
         surface="committee"
         withDonorBreakdown={withDonorBreakdown}
+        showSource={false}
         split={money.split}
         moneyIn={money.moneyIn}
         isBallot={isBallot}
@@ -706,7 +709,7 @@ function MoneyInCard({
 
 function MoneyOutCard({ money, isMobile }: { money: CommitteeMoney; isMobile: boolean }) {
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, isMobile && styles.cardMobile]}>
       <MoneyOutBlock
         surface="committee"
         moneyOut={money.moneyOut}
@@ -1274,10 +1277,9 @@ const styles = StyleSheet.create({
   // Phone band: the label sits above 2 equal halves of the row, never beside pills.
   yearRowMobile: { flexDirection: 'column', flexWrap: 'nowrap', alignItems: 'stretch', gap: 8 },
   stampWrap: { marginTop: 20 },
-  // `flex-start`, never `stretch`: each card is as tall as its own data and is never
-  // levelled against its neighbour. Money out holds fewer elements and looks it.
-  cardsGrid: { marginTop: 24, flexDirection: 'row', gap: 22, alignItems: 'flex-start' },
+  cardsGrid: { marginTop: 24, flexDirection: 'row', gap: 22, alignItems: 'stretch' },
   cardsGridMobile: { flexDirection: 'column' },
+  cardMobile: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: '100%' },
   card: {
     flex: 1,
     backgroundColor: t.colors.surfaces.base,

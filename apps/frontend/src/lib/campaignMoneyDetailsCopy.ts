@@ -27,11 +27,11 @@ export const moneyDetailsCopy = {
   chartExplanation: (namedOnly: boolean, hasUnnamed: boolean, isBallot: boolean): DekSegment[] => [
     {
       text: namedOnly
-        ? 'Shares of the named donations this year, excluding donated goods and services.'
+        ? 'Shares of itemized contributions this year, excluding donated goods and services'
         : 'Shares of the contributions this committee reported, excluding donated goods and ' +
-          'services.',
+          'services',
     },
-    ...(hasUnnamed ? [{ text: ' ' }, ...namedMoneyDefinition(isBallot)] : []),
+    ...(hasUnnamed ? [{ text: '. ' }, ...namedMoneyDefinition(isBallot)] : []),
   ],
   kindMissing: 'Kind not given',
   names: (count: number) => `${count} ${count === 1 ? 'name' : 'names'}`,
@@ -69,8 +69,18 @@ export const moneyDetailsCopy = {
   currentSort: (label: string) => `Sort names, currently ${label}`,
   sortOption: (label: string, selected: boolean) => `${label}${selected ? ', selected' : ''}`,
   historyHeading: 'How the mix of itemized contributions changed by year',
-  historyExplanation: 'Non-itemized contributions cannot be split by kind',
-  historyEmpty: 'No named rows',
+  historyExplanation:
+    'Each bar shows the percentage of dollars from each donor kind, excluding donated goods and services',
+  historyEmpty: 'No itemized contributions listed',
+  historyShowEarlier: 'Show earlier years',
+  historyHideEarlier: 'Hide earlier years',
+  historyViewPercentages: 'View percentages',
+  historyHidePercentages: 'Hide percentages',
+  historyPercentagesLabel: (year: number, expanded: boolean) =>
+    `${expanded ? 'Hide' : 'View'} percentages for ${year}`,
+  historyPercentagesHeading: (year: number) => `Itemized contribution percentages for ${year}`,
+  historyReadoutHint: 'Point to a segment, tap it, or reach it with the keyboard for its share',
+  historyLegend: 'Donor kinds',
   historyUnavailable: 'A cash breakdown is unavailable',
   chooseYear: (year: number) => `Choose ${year}`,
 } as const;
