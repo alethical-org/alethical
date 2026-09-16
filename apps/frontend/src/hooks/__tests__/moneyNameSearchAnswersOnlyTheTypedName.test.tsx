@@ -100,7 +100,6 @@ function mountSearch(firstQuery: string) {
   };
 }
 
-/** Let every already-resolved promise settle and React draw what came of it. */
 /** Let the answers already in hand settle, and React draw what came of them. */
 async function settle() {
   for (let pass = 0; pass < 4; pass += 1) {
@@ -126,6 +125,8 @@ describe('the money name search answers only the name the reader typed', () => {
         // Only the first name is ever answered, so a kept answer is the only
         // thing that could put rows on screen after the change.
         if (name !== 'smith') return new Promise(() => {});
+        // A real response need not arrive within a fixed number of event-loop turns.
+        await new Promise((resolve) => setTimeout(resolve, 20));
         return new Response(JSON.stringify(answerFor('smith')), {
           headers: { 'content-type': 'application/json' },
         });
@@ -133,8 +134,10 @@ describe('the money name search answers only the name the reader typed', () => {
     );
 
     const search = mountSearch('smith');
-    await settle();
-    expect(search.latest().data).toMatchObject({ query: 'smith' });
+    await vi.waitFor(async () => {
+      await settle();
+      expect(search.latest().data).toMatchObject({ query: 'smith' });
+    });
 
     search.type('jones');
     await settle();
@@ -170,8 +173,10 @@ describe('the money name search answers only the name the reader typed', () => {
     // The reader is waiting on "jones". It answers first, then the abandoned
     // "smith" request finally answers.
     finish.jones?.(answerFor('jones'));
-    await settle();
-    expect(search.latest().data).toMatchObject({ query: 'jones' });
+    await vi.waitFor(async () => {
+      await settle();
+      expect(search.latest().data).toMatchObject({ query: 'jones' });
+    });
 
     finish.smith?.(answerFor('smith'));
     await settle();
