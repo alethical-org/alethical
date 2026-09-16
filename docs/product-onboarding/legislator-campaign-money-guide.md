@@ -835,13 +835,11 @@ sentence case as every heading beside it.
 
 Above the figures it says, and nowhere else on the tab:
 
-> Money that groups other than this legislator's campaign told the state they spent to
-> support or oppose them. It never passes through their campaign, so their campaign's own
-> reports do not show it.
+> Independent expenditures are money outside groups reported spending to support or oppose
+> this candidate. This money does not go to the candidate's campaign.
 
-**told the state they spent**, never **spent**: these are payments a group reported, and
-nothing here can know about spending nobody filed. That sentence is **absent in the year
-nobody reported anything**, because a card that explains what outside spending is and
+**reported spending**, never a claim about all spending: these are payments a group reported, and
+nothing here can know about spending nobody filed. That sentence is **absent when the file lists no payments for the selected year**, because a card that explains what outside spending is and
 then says there was none of it hands the reader a definition of something not on the
 page. Every other state keeps it, including a year we could not load.
 
@@ -906,7 +904,7 @@ from both sides while the page still read as complete.
 **There is no $200 floor on this file.** 17,194 of its 41,130 payments are under $200 and
 13,393 are under $100, the smallest being $0.00. The $200 that does exist in Minnesota law
 is the _donor's yearly total_ on the donations file described further up this guide, and it
-does not apply here. This block says "told the state" rather than calling its figures all
+does not apply here. This block says "reported spending" rather than calling its figures all
 outside spending, because nothing can know about spending nobody filed.
 
 **A figure is reachable only through a confirmed committee, and it is the same rule as the
@@ -943,17 +941,17 @@ checked separately.
 saying zero:
 
 1. **Real figures**, using the tab's shared amount formatter.
-2. **A checked zero** — no outside group reported spending about this legislator that
-   year. The committee is confirmed and the download covers the year, so this is a
+2. **A checked zero** — the state’s file lists no independent expenditures supporting
+   or opposing this candidate that year. The committee is confirmed and the download covers the year, so this is a
    published finding. It reads:
 
-   > No outside group reported spending to support or oppose this legislator in 2026
+   > The state’s file lists no independent expenditures supporting or opposing this candidate in 2026
 
    In a year we hold that their committee was not on the ballot, the same sentence gains
    a closing clause and the year still prints once:
 
-   > No outside group reported spending to support or oppose this legislator in 2021,
-   > when they were not on the ballot
+   > The state’s file lists no independent expenditures supporting or opposing this candidate in 2021,
+   > a year they were not on the ballot
 
    That clause draws only from that year's own filing record, and only when it says so
    for every committee on the page. It says nothing about **why** the total is zero: a
@@ -1000,10 +998,10 @@ normal weight (400). Small explanatory text throughout the money section is at l
 file.** The link reads **Minnesota's campaign-finance downloads**, the same words the
 committee foot uses for the same place, and beneath it, not a link:
 
-> These figures come from its file "Itemized independent expenditures of over $200"
+> Source file: “Itemized independent expenditures of over $200”
 
-That is the Board's own row label on that page, read there on 13 September 2026, and
-**its** means the page named on the line above. The address is built from the one the
+That is the Board's own row label on that page. The same source line appears with
+figures and when no payments are listed. The address is built from the one the
 service sends by cutting everything from the question mark onwards, exactly as the
 committee foot does, so a future release number cannot break it. The address the service
 sends is the bulk download itself, which streams a statewide spreadsheet with nothing

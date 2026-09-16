@@ -510,7 +510,7 @@ describe('one committee shares the donation browser', () => {
       downloadsPageUrl(candidateFinance.data.independent_spending.source_url),
     );
     expect(host.textContent).toContain(
-      'These figures come from its file “Itemized independent expenditures of over $200”',
+      'Source file: “Itemized independent expenditures of over $200”',
     );
     const fullLinks = [...host.querySelectorAll('a')].filter((node) =>
       ['Who gave', 'Where it went'].some((label) => node.textContent?.startsWith(label)),

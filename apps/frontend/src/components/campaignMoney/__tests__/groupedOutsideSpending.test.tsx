@@ -335,12 +335,15 @@ describe('outside spender list on the campaign money tab', () => {
   it('keeps the checked-zero sentence and makes no list request for it', async () => {
     await render(checkedZero);
     expect(mount.textContent).toContain(
-      'No outside group reported spending to support or oppose this legislator in 2025',
+      'The state’s file lists no independent expenditures supporting or opposing this candidate in 2025',
     );
     // A card that defines outside spending and then says there was none of it hands the
     // reader a definition of something not on the page.
-    expect(mount.textContent).not.toContain('It never passes through their campaign');
+    expect(mount.textContent).not.toContain('This money does not go to the candidate');
     expect(loadGroups).not.toHaveBeenCalled();
+    expect(mount.textContent).toContain(
+      'Source file: “Itemized independent expenditures of over $200”',
+    );
     expect(
       mount.querySelector(
         'a[href="https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/"]',
@@ -351,7 +354,7 @@ describe('outside spender list on the campaign money tab', () => {
   it('names the ballot only in a year whose own filing record says they were off it', async () => {
     await render(checkedZero, true);
     expect(mount.textContent).toContain(
-      'No outside group reported spending to support or oppose this legislator in 2025, when they ' +
+      'The state’s file lists no independent expenditures supporting or opposing this candidate in 2025, a year they ' +
         'were not on the ballot',
     );
   });
@@ -387,15 +390,18 @@ describe('outside spender list on the campaign money tab', () => {
     expect(spoken.some((label) => label?.includes(', For'))).toBe(false);
   });
 
-  it('links the downloads page the served address sits on, and names the file', async () => {
+  it('defines independent expenditures, links the downloads page and names the file', async () => {
     await render();
+    expect(mount.textContent).toContain(
+      "Independent expenditures are money outside groups reported spending to support or oppose this candidate. This money does not go to the candidate's campaign.",
+    );
     const link = mount.querySelector<HTMLAnchorElement>(
       'a[href="https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/"]',
     );
     expect(link).not.toBeNull();
     expect(link?.textContent).toContain('Minnesota’s campaign-finance downloads');
     expect(mount.textContent).toContain(
-      'These figures come from its file “Itemized independent expenditures of over $200”',
+      'Source file: “Itemized independent expenditures of over $200”',
     );
   });
 });
