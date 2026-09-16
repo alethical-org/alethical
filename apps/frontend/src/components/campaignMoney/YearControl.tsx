@@ -15,12 +15,14 @@ import { detailsStyles } from './detailsStyles';
  */
 export function YearControl({
   year,
+  surface = 'profile',
   onSelect,
   fullWidth = false,
   namesOnlyYears = new Set<number>(),
   years = campaignMoneyYears(),
 }: {
   year: CampaignMoneyYear;
+  surface?: 'committee' | 'profile';
   onSelect: (year: CampaignMoneyYear) => void;
   /** Phone band: the years share the row in equal halves rather than sitting as
    *  left-packed pills, which read as a toolbar with room to spare
@@ -35,7 +37,12 @@ export function YearControl({
       role="group"
       aria-label="Choose a year"
     >
-      <Text style={styles.yearWord}>Year</Text>
+      <Text
+        aria-hidden
+        style={[styles.yearWord, surface === 'committee' && styles.committeeYearWord]}
+      >
+        Year
+      </Text>
       {years.map((option) => {
         const active = option === year;
         return (
@@ -53,10 +60,20 @@ export function YearControl({
               namesOnlyYears.has(option) && { borderStyle: 'dashed' },
               fullWidth && styles.yearButtonFull,
               active && styles.yearButtonActive,
+              surface === 'committee' && styles.committeeYearButton,
+              surface === 'committee' && active && styles.committeeYearActive,
               Boolean('focused' in state && state.focused) && detailsStyles.focus,
             ]}
           >
-            <Text style={[styles.yearLabel, active && styles.yearLabelActive]}>{option}</Text>
+            <Text
+              style={[
+                styles.yearLabel,
+                surface === 'committee' && styles.committeeYearLabel,
+                active && styles.yearLabelActive,
+              ]}
+            >
+              {option}
+            </Text>
           </Pressable>
         );
       })}
@@ -98,4 +115,12 @@ const styles = StyleSheet.create({
     color: c.secondary,
   },
   yearLabelActive: { color: c.background },
+  committeeYearWord: { fontWeight: '700', paddingRight: 8 },
+  committeeYearButton: {
+    borderRadius: 10,
+    borderColor: t.colors.alpha.ink18,
+    backgroundColor: c.background,
+  },
+  committeeYearActive: { backgroundColor: c.text, borderColor: c.text },
+  committeeYearLabel: { fontSize: 15, letterSpacing: 0.15, color: c.text },
 });

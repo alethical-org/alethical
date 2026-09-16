@@ -96,6 +96,7 @@ import { externalLinkProps } from '../../navigation/links';
 import { LinkArrow } from '../LinkArrow';
 import { theme as t } from '../../theme/tokens';
 import { useCampaignMoneyTypography } from './detailsStyles';
+import { useResponsive } from '../../hooks/useResponsive';
 
 export type MoneyCardSurface = 'committee' | 'profile';
 
@@ -178,6 +179,8 @@ function CardText({
   // Native Text's types omit the web anchor's focus events.
   onFocus?: () => void;
   onBlur?: () => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }) {
   const profile = useContext(ProfileCardTheme);
   return (
@@ -209,6 +212,7 @@ function CardText({
  * that page is what the row points at.
  */
 export function FilingStamp({
+  surface = 'profile',
   line,
   detail,
   notes = [],
@@ -217,6 +221,7 @@ export function FilingStamp({
   covered,
   isMobile,
 }: {
+  surface?: MoneyCardSurface;
   line: string | null;
   detail: string;
   notes?: string[];
@@ -225,8 +230,18 @@ export function FilingStamp({
   covered: boolean;
 } & Band) {
   const styles = useCardStyles();
+  const { isTablet } = useResponsive();
   return (
-    <View testID="campaign-money-period" style={[styles.stamp, isMobile && styles.stampMobile]}>
+    <View
+      testID="campaign-money-period"
+      style={[
+        styles.stamp,
+        isMobile && styles.stampMobile,
+        surface === 'committee' && committeeStyles.stamp,
+        surface === 'committee' && isTablet && committeeStyles.stampTablet,
+        surface === 'committee' && isMobile && committeeStyles.stampMobile,
+      ]}
+    >
       {line ? (
         <CardText period={covered} style={covered ? styles.stampPeriod : styles.stampPeriodMuted}>
           {line}
@@ -248,7 +263,7 @@ export function FilingStamp({
           ) : null}
           {boardRecordUrl ? (
             <CardText numeric={false} style={styles.stampDetail}>
-              <InlineBoardRecordLink url={boardRecordUrl} />
+              <InlineBoardRecordLink url={boardRecordUrl} surface={surface} />
               {BOARD_RECORD_SENTENCE_TAIL}
             </CardText>
           ) : null}
@@ -268,16 +283,27 @@ export function FilingStamp({
   );
 }
 
-/** The sentence's own subject, so it is body copy rather than a row: underlined the
- *  way a link inside a paragraph is marked, and never padded to a 44px target. */
-function InlineBoardRecordLink({ url }: { url: string }) {
+/** A sentence link, never padded as a standalone control. Profile links keep their
+ * underline; committee links reveal it on hover or keyboard focus. */
+function InlineBoardRecordLink({ url, surface }: { url: string; surface: MoneyCardSurface }) {
   const styles = useCardStyles();
   const [focused, setFocused] = useState(false);
+  const [hovered, setHovered] = useState(false);
   return (
     <CardText
       numeric={false}
-      style={[styles.stampDetail, styles.inlineLink, focused && styles.sourceFocused]}
+      style={[
+        styles.stampDetail,
+        styles.inlineLink,
+        surface === 'committee' && {
+          color: c.link,
+          textDecorationLine: hovered || focused ? 'underline' : 'none',
+        },
+        focused && styles.sourceFocused,
+      ]}
       {...externalLinkProps(url, () => void Linking.openURL(url))}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
     >
@@ -333,7 +359,7 @@ export function MoneyInBlock({
   const receipts = shownReceiptRows(moneyIn?.otherReceipts, (receipt) => receipt.receiptType);
 
   return (
-    <View style={styles.block}>
+    <View style={[styles.block, surface === 'committee' && isMobile && committeeStyles.phoneBlock]}>
       <CardHeading surface={surface}>{MONEY_IN_HEADING}</CardHeading>
 
       {reported ? (
@@ -376,19 +402,25 @@ export function MoneyInBlock({
 
       {unnamed !== null ? (
         <>
-          <Figure
-            label={MONEY_IN_UNNAMED_LABEL}
-            value={unnamed}
-            note={
-              surface === 'profile' && !withDonorBreakdown
-                ? unnamedShareLabel(split.unnamedTotal, split.reportedTotal)
-                : null
+          <View
+            style={
+              surface === 'committee' && isMobile ? committeeStyles.figureExplanation : styles.block
             }
-            isMobile={isMobile}
-          />
-          {withDonorBreakdown ? null : (
-            <CardText style={styles.explain}>{unnamedMoneyExplanation(isBallot)}</CardText>
-          )}
+          >
+            <Figure
+              label={MONEY_IN_UNNAMED_LABEL}
+              value={unnamed}
+              note={
+                surface === 'profile' && !withDonorBreakdown
+                  ? unnamedShareLabel(split.unnamedTotal, split.reportedTotal)
+                  : null
+              }
+              isMobile={isMobile}
+            />
+            {withDonorBreakdown ? null : (
+              <CardText style={styles.explain}>{unnamedMoneyExplanation(isBallot)}</CardText>
+            )}
+          </View>
           {checkNote ? <CardText style={styles.explain}>{checkNote}</CardText> : null}
         </>
       ) : null}
@@ -432,7 +464,7 @@ export function MoneyOutBlock({
   const summary = moneyOutSummary(moneyOut);
 
   return (
-    <View style={styles.block}>
+    <View style={[styles.block, surface === 'committee' && isMobile && committeeStyles.phoneBlock]}>
       <CardHeading surface={surface}>{MONEY_OUT_HEADING}</CardHeading>
       {summary.label && summary.amount !== null ? (
         <Figure
@@ -834,4 +866,17 @@ const profileStyles = StyleSheet.create({
   },
   checkedHeading: { ...defaultStyles.checkedHeading, color: c.text },
   checkedSentence: { ...defaultStyles.checkedSentence, color: c.secondary },
+});
+
+const committeeStyles = StyleSheet.create({
+  stamp: {
+    backgroundColor: '#f7f8fa',
+    paddingVertical: 18,
+    paddingHorizontal: 32,
+    borderRadius: 14,
+  },
+  stampTablet: { paddingHorizontal: 26 },
+  stampMobile: { paddingHorizontal: 18 },
+  phoneBlock: { gap: 20 },
+  figureExplanation: { gap: 8 },
 });
