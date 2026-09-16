@@ -440,16 +440,17 @@ donor at all ([#2182](https://github.com/alethical-org/alethical/issues/2182)).
 the tab that states Minnesota's naming rule, and beside a committee whose filing does not
 name every dollar it reads exactly:
 
-> Shares of the contributions this committee reported, not counting donated goods and
-> services. The filing names who gave for **itemized contributions** and not for
-> **non-itemized contributions**. Minnesota requires naming once a donor's giving passes
-> $200 for the year, and a committee may name smaller donors.
+> Shares of the contributions this committee reported, excluding donated goods and
+> services. **Itemized contributions** list donor names and amounts; **non-itemized
+> contributions** are reported as a combined total without names. Minnesota requires
+> donors to be named when their total giving exceeds $200 in a year; committees may
+> also name donors who give $200 or less.
 
 The 2 label words are the only bold ones, so a reader matches the same words here and on
 the card. A ballot-question committee's line is $500 and its sentence says so. The last 2
 sentences are dropped wherever no Non-itemized figure draws, because there is then only 1
 contribution figure and nothing to tell apart; in the named-donations-only state the
-opening sentence instead reads "Shares of the named donations this year, not counting
+opening sentence instead reads "Shares of the named donations this year, excluding
 donated goods and services."
 
 **The chart is downloaded separately from the rest of the page, and the paragraph is not.**

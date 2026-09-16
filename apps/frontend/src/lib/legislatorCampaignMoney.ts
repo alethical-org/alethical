@@ -721,15 +721,8 @@ export type FilingSchedule = {
   terminatedOn: string | null;
 };
 
-/**
- * The closing sentence on all 3 states where we are the ones who cannot answer.
- *
- * Repeated on purpose rather than varied. The 3 gaps have different causes and the
- * same meaning for a reader, and a shared closing line is what makes them legible as
- * one class beside the 3 states that are about the committee. Without it, "we have
- * not typed in that calendar" drifts towards reading like "nothing is due", which is
- * the rule 12 failure this whole function exists to prevent.
- */
+/** The special-election and filing-list gaps share this closer. The calendar gap
+ * names our missing calendar and carries its own shorter filing-status sentence. */
 const OUR_GAP_CLOSER = "The gap is ours and says nothing about this committee's own filing.";
 
 /**

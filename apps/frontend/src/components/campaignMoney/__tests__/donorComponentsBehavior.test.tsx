@@ -170,11 +170,11 @@ describe('the donor chart explains what its cash shares represent', () => {
     expect(view.querySelector('svg')).not.toBeNull();
     expect(view.textContent).toContain('Who gave (named donations only)');
     expect(view.textContent).toContain(
-      'Shares of the named donations this year, not counting donated goods and services.',
+      'Shares of the named donations this year, excluding donated goods and services.',
     );
     // No reported total here, so no non-itemized figure and nothing to define.
     expect(view.textContent).not.toContain('$200');
-    expect(view.textContent).not.toContain('The filing names who gave for');
+    expect(view.textContent).not.toContain('Itemized contributions list donor names');
     expect(view.querySelectorAll('circle').length).toBeGreaterThan(0);
   });
 

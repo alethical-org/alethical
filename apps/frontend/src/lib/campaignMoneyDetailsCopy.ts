@@ -27,8 +27,8 @@ export const moneyDetailsCopy = {
   chartExplanation: (namedOnly: boolean, hasUnnamed: boolean, isBallot: boolean): DekSegment[] => [
     {
       text: namedOnly
-        ? 'Shares of the named donations this year, not counting donated goods and services.'
-        : 'Shares of the contributions this committee reported, not counting donated goods and ' +
+        ? 'Shares of the named donations this year, excluding donated goods and services.'
+        : 'Shares of the contributions this committee reported, excluding donated goods and ' +
           'services.',
     },
     ...(hasUnnamed ? [{ text: ' ' }, ...namedMoneyDefinition(isBallot)] : []),

@@ -529,11 +529,12 @@ describe('the filing schedule note, one committee at a time', () => {
 
   it('says a committee not on the ballot owes nothing until its once-a-year report', () => {
     const text = said(notOnTheBallot);
-    expect(text).toContain('is not on the 2099 ballot');
-    expect(text).toContain('once a year');
-    expect(text).toContain('due Feb 1, 2100');
-    // The whole point of this state: an empty year is the schedule, not a silence.
-    expect(text).toContain('not money going unreported');
+    expect(text).toBe(
+      'This committee is not on the 2099 ballot, so Minnesota puts it on the schedule for ' +
+        'candidates who are not running, which asks for a report once a year rather than around each election. ' +
+        'Its next “2099 year-end report of receipts and expenditures” is due Feb 1, 2100 and covers Jan 1 to Dec 31, 2099. ' +
+        'A long stretch with nothing new here is that schedule working as written, not money going unreported.',
+    );
   });
 
   it('says a closed registration owes nothing further, and names the day it closed', () => {
