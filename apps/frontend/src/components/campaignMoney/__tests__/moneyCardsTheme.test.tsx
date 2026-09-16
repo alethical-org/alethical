@@ -169,7 +169,7 @@ describe('profile styling for shared money cards', () => {
     expect(period.fontWeight).toBe('700');
     expect(period.color).toBe(color(c.text));
     expect(getComputedStyle(exact(defaults, 'Jan 1 to Jul 20, 2026')).fontFamily).toBe(
-      fontFamily(t.typography.mono),
+      fontFamily(t.typography.body),
     );
     expect(profile.textContent).not.toContain('WHAT A PERSON CHECKED');
     expect(getComputedStyle(exact(profile, 'The filing covers these dates.')).fontWeight).not.toBe(

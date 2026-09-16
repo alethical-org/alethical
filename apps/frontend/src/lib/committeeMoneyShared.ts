@@ -264,15 +264,14 @@ export function coveredPeriodDetail(
 
 /** The stamp when no figures cover the selected year. */
 export function uncoveredPeriodLine(year: number): string {
-  return `No figures cover ${year}`;
+  return `We have no report figures for ${year}`;
 }
 
 export function uncoveredPeriodDetail(year: number, checkedOn: string | null): string {
   return (
-    `The state’s files we hold carry no report figures covering ${year} for this ` +
-    `committee, and we do not carry an earlier year’s money forward under a ${year} ` +
-    `heading.` +
-    (checkedOn ? ` Checked against our copy of the Board’s files, taken ${checkedOn}.` : '')
+    `Our copy of the state’s files contains no report figures for this committee for ${year}. ` +
+    'Figures from another year are not substituted.' +
+    (checkedOn ? ` Files copied ${checkedOn}.` : '')
   );
 }
 

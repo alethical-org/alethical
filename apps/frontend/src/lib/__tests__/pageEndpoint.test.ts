@@ -1892,7 +1892,7 @@ describe('a committee address naming a year is answered in that year', () => {
     const { body } = await serve({ path: `/money/committees/${SLUG}`, year: '2025' });
 
     expect(body).toContain('Not reported');
-    expect(body).toContain('No figures cover 2025');
+    expect(body).toContain('We have no report figures for 2025');
     expect(body).not.toContain('$0');
     expect(body).not.toContain('$360');
   });

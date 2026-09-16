@@ -27,6 +27,7 @@
  */
 
 import {
+  campaignMoneyYears,
   formatDay,
   formatMoney,
   isAmountAboveZero,
@@ -37,9 +38,19 @@ import {
   registerKindLabel,
   paymentsTabFromParam,
   UNNAMED_PAYMENT_PARTY,
-  UNION_FINANCES_NOTE,
   type PaymentsTab,
 } from './committeeMoneyShared';
+
+/** Keep a linked historical year visible alongside the usual recent choices. */
+export function committeeMoneyYears(selectedYear: number, today: Date = new Date()): number[] {
+  return [...new Set([...campaignMoneyYears(today), selectedYear])].sort((a, b) => b - a);
+}
+
+/** A missing older year should lead back to the current records, not another old year. */
+export function committeeAlternativeYear(selectedYear: number, today: Date = new Date()): number {
+  const [current, previous = current] = campaignMoneyYears(today);
+  return selectedYear === current ? previous : current;
+}
 
 /**
  * The line beside the registration chip. For a candidate committee the register
@@ -61,7 +72,7 @@ export function registeredForLine(register: {
       : `Registered for ${register.office}`;
   }
   const label = registerKindLabel(register.kind);
-  return label ? `Kind as registered: ${label.toLowerCase()}` : null;
+  return label ? `Registered as: ${label.toLowerCase()}` : null;
 }
 
 /** The one legislator a person has confirmed a committee belongs to, as served.
@@ -104,11 +115,9 @@ export function whoseCommitteeText(
 ): string {
   if (confirmedMember) {
     return (
-      'Someone at Alethical read Minnesota’s own records and confirmed this ' +
-      `committee is ${confirmedMember.fullName}’s. We never attach a committee to a ` +
-      'person on the strength of its filed name, so this is a decision a person made ' +
-      'and signed. The money on this page is this committee’s own record, and a ' +
-      'candidate can register more than one committee.'
+      'A person at Alethical checked Minnesota’s records and confirmed this is ' +
+      `${confirmedMember.fullName}’s committee. These figures cover this committee; ` +
+      'the candidate may have others.'
     );
   }
   if (isBallotQuestionFiler(entitySubType)) {
@@ -137,9 +146,8 @@ export function whoseCommitteeText(
     );
   }
   return (
-    'The name a committee files under is the filer’s own wording, not a ' +
-    'confirmation by anyone, so we do not put these figures under a person’s name ' +
-    'on the strength of it. The money on this page is the committee’s own record.'
+    'These are this committee’s own figures. We have not linked them to a person; ' +
+    'the committee’s name alone does not prove whose it is.'
   );
 }
 
@@ -437,12 +445,12 @@ export const FILINGS_HEADLINE = 'REPORTS THIS COMMITTEE HAS FILED';
  */
 export function filingsOrderingLine(orderedBy: string): string | null {
   if (orderedBy === 'period_end') {
-    return 'Newest first, by the period each report covers — never by amount';
+    return 'Newest first by the reporting period’s end date';
   }
   if (orderedBy === 'filed_date_then_period_end') {
     return (
-      'Newest first — by the day the Board received a report where its filing says so, ' +
-      'and by the period it covers where it does not. Never by amount'
+      'Newest first by filing date, or by the reporting period’s end date when ' +
+      'no filing date is available'
     );
   }
   return null;
@@ -520,9 +528,8 @@ export function unlistedReportsLine(count: number | null): string | null {
 /** Under the list, on every non-empty view. The Board's own calendars are the only
  *  source of a period start (design doc §7). */
 export const FILINGS_PERIOD_NOTE =
-  'The end of every period is read off the filing itself. A start is shown only where one of ' +
-  'the Board’s own filing calendars prints it — never an assumed January 1, because not every ' +
-  'filer’s year opens then. Where no start resolves, the row reads “covers through” its end date.';
+  'End dates come from the reports; start dates come from the Board’s filing calendars. ' +
+  'Where no start date is available, we show ‘Covers through’ and the end date.';
 
 export const FILINGS_EMPTY_TITLE = 'No filed reports in our copy';
 
@@ -567,8 +574,7 @@ export const RECORD_COVERS_HEADING = 'What this record covers';
 export function recordCoverageLines(isBallot: boolean): string[] {
   const lines = [
     'Money filed with the Minnesota Campaign Finance and Public Disclosure Board',
-    'Nothing before 2015',
-    UNION_FINANCES_NOTE,
+    'Money figures start in 2015',
   ];
   // Same shape as the $200 sentence, and it respects the same 2 rules: the test is on
   // the donor's total for the YEAR rather than on the size of a gift, and it is a floor

@@ -593,7 +593,8 @@ Top to bottom:
    Wherever the finer kind and the register's broad kind differ, the broad one follows it
    on the same line, so a reader sees both. A candidate committee shows the office and
    district it registered for; a closed committee carries a CLOSED chip with the register's
-   own termination date, on every year's view.
+   own termination date, on every year's view. Other kinds use “Registered as:” before
+   the register’s own category, without changing the category itself.
 
    Beside the Share control, a signed-in reader sees **Track**: one button that adds this
    committee to their Tracked page and, pressed again, removes it. Once followed it reads
@@ -616,28 +617,22 @@ Top to bottom:
    confirmation prevents that partial response being saved for later readers and
    leaves the browser to retry it.
 
-   After a successful check returning no confirmed member, the page uses its
-   existing explanation: until a person at Alethical has checked, it attaches
-   the money to nobody and says why: the filed name is the filer's own wording, not a
-   confirmation by anyone. A party unit, caucus, fund, or ballot-question committee gets
-   its own sentence, because for those there is no person to attach at all.
+   After a successful check returning no confirmed member, a candidate committee says:
+   “These are this committee’s own figures. We have not linked them to a person; the
+   committee’s name alone does not prove whose it is.” Party units, caucuses, funds and
+   ballot-question committees retain their separate explanations.
 
-   Once someone here has read Minnesota's own records and written down whose committee
-   it is, the card says so, names the member, and carries a link straight to that
-   member's campaign money. The sentence says a person decided it rather than only that
-   it is "confirmed", because nothing about this comes from software matching names: no
-   score, threshold, or agreement between rules ever creates one of these links, and if a
-   name match were wrong nothing later in the system would notice. It also never claims
-   to be the member's only committee — a candidate can register more than one, 20
-   currently do, and adding two of them together would count the same money twice
-   ([#1663](https://github.com/alethical-org/alethical/issues/1663)) — so it says the
-   Under that sentence sit up to 3 short lines saying what the person actually read: the
-   day they decided, how the account's filed name related to the member's, what
-   Minnesota's register of registered candidates said about it, and what the party money
-   said. They are read off that decision's own stored record rather than recomputed, so a
-   later download renaming a committee does not rewrite the basis of a decision already
-   made, and the weak cases say they are weak: where the register has no row, the line
-   says so rather than anything a reader could mistake for the state agreeing.
+   A confirmed candidate committee says: “A person at Alethical checked Minnesota’s
+   records and confirmed this is {name}’s committee. These figures cover this committee;
+   the candidate may have others.” No software name match creates that confirmation.
+   A thin line separates this introduction from “Checked {date}”, the stored evidence,
+   and the link to the member’s Campaign money tab. Alethical is named in the introduction
+   rather than repeated beside the date. The profile’s own account boxes still name
+   Alethical beside their dates, because they have no such introduction.
+
+   Evidence is drawn only from the saved decision, never inferred from current records.
+   It may contain fewer than 3 lines. Missing evidence stays absent. The link has a
+   minimum 44px click or tap target and stays after the evidence, inside the same block.
 
    A committee somebody looked at and
    ruled out reads exactly like one nobody has looked at yet: that decision is about our
@@ -871,6 +866,16 @@ Top to bottom:
    viewer; there are no per-report links, because the Board serves report documents
    through a form a link cannot reach, and not at all for most years before 2023 — a row
    of dead links would be worse than one honest step.
+    The ordering sentence is “Newest first by filing date, or by the reporting period’s
+    end date when no filing date is available”, or “Newest first by the reporting period’s
+    end date” when no reports carry a filing date. The choice considers the whole committee
+    history, not just loaded rows. The catalogue-gap explanation appears before the rows;
+    the explanation of where start and end dates come from follows the rows. Reporting
+    periods are dark text, while actual filing dates use secondary text at 15px or larger.
+    Missing figures never prove that no report exists; the Board viewer remains reachable
+    through Filings when the list contains reports, even when the selected year’s
+    period panel has no report link.
+
 10. **Spending by outside groups**, after the committee's own payment browser. It
     follows the selected year and groups spending about this registration number by
     spender, with supporting and opposing separate. Each spender's chip reads
@@ -893,9 +898,8 @@ Top to bottom:
     coincide with an expenditure row, and the records do not establish whether those
     are 1 payment filed twice or 2 payments that coincide.
 
-11. **What this record covers**: filed with the Board, nothing before 2015, "These files
-    cover union political funds, not a union’s wider finances", and the donor sentence,
-    which names **$200** on most pages and **$500**
+11. **What this record covers**: “Money filed with the Minnesota Campaign Finance and
+    Public Disclosure Board”, “Money figures start in 2015”, and the donor sentence, which names **$200** on most pages and **$500**
     on a ballot-question committee's page. Each page states only its own figure, because
     the risk is a reader taking one kind of committee's line for another's. $500 is what
    the law says for a ballot question and what the Board's own guide for those committees
@@ -917,17 +921,23 @@ across the whole design set:
   for dates, registration numbers and counts, with equal-width digits. The shared donor
   and outside-spender components use those same equal-width digits on committee pages.
   The `/money` freshness date, research dates, and filed dates use Libre Franklin with
-  equal-width digits too. The remaining committee fields, search and list screens retain their
-  monospaced dates, registration numbers and count lines. Short capital labels keep their
-  existing typeface. Every future Design handoff follows the numeric typography rule in
-  [design-principles.md, Type](../design/design-principles.md), even where its drawing
-  uses a different numeric font. That rule does not require changing unrelated existing screens.
+  equal-width digits too. The committee page also uses Libre Franklin with equal-width digits for registration
+  numbers, closed dates, reporting periods, filing dates and payment dates. Dates and
+  readable supporting text are at least 15px; reporting periods use dark 20px text.
+  Short letter-only labels keep their existing typeface. Search and list screens retain
+  their own presentation. Every future Design handoff follows the numeric typography
+  rule in [design-principles.md, Type](../design/design-principles.md), even where its
+  drawing uses a different numeric font. That rule does not require changing unrelated
+  existing screens.
 - **No full stop at the end of a line that stands alone** — a caption, a date or meta
   line, a label, a one-line card description, and any stack or column of those, including
   the "What this record covers" block on both this page and the section landing. An
   explaining paragraph inside a card keeps every full stop it has, however short.
 
-Empty and edge states, each its own honest sentence: a year no report covers (money in
+Empty and edge states, each its own honest sentence: a year with no report figures in
+our copy (the period panel says “We have no report figures for {year}” and “Our copy of
+the state’s files contains no report figures for this committee for {year}. Figures from
+another year are not substituted.”; money in
 says “Not reported”; money out says Alethical does not hold an official spending total; neither prints
 a zero or last year's money under this year's heading); a closed
 committee's empty year (it closed, when, and that its final report exists and is public
@@ -1329,3 +1339,23 @@ A party unit or political fund whose successful response omits the candidate-rep
 comparison shows the existing held explanation. It does not ask the reader to retry
 an unsupported comparison. A failed payment read still shows the load-failed state,
 and an unexpectedly missing candidate comparison remains a failure.
+
+### Committee refinement source correction (16 September 2026)
+
+The committee coverage block makes no blanket claim that unions do not report to the
+Board. [Minnesota Statutes 10A.202, subdivision 2(9)](https://www.revisor.mn.gov/statutes/cite/10A.202#stat.10A.202.2)
+expressly addresses labor-organization disclosures for qualifying communications.
+The block describes the records held and keeps the annual donor-naming threshold for
+the committee’s own kind. Copy dates remain at the foot, separately identifying payment
+files and report totals; no example date from a drawing is inserted into the product.
+
+The September refinement retains existing 768px and 1100px responsive behavior in shared
+campaign components. It does not impose the drawing’s older 2-band claim on the current
+3-band shared typography, nor restore obsolete tabs, made-up amendment dates or per-report
+links. The page continues to show one committee’s records, with the current cards, controls,
+section order, amounts, chart colours and missing-record protections.
+
+A committee link to an older year keeps that year visible and selected beside the
+current and prior years. When an older year has no report figures, its alternate-year
+link returns to the current year; the current year’s alternate link still offers the
+prior year. The first served HTML exposes the same year choices.
