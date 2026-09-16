@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -37,7 +37,10 @@ import {
   useLegislatorVotes,
   useSessions,
 } from '../../hooks/useAppQueries';
-import { CampaignMoneyTab } from '../../components/campaignMoney/CampaignMoneyTabOnDemand';
+import {
+  CampaignMoneyTab,
+  prefetchCampaignMoneyTab,
+} from '../../components/campaignMoney/CampaignMoneyTabOnDemand';
 import {
   LegislatorProfileTabs,
   type ProfileTab,
@@ -387,6 +390,12 @@ export function LegislatorProfileMobileScreen() {
   const moneyQuery = useLegislatorCampaignMoney(legislatorId, moneyYear, {
     enabled: activeTab === 'money',
   });
+  // The tab's pieces start downloading while the profile itself is still on its way,
+  // instead of after it lands: this screen draws a skeleton until the person's record
+  // arrives, and the tab used to wait for that record before asking for its own code.
+  useEffect(() => {
+    if (activeTab === 'money') void prefetchCampaignMoneyTab().catch(() => undefined);
+  }, [activeTab]);
 
   const selectTab = (tab: ProfileTab) => {
     navigation.setParams({ tab: tab === 'overview' ? undefined : tab });

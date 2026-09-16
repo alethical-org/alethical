@@ -29,9 +29,14 @@ candidate committees included in Committees & Funds, and keeping the existing
 whole-dollar display. Each payment's original kind remains available. The donut, its
 legend and the history bars use the final shared solid colour map.
 
-The chart, grouped payment lists and outside-spending cards share 1 code download,
-requested when a money view opens. Loading or failure of that download stays within
-the details section; accepted official figures and the refund cards remain visible.
+The chart, grouped payment lists and outside-spending cards share 1 code download.
+On this tab it is requested together with the tab's own code, the moment the address
+names the tab or a pointer reaches the **Campaign money** tab, so it is already in the
+browser before the committee card first draws, and the card draws once, in its finished
+shape, chart included. A card that mounts before the download lands draws its figures
+under a short loading line, and the chart replaces that line when the code arrives.
+Loading or failure of that download stays within the details section; accepted official
+figures and the refund cards remain visible.
 
 The shared missing official money-out wording comes from
 [pull request 2155](https://github.com/alethical-org/alethical/pull/2155). The ordinary
