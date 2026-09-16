@@ -8,7 +8,7 @@ import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
  * and two copies of those sentences is how one of them gets fixed and the other
  * does not. Layout differences follow the shared responsive bands; wording never does.
  *
- * Every string here comes from `lib/legislatorCampaignMoney.ts`, which is where the
+ * The imported copy helpers are where the
  * rules in `.claude/rules/grounded-answers.md` rule 12 and
  * `docs/architecture/campaign-finance-system-design.md` §7 (Display rules) are
  * turned into text a test can pin. This file chooses where things sit and nothing
@@ -23,6 +23,7 @@ import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
  * so both empty panels are still live paths rather than history.
  */
 import React from 'react';
+import { filingScheduleNote } from '../../lib/campaignMoneyFilingSchedule';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../../navigation/types';
@@ -35,7 +36,6 @@ import {
   confirmedElsewhereExplanation,
   confirmedElsewhereHeading,
   emptyStateFor,
-  filingScheduleNote,
   otherOfficeNote,
   severalCommitteesNote,
   confirmedCommitteesWithheldLine,
@@ -583,7 +583,7 @@ function CommitteeCard({
  * Below the record-link row and above the chart, because it describes how current
  * this committee's figures are rather than qualifying the names list alone.
  *
- * Every sentence and every date comes from `lib/legislatorCampaignMoney.ts`. One
+ * Every sentence and every date comes from `lib/campaignMoneyFilingSchedule.ts`. One
  * paragraph per element, so a printed exemption sits under the date it qualifies
  * instead of trailing it inside one block of text.
  */

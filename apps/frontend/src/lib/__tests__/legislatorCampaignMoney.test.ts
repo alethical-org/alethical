@@ -1,3 +1,4 @@
+import { filingScheduleNote } from '../campaignMoneyFilingSchedule';
 /**
  * What the campaign money tab is allowed to put on screen (#1329).
  *
@@ -33,7 +34,6 @@ import {
   MATCH_CHECK_LABEL,
   matchCheckSentences,
   emptyStateFor,
-  filingScheduleNote,
   statedSplitNote,
   splitExplanation,
   unnamedShareLabel,

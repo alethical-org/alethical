@@ -4,7 +4,7 @@
 
 <!-- describes: apps/frontend/src/components/campaignMoney/CampaignMoneyTabOnDemand.tsx, apps/frontend/src/components/campaignMoney/YearControl.tsx, apps/frontend/src/components/campaignMoney/GroupedOutsideSpending.tsx, apps/frontend/src/lib/campaignMoneyColors.ts, apps/frontend/src/data/groupedOutsideSpending.ts, apps/frontend/src/lib/groupedOutsideSpending.ts -->
 
-<!-- describes: apps/frontend/src/components/campaignMoney/CommitteeDonationCards.tsx, apps/frontend/src/components/campaignMoney/CommitteeDonations.tsx, apps/frontend/src/components/campaignMoney/DonorBreakdown.tsx, apps/frontend/src/components/campaignMoney/DonorPaymentList.tsx, apps/frontend/src/components/campaignMoney/CommitteeMixHistory.tsx, apps/frontend/src/components/campaignMoney/MoneyCards.tsx, apps/frontend/src/lib/campaignMoneyDetails.ts, apps/frontend/src/data/campaignMoneyDetails.ts, apps/frontend/src/hooks/useCampaignMoneyDetails.ts, apps/frontend/src/components/campaignMoney/CampaignMoneyTab.tsx, apps/frontend/src/components/legislator/OutsideSpendingCard.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/independent_spending.py, apps/frontend/src/components/campaignMoney/LegislatorProfileTabs.tsx, apps/frontend/src/lib/legislatorCampaignMoney.ts, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, alethical/api/services/legislator_finance.py, alethical/api/services/committee_amount.py, alethical/api/routers/public.py -->
+<!-- describes: apps/frontend/src/components/campaignMoney/CommitteeDonationCards.tsx, apps/frontend/src/components/campaignMoney/CommitteeDonations.tsx, apps/frontend/src/components/campaignMoney/DonorBreakdown.tsx, apps/frontend/src/components/campaignMoney/DonorPaymentList.tsx, apps/frontend/src/components/campaignMoney/CommitteeMixHistory.tsx, apps/frontend/src/components/campaignMoney/MoneyCards.tsx, apps/frontend/src/lib/campaignMoneyDetails.ts, apps/frontend/src/data/campaignMoneyDetails.ts, apps/frontend/src/hooks/useCampaignMoneyDetails.ts, apps/frontend/src/components/campaignMoney/CampaignMoneyTab.tsx, apps/frontend/src/components/legislator/OutsideSpendingCard.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/independent_spending.py, apps/frontend/src/components/campaignMoney/LegislatorProfileTabs.tsx, apps/frontend/src/lib/legislatorCampaignMoney.ts, apps/frontend/src/lib/campaignMoneyFilingSchedule.ts, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, alethical/api/services/legislator_finance.py, alethical/api/services/committee_amount.py, alethical/api/routers/public.py -->
 
 Every current Minnesota House and Senate member's profile page has two tabs:
 **Overview**, which is the page as it has always been, and **Campaign money**, which
@@ -1312,8 +1312,8 @@ earlier year's ballot schedule.
 
 The states come from `alethical/api/services/committee_filing_schedule.py`, which reads
 the Board's own filer record and its own report catalogue. The words come from
-`apps/frontend/src/lib/legislatorCampaignMoney.ts`. That split is deliberate: the data
-describes records and the page frames them.
+`apps/frontend/src/lib/campaignMoneyFilingSchedule.ts`, loaded when Campaign money
+opens. That split is deliberate: the data describes records and the page frames them.
 
 ---
 
