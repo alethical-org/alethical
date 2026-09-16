@@ -978,9 +978,10 @@ record.
   status, and special-session identity. It does not fetch card actions, sponsors, statistics, or
   effective dates merely to print 10 links on a first response.
 - Page 1 keeps `/bills` or `/legislators` as its canonical address. Page 2 and later use their own
-  `?page=N` canonical address and add `Page N` to their titles and descriptions. Previous/Next plus
-  jumps of 10, 100, and 1,000 pages keep every bill within a few dozen normal links instead of a
-  chain about 1,000 pages long. A requested page beyond the real last page answers 404 with
+  `?page=N` canonical address and add `Page N` to their titles and descriptions. Previous and Next
+  are the only page links a directory prints, and no numbered page link ever returns: `/sitemap.xml`
+  names every numbered page of every directory, so a search engine reaches a deep page directly
+  rather than walking a chain to it. A requested page beyond the real last page answers 404 with
   `noindex`; after the app starts it stays on the same useful missing-page screen instead of being
   clamped to a real last page or changed into an ordinary empty list.
 - Typed searches and filter combinations receive no canonical address, no record snapshot, and a
@@ -1417,7 +1418,7 @@ address is not a reason to show its reader nothing. Sorted for this section:
 | address | verdict | what it serves |
 |---|---|---|
 | `/money` | front door | a short body: heading, its one sentence, the live register count, the copy date, the gaps, and links into the 2 lanes that lead to an indexable page. The 3rd lane opens the name search, which is `noindex`, so it is left out of the served body and reaches a reader when the app renders |
-| `/money/committees` and `?page=N` | record list | the page's 50 filers as ordinary anchors, plus previous/next/jump links |
+| `/money/committees` and `?page=N` | record list | the page's 50 filers as ordinary anchors, plus previous and next links |
 | `/money/committees?q=…` or `?kind=…` | filtered view | head only, `noindex`, no canonical — unchanged |
 | `/money/committees/{slug}` and `?year=N` | **record** | the committee's own register facts and its money for the year the address asks for, defaulting to the current filing year; canonical on the bare address either way |
 | `/money/committees/{slug}/payments`, `?year=N` and `?tab=gave\|spent` | **record** | the same identity and period for that same year, plus the first 50 named payments in the direction the address asks for; canonical on the bare address in every case |

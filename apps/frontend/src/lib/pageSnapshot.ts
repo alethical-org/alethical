@@ -31,7 +31,6 @@ import type { Citation } from '../data/types';
 import { billNumberFromId, escapeHtml } from './share';
 import {
   BILL_DIRECTORY_HEADING,
-  directoryJumpPages,
   directoryPagePath,
   directoryTotalPages,
   LEGISLATOR_DIRECTORY_HEADING,
@@ -320,14 +319,9 @@ function directoryNavigation(
   totalPages: number,
   other: SnapshotLink,
 ): SnapshotLink[] {
-  const jumps = directoryJumpPages(page, totalPages).map((target) => ({
-    label: `Page ${target}`,
-    href: directoryPagePath(basePath, target),
-  }));
   return [
     ...(page > 1 ? [{ label: 'Previous', href: directoryPagePath(basePath, page - 1) }] : []),
     ...(page < totalPages ? [{ label: 'Next', href: directoryPagePath(basePath, page + 1) }] : []),
-    ...jumps,
     other,
   ];
 }
@@ -1082,10 +1076,6 @@ export function committeeDirectoryPageSnapshot(
       ...(page < totalPages
         ? [{ label: 'Next', href: directoryPagePath('/money/committees', page + 1) }]
         : []),
-      ...directoryJumpPages(page, totalPages).map((target) => ({
-        label: `Page ${target}`,
-        href: directoryPagePath('/money/committees', target),
-      })),
       { label: MONEY_LANDING_HEADING, href: '/money' },
     ],
   };

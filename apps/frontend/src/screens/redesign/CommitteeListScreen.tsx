@@ -33,7 +33,6 @@ import {
 } from '../../lib/committeeList';
 import { closedChipLabel, committeeSlug } from '../../lib/committeeMoneyShared';
 import {
-  directoryJumpPages,
   directoryPageNumber,
   directoryPagePath,
   directoryTotalPages,
@@ -311,9 +310,9 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
               </MoneyListRows>
 
               {/* Numbered pages, each with its own address, and the same control
-                  the bills and legislators directories use. The Previous/Next and
-                  jump links are real anchors, so the whole register is walkable
-                  without a script (§20.5 rule 2). */}
+                  the bills and legislators directories use. Previous and Next are
+                  real anchors, so the register is walkable without a script, and
+                  /sitemap.xml names every numbered page (§20.5 rule 2). */}
               <Pagination
                 page={page}
                 totalPages={totalPages ?? undefined}
@@ -331,13 +330,6 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
                     ? directoryPagePath('/money/committees', page + 1)
                     : undefined
                 }
-                jumpPages={
-                  unfiltered && totalPages != null
-                    ? directoryJumpPages(page, totalPages)
-                    : undefined
-                }
-                pageHref={(target) => directoryPagePath('/money/committees', target)}
-                onPageSelect={goToPage}
               />
 
               <Text style={styles.listNote}>{COMMITTEE_LIST_NOTE}</Text>

@@ -8,7 +8,6 @@ import { useLobbyingPrincipals } from '../../hooks/useLobbying';
 import { useResponsive } from '../../hooks/useResponsive';
 import { committeeSlug } from '../../lib/committeeMoneyShared';
 import {
-  directoryJumpPages,
   directoryPageNumber,
   directoryTotalPages,
   loadedDirectoryPageIsOutOfRange,
@@ -247,9 +246,6 @@ export function LobbyingDirectoryPage({
                 onNext={() => goToPage(page + 1)}
                 prevHref={page > 1 ? address(page - 1) : undefined}
                 nextHref={totalPages != null && page < totalPages ? address(page + 1) : undefined}
-                jumpPages={totalPages != null ? directoryJumpPages(page, totalPages) : undefined}
-                pageHref={address}
-                onPageSelect={goToPage}
               />
             </View>
           )}

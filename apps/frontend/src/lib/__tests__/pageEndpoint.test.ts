@@ -788,7 +788,9 @@ describe('first-response page tags', () => {
     expect(body).not.toContain('Statutory title 11');
   });
 
-  it('links deep Bills pages in jumps instead of a 1,000-page chain', async () => {
+  // A numbered page link never returns to a directory: /sitemap.xml already names
+  // every numbered page, so a crawler reaches page 1,052 without walking there.
+  it('pages a long Bills directory with Next alone and no numbered page links', async () => {
     stubNetwork(() => ({
       status: 200,
       payload: {
@@ -802,10 +804,8 @@ describe('first-response page tags', () => {
 
     const { body } = await serve({ path: '/bills' });
 
-    expect(body).toContain('<a href="/bills?page=11">Page 11</a>');
-    expect(body).toContain('<a href="/bills?page=101">Page 101</a>');
-    expect(body).toContain('<a href="/bills?page=1001">Page 1001</a>');
-    expect(body).toContain('<a href="/bills?page=1052">Page 1052</a>');
+    expect(body).toContain('<a href="/bills?page=2">Next</a>');
+    expect(body).not.toMatch(/>Page \d+</);
   });
 
   it('normalises explicit resting Bills settings before deciding the page is filtered', async () => {

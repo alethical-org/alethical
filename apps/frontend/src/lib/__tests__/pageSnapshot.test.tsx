@@ -1302,12 +1302,14 @@ describe('the register serves an ordinary link per filer, on numbered pages', ()
     }
   });
 
-  it('carries previous, next and jump links so the whole register is walkable', () => {
+  // Previous and Next are the only page links: /sitemap.xml names every numbered
+  // page of the register, so no numbered link is needed to reach a deep one.
+  it('carries previous and next links and no numbered page links', () => {
     const hrefs = snapshot.links.map((link) => link.href);
     expect(hrefs).toContain('/money/committees?page=11');
     expect(hrefs).toContain('/money/committees?page=13');
-    expect(hrefs).toContain('/money/committees');
     expect(hrefs).toContain('/money');
+    expect(snapshot.links.filter((link) => /^Page \d+$/.test(link.label))).toEqual([]);
   });
 
   it('names which rows of the register this page holds', () => {

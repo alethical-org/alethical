@@ -80,31 +80,3 @@ export function isDefaultBillDirectoryParams(params: Record<string, unknown>): b
     return value == null || value === '';
   });
 }
-
-/**
- * Page jumps in powers of 10 keep a directory with 1,000 pages within a few
- * dozen normal links, without printing 1,000 page numbers on every response.
- * Previous/Next already cover neighbours, so those are omitted here.
- */
-export function directoryJumpPages(page: number, totalPages: number): number[] {
-  const pages = new Set<number>();
-  const add = (candidate: number) => {
-    if (
-      candidate >= 1 &&
-      candidate <= totalPages &&
-      candidate !== page &&
-      Math.abs(candidate - page) > 1
-    ) {
-      pages.add(candidate);
-    }
-  };
-
-  add(1);
-  for (const distance of [10, 100, 1000]) {
-    add(page - distance);
-    add(page + distance);
-  }
-  add(totalPages);
-
-  return [...pages].sort((left, right) => left - right);
-}
