@@ -33,6 +33,7 @@ import {
   type CommitteeKindFilter,
 } from '../../lib/committeeList';
 import { closedChipLabel, committeeSlug } from '../../lib/committeeMoneyShared';
+import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
 import {
   directoryPageNumber,
   directoryPagePath,
@@ -146,7 +147,7 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
             style={styles.backLink}
           >
             <ChevronLeft size={18} strokeWidth={2.2} color={t.colors.text.secondary} aria-hidden />
-            <Text style={styles.backLabel}>Follow the money</Text>
+            <Text style={styles.backLabel}>{MONEY_SECTION_NAME}</Text>
           </Pressable>
 
           <Text style={styles.eyebrow}>CAMPAIGN MONEY</Text>

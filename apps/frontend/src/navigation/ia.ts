@@ -14,6 +14,8 @@
  * The reader-facing description is docs/product-onboarding/site-navigation-guide.md.
  */
 
+import { MONEY_SECTION_NAME } from '../lib/moneySectionName';
+
 /**
  * A menu an item can belong to. `track` no longer draws a group in the bar
  * (#1698 moved tracking behind the account avatar), but the key stays: the
@@ -135,7 +137,7 @@ export const IA: IaItem[] = [
     // is not built yet", and Eugene overruled that on 20 Aug 2026 on the grounds
     // that the page declared itself unfinished. That argument is now moot rather
     // than load-bearing — the row describes a capability that ships.
-    label: 'Money in politics',
+    label: MONEY_SECTION_NAME,
     path: '/money',
     menu: 'search',
     availability: 'mvp',

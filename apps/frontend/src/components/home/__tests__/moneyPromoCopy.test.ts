@@ -86,6 +86,6 @@ describe('the rest of the card', () => {
 
   it('keeps the heading and the call to action verbatim', () => {
     expect(MONEY_PROMO_HEADING).toBe('Follow the money');
-    expect(MONEY_PROMO_CTA).toBe('Search the money records');
+    expect(MONEY_PROMO_CTA).toBe('Money in politics');
   });
 });

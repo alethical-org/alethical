@@ -1,4 +1,5 @@
 import { MONEY_LANE_LOBBYING, lobbyistLaneCount } from './lobbyingDirectoryCopy';
+import { MONEY_SECTION_NAME } from './moneySectionName';
 import {
   authorNameOnly,
   bienniumEyebrow,
@@ -340,7 +341,7 @@ export function homePageSnapshot(): PageSnapshot {
       { label: 'Search Bills', href: '/bills' },
       { label: 'Search Legislators', href: '/legislators' },
       { label: 'Find My Legislator', href: '/find-my-legislator' },
-      { label: 'Money in politics', href: '/money' },
+      { label: MONEY_SECTION_NAME, href: '/money' },
       { label: READ_PAGE_NAME, href: '/read' },
     ],
   };
@@ -898,7 +899,7 @@ export function readPageSnapshot(pieces: readonly ResearchPiece[]): PageSnapshot
       href: piecePath(piece),
     })),
     // The page's own back link, to the section the nav calls "Money in politics".
-    links: [{ label: 'Money in politics', href: '/money' }],
+    links: [{ label: MONEY_SECTION_NAME, href: '/money' }],
   };
 }
 

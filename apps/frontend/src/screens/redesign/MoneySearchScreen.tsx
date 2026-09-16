@@ -15,6 +15,7 @@ import { useResponsive } from '../../hooks/useResponsive';
 import { useSearchMetric } from '../../hooks/useSearchMetric';
 import { committeeRowMeta } from '../../lib/committeeList';
 import { closedChipLabel, committeeSlug } from '../../lib/committeeMoneyShared';
+import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
 import {
   BROWSE_ALL_COMMITTEES,
   countedUpToNote,
@@ -169,7 +170,7 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
             {...linkProps(routePath.money(), () => navigation.navigate('MoneyLanding'))}
             style={styles.backLink}
           >
-            <Text style={styles.backLabel}>Follow the money</Text>
+            <Text style={styles.backLabel}>{MONEY_SECTION_NAME}</Text>
           </Pressable>
 
           <Text style={styles.eyebrow}>SEARCH RESULTS</Text>

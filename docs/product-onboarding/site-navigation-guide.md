@@ -34,6 +34,19 @@ addresses are resolved by one router (`apps/frontend/src/navigation/webRoutes.ts
   [How private account visibility works](admin-users-guide.md) and
   [How Site Metrics works](traffic-guide.md).
 
+## The name of `/money`
+
+**Money in politics** is the destination name for `/money`. Use those exact words
+in the Search menu, the homepage money card's button, the `/money` heading, browser
+title and shared-link title, and every link or empty-state button returning to
+`/money`, including campaign and lobbying pages. A browser title may append the
+site name in the usual format.
+
+**Follow the money** remains the homepage money card's headline, an invitation rather
+than a second destination name. The button beneath it says **Money in politics**,
+without “Explore”. **Campaign money** remains the narrower name on legislator and
+committee tabs that show campaign records rather than the whole `/money` section.
+
 ## The greyed "ON THE ROADMAP" group
 
 Under Search's live rows sits a muted group of pills that cannot be pressed: **Candidates ·

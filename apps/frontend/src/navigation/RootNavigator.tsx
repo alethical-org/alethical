@@ -32,6 +32,7 @@ import {
 import { MainTabParamList, MainTabScreenProps, RootStackParamList } from './types';
 import { pathnameFromNavigationState, stateFromPathname } from './webRoutes';
 import { loadOnDemand } from '../lib/loadOnDemand';
+import { MONEY_SECTION_NAME } from '../lib/moneySectionName';
 import { screenChunks } from './screenChunks';
 import { theme } from '../theme/tokens';
 
@@ -726,7 +727,7 @@ export function RootNavigator() {
             <Stack.Screen
               name="MoneyLanding"
               component={MoneyLandingScreen}
-              options={{ headerShown: false, title: 'Follow the money' }}
+              options={{ headerShown: false, title: MONEY_SECTION_NAME }}
             />
             <Stack.Screen
               name="Read"
