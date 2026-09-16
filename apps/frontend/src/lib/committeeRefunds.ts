@@ -2,16 +2,9 @@ import type { CommitteeRefunds } from '../data/types';
 
 /** Fixed copy for the accepted all-year refund card on a confirmed committee. */
 export const refundCopy = {
-  // Minnesota is named rather than called "the state", and the refund goes to the
-  // donors, so "paid this committee's donors" says the same thing in 2 fewer words.
-  heading: "Refunds Minnesota paid this committee's donors",
-  // "one person", not "1 person": the numeral put a third figure in a sentence that
-  // already carries 2 amounts. "filing jointly" is the Board's own wording and the
-  // phrase a reader meets on the refund form, and it is the phrase the note under the
-  // table uses, so the card says it one way (#2186). The amounts are the Board's own,
-  // read at source on 13 Sep 2026.
+  heading: "Refunds Minnesota paid to this committee's donors",
   introduction:
-    'Minnesota pays a resident back for a gift to a state candidate, up to $75 a year for one person and $150 for a married couple filing jointly. This is money the state returned to donors, not money the committee received.',
+    'Minnesota refunds eligible contributions to state candidates, up to $75 per person or $150 per married couple filing jointly each year. Refunds go to donors, not the committee.',
   columns: ['Year', 'Contributions refunded', 'Amount refunded'],
   caption: 'Refunds by year',
   notPublished: 'Not published',
@@ -23,10 +16,8 @@ export const refundCopy = {
   // already open with Minnesota's, and the 2 notes above this one say the Board twice.
   summaries: "The Board's refund summaries",
   unavailable: 'Not yet copied by Alethical',
-  jointFilingNote: 'The Board counts a married couple filing jointly as one contribution',
-  // 18 words to 11. `exactly` goes with them: a match on 3 fields is exact or it is not
-  // a match.
-  sourceMethod: "Matched to the Board's yearly summary by candidate name, office and party",
+  jointFilingNote: 'A married couple filing jointly counts as 1 contribution',
+  sourceMethod: "Matched by exact candidate name, office and party in the Board's yearly summary",
   // `last` goes: a date already says it was the last time, and the note above it and the
   // tab's own freshness line both say `copied` alone for the same act.
   copiedOn: (day: string) => `Board summary files copied ${day}`,

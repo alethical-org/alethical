@@ -149,7 +149,7 @@ function OutsideYear({
           definition of something not on the page. Every other state still draws it,
           because in those the sentence is the only thing saying what the card is about. */}
       {zero ? null : (
-        <Text style={s.body}>
+        <Text style={[s.body, { maxWidth: 900 }]}>
           {surface === 'committee'
             ? `${OUTSIDE_ABOUT_INTRO} ${OUTSIDE_NEVER_ADDED}`
             : copy.explainer}

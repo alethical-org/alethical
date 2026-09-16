@@ -330,9 +330,8 @@ export function splitExplanation(state: SplitState): string | null {
       return null;
     case 'no_reported_total':
       return (
-        'We do not have an official total for this committee covering this year that we ' +
-        'can stand behind, so there is nothing to compare these donations against. What ' +
-        'is listed here is only the donations Minnesota required this committee to name.'
+        'We do not hold an official contribution total for this committee for this year. ' +
+        'The amounts listed come from itemized contributions in Minnesota’s file.'
       );
     case 'sources_disagree':
       // No direction, deliberately. This state is reached from both of them, and the

@@ -191,9 +191,10 @@ describe('splitExplanation', () => {
     expect(text).toMatch(/missing from the list/);
   });
 
-  it('labels a lone figure as only the donations that had to be named', () => {
+  it('describes our missing official total without excluding voluntary itemization', () => {
     const text = splitExplanation('no_reported_total') ?? '';
-    expect(text).toMatch(/only the donations/);
+    expect(text).toContain('come from itemized contributions');
+    expect(text).not.toContain('required');
     // Not "the state has not published a report": the same state is reached when we
     // hold a report we cannot use, and blaming Minnesota for our gap is its own claim.
     expect(text).not.toMatch(/state has not published/i);

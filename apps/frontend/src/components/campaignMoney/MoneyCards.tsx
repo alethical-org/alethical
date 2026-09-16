@@ -44,7 +44,15 @@
  * The shared theme supplies the palette and type sizes on profile and committee pages.
  */
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import { Linking, StyleSheet, Text, View, type TextProps, type TextStyle } from 'react-native';
+import {
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type TextProps,
+  type TextStyle,
+} from 'react-native';
 
 import { BOARD_RECORD_LINK_LABEL, BOARD_RECORD_SENTENCE_TAIL } from '../../lib/boardRecordLink';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
@@ -84,6 +92,7 @@ import {
   type SplitState,
 } from '../../lib/legislatorCampaignMoney';
 import { externalLinkProps } from '../../navigation/links';
+import { LinkArrow } from '../LinkArrow';
 import { theme as t } from '../../theme/tokens';
 import { useCampaignMoneyTypography } from './detailsStyles';
 
@@ -229,17 +238,21 @@ export function FilingStamp({
           are prose in one block rather than a stack of standalone lines.
           `numeric` is off: the auto-detector sets weight 800 on any string carrying a
           digit, and the appended download date was making this whole sentence bold. */}
-      <View style={styles.stampSentences}>
-        <CardText numeric={false} style={styles.stampDetail}>
-          {detail}
-        </CardText>
-        {boardRecordUrl ? (
-          <CardText numeric={false} style={styles.stampDetail}>
-            <InlineBoardRecordLink url={boardRecordUrl} />
-            {BOARD_RECORD_SENTENCE_TAIL}
-          </CardText>
-        ) : null}
-      </View>
+      {detail || boardRecordUrl ? (
+        <View style={styles.stampSentences}>
+          {detail ? (
+            <CardText numeric={false} style={styles.stampDetail}>
+              {detail}
+            </CardText>
+          ) : null}
+          {boardRecordUrl ? (
+            <CardText numeric={false} style={styles.stampDetail}>
+              <InlineBoardRecordLink url={boardRecordUrl} />
+              {BOARD_RECORD_SENTENCE_TAIL}
+            </CardText>
+          ) : null}
+        </View>
+      ) : null}
       {notes.map((note) => (
         <CardText key={note} style={styles.stampDetail}>
           {note}
@@ -276,10 +289,12 @@ export function MoneyInBlock({
   stampThrough,
   isMobile,
   withDonorBreakdown = false,
+  showSource = true,
 }: {
   surface: MoneyCardSurface;
   /** The shared chart already states the split and goods-and-services explanation. */
   withDonorBreakdown?: boolean;
+  showSource?: boolean;
   split: SplitLike;
   moneyIn: MoneyInLike | null;
   isBallot: boolean;
@@ -391,7 +406,7 @@ export function MoneyInBlock({
         </View>
       ) : null}
 
-      {moneyIn?.sourceUrl ? (
+      {showSource && moneyIn?.sourceUrl ? (
         <SourceLink label={NAMED_DONATIONS_LINK_LABEL} url={downloadsPageUrl(moneyIn.sourceUrl)} />
       ) : null}
     </View>
@@ -542,6 +557,30 @@ function Row({ label, value, note }: { label: string; value: string; note?: stri
   );
 }
 
+/** A download source belongs outside the human identity-check evidence. */
+export function CampaignDownloadsLink({ sourceUrl }: { sourceUrl: string | null | undefined }) {
+  const styles = useCardStyles();
+  if (!sourceUrl) return null;
+  const url = downloadsPageUrl(sourceUrl);
+  return (
+    <Pressable
+      {...externalLinkProps(url, () => void Linking.openURL(url))}
+      style={(state) => [
+        styles.downloadLink,
+        Boolean('focused' in state && state.focused) && styles.sourceFocused,
+      ]}
+    >
+      <CardText numeric={false} style={styles.downloadLabel}>
+        {NAMED_DONATIONS_LINK_LABEL}
+        <Text style={{ fontWeight: '400' }}>
+          {'\u00a0'}
+          <LinkArrow color={c.link} />
+        </Text>
+      </CardText>
+    </Pressable>
+  );
+}
+
 function SourceLink({ label, url }: { label: string; url: string }) {
   const styles = useCardStyles();
   const [focused, setFocused] = useState(false);
@@ -649,6 +688,8 @@ const defaultStyles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   sourceFocused: {},
+  downloadLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
+  downloadLabel: { fontFamily: t.typography.body, fontSize: 15, fontWeight: '700', color: c.link },
   stamp: {
     backgroundColor: t.colors.surfaces.s100,
     borderWidth: 1,
@@ -688,7 +729,7 @@ const defaultStyles = StyleSheet.create({
     fontSize: t.fontSizes.body,
     lineHeight: 22,
     color: t.colors.text.secondary,
-    maxWidth: 1000,
+    maxWidth: 680,
   },
   checked: {
     marginTop: 16,
@@ -768,8 +809,8 @@ const profileStyles = StyleSheet.create({
   inlineLink: { ...defaultStyles.inlineLink, color: c.link },
   checked: {
     ...defaultStyles.checked,
-    // The committee card supplies a 16px gap, making 24px after the names/button.
-    marginTop: 8,
+    // The committee foot owns the space after the names and before the source link.
+    marginTop: 0,
     borderTopColor: t.colors.alpha.ink08,
   },
   checkedHeading: { ...defaultStyles.checkedHeading, color: c.text },

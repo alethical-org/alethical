@@ -1,5 +1,10 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+vi.mock('react-native-svg', () => ({
+  default: ({ children }: { children?: React.ReactNode }) => <svg>{children}</svg>,
+  Path: () => <path />,
+}));
+
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MoneyOutBlock, type MoneyOutLike } from '../MoneyCards';
 

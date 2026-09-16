@@ -9,6 +9,7 @@ vi.hoisted(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 });
 const state = vi.hoisted(() => ({
+  mobile: false,
   money: {} as unknown,
   confirmation: undefined as CommitteeConfirmation | undefined,
   confirmationPending: false,
@@ -18,6 +19,14 @@ const state = vi.hoisted(() => ({
   byRows: [] as CommitteeOutsideSpendingRow[],
 }));
 const navigate = vi.hoisted(() => vi.fn());
+vi.mock('../../../hooks/useResponsive', () => ({
+  useResponsive: () => ({
+    width: state.mobile ? 375 : 1024,
+    isMobile: state.mobile,
+    isTablet: !state.mobile,
+    isDesktop: false,
+  }),
+}));
 vi.mock(
   '../../../components/campaignMoney/MoneyDetailsOnDemand',
   () => import('../../../components/campaignMoney/MoneyDetailsBundle'),
@@ -189,6 +198,7 @@ function tab(label: string) {
   );
 }
 beforeEach(() => {
+  state.mobile = false;
   payload = structuredClone(candidateFinance.data) as ApiCommitteeMoneyPayload;
   params = { slug: 'gottfried-david-house-committee-19193', year: '2025' };
   state.pending = false;
@@ -228,6 +238,34 @@ afterEach(() => {
 });
 
 describe('one committee shares the donation browser', () => {
+  it('lets phone money boxes grow around every income row and keeps their source outside', async () => {
+    state.mobile = true;
+    payload = structuredClone(partyFinance.data) as ApiCommitteeMoneyPayload;
+    params = { slug: 'mn-dfl-state-central-committee-20003', year: '2025' };
+    state.confirmation = committeeConfirmationFromPayload(partyFinance.data, { servedAgeMs: 0 });
+    shape();
+    await render();
+    const headings = [...host.querySelectorAll('[role="heading"]')];
+    const moneyIn = headings.find((node) => node.textContent === 'Money in')!.parentElement!
+      .parentElement!;
+    const moneyOut = headings.find((node) => node.textContent === 'Money out')!.parentElement!
+      .parentElement!;
+    for (const box of [moneyIn, moneyOut]) {
+      // A zero flex basis sized these boxes to their padding, leaving rows on top of the next box.
+      const style = getComputedStyle(box);
+      expect(style.flexBasis).toBe('auto');
+      expect(style.flexShrink).toBe('0');
+    }
+    expect(moneyIn.textContent).toContain('Miscellaneous Income');
+    expect(moneyIn.textContent).toContain('$50,801');
+    expect(moneyIn.querySelector('a')).toBeNull();
+    const sources = [...host.querySelectorAll('a')].filter((node) =>
+      node.textContent?.includes('Minnesota’s campaign-finance downloads'),
+    );
+    expect(sources.length).toBeGreaterThan(0);
+    expect(sources.every((node) => !moneyIn.contains(node) && !moneyOut.contains(node))).toBe(true);
+  });
+
   it('restores the prior committee’s donor kind, sort and position on Back', async () => {
     const frames = new Map<number, FrameRequestCallback>();
     let frameId = 0;

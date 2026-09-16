@@ -549,8 +549,8 @@ show donor overlap.
 
 Outside spending follows the selected year and groups payments by spender within each
 direction. Supporting and opposing totals remain separate, and never enter the
-candidate's own figures. After that, each committee has its own history of named cash
-shares from 2015 through the current year. The history loads after the selected lists
+candidate's own figures. Before refunds and outside spending, each committee has its own
+history of itemized cash shares from 2015 through the current year. The history loads after the selected lists
 and appears only when every year is complete and from the same release. It never adds
 committees together or turns missing rows into a reported zero.
 
@@ -729,8 +729,7 @@ Top to bottom:
    not contributions (a public subsidy, interest, a loan) sit under a "Not a contribution"
    heading
    with the state's own label; **a row the state types `Miscellaneous` is not drawn, and
-   with no other row the heading is not drawn either** (ruled 11 Sep 2026). The card ends
-   with the link "Minnesota's campaign-finance downloads", which opens the Board's downloads
+   with no other row the heading is not drawn either** (ruled 11 Sep 2026). After the payment section comes the link "Minnesota's campaign-finance downloads", which opens the Board's downloads
    page rather than the 9 MB bulk download the server's address points at: the page strips
    the `?download=` part, so a new release id cannot break the link. The official figures
    share [MoneyCards.tsx](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/campaignMoney/MoneyCards.tsx)
@@ -888,14 +887,14 @@ Top to bottom:
     are 1 payment filed twice or 2 payments that coincide.
 
 11. **What this record covers**: filed with the Board, nothing before 2015, unions don't
-   report here — and the donor sentence, which names **$200** on most pages and **$500**
-   on a ballot-question committee's page. Each page states only its own figure, because
-   the risk is a reader taking one kind of committee's line for another's. $500 is what
+    report here — and the donor sentence, which names **$200** on most pages and **$500**
+    on a ballot-question committee's page. Each page states only its own figure, because
+    the risk is a reader taking one kind of committee's line for another's. $500 is what
    the law says for a ballot question and what the Board's own guide for those committees
    says, and it went up on 31 Aug 2026 after a check of both. Before that these pages
    printed no figure at all and explained the gap by saying official sources disagreed
    about it, which was not true: the $200 came from a guide written for a different kind
-   of committee.
+    of committee.
 
 **How every dollar amount in this section is written**, ruled 1 September 2026 and applied
 across the whole design set:
@@ -1268,12 +1267,11 @@ not before, and a person decides every such link rather than software proposing 
   within a legislator profile's already-loaded payment tab stays in the browser and
   does not change the address.
 
-
 ### Selected-year donation cards on a committee record
 
 The Campaign money section at `/money/committees/<slug>` uses the same 3 cards as
 the legislator tab: **What the committee’s own report says**, **Where itemized
-individual donations came from**, and **Names that also gave to other candidates**.
+individual contributions came from**, and **Contributor names also listed for other candidates**.
 They follow that committee's own chart and payment list and precede outside
 spending. The selected year and that committee's checked source blocks govern the
 figures. The location card is absent on funds and party organisations. No legislator
@@ -1285,7 +1283,6 @@ The full card descriptions, source limits and empty/loading states are in the
 
 Docs check: [Issue 2205](https://github.com/alethical-org/alethical/issues/2205) adds
 the shared donation cards without adding a server route or changing a money source.
-
 
 ## Lobbying links and search groups
 
@@ -1308,3 +1305,16 @@ printed name remain separate, without choosing a single identity.
 Docs check: The lobbying release updates all money entry points, search groups, expanded
 registration links and removal of the old under-development strip. The complete 5-address
 behavior is described in [lobbying-guide.md](lobbying-guide.md).
+
+The committee page shares the revised report comparison, contribution locations and
+exact-spelling name cards described in [the legislator campaign-money guide](legislator-campaign-money-guide.md).
+Its downloads link sits after the contribution/payment section, outside Money in and
+outside the separate human-check evidence. On phones both money boxes grow with their
+contents; on wider screens they stretch to equal height.
+
+Docs check: Updated the shared card wording and committee source placement and phone layout.
+
+A party unit or political fund whose successful response omits the candidate-report
+comparison shows the existing held explanation. It does not ask the reader to retry
+an unsupported comparison. A failed payment read still shows the load-failed state,
+and an unexpectedly missing candidate comparison remains a failure.

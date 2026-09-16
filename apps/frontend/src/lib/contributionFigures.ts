@@ -68,37 +68,52 @@ export function inKindDonationsNote(amount: string): string {
 export const donationCardsCopy = {
   headings: [
     'What the committee’s own report says',
-    'Where itemized individual donations came from',
-    'Names that also gave to other candidates',
+    'Where itemized individual contributions came from',
+    'Contributor names also listed for other candidates',
   ],
   introduction:
     'Contributions reported by the committee, beside itemized contributions in the state’s list',
-  columns: ['Reported in the filing', 'Itemized in the state’s list', 'Difference'],
-  total: 'All five added up',
-  difference: 'The differences add up to total non-itemized contributions',
+  columns: [
+    'Total contributions in report',
+    'Itemized contributions in state’s list',
+    'Non-itemized contributions (calculated)',
+  ],
+  columnLines: [
+    ['Total', 'contributions', 'in report'],
+    ['Itemized', 'contributions', 'in state’s list'],
+    ['Non-itemized', 'contributions', '(calculated)'],
+  ],
+  total: 'Total',
+  difference: 'Non-itemized contributions = total contributions − itemized contributions',
   chartName: 'Who gave',
   closingAfter: ' counts under Committees & Funds instead',
   closingBefore: (amount: string, payments: number) =>
     payments === 1
       ? `${amount} of this line is 1 payment from a closing candidate committee passing on its balance, which `
-      : `${amount} of this line is ${payments.toLocaleString('en-US')} payments from closing candidate committees passing on their balances, which `,
+      : `${amount} of this line is ${payments.toLocaleString('en-US')} payments in the closing candidate committee category, which `,
   places: ['Minnesota', 'Other states', 'Unknown'],
   contributionLine: 'Contribution line',
   state: 'State',
   names: 'Names',
   amount: 'Amount',
   locationNotes: [
-    'Counts individual donors only',
-    'Unknown means the state’s file carries no usable postcode for that donation. It never means the money came from outside Minnesota',
+    'Unknown means the state’s file has no usable ZIP code to identify the donor’s state',
   ],
   caveat:
-    'Matched on the exact spelling in the state’s file. The same spelling is not proof of the same person, and 2 spellings of one person stay separate',
+    'Matched by exact spelling in the state’s file. A match does not prove it is the same person; different spellings count separately.',
   connectionsHeadline: (matched: number, names: number) =>
     `${matched.toLocaleString('en-US')} of ${names.toLocaleString('en-US')} names`,
-  distributionHeading: 'How many other candidates',
-  highestHeading: 'The five highest',
-  otherCandidates: 'Other candidates',
-  buckets: ['no other candidate', 'one', 'two', 'three', 'four or more'],
+  distributionHeading: 'Other candidate committees',
+  highestHeading: 'Names with the most matches',
+  otherCandidates: 'Other candidate committees',
+  otherCandidateLines: ['Other candidate', 'committees'],
+  highestLines: ['Names with the most', 'matches'],
+  buckets: ['0', '1', '2', '3', '4 or more'],
+  connectionsBar: (
+    headline: string,
+    distribution: readonly { other_committees: string; names: number }[],
+  ) =>
+    `${headline} are also listed for at least one other candidate committee. ${distribution.map((row) => `${row.other_committees === '4+' ? '4 or more' : row.other_committees} other candidate ${row.other_committees === '1' ? 'committee' : 'committees'}, ${row.names.toLocaleString('en-US')} ${row.names === 1 ? 'name' : 'names'}`).join('; ')}`,
   held: [
     (year: number) =>
       `This card needs a filed report for ${year} and our own figures checked against it. We do not yet have both, so no figures are drawn here.`,
@@ -108,9 +123,9 @@ export const donationCardsCopy = {
       `No names are matched for ${year}. We match only from a year whose donations we have checked against a filed report, and that is not yet the case here.`,
   ],
   emptyLocations: (year: number) =>
-    `The state’s list names no individual donations for this committee in ${year}`,
+    `The state’s list names no individual contributions for this committee in ${year}`,
   emptyConnections: (year: number) =>
-    `With no itemized individual donations in ${year}, there is no name to match against other candidates`,
+    `With no itemized individual contributions in ${year}, there is no name to match against other candidates`,
   failed: [
     'We couldn’t load this comparison right now.',
     'We couldn’t load where these donations came from right now.',

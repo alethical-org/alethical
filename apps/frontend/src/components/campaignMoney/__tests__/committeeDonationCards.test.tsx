@@ -114,8 +114,8 @@ describe('drawn donation cards from committee 17868 in 2025', () => {
     expect(cards(page)).toHaveLength(3);
     expect(cards(page).map((card) => card.querySelector('h2')?.textContent)).toEqual([
       'What the committee’s own report says',
-      'Where itemized individual donations came from',
-      'Names that also gave to other candidates',
+      'Where itemized individual contributions came from',
+      'Contributor names also listed for other candidates',
     ]);
 
     expect(filing.textContent).toContain(
@@ -123,9 +123,9 @@ describe('drawn donation cards from committee 17868 in 2025', () => {
     );
     expect([...filing.querySelectorAll('thead th')].map((heading) => heading.textContent)).toEqual([
       '',
-      'Reported in the filing',
-      'Itemized in the state’s list',
-      'Difference',
+      'Total contributions in report',
+      'Itemized contributions in state’s list',
+      'Non-itemized contributions (calculated)',
     ]);
     expect(cells(filing.querySelector('table')!)).toEqual([
       ['Individuals contributions', '$66,203', '$39,950', '$26,253'],
@@ -133,13 +133,13 @@ describe('drawn donation cards from committee 17868 in 2025', () => {
       ['Committee/fund contributions', '$17,300', '$16,050', '$1,250'],
       ['Party unit contributions', '$9,900', '$9,700', '$200'],
       ['Other contributions', '$0', '$0', '$0'],
-      ['All five added up', '$97,703', '$67,100', '$30,603'],
+      ['Total', '$97,703', '$67,100', '$30,603'],
     ]);
     expect(filing.textContent).toContain(
       '$500 of this line is 1 payment from a closing candidate committee passing on its balance, which Who gave counts under Committees & Funds instead',
     );
     expect(filing.textContent).toContain(
-      'The differences add up to total non-itemized contributions',
+      'Non-itemized contributions = total contributions − itemized contributions',
     );
     expect(filing.textContent?.match(/Who gave/g)).toHaveLength(1);
 
@@ -151,29 +151,29 @@ describe('drawn donation cards from committee 17868 in 2025', () => {
     expect(
       [...locations.querySelectorAll('thead th')].map((heading) => heading.textContent),
     ).toEqual(['', 'Names', 'Amount']);
-    expect(locations.textContent).toContain('Counts individual donors only');
+    expect(locations.textContent).not.toContain('Counts individual donors only');
     expect(locations.textContent).toContain(
-      'Unknown means the state’s file carries no usable postcode for that donation. It never means the money came from outside Minnesota',
+      'Unknown means the state’s file has no usable ZIP code to identify the donor’s state',
     );
 
     expect(connections.textContent).toContain('19 of 74 names');
     expect(connections.textContent).toContain(
-      'Matched on the exact spelling in the state’s file. The same spelling is not proof of the same person, and 2 spellings of one person stay separate',
+      'Matched by exact spelling in the state’s file. A match does not prove it is the same person; different spellings count separately.',
     );
-    const distribution = tableWithCaption(connections, 'How many other candidates');
-    const highest = tableWithCaption(connections, 'The five highest');
+    const distribution = tableWithCaption(connections, 'Other candidate committees');
+    const highest = tableWithCaption(connections, 'Names with the most matches');
     expect(
       [...distribution.querySelectorAll('thead th')].map((heading) => heading.textContent),
-    ).toEqual(['How many other candidates', 'Names']);
+    ).toEqual(['Other candidate committees', 'Names']);
     expect(cells(distribution)).toEqual([
-      ['no other candidate', '55'],
-      ['one', '11'],
-      ['two', '5'],
-      ['three', '1'],
-      ['four or more', '2'],
+      ['0', '55'],
+      ['1', '11'],
+      ['2', '5'],
+      ['3', '1'],
+      ['4 or more', '2'],
     ]);
     expect([...highest.querySelectorAll('thead th')].map((heading) => heading.textContent)).toEqual(
-      ['The five highest', 'Other candidates'],
+      ['Names with the most matches', 'Other candidate committees'],
     );
     expect(cells(highest)).toEqual([
       ['Kratsch, Charles', '11'],
@@ -203,7 +203,7 @@ describe('drawn donation cards from committee 17868 in 2025', () => {
       probe.style.background = value;
       return probe.style.background;
     };
-    const ramp = [...connections.querySelectorAll<HTMLElement>('[aria-hidden="true"]')].find(
+    const ramp = [...connections.querySelectorAll<HTMLElement>('[role="img"]')].find(
       (element) => element.style.height === '22px',
     )!;
     expect([...ramp.children].map((segment) => (segment as HTMLElement).style.background)).toEqual(
@@ -219,7 +219,7 @@ describe('drawn donation cards from committee 17868 in 2025', () => {
     const sameCommittee = ['500', '1000', '2000', '245000'].map((amount) => payment(amount));
     const filing = cards(render({ payments: sameCommittee }))[0];
     expect(filing.textContent).toContain(
-      '$248,500 of this line is 4 payments from closing candidate committees passing on their balances, which Who gave counts under Committees & Funds instead',
+      '$248,500 of this line is 4 payments in the closing candidate committee category, which Who gave counts under Committees & Funds instead',
     );
     expect(filing.textContent).not.toContain('4 closing candidate committees');
     const noMatch = cards(render({ payments: singleClosingPayment.slice(1) }))[0];
@@ -237,8 +237,8 @@ describe('all donation-card states', () => {
     const page = render({ committee: held, year });
     expect(cards(page).map((card) => card.textContent)).toEqual([
       `What the committee’s own report saysThis card needs a filed report for ${year} and our own figures checked against it. We do not yet have both, so no figures are drawn here.`,
-      `Where itemized individual donations came fromWe draw this only from a year whose donations we have checked against a filed report. ${year} is not yet one of them, so there is nothing here.`,
-      `Names that also gave to other candidatesNo names are matched for ${year}. We match only from a year whose donations we have checked against a filed report, and that is not yet the case here.`,
+      `Where itemized individual contributions came fromWe draw this only from a year whose donations we have checked against a filed report. ${year} is not yet one of them, so there is nothing here.`,
+      `Contributor names also listed for other candidatesNo names are matched for ${year}. We match only from a year whose donations we have checked against a filed report, and that is not yet the case here.`,
     ]);
   });
 
@@ -288,10 +288,10 @@ describe('all donation-card states', () => {
     });
     const page = render({ committee: empty, year });
     expect(cards(page)[1].textContent).toBe(
-      'Where itemized individual donations came fromThe state’s list names no individual donations for this committee in 2022',
+      'Where itemized individual contributions came fromThe state’s list names no individual contributions for this committee in 2022',
     );
     expect(cards(page)[2].textContent).toBe(
-      'Names that also gave to other candidatesWith no itemized individual donations in 2022, there is no name to match against other candidates',
+      'Contributor names also listed for other candidatesWith no itemized individual contributions in 2022, there is no name to match against other candidates',
     );
   });
 
@@ -332,14 +332,14 @@ describe('all donation-card states', () => {
     const [, locations, connections] = cards(
       render({ committee: noUsableNames, payments: [individualPayment] }),
     );
-    expect(locations.textContent).not.toContain('list names no individual donations');
+    expect(locations.textContent).not.toContain('list names no individual contributions');
     if (cash === '0') expect(locations.querySelector('[role="alert"]')).not.toBeNull();
     else expect(locations.textContent).toContain('$500');
 
     expect(connections.querySelector('[role="alert"]')?.textContent).toBe(
       'We couldn’t load these matches right now. Please try again in a moment.',
     );
-    expect(connections.textContent).not.toContain('With no itemized individual donations');
+    expect(connections.textContent).not.toContain('With no itemized individual contributions');
   });
 
   it('keeps cash visible when an individual donation has no usable donor name', () => {
@@ -354,7 +354,7 @@ describe('all donation-card states', () => {
     };
     const locations = cards(render({ committee: committee({ donorStates }) }))[1];
     expect(locations.textContent).not.toContain(
-      'The state’s list names no individual donations for this committee in 2025',
+      'The state’s list names no individual contributions for this committee in 2025',
     );
     expect(cells(locations.querySelector('table')!)).toEqual([
       ['Minnesota', '0', '$0'],
@@ -367,10 +367,46 @@ describe('all donation-card states', () => {
     const page = render({ registerKind: kind });
     expect(cards(page).map((card) => card.querySelector('h2')?.textContent)).toEqual([
       'What the committee’s own report says',
-      'Names that also gave to other candidates',
+      'Contributor names also listed for other candidates',
     ]);
-    expect(page.textContent).not.toContain('Where itemized individual donations came from');
+    expect(page.textContent).not.toContain('Where itemized individual contributions came from');
   });
+
+  it.each(['party_unit', 'political_committee_or_fund'])(
+    'holds an omitted candidate-report comparison after a successful %s read',
+    (registerKind) => {
+      const filing = cards(
+        render({ registerKind, committee: committee({ statedByKind: undefined }) }),
+      )[0];
+      expect(filing.textContent).toContain(
+        'This card needs a filed report for 2025 and our own figures checked against it. We do not yet have both, so no figures are drawn here.',
+      );
+      expect(filing.querySelector('[role="alert"]')).toBeNull();
+      expect(filing.querySelector('table')).toBeNull();
+      expect(filing.textContent).not.toContain('$0');
+    },
+  );
+
+  it('keeps an omitted candidate comparison as a failed load', () => {
+    const filing = cards(render({ committee: committee({ statedByKind: undefined }) }))[0];
+    expect(filing.querySelector('[role="alert"]')?.textContent).toBe(
+      'We couldn’t load this comparison right now. Please try again in a moment.',
+    );
+    expect(filing.querySelector('table')).toBeNull();
+  });
+
+  it.each(['party_unit', 'political_committee_or_fund', 'candidate_committee'])(
+    'keeps a failed %s request separate from an unsupported comparison',
+    (registerKind) => {
+      const filing = cards(
+        render({ registerKind, committee: committee({ statedByKind: undefined }), failed: true }),
+      )[0];
+      expect(filing.querySelector('[role="alert"]')?.textContent).toBe(
+        'We couldn’t load this comparison right now. Please try again in a moment.',
+      );
+      expect(filing.textContent).not.toContain('This card needs a filed report');
+    },
+  );
 });
 
 describe('several other states', () => {
@@ -419,4 +455,51 @@ it('holds the filing card when the server explicitly withholds its five lines', 
   expect(filing.querySelector('table')).toBeNull();
   expect(filing.querySelector('[role="alert"]')).toBeNull();
   expect(connections.textContent).toContain('19 of 74 names');
+});
+
+it('keeps the calculated total aligned and stacks each heading on 3 lines', () => {
+  responsive.isMobile = false;
+  const filing = cards(render())[0];
+  const headings = [...filing.querySelectorAll('thead th')].slice(1);
+  for (const heading of headings) expect(heading.querySelectorAll('span')).toHaveLength(3);
+  const total = filing.querySelector('tbody tr:last-child td:last-child span') as HTMLElement;
+  expect(total.textContent).toBe('$30,603');
+  expect(total.style.marginRight).toBe('-10px');
+  expect(total.style.padding).toBe('5px 10px');
+  expect(total.style.background).toBe('rgba(137, 144, 135, 0.2)');
+});
+
+it('keeps the same labelled figures and total wash on a phone', () => {
+  responsive.isMobile = true;
+  const filing = cards(render())[0];
+  expect(filing.querySelector('table')).toBeNull();
+  expect(filing.querySelector('dt')?.textContent).toBe('Total contributions in report');
+  const total = [...filing.querySelectorAll('dd span')];
+  expect(total).toHaveLength(1);
+  expect(total[0].textContent).toBe('$30,603');
+  responsive.isMobile = false;
+});
+
+it('lists positive matches without padding and ends the shorter list without a rule', () => {
+  const nameConnections = {
+    ...source.name_connections,
+    top_names: [
+      { name: 'Matched, A', other_committees: 2 },
+      { name: 'Unmatched, B', other_committees: 0 },
+      { name: 'Matched, C', other_committees: 1 },
+    ],
+  };
+  const connections = cards(render({ committee: committee({ nameConnections }) }))[2];
+  const table = tableWithCaption(connections, 'Names with the most matches');
+  expect(cells(table)).toEqual([
+    ['Matched, A', '2'],
+    ['Matched, C', '1'],
+  ]);
+  expect(table.textContent).not.toContain('Unmatched, B');
+  for (const cell of table.querySelectorAll<HTMLElement>('tbody tr:last-child > *')) {
+    expect(cell.style.borderBottomStyle).toBe('none');
+  }
+  expect(connections.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe(
+    '19 of 74 names are also listed for at least one other candidate committee. 0 other candidate committees, 55 names; 1 other candidate committee, 11 names; 2 other candidate committees, 5 names; 3 other candidate committees, 1 name; 4 or more other candidate committees, 2 names',
+  );
 });

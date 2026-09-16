@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('react-native-svg', () => ({
+  default: ({ children }: { children?: React.ReactNode }) => <svg>{children}</svg>,
+  Path: () => <path />,
+}));
 
 import {
   CampaignMoneyCardTheme,
@@ -181,8 +186,8 @@ describe('profile styling for shared money cards', () => {
     expect(dateStyle.fontSize).toBe('15px');
     expect(dateStyle.fontWeight).toBe('800');
     expect(getComputedStyle(block).paddingTop).toBe('18px');
-    // The profile card contributes the other 16px of the measured 24px gap.
-    expect(getComputedStyle(block).marginTop).toBe('8px');
+    // The outer card foot owns its spacing, outside the evidence block.
+    expect(getComputedStyle(block).marginTop).toBe('0px');
     expect(getComputedStyle(block).borderTopColor).toBe('rgba(17, 21, 15, 0.08)');
     const evidence = date.nextElementSibling!;
     expect(evidence.getAttribute('role')).toBe('list');

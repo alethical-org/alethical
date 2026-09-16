@@ -125,7 +125,7 @@ it('uses each solid kind colour in the donut, its square swatch and every year b
   expect(swatches('#donut div').map((swatch) => getComputedStyle(swatch).backgroundColor)).toEqual(
     colors.map(rgb),
   );
-  const bars = [...container.querySelectorAll<HTMLElement>('#history [role="img"]')];
+  const bars = [...container.querySelectorAll<HTMLElement>('#history [role="group"]')];
   expect(bars).toHaveLength(12);
   bars.forEach((bar) => {
     expect(getComputedStyle(bar).gap).toBe('2px');

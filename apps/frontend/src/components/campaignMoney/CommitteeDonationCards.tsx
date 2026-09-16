@@ -76,17 +76,23 @@ export function CommitteeDonationCardsView({
   loading?: boolean;
   failed?: boolean;
 }) {
+  const { isMobile, isTablet } = useResponsive();
   const checked = committee.split.statedSplitState === 'agrees';
   const hasIndividualDonations = payments.some(
     (row) => row.receiptType === 'Contribution' && row.contributorType === 'Individual',
   );
   const state = failed ? 'failed' : !checked ? 'held' : loading ? 'loading' : 'drawn';
+  // The server supplies candidate-report lines only for candidate committees.
+  const unsupportedComparison =
+    committee.statedByKind === undefined &&
+    (registerKind === 'party_unit' || registerKind === 'political_committee_or_fund');
   return (
-    <View style={{ gap: 24 }}>
+    <View style={{ gap: isMobile ? 24 : isTablet ? 32 : 36 }}>
       <DonationCard index={0} registration={committee.registrationNumber}>
         {state !== 'drawn' ? (
           <CardState state={state} index={0} year={year} />
-        ) : committee.statedByKind === null ||
+        ) : unsupportedComparison ||
+          committee.statedByKind === null ||
           committee.statedByKind?.state === 'sources_disagree' ? (
           <CardState state="held" index={0} year={year} />
         ) : committee.statedByKind?.state === 'reported' ? (
@@ -140,6 +146,25 @@ const invisible: CSSProperties = {
   clip: 'rect(0 0 0 0)',
   whiteSpace: 'nowrap',
 };
+const totalWash: CSSProperties = {
+  display: 'inline-block',
+  background: 'rgba(137,144,135,0.2)',
+  borderRadius: 8,
+  padding: '5px 10px',
+  marginRight: -10,
+};
+function StackedHeader({ lines }: { lines: readonly string[] }) {
+  return (
+    <>
+      {lines.map((line, index) => (
+        <React.Fragment key={line}>
+          {index > 0 ? ' ' : null}
+          <span style={{ display: 'block', whiteSpace: 'nowrap' }}>{line}</span>
+        </React.Fragment>
+      ))}
+    </>
+  );
+}
 const rule = '1px solid rgba(17,21,15,0.08)';
 const tableBase: CSSProperties = {
   width: '100%',
@@ -152,6 +177,7 @@ const tableBase: CSSProperties = {
 const head: CSSProperties = {
   textAlign: 'right',
   verticalAlign: 'bottom',
+  lineHeight: 1.35,
   fontFamily: t.typography.mono,
   fontSize: 11,
   fontWeight: 700,
@@ -229,7 +255,7 @@ function Paragraph({
       role={role}
       style={{
         margin: '14px 0 0',
-        maxWidth: small ? 680 : 760,
+        maxWidth: small ? 680 : 900,
         fontFamily: t.typography.body,
         fontVariantNumeric: 'tabular-nums',
         fontSize: small ? type.small : type.body,
@@ -370,7 +396,11 @@ function FiledLines({
                       {copy.columns[column]}
                     </dt>
                     <dd style={{ margin: 0, fontWeight: row.total || column === 2 ? 800 : 700 }}>
-                      {formatMoney(value)}
+                      {row.total && column === 2 ? (
+                        <span style={totalWash}>{formatMoney(value)}</span>
+                      ) : (
+                        formatMoney(value)
+                      )}
                     </dd>
                   </div>
                 ))}
@@ -400,7 +430,7 @@ function FiledLines({
                     boxSizing: 'border-box',
                   }}
                 >
-                  {label}
+                  <StackedHeader lines={copy.columnLines[index]} />
                 </th>
               ))}
             </tr>
@@ -430,7 +460,11 @@ function FiledLines({
                         borderBottom: row.note || index >= 4 ? undefined : rule,
                       }}
                     >
-                      {formatMoney(value)}
+                      {row.total && column === 2 ? (
+                        <span style={totalWash}>{formatMoney(value)}</span>
+                      ) : (
+                        formatMoney(value)
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -457,7 +491,15 @@ function FiledLines({
         </table>
       )}
       <Paragraph small muted>
-        {copy.difference}
+        {copy.difference.split(/ = | − /).map((part, index) => (
+          <React.Fragment key={index}>
+            {index > 0 ? ' ' : null}
+            <span style={{ whiteSpace: 'nowrap' }}>
+              {part}
+              {index === 0 ? ' =' : index === 1 ? ' −' : ''}
+            </span>
+          </React.Fragment>
+        ))}
       </Paragraph>
     </>
   );
@@ -614,6 +656,7 @@ function ConnectedNames({ block, year }: { block: CommitteeNameConnections; year
   ) {
     return <CardState state="failed" index={2} year={year} />;
   }
+  const topNames = block.top_names.filter((row) => row.other_committees > 0).slice(0, 5);
   const headline = copy.connectionsHeadline(block.numerator, block.denominator);
   const columns: CSSProperties = {
     display: 'grid',
@@ -655,7 +698,8 @@ function ConnectedNames({ block, year }: { block: CommitteeNameConnections; year
         </p>
       </div>
       <div
-        aria-hidden="true"
+        role="img"
+        aria-label={copy.connectionsBar(headline, block.distribution)}
         style={{ display: 'flex', marginTop: 20, height: 22, borderRadius: 6, overflow: 'hidden' }}
       >
         {block.distribution.map((row, i) => (
@@ -679,7 +723,7 @@ function ConnectedNames({ block, year }: { block: CommitteeNameConnections; year
             <thead>
               <tr>
                 <th scope="col" style={{ ...head, textAlign: 'left' }}>
-                  {top ? copy.highestHeading : copy.distributionHeading}
+                  <StackedHeader lines={top ? copy.highestLines : copy.otherCandidateLines} />
                 </th>
                 <th
                   scope="col"
@@ -698,12 +742,12 @@ function ConnectedNames({ block, year }: { block: CommitteeNameConnections; year
                           : 64,
                   }}
                 >
-                  {top ? copy.otherCandidates : copy.names}
+                  {top ? <StackedHeader lines={copy.otherCandidateLines} /> : copy.names}
                 </th>
               </tr>
             </thead>
             <tbody>
-              {(top ? block.top_names : block.distribution).map((row, i) => (
+              {(top ? topNames : block.distribution).map((row, i) => (
                 <tr key={i}>
                   <th
                     scope="row"
@@ -712,7 +756,10 @@ function ConnectedNames({ block, year }: { block: CommitteeNameConnections; year
                       textAlign: 'left',
                       height: 48,
                       padding: '4px 12px 4px 0',
-                      borderBottom: i === 4 ? 'none' : rule,
+                      borderBottom:
+                        i === (top ? topNames.length : block.distribution.length) - 1
+                          ? 'none'
+                          : rule,
                     }}
                   >
                     <span style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -739,7 +786,10 @@ function ConnectedNames({ block, year }: { block: CommitteeNameConnections; year
                       height: 48,
                       padding: '4px 0',
                       fontWeight: 800,
-                      borderBottom: i === 4 ? 'none' : rule,
+                      borderBottom:
+                        i === (top ? topNames.length : block.distribution.length) - 1
+                          ? 'none'
+                          : rule,
                     }}
                   >
                     {numbers('name' in row ? row.other_committees : row.names)}

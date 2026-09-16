@@ -155,10 +155,8 @@ describe('the per-committee refund card', () => {
       amountRefunded: null,
     }));
     const container = render(refunds);
-    expect(container.textContent).toContain("Refunds Minnesota paid this committee's donors");
-    expect(container.textContent).toContain(
-      'This is money the state returned to donors, not money the committee received.',
-    );
+    expect(container.textContent).toContain("Refunds Minnesota paid to this committee's donors");
+    expect(container.textContent).toContain('Refunds go to donors, not the committee.');
     expect(container.textContent).toContain(
       "The Board's refund summaries name no row for this committee's candidate, office and party",
     );
@@ -216,12 +214,10 @@ describe('the per-committee refund card', () => {
     (note) => {
       const refunds = refundFixture();
       expect(render(refunds).textContent).toContain(
-        'The Board counts a married couple filing jointly as one contribution',
+        'A married couple filing jointly counts as 1 contribution',
       );
       refunds.years.find((entry) => entry.year === 2025)!.jointFilingCountsAsOne = note;
-      expect(render(refunds).textContent).not.toContain(
-        'The Board counts a married couple filing jointly',
-      );
+      expect(render(refunds).textContent).not.toContain('A married couple filing jointly counts');
     },
   );
 
