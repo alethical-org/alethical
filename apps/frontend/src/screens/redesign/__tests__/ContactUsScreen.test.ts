@@ -128,7 +128,6 @@ describe('Contact us screen contract', () => {
     expect(CONTACT_SOCIALS.map((social) => social.url)).toEqual([
       'https://www.linkedin.com/company/alethical',
       'https://www.facebook.com/people/Alethical/61588261592240/',
-      null,
       'https://x.com/alethical',
       'https://www.tiktok.com/@alethicaltruth',
       'https://www.youtube.com/@Alethical',

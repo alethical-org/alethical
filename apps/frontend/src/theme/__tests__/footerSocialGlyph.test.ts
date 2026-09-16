@@ -3,6 +3,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+import { SOCIAL_ACCOUNTS } from '../../lib/socialLinks';
+
 const THEME_SOURCE = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), '..', 'primitives.tsx'),
   'utf8',
@@ -23,7 +25,7 @@ describe('shared footer social marks', () => {
     expect(THEME_SOURCE).toContain('footerSocialLinksMobile: { gap: 8 }');
   });
 
-  it('keeps the 6 accepted marks, optical sizes, circle sizes, and active colours', () => {
+  it('keeps the accepted marks, optical sizes, circle sizes, and active colours', () => {
     for (const platform of ['linkedin', 'facebook', 'instagram', 'tiktok', 'youtube']) {
       expect(LINK_SOURCE).toContain(`platform === '${platform}'`);
     }
@@ -38,7 +40,13 @@ describe('shared footer social marks', () => {
     expect(LINK_SOURCE).toContain('width: 44');
     expect(LINK_SOURCE).toContain("backgroundColor: 'rgba(255,255,255,0.07)'");
     expect(LINK_SOURCE).toContain("backgroundColor: 'rgba(255,255,255,0.16)'");
-    expect(LINK_SOURCE).toContain('accessibilityLabel={social.label} style={baseStyles}');
     expect(LINK_SOURCE).not.toContain('opacity:');
+  });
+
+  it('renders every listed account as a link, so no mark is unclickable', () => {
+    expect(LINK_SOURCE).not.toContain('if (!social.url)');
+    for (const social of SOCIAL_ACCOUNTS) {
+      expect(social.url).toMatch(/^https:\/\//);
+    }
   });
 });

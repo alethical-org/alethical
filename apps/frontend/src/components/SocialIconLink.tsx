@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Pressable, StyleSheet } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { useHover } from './billDetail/interactions';
@@ -100,17 +100,6 @@ export function SocialIconLink({
     isFooter && mobile && styles.footerMobile,
   ];
 
-  if (!social.url) {
-    return (
-      <View accessible accessibilityLabel={social.label} style={baseStyles}>
-        <SocialGlyph
-          platform={social.platform}
-          surface={surface}
-          color={isFooter ? '#eef1ef' : t.colors.ink}
-        />
-      </View>
-    );
-  }
   const url = social.url;
 
   return (
