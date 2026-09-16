@@ -34,12 +34,17 @@ decisions were taken against text which had already been replaced. One session r
 keeping downloaded files in the database an hour after its own merged work had settled on
 Supabase Storage; another merged a display rule that a third had already measured to be wrong.
 
-- **The owner today** is the session working in the worktree
-  **`.claude/worktrees/zealous-curie-c0f954`** on branch `claude/legislator-money-tab-review-6bf9e7`
-  (the session reviewing the legislator money tab against the finance dashboard requirements),
-  which took the pen 12 Sep 2026 under the handover rule below. Its decisions came from
-  [#2140](https://github.com/alethical-org/alethical/issues/2140) and are written up in §2.4
-  (what each element of the money tab reads) and in §7 as "The legislator money tab, redrawn".
+- **The owner today** is the session **money ux** (`01a0ab28-d848-7890-9741-70e5ff7027fd`),
+  in `/Users/eug/.codex/worktrees/4a8c/Alethical` on branch `codex/money-page-refinements`.
+  It took the pen on 16 Sep 2026 for the source-backed union-coverage correction in §9.8,
+  part of Eugene's `/money` refinement request. The previous owner is absent from the live
+  task list and no open pull request changes this file. The correction's source is linked
+  in §9.8; the release pull request records the request and the change.
+  - The previous claim named `.claude/worktrees/zealous-curie-c0f954` on branch
+    `claude/legislator-money-tab-review-6bf9e7`, appointed 12 Sep 2026. That worktree now
+    holds `claude/tab-order-consult-only`. Its decisions came from
+    [#2140](https://github.com/alethical-org/alethical/issues/2140) and are written up in §2.4
+    (what each element of the money tab reads) and in §7 as "The legislator money tab, redrawn".
   - The previous claim named the session working in the worktree
     `alethical-wt-feat/recheck-money-figures-when-a-release-publishes`, appointed 2 Sep 2026.
     That worktree is absent from `git worktree list` and the session is in no live list on
@@ -2734,7 +2739,10 @@ legislator" — §5.1 measures both ways it fails**: only 198 of the 209 are leg
 - Pre-2015 itemized payments, which the bulk downloads do not reach. Note that §9.1's totals do
   reach back to 2009, so a page can state what a committee raised in 2012 without being able to
   name a single donor for that year.
-- Whether unions file anywhere reachable. This investigation found no Board route for them.
+- A union's wider finances are outside these campaign files. Union political funds report
+  to the Board through the political-committee-and-fund records in §9.1 and §9.7. A political
+  fund is part of the organisation's money, not a separate entity. See the
+  [Political Committee and Political Fund Handbook, pages 6 and 7, revised 15 June 2026](https://register.cfb.mn.gov/pdf/publications/handbooks/PCF_handbook.pdf).
 
 ### 9.9 Checks this design asks for that were not run
 

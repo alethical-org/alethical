@@ -2699,6 +2699,7 @@ export interface ApiCampaignFinanceSummaryPayload {
 }
 
 interface ApiMoneyFilingPayload {
+  registration_number?: string | null;
   filer_name: string;
   report_name: string;
   period_start?: string | null;
@@ -2784,6 +2785,7 @@ export function campaignFinanceFilingsFromPayload(
     filings:
       payload.state === 'reported'
         ? (payload.filings ?? []).map((filing) => ({
+            registrationNumber: filing.registration_number ?? null,
             filerName: filing.filer_name,
             reportName: filing.report_name,
             periodStart: filing.period_start ?? null,

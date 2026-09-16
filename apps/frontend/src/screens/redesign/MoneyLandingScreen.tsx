@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { Skeleton } from '../../components/Skeleton';
@@ -15,7 +15,7 @@ import {
 import {
   centralDateLabel,
   filedDateSentence,
-  filingsTieSentence,
+  newestPeriodSentence,
   filingPeriodLine,
   laneCountLine,
   legislatorsLaneBody,
@@ -27,6 +27,8 @@ import {
   MONEY_LANDING_COVERAGE_HEADING,
   MONEY_LANDING_RECORD_DOES_NOT_COVER,
   MONEY_LANDING_SEARCH_NOTE,
+  MONEY_LANDING_SEARCH_PLACEHOLDER,
+  RECENT_FILINGS_HEADING,
   MONEY_LANDING_SUBTITLE,
   MONEY_LANE_BY_RACE,
   MONEY_LANE_COMMITTEES,
@@ -38,9 +40,10 @@ import {
   RESEARCH_ROW_LABEL,
   RESEARCH_ROW_LINK,
 } from '../../lib/moneyLanding';
-import { NAME_SEARCH_PLACEHOLDER } from '../../lib/moneyNameSearch';
+import { committeeSlug } from '../../lib/committeeMoneyShared';
+import { BOARD_VIEWER_INDEX } from '../../lib/boardRecordLink';
 import { piecesLabelledResearch, researchDatesLine } from '../../lib/research';
-import { linkProps, routePath } from '../../navigation/links';
+import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
@@ -199,7 +202,7 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
               value={searchDraft}
               onChangeText={setSearchDraft}
               onSubmit={onSearch}
-              placeholder={NAME_SEARCH_PLACEHOLDER}
+              placeholder={MONEY_LANDING_SEARCH_PLACEHOLDER}
               showSubmitButton
             />
             <Text style={styles.searchNote}>{MONEY_LANDING_SEARCH_NOTE}</Text>
@@ -266,6 +269,19 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
               stacked={isMobile}
             />
           </View>
+
+          <Text style={styles.sourceNote}>
+            Campaign records from the{' '}
+            <Text
+              {...externalLinkProps(
+                BOARD_VIEWER_INDEX,
+                () => void Linking.openURL(BOARD_VIEWER_INDEX),
+              )}
+              style={styles.sourceLink}
+            >
+              Minnesota Campaign Finance and Public Disclosure Board
+            </Text>
+          </Text>
 
           {/* Two short blocks, side by side from 768 up and stacked below: the
               page's one freshness date, and the record's permanent gaps. */}
@@ -348,17 +364,11 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
             )}
           </View>
 
-          {/* The most recent completed filing period. A row carries the day the
-              Board received it where the report's own document states one and
-              nothing where it does not (issue #1670), so the ordering sentence
-              and the tie sentence both derive from the served `ordered_by` —
-              1,200+ filers can share one period end, and which rows are on top
-              depends entirely on how many of them are dated. Never an amount:
-              five rows with five dollar figures is a ranking whether we sort it
-              or not. */}
+          {/* Recent reports can cover different periods. The separate count
+              names its own cutoff; rows retain their own dates and no amounts. */}
           {filingsQuery.isLoading ? (
             <View style={styles.filingsBlock} accessible accessibilityLabel="Loading filed reports">
-              <Text style={styles.infoLabel}>THE MOST RECENT COMPLETED FILING PERIOD</Text>
+              <Text style={styles.infoLabel}>{RECENT_FILINGS_HEADING.toUpperCase()}</Text>
               <View style={styles.filingsList}>
                 {[0, 1, 2].map((i) => (
                   <View key={i} style={styles.filingRow}>
@@ -371,27 +381,41 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
             <View style={styles.filingsBlock}>
               <View style={styles.filingsHeadingRow}>
                 <Text accessibilityRole="header" aria-level={2} style={styles.infoLabel}>
-                  THE MOST RECENT COMPLETED FILING PERIOD
+                  {RECENT_FILINGS_HEADING.toUpperCase()}
                 </Text>
                 {orderingSentence(feed?.orderedBy ?? '') ? (
-                  <Text style={styles.filingsSort}>
-                    {orderingSentence(feed?.orderedBy ?? '')} — never by amount
-                  </Text>
+                  <Text style={styles.filingsSort}>{orderingSentence(feed?.orderedBy ?? '')}</Text>
                 ) : null}
               </View>
-              <Text style={styles.filingsTie}>
-                {filingsTieSentence(feed?.newestPeriod?.filingCount ?? null, feed?.orderedBy ?? '')}
-              </Text>
+              {newestPeriodSentence(feed?.newestPeriod ?? null) ? (
+                <Text style={styles.filingsTie}>
+                  {newestPeriodSentence(feed?.newestPeriod ?? null)}
+                </Text>
+              ) : null}
               <View style={styles.filingsList}>
                 {filings.map((filing, index) => {
                   const filed = filedDateSentence(filing.filedDate);
+                  const slug = filing.registrationNumber
+                    ? committeeSlug(filing.filerName, filing.registrationNumber)
+                    : null;
                   return (
                     <View
                       key={index}
                       style={[styles.filingRow, isMobile && styles.filingRowMobile]}
                     >
                       <View style={styles.filingBody}>
-                        <Text style={styles.filingCommittee}>{filing.filerName}</Text>
+                        {slug ? (
+                          <Text
+                            {...linkProps(routePath.moneyCommittee(slug), () =>
+                              navigation.navigate('CommitteeMoney', { slug }),
+                            )}
+                            style={[styles.filingCommittee, styles.sourceLink]}
+                          >
+                            {filing.filerName}
+                          </Text>
+                        ) : (
+                          <Text style={styles.filingCommittee}>{filing.filerName}</Text>
+                        )}
                         <Text style={styles.filingReport}>
                           {filing.reportName}
                           {filingPeriodLine(filing) ? ` · ${filingPeriodLine(filing)}` : ''}
@@ -526,10 +550,22 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
   },
   freshnessSkeleton: { marginTop: 10 },
+  sourceNote: {
+    marginTop: 32,
+    color: t.colors.text.secondary,
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    lineHeight: 23,
+  },
+  sourceLink: {
+    color: t.colors.text.greenOnLight,
+    textDecorationLine: 'underline',
+  },
   freshnessDate: {
     marginTop: 10,
     color: t.colors.text.primary,
-    fontFamily: t.typography.mono,
+    fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
     fontSize: 24,
     fontWeight: t.fontWeights.bold,
     letterSpacing: -0.2,
@@ -588,7 +624,8 @@ const styles = StyleSheet.create({
   researchDates: {
     marginTop: 9,
     color: t.colors.text.muted,
-    fontFamily: t.typography.mono,
+    fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
     fontSize: 12,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.9,
@@ -666,7 +703,8 @@ const styles = StyleSheet.create({
   filingFiled: {
     flexShrink: 0,
     color: t.colors.text.muted,
-    fontFamily: t.typography.mono,
+    fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
     fontSize: 12.5,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.8,

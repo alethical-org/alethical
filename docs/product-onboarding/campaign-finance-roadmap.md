@@ -369,5 +369,7 @@ checks fail.
 
 **Nobody is on these, and nothing is waiting on them:**
 
-- Whether unions report anywhere we can reach. They are not with the Campaign Finance Board.
+- A union's wider finances are outside these campaign files. Union political funds do report
+  to the Board; a political fund is part of the organisation's money, not a separate entity.
+  See the [Political Committee and Political Fund Handbook, pages 6 and 7, revised 15 June 2026](https://register.cfb.mn.gov/pdf/publications/handbooks/PCF_handbook.pdf).
 - Minnesota before 2015, which the free downloads do not reach.

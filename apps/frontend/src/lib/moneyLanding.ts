@@ -15,8 +15,9 @@
  *   is on the donor's yearly total, never on the size of one gift.
  */
 
-import type { MoneyFilingRow } from '../data/types';
+import type { MoneyFilingRow, MoneyFilingsFeed } from '../data/types';
 import { formatDay } from './legislatorCampaignMoney';
+import { UNION_FINANCES_NOTE } from './committeeMoneyShared';
 
 /** A filing's plain date in the section's one form ("Jul 24, 2026"), or the raw
  *  value where it is not a date, so a row is never silently emptied. */
@@ -33,7 +34,7 @@ function dayLabel(isoDate: string): string {
  *  its own line, and the same block on a committee page is worded identically. */
 export const RECORD_DOES_NOT_COVER = [
   'No campaign payments held before 2015',
-  'Unions don’t report to this board at all',
+  UNION_FINANCES_NOTE,
   'Donors who gave $200 or less in total for the year need not be named',
 ] as const;
 
@@ -106,66 +107,23 @@ export function filingPeriodLine(filing: Pick<MoneyFilingRow, 'periodStart' | 'p
  * not know prints no sentence rather than a guess.
  */
 export function orderingSentence(orderedBy: string): string | null {
-  if (orderedBy === 'period_end') return 'Newest first, by the period each report covers';
+  if (orderedBy === 'period_end')
+    return 'Newest reporting periods first, then by filer name. Never by amount';
   if (orderedBy === 'filed_date_then_period_end') {
     return (
-      'Newest first — by the day the Board received a report where its filing says so, ' +
-      'and by the period it covers where it does not'
+      'Newest first by date received. Where that date is not available, we use the end of ' +
+      'the reporting period. Never by amount'
     );
   }
   return null;
 }
 
-/**
- * Why the listed rows are these rows, which depends on the order the feed served.
- *
- * **The alphabetical wording is only true while no row carries a filing date.**
- * Over a thousand filers share one period end (1,203 share 20 Jul 2026), so with
- * nothing else to sort by the tie breaks on the name and the first rows are simply
- * the first by name. Once filing dates are held (#1670) the dated rows genuinely
- * are the ones that arrived most recently, and calling them "the first by name,
- * not the newest" would be false about exactly the rows a reader is looking at. So
- * `orderedBy` picks the sentence, from the same served value the ordering sentence
- * derives from.
- *
- * **The alphabetical wording carries "not the newest and not the largest"; the arrival
- * wording carries no negative.** The arrival sentence already says positively which rows
- * were picked ("the ones the Board received most recently"), so a trailing "never the
- * largest" only restated that boundary (ruled 8 Sep 2026). The alphabetical branches keep
- * theirs because their positive clause is a different one ("the first by name") and does
- * not by itself rule out a ranking. No row carries an amount and nothing here ever sorts
- * by one.
- *
- * The count says REPORTS, not committees, and that wording is load-bearing too. The
- * served figure is `newest_period.filing_count`, and a committee that corrects a
- * filing files a second report for the same period — 367 of 1,005 catalogued
- * reports carry at least one amendment (#1661), so filings exceed committees by
- * however many corrected. Printing this number beside the word "committees"
- * would overstate how many filers the period covers, which is why the previous
- * version of this sentence could not carry a count at all.
- *
- * The period comes from the same served block as the count, never from anywhere
- * else, so a count can never appear beside a period it does not describe
- * (grounded-answers rule 12: every total states the period it covers).
- */
-export function filingsTieSentence(filingCount: number | null, orderedBy = ''): string {
-  if (orderedBy === 'filed_date_then_period_end') {
-    // A full stop rather than a second "and". Joined with one, the live sentence read
-    // "...cover this period, and the rows shown are..., and a report it states no date
-    // for...", which is 2 "and" clauses in a row and hard to follow on one read. "the
-    // Board" rather than "it", because the nearest noun to that pronoun was the period.
-    const arrival =
-      'The rows shown are the ones the Board received most recently, and a report the ' +
-      'Board states no date for sits by the period it covers instead.';
-    if (filingCount === null) {
-      return `Every committee that filed for this period is listed. ${arrival}`;
-    }
-    return `${filingCount.toLocaleString('en-US')} reports cover this period. ${arrival}`;
-  }
-  if (filingCount === null) {
-    return 'Every committee that filed for this period is listed alphabetically — the rows shown are the first by name, not the newest and not the largest.';
-  }
-  return `${filingCount.toLocaleString('en-US')} reports cover this period, listed alphabetically by filer — the rows shown are the first by name, not the newest and not the largest.`;
+/** Count and cutoff come from one served block, independently of the mixed-period list.
+ * Missing either means no claim, never an invented date or zero. */
+export function newestPeriodSentence(period: MoneyFilingsFeed['newestPeriod']): string | null {
+  if (!period?.periodEnd) return null;
+  const noun = period.filingCount === 1 ? 'report covers' : 'reports cover';
+  return `Newest completed period: ${formatCount(period.filingCount)} ${noun} through ${dayLabel(period.periodEnd)}`;
 }
 
 /**
@@ -179,9 +137,6 @@ export function filedDateSentence(filedDate: string | null | undefined): string 
   if (!filedDate) return null;
   return `filed ${dayLabel(filedDate)}`;
 }
-
-/** Retained for callers that render the feed before a count is served. */
-export const FILINGS_TIE_SENTENCE = filingsTieSentence(null);
 
 /**
  * One place that turns a served instant into the day a Minnesotan reads
@@ -224,10 +179,10 @@ export function legislatorsLaneSentence(confirmation: {
   total: number;
 }): string {
   if (confirmation.confirmed === confirmation.total) {
-    return 'Confirmed for every sitting legislator';
+    return 'Campaign committee matches confirmed for every sitting legislator';
   }
   return (
-    `Confirmed for ${formatCount(confirmation.confirmed)} of Minnesota's ` +
+    `Campaign committee matches confirmed for ${formatCount(confirmation.confirmed)} of Minnesota's ` +
     `${formatCount(confirmation.total)} sitting legislators — for the rest, no figures show ` +
     `on a profile`
   );
@@ -263,8 +218,7 @@ export const MONEY_LANDING_HEADING = 'Follow the money';
  * section avoids for money out, and this is the first sentence a reader meets.
  */
 export const MONEY_LANDING_SUBTITLE =
-  'Every donation and payment Minnesota publishes for state campaigns, searchable by ' +
-  'the name it was filed under';
+  'Search Minnesota’s published campaign donations, payments, and lobbying records by name';
 
 /**
  * The line under the search field: what the matching does, in one line, and no more
@@ -276,11 +230,14 @@ export const MONEY_LANDING_SUBTITLE =
  * rather than as text inside the screen so a test can pin it, like every other sentence
  * the landing shows.
  */
-export const MONEY_LANDING_SEARCH_NOTE = 'Matched on the name as it was filed, exactly as typed';
+export const MONEY_LANDING_SEARCH_NOTE =
+  'Try all or part of a name: a person, committee, payee, or lobbyist. Spelling must match the filing';
+export const MONEY_LANDING_SEARCH_PLACEHOLDER = 'Search a name';
+export const RECENT_FILINGS_HEADING = 'Recently filed reports';
 
 export const MONEY_LANE_LEGISLATORS = {
   title: 'Legislators',
-  body: 'Their money is a tab on the profile they already have',
+  body: 'See each legislator’s campaign donations and payments',
 } as const;
 
 /**
@@ -308,7 +265,7 @@ export function legislatorsLaneBody(
 
 export const MONEY_LANE_COMMITTEES = {
   title: 'Committees',
-  body: 'Campaign committees, party units, and other registered funds',
+  body: 'Browse campaign committees, party units, and political funds',
 } as const;
 
 /**
@@ -349,16 +306,12 @@ export const MONEY_LANE_WHO_GOT_PAID = {
  */
 export const MONEY_LANE_BY_RACE = {
   title: 'Money by race',
-  body:
-    'Every candidate committee grouped by the seat it is running for, each with its own ' +
-    'filed figures',
+  body: 'See each candidate committee’s filed figures, grouped by the seat it is running for',
 } as const;
 
 export const MONEY_LANE_OUTSIDE_SPENDING = {
   title: 'Outside spending',
-  body:
-    'What groups that are not the campaign spent for or against a candidate, filed ' +
-    'independently of them',
+  body: 'See money spent for or against candidates without their campaigns’ involvement',
 } as const;
 
 /** The one freshness date the landing shows, worded as the screen words it: the

@@ -37,6 +37,7 @@ import {
   registerKindLabel,
   paymentsTabFromParam,
   UNNAMED_PAYMENT_PARTY,
+  UNION_FINANCES_NOTE,
   type PaymentsTab,
 } from './committeeMoneyShared';
 
@@ -567,7 +568,7 @@ export function recordCoverageLines(isBallot: boolean): string[] {
   const lines = [
     'Money filed with the Minnesota Campaign Finance and Public Disclosure Board',
     'Nothing before 2015',
-    'Unions don’t report to this board at all',
+    UNION_FINANCES_NOTE,
   ];
   // Same shape as the $200 sentence, and it respects the same 2 rules: the test is on
   // the donor's total for the YEAR rather than on the size of a gift, and it is a floor

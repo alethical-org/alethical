@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
@@ -59,13 +59,18 @@ export function MoneyNameSearchField({
   stacked?: boolean;
 }) {
   const { focused, focusProps } = useFieldFocus();
+  const inputRef = useRef<TextInput>(null);
   const [hovered, setHovered] = useState(false);
 
   return (
     <View style={[styles.wrap, { maxWidth }]}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <View style={[styles.row, fieldHeight != null && { gap: 12 }, stacked && styles.stackedRow]}>
-        <View
+        <Pressable
+          accessible={false}
+          focusable={false}
+          tabIndex={-1}
+          onPress={() => inputRef.current?.focus()}
           style={[
             styles.box,
             fieldHeight != null && {
@@ -81,6 +86,7 @@ export function MoneyNameSearchField({
         >
           <MagnifierGlyph color={t.colors.text.faint} />
           <TextInput
+            ref={inputRef}
             // The placeholder is the field's accessible name where no visible
             // label sits above it, matching the bill and legislator search boxes.
             value={value}
@@ -97,12 +103,12 @@ export function MoneyNameSearchField({
             spellCheck={false}
             style={[
               styles.input,
-              fieldHeight != null && { height: '100%' },
+              fieldHeight != null && { height: '100%', paddingVertical: 0 },
               fieldFontSize != null && { fontSize: fieldFontSize },
               fieldOutlineReset,
             ]}
           />
-        </View>
+        </Pressable>
         {showSubmitButton ? (
           <Pressable
             onPress={onSubmit}
@@ -157,11 +163,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: t.colors.alpha.ink14,
     borderRadius: 13,
-    paddingVertical: 15,
+    paddingVertical: 0,
     paddingHorizontal: 17,
   },
   input: {
     flex: 1,
+    paddingVertical: 15,
     minWidth: 0,
     color: t.colors.text.primary,
     fontFamily: t.typography.body,

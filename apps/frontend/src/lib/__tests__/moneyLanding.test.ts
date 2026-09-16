@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   filedDateSentence,
-  filingsTieSentence,
+  newestPeriodSentence,
   centralDateLabel,
   filingPeriodLine,
   formatCount,
@@ -74,8 +74,7 @@ describe('the landing’s own standalone lines end without a full stop', () => {
   // above the rows, so the card no longer states it. The card still promises no ranking.
   it('the race lane names the grouping and nothing about order, ranking or total', () => {
     expect(MONEY_LANE_BY_RACE.body).toBe(
-      'Every candidate committee grouped by the seat it is running for, each with its own ' +
-        'filed figures',
+      'See each candidate committee’s filed figures, grouped by the seat it is running for',
     );
     expect(MONEY_LANE_BY_RACE.body).not.toContain('order');
     expect(MONEY_LANE_BY_RACE.body).not.toMatch(/total|most|largest|top/i);
@@ -87,16 +86,16 @@ describe('the landing’s own standalone lines end without a full stop', () => {
   // profile they already have Confirmed for 200 of Minnesota's 200 sitting legislators".
   it('separates the 2 sentences once the confirmation sentence is attached', () => {
     const drawn = legislatorsLaneBody({ confirmed: 200, total: 200 });
-    expect(drawn).toContain('they already have. Confirmed for every sitting legislator');
-    expect(drawn).not.toContain('they already have Confirmed');
+    expect(drawn).toContain(
+      'payments. Campaign committee matches confirmed for every sitting legislator',
+    );
   });
 
   it('says donation and payment, never the filing system’s contribution and expenditure', () => {
     // Ruled 2 Sep 2026 (copy proposal 3): "expenditure" is the word every other string in
     // the section avoids for money out, and the subtitle is the first sentence a reader meets.
     expect(MONEY_LANDING_SUBTITLE).toBe(
-      'Every donation and payment Minnesota publishes for state campaigns, searchable by the ' +
-        'name it was filed under',
+      'Search Minnesota’s published campaign donations, payments, and lobbying records by name',
     );
     expect(MONEY_LANDING_SUBTITLE).not.toContain('expenditure');
   });
@@ -139,7 +138,9 @@ describe('the does-not-cover block', () => {
 
   it('names the two permanent source gaps', () => {
     expect(RECORD_DOES_NOT_COVER[0]).toBe('No campaign payments held before 2015');
-    expect(RECORD_DOES_NOT_COVER[1]).toBe('Unions don’t report to this board at all');
+    expect(RECORD_DOES_NOT_COVER[1]).toBe(
+      'These files cover union political funds, not a union’s wider finances',
+    );
   });
 
   // Ruled 1 Sep 2026 (#1924). Each line stands alone in a stack, and a terminal full
@@ -250,12 +251,12 @@ describe('filing rows', () => {
     expect(filingPeriodLine({ periodStart: '2026-01-01', periodEnd: null })).toBeNull();
   });
 
-  // We hold no filing date for any report (the Board's catalogue serves none —
-  // issue #1670), so the printed ordering sentence derives from the feed's own
-  // ordered_by through one mapping, and an unknown value prints no sentence
-  // rather than a guess.
+  // The source can order by received dates or reporting periods. An unknown
+  // ordering value must not acquire an explanation we cannot support.
   it('derives the ordering sentence from ordered_by, and stays silent on an unknown value', () => {
-    expect(orderingSentence('period_end')).toBe('Newest first, by the period each report covers');
+    expect(orderingSentence('period_end')).toBe(
+      'Newest reporting periods first, then by filer name. Never by amount',
+    );
     expect(orderingSentence('filed_at')).toBeNull();
     expect(orderingSentence('')).toBeNull();
   });
@@ -279,7 +280,7 @@ describe('served instants print in Central time', () => {
 describe('confirmation progress', () => {
   it('writes the Legislators lane sentence from both served numbers, ending bare', () => {
     expect(legislatorsLaneSentence({ confirmed: 0, total: 200 })).toBe(
-      "Confirmed for 0 of Minnesota's 200 sitting legislators — for the rest, no figures show " +
+      "Campaign committee matches confirmed for 0 of Minnesota's 200 sitting legislators — for the rest, no figures show " +
         'on a profile',
     );
   });
@@ -289,10 +290,10 @@ describe('confirmation progress', () => {
   // describes nobody. Live, both numbers are 200.
   it('says every sitting legislator once the confirmed count reaches the total', () => {
     expect(legislatorsLaneSentence({ confirmed: 200, total: 200 })).toBe(
-      'Confirmed for every sitting legislator',
+      'Campaign committee matches confirmed for every sitting legislator',
     );
     expect(legislatorsLaneSentence({ confirmed: 1, total: 1 })).toBe(
-      'Confirmed for every sitting legislator',
+      'Campaign committee matches confirmed for every sitting legislator',
     );
     expect(legislatorsLaneSentence({ confirmed: 200, total: 200 }).endsWith('.')).toBe(false);
   });
@@ -301,12 +302,12 @@ describe('confirmation progress', () => {
   // unconditional would tell a reader every member is confirmed while some are not.
   it('keeps the counted wording, word for word, while any member is unconfirmed', () => {
     expect(legislatorsLaneSentence({ confirmed: 199, total: 200 })).toBe(
-      "Confirmed for 199 of Minnesota's 200 sitting legislators — for the rest, no figures " +
+      "Campaign committee matches confirmed for 199 of Minnesota's 200 sitting legislators — for the rest, no figures " +
         'show on a profile',
     );
     expect(legislatorsLaneSentence({ confirmed: 199, total: 200 })).not.toContain('every');
     expect(legislatorsLaneBody({ confirmed: 199, total: 200 })).toContain(
-      'they already have. Confirmed for 199 of',
+      'payments. Campaign committee matches confirmed for 199 of',
     );
   });
 
@@ -315,37 +316,30 @@ describe('confirmation progress', () => {
   it('ends the drawn Legislators body bare, with the internal stop kept', () => {
     const drawn = legislatorsLaneBody({ confirmed: 200, total: 201 });
     expect(drawn.endsWith('.')).toBe(false);
-    expect(drawn).toContain('they already have. Confirmed for 200 of Minnesota');
+    expect(drawn).toContain('payments. Campaign committee matches confirmed for 200 of Minnesota');
   });
 });
 
-describe('the filings tie sentence counts reports, never committees', () => {
-  // The served figure is newest_period.filing_count, and a committee that
-  // corrects a filing files a second report for the same period: 367 of 1,005
-  // catalogued reports carry at least one amendment (#1661). So filings exceed
-  // committees by however many corrected, and printing the number beside the
-  // word "committees" would overstate how many filers the period covers. The
-  // count also arrives with its period in one served block, so no count can sit
-  // beside a period it does not describe (grounded-answers rule 12).
-  it('says reports, not committees, when a count is served', () => {
-    const sentence = filingsTieSentence(1203);
-    expect(sentence).toContain('1,203 reports');
-    expect(sentence).not.toMatch(/committees? filed/i);
-    expect(sentence).not.toContain('1,203 committees');
+describe('the newest period count names its own cutoff independently of the list', () => {
+  it('counts reports and states the supplied cutoff', () => {
+    expect(newestPeriodSentence({ filingCount: 1203, periodEnd: '2026-07-20' })).toBe(
+      'Newest completed period: 1,203 reports cover through Jul 20, 2026',
+    );
   });
 
-  it('keeps the anti-ranking clause whether or not a count is served', () => {
-    for (const value of [1203, null]) {
-      expect(filingsTieSentence(value)).toContain('not the newest and not the largest');
-    }
+  it('makes no claim when the count block or its cutoff is missing', () => {
+    expect(newestPeriodSentence(null)).toBeNull();
+    expect(newestPeriodSentence({ filingCount: 1203, periodEnd: null })).toBeNull();
+    expect(newestPeriodSentence({ filingCount: 1203, periodEnd: '' })).toBeNull();
   });
 
-  it('falls back to the no-count wording rather than printing zero', () => {
-    expect(filingsTieSentence(null)).not.toMatch(/\d/);
-  });
-
-  it('renders a served zero as a number, since a verified zero is a fact', () => {
-    expect(filingsTieSentence(0)).toContain('0 reports');
+  it.each([
+    [0, '0 reports cover'],
+    [1, '1 report covers'],
+  ])('preserves a served count of %s', (filingCount, words) => {
+    expect(newestPeriodSentence({ filingCount, periodEnd: '2026-07-20' })).toBe(
+      `Newest completed period: ${words} through Jul 20, 2026`,
+    );
   });
 });
 
@@ -368,68 +362,25 @@ describe('the filed date, which is the one fact a page may not substitute for', 
     // Every undated row would be described wrongly by a flat filing-order sentence, and
     // undated rows are the majority.
     const mixed = orderingSentence('filed_date_then_period_end');
-    expect(mixed).toContain('the day the Board received a report');
-    expect(mixed).toContain('by the period it covers where it does not');
+    expect(mixed).toBe(
+      'Newest first by date received. Where that date is not available, we use the end of ' +
+        'the reporting period. Never by amount',
+    );
   });
 
-  it('drops the alphabetical claim once rows are ordered by arrival', () => {
-    // The alphabetical wording is true only while nothing is dated: 1,203 filers share
-    // one period end, so with no other key the first rows really are the first by name.
-    // Once dated rows lead, "the first by name, not the newest" is false about exactly
-    // the rows a reader is looking at.
-    const byName = filingsTieSentence(1203, 'period_end');
-    expect(byName).toContain('listed alphabetically');
-    expect(byName).toContain('not the newest');
-
-    const byArrival = filingsTieSentence(1203, 'filed_date_then_period_end');
-    expect(byArrival).not.toContain('alphabetically');
-    expect(byArrival).not.toContain('not the newest');
-    expect(byArrival).toContain('received most recently');
-    // The sentence already says positively which rows were picked, so it carries no
-    // trailing negative (ruled 8 Sep 2026): it ends on the undated rows' placement.
-    expect(byArrival).not.toContain('never the largest');
-    expect(byArrival.endsWith('sits by the period it covers instead.')).toBe(true);
-    expect(byArrival).toContain('1,203 reports');
-    // Read on the live page, the first version ran 2 "and" clauses together and used
-    // "it" for a noun that was really the period. Neither is a correctness bug and both
-    // cost a reader a second pass, which is the whole job of this sentence.
-    expect(byArrival).not.toMatch(/period, and /);
-    expect(byArrival).not.toMatch(/a report it states/);
-  });
-
-  it('keeps the no-count wording under the arrival order too', () => {
-    const sentence = filingsTieSentence(null, 'filed_date_then_period_end');
-    expect(sentence).not.toMatch(/\d/);
-    expect(sentence).toContain('received most recently');
-    expect(sentence).not.toContain('never the largest');
-    expect(sentence.endsWith('sits by the period it covers instead.')).toBe(true);
-  });
-
-  // Only the arrival wording lost its negative. The alphabetical branches' positive
-  // clause ("the first by name") is a different one and does not by itself rule out a
-  // ranking, so they keep "not the newest and not the largest" word for word, under
-  // both the explicit period_end order and the default.
-  it('leaves the alphabetical branches’ own wording untouched', () => {
-    for (const orderedBy of ['period_end', '']) {
-      expect(filingsTieSentence(null, orderedBy)).toBe(
-        'Every committee that filed for this period is listed alphabetically — the rows shown ' +
-          'are the first by name, not the newest and not the largest.',
-      );
-      expect(filingsTieSentence(1203, orderedBy)).toBe(
-        '1,203 reports cover this period, listed alphabetically by filer — the rows shown are ' +
-          'the first by name, not the newest and not the largest.',
-      );
+  it('keeps ordering separate from totals and states that amounts do not decide it', () => {
+    for (const orderedBy of ['period_end', 'filed_date_then_period_end']) {
+      expect(orderingSentence(orderedBy)).toContain('Never by amount');
+      expect(orderingSentence(orderedBy)).not.toMatch(/\d|reports cover/);
     }
   });
 });
 
 describe('the line under the search field', () => {
-  // Shortened 8 Sep 2026 (accepted, proposed by Design) to the one line saying what the
-  // matching does. The cut sentence about nearest matches is not gone from the product:
-  // NO_MATCH_WHY in lib/moneyNameSearch.ts prints it on the results page when a search
-  // finds nothing, which is the moment the case arises.
-  it('is the one line the screen prints, ending bare', () => {
-    expect(MONEY_LANDING_SEARCH_NOTE).toBe('Matched on the name as it was filed, exactly as typed');
+  it('explains partial-name search and exact spelling, ending bare', () => {
+    expect(MONEY_LANDING_SEARCH_NOTE).toBe(
+      'Try all or part of a name: a person, committee, payee, or lobbyist. Spelling must match the filing',
+    );
     expect(MONEY_LANDING_SEARCH_NOTE).not.toContain('nearest match');
     expect(MONEY_LANDING_SEARCH_NOTE.endsWith('.')).toBe(false);
   });

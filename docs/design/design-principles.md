@@ -94,10 +94,16 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   is 5px × 12px at 12px type. Never use party-specific red/blue or Alethical's green action color
   for party identity. Committee leadership badges are a separate role and keep their mint fill,
   green border, and green text.
-- **Type.** One humanist sans (**Libre Franklin**) does titles, body, and UI; a monospace
-  (**JetBrains Mono**) is reserved for data, metadata, dates, and labels — the "record" texture.
-  Hierarchy comes from weight and size, not from decorative fonts. (No serifs — that was the retired
-  Newsprint identity.)
+- **Type.** One humanist sans (**Libre Franklin**) does titles, body, UI, and numbers.
+  Amounts, dates, counts, percentages, and registration numbers use Libre Franklin with
+  equal-width digits (`fontVariant: ['tabular-nums']`), not a font with dotted or slashed
+  zeros. Monospace (**JetBrains Mono**) remains available for text-only small labels and
+  explicit code. Hierarchy comes from weight and size, not from decorative fonts.
+  **Every future Design handoff follows this number rule.** When a drawing uses dotted or
+  slashed zeros, the current coding agent replaces that numeric font with Libre Franklin
+  and equal-width digits during the build, without another approval. Preserve the intended
+  size and weight unless a separate approved change requires otherwise. Existing screens
+  outside the task's scope do not need a separate migration to complete that handoff.
 - **Shape.** Softly rounded, never sharp and never pill-everything: cards and inputs ~12px radius,
   small chips/badges smaller, full pills only for genuinely pill-shaped controls. Rounded = approachable
   and modern; restrained radius = still serious.
@@ -439,6 +445,10 @@ The generic "make it striking" instinct pulls the wrong way for a civic-records 
   reference; the feature guide under `docs/product-onboarding/` owns the lasting screen behavior.
   Use the accepted preview only as a temporary visual reference. See the `design-build` skill for
   the build, route, and review sequence.
+- **Before building every Design handoff:** inspect every numeric text style against the
+  **Type** rule in §2. Replace conflicting numeric fonts in the implementation plan before
+  writing the screen. Include a rendered check of the changed numbers' font and equal-width
+  digits in the screen's tests. A drawing never waives this check.
 - **At review time:** §3 is the checklist. Audit the rendered web output against it before shipping.
 
 ## References

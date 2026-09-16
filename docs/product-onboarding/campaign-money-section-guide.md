@@ -4,7 +4,7 @@
 
 # How the Campaign money section works
 
-**Net.** `/money` is the public front door to Minnesota's campaign-money records, open to
+**Net.** `/money` is the public front door to Minnesota's campaign-money and lobbying records, open to
 everyone with no sign-in. Typing a name in the box on it now works, the register of
 committees has its own browsable list, every committee page is reachable by browsing rather
 than only by pasting an address, and a name that got paid opens every payment filed under
@@ -79,33 +79,33 @@ the files. If any of it is missing or unreadable the page just asks for the reco
 
 Top to bottom:
 
-1. **Title and one sentence** saying what the record is: "Every donation and payment
-   Minnesota publishes for state campaigns, searchable by the name it was filed under". It
+1. **Title and one sentence** saying what the record is: "Search Minnesota’s published
+   campaign donations, payments, and lobbying records by name". It
    says donation and payment, never the filing system's "contribution and expenditure",
    because "expenditure" is the one word the rest of the section avoids for money out and
    this is the first sentence a reader meets (ruled 2 Sep 2026).
 2. **A working search box.** Type a name and press Enter or the Search button, and it opens
    the results page. It commits on Enter rather than as you type, because every search has
    its own address and a search that ran per keystroke would leave a browser history entry
-   for every letter. Under it, one line saying what the matching does: "Matched on the name
-   as it was filed, exactly as typed". It says no more than that (shortened 8 Sep 2026): the
-   reason there is no nearest-match guess — names in these records differ from each other by
-   a single character often enough that a guess would put a reader on the wrong organisation
-   — is printed on the results page at the moment a search finds nothing, which is where the
-   case arises. A query shorter than the search's own floor is not blocked here; the results
+   for every letter. The placeholder is "Search a name". Clicking anywhere inside the
+   drawn input area focuses the input; the field does not take focus on arrival. Under it,
+   the note reads "Try all or part of a name: a person, committee, payee, or lobbyist. Spelling
+   must match the filing". A partial name is valid; the search does not guess a correction
+   to a different spelling. A query shorter than the search's own floor is not blocked here; the results
    page says "type at least 3 characters" instead, which is the true answer rather than a
    box that silently refuses.
 3. **6 lane cards, straight after the search, and all 6 open something.** Each is a raised
    white card with a green arrow beside its title, and 5 of them end with a live count in
-   the same green, read from `/api/v1/campaign-finance/summary` and absent (never 0) when
-   the server cannot count it: Legislators (links to the legislator directory — a member's
-   money is a tab on the profile they already have; "200 MEMBERS"), Committees (links to
-   the register's own list at `/money/committees`; "1,603 REGISTERED FILERS"), Who got paid,
-   which opens the name search and carries no count, Money by race (`/money/races`, "Every
-   candidate committee grouped by the seat it is running for, each with its own filed
-   figures"; "222 CONTESTS", one contest per office-and-district grouping the race page
-   itself uses) and Outside spending (`/money/outside-spending`, what groups that are not
-   the campaign spent for or against a candidate; "41,130 PAYMENTS", the number of rows in
+   the same green. The 4 campaign counts come from `/api/v1/campaign-finance/summary` and
+   are absent (never 0) when the server cannot count them: Legislators (links to the legislator directory; "See each
+   legislator’s campaign donations and payments"; "200 MEMBERS"), Committees (links to
+   `/money/committees`; "Browse campaign committees, party units, and political funds";
+   "1,603 REGISTERED FILERS"), Who got paid,
+   which opens the name search and carries no count, Money by race (`/money/races`; "See
+   each candidate committee’s filed figures, grouped by the seat it is running for";
+   "222 CONTESTS", one contest per office-and-district grouping the race page
+   itself uses) and Outside spending (`/money/outside-spending`; "See money spent for or
+   against candidates without their campaigns’ involvement"; "41,130 PAYMENTS", the number of rows in
    the independent-expenditures file, never their sum). The sixth lane, Lobbying, opens `/money/lobbying` and reads its registered-today
    count from `/api/v1/lobbying/summary`, separately from campaign figures. The campaign
    counts quoted are the live figures on 8 Sep 2026 and move with the data. **The Who got paid card's count slot is
@@ -124,11 +124,11 @@ Top to bottom:
    alphabetical is honest and useless across hundreds of thousands of spellings. Ruled
    27 Aug 2026 on [#1780](https://github.com/alethical-org/alethical/issues/1780). Every
    lane being visible is a deliberate decision (Eugene, 18 Aug 2026), so a reader sees the
-   whole shape of the section. On a wide screen the 5 cards sit in 1 row; on a narrower
+   whole shape of the section. On a wide screen the 6 cards sit in 1 row; on a narrower
    computer (768px up to about 1,100px) they wrap into 2 rows rather than shrinking below
    their words; below 768 they stack in 1 column in the same order.
-4. **What this record does not cover**: nothing before 2015; unions do not report to this
-   board; the exact sentence "Donors who gave $200 or less in total for the year need not
+4. **What this record does not cover**: nothing before 2015; "These files cover union
+   political funds, not a union’s wider finances"; the exact sentence "Donors who gave $200 or less in total for the year need not
    be named" (the $200 test is on a donor's yearly total, never on one gift's size, and it
    is the point at which a name becomes required rather than a line below which nobody is
    named — [#1755](https://github.com/alethical-org/alethical/issues/1755)); and, on this
@@ -151,19 +151,23 @@ Top to bottom:
    else — no count of 0 pieces and no second link (a "More on Read" link was proposed and
    refused; the top bar's Read item is on every page). The label is the product's own word
    for its writing, never a third name for it.
-6. **The most recent completed filing period**, described below.
+6. **Recently filed reports**, described below.
 
 Three more pieces bind to live data (two public endpoints:
 `/api/v1/campaign-finance/summary` and `/api/v1/campaign-finance/filings`). Each data block
 carries its own served state, so one gap never blanks the others, and a block that is not
 served renders nothing rather than a number:
 
-- The **files last copied** date — the page's one freshness date: when we last copied
-  filings from the Board, not the period any money covers. Every served timestamp on these
+- The **files last copied** date is when we last copied campaign filings, not the period
+  any money covers or the freshness of lobbying records. The source is named in full,
+  Minnesota Campaign Finance and Public Disclosure Board, with a link to its
+  [official campaign-finance viewer](https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/).
+  Every served timestamp on these
   pages prints as its Minnesota (Central time) day, so an instant recorded just after
   midnight UTC reads as the evening it was in Minnesota.
-- The **most recent completed filing period** — the newest filed reports, never an amount.
-  Each row is the filer's name, the report and the period it covers, and "FILED <date>" in
+- **Recently filed reports** lists the newest reports, which can cover different periods,
+  never an amount. Each row is the filer's name, linked to its internal committee page
+  when the served registration number supplies a destination, the report and the period it covers, and "FILED <date>" in
   its own column on a computer or as a third line on a phone; a row never loses a field at
   phone width. A row shows the day the Board received the report where the report itself says so, and
   shows no date at all where it does not, which is most reports: the Board only publishes
@@ -171,17 +175,19 @@ served renders nothing rather than a number:
   scans nothing can read ([issue #1670](https://github.com/alethical-org/alethical/issues/1670)).
   A row with no date **never borrows the end of the period it covers** — that would be a
   date we made up about a named committee. The rows sort by the day the Board received a
-  report where there is one and by the period it covers where there is not, so which
-  sentence the module prints depends on how many of them are dated: with dates it says the
-  rows arrived most recently, and with none it says more than a thousand filers can share
-  one period end and the tie breaks on the name. Both sentences are derived from the feed's
-  own ordering field through one mapping, so the words and the order cannot drift apart.
+  report where there is one and by the period it covers where there is not. One ordering
+  explanation comes from the feed's own ordering field: "Newest reporting periods first,
+  then by filer name. Never by amount" or "Newest first by date received. Where that date
+  is not available, we use the end of the reporting period. Never by amount". The count
+  of reports for the newest period explicitly names that period's end date, independently
+  of the mixed-period list. The count line is absent unless both count and period end are
+  served; it never describes the list as all belonging to "this period".
 - The lanes' **live counts**: registered filers on the Committees lane, contests on the Money
   by race lane, rows of the independent-expenditures file on the Outside spending lane, and
   sitting members on the Legislators lane, whose text also states how many members'
   committees a person has confirmed, read live from the confirmation log so it moves as
   confirmations land. Once
-  every sitting member is confirmed that text reads "Confirmed for every sitting legislator"
+  every sitting member is confirmed that text reads "Campaign committee matches confirmed for every sitting legislator"
   instead of a count, because the counted wording's closing clause ("for the rest, no
   figures show on a profile") would then describe nobody (accepted 8 Sep 2026). A count
   that is not served does not appear; a null is our gap and never renders as 0, while a
@@ -196,7 +202,8 @@ One typed name, matched across the campaign and lobbying records we hold, groupe
 what each match **is**. The typed name is in the address, so a results page is a link
 somebody can send, and the browser's Back button returns to it.
 
-Matching is containment of exactly what was typed, and there is no did-you-mean anywhere.
+Matching accepts all or part of a filed name, preserving the typed spelling rather than
+guessing a correction. There is no did-you-mean anywhere.
 That is not caution: 178 registered filer names sit a single character apart from another
 registered name, and every one of those pairs is a different organisation — the Green Party
 and the Republican Party of the same district among them. A correction on this data does
@@ -886,8 +893,9 @@ Top to bottom:
     coincide with an expenditure row, and the records do not establish whether those
     are 1 payment filed twice or 2 payments that coincide.
 
-11. **What this record covers**: filed with the Board, nothing before 2015, unions don't
-    report here — and the donor sentence, which names **$200** on most pages and **$500**
+11. **What this record covers**: filed with the Board, nothing before 2015, "These files
+    cover union political funds, not a union’s wider finances", and the donor sentence,
+    which names **$200** on most pages and **$500**
     on a ballot-question committee's page. Each page states only its own figure, because
     the risk is a reader taking one kind of committee's line for another's. $500 is what
    the law says for a ballot question and what the Board's own guide for those committees
@@ -908,9 +916,12 @@ across the whole design set:
   (Libre Franklin). The legislator profile and `/money/payments` also use Libre Franklin
   for dates, registration numbers and counts, with equal-width digits. The shared donor
   and outside-spender components use those same equal-width digits on committee pages.
-  The remaining committee fields, search and list screens retain their
+  The `/money` freshness date, research dates, and filed dates use Libre Franklin with
+  equal-width digits too. The remaining committee fields, search and list screens retain their
   monospaced dates, registration numbers and count lines. Short capital labels keep their
-  existing typeface.
+  existing typeface. Every future Design handoff follows the numeric typography rule in
+  [design-principles.md, Type](../design/design-principles.md), even where its drawing
+  uses a different numeric font. That rule does not require changing unrelated existing screens.
 - **No full stop at the end of a line that stands alone** — a caption, a date or meta
   line, a label, a one-line card description, and any stack or column of those, including
   the "What this record covers" block on both this page and the section landing. An
