@@ -22,7 +22,7 @@ export function Dek({ segments }: { segments: readonly DekSegment[] }) {
   const s = useDetailsStyles();
   if (segments.length === 0) return null;
   return (
-    <Text style={[s.small, { maxWidth: 900 }]}>
+    <Text style={[s.small, { maxWidth: 900, color: c.secondary }]}>
       {segments.map((segment, index) => (
         <Text key={index} style={segment.bold ? styles.term : undefined}>
           {segment.bold && segment.text === 'non-itemized contributions' ? (

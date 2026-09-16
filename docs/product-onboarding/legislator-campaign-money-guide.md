@@ -247,16 +247,21 @@ legislature.
 Early in a year the newest option can be genuinely empty, and it says so rather than
 showing a zero.
 
-**An empty year says which of 2 things is true, and never the wrong one.** A committee is
-left out of a year when the download shows it reporting no money that year, and that is a
-fact about Minnesota's file rather than about the registration:
+**An empty year states what our records contain.** A confirmed committee can have
+no figures available for the selected year. That does not establish a filed zero,
+a failure to file or a closed registration:
 
-- **Nothing reported for 2026.** The heading, when the Board's filer record carries no
-  closing date for the committee. The sentence says the committee reported no money that
-  year and adds, in these words, that this is not a statement that the committee has
-  closed, because a committee can be registered and report nothing for a year.
-- **This committee has closed.** The heading only when the Board's own record gives a
-  closing date, and the sentence names the day.
+- **No figures to show for 2026.** When no closing date is held, the explanation reads:
+  “We have confirmed this member’s committee, but have no figures to show for it in
+  2026. Try another year. This does not mean the committee has closed.”
+- **This committee has closed.** When the Board's register gives a closing date, the
+  explanation names that date without predicting whether later amendments may appear.
+
+The committee's name and registration number remain above the grey panel. Inside it
+are the selected year, the heading and explanation, and **Everything we hold on this
+committee**. The link keeps the selected year. This state has no invented report
+period, official figure or filing schedule. Refund history remains below its own
+committee's card.
 
 The distinction is not decoration. On 31 August 2026, the day the first 144 matches were
 confirmed, 23 profiles landed on an empty 2026 and the panel told every one of their
@@ -804,7 +809,7 @@ copied-files link, and says:
 > The Board's refund summaries name no row for this committee's candidate, office
 > and party
 
-The refund history remains under **Nothing reported for {year}**, because that
+The refund history remains under **No figures to show for {year}**, because that
 message concerns the selected campaign-money year. It remains tied to each
 confirmed committee and disappears when the member's committee match is withheld,
 the first read is loading, or that read failed. It never brings a campaign for a
@@ -1175,8 +1180,8 @@ An explaining paragraph inside a card keeps every full stop it has, however shor
 3. **Both source-copy dates at the foot of the tab**, shown when the displayed
    campaign-payment and outside-spending files support the same payment-file date:
 
-   > We downloaded Minnesota’s payment files on Sep 1, 2026 and its report totals on
-   > Aug 11, 2026. Neither is the period the money covers.
+   > Minnesota’s payment files copied Sep 1, 2026; report totals copied
+   > Aug 11, 2026. These are copy dates, not reporting periods.
 
    The payment date is the stored download time for Minnesota's bulk payment files
    (`fetched_at`). The report date is the end of the published filing source's own
@@ -1188,8 +1193,8 @@ An explaining paragraph inside a card keeps every full stop it has, however shor
 
    If the report-copy date is unavailable, the line keeps this exact fallback:
 
-   > We downloaded Minnesota’s payment files on Sep 1, 2026, which is not the period the
-   > money covers. The report totals were copied separately.
+   > Minnesota’s payment files copied Sep 1, 2026. This is a copy date, not a reporting
+   > period. The report totals were copied separately.
 
    Each date keeps its comma and year together. The note uses regular weight 400,
    15px text and the same grey as the other explanatory notes (`#4f5651`), including
@@ -1402,9 +1407,11 @@ keyboard interaction. A 44px **View percentages** button for each populated year
 exposes every share for that year, including on touch screens. These are shares of
 itemized cash, not the donut's shares of total contributions.
 
-Every selected year has the grey period panel. Where no official contribution total
-is held, the panel contains the available payment dates (or the selected year when
-there are none), the missing-total explanation, the committee link and filing note.
+Every selected year has the grey period panel. A year with itemized payments but no
+official contribution total shows the available payment dates, the missing-total
+explanation, the committee link and any served filing note. A confirmed committee
+with no figures for the selected year shows the year, its absence explanation and
+the committee link inside the same grey panel.
 That explanation does not imply the committee failed to file or that smaller donors
 cannot be itemized. The human-check evidence and the downloads link remain separate.
 
@@ -1415,3 +1422,14 @@ the names section, and the downloads link sits 14px after the human-check block.
 
 Docs check: Updated the visible wording, period and source placement, card spacing,
 shared-name counts and accessible history interactions for the approved UX20 build.
+
+The outside-spending card keeps its source details inside its border: payment dates,
+then the exact source filename, then the downloads link. The filename and link share
+a close group (2px gap); payment dates sit 14px above that group. The page-wide copy
+dates remain outside the card because they describe both sets of campaign records.
+The Who gave explanation uses secondary text (#4f5651); refund and outside-spending
+introductions use balanced word wrapping (`text-wrap: pretty`).
+
+Docs check: Empty selected-year committee cards use the grey panel without claiming
+a filed zero; outside-spending source details stay grouped and shared copy-date text
+names copying rather than report coverage.

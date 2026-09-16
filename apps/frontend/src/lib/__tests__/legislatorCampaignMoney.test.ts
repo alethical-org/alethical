@@ -752,33 +752,33 @@ describe('an empty year says which of 2 things is true', () => {
   // ended when it had not.
   it('never says a registration ended when we only know nothing was reported', () => {
     const body = confirmedElsewhereExplanation(2026, [open]);
-    expect(body).toContain('reported no money in 2026');
-    expect(body).toContain('not a statement that the committee has closed');
+    expect(body).toContain('no figures to show for it in 2026');
+    expect(body).toContain('does not mean the committee has closed');
     expect(body).not.toContain('does not run forever');
     expect(body).not.toContain('the years it covers');
-    expect(confirmedElsewhereHeading(2026, [open])).toBe('Nothing reported for 2026');
+    expect(confirmedElsewhereHeading(2026, [open])).toBe('No figures to show for 2026');
   });
 
   it('says the registration closed, and names the day, when the Board says so', () => {
     const body = confirmedElsewhereExplanation(2026, [closed]);
     expect(body).toContain('closed on Jul 28, 2026');
-    expect(body).toContain('no further money will be reported');
+    expect(body).not.toContain('no further money will be reported');
     expect(confirmedElsewhereHeading(2026, [closed])).toBe('This committee has closed');
   });
 
   it('falls back to the honest wording when only some are closed', () => {
     const body = confirmedElsewhereExplanation(2026, [open, closed]);
-    expect(body).toContain('not a statement that the committee has closed');
+    expect(body).toContain('does not mean the committee has closed');
     expect(body).not.toContain('closed on');
-    expect(confirmedElsewhereHeading(2026, [open, closed])).toBe('Nothing reported for 2026');
+    expect(confirmedElsewhereHeading(2026, [open, closed])).toBe('No figures to show for 2026');
   });
 
   // A page that served nothing for this field, an older API or a cached response, must
   // still read truthfully rather than falling back to the claim this fix removed.
   it('says the honest thing when the server told it nothing', () => {
-    expect(confirmedElsewhereExplanation(2026)).toContain('reported no money in 2026');
+    expect(confirmedElsewhereExplanation(2026)).toContain('no figures to show for it in 2026');
     expect(confirmedElsewhereExplanation(2026)).not.toContain('does not run forever');
-    expect(confirmedElsewhereHeading(2026)).toBe('Nothing reported for 2026');
+    expect(confirmedElsewhereHeading(2026)).toBe('No figures to show for 2026');
   });
 });
 

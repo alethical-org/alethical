@@ -163,14 +163,14 @@ describe('the order of the Campaign money tab', () => {
 describe('the tab dates both sources at its foot', () => {
   it('prints the separately copied totals date in Minnesota time', () => {
     const html = render([committee('17868')], '2026-08-12T02:00:00Z');
-    expect(html).toContain('and its report totals on Aug 11,\u00a02026.');
-    expect(html).toContain('Neither is the period the money covers.');
+    expect(html).toContain('report totals copied Aug 11,\u00a02026.');
+    expect(html).toContain('These are copy dates, not reporting periods.');
     expect(html).not.toContain('The report totals were copied separately.');
   });
 
   it('retains the honest one-date line when the response has no report date', () => {
     const html = render([committee('17868')]);
     expect(html).toContain('The report totals were copied separately.');
-    expect(html).not.toContain('and its report totals on');
+    expect(html).not.toContain('report totals copied');
   });
 });

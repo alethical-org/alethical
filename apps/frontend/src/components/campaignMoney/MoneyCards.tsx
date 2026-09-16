@@ -225,7 +225,7 @@ export function FilingStamp({
 } & Band) {
   const styles = useCardStyles();
   return (
-    <View style={[styles.stamp, isMobile && styles.stampMobile]}>
+    <View testID="campaign-money-period" style={[styles.stamp, isMobile && styles.stampMobile]}>
       {line ? (
         <CardText period={covered} style={covered ? styles.stampPeriod : styles.stampPeriodMuted}>
           {line}
@@ -254,7 +254,11 @@ export function FilingStamp({
         </View>
       ) : null}
       {notes.map((note) => (
-        <CardText key={note} style={styles.stampDetail}>
+        <CardText
+          key={note}
+          numeric={false}
+          style={[styles.stampDetail, { fontWeight: '400', fontVariant: ['tabular-nums'] }]}
+        >
           {note}
         </CardText>
       ))}

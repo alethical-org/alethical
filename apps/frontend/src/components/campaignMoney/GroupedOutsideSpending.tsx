@@ -149,7 +149,7 @@ function OutsideYear({
           definition of something not on the page. Every other state still draws it,
           because in those the sentence is the only thing saying what the card is about. */}
       {zero ? null : (
-        <Text style={[s.body, { maxWidth: 900 }]}>
+        <Text style={[s.body, { maxWidth: 900, ...({ textWrap: 'pretty' } as object) }]}>
           {surface === 'committee'
             ? `${OUTSIDE_ABOUT_INTRO} ${OUTSIDE_NEVER_ADDED}`
             : copy.explainer}
@@ -236,8 +236,7 @@ function OutsideYear({
       {/* The served address is the bulk download itself, which streams a statewide
           spreadsheet with no page behind it, so the link lands on the page that download
           lives on, derived from the served address rather than typed in (#2186). The
-          line below names the Board's own row on that page, so a reader knows which
-          file these figures came from; "its" is the page named directly above it. */}
+          filename directly above the link names the Board's own row on that page. */}
       <View style={styles.foot}>
         {!unavailable && !zero && period ? (
           <Text style={[s.small, styles.plainNumbers]}>
@@ -245,6 +244,7 @@ function OutsideYear({
           </Text>
         ) : null}
         <View style={styles.sourceBlock}>
+          <Text style={[s.small, styles.sourceFile]}>{copy.sourceFile}</Text>
           <Pressable
             {...externalLinkProps(downloadsHref, () => onOpenSource(downloadsHref))}
             style={(state) => [
@@ -252,10 +252,14 @@ function OutsideYear({
               Boolean('focused' in state && state.focused) && s.focus,
             ]}
           >
-            <Text style={[s.small, s.link, styles.sourceLabel]}>{NAMED_DONATIONS_LINK_LABEL}</Text>
-            <LinkArrow color={c.link} />
+            <Text style={[s.small, s.link, styles.sourceLabel]}>
+              {NAMED_DONATIONS_LINK_LABEL}
+              <Text style={styles.arrowRun}>
+                {'\u00a0'}
+                <LinkArrow color={c.link} />
+              </Text>
+            </Text>
           </Pressable>
-          <Text style={[s.small, styles.sourceFile]}>{copy.sourceFile}</Text>
         </View>
       </View>
     </View>
@@ -513,6 +517,7 @@ const styles = StyleSheet.create({
   // Tabular figures so "$200" sits straight, but the ordinary body weight: it is a
   // sentence about the file, not a figure of its own.
   sourceFile: { fontVariant: ['tabular-nums'] },
-  source: { minHeight: 44, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
+  source: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
+  arrowRun: { ...({ whiteSpace: 'nowrap' } as object) },
   sourceLabel: { fontWeight: '700' },
 });

@@ -1450,7 +1450,7 @@ describe('a committee’s record in the first response', () => {
       'gave',
     );
     expect(visibleText(renderPageSnapshot(dated))).toContain(
-      'and its report totals on Aug 11, 2026. Neither is the period the money covers.',
+      'report totals copied Aug 11, 2026. These are copy dates, not reporting periods.',
     );
   });
 
@@ -1460,8 +1460,8 @@ describe('a committee’s record in the first response', () => {
       '41326',
     );
     const datedText = visibleText(renderPageSnapshot(dated));
-    expect(datedText).toContain('and its report totals on Aug 11, 2026.');
-    expect(datedText).toContain('Neither is the period the money covers.');
+    expect(datedText).toContain('report totals copied Aug 11, 2026.');
+    expect(datedText).toContain('These are copy dates, not reporting periods.');
     expect(datedText).not.toContain('The report totals were copied separately.');
   });
 
