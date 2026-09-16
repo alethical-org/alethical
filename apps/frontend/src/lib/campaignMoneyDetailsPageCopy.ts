@@ -65,18 +65,18 @@ export const moneyDetailsPageCopy = {
  * date retains the honest one-date fallback (issue 2192).
  *
  * The date keeps a no-break space inside it, so a narrow column cannot leave a line
- * ending "…on Sep 1," and read as a date running into the next clause.
+ * ending "…Sep 1," and read as a date running into the next clause.
  */
 export function paymentFilesDownloadedLine(day: string, reportTotalsDay?: string | null): string {
   if (reportTotalsDay) {
     return (
-      `We downloaded Minnesota’s payment files on ${day.replace(/,\s/, ',\u00a0')} ` +
-      `and its report totals on ${reportTotalsDay.replace(/,\s/, ',\u00a0')}. ` +
-      'Neither is the period the money covers.'
+      `Minnesota’s payment files copied ${day.replace(/,\s/, ',\u00a0')}; ` +
+      `report totals copied ${reportTotalsDay.replace(/,\s/, ',\u00a0')}. ` +
+      'These are copy dates, not reporting periods.'
     );
   }
   return (
-    `We downloaded Minnesota’s payment files on ${day.replace(/,\s/, ',\u00a0')}, ` +
-    'which is not the period the money covers. The report totals were copied separately.'
+    `Minnesota’s payment files copied ${day.replace(/,\s/, ',\u00a0')}. ` +
+    'This is a copy date, not a reporting period. The report totals were copied separately.'
   );
 }

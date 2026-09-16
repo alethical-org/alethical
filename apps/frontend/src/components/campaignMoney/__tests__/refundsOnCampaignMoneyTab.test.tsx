@@ -171,7 +171,7 @@ describe('refund history on the Campaign money tab', () => {
         isError,
       });
       assertSeparatedCards(container);
-      expect(container.textContent).toContain('Nothing reported for 2025');
+      expect(container.textContent).toContain('No figures to show for 2025');
     },
   );
 

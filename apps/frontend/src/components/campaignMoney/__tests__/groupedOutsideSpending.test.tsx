@@ -248,6 +248,12 @@ describe('outside spender list on the campaign money tab', () => {
     expect(date.nextElementSibling?.textContent).toContain(
       'Minnesota’s campaign-finance downloads',
     );
+    const source = textLine('Source file: “Itemized independent expenditures of over $200”');
+    expect(source.parentElement).toBe(date.nextElementSibling);
+    expect(source.nextElementSibling?.textContent).toContain(
+      'Minnesota’s campaign-finance downloads',
+    );
+    expect(getComputedStyle(source.parentElement!).gap).toBe('2px');
   });
 
   it('renders distinct directions, links only linkable groups, and loads payment details on expansion', async () => {
@@ -344,6 +350,11 @@ describe('outside spender list on the campaign money tab', () => {
     expect(mount.textContent).toContain(
       'Source file: “Itemized independent expenditures of over $200”',
     );
+    const source = textLine('Source file: “Itemized independent expenditures of over $200”');
+    expect(source.nextElementSibling?.textContent).toContain(
+      'Minnesota’s campaign-finance downloads',
+    );
+    expect(getComputedStyle(source.parentElement!).gap).toBe('2px');
     expect(
       mount.querySelector(
         'a[href="https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/"]',

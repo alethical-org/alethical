@@ -658,15 +658,15 @@ Top to bottom:
    panel says "through" alone — a start is never assumed, because a special-election
    filer's period does not open on 1 January. Beside it is the link to the
    committee's filed reports on the Board's own site. The note at the foot names both
-   source-copy dates: “We downloaded Minnesota’s payment files on Sep 1, 2026 and its
-   report totals on Aug 11, 2026. Neither is the period the money covers.” The payment
+   source-copy dates: “Minnesota’s payment files copied Sep 1, 2026;
+   report totals copied Aug 11, 2026. These are copy dates, not reporting periods.” The payment
    date comes from the stored bulk-file download time (`fetched_at`); the report date
    comes from the published filing source's own stored fetch completion time
    (`filings_copied_at`). Neither a report's receipt date nor a later publication
    of stored records replaces that source date. Neither says when the register was copied.
    Both dates print in Minnesota time. Without a report-copy date, it reads:
-   “We downloaded Minnesota’s payment files on Sep 1, 2026, which is not the period the
-   money covers. The report totals were copied separately.” The committee's footnote
+   “Minnesota’s payment files copied Sep 1, 2026. This is a copy date, not a reporting
+   period. The report totals were copied separately.” The committee's footnote
    uses regular weight 400 and 15px text. The same date distinction appears on the
    committee's every-payment view and in the first response served for both addresses.
    The filing's period and link live here, once,

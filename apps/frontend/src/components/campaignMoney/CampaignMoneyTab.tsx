@@ -370,26 +370,44 @@ function OutsideYearCommitteeCards({
   const { isMobile, isTablet } = useResponsive();
   const type = useCampaignMoneyTypography();
   return committees.map((committee) => (
-    <View key={committee.registrationNumber} style={{ gap: 24 }}>
-      <View style={[styles.card, isTablet && styles.cardTablet, isMobile && styles.cardMobile]}>
-        <Text style={styles.eyebrow}>
-          {year} · REGISTRATION {committee.registrationNumber}
-        </Text>
-        <Text accessibilityRole="header" aria-level={2} style={[styles.h3, { fontSize: type.h3 }]}>
-          {committee.committeeNameAsReviewed}
-        </Text>
-        <Text accessibilityRole="header" aria-level={3} style={styles.explain}>
-          {confirmedElsewhereHeading(year, [committee])}
-        </Text>
-        <Text style={[styles.body, { fontSize: type.body }]}>
-          {confirmedElsewhereExplanation(year, [committee])}
-        </Text>
-      </View>
+    <React.Fragment key={committee.registrationNumber}>
+      <CampaignMoneyCardTheme>
+        <View style={[styles.card, isTablet && styles.cardTablet, isMobile && styles.cardMobile]}>
+          <Text
+            accessibilityRole="header"
+            aria-level={2}
+            style={[
+              styles.h3,
+              { fontSize: type.h3 },
+              numericText(committee.committeeNameAsReviewed),
+            ]}
+          >
+            {committee.committeeNameAsReviewed}{' '}
+            <Text style={styles.numberRun}>
+              {committeeNumberSuffix(committee.registrationNumber)}
+            </Text>
+          </Text>
+          <FilingStamp
+            line={String(year)}
+            detail={confirmedElsewhereHeading(year, [committee])}
+            notes={[confirmedElsewhereExplanation(year, [committee])]}
+            ourRecord={
+              <CommitteeRecordLink
+                name={committee.committeeNameAsReviewed}
+                registrationNumber={committee.registrationNumber}
+                year={year}
+              />
+            }
+            covered
+            isMobile={isMobile}
+          />
+        </View>
+      </CampaignMoneyCardTheme>
       <CommitteeRefundCard
         refunds={committee.refunds}
         registrationNumber={committee.registrationNumber}
       />
-    </View>
+    </React.Fragment>
   ));
 }
 
@@ -415,39 +433,22 @@ function UnconfirmedPanel() {
   );
 }
 
-function CommitteeCard({
-  committee,
+function CommitteeRecordLink({
+  name,
+  registrationNumber,
   year,
-  releaseId,
-  onRefresh,
-  mixHistory,
-  preferences,
-  onPreferences,
 }: {
-  committee: CampaignCommitteeMoney;
+  name: string;
+  registrationNumber: string;
   year: CampaignMoneyYear;
-  releaseId?: string;
-  onRefresh: () => void;
-  /** This committee's own year-by-year donor chart, drawn between its figures and its
-   *  refunds so one committee's block is never split by another subject. */
-  mixHistory: React.ReactNode;
-  preferences: MoneyDetailsPreferences;
-  onPreferences: (preferences: MoneyDetailsPreferences) => void;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const { isMobile, isTablet } = useResponsive();
   const type = useCampaignMoneyTypography();
-  const name = committee.committeeName || committee.committeeNameAsReviewed;
-  // The filing's period and link, once, above both cards — never inside one. The
-  // tab's own freshness note at the foot carries the day we copied the files, so the
-  // stamp here states the filing's coverage alone.
-  const through = committee.split.reportedThrough;
-  const periodStart = committee.moneyIn?.reportedPeriodStart ?? null;
   const recordParams = {
-    slug: committeeSlug(name, committee.registrationNumber),
+    slug: committeeSlug(name, registrationNumber),
     year: String(year),
   };
-  const ourRecord = (
+  return (
     <Pressable
       style={(state) => [
         styles.recordLink,
@@ -470,9 +471,42 @@ function CommitteeCard({
       </Text>
     </Pressable>
   );
+}
+
+function CommitteeCard({
+  committee,
+  year,
+  releaseId,
+  onRefresh,
+  mixHistory,
+  preferences,
+  onPreferences,
+}: {
+  committee: CampaignCommitteeMoney;
+  year: CampaignMoneyYear;
+  releaseId?: string;
+  onRefresh: () => void;
+  /** This committee's own year-by-year donor chart, drawn between its figures and its
+   *  refunds so one committee's block is never split by another subject. */
+  mixHistory: React.ReactNode;
+  preferences: MoneyDetailsPreferences;
+  onPreferences: (preferences: MoneyDetailsPreferences) => void;
+}) {
+  const { isMobile, isTablet } = useResponsive();
+  const type = useCampaignMoneyTypography();
+  const name = committee.committeeName || committee.committeeNameAsReviewed;
+  // The filing's period and link, once, above both cards — never inside one. The
+  // tab's own freshness note at the foot carries the day we copied the files, so the
+  // stamp here states the filing's coverage alone.
+  const through = committee.split.reportedThrough;
+  const periodStart = committee.moneyIn?.reportedPeriodStart ?? null;
   const recordAndSchedule = (
     <View style={styles.recordAndSchedule}>
-      {ourRecord}
+      <CommitteeRecordLink
+        name={name}
+        registrationNumber={committee.registrationNumber}
+        year={year}
+      />
       <FilingScheduleNote schedule={committee.filingSchedule} year={year} />
     </View>
   );

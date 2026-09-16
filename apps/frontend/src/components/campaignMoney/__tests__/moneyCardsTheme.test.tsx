@@ -155,7 +155,6 @@ describe('profile styling for shared money cards', () => {
     for (const text of [
       '$1,000',
       'Through Jul 20, 2026',
-      '134 payments in 2026',
       'Checked by Alethical on Aug 30, 2026',
       'Public Subsidy · 2 payments',
     ]) {
@@ -164,6 +163,9 @@ describe('profile styling for shared money cards', () => {
       expect(style.fontWeight).toBe('800');
       expect(style.fontVariant).toBe('tabular-nums');
     }
+    const note = getComputedStyle(exact(profile, '134 payments in 2026'));
+    expect(note.fontWeight).toBe('400');
+    expect(note.fontVariant).toBe('tabular-nums');
     const period = getComputedStyle(exact(profile, 'Jan 1 to Jul 20, 2026'));
     expect(period.fontFamily).toBe(fontFamily(t.typography.body));
     expect(period.fontWeight).toBe('700');

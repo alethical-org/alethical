@@ -94,14 +94,18 @@ function committee(overrides: Partial<CampaignCommitteeMoney> = {}): CampaignCom
   };
 }
 
-function render(committees: CampaignCommitteeMoney[], year = 2026) {
+function render(
+  committees: CampaignCommitteeMoney[],
+  year = 2026,
+  outside: LegislatorCampaignMoney['committeesOutsideThisYear'] = [],
+) {
   const money: LegislatorCampaignMoney = {
     legislatorId: 'jim-abeler',
     year,
     linkState: 'confirmed',
     currentClaim: { servedAgeMs: 0, validatedAt: '2026-09-01T18:33:35.639027Z' },
     committees,
-    committeesOutsideThisYear: [],
+    committeesOutsideThisYear: outside,
     otherOfficeCommittees: 0,
     fetchedAt: '2026-09-01T18:33:35.639027Z',
   };
@@ -321,5 +325,50 @@ describe('the money tab after the 13 Sep refinements', () => {
     expect(page.body.textContent).toContain('Jan 6, 2026');
     // No report-period link is inferred from payment dates.
     expect(page.body.textContent).not.toContain(BOARD_RECORD_LINK_LABEL);
+  });
+});
+
+describe('confirmed committees outside the selected year', () => {
+  it.each([2017, 2026])(
+    'keeps the grey period panel and selected-year record link for %s',
+    (year) => {
+      const page = doc(
+        render([], year, [
+          {
+            registrationNumber: '19019',
+            committeeNameAsReviewed: 'Repinski, Aaron House Committee',
+            closedOn: null,
+          },
+        ]),
+      );
+      const panel = page.querySelector('[data-testid="campaign-money-period"]');
+      expect(panel).not.toBeNull();
+      expect(panel?.textContent).toContain(String(year));
+      expect(panel?.textContent).toContain(`no figures to show for it in ${year}`);
+      expect(panel?.textContent).not.toContain('reported no money');
+      expect(panel?.textContent).not.toContain('The amounts listed');
+      expect(panel?.textContent).not.toContain('filed this report');
+      expect(panel?.querySelector('a')?.getAttribute('href')).toBe(
+        `/money/committees/repinski-aaron-house-committee-19019?year=${year}`,
+      );
+      expect(page.body.textContent).not.toContain('REGISTRATION 19019');
+      expect(page.body.textContent).toContain('Repinski, Aaron House Committee -\u00a019019');
+    },
+  );
+
+  it('keeps a sourced closing date inside the panel without inventing a report period', () => {
+    const page = doc(
+      render([], 2026, [
+        {
+          registrationNumber: '18472',
+          committeeNameAsReviewed: 'Novotny, Paul House Committee',
+          closedOn: '2026-07-28',
+        },
+      ]),
+    );
+    const panel = page.querySelector('[data-testid="campaign-money-period"]');
+    expect(panel?.textContent).toContain('This committee has closed');
+    expect(panel?.textContent).toContain('Jul 28, 2026');
+    expect(panel?.textContent).not.toContain('Jan 1');
   });
 });
