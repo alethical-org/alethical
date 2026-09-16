@@ -491,7 +491,7 @@ describe('the filing schedule note, one committee at a time', () => {
     'describes the selected past year %i with no future deadline',
     (year) => {
       expect(filingScheduleNote(gap('on_the_ballot'), year, 2026)).toEqual([
-        `This committee was on the ${year} ballot and followed Minnesota's election-year filing schedule.`,
+        `This committee was on the ${year} ballot and followed Minnesota's election-year filing schedule`,
       ]);
       expect(filingScheduleNote(gap('not_on_the_ballot'), year, 2026)).toEqual([
         `This committee was not on the ${year} ballot. Minnesota's schedule for candidates not running required a year-end report.`,

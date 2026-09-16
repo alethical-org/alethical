@@ -766,7 +766,7 @@ export function filingScheduleNote(
     case 'on_the_ballot': {
       if (year < currentYear) {
         return [
-          `This committee was on the ${year} ballot and followed Minnesota's election-year filing schedule.`,
+          `This committee was on the ${year} ballot and followed Minnesota's election-year filing schedule`,
         ];
       }
       const timing = nextReportSentence(schedule);

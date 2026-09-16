@@ -333,7 +333,7 @@ For a current or future year when the committee is on the ballot, the wording is
 
 For a past year with a known on-ballot schedule, the wording is:
 
-> This committee was on the {year} ballot and followed Minnesota's election-year filing schedule.
+> This committee was on the {year} ballot and followed Minnesota's election-year filing schedule
 
 For a past year with a known off-ballot schedule, the wording is:
 
@@ -485,10 +485,10 @@ No named rows gets its own sentence rather than a circle claiming a reported zer
 
 **Goods and services stay out of every cash slice.** Their value remains in the named
 contribution figure and payment list, with each such payment marked. One sentence beneath
-the chart says so, and it never repeats in the summary:
+the chart says so. The payment-list summary repeats the amount on its own wrapped line:
 
 > $5,000 more came as goods and services rather than money, which Minnesota counts
-> separately.
+> separately
 
 "more" is the whole claim: this money sits outside the reported contributions figure rather
 than inside it, so no reader adds it to anything above. An all-goods year
@@ -525,9 +525,9 @@ as “Name not given in the filing” and does not add a made-up person to the n
 The tab count says names; the count line separately says how many payment rows it holds.
 Neither claims a number of distinct people.
 
-Names sit in a list with a fine line only between adjacent rows, without separate
-cards, rounded corners or row shadows. There is no line above the first name or below
-the last name. Each row is at least 60px high, with 12px above
+Names sit in a list with a fine line above the first name and between adjacent rows,
+without separate cards, rounded corners or row shadows. There is no line below the last
+name. Each row is at least 60px high, with 12px above
 and below its contents and 2px at the sides. The name and right-aligned total are 17px
 and bold (weight 700). A single quiet 15px line at normal weight (400) keeps the filed employer, any existing
 kind label and payment count together, separated by “·”, in `#6b716b`. A group with
@@ -556,11 +556,18 @@ menu opens 6px below its own button, with their right edges aligned; it is at le
 220px wide, with 6px inside padding and 44px options. A green check marks the chosen
 order. The purple ring marks keyboard focus alone and follows each control's own shape.
 
-The whole-tab count and total share 1 unboxed row, 14px below the controls. The left
-side says, for example, “74 names · 82 payments”; the right says “Named total in this
-tab: $39,950”. Both use equal-width digits at 15px. The count is weight 800; the total's
-label is regular and its figure is weight 800. The row wraps when needed, with a 6px
-vertical gap and a 20px horizontal gap, without a filled background.
+The whole-tab count and total share 1 light band, 16px below the controls. It extends
+12px past each side of the list, has 10px rounded corners and no border, and uses the
+chosen donor kind's colour at 12% opacity. Expenditures uses `#4f5651` at 12% opacity.
+The left side says, for example, “74 names · 82 payments”; the right says “Total itemized
+contributions $39,950” or “Total itemized expenditures $39,950”, without a colon. The
+count and amount are dark, bold and use the existing responsive body size with equal-width
+digits. The label stays 15px and `#4f5651`. The label and amount have 12px between them.
+The band uses 14px left padding and 70px right padding, which lines its total amount up
+with the payment amounts below. It has 11px above and 12px below its contents. The band
+wraps on a phone and with long amounts. A goods-and-services amount wraps onto its own
+line, so it cannot move the total amount away from the payment amount column. The list's
+top line begins 12px below the band.
 
 A separate 44px button beside the total opens every underlying payment. Its 18px
 chevron turns when opened, and its screen-reader label names the group and reports
@@ -613,9 +620,12 @@ reported money-out total for the period, including a verified $0. Its own period
 appears only where it differs from the filing stamp's. No named-payment sum sits beside
 an official total, and the card prints no comparison verdict or rows by payment kind.
 
-**When the official total is missing, the card shows no amount and only this sentence:**
-“We do not hold an official spending total for this committee for this year.” This
-describes Alethical's records, not a failure by the committee to file. The same sentence
+**When the official total is missing, the card shows no amount and only this sentence,
+without a final dot:**
+
+> We do not hold an official spending total for this committee for this year
+
+This describes Alethical's records, not a failure by the committee to file. The same sentence
 applies whether the named-payment rows contain an amount, a measured zero, no payments,
 or an unavailable amount. Empty and closed committee-years use it too, while their
 identity and money-in card retain their own explanation.
@@ -656,8 +666,10 @@ cards before the history chart. Each uses the selected committee and year. The
 committee's own `/money/committees/<slug>` page uses the same cards in its Campaign
 money section, without needing a legislator confirmation.
 
-**What the committee’s own report says** prints the 5 filing lines beside the
-itemized cash assigned to each line and their difference. Its final row, **All five
+**What the committee’s own report says** opens with “Contributions reported by the
+committee, beside itemized contributions in the state’s list”. It prints the 5 filing
+lines beside the itemized cash assigned to each line and their difference, followed by
+“The differences add up to total non-itemized contributions”. Its final row, **All five
 added up**, adds the unrounded source amounts before cutting cents for display. The
 difference column's total equals the chart's Non-itemized contributions figure.
 The row totals live beside their 5 source rows, rather than in the summary above.
@@ -794,7 +806,7 @@ When no candidate row matches, the card keeps its heading, introduction, and
 copied-files link, and says:
 
 > The Board's refund summaries name no row for this committee's candidate, office
-> and party.
+> and party
 
 The refund history remains under **Nothing reported for {year}**, because that
 message concerns the selected campaign-money year. It remains tied to each
@@ -939,13 +951,13 @@ saying zero:
    year. The committee is confirmed and the download covers the year, so this is a
    published finding. It reads:
 
-   > No outside group reported spending to support or oppose this legislator in 2026.
+   > No outside group reported spending to support or oppose this legislator in 2026
 
    In a year we hold that their committee was not on the ballot, the same sentence gains
    a closing clause and the year still prints once:
 
    > No outside group reported spending to support or oppose this legislator in 2021,
-   > when they were not on the ballot.
+   > when they were not on the ballot
 
    That clause draws only from that year's own filing record, and only when it says so
    for every committee on the page. It says nothing about **why** the total is zero: a
@@ -1115,7 +1127,7 @@ tab prints both figures and no subtraction.
 - **“$0” on an Expenditures line** is the official total the filing states, with its own
   sentence distinguishing that zero from a gap. A calculated named-payment zero stays
   beside the payment rows, never on the summary card.
-- **“We do not hold an official spending total for this committee for this year.”**
+- **“We do not hold an official spending total for this committee for this year”**
   means Alethical lacks the official money-out figure. It never means the committee
   failed to report, and the Expenditures line is omitted.
 - **A "Total contributions" figure is the filing's cash column, and it is not drawn where

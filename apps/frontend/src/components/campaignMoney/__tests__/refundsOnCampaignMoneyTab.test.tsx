@@ -233,7 +233,7 @@ describe('historical filing schedules on the Campaign money tab', () => {
       const container = render({ money: money({ committees: [historicalCommittee] }), year: 2025 });
       expect(container.textContent).toContain(
         state === 'on_the_ballot'
-          ? "This committee was on the 2025 ballot and followed Minnesota's election-year filing schedule."
+          ? "This committee was on the 2025 ballot and followed Minnesota's election-year filing schedule"
           : "This committee was not on the 2025 ballot. Minnesota's schedule for candidates not running required a year-end report.",
       );
       expect(container.textContent).not.toContain('We have not yet copied in');

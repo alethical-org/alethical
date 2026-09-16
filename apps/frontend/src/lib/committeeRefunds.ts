@@ -31,7 +31,7 @@ export const refundCopy = {
   // tab's own freshness line both say `copied` alone for the same act.
   copiedOn: (day: string) => `Board summary files copied ${day}`,
   notMatched:
-    "The Board's refund summaries name no row for this committee's candidate, office and party.",
+    "The Board's refund summaries name no row for this committee's candidate, office and party",
 } as const;
 
 /** An unpublished year belongs only inside this committee's matched history. */

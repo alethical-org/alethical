@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MoneyOutBlock, type MoneyOutLike } from '../MoneyCards';
 
 const missingOfficial =
-  'We do not hold an official spending total for this committee for this year.';
+  'We do not hold an official spending total for this committee for this year';
 const officialZero =
   'The committee’s own report states $0 in expenditures. That is the filing’s own zero, not a gap in our records.';
 const listedNote =

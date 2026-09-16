@@ -160,7 +160,7 @@ describe('the per-committee refund card', () => {
       'This is money the state returned to donors, not money the committee received.',
     );
     expect(container.textContent).toContain(
-      "The Board's refund summaries name no row for this committee's candidate, office and party.",
+      "The Board's refund summaries name no row for this committee's candidate, office and party",
     );
     expect(container.querySelector('table')).toBeNull();
     expect(container.textContent).not.toContain('$0');

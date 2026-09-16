@@ -40,7 +40,7 @@ export function namedMoneyDefinition(isBallot: boolean): DekSegment[] {
 
 /** Small labels needed before the donation browser's code arrives. */
 export const moneyDetailsPageCopy = {
-  chartFailed: 'We could not load the complete donation list, so the chart is withheld.',
+  chartFailed: 'We could not load the complete donation list, so the chart is withheld',
   outsideFailed:
     'We could not load this right now. This is a problem at our end and says nothing about what was spent.',
   chartLoading: 'Loading the contribution breakdown…',

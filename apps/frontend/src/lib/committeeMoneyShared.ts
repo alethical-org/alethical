@@ -229,9 +229,9 @@ export function coveredPeriodLine(
  * whole and a test can pin it word for word.
  */
 export const FILING_SOURCE_BOTH_DATES =
-  'The committee filed this report with the Minnesota Campaign Finance Board, which prints both dates.';
+  'The committee filed this report with the Minnesota Campaign Finance Board, which prints both dates';
 export const FILING_SOURCE_ONE_DATE =
-  'The committee filed this report with the Minnesota Campaign Finance Board, which prints the date.';
+  'The committee filed this report with the Minnesota Campaign Finance Board, which prints the date';
 
 /** The stamp's detail sentence under a covered period. `checkedOn` is the day we
  *  copied the Board's files, already printed as a Minnesota (Central-time) day. */
@@ -395,7 +395,7 @@ export function reportedThroughNote(
 /** The filing's own total. A missing official total never borrows this label. */
 export const MONEY_OUT_REPORTED_LABEL = 'Expenditures';
 export const MONEY_OUT_OFFICIAL_MISSING =
-  'We do not hold an official spending total for this committee for this year.';
+  'We do not hold an official spending total for this committee for this year';
 export const MONEY_OUT_ZERO_NOTE =
   'The committee’s own report states $0 in expenditures. That is the filing’s own zero, not a gap in our records.';
 

@@ -306,11 +306,11 @@ describe('the period stamp', () => {
   it('prints the same 2 sentences whatever page the stamp draws on', () => {
     expect(FILING_SOURCE_BOTH_DATES).toBe(
       'The committee filed this report with the Minnesota Campaign Finance Board, ' +
-        'which prints both dates.',
+        'which prints both dates',
     );
     expect(FILING_SOURCE_ONE_DATE).toBe(
       'The committee filed this report with the Minnesota Campaign Finance Board, ' +
-        'which prints the date.',
+        'which prints the date',
     );
     expect(`${BOARD_RECORD_LINK_LABEL}${BOARD_RECORD_SENTENCE_TAIL}`).toBe(
       'The Board’s record for this committee lists every report it filed, under Reports and Data.',
@@ -527,7 +527,7 @@ describe('money out', () => {
     const note = inKindDonationsNote('$19,899.45');
     expect(note).toBe(
       '$19,899.45 more came as goods and services rather than money, which Minnesota ' +
-        'counts separately.',
+        'counts separately',
     );
     // No positional word, on any surface, however each one is laid out later.
     for (const positional of ['below', 'above the', 'the total below', 'beneath']) {
