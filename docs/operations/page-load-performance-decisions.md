@@ -594,6 +594,24 @@ app's own words reached the screen at 452 to 487 ms before and 145 to 146 ms aft
 server-written text snapshot covers that moment, so what a reader gains there is the app's
 own chrome and its records arriving earlier rather than an empty page ending sooner.
 
+**On the live site after the release**, same probe, same window, 5 loads of each address
+with a brand-new browser and no cache. The wait between the screen's own file finishing and
+the first request to the data service, against the table above:
+
+| Address | Before | After |
+|---|---:|---:|
+| `/` | 273 ms | 37 ms |
+| `/bills` | 273 ms | 30 ms |
+| `/bills/HF2` | 274 ms | 35 ms |
+| `/legislators` | 269 ms | 30 ms |
+| `/legislators/aaron-repinski` | 276 ms | 28 ms |
+| `/legislators/aaron-repinski?tab=money` | 274 ms | 27 ms |
+| `/money` | 267 ms | 35 ms |
+| `/money/search?q=smith` | 275 ms | 27 ms |
+
+All 8 live addresses draw the same words to the character as before, and so do `/about`,
+`/read`, `/find-my-legislator`, `/money/committees` and an unknown address.
+
 **What still goes through the old path, deliberately.** A piece nobody fetched ahead of
 time still draws an empty marker and still waits: the footer's social links, the sign-in
 machinery, and a screen reached by a click that no hover warmed. None of them hold up a
