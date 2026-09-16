@@ -49,17 +49,19 @@ export { OUTSIDE_GROUP_COPY } from './groupedOutsideSpendingCopy';
  * tell nothing-spent from nothing-held. The filing-schedule note carries the ballot
  * fact too, but it sits at the top of the tab while this card is well below it.
  *
- * `when` places the 2 facts in the same year and claims nothing about why the total is
- * zero (#2186, and `.claude/rules/grounded-answers.md` rule 3).
+ * The closing clause places the 2 facts in the same year and claims nothing about
+ * why the total is zero (#2186, and `.claude/rules/grounded-answers.md` rule 3).
  */
 export function outsideCheckedZeroLabel(
   year: number,
   subject: 'legislator' | 'committee' = 'legislator',
   notOnTheBallot = false,
 ): string {
-  const ballot = notOnTheBallot
-    ? `, when ${subject === 'committee' ? 'it was' : 'they were'} not on the ballot`
-    : '';
+  if (subject === 'legislator') {
+    const ballot = notOnTheBallot ? ', a year they were not on the ballot' : '';
+    return `The state’s file lists no independent expenditures supporting or opposing this candidate in ${year}${ballot}`;
+  }
+  const ballot = notOnTheBallot ? ', when it was not on the ballot' : '';
   return `No outside group reported spending to support or oppose this ${subject} in ${year}${ballot}`;
 }
 
