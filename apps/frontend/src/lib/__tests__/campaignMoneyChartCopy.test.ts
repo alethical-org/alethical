@@ -53,7 +53,8 @@ describe('the dek above the donor chart', () => {
   it('drops the last 2 sentences wherever no non-itemized figure draws', () => {
     for (const namedOnly of [false, true]) {
       const dek = dekText(copy.chartExplanation(namedOnly, false, false));
-      expect(dek).toBe(namedOnly ? NAMED_ONLY_SHARES : SHARES);
+      expect(dek).toBe(namedOnly ? NAMED_ONLY_SHARES : SHARES.slice(0, -1));
+      expect(dek).not.toMatch(/\.$/);
       expect(dek).not.toContain('non-itemized contributions');
       expect(dek).not.toContain('$200');
     }

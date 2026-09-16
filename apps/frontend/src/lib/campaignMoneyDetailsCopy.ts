@@ -29,9 +29,9 @@ export const moneyDetailsCopy = {
       text: namedOnly
         ? 'Shares of itemized contributions this year, excluding donated goods and services'
         : 'Shares of the contributions this committee reported, excluding donated goods and ' +
-          'services.',
+          'services',
     },
-    ...(hasUnnamed ? [{ text: ' ' }, ...namedMoneyDefinition(isBallot)] : []),
+    ...(hasUnnamed ? [{ text: '. ' }, ...namedMoneyDefinition(isBallot)] : []),
   ],
   kindMissing: 'Kind not given',
   names: (count: number) => `${count} ${count === 1 ? 'name' : 'names'}`,
