@@ -1820,7 +1820,14 @@ it. These are the rules the redesign adds, each with the reason it exists.
   Expenditures.** A gift from another candidate's committee sits under Committees & Funds with the
   state's words "Candidate committee" on its row, so the row keeps the filed kind. A sixth tab
   appears only for rows the state marks Self, Other, Unknown or blank. Every row lands in exactly 1
-  tab.
+  tab. **The order never follows the figures** (Eugene, 16 Sep 2026): a tab holding nothing keeps
+  its place, so Lobbyists sits second on a member no lobbyist gave to, reading `Lobbyists 0`.
+  Ordering by size would move the tabs between 1 member and the next and between 1 year and the
+  next, so a reader could never learn where a kind lives, and a count of 0 is a fact worth reading
+  in the place a reader already looks for it. **Nor does the money section's own order reach into
+  this strip.** `/money` lists its Lobbying lane last because that lane is about who is registered
+  to lobby the state and what those organisations spend; this tab is money given to a campaign by
+  a registered lobbyist, which is a kind of donor rather than a kind of activity.
 - **A list is complete before anything is counted, grouped, searched, sorted or totalled.** The
   server sends at most 250 rows per request and returns loans and miscellaneous income beside
   donations, so the page fetches every page and keeps only rows the state marks `Contribution`.
