@@ -429,7 +429,7 @@ Top to bottom:
    committee or fund. A closed committee carries a CLOSED chip with the register's own
    termination date.
 5. **Numbered pages**, 50 filers each, so the whole register is 33 addresses rather than one
-   endless list. Previous, Next and jumps of 10 and 100 pages are ordinary links, and the
+   endless list. Previous and Next are ordinary links, and the
    page number is in the address, so the list a reader is looking at is one they can send and
    the Back button returns to it. This replaced a "Show the next 50" button on 27 Aug 2026:
    Google says plainly that it does not press buttons, so every filer past the first 50 had

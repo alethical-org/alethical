@@ -31,9 +31,9 @@ from all money screens in the same release.
 
 Both directories show 50 rows per numbered page. The typed name and page number stay in
 the address as `q` and `page`, including Back and Forward. The name box filters the filed
-name; it does not offer a guessed spelling. Ordinary Previous, Next and numbered links
-make every directory page reachable before the app starts. An unfiltered page beyond
-the served whole count is not found.
+name; it does not offer a guessed spelling. Ordinary Previous and Next links work before
+the app starts, and `/sitemap.xml` names every numbered page, so each one is reachable
+without walking there. An unfiltered page beyond the served whole count is not found.
 
 The showing line uses the whole served count, for example
 "Showing 51–100 of 1,665 registered lobbyists". Page counts are never added across kinds.

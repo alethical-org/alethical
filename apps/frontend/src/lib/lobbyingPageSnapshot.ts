@@ -36,7 +36,7 @@ import {
 import { centralDateLabel } from './moneyLanding';
 import { committeeSlug, registerKindLabel } from './committeeMoneyShared';
 import { formatDay, formatMoney } from './legislatorCampaignMoney';
-import { directoryJumpPages, directoryPagePath, directoryTotalPages } from './directoryPagination';
+import { directoryPagePath, directoryTotalPages } from './directoryPagination';
 
 const recordPath = (kind: 'principals' | 'lobbyists', name: string, id: string | number) =>
   `/money/lobbying/${kind}/${encodeURIComponent(committeeSlug(name, String(id)))}`;
@@ -138,10 +138,6 @@ export function lobbyingDirectorySnapshot(
     links: [
       ...(page > 1 ? [{ label: 'Previous', href: directoryPagePath(path, page - 1) }] : []),
       ...(page < pages ? [{ label: 'Next', href: directoryPagePath(path, page + 1) }] : []),
-      ...directoryJumpPages(page, pages).map((next) => ({
-        label: `Page ${next}`,
-        href: directoryPagePath(path, next),
-      })),
       { label: directory.title, href: '/money/lobbying' },
     ],
   };

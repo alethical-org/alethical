@@ -1239,9 +1239,6 @@ export function Pagination({
   onPageChange,
   prevHref,
   nextHref,
-  jumpPages,
-  pageHref,
-  onPageSelect,
   variant,
 }: {
   page: number;
@@ -1255,71 +1252,40 @@ export function Pagination({
   onPageChange?: () => void;
   prevHref?: string;
   nextHref?: string;
-  jumpPages?: readonly number[];
-  pageHref?: (page: number) => string;
-  onPageSelect?: (page: number) => void;
   variant?: 'lobbying';
 }) {
   if (!hasPrev && !hasNext) return null;
   return (
-    <View style={styles.paginationWrap}>
-      <View style={styles.pagination}>
-        <PageButton
-          direction="prev"
-          variant={variant}
-          disabled={!hasPrev}
-          href={prevHref}
-          onPress={() => {
-            onPrev();
-            onPageChange?.();
-          }}
-        />
-        {/* aria-live: announce the new page number to screen readers, since the
-            results below swap silently. */}
-        <Text
-          style={[styles.pageLabel, variant === 'lobbying' && styles.lobbyingPaginationText]}
-          accessibilityLiveRegion="polite"
-        >
-          Page <Text style={styles.pageLabelNum}>{page}</Text>
-          {typeof totalPages === 'number' ? ` of ${totalPages}` : ''}
-        </Text>
-        <PageButton
-          direction="next"
-          variant={variant}
-          disabled={!hasNext}
-          href={nextHref}
-          onPress={() => {
-            onNext();
-            onPageChange?.();
-          }}
-        />
-      </View>
-      {jumpPages?.length && pageHref && onPageSelect ? (
-        <View style={styles.pageJumps}>
-          <Text
-            style={[styles.pageJumpLabel, variant === 'lobbying' && styles.lobbyingPaginationText]}
-          >
-            Jump to page
-          </Text>
-          {jumpPages.map((target) => (
-            <Pressable
-              key={target}
-              {...linkProps(pageHref(target), () => {
-                onPageSelect(target);
-                onPageChange?.();
-              })}
-              style={styles.pageJumpLink}
-            >
-              <Text
-                style={[
-                  styles.pageJumpText,
-                  variant === 'lobbying' && styles.lobbyingPaginationText,
-                ]}
-              >{`Page ${target}`}</Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
+    <View style={styles.pagination}>
+      <PageButton
+        direction="prev"
+        variant={variant}
+        disabled={!hasPrev}
+        href={prevHref}
+        onPress={() => {
+          onPrev();
+          onPageChange?.();
+        }}
+      />
+      {/* aria-live: announce the new page number to screen readers, since the
+          results below swap silently. */}
+      <Text
+        style={[styles.pageLabel, variant === 'lobbying' && styles.lobbyingPaginationText]}
+        accessibilityLiveRegion="polite"
+      >
+        Page <Text style={styles.pageLabelNum}>{page}</Text>
+        {typeof totalPages === 'number' ? ` of ${totalPages}` : ''}
+      </Text>
+      <PageButton
+        direction="next"
+        variant={variant}
+        disabled={!hasNext}
+        href={nextHref}
+        onPress={() => {
+          onNext();
+          onPageChange?.();
+        }}
+      />
     </View>
   );
 }
@@ -1986,8 +1952,8 @@ const styles = StyleSheet.create({
   },
 
   // pagination
-  paginationWrap: { marginTop: 28, alignItems: 'center', gap: 14 },
   pagination: {
+    marginTop: 28,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2025,24 +1991,4 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
   },
   pageLabelNum: { fontWeight: t.fontWeights.heavy, color: t.colors.text.primary },
-  pageJumps: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  pageJumpLabel: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.small,
-    color: t.colors.text.muted,
-  },
-  pageJumpLink: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  pageJumpText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.small,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.brand.deep,
-    textDecorationLine: 'underline',
-  },
 });

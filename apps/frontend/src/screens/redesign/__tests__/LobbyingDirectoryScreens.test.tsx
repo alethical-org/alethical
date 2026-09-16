@@ -226,9 +226,9 @@ describe('lobbying directories', () => {
     const pageLabel = host.querySelector('[aria-live="polite"]')!;
     expect(getComputedStyle(pageLabel).fontSize).toBe('15px');
     expect(renderedFontVariant(pageLabel)).toBe('tabular-nums');
-    const jump = [...host.querySelectorAll('a')].find((a) => a.textContent === 'Page 34')!;
-    expect(getComputedStyle(jump.firstElementChild!).fontSize).toBe('15px');
-    expect(renderedFontVariant(jump.firstElementChild!)).toBe('tabular-nums');
+    expect(
+      [...host.querySelectorAll('a')].some((a) => /^Page \d+$/.test(a.textContent ?? '')),
+    ).toBe(false);
     expect(words()).not.toContain('Show the next 50');
     expect(words()).not.toContain('Jump to a letter');
     expect(useDocumentTitle).toHaveBeenCalledWith(

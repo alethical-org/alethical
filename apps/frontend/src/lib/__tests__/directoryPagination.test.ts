@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  directoryJumpPages,
   directoryPageIsOutOfRange,
   directoryPageNumber,
   directoryPagePath,
@@ -47,34 +46,5 @@ describe('public directory pagination', () => {
     ).toBe(true);
     expect(isDefaultBillDirectoryParams({ page: '2', q: 'water' })).toBe(false);
     expect(isDefaultBillDirectoryParams({ page: '2', sort: 'introduced' })).toBe(false);
-  });
-
-  it('adds useful jump points so a deep bill page is not 1,000 clicks away', () => {
-    expect(directoryJumpPages(1, 1052)).toEqual([11, 101, 1001, 1052]);
-    expect(directoryJumpPages(879, 1052)).toEqual([1, 779, 869, 889, 979, 1052]);
-  });
-
-  it('keeps all 1,052 bill pages within 12 directory links of page 1', () => {
-    const totalPages = 1052;
-    const distance = new Map<number, number>([[1, 0]]);
-    const queue = [1];
-
-    while (queue.length > 0) {
-      const page = queue.shift()!;
-      const neighbours = [
-        ...(page > 1 ? [page - 1] : []),
-        ...(page < totalPages ? [page + 1] : []),
-        ...directoryJumpPages(page, totalPages),
-      ];
-      for (const neighbour of neighbours) {
-        if (!distance.has(neighbour)) {
-          distance.set(neighbour, distance.get(page)! + 1);
-          queue.push(neighbour);
-        }
-      }
-    }
-
-    expect(distance.size).toBe(totalPages);
-    expect(Math.max(...distance.values())).toBeLessThanOrEqual(12);
   });
 });

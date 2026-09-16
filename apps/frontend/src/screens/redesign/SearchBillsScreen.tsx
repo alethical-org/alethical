@@ -55,7 +55,6 @@ import {
 import {
   BILL_DIRECTORY_HEADING,
   BILL_DIRECTORY_PAGE_SIZE,
-  directoryJumpPages,
   directoryPageNumber,
   directoryPagePath,
   isDefaultBillDirectoryParams,
@@ -623,15 +622,6 @@ export function SearchBillsScreen() {
                 defaultDirectory && totalPages != null && page < totalPages
                   ? directoryPagePath('/bills', page + 1)
                   : undefined
-              }
-              jumpPages={
-                defaultDirectory && totalPages != null
-                  ? directoryJumpPages(page, totalPages)
-                  : undefined
-              }
-              pageHref={(target) => directoryPagePath('/bills', target)}
-              onPageSelect={(target) =>
-                navigation.setParams({ page: target > 1 ? String(target) : undefined })
               }
             />
           </>

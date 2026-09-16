@@ -42,7 +42,6 @@ import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import { linkProps, routePath } from '../../navigation/links';
 import {
   compareLegislatorNames,
-  directoryJumpPages,
   directoryPageNumber,
   directoryPagePath,
   LEGISLATOR_DIRECTORY_HEADING,
@@ -382,15 +381,6 @@ export function SearchLegislatorsScreen() {
                 defaultDirectory && pagination.page < pagination.totalPages
                   ? directoryPagePath('/legislators', pagination.page + 1)
                   : undefined
-              }
-              jumpPages={
-                defaultDirectory
-                  ? directoryJumpPages(pagination.page, pagination.totalPages)
-                  : undefined
-              }
-              pageHref={(target) => directoryPagePath('/legislators', target)}
-              onPageSelect={(target) =>
-                navigation.setParams({ page: target > 1 ? String(target) : undefined })
               }
             />
           </>
