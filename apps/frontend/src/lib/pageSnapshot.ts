@@ -79,6 +79,7 @@ import {
   closedPeriodLine,
   COMMITTEE_MONEY_SECTION_LABEL,
   COMMITTEE_TAB_LABELS,
+  committeeMoneyYears,
   confirmedMemberLinkLabel,
   confirmedMemberMoneyPath,
   EMPTY_YEAR_VALUE,
@@ -134,7 +135,6 @@ import {
   type PaymentRow,
 } from './committeePaymentsPage';
 import {
-  campaignMoneyYears,
   formatMoney,
   moneyFigure,
   paymentCountLabel,
@@ -1319,7 +1319,7 @@ interface CommitteeIdentity {
  * The drawn page puts the kind in an eyebrow above the title and the
  * registered-for line in a chip below it, so a filer whose register entry states
  * only its kind reads correctly there. On one served line the same 2 strings
- * would read "Political committee or fund · Kind as registered: political
+ * would read "Political committee or fund · Registered as: political
  * committee or fund", so the second is dropped when it only repeats the first.
  */
 function subheadingFor(parts: {
@@ -1627,7 +1627,7 @@ export function committeePageSnapshot(
         label: COMMITTEE_MONEY_SECTION_LABEL,
         href: committeeViewPath(year),
       },
-      ...campaignMoneyYears().map((option) => ({
+      ...committeeMoneyYears(year).map((option) => ({
         label: `Year ${option}`,
         href: committeeViewPath(option, view.tab === 'spent' ? 'gave' : view.tab),
       })),

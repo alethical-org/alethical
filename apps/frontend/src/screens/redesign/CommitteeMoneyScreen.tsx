@@ -3,6 +3,7 @@ import {
   CONFIRMATION_UNAVAILABLE_LINE,
 } from '../../lib/committeeConfirmation';
 import { useEffect, useState, type ReactNode } from 'react';
+import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -52,6 +53,8 @@ import {
   closedPeriodDetail,
   closedPeriodLine,
   committeeTabFromParam,
+  committeeMoneyYears,
+  committeeAlternativeYear,
   COMMITTEE_TAB_LABELS,
   COMMITTEE_MONEY_SECTION_LABEL,
   confirmedMemberLinkLabel,
@@ -421,7 +424,7 @@ function CommitteeBody({
   const closedChip = closedChipLabel(money.register.terminationDate);
   const state = yearDisplayState(money);
   const checkedOn = money.fetchedAt ? centralDateLabel(money.fetchedAt) : null;
-  const otherYear = year === new Date().getFullYear() ? year - 1 : year + 1;
+  const otherYear = committeeAlternativeYear(year);
   const prefetchLegislator = usePrefetchLegislator();
   // Warm the member's profile data AND its screen file on navigation intent,
   // matching the bill and legislator lists (usePrefetchBill /
@@ -491,35 +494,37 @@ function CommitteeBody({
               ? CONFIRMED_MEMBER_WITHHELD_LINE
               : whoseCommitteeText(registerKind, money.entitySubType, nameableMember)}
         </Text>
-        {/* What the person read, under the sentence saying they read it. A reader who
-            arrived here rather than at a profile came asking whose committee this is,
-            so the evidence belongs on this page more than on that one. The same block,
-            same treatment, as the profile's card foot. */}
-        <CheckedByBlock checked={nameableMember?.checked} />
-        {/* Only where a person confirmed it. The reader came to a money page, so
-            the crossing lands on the member's money rather than their overview. */}
-        {nameableMember ? (
-          <Pressable
-            {...linkProps(routePath.legislator(nameableMember.slug, { tab: 'money' }), () =>
-              navigation.push('LegislatorProfile', {
-                legislatorId: nameableMember.slug,
-                tab: 'money',
-              }),
-            )}
-            onPressIn={warmConfirmedFor}
-            onHoverIn={warmConfirmedFor}
-            style={styles.seeAll}
-          >
-            <Text style={styles.seeAllLabel}>
-              {confirmedMemberLinkLabel(nameableMember.fullName)}
-            </Text>
-            <ForwardArrow color={t.colors.brand.base} />
-          </Pressable>
-        ) : null}
+        {/* The confirmation's date, stored evidence and destination belong together.
+            Failed and expired checks never enter this block. */}
+        <CheckedByBlock checked={nameableMember?.checked} checkerNamedAbove>
+          {nameableMember ? (
+            <Pressable
+              {...linkProps(routePath.legislator(nameableMember.slug, { tab: 'money' }), () =>
+                navigation.push('LegislatorProfile', {
+                  legislatorId: nameableMember.slug,
+                  tab: 'money',
+                }),
+              )}
+              onPressIn={warmConfirmedFor}
+              onHoverIn={warmConfirmedFor}
+              style={[styles.seeAll, styles.confirmedLink]}
+            >
+              <Text style={[styles.seeAllLabel, styles.confirmedLinkLabel]}>
+                {confirmedMemberLinkLabel(nameableMember.fullName)}
+              </Text>
+              <ForwardArrow color={c.link} />
+            </Pressable>
+          ) : null}
+        </CheckedByBlock>
       </View>
 
       <View style={[styles.yearRow, isMobile && styles.yearRowMobile]}>
-        <YearControl year={year} onSelect={onSelectYear} fullWidth={isMobile} />
+        <YearControl
+          year={year}
+          years={committeeMoneyYears(year)}
+          onSelect={onSelectYear}
+          fullWidth={isMobile}
+        />
       </View>
 
       <PeriodStamp
@@ -1135,6 +1140,7 @@ function FilingsList({
         <Text style={styles.filingsHead}>{FILINGS_HEADLINE}</Text>
         {ordering ? <Text style={styles.listCount}>{ordering}</Text> : null}
       </View>
+      {unlisted ? <Text style={styles.linkNote}>{unlisted}</Text> : null}
       <View style={styles.listRows}>
         {rows.map((filing, index) => {
           const period = filingRowPeriodLine(filing);
@@ -1142,12 +1148,12 @@ function FilingsList({
           return (
             <View
               key={`${filing.filingYear}-${filing.reportType}-${filing.periodEnd ?? 'no-end'}-${index}`}
-              style={styles.listRow}
+              style={[styles.listRow, styles.filingRow]}
             >
               <View style={styles.listRowText}>
                 <Text style={styles.listName}>{filing.reportName}</Text>
-                {period ? <Text style={styles.listMeta}>{period}</Text> : null}
-                {filed ? <Text style={styles.listMeta}>{filed}</Text> : null}
+                {period ? <Text style={styles.filingPeriod}>{period}</Text> : null}
+                {filed ? <Text style={styles.filedDate}>{filed.toUpperCase()}</Text> : null}
               </View>
               {filingIsAmended(filing.effectiveAmendmentIndex) ? (
                 <Text style={styles.amendedChip}>{AMENDED_CHIP}</Text>
@@ -1167,7 +1173,6 @@ function FilingsList({
           <ForwardArrow color={t.colors.brand.base} />
         </Pressable>
       ) : null}
-      {unlisted ? <Text style={styles.linkNote}>{unlisted}</Text> : null}
       <Text style={styles.linkNote}>{FILINGS_PERIOD_NOTE}</Text>
       <Text
         style={[styles.source, styles.filingsSource]}
@@ -1189,14 +1194,14 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,
-    color: t.colors.text.secondary,
+    color: c.secondary,
   },
   eyebrow: {
     fontFamily: t.typography.body,
     fontSize: 13,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 2.4,
-    color: t.colors.brand.base,
+    color: c.link,
   },
   headRow: {
     marginTop: 12,
@@ -1214,7 +1219,7 @@ const styles = StyleSheet.create({
     lineHeight: 46,
     fontWeight: t.fontWeights.heavy,
     letterSpacing: -1,
-    color: t.colors.text.primary,
+    color: c.text,
   },
   h1Mobile: { fontSize: 30, lineHeight: 36 },
   h3: {
@@ -1222,15 +1227,17 @@ const styles = StyleSheet.create({
     fontSize: 19,
     fontWeight: t.fontWeights.heavy,
     letterSpacing: -0.2,
-    color: t.colors.text.primary,
+    color: c.text,
   },
   chipRow: { marginTop: 14, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
   regChip: {
-    fontFamily: t.typography.mono,
-    fontSize: 12,
+    fontFamily: t.typography.body,
+    fontSize: 15,
     fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.7,
-    color: t.colors.text.secondary,
+    letterSpacing: 0.15,
+    fontVariant: ['tabular-nums'],
+    lineHeight: 22.5,
+    color: c.secondary,
     backgroundColor: t.colors.surfaces.s100,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink08,
@@ -1242,14 +1249,16 @@ const styles = StyleSheet.create({
   registeredFor: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.bodyLg,
-    color: t.colors.text.secondary,
+    color: c.secondary,
   },
   closedChip: {
-    fontFamily: t.typography.mono,
-    fontSize: 11,
+    fontFamily: t.typography.body,
+    fontSize: 15,
     fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.9,
-    color: t.colors.text.secondary,
+    letterSpacing: 0.15,
+    fontVariant: ['tabular-nums'],
+    lineHeight: 22.5,
+    color: c.secondary,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink18,
     borderRadius: 8,
@@ -1269,12 +1278,12 @@ const styles = StyleSheet.create({
   },
   whoseText: {
     fontFamily: t.typography.body,
-    fontSize: t.fontSizes.body,
-    lineHeight: 23,
-    color: t.colors.text.secondary,
+    fontSize: 17,
+    lineHeight: 26.35,
+    color: c.secondary,
   },
   yearRow: { marginTop: 20, flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
-  // Phone band: the label sits above 2 equal halves of the row, never beside pills.
+  // Phone band: the label sits above equal-width year buttons, never beside pills.
   yearRowMobile: { flexDirection: 'column', flexWrap: 'nowrap', alignItems: 'stretch', gap: 8 },
   stampWrap: { marginTop: 20 },
   cardsGrid: { marginTop: 24, flexDirection: 'row', gap: 22, alignItems: 'stretch' },
@@ -1294,19 +1303,19 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.bodyLg,
     lineHeight: 26,
-    color: t.colors.text.primary,
+    color: c.text,
     maxWidth: 760,
   },
   explain: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     lineHeight: 22,
-    color: t.colors.text.secondary,
+    color: c.secondary,
   },
   source: {
     fontFamily: t.typography.body,
-    fontSize: t.fontSizes.meta,
-    color: t.colors.brand.base,
+    fontSize: 15,
+    color: c.link,
     textDecorationLine: 'underline',
   },
   inlineLinks: { gap: 12 },
@@ -1315,7 +1324,7 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,
-    color: t.colors.brand.base,
+    color: c.link,
   },
   tabActive: { borderBottomWidth: 2, borderBottomColor: t.colors.text.primary, marginBottom: -1 },
   listHead: {
@@ -1329,27 +1338,29 @@ const styles = StyleSheet.create({
   listCount: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
-    color: t.colors.text.secondary,
+    color: c.secondary,
   },
   listSort: {
     fontFamily: t.typography.mono,
     fontSize: 11,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.9,
-    color: t.colors.text.muted,
+    color: c.muted,
   },
   listSortActive: {
-    color: t.colors.text.primary,
+    color: c.text,
     textDecorationLine: 'underline',
   },
   sortRow: { flexDirection: 'row', gap: 16 },
   outsideIntro: { marginTop: 20, gap: 8, maxWidth: 900 },
   regLine: {
-    fontFamily: t.typography.mono,
-    fontSize: 11,
+    fontFamily: t.typography.body,
+    fontSize: 15,
     fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.7,
-    color: t.colors.text.muted,
+    letterSpacing: 0.15,
+    fontVariant: ['tabular-nums'],
+    lineHeight: 22.5,
+    color: c.secondary,
   },
   // The outside-spending page's own 2 chips for the filing's For and Against, so one
   // filed value has one vocabulary across the section.
@@ -1365,17 +1376,19 @@ const styles = StyleSheet.create({
   },
   stanceSupporting: { color: t.colors.text.greenOnLight, backgroundColor: t.colors.tint.t150 },
   stanceOpposing: {
-    color: t.colors.text.secondary,
+    color: c.secondary,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink18,
   },
   paidLine: {
     marginTop: 6,
-    fontFamily: t.typography.mono,
-    fontSize: 11,
+    fontFamily: t.typography.body,
+    fontSize: 15,
     fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.9,
-    color: t.colors.text.muted,
+    letterSpacing: 0.15,
+    fontVariant: ['tabular-nums'],
+    lineHeight: 22.5,
+    color: c.secondary,
   },
   amountColumn: { alignItems: 'flex-end', gap: 2 },
   amountMobile: { marginTop: 8, gap: 2 },
@@ -1390,12 +1403,12 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,
-    color: t.colors.text.primary,
+    color: c.text,
   },
   unpaidNote: {
     fontFamily: t.typography.body,
-    fontSize: t.fontSizes.meta,
-    color: t.colors.text.muted,
+    fontSize: 15,
+    color: c.muted,
   },
   unpaidNoteRight: { textAlign: 'right' },
   listRowMobile: { alignItems: 'flex-start' },
@@ -1407,7 +1420,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 1.3,
-    color: t.colors.text.secondary,
+    color: c.secondary,
   },
   /** Neutral, like the in-kind chip — never amber, which is reserved for bill
    *  identity. */
@@ -1416,7 +1429,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.8,
-    color: t.colors.text.secondary,
+    color: c.secondary,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink18,
     borderRadius: 7,
@@ -1429,9 +1442,9 @@ const styles = StyleSheet.create({
     marginTop: 14,
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
-    color: t.colors.text.secondary,
+    color: c.secondary,
   },
-  filingsSource: { marginTop: 12, alignSelf: 'flex-start' },
+  filingsSource: { marginTop: 12, minHeight: 44, paddingVertical: 11, alignSelf: 'flex-start' },
   listRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1445,13 +1458,34 @@ const styles = StyleSheet.create({
     ...(t.shadows.card as object),
   },
   listRowLink: {},
+  filingRow: { alignItems: 'flex-start', flexWrap: 'wrap' },
+  filingPeriod: {
+    marginTop: 4,
+    fontFamily: t.typography.body,
+    fontSize: 15.5,
+    lineHeight: 23.25,
+    fontVariant: ['tabular-nums'],
+    color: c.text,
+  },
+  filedDate: {
+    marginTop: 6,
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    lineHeight: 22.5,
+    fontWeight: '800',
+    letterSpacing: 0.15,
+    fontVariant: ['tabular-nums'],
+    color: c.secondary,
+  },
+  confirmedLink: { minHeight: 44, marginTop: 8, flexShrink: 1 },
+  confirmedLinkLabel: { fontSize: 17, lineHeight: 25.5, flexShrink: 1, color: c.link },
   listRowText: { flex: 1, minWidth: 0 },
   listNameRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   listName: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,
-    color: t.colors.text.primary,
+    color: c.text,
     flexShrink: 1,
   },
   inKindChip: {
@@ -1459,7 +1493,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.8,
-    color: t.colors.text.secondary,
+    color: c.secondary,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink18,
     borderRadius: 7,
@@ -1470,21 +1504,20 @@ const styles = StyleSheet.create({
   listMeta: {
     marginTop: 4,
     fontFamily: t.typography.body,
-    fontSize: t.fontSizes.meta,
-    lineHeight: 19,
-    color: t.colors.text.secondary,
+    fontSize: 15,
+    lineHeight: 22.5,
+    color: c.secondary,
   },
   // Every dollar amount on this section takes the body face, the one the big totals
-  // already use (ruled 1 Sep 2026, #1924). Mono stays for dates, registration numbers
-  // and small labels, so the 2 faces separate 2 kinds of thing rather than 2 kinds of
-  // number: a reader seeing 2 number faces asked whether the difference meant something.
+  // already use. Dates, registration numbers and counts use that face too;
+  // the monospaced face remains only on short lettered labels.
   listAmount: {
     width: 104,
     textAlign: 'right',
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,
-    color: t.colors.text.primary,
+    color: c.text,
   },
   seeAll: {
     marginTop: 14,
@@ -1497,15 +1530,15 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,
-    color: t.colors.brand.base,
+    color: c.link,
   },
   linkNote: {
     marginTop: 12,
     maxWidth: 900,
     fontFamily: t.typography.body,
-    fontSize: t.fontSizes.meta,
-    lineHeight: 20,
-    color: t.colors.text.muted,
+    fontSize: 15,
+    lineHeight: 23.25,
+    color: c.muted,
   },
   coverageCard: {
     marginTop: 30,
@@ -1521,14 +1554,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 1.3,
-    color: t.colors.text.secondary,
+    color: c.secondary,
     marginBottom: 4,
   },
   coverageLine: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     lineHeight: 23,
-    color: t.colors.text.secondary,
+    color: c.secondary,
   },
   freshness: {
     marginTop: 16,
@@ -1536,7 +1569,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22.5,
     fontWeight: '400',
-    color: t.colors.text.secondary,
+    color: c.secondary,
   },
   buttonRow: {
     marginTop: 22,
@@ -1561,7 +1594,7 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,
-    color: t.colors.brand.base,
+    color: c.link,
     textDecorationLine: 'underline',
   },
   notFoundWrap: { marginTop: 22, maxWidth: 760 },

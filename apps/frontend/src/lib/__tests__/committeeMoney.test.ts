@@ -33,6 +33,8 @@ import {
 import {
   COMMITTEE_TAB_LABELS,
   committeeTabFromParam,
+  committeeMoneyYears,
+  committeeAlternativeYear,
   NO_PURPOSE_GIVEN,
   NO_VENDOR_NAMED,
   OUTSIDE_SORT_LABELS,
@@ -91,6 +93,19 @@ import {
   uncoveredPeriodDetail,
   uncoveredPeriodLine,
 } from '../committeeMoneyShared';
+
+describe('committee year choices', () => {
+  const today = new Date('2026-09-16T12:00:00Z');
+  it('shows a linked older year without duplicating recent choices', () => {
+    expect(committeeMoneyYears(2017, today)).toEqual([2026, 2025, 2017]);
+    expect(committeeMoneyYears(2025, today)).toEqual([2026, 2025]);
+  });
+  it('returns older-year gaps to current records and current-year gaps to the prior year', () => {
+    expect(committeeAlternativeYear(2017, today)).toBe(2026);
+    expect(committeeAlternativeYear(2025, today)).toBe(2026);
+    expect(committeeAlternativeYear(2026, today)).toBe(2025);
+  });
+});
 
 describe('the address', () => {
   it('builds name-then-number and resolves only the number', () => {
@@ -201,9 +216,9 @@ describe('the register-driven header', () => {
   it('states the kind as registered for everyone else, never an expansion', () => {
     expect(
       registeredForLine({ kind: 'political_committee_or_fund', office: null, district: null }),
-    ).toBe('Kind as registered: political committee or fund');
+    ).toBe('Registered as: political committee or fund');
     expect(registeredForLine({ kind: 'party_unit', office: null, district: null })).toBe(
-      'Kind as registered: party unit',
+      'Registered as: party unit',
     );
   });
 
@@ -225,7 +240,7 @@ describe('whose committee', () => {
 
   it('a candidate committee’s filed name is never treated as a confirmation', () => {
     const text = whoseCommitteeText('candidate_committee', null, null);
-    expect(text).toContain('not a confirmation');
+    expect(text).toContain('name alone does not prove whose it is');
     expect(text).not.toContain('confirmed');
   });
 
@@ -237,10 +252,8 @@ describe('whose committee', () => {
     // Design §5.1: no score, threshold or rule ever produces a link, so the
     // sentence has to carry the person, not just the word "confirmed". A bare
     // "Confirmed" reads as our software having matched a name.
-    expect(text).toContain('Someone at Alethical');
-    expect(text).toContain('a decision a person made and signed');
-    // And the filed name is still never the evidence.
-    expect(text).toContain('on the strength of its filed name');
+    expect(text).toContain('A person at Alethical');
+    expect(text).toContain('checked Minnesota’s records and confirmed');
   });
 
   // #1663: 20 candidates hold more than one committee, and 2 of them would have
@@ -248,8 +261,8 @@ describe('whose committee', () => {
   // issue's; this is the sentence's half, and "the committee of X" is what it bans.
   it('a confirmed committee never claims to be the member’s only one', () => {
     const text = whoseCommitteeText('candidate_committee', null, HORTMAN);
-    expect(text).toContain('a candidate can register more than one committee');
-    expect(text).toContain('this committee’s own record');
+    expect(text).toContain('the candidate may have others');
+    expect(text).toContain('These figures cover this committee');
     expect(text).not.toContain('the committee of');
   });
 
@@ -392,10 +405,10 @@ describe('the period stamp', () => {
   });
 
   it('an uncovered year says no figures cover it, not that nothing happened', () => {
-    expect(uncoveredPeriodLine(2026)).toBe('No figures cover 2026');
+    expect(uncoveredPeriodLine(2026)).toBe('We have no report figures for 2026');
     const detail = uncoveredPeriodDetail(2026, 'Aug 11, 2026');
-    expect(detail).toContain('carry no report figures covering 2026');
-    expect(detail).toContain('do not carry an earlier year’s money forward');
+    expect(detail).toContain('contains no report figures for this committee for 2026');
+    expect(detail).toContain('Figures from another year are not substituted');
   });
 
   it('a closed committee’s stamp carries the termination date and the final report', () => {
@@ -660,16 +673,16 @@ describe('the record-coverage block', () => {
   // another's.
   it('states the threshold each filer kind actually carries, and never the other one', () => {
     const ordinary = recordCoverageLines(false);
-    expect(ordinary).toHaveLength(4);
+    expect(ordinary).toHaveLength(3);
     // No terminal full stop on any coverage line (#1924): each stands on its own line.
-    expect(ordinary[3]).toBe(
+    expect(ordinary[2]).toBe(
       'Donors who gave $200 or less in total for the year need not be named',
     );
     expect(ordinary.join(' ')).not.toContain('$500');
 
     const ballot = recordCoverageLines(true);
-    expect(ballot).toHaveLength(4);
-    expect(ballot[3]).toBe('Donors who gave $500 or less in total for the year need not be named');
+    expect(ballot).toHaveLength(3);
+    expect(ballot[2]).toBe('Donors who gave $500 or less in total for the year need not be named');
     // The $200 line must not also appear here: 2 thresholds on one page is worse than
     // the silence this replaced.
     expect(ballot.join(' ')).not.toContain('$200');

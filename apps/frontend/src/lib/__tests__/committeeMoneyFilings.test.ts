@@ -35,16 +35,15 @@ describe('the ordering sentence', () => {
   // are the majority. The words derive from the served order in both cases.
   it('names the period order the server actually serves', () => {
     expect(filingsOrderingLine('period_end')).toBe(
-      'Newest first, by the period each report covers — never by amount',
+      'Newest first by the reporting period’s end date',
     );
   });
 
   it('names the mixed order, saying which rows are which', () => {
     const mixed = filingsOrderingLine('filed_date_then_period_end');
-    expect(mixed).toContain('the day the Board received a report');
-    expect(mixed).toContain('by the period it covers where it does not');
-    // No row carries an amount and nothing sorts by one, in either order.
-    expect(mixed).toContain('Never by amount');
+    expect(mixed).toContain('by filing date');
+    expect(mixed).toContain('by the reporting period’s end date when no filing date is available');
+    expect(mixed).not.toContain('amount');
   });
 
   it('prints nothing for an order it does not know, never a guess', () => {

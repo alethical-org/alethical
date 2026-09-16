@@ -78,6 +78,7 @@ import {
   ZERO_REPORTED_NOTE,
 } from '../../lib/committeeMoneyShared';
 import {
+  formatDay,
   formatMoney,
   isAmountAboveZero,
   matchCheckSentences,
@@ -460,14 +461,26 @@ export function MoneyOutBlock({
  * Renders nothing when the decision carries no stored basis. An absent record is not a
  * weaker record to describe loosely; it is nothing to say.
  */
-export function CheckedByBlock({ checked }: { checked: CommitteeMatchCheck | null | undefined }) {
+export function CheckedByBlock({
+  checked,
+  checkerNamedAbove = false,
+  children,
+}: {
+  checked: CommitteeMatchCheck | null | undefined;
+  checkerNamedAbove?: boolean;
+  children?: ReactNode;
+}) {
   const styles = useCardStyles();
   const sentences = matchCheckSentences(checked);
-  if (!sentences.length) return null;
+  if (!sentences.length) return children ?? null;
   const [heading, ...evidence] = sentences;
   return (
-    <View style={styles.checked}>
-      <CardText style={styles.checkedHeading}>{heading}</CardText>
+    <View style={[styles.checked, checkerNamedAbove && { marginTop: 18 }]}>
+      <CardText style={styles.checkedHeading}>
+        {checkerNamedAbove && checked
+          ? `Checked ${formatDay(checked.checkedOn) ?? checked.checkedOn}`
+          : heading}
+      </CardText>
       {evidence.length ? (
         <View role="list" style={styles.checkedItems}>
           {evidence.map((sentence) => (
@@ -477,6 +490,7 @@ export function CheckedByBlock({ checked }: { checked: CommitteeMatchCheck | nul
           ))}
         </View>
       ) : null}
+      {children}
     </View>
   );
 }
@@ -716,11 +730,12 @@ const defaultStyles = StyleSheet.create({
     ...({ textUnderlineOffset: 3 } as object),
   },
   stampPeriod: {
-    fontFamily: t.typography.mono,
-    fontSize: 12,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.9,
-    color: t.colors.brand.base,
+    fontFamily: t.typography.body,
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+    color: c.text,
   },
   stampPeriodMuted: {
     fontFamily: t.typography.body,

@@ -1346,7 +1346,7 @@ describe('a committee’s record in the first response', () => {
     // suppressed before only because they were the same string. Same shape a caucus
     // page already serves: the finer kind, then what the register files it as.
     expect(snapshot.subheading).toBe(
-      'Political committee · REG 41326 · Kind as registered: political committee or fund',
+      'Political committee · REG 41326 · Registered as: political committee or fund',
     );
   });
 
@@ -1568,6 +1568,10 @@ describe('a committee’s record in the first response', () => {
     expect(
       older.links.filter((link) => link.label.startsWith('Year ')).map((link) => link.label),
     ).toEqual(campaignMoneyYears().map((year) => `Year ${year}`));
+    const historical = committeePageSnapshot({ ...committeeFixture, year: 2017 }, '41326');
+    expect(historical.links.find((link) => link.label === 'Year 2017')?.href).toContain(
+      'year=2017',
+    );
   });
 
   /**
@@ -1595,7 +1599,7 @@ describe('a committee’s record in the first response', () => {
     // label below also carries her name, so a body check that only looked for the
     // name would pass with the sentence gone.
     expect(visibleText(renderPageSnapshot(confirmed))).toContain(
-      'Someone at Alethical read Minnesota’s own records',
+      'A person at Alethical checked Minnesota’s records',
     );
     expect(confirmed.links[0]).toEqual({
       label: 'See Melissa Hortman’s campaign money',

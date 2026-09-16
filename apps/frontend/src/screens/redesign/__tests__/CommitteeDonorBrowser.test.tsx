@@ -17,6 +17,7 @@ const state = vi.hoisted(() => ({
   expired: false,
   by: false,
   byRows: [] as CommitteeOutsideSpendingRow[],
+  filings: null as unknown,
 }));
 const navigate = vi.hoisted(() => vi.fn());
 vi.mock('../../../hooks/useResponsive', () => ({
@@ -60,7 +61,7 @@ vi.mock('../../../hooks/useAppQueries', () => ({
     isError: false,
   })),
   useCommitteeFilingsList: () => ({
-    data: { pages: [{ state: 'not_reported', filings: [] }] },
+    data: { pages: [state.filings ?? { state: 'not_reported', filings: [] }] },
     isPending: false,
     isError: false,
   }),
@@ -207,6 +208,7 @@ beforeEach(() => {
   state.confirmation = committeeConfirmationFromPayload(candidateFinance.data, { servedAgeMs: 0 });
   state.by = false;
   state.byRows = [];
+  state.filings = null;
   navigate.mockClear();
   setParams.mockClear();
   consumeWebHistoryReplaceMark();
@@ -667,4 +669,114 @@ describe('one committee shares the donation browser', () => {
       expect(host.textContent).toContain('We cannot show a figure right now');
     },
   );
+});
+
+describe('committee refinement preserves the record', () => {
+  it('keeps a historical year selected and lets readers return to recent records', async () => {
+    params.year = '2017';
+    await render();
+    const historical = button('2017');
+    expect(historical?.getAttribute('aria-pressed')).toBe('true');
+    const current = String(new Date().getFullYear());
+    click(button(current));
+    await render();
+    expect(params.year).toBe(current);
+    expect(button(current)?.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it.each([false, true])(
+    'keeps the confirmation and readable dates together at phone=%s',
+    async (mobile) => {
+      state.mobile = mobile;
+      payload.split = { ...payload.split!, reported_through: '2025-12-31' };
+      shape();
+      await render();
+      const link = host.querySelector('a[href*="/legislators/"]')!;
+      expect(link).not.toBeNull();
+      const block = link.parentElement!;
+      expect(block.textContent).toContain('Checked ');
+      expect(block.textContent).not.toContain('Checked by Alethical');
+      expect(block.querySelector('[role="list"]')).not.toBeNull();
+      expect(block.textContent?.indexOf('Checked ')).toBeLessThan(
+        block.textContent!.indexOf('See '),
+      );
+      expect(parseFloat(getComputedStyle(link).minHeight)).toBeGreaterThanOrEqual(44);
+      expect(host.textContent).toContain('the candidate may have others');
+      expect(host.textContent).toContain('Money figures start in 2015');
+      expect(host.textContent).not.toContain('Unions don’t report');
+      const period = [...host.querySelectorAll('div')].find((node) =>
+        /^Figures (for|through) [^\n]+2025$/.test(node.textContent ?? ''),
+      );
+      expect(period).toBeTruthy();
+      expect(parseFloat(getComputedStyle(period!).fontSize)).toBeGreaterThanOrEqual(18);
+      expect(getComputedStyle(period!).fontFamily).not.toContain('Mono');
+    },
+  );
+
+  it('keeps only the stored confirmation evidence and hides all of it on expiry', async () => {
+    state.confirmation!.confirmedFor!.checked = {
+      checkedOn: '2026-08-31',
+      nameEvidence: 'full_name',
+      registerVerdict: null,
+      partyAgreement: null,
+    };
+    await render();
+    expect(host.textContent).toContain('Checked Aug 31, 2026');
+    expect(host.textContent).not.toContain('Party organisations of their own party pay into it');
+    state.expired = true;
+    await render();
+    expect(host.textContent).not.toContain('Checked Aug 31, 2026');
+    expect(host.querySelector('a[href*="/legislators/"]')).toBeNull();
+    expect(host.textContent).toContain('$59,950');
+  });
+
+  it('shows mixed report dates without fabricating an amendment date or direct report links', async () => {
+    params.tab = 'filings';
+    state.filings = {
+      state: 'reported',
+      orderedBy: 'filed_date_then_period_end',
+      total: 2,
+      cataloguedWithoutRecord: 1,
+      filings: [
+        {
+          filingYear: 2025,
+          reportType: 'year_end',
+          reportName: 'Year-end report',
+          periodStart: '2025-01-01',
+          periodEnd: '2025-12-31',
+          filedDate: '2026-01-29',
+          effectiveAmendmentIndex: 1,
+        },
+        {
+          filingYear: 2024,
+          reportType: 'pre_general',
+          reportName: 'Pre-general report',
+          periodStart: null,
+          periodEnd: '2024-10-22',
+          filedDate: null,
+          effectiveAmendmentIndex: 0,
+        },
+      ],
+    };
+    await render();
+    expect(host.textContent).toContain('when no filing date is available');
+    expect(host.textContent).toContain('FILED JAN 29, 2026');
+    expect(host.textContent).toContain('Covers through Oct 22, 2024');
+    expect(host.textContent).not.toContain('FILED OCT 22, 2024');
+    expect(host.textContent).toContain('AMENDED');
+    expect(host.textContent).not.toContain('AMENDED JAN');
+    const content = host.textContent!;
+    expect(content.indexOf("The Board's catalogue lists")).toBeLessThan(
+      content.indexOf('Year-end report'),
+    );
+    expect(content.indexOf('End dates come from the reports')).toBeGreaterThan(
+      content.indexOf('Pre-general report'),
+    );
+    const filed = [...host.querySelectorAll('div')].find(
+      (node) => node.textContent === 'FILED JAN 29, 2026',
+    );
+    expect(parseFloat(getComputedStyle(filed!).fontSize)).toBeGreaterThanOrEqual(15);
+    expect(getComputedStyle(filed!).fontFamily).not.toContain('Mono');
+    expect([...host.querySelectorAll('a')].some((a) => a.textContent === 'OPEN')).toBe(false);
+  });
 });
