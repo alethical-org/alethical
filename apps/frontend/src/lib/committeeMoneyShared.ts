@@ -162,6 +162,11 @@ export function committeeSlug(name: string | null | undefined, registrationNumbe
   return namePart ? `${namePart}-${registrationNumber}` : registrationNumber;
 }
 
+/** Board Political Committee and Political Fund Handbook, pages 6–7:
+ * a fund tracks an organization's election money, not all of its finances. */
+export const UNION_FINANCES_NOTE =
+  'These files cover union political funds, not a union’s wider finances';
+
 /**
  * The registration number out of an address part, or null when it carries none.
  * The trailing run of digits is the identity; everything before it is a name part

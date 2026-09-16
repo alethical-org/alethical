@@ -745,6 +745,8 @@ export interface CampaignCommitteeMoney {
  *  which report, the period it covers, and the day the Board received it where
  *  the report's own document states one — never an amount. */
 export interface MoneyFilingRow {
+  /** Stable identity for opening this filer's records, never inferred from its name. */
+  registrationNumber: string | null;
   /** The filer's name exactly as registered. */
   filerName: string;
   /** The report's name, e.g. "2026 Pre-Primary Report". */
