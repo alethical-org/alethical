@@ -581,6 +581,14 @@ itself to the current spelling. The chosen year, section (Campaign money, Filing
 Spent by them), donor category and sort ride in the address, so a shared link opens the
 same view.
 
+The identity card, reporting-period panel, section controls and record cards share
+one outer left edge. The identity and reporting-period panels use the same side
+insets as the shared donation cards: 32px at 1100px and wider, 26px from 768px to
+1099px, and 18px below 768px. Their top and bottom padding is 18px. The background
+changes below the reporting-period panel, with 18px after the panel and 34px of
+padding inside the white section before its controls. The background boundary
+never cuts through the panel.
+
 Top to bottom:
 
 1. **The header, from the state's register of filers.** The kind line above the name is
@@ -657,6 +665,11 @@ Top to bottom:
    ([issue 2023](https://github.com/alethical-org/alethical/issues/2023)).
 
 3. **A year switch** (this calendar year and the one before), each year its own address.
+   A linked older year remains visible and selected. The committee's year buttons
+   have 10px rounded corners and at least a 44px target. The selected year uses a
+   dark background and white text; other years use white with a dark border. This
+   appearance is scoped to committee pages; the legislator profile keeps its own
+   year-button appearance.
 4. **The period panel**: what the committee's own report covers. The end is read off the
    filing; the start appears only when the Board's own published filing calendar prints
    one against that end (so "Figures for Jan 1, 2026 – Jul 20, 2026"), and otherwise the
@@ -680,6 +693,9 @@ Top to bottom:
    says its calendar is its own. If our own data service stops answering, the page keeps
    the figures it already had and says they are held until it answers — never expiring
    on a timer.
+   The source link inside the committee's period explanation uses dark green
+   (`#0f7a45`) and gains an underline on hover or keyboard focus. The legislator
+   profile's source link keeps its standing underline.
 5. **Who gave**, above the summary cards. This is the same chart as the legislator tab,
    read for this registration number and selected year. A safe, checked split includes
    Non-itemized contributions as its own grey slice. Without an official total, the chart
@@ -742,6 +758,9 @@ Top to bottom:
    explanation under that chart and omit a separate unnamed percentage below the summary.
    On Filings and Spent by them, where the chart is absent, the summary keeps its own
    goods-and-services, withheld-split and label explanations.
+   On phones, the committee's money summaries leave 20px between their main
+   elements. The non-itemized figure and its explanation stay together with an
+   8px gap when that explanation is shown.
    In each case where a split would state something false — the two figures cover
    different periods, the sources disagree, our copy of the donation list is missing
    named money the filing carries, the committee corrected its report after we copied the
@@ -843,6 +862,10 @@ Top to bottom:
 
    A section selector keeps **Campaign money**, **Filings**, and **Spent by them** where
    the latter has records. Its address choices remain `gave`, `filings` and `by`.
+   The selector uses unboxed 17px labels above a shared thin line. A dark 3px
+   underline marks the selected section; the other labels reserve the same space
+   so their text stays aligned. The controls share the cards' outer left edge,
+   keep at least a 44px target and wrap when needed.
    An older `tab=spent` link opens Expenditures; `tab=about` opens the selected year's
    grouped outside spending. The separate `/payments?tab=gave|spent&year=…` addresses
    retain their complete received and outgoing lists.
@@ -874,7 +897,10 @@ Top to bottom:
     end date” when no reports carry a filing date. The choice considers the whole committee
     history, not just loaded rows. The catalogue-gap explanation appears before the rows;
     the explanation of where start and end dates come from follows the rows. Reporting
-    periods are dark text, while actual filing dates use secondary text at 15px or larger.
+    periods are dark text, while actual filing dates use secondary text at 15px.
+    The AMENDED marker also uses 15px Libre Franklin, with no added date. The
+    single Board-record link beneath the list uses 17px bold text and at least a
+    44px target; report rows have no OPEN action.
     Missing figures never prove that no report exists; the Board viewer remains reachable
     through Filings when the list contains reports, even when the selected year’s
     period panel has no report link.

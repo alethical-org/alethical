@@ -18,7 +18,7 @@ import {
   committeeMoneyPreferenceParams,
 } from '../../lib/committeeMoneyPreferences';
 import { committeeOutsideSpending } from '../../lib/committeeOutsideSpending';
-import { detailsStyles } from '../../components/campaignMoney/detailsStyles';
+import { committeeCardStyles, detailsStyles } from '../../components/campaignMoney/detailsStyles';
 import { YearControl } from '../../components/campaignMoney/YearControl';
 import {
   CardHeading,
@@ -246,30 +246,37 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
             starts under the fold and nothing a reader can see moves when the
             records land or the load fails (useOneScreenTall in
             components/Skeleton.tsx). */}
-        <Container style={[styles.main, isMobile && styles.mainMobile, oneScreenTall]}>
-          <Pressable
-            {...linkProps(routePath.money(), () => navigation.navigate('MoneyLanding'))}
-            style={styles.backLink}
-          >
-            <BackChevron />
-            <Text style={styles.backLabel}>Campaign money</Text>
-          </Pressable>
-
+        <View style={[styles.main, isMobile && styles.mainMobile, oneScreenTall]}>
+          <Container>
+            <Pressable
+              {...linkProps(routePath.money(), () => navigation.navigate('MoneyLanding'))}
+              style={styles.backLink}
+            >
+              <BackChevron />
+              <Text style={styles.backLabel}>Campaign money</Text>
+            </Pressable>
+          </Container>
           {notFound && registrationNumber ? (
-            <NotFoundState
-              registrationNumber={registrationNumber}
-              onMoney={() => navigation.navigate('MoneyLanding')}
-            />
+            <Container>
+              <NotFoundState
+                registrationNumber={registrationNumber}
+                onMoney={() => navigation.navigate('MoneyLanding')}
+              />
+            </Container>
           ) : moneyQuery.isPending || !money ? (
             moneyQuery.isError ? (
-              <View style={styles.card}>
-                <Text accessibilityRole="alert" style={styles.body}>
-                  We couldn’t load this committee’s money right now. This is a problem on our side
-                  and says nothing about the committee. Please try again in a moment.
-                </Text>
-              </View>
+              <Container>
+                <View style={styles.card}>
+                  <Text accessibilityRole="alert" style={styles.body}>
+                    We couldn’t load this committee’s money right now. This is a problem on our side
+                    and says nothing about the committee. Please try again in a moment.
+                  </Text>
+                </View>
+              </Container>
             ) : (
-              <LoadingState isMobile={isMobile} />
+              <Container>
+                <LoadingState isMobile={isMobile} />
+              </Container>
             )
           ) : (
             <CommitteeBody
@@ -292,7 +299,7 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
               onPreferences={onPreferences}
             />
           )}
-        </Container>
+        </View>
         <Footer />
       </CommitteeScroll>
     </PageBackground>
@@ -442,6 +449,7 @@ function CommitteeBody({
     }
   };
 
+  const { isTablet } = useResponsive();
   const shareContent: ShareContent = {
     title: `${name} — Alethical`,
     subject: 'committee',
@@ -457,135 +465,149 @@ function CommitteeBody({
 
   return (
     <View style={styles.bodyWrap}>
-      <Text style={styles.eyebrow}>{eyebrow ? eyebrow.toUpperCase() : 'COMMITTEE'}</Text>
-      <View style={styles.headRow}>
-        <Text
-          accessibilityRole="header"
-          aria-level={1}
-          style={[styles.h1, isMobile && styles.h1Mobile]}
-        >
-          {name}
-        </Text>
-        <TrackCommitteeButton
-          registrationNumber={registrationNumber}
-          beside={<SharePopover content={shareContent} />}
-          onOpenTracked={() => navigation.navigate('Tabs', { screen: 'Tracked' })}
-        />
-      </View>
-      <View style={styles.chipRow}>
-        <Text style={styles.regChip}>REG {registrationNumber}</Text>
-        {registeredFor ? <Text style={styles.registeredFor}>{registeredFor}</Text> : null}
-        {money.register.state === 'not_registered' ? (
-          <Text style={styles.registeredFor}>{NOT_IN_REGISTER_LINE}</Text>
-        ) : null}
-        {closedChip ? <Text style={styles.closedChip}>{closedChip.toUpperCase()}</Text> : null}
-      </View>
+      <Container style={styles.heroContent}>
+        <Text style={styles.eyebrow}>{eyebrow ? eyebrow.toUpperCase() : 'COMMITTEE'}</Text>
+        <View style={styles.headRow}>
+          <Text
+            accessibilityRole="header"
+            aria-level={1}
+            style={[styles.h1, isMobile && styles.h1Mobile]}
+          >
+            {name}
+          </Text>
+          <TrackCommitteeButton
+            registrationNumber={registrationNumber}
+            beside={<SharePopover content={shareContent} />}
+            onOpenTracked={() => navigation.navigate('Tabs', { screen: 'Tracked' })}
+          />
+        </View>
+        <View style={styles.chipRow}>
+          <Text style={styles.regChip}>REG {registrationNumber}</Text>
+          {registeredFor ? <Text style={styles.registeredFor}>{registeredFor}</Text> : null}
+          {money.register.state === 'not_registered' ? (
+            <Text style={styles.registeredFor}>{NOT_IN_REGISTER_LINE}</Text>
+          ) : null}
+          {closedChip ? <Text style={styles.closedChip}>{closedChip.toUpperCase()}</Text> : null}
+        </View>
 
-      <View style={styles.whoseCard}>
-        <Text style={styles.whoseText}>
-          {/* Never `whoseCommitteeText(..., null)` while withholding: that sentence
+        <View
+          style={[styles.whoseCard, isTablet && styles.panelTablet, isMobile && styles.panelMobile]}
+        >
+          <Text style={styles.whoseText}>
+            {/* Never `whoseCommitteeText(..., null)` while withholding: that sentence
               says nobody has confirmed a member, which is a different fact and
               false here. A withheld claim gets its own words. */}
-          {!confirmation
-            ? confirmationPending
-              ? CONFIRMATION_LOADING_LINE
-              : CONFIRMATION_UNAVAILABLE_LINE
-            : confirmedMemberWithheld && confirmation.confirmedFor
-              ? CONFIRMED_MEMBER_WITHHELD_LINE
-              : whoseCommitteeText(registerKind, money.entitySubType, nameableMember)}
-        </Text>
-        {/* The confirmation's date, stored evidence and destination belong together.
-            Failed and expired checks never enter this block. */}
-        <CheckedByBlock checked={nameableMember?.checked} checkerNamedAbove>
-          {nameableMember ? (
-            <Pressable
-              {...linkProps(routePath.legislator(nameableMember.slug, { tab: 'money' }), () =>
-                navigation.push('LegislatorProfile', {
-                  legislatorId: nameableMember.slug,
-                  tab: 'money',
-                }),
-              )}
-              onPressIn={warmConfirmedFor}
-              onHoverIn={warmConfirmedFor}
-              style={[styles.seeAll, styles.confirmedLink]}
-            >
-              <Text style={[styles.seeAllLabel, styles.confirmedLinkLabel]}>
-                {confirmedMemberLinkLabel(nameableMember.fullName)}
-              </Text>
-              <ForwardArrow color={c.link} />
-            </Pressable>
-          ) : null}
-        </CheckedByBlock>
-      </View>
-
-      <View style={[styles.yearRow, isMobile && styles.yearRowMobile]}>
-        <YearControl
-          year={year}
-          years={committeeMoneyYears(year)}
-          onSelect={onSelectYear}
-          fullWidth={isMobile}
-        />
-      </View>
-
-      <PeriodStamp
-        money={money}
-        state={state}
-        year={year}
-        isPartyUnit={isPartyUnit}
-        boardUrl={boardUrl}
-        isHoldingStale={isHoldingStale}
-        isMobile={isMobile}
-      />
-
-      <PaymentsSection
-        money={money}
-        year={year}
-        tab={tab}
-        slug={committeeSlug(name, registrationNumber)}
-        registrationNumber={registrationNumber}
-        boardUrl={boardUrl}
-        onSelectTab={onSelectTab}
-        onRefresh={onRefresh}
-        navigation={navigation}
-        preferences={preferences}
-        onPreferences={onPreferences}
-      >
-        {(withDonorBreakdown) => (
-          <View style={[styles.cardsGrid, isMobile && styles.cardsGridMobile]}>
-            <MoneyInCard
-              money={money}
-              state={state}
-              year={year}
-              isBallot={isBallot}
-              boardUrl={boardUrl}
-              otherYear={otherYear}
-              isMobile={isMobile}
-              onSelectYear={onSelectYear}
-              withDonorBreakdown={withDonorBreakdown}
-            />
-            <MoneyOutCard money={money} isMobile={isMobile} />
-          </View>
-        )}
-      </PaymentsSection>
-      <CampaignDownloadsLink sourceUrl={money.moneyIn?.sourceUrl} />
-
-      <View style={styles.coverageCard}>
-        <Text style={styles.coverageHead}>{RECORD_COVERS_HEADING.toUpperCase()}</Text>
-        {recordCoverageLines(isBallot).map((line) => (
-          <Text key={line} style={styles.coverageLine}>
-            {line}
+            {!confirmation
+              ? confirmationPending
+                ? CONFIRMATION_LOADING_LINE
+                : CONFIRMATION_UNAVAILABLE_LINE
+              : confirmedMemberWithheld && confirmation.confirmedFor
+                ? CONFIRMED_MEMBER_WITHHELD_LINE
+                : whoseCommitteeText(registerKind, money.entitySubType, nameableMember)}
           </Text>
-        ))}
-      </View>
+          {/* The confirmation's date, stored evidence and destination belong together.
+            Failed and expired checks never enter this block. */}
+          <CheckedByBlock checked={nameableMember?.checked} checkerNamedAbove>
+            {nameableMember ? (
+              <Pressable
+                {...linkProps(routePath.legislator(nameableMember.slug, { tab: 'money' }), () =>
+                  navigation.push('LegislatorProfile', {
+                    legislatorId: nameableMember.slug,
+                    tab: 'money',
+                  }),
+                )}
+                onPressIn={warmConfirmedFor}
+                onHoverIn={warmConfirmedFor}
+                style={[styles.seeAll, styles.confirmedLink]}
+              >
+                <Text style={[styles.seeAllLabel, styles.confirmedLinkLabel]}>
+                  {confirmedMemberLinkLabel(nameableMember.fullName)}
+                </Text>
+                <ForwardArrow color={c.link} />
+              </Pressable>
+            ) : null}
+          </CheckedByBlock>
+        </View>
 
-      {checkedOn ? (
-        <Text style={styles.freshness}>
-          {paymentFilesDownloadedLine(
-            checkedOn,
-            money.filingsCopiedAt ? centralDateLabel(money.filingsCopiedAt) : null,
-          )}
-        </Text>
-      ) : null}
+        <View style={[styles.yearRow, isMobile && styles.yearRowMobile]}>
+          <YearControl
+            year={year}
+            years={committeeMoneyYears(year)}
+            onSelect={onSelectYear}
+            fullWidth={isMobile}
+            surface="committee"
+          />
+        </View>
+
+        <PeriodStamp
+          money={money}
+          state={state}
+          year={year}
+          isPartyUnit={isPartyUnit}
+          boardUrl={boardUrl}
+          isHoldingStale={isHoldingStale}
+          isMobile={isMobile}
+        />
+      </Container>
+      <View style={styles.recordsBackground}>
+        <Container style={styles.recordsContent}>
+          <PaymentsSection
+            money={money}
+            year={year}
+            tab={tab}
+            slug={committeeSlug(name, registrationNumber)}
+            registrationNumber={registrationNumber}
+            boardUrl={boardUrl}
+            onSelectTab={onSelectTab}
+            onRefresh={onRefresh}
+            navigation={navigation}
+            preferences={preferences}
+            onPreferences={onPreferences}
+          >
+            {(withDonorBreakdown) => (
+              <View style={[styles.cardsGrid, isMobile && styles.cardsGridMobile]}>
+                <MoneyInCard
+                  money={money}
+                  state={state}
+                  year={year}
+                  isBallot={isBallot}
+                  boardUrl={boardUrl}
+                  otherYear={otherYear}
+                  isMobile={isMobile}
+                  onSelectYear={onSelectYear}
+                  withDonorBreakdown={withDonorBreakdown}
+                />
+                <MoneyOutCard money={money} isMobile={isMobile} />
+              </View>
+            )}
+          </PaymentsSection>
+          <CampaignDownloadsLink sourceUrl={money.moneyIn?.sourceUrl} />
+
+          <View
+            style={[
+              styles.coverageCard,
+              isTablet && styles.panelTablet,
+              isMobile && styles.panelMobile,
+            ]}
+          >
+            <Text style={styles.coverageHead}>{RECORD_COVERS_HEADING.toUpperCase()}</Text>
+            {recordCoverageLines(isBallot).map((line) => (
+              <Text key={line} style={styles.coverageLine}>
+                {line}
+              </Text>
+            ))}
+          </View>
+
+          {checkedOn ? (
+            <Text style={styles.freshness}>
+              {paymentFilesDownloadedLine(
+                checkedOn,
+                money.filingsCopiedAt ? centralDateLabel(money.filingsCopiedAt) : null,
+              )}
+            </Text>
+          ) : null}
+        </Container>
+      </View>
     </View>
   );
 }
@@ -629,6 +651,7 @@ function PeriodStamp({
   return (
     <View style={styles.stampWrap}>
       <FilingStamp
+        surface="committee"
         line={line}
         detail={detail}
         notes={isHoldingStale ? [staleHoldNote(null)] : []}
@@ -661,12 +684,15 @@ function MoneyInCard({
   onSelectYear: (year: number) => void;
   withDonorBreakdown: boolean;
 }) {
+  const { isTablet } = useResponsive();
   if (state !== 'figures') {
     // The committee page's own 2 empty years, which the profile never reaches: a
     // closed committee's final report we do not hold, and a year no filing covers.
     const closed = state === 'closed-empty';
     return (
-      <View style={[styles.card, isMobile && styles.cardMobile]}>
+      <View
+        style={[styles.card, isTablet && committeeCardStyles.tablet, isMobile && styles.cardMobile]}
+      >
         <CardHeading surface="committee">{MONEY_IN_HEADING}</CardHeading>
         <Figure
           label={MONEY_IN_REPORTED_LABEL}
@@ -697,7 +723,9 @@ function MoneyInCard({
     );
   }
   return (
-    <View style={[styles.card, isMobile && styles.cardMobile]}>
+    <View
+      style={[styles.card, isTablet && committeeCardStyles.tablet, isMobile && styles.cardMobile]}
+    >
       <MoneyInBlock
         surface="committee"
         withDonorBreakdown={withDonorBreakdown}
@@ -713,8 +741,11 @@ function MoneyInCard({
 }
 
 function MoneyOutCard({ money, isMobile }: { money: CommitteeMoney; isMobile: boolean }) {
+  const { isTablet } = useResponsive();
   return (
-    <View style={[styles.card, isMobile && styles.cardMobile]}>
+    <View
+      style={[styles.card, isTablet && committeeCardStyles.tablet, isMobile && styles.cardMobile]}
+    >
       <MoneyOutBlock
         surface="committee"
         moneyOut={money.moneyOut}
@@ -752,7 +783,7 @@ function PaymentsSection({
   preferences: MoneyDetailsPreferences;
   onPreferences: (preferences: MoneyDetailsPreferences) => void;
 }) {
-  const { isMobile } = useResponsive();
+  const { isMobile, isTablet } = useResponsive();
   const [sort, setSort] = useState<OutsideSpendingSort>('newest');
   const spentBy = useOutsideSpending({ spender: registrationNumber }, sort);
   const first = spentBy.data?.pages[0];
@@ -764,7 +795,7 @@ function PaymentsSection({
   return (
     <CampaignMoneyCardTheme>
       <View style={detailsStyles.section}>
-        <View role="group" aria-label="Committee record" style={detailsStyles.horizontal}>
+        <View role="group" aria-label="Committee record" style={styles.sectionTabs}>
           {sections.map((key) => (
             <Pressable
               key={key}
@@ -772,12 +803,14 @@ function PaymentsSection({
               aria-pressed={section === key}
               onPress={() => onSelectTab(key as CommitteeTab)}
               style={(state) => [
-                detailsStyles.control,
+                styles.sectionTab,
                 section === key && styles.tabActive,
                 Boolean('focused' in state && state.focused) && detailsStyles.focus,
               ]}
             >
-              <Text style={detailsStyles.controlText}>
+              <Text
+                style={[styles.sectionTabLabel, section === key && styles.sectionTabLabelActive]}
+              >
                 {key === 'gave'
                   ? COMMITTEE_MONEY_SECTION_LABEL
                   : COMMITTEE_TAB_LABELS[key as CommitteeTab]}
@@ -804,7 +837,13 @@ function PaymentsSection({
           </>
         ) : (
           <>
-            <View style={styles.card}>
+            <View
+              style={[
+                styles.card,
+                isTablet && committeeCardStyles.tablet,
+                isMobile && styles.cardMobile,
+              ]}
+            >
               <CommitteeDonations
                 headingLevel={2}
                 isBallot={isBallotQuestionFiler(money.entitySubType)}
@@ -1186,7 +1225,10 @@ function FilingsList({
 
 const styles = StyleSheet.create({
   page: { flexGrow: 1 },
-  main: { paddingTop: 28, paddingBottom: 64, gap: 0 },
+  main: { paddingTop: 28, gap: 0 },
+  heroContent: { paddingBottom: 18 },
+  recordsBackground: { backgroundColor: c.background },
+  recordsContent: { paddingTop: 34, paddingBottom: 64 },
   mainMobile: { paddingTop: 18 },
   bodyWrap: { marginTop: 22 },
   backLink: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
@@ -1268,14 +1310,16 @@ const styles = StyleSheet.create({
   },
   whoseCard: {
     marginTop: 22,
-    maxWidth: 900,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink08,
     borderRadius: t.radii.lg,
-    padding: 18,
+    paddingVertical: 18,
+    paddingHorizontal: 32,
     ...(t.shadows.card as object),
   },
+  panelTablet: { paddingHorizontal: 26 },
+  panelMobile: { paddingHorizontal: 18 },
   whoseText: {
     fontFamily: t.typography.body,
     fontSize: 17,
@@ -1288,14 +1332,25 @@ const styles = StyleSheet.create({
   stampWrap: { marginTop: 20 },
   cardsGrid: { marginTop: 24, flexDirection: 'row', gap: 22, alignItems: 'stretch' },
   cardsGridMobile: { flexDirection: 'column' },
-  cardMobile: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: '100%' },
+  cardMobile: {
+    ...committeeCardStyles.mobile,
+    paddingTop: 20,
+    paddingBottom: 20,
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
+    width: '100%',
+    gap: 20,
+  },
   card: {
     flex: 1,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink08,
     borderRadius: t.radii.lg,
-    padding: 26,
+    paddingTop: 30,
+    paddingHorizontal: 32,
+    paddingBottom: 28,
     gap: 14,
     ...(t.shadows.card as object),
   },
@@ -1326,7 +1381,31 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: c.link,
   },
-  tabActive: { borderBottomWidth: 2, borderBottomColor: t.colors.text.primary, marginBottom: -1 },
+  sectionTabs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    columnGap: 34,
+    rowGap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: t.colors.alpha.ink10,
+  },
+  sectionTab: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingBottom: 12,
+    borderBottomWidth: 3,
+    borderBottomColor: 'transparent',
+    marginBottom: -1,
+  },
+  tabActive: { borderBottomColor: c.text },
+  sectionTabLabel: {
+    fontFamily: t.typography.body,
+    fontSize: 17,
+    fontWeight: '600',
+    color: c.secondary,
+  },
+  sectionTabLabelActive: { fontWeight: '700', color: c.text },
   listHead: {
     marginTop: 20,
     flexDirection: 'row',
@@ -1425,8 +1504,9 @@ const styles = StyleSheet.create({
   /** Neutral, like the in-kind chip — never amber, which is reserved for bill
    *  identity. */
   amendedChip: {
-    fontFamily: t.typography.mono,
-    fontSize: 10,
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    lineHeight: 22.5,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.8,
     color: c.secondary,
@@ -1444,7 +1524,15 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.body,
     color: c.secondary,
   },
-  filingsSource: { marginTop: 12, minHeight: 44, paddingVertical: 11, alignSelf: 'flex-start' },
+  filingsSource: {
+    marginTop: 12,
+    minHeight: 44,
+    paddingVertical: 11,
+    alignSelf: 'flex-start',
+    fontSize: 17,
+    lineHeight: 25.5,
+    fontWeight: '700',
+  },
   listRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1546,7 +1634,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: t.colors.alpha.ink08,
     borderRadius: t.radii.lg,
-    padding: 22,
+    paddingTop: 30,
+    paddingHorizontal: 32,
+    paddingBottom: 28,
     gap: 7,
   },
   coverageHead: {
