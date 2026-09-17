@@ -59,7 +59,9 @@ describe('a money-tab profile address arrives with its tab code', () => {
     )?.[0];
     expect(pieces).toBeDefined();
     expect(pieces).toContain("new URLSearchParams(search).get('tab') === 'money'");
-    expect(pieces).toContain('prefetchCampaignMoneyTab()');
+    // Through the helper that records an arrival, or the tab still draws a frame late.
+    expect(pieces).toContain('loadAndRemember(prefetchCampaignMoneyTab)');
+    expect(pieces).not.toMatch(/(?<!AndRemember\()prefetchCampaignMoneyTab\(\)/);
     expect(pieces).toContain('.catch(() => undefined)');
   });
 });
