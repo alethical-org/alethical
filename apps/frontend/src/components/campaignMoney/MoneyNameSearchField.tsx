@@ -181,6 +181,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     letterSpacing: 0,
     textTransform: 'none',
+    marginBottom: 12,
   },
   listBox: {
     borderWidth: 2,
