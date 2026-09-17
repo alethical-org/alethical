@@ -142,6 +142,22 @@ describe('shared page text', () => {
     });
   });
 
+  it('describes the selected money view without repeating the legislator name', () => {
+    const content = buildLegislatorShareContent({
+      displayName: 'Rep. Aaron Repinski',
+      districtLine: 'House District 26A',
+      moneyYear: 2024,
+      url: publicPageUrl('/legislators/aaron-repinski?tab=money&year=2024'),
+    });
+    expect(content.title).toBe('Rep. Aaron Repinski, Minnesota House District 26A');
+    expect(content.description).toBe(
+      'Campaign money for filing year 2024, from Minnesota’s official filings',
+    );
+    expect(new URL(buildShareIntents(content).email).searchParams.get('body')).toBe(
+      `${content.description}\n\n${content.url}`,
+    );
+  });
+
   // The profile shows Biography, Committees, Chief-Authored Bills, Contact,
   // Legislative Service and Leadership. Votes appear only inside the unfinished
   // "On the roadmap" area, so promising them broke grounded-answers rule 6.

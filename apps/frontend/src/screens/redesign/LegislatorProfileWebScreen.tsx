@@ -251,6 +251,7 @@ export function LegislatorProfileWebScreen() {
   const shareContent = buildLegislatorShareContent({
     displayName,
     districtLine,
+    moneyYear: activeTab === 'money' ? moneyYear : undefined,
     url: publicPageUrl(
       routePath.legislator(
         shareSlug,

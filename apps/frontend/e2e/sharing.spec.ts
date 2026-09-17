@@ -18,6 +18,12 @@ test.beforeEach(async ({ page, baseURL }) => {
   }
 });
 
+test.afterEach(async ({ page }) => {
+  // The profile preloads other filing years after the Share assertions finish.
+  // Let teardown cancel those reads without surfacing a closed-test route error.
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
 for (const [band, width, height] of [
   ['desktop', 1400, 1000],
   ['tablet', 900, 1000],
@@ -115,6 +121,23 @@ test('supported device sharing receives the article and exact public link', asyn
 
 const committeeName = 'Beer PAC-Minn Beer Wholesalers Assoc';
 const committeePath = '/money/committees/beer-pac-minn-beer-wholesalers-assoc-30274';
+for (const width of [1400, 900, 390]) {
+  test(`legislator money at ${width}: describes the selected year`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/legislators/aaron-repinski?tab=money&year=2024');
+    await page.getByRole('button', { name: 'Share this legislator', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Share this legislator', exact: true });
+    await expect(
+      dialog.getByText('Campaign money for filing year 2024, from Minnesota’s official filings', {
+        exact: true,
+      }),
+    ).toBeVisible();
+    expect((await dialog.innerText()).split('Aaron Repinski')).toHaveLength(2);
+    const shared = new URL(await dialog.getByRole('textbox').inputValue());
+    expect(shared.searchParams.get('tab')).toBe('money');
+    expect(shared.searchParams.get('year')).toBe('2024');
+  });
+}
 for (const width of [1400, 900, 390]) {
   test(`committee at ${width}: context heading stays out of non-repeating messages`, async ({
     page,

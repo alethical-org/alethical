@@ -133,11 +133,14 @@ export function buildBillShareContent({
 export function buildLegislatorShareContent({
   displayName,
   districtLine,
+  moneyYear,
   url,
 }: {
   displayName: string;
   /** Chamber and district as the profile shows it, e.g. `House District 62A`. */
   districtLine: string;
+  /** Selected filing year when the shared link opens Campaign money. */
+  moneyYear?: number;
   url: string;
 }): ShareContent {
   const name = clean(displayName);
@@ -154,7 +157,10 @@ export function buildLegislatorShareContent({
     // sentence promised a section that is not there (grounded-answers.md rule 6
     // — copy claims match shipped capability). When a section is added to or
     // removed from the profile, this sentence changes with it.
-    description: 'Committee assignments, chief-authored bills, and contact information',
+    description:
+      moneyYear === undefined
+        ? 'Committee assignments, chief-authored bills, and contact information'
+        : `Campaign money for filing year ${moneyYear}, from Minnesota’s official filings`,
     url,
   };
 }

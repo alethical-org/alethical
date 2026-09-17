@@ -11,7 +11,7 @@ Share sends the page a reader chose, with enough plain-language context for anot
 | Page            | Title                                                       | Description                                                                       | Link                                                                                                                                                                        |
 | --------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Bill            | Bill code, session year, and the short plain-language title | Bill text, legislative progress, and official sources | The bill profile, without a selected tab |
-| Legislator      | Name, plus chamber and district when serving now            | A fixed sentence naming committees, chief-authored bills, and contact information | The readable legislator profile address; Campaign money retains its selected year and open contribution rows                                                                |
+| Legislator      | Name, plus chamber and district when serving now | General profile: committees, chief-authored bills, and contact information. Money view: campaign money and its selected filing year | The readable legislator profile address; Campaign money retains its selected year and open contribution rows |
 | Ask answer      | The reader's question                                       | A fixed sentence saying the answer is cited and links to the official record      | The public Ask address, keeping only the question, bill, legislator, and saved-suggestion fields needed to rebuild it                                                       |
 | Committee money | The committee's filed name | Campaign money from Minnesota’s official filings | The committee address, retaining the year, section, donor category and sort, independent-spending sort, open contribution rows, ownership evidence and earlier-year choices |
 | Research and guide | The published title | The existing publication and records-through dates, without figures or article text | The published article address |
@@ -47,7 +47,8 @@ otherwise we advertise a capability we do not ship
 (`.claude/rules/grounded-answers.md` rule 6).
 
 Sharing a legislator's Campaign money view retains `tab=money`, the selected year and
-open contribution rows for each committee. The same link reopens that view on phones
+open contribution rows for each committee. Its description names campaign money and
+the selected filing year instead of the general profile's sections. The same link reopens that view on phones
 and computers. Committee Share also retains open ownership evidence and earlier-year
 choices. Independent spending keeps its own Newest first or Largest first order through
 `spendingSort`; this does not overwrite the donor browser's separate saved sort.

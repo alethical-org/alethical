@@ -41,12 +41,16 @@ the same information. Authorization continues through the verified live release.
 
 ## Current checkpoint
 
-Working branch: `codex/sharing-results-copy`. Implementation is complete. All 3,240
-frontend tests pass. The release build passes at 336,228 compressed bytes against
-the unchanged 339,072 limit. Browser checks pass in Chromium and WebKit: 29 passed,
+Working branch: `codex/sharing-results-copy`. Implementation is complete. All 3,241
+frontend tests pass. The release build passes at 337,040 compressed bytes against
+the unchanged 339,072 limit. Browser checks pass in Chromium and WebKit: 35 passed,
 with 1 Chromium-only clipboard permission check skipped in WebKit. Independent
-reader checks are in progress.
-No new release is claimed yet. Do not post or send messages during checks;
+reader checks passed 9 flows across 3 widths, then caught the legislator money
+description. The fixed description names campaign money and the selected filing
+year; the independent recheck passed on desktop and phone.
+No new release is claimed yet. The current-head checks, merge, and live evidence
+are tracked in [pull request 2246](https://github.com/alethical-org/alethical/pull/2246).
+Do not post or send messages during checks;
 intercept prepared destination addresses instead.
 
 The earlier version of this plan incorrectly excluded results controls. That was

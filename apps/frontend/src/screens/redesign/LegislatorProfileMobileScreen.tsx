@@ -473,6 +473,7 @@ export function LegislatorProfileMobileScreen() {
     ? buildLegislatorShareContent({
         displayName: legislatorDisplayName(leg.name, leg.chamber),
         districtLine: currentDistrictLine(leg),
+        moneyYear: activeTab === 'money' ? moneyYear : undefined,
         url: publicPageUrl(
           routePath.legislator(
             leg.slug ?? leg.id,
