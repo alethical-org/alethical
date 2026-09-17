@@ -1,7 +1,8 @@
 # `/money/races` compact-directory build and release plan
 
-Status: implementation and browser review complete; final release checks pending. Updated 17 September 2026.
-The current coding agent owns the authorized build through a checked live release.
+Status: live and checked on 17 September 2026.
+Released in [pull request 2250](https://github.com/alethical-org/alethical/pull/2250),
+[commit 0243a5a9](https://github.com/alethical-org/alethical/commit/0243a5a97022dd38454f01711cfb12f2167eb49c).
 
 ## Authorization and scope
 
@@ -84,7 +85,7 @@ new recurring task, navigation redesign or unrelated money-page changes are incl
 - [x] Fix ambiguous-Enter focus loss, literal-null search matches and inactive-screen hash handling.
 - [x] Complete permitted browser review of phone, tablet and desktop states.
 - [x] Open the draft pull request and finish remote checks.
-- [ ] After browser review passes, mark ready, merge, deploy and exercise the live flow.
+- [x] After browser review passes, mark ready, merge, deploy and exercise the live flow.
 
 Browser access recovered after the user restarted Codex and resumed the task. Review
 at 390, 900 and 1440 pixels covered the compact directory, selected House district,
@@ -93,9 +94,12 @@ a House-filtered directory, Back restoring search and office, and Clear search.
 The local preview used a saved public 2026 API response. Missing amounts and real $0
 figures remained distinct, dates stayed attached to each amount, and the phone layout
 had no horizontal overflow. The earlier unavailable-records state and retry were also
-exercised. Final production verification remains required after deployment.
+exercised. An independent reader review also passed on phone and desktop.
 
-Current branch: `codex/money-races-directory-v2`. The saved changes include the current
-sitewide Share control and the shared scroll-restoration protections. Resume browser
-review, any resulting corrections, the merge and live verification within the existing
-user authorization; another build approval is not required.
+The final upload passed all 3,277 frontend tests and 2,809 server tests. All 4 required
+checks passed on the final head and on the merge queue's combined commit. Production
+served commit `0243a5a97022dd38454f01711cfb12f2167eb49c`: the initial response contained
+the compact directory with no committee-detail rows, search opened House District 12A
+with its 2 committees, and following Anderson, Paul H House Committee opened that
+committee's record with 2026 selected. The sitewide Share control and shared
+scroll-restoration protections remain integrated.
