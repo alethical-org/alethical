@@ -1500,11 +1500,12 @@ describe('the records a money page hands to the app', () => {
     expect(body).toContain('<h1>Spending by groups that are not the campaign</h1>');
     // The app's own money formatter, so the served figure is the drawn figure.
     expect(body).toContain('$12,345,678');
-    expect(body).toContain('across 4,321 payments, 2015 through 2026');
-    expect(body).toContain('href="/money/committees?kind=political_committee_or_fund"');
-    expect(body).toContain(
-      'Download the Minnesota Campaign Finance and Public Disclosure Board’s file',
-    );
+    expect(body).toContain('4,321 payments');
+    expect(body).toContain('2015 through 2026');
+    expect(body).toContain('href="/money/outside-spending?browse=groups"');
+    expect(body).toContain('href="/money/outside-spending?browse=committees"');
+    expect(body).not.toContain('href="/money/search"');
+    expect(body).toContain('Minnesota’s campaign-finance downloads');
     expect(servedData(body)).toEqual([
       {
         key: ['outside-spending-record', null, null, null, 'newest', 1],
@@ -1527,7 +1528,7 @@ describe('the records a money page hands to the app', () => {
 
     const { body } = await serve({ path: '/money/outside-spending' });
 
-    expect(body).toContain('Nothing on record');
+    expect(body).toContain('No outside-spending records available');
     expect(body).not.toContain('$0.00');
   });
 
