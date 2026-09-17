@@ -72,6 +72,14 @@ import {
   registerCountLine,
 } from './committeeList';
 import {
+  FILES_COPIED_LABEL,
+  RACE_COMPARISON_NOTE,
+  RACE_COVERAGE,
+  RACE_COVERAGE_HEADING,
+  RACE_FIGURE_DEFINITIONS,
+  RACE_REGISTRATION_NOTE,
+  registerDateLine,
+  shownCommitteeCount,
   MIXED_PERIODS_NOTE,
   MONEY_BY_RACE_DEK,
   MONEY_BY_RACE_NOTE,
@@ -1167,7 +1175,7 @@ export function committeeDirectoryPageSnapshot(
  * own dates (`.claude/rules/grounded-answers.md` rule 12).
  */
 export function moneyByRacePageSnapshot(page: MoneyByRacePage): PageSnapshot {
-  const count = racesCountLine(page.contestCount, page.committeeCount, page.asOf);
+  const count = racesCountLine(page.contestCount, shownCommitteeCount(page.contests));
   const order = racesOrderingLine(page.orderedBy);
   return {
     heading: MONEY_BY_RACE_TITLE,
@@ -1175,9 +1183,16 @@ export function moneyByRacePageSnapshot(page: MoneyByRacePage): PageSnapshot {
     bodyHeading: '',
     body: [
       MONEY_BY_RACE_DEK,
+      RACE_REGISTRATION_NOTE,
+      ...(registerDateLine(page.asOf) ? [registerDateLine(page.asOf)!] : []),
       figuresYearLine(page.year),
       ...(order ? [order] : []),
+      RACE_COMPARISON_NOTE,
+      itemizedContributionsNote(false),
       MONEY_BY_RACE_NOTE,
+      ...(page.fetchedAt ? [`${FILES_COPIED_LABEL} ${centralDateLabel(page.fetchedAt)}`] : []),
+      RACE_COVERAGE_HEADING,
+      ...RACE_COVERAGE,
     ],
     bodyIsList: false,
     facts: [],
@@ -1185,15 +1200,20 @@ export function moneyByRacePageSnapshot(page: MoneyByRacePage): PageSnapshot {
       const [seat, committeeCount] = contestHeadingParts(contest);
       return {
         heading: `${seat} · ${committeeCount}`,
-        ...(contest.periodsDiffer ? { body: [MIXED_PERIODS_NOTE], bodyIsList: false } : {}),
+        body: [
+          ...(contest.periodsDiffer ? [MIXED_PERIODS_NOTE] : []),
+          ...RACE_FIGURE_DEFINITIONS.map((definition) => `${definition.label}: ${definition.text}`),
+        ],
+        bodyIsList: false,
         items: contest.committees.map((committee) => ({
           label: [
             committee.name,
-            `REG ${committee.registrationNumber}`,
+            `Registration ${committee.registrationNumber}`,
             closedChipLabel(committee.terminationDate),
             ...committeeFigures(committee).flatMap((figure) => [
               `${figure.label}: ${figure.text}`,
               figure.period ?? '',
+              figure.explanation ?? '',
             ]),
           ]
             .filter(Boolean)

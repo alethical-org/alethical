@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { RaceFinder } from '../../components/campaignMoney/RaceFinder';
 import { Skeleton } from '../../components/Skeleton';
 import { useCampaignFinanceRaces, usePrefetchCommitteeMoney } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
-import { closedChipLabel, committeeSlug } from '../../lib/committeeMoneyShared';
+import {
+  closedChipLabel,
+  committeeSlug,
+  itemizedContributionsNote,
+} from '../../lib/committeeMoneyShared';
 import { campaignMoneyYear } from '../../lib/legislatorCampaignMoney';
 import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
 import {
@@ -15,6 +20,13 @@ import {
   MONEY_BY_RACE_NOTE,
   MONEY_BY_RACE_TITLE,
   MONEY_BY_RACE_UNAVAILABLE,
+  RACE_COMPARISON_NOTE,
+  RACE_COVERAGE,
+  RACE_COVERAGE_HEADING,
+  RACE_FIGURE_DEFINITIONS,
+  RACE_REGISTRATION_NOTE,
+  registerDateLine,
+  shownCommitteeCount,
   committeeFigures,
   contestHeadingParts,
   figuresYearLine,
@@ -23,12 +35,8 @@ import {
   racesCountLine,
   racesOrderingLine,
 } from '../../lib/moneyByRace';
-import {
-  centralDateLabel,
-  formatCount,
-  RECORD_DOES_NOT_COVER,
-  RECORD_DOES_NOT_COVER_HEADING,
-} from '../../lib/moneyLanding';
+import { centralDateLabel, formatCount } from '../../lib/moneyLanding';
+import { markNextWebHistoryChangeAsReplace } from '../../navigation/webHistory';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
@@ -42,9 +50,11 @@ const isWeb = Platform.OS === 'web';
 // does not land flush against the top edge.
 const SCROLL_MARGIN = { scrollMarginTop: 24 } as object;
 
-function jumpToAnchor(anchor: string) {
+function jumpToAnchor(anchor: string, focus = false) {
   if (!isWeb || typeof document === 'undefined') return;
-  document.getElementById(anchor)?.scrollIntoView({ behavior: 'auto', block: 'start' });
+  const heading = document.getElementById(anchor);
+  heading?.scrollIntoView({ behavior: 'auto', block: 'start' });
+  if (focus) heading?.focus({ preventScroll: true });
 }
 
 /**
@@ -72,7 +82,7 @@ function jumpToAnchor(anchor: string) {
  * committee that changes its name keeps its address.
  */
 export function MoneyByRaceScreen({ navigation, route }: RootScreenProps<'MoneyByRace'>) {
-  const { isMobile } = useResponsive();
+  const { isMobile, isTablet } = useResponsive();
   const year = campaignMoneyYear(route.params?.year);
   const requestedOffice = typeof route.params?.office === 'string' ? route.params.office : '';
 
@@ -80,58 +90,79 @@ export function MoneyByRaceScreen({ navigation, route }: RootScreenProps<'MoneyB
   // themselves from the served office list, so an office the register does not
   // hold shows the whole list with no chip pressed rather than an empty page.
   const races = useCampaignFinanceRaces({ year, office: requestedOffice || undefined });
-  const page = races.data ?? null;
+  // The hook retains the last response so office choices stay available during
+  // a request. Never label those old rows/counts with the new office or year.
+  const page = races.isPlaceholderData ? null : (races.data ?? null);
+  const loading = races.isPending || races.isPlaceholderData;
   const served = page?.state === 'reported';
-  const offices = page?.offices ?? [];
+  const offices = races.data?.offices ?? [];
   const office = officeFilterFromParam(requestedOffice, offices);
 
   useDocumentTitle('/money/races', `${MONEY_BY_RACE_TITLE} — campaign money | Alethical`);
 
-  // A page opened at /money/races#house-12a has to jump itself: the list is drawn
-  // by JavaScript, so when the browser looks for the fragment's target on load
-  // there is nothing there yet. Read once, then asserted after the rows render,
-  // and once more when the web fonts finish loading, because every row above the
-  // target changes height when the typeface swaps in.
-  const [openingAnchor] = useState(() =>
-    isWeb && typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : '',
+  const [anchor, setAnchor] = useState(() =>
+    isWeb && typeof window !== 'undefined' ? window.location.hash.slice(1) : '',
   );
-  const anchors = page?.contests.map((contest) => contest.anchor) ?? [];
-  const anchorReady = openingAnchor !== '' && anchors.includes(openingAnchor);
+  useEffect(() => {
+    if (!isWeb) return;
+    const sync = () => setAnchor(window.location.hash.slice(1));
+    window.addEventListener('hashchange', sync);
+    window.addEventListener('popstate', sync);
+    return () => {
+      window.removeEventListener('hashchange', sync);
+      window.removeEventListener('popstate', sync);
+    };
+  }, []);
+  const anchorReady = !!anchor && !!page?.contests.some((contest) => contest.anchor === anchor);
   useEffect(() => {
     if (!anchorReady) return;
     let cancelled = false;
     const jump = () => {
-      if (!cancelled) jumpToAnchor(openingAnchor);
+      if (!cancelled) jumpToAnchor(anchor, true);
     };
     const first = setTimeout(jump, 0);
-    const settled = setTimeout(jump, 250);
-    if (typeof document !== 'undefined' && document.fonts?.ready) {
-      void document.fonts.ready.then(() => setTimeout(jump, 0));
-    }
+    // Fonts can change the height of every row before this group.
+    if (isWeb && document.fonts?.ready) void document.fonts.ready.then(jump);
     return () => {
       cancelled = true;
       clearTimeout(first);
-      clearTimeout(settled);
     };
-  }, [anchorReady, openingAnchor]);
+  }, [anchorReady, anchor, page]);
 
-  const onSelectOffice = (next: string | null) =>
+  useEffect(() => {
+    if (page?.state === 'reported' && requestedOffice && !office) {
+      markNextWebHistoryChangeAsReplace();
+      navigation.setParams({ office: undefined });
+    }
+  }, [page, office, requestedOffice, navigation]);
+
+  const onSelectOffice = (next: string | null) => {
+    setAnchor('');
     navigation.setParams({ office: next ?? undefined });
-
-  const countLine = racesCountLine(
-    page?.contestCount ?? null,
-    page?.committeeCount ?? null,
-    page?.asOf ?? null,
-  );
-  const orderLine = page ? racesOrderingLine(page.orderedBy) : null;
+  };
+  const onChooseGroup = (next: string) => {
+    if (isWeb) {
+      const url = new URL(window.location.href);
+      url.hash = next;
+      if (window.location.hash !== url.hash)
+        window.history.pushState(window.history.state, '', url);
+    }
+    setAnchor(next);
+    jumpToAnchor(next, true);
+  };
   const contests = page?.contests ?? [];
+  const countLine = page ? racesCountLine(page.contestCount, shownCommitteeCount(contests)) : null;
+  const registerDate = registerDateLine(page?.asOf ?? null);
+  const orderLine = page ? racesOrderingLine(page.orderedBy) : null;
 
   return (
     <PageBackground>
       <ScrollView contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
 
-        <Container style={[styles.main, isMobile && styles.mainMobile]}>
+        <Container
+          style={[styles.main, isTablet && styles.mainTablet, isMobile && styles.mainMobile]}
+        >
           <Pressable
             {...linkProps(routePath.money(), () => navigation.navigate('MoneyLanding'))}
             style={styles.backLink}
@@ -148,13 +179,19 @@ export function MoneyByRaceScreen({ navigation, route }: RootScreenProps<'MoneyB
             {MONEY_BY_RACE_TITLE}
           </Text>
           <Text style={styles.dek}>{MONEY_BY_RACE_DEK}</Text>
+          <View style={styles.registrationNote}>
+            <Text style={styles.registrationLabel}>{RACE_REGISTRATION_NOTE}</Text>
+          </View>
 
-          {races.isPending ? (
+          {loading ? (
             <View style={styles.countRow} accessible accessibilityLabel="Loading the register">
               <Skeleton width={320} height={13} />
             </View>
           ) : countLine ? (
-            <Text style={styles.countLine}>{countLine}</Text>
+            <View style={[styles.countRow, isMobile && styles.countRowMobile]}>
+              <Text style={styles.countLine}>{countLine}</Text>
+              {registerDate ? <Text style={styles.registerDate}>{registerDate}</Text> : null}
+            </View>
           ) : null}
 
           {/* The register's own office values, a closed set of 9 on the live
@@ -164,7 +201,7 @@ export function MoneyByRaceScreen({ navigation, route }: RootScreenProps<'MoneyB
           <View style={styles.chipRow} role="group" aria-label="Filter by office">
             <OfficeChip
               label={ALL_OFFICES_LABEL}
-              count={page?.committeeCount ?? null}
+              count={races.data?.committeeCount ?? null}
               active={office === null}
               onPress={() => onSelectOffice(null)}
             />
@@ -179,7 +216,7 @@ export function MoneyByRaceScreen({ navigation, route }: RootScreenProps<'MoneyB
             ))}
           </View>
 
-          {races.isPending ? (
+          {loading ? (
             <View style={styles.listLoading}>
               <View role="status" aria-busy style={styles.hidden}>
                 <Text>Loading contests</Text>
@@ -219,16 +256,29 @@ export function MoneyByRaceScreen({ navigation, route }: RootScreenProps<'MoneyB
             </View>
           ) : (
             <View>
+              {contests.some((contest) => !!contest.district) ? (
+                <RaceFinder
+                  key={`${year}-${office ?? 'all'}`}
+                  contests={contests}
+                  isMobile={isMobile}
+                  onChoose={onChooseGroup}
+                />
+              ) : null}
               <View style={styles.listHead}>
                 <Text style={styles.listYear}>{figuresYearLine(year)}</Text>
                 {orderLine ? <Text style={styles.listSort}>{orderLine}</Text> : null}
               </View>
 
+              <View style={styles.comparisonNote}>
+                <Text style={styles.explain}>{RACE_COMPARISON_NOTE}</Text>
+                <Text style={styles.explain}>{itemizedContributionsNote(false)}</Text>
+              </View>
               {contests.map((contest) => (
                 <ContestBlock
                   key={contest.anchor}
                   contest={contest}
                   isMobile={isMobile}
+                  isTablet={isTablet}
                   onOpen={(slug) => navigation.push('CommitteeMoney', { slug })}
                 />
               ))}
@@ -240,19 +290,16 @@ export function MoneyByRaceScreen({ navigation, route }: RootScreenProps<'MoneyB
                   any money covers — each figure carries its own (rule 12, #861). */}
               {page?.fetchedAt ? (
                 <Text style={styles.freshness}>
-                  {FILES_COPIED_LABEL.toUpperCase()} ·{' '}
-                  {centralDateLabel(page.fetchedAt).toUpperCase()}
+                  {FILES_COPIED_LABEL} {centralDateLabel(page.fetchedAt)}
                 </Text>
               ) : null}
             </View>
           )}
 
           <View style={styles.notCoveredBox}>
-            <Text style={styles.notCoveredLabel}>
-              {RECORD_DOES_NOT_COVER_HEADING.toUpperCase()}
-            </Text>
+            <Text style={styles.notCoveredLabel}>{RACE_COVERAGE_HEADING}</Text>
             <View style={styles.notCoveredList}>
-              {RECORD_DOES_NOT_COVER.map((line) => (
+              {RACE_COVERAGE.map((line) => (
                 <Text key={line} style={styles.notCoveredLine}>
                   {line}
                 </Text>
@@ -303,37 +350,60 @@ function OfficeChip({
 function ContestBlock({
   contest,
   isMobile,
+  isTablet,
   onOpen,
 }: {
   contest: RaceContest;
   isMobile: boolean;
+  isTablet: boolean;
   onOpen: (slug: string) => void;
 }) {
   const [seat, count] = contestHeadingParts(contest);
+  const figureWidth = isTablet ? styles.figureTablet : styles.figure;
   return (
-    <View nativeID={contest.anchor} style={[styles.contest, SCROLL_MARGIN as never]}>
-      {isMobile ? (
-        <Text accessibilityRole="header" aria-level={2} style={styles.contestHeading}>
-          {seat.toUpperCase()}
-          {'\n'}
-          {count.toUpperCase()}
-        </Text>
-      ) : (
-        <Text accessibilityRole="header" aria-level={2} style={styles.contestHeading}>
-          {seat.toUpperCase()} · {count.toUpperCase()}
-        </Text>
-      )}
+    <View style={styles.contest}>
+      <Text
+        nativeID={contest.anchor}
+        {...(isWeb ? { tabIndex: -1 } : {})}
+        accessibilityRole="header"
+        aria-level={2}
+        style={[
+          styles.contestHeading,
+          isTablet && styles.contestHeadingTablet,
+          isMobile && styles.contestHeadingMobile,
+          SCROLL_MARGIN as never,
+        ]}
+      >
+        {seat}
+      </Text>
+      <Text style={styles.contestCount}>{count}</Text>
       {contest.periodsDiffer ? (
         <View style={styles.mixedPeriods}>
-          <Text style={styles.mixedPeriodsText}>{MIXED_PERIODS_NOTE}</Text>
+          <Text style={styles.explain}>{MIXED_PERIODS_NOTE}</Text>
         </View>
       ) : null}
+      <View
+        style={[
+          styles.columnHead,
+          isTablet && styles.tabletRow,
+          isMobile && styles.columnHeadMobile,
+        ]}
+      >
+        {!isMobile ? <View style={styles.rowText} /> : null}
+        {RACE_FIGURE_DEFINITIONS.map((definition) => (
+          <View key={definition.label} style={isMobile ? styles.figureMobile : figureWidth}>
+            <Text style={styles.figureLabel}>{definition.label}</Text>
+            <Text style={styles.figureDefinition}>{definition.text}</Text>
+          </View>
+        ))}
+      </View>
       <View style={styles.rows}>
         {contest.committees.map((committee) => (
           <CommitteeRow
             key={committee.registrationNumber}
             committee={committee}
             isMobile={isMobile}
+            isTablet={isTablet}
             onOpen={onOpen}
           />
         ))}
@@ -342,55 +412,50 @@ function ContestBlock({
   );
 }
 
-/**
- * One committee: its filed name and registration number, then its 2 figures with
- * their own dates. On a computer the figures sit to the right; on a phone they
- * move under the name and left-align, and the period line breaks at the fact
- * boundary. Every field the computer row carries is here at both bands.
- */
 function CommitteeRow({
   committee,
   isMobile,
+  isTablet,
   onOpen,
 }: {
   committee: RaceCommittee;
   isMobile: boolean;
+  isTablet: boolean;
   onOpen: (slug: string) => void;
 }) {
   const slug = committeeSlug(committee.name, committee.registrationNumber);
   const closed = committee.isClosed ? closedChipLabel(committee.terminationDate) : null;
-  const figures = committeeFigures(committee);
   const prefetchCommitteeMoney = usePrefetchCommitteeMoney();
-  // Warm the committee page's cache on navigation intent, matching the bill and
-  // legislator lists (usePrefetchBill / usePrefetchLegislator, #1966).
   const warm = () => prefetchCommitteeMoney(committee.registrationNumber, slug);
   return (
-    <View style={[styles.row, isMobile && styles.rowMobile]}>
-      <View style={styles.rowText}>
-        <View style={styles.rowNameLine}>
-          <Pressable
-            {...linkProps(routePath.moneyCommittee(slug), () => onOpen(slug))}
-            onPressIn={warm}
-            onHoverIn={warm}
-            style={styles.rowNameLink}
-          >
-            <Text style={styles.rowName}>{committee.name}</Text>
-          </Pressable>
-          <Text style={styles.rowReg}>REG {committee.registrationNumber}</Text>
-          {closed ? <Text style={styles.closedChip}>{closed.toUpperCase()}</Text> : null}
+    <View style={[styles.row, isTablet && styles.tabletRow, isMobile && styles.rowMobile]}>
+      <View style={[styles.rowText, isMobile && styles.rowTextMobile]}>
+        <Pressable
+          {...linkProps(routePath.moneyCommittee(slug), () => onOpen(slug))}
+          onPressIn={warm}
+          onHoverIn={warm}
+          style={[styles.rowNameLink, isMobile && styles.rowNameLinkMobile]}
+        >
+          <Text style={styles.rowName}>{committee.name}</Text>
+        </Pressable>
+        <Text style={styles.rowReg}>Registration {committee.registrationNumber}</Text>
+        {closed ? <Text style={styles.closedLabel}>{closed}</Text> : null}
+      </View>
+      {committeeFigures(committee).map((figure) => (
+        <View
+          key={figure.label}
+          style={isMobile ? styles.figureMobile : isTablet ? styles.figureTablet : styles.figure}
+        >
+          <Text style={[styles.figureLabel, !isMobile && styles.hidden]}>{figure.label}</Text>
+          <Text style={figure.isFigure ? styles.figureValue : styles.figureStandIn}>
+            {figure.text}
+          </Text>
+          {figure.period ? <Text style={styles.figurePeriod}>{figure.period}</Text> : null}
+          {figure.explanation ? (
+            <Text style={styles.figurePeriod}>{figure.explanation}</Text>
+          ) : null}
         </View>
-      </View>
-      <View style={[styles.figures, isMobile && styles.figuresMobile]}>
-        {figures.map((figure) => (
-          <View key={figure.label} style={[styles.figure, isMobile && styles.figureMobile]}>
-            <Text style={styles.figureLabel}>{figure.label}</Text>
-            <Text style={figure.isFigure ? styles.figureValue : styles.figureStandIn}>
-              {figure.text}
-            </Text>
-            {figure.period ? <Text style={styles.figurePeriod}>{figure.period}</Text> : null}
-          </View>
-        ))}
-      </View>
+      ))}
     </View>
   );
 }
@@ -398,28 +463,29 @@ function CommitteeRow({
 const styles = StyleSheet.create({
   page: { flexGrow: 1 },
   main: { paddingTop: 28, paddingBottom: 64 },
-  mainMobile: { paddingTop: 18 },
-  backLink: { alignSelf: 'flex-start' },
+  mainTablet: { paddingHorizontal: 40 },
+  mainMobile: { paddingTop: 18, paddingHorizontal: 20 },
+  backLink: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
   backLabel: {
     fontFamily: t.typography.body,
-    fontSize: t.fontSizes.body,
-    fontWeight: t.fontWeights.bold,
+    fontSize: 16,
+    fontWeight: '700',
     color: t.colors.text.secondary,
   },
   eyebrow: {
-    marginTop: 22,
+    marginTop: 18,
     fontFamily: t.typography.body,
     fontSize: 13,
-    fontWeight: t.fontWeights.bold,
+    fontWeight: '700',
     letterSpacing: 2.4,
-    color: t.colors.brand.base,
+    color: t.colors.brand.deep,
   },
   h1: {
     marginTop: 12,
     fontFamily: t.typography.title,
     fontSize: 42,
     lineHeight: 48,
-    fontWeight: t.fontWeights.heavy,
+    fontWeight: '800',
     letterSpacing: -1.2,
     color: t.colors.text.primary,
   },
@@ -432,16 +498,49 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     color: t.colors.text.secondary,
   },
-  countRow: { marginTop: 14 },
-  countLine: {
-    marginTop: 14,
-    fontFamily: t.typography.mono,
-    fontSize: 11,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.9,
-    color: t.colors.text.muted,
+  registrationNote: {
+    marginTop: 16,
+    alignSelf: 'flex-start',
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink10,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
   },
-  chipRow: { marginTop: 22, flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
+  registrationLabel: {
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '600',
+    color: t.colors.text.primary,
+  },
+  countRow: {
+    marginTop: 24,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  countRowMobile: { flexDirection: 'column' },
+  countLine: {
+    fontFamily: t.typography.body,
+    fontSize: 21,
+    lineHeight: 28,
+    fontWeight: '800',
+    color: t.colors.text.primary,
+    fontVariant: ['tabular-nums'],
+  },
+  registerDate: {
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    lineHeight: 23,
+    fontWeight: '600',
+    color: t.colors.text.secondary,
+    fontVariant: ['tabular-nums'],
+  },
+  chipRow: { marginTop: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -450,29 +549,26 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink14,
-    borderRadius: 11,
+    borderRadius: 10,
     paddingVertical: 9,
     paddingHorizontal: 15,
   },
-  chipActive: {
-    backgroundColor: t.colors.text.primary,
-    borderColor: t.colors.text.primary,
-  },
+  chipActive: { backgroundColor: t.colors.text.primary, borderColor: t.colors.text.primary },
   chipLabel: {
-    fontFamily: t.typography.ui,
-    fontSize: 15,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.primary,
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    fontWeight: '600',
+    color: t.colors.text.secondary,
   },
   chipLabelActive: { color: t.colors.surfaces.base },
   chipCount: {
-    fontFamily: t.typography.mono,
-    fontSize: 11,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.6,
-    color: t.colors.text.muted,
+    fontFamily: t.typography.body,
+    fontSize: 13,
+    fontWeight: '700',
+    color: t.colors.text.secondary,
+    fontVariant: ['tabular-nums'],
   },
-  chipCountActive: { color: t.colors.surfaces.s300 },
+  chipCountActive: { color: t.colors.surfaces.base },
   listLoading: { marginTop: 28, gap: 14 },
   rowLoading: { flexDirection: 'row', justifyContent: 'space-between', gap: 16 },
   hidden: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 },
@@ -480,115 +576,151 @@ const styles = StyleSheet.create({
     marginTop: 28,
     flexDirection: 'row',
     alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: 16,
+    gap: 18,
     flexWrap: 'wrap',
   },
   listYear: {
     fontFamily: t.typography.body,
-    fontSize: 15,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.secondary,
+    fontSize: 17,
+    lineHeight: 25,
+    fontWeight: '700',
+    color: t.colors.text.primary,
+    fontVariant: ['tabular-nums'],
   },
   listSort: {
-    fontFamily: t.typography.mono,
-    fontSize: 10.5,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.2,
-    color: t.colors.text.muted,
-  },
-  contest: { marginTop: 26 },
-  contestHeading: {
-    fontFamily: t.typography.mono,
-    fontSize: 11,
-    lineHeight: 17,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.3,
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    lineHeight: 23,
+    fontWeight: '600',
     color: t.colors.text.secondary,
+  },
+  comparisonNote: {
+    marginTop: 12,
+    maxWidth: 920,
+    backgroundColor: t.colors.surfaces.base,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink10,
+    borderRadius: 15,
+    padding: 20,
+    gap: 10,
+  },
+  contest: { marginTop: 34 },
+  contestHeading: {
+    ...(isWeb
+      ? ({ outlineColor: t.colors.purple.base, outlineOffset: 3, outlineWidth: 2 } as object)
+      : {}),
+    fontFamily: t.typography.body,
+    fontSize: 27,
+    lineHeight: 34,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+    color: t.colors.text.primary,
+    fontVariant: ['tabular-nums'],
+  },
+  contestHeadingTablet: { fontSize: 24, lineHeight: 31 },
+  contestHeadingMobile: { fontSize: 22, lineHeight: 29 },
+  contestCount: {
+    marginTop: 4,
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    lineHeight: 23,
+    fontWeight: '600',
+    color: t.colors.text.secondary,
+    fontVariant: ['tabular-nums'],
   },
   mixedPeriods: {
-    marginTop: 10,
-    alignSelf: 'flex-start',
-    backgroundColor: '#fdfaf4',
+    marginTop: 12,
+    backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
-    borderColor: '#e3c17f',
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    borderColor: t.colors.alpha.ink10,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
-  mixedPeriodsText: {
+  columnHead: {
+    marginTop: 16,
+    marginBottom: 10,
+    flexDirection: 'row',
+    gap: 24,
+    alignItems: 'flex-start',
+  },
+  columnHeadMobile: {
+    flexDirection: 'column',
+    gap: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink10,
+    borderRadius: 12,
+    backgroundColor: t.colors.surfaces.base,
+  },
+  figureDefinition: {
+    marginTop: 3,
     fontFamily: t.typography.body,
-    fontSize: 14.5,
-    lineHeight: 22,
-    color: t.colors.text.secondary,
+    fontSize: 13,
+    lineHeight: 20,
+    color: t.colors.text.muted,
   },
-  rows: {
-    marginTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: t.colors.alpha.ink08,
-  },
+  rows: { borderTopWidth: 1, borderTopColor: t.colors.alpha.ink08 },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    justifyContent: 'space-between',
     gap: 24,
-    paddingVertical: 14,
+    paddingVertical: 17,
     borderBottomWidth: 1,
     borderBottomColor: t.colors.alpha.ink08,
   },
-  rowMobile: { flexDirection: 'column', gap: 10, paddingVertical: 13 },
+  tabletRow: { gap: 18 },
+  rowMobile: { flexDirection: 'column', gap: 12, paddingVertical: 14 },
   rowText: { flex: 1, minWidth: 0 },
-  rowNameLine: { flexDirection: 'row', alignItems: 'center', gap: 9, flexWrap: 'wrap' },
-  rowNameLink: { alignSelf: 'flex-start' },
+  rowTextMobile: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: '100%' },
+  rowNameLink: { alignSelf: 'flex-start', maxWidth: '100%' },
+  rowNameLinkMobile: { minHeight: 44, justifyContent: 'center', marginTop: -8, marginBottom: -8 },
   rowName: {
-    fontFamily: t.typography.ui,
+    fontFamily: t.typography.body,
     fontSize: 17.5,
-    lineHeight: 23,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.primary,
+    lineHeight: 25,
+    fontWeight: '700',
+    color: t.colors.brand.deep,
+    textDecorationLine: 'underline',
+    ...(isWeb ? ({ overflowWrap: 'anywhere', textUnderlineOffset: '2px' } as object) : {}),
   },
   rowReg: {
-    fontFamily: t.typography.mono,
-    fontSize: 11,
-    fontWeight: t.fontWeights.medium,
-    letterSpacing: 0.4,
-    color: t.colors.text.muted,
-  },
-  closedChip: {
-    fontFamily: t.typography.mono,
-    fontSize: 9.5,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.8,
+    marginTop: 3,
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    lineHeight: 22,
+    fontWeight: '600',
     color: t.colors.text.secondary,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink18,
-    borderRadius: 7,
-    paddingVertical: 3,
-    paddingHorizontal: 7,
-    overflow: 'hidden',
+    fontVariant: ['tabular-nums'],
   },
-  figures: { flexDirection: 'row', gap: 28, flexShrink: 0 },
-  figuresMobile: { flexDirection: 'column', gap: 10, alignSelf: 'stretch' },
-  figure: { alignItems: 'flex-end', minWidth: 150 },
-  figureMobile: { alignItems: 'flex-start' },
+  closedLabel: {
+    marginTop: 4,
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    lineHeight: 22,
+    fontWeight: '700',
+    color: t.colors.text.primary,
+    fontVariant: ['tabular-nums'],
+  },
+  figure: { width: 250, flexShrink: 0, minWidth: 0 },
+  figureTablet: { width: 200, flexShrink: 0, minWidth: 0 },
+  figureMobile: { width: '100%' },
   figureLabel: {
-    fontFamily: t.typography.mono,
-    fontSize: 10,
-    fontWeight: t.fontWeights.medium,
-    letterSpacing: 0.4,
-    color: t.colors.text.muted,
+    fontFamily: t.typography.body,
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: '700',
+    color: t.colors.text.primary,
   },
   figureValue: {
-    marginTop: 3,
-    fontFamily: t.typography.title,
-    fontSize: 17,
-    lineHeight: 22,
-    fontWeight: t.fontWeights.bold,
+    fontFamily: t.typography.body,
+    fontSize: 23,
+    lineHeight: 30,
+    fontWeight: '800',
     color: t.colors.text.primary,
     fontVariant: ['tabular-nums'],
   },
   figureStandIn: {
-    marginTop: 3,
     fontFamily: t.typography.body,
     fontSize: 15,
     lineHeight: 22,
@@ -596,28 +728,31 @@ const styles = StyleSheet.create({
   },
   figurePeriod: {
     marginTop: 3,
-    fontFamily: t.typography.mono,
-    fontSize: 10.5,
-    lineHeight: 15,
-    fontWeight: t.fontWeights.medium,
-    letterSpacing: 0.4,
-    color: t.colors.text.muted,
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    lineHeight: 22,
+    color: t.colors.text.secondary,
+    fontVariant: ['tabular-nums'],
   },
   listNote: {
-    marginTop: 24,
-    maxWidth: 780,
+    marginTop: 30,
+    maxWidth: 920,
+    paddingTop: 22,
+    borderTopWidth: 1,
+    borderTopColor: t.colors.alpha.ink08,
     fontFamily: t.typography.body,
-    fontSize: 14.5,
-    lineHeight: 22,
-    color: t.colors.text.muted,
+    fontSize: 16,
+    lineHeight: 25,
+    color: t.colors.text.secondary,
   },
   freshness: {
-    marginTop: 14,
-    fontFamily: t.typography.mono,
-    fontSize: 10.5,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.2,
-    color: t.colors.text.muted,
+    marginTop: 12,
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    lineHeight: 23,
+    fontWeight: '600',
+    color: t.colors.text.secondary,
+    fontVariant: ['tabular-nums'],
   },
   card: {
     marginTop: 26,
@@ -630,21 +765,22 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   h3: {
-    fontFamily: t.typography.title,
+    fontFamily: t.typography.body,
     fontSize: 19,
-    fontWeight: t.fontWeights.heavy,
-    letterSpacing: -0.2,
+    fontWeight: '800',
     color: t.colors.text.primary,
   },
   explain: {
     fontFamily: t.typography.body,
-    fontSize: t.fontSizes.body,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 25,
     color: t.colors.text.secondary,
   },
   primaryButton: {
     alignSelf: 'flex-start',
     marginTop: 4,
+    minHeight: 44,
+    justifyContent: 'center',
     backgroundColor: t.colors.text.primary,
     borderRadius: 11,
     paddingVertical: 13,
@@ -652,31 +788,32 @@ const styles = StyleSheet.create({
   },
   primaryButtonLabel: {
     fontFamily: t.typography.body,
-    fontSize: t.fontSizes.body,
-    fontWeight: t.fontWeights.bold,
+    fontSize: 15,
+    fontWeight: '700',
     color: t.colors.surfaces.base,
   },
   notCoveredBox: {
-    marginTop: 40,
-    maxWidth: 760,
-    backgroundColor: t.colors.surfaces.s200,
+    marginTop: 20,
+    maxWidth: 920,
+    backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
-    borderColor: t.colors.alpha.ink08,
+    borderColor: t.colors.alpha.ink10,
     borderRadius: 15,
-    padding: 24,
+    padding: 20,
   },
   notCoveredLabel: {
-    fontFamily: t.typography.mono,
-    fontSize: 10.5,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.3,
-    color: t.colors.text.secondary,
+    fontFamily: t.typography.body,
+    fontSize: 18,
+    lineHeight: 26,
+    fontWeight: '800',
+    color: t.colors.text.primary,
   },
-  notCoveredList: { marginTop: 14, gap: 9 },
+  notCoveredList: { marginTop: 8, gap: 6 },
   notCoveredLine: {
     fontFamily: t.typography.body,
-    fontSize: 16.5,
-    lineHeight: 26,
-    color: t.colors.ink,
+    fontSize: 16,
+    lineHeight: 25,
+    color: t.colors.text.secondary,
+    fontVariant: ['tabular-nums'],
   },
 });
