@@ -17,7 +17,6 @@ import { lobbyingPageMetadata } from '../../lib/lobbyingMetadata';
 import {
   boardFilesCopiedLine,
   campaignContributionCopiedLine,
-  LOBBYIST_SOURCE_URL,
   lobbyingLobbyistCopy,
   lobbyingRecordNumberFromSlug,
   lobbyingRecordSlug,
@@ -97,8 +96,8 @@ export function LobbyingLobbyistScreen({ route, navigation }: RootScreenProps<'L
     }).socialTitle,
     description:
       lobbyist.state === 'not_registered_today'
-        ? `Campaign donations filed under registration ${lobbyist.registration_number} and its current registration status`
-        : `Current clients and campaign donations filed under registration ${lobbyist.registration_number}`,
+        ? `See campaign donations filed under registration ${lobbyist.registration_number} and whether the copied lobbyist list includes it.`
+        : `See the organisations ${displayName} represented on the copy date and, separately, campaign donations filed under registration ${lobbyist.registration_number}.`,
     url: publicPageUrl(routePath.lobbyingLobbyist(finalSlug)),
   };
   const copiedLine = boardFilesCopiedLine(lobbyist.copied_at, centralDateLabel);
@@ -113,7 +112,6 @@ export function LobbyingLobbyistScreen({ route, navigation }: RootScreenProps<'L
       title={displayName}
       details={<View>{copiedLine ? <Text style={styles.copyDate}>{copiedLine}</Text> : null}</View>}
       shareContent={shareContent}
-      source={{ label: lobbyingLobbyistCopy.sourceLabel, url: LOBBYIST_SOURCE_URL }}
       onBack={() => navigation.navigate('LobbyingLanding')}
       onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
     >

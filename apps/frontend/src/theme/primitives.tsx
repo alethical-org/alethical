@@ -120,13 +120,17 @@ function PageDots() {
 export function Container({
   children,
   style,
+  testID,
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
+  testID?: string;
 }) {
   const { isMobile } = useResponsive();
   return (
-    <View style={[styles.container, isMobile && styles.containerMobile, style]}>{children}</View>
+    <View testID={testID} style={[styles.container, isMobile && styles.containerMobile, style]}>
+      {children}
+    </View>
   );
 }
 

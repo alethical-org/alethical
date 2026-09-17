@@ -1,8 +1,7 @@
 import React, { type CSSProperties, type ReactNode } from 'react';
-import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { LinkArrowLabel } from '../LinkArrow';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
@@ -11,7 +10,7 @@ import {
   lobbyingRecordNotFound,
 } from '../../lib/lobbyingRecordCopy';
 import type { ShareContent } from '../../lib/share';
-import { backLinkProps, externalLinkProps, routePath } from '../../navigation/links';
+import { backLinkProps, routePath } from '../../navigation/links';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme } from '../../theme/tokens';
 import { SharePopover } from '../billDetail/SharePopover';
@@ -21,7 +20,6 @@ export function LobbyingPageFrame({
   title,
   details,
   shareContent,
-  source,
   children,
   onBack,
   onHome,
@@ -30,7 +28,6 @@ export function LobbyingPageFrame({
   title?: string;
   details?: ReactNode;
   shareContent?: ShareContent;
-  source?: { label: string; url: string };
   children: ReactNode;
   onBack: () => void;
   onHome: () => void;
@@ -46,7 +43,7 @@ export function LobbyingPageFrame({
         >
           <Pressable {...backLinkProps(routePath.lobbying(), onBack)} style={styles.backLink}>
             <BackArrow />
-            <Text style={styles.backLabel}>Go back</Text>
+            <Text style={styles.backLabel}>Back to Lobbying</Text>
           </Pressable>
 
           {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
@@ -67,15 +64,6 @@ export function LobbyingPageFrame({
           ) : null}
 
           <View style={title ? styles.body : styles.stateBody}>{children}</View>
-
-          {source ? (
-            <Text
-              {...externalLinkProps(source.url, () => void Linking.openURL(source.url))}
-              style={[styles.sourceLink, isMobile && styles.sourceLinkMobile]}
-            >
-              <LinkArrowLabel label={source.label} />
-            </Text>
-          ) : null}
         </Container>
         <Footer />
       </ScrollView>
@@ -224,18 +212,6 @@ const styles: Record<string, any> = {
   h1Mobile: { fontSize: 30, lineHeight: 32.4, letterSpacing: -0.9 },
   body: { marginTop: 4 },
   stateBody: { marginTop: 18 },
-  sourceLink: {
-    marginTop: 12,
-    marginLeft: 16,
-    minHeight: 44,
-    alignSelf: 'flex-start',
-    color: '#0f7a45',
-    fontFamily: theme.typography.body,
-    fontSize: 15,
-    fontWeight: '700',
-    lineHeight: 22,
-  },
-  sourceLinkMobile: { marginLeft: 12 },
   stateCard: {
     minHeight: 180,
     padding: 32,

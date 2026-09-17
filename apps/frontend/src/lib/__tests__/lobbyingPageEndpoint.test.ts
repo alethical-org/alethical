@@ -135,13 +135,13 @@ describe('every lobbying address works before the app loads', () => {
     expect(result.body).not.toContain('mistyped-name');
   });
 
-  it('keeps an unregistered-today lobbyist readable without listing it in search engines', async () => {
+  it('keeps a lobbyist absent from the copied list readable without indexing it', async () => {
     answer(live.absent);
     const result = await serve({ path: '/money/lobbying/lobbyists/unlisted-999999999' });
     expect(result.status).toBe(200);
     expect(result.headers.get('X-Robots-Tag')).toBe('noindex');
     expect(result.body).not.toContain('rel="canonical"');
-    expect(snapshot(result.body)).toContain('not registered today');
+    expect(snapshot(result.body)).toContain('not listed on the copy date');
     expect(snapshot(result.body)).toContain('names no donation under this registration number');
     expect(seeds(result.body)[0].payload).toEqual({ data: live.absent });
   });
@@ -181,7 +181,7 @@ describe('every lobbying address works before the app loads', () => {
       ),
     );
     expect(snapshot(result.body)).not.toContain('names no donation');
-    expect(snapshot(result.body)).not.toContain('not registered today');
+    expect(snapshot(result.body)).not.toContain('not listed on the copy date');
     expect(seeds(result.body)).toEqual([{ key: ['lobbying-lobbyist', '141'], payload: { data } }]);
   });
 
@@ -196,7 +196,7 @@ describe('every lobbying address works before the app loads', () => {
       'No spending rows in the Board&#39;s file through 2025, so no page to open',
     );
     expect(html).toContain('href="/money/lobbying/principals/actwireless-7325"');
-    expect(html).toContain('Latest reported year 2017');
+    expect(html).toContain('Latest spending year in these records: 2017');
     expect(html).toContain('Showing 51–100 of 3,443 principals');
     expect(html).toContain('href="/money/lobbying/principals?page=3"');
   });

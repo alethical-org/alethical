@@ -77,8 +77,8 @@ export function groupHeading(kind: NameSearchGroupKind): string {
  * told will infer, and the inferences available here are all wrong.
  */
 const GROUP_NOTES: Record<NameSearchGroupKind, string> = {
-  lobbyists: 'People currently registered to lobby, with the organizations they represent',
-  principals: 'Organizations named in the Board’s lobbying spending file or current lobbyist list',
+  lobbyists: 'People listed as lobbyists, with the clients in the copied records',
+  principals: 'Organizations named in the Board’s lobbying registrations or spending reports',
   people:
     'These results are sitting legislators with a profile on Alethical. A donor’s name alone does not create a profile.',
   committees:
@@ -168,7 +168,7 @@ export const NAME_SEARCH_EMPTY_QUERY_TITLE = 'Type a name to search';
 
 export const NAME_SEARCH_EMPTY_QUERY_WHY =
   'This searches campaign records by a legislator’s, committee’s, donor’s, or recipient’s filed name. ' +
-  'It also searches the Board’s current lobbyist list and yearly principal spending file.';
+  'It also searches the Board’s copied lobbyist list and yearly principal spending file.';
 
 /** Below the index's floor. A served state, not an error: a trigram index holds
  *  no whole trigram for a 2-character query, so searching on one would fall back
@@ -257,8 +257,8 @@ export function lobbyingSearchMeta(
     | { kind: 'principal'; entityId: number; latestReportedYear: number | null },
 ): string {
   if (row.kind === 'lobbyist')
-    return `Registration ${row.registrationNumber}${row.principalCount == null ? '' : ` · ${formatCount(row.principalCount)} ${row.principalCount === 1 ? 'principal' : 'principals'} today`}`;
-  return `Entity ${row.entityId}${row.latestReportedYear == null ? '' : ` · Latest reported year ${row.latestReportedYear}`}`;
+    return `Registration ${row.registrationNumber}${row.principalCount == null ? '' : ` · ${formatCount(row.principalCount)} ${row.principalCount === 1 ? 'client' : 'clients'} listed`}`;
+  return `Entity ${row.entityId}${row.latestReportedYear == null ? '' : ` · Latest spending year in these records: ${row.latestReportedYear}`}`;
 }
 export function seeAllLobbyingLabel(
   kind: 'lobbyists' | 'principals',

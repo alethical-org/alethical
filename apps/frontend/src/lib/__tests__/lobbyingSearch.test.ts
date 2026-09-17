@@ -21,7 +21,7 @@ describe('lobbying search wording', () => {
         formatted_name: 'Andrew Kozak',
         principal_count: 1,
       }),
-    ).toBe('Registration 0141 · 1 principal listed');
+    ).toBe('Registration 0141 · 1 client listed');
     expect(
       lobbyingResultMeta({
         entity_id: 2263,

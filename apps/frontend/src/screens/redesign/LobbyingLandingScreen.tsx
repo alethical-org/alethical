@@ -88,7 +88,16 @@ export function LobbyingLandingScreen({ navigation, route }: RootScreenProps<'Lo
     <PageBackground>
       <ScrollView {...scroll} contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
-        <Container style={[styles.main, { paddingHorizontal: isMobile ? 20 : isTablet ? 32 : 56 }]}>
+        <Container
+          testID="lobbying-main"
+          style={[
+            styles.main,
+            {
+              paddingHorizontal: isMobile ? 20 : isTablet ? 32 : 56,
+              paddingBottom: isMobile ? 56 : isTablet ? 72 : 88,
+            },
+          ]}
+        >
           <Pressable
             {...linkProps(routePath.money(), () => navigation.navigate('MoneyLanding'))}
             style={styles.back}

@@ -6,21 +6,22 @@ Net: `/money/lobbying` shows who was registered to lobby Minnesota when the disp
 files were copied, which organisations they represented, and what those organisations
 report spending in each year.
 
-The Board calls an organisation that pays for lobbying a **principal**. The current
-lobbyist list and the yearly spending file are different records, copied together with
+The Board calls a person or organisation that funds lobbying and must report its spending
+under Minnesota law a **principal**. The lobbyist list and the yearly spending file are
+different records, copied together with
 1 displayed date. Campaign donations come from a separate file with its own copy date.
 The source and recovery process is described in
 [lobbying-source-import.md](../operations/lobbying-source-import.md).
 
 ## Addresses and entry points
 
-| Address                                           | What it shows                                                                     |
-| ------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `/money/lobbying`                                 | Search, 2 directory links, source date, source link and coverage limits           |
-| `/money/lobbying/lobbyists`                       | Everyone in the current lobbyist list, by filed name                              |
-| `/money/lobbying/principals`                      | Distinct organisation IDs from either lobbying file                               |
-| `/money/lobbying/lobbyists/<name>-<registration>` | Current principals and separately filed donations under that registration         |
-| `/money/lobbying/principals/<name>-<entity ID>`   | Official yearly spending and lobbyists currently registered for that organisation |
+| Address                                           | What it shows                                                           |
+| ------------------------------------------------- | ----------------------------------------------------------------------- |
+| `/money/lobbying`                                 | Search, 2 directory links, source date, source link and coverage limits |
+| `/money/lobbying/lobbyists`                       | Everyone in the copied lobbyist list, by filed name                     |
+| `/money/lobbying/principals`                      | Distinct organisation IDs from either lobbying file                     |
+| `/money/lobbying/lobbyists/<name>-<registration>` | Listed clients and separately filed donations under that registration   |
+| `/money/lobbying/principals/<name>-<entity ID>`   | Official yearly spending and lobbyists listed for that organisation     |
 
 Only the final number identifies a record. The readable name in an address does not
 choose or join identities. Each address opens directly, without first visiting another
@@ -60,35 +61,60 @@ Distinct alternate registered spellings appear beneath the spending-file name, m
 by official entity ID within the same pair of source files, never by similar names.
 The registered spellings do not broaden the directory’s existing filed-name filter.
 
-The opening copy defines the search scope, names the source agency, and explains that
-registration is dated by the held copy and spending is reported by calendar year. The
-Lobbyists card says “LOBBYISTS LISTED”; the Principals card’s reported-spending count
-is the count for its named year, not the total principal directory population. The
-copied-date card links to the official downloads using the shared horizontal arrow.
+The opening says “Find registered lobbyists, the organisations they represent, and what
+those organisations report spending on lobbying in Minnesota.” The field label says
+“Search lobbying records,” its placeholder says “Search by name,” and the helper says
+“Find lobbyists or organisations using all or part of a name.” A spelling reminder appears
+only after a search has no matches. The Lobbyists card defines lobbyists as “People
+registered to influence government decisions on behalf of others.” The Principals card
+defines principals as “People or organisations that fund lobbying and must report their
+spending under Minnesota law.” The Lobbyists card says “LOBBYISTS LISTED”; the Principals
+card says “ORGANISATIONS REPORTED SPENDING FOR {year},” so its count cannot be mistaken for
+the larger directory population. The source card says “RECORDS LAST COPIED” and “These
+records come from the Minnesota Campaign Finance and Public Disclosure Board.” It links to
+the official downloads using the shared horizontal arrow. The page leaves 56 pixels between
+the information cards and footer on phones, 72 on tablets and 88 on desktop.
 Counts and supporting explanations are at least 15 pixels; controls are at least
 44 pixels tall. A short live announcement describes search changes while result links
 remain ordinary links within list items.
 
 ## The 2 directories
 
-Both directories show 50 rows per numbered page. The typed name and page number stay in
+Both directories show 50 rows per numbered page. Each one labels its field for the kind of
+name it accepts, uses “Search by name” in the field, and says “Enter all or part of a name.”
+The typed name and page number stay in
 the address as `q` and `page`, including Back and Forward. The name box filters the filed
 name; it does not offer a guessed spelling. Ordinary Previous and Next links work before
 the app starts, and `/sitemap.xml` names every numbered page, so each one is reachable
 without walking there. An unfiltered page beyond the served whole count is not found.
 
+The Lobbyists directory defines lobbyists, says who they represent in these records, and
+dates the copied registration list. Its rows say “client listed” or “clients listed.” The
+Principals directory explains the Board’s word, says that it combines names from different
+reporting years and the dated lobbyist list, and distinguishes its total from the Lobbying
+page’s named-year spending count. A row with spending says “Latest spending year in these
+records: {year}.”
+
 The showing line uses the whole served count, for example
 "Showing 51–100 of 1,665 registered lobbyists". Page counts are never added across kinds.
 Changing the name does not draw the previous search's empty statement under the new name.
 
-Principals include IDs found only in the active list. Such a row is plain text, in both
+Principals include IDs found only in the copied lobbyist list. Such a row is plain text, in both
 the directory and search, with "No spending rows in the Board's file through {latest year},
 so no page to open". A link requires spending rows under the same entity ID. The displayed
 record name comes from the spending file where that file holds the principal.
 
 ## The principal address
 
-The first card prints each official yearly row, newest first. The 7 wide columns are
+The page defines a principal as a person or organisation that funds lobbying and must
+report its spending under Minnesota law. The heading names the Board entity ID and the
+date the lobbying records were copied.
+
+The first card prints each official yearly row, newest first. Its explanation says each
+row is 1 calendar year, reports are due the following March and every figure comes from
+the Board. It also says a shown `$0` is a filed value while “Not reported” means the file
+leaves the value blank. The official organisations-search source link sits in this card
+with the standard horizontal arrow. The 7 wide columns are
 Year, Total spent, PUC, General, Legislative, Administrative and Metropolitan. Total spent
 is the Board's own figure; the screen adds no total across years. Whole dollars cut off
 cents rather than rounding. A filed zero prints `$0`. A blank value never becomes zero.
@@ -104,23 +130,27 @@ each report was filed, so the screen says "with reports due the following March"
 not claim every filing arrived by 15 March. The Board's 2026 calendar moved that year's
 deadline to Monday 16 March.
 
-The second card names lobbyists registered for this principal **today**, not the lobbyists
-from each spending year. The full count appears before the first 30 rows. "Show the next
-30" reveals more inside the card. When the association's printed principal name differs
+The second card names lobbyists listed for this principal on the displayed copy date, not
+the lobbyists from each spending year. The full count appears before the first 5 rows.
+“Show 5 more lobbyists” reveals the next 5 inside the card. When the association's printed
+principal name differs
 from the spending file's name, the heading area says "Registered as {name} in the lobbyist
 list". A successfully read empty list has its own no-lobbyist sentence; a failed read does
 not claim an empty list.
 
 ## The lobbyist address
 
-"Represents today" lists distinct principal IDs from the current list, retaining the
-source order. It starts with the whole count, reveals 30 rows, then offers "Show the next
-30" until all rows are visible. The list holds no past clients. A current registration
-missing from the held list says "not registered today"; it can still have older donations.
+“Organisations represented” lists distinct principal IDs from the copied list, retaining the
+source order. Its explanation uses the full card width. It starts with the whole count,
+reveals 5 rows, then offers “Show 5 more clients” until all rows are visible. The list holds
+no past clients. A current registration
+missing from the held list says “not listed on the copy date”; it can still have older donations.
 
-"Donations filed under this registration number" is a separate card. It finds Contribution
-rows of Lobbyist kind by registration number, never by name. Rows are grouped by year and
-receiving committee, with the committee's kind and a link only where records support one.
+“Campaign donations filed under this registration number” is a separate card. It says that
+campaign donations are separate from lobbying spending and the represented organisations.
+It finds Contribution rows of Lobbyist kind by registration number, never by name. Rows are
+grouped by year and receiving committee, with the committee's kind and a link only where
+records support one. It reveals 5 payment rows at first and 5 more per selection.
 Dates, amounts and donated-goods-or-services markers stay on the payment lines.
 A differently typed donor name remains visible as "Filed as {name}". Repeated rows remain
 separate payments. No amount is added per committee, year or page.
@@ -133,9 +163,9 @@ drawn on the lobbying screens.
 
 On legislator and committee Campaign money views, the Lobbyists tab keeps each printed
 name, employer and payment count. Expansion adds the held registration and
-"See who {name} represents" when the current list resolves it. A changed name reads
+"See who {name} represents" when the copied list resolves it. A changed name reads
 "Registration {n} · registered as {list name}". An absent registration reads
-"Registration {n} · not registered today" without a link.
+"Registration {n} · not listed on the copy date" without a link.
 
 A missing number or failed lookup never means not registered. Several registration
 numbers under the same printed name receive separate contexts, with no guessed identity.
@@ -159,12 +189,13 @@ directory has 3,443 principal IDs. The latest reported spending year is 2025, wi
 principals having at least one stated amount. These are dated checks, not fixed page copy.
 
 Kozak, Andrew (141) has 3 separate payments to committee 17868 in 2025. Registration
-9865 has 86 principals, revealed as 30, 60 and 86. Tests also cover both directory page-2
+9865 has 86 clients, revealed 5 at a time. Tests also cover both directory page-2
 responses, an active-list-only principal, a blank spending row, a real zero, earlier rows
 carrying later kinds, and failure versus absence. A repeated committee-link lookup was
 removed only after its observed recipient numbers were shown to prove the same links in
 the same pinned contribution copy.
 
 Docs check: This guide describes the display and source states delivered by
-[issue 2164](https://github.com/alethical-org/alethical/issues/2164). It adds no policy or
-changes to the protected campaign-finance architecture record.
+[issue 2164](https://github.com/alethical-org/alethical/issues/2164) and the copied-date and
+education corrections in [issue 2241](https://github.com/alethical-org/alethical/issues/2241).
+It adds no policy or changes to the protected campaign-finance architecture record.

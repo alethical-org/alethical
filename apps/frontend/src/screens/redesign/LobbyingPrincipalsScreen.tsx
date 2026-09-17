@@ -17,7 +17,9 @@ import {
   LOBBYING_DIRECTORY_COPY as copy,
   LOBBYING_DIRECTORY_PAGE_SIZE,
   lobbyingLatestYear,
+  lobbyingLobbyistDirectoryDate,
   lobbyingNoSpendingRows,
+  lobbyingPrincipalDirectoryScope,
   lobbyingShowingLine,
   type LobbyingDirectoryKind,
 } from '../../lib/lobbyingDirectoryCopy';
@@ -28,6 +30,7 @@ import { linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
+import { centralDateLabel } from '../../lib/moneyLanding';
 
 type DirectoryNavigation = Pick<
   RootScreenProps<'LobbyingPrincipals'>['navigation'],
@@ -55,7 +58,7 @@ export function LobbyingDirectoryPage({
   query: string;
   page: number;
   result: {
-    data?: LobbyingListPage;
+    data?: LobbyingListPage & { latest_reported_year?: number | null };
     isPending: boolean;
     isSuccess: boolean;
     isError: boolean;
@@ -113,6 +116,14 @@ export function LobbyingDirectoryPage({
   const bodySize = isMobile || isTablet ? 16 : 17;
   const body = { fontSize: bodySize, lineHeight: bodySize * 1.55 };
   const titleSize = isMobile ? 30 : isTablet ? 38 : 46;
+  const directoryContext =
+    kind === 'lobbyists'
+      ? lobbyingLobbyistDirectoryDate(data?.copied_at, centralDateLabel)
+      : lobbyingPrincipalDirectoryScope(
+          data?.latest_reported_year,
+          data?.copied_at,
+          centralDateLabel,
+        );
   const cardPadding = isMobile
     ? { paddingVertical: 20, paddingHorizontal: 18 }
     : isTablet
@@ -141,16 +152,25 @@ export function LobbyingDirectoryPage({
             {words.title}
           </Text>
           <Text style={[styles.intro, body]}>{words.intro}</Text>
+          {kind === 'principals' ? (
+            <Text style={[styles.education, body]}>{copy.principals.definition}</Text>
+          ) : null}
+          {directoryContext ? (
+            <Text style={[styles.directoryContext, body]}>{directoryContext}</Text>
+          ) : null}
           <View style={styles.filter}>
             <MoneyNameSearchField
               value={draft}
               onChangeText={setDraft}
               onSubmit={() => applyQuery(draft.trim())}
+              label={words.searchLabel}
+              labelStyle={styles.filterLabel}
               placeholder={copy.filter}
               maxWidth={640}
               fieldHeight={52}
               fieldFontSize={bodySize}
             />
+            <Text style={styles.filterNote}>{copy.filterNote}</Text>
           </View>
           {pending ? (
             <View role="status" aria-busy style={[styles.card, cardPadding]}>
@@ -307,7 +327,30 @@ const styles = StyleSheet.create({
     letterSpacing: -1.2,
   },
   intro: { marginTop: 12, maxWidth: 860, color: '#4f5651', fontFamily: t.typography.body },
+  education: { marginTop: 12, maxWidth: 860, color: '#4f5651', fontFamily: t.typography.body },
+  directoryContext: {
+    marginTop: 8,
+    maxWidth: 920,
+    color: '#4f5651',
+    fontFamily: t.typography.body,
+  },
   filter: { marginTop: 22, maxWidth: 640 },
+  filterLabel: {
+    fontFamily: t.typography.body,
+    fontSize: 16,
+    letterSpacing: 0,
+    textTransform: 'none',
+    fontWeight: '800',
+    color: '#2c322c',
+    marginBottom: 10,
+  },
+  filterNote: {
+    marginTop: 9,
+    color: '#6b716b',
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    lineHeight: 22,
+  },
   body: { color: '#4f5651', fontFamily: t.typography.body },
   card: {
     marginTop: 22,

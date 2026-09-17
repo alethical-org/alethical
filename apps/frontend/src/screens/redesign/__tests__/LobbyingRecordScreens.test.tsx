@@ -50,6 +50,7 @@ vi.mock('../../../components/lobbying/LobbyingSpendingTable', () => ({
   ),
 }));
 vi.mock('../../../components/lobbying/LobbyingRecordCards', () => ({
+  LobbyingSourceLink: ({ url, label }: any) => <a href={url}>{label}</a>,
   PrincipalLobbyistsCard: ({ state, total, rows }: any) => (
     <div data-testid="principal-lobbyists" data-state={state} data-total={total ?? ''}>
       {rows.length} lobbyists
@@ -162,6 +163,16 @@ describe('LobbyingPrincipalScreen', () => {
     );
     expect(reads.principal).toHaveBeenCalledWith('2263');
     expect(page.querySelector('h1')?.textContent).toBe('American Express Company');
+    expect(page.querySelector('[data-testid="eyebrow"]')?.textContent).toBe(
+      'PRINCIPAL · ENTITY ID 2263',
+    );
+    expect(page.textContent).toContain(
+      'Each row shows this principal’s reported lobbying spending for one calendar year.',
+    );
+    expect(page.textContent).toContain(
+      'A shown $0 is a filed value. “Not reported” means the Board’s file leaves the value blank.',
+    );
+    expect(page.textContent).toContain("View the Board's Lobbying Organizations Search Tool");
     expect(page.textContent).toContain('Registered as American Express Co in the lobbyist list');
     expect(page.querySelector('[data-testid="spending-table"]')?.textContent).toBe(
       '1 spending rows',
@@ -199,7 +210,7 @@ describe('LobbyingPrincipalScreen', () => {
 });
 
 describe('LobbyingLobbyistScreen', () => {
-  it("keeps historical donations visible when the registration is absent from today's list", () => {
+  it('keeps historical donations visible when the registration is absent from the copied list', () => {
     const absent: LobbyingLobbyist = {
       registration_number: '999999999',
       state: 'not_registered_today',
@@ -245,7 +256,7 @@ describe('LobbyingLobbyistScreen', () => {
     expect(
       page.querySelector('[data-testid="lobbyist-donations"]')?.getAttribute('data-copied'),
     ).toBe('Campaign contribution file copied Sep 1, 2026');
-    expect(page.textContent).toContain('Board files copied Sep 12, 2026');
+    expect(page.textContent).toContain('Lobbying records copied Sep 12, 2026');
   });
 
   it('keeps an invalid address out of the data hook and shows a missing-record state', () => {

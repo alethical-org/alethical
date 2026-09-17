@@ -13,49 +13,63 @@ export const LOBBYIST_SOURCE_URL =
   'https://cfb.mn.gov/reports-and-data/viewers/lobbying/lobbyists/';
 
 export const lobbyingPrincipalCopy = {
-  gloss: "The Board's word for an organisation that pays for lobbying is principal",
+  gloss:
+    'A principal is a person or organisation that funds lobbying and must report its spending under Minnesota law.',
   spendingHeading: 'Lobbying spending reported to the Board, by year',
   spendingIntroduction:
-    "Each row is one calendar year as this principal reported it, with reports due the following March. Every figure is the Board's own, including the total",
+    'Each row shows this principal’s reported lobbying spending for one calendar year. Reports are due the following March. Every figure, including the total, comes from the Board.',
+  spendingZeroNote:
+    'A shown $0 is a filed value. “Not reported” means the Board’s file leaves the value blank.',
   spendingCaption: 'Reported lobbying spending by year',
   oldKindsWide: 'Not broken out by these kinds before 2024',
   oldKindsPhone:
     'Not broken out by legislative, administrative or metropolitan lobbying before 2024',
   kindsNote:
     "PUC is the Public Utilities Commission; metropolitan is lobbying of a metropolitan governmental unit, the Board's own category",
-  lobbyistsHeading: 'Registered to lobby for this principal today',
+  lobbyistsHeading: 'Lobbyists listed for this principal',
   lobbyistsIntroduction:
-    "The Board's list of active lobbyists is current only. It names who is registered today, not who was registered in the years above.",
-  noLobbyists: "The Board's current list names no lobbyist for this principal.",
-  sourceLabel: "The Board's Lobbying Organizations Search Tool",
+    'The lobbyist list shows who was registered for this principal on the copy date. It does not show earlier registrations.',
+  noLobbyists: 'The lobbyist list names no lobbyist for this principal on the copy date.',
+  sourceLabel: "View the Board's Lobbying Organizations Search Tool",
 } as const;
 
 export const lobbyingLobbyistCopy = {
-  principalsHeading: 'Represents today',
+  principalsHeading: 'Organisations represented',
   principalsIntroduction:
-    "The Board's list of active lobbyists is current only. It names who this lobbyist is registered for today and holds no past clients.",
-  noPrincipals: "The Board's current list names no principal for this lobbyist.",
-  donationsHeading: 'Donations filed under this registration number',
+    'The lobbyist list shows which organisations this lobbyist represented on the copy date. It does not show past clients.',
+  noPrincipals: 'The lobbyist list names no organisation for this lobbyist on the copy date.',
+  donationsHeading: 'Campaign donations filed under this registration number',
   donationsIntroduction:
-    "Found by registration number, never by name. Each row is the receiving committee's own filing, and committees file on different calendars, so no total is drawn across them.",
+    "Campaign donations are separate from lobbying spending and from the organisations represented above. They are found by registration number, never by name. Each row is the receiving committee's own filing, and committees file on different calendars, so no total is drawn across them.",
   noDonations: "The state's contribution file names no donation under this registration number.",
-  sourceLabel: "The Board's Lobbyist Search Tool",
+  sourceLabel: "View the Board's Lobbyist Search Tool",
 } as const;
 
-export const SHOW_NEXT_30 = 'Show the next 30';
+export const LOBBYING_RECORD_REVEAL_STEP = 5;
+export const LOBBYING_NO_SPENDING_PAGE = 'No spending page available';
 export const LOBBYING_RECORD_LOADING = 'Loading lobbying record';
 export const LOBBYING_RECORD_UNAVAILABLE =
   "We couldn't load the Board's lobbying record just now. This says nothing about what was reported.";
 export const PRINCIPAL_LOBBYISTS_UNAVAILABLE =
-  "We couldn't load the Board's current lobbyist list. This does not mean nobody is registered for this principal.";
+  "We couldn't load the Board's lobbyist list. This does not mean nobody was listed for this principal.";
 export const LOBBYIST_PRINCIPALS_UNAVAILABLE =
-  "We couldn't load the Board's current principal list. This does not mean this lobbyist represents nobody today.";
+  "We couldn't load the Board's lobbyist list. This does not mean no organisation was listed for this lobbyist.";
 export const LOBBYIST_DONATIONS_UNAVAILABLE =
   "We couldn't load the state's campaign contribution file. This does not mean no donation was filed under this registration number.";
 export const PRINCIPAL_SPENDING_UNAVAILABLE =
   "We couldn't load this principal's spending rows. This says nothing about what was reported.";
 export const CAMPAIGN_CONTRIBUTION_COPY_LABEL = 'Campaign contribution file copied';
-export const CAMPAIGN_CONTRIBUTION_SOURCE_LABEL = "The Board's campaign contribution file";
+export const CAMPAIGN_CONTRIBUTION_SOURCE_LABEL = "View the Board's campaign contribution file";
+
+export function lobbyingRevealLabel(remaining: number, one: string, many: string): string {
+  const next = Math.min(LOBBYING_RECORD_REVEAL_STEP, remaining);
+  return `Show ${next.toLocaleString('en-US')} more ${next === 1 ? one : many}`;
+}
+
+export function lobbyingMissingSpendingPagesNote(year: number | null): string {
+  const through = year == null ? '' : ` through ${year}`;
+  return `Some organisations have no spending page because the Board's spending file has no rows for them${through}.`;
+}
 
 export function lobbyingRecordNotFound(identifier?: string | null): string {
   return identifier
@@ -82,7 +96,7 @@ export function lobbyingRecordSlug(
 }
 
 export function boardFilesCopiedLine(copiedAt: string | null, dateLabel: (date: string) => string) {
-  return copiedAt ? `Board files copied ${dateLabel(copiedAt)}` : null;
+  return copiedAt ? `Lobbying records copied ${dateLabel(copiedAt)}` : null;
 }
 
 export function campaignContributionCopiedLine(

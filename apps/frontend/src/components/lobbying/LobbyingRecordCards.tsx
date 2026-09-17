@@ -7,14 +7,17 @@ import { committeeSlug, registerKindLabel } from '../../lib/committeeMoneyShared
 import { formatDay, formatMoney } from '../../lib/legislatorCampaignMoney';
 import {
   CAMPAIGN_CONTRIBUTION_SOURCE_LABEL,
+  LOBBYING_NO_SPENDING_PAGE,
+  LOBBYING_RECORD_REVEAL_STEP,
   LOBBYIST_DONATIONS_UNAVAILABLE,
   LOBBYIST_PRINCIPALS_UNAVAILABLE,
+  LOBBYIST_SOURCE_URL,
   lobbyingLobbyistCopy,
-  lobbyingNoSpendingRows,
+  lobbyingMissingSpendingPagesNote,
   lobbyingPrincipalCopy,
+  lobbyingRevealLabel,
   PRINCIPAL_LOBBYISTS_UNAVAILABLE,
   recordCountLine,
-  SHOW_NEXT_30,
   visibleLobbyingDonationYears,
 } from '../../lib/lobbyingRecordCopy';
 import type {
@@ -27,8 +30,6 @@ import { externalLinkProps, linkProps, routePath } from '../../navigation/links'
 import { theme } from '../../theme/tokens';
 import { LobbyingCard } from './LobbyingPageFrame';
 
-const REVEAL_STEP = 30;
-
 export function PrincipalLobbyistsCard({
   state,
   total,
@@ -40,13 +41,10 @@ export function PrincipalLobbyistsCard({
   rows: readonly LobbyingPrincipalLobbyist[];
   onOpenLobbyist: (row: LobbyingPrincipalLobbyist) => void;
 }) {
-  const [shown, setShown] = useState(REVEAL_STEP);
+  const [shown, setShown] = useState(LOBBYING_RECORD_REVEAL_STEP);
   const visible = rows.slice(0, shown);
   return (
-    <LobbyingCard
-      label="Registered for this principal today"
-      title={lobbyingPrincipalCopy.lobbyistsHeading}
-    >
+    <LobbyingCard label="Lobbyists on the copy date" title={lobbyingPrincipalCopy.lobbyistsHeading}>
       <Paragraph>{lobbyingPrincipalCopy.lobbyistsIntroduction}</Paragraph>
       {state === 'unavailable' || total === null ? (
         <Unavailable>{PRINCIPAL_LOBBYISTS_UNAVAILABLE}</Unavailable>
@@ -71,7 +69,10 @@ export function PrincipalLobbyistsCard({
             ))}
           </View>
           {shown < total ? (
-            <RevealButton onPress={() => setShown((value) => value + REVEAL_STEP)} />
+            <RevealButton
+              label={lobbyingRevealLabel(total - visible.length, 'lobbyist', 'lobbyists')}
+              onPress={() => setShown((value) => value + LOBBYING_RECORD_REVEAL_STEP)}
+            />
           ) : null}
         </>
       )}
@@ -94,20 +95,29 @@ export function LobbyistPrincipalsCard({
   latestYear: number | null | undefined;
   onOpenPrincipal: (row: LobbyingAssociation) => void;
 }) {
-  const [shown, setShown] = useState(REVEAL_STEP);
+  const [shown, setShown] = useState(LOBBYING_RECORD_REVEAL_STEP);
   const visible = rows.slice(0, shown);
+  const hasMissingSpendingPages = visible.some((row) => !row.linkable);
   return (
-    <LobbyingCard label="Represents today" title={lobbyingLobbyistCopy.principalsHeading}>
-      <Paragraph>{lobbyingLobbyistCopy.principalsIntroduction}</Paragraph>
+    <LobbyingCard label="Clients on the copy date" title={lobbyingLobbyistCopy.principalsHeading}>
+      <Paragraph fullWidth>{lobbyingLobbyistCopy.principalsIntroduction}</Paragraph>
+      <LobbyingSourceLink url={LOBBYIST_SOURCE_URL} label={lobbyingLobbyistCopy.sourceLabel} />
       {state === 'unavailable' || total === null ? (
         <Unavailable>{LOBBYIST_PRINCIPALS_UNAVAILABLE}</Unavailable>
       ) : state === 'not_registered_today' ? (
-        <Paragraph primary>Registration {registrationNumber} · not registered today</Paragraph>
+        <Paragraph primary>
+          Registration {registrationNumber} · not listed on the copy date
+        </Paragraph>
       ) : total === 0 ? (
         <Paragraph primary>{lobbyingLobbyistCopy.noPrincipals}</Paragraph>
       ) : (
         <>
-          <CountLine>{recordCountLine(total, visible.length, 'principal', 'principals')}</CountLine>
+          <CountLine>{recordCountLine(total, visible.length, 'client', 'clients')}</CountLine>
+          {hasMissingSpendingPages ? (
+            <Text style={styles.listNote}>
+              {lobbyingMissingSpendingPagesNote(latestYear ?? null)}
+            </Text>
+          ) : null}
           <View role="list" style={styles.list}>
             {visible.map((row) =>
               row.linkable ? (
@@ -131,13 +141,16 @@ export function LobbyistPrincipalsCard({
                   style={styles.plainRow}
                 >
                   <Text style={styles.rowName}>{row.name}</Text>
-                  <Text style={styles.rowNote}>{lobbyingNoSpendingRows(latestYear ?? null)}</Text>
+                  <Text style={styles.rowNote}>{LOBBYING_NO_SPENDING_PAGE}</Text>
                 </View>
               ),
             )}
           </View>
           {shown < total ? (
-            <RevealButton onPress={() => setShown((value) => value + REVEAL_STEP)} />
+            <RevealButton
+              label={lobbyingRevealLabel(total - visible.length, 'client', 'clients')}
+              onPress={() => setShown((value) => value + LOBBYING_RECORD_REVEAL_STEP)}
+            />
           ) : null}
         </>
       )}
@@ -156,7 +169,7 @@ export function LobbyistDonationsCard({
   copiedDate: string | null;
   onOpenCommittee: (registrationNumber: string, name: string) => void;
 }) {
-  const [shown, setShown] = useState(REVEAL_STEP);
+  const [shown, setShown] = useState(LOBBYING_RECORD_REVEAL_STEP);
   const total = contributions.payment_count;
   const visible = visibleLobbyingDonationYears(contributions.years, shown);
   const visibleCount = visible.reduce(
@@ -170,21 +183,16 @@ export function LobbyistDonationsCard({
   );
   return (
     <LobbyingCard
-      label="Donations under this registration number"
+      label="Campaign donations under this registration number"
       title={lobbyingLobbyistCopy.donationsHeading}
     >
       <Paragraph>{lobbyingLobbyistCopy.donationsIntroduction}</Paragraph>
       {copiedDate ? <FileDate>{copiedDate}</FileDate> : null}
       {contributions.source_url ? (
-        <Text
-          {...externalLinkProps(
-            contributions.source_url,
-            () => void Linking.openURL(contributions.source_url!),
-          )}
-          style={styles.contributionSource}
-        >
-          <LinkArrowLabel label={CAMPAIGN_CONTRIBUTION_SOURCE_LABEL} />
-        </Text>
+        <LobbyingSourceLink
+          url={contributions.source_url}
+          label={CAMPAIGN_CONTRIBUTION_SOURCE_LABEL}
+        />
       ) : null}
       {contributions.state === 'unavailable' || total === null ? (
         <Unavailable>{LOBBYIST_DONATIONS_UNAVAILABLE}</Unavailable>
@@ -202,7 +210,14 @@ export function LobbyistDonationsCard({
             />
           ))}
           {shown < total ? (
-            <RevealButton onPress={() => setShown((value) => value + REVEAL_STEP)} />
+            <RevealButton
+              label={lobbyingRevealLabel(
+                total - visibleCount,
+                'campaign donation',
+                'campaign donations',
+              )}
+              onPress={() => setShown((value) => value + LOBBYING_RECORD_REVEAL_STEP)}
+            />
           ) : null}
         </>
       )}
@@ -286,12 +301,21 @@ function DonationYear({
   );
 }
 
-function Paragraph({ children, primary = false }: { children: ReactNode; primary?: boolean }) {
+function Paragraph({
+  children,
+  primary = false,
+  fullWidth = false,
+}: {
+  children: ReactNode;
+  primary?: boolean;
+  fullWidth?: boolean;
+}) {
   const { isMobile, isTablet } = useResponsive();
   return (
     <Text
       style={[
         styles.paragraph,
+        !fullWidth && styles.paragraphConstrained,
         { fontSize: isMobile || isTablet ? 16 : 17 },
         primary && styles.paragraphPrimary,
       ]}
@@ -317,10 +341,21 @@ function Unavailable({ children }: { children: ReactNode }) {
   );
 }
 
-function RevealButton({ onPress }: { onPress: () => void }) {
+export function LobbyingSourceLink({ url, label }: { url: string; label: string }) {
+  return (
+    <Pressable
+      {...externalLinkProps(url, () => void Linking.openURL(url))}
+      style={styles.sourceLink}
+    >
+      <LinkArrowLabel label={label} style={styles.sourceLabel} />
+    </Pressable>
+  );
+}
+
+function RevealButton({ onPress, label }: { onPress: () => void; label: string }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={styles.revealButton}>
-      <Text style={styles.revealLabel}>{SHOW_NEXT_30}</Text>
+      <Text style={styles.revealLabel}>{label}</Text>
       <GreenLinkArrow />
     </Pressable>
   );
@@ -336,11 +371,11 @@ function slugName(name: string): string {
 const styles: Record<string, any> = {
   paragraph: {
     marginTop: 12,
-    maxWidth: 820,
     color: '#4f5651',
     fontFamily: theme.typography.body,
     lineHeight: 26,
   },
+  paragraphConstrained: { maxWidth: 820 },
   paragraphPrimary: { marginTop: 16, color: '#11150f' },
   countLine: {
     marginTop: 14,
@@ -358,9 +393,15 @@ const styles: Record<string, any> = {
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
-  contributionSource: {
+  sourceLink: {
+    marginTop: 4,
     minHeight: 44,
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  sourceLabel: {
     color: '#0f7a45',
     fontFamily: theme.typography.body,
     fontSize: 15,
@@ -405,6 +446,15 @@ const styles: Record<string, any> = {
     fontFamily: theme.typography.body,
     fontSize: 15,
     lineHeight: 21,
+    fontVariant: ['tabular-nums'],
+  },
+  listNote: {
+    marginTop: 8,
+    maxWidth: 820,
+    color: '#6b716b',
+    fontFamily: theme.typography.body,
+    fontSize: 15,
+    lineHeight: 22,
     fontVariant: ['tabular-nums'],
   },
   revealButton: {

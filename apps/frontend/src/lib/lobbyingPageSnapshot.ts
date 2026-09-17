@@ -13,6 +13,8 @@ import {
   lobbyingNoSpendingRows,
   lobbyingPrincipalCount,
   lobbyingLatestYear,
+  lobbyingLobbyistDirectoryDate,
+  lobbyingPrincipalDirectoryScope,
   lobbyingHeldYearsNote,
   lobbyistLaneCount,
   principalLaneCount,
@@ -27,11 +29,14 @@ import {
   PRINCIPAL_SOURCE_URL,
   LOBBYIST_SOURCE_URL,
   LOBBYIST_DONATIONS_UNAVAILABLE,
+  LOBBYING_NO_SPENDING_PAGE,
+  LOBBYING_RECORD_REVEAL_STEP,
   PRINCIPAL_LOBBYISTS_UNAVAILABLE,
   PRINCIPAL_SPENDING_UNAVAILABLE,
   LOBBYIST_PRINCIPALS_UNAVAILABLE,
   CAMPAIGN_CONTRIBUTION_SOURCE_LABEL,
   campaignContributionCopiedLine,
+  lobbyingMissingSpendingPagesNote,
   visibleLobbyingDonationYears,
 } from './lobbyingRecordCopy';
 import { centralDateLabel } from './moneyLanding';
@@ -43,7 +48,7 @@ import { directoryPagePath, directoryTotalPages } from './directoryPagination';
 const recordPath = (kind: 'principals' | 'lobbyists', name: string, id: string | number) =>
   `/money/lobbying/${kind}/${encodeURIComponent(committeeSlug(name, String(id)))}`;
 const copied = (date: string | null) =>
-  date ? `Board files copied ${centralDateLabel(date)}` : '';
+  date ? `Lobbying records copied ${centralDateLabel(date)}` : '';
 const amount = (value: string | null) => formatMoney(value) ?? 'Not reported';
 const base = (heading: string, subheading = ''): PageSnapshot => ({
   heading,
@@ -114,9 +119,19 @@ export function lobbyingDirectorySnapshot(
     ...base(directory[kind].title, directory.directoryLabel),
     body: [
       directory[kind].intro,
+      ...(kind === 'principals' ? [directory.principals.definition] : []),
+      ...(kind === 'lobbyists'
+        ? [lobbyingLobbyistDirectoryDate(data.copied_at, centralDateLabel)]
+        : [
+            lobbyingPrincipalDirectoryScope(
+              'latest_reported_year' in data ? data.latest_reported_year : null,
+              data.copied_at,
+              centralDateLabel,
+            ),
+          ]),
       lobbyingShowingLine(kind, page, rows.length, total),
       ...(rows.length ? [] : [directory[kind].empty, directory.noMatchWhy]),
-    ].filter(Boolean),
+    ].filter((line): line is string => Boolean(line)),
     sections: [
       {
         heading: '',
@@ -148,11 +163,14 @@ export function lobbyingDirectorySnapshot(
 }
 
 export function lobbyingPrincipalSnapshot(data: LobbyingPrincipal): PageSnapshot {
-  const rows = data.lobbyists.rows.slice(0, 30);
+  const rows = data.lobbyists.rows.slice(0, LOBBYING_RECORD_REVEAL_STEP);
   const spending: SnapshotSection = {
     heading: principalCopy.spendingHeading,
     blocks: [
-      { kind: 'prose', lines: [principalCopy.spendingIntroduction] },
+      {
+        kind: 'prose',
+        lines: [principalCopy.spendingIntroduction, principalCopy.spendingZeroNote],
+      },
       {
         kind: 'table',
         caption: principalCopy.spendingCaption,
@@ -201,7 +219,7 @@ export function lobbyingPrincipalSnapshot(data: LobbyingPrincipal): PageSnapshot
     ];
   }
   return {
-    ...base(data.name ?? `Entity ${data.entity_id}`, `PRINCIPAL · ENTITY ${data.entity_id}`),
+    ...base(data.name ?? `Entity ${data.entity_id}`, `PRINCIPAL · ENTITY ID ${data.entity_id}`),
     body: [
       principalCopy.gloss,
       ...principalSpellingLines(data.lobbyists.rows),
@@ -238,10 +256,10 @@ export function lobbyingPrincipalSnapshot(data: LobbyingPrincipal): PageSnapshot
 }
 
 export function lobbyingLobbyistSnapshot(data: LobbyingLobbyist): PageSnapshot {
-  const rows = data.principals.rows.slice(0, 30);
+  const rows = data.principals.rows.slice(0, LOBBYING_RECORD_REVEAL_STEP);
   const visibleYears =
     data.contributions.state === 'reported'
-      ? visibleLobbyingDonationYears(data.contributions.years, 30)
+      ? visibleLobbyingDonationYears(data.contributions.years, LOBBYING_RECORD_REVEAL_STEP)
       : [];
   const shownPayments = visibleYears.reduce(
     (n, year) =>
@@ -311,21 +329,26 @@ export function lobbyingLobbyistSnapshot(data: LobbyingLobbyist): PageSnapshot {
           ...(data.principals.state === 'reported' &&
           data.principals.total != null &&
           data.principals.total > 0
-            ? [recordCountLine(data.principals.total, rows.length, 'principal', 'principals')]
+            ? [
+                recordCountLine(data.principals.total, rows.length, 'client', 'clients'),
+                ...(rows.some((row) => !row.linkable)
+                  ? [lobbyingMissingSpendingPagesNote(data.latest_reported_year ?? null)]
+                  : []),
+              ]
             : []),
           ...(data.principals.state === 'unavailable' ? [LOBBYIST_PRINCIPALS_UNAVAILABLE] : []),
           ...(data.principals.state === 'reported' && data.principals.total === 0
             ? [lobbyistCopy.noPrincipals]
             : []),
           ...(data.state === 'not_registered_today'
-            ? [`Registration ${data.registration_number} · not registered today`]
+            ? [`Registration ${data.registration_number} · not listed on the copy date`]
             : []),
         ],
         items: rows.map((row) => ({
           label: row.name,
           ...(row.linkable
             ? { href: recordPath('principals', row.spending_name ?? row.name, row.entity_id) }
-            : { detail: lobbyingNoSpendingRows(data.latest_reported_year ?? null) }),
+            : { detail: LOBBYING_NO_SPENDING_PAGE }),
         })),
       },
       {

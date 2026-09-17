@@ -41,7 +41,7 @@ export function lobbyingSearchCount(count: number | null) {
 export function lobbyingResultMeta(row: LobbyingLobbyistListRow | LobbyingPrincipalListRow) {
   if ('registration_number' in row) {
     const n = row.principal_count;
-    return `Registration ${row.registration_number} · ${n.toLocaleString('en-US')} ${n === 1 ? 'principal' : 'principals'} listed`;
+    return `Registration ${row.registration_number} · ${n.toLocaleString('en-US')} ${n === 1 ? 'client' : 'clients'} listed`;
   }
-  return `Entity ${row.entity_id}${row.latest_reported_year == null ? '' : ` · Latest reported year ${row.latest_reported_year}`}`;
+  return `Entity ${row.entity_id}${row.latest_reported_year == null ? '' : ` · Latest spending year in these records: ${row.latest_reported_year}`}`;
 }

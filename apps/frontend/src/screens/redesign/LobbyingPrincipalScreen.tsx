@@ -6,7 +6,10 @@ import {
   LobbyingCard,
   LobbyingRecordState,
 } from '../../components/lobbying/LobbyingPageFrame';
-import { PrincipalLobbyistsCard } from '../../components/lobbying/LobbyingRecordCards';
+import {
+  LobbyingSourceLink,
+  PrincipalLobbyistsCard,
+} from '../../components/lobbying/LobbyingRecordCards';
 import { LobbyingSpendingTable } from '../../components/lobbying/LobbyingSpendingTable';
 import { ApiError } from '../../data/api';
 import { useLobbyingPrincipal } from '../../hooks/useLobbying';
@@ -99,8 +102,7 @@ export function LobbyingPrincipalScreen({
     title: lobbyingPageMetadata(routePath.lobbyingPrincipal(finalSlug), principal.name, {
       kind: 'principal',
     }).socialTitle,
-    description:
-      'Reported spending and current registered lobbyists, from Minnesota’s official records',
+    description: `${principal.name}'s reported lobbying spending and lobbyists listed on the source copy date, from Minnesota's own records.`,
     url: publicPageUrl(routePath.lobbyingPrincipal(finalSlug)),
   };
   const copiedLine = boardFilesCopiedLine(principal.copied_at, centralDateLabel);
@@ -108,7 +110,7 @@ export function LobbyingPrincipalScreen({
 
   return (
     <LobbyingPageFrame
-      eyebrow={`PRINCIPAL · ENTITY ${principal.entity_id}`}
+      eyebrow={`PRINCIPAL · ENTITY ID ${principal.entity_id}`}
       title={principal.name}
       details={
         <HeaderDetails>
@@ -122,12 +124,12 @@ export function LobbyingPrincipalScreen({
         </HeaderDetails>
       }
       shareContent={shareContent}
-      source={{ label: lobbyingPrincipalCopy.sourceLabel, url: PRINCIPAL_SOURCE_URL }}
       onBack={() => navigation.navigate('LobbyingLanding')}
       onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
     >
       <LobbyingCard label="Spending by year" title={lobbyingPrincipalCopy.spendingHeading}>
         <CardParagraph>{lobbyingPrincipalCopy.spendingIntroduction}</CardParagraph>
+        <LobbyingSourceLink url={PRINCIPAL_SOURCE_URL} label={lobbyingPrincipalCopy.sourceLabel} />
         {principal.spending.state === 'unavailable' ? (
           <Text accessibilityRole="alert" style={styles.unavailable}>
             {PRINCIPAL_SPENDING_UNAVAILABLE}
@@ -136,7 +138,10 @@ export function LobbyingPrincipalScreen({
           principal.spending.state === 'no_spending_rows' ? (
           <Text style={styles.empty}>{lobbyingNoSpendingRows(principal.source_latest_year)}</Text>
         ) : (
-          <LobbyingSpendingTable rows={principal.spending.rows} />
+          <>
+            <Text style={styles.zeroNote}>{lobbyingPrincipalCopy.spendingZeroNote}</Text>
+            <LobbyingSpendingTable rows={principal.spending.rows} />
+          </>
         )}
       </LobbyingCard>
       <PrincipalLobbyistsCard
@@ -198,6 +203,15 @@ const styles: Record<string, any> = {
     color: '#4f5651',
     fontFamily: theme.typography.body,
     lineHeight: 26,
+  },
+  zeroNote: {
+    marginTop: 8,
+    maxWidth: 820,
+    color: '#6b716b',
+    fontFamily: theme.typography.body,
+    fontSize: 15,
+    lineHeight: 22,
+    fontVariant: ['tabular-nums'],
   },
   unavailable: {
     marginTop: 16,

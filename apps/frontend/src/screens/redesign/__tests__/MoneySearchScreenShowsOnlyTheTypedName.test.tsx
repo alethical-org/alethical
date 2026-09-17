@@ -188,7 +188,7 @@ describe('lobbying search groups keep their own counts and proven destinations',
     });
     const group = section(page.host, 'LOBBYISTS')!;
     expect(group.textContent).toContain('1 MATCH');
-    expect(group.textContent).toContain('Registration 141 · 13 principals today');
+    expect(group.textContent).toContain('Registration 141 · 13 clients listed');
     expect(group.querySelector('a')?.getAttribute('href')).toBe(
       '/money/lobbying/lobbyists/kozak-andrew-141',
     );
@@ -209,7 +209,9 @@ describe('lobbying search groups keep their own counts and proven destinations',
     expect(group.textContent).toContain(
       "No spending rows in the Board's file through 2025, so no page to open",
     );
-    expect(group.textContent).toContain('Entity 7325 · Latest reported year 2017');
+    expect(group.textContent).toContain(
+      'Entity 7325 · Latest spending year in these records: 2017',
+    );
     expect([...group.querySelectorAll('a')].map((link) => link.getAttribute('href'))).toEqual([
       '/money/lobbying/principals/actwireless-7325',
     ]);
