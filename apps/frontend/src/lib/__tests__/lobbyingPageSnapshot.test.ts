@@ -100,7 +100,7 @@ describe('lobbying before the app starts', () => {
     const html = renderPageSnapshot(snapshot);
     expect(html).toContain('American Express');
     expect(html).toContain('$0');
-    expect(html).toContain('PRINCIPAL · ENTITY ID 2263');
+    expect(html).toContain('LOBBYING PRINCIPAL · ENTITY ID 2263');
     expect(html).toContain('Reported amounts may be rounded. $0 is the value in the Board’s file.');
     expect(snapshot.links).toContainEqual({
       label: "View the Board's Lobbying Organizations Search Tool",

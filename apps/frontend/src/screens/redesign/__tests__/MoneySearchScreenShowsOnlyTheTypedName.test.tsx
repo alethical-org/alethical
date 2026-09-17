@@ -294,6 +294,7 @@ describe('the money search page shows only what it found for the name in its hea
 
     expect(page.words()).toContain('Results for “smith”');
     expect(page.words()).toContain('Smith for Senate');
+    expect(page.words()).not.toContain('SEARCH RESULTS');
 
     page.type('jones');
     await settle();
@@ -348,6 +349,7 @@ describe('the money search page shows only what it found for the name in its hea
     const page = openSearchPage('');
     await settle();
     expect(page.words()).toContain('Type a name');
+    expect(page.words()).not.toContain('SEARCH RESULTS');
     expect(page.words()).not.toContain('Smith for Senate');
 
     page.type('jones');

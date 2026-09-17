@@ -531,7 +531,9 @@ function Hero({
         onPress={onAllLegislators}
         style={styles.backLink}
       />
-      <Text style={styles.eyebrow}>LEGISLATOR PROFILE</Text>
+      {!servesNow(legislator.chamber) ? (
+        <Text style={styles.eyebrow}>LEGISLATOR PROFILE</Text>
+      ) : null}
       <View style={[styles.heroRow, !isDesktop && styles.heroRowMobile]}>
         <View style={styles.identityRow}>
           <Portrait uri={legislator.photoUrl} name={displayName} />

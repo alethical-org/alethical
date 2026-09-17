@@ -18,7 +18,6 @@ import {
   PAYMENTS_UNDER_NAME_PAGE_SIZE,
   paymentNameRole,
   paymentsShowingLine,
-  paymentsUnderNameEyebrow,
   paymentsUnderNameHeading,
   paymentsUnderNameStandfirst,
   paymentUnderNameMeta,
@@ -92,9 +91,6 @@ describe('the page is a spelling, never an organisation', () => {
   it('names the side of the record each role reads', () => {
     expect(paymentsUnderNameStandfirst('contributor')).toContain('who or what gave');
     expect(paymentsUnderNameStandfirst('vendor')).toContain('who or what got paid');
-    expect(paymentsUnderNameEyebrow('contributor')).toBe('GAVE');
-    expect(paymentsUnderNameEyebrow('vendor')).toBe('GOT PAID');
-    expect(paymentsUnderNameEyebrow('independent_vendor')).toBe('PAID BY INDEPENDENT SPENDING');
   });
 
   // 491 rows of the independent-spending file share a spender, name, amount and

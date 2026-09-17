@@ -113,7 +113,7 @@ export function LobbyingPrincipalScreen({
   return (
     <LobbyingPageFrame
       narrow
-      eyebrow={`PRINCIPAL · ENTITY ID ${principal.entity_id}`}
+      eyebrow={`LOBBYING PRINCIPAL · ENTITY ID ${principal.entity_id}`}
       title={principal.name}
       details={
         <HeaderDetails>

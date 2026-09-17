@@ -96,6 +96,8 @@ afterEach(() => {
 
 it('shows the real grouped years, exact employer text, registered anchors and every payment', () => {
   open();
+  expect(host.textContent).toContain('Money given under the name “Nystrom, Mary Ann”');
+  expect(host.textContent).not.toContain('GAVE');
   expect([...host.querySelectorAll('[aria-level="2"]')].map((e) => e.textContent)).toEqual([
     '2026',
     '2025',
@@ -117,6 +119,23 @@ it('shows the real grouped years, exact employer text, registered anchors and ev
   expect(anchor?.getAttribute('href')).toBe('/money/committees/abeler-jim-senate-committee-17868');
   expect(host.textContent).toContain(LIST_NOTE);
 });
+
+it.each([
+  ['vendor', 'Money paid under the name “Nystrom, Mary Ann”', 'GOT PAID'],
+  [
+    'independent_vendor',
+    'Independent spending paid under the name “Nystrom, Mary Ann”',
+    'PAID BY INDEPENDENT SPENDING',
+  ],
+] as const)(
+  'lets the %s heading carry its meaning without a repeated label',
+  (role, heading, label) => {
+    open();
+    draw(role);
+    expect(host.textContent).toContain(heading);
+    expect(host.textContent).not.toContain(label);
+  },
+);
 
 it('a single payment has no duplicated subtotal and a nonlinkable name is plain text', () => {
   open({ data: { pages: [page([rows[0]], { linkableRegistrationNumbers: [] })] } });

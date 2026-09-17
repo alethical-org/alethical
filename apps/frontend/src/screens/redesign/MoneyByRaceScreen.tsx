@@ -170,7 +170,7 @@ function MoneyByRaceView({ navigation, route }: RootScreenProps<'MoneyByRace'>) 
               <Text style={styles.backLabel}>{MONEY_SECTION_NAME}</Text>
             </Pressable>
           )}
-          <Text style={styles.eyebrow}>{group ? MONEY_BY_RACE_TITLE : 'CAMPAIGN MONEY'}</Text>
+          {selected ? <Text style={styles.eyebrow}>{MONEY_BY_RACE_TITLE}</Text> : null}
           <ResultsHeading
             isMobile={isMobile}
             content={
@@ -184,7 +184,7 @@ function MoneyByRaceView({ navigation, route }: RootScreenProps<'MoneyByRace'>) 
               {...(group && isWeb ? { tabIndex: -1 } : {})}
               accessibilityRole="header"
               aria-level={1}
-              style={[styles.h1, isMobile && styles.h1Mobile]}
+              style={[styles.h1, !selected && styles.h1WithoutEyebrow, isMobile && styles.h1Mobile]}
             >
               {selected ? contestSeatLabel(selected) : MONEY_BY_RACE_TITLE}
             </Text>
@@ -642,6 +642,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1.2,
     color: t.colors.text.primary,
   },
+  h1WithoutEyebrow: { marginTop: 24 },
   h1Mobile: { fontSize: 30, lineHeight: 36, letterSpacing: -0.8 },
   dek: {
     marginTop: 12,

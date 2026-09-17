@@ -169,7 +169,7 @@ describe('LobbyingPrincipalScreen', () => {
     expect(reads.principal).toHaveBeenCalledWith('2263');
     expect(page.querySelector('h1')?.textContent).toBe('American Express Company');
     expect(page.querySelector('[data-testid="eyebrow"]')?.textContent).toBe(
-      'PRINCIPAL · ENTITY ID 2263',
+      'LOBBYING PRINCIPAL · ENTITY ID 2263',
     );
     expect(page.textContent).toContain(
       'Each row shows this principal’s reported lobbying spending for 1 calendar year.',
