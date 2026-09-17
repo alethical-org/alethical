@@ -52,16 +52,6 @@ export {
 
 // --- The page's own wording ---------------------------------------------------
 
-const EYEBROWS: Record<PaymentNameRole, string> = {
-  contributor: 'GAVE',
-  vendor: 'GOT PAID',
-  independent_vendor: 'PAID BY INDEPENDENT SPENDING',
-};
-
-export function paymentsUnderNameEyebrow(role: PaymentNameRole): string {
-  return EYEBROWS[role];
-}
-
 /**
  * The sentence under the heading. Three things it has to carry, because a reader
  * who is not told will infer, and every inference available here is wrong: the

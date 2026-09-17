@@ -36,7 +36,6 @@ import {
   ORDERED_NEWEST_FIRST,
   paymentNameRole,
   paymentsShowingLine,
-  paymentsUnderNameEyebrow,
   paymentsUnderNameHeading,
   paymentsUnderNameStandfirst,
   paymentUnderNameRow,
@@ -190,7 +189,6 @@ export function PaymentsUnderNameScreen({
             <Text style={styles.backLabel}>{BACK_TO_RESULTS}</Text>
           </FocusPressable>
 
-          <Text style={styles.eyebrow}>{paymentsUnderNameEyebrow(role)}</Text>
           <ResultsHeading
             isMobile={isMobile}
             content={
@@ -623,16 +621,8 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.secondary,
   },
-  eyebrow: {
-    marginTop: 22,
-    fontFamily: t.typography.body,
-    fontSize: 13,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 2.4,
-    color: t.colors.text.greenOnLight,
-  },
   h1: {
-    marginTop: 12,
+    marginTop: 22,
     maxWidth: 1100,
     fontFamily: t.typography.title,
     fontSize: 42,

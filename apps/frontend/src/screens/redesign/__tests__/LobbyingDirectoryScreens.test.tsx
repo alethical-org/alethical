@@ -253,6 +253,7 @@ describe('lobbying directories', () => {
     expect(words()).toContain('Askelin, Laura');
     expect(words()).toContain('1 client listed');
     expect(words()).toContain('Search lobbyists by name');
+    expect(words()).not.toContain(copy.directoryLabel);
     expect(words()).toContain('Enter all or part of a name.');
     expect(words()).toContain('Registrations shown as listed in records copied Sep 13, 2026.');
     expect(host.querySelector('a[href="/money/lobbying/lobbyists?page=3"]')).not.toBeNull();
@@ -285,6 +286,7 @@ describe('lobbying directories', () => {
     expect(words()).toContain('Showing 51–100 of 3,443 principals');
     expect(words()).toContain(copy.principals.intro);
     expect(words()).toContain(copy.principals.definition);
+    expect(words()).toContain(copy.directoryLabel);
     expect(words()).toContain('Search organisations by name');
     expect(words()).toContain('The Lobbying page’s spending count covers 2025 only.');
     expect(listRows()).toHaveLength(50);

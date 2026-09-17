@@ -545,7 +545,9 @@ export function LegislatorProfileMobileScreen() {
               <View style={styles.heroOuter}>
                 <View style={styles.column}>
                   <GoBackLink href={routePath.legislators()} onPress={goToLegislatorList} mobile />
-                  <Text style={styles.eyebrow}>LEGISLATOR PROFILE</Text>
+                  {!servesNow(leg.chamber) ? (
+                    <Text style={styles.eyebrow}>LEGISLATOR PROFILE</Text>
+                  ) : null}
                   <View style={styles.heroIdentity}>
                     <View style={styles.portrait}>
                       {leg.photoUrl ? (

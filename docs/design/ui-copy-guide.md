@@ -55,6 +55,13 @@ Ratified 11 Sep 2026 from the 6 changes to the campaign-money card (labels, the 
 - **A source link's label describes what opens, and the destination is clicked in a real browser before it ships.** "Minnesota's list of named donations" opened a 9 MB statewide file with no page behind it. A link to a bulk file points at the page that file lives on and says so; a page address is derived from the served download address, never pasted, so a changed file id cannot break it.
 - **A copy change made without a design round still updates Design's copy record the same day.** Otherwise the next drawing prints the old words and the review loop reopens. The mechanism is a note to Design listing every old → new string, sent with the change.
 
+## Context labels below a back link
+
+The green all-caps label below a back link gives context the title and nearby
+words do not already give. It may identify the larger section, the kind of record
+or the coverage of a list. Omit it when it only repeats the page title, the back
+link or a complete title that already names both sides of a relationship.
+
 ## Test for any copy
 Does this deliver a sovereignty recognition moment, or is it just a label? If just a label, rewrite.
 

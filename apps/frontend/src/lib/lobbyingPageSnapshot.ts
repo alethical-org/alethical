@@ -223,7 +223,10 @@ export function lobbyingPrincipalSnapshot(data: LobbyingPrincipal): PageSnapshot
     ];
   }
   return {
-    ...base(data.name ?? `Entity ${data.entity_id}`, `PRINCIPAL · ENTITY ID ${data.entity_id}`),
+    ...base(
+      data.name ?? `Entity ${data.entity_id}`,
+      `LOBBYING PRINCIPAL · ENTITY ID ${data.entity_id}`,
+    ),
     body: [
       principalCopy.gloss,
       ...principalSpellingLines(data.lobbyists.rows),

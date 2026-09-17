@@ -176,7 +176,6 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
             <Text style={styles.backLabel}>{MONEY_SECTION_NAME}</Text>
           </Pressable>
 
-          <Text style={styles.eyebrow}>SEARCH RESULTS</Text>
           <ResultsHeading
             isMobile={isMobile}
             content={
@@ -633,16 +632,8 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.secondary,
   },
-  eyebrow: {
-    marginTop: 22,
-    fontFamily: t.typography.body,
-    fontSize: 13,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 2.4,
-    color: t.colors.text.greenOnLight,
-  },
   h1: {
-    marginTop: 12,
+    marginTop: 22,
     maxWidth: 1000,
     fontFamily: t.typography.title,
     fontSize: 42,

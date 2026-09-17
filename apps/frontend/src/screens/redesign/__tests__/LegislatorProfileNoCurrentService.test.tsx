@@ -236,6 +236,7 @@ describe('the loaded profile of a member with no current service period', () => 
       expect(words).not.toContain('Democratic-Farmer-Labor');
       expect(words).not.toContain('Republican');
       expect(words).not.toContain('Independent');
+      expect(words).toContain('LEGISLATOR PROFILE');
     },
   );
 
@@ -313,6 +314,7 @@ describe('the loaded profile of a sitting member is unchanged', () => {
       expect(words).toContain('PHONE');
       expect(words).toContain('651-296-9934');
       expect(words).toContain('Official House profile');
+      expect(words).not.toContain('LEGISLATOR PROFILE');
       expect(document.title).toBe('Rep. Patty Acomb, Minnesota House District 45A | Alethical');
     },
   );

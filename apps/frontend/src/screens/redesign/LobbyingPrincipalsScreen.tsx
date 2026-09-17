@@ -143,7 +143,7 @@ export function LobbyingDirectoryPage({
             </Svg>
             <Text style={styles.backText}>{copy.back}</Text>
           </Pressable>
-          <Text style={styles.eyebrow}>{copy.directoryLabel}</Text>
+          {kind === 'principals' ? <Text style={styles.eyebrow}>{copy.directoryLabel}</Text> : null}
           <Text
             accessibilityRole="header"
             aria-level={1}
