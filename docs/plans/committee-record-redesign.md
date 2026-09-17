@@ -20,7 +20,7 @@ Preserve cross-address years, existing tab keys and donor preferences. Profile l
 - [x] Committee order, navigation, ownership disclosure and year controls.
 - [x] Report list layout, states, copy-date mapping and retries.
 - [x] Update product guides, focused tests and URL checks.
-- [ ] Local type, format, test and production-build checks; browser review across layout bands and data states.
+- [x] Local type, format, test and production-build checks; browser review across layout bands and data states.
 - [ ] Independent review, pull request and checks on current commit.
 - [ ] Merge, deployment, independent live browser check, cleanup and final report.
 
@@ -33,3 +33,5 @@ Branch codex/committee-record-redesign, own worktree /Users/eug/.codex/worktrees
 September 17: 3064 frontend tests passed, TypeScript and formatting passed, production bundle passed asset and first-load checks. Browser flows at 375, 900 and 1440px passed with public GET responses relayed into the local preview (API CORS rejects localhost). Independent review found profile Share losing Money state and small new action targets; both corrected with Share regression coverage and 44px/focus styling. Final checks will run on the committed revision.
 
 No extra design round or product decision remains. Next: commit, update from current main, rerun affected checks, browser-check review fixes, submit PR and carry it to live.
+
+Current-main checkpoint: 3091 frontend tests pass. The rebased startup bundle exceeded its existing limit by 70 bytes; sharing the identical route-filter extraction loop reduced it to 339006 bytes against 339072. All 155 routing tests pass. No limit increase. Final preview confirms Share keeps money tab/year/open rows, ownership evidence survives reload, and Earlier years has a 44px target. The opt-in money browser checks now follow the approved All received payments label.
