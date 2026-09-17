@@ -10,6 +10,10 @@ const SCREEN = readFileSync(
   join(HERE, '..', '..', 'screens', 'redesign', 'CommitteeMoneyScreen.tsx'),
   'utf8',
 );
+const PROFILE = readFileSync(
+  join(HERE, '..', '..', 'screens', 'LegislatorProfileScreen.tsx'),
+  'utf8',
+);
 
 /**
  * The committee money screen draws a chart in its first frame only if the chart's
@@ -34,5 +38,28 @@ describe('the committee money screen arrives with its chart code', () => {
     expect(pieces).toContain("import('../../data/campaignMoneyDetails')");
     // Neither optional piece may hold the screen back.
     expect(pieces?.match(/\.catch\(\(\) => undefined\)/g)).toHaveLength(2);
+  });
+});
+
+/**
+ * A money-tab profile address drew its header, then filled the band under the tab
+ * strip about 100 ms later when the tab's code landed (live, 17 Sep 2026). The tab's
+ * pieces now download with the screen when the address names the tab.
+ */
+describe('a money-tab profile address arrives with its tab code', () => {
+  it('waits for the profile’s pieces before handing the screen to the router', () => {
+    expect(CHUNKS).toMatch(
+      /LegislatorProfile: \(\) =>\s*import\('\.\.\/screens\/LegislatorProfileScreen'\)\.then\(\(m\) =>\s*m\.legislatorProfileScreenPieces\(\)\.then\(/,
+    );
+  });
+
+  it('fetches the tab only when the address names it, and never holds the profile back', () => {
+    const pieces = PROFILE.match(
+      /export function legislatorProfileScreenPieces\([\s\S]*?\n\}/,
+    )?.[0];
+    expect(pieces).toBeDefined();
+    expect(pieces).toContain("new URLSearchParams(search).get('tab') === 'money'");
+    expect(pieces).toContain('prefetchCampaignMoneyTab()');
+    expect(pieces).toContain('.catch(() => undefined)');
   });
 });
