@@ -43,7 +43,7 @@ the records behind them change at genuinely different rates.
 | Layer | Header | Where it is set |
 |---|---|---|
 | Cloudflare, bill / vote / legislator reads | `public, max-age=60, stale-while-revalidate=300` | `PUBLIC_CACHE_CONTROL` in `alethical/api/routers/public.py` |
-| Cloudflare, the 6 named campaign-money record reads and explicit dated-only committee finance | `public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800` | `MONEY_RECORDS_CACHE_CONTROL`, same file, granted to `MONEY_RECORD_PATHS` by `public_cache_control_for_path`, and by the finance handler only after a successful anonymous `GET` with `include_confirmation=false` |
+| Cloudflare, the 6 named campaign-money record reads, explicit dated-only committee finance, and a committee's own payment pages | `public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800` | `MONEY_RECORDS_CACHE_CONTROL`, same file, granted to `MONEY_RECORD_PATHS` by `public_cache_control_for_path`, by the finance handler only after a successful anonymous `GET` with `include_confirmation=false`, and by the payments handler after an anonymous `GET` whose answer is `reported` or `not_reported` |
 | Vercel, in front of the page HTML | `public, max-age=0, s-maxage=300, stale-while-revalidate=300, stale-if-error=300` | `OK_CACHE` in `api/page.ts` |
 
 **Bill, vote and legislator reads keep the short window. The 6 named
@@ -73,6 +73,7 @@ read never gains that window from a query parameter alone.
 | `/api/v1/campaign-finance/payments-under-name` | `/api/v1/committees/{registration_number}/finance` |
 | `/api/v1/campaign-finance/races` | `/api/v1/committees/{registration_number}/confirmation` |
 | `/api/v1/committees/{registration_number}/finance?year=2025&include_confirmation=false` | every other public read |
+| `/api/v1/committees/{registration_number}/payments` when the answer is `reported` or `not_reported` | `/api/v1/committees/{registration_number}/payments` when our own copy could not be read (`unavailable`) |
 
 **The test is what an answer CLAIMS, never whether it names a person.** A person's
 name printed inside an accepted filing is a dated record: the filing happened, its
