@@ -119,3 +119,73 @@ describe('committee payments start small without skipping later rows', () => {
     },
   );
 });
+
+it.each(['received', 'made'] as const)(
+  'retains %s rows and retries the same offset after an unavailable continuation',
+  async (direction) => {
+    const key = committeePaymentsListQueryKey({
+      registrationNumber: '41363',
+      direction,
+      year: 2025,
+    });
+    seed(
+      renderPageData([
+        {
+          key,
+          payload: {
+            ...RECEIVED,
+            page: { limit: 50, offset: 0, has_more: true, total_payments: 2 },
+          },
+        },
+      ]),
+    );
+    const requests: string[] = [];
+    const fetch = vi.fn(async (url: string) => {
+      requests.push(new URL(url).searchParams.get('offset')!);
+      return new Response(
+        JSON.stringify({
+          data:
+            requests.length === 1
+              ? { state: 'unavailable', payments: [], page: { has_more: false } }
+              : {
+                  ...RECEIVED,
+                  page: { limit: 250, offset: 1, has_more: false, total_payments: 2 },
+                },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    });
+    vi.stubGlobal('fetch', fetch);
+    let query: ReturnType<typeof useCommitteePaymentsList>;
+    function Probe() {
+      query = useCommitteePaymentsList('41363', direction, 2025);
+      return null;
+    }
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    const client = createAppQueryClient();
+    try {
+      await act(async () =>
+        root.render(
+          <QueryClientProvider client={client}>
+            <Probe />
+          </QueryClientProvider>,
+        ),
+      );
+      const failed = await act(async () => query!.fetchNextPage());
+      expect(failed.error).not.toBeNull();
+      expect(failed.data?.pages).toHaveLength(1);
+      expect(failed.hasNextPage).toBe(true);
+      const retry = await act(async () => query!.fetchNextPage());
+      expect(retry.error).toBeNull();
+      expect(retry.data?.pages.flatMap((page) => page?.payments ?? [])).toHaveLength(2);
+      expect(retry.hasNextPage).toBe(false);
+      expect(requests).toEqual(['1', '1']);
+    } finally {
+      act(() => root.unmount());
+      client.clear();
+      host.remove();
+    }
+  },
+);

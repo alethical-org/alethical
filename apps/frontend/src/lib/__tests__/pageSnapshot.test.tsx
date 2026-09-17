@@ -1797,13 +1797,15 @@ describe('a committee’s full payments list in the first response', () => {
   });
 
   it('counts the list from what was served and says the naming rule', () => {
-    expect(text).toContain(showingLine(rows.length, committeePaymentsFixture.page.total_payments));
+    expect(text).toContain(
+      showingLine(rows.length, committeePaymentsFixture.page.total_payments, committeeFixture.year),
+    );
     expect(text).toContain(listLinkNote('gave', false));
   });
 
   it('links back to the committee whose payments these are', () => {
     expect(snapshot.links.map((link) => link.href)).toContain(
-      '/money/committees/jane-fonda-climate-pac-41326',
+      '/money/committees/jane-fonda-climate-pac-41326?tab=gave&year=2026',
     );
   });
 

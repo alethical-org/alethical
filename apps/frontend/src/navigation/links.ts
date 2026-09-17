@@ -72,8 +72,8 @@ export const routePath = {
     pathForRoute({ name: 'MoneySearch', params }),
   /** Every payment filed under one printed name. Both the spelling and the role
    *  ride in the address, so the page a reader opened is one they can send. */
-  moneyPaymentsUnderName: (name: string, role: string) =>
-    pathForRoute({ name: 'PaymentsUnderName', params: { name, role } }),
+  moneyPaymentsUnderName: (name: string, role: string, q?: string) =>
+    pathForRoute({ name: 'PaymentsUnderName', params: { name, role, q } }),
   /** The outside-spending record: the whole file, or one subject's view. */
   moneyOutsideSpending: (params?: RootStackParamList['OutsideSpending']) =>
     pathForRoute({ name: 'OutsideSpending', params }),

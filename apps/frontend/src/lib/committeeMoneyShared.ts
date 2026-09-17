@@ -1,5 +1,10 @@
 /** Shared committee labels, record formatting and read keys. Route-only prose stays with its screen. */
-import { formatDay, formatMoney, reportedThroughLabel } from './legislatorCampaignMoney';
+import {
+  campaignMoneyYears,
+  formatDay,
+  formatMoney,
+  reportedThroughLabel,
+} from './legislatorCampaignMoney';
 
 /** The two Board sub-type codes that mark a ballot-question filer on its own money
  *  rows (data census #1661: 28 `BC` and 6 `BF` filers carry one). The register
@@ -472,3 +477,27 @@ export const UNNAMED_PAYMENT_PARTY = 'Name not given in the filing';
 
 /** Re-exported so the screens import one module for these pages' rules. */
 export { formatDay, formatMoney };
+
+/** Keep a linked historical year visible alongside the usual recent choices. */
+export function committeeMoneyYears(selectedYear: number, today: Date = new Date()): number[] {
+  return [...new Set([...campaignMoneyYears(today), selectedYear])].sort((a, b) => b - a);
+}
+
+/** A missing older year should lead back to the current records, not another old year. */
+export function committeeAlternativeYear(selectedYear: number, today: Date = new Date()): number {
+  const [current, previous = current] = campaignMoneyYears(today);
+  return selectedYear === current ? previous : current;
+}
+
+/**
+ * The one coverage date the filing stamp above both cards states, or null when no
+ * filing total is on the page. Money in's reported total is the usual source; a
+ * committee-year whose split withholds its total but whose money-out total is held
+ * still has a filing to date, so the stamp falls back to that.
+ */
+export function stampThroughDate(
+  split: { reportedThrough: string | null },
+  moneyOut: { reportedThrough: string | null } | null | undefined,
+): string | null {
+  return split.reportedThrough ?? moneyOut?.reportedThrough ?? null;
+}

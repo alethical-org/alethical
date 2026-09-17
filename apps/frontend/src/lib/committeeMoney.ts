@@ -27,7 +27,6 @@
  */
 
 import {
-  campaignMoneyYears,
   formatDay,
   formatMoney,
   isAmountAboveZero,
@@ -41,16 +40,11 @@ import {
   type PaymentsTab,
 } from './committeeMoneyShared';
 
-/** Keep a linked historical year visible alongside the usual recent choices. */
-export function committeeMoneyYears(selectedYear: number, today: Date = new Date()): number[] {
-  return [...new Set([...campaignMoneyYears(today), selectedYear])].sort((a, b) => b - a);
-}
-
-/** A missing older year should lead back to the current records, not another old year. */
-export function committeeAlternativeYear(selectedYear: number, today: Date = new Date()): number {
-  const [current, previous = current] = campaignMoneyYears(today);
-  return selectedYear === current ? previous : current;
-}
+export {
+  committeeMoneyYears,
+  committeeAlternativeYear,
+  stampThroughDate,
+} from './committeeMoneyShared';
 
 /**
  * The line beside the registration chip. For a candidate committee the register
@@ -237,19 +231,6 @@ export const EMPTY_YEAR_VALUE = 'Not reported';
  *  while the state's money files still hold rows under it. A fact about our copy
  *  of the register, stated as ours. */
 export const NOT_IN_REGISTER_LINE = 'Not in our copy of the Board’s register';
-
-/**
- * The one coverage date the filing stamp above both cards states, or null when no
- * filing total is on the page. Money in's reported total is the usual source; a
- * committee-year whose split withholds its total but whose money-out total is held
- * still has a filing to date, so the stamp falls back to that.
- */
-export function stampThroughDate(
-  split: { reportedThrough: string | null },
-  moneyOut: { reportedThrough: string | null } | null | undefined,
-): string | null {
-  return split.reportedThrough ?? moneyOut?.reportedThrough ?? null;
-}
 
 // --- The Filings tab -------------------------------------------------------------------
 

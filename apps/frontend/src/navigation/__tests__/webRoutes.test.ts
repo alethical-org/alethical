@@ -584,6 +584,19 @@ describe('campaign money routes', () => {
     ).toBe('/money/payments?name=Facebook&role=vendor');
   });
 
+  it('keeps the original search query through a payment link and a reload', () => {
+    const params = { name: 'Smith, Alex & Co', role: 'contributor', q: 'smith & co' };
+    const path = pathForRoute({ name: 'PaymentsUnderName', params });
+    expect(targetFromPathname(path)).toEqual({ kind: 'paymentsUnderName', ...params });
+    expect(stateFromPathname(path)?.routes[1]).toEqual({ name: 'PaymentsUnderName', params });
+    expect(
+      pathForRoute({
+        name: 'PaymentsUnderName',
+        params: stateFromPathname(path)!.routes[1].params as Record<string, unknown>,
+      }),
+    ).toBe(path);
+  });
+
   // Filed names really carry these characters: "AT&T", "Heat & Frost Insulators
   // Local #34" and "EveryAction Inc d/b/a NGP VAN" are all in the live release. An
   // ampersand would split the query, a hash would cut the address short, and a

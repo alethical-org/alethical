@@ -1,5 +1,6 @@
 import { MONEY_LANE_LOBBYING, lobbyistLaneCount } from './lobbyingDirectoryCopy';
 import { MONEY_SECTION_NAME } from './moneySectionName';
+import { MONEY_LIST_COVERAGE, MONEY_LIST_COVERAGE_HEADING } from './moneyListCopy';
 import {
   authorNameOnly,
   bienniumEyebrow,
@@ -56,6 +57,7 @@ import {
 import {
   COMMITTEE_LIST_DEK,
   COMMITTEE_LIST_NOTE,
+  COMMITTEE_LIST_SOURCE,
   COMMITTEE_LIST_TITLE,
   committeeRowMeta,
   committeeShowingLine,
@@ -127,10 +129,15 @@ import {
   emptyListTitle,
   emptyListWhy,
   listLinkNote,
+  LIST_LINK_NOTE,
   paymentRowHref,
   paymentsEyebrow,
   paymentsTitle,
   PAYMENTS_LOAD_ERROR,
+  REPORT_LOAD_ERROR,
+  REPORT_ROWS_REMAIN,
+  reportPeriodLine,
+  reportPeriodDetail,
   paymentsUnavailable,
   showingLine,
   type PaymentRow,
@@ -157,8 +164,6 @@ import {
   MONEY_LANE_COMMITTEES,
   MONEY_LANE_LEGISLATORS,
   MONEY_LANE_OUTSIDE_SPENDING,
-  RECORD_DOES_NOT_COVER,
-  RECORD_DOES_NOT_COVER_HEADING,
 } from './moneyLanding';
 import {
   DIRECTION_AS_FILED,
@@ -1039,7 +1044,7 @@ export function committeeDirectoryPageSnapshot(
     heading: COMMITTEE_LIST_TITLE,
     subheading: registerCountLine(totals.registerTotal, totals.asOf) ?? '',
     bodyHeading: '',
-    body: [COMMITTEE_LIST_DEK, ...(showing ? [showing] : []), COMMITTEE_LIST_NOTE],
+    body: [COMMITTEE_LIST_DEK, ...(showing ? [showing] : [])],
     bodyIsList: false,
     facts: [],
     records: committees.map((committee) => {
@@ -1064,9 +1069,10 @@ export function committeeDirectoryPageSnapshot(
       };
     }),
     sections: [
+      { heading: '', body: [COMMITTEE_LIST_NOTE, COMMITTEE_LIST_SOURCE], bodyIsList: false },
       {
-        heading: RECORD_DOES_NOT_COVER_HEADING,
-        body: [...RECORD_DOES_NOT_COVER],
+        heading: MONEY_LIST_COVERAGE_HEADING,
+        body: [...MONEY_LIST_COVERAGE],
         bodyIsList: true,
       },
     ],
@@ -1235,8 +1241,8 @@ export function moneySearchPageSnapshot(): PageSnapshot {
     facts: [],
     sections: [
       {
-        heading: RECORD_DOES_NOT_COVER_HEADING,
-        body: [...RECORD_DOES_NOT_COVER],
+        heading: 'What the campaign records do not cover',
+        body: [...MONEY_LIST_COVERAGE],
         bodyIsList: true,
       },
     ],
@@ -1663,6 +1669,8 @@ export function committeePaymentsPageSnapshot(
     state?: string | null;
     rows: readonly PaymentRow[];
     totalPayments: number | null;
+    hasMore?: boolean;
+    fetchedAt?: string | null;
   },
   // Which direction the ADDRESS asks for. Every sentence below is picked by it,
   // so a reader who asked where the money went is never answered with the money
@@ -1673,37 +1681,67 @@ export function committeePaymentsPageSnapshot(
   // serve donations under a payments-out heading silently, which is the whole
   // defect this parameter exists to stop.
   tab: PaymentsTab,
+  reportUnavailable = false,
 ): PageSnapshot {
   const identity = committeeIdentity(money, fallbackRegistrationNumber);
   const year = money.year ?? new Date().getFullYear();
   const served = payments.state === 'reported';
-  const showing = served ? showingLine(payments.rows.length, payments.totalPayments) : null;
+  const showing =
+    served && payments.rows.length > 0
+      ? showingLine(payments.rows.length, payments.totalPayments, year, payments.hasMore)
+      : null;
+  const period = reportPeriodLine(
+    money.split?.reported_through ?? money.money_out?.reported_through,
+    money.money_in?.reported_period_start,
+  );
+  const copiedOn = payments.fetchedAt ? centralDateLabel(payments.fetchedAt) : identity.checkedOn;
+  const copyLine = copiedOn
+    ? identity.filingsCopiedOn
+      ? paymentFilesDownloadedLine(copiedOn, identity.filingsCopiedOn)
+      : `Minnesota’s payment files copied ${copiedOn}. This is a copy date, not a reporting period.`
+    : null;
   return {
     heading: paymentsTitle(tab),
     subheading: [identity.name, `REG ${identity.registrationNumber}`].join(' · '),
     bodyHeading: '',
     body: [
       ...(showing ? [showing] : []),
-      ...(served
+      ...(served && payments.rows.length > 0
         ? []
         : paymentsUnavailable(payments.state)
           ? [PAYMENTS_LOAD_ERROR]
           : [emptyListTitle(tab, year), emptyListWhy(year)]),
-      listLinkNote(tab, identity.isBallot),
+      reportUnavailable ||
+      (!money.entity_sub_type &&
+        identity.registerKind !== 'candidate_committee' &&
+        identity.registerKind !== 'party_unit')
+        ? LIST_LINK_NOTE
+        : listLinkNote(tab, identity.isBallot),
     ],
     bodyIsList: false,
     facts: [],
     sections: [
       {
-        heading: identity.periodLine ?? 'Filing period',
+        heading: reportUnavailable ? REPORT_LOAD_ERROR : (period ?? uncoveredPeriodLine(year)),
         blocks: [
           {
             kind: 'prose',
             lines: [
-              identity.periodDetail,
-              ...(identity.checkedOn
-                ? [paymentFilesDownloadedLine(identity.checkedOn, identity.filingsCopiedOn)]
-                : []),
+              ...(reportUnavailable
+                ? served && payments.rows.length
+                  ? [REPORT_ROWS_REMAIN]
+                  : []
+                : period
+                  ? [
+                      reportPeriodDetail(money.money_in?.reported_period_start),
+                      ...(identity.isPartyUnit
+                        ? [
+                            'Party units file on their own calendar, so these dates are the party-unit series’, not a candidate committee’s.',
+                          ]
+                        : []),
+                    ]
+                  : [uncoveredPeriodDetail(year, null)]),
+              ...(copyLine ? [copyLine] : []),
             ],
           },
         ],
@@ -1717,8 +1755,8 @@ export function committeePaymentsPageSnapshot(
                   row.name,
                   row.inKind ? IN_KIND_CHIP : '',
                   row.meta,
-                  row.date ?? '',
-                  row.amount ?? '',
+                  row.date ?? 'Date not given in the filing',
+                  row.amount ?? 'Amount not given',
                 ]
                   .filter(Boolean)
                   .join(' · '),
@@ -1732,7 +1770,10 @@ export function committeePaymentsPageSnapshot(
         : []),
     ],
     links: [
-      { label: identity.name, href: `/money/committees/${encodeURIComponent(identity.slug)}` },
+      {
+        label: identity.name,
+        href: `/money/committees/${encodeURIComponent(identity.slug)}?tab=${tab}&year=${year}`,
+      },
       { label: COMMITTEE_LIST_TITLE, href: '/money/committees' },
     ],
   };

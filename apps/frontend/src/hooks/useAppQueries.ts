@@ -661,22 +661,24 @@ export function useCommitteePaymentsList(
   const key = committeePaymentsListQueryKey({ registrationNumber, direction, year });
   return useInfiniteQuery({
     queryKey: key,
-    queryFn: ({
+    queryFn: async ({
       pageParam,
-    }): Promise<CommitteePaymentsPage<CommitteeReceivedPayment | CommitteeMadePayment> | null> =>
-      direction === 'received'
-        ? getCommitteePaymentsReceivedFromApi(registrationNumber ?? '', {
-            year,
-            sort: 'amount',
-            limit: pageParam === 0 ? FIRST_PAYMENTS_LIMIT : PAGE_CAP,
-            offset: pageParam,
-          })
-        : getCommitteePaymentsMadeFromApi(registrationNumber ?? '', {
-            year,
-            sort: 'amount',
-            limit: pageParam === 0 ? FIRST_PAYMENTS_LIMIT : PAGE_CAP,
-            offset: pageParam,
-          }),
+    }): Promise<CommitteePaymentsPage<CommitteeReceivedPayment | CommitteeMadePayment> | null> => {
+      const options = {
+        year,
+        sort: 'amount' as const,
+        limit: pageParam === 0 ? FIRST_PAYMENTS_LIMIT : PAGE_CAP,
+        offset: pageParam,
+      };
+      const page = await (direction === 'received'
+        ? getCommitteePaymentsReceivedFromApi(registrationNumber ?? '', options)
+        : getCommitteePaymentsMadeFromApi(registrationNumber ?? '', options));
+      // A failed continuation must not replace the held rows or their next offset.
+      if (pageParam > 0 && (!page || page.state !== 'reported')) {
+        throw new Error('The next payments could not be loaded');
+      }
+      return page;
+    },
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) =>
       lastPage && lastPage.hasMore

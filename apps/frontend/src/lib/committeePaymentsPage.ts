@@ -35,54 +35,70 @@ export function paymentsUnavailable(state: string | null | undefined): boolean {
   return state !== 'reported' && state !== 'not_reported';
 }
 
-/** "Showing 250 of 1,284 payments named" / "41 payments named in this period". */
-export function showingLine(shown: number, total: number | null): string | null {
-  if (total === null) return null;
-  if (shown < total) {
-    return `Showing ${shown.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} payments named`;
-  }
-  return `${total.toLocaleString('en-US')} ${total === 1 ? 'payment' : 'payments'} named in this period`;
+/** The request filters by filing year, not by the dates printed on a report. */
+export function showingLine(
+  shown: number,
+  total: number | null,
+  year: number,
+  hasMore = total !== null && shown < total,
+): string {
+  const count = shown.toLocaleString('en-US');
+  const unit = shown === 1 ? 'payment' : 'payments';
+  if (total === null) return `Showing ${count} ${unit} for filing year ${year}`;
+  if (hasMore || shown < total)
+    return `Showing ${count} of ${total.toLocaleString('en-US')} ${total === 1 ? 'payment' : 'payments'} for filing year ${year}`;
+  return `${count} ${unit} listed for filing year ${year}`;
 }
 
-/** The cap is ours, not the filing's, and the card says so in those words. */
 export const CAP_NOTE =
-  'We load 50 first, then up to 250 at a time, largest first — the cap is ours, not the filing’s. The ' +
-  'reports these payments come from list every one of them, and they are public.';
+  'We load 50 first, then up to 250 at a time. This limit is ours, not the filing’s.';
 
-export function capNextLabel(shown: number, total: number): string {
-  const next = Math.min(PAGE_CAP, total - shown);
-  return `Show the next ${next.toLocaleString('en-US')}`;
+export function capNextLabel(shown: number, total: number | null): string {
+  if (total === null || total <= shown) return 'Show more payments';
+  return `Show the next ${Math.min(PAGE_CAP, total - shown).toLocaleString('en-US')}`;
 }
 
-/**
- * Linked held registration numbers open committee records; other linked names open
- * exact-spelling payment records, never a person or business profile. Names without
- * a supported destination stay unlinked. The threshold clause is left off a
- * ballot-question committee's page entirely (rule 12, as amended).
- */
+export const LIST_LINK_NOTE =
+  'A linked committee name opens its registered committee’s page. Other linked names open ' +
+  'payments filed under that exact spelling. A name alone does not identify a person or business.';
+
+export function donorThresholdNote(isBallot: boolean): string {
+  return `Donors who gave ${isBallot ? '$500' : '$200'} or less in total for the calendar year need not be named. A committee may name a smaller donor but does not have to.`;
+}
+
 export function listLinkNote(tab: PaymentsTab, isBallot: boolean): string {
-  const opens =
-    'A linked committee name opens its registered committee’s page. Other linked names open ' +
-    'payments filed under that exact spelling. A name alone does not identify a person or business.';
-  if (isBallot) return opens;
-  const threshold =
-    tab === 'gave'
-      ? ' Minnesota makes a committee name a donor only once that donor has given more than $200 in total for the year, so these payments never sum to the total on the committee’s page.'
-      : ' Minnesota makes a committee name a recipient only once payments to them pass $200 in total for the year, so these payments never sum to the total on the committee’s page.';
-  return opens + threshold;
+  return LIST_LINK_NOTE + (tab === 'gave' ? ` ${donorThresholdNote(isBallot)}` : '');
 }
 
-/** The empty payments list for a year nothing covers. */
+export function reportPeriodLine(
+  end: string | null | undefined,
+  start: string | null | undefined,
+): string | null {
+  const last = formatDay(end);
+  if (!last) return null;
+  const first = formatDay(start);
+  return first ? `Report figures for ${first} – ${last}` : `Report figures through ${last}`;
+}
+
+export function reportPeriodDetail(start: string | null | undefined): string {
+  return formatDay(start)
+    ? 'The end date comes from the committee’s report. The start date comes from the Board’s disclosure calendar.'
+    : 'The end date comes from the committee’s report';
+}
+
+export const REPORT_LOAD_ERROR = 'We couldn’t load the report information';
+export const REPORT_ROWS_REMAIN = 'Payment records for this filing year are still shown.';
+export const PAYMENTS_MORE_ERROR =
+  'We couldn’t load more payments. The payments already loaded are still shown.';
+export const PAYMENTS_REFRESH_ERROR =
+  'We couldn’t refresh these payments. The payments already loaded for this committee and filing year are still shown.';
+
 export function emptyListTitle(tab: PaymentsTab, year: number): string {
   return tab === 'gave' ? `No donors named for ${year}` : `No payments named for ${year}`;
 }
 
 export function emptyListWhy(year: number): string {
-  return (
-    `Payments are listed from the reports that cover them, and the state’s files we ` +
-    `hold name none for ${year} for this committee. Earlier years’ payments are on ` +
-    `their own year’s view — we do not show them under a ${year} heading.`
-  );
+  return `The state’s files we hold name no payments for this committee for ${year}. Records from another year are not shown under this year.`;
 }
 
 export type ReceivedPaymentLike = {

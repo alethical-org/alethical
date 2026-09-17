@@ -1,8 +1,16 @@
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState, type ComponentProps } from 'react';
+import {
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-
 import { YearControl } from '../../components/campaignMoney/YearControl';
-import { MoneyListRow, MoneyListRows } from '../../components/campaignMoney/MoneyListRows';
 import { Skeleton } from '../../components/Skeleton';
 import type { CommitteeMadePayment, CommitteeReceivedPayment } from '../../data/types';
 import { useCommitteeMoney, useCommitteePaymentsList } from '../../hooks/useAppQueries';
@@ -12,7 +20,8 @@ import {
   capNextLabel,
   emptyListTitle,
   emptyListWhy,
-  listLinkNote,
+  LIST_LINK_NOTE,
+  donorThresholdNote,
   madePaymentRow,
   PAYMENTS_TAB_LABELS,
   PAYMENTS_LOAD_ERROR,
@@ -22,11 +31,15 @@ import {
   paymentsTitle,
   receivedPaymentRow,
   showingLine,
+  reportPeriodLine,
+  reportPeriodDetail,
+  REPORT_LOAD_ERROR,
+  REPORT_ROWS_REMAIN,
+  PAYMENTS_MORE_ERROR,
+  PAYMENTS_REFRESH_ERROR,
 } from '../../lib/committeePaymentsPage';
 import {
   committeeSlug,
-  coveredPeriodDetail,
-  coveredPeriodLine,
   isBallotQuestionFiler,
   IN_KIND_CHIP,
   notFoundBody,
@@ -34,14 +47,19 @@ import {
   paymentsTabFromParam,
   registerKindFromEntityType,
   registrationNumberFromSlug,
-  staleHoldNote,
   uncoveredPeriodDetail,
   uncoveredPeriodLine,
   type PaymentsTab,
 } from '../../lib/committeeMoneyShared';
+import {
+  committeeMoneyYears,
+  committeeAlternativeYear,
+  stampThroughDate,
+} from '../../lib/committeeMoneyShared';
 import { paymentFilesDownloadedLine } from '../../lib/campaignMoneyDetailsPageCopy';
 import {
   BOARD_RECORD_LINK_LABEL,
+  BOARD_VIEWER_INDEX,
   BOARD_RECORD_SENTENCE_TAIL,
   boardRecordUrl,
 } from '../../lib/boardRecordLink';
@@ -53,53 +71,47 @@ import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
 
-/**
- * Every named payment behind one committee's figures, at
- * /money/committees/{name}-{number}/payments ("Money lists web.dc.html" screen C).
- *
- * Amounts DO appear here, largest first: ranking payments inside one committee is
- * a fact about that committee, not a comparison between filers on different
- * filing calendars (design doc §7). The year and the who-gave / where-it-went tab
- * ride in the address, so a shared link carries exactly what the sender saw.
- *
- * The first read carries 50 rows, then up to 250 at a time. The cap card says it is
- * ours, not the filing's — the reports these payments come from list every one
- * of them, and they are public. "Showing X of Y" uses the served count, measured
- * with the same filter as the rows.
- */
-
-function BackChevron() {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <Path
-        d="M15 5 L8 12 L15 19"
-        stroke={t.colors.text.secondary}
-        strokeWidth={2.2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
-
+/** The report dates describe the report. The payment list is selected by filing
+ * year independently, and either source can remain readable while the other fails. */
 export function CommitteePaymentsScreen({
   navigation,
   route,
 }: RootScreenProps<'CommitteePayments'>) {
-  const { isMobile } = useResponsive();
+  const { isMobile, isTablet } = useResponsive();
+  const desktop = !isMobile && !isTablet;
   const slug = route.params?.slug ?? '';
   const registrationNumber = registrationNumberFromSlug(slug);
   const year = campaignMoneyYear(route.params?.year);
   const tab = paymentsTabFromParam(route.params?.tab);
-
-  // The committee's own header facts (name, kind, coverage). Shares the money
-  // query's cache with the committee page, so arriving from there costs nothing.
   const moneyQuery = useCommitteeMoney(registrationNumber, year);
   const money = moneyQuery.data ?? null;
-  const notFound = moneyQuery.data === null && !moneyQuery.isPending && !moneyQuery.isError;
-
   const list = useCommitteePaymentsList(registrationNumber, paymentsDirection(tab), year);
-
+  const pending = useRef({ report: false, list: false });
+  const [busy, setBusy] = useState({ report: false, list: false });
+  const retryReport = async () => {
+    if (pending.current.report || moneyQuery.isFetching) return;
+    pending.current.report = true;
+    setBusy((old) => ({ ...old, report: true }));
+    try {
+      await moneyQuery.refetch({ cancelRefetch: false });
+    } finally {
+      pending.current.report = false;
+      setBusy((old) => ({ ...old, report: false }));
+    }
+  };
+  const readList = async (more = false) => {
+    if (pending.current.list || list.isFetching) return;
+    pending.current.list = true;
+    setBusy((old) => ({ ...old, list: true }));
+    try {
+      await (more
+        ? list.fetchNextPage({ cancelRefetch: false })
+        : list.refetch({ cancelRefetch: false }));
+    } finally {
+      pending.current.list = false;
+      setBusy((old) => ({ ...old, list: false }));
+    }
+  };
   const name = money
     ? (money.register.name ?? money.committeeName ?? `Committee ${registrationNumber}`)
     : null;
@@ -107,48 +119,135 @@ export function CommitteePaymentsScreen({
     registrationNumber ? `/money/committees/${slug}/payments` : null,
     name ? `${paymentsTitle(tab)} — ${name} | Alethical` : null,
   );
-
-  const onSelectYear = (next: number) => navigation.setParams({ year: String(next) });
-  const onSelectTab = (next: PaymentsTab) => navigation.setParams({ tab: next });
-  const registerKind = money
-    ? money.register.state === 'reported'
-      ? money.register.kind
-      : registerKindFromEntityType(money.entityType)
-    : null;
-  const isBallot = money ? isBallotQuestionFiler(money.entitySubType) : false;
-  // This filer's own record on the Board's site, keyed by the registration number
-  // and by which of the register's 3 kinds it is (#2179).
-  const boardUrl = boardRecordUrl(registerKind, registrationNumber ?? '', year);
-  const checkedOn = money?.fetchedAt ? centralDateLabel(money.fetchedAt) : null;
-
   const pages = (list.data?.pages ?? []).filter(
     (page): page is NonNullable<typeof page> => page !== null,
   );
   const firstPage = pages[0];
   const rows = pages.flatMap((page) => page.payments);
   const linkable = new Set(pages.flatMap((page) => page.linkableRegistrationNumbers));
+  // A register miss alone cannot erase valid records held under that number.
+  const notFound =
+    moneyQuery.data === null &&
+    !moneyQuery.isPending &&
+    !moneyQuery.isError &&
+    list.data?.pages[0] === null &&
+    !list.isPending &&
+    !list.isError;
+  const registerKind = money
+    ? money.register.state === 'reported'
+      ? money.register.kind
+      : registerKindFromEntityType(money.entityType)
+    : null;
+  const isBallot = money?.entitySubType
+    ? isBallotQuestionFiler(money.entitySubType)
+    : registerKind === 'candidate_committee' || registerKind === 'party_unit'
+      ? false
+      : null;
+  const boardUrl = boardRecordUrl(registerKind, registrationNumber ?? '', year);
+  const reportEnd = money ? stampThroughDate(money.split, money.moneyOut) : null;
+  const period = reportPeriodLine(reportEnd, money?.moneyIn.reportedPeriodStart);
+  const copiedAt = firstPage?.fetchedAt ?? money?.fetchedAt;
+  const checkedOn = copiedAt ? centralDateLabel(copiedAt) : null;
+  const reportCopied = money?.filingsCopiedAt ? centralDateLabel(money.filingsCopiedAt) : null;
   const total = firstPage?.totalPayments ?? null;
-  const listState = firstPage?.state ?? null;
-  const yearCovered = money
-    ? money.split.reportedThrough !== null || listState === 'reported'
-    : false;
-
+  const selectYear = (next: number) => navigation.setParams({ year: String(next) });
+  const onReport = () => void retryReport();
+  const onList = () => void readList();
+  const reportBusy = Boolean(busy.report || moneyQuery.isFetching);
+  const listBusy = Boolean(busy.list || list.isFetching);
+  const reportPanel = (
+    <View
+      style={[styles.reportAside, desktop && styles.reportAsideDesktop]}
+      role="complementary"
+      aria-label="Report information"
+    >
+      <View style={styles.stampCard}>
+        {moneyQuery.isPending ? (
+          <>
+            <Text role="status" style={styles.stampDetail}>
+              Loading report information
+            </Text>
+            <Skeleton width="70%" height={14} />
+            <Skeleton width="95%" height={11} />
+          </>
+        ) : moneyQuery.isError && !money ? (
+          <>
+            <Text accessibilityRole="alert" style={styles.stampDetail}>
+              {REPORT_LOAD_ERROR}
+              {rows.length > 0 ? `. ${REPORT_ROWS_REMAIN}` : ''}
+            </Text>
+            <RetryButton onPress={onReport} busy={reportBusy} />
+          </>
+        ) : (
+          <>
+            {moneyQuery.isError ? (
+              <>
+                <Text accessibilityRole="alert" style={styles.stampDetail}>
+                  We couldn’t refresh the report information. The last report information loaded for
+                  this committee and filing year is still shown.
+                </Text>
+                <RetryButton onPress={onReport} busy={reportBusy} />
+              </>
+            ) : null}
+            {period ? (
+              <>
+                <Text style={styles.stampPeriod}>{period}</Text>
+                <Text style={styles.stampDetail}>
+                  {reportPeriodDetail(money?.moneyIn.reportedPeriodStart)}
+                </Text>
+                {registerKind === 'party_unit' ? (
+                  <Text style={styles.stampDetail}>
+                    Party units file on their own calendar, so these dates are the party-unit
+                    series’, not a candidate committee’s.
+                  </Text>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <Text style={styles.stampPeriodMuted}>{uncoveredPeriodLine(year)}</Text>
+                <Text style={styles.stampDetail}>{uncoveredPeriodDetail(year, null)}</Text>
+              </>
+            )}
+          </>
+        )}
+      </View>
+      <View style={styles.reportSources}>
+        <BoardLink url={boardUrl} />
+        {boardUrl !== BOARD_VIEWER_INDEX ? (
+          <Text style={styles.stampDetail}>{BOARD_RECORD_SENTENCE_TAIL.trim()}</Text>
+        ) : null}
+        {checkedOn ? (
+          <Text style={styles.stampDetail}>
+            {reportCopied
+              ? paymentFilesDownloadedLine(checkedOn, reportCopied)
+              : `Minnesota’s payment files copied ${checkedOn}. This is a copy date, not a reporting period.`}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
   return (
     <PageBackground>
       <ScrollView contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
-
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
-          <Pressable
+          <FocusPressable
             {...linkProps(routePath.moneyCommittee(slug, { tab, year: String(year) }), () =>
               navigation.navigate('CommitteeMoney', { slug, tab, year: String(year) }),
             )}
             style={styles.backLink}
           >
-            <BackChevron />
+            <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
+              <Path
+                d="M15 5 L8 12 L15 19"
+                stroke={t.colors.text.secondary}
+                strokeWidth={2.2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
             <Text style={styles.backLabel}>{name ?? 'Committee'}</Text>
-          </Pressable>
-
+          </FocusPressable>
           {notFound && registrationNumber ? (
             <View style={styles.notFoundWrap}>
               <Text style={styles.eyebrow}>COMMITTEES</Text>
@@ -156,6 +255,14 @@ export function CommitteePaymentsScreen({
                 {notFoundTitle()}
               </Text>
               <Text style={styles.body}>{notFoundBody(registrationNumber)}</Text>
+              <FocusPressable
+                {...linkProps(routePath.moneyCommittees(), () =>
+                  navigation.navigate('CommitteeList'),
+                )}
+                style={styles.primaryButton}
+              >
+                <Text style={styles.primaryButtonLabel}>Browse all committees</Text>
+              </FocusPressable>
             </View>
           ) : (
             <>
@@ -165,7 +272,7 @@ export function CommitteePaymentsScreen({
               <Text
                 accessibilityRole="header"
                 aria-level={1}
-                style={[styles.h1, isMobile && styles.h1Mobile]}
+                style={[styles.h1, isTablet && styles.h1Tablet, isMobile && styles.h1Mobile]}
               >
                 {paymentsTitle(tab)}
               </Text>
@@ -175,141 +282,100 @@ export function CommitteePaymentsScreen({
                 ) : null}
                 {name ? <Text style={styles.entName}>{name}</Text> : null}
               </View>
-
-              <View style={styles.yearRow}>
-                <Text style={styles.yearLabel}>FILING YEAR</Text>
-                <YearControl year={year} onSelect={onSelectYear} />
-              </View>
-
-              <View style={styles.stampCard}>
-                {yearCovered ? (
-                  <>
-                    {coveredPeriodLine(
-                      money?.split.reportedThrough,
-                      money?.moneyIn.reportedPeriodStart,
-                    ) ? (
-                      <Text style={styles.stampPeriod}>
-                        {coveredPeriodLine(
-                          money?.split.reportedThrough,
-                          money?.moneyIn.reportedPeriodStart,
-                        )}
-                      </Text>
-                    ) : null}
-                    {/* 2 sentences, 1 block, 5px apart against the 8px the panel puts
-                        between its own children: the second reads as a new sentence
-                        rather than as a wrap of the first, which on a phone wraps to 3
-                        lines. Both keep their terminal period because they are prose
-                        in one block, not a stack of standalone lines. */}
-                    <View style={styles.stampSentences}>
-                      <Text style={styles.stampDetail}>
-                        {coveredPeriodDetail(money?.split.reportedThrough ?? null, null, {
-                          isPartyUnit: registerKind === 'party_unit',
-                          reportedPeriodStart: money?.moneyIn.reportedPeriodStart ?? null,
-                        })}
-                      </Text>
-                      <Text style={styles.stampDetail}>
-                        <Text
-                          style={styles.inlineLink}
-                          {...externalLinkProps(boardUrl, () => void Linking.openURL(boardUrl))}
-                        >
-                          {BOARD_RECORD_LINK_LABEL}
-                        </Text>
-                        {BOARD_RECORD_SENTENCE_TAIL}
-                      </Text>
-                    </View>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.stampPeriodMuted}>{uncoveredPeriodLine(year)}</Text>
-                    <Text style={styles.stampDetail}>{uncoveredPeriodDetail(year, null)}</Text>
-                  </>
-                )}
-                {moneyQuery.isError && money ? (
-                  <Text style={styles.stampDetail}>{staleHoldNote(null)}</Text>
-                ) : null}
-                {checkedOn ? (
-                  <Text style={styles.stampDetail}>
-                    {paymentFilesDownloadedLine(
-                      checkedOn,
-                      money?.filingsCopiedAt ? centralDateLabel(money.filingsCopiedAt) : null,
-                    )}
-                  </Text>
-                ) : null}
-              </View>
-
-              <View style={styles.tabsRow} role="tablist">
-                {(Object.keys(PAYMENTS_TAB_LABELS) as PaymentsTab[]).map((key) => {
-                  const active = key === tab;
-                  return (
-                    <Pressable
+              <View style={styles.controls}>
+                <View style={styles.tabsRow} role="group" aria-label="Payment direction">
+                  {(Object.keys(PAYMENTS_TAB_LABELS) as PaymentsTab[]).map((key) => (
+                    <FocusPressable
                       key={key}
-                      onPress={() => onSelectTab(key)}
-                      accessibilityRole="tab"
-                      aria-selected={active}
-                      style={[styles.tab, active && styles.tabActive]}
+                      onPress={() => navigation.setParams({ tab: key })}
+                      accessibilityRole="button"
+                      aria-pressed={key === tab}
+                      style={[styles.tab, key === tab && styles.tabActive]}
                     >
-                      <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
+                      <Text style={[styles.tabLabel, key === tab && styles.tabLabelActive]}>
                         {PAYMENTS_TAB_LABELS[key]}
                       </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              {list.isPending ? (
-                <View style={styles.listLoading}>
-                  <View role="status" aria-busy style={styles.hidden}>
-                    <Text>Loading figures</Text>
-                  </View>
-                  <MoneyListRows isMobile={isMobile}>
-                    {[0, 1, 2, 3, 4, 5].map((index) => (
-                      <MoneyListRow key={index} isMobile={isMobile} first={index === 0}>
-                        <View style={styles.listRowText}>
-                          <Skeleton width={`${[58, 72, 44, 66, 52, 38][index]}%`} height={14} />
-                          <Skeleton width={200} height={11} style={{ marginTop: 8 }} />
-                        </View>
-                        {isMobile ? null : <Skeleton width={96} height={11} />}
-                      </MoneyListRow>
-                    ))}
-                  </MoneyListRows>
+                    </FocusPressable>
+                  ))}
                 </View>
-              ) : (list.isError && rows.length === 0) || paymentsUnavailable(firstPage?.state) ? (
-                <View style={styles.card}>
-                  <Text accessibilityRole="alert" style={styles.body}>
-                    {PAYMENTS_LOAD_ERROR}
-                  </Text>
-                </View>
-              ) : !firstPage || firstPage.state !== 'reported' ? (
-                <View style={styles.card}>
-                  <Text style={styles.h3}>{emptyListTitle(tab, year)}</Text>
-                  <Text style={styles.explain}>{emptyListWhy(year)}</Text>
-                  <Pressable
-                    onPress={() =>
-                      onSelectYear(year === new Date().getFullYear() ? year - 1 : year + 1)
-                    }
-                    accessibilityRole="button"
-                    style={styles.primaryButton}
-                  >
-                    <Text style={styles.primaryButtonLabel}>
-                      See {year === new Date().getFullYear() ? year - 1 : year + 1}
-                    </Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <PaymentRows
-                  isMobile={isMobile}
-                  tab={tab}
-                  rows={rows}
-                  total={total}
-                  linkable={linkable}
-                  isBallot={isBallot}
-                  boardUrl={boardUrl}
-                  hasNextPage={Boolean(list.hasNextPage)}
-                  isFetchingNextPage={list.isFetchingNextPage}
-                  onMore={() => void list.fetchNextPage()}
-                  navigation={navigation}
+                <YearControl
+                  year={year}
+                  onSelect={selectYear}
+                  surface="committee"
+                  years={committeeMoneyYears(year)}
                 />
-              )}
+              </View>
+              <View style={[styles.content, desktop && styles.contentDesktop]}>
+                {reportPanel}
+                <View style={styles.paymentsColumn}>
+                  <Text role="status" accessibilityLiveRegion="polite" style={styles.hidden}>
+                    {list.isPending
+                      ? 'Loading payments'
+                      : rows.length > 0
+                        ? showingLine(rows.length, total, year, Boolean(list.hasNextPage))
+                        : ''}
+                  </Text>
+                  {list.isError && rows.length > 0 && !list.isFetchNextPageError ? (
+                    <View style={styles.refreshNotice}>
+                      <Text accessibilityRole="alert" style={styles.explain}>
+                        {PAYMENTS_REFRESH_ERROR}
+                      </Text>
+                      <RetryButton onPress={onList} busy={listBusy} />
+                    </View>
+                  ) : null}
+                  {list.isPending ? (
+                    <View style={styles.listLoading}>
+                      <Text style={styles.explain}>Loading payments</Text>
+                      {[0, 1, 2, 3, 4].map((index) => (
+                        <View key={index} style={styles.loadingRow}>
+                          <Skeleton width="64%" height={14} />
+                          <Skeleton width="40%" height={11} />
+                        </View>
+                      ))}
+                    </View>
+                  ) : (list.isError && rows.length === 0) ||
+                    (rows.length === 0 && paymentsUnavailable(firstPage?.state)) ? (
+                    <View style={styles.card}>
+                      <Text accessibilityRole="alert" style={styles.body}>
+                        {PAYMENTS_LOAD_ERROR}
+                      </Text>
+                      <RetryButton onPress={onList} busy={listBusy} />
+                    </View>
+                  ) : rows.length === 0 ? (
+                    <View style={styles.card}>
+                      <Text accessibilityRole="header" aria-level={2} style={styles.h3}>
+                        {emptyListTitle(tab, year)}
+                      </Text>
+                      <Text style={styles.explain}>{emptyListWhy(year)}</Text>
+                      <FocusPressable
+                        onPress={() => selectYear(committeeAlternativeYear(year))}
+                        accessibilityRole="button"
+                        style={styles.primaryButton}
+                      >
+                        <Text style={styles.primaryButtonLabel}>
+                          See {committeeAlternativeYear(year)}
+                        </Text>
+                      </FocusPressable>
+                    </View>
+                  ) : (
+                    <PaymentRows
+                      isMobile={isMobile}
+                      tab={tab}
+                      year={year}
+                      rows={rows}
+                      total={total}
+                      linkable={linkable}
+                      isBallot={isBallot}
+                      boardUrl={boardUrl}
+                      hasNextPage={Boolean(list.hasNextPage)}
+                      isFetchingNextPage={listBusy}
+                      loadMoreError={list.isFetchNextPageError}
+                      onMore={() => void readList(true)}
+                      navigation={navigation}
+                    />
+                  )}
+                </View>
+              </View>
             </>
           )}
         </Container>
@@ -319,8 +385,56 @@ export function CommitteePaymentsScreen({
   );
 }
 
+function FocusPressable({
+  style,
+  ...props
+}: Omit<ComponentProps<typeof Pressable>, 'style'> & { style?: StyleProp<ViewStyle> }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <Pressable
+      {...props}
+      onFocus={(event) => {
+        setFocused(true);
+        props.onFocus?.(event);
+      }}
+      onBlur={(event) => {
+        setFocused(false);
+        props.onBlur?.(event);
+      }}
+      style={[style, focused && styles.focused]}
+    />
+  );
+}
+function RetryButton({ onPress, busy }: { onPress: () => void; busy: boolean }) {
+  return (
+    <FocusPressable
+      accessibilityRole="button"
+      onPress={onPress}
+      disabled={busy}
+      aria-busy={busy}
+      style={styles.primaryButton}
+    >
+      <Text style={styles.primaryButtonLabel}>{busy ? 'Loading…' : 'Try again'}</Text>
+    </FocusPressable>
+  );
+}
+function BoardLink({ url }: { url: string }) {
+  return (
+    <FocusPressable
+      {...externalLinkProps(url, () => void Linking.openURL(url))}
+      style={styles.sourceLink}
+    >
+      <Text style={styles.source}>
+        {url === BOARD_VIEWER_INDEX
+          ? 'Find this committee in the Board’s records'
+          : BOARD_RECORD_LINK_LABEL}
+      </Text>
+    </FocusPressable>
+  );
+}
 function PaymentRows({
   tab,
+  year,
   rows,
   total,
   linkable,
@@ -328,77 +442,38 @@ function PaymentRows({
   boardUrl,
   hasNextPage,
   isFetchingNextPage,
+  loadMoreError,
   onMore,
   navigation,
   isMobile,
 }: {
   isMobile: boolean;
   tab: PaymentsTab;
+  year: number;
   rows: (CommitteeReceivedPayment | CommitteeMadePayment)[];
   total: number | null;
   linkable: Set<string>;
-  isBallot: boolean;
+  isBallot: boolean | null;
   boardUrl: string;
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
+  loadMoreError: boolean;
   onMore: () => void;
   navigation: RootScreenProps<'CommitteePayments'>['navigation'];
 }) {
-  // The 2 row shapers live in lib/committeePaymentsPage.ts, so the line this screen
-  // draws and the line the first server response carries are the same characters
-  // rather than 2 similar sentences (#1812).
-  const shaped = rows.map((payment, index) => {
-    const row =
-      tab === 'gave'
-        ? receivedPaymentRow(payment as CommitteeReceivedPayment, linkable)
-        : madePaymentRow(payment as CommitteeMadePayment, linkable);
-    return { ...row, key: `${index}-${row.name}-${row.date ?? ''}` };
-  });
-
+  const shaped = rows.map((payment) =>
+    tab === 'gave'
+      ? receivedPaymentRow(payment as CommitteeReceivedPayment, linkable)
+      : madePaymentRow(payment as CommitteeMadePayment, linkable),
+  );
   return (
     <View>
       <View style={styles.listHead}>
-        <Text style={styles.listCount}>{showingLine(shaped.length, total) ?? ''}</Text>
+        <Text style={styles.listCount}>{showingLine(rows.length, total, year, hasNextPage)}</Text>
         <Text style={styles.listSort}>LARGEST FIRST</Text>
       </View>
-      {/* Card rows at computer width, hairline rows inside one card on the phone
-          (MoneyListRows). On the phone the date and the amount go under the name
-          as a third line, left-aligned: once each amount sits under its own name
-          there is no column to compare down (phone band rule D2). */}
-      <MoneyListRows isMobile={isMobile}>
+      <View style={styles.rowsCard} role="list">
         {shaped.map((row, index) => {
-          const inner = (
-            <>
-              <View style={styles.listRowText}>
-                <View style={styles.listNameRow}>
-                  <Text style={styles.listName}>{row.name}</Text>
-                  {row.inKind ? (
-                    <Text style={styles.inKindChip}>{IN_KIND_CHIP.toUpperCase()}</Text>
-                  ) : null}
-                </View>
-                {row.meta ? <Text style={styles.listMeta}>{row.meta}</Text> : null}
-                {isMobile ? (
-                  <View style={styles.listBottomRow}>
-                    <Text style={styles.listDateMobile}>
-                      {row.date ? row.date.toUpperCase() : ''}
-                    </Text>
-                    <Text style={styles.listAmountMobile}>{row.amount ?? ''}</Text>
-                  </View>
-                ) : null}
-              </View>
-              {isMobile ? null : (
-                <>
-                  <Text style={styles.listDate}>{row.date ? row.date.toUpperCase() : ''}</Text>
-                  <Text style={styles.listAmount}>{row.amount ?? ''}</Text>
-                </>
-              )}
-            </>
-          );
-          // A registered filer opens its own page. A printed name that is not a
-          // registered filer — a person, an employer or a vendor — leads to every
-          // payment filed under that EXACT spelling, which is the whole of what
-          // Minnesota's data supports (#1331). `nameLink` is null wherever a link
-          // would be a false claim, so this never has to re-decide that.
           let link: { href: string; onPress: () => void } | null = null;
           if (row.linkNumber) {
             const targetSlug = committeeSlug(row.linkName, row.linkNumber);
@@ -414,39 +489,75 @@ function PaymentRows({
             };
           }
           return (
-            <MoneyListRow key={row.key} isMobile={isMobile} first={index === 0} link={link}>
-              {inner}
-            </MoneyListRow>
+            <View
+              key={index}
+              role="listitem"
+              style={[styles.paymentRow, index > 0 && styles.paymentDivider]}
+            >
+              <View style={styles.listRowText}>
+                {link ? (
+                  <FocusPressable {...linkProps(link.href, link.onPress)} style={styles.nameLink}>
+                    <Text
+                      style={[
+                        styles.listName,
+                        styles.linkedName,
+                        isMobile && styles.listNameMobile,
+                      ]}
+                    >
+                      {row.name}
+                    </Text>
+                  </FocusPressable>
+                ) : (
+                  <Text style={[styles.listName, isMobile && styles.listNameMobile]}>
+                    {row.name}
+                  </Text>
+                )}
+                {row.meta ? <Text style={styles.listMeta}>{row.meta}</Text> : null}
+                {row.inKind ? (
+                  <Text style={styles.inKindChip}>{IN_KIND_CHIP.toUpperCase()}</Text>
+                ) : null}
+                <Text style={styles.listDate}>{row.date ?? 'Date not given in the filing'}</Text>
+              </View>
+              <Text style={[styles.listAmount, isMobile && styles.listNameMobile]}>
+                {row.amount ?? 'Amount not given'}
+              </Text>
+            </View>
           );
         })}
-      </MoneyListRows>
-
-      {hasNextPage && total !== null ? (
+      </View>
+      {hasNextPage ? (
         <View style={styles.capCard}>
           <Text style={styles.capHead}>THIS PAGE IS CAPPED</Text>
           <Text style={styles.capNote}>{CAP_NOTE}</Text>
+          {loadMoreError ? (
+            <Text accessibilityRole="alert" style={styles.capNote}>
+              {PAYMENTS_MORE_ERROR}
+            </Text>
+          ) : null}
           <View style={styles.capActions}>
-            <Pressable
+            <FocusPressable
               onPress={onMore}
               accessibilityRole="button"
-              aria-disabled={isFetchingNextPage}
-              style={styles.capButton}
+              disabled={isFetchingNextPage}
+              aria-busy={isFetchingNextPage}
+              style={styles.primaryButton}
             >
-              <Text style={styles.capButtonLabel}>
-                {isFetchingNextPage ? 'Loading…' : capNextLabel(shaped.length, total)}
+              <Text style={styles.primaryButtonLabel}>
+                {isFetchingNextPage
+                  ? 'Loading…'
+                  : loadMoreError
+                    ? 'Try again'
+                    : capNextLabel(rows.length, total)}
               </Text>
-            </Pressable>
-            <Text
-              style={styles.source}
-              {...externalLinkProps(boardUrl, () => void Linking.openURL(boardUrl))}
-            >
-              {BOARD_RECORD_LINK_LABEL}
-            </Text>
+            </FocusPressable>
+            <BoardLink url={boardUrl} />
           </View>
         </View>
       ) : null}
-
-      <Text style={styles.linkNote}>{listLinkNote(tab, isBallot)}</Text>
+      <Text style={styles.linkNote}>{LIST_LINK_NOTE}</Text>
+      {tab === 'gave' && isBallot !== null ? (
+        <Text style={styles.linkNote}>{donorThresholdNote(isBallot)}</Text>
+      ) : null}
     </View>
   );
 }
@@ -455,7 +566,60 @@ const styles = StyleSheet.create({
   page: { flexGrow: 1 },
   main: { paddingTop: 28, paddingBottom: 64 },
   mainMobile: { paddingTop: 18 },
-  backLink: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
+  backLink: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
+  },
+  focused: { outlineWidth: 2, outlineColor: '#7c5cff', outlineStyle: 'solid', outlineOffset: 2 },
+  h1Tablet: { fontSize: 34, lineHeight: 41 },
+  content: { marginTop: 24, gap: 24 },
+  contentDesktop: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 32 },
+  reportAside: { minWidth: 0 },
+  reportAsideDesktop: { width: 340, flexShrink: 1 },
+  reportSources: { gap: 8, marginTop: 12, paddingHorizontal: 17 },
+  paymentsColumn: { flex: 1, minWidth: 0 },
+  controls: {
+    marginTop: 22,
+    gap: 18,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  refreshNotice: {
+    padding: 18,
+    borderRadius: 12,
+    backgroundColor: '#fff7ea',
+    gap: 12,
+    marginBottom: 18,
+  },
+  loadingRow: {
+    padding: 18,
+    gap: 8,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink10,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+  },
+  rowsCard: {
+    marginTop: 14,
+    paddingHorizontal: 18,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink10,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    boxShadow: '0 6px 18px rgba(17,21,15,0.05)',
+  },
+  paymentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, paddingVertical: 14 },
+  paymentDivider: { borderTopWidth: 1, borderTopColor: t.colors.alpha.ink08 },
+  nameLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', maxWidth: '100%' },
+  linkedName: { color: t.colors.text.greenOnLight },
+  listNameMobile: { fontSize: 16 },
+  sourceLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
   backLabel: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
@@ -467,14 +631,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 2.4,
-    color: t.colors.brand.base,
+    color: t.colors.text.greenOnLight,
   },
   eyebrowSpaced: { marginTop: 22 },
   h1: {
     marginTop: 12,
     fontFamily: t.typography.title,
-    fontSize: 38,
-    lineHeight: 44,
+    fontSize: 42,
+    lineHeight: 49,
     fontWeight: t.fontWeights.heavy,
     letterSpacing: -1,
     color: t.colors.text.primary,
@@ -489,6 +653,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   body: {
+    fontVariant: ['tabular-nums'],
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.bodyLg,
     lineHeight: 26,
@@ -496,6 +661,7 @@ const styles = StyleSheet.create({
     maxWidth: 760,
   },
   explain: {
+    fontVariant: ['tabular-nums'],
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     lineHeight: 22,
@@ -504,7 +670,8 @@ const styles = StyleSheet.create({
   },
   chipRow: { marginTop: 14, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
   regChip: {
-    fontFamily: t.typography.mono,
+    fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
     fontSize: 12,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.7,
@@ -522,17 +689,8 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.bodyLg,
     color: t.colors.text.secondary,
   },
-  yearRow: { marginTop: 20, flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
-  yearLabel: {
-    fontFamily: t.typography.mono,
-    fontSize: 11,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.3,
-    color: t.colors.text.muted,
-  },
   stampCard: {
-    marginTop: 20,
-    backgroundColor: t.colors.surfaces.s100,
+    backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink08,
     borderRadius: t.radii.lg,
@@ -540,37 +698,32 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   stampPeriod: {
-    fontFamily: t.typography.mono,
-    fontSize: 12,
+    fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
+    fontSize: 17,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.9,
-    color: t.colors.brand.base,
+    color: t.colors.text.primary,
   },
   stampPeriodMuted: {
+    fontVariant: ['tabular-nums'],
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.bodyLg,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.secondary,
   },
-  stampSentences: { gap: 5 },
-  inlineLink: {
-    fontFamily: t.typography.body,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.brand.base,
-    textDecorationLine: 'underline',
-    ...({ textUnderlineOffset: 3 } as object),
-  },
   stampDetail: {
     fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
     fontSize: t.fontSizes.body,
     lineHeight: 22,
     color: t.colors.text.secondary,
     maxWidth: 1000,
   },
   tabsRow: {
-    marginTop: 26,
     flexDirection: 'row',
-    gap: 30,
+    gap: 18,
+    flexWrap: 'wrap',
     borderBottomWidth: 1,
     borderBottomColor: t.colors.alpha.ink08,
   },
@@ -585,7 +738,6 @@ const styles = StyleSheet.create({
   },
   tabLabelActive: { color: t.colors.text.primary, fontWeight: t.fontWeights.bold },
   listHead: {
-    marginTop: 20,
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
@@ -594,6 +746,7 @@ const styles = StyleSheet.create({
   },
   listCount: {
     fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
     fontSize: t.fontSizes.body,
     color: t.colors.text.secondary,
   },
@@ -606,13 +759,13 @@ const styles = StyleSheet.create({
   },
   listLoading: { marginTop: 8 },
   listRowText: { flex: 1, minWidth: 0 },
-  listNameRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   listName: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.bodyLg,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
     flexShrink: 1,
+    ...({ overflowWrap: 'anywhere' } as object),
   },
   inKindChip: {
     fontFamily: t.typography.mono,
@@ -635,44 +788,21 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
   },
   listDate: {
-    width: 116,
-    textAlign: 'right',
-    fontFamily: t.typography.mono,
-    fontSize: 12,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.4,
+    marginTop: 5,
+    fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
+    fontSize: 13,
+    fontWeight: '600',
     color: t.colors.text.muted,
   },
-  // The body face on every amount, matching the big totals (ruled 1 Sep 2026, #1924).
-  // `listDate` directly above keeps mono, which is the whole point: 2 faces separate a
-  // date from a dollar figure, not one dollar figure from another.
   listAmount: {
-    width: 104,
+    maxWidth: '40%',
+    flexShrink: 1,
     textAlign: 'right',
     fontFamily: t.typography.body,
-    fontSize: t.fontSizes.bodyLg,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.primary,
-  },
-  listBottomRow: {
-    marginTop: 6,
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'flex-start',
-    gap: 12,
-    flexWrap: 'wrap',
-  },
-  listDateMobile: {
-    fontFamily: t.typography.mono,
-    fontSize: 12,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.4,
-    color: t.colors.text.muted,
-  },
-  listAmountMobile: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.bodyLg,
-    fontWeight: t.fontWeights.bold,
+    fontVariant: ['tabular-nums'],
+    fontSize: 17,
+    fontWeight: '800',
     color: t.colors.text.primary,
   },
   capCard: {
@@ -693,6 +823,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
   },
   capNote: {
+    fontVariant: ['tabular-nums'],
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     lineHeight: 22,
@@ -705,39 +836,24 @@ const styles = StyleSheet.create({
     gap: 14,
     flexWrap: 'wrap',
   },
-  capButton: {
-    minHeight: 44,
-    justifyContent: 'center',
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink16,
-    borderRadius: 11,
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-  },
-  capButtonLabel: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.body,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.primary,
-  },
   source: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,
-    color: t.colors.brand.base,
+    color: t.colors.text.greenOnLight,
     textDecorationLine: 'underline',
   },
   linkNote: {
+    fontVariant: ['tabular-nums'],
     marginTop: 16,
+    paddingHorizontal: 17,
     maxWidth: 960,
     fontFamily: t.typography.body,
-    fontSize: t.fontSizes.meta,
-    lineHeight: 20,
+    fontSize: 17,
+    lineHeight: 25,
     color: t.colors.text.muted,
   },
   card: {
-    marginTop: 24,
     maxWidth: 820,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
@@ -757,6 +873,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 19,
   },
   primaryButtonLabel: {
+    fontVariant: ['tabular-nums'],
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,

@@ -1467,6 +1467,45 @@ original plus three amendments, each restating the same money.
 
 ## 7. Display rules
 
+**Directory, search and payment-list redraw (17 Sep 2026).** The accepted `Alethical UX (7).zip`
+changes `/money/committees`, `/money/search`, `/money/committees/{slug}/payments` and
+`/money/payments?name={name}&role={role}`. It does not change `/money`, committee overviews,
+legislator profiles or the other money destinations. Shared site headers, footers, gutters and
+Libre Franklin number styling remain authoritative. The layout bands stay below 768, 768–1099
+and at least 1100 pixels.
+
+- `/money/committees` stays alphabetical with no dollar figures. The count identifies the state
+  register's date, without shifting a date-only value into another time zone. Search and kind
+  filters preserve their values in the address. Pending changes never show an older search's rows
+  or counts under the new selection. The source sentence follows the list explanation.
+- `/money/search` keeps separate counts for all 7 search groups and no combined count. A failed
+  group is not empty. Held results remain only for the same query. Exact-name links preserve the
+  originating query for the return to search, including after a reload or opening a new tab.
+- `/money/committees/{slug}/payments` separates the selected **filing year** from report coverage
+  dates. Report information sits beside payments on desktop and above them at narrower widths.
+  The report end comes from the report; the start comes from the Board's disclosure calendar.
+  Show an end-only period when no start is available. Payment and report copy dates appear only
+  when supplied by their separate sources. Payment rows and report information can each load,
+  fail or be absent independently; a failure never becomes a claim that no record exists.
+- Committee payments load 50 initially, then up to 250 per request. A failed continuation keeps
+  held rows and the next offset for retry. Unknown totals remain unknown, with continuation driven
+  by the served `has_more` value. Copies of source rows are not removed as duplicates.
+- `/money/payments` groups by filing year and registration number, with the newest year first and
+  unknown year last. Unknown registration rows remain separate. A subtotal needs at least 2 rows
+  in one known committee/year and a readable amount on every row. No total joins different
+  committees or years. Capped results omit an apparent complete committee count; missing amounts
+  are labelled, never zero. Names link to held committee records or exact-spelling payment
+  searches using existing `contributor`, `vendor` and `independent_vendor` roles.
+- Coverage notes describe campaign records, rather than unions' wider finances. They name
+  non-itemized contributions and the donor's calendar-year aggregate: $200 generally, $500 for
+  a ballot-question committee or fund. These are disclosure thresholds, not prohibitions on
+  naming smaller donors ([Minnesota Statutes 10A.20, subdivision 3](https://www.revisor.mn.gov/statutes/cite/10A.20#stat.10A.20.3)).
+- Persistent search labels, visible keyboard focus, 44-pixel targets, live result announcements,
+  and logical reading order apply at every width. The shared header wraps its existing controls
+  when a narrow viewport cannot fit them beside the logo. The initial served text uses the same wording
+  helpers as the interactive screens.
+
+
 These bind any surface showing this data. The rules about what may be *asserted* live in
 `.claude/rules/grounded-answers.md` rule 3 (grounded neutrality) and rule 12 (campaign
 finance display); this section covers what must be *shown*.
