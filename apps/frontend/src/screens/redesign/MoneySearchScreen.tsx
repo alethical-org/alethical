@@ -48,7 +48,7 @@ import {
   tooShortWhy,
   type NameSearchGroupKind,
 } from '../../lib/moneyNameSearch';
-import { MONEY_LIST_COVERAGE } from '../../lib/moneyListCopy';
+import { MONEY_LIST_COVERAGE, MONEY_LIST_COVERAGE_HEADING } from '../../lib/moneyListCopy';
 import { paymentNameRole } from '../../lib/paymentsUnderName';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { linkProps, routePath } from '../../navigation/links';
@@ -201,7 +201,7 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
           {/* Above the results on purpose (IA §06). A reader who is told nothing
               reads an empty answer as "they gave nothing". */}
           <View style={styles.notCoveredBox}>
-            <Text style={styles.notCoveredLabel}>WHAT THE CAMPAIGN RECORDS DO NOT COVER</Text>
+            <Text style={styles.notCoveredLabel}>{MONEY_LIST_COVERAGE_HEADING.toUpperCase()}</Text>
             <View style={styles.notCoveredList}>
               {MONEY_LIST_COVERAGE.map((line) => (
                 <Text key={line} style={styles.notCoveredLine}>

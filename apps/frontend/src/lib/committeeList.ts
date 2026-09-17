@@ -175,9 +175,9 @@ export function committeeRowMeta(row: {
  * rather than a name.
  */
 export const COMMITTEE_LIST_NOTE =
-  'Committees are listed alphabetically. Dollar amounts appear on each committee’s page, ' +
-  'with the dates they cover. We leave amounts out of this list because committees report ' +
-  'on different schedules.';
+  'Committees are listed alphabetically. Open a committee to see its reported amounts and the ' +
+  'dates they cover. Amounts are left out of this list because committees report on different ' +
+  'schedules.';
 
 export const COMMITTEE_LIST_SOURCE =
   'Campaign money reported to the Minnesota Campaign Finance and Public Disclosure Board';

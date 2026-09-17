@@ -1241,7 +1241,7 @@ export function moneySearchPageSnapshot(): PageSnapshot {
     facts: [],
     sections: [
       {
-        heading: 'What the campaign records do not cover',
+        heading: MONEY_LIST_COVERAGE_HEADING,
         body: [...MONEY_LIST_COVERAGE],
         bodyIsList: true,
       },

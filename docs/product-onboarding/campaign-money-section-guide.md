@@ -517,7 +517,10 @@ Top to bottom:
    why a row opens by number.
 6. **"Files last copied"**, the page's one freshness date: the day we copied the Board's download
    the named figures come from.
-7. **What this record does not cover**, the same block as the landing.
+7. **Limits of the campaign records**, with these 3 lines: "Campaign payment records before
+   2015 are not included"; "These records cover campaign finances, not the wider finances of
+   organizations with political committees or funds"; and the explanation of non-itemized
+   contributions and the $200 and $500 yearly thresholds.
 
 Its own states: an office with no candidate committees in our copy (a way to drop the filter is
 offered); our copy of the register could not be read (said as our gap, never as a claim that
