@@ -1,4 +1,4 @@
-<!-- describes: .github/workflows/production-release-failed.yml, apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/loadOnDemand.tsx, apps/frontend/src/navigation/screenPreload.ts, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py, scripts/report_origin_share_by_address.py, apps/frontend/src/lib/committeeConfirmation.ts -->
+<!-- describes: .github/workflows/production-release-failed.yml, apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/loadOnDemand.tsx, apps/frontend/src/navigation/screenPreload.ts, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py, scripts/report_origin_share_by_address.py, apps/frontend/src/lib/committeeConfirmation.ts, apps/frontend/src/lib/initialWindowMetrics.ts, apps/frontend/src/navigation/screenChunks.ts -->
 
 <!-- describes: apps/frontend/metro.config.js, patches/@expo__metro-config@57.0.7.patch, pnpm-workspace.yaml, pnpm-lock.yaml, apps/frontend/scripts/__tests__/sharedScreenChunks.test.ts, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeePaymentsPage.ts, apps/frontend/src/lib/committeeMoneyShared.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsBundle.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsOnDemand.tsx, apps/frontend/src/lib/committeeOutsideSpending.ts -->
 
@@ -625,6 +625,61 @@ arrived. `apps/frontend/src/navigation/__tests__/screenPreload.test.ts` fails if
 fetch-ahead path stops going through it, and
 `apps/frontend/src/lib/__tests__/loadOnDemand.test.tsx` fails if a piece the browser
 already holds goes back to drawing an empty marker first.
+
+## The deepest money pages draw from their first response, 17 September 2026
+
+**A first visit to a money page shows the finished page once: the served text is the app's own
+design, the app's first frame carries the records, and nothing white or half-drawn sits between
+them.** Measured live before the change, cold browser, 1280x900, unthrottled, 1 load per address:
+
+| Address | Served text on screen | Blank frame | App's first frame | What the reader then watched |
+|---|---:|---:|---:|---|
+| `/money/committees/…-20003?year=2025` | 482 to 510 ms | 516 ms | 547 ms | "Loading the contribution breakdown…" until the chart's code arrived at 636 ms, then the chart |
+| `/money/committees/…-41363/payments?year=2025` | 292 to 455 ms | 461 ms | 504 ms | |
+| `/money/payments?name=…&role=contributor` | none served | | 524 ms | placeholder rows until the list arrived at 1,193 ms |
+| `/money/lobbying/principals/…-5359` | 878 to 947 ms | 952 ms | 989 ms | |
+| `/legislators/jim-abeler?tab=money&year=2025` | 827 to 898 ms | | 930 ms | a skeleton until the record arrived at 1,361 ms; "Loading campaign money…" until 2,020 ms; the outside-groups card then pushed everything below it (a layout shift of 0.2078 at 2,036 ms) |
+
+Five causes, each with the rule that follows from it:
+
+- **The safe-area provider drew nothing until it had measured the window.** Given no starting
+  metrics, `SafeAreaProvider` renders its children only once `insets` is set, and on the web that
+  measurement lands a frame later, so every address painted an empty full-height box for about
+  40 ms between the served text and the app. A browser window's insets are 0 before anything
+  draws, so the app hands the provider the document's size up front
+  (`apps/frontend/src/lib/initialWindowMetrics.ts`). The rule: a provider that gates the whole
+  tree on a measurement is given the measurement it can already know.
+- **The screen's file was chosen from the pathname alone.** `/money/payments?name=…&role=…` is
+  one screen and bare `/money/payments` is the not-found page, so the fetch-ahead downloaded the
+  not-found page's file (48,602 bytes) and the real screen then waited behind React's 300 ms
+  marker. The whole address, query string included, chooses the file (`apps/frontend/index.ts`).
+- **A read the page function had already made was made again by the app.** The legislator record
+  (read here with the profile's own field list), the member's money answer on a money-tab
+  address (carried with its age, because whose committee this is expires) and the first page of
+  payments under a name are handed on under the hooks' own keys, and the payments-by-name page
+  gets its rows as served text. The rule stands from
+  [#1966](https://github.com/alethical-org/alethical/issues/1966): what the function read to write
+  the page, the app draws from without asking again.
+- **The committee screen's chart code arrived after the screen.** Fetched after the screen
+  mounted, the card drew its figures under "Loading the contribution breakdown…" and then the
+  same figures under the chart about 90 ms later, which read as an old page being replaced by a
+  new one. The screen's loader waits for the chart piece and the payment reads' code
+  (`committeeMoneyScreenPieces`), as the legislator tab's loader already did.
+- **The served text looked like a different, older page.** It was a plain document in a system
+  font; the app's design replaced it. It is now drawn in the app's design and typeface, with the
+  fonts served from our own address so the typeface is in place at the first paint
+  (`docs/architecture/page-metadata-for-search-and-sharing-decisions.md` §24 and §26).
+
+Two costs, both accepted: the committee screen draws when its chart code has also arrived, about
+40 ms after the screen file alone on a warm edge, and a first visit downloads the Libre Franklin
+and Space Grotesk files (29,336 and 13,372 bytes) from this address before the first paint,
+instead of after it from Google.
+
+**What still waits on the data service, and where that is measured.** The committee page's 2
+complete payment lists and the legislator tab's 11 yearly reads are origin reads on a
+rarely-visited page; their statement counts and plans are the subject of "What an uncached money
+answer spends its time on" below, and a committee's payment pages now carry the day-long money
+window ("How long a nearby cache holds a public read" above).
 
 ## Shared screen code stays with the screen, 13 September 2026
 

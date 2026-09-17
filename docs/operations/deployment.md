@@ -132,11 +132,11 @@ property. Do not create a JSON key or enable Google Workspace domain-wide delega
 The `Content-Security-Policy` in `vercel.json` starts with everything blocked and
 opens only the connections the shipped website uses:
 
-- Alethical's own files and API at `api.alethical.com`
+- Alethical's own files (the 3 typefaces included, served from `/fonts`) and API at
+  `api.alethical.com`
 - Supabase sign-in at `naakzorbkqqgbsreulqi.supabase.co`
 - Cloudflare's page-speed program at `static.cloudflareinsights.com` and its measurement
   receiver at `cloudflareinsights.com`
-- Google Fonts styles and font files
 - HTTPS images, which covers official legislator photos and OpenStreetMap tiles
 - inline styles, because React Native Web creates them while rendering
 
