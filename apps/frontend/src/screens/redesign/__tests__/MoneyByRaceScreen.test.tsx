@@ -250,6 +250,7 @@ afterEach(() => {
 describe('Money by race directory and focused group', () => {
   it('starts with group links, without money or committee rows', () => {
     render();
+    expect(host.textContent).not.toContain('CAMPAIGN MONEY');
     expect(state.query).toHaveBeenLastCalledWith({ year: 2026 });
     expect(groups()).toHaveLength(4);
     expect(committees()).toHaveLength(0);
@@ -293,6 +294,7 @@ describe('Money by race directory and focused group', () => {
     const link = groupLink('District Court · District 4 · Seat 12');
     expect(queryOf(link)).toEqual({ office: 'District Court', year: '2025', group: court.anchor });
     click(link);
+    expect(leaf('Money by race')).toBeTruthy();
     expect(params).toEqual({
       year: '2025',
       q: undefined,
@@ -595,4 +597,10 @@ describe('Money by race figures and unavailable records', () => {
       expect(state.refetch).toHaveBeenCalledTimes(1);
     },
   );
+  it('does not repeat Money by race when a shared group cannot be loaded', () => {
+    respond(undefined, { isError: true });
+    render({ group: house.anchor, office: 'House', year: '2026' });
+    expect(host.textContent?.match(/Money by race/g)).toHaveLength(1);
+    expect(host.textContent).not.toContain('CAMPAIGN MONEY');
+  });
 });
