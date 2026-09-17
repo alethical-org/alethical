@@ -4,26 +4,29 @@ import { MONEY_SECTION_NAME } from './moneySectionName';
 export const LOBBYING_DIRECTORY_PAGE_SIZE = 50;
 export type LobbyingDirectoryKind = 'lobbyists' | 'principals';
 
+export const LOBBYING_SOURCE_URL =
+  'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/';
+
 export const LOBBYING_DIRECTORY_COPY = {
   title: 'Lobbying',
   landingLabel: MONEY_SECTION_NAME.toUpperCase(),
   directoryLabel: 'LOBBYING',
   back: 'Go back',
   intro:
-    "Who is registered to lobby Minnesota's state government, which organisations they work for, and what those organisations report spending on lobbying each year",
-  search: 'Search a lobbyist or an organisation by name',
+    'Who is registered to lobby Minnesota’s state government, which organisations they work for, and what those organisations report spending on lobbying each year',
+  search: 'Search by name',
   searchButton: 'Search',
-  searchNote: 'Matched on the name as it was filed, exactly as typed',
+  searchNote:
+    'Searches lobbying and campaign records. Part of a filed name works; spelling is not corrected',
   filter: 'Narrow by name, as filed',
   order: 'A TO Z',
   copiedLabel: 'FILES LAST COPIED',
   copiedNote:
-    "When we last copied the Board's two lobbying files. Not the year a figure covers — each spending figure states its own year",
-  coverageLabel: 'WHAT THIS RECORD DOES NOT COVER',
-  currentOnly:
-    'The lobbyist list is current only — who is registered on the copy date, with no past clients',
+    'When we last copied 2 lobbying files from the Minnesota Campaign Finance and Public Disclosure Board. Each spending figure states its own year',
+  sourceLabel: 'Minnesota’s lobbying source files',
+  coverageLabel: 'ABOUT THESE RECORDS',
+  currentOnly: 'The lobbyist list shows who was registered on the copy date, with no past clients',
   annual: 'Spending is reported by calendar year, with reports due the following March',
-  coverageCloser: 'These are properties of the record itself, not gaps we can close',
   loading: 'Loading lobbying records',
   unavailable:
     "We couldn't load the Board's lobbying records just now. This says nothing about who is registered or what was reported.",
@@ -34,7 +37,8 @@ export const LOBBYING_DIRECTORY_COPY = {
     'Names are matched as filed, and spellings vary between filings — try a shorter part of the name',
   lobbyists: {
     title: 'Lobbyists',
-    intro: 'Everyone registered to lobby today, and the organisations each one represents',
+    intro:
+      'Everyone registered to lobby when these files were copied, and the organisations each one represents',
     empty: 'No lobbyist is registered under that spelling today',
     loading: 'Loading registered lobbyists',
     unavailable:
@@ -59,7 +63,7 @@ export const MONEY_LANE_LOBBYING = {
 const count = (value: number) => value.toLocaleString('en-US');
 
 export function lobbyistLaneCount(value: number | null | undefined): string | null {
-  return value == null ? null : `${count(value)} REGISTERED TODAY`;
+  return value == null ? null : `${count(value)} REGISTERED IN THIS COPY`;
 }
 
 export function principalLaneCount(
@@ -70,7 +74,7 @@ export function principalLaneCount(
 }
 
 export function lobbyingHeldYearsNote(firstYear: number | null | undefined): string | null {
-  return firstYear == null ? null : `No lobbying spending held before ${firstYear}`;
+  return firstYear == null ? null : `The spending records shown here begin in ${firstYear}`;
 }
 
 export function lobbyingPrincipalCount(value: number): string {

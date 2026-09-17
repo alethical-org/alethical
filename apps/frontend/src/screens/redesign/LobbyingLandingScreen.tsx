@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
@@ -7,6 +7,7 @@ import { useLobbyingSummary } from '../../hooks/useLobbying';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
   LOBBYING_DIRECTORY_COPY as copy,
+  LOBBYING_SOURCE_URL,
   lobbyistLaneCount,
   lobbyingHeldYearsNote,
   principalLaneCount,
@@ -15,7 +16,7 @@ import { centralDateLabel } from '../../lib/moneyLanding';
 import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
 import { lobbyingPageMetadata } from '../../lib/lobbyingMetadata';
 import { useDocumentTitle } from '../../navigation/documentTitle';
-import { linkProps, routePath } from '../../navigation/links';
+import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
@@ -149,6 +150,15 @@ export function LobbyingLandingScreen({ navigation }: RootScreenProps<'LobbyingL
                 <Text style={styles.cardLabel}>{copy.copiedLabel}</Text>
                 <Text style={styles.date}>{centralDateLabel(data.copied_at)}</Text>
                 <Text style={styles.note}>{copy.copiedNote}</Text>
+                <Text
+                  {...externalLinkProps(
+                    LOBBYING_SOURCE_URL,
+                    () => void Linking.openURL(LOBBYING_SOURCE_URL),
+                  )}
+                  style={styles.sourceLink}
+                >
+                  {copy.sourceLabel} ↗
+                </Text>
               </View>
             ) : null}
             <View style={[styles.card, styles.infoCard, cardPadding, isMobile && styles.stacked]}>
@@ -162,7 +172,6 @@ export function LobbyingLandingScreen({ navigation }: RootScreenProps<'LobbyingL
                     </View>
                   ))}
               </View>
-              <Text style={styles.note}>{copy.coverageCloser}</Text>
             </View>
           </View>
         </Container>
@@ -279,6 +288,17 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     fontSize: 15,
     lineHeight: 22.5,
+  },
+  sourceLink: {
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    paddingTop: 12,
+    paddingBottom: 10,
+    color: '#0f7a45',
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '700',
   },
   coverage: { marginTop: 14, gap: 8 },
   coverageText: {

@@ -118,11 +118,19 @@ describe('lobbying landing', () => {
     render(
       <LobbyingLandingScreen navigation={navigation as never} route={route('LobbyingLanding')} />,
     );
-    expect(words()).toContain('1,665 REGISTERED TODAY');
+    expect(words()).toContain('1,665 REGISTERED IN THIS COPY');
     expect(words()).toContain('1,748 REPORTED SPENDING FOR 2025');
     expect(words()).toContain('Sep 13, 2026');
     expect(words()).toContain(copy.annual);
-    expect(words()).toContain('No lobbying spending held before 2014');
+    expect(words()).toContain('The spending records shown here begin in 2014');
+    expect(words()).toContain('Minnesota Campaign Finance and Public Disclosure Board');
+    const source = host.querySelector(
+      'a[href="https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/"]',
+    );
+    expect(source?.textContent).toContain('Minnesota’s lobbying source files');
+    expect(source?.getAttribute('target')).toBe('_blank');
+    expect(words()).not.toContain('registered to lobby today');
+    expect(words()).not.toContain('properties of the record itself');
     expect(words()).not.toContain('$');
     expect(host.querySelector('a[href="/money/lobbying/principals"]')).not.toBeNull();
     expect(host.querySelector('a[href="/money/lobbying/lobbyists"]')).not.toBeNull();
@@ -149,6 +157,10 @@ describe('lobbying landing', () => {
     );
     const input = host.querySelector('input')!;
     const button = host.querySelector('[role="button"]')!;
+    expect(input.getAttribute('placeholder')).toBe('Search by name');
+    expect(words()).toContain(
+      'Searches lobbying and campaign records. Part of a filed name works; spelling is not corrected',
+    );
     expect(getComputedStyle(input.parentElement!).height).toBe('52px');
     expect(getComputedStyle(input).height).toBe('100%');
     expect(getComputedStyle(input.parentElement!.parentElement!).flexDirection).toBe('column');
@@ -187,7 +199,7 @@ describe('the sixth /money lane', () => {
   it('opens lobbying, uses the served count and removes the old notice', () => {
     render(<MoneyLandingScreen navigation={navigation as never} route={route('MoneyLanding')} />);
     const lane = host.querySelector('a[href="/money/lobbying"]')!;
-    expect(lane.textContent).toContain('1,665 REGISTERED TODAY');
+    expect(lane.textContent).toContain('1,665 REGISTERED IN THIS COPY');
     expect(words()).toContain('WHAT THE CAMPAIGN FILES DO NOT COVER');
     expect(words()).toContain('No campaign payments held before 2015');
     expect(words()).not.toContain('Under development');
@@ -203,7 +215,7 @@ describe('the sixth /money lane', () => {
     render(<MoneyLandingScreen navigation={navigation as never} route={route('MoneyLanding')} />);
     const lane = host.querySelector('a[href="/money/lobbying"]')!;
     expect(lane).not.toBeNull();
-    expect(lane.textContent).not.toContain('REGISTERED TODAY');
+    expect(lane.textContent).not.toContain('REGISTERED IN THIS COPY');
   });
 });
 

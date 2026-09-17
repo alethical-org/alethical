@@ -1391,7 +1391,7 @@ describe('the records a money page hands to the app', () => {
       // campaign-finance summary's age or download date.
       { key: ['lobbying-summary'], payload: { data: lobbyingLive.summary } },
     ]);
-    expect(body).toContain('1,665 REGISTERED TODAY');
+    expect(body).toContain('1,665 REGISTERED IN THIS COPY');
   });
 
   it.each(['unavailable', 'failed'])(
@@ -1428,8 +1428,8 @@ describe('the records a money page hands to the app', () => {
         { key: ['campaign-finance-filings', 5], payload: filings },
       ]);
       expect(body).toContain('href="/money/lobbying"');
-      expect(body).not.toContain('1,665 REGISTERED TODAY');
-      expect(body).not.toContain('0 REGISTERED TODAY');
+      expect(body).not.toContain('1,665 REGISTERED IN THIS COPY');
+      expect(body).not.toContain('0 REGISTERED IN THIS COPY');
     },
   );
 

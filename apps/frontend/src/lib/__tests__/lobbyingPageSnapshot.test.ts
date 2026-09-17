@@ -52,13 +52,19 @@ describe('lobbying before the app starts', () => {
   });
   it('lists both real directory destinations and source-scoped years', () => {
     const snapshot = lobbyingLandingSnapshot(live.summary as LobbyingSummary);
-    expect(snapshot.links).toEqual([{ label: 'Money in politics', href: '/money' }]);
+    expect(snapshot.links).toEqual([
+      {
+        label: 'Minnesota’s lobbying source files',
+        href: 'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/',
+      },
+      { label: 'Money in politics', href: '/money' },
+    ]);
     const html = renderPageSnapshot(snapshot);
     expect(html).toContain('/money/lobbying/lobbyists');
     expect(html).toContain('/money/lobbying/principals');
-    expect(html).toContain('1,665 REGISTERED TODAY');
+    expect(html).toContain('1,665 REGISTERED IN THIS COPY');
     expect(html).toContain('1,748 REPORTED SPENDING FOR 2025');
-    expect(html).toContain('No lobbying spending held before 2014');
+    expect(html).toContain('The spending records shown here begin in 2014');
     expect(html).not.toContain('filed by 15 March');
   });
 
