@@ -6886,8 +6886,8 @@ def test_a_signed_in_read_is_never_given_a_shared_window(client, auth_headers):
         ), path
 
 
-def test_only_the_5_named_money_record_reads_get_the_long_window(client):
-    """The path-based default grants exactly 5 routes the long window.
+def test_only_the_6_named_money_record_reads_get_the_long_window(client):
+    """The path-based default grants exactly 6 routes the long window.
 
     Committee finance's explicit dated-only query is tested against a real numeric
     request in test_committee_page_reads.py. A path alone deliberately cannot grant
@@ -6928,6 +6928,7 @@ def test_only_the_5_named_money_record_reads_get_the_long_window(client):
         "/api/v1/campaign-finance/committees",
         "/api/v1/campaign-finance/filings",
         "/api/v1/campaign-finance/outside-spending",
+        "/api/v1/campaign-finance/outside-spending/names",
         "/api/v1/campaign-finance/payments-under-name",
         "/api/v1/campaign-finance/races",
     }

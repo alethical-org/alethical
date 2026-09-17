@@ -87,7 +87,7 @@ export function pushWebHistory(path: string) {
 }
 
 export function hasInAppBackEntry() {
-  const entry = historyEntryFromState(window.history.state, currentSessionId());
+  const entry = currentWebHistoryEntry();
   return Boolean(entry && entry.depth > 0);
 }
 
