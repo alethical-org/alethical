@@ -1,6 +1,16 @@
 import { outsideSpendingReturnContext } from '../../hooks/useOutsideSpendingReturn';
 import { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
 
@@ -61,9 +71,17 @@ function Chevron({
   );
 }
 
-function Action({ label, onPress }: { label: string; onPress: () => void }) {
+function Action({
+  label,
+  onPress,
+  style,
+}: {
+  label: string;
+  onPress: () => void;
+  style?: StyleProp<ViewStyle>;
+}) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.action}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={[styles.action, style]}>
       <Text style={styles.actionLabel}>{label}</Text>
     </Pressable>
   );
@@ -224,6 +242,7 @@ export function OutsideSpendingBrowseScreen({
       </View>
       {q && (data?.names.length ?? 0) > 0 ? (
         <Action
+          style={styles.clearSearch}
           label="Clear search"
           onPress={() => {
             setInput('');
@@ -981,6 +1000,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 6,
   },
+  clearSearch: { marginTop: 16 },
   actionLabel: {
     fontFamily: t.typography.body,
     fontSize: 15,
