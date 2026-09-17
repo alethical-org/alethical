@@ -109,7 +109,7 @@ it('collapses leading empty years but preserves gaps and lets readers restore ye
   expect(buttonText('Show earlier years').querySelector('svg')).toBeNull();
   expect(buttonText('Show earlier years').textContent).not.toMatch(/[→↗]/);
   expect(getComputedStyle(buttonText('Show earlier years').firstElementChild!).color).toBe(
-    'rgb(15, 122, 69)',
+    'rgb(17, 21, 15)',
   );
   act(() => buttonText('Show earlier years').click());
   expect(buttonText('Hide earlier years').getAttribute('aria-expanded')).toBe('true');

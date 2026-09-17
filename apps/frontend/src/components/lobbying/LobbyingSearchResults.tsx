@@ -258,7 +258,7 @@ function SearchLink({
 export function Retry({ onPress }: { onPress: () => void }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={styles.retry}>
-      <Text style={styles.linkText}>Try again</Text>
+      <Text style={[styles.linkText, styles.retryText]}>Try again</Text>
     </Pressable>
   );
 }
@@ -325,6 +325,7 @@ const styles = StyleSheet.create({
     ...({ overflowWrap: 'anywhere' } as TextStyle),
   },
   underline: { textDecorationLine: 'underline' },
+  retryText: { color: t.colors.text.primary },
   wider: { marginTop: 22 },
   retry: {
     marginTop: 12,

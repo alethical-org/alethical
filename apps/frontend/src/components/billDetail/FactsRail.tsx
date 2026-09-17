@@ -356,8 +356,8 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
   },
   phasedSep: { color: t.colors.text.muted },
-  phasedLink: { fontWeight: t.fontWeights.bold, color: t.colors.text.green },
-  phasedLinkHover: { color: t.colors.brand.forest, textDecorationLine: 'underline' },
+  phasedLink: { fontWeight: t.fontWeights.bold, color: t.colors.text.primary },
+  phasedLinkHover: { textDecorationLine: 'underline' },
   phasedArrow: { fontWeight: t.fontWeights.regular },
   // Same quiet caption weight as the phased-law one above: it qualifies the status
   // it sits under without competing with it (#757).

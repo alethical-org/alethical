@@ -160,8 +160,10 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
 - **On-screen actions keep their own appearance (Eugene, 17 Sep 2026).** This treatment applies
   to links that open another internal or external page, not controls that act on the current
   screen. Preserve an action's accepted arrow presence or absence, drawing, size, spacing,
-  and alignment. Action colors are a separate treatment, not inherited from green destination
-  links. This includes Show earlier years, Show the next 30, Show more
+  and alignment. On light surfaces, ordinary action labels use near-black `#11150f`
+  (`text.primary`), and any existing trailing arrow uses the same color. Keep this neutral color
+  on hover, focus, and press; retain the control's existing focus ring and other state feedback.
+  This includes Show earlier years, Show the next 30, Show more
   payments, retry, expand/collapse, filters, year selection, and jumps to another section of the
   same page. An action may already have an arrow; that does not make it a destination link.
   A URL that saves a filter, year, tab, or scroll target does not change that
@@ -169,6 +171,11 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   destination-link arrow helpers only for destination links. During Design review and build,
   apply the approved Board-refund treatment to destination arrows and preserve action controls
   separately; never sweep both into 1 styling rule.
+  Preserve existing colors on filled/dark buttons, selected controls, and disabled states rather
+  than assigning those states 1 universal color. Contents lists keep their established gray
+  inactive items and black active/hover treatment. Supporting-text gray is not the default for
+  ordinary action labels. Green remains available for brand fills, selected-state indicators,
+  and destination links; it is not an exclusive signal for navigation across the whole interface.
 - **Optical centering for icon + label buttons.** Our icons are drawn on a 24-unit viewBox with the
   marks inset to roughly the middle 50% (the ✕ runs 6,6 → 18,18; chevrons 6 → 18; the plus 5 → 19), so
   at our 13–17px sizes an icon carries ~3px of empty box on its outer side. Symmetric padding then

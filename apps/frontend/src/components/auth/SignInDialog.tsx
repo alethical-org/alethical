@@ -1364,7 +1364,7 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     lineHeight: 20,
     fontWeight: t.fontWeights.semibold,
-    color: t.colors.text.greenOnLight,
+    color: t.colors.text.primary,
   },
   switchRow: {
     minHeight: 44,

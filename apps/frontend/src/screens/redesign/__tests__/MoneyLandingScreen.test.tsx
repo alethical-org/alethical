@@ -347,8 +347,10 @@ describe('the money landing makes the reporting periods and destinations explici
     const { host } = mount();
     const button = sourceToggle(host);
     expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(getComputedStyle(exactText(host, 'View source links')).color).toBe('rgb(17, 21, 15)');
     act(() => button.click());
     expect(sourceToggle(host, 'Hide source links').getAttribute('aria-expanded')).toBe('true');
+    expect(getComputedStyle(exactText(host, 'Hide source links')).color).toBe('rgb(17, 21, 15)');
     const controlledId = sourceToggle(host, 'Hide source links').getAttribute('aria-controls');
     expect(controlledId).toBeTruthy();
     expect(document.getElementById(controlledId!)).not.toBeNull();

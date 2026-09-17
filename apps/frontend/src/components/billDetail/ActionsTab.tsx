@@ -552,7 +552,7 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.small,
     fontWeight: t.fontWeights.bold,
-    color: t.colors.text.green,
+    color: t.colors.text.primary,
   },
   tallyChip: {
     paddingVertical: 3,
@@ -588,9 +588,9 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.meta,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.5,
-    color: t.colors.text.green,
+    color: t.colors.text.primary,
   },
-  viewVotesHover: { color: t.colors.brand.forest, textDecorationLine: 'underline' },
+  viewVotesHover: { textDecorationLine: 'underline' },
   keyBox: {
     marginTop: 24,
     paddingTop: 20,

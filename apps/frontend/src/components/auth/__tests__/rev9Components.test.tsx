@@ -75,6 +75,9 @@ describe('rev 9 shared sign-in components', () => {
     expect(html).toContain('data-alethical-browser-fill="true"');
     expect(html).toContain('aria-pressed="false"');
     expect(html).toContain('Show password');
+    expect(source('PasswordField.tsx')).toMatch(
+      /visibilityText: \{[^}]*color: t\.colors\.text\.primary,/,
+    );
     expect(html).toContain('min-height:50px');
     expect(html).toContain('padding-top:16px');
     expect(html).toContain('padding-bottom:16px');

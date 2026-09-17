@@ -45,6 +45,7 @@ describe('session watch actions and destination links', () => {
       expect(action.querySelector('[data-testid="link-arrow"]')).toBeNull();
       expect(action.querySelector('svg')?.getAttribute('width')).toBe('14');
       expect(action.querySelector('path')?.getAttribute('stroke-width')).toBe('1.8');
+      expect(action.querySelector('path')?.getAttribute('stroke')).toBe('#11150f');
       expect(action.querySelector('path')?.getAttribute('d')).toBe(
         'M3.5 12 H19.5 M13 6 L19.5 12 L13 18',
       );

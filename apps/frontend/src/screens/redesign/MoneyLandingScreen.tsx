@@ -407,7 +407,7 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                 >
                   <Path
                     d={sourcesOpen ? 'M6 15 L12 9 L18 15' : 'M6 9 L12 15 L18 9'}
-                    stroke={t.colors.text.greenOnLight}
+                    stroke={t.colors.text.primary}
                     strokeWidth={2}
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -742,7 +742,7 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.body,
     fontSize: 16.5,
     fontWeight: t.fontWeights.bold,
-    color: t.colors.text.greenOnLight,
+    color: t.colors.text.primary,
     textDecorationLine: 'underline',
     ...(Platform.OS === 'web' ? ({ textUnderlineOffset: 3 } as object) : {}),
   },

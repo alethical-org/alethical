@@ -602,7 +602,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     fontWeight: '700',
-    color: t.colors.brand.deep,
+    color: t.colors.text.primary,
     textDecorationLine: 'underline',
   },
   donorNote: {

@@ -178,7 +178,7 @@ function ActionArrow() {
     <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden>
       <Path
         d="M5 12 H19 M14 7 L19 12 L14 17"
-        stroke={t.colors.brand.base}
+        stroke={c.text}
         strokeWidth={2.2}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -1179,7 +1179,7 @@ function OutsideSpendingPanel({
           accessibilityRole="button"
           style={[styles.seeAll, styles.actionRow]}
         >
-          <Text style={styles.seeAllLabel}>Show more payments</Text>
+          <Text style={[styles.seeAllLabel, styles.actionLabel]}>Show more payments</Text>
           <ActionArrow />
         </Pressable>
       ) : null}
@@ -1256,7 +1256,7 @@ export function FilingsList({
               Boolean('focused' in state && state.focused) && detailsStyles.focus,
             ]}
           >
-            <Text style={styles.seeAllLabel}>Try again</Text>
+            <Text style={[styles.seeAllLabel, styles.actionLabel]}>Try again</Text>
           </Pressable>
         </View>
       ) : rows.length === 0 ? (
@@ -1308,7 +1308,7 @@ export function FilingsList({
               Boolean('focused' in state && state.focused) && detailsStyles.focus,
             ]}
           >
-            <Text style={styles.seeAllLabel}>Try again</Text>
+            <Text style={[styles.seeAllLabel, styles.actionLabel]}>Try again</Text>
           </Pressable>
         </View>
       ) : reported && query.hasNextPage ? (
@@ -1322,7 +1322,7 @@ export function FilingsList({
             Boolean('focused' in state && state.focused) && detailsStyles.focus,
           ]}
         >
-          <Text style={styles.seeAllLabel}>
+          <Text style={[styles.seeAllLabel, styles.actionLabel]}>
             {query.isFetchingNextPage ? 'Loading more reports' : 'Show more reports'}
           </Text>
         </Pressable>
@@ -1508,11 +1508,12 @@ const styles = StyleSheet.create({
   inlineLinks: { gap: 12 },
   seeOtherYear: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   actionRow: { gap: 8 },
+  actionLabel: { color: c.text },
   seeOtherYearLabel: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,
-    color: c.link,
+    color: c.text,
   },
   sectionTabs: {
     flexDirection: 'row',

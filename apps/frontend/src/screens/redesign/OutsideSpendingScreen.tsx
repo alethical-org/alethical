@@ -141,7 +141,7 @@ function AllYearsArrow() {
     <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
       <Path
         d="M5 12 H19 M13 6 L19 12 L13 18"
-        stroke={t.colors.brand.deep}
+        stroke={t.colors.text.primary}
         strokeWidth={2.2}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -386,7 +386,7 @@ function SubjectView({
               {...linkProps(hrefFor({ year: undefined }), () => goTo({ year: undefined }))}
               style={[styles.seeAll, styles.allYearsAction]}
             >
-              <Text style={styles.seeAllLabel}>{SEE_ALL_YEARS}</Text>
+              <Text style={[styles.seeAllLabel, styles.actionLabel]}>{SEE_ALL_YEARS}</Text>
               <AllYearsArrow />
             </Pressable>
           ) : ownMoneyHref ? (
@@ -1120,6 +1120,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   allYearsAction: { gap: 8 },
+  actionLabel: { color: t.colors.text.primary },
   seeAllLabel: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.bodyLg,

@@ -1173,7 +1173,7 @@ const styles = StyleSheet.create({
   },
   h2Spaced: { marginBottom: 20 },
   tabbed: { gap: 24 },
-  moneyTabLink: { color: t.colors.brand.base, textDecorationLine: 'underline' },
+  moneyTabLink: { color: t.colors.text.primary, textDecorationLine: 'underline' },
   h3: {
     fontFamily: t.typography.title,
     fontSize: 26,

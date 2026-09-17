@@ -282,6 +282,7 @@ function TextLink({
             styles.textLink,
             { fontSize: size },
             hovered && { color: t.colors.brand.forest, textDecorationLine: 'underline' },
+            !href && { color: t.colors.text.primary },
           ]}
         />
       ) : (
@@ -290,6 +291,7 @@ function TextLink({
             styles.textLink,
             { fontSize: size },
             hovered && { color: t.colors.brand.forest, textDecorationLine: 'underline' },
+            !href && { color: t.colors.text.primary },
           ]}
         >
           {label}
@@ -1720,7 +1722,7 @@ function MobileRollCard({
           {hasMembers ? (
             <View style={styles.seeWho}>
               <Text style={styles.seeWhoText}>{open ? 'Hide members' : 'See who voted'}</Text>
-              <Chevron up={open} color={t.colors.brand.graphics} />
+              <Chevron up={open} color={t.colors.text.primary} />
             </View>
           ) : null}
         </View>
@@ -2518,7 +2520,7 @@ const styles = StyleSheet.create({
     lineHeight: 23,
     color: t.colors.text.muted,
   },
-  phasedLink: { fontWeight: t.fontWeights.bold, color: t.colors.text.green },
+  phasedLink: { fontWeight: t.fontWeights.bold, color: t.colors.text.primary },
   phasedArrow: { fontWeight: t.fontWeights.regular },
   // Same quiet caption weight as the phased-law one: it qualifies the status it
   // sits under rather than competing with it (#757).
@@ -2567,7 +2569,7 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.small,
     fontWeight: t.fontWeights.bold,
-    color: t.colors.text.green,
+    color: t.colors.text.primary,
   },
   // A linked bill code inside a "See also" title. Green like every other in-product
   // link, inheriting the title's size and weight so the row's rhythm is unchanged.
@@ -2701,7 +2703,7 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.meta,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.4,
-    color: t.colors.brand.deep,
+    color: t.colors.text.primary,
   },
   rollMetaRow: { marginTop: 12, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
   recordLink: {

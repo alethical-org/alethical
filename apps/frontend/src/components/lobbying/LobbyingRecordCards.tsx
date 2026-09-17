@@ -451,7 +451,7 @@ function RevealArrow() {
     <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden>
       <Path
         d="M5 12 H19 M14 7 L19 12 L14 17"
-        stroke="#0f7a45"
+        stroke={theme.colors.text.primary}
         strokeWidth={2.2}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -604,7 +604,7 @@ const styles: Record<string, any> = {
     borderColor: 'rgba(17,21,15,0.36)',
   },
   revealLabel: {
-    color: '#0f7a45',
+    color: theme.colors.text.primary,
     fontFamily: theme.typography.body,
     fontSize: 16,
     fontWeight: '700',

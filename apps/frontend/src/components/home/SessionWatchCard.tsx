@@ -344,11 +344,11 @@ function CardLink({ label, href, onPress }: { label: string; href?: string; onPr
         />
       ) : (
         <>
-          <Text style={[styles.cardLinkText, hovered && styles.cardLinkTextHover]}>{label}</Text>
+          <Text style={[styles.cardLinkText, { color: t.colors.text.primary }]}>{label}</Text>
           <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden>
             <Path
               d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18"
-              stroke={t.colors.text.green}
+              stroke={t.colors.text.primary}
               strokeWidth={1.8}
               strokeLinecap="round"
               strokeLinejoin="round"

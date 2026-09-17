@@ -70,16 +70,13 @@ describe('mobile link arrows', () => {
     }
   });
 
-  it('blocks local copies of the old green link drawing outside the restored reveal action', () => {
+  it('blocks local copies of the old green link drawing', () => {
     const oldGreenArrow =
       /d="M5 12 H19 M1[34] [67] L19 12 L1[34] 1[78]"[\s\S]{0,180}stroke="#0f7a45"/;
 
     for (const path of tsxFiles(SRC)) {
       const file = relative(SRC, path);
-      let source = readFileSync(path, 'utf8');
-      if (file === 'components/lobbying/LobbyingRecordCards.tsx') {
-        source = source.replace(/function RevealArrow\(\) \{[\s\S]*?\n\}/, '');
-      }
+      const source = readFileSync(path, 'utf8');
       expect(source, `${file} drew an old green arrow instead of using LinkArrow`).not.toMatch(
         oldGreenArrow,
       );

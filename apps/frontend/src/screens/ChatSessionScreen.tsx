@@ -386,7 +386,12 @@ export function ChatSessionScreen({ route }: Props) {
                                       pressed ? styles.citationTogglePressed : null,
                                     ]}
                                   >
-                                    <Text style={styles.citationToggleText}>
+                                    <Text
+                                      style={[
+                                        styles.citationToggleText,
+                                        selected && styles.citationToggleTextOpen,
+                                      ]}
+                                    >
                                       [{index + 1}] {citation.label}
                                     </Text>
                                   </Pressable>
@@ -730,13 +735,14 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   citationToggleText: {
-    color: theme.colors.accent,
+    color: theme.colors.text.primary,
     fontFamily: theme.typography.ui,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 1.1,
   },
+  citationToggleTextOpen: { color: theme.colors.accent },
   citationPillRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
