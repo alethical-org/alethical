@@ -45,4 +45,25 @@ describe('mobile link arrows', () => {
       );
     }
   });
+
+  it('keeps vertical alignment inside LinkArrow instead of page-specific arrow nudges', () => {
+    for (const path of tsxFiles(SRC)) {
+      const file = relative(SRC, path);
+      const source = readFileSync(path, 'utf8');
+      const tags = source.match(/<LinkArrow\b[\s\S]*?\/>/g) ?? [];
+
+      for (const tag of tags) {
+        expect(tag, `${file} moved LinkArrow vertically inside the call`).not.toMatch(
+          /\b(?:top|bottom|marginTop|marginBottom|verticalAlign)\s*:|translateY/,
+        );
+        for (const match of tag.matchAll(/(?:styles|m)\.(\w+)/g)) {
+          const styleName = match[1];
+          const body = source.match(new RegExp(`${styleName}:\\s*\\{([^}]*)\\}`))?.[1] ?? '';
+          expect(body, `${file} moved LinkArrow vertically in styles.${styleName}`).not.toMatch(
+            /\b(?:top|bottom|marginTop|marginBottom|verticalAlign)\s*:|translateY/,
+          );
+        }
+      }
+    }
+  });
 });

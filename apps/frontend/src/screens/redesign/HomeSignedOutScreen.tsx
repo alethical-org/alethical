@@ -2214,7 +2214,6 @@ const styles = StyleSheet.create({
   heroEntryArrow: {
     width: 19,
     height: 19,
-    top: 0,
   },
   heroRight: { minWidth: 0 },
   heroRightDesktop: { flex: 1, alignItems: 'flex-end', marginTop: -10 },
@@ -2462,7 +2461,7 @@ const styles = StyleSheet.create({
   },
   billGroupContinuationTextHover: { textDecorationLine: 'underline' },
   billGroupContinuationContent: linkArrowRow,
-  billGroupContinuationArrow: { width: 17, height: 17, top: 0 },
+  billGroupContinuationArrow: { width: 17, height: 17 },
   billCard: {
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,

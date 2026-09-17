@@ -35,7 +35,7 @@ describe('LinkArrow', () => {
     expect(source).not.toContain('accessible={false}');
     expect(source).not.toContain('pointerEvents="none"');
     expect(source).toMatch(/arrow:\s*\{[^}]*pointerEvents: 'none'/);
-    expect(source).toMatch(/arrow:\s*\{[^}]*top: 1/);
+    expect(source).not.toMatch(/arrow:\s*\{[^}]*\btop:/);
   });
 
   it('owns the approved 6px space and centered row alignment', () => {
@@ -54,8 +54,10 @@ describe('LinkArrow', () => {
     expect(html).toContain('Minnesota campaign finance ');
     expect(html).toContain('downloads');
     expect(html).toContain('stroke="#0f7a45"');
+    expect(source).toMatch(/keepTogether:\s*\{[^}]*display: 'inline-flex'/);
+    expect(source).toMatch(/keepTogether:\s*\{[^}]*alignItems: 'center'/);
     expect(source).toMatch(/inlineArrow:\s*\{[^}]*marginLeft: 6/);
-    expect(source).toMatch(/inlineArrow:\s*\{[^}]*verticalAlign: 'middle'/);
+    expect(source).not.toMatch(/inlineArrow:\s*\{[^}]*verticalAlign:/);
   });
 
   it('does not let green links override the approved arrow color or size', () => {

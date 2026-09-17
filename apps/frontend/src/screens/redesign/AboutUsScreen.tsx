@@ -122,7 +122,7 @@ function StartCard({
         >
           {item.startTitle}
         </Text>
-        <LinkArrow color={t.colors.text.primary} style={styles.cardTitleArrow} />
+        <LinkArrow color={t.colors.text.primary} />
       </View>
       <Text style={[styles.cardBody, isMobile && styles.cardBodyMobile]}>{item.body}</Text>
     </Pressable>
@@ -483,7 +483,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     fontWeight: t.fontWeights.bold,
   },
-  cardTitleArrow: { top: 0 },
   beliefTitle: { color: t.colors.cyan.ink },
   beliefTitleMobile: {
     fontSize: 15.5,
