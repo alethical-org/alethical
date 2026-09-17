@@ -23,6 +23,7 @@ import {
 import { citationSectionHref } from './billText';
 import type { CommitteeConfirmation, MoneyFilingsFeed } from '../data/types';
 import { CONFIRMATION_UNAVAILABLE_LINE } from './committeeConfirmation';
+import { BOARD_RECORD_LINK_LABEL, boardRecordUrl } from './boardRecordLink';
 import {
   committeeMoneyPreferences,
   committeeMoneyPreferenceParams,
@@ -102,6 +103,8 @@ import {
   confirmedMemberLinkLabel,
   confirmedMemberMoneyPath,
   EMPTY_YEAR_VALUE,
+  FILINGS_HEADLINE,
+  OUTSIDE_BY_ALL_YEARS,
   emptyYearMoneyInWhy,
   NOT_IN_REGISTER_LINE,
   RECORD_COVERS_HEADING,
@@ -1558,6 +1561,7 @@ export function committeePageSnapshot(
     if (donorParams.sort) query.set('sort', donorParams.sort);
     return `/money/committees/${encodeURIComponent(identity.slug)}?${query}`;
   };
+  const allYears = view.tab === 'filings' || view.tab === 'by';
   const closed = identity.state === 'closed-empty';
   // Undefined means the separate current read failed; null is a complete answer
   // that nobody is confirmed. Financial records never answer this question.
@@ -1685,29 +1689,50 @@ export function committeePageSnapshot(
     ],
     bodyIsList: false,
     facts: [],
-    sections: [
-      {
-        heading: identity.periodLine ?? 'Filing period',
-        blocks: [
+    sections: allYears
+      ? [
           {
-            kind: 'prose',
-            lines: [
-              identity.periodDetail,
-              ...(identity.checkedOn
-                ? [paymentFilesDownloadedLine(identity.checkedOn, identity.filingsCopiedOn)]
-                : []),
+            heading: view.tab === 'filings' ? FILINGS_HEADLINE : COMMITTEE_TAB_LABELS.by,
+            body: [view.tab === 'filings' ? 'All years in our copy' : OUTSIDE_BY_ALL_YEARS],
+            bodyIsList: false,
+            // These rows are loaded by the app. The first response has no report-list
+            // or independent-spending payload and must not invent its result state.
+            blocks: [
+              {
+                kind: 'links',
+                items: [
+                  {
+                    label: BOARD_RECORD_LINK_LABEL,
+                    href: boardRecordUrl(identity.registerKind, identity.registrationNumber, year),
+                  },
+                ],
+              },
             ],
           },
+        ]
+      : [
+          {
+            heading: identity.periodLine ?? 'Filing period',
+            blocks: [
+              {
+                kind: 'prose',
+                lines: [
+                  identity.periodDetail,
+                  ...(identity.checkedOn
+                    ? [paymentFilesDownloadedLine(identity.checkedOn, identity.filingsCopiedOn)]
+                    : []),
+                ],
+              },
+            ],
+          },
+          { heading: 'Money in', blocks: moneyInBlocks },
+          { heading: 'Money out', blocks: moneyOutBlocks },
+          {
+            heading: RECORD_COVERS_HEADING,
+            body: recordCoverageLines(identity.isBallot),
+            bodyIsList: true,
+          },
         ],
-      },
-      { heading: 'Money in', blocks: moneyInBlocks },
-      { heading: 'Money out', blocks: moneyOutBlocks },
-      {
-        heading: RECORD_COVERS_HEADING,
-        body: recordCoverageLines(identity.isBallot),
-        bodyIsList: true,
-      },
-    ],
     links: [
       // First, and only when a person confirmed it: this is the crossing from a
       // committee record to the member it belongs to, and it has to be a real anchor
@@ -1716,7 +1741,7 @@ export function committeePageSnapshot(
         ? [
             {
               label: confirmedMemberLinkLabel(confirmedMember.fullName),
-              href: confirmedMemberMoneyPath(confirmedMember.slug),
+              href: confirmedMemberMoneyPath(confirmedMember.slug, year),
             },
           ]
         : []),
@@ -1724,7 +1749,7 @@ export function committeePageSnapshot(
         label: COMMITTEE_MONEY_SECTION_LABEL,
         href: committeeViewPath(year),
       },
-      ...committeeMoneyYears(year).map((option) => ({
+      ...(allYears ? [] : committeeMoneyYears(year)).map((option) => ({
         label: `Year ${option}`,
         href: committeeViewPath(option, view.tab === 'spent' ? 'gave' : view.tab),
       })),
@@ -1732,11 +1757,14 @@ export function committeePageSnapshot(
         label: COMMITTEE_TAB_LABELS.filings,
         href: committeeViewPath(year, 'filings'),
       },
-      ...(['gave', 'spent'] as const).map((tab) => ({
-        label: COMMITTEE_TAB_LABELS[tab],
+      ...(view.tab === 'by'
+        ? [{ label: COMMITTEE_TAB_LABELS.by, href: committeeViewPath(year, 'by') }]
+        : []),
+      ...(allYears ? [] : (['gave', 'spent'] as const)).map((tab) => ({
+        label: tab === 'gave' ? 'All received payments' : 'All expenditure payments',
         href: `/money/committees/${encodeURIComponent(identity.slug)}/payments?tab=${tab}&year=${year}`,
       })),
-      ...(moneyIn.source_url
+      ...(!allYears && moneyIn.source_url
         ? [{ label: NAMED_DONATIONS_LINK_LABEL, href: downloadsPageUrl(moneyIn.source_url) }]
         : []),
       { label: COMMITTEE_LIST_TITLE, href: '/money/committees' },

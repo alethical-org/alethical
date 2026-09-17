@@ -623,6 +623,12 @@ text on this profile. The exact-name lookup on `/money/payments` groups payments
 and filing committee or spender. That lookup does not establish a donor's identity or
 show donor overlap.
 
+After each committee's payment browser, **More on this year’s contributions** groups
+its report comparison, individual geography and exact-name comparison into independently
+opening rows. History and refunds follow that panel for the same committee. The profile's
+**Committee details and filings** link opens that committee's `tab=filings` view while
+retaining the selected year for a return to Campaign money.
+
 Outside spending follows the selected year and groups payments by spender within each
 direction. Supporting and opposing totals remain separate, and never enter the
 candidate's own figures. Before refunds and outside spending, each committee has its own
@@ -643,19 +649,24 @@ One committee's money for one year, from Minnesota's own filings. The number at 
 of the address is the committee's registration number with the state, and it is the only
 part that has to be right: committee names collide and numbers do not, so an old or
 misspelled name part still lands on the right page, and the address then quietly corrects
-itself to the current spelling. The chosen year, section (Campaign money, Filings or
-Spent by them), donor category and sort ride in the address, so a shared link opens the
+itself to the current spelling. The chosen year, section (Campaign money, Filed reports or
+Independent spending), donor category and sort ride in the address, so a shared link opens the
 same view.
 
 The identity card, reporting-period panel, section controls and record cards share
 one outer left edge. The identity and reporting-period panels use the same side
-insets as the shared donation cards: 32px at 1100px and wider, 26px from 768px to
-1099px, and 18px below 768px. Their top and bottom padding is 18px. The background
-changes below the reporting-period panel, with 18px after the panel and 34px of
-padding inside the white section before its controls. The background boundary
-never cuts through the panel.
+insets as the shared contribution panel: 32px at 1100px and wider, 26px from 768px to
+1099px, and 18px below 768px. Their top and bottom padding is 18px.
 
-Top to bottom:
+**Campaign money**, **Filed reports** and, where records exist, **Independent spending**
+are selected directly below the identity and ownership information. An explicit
+`tab=by` address retains Independent spending while its records load or fail. The
+section controls precede the year choices. Filed reports and Independent spending
+cover all years: neither shows the money-year controls, period panel, Money in,
+Money out, donor threshold or campaign-money source footer. Returning to Campaign
+money restores the selected year and donor choices.
+
+Campaign money, top to bottom:
 
 1. **The header, from the state's register of filers.** The kind line above the name is
    the register's own vocabulary — Candidate committee, Party unit, or Political committee
@@ -696,20 +707,24 @@ Top to bottom:
 
    After a successful check returning no confirmed member, a candidate committee says:
    “These are this committee’s own figures. We have not linked them to a person; the
-   committee’s name alone does not prove whose it is.” Party units, caucuses, funds and
-   ballot-question committees retain their separate explanations.
+   committee’s name alone does not prove whose it is.” Party units, caucuses and ballot-question committees retain their separate
+   explanations. A political committee or fund says “This record covers the political
+   committee or fund named above.” Its finer registered kind remains above the name.
 
    A confirmed candidate committee says: “A person at Alethical checked Minnesota’s
    records and confirmed this is {name}’s committee. These figures cover this committee;
    the candidate may have others.” No software name match creates that confirmation.
-   A thin line separates this introduction from “Checked {date}”, the stored evidence,
-   and the link to the member’s Campaign money tab. Alethical is named in the introduction
+   A thin line separates this introduction from “Checked {date}” and
+   the link to the member’s Campaign money tab. Alethical is named in the introduction
    rather than repeated beside the date. The profile’s own account boxes still name
    Alethical beside their dates, because they have no such introduction.
 
    Evidence is drawn only from the saved decision, never inferred from current records.
    It may contain fewer than 3 lines. Missing evidence stays absent. The link has a
-   minimum 44px click or tap target and stays after the evidence, inside the same block.
+   minimum 44px click or tap target and stays visible below the check date. The evidence
+   follows it behind **How Alethical confirmed this**, initially closed. The member
+   link retains `tab=money&year=<year>`. A failed or expired confirmation removes the
+   unsupported person link and the evidence disclosure together.
 
    A committee somebody looked at and
    ruled out reads exactly like one nobody has looked at yet: that decision is about our
@@ -731,7 +746,9 @@ Top to bottom:
    ([issue 2023](https://github.com/alethical-org/alethical/issues/2023)).
 
 3. **A year switch** (this calendar year and the one before), each year its own address.
-   A linked older year remains visible and selected. The committee's year buttons
+   An **Earlier years** disclosure exposes every year from 2015 through the
+   year before those 2 buttons. It stays open after a choice. A linked older year
+   remains visible and selected. The committee's year buttons
    have 10px rounded corners and at least a 44px target. The selected year uses a
    dark background and white text; other years use white with a dark border. This
    appearance is scoped to committee pages; the legislator profile keeps its own
@@ -791,8 +808,7 @@ Top to bottom:
    shows the in-kind donations and says it holds no official total it can stand behind
    rather than printing a $0 the filing's own Total column contradicts (16 committee-years
    across 2024 to 2026, 11 Sep 2026). The labels are the filing's own words
-   (ruled by Eugene, 11 Sep 2026). Where no chart draws — the Filings and Spent by them
-   tabs — a fixed sentence directly under the itemized figure says what it is and states
+   (ruled by Eugene, 11 Sep 2026). Where a summary is used without its chart, a fixed sentence directly under the itemized figure says what it is and states
    the naming rule. On most pages it reads exactly:
 
    > Donations where the filing names who gave. Named donors include people, lobbyists,
@@ -822,8 +838,8 @@ Top to bottom:
    share [MoneyCards.tsx](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/campaignMoney/MoneyCards.tsx)
    with the legislator profile. Both put the donor chart first, keep the goods-and-services
    explanation under that chart and omit a separate unnamed percentage below the summary.
-   On Filings and Spent by them, where the chart is absent, the summary keeps its own
-   goods-and-services, withheld-split and label explanations.
+   Filed reports and Independent spending carry no money summaries. Supporting
+   explanations remain regular weight even when they contain a dollar amount or date.
    On phones, the committee's money summaries leave 20px between their main
    elements. The non-itemized figure and its explanation stay together with an
    8px gap when that explanation is shown.
@@ -890,7 +906,8 @@ Top to bottom:
    appears immediately before Expenditures only when the received Contribution rows need it. Other candidate committees
    sit under Committees & Funds and retain the filed kind on their rows. The donor tabs
    include only receipts typed Contribution. Other receipts remain reachable through the
-   full **Who gave** list, while **Where it went** opens every named outgoing payment.
+   full **All received payments** list, while **All expenditure payments** opens
+   every named outgoing payment. These links follow the browser.
 
    Every page must arrive from the same release before counts, sums, grouping or sorting
    claim a complete list. Failed reads keep the load-failed words and withhold those
@@ -923,55 +940,29 @@ Top to bottom:
    donor choices starts with Individuals and Largest first. An older `tab=spent` address
    starts with Expenditures unless an explicit category selects something else.
    Section and year controls retain these choices, including the implicit Expenditures
-   choice on an older address. The first HTML response keeps them on its Year and Filings
+   choice on an older address. The first HTML response keeps them on its Year and Filed reports
    links too; the separate every-payment addresses retain their own existing parameters.
 
-   A section selector keeps **Campaign money**, **Filings**, and **Spent by them** where
-   the latter has records. Its address choices remain `gave`, `filings` and `by`.
-   The selector uses unboxed 17px labels above a shared thin line. A dark 3px
-   underline marks the selected section; the other labels reserve the same space
-   so their text stays aligned. The controls share the cards' outer left edge,
-   keep at least a 44px target and wrap when needed.
+   The section selector uses unboxed 17px labels above a shared thin line. A dark
+   3px underline marks the selected section. Controls keep at least a 44px target
+   and wrap when needed. The saved `gave`, `filings` and `by` values remain valid.
    An older `tab=spent` link opens Expenditures; `tab=about` opens the selected year's
    grouped outside spending. The separate `/payments?tab=gave|spent&year=…` addresses
    retain their complete received and outgoing lists.
 
-9. **Filings**: every report the Board's catalogue records this committee
-   as having filed, all years at once, with no amounts anywhere — it is a list of
-   filings, not of money. Newest first, and the tab says in which sense: by the day the
-   Board received a report where its filing record carries one, and by the period it
-   covers where it does not. A row prints "Filed Jul 24, 2026" where the Board's
-   catalogue carries that day; the Board serves no readable report document for most of
-   a committee's history before 2023, so most older rows carry no filed line, and such a
-   row never borrows its period end as a stand-in. Each row shows the report's name
-   and the period it covers — both ends only where the Board's own filing calendar prints
-   the start, otherwise "covers through" its end date, never an assumed January 1. A
-   report whose effective version is an amendment carries a neutral AMENDED marker with
-   no date, because the catalogue records version numbers, not dates; the marker never
-   depends on whether the older version's figures survived. A closed committee's final
-   report appears even when its period runs past today, because a terminating committee
-   files at termination. The Board also lists reports without saying whether they were
-   filed — a report is listed from the moment its filing window opens, and for the oldest
-   reports (mostly before 2008) the Board keeps no record either way — and the tab counts
-   those out loud rather than showing them as filed or claiming the list is complete. It
-   never says a report is late. One link under the list opens the Board's own report
-   viewer; there are no per-report links, because the Board serves report documents
-   through a form a link cannot reach, and not at all for most years before 2023 — a row
-   of dead links would be worse than one honest step.
-    The ordering sentence is “Newest first by filing date, or by the reporting period’s
-    end date when no filing date is available”, or “Newest first by the reporting period’s
-    end date” when no reports carry a filing date. The choice considers the whole committee
-    history, not just loaded rows. The catalogue-gap explanation appears before the rows;
-    the explanation of where start and end dates come from follows the rows. Reporting
-    periods are dark text, while actual filing dates use secondary text at 15px.
-    The AMENDED marker also uses 15px Libre Franklin, with no added date. The
-    single Board-record link beneath the list uses 17px bold text and at least a
-    44px target; report rows have no OPEN action.
-    Missing figures never prove that no report exists; the Board viewer remains reachable
-    through Filings when the list contains reports, even when the selected year’s
-    period panel has no report link.
+9. **More on this year’s contributions**, after the full-payment links. This shared
+   panel contains **What the committee’s own report says**, **Where itemized individual
+   contributions came from**, and **Contributor names also listed for other candidates**,
+   in that order. Each row starts closed on a fresh address, and several can stay open.
+   Open rows are recorded in the address for the selected committee and year. The
+   existing tables and qualifications appear under their row without a repeated title.
+   A party unit or political committee or fund omits the candidate-report comparison;
+   noncandidate committees omit individual geography. Missing or failed data for an
+   eligible row stays visible as that row's own explanation. One unavailable comparison
+   does not erase an independently available geography or names result. Opening a row
+   reuses the selected-year records already requested, rather than making a new request.
 
-10. **Spending by outside groups**, after the committee's own payment browser. It
+10. **Spending by outside groups**, after the shared contribution panel. It
     follows the selected year and groups spending about this registration number by
     spender, with supporting and opposing separate. Each spender's chip reads
     **Supporting**, **Opposing** or **Not stated**, in the same words the row gives a
@@ -983,16 +974,6 @@ Top to bottom:
     A failed grouped read keeps any independently served figures and says the list
     failed; it never invents a count of spenders.
 
-    **Spent by them** remains a separate all-years view of this committee's spending
-    about other committees, at `tab=by`. Its introduction states: “This list shows payments
-    from all years in the state’s file.” It keeps the existing Newest first and Largest
-    first sorts and 50-row pages. Each row carries the other committee, direction,
-    purpose, vendor, filed type, payment date, amount and any unpaid part. Missing fields
-    keep their existing words. A link appears only where the held register supplies a
-    destination. This file is never added to ordinary expenditures: 491 source rows
-    coincide with an expenditure row, and the records do not establish whether those
-    are 1 payment filed twice or 2 payments that coincide.
-
 11. **What this record covers**: “Money filed with the Minnesota Campaign Finance and
     Public Disclosure Board”, “Money figures start in 2015”, and the donor sentence, which names **$200** on most pages and **$500**
     on a ballot-question committee's page. Each page states only its own figure, because
@@ -1002,6 +983,58 @@ Top to bottom:
    printed no figure at all and explained the gap by saying official sources disagreed
    about it, which was not true: the $200 came from a guide written for a different kind
     of committee.
+
+### Filed reports
+
+The `tab=filings` view starts with **Reports this committee has filed**, **All years in
+our copy**, the known filed-report count, and **The Board’s record for this committee**.
+The Board link stays available while the list loads, is empty, or fails. No report
+count is invented while its answer is unknown. The list is separate from the
+Campaign money year and contains no selected-year amounts.
+
+One shared list uses thin separators. Report names and periods sit left on wider
+screens, with filing metadata right; phone rows stack them. Actual filing dates and
+AMENDED labels stay at 15px. A row may show both: the date comes from its filing
+record, while AMENDED means the committee filed a revised version. Neither a period
+end nor an amendment version supplies a missing filing date. A closed committee's
+final report remains visible even if its period ends after today.
+
+The order explanation precedes the list: “Newest first by filing date, or by the
+reporting period’s end date when no filing date is available”, or “Newest first by
+the reporting period’s end date” when no records carry filing dates. That decision
+uses the whole history, not just the loaded rows. Each period uses both dates only
+when the Board's calendar supplies the start; otherwise it says “Covers through”.
+No January 1 start is guessed. Rows have no link or OPEN action because the Board
+serves documents through its own viewer, not stable per-report addresses.
+
+After the list, show “Amended means the committee filed a revised version” when a
+loaded row is amended, and “Filing dates appear only where our records include them”
+when a loaded row lacks its date. Keep the explanation of where period dates come
+from. Print the existing unestablished-filing explanation only when the known
+excluded count exceeds 0; those catalogue entries never enter the filed-report count.
+
+Loading says **Loading reports**. A failed initial read offers **Try again**. An empty
+read says **No filed reports in our copy**, followed by: “The Board’s report catalogue,
+as we last copied it, records no filed report for this committee. That is a fact about
+the catalogue and our copy of it, not a statement about the committee.”
+
+**Show more reports** becomes **Loading more reports** while pending and cannot fire
+again. A failed next page retains the rows already shown and offers **Try again**,
+with “We couldn’t load more reports. The reports already shown are still available.”
+The only copy-date footer here is **Minnesota’s report catalogue copied {date}**, from
+the report-list response's `as_of`. It stays absent when no successful response has
+supplied that date. Donor thresholds and payment-file dates belong to Campaign money.
+
+### Independent spending
+
+The `tab=by` view shows this committee's spending about other committees, with
+**Payments from all years in the state’s file** under its heading. It keeps Newest
+first and Largest first sorts and 50-row pages. Each row carries the other committee,
+direction, purpose, vendor, filed type, payment date, amount and any unpaid part.
+Missing fields keep their existing words. A link appears only where the held register
+supplies a destination. This file is never added to ordinary expenditures: 491 source
+rows coincide with an expenditure row, and the records do not establish whether those
+are 1 payment filed twice or 2 payments that coincide.
 
 **How every dollar amount in this section is written**, ruled 1 September 2026 and applied
 across the whole design set:
@@ -1388,22 +1421,15 @@ not before, and a person decides every such link rather than software proposing 
   within a legislator profile's already-loaded payment tab stays in the browser and
   does not change the address.
 
-### Selected-year donation cards on a committee record
+### Selected-year contribution panel on a committee record
 
-The Campaign money section at `/money/committees/<slug>` uses the same 3 cards as
-the legislator tab: **What the committee’s own report says**, **Where itemized
-individual contributions came from**, and **Contributor names also listed for other candidates**.
-They follow that committee's own chart and payment list and precede outside
-spending. The selected year and that committee's checked source blocks govern the
-figures. The location card is absent on funds and party organisations. No legislator
-confirmation is needed to read a committee's own money. Track, Share, year choices
-and Filings keep their existing behaviour.
+The Campaign money section at `/money/committees/<slug>` uses the same **More on this
+year’s contributions** panel as the legislator tab. It follows the full-payment links
+and precedes outside spending. No legislator confirmation is needed to read a
+committee's own money. Each result retains its source limits and independent state.
 
-The full card descriptions, source limits and empty/loading states are in the
-[legislator campaign-money guide](legislator-campaign-money-guide.md#the-3-selected-year-donation-cards).
-
-Docs check: [Issue 2205](https://github.com/alethical-org/alethical/issues/2205) adds
-the shared donation cards without adding a server route or changing a money source.
+The full row descriptions and qualifications are in the
+[legislator campaign-money guide](legislator-campaign-money-guide.md#the-selected-year-contribution-panel).
 
 ## Lobbying links and search groups
 
@@ -1428,17 +1454,18 @@ registration links and removal of the old under-development strip. The complete 
 behavior is described in [lobbying-guide.md](lobbying-guide.md).
 
 The committee page shares the revised report comparison, contribution locations and
-exact-spelling name cards described in [the legislator campaign-money guide](legislator-campaign-money-guide.md).
+exact-spelling name rows described in [the legislator campaign-money guide](legislator-campaign-money-guide.md).
 Its downloads link sits after the contribution/payment section, outside Money in and
 outside the separate human-check evidence. On phones both money boxes grow with their
 contents; on wider screens they stretch to equal height.
 
 Docs check: Updated the shared card wording and committee source placement and phone layout.
 
-A party unit or political fund whose successful response omits the candidate-report
-comparison shows the existing held explanation. It does not ask the reader to retry
-an unsupported comparison. A failed payment read still shows the load-failed state,
-and an unexpectedly missing candidate comparison remains a failure.
+A party unit or political committee or fund omits the unsupported candidate-report
+comparison row. A failed payment read still shows an eligible row's load-failed state,
+and an unexpectedly missing candidate comparison remains a failure. Every eligible row
+still requires the selected year's agreeing stated-split check. A missing report-comparison
+block alone never removes independently available geography or exact-name results.
 
 ### Committee refinement source correction (16 September 2026)
 

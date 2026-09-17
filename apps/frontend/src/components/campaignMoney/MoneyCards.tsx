@@ -43,7 +43,7 @@
  * rows stay here.
  * The shared theme supplies the palette and type sizes on profile and committee pages.
  */
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useId, useState, type ReactNode } from 'react';
 import {
   Linking,
   Pressable,
@@ -166,11 +166,11 @@ function useCardStyles() {
   return useContext(ProfileCardTheme) ?? defaultStyles;
 }
 
-/** The profile's date/count lines use the amount face; the period is weight 700. */
+/** Numeric emphasis is a caller's choice, never inferred from digits in prose. */
 function CardText({
   children,
   style,
-  numeric = typeof children === 'string' && /\d/.test(children),
+  numeric = false,
   period = false,
   ...props
 }: TextProps & {
@@ -187,6 +187,7 @@ function CardText({
     <Text
       {...props}
       style={[
+        { fontVariant: ['tabular-nums'] },
         style,
         profile && numeric && numericStyles.number,
         profile && period && numericStyles.period,
@@ -496,16 +497,35 @@ export function MoneyOutBlock({
 export function CheckedByBlock({
   checked,
   checkerNamedAbove = false,
+  collapsibleEvidence = false,
+  evidenceOpen,
+  onEvidenceOpenChange,
   children,
 }: {
   checked: CommitteeMatchCheck | null | undefined;
   checkerNamedAbove?: boolean;
+  collapsibleEvidence?: boolean;
+  evidenceOpen?: boolean;
+  onEvidenceOpenChange?: (open: boolean) => void;
   children?: ReactNode;
 }) {
   const styles = useCardStyles();
+  const [locallyExpanded, setExpanded] = useState(false);
+  const expanded = evidenceOpen ?? locallyExpanded;
+  const [focused, setFocused] = useState(false);
+  const evidenceId = useId();
   const sentences = matchCheckSentences(checked);
   if (!sentences.length) return children ?? null;
   const [heading, ...evidence] = sentences;
+  const evidenceList = evidence.length ? (
+    <View role="list" style={styles.checkedItems}>
+      {evidence.map((sentence) => (
+        <CardText role="listitem" numeric={false} key={sentence} style={styles.checkedSentence}>
+          {sentence}
+        </CardText>
+      ))}
+    </View>
+  ) : null;
   return (
     <View style={[styles.checked, checkerNamedAbove && { marginTop: 18 }]}>
       <CardText style={styles.checkedHeading}>
@@ -513,16 +533,62 @@ export function CheckedByBlock({
           ? `Checked ${formatDay(checked.checkedOn) ?? checked.checkedOn}`
           : heading}
       </CardText>
-      {evidence.length ? (
-        <View role="list" style={styles.checkedItems}>
-          {evidence.map((sentence) => (
-            <CardText role="listitem" numeric={false} key={sentence} style={styles.checkedSentence}>
-              {sentence}
-            </CardText>
-          ))}
-        </View>
+      {collapsibleEvidence ? children : evidenceList}
+      {collapsibleEvidence && evidenceList ? (
+        <>
+          <button
+            type="button"
+            aria-expanded={expanded}
+            aria-controls={evidenceId}
+            onClick={() => {
+              setExpanded(!expanded);
+              onEvidenceOpenChange?.(!expanded);
+            }}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              minHeight: 44,
+              padding: '10px 0',
+              border: 0,
+              background: 'transparent',
+              textAlign: 'left',
+              cursor: 'pointer',
+              color: c.secondary,
+              fontFamily: t.typography.body,
+              fontSize: 15,
+              fontWeight: 700,
+              borderRadius: 8,
+              outline: focused ? `2px solid ${c.focus}` : undefined,
+              outlineOffset: 2,
+            }}
+          >
+            How Alethical confirmed this
+            <svg
+              aria-hidden="true"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              style={{ flex: 'none', transform: expanded ? 'rotate(180deg)' : undefined }}
+            >
+              <path
+                d="M6 9 L12 15 L18 9"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <div id={evidenceId} hidden={!expanded}>
+            {evidenceList}
+          </div>
+        </>
       ) : null}
-      {children}
+      {collapsibleEvidence ? null : children}
     </View>
   );
 }
@@ -575,6 +641,7 @@ export function Figure({
           {label}
         </CardText>
         <CardText
+          numeric={isFigure}
           style={
             isFigure
               ? [styles.figureValue, isMobile && styles.figureValueMobile]
@@ -584,7 +651,11 @@ export function Figure({
           {value}
         </CardText>
       </View>
-      {note ? <CardText style={styles.figureNote}>{note}</CardText> : null}
+      {note ? (
+        <CardText numeric style={styles.figureNote}>
+          {note}
+        </CardText>
+      ) : null}
     </View>
   );
 }
@@ -602,7 +673,9 @@ function Row({ label, value, note }: { label: string; value: string; note?: stri
           </CardText>
         ) : null}
       </CardText>
-      <CardText style={styles.rowValue}>{value}</CardText>
+      <CardText numeric style={styles.rowValue}>
+        {value}
+      </CardText>
     </View>
   );
 }

@@ -762,8 +762,15 @@ export function useCommitteeFilingsList(
 ) {
   return useInfiniteQuery({
     queryKey: ['committee-filings', registrationNumber],
-    queryFn: ({ pageParam }): Promise<CommitteeFilingsPage> =>
-      getCommitteeFilingsFromApi(registrationNumber ?? '', { limit: 100, offset: pageParam }),
+    queryFn: async ({ pageParam }): Promise<CommitteeFilingsPage> => {
+      const page = await getCommitteeFilingsFromApi(registrationNumber ?? '', {
+        limit: 100,
+        offset: pageParam,
+      });
+      if (pageParam > 0 && page.state !== 'reported')
+        throw new Error('Report catalogue unavailable');
+      return page;
+    },
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) =>
       lastPage.hasMore ? allPages.length * 100 : undefined,

@@ -16,8 +16,8 @@ import {
 } from '../committeeMoney';
 
 describe('the committee page tabs', () => {
-  it('retains the Filings label for its existing address', () => {
-    expect(COMMITTEE_TAB_LABELS.filings).toBe('Filings');
+  it('names Filed reports without changing its existing address', () => {
+    expect(COMMITTEE_TAB_LABELS.filings).toBe('Filed reports');
   });
 
   it('reads the filings tab off the address and falls back like the payment tabs', () => {

@@ -3663,6 +3663,7 @@ interface ApiCommitteeFilingPayload {
 }
 
 interface ApiCommitteeFilingsPayload {
+  as_of?: string | null;
   state?: string;
   ordered_by?: string;
   filings?: ApiCommitteeFilingPayload[] | null;
@@ -3693,6 +3694,7 @@ export async function getCommitteeFilingsFromApi(
   const state = blockState(payload.state);
   return {
     state,
+    asOf: payload.as_of ?? null,
     orderedBy: payload.ordered_by ?? '',
     filings:
       state === 'reported'

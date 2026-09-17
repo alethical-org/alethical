@@ -349,7 +349,7 @@ describe('confirmed committees outside the selected year', () => {
       expect(panel?.textContent).not.toContain('The amounts listed');
       expect(panel?.textContent).not.toContain('filed this report');
       expect(panel?.querySelector('a')?.getAttribute('href')).toBe(
-        `/money/committees/repinski-aaron-house-committee-19019?year=${year}`,
+        `/money/committees/repinski-aaron-house-committee-19019?tab=filings&year=${year}`,
       );
       expect(page.body.textContent).not.toContain('REGISTRATION 19019');
       expect(page.body.textContent).toContain('Repinski, Aaron House Committee -\u00a019019');

@@ -1,4 +1,4 @@
-import React, { type CSSProperties, type ReactNode } from 'react';
+import React, { useId, useState, type CSSProperties, type ReactNode } from 'react';
 import { View } from 'react-native';
 import type {
   CampaignCommitteeMoney,
@@ -28,6 +28,8 @@ export type DonationCardsProps = {
   year: number;
   registerKind: string | null;
   releaseId?: string;
+  expandedRows?: readonly number[];
+  onExpandedRowsChange?: (rows: number[]) => void;
 };
 
 /** Reuses the complete selected-year read already used by the donor list. */
@@ -71,12 +73,27 @@ export function CommitteeDonationCardsView({
   payments,
   loading = false,
   failed = false,
+  expandedRows,
+  onExpandedRowsChange,
 }: DonationCardsProps & {
   payments: readonly CommitteeReceivedPayment[];
   loading?: boolean;
   failed?: boolean;
 }) {
   const { isMobile, isTablet } = useResponsive();
+  const type = useCampaignMoneyTypography();
+  const panelId = useId();
+  const disclosureProps = (index: number) => ({
+    expanded: expandedRows?.includes(index),
+    onExpandedChange: onExpandedRowsChange
+      ? (open: boolean) =>
+          onExpandedRowsChange(
+            open
+              ? [...(expandedRows ?? []), index]
+              : (expandedRows ?? []).filter((row) => row !== index),
+          )
+      : undefined,
+  });
   const checked = committee.split.statedSplitState === 'agrees';
   const hasIndividualDonations = payments.some(
     (row) => row.receiptType === 'Contribution' && row.contributorType === 'Individual',
@@ -84,55 +101,95 @@ export function CommitteeDonationCardsView({
   const state = failed ? 'failed' : !checked ? 'held' : loading ? 'loading' : 'drawn';
   // The server supplies candidate-report lines only for candidate committees.
   const unsupportedComparison =
-    committee.statedByKind === undefined &&
-    (registerKind === 'party_unit' || registerKind === 'political_committee_or_fund');
+    registerKind === 'party_unit' || registerKind === 'political_committee_or_fund';
   return (
-    <View style={{ gap: isMobile ? 24 : isTablet ? 32 : 36 }}>
-      <DonationCard index={0} registration={committee.registrationNumber}>
-        {state !== 'drawn' ? (
-          <CardState state={state} index={0} year={year} />
-        ) : unsupportedComparison ||
-          committee.statedByKind === null ||
-          committee.statedByKind?.state === 'sources_disagree' ? (
-          <CardState state="held" index={0} year={year} />
-        ) : committee.statedByKind?.state === 'reported' ? (
-          <FiledLines block={committee.statedByKind} payments={payments} />
-        ) : (
-          <CardState state="failed" index={0} year={year} />
-        )}
-      </DonationCard>
-      {registerKind === 'candidate_committee' ? (
-        <DonationCard index={1} registration={committee.registrationNumber}>
+    <View
+      role="region"
+      aria-labelledby={`${panelId}-heading`}
+      style={[
+        committeeCardStyles.card,
+        isTablet && committeeCardStyles.tablet,
+        isMobile && committeeCardStyles.mobile,
+        { gap: 0 },
+      ]}
+    >
+      <h2
+        id={`${panelId}-heading`}
+        style={{
+          margin: 0,
+          fontFamily: t.typography.title,
+          fontSize: type.h3,
+          fontWeight: 800,
+          letterSpacing: '-0.01em',
+          color: c.text,
+        }}
+      >
+        More on this year’s contributions
+      </h2>
+      <div style={{ marginTop: 14 }}>
+        {!unsupportedComparison ? (
+          <DonationCard
+            key={`${committee.registrationNumber}-${year}-0`}
+            {...disclosureProps(0)}
+            index={0}
+            registration={committee.registrationNumber}
+          >
+            {state !== 'drawn' ? (
+              <CardState state={state} index={0} year={year} />
+            ) : committee.statedByKind === null ||
+              committee.statedByKind?.state === 'sources_disagree' ? (
+              <CardState state="held" index={0} year={year} />
+            ) : committee.statedByKind?.state === 'reported' ? (
+              <FiledLines block={committee.statedByKind} payments={payments} />
+            ) : (
+              <CardState state="failed" index={0} year={year} />
+            )}
+          </DonationCard>
+        ) : null}
+        {registerKind === 'candidate_committee' ? (
+          <DonationCard
+            key={`${committee.registrationNumber}-${year}-1`}
+            {...disclosureProps(1)}
+            index={1}
+            registration={committee.registrationNumber}
+          >
+            {state !== 'drawn' ? (
+              <CardState state={state} index={1} year={year} />
+            ) : committee.donorStates?.state === 'reported' &&
+              committee.donorStates.year === year ? (
+              <DonorLocations
+                block={committee.donorStates}
+                year={year}
+                hasIndividualDonations={hasIndividualDonations}
+              />
+            ) : (
+              <CardState state="failed" index={1} year={year} />
+            )}
+          </DonationCard>
+        ) : null}
+        <DonationCard
+          key={`${committee.registrationNumber}-${year}-2`}
+          {...disclosureProps(2)}
+          index={2}
+          registration={committee.registrationNumber}
+        >
           {state !== 'drawn' ? (
-            <CardState state={state} index={1} year={year} />
-          ) : committee.donorStates?.state === 'reported' && committee.donorStates.year === year ? (
-            <DonorLocations
-              block={committee.donorStates}
-              year={year}
-              hasIndividualDonations={hasIndividualDonations}
-            />
+            <CardState state={state} index={2} year={year} />
+          ) : committee.nameConnections?.year !== year ? (
+            <CardState state="failed" index={2} year={year} />
+          ) : committee.nameConnections.state === 'not_reported' ? (
+            hasIndividualDonations ? (
+              <CardState state="failed" index={2} year={year} />
+            ) : (
+              <Paragraph>{copy.emptyConnections(year)}</Paragraph>
+            )
+          ) : committee.nameConnections.state === 'reported' ? (
+            <ConnectedNames block={committee.nameConnections} year={year} />
           ) : (
-            <CardState state="failed" index={1} year={year} />
+            <CardState state="failed" index={2} year={year} />
           )}
         </DonationCard>
-      ) : null}
-      <DonationCard index={2} registration={committee.registrationNumber}>
-        {state !== 'drawn' ? (
-          <CardState state={state} index={2} year={year} />
-        ) : committee.nameConnections?.year !== year ? (
-          <CardState state="failed" index={2} year={year} />
-        ) : committee.nameConnections.state === 'not_reported' ? (
-          hasIndividualDonations ? (
-            <CardState state="failed" index={2} year={year} />
-          ) : (
-            <Paragraph>{copy.emptyConnections(year)}</Paragraph>
-          )
-        ) : committee.nameConnections.state === 'reported' ? (
-          <ConnectedNames block={committee.nameConnections} year={year} />
-        ) : (
-          <CardState state="failed" index={2} year={year} />
-        )}
-      </DonationCard>
+      </div>
     </View>
   );
 }
@@ -201,43 +258,89 @@ function DonationCard({
   index,
   registration,
   children,
+  expanded,
+  onExpandedChange,
 }: {
+  expanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
   index: number;
   registration: string;
   children: ReactNode;
 }) {
   const { isMobile, isTablet } = useResponsive();
-  const type = useCampaignMoneyTypography();
+  const [locallyOpen, setOpen] = useState(false);
+  const open = expanded ?? locallyOpen;
+  const [focused, setFocused] = useState(false);
+  const instanceId = useId();
   const id = `committee-${registration}-donation-card-${index}`;
   return (
-    <View
-      testID={id}
-      role="region"
-      aria-labelledby={`${id}-heading`}
-      style={[
-        committeeCardStyles.card,
-        isTablet && committeeCardStyles.tablet,
-        isMobile && committeeCardStyles.mobile,
-        { gap: 0 },
-      ]}
-    >
-      <h2
-        id={`${id}-heading`}
-        style={{
-          margin: 0,
-          fontFamily: t.typography.title,
-          fontSize: type.h3,
-          fontWeight: 800,
-          letterSpacing: '-0.01em',
-          color: c.text,
-        }}
+    <div data-testid={id} style={{ borderTop: rule }}>
+      <h3 style={{ margin: 0 }}>
+        <button
+          type="button"
+          id={`${instanceId}-heading`}
+          aria-expanded={open}
+          aria-controls={`${instanceId}-content`}
+          onClick={() => {
+            setOpen(!open);
+            onExpandedChange?.(!open);
+          }}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            minHeight: isMobile ? 56 : isTablet ? 58 : 60,
+            padding: '10px 0',
+            background: 'transparent',
+            border: 'none',
+            borderRadius: 8,
+            outline: focused ? `2px solid ${c.focus}` : undefined,
+            outlineOffset: 2,
+            cursor: 'pointer',
+            fontFamily: t.typography.body,
+            textAlign: 'left',
+            fontSize: isMobile ? 16 : isTablet ? 17 : 18,
+            fontWeight: 700,
+            letterSpacing: '-0.01em',
+            lineHeight: 1.4,
+            color: c.text,
+          }}
+        >
+          <span style={{ flex: 1, minWidth: 0 }}>{copy.headings[index]}</span>
+          <svg
+            aria-hidden="true"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            style={{ flex: 'none', transform: open ? 'rotate(180deg)' : undefined }}
+          >
+            <path
+              d="M6 9 L12 15 L18 9"
+              stroke={c.secondary}
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      </h3>
+      <div
+        id={`${instanceId}-content`}
+        role="region"
+        aria-labelledby={`${instanceId}-heading`}
+        hidden={!open}
+        style={{ paddingBottom: 22 }}
       >
-        {copy.headings[index]}
-      </h2>
-      {children}
-    </View>
+        {children}
+      </div>
+    </div>
   );
 }
+
 function Paragraph({
   children,
   small = false,

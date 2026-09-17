@@ -1122,6 +1122,8 @@ export interface CommitteeFilingRow {
 /** One committee's filed reports (GET /committees/{n}/filings), newest period
  *  first. `state` "unavailable" is our gap, never that nobody filed. */
 export interface CommitteeFilingsPage {
+  /** Date our report catalogue was copied, from this response alone. */
+  asOf: string | null;
   state: 'reported' | 'unavailable';
   /** What the list is ordered by: "filed_date_then_period_end" when some rows
    *  carry a filed date, "period_end" when none does. The printed ordering

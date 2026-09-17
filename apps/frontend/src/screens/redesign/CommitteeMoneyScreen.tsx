@@ -7,6 +7,7 @@ import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import { contributionDetailRows, withContributionDetailRows } from '../../lib/contributionDetails';
 import { SharePopover } from '../../components/billDetail/SharePopover';
 import {
   CommitteeDonations,
@@ -54,7 +55,6 @@ import {
   closedPeriodDetail,
   closedPeriodLine,
   committeeTabFromParam,
-  committeeMoneyYears,
   committeeAlternativeYear,
   COMMITTEE_TAB_LABELS,
   COMMITTEE_MONEY_SECTION_LABEL,
@@ -114,7 +114,13 @@ import {
   uncoveredPeriodLine,
 } from '../../lib/committeeMoneyShared';
 import { paymentFilesDownloadedLine } from '../../lib/campaignMoneyDetailsPageCopy';
-import { campaignMoneyYear, formatMoney } from '../../lib/legislatorCampaignMoney';
+import {
+  campaignMoneyYear,
+  campaignMoneyYears,
+  campaignMoneyHistoryYears,
+  formatDay,
+  formatMoney,
+} from '../../lib/legislatorCampaignMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { publicPageUrl, type ShareContent } from '../../lib/share';
 import { useDocumentTitle } from '../../navigation/documentTitle';
@@ -234,7 +240,8 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
     canonicalName ? `${canonicalName} — Campaign money | Alethical` : null,
   );
 
-  const onSelectYear = (next: number) => navigation.setParams({ year: String(next) });
+  const onSelectYear = (next: number) =>
+    navigation.setParams({ year: String(next), contributionDetails: undefined });
   const onSelectTab = (next: CommitteeTab) =>
     navigation.setParams({ ...committeeMoneyPreferenceParams(preferences), tab: next });
 
@@ -298,6 +305,9 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
               onRefresh={() => void moneyQuery.refetch()}
               preferences={preferences}
               onPreferences={onPreferences}
+              contributionDetails={route.params?.contributionDetails}
+              evidenceOpen={route.params?.evidence === '1'}
+              earlierYearsOpen={route.params?.earlierYears === '1'}
             />
           )}
         </View>
@@ -394,7 +404,13 @@ function CommitteeBody({
   onRefresh,
   preferences,
   onPreferences,
+  contributionDetails,
+  evidenceOpen,
+  earlierYearsOpen,
 }: {
+  contributionDetails?: string;
+  evidenceOpen: boolean;
+  earlierYearsOpen: boolean;
   money: CommitteeMoney;
   year: number;
   tab: CommitteeTab;
@@ -446,7 +462,9 @@ function CommitteeBody({
   const warmConfirmedFor = () => {
     if (nameableMember) {
       prefetchLegislator(nameableMember.slug);
-      void screenLoaderForPath(routePath.legislator(nameableMember.slug, { tab: 'money' }))?.();
+      void screenLoaderForPath(
+        routePath.legislator(nameableMember.slug, { tab: 'money', year: String(year) }),
+      )?.();
     }
   };
 
@@ -460,6 +478,9 @@ function CommitteeBody({
         tab: tab === 'spent' ? 'gave' : tab,
         year: String(year),
         ...committeeMoneyPreferenceParams(preferences),
+        contributionDetails,
+        evidence: evidenceOpen ? '1' : undefined,
+        earlierYears: earlierYearsOpen ? '1' : undefined,
       }),
     ),
   };
@@ -508,14 +529,25 @@ function CommitteeBody({
           </Text>
           {/* The confirmation's date, stored evidence and destination belong together.
             Failed and expired checks never enter this block. */}
-          <CheckedByBlock checked={nameableMember?.checked} checkerNamedAbove>
+          <CheckedByBlock
+            checked={nameableMember?.checked}
+            checkerNamedAbove
+            collapsibleEvidence
+            evidenceOpen={evidenceOpen}
+            onEvidenceOpenChange={(open) =>
+              navigation.setParams({ evidence: open ? '1' : undefined })
+            }
+          >
             {nameableMember ? (
               <Pressable
-                {...linkProps(routePath.legislator(nameableMember.slug, { tab: 'money' }), () =>
-                  navigation.push('LegislatorProfile', {
-                    legislatorId: nameableMember.slug,
-                    tab: 'money',
-                  }),
+                {...linkProps(
+                  routePath.legislator(nameableMember.slug, { tab: 'money', year: String(year) }),
+                  () =>
+                    navigation.push('LegislatorProfile', {
+                      legislatorId: nameableMember.slug,
+                      tab: 'money',
+                      year: String(year),
+                    }),
                 )}
                 onPressIn={warmConfirmedFor}
                 onHoverIn={warmConfirmedFor}
@@ -529,26 +561,6 @@ function CommitteeBody({
             ) : null}
           </CheckedByBlock>
         </View>
-
-        <View style={[styles.yearRow, isMobile && styles.yearRowMobile]}>
-          <YearControl
-            year={year}
-            years={committeeMoneyYears(year)}
-            onSelect={onSelectYear}
-            fullWidth={isMobile}
-            surface="committee"
-          />
-        </View>
-
-        <PeriodStamp
-          money={money}
-          state={state}
-          year={year}
-          isPartyUnit={isPartyUnit}
-          boardUrl={boardUrl}
-          isHoldingStale={isHoldingStale}
-          isMobile={isMobile}
-        />
       </Container>
       <View style={styles.recordsBackground}>
         <Container style={styles.recordsContent}>
@@ -564,6 +576,60 @@ function CommitteeBody({
             navigation={navigation}
             preferences={preferences}
             onPreferences={onPreferences}
+            contributionDetails={contributionDetails}
+            moneyControls={
+              <>
+                <View style={[styles.yearRow, isMobile && styles.yearRowMobile]}>
+                  <CommitteeYearControl
+                    year={year}
+                    onSelect={onSelectYear}
+                    open={earlierYearsOpen}
+                    onOpenChange={(open) =>
+                      navigation.setParams({ earlierYears: open ? '1' : undefined })
+                    }
+                  />
+                </View>
+
+                <PeriodStamp
+                  money={money}
+                  state={state}
+                  year={year}
+                  isPartyUnit={isPartyUnit}
+                  boardUrl={boardUrl}
+                  isHoldingStale={isHoldingStale}
+                  isMobile={isMobile}
+                />
+              </>
+            }
+            moneyFooter={
+              <>
+                <CampaignDownloadsLink sourceUrl={money.moneyIn?.sourceUrl} />
+
+                <View
+                  style={[
+                    styles.coverageCard,
+                    isTablet && styles.panelTablet,
+                    isMobile && styles.panelMobile,
+                  ]}
+                >
+                  <Text style={styles.coverageHead}>{RECORD_COVERS_HEADING.toUpperCase()}</Text>
+                  {recordCoverageLines(isBallot).map((line) => (
+                    <Text key={line} style={styles.coverageLine}>
+                      {line}
+                    </Text>
+                  ))}
+                </View>
+
+                {checkedOn ? (
+                  <Text style={styles.freshness}>
+                    {paymentFilesDownloadedLine(
+                      checkedOn,
+                      money.filingsCopiedAt ? centralDateLabel(money.filingsCopiedAt) : null,
+                    )}
+                  </Text>
+                ) : null}
+              </>
+            }
           >
             {(withDonorBreakdown) => (
               <View style={[styles.cardsGrid, isMobile && styles.cardsGridMobile]}>
@@ -582,33 +648,52 @@ function CommitteeBody({
               </View>
             )}
           </PaymentsSection>
-          <CampaignDownloadsLink sourceUrl={money.moneyIn?.sourceUrl} />
-
-          <View
-            style={[
-              styles.coverageCard,
-              isTablet && styles.panelTablet,
-              isMobile && styles.panelMobile,
-            ]}
-          >
-            <Text style={styles.coverageHead}>{RECORD_COVERS_HEADING.toUpperCase()}</Text>
-            {recordCoverageLines(isBallot).map((line) => (
-              <Text key={line} style={styles.coverageLine}>
-                {line}
-              </Text>
-            ))}
-          </View>
-
-          {checkedOn ? (
-            <Text style={styles.freshness}>
-              {paymentFilesDownloadedLine(
-                checkedOn,
-                money.filingsCopiedAt ? centralDateLabel(money.filingsCopiedAt) : null,
-              )}
-            </Text>
-          ) : null}
         </Container>
       </View>
+    </View>
+  );
+}
+
+function CommitteeYearControl({
+  year,
+  onSelect,
+  open,
+  onOpenChange,
+}: {
+  year: number;
+  onSelect: (year: number) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const recent = campaignMoneyYears();
+  const earlier = campaignMoneyHistoryYears().filter((option) => !recent.includes(option));
+
+  return (
+    <View style={{ gap: 8, flex: 1 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+        <YearControl year={year} years={recent} onSelect={onSelect} surface="committee" />
+        {earlier.length ? (
+          <Pressable
+            accessibilityRole="button"
+            aria-expanded={open}
+            onPress={() => onOpenChange(!open)}
+            style={(state) => [
+              styles.seeAll,
+              Boolean('focused' in state && state.focused) && detailsStyles.focus,
+            ]}
+          >
+            <Text style={styles.seeAllLabel}>Earlier years {open ? '▴' : '▾'}</Text>
+          </Pressable>
+        ) : null}
+      </View>
+      {open || !recent.includes(year) ? (
+        <YearControl
+          year={year}
+          years={open ? earlier : [year]}
+          onSelect={onSelect}
+          surface="committee"
+        />
+      ) : null}
     </View>
   );
 }
@@ -770,7 +855,11 @@ function PaymentsSection({
   children,
   preferences,
   onPreferences,
+  moneyControls,
+  moneyFooter,
+  contributionDetails,
 }: {
+  contributionDetails?: string;
   money: CommitteeMoney;
   year: number;
   tab: CommitteeTab;
@@ -781,6 +870,8 @@ function PaymentsSection({
   onRefresh: () => void;
   navigation: RootScreenProps<'CommitteeMoney'>['navigation'];
   children: (withDonorBreakdown: boolean) => ReactNode;
+  moneyControls: ReactNode;
+  moneyFooter: ReactNode;
   preferences: MoneyDetailsPreferences;
   onPreferences: (preferences: MoneyDetailsPreferences) => void;
 }) {
@@ -821,12 +912,10 @@ function PaymentsSection({
         </View>
         {section === 'filings' ? (
           <>
-            {children(false)}
             <FilingsList registrationNumber={registrationNumber} boardUrl={boardUrl} />
           </>
         ) : section === 'by' ? (
           <>
-            {children(false)}
             <OutsideSpendingPanel
               tab="by"
               query={spentBy}
@@ -838,6 +927,7 @@ function PaymentsSection({
           </>
         ) : (
           <>
+            {moneyControls}
             <View
               style={[
                 styles.card,
@@ -868,13 +958,26 @@ function PaymentsSection({
                         navigation.navigate('CommitteePayments', { slug, tab, year: String(year) }),
                     )}
                   >
-                    <Text style={styles.seeAllLabel}>{COMMITTEE_TAB_LABELS[tab]}</Text>
+                    <Text style={styles.seeAllLabel}>
+                      {tab === 'gave' ? 'All received payments' : 'All expenditure payments'}
+                    </Text>
                     <ForwardArrow color={t.colors.brand.base} />
                   </Pressable>
                 ))}
               </View>
             </View>
             <CommitteeDonationCards
+              expandedRows={contributionDetailRows(contributionDetails, registrationNumber, year)}
+              onExpandedRowsChange={(rows) =>
+                navigation.setParams({
+                  contributionDetails: withContributionDetailRows(
+                    contributionDetails,
+                    registrationNumber,
+                    year,
+                    rows,
+                  ),
+                })
+              }
               committee={money}
               year={year}
               registerKind={
@@ -890,6 +993,7 @@ function PaymentsSection({
               releaseId={money.releaseId}
               onOpenSource={(url) => void Linking.openURL(url)}
             />
+            {moneyFooter}
           </>
         )}
       </View>
@@ -1101,27 +1205,9 @@ function OutsideSpendingPanel({
   );
 }
 
-/**
- * The Filings tab: every report the Board's catalogue records this committee as
- * having filed, newest period first ("Money committee web.dc.html", #1679).
- *
- * What the drawn design shows that this list deliberately does not:
- * - No flat "by the date filed" ordering sentence. A row carries the day the Board
- *   received it where the report's own document states one (#1670), and nothing
- *   where it does not — which is most of a committee's history, since the Board
- *   serves no readable document for most reports before 2023. So the list sorts by
- *   the filed date where there is one and the period end where there is not, an
- *   undated row prints no filed date at all rather than showing its period end
- *   under a "filed" label, and the ordering sentence names the mix.
- * - No date on the AMENDED chip — the catalogue's amendment record is version
- *   indexes only. The chip itself is never suppressed: a missing prior figure is
- *   a fact about old documents, not about whether the report was amended.
- * - No per-row OPEN link — the Board serves report documents through a form the
- *   web cannot link to directly, and not at all for most years before 2023, so a
- *   per-report link would be dead for most rows. One link under the list opens
- *   the Board's own viewer, where every report here can be pulled up.
- */
-function FilingsList({
+/** Catalogue rows have no directly addressable report document. Keep the Board viewer
+ * available before and throughout loading, empty and failure states. */
+export function FilingsList({
   registrationNumber,
   boardUrl,
 }: {
@@ -1129,98 +1215,151 @@ function FilingsList({
   boardUrl: string;
 }) {
   const query = useCommitteeFilingsList(registrationNumber);
+  const { isMobile } = useResponsive();
   const pages = query.data?.pages ?? [];
   const firstPage = pages[0];
+  const reported = firstPage?.state === 'reported';
   const rows = pages.flatMap((page) => page.filings);
-
-  if (query.isPending) {
-    return (
-      <View style={styles.listLoading}>
-        <View role="status" aria-busy style={styles.hidden}>
-          <Text>Loading filings</Text>
-        </View>
-        {[0, 1, 2].map((index) => (
-          <View key={index} style={styles.listRow}>
-            <View style={styles.listRowText}>
-              <Skeleton width="45%" height={14} />
-              <Skeleton width={220} height={11} style={{ marginTop: 8 }} />
-            </View>
-          </View>
-        ))}
-      </View>
-    );
-  }
-
-  if (!firstPage || firstPage.state !== 'reported') {
-    return (
-      <View style={[styles.card, styles.filingsCard]}>
-        <Text style={styles.explain}>{FILINGS_UNAVAILABLE}</Text>
-      </View>
-    );
-  }
-
-  const unlisted = unlistedReportsLine(firstPage.cataloguedWithoutRecord);
-
-  if (rows.length === 0) {
-    return (
-      <View style={[styles.card, styles.filingsCard]}>
-        <Text style={styles.h3}>{FILINGS_EMPTY_TITLE}</Text>
-        <Text style={styles.explain}>{FILINGS_EMPTY_WHY}</Text>
-        {unlisted ? <Text style={styles.explain}>{unlisted}</Text> : null}
-      </View>
-    );
-  }
-
-  const ordering = filingsOrderingLine(firstPage.orderedBy);
-  const countLine = filingsCountLine(rows.length, firstPage.total);
-
+  const unlisted = reported ? unlistedReportsLine(firstPage.cataloguedWithoutRecord) : null;
+  const countLine = reported ? filingsCountLine(rows.length, firstPage.total) : null;
+  const ordering = reported ? filingsOrderingLine(firstPage.orderedBy) : null;
+  const copiedOn = formatDay(firstPage?.asOf);
+  const retry = (more = false) => {
+    if (query.isFetching) return;
+    void (more ? query.fetchNextPage() : query.refetch());
+  };
   return (
-    <>
-      <View style={styles.listHead}>
-        <Text style={styles.filingsHead}>{FILINGS_HEADLINE}</Text>
-        {ordering ? <Text style={styles.listCount}>{ordering}</Text> : null}
-      </View>
-      {unlisted ? <Text style={styles.linkNote}>{unlisted}</Text> : null}
-      <View style={styles.listRows}>
-        {rows.map((filing, index) => {
-          const period = filingRowPeriodLine(filing);
-          const filed = filedDateLine(filing.filedDate);
-          return (
-            <View
-              key={`${filing.filingYear}-${filing.reportType}-${filing.periodEnd ?? 'no-end'}-${index}`}
-              style={[styles.listRow, styles.filingRow]}
-            >
-              <View style={styles.listRowText}>
-                <Text style={styles.listName}>{filing.reportName}</Text>
-                {period ? <Text style={styles.filingPeriod}>{period}</Text> : null}
-                {filed ? <Text style={styles.filedDate}>{filed.toUpperCase()}</Text> : null}
-              </View>
-              {filingIsAmended(filing.effectiveAmendmentIndex) ? (
-                <Text style={styles.amendedChip}>{AMENDED_CHIP}</Text>
-              ) : null}
-            </View>
-          );
-        })}
-      </View>
-      {countLine ? <Text style={styles.listCountFoot}>{countLine}</Text> : null}
-      {query.hasNextPage ? (
-        <Pressable
-          onPress={() => void query.fetchNextPage()}
-          accessibilityRole="button"
-          style={styles.seeAll}
+    <View style={styles.filingsSection}>
+      <View style={styles.filingsOpening}>
+        <Text accessibilityRole="header" aria-level={2} style={styles.filingsHead}>
+          {FILINGS_HEADLINE}
+        </Text>
+        <Text style={styles.explain}>All years in our copy</Text>
+        {countLine ? <Text style={styles.listCount}>{countLine}</Text> : null}
+        <Text
+          style={[styles.source, styles.filingsSource]}
+          {...externalLinkProps(boardUrl, () => void Linking.openURL(boardUrl))}
         >
-          <Text style={styles.seeAllLabel}>Show more reports</Text>
-          <ForwardArrow color={t.colors.brand.base} />
+          {BOARD_RECORD_LINK_LABEL}
+        </Text>
+      </View>
+      {ordering && rows.length ? <Text style={styles.linkNote}>{ordering}</Text> : null}
+      {query.isPending ? (
+        <View role="status" aria-busy style={styles.listLoading}>
+          <Text style={styles.explain}>Loading reports</Text>
+          {[0, 1, 2].map((index) => (
+            <Skeleton key={index} width="70%" height={20} />
+          ))}
+        </View>
+      ) : !reported ? (
+        <View style={styles.filingsCard}>
+          <Text accessibilityRole="alert" style={styles.explain}>
+            {FILINGS_UNAVAILABLE}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            disabled={query.isFetching}
+            aria-busy={query.isFetching}
+            onPress={() => retry()}
+            style={(state) => [
+              styles.seeAll,
+              Boolean('focused' in state && state.focused) && detailsStyles.focus,
+            ]}
+          >
+            <Text style={styles.seeAllLabel}>Try again</Text>
+          </Pressable>
+        </View>
+      ) : rows.length === 0 ? (
+        <View style={styles.filingsCard}>
+          <Text accessibilityRole="header" aria-level={3} style={styles.h3}>
+            {FILINGS_EMPTY_TITLE}
+          </Text>
+          <Text style={styles.explain}>{FILINGS_EMPTY_WHY}</Text>
+        </View>
+      ) : (
+        <View style={styles.filingRows}>
+          {rows.map((filing, index) => {
+            const period = filingRowPeriodLine(filing);
+            const filed = filedDateLine(filing.filedDate);
+            return (
+              <View
+                key={`${filing.filingYear}-${filing.reportType}-${filing.periodEnd ?? 'no-end'}-${index}`}
+                style={[styles.filingRow, isMobile && styles.filingRowMobile]}
+              >
+                <View style={styles.listRowText}>
+                  <Text style={styles.listName}>{filing.reportName}</Text>
+                  {period ? <Text style={styles.filingPeriod}>{period}</Text> : null}
+                </View>
+                {filed || filingIsAmended(filing.effectiveAmendmentIndex) ? (
+                  <View style={[styles.filingStatus, isMobile && styles.filingStatusMobile]}>
+                    {filed ? <Text style={styles.filedDate}>{filed.toUpperCase()}</Text> : null}
+                    {filingIsAmended(filing.effectiveAmendmentIndex) ? (
+                      <Text style={styles.amendedChip}>{AMENDED_CHIP}</Text>
+                    ) : null}
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
+        </View>
+      )}
+      {reported && query.isFetchNextPageError ? (
+        <View>
+          <Text accessibilityRole="alert" style={styles.explain}>
+            We couldn’t load more reports. The reports already shown are still available.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            disabled={query.isFetching}
+            aria-busy={query.isFetching}
+            onPress={() => retry(true)}
+            style={(state) => [
+              styles.seeAll,
+              Boolean('focused' in state && state.focused) && detailsStyles.focus,
+            ]}
+          >
+            <Text style={styles.seeAllLabel}>Try again</Text>
+          </Pressable>
+        </View>
+      ) : reported && query.hasNextPage ? (
+        <Pressable
+          accessibilityRole="button"
+          disabled={query.isFetching}
+          aria-busy={query.isFetchingNextPage}
+          onPress={() => retry(true)}
+          style={(state) => [
+            styles.seeAll,
+            Boolean('focused' in state && state.focused) && detailsStyles.focus,
+          ]}
+        >
+          <Text style={styles.seeAllLabel}>
+            {query.isFetchingNextPage ? 'Loading more reports' : 'Show more reports'}
+          </Text>
         </Pressable>
       ) : null}
-      <Text style={styles.linkNote}>{FILINGS_PERIOD_NOTE}</Text>
-      <Text
-        style={[styles.source, styles.filingsSource]}
-        {...externalLinkProps(boardUrl, () => void Linking.openURL(boardUrl))}
-      >
-        {BOARD_RECORD_LINK_LABEL}
-      </Text>
-    </>
+      {query.isFetchingNextPage ? (
+        <Text role="status" style={styles.hidden}>
+          Loading more reports
+        </Text>
+      ) : null}
+      {unlisted ? <Text style={styles.linkNote}>{unlisted}</Text> : null}
+      {rows.length ? (
+        <View style={styles.filingNotes}>
+          {rows.some((row) => filingIsAmended(row.effectiveAmendmentIndex)) ? (
+            <Text style={styles.linkNote}>Amended means the committee filed a revised version</Text>
+          ) : null}
+          {rows.some((row) => !row.filedDate) ? (
+            <Text style={styles.linkNote}>
+              Filing dates appear only where our records include them
+            </Text>
+          ) : null}
+          <Text style={styles.linkNote}>{FILINGS_PERIOD_NOTE}</Text>
+        </View>
+      ) : null}
+      {copiedOn ? (
+        <Text style={styles.freshness}>Minnesota’s report catalogue copied {copiedOn}</Text>
+      ) : null}
+    </View>
   );
 }
 
@@ -1495,13 +1634,20 @@ const styles = StyleSheet.create({
   listRows: { marginTop: 12, gap: 9 },
   listLoading: { marginTop: 20, gap: 9 },
   filingsCard: { marginTop: 20 },
+  filingsSection: { gap: 16 },
+  filingsOpening: { gap: 8 },
   filingsHead: {
-    fontFamily: t.typography.mono,
-    fontSize: 11,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.3,
-    color: c.secondary,
+    fontFamily: t.typography.title,
+    fontSize: 24,
+    lineHeight: 32,
+    fontWeight: '800',
+    color: c.text,
   },
+  filingRows: { borderTopWidth: 1, borderTopColor: c.border },
+  filingNotes: { gap: 8 },
+  filingStatus: { alignItems: 'flex-end', gap: 8, maxWidth: '45%' },
+  filingStatusMobile: { alignItems: 'flex-start', maxWidth: '100%' },
+  filingRowMobile: { flexDirection: 'column', gap: 10 },
   /** Neutral, like the in-kind chip — never amber, which is reserved for bill
    *  identity. */
   amendedChip: {
@@ -1547,7 +1693,14 @@ const styles = StyleSheet.create({
     ...(t.shadows.card as object),
   },
   listRowLink: {},
-  filingRow: { alignItems: 'flex-start', flexWrap: 'wrap' },
+  filingRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 24,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: c.border,
+  },
   filingPeriod: {
     marginTop: 4,
     fontFamily: t.typography.body,
@@ -1609,6 +1762,7 @@ const styles = StyleSheet.create({
     color: c.text,
   },
   seeAll: {
+    minHeight: 44,
     marginTop: 14,
     flexDirection: 'row',
     alignItems: 'center',

@@ -15,7 +15,13 @@ type WebNavigationState = {
 type WebRouteTarget =
   | { kind: 'tab'; screen: keyof MainTabParamList }
   | { kind: 'bill'; billId: string; tab?: string; track?: boolean }
-  | { kind: 'legislator'; legislatorId: string; tab?: string; year?: string }
+  | {
+      kind: 'legislator';
+      legislatorId: string;
+      tab?: string;
+      year?: string;
+      contributionDetails?: string;
+    }
   | { kind: 'bills'; params: Record<string, string> }
   | { kind: 'legislators'; params: Record<string, string> }
   | { kind: 'findMyLegislator'; address?: string }
@@ -28,6 +34,9 @@ type WebRouteTarget =
   | { kind: 'guide'; slug: string }
   | {
       kind: 'moneyCommittee';
+      contributionDetails?: string;
+      evidence?: string;
+      earlierYears?: string;
       slug: string;
       tab?: string;
       year?: string;
@@ -427,6 +436,9 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
       return {
         kind: 'moneyCommittee',
         ...params,
+        contributionDetails: searchParams.get('contributionDetails') ?? undefined,
+        evidence: searchParams.get('evidence') ?? undefined,
+        earlierYears: searchParams.get('earlierYears') ?? undefined,
         category: searchParams.get('category') ?? undefined,
         sort: searchParams.get('sort') ?? undefined,
       };
@@ -459,6 +471,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     return {
       kind: 'legislator',
       legislatorId: decodeURIComponent(segments[1]),
+      contributionDetails: searchParams.get('contributionDetails') ?? undefined,
       // Both are passed through as written and validated by the screen, which is
       // how the bill page already handles an unknown `tab`. A year outside the
       // years we hold has to land on a real page saying so, not on a 404.
@@ -602,6 +615,8 @@ export function pathForRoute(activeRoute: {
       if (activeRoute.params?.year) {
         params.set('year', String(activeRoute.params.year));
       }
+      if (activeRoute.params?.contributionDetails)
+        params.set('contributionDetails', String(activeRoute.params.contributionDetails));
       const query = params.toString();
       return query ? `${path}?${query}` : path;
     }
@@ -694,7 +709,11 @@ export function pathForRoute(activeRoute: {
         params.set('year', String(activeRoute.params.year));
       }
       if (activeRoute.name === 'CommitteeMoney') {
-        const { category, sort, tab } = activeRoute.params ?? {};
+        const { category, sort, tab, contributionDetails, evidence, earlierYears } =
+          activeRoute.params ?? {};
+        if (contributionDetails) params.set('contributionDetails', String(contributionDetails));
+        if (evidence === '1') params.set('evidence', '1');
+        if (earlierYears === '1') params.set('earlierYears', '1');
         if (category && (category !== 'individuals' || tab === 'spent'))
           params.set('category', String(category));
         if (sort && sort !== 'largest') params.set('sort', String(sort));
@@ -810,6 +829,7 @@ export function stateFromPathname(pathname: string): WebNavigationState {
             name: 'LegislatorProfile',
             params: {
               legislatorId: target.legislatorId,
+              contributionDetails: target.contributionDetails,
               tab: target.tab,
               year: target.year,
             },

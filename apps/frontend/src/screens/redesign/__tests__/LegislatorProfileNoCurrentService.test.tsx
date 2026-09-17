@@ -55,11 +55,38 @@ vi.mock('expo-clipboard', () => ({
 }));
 // Which member's page is open. The tab title is written only for the address the
 // browser is actually on, so the test drives both together.
-const openAddress = vi.hoisted(() => ({ slug: 'joe-schomacker' }));
+const openAddress = vi.hoisted(() => ({
+  slug: 'joe-schomacker',
+  params: {} as { tab?: string; year?: string; contributionDetails?: string },
+}));
 vi.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: () => {}, push: () => {}, setParams: () => {} }),
-  useRoute: () => ({ name: 'Legislator', params: { legislatorId: openAddress.slug } }),
+  useRoute: () => ({
+    name: 'Legislator',
+    params: { legislatorId: openAddress.slug, ...openAddress.params },
+  }),
   useIsFocused: () => true,
+}));
+
+// Inspect what the real profile passes to Share without sending anything.
+vi.mock('../../../components/billDetail/SharePopover', () => ({
+  SharePopover: ({ content }: { content: { url: string } }) => (
+    <a data-testid="profile-share-url" href={content.url}>
+      Share
+    </a>
+  ),
+}));
+vi.mock('../../../components/share/MobileShareSheet', () => ({
+  MobileShareSheet: ({ visible, content }: { visible: boolean; content: { url: string } }) =>
+    visible ? (
+      <a data-testid="profile-share-url" href={content.url}>
+        Copy link
+      </a>
+    ) : null,
+}));
+vi.mock('../../../components/campaignMoney/CampaignMoneyTabOnDemand', () => ({
+  CampaignMoneyTab: () => null,
+  prefetchCampaignMoneyTab: async () => undefined,
 }));
 
 import { createAppQueryClient } from '../../../lib/appQueryClient';
@@ -152,9 +179,15 @@ function serve(detail: unknown) {
   );
 }
 
-function openProfile(Screen: (typeof SCREENS)[number][1], slug: string) {
+function openProfile(
+  Screen: (typeof SCREENS)[number][1],
+  slug: string,
+  params: typeof openAddress.params = {},
+) {
   openAddress.slug = slug;
-  window.history.replaceState({}, '', `/legislators/${slug}`);
+  openAddress.params = params;
+  const search = new URLSearchParams(params).toString();
+  window.history.replaceState({}, '', `/legislators/${slug}${search ? `?${search}` : ''}`);
   const host = document.createElement('div');
   document.body.append(host);
   const client = createAppQueryClient();
@@ -167,7 +200,7 @@ function openProfile(Screen: (typeof SCREENS)[number][1], slug: string) {
       ) as ReactNode,
     );
   });
-  return { words: () => host.textContent ?? '' };
+  return { host, words: () => host.textContent ?? '' };
 }
 
 async function settle() {
@@ -297,6 +330,54 @@ describe('the loaded profile of a sitting member is unchanged', () => {
       expect(words).toContain('Democratic-Farmer-Labor');
       expect(words).toContain('Official Senate profile');
       expect(document.title).toBe('Sen. Omar Fateh, Minnesota Senate District 62 | Alethical');
+    },
+  );
+});
+
+describe('profile Share preserves the money view', () => {
+  it.each(SCREENS)(
+    'shares the selected money year and open contribution rows on %s',
+    async (layout, Screen) => {
+      serve(SITTING);
+      const contributionDetails = '19019.2025.0,19019.2025.2';
+      const { host } = openProfile(Screen, 'patty-acomb', {
+        tab: 'money',
+        year: '2025',
+        contributionDetails,
+      });
+      await settle();
+      if (layout === 'mobile') {
+        act(() => host.querySelector<HTMLElement>('[aria-label="Share this legislator"]')!.click());
+      }
+      const share = host.querySelector<HTMLAnchorElement>('[data-testid="profile-share-url"]')!;
+      expect(share).not.toBeNull();
+      const url = new URL(share.href);
+      expect(url.pathname).toBe('/legislators/patty-acomb');
+      expect([...url.searchParams.keys()].sort()).toEqual(['contributionDetails', 'tab', 'year']);
+      expect(url.searchParams.get('tab')).toBe('money');
+      expect(url.searchParams.get('year')).toBe('2025');
+      expect(url.searchParams.get('contributionDetails')).toBe(contributionDetails);
+    },
+  );
+
+  it.each(SCREENS)(
+    'shares the bare profile from Overview despite retained money choices on %s',
+    async (layout, Screen) => {
+      serve(SITTING);
+      const { host } = openProfile(Screen, 'patty-acomb', {
+        year: '2025',
+        contributionDetails: '19019.2025.0',
+      });
+      await settle();
+      if (layout === 'mobile') {
+        act(() => host.querySelector<HTMLElement>('[aria-label="Share this legislator"]')!.click());
+      }
+      const share = host.querySelector<HTMLAnchorElement>('[data-testid="profile-share-url"]')!;
+      expect(share).not.toBeNull();
+      const url = new URL(share.href);
+      expect(url.pathname).toBe('/legislators/patty-acomb');
+      expect(url.search).toBe('');
+      expect(url.hash).toBe('');
     },
   );
 });

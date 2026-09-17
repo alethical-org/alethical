@@ -904,7 +904,7 @@ describe('the 2 outside-spending tabs', () => {
 
   it('carries the 2 ruled labels, the one place this section says "spent"', () => {
     expect(COMMITTEE_TAB_LABELS.about).toBe('Spent about them');
-    expect(COMMITTEE_TAB_LABELS.by).toBe('Spent by them');
+    expect(COMMITTEE_TAB_LABELS.by).toBe('Independent spending');
     expect(committeeTabFromParam('about')).toBe('about');
     expect(committeeTabFromParam('by')).toBe('by');
     expect(committeeTabFromParam('nonsense')).toBe('gave');

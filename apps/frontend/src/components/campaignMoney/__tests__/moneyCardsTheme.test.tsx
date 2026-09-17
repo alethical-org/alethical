@@ -18,7 +18,10 @@ import {
 } from '../MoneyCards';
 import { BOARD_RECORD_LINK_LABEL } from '../../../lib/boardRecordLink';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../../lib/campaignMoneyColors';
-import { MONEY_OUT_OFFICIAL_MISSING } from '../../../lib/committeeMoneyShared';
+import {
+  itemizedContributionsNote,
+  MONEY_OUT_OFFICIAL_MISSING,
+} from '../../../lib/committeeMoneyShared';
 import { theme as t } from '../../../theme/tokens';
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT =
@@ -179,6 +182,14 @@ describe('profile styling for shared money cards', () => {
     );
   });
 
+  it('keeps supporting paragraphs regular when the sentence contains a dollar threshold', () => {
+    const profile = mount.querySelector('#profile')!;
+    const explanation = exact(profile, itemizedContributionsNote(false));
+    expect(explanation.textContent).toContain('$200');
+    expect(['normal', '400']).toContain(getComputedStyle(explanation).fontWeight);
+    expect(getComputedStyle(exact(profile, '$1,000')).fontWeight).toBe('800');
+  });
+
   it('opens the checked block on its date and aligns the plain evidence list beneath it', () => {
     const profile = mount.querySelector('#profile')!;
     const date = exact(profile, 'Checked by Alethical on Aug 30, 2026');
@@ -203,6 +214,64 @@ describe('profile styling for shared money cards', () => {
       expect(sentenceStyle.fontWeight).toBe('400');
       expect(sentenceStyle.color).toBe(color(c.secondary));
     }
+  });
+
+  it('keeps the date and person link visible while committee evidence opens separately', () => {
+    act(() =>
+      root.render(
+        <CheckedByBlock
+          collapsibleEvidence
+          checkerNamedAbove
+          checked={{
+            checkedOn: '2026-08-30',
+            nameEvidence: 'exact',
+            registerVerdict: 'same_seat',
+            partyAgreement: 'agrees',
+          }}
+        >
+          <a href="/legislators/example?tab=money&year=2026">See this person’s campaign money</a>
+        </CheckedByBlock>,
+      ),
+    );
+    const button = mount.querySelector('button')!;
+    const content = document.getElementById(button.getAttribute('aria-controls')!)!;
+    expect(button.textContent).toBe('How Alethical confirmed this');
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(content.hidden).toBe(true);
+    expect(exact(mount, 'Checked Aug 30, 2026').closest('[hidden]')).toBeNull();
+    expect(mount.querySelector('a')?.closest('[hidden]')).toBeNull();
+    expect(button.previousElementSibling?.tagName).toBe('A');
+    act(() => button.click());
+    expect(content.hidden).toBe(false);
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(content.querySelectorAll('[role="listitem"]')).toHaveLength(3);
+  });
+
+  it('takes evidence state from the address when controlled', () => {
+    const onEvidenceOpenChange = vi.fn();
+    const draw = (evidenceOpen: boolean) =>
+      act(() =>
+        root.render(
+          <CheckedByBlock
+            collapsibleEvidence
+            evidenceOpen={evidenceOpen}
+            onEvidenceOpenChange={onEvidenceOpenChange}
+            checked={{
+              checkedOn: '2026-08-30',
+              nameEvidence: 'exact',
+              registerVerdict: 'same_seat',
+              partyAgreement: 'agrees',
+            }}
+          />,
+        ),
+      );
+    draw(true);
+    const button = mount.querySelector('button')!;
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    act(() => button.click());
+    expect(onEvidenceOpenChange).toHaveBeenLastCalledWith(false);
+    draw(false);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
   });
 
   it('prints no checked block when no stored decision is held', () => {
