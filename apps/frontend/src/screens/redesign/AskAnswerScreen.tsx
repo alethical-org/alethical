@@ -615,7 +615,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
       <View style={styles.stateBox}>
         <Text style={styles.stateText}>Something went wrong answering this question.</Text>
         <Pressable accessibilityRole="button" onPress={() => askQuery.refetch()}>
-          <GreenArrowLink label="Try again" />
+          <Text style={[styles.viewBillLink, { color: t.colors.text.primary }]}>Try again →</Text>
         </Pressable>
       </View>,
     );

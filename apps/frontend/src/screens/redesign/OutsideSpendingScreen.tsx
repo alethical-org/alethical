@@ -135,6 +135,21 @@ function BackChevron() {
   );
 }
 
+// Clearing this screen's year filter keeps its original action treatment.
+function AllYearsArrow() {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <Path
+        d="M5 12 H19 M13 6 L19 12 L13 18"
+        stroke={t.colors.text.primary}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 export function OutsideSpendingScreen(props: RootScreenProps<'OutsideSpending'>) {
   return outsideSpendingView(props.route.params ?? {}) === 'record' ? (
     <OutsideSpendingBrowseScreen {...props} />
@@ -369,9 +384,10 @@ function SubjectView({
           {year !== null ? (
             <Pressable
               {...linkProps(hrefFor({ year: undefined }), () => goTo({ year: undefined }))}
-              style={styles.seeAll}
+              style={[styles.seeAll, styles.allYearsAction]}
             >
-              <LinkArrowLabel label={SEE_ALL_YEARS} style={styles.seeAllLabel} />
+              <Text style={[styles.seeAllLabel, styles.actionLabel]}>{SEE_ALL_YEARS}</Text>
+              <AllYearsArrow />
             </Pressable>
           ) : ownMoneyHref ? (
             <Pressable {...linkProps(ownMoneyHref, openOwnMoney)} style={styles.seeAll}>
@@ -1103,6 +1119,8 @@ const styles = StyleSheet.create({
     minHeight: 44,
     alignSelf: 'flex-start',
   },
+  allYearsAction: { gap: 8 },
+  actionLabel: { color: t.colors.text.primary },
   seeAllLabel: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.bodyLg,

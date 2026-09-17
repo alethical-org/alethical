@@ -331,11 +331,31 @@ function CardLink({ label, href, onPress }: { label: string; href?: string; onPr
   const [hovered, hover] = useHover();
   const press = href ? linkProps(href, onPress) : { onPress: pressInsideLink(onPress) };
   return (
-    <Pressable accessibilityRole="link" {...press} {...hover} style={styles.cardLink}>
-      <LinkArrowLabel
-        label={label}
-        style={[styles.cardLinkText, hovered && styles.cardLinkTextHover]}
-      />
+    <Pressable
+      accessibilityRole="link"
+      {...press}
+      {...hover}
+      style={[styles.cardLink, !href && styles.cardAction]}
+    >
+      {href ? (
+        <LinkArrowLabel
+          label={label}
+          style={[styles.cardLinkText, hovered && styles.cardLinkTextHover]}
+        />
+      ) : (
+        <>
+          <Text style={[styles.cardLinkText, { color: t.colors.text.primary }]}>{label}</Text>
+          <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden>
+            <Path
+              d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18"
+              stroke={t.colors.text.primary}
+              strokeWidth={1.8}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+        </>
+      )}
     </Pressable>
   );
 }
@@ -508,6 +528,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.onGreen,
   },
   cardLink: { ...linkArrowRow, flexShrink: 0 },
+  cardAction: { gap: 4 },
   cardLinkText: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.small,

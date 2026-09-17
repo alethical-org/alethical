@@ -2,6 +2,10 @@ import { StyleProp, StyleSheet, Text, TextStyle, ViewStyle } from 'react-native'
 import Svg, { Path } from 'react-native-svg';
 
 /**
+ * Destination-page links only. On-screen actions (reveal, retry, filters, and
+ * section jumps) retain their own accepted text colors and arrow treatments,
+ * even when a URL stores the action's state.
+ *
  * The approved spacing and vertical alignment for a green link followed by an arrow.
  * Keep the text and LinkArrow as siblings inside the same row.
  */

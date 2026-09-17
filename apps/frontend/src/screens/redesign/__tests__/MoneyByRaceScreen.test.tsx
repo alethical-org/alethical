@@ -253,6 +253,10 @@ describe('Money by race directory and focused group', () => {
     expect(host.textContent).not.toContain('CAMPAIGN MONEY');
     expect(state.query).toHaveBeenLastCalledWith({ year: 2026 });
     expect(groups()).toHaveLength(4);
+    const directoryAction = [...groups()[0].querySelectorAll('div')].find(
+      (node) => node.textContent === 'View committees',
+    )!;
+    expect(getComputedStyle(directoryAction).color).toBe('rgb(17, 21, 15)');
     expect(committees()).toHaveLength(0);
     expect(host.textContent).not.toContain(reported.name);
     expect(host.textContent).not.toContain('$100');

@@ -369,7 +369,12 @@ const styles = StyleSheet.create({
   },
   explanation: { marginTop: 9, maxWidth: 780, color: '#4f5651', fontFamily: t.typography.body },
   retry: { minHeight: 44, alignSelf: 'flex-start', justifyContent: 'center', marginTop: 12 },
-  retryText: { color: '#0f7a45', fontFamily: t.typography.body, fontSize: 16, fontWeight: '700' },
+  retryText: {
+    color: t.colors.text.primary,
+    fontFamily: t.typography.body,
+    fontSize: 16,
+    fontWeight: '700',
+  },
   listHead: {
     marginTop: 22,
     flexDirection: 'row',

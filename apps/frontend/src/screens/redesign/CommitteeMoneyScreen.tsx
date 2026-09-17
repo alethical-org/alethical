@@ -9,7 +9,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { contributionDetailRows, withContributionDetailRows } from '../../lib/contributionDetails';
 import { SharePopover } from '../../components/billDetail/SharePopover';
-import { GreenLinkArrow, LinkArrowLabel, linkArrowRow } from '../../components/LinkArrow';
+import { LinkArrowLabel, linkArrowRow } from '../../components/LinkArrow';
 import {
   CommitteeDonations,
   GroupedOutsideSpending,
@@ -164,6 +164,21 @@ function BackChevron() {
       <Path
         d="M15 5 L8 12 L15 19"
         stroke={t.colors.text.secondary}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+// Year selection and revealing payments retain their original action arrow.
+function ActionArrow() {
+  return (
+    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <Path
+        d="M5 12 H19 M14 7 L19 12 L14 17"
+        stroke={c.text}
         strokeWidth={2.2}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -757,7 +772,7 @@ function MoneyInCard({
           <Pressable onPress={() => onSelectYear(otherYear)} accessibilityRole="button">
             <View style={styles.seeOtherYear}>
               <Text style={styles.seeOtherYearLabel}>See {otherYear}</Text>
-              <GreenLinkArrow />
+              <ActionArrow />
             </View>
           </Pressable>
         </View>
@@ -1162,10 +1177,10 @@ function OutsideSpendingPanel({
         <Pressable
           onPress={() => void query.fetchNextPage()}
           accessibilityRole="button"
-          style={styles.seeAll}
+          style={[styles.seeAll, styles.actionRow]}
         >
-          <Text style={styles.seeAllLabel}>Show more payments</Text>
-          <GreenLinkArrow />
+          <Text style={[styles.seeAllLabel, styles.actionLabel]}>Show more payments</Text>
+          <ActionArrow />
         </Pressable>
       ) : null}
       {first.sourceUrl ? (
@@ -1241,7 +1256,7 @@ export function FilingsList({
               Boolean('focused' in state && state.focused) && detailsStyles.focus,
             ]}
           >
-            <Text style={styles.seeAllLabel}>Try again</Text>
+            <Text style={[styles.seeAllLabel, styles.actionLabel]}>Try again</Text>
           </Pressable>
         </View>
       ) : rows.length === 0 ? (
@@ -1293,7 +1308,7 @@ export function FilingsList({
               Boolean('focused' in state && state.focused) && detailsStyles.focus,
             ]}
           >
-            <Text style={styles.seeAllLabel}>Try again</Text>
+            <Text style={[styles.seeAllLabel, styles.actionLabel]}>Try again</Text>
           </Pressable>
         </View>
       ) : reported && query.hasNextPage ? (
@@ -1307,7 +1322,7 @@ export function FilingsList({
             Boolean('focused' in state && state.focused) && detailsStyles.focus,
           ]}
         >
-          <Text style={styles.seeAllLabel}>
+          <Text style={[styles.seeAllLabel, styles.actionLabel]}>
             {query.isFetchingNextPage ? 'Loading more reports' : 'Show more reports'}
           </Text>
         </Pressable>
@@ -1491,12 +1506,14 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   inlineLinks: { gap: 12 },
-  seeOtherYear: linkArrowRow,
+  seeOtherYear: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  actionRow: { gap: 8 },
+  actionLabel: { color: c.text },
   seeOtherYearLabel: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,
-    color: c.link,
+    color: c.text,
   },
   sectionTabs: {
     flexDirection: 'row',

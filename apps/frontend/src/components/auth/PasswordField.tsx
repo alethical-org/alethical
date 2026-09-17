@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.small,
     lineHeight: 20,
     fontWeight: t.fontWeights.semibold,
-    color: t.colors.text.greenOnLight,
+    color: t.colors.text.primary,
   },
   helper: {
     marginTop: 7,

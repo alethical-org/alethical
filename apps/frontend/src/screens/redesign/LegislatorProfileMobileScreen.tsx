@@ -1101,7 +1101,7 @@ const styles = StyleSheet.create({
     padding: 22,
     ...(t.shadows.card as object),
   },
-  moneyTabLink: { color: t.colors.brand.base, textDecorationLine: 'underline' },
+  moneyTabLink: { color: t.colors.text.primary, textDecorationLine: 'underline' },
   cardTitle: {
     fontFamily: t.typography.title,
     fontSize: t.fontSizes.h3,

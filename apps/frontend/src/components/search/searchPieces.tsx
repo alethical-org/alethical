@@ -1304,11 +1304,7 @@ function PageButton({
   variant?: 'lobbying';
 }) {
   const [hovered, hover] = useHover();
-  const color = disabled
-    ? t.colors.borders.strong
-    : hovered
-      ? t.colors.brand.deep
-      : t.colors.text.primary;
+  const color = disabled ? t.colors.borders.strong : t.colors.text.primary;
   const Icon = direction === 'prev' ? ChevronLeft : ChevronRight;
   return (
     <Pressable
@@ -1639,7 +1635,7 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.meta,
     fontWeight: t.fontWeights.semibold,
-    color: t.colors.brand.deep,
+    color: t.colors.text.primary,
   },
   // The "+N more" issue toggle keeps the design's green dashed treatment (it's an
   // additive "reveal" action, not a filter control) — so it hovers green, not the

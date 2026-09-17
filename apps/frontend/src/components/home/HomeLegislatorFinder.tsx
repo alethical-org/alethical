@@ -150,19 +150,9 @@ export function HomeLegislatorFinderForm({
       {findingLocation ? (
         <LocationSpinner reduceMotion={reduceMotion} size={desktop ? 19 : 18} />
       ) : (
-        <Crosshair
-          size={desktop ? 19 : 18}
-          color={locationHovered ? '#0f7a45' : '#11150f'}
-          aria-hidden
-        />
+        <Crosshair size={desktop ? 19 : 18} color="#11150f" aria-hidden />
       )}
-      <Text
-        style={[
-          styles.locationText,
-          locationHovered && !findingLocation && styles.locationTextHovered,
-          findingLocation && styles.locationTextWaiting,
-        ]}
-      >
+      <Text style={[styles.locationText, findingLocation && styles.locationTextWaiting]}>
         {locationLabel}
       </Text>
     </Pressable>
@@ -368,7 +358,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#11150f',
   },
-  locationTextHovered: { color: '#0f7a45' },
   locationTextWaiting: { color: t.colors.text.secondary },
   help: {
     marginTop: 12,

@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: c.background,
   },
-  controlText: { color: c.link },
+  controlText: { color: c.text },
   hover: { backgroundColor: '#f3f5f4' },
   empty: { flex: 1 },
   emptyChip: {
