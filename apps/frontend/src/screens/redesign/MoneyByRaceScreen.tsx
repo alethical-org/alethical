@@ -535,7 +535,7 @@ function CommitteeRow({
           {...linkProps(routePath.moneyCommittee(slug, { year: String(year) }), () => onOpen(slug))}
           onPressIn={warm}
           onHoverIn={warm}
-          style={[styles.rowNameLink, isMobile && styles.rowNameLinkMobile]}
+          style={styles.rowNameLink}
         >
           <Text style={styles.rowName}>{committee.name}</Text>
         </Pressable>
@@ -780,8 +780,14 @@ const styles = StyleSheet.create({
   rowMobile: { flexDirection: 'column', gap: 12, paddingVertical: 14 },
   rowText: { flex: 1, minWidth: 0 },
   rowTextMobile: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: '100%' },
-  rowNameLink: { alignSelf: 'flex-start', maxWidth: '100%' },
-  rowNameLinkMobile: { minHeight: 44, justifyContent: 'center', marginTop: -8, marginBottom: -8 },
+  rowNameLink: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    minHeight: 44,
+    justifyContent: 'center',
+    marginTop: -8,
+    marginBottom: -8,
+  },
   rowName: {
     fontFamily: t.typography.body,
     fontSize: 17.5,
