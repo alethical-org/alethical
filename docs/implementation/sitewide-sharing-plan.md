@@ -34,14 +34,21 @@ not authority to change record facts or widen Share-button placement.
    opens a pull request, waits for required checks and the merge queue, then
    exercises deployed Share controls without posting or sending anything.
 
-## Checkpoint
+## Implementation evidence
 
 Implementation and independent code review are complete. The review's missing
-dialog name is fixed in both wrappers. TypeScript, formatting and 3,106 frontend
+dialog name is fixed in both wrappers. TypeScript, formatting and 3,152 frontend
 tests pass. Browser checks pass at desktop, tablet, phone and short desktop sizes
-in Chromium and WebKit: 11 passed, with Chromium-only clipboard permission testing
-skipped in WebKit. A fresh-context reader check is in progress.
+in Chromium and WebKit: 13 passed, with Chromium-only clipboard permission testing
+skipped in WebKit. A fresh-context reader found no failures on bill, legislator,
+committee and research pages at 3 widths, plus a long bill in a short phone window.
 
-Remaining: reader findings, current-head release checks, pull request, merge queue,
-deployment and live verification. The branch is `codex/sitewide-sharing`.
+Destination-only code lives in shareIntents.ts so first-page metadata does not
+load it. The current-main local build passes the unchanged first-load limit:
+337,035 compressed bytes against 339,072. Hosted deployment must pass its own check.
+
+The isolated upload check also passes all 2,795 backend tests. Current-head release
+checks, merge-queue results, deployment and live verification are recorded in
+[pull request 2242](https://github.com/alethical-org/alethical/pull/2242).
+The branch is `codex/sitewide-sharing`.
 [How sharing works](../product-onboarding/sharing-guide.md) owns lasting behavior.
