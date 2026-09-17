@@ -296,8 +296,16 @@ describe('outside spender list on the campaign money tab', () => {
     const control = expand();
     expect(control.tagName).toBe('BUTTON');
     expect(control.tabIndex).toBe(0);
+    await act(async () => control.focus());
+    expect(document.activeElement).toBe(control);
+    expect(getComputedStyle(control).outlineStyle).toBe('none');
+    const arrow = control.querySelector('[aria-hidden="true"]')!;
+    expect(getComputedStyle(arrow).width).toBe('44px');
+    expect(getComputedStyle(arrow).height).toBe('44px');
+    expect(getComputedStyle(arrow).borderTopLeftRadius).toBe('12px');
+    expect(getComputedStyle(arrow).borderTopColor).toBe('rgb(91, 48, 214)');
+    expect(getComputedStyle(arrow).boxShadow).toBe('0 0 0 3px rgba(91,48,214,0.22)');
     await act(async () => {
-      control.focus();
       // jsdom does not synthesize a native button's click from keyboard events.
       // The browser owns that default; exercise the resulting activation here.
       control.click();
@@ -305,6 +313,8 @@ describe('outside spender list on the campaign money tab', () => {
     await settle();
     expect(mount.querySelector('[aria-expanded="true"]')).not.toBeNull();
     expect(loadPayments).toHaveBeenCalledTimes(1);
+    await act(async () => control.blur());
+    expect(getComputedStyle(arrow).boxShadow).toBe('');
   });
 
   it('starts with a closed list again when the selected year changes', async () => {

@@ -273,12 +273,12 @@ describe('the money cards on the profile, at the final inventory', () => {
     expect(absent).not.toContain(`Money out ${MONEY_OUT_REPORTED_LABEL}`);
   });
 
-  it('links money in to the Board’s downloads page, not to the download itself', () => {
+  it('keeps the summary cards from repeating the outside-spending source link', () => {
     const raw = render([committee()]);
-    expect(new DOMParser().parseFromString(raw, 'text/html').body.textContent).toContain(
+    expect(new DOMParser().parseFromString(raw, 'text/html').body.textContent).not.toContain(
       NAMED_DONATIONS_LINK_LABEL,
     );
-    expect(raw).toContain(
+    expect(raw).not.toContain(
       'href="https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/"',
     );
     expect(raw).not.toContain('?download=');

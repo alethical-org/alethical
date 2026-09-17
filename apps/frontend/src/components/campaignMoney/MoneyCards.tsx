@@ -93,7 +93,6 @@ import {
   type SplitState,
 } from '../../lib/legislatorCampaignMoney';
 import { externalLinkProps } from '../../navigation/links';
-import { LinkArrowLabel } from '../LinkArrow';
 import { theme as t } from '../../theme/tokens';
 import { useCampaignMoneyTypography } from './detailsStyles';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -248,13 +247,8 @@ export function FilingStamp({
           {line}
         </CardText>
       ) : null}
-      {/* 2 sentences, 1 block. The second starts on its own line so the link that
-          opens it sits in a fixed place at every width instead of wherever the first
-          sentence happens to end, and the 5px is what separates a new sentence from a
-          wrap of the old one on a phone. They keep both terminal periods because they
-          are prose in one block rather than a stack of standalone lines.
-          `numeric` is off: the auto-detector sets weight 800 on any string carrying a
-          digit, and the appended download date was making this whole sentence bold. */}
+      {/* These are separate supporting text units. Each starts on its own line;
+          a sentence wrapping on a phone does not change its punctuation or weight. */}
       {detail || boardRecordUrl ? (
         <View style={styles.stampSentences}>
           {detail ? (
@@ -537,6 +531,7 @@ export function CheckedByBlock({
       {collapsibleEvidence && evidenceList ? (
         <>
           <button
+            data-arrow-focus="true"
             type="button"
             aria-expanded={expanded}
             aria-controls={evidenceId}
@@ -561,27 +556,42 @@ export function CheckedByBlock({
               fontSize: 15,
               fontWeight: 700,
               borderRadius: 8,
-              outline: focused ? `2px solid ${c.focus}` : undefined,
-              outlineOffset: 2,
+              outline: 'none',
             }}
           >
             How Alethical confirmed this
-            <svg
+            <span
               aria-hidden="true"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              style={{ flex: 'none', transform: expanded ? 'rotate(180deg)' : undefined }}
+              style={{
+                width: 44,
+                height: 44,
+                flex: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 12,
+                boxSizing: 'border-box',
+                border: `1px solid ${focused ? c.fieldFocusBorder : 'transparent'}`,
+                boxShadow: focused ? `0 0 0 3px ${c.fieldFocusRing}` : undefined,
+              }}
             >
-              <path
-                d="M6 9 L12 15 L18 9"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+              <svg
+                aria-hidden="true"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                style={{ flex: 'none', transform: expanded ? 'rotate(180deg)' : undefined }}
+              >
+                <path
+                  d="M6 9 L12 15 L18 9"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
           </button>
           <div id={evidenceId} hidden={!expanded}>
             {evidenceList}
@@ -677,24 +687,6 @@ function Row({ label, value, note }: { label: string; value: string; note?: stri
         {value}
       </CardText>
     </View>
-  );
-}
-
-/** A download source belongs outside the human identity-check evidence. */
-export function CampaignDownloadsLink({ sourceUrl }: { sourceUrl: string | null | undefined }) {
-  const styles = useCardStyles();
-  if (!sourceUrl) return null;
-  const url = downloadsPageUrl(sourceUrl);
-  return (
-    <Pressable
-      {...externalLinkProps(url, () => void Linking.openURL(url))}
-      style={(state) => [
-        styles.downloadLink,
-        Boolean('focused' in state && state.focused) && styles.sourceFocused,
-      ]}
-    >
-      <LinkArrowLabel label={NAMED_DONATIONS_LINK_LABEL} style={styles.downloadLabel} />
-    </Pressable>
   );
 }
 
@@ -805,12 +797,6 @@ const defaultStyles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   sourceFocused: {},
-  downloadLink: {
-    minHeight: 44,
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-  },
-  downloadLabel: { fontFamily: t.typography.body, fontSize: 15, fontWeight: '700', color: c.link },
   stamp: {
     backgroundColor: t.colors.surfaces.s100,
     borderWidth: 1,
@@ -851,7 +837,6 @@ const defaultStyles = StyleSheet.create({
     fontSize: t.fontSizes.body,
     lineHeight: 22,
     color: t.colors.text.secondary,
-    maxWidth: 680,
   },
   checked: {
     marginTop: 16,

@@ -364,23 +364,33 @@ function SpenderRow({
         <Pressable
           accessibilityRole="button"
           aria-expanded={expanded}
+          {...{ dataSet: { arrowFocus: 'true' } }}
           onPress={onToggle}
           accessibilityLabel={outsideExpansionLabel(group, expanded)}
-          style={(state) => [
-            styles.expand,
-            Boolean('focused' in state && state.focused) && s.focus,
-          ]}
+          style={styles.expand}
         >
-          <Text
-            style={[
-              s.amount,
-              !isMobile && styles.amountColumn,
-              !isMobile && isTablet && styles.amountColumnTablet,
-            ]}
-          >
-            {formatMoney(group.amount) ?? copy.unknownAmount}
-          </Text>
-          <Chevron open={expanded} />
+          {(state) => (
+            <>
+              <Text
+                style={[
+                  s.amount,
+                  !isMobile && styles.amountColumn,
+                  !isMobile && isTablet && styles.amountColumnTablet,
+                ]}
+              >
+                {formatMoney(group.amount) ?? copy.unknownAmount}
+              </Text>
+              <View
+                aria-hidden
+                style={[
+                  styles.expandArrow,
+                  Boolean('focused' in state && state.focused) && s.namesFocus,
+                ]}
+              >
+                <Chevron open={expanded} />
+              </View>
+            </>
+          )}
         </Pressable>
       </View>
       {expanded ? (
@@ -500,6 +510,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 16,
     padding: 10,
+    ...({ outlineStyle: 'none' } as object),
+  },
+  expandArrow: {
+    width: 44,
+    height: 44,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   payments: { paddingLeft: 18, paddingBottom: 12 },
   payment: { gap: 8, paddingVertical: 8, borderTopWidth: 1, borderTopColor: c.border },

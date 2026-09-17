@@ -148,7 +148,7 @@ export function unnamedMoneyExplanation(isBallot: boolean): string {
   void isBallot;
   return (
     'Donations inside the committee’s reported total whose givers the state’s public ' +
-    'file does not name.'
+    'file does not name'
   );
 }
 
@@ -501,3 +501,6 @@ export function stampThroughDate(
 ): string | null {
   return split.reportedThrough ?? moneyOut?.reportedThrough ?? null;
 }
+
+/** Both payment directions share one destination; keep the selected filing year. */
+export const COMMITTEE_PAYMENTS_LINK_LABEL = 'View receipts and expenditures';

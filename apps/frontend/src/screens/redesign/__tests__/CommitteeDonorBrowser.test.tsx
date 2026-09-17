@@ -581,13 +581,10 @@ describe('one committee shares the donation browser', () => {
       'Source file: “Itemized independent expenditures of over $200”',
     );
     const fullLinks = [...host.querySelectorAll('a')].filter((node) =>
-      ['All received payments', 'All expenditure payments'].some((label) =>
-        node.textContent?.startsWith(label),
-      ),
+      node.textContent?.startsWith('View receipts and expenditures'),
     );
     expect(fullLinks.map((link) => link.getAttribute('href'))).toEqual([
       '/money/committees/gottfried-david-house-committee-19193/payments?tab=gave&year=2025',
-      '/money/committees/gottfried-david-house-committee-19193/payments?tab=spent&year=2025',
     ]);
     click(tab('Expenditures'));
     expect(host.textContent).toContain('Total itemized expenditures$104,004');
@@ -774,7 +771,7 @@ describe('committee refinement preserves the record', () => {
       );
       expect(parseFloat(getComputedStyle(link).minHeight)).toBeGreaterThanOrEqual(44);
       expect(host.textContent).toContain('the candidate may have others');
-      expect(host.textContent).toContain('Money figures start in 2015');
+      expect(host.textContent).toContain('Campaign finance figures in our copy start in 2015');
       expect(host.textContent).not.toContain('Unions don’t report');
       const period = [...host.querySelectorAll('div')].find((node) =>
         /^Figures (for|through) [^\n]+2025$/.test(node.textContent ?? ''),

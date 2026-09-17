@@ -277,6 +277,7 @@ function DonationCard({
     <div data-testid={id} style={{ borderTop: rule }}>
       <h3 style={{ margin: 0 }}>
         <button
+          data-arrow-focus="true"
           type="button"
           id={`${instanceId}-heading`}
           aria-expanded={open}
@@ -297,8 +298,7 @@ function DonationCard({
             background: 'transparent',
             border: 'none',
             borderRadius: 8,
-            outline: focused ? `2px solid ${c.focus}` : undefined,
-            outlineOffset: 2,
+            outline: 'none',
             cursor: 'pointer',
             fontFamily: t.typography.body,
             textAlign: 'left',
@@ -310,22 +310,38 @@ function DonationCard({
           }}
         >
           <span style={{ flex: 1, minWidth: 0 }}>{copy.headings[index]}</span>
-          <svg
+          <span
             aria-hidden="true"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            style={{ flex: 'none', transform: open ? 'rotate(180deg)' : undefined }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 44,
+              height: 44,
+              flexShrink: 0,
+              boxSizing: 'border-box',
+              borderRadius: 12,
+              border: `1px solid ${focused ? c.fieldFocusBorder : 'transparent'}`,
+              boxShadow: focused ? `0 0 0 3px ${c.fieldFocusRing}` : undefined,
+            }}
           >
-            <path
-              d="M6 9 L12 15 L18 9"
-              stroke={c.secondary}
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+            <svg
+              aria-hidden="true"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              style={{ transform: open ? 'rotate(180deg)' : undefined }}
+            >
+              <path
+                d="M6 9 L12 15 L18 9"
+                stroke={c.secondary}
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
         </button>
       </h3>
       <div

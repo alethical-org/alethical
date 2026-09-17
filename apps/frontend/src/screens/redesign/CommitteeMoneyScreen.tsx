@@ -27,7 +27,6 @@ import {
   CardHeading,
   CampaignMoneyCardTheme,
   CheckedByBlock,
-  CampaignDownloadsLink,
   Figure,
   FilingStamp,
   MoneyInBlock,
@@ -114,10 +113,10 @@ import {
   uncoveredPeriodDetail,
   uncoveredPeriodLine,
 } from '../../lib/committeeMoneyShared';
+import { COMMITTEE_PAYMENTS_LINK_LABEL } from '../../lib/committeeMoneyShared';
 import { paymentFilesDownloadedLine } from '../../lib/campaignMoneyDetailsPageCopy';
 import {
   campaignMoneyYear,
-  campaignMoneyYears,
   campaignMoneyHistoryYears,
   formatDay,
   formatMoney,
@@ -129,7 +128,7 @@ import { externalLinkProps, linkProps, routePath } from '../../navigation/links'
 import { screenLoaderForPath } from '../../navigation/screenPreload';
 import type { RootScreenProps } from '../../navigation/types';
 import { markNextWebHistoryChangeAsReplace } from '../../navigation/webHistory';
-import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
+import { Container, Footer, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
 
 /**
@@ -149,7 +148,7 @@ import { theme as t } from '../../theme/tokens';
  * - A verified zero is "0"; a closed committee keeps the register's own date.
  * - Money out shows the official "Expenditures" total when held. Otherwise no amount
  *   is printed; the card names the missing official total in our records.
- * - A ballot-question filer's page states no incoming donor-naming threshold.
+ * - A ballot-question filer's page uses the $500 yearly donor-naming threshold.
  * - When our own service does not answer, the page holds the figures it already
  *   had, dated, until it answers — never expiring on a timer.
  */
@@ -228,12 +227,16 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
   );
 
   const onSelectYear = (next: number) =>
-    navigation.setParams({ year: String(next), contributionDetails: undefined });
+    navigation.setParams({
+      year: String(next),
+      contributionDetails: undefined,
+      earlierYears: undefined,
+    });
   const onSelectTab = (next: CommitteeTab) =>
     navigation.setParams({ ...committeeMoneyPreferenceParams(preferences), tab: next });
 
   return (
-    <PageBackground>
+    <View style={styles.background}>
       <CommitteeScroll key={registrationNumber}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
 
@@ -294,14 +297,13 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
               onPreferences={onPreferences}
               contributionDetails={route.params?.contributionDetails}
               evidenceOpen={route.params?.evidence === '1'}
-              earlierYearsOpen={route.params?.earlierYears === '1'}
               spendingSort={route.params?.spendingSort}
             />
           )}
         </View>
         <Footer />
       </CommitteeScroll>
-    </PageBackground>
+    </View>
   );
 }
 
@@ -394,12 +396,10 @@ function CommitteeBody({
   onPreferences,
   contributionDetails,
   evidenceOpen,
-  earlierYearsOpen,
   spendingSort,
 }: {
   contributionDetails?: string;
   evidenceOpen: boolean;
-  earlierYearsOpen: boolean;
   spendingSort?: string;
   money: CommitteeMoney;
   year: number;
@@ -458,6 +458,14 @@ function CommitteeBody({
     }
   };
 
+  const ownershipText = !confirmation
+    ? confirmationPending
+      ? CONFIRMATION_LOADING_LINE
+      : CONFIRMATION_UNAVAILABLE_LINE
+    : confirmedMemberWithheld && confirmation.confirmedFor
+      ? CONFIRMED_MEMBER_WITHHELD_LINE
+      : whoseCommitteeText(registerKind, money.entitySubType, nameableMember);
+
   const { isTablet } = useResponsive();
   const shareContent: ShareContent = {
     title: name,
@@ -470,7 +478,6 @@ function CommitteeBody({
         ...committeeMoneyPreferenceParams(preferences),
         contributionDetails,
         evidence: evidenceOpen ? '1' : undefined,
-        earlierYears: earlierYearsOpen ? '1' : undefined,
         spendingSort,
       }),
     ),
@@ -503,55 +510,55 @@ function CommitteeBody({
           {closedChip ? <Text style={styles.closedChip}>{closedChip.toUpperCase()}</Text> : null}
         </View>
 
-        <View
-          style={[styles.whoseCard, isTablet && styles.panelTablet, isMobile && styles.panelMobile]}
-        >
-          <Text style={styles.whoseText}>
-            {/* Never `whoseCommitteeText(..., null)` while withholding: that sentence
+        {ownershipText || nameableMember ? (
+          <View
+            style={[
+              styles.whoseCard,
+              isTablet && styles.panelTablet,
+              isMobile && styles.panelMobile,
+            ]}
+          >
+            <Text style={styles.whoseText}>
+              {/* Never `whoseCommitteeText(..., null)` while withholding: that sentence
               says nobody has confirmed a member, which is a different fact and
               false here. A withheld claim gets its own words. */}
-            {!confirmation
-              ? confirmationPending
-                ? CONFIRMATION_LOADING_LINE
-                : CONFIRMATION_UNAVAILABLE_LINE
-              : confirmedMemberWithheld && confirmation.confirmedFor
-                ? CONFIRMED_MEMBER_WITHHELD_LINE
-                : whoseCommitteeText(registerKind, money.entitySubType, nameableMember)}
-          </Text>
-          {/* The confirmation's date, stored evidence and destination belong together.
+              {ownershipText}
+            </Text>
+            {/* The confirmation's date, stored evidence and destination belong together.
             Failed and expired checks never enter this block. */}
-          <CheckedByBlock
-            checked={nameableMember?.checked}
-            checkerNamedAbove
-            collapsibleEvidence
-            evidenceOpen={evidenceOpen}
-            onEvidenceOpenChange={(open) =>
-              navigation.setParams({ evidence: open ? '1' : undefined })
-            }
-          >
-            {nameableMember ? (
-              <Pressable
-                {...linkProps(
-                  routePath.legislator(nameableMember.slug, { tab: 'money', year: String(year) }),
-                  () =>
-                    navigation.push('LegislatorProfile', {
-                      legislatorId: nameableMember.slug,
-                      tab: 'money',
-                      year: String(year),
-                    }),
-                )}
-                onPressIn={warmConfirmedFor}
-                onHoverIn={warmConfirmedFor}
-                style={[styles.seeAll, styles.confirmedLink]}
-              >
-                <LinkArrowLabel
-                  label={confirmedMemberLinkLabel(nameableMember.fullName)}
-                  style={[styles.seeAllLabel, styles.confirmedLinkLabel]}
-                />
-              </Pressable>
-            ) : null}
-          </CheckedByBlock>
-        </View>
+            <CheckedByBlock
+              checked={nameableMember?.checked}
+              checkerNamedAbove
+              collapsibleEvidence
+              evidenceOpen={evidenceOpen}
+              onEvidenceOpenChange={(open) =>
+                navigation.setParams({ evidence: open ? '1' : undefined })
+              }
+            >
+              {nameableMember ? (
+                <Pressable
+                  {...linkProps(
+                    routePath.legislator(nameableMember.slug, { tab: 'money', year: String(year) }),
+                    () =>
+                      navigation.push('LegislatorProfile', {
+                        legislatorId: nameableMember.slug,
+                        tab: 'money',
+                        year: String(year),
+                      }),
+                  )}
+                  onPressIn={warmConfirmedFor}
+                  onHoverIn={warmConfirmedFor}
+                  style={[styles.seeAll, styles.confirmedLink]}
+                >
+                  <LinkArrowLabel
+                    label={confirmedMemberLinkLabel(nameableMember.fullName)}
+                    style={[styles.seeAllLabel, styles.confirmedLinkLabel]}
+                  />
+                </Pressable>
+              ) : null}
+            </CheckedByBlock>
+          </View>
+        ) : null}
       </Container>
       <View style={styles.recordsBackground}>
         <Container style={styles.recordsContent}>
@@ -572,13 +579,11 @@ function CommitteeBody({
             moneyControls={
               <>
                 <View style={[styles.yearRow, isMobile && styles.yearRowMobile]}>
-                  <CommitteeYearControl
+                  <YearControl
                     year={year}
+                    years={campaignMoneyHistoryYears()}
                     onSelect={onSelectYear}
-                    open={earlierYearsOpen}
-                    onOpenChange={(open) =>
-                      navigation.setParams({ earlierYears: open ? '1' : undefined })
-                    }
+                    surface="committee"
                   />
                 </View>
 
@@ -595,8 +600,6 @@ function CommitteeBody({
             }
             moneyFooter={
               <>
-                <CampaignDownloadsLink sourceUrl={money.moneyIn?.sourceUrl} />
-
                 <View
                   style={[
                     styles.coverageCard,
@@ -642,50 +645,6 @@ function CommitteeBody({
           </PaymentsSection>
         </Container>
       </View>
-    </View>
-  );
-}
-
-function CommitteeYearControl({
-  year,
-  onSelect,
-  open,
-  onOpenChange,
-}: {
-  year: number;
-  onSelect: (year: number) => void;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const recent = campaignMoneyYears();
-  const earlier = campaignMoneyHistoryYears().filter((option) => !recent.includes(option));
-
-  return (
-    <View style={{ gap: 8, flex: 1 }}>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
-        <YearControl year={year} years={recent} onSelect={onSelect} surface="committee" />
-        {earlier.length ? (
-          <Pressable
-            accessibilityRole="button"
-            aria-expanded={open}
-            onPress={() => onOpenChange(!open)}
-            style={(state) => [
-              styles.seeAll,
-              Boolean('focused' in state && state.focused) && detailsStyles.focus,
-            ]}
-          >
-            <Text style={styles.seeAllLabel}>Earlier years {open ? '▴' : '▾'}</Text>
-          </Pressable>
-        ) : null}
-      </View>
-      {open || !recent.includes(year) ? (
-        <YearControl
-          year={year}
-          years={open ? earlier : [year]}
-          onSelect={onSelect}
-          surface="committee"
-        />
-      ) : null}
     </View>
   );
 }
@@ -769,7 +728,12 @@ function MoneyInCard({
     const closed = state === 'closed-empty';
     return (
       <View
-        style={[styles.card, isTablet && committeeCardStyles.tablet, isMobile && styles.cardMobile]}
+        style={[
+          styles.card,
+          styles.summaryCard,
+          isTablet && committeeCardStyles.tablet,
+          isMobile && styles.cardMobile,
+        ]}
       >
         <CardHeading surface="committee">{MONEY_IN_HEADING}</CardHeading>
         <Figure
@@ -802,7 +766,12 @@ function MoneyInCard({
   }
   return (
     <View
-      style={[styles.card, isTablet && committeeCardStyles.tablet, isMobile && styles.cardMobile]}
+      style={[
+        styles.card,
+        styles.summaryCard,
+        isTablet && committeeCardStyles.tablet,
+        isMobile && styles.cardMobile,
+      ]}
     >
       <MoneyInBlock
         surface="committee"
@@ -822,7 +791,12 @@ function MoneyOutCard({ money, isMobile }: { money: CommitteeMoney; isMobile: bo
   const { isTablet } = useResponsive();
   return (
     <View
-      style={[styles.card, isTablet && committeeCardStyles.tablet, isMobile && styles.cardMobile]}
+      style={[
+        styles.card,
+        styles.summaryCard,
+        isTablet && committeeCardStyles.tablet,
+        isMobile && styles.cardMobile,
+      ]}
     >
       <MoneyOutBlock
         surface="committee"
@@ -944,22 +918,23 @@ function PaymentsSection({
                 {children(true)}
               </CommitteeDonations>
               <View style={detailsStyles.horizontal}>
-                {(['gave', 'spent'] as const).map((tab) => (
-                  <Pressable
-                    key={tab}
-                    style={styles.seeAll}
-                    {...linkProps(
-                      routePath.moneyCommitteePayments(slug, { tab, year: String(year) }),
-                      () =>
-                        navigation.navigate('CommitteePayments', { slug, tab, year: String(year) }),
-                    )}
-                  >
-                    <Text style={styles.seeAllLabel}>
-                      {tab === 'gave' ? 'All received payments' : 'All expenditure payments'}
-                    </Text>
-                    <GreenLinkArrow />
-                  </Pressable>
-                ))}
+                <Pressable
+                  style={styles.seeAll}
+                  {...linkProps(
+                    routePath.moneyCommitteePayments(slug, { tab: 'gave', year: String(year) }),
+                    () =>
+                      navigation.navigate('CommitteePayments', {
+                        slug,
+                        tab: 'gave',
+                        year: String(year),
+                      }),
+                  )}
+                >
+                  <LinkArrowLabel
+                    label={COMMITTEE_PAYMENTS_LINK_LABEL}
+                    style={styles.seeAllLabel}
+                  />
+                </Pressable>
               </View>
             </View>
             <CommitteeDonationCards
@@ -1364,6 +1339,8 @@ export function FilingsList({
 }
 
 const styles = StyleSheet.create({
+  background: { flex: 1, backgroundColor: c.background },
+  summaryCard: { backgroundColor: c.tile },
   page: { flexGrow: 1 },
   main: { paddingTop: 28, gap: 0 },
   heroContent: { paddingBottom: 18 },

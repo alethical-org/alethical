@@ -46,8 +46,11 @@ function mount() {
   );
 }
 async function settle() {
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 20));
+  await vi.waitFor(async () => {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(result.isFetching).toBe(false);
   });
 }
 afterEach(() => {
@@ -61,6 +64,7 @@ it('merges complete pages from the same release without deduplicating identical 
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input) => {
+      await new Promise((resolve) => setTimeout(resolve, 60));
       calls.push(String(input));
       return new Response(JSON.stringify(calls.length === 1 ? first() : source), {
         status: 200,

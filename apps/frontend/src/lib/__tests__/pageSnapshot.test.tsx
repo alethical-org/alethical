@@ -121,7 +121,7 @@ const { EMPTY_YEAR_VALUE, emptyYearMoneyInWhy, whoseCommitteeText } =
   await import('../committeeMoney');
 const { listLinkNote, receivedPaymentRow, showingLine } = await import('../committeePaymentsPage');
 const { registerCountLine } = await import('../committeeList');
-const { campaignMoneyYears, formatDay, formatMoney } = await import('../legislatorCampaignMoney');
+const { formatDay, formatMoney } = await import('../legislatorCampaignMoney');
 const {
   centralDateLabel,
   MONEY_LANDING_HEADING,
@@ -1667,8 +1667,35 @@ describe('a committee’s record in the first response', () => {
     expect(text).not.toContain('Checked against our copy of the Board’s files');
   });
 
-  it('says whose committee this is in the shared sentence, never inferring a person', () => {
-    expect(snapshot.body).toEqual([whoseCommitteeText('political_committee_or_fund', 'PC', null)]);
+  it('omits the redundant noncandidate ownership sentence without leaving an empty paragraph', () => {
+    expect(snapshot.body).toEqual([]);
+    expect(html).not.toContain('This record covers the political committee or fund named above');
+    expect(html).not.toContain('<p class="ps-prose"></p>');
+  });
+
+  it('keeps the ownership caveat for an unconfirmed candidate committee', () => {
+    const unconfirmed = committeePageSnapshot(committeeEmptyYearFixture, '18173', {
+      confirmedFor: null,
+    });
+    expect(unconfirmed.body).toEqual([whoseCommitteeText('candidate_committee', null, null)]);
+    expect(renderPageSnapshot(unconfirmed)).toContain('the committee’s name alone does not prove');
+  });
+
+  it.each([
+    ['party_unit', 'PAR', 'A party unit is not a candidate’s committee'],
+    ['party_unit', 'CAU', 'A caucus committee is not a candidate’s committee'],
+    ['political_committee_or_fund', 'BC', 'A ballot-question committee raises and spends'],
+  ])('keeps the meaningful %s/%s ownership explanation', (kind, subType, explanation) => {
+    const result = committeePageSnapshot(
+      {
+        ...committeeFixture,
+        entity_sub_type: subType,
+        register: { ...committeeFixture.register, kind },
+      },
+      '41326',
+      { confirmedFor: null },
+    );
+    expect(renderPageSnapshot(result)).toContain(explanation);
   });
 
   it('uses a neutral gap when the separate ownership answer is missing', () => {
@@ -1689,25 +1716,32 @@ describe('a committee’s record in the first response', () => {
       const result = committeePageSnapshot(legacyMoney, '41326', { confirmedFor });
 
       expect(result.body).toEqual(
-        confirmedFor === undefined
-          ? [CONFIRMATION_UNAVAILABLE_LINE]
-          : [whoseCommitteeText('political_committee_or_fund', 'PC', null)],
+        confirmedFor === undefined ? [CONFIRMATION_UNAVAILABLE_LINE] : [],
       );
       expect(renderPageSnapshot(result)).not.toContain('Wrong Person');
       expect(result.links.some((link) => link.href?.startsWith('/legislators/'))).toBe(false);
     },
   );
 
-  it('links its own payments list and the register it came from', () => {
+  it('links once to receipts and expenditures, opening received payments for the selected year', () => {
     const hrefs = snapshot.links.map((link) => link.href);
-    expect(hrefs).toContain(
-      '/money/committees/jane-fonda-climate-pac-41326/payments?tab=gave&year=2026',
-    );
-    expect(hrefs).toContain(
-      '/money/committees/jane-fonda-climate-pac-41326/payments?tab=spent&year=2026',
-    );
+    expect(snapshot.links.filter((link) => link.href.includes('/payments?'))).toEqual([
+      {
+        label: 'View receipts and expenditures',
+        href: '/money/committees/jane-fonda-climate-pac-41326/payments?tab=gave&year=2026',
+      },
+    ]);
+    expect(text).not.toContain('All received payments');
+    expect(text).not.toContain('All expenditure payments');
     expect(hrefs).toContain('/money/committees/jane-fonda-climate-pac-41326?year=2026&tab=filings');
     expect(hrefs).toContain('/money/committees');
+  });
+
+  it('retains one downloads source because the first response has no outside-spending source card', () => {
+    expect(snapshot.links.filter((link) => link.label === NAMED_DONATIONS_LINK_LABEL)).toHaveLength(
+      1,
+    );
+    expect(html.match(/Minnesota’s campaign-finance downloads/g)).toHaveLength(1);
   });
 
   it('keeps donor choices on served committee section and year links, but not standalone payment links', () => {
@@ -1743,7 +1777,7 @@ describe('a committee’s record in the first response', () => {
     expect(html).toContain('The Board’s record for this committee');
     expect(html).not.toContain('Money in');
     expect(html).not.toContain('Money out');
-    expect(html).not.toContain('Money figures start in 2015');
+    expect(html).not.toContain('Campaign finance figures in our copy start in 2015');
     expect(html).not.toContain('payment files copied');
     expect(html).not.toContain('No filed reports');
     expect(
@@ -1772,23 +1806,30 @@ describe('a committee’s record in the first response', () => {
     expect(year.href).toContain('tab=gave');
   });
 
-  it('keeps the chosen year on section and full-list links with only the committee year choices', () => {
+  it('serves every campaign history year together and keeps the chosen year on the other links', () => {
     const older = committeePageSnapshot({ ...committeeFixture, year: 2025 }, '41326');
     expect(
       older.links
         .filter((link) =>
-          [
-            'All received payments',
-            'All expenditure payments',
-            'Filed reports',
-            'Campaign money',
-          ].includes(link.label),
+          ['View receipts and expenditures', 'Filed reports', 'Campaign money'].includes(
+            link.label,
+          ),
         )
         .every((link) => link.href.includes('year=2025')),
     ).toBe(true);
     expect(
       older.links.filter((link) => link.label.startsWith('Year ')).map((link) => link.label),
-    ).toEqual(campaignMoneyYears().map((year) => `Year ${year}`));
+    ).toEqual(
+      Array.from(
+        { length: new Date().getFullYear() - 2015 + 1 },
+        (_, index) => `Year ${new Date().getFullYear() - index}`,
+      ),
+    );
+    expect(older.links.some((link) => link.label.includes('Earlier years'))).toBe(false);
+    for (const yearLink of older.links.filter((link) => link.label.startsWith('Year '))) {
+      const option = yearLink.label.slice('Year '.length);
+      expect(new URL(yearLink.href, 'https://example.test').searchParams.get('year')).toBe(option);
+    }
     const historical = committeePageSnapshot({ ...committeeFixture, year: 2017 }, '41326');
     expect(historical.links.find((link) => link.label === 'Year 2017')?.href).toContain(
       'year=2017',

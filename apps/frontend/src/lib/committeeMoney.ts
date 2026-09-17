@@ -134,7 +134,7 @@ export function whoseCommitteeText(
     );
   }
   if (registerKind === 'political_committee_or_fund') {
-    return 'This record covers the political committee or fund named above.';
+    return '';
   }
   return (
     'These are this committee’s own figures. We have not linked them to a person; ' +
@@ -542,25 +542,21 @@ export const FILINGS_UNAVAILABLE =
  */
 export const RECORD_COVERS_HEADING = 'What this record covers';
 
-/**
- * No terminal full stop on any of these (ruled 1 Sep 2026, #1924). Each renders on its
- * own line, and a stack of standalone lines takes no closing mark: the full stop makes a
- * line read as the opening of a paragraph that never arrives. The rule reaches captions,
- * labels and one-line descriptions, never the explaining paragraphs inside a money card,
- * which keep every full stop they have.
- */
+/** Each coverage entry is a standalone text unit, even when it wraps on a phone.
+ * Single-sentence units omit the final period; real multi-sentence paragraphs,
+ * legal text and serious warnings retain their punctuation. */
 export function recordCoverageLines(isBallot: boolean): string[] {
   const lines = [
-    'Money filed with the Minnesota Campaign Finance and Public Disclosure Board',
-    'Money figures start in 2015',
+    'Campaign finance reports filed with the Minnesota Campaign Finance and Public Disclosure Board',
+    'Campaign finance figures in our copy start in 2015',
   ];
   // Same shape as the $200 sentence, and it respects the same 2 rules: the test is on
   // the donor's total for the YEAR rather than on the size of a gift, and it is a floor
   // on who must be named rather than a bar on naming anyone smaller (#1755).
   lines.push(
     isBallot
-      ? 'Donors who gave $500 or less in total for the year need not be named'
-      : 'Donors who gave $200 or less in total for the year need not be named',
+      ? 'Committees need not name contributors who gave $500 or less in total during the calendar year'
+      : 'Committees need not name contributors who gave $200 or less in total during the calendar year',
   );
   return lines;
 }

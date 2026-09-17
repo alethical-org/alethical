@@ -15,7 +15,6 @@ import { detailsStyles } from './detailsStyles';
  */
 export function YearControl({
   year,
-  surface = 'profile',
   onSelect,
   fullWidth = false,
   namesOnlyYears = new Set<number>(),
@@ -24,9 +23,7 @@ export function YearControl({
   year: CampaignMoneyYear;
   surface?: 'committee' | 'profile';
   onSelect: (year: CampaignMoneyYear) => void;
-  /** Phone band: the years share the row in equal halves rather than sitting as
-   *  left-packed pills, which read as a toolbar with room to spare
-   *  (`Money committee.dc.html`, rules for this screen). */
+  /** Let year buttons share available space while wrapping at their natural width. */
   fullWidth?: boolean;
   namesOnlyYears?: ReadonlySet<number>;
   years?: readonly number[];
@@ -37,10 +34,7 @@ export function YearControl({
       role="group"
       aria-label="Choose a year"
     >
-      <Text
-        aria-hidden
-        style={[styles.yearWord, surface === 'committee' && styles.committeeYearWord]}
-      >
+      <Text aria-hidden style={styles.yearWord}>
         Year
       </Text>
       {years.map((option) => {
@@ -60,20 +54,10 @@ export function YearControl({
               namesOnlyYears.has(option) && { borderStyle: 'dashed' },
               fullWidth && styles.yearButtonFull,
               active && styles.yearButtonActive,
-              surface === 'committee' && styles.committeeYearButton,
-              surface === 'committee' && active && styles.committeeYearActive,
               Boolean('focused' in state && state.focused) && detailsStyles.focus,
             ]}
           >
-            <Text
-              style={[
-                styles.yearLabel,
-                surface === 'committee' && styles.committeeYearLabel,
-                active && styles.yearLabelActive,
-              ]}
-            >
-              {option}
-            </Text>
+            <Text style={[styles.yearLabel, active && styles.yearLabelActive]}>{option}</Text>
           </Pressable>
         );
       })}
@@ -90,37 +74,40 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     gap: 6,
   },
-  yearWord: { fontFamily: t.typography.body, fontSize: 15, color: c.secondary, paddingRight: 4 },
+  yearWord: {
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    fontWeight: '400',
+    color: c.secondary,
+    paddingRight: 8,
+    flexShrink: 0,
+  },
   yearsFull: { alignSelf: 'stretch', gap: 8 },
-  yearButtonFull: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  yearButtonFull: { flexGrow: 1, flexBasis: 'auto' },
   yearButton: {
     minHeight: 44,
+    minWidth: 76,
+    flexShrink: 0,
+    alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 7,
     paddingHorizontal: 16,
-    borderRadius: t.radii.pill,
-    borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.background,
-  },
-  yearButtonActive: {
-    backgroundColor: c.link,
-    borderColor: c.link,
-  },
-  yearLabel: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.body,
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
-    color: c.secondary,
-  },
-  yearLabelActive: { color: c.background },
-  committeeYearWord: { fontWeight: '700', paddingRight: 8 },
-  committeeYearButton: {
     borderRadius: 10,
+    borderWidth: 1,
     borderColor: t.colors.alpha.ink18,
     backgroundColor: c.background,
   },
-  committeeYearActive: { backgroundColor: c.text, borderColor: c.text },
-  committeeYearLabel: { fontSize: 15, letterSpacing: 0.15, color: c.text },
+  yearButtonActive: {
+    backgroundColor: c.text,
+    borderColor: c.text,
+  },
+  yearLabel: {
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    fontWeight: '400',
+    letterSpacing: 0.15,
+    fontVariant: ['tabular-nums'],
+    color: c.text,
+  },
+  yearLabelActive: { color: c.background },
 });

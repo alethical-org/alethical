@@ -230,7 +230,10 @@ The buttons offer **every calendar year from 2015 through the current year**, ne
 first. In 2026 that is 12 years; in 2027 it becomes 13. The year in
 `/legislators/<name>?tab=money&year=2025` controls the committee figures, donation lists
 and outside spending together. There is no All years sum or cross-member comparison.
-The year pills still wrap onto another line when needed.
+The years form 1 group with 1 **Year** label and wrap onto another line when needed.
+The label and numerals use normal weight 400. Every button has 10px rounded corners
+and at least a 44px target; the selected year has a black fill and white text.
+The committee record uses the same treatment. There is no separate earlier-year control.
 
 A dashed outline identifies a year for which the answers from our data service say the
 shown committees have named donations only, without an official total. It is not a fixed
@@ -286,10 +289,11 @@ type rather than bold, are 2 sentences:
 > The committee filed this report with the Minnesota Campaign Finance Board, which prints
 > both dates
 
-> The Board's record for this committee lists every report it filed, under Reports and Data.
+> The Board's record for this committee lists every report it filed, under Reports and Data
 
-The second sentence starts on its own line, a hair under the first. The standalone
-first sentence has no ending period; when a copy-date or party-unit explanation follows
+The second sentence starts on its own line, a hair under the first. Both standalone
+sentences have no ending period, including when either wraps on a phone. When a
+copy-date or party-unit explanation follows
 in the same paragraph, a period separates the sentences. Where the report
 names only an end date and no start, the first sentence reads "which prints the date"
 instead. These official-report forms also print on a
@@ -403,7 +407,7 @@ there is no separate percentage below the summary amount. Away from the chart it
 fixed sentence says:
 
 > Donations inside the committee's reported total whose givers the state's public file
-> does not name.
+> does not name
 
 Both labels are printed once and explained once, wherever the explanation happens to sit,
 because one fact at 2 places on a card is the repeat Eugene ruled out.
@@ -429,11 +433,9 @@ Board's own totals exclude it. **A row the state types `Miscellaneous` is not dr
 by Eugene, 11 Sep 2026), and when that was the only such row the heading is not drawn
 either. Every other kind still is.
 
-The committee card's foot carries **Minnesota's campaign-finance downloads**, after and outside the human-check evidence. It opens the
-Board's downloads page (`https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/`).
-The address the server sends is the bulk download itself, which streams a 9 MB statewide
-spreadsheet with no page behind it, so the card strips the `?download=` part and links to
-the page that download lives on.
+The committee card ends with its human-check evidence. It has no generic downloads
+link at its foot. The Board record link remains in the filing panel, and the
+outside-spending card retains its own downloads link and exact source filename.
 
 ### Who gave
 
@@ -522,7 +524,7 @@ with its count beside it in a separate 15px span at weight 800, such as **Indivi
 with no parentheses. Tabs are at least 44px tall. The chosen tab has dark text and a 3px
 underline; its state does not rely on colour alone. At widths below 768px the row scrolls
 sideways by swipe or keyboard, with 20px gaps and no visible scrollbar. At wider widths
-the gaps are 26px. The row never wraps, unlike the year pills.
+the gaps are 26px. The row never wraps, unlike the wrapping year buttons.
 
 The tab strip takes 1 keyboard tab stop. Left and Right arrow keys move between tabs;
 Home and End move to the first and last tabs. The chosen tab tells screen readers that
@@ -678,10 +680,13 @@ its history chart. Its 3 rows start closed on a fresh address, open independentl
 and can remain open together. The address records the open rows for each committee
 and year, so a shared address can reopen that view. Changing committee or year starts
 that context's closed view unless the address names open rows for it. The heading and
-arrow form one control with at least a 44px target. Opening a row shows the existing
+arrow form 1 control with at least a 44px target. The whole row remains clickable
+and keyboard-accessible, while the purple focus ring surrounds only the arrow's
+rounded 44px area. The arrow is centred, with no separate keyboard stop. Opening a
+row shows the existing
 table and its qualifications without another copy of its heading or a new data request.
 The committee's own `/money/committees/<slug>` address uses the same panel after its
-full-payment links, without requiring a legislator confirmation.
+**View receipts and expenditures** link, without requiring a legislator confirmation.
 
 **What the committee’s own report says** opens with “Contributions reported by the
 committee, beside itemized contributions in the state’s list”. It prints the 5 filing
@@ -1010,16 +1015,16 @@ The payment-date line sits below the spender list, 14px above the source links, 
 normal weight (400). Small explanatory text throughout the money section is at least
 15px, including on phones. This includes refund notes and **Count not published**.
 
-**The card's only link goes to the Board's downloads page, and a line under it names the
-file.** The link reads **Minnesota's campaign-finance downloads**, the same words the
-committee foot uses for the same place, and beneath it, not a link:
+**The card's source link goes to the Board's downloads page, and a separate line names
+the file.** The link reads **Minnesota's campaign-finance downloads**. The filename is
+plain text:
 
 > Source file: “Itemized independent expenditures of over $200”
 
 That is the Board's own row label on that page. The same source line appears with
 figures and when no payments are listed. The address is built from the one the
-service sends by cutting everything from the question mark onwards, exactly as the
-committee foot does, so a future release number cannot break it. The address the service
+service sends by cutting everything from the question mark onwards, so a future
+release number cannot break it. The address the service
 sends is the bulk download itself, which streams a statewide spreadsheet with nothing
 readable behind it, and the word **filings** was the state's own word for the reports a
 committee files, which that file is not.
@@ -1166,17 +1171,20 @@ dollar keeps its cents, so a 50-cent row prints $0.50. Cut to "$0" it would read
 committee that reported nothing, which is the missing-versus-zero confusion the list
 above exists to prevent.
 
-**The profile uses Libre Franklin for amounts, dates, registration numbers and counts.**
-Amounts, dates, registration numbers and counts use a heavier weight and equal-width
-digits, so changing a number does not move the figures beside it. Explanatory prose
-uses regular weight even when it contains dollar thresholds, dates or counts. The filing's period uses a slightly lighter
+**The profile uses Libre Franklin with equal-width digits for numbers.**
+Amounts, dates, registration numbers and counts use the weight specified for their
+element. Equal-width digits keep a changing number from moving the figures beside it. Explanatory prose
+uses regular weight even when it contains dollar thresholds, dates or counts. Year
+buttons and their **Year** label also use normal weight 400. The filing's period uses
+a slightly lighter
 weight, and the filing-schedule note uses regular weight. JetBrains Mono remains on
 short lettered labels, such as DONATED GOODS OR SERVICES.
 
-**A line that stands on its own carries no full stop at the end.** That covers a caption,
-a date or meta line, a label, a one-line description, and any stack of those — including
-the sentences saying what a person checked before attaching a committee to a legislator.
-An explaining paragraph inside a card keeps every full stop it has, however short it is.
+**A standalone interface unit has no final period, even when it wraps.** This covers
+a caption, date, label, helper, source line or list item containing 1 sentence, including
+the statements explaining a committee confirmation. Separate units sharing a card
+do not become 1 paragraph. Paragraphs containing 2 or more sentences, legal text and
+serious warnings keep full punctuation.
 
 ---
 
@@ -1393,7 +1401,8 @@ links open the Minnesota Campaign Finance Board's website.
 
 Docs check: The lobbying display release removes the former section notice and adds
 registration-based expanded links on both legislator and committee donation lists.
-The existing year controls, contribution figures and source checks are unchanged.
+The contribution figures and source checks are unchanged by the lobbying release.
+The shared year controls follow the 17 September refinement described above.
 
 ### Card spacing, labels and interactions
 
@@ -1425,12 +1434,15 @@ explanation, the committee link and any served filing note. A confirmed committe
 with no figures for the selected year shows the year, its absence explanation and
 the committee link inside the same grey panel.
 That explanation does not imply the committee failed to file or that smaller donors
-cannot be itemized. The human-check evidence and the downloads link remain separate.
+cannot be itemized. The human-check evidence remains at the committee card's foot,
+without a generic downloads link.
 
-Card gaps are 36px on computers, 32px on tablets and 24px on phones. Introductions have
-a 900px maximum width. Money in and Money out stretch to equal height side by side;
-on phones each grows to fit its own contents. The committee foot starts 30px after
-the names section, and the downloads link sits 14px after the human-check block.
+Card gaps are 36px on computers, 32px on tablets and 24px on phones. The filing
+explanation uses the available card width and natural wrapping; other introductions
+retain their existing widths. Money in, Money out and any additional financial
+summary card use the same grey `c.tile` surface. Money in and Money out stretch to
+equal height side by side; on phones each grows to fit its own contents. The committee
+foot starts 30px after the names section and holds the human-check block.
 
 Docs check: Updated the visible wording, period and source placement, card spacing,
 shared-name counts and accessible history interactions for the approved UX20 build.
@@ -1445,3 +1457,7 @@ introductions use balanced word wrapping (`text-wrap: pretty`).
 Docs check: Empty selected-year committee cards use the grey panel without claiming
 a filed zero; outside-spending source details stay grouped and shared copy-date text
 names copying rather than report coverage.
+
+The 17 September control, source-copy and punctuation changes are recorded in
+[committee-money-refinements-copy.md](https://github.com/alethical-org/alethical/blob/main/docs/design/committee-money-refinements-copy.md),
+including the complete old-to-new strings for future Design work.
