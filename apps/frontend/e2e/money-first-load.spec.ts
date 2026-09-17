@@ -95,8 +95,9 @@ async function installContentClock(page: Page, kind: string) {
               ) &&
               textMatches(/^\$[\d,.]+$/) &&
               textMatches(/^LARGEST FIRST$/) &&
+              visible('[role="list"] [role="listitem"]').length > 0 &&
               textMatches(
-                /^(?:[1-9][\d,]* payments? named in this period|Showing [1-9][\d,]* of [1-9][\d,]* payments named)$/,
+                /^(?:[1-9][\d,]* payments? listed|Showing [1-9][\d,]*(?: of [1-9][\d,]*)? payments?) for filing year 2025$/,
               ) &&
               visible('[role="button"][aria-pressed="true"]').some(
                 (node) => node.textContent === '2025',
@@ -147,12 +148,14 @@ async function waitForRequestedContent(page: Page, kind: string) {
           .filter({ visible: true })
           .first(),
       ).toBeVisible();
+      await expect(page.getByRole('list').getByRole('listitem').first()).toBeVisible();
       await expect(
         page
           .getByText(
-            /^(?:[1-9][\d,]* payments? named in this period|Showing [1-9][\d,]* of [1-9][\d,]* payments named)$/,
+            /^(?:[1-9][\d,]* payments? listed|Showing [1-9][\d,]*(?: of [1-9][\d,]*)? payments?) for filing year 2025$/,
           )
-          .filter({ visible: true }),
+          .filter({ visible: true })
+          .first(),
       ).toBeVisible();
     } else {
       // The full-list link exists only after this year's short payment list lands.
@@ -207,19 +210,45 @@ test('measurement guard rejects wrong filters, mixed rows and unfinished loads',
   expect(await observedAfterFrames(page)).toBeGreaterThanOrEqual(validAt);
 });
 
-test('measurement guard rejects payment labels without a positive count', async ({ page }) => {
+test('measurement guard requires positive payment counts, the requested year and loaded rows', async ({
+  page,
+}) => {
   await installContentClock(page, 'payments');
-  await page.goto('about:blank');
-  await page.setContent(`<div role="heading" aria-level="1">Who gave to this committee</div>
-    <button role="button" aria-pressed="true">2025</button>
-    <div dir="auto">LARGEST FIRST</div><div dir="auto">$25</div>
-    <div dir="auto" id="count">0 payments named in this period</div>`);
-  expect(await observedAfterFrames(page)).toBeUndefined();
-  const validAt = await page.evaluate(() => {
-    document.getElementById('count')!.textContent = '1 payment named in this period';
-    return performance.now();
-  });
-  expect(await observedAfterFrames(page)).toBeGreaterThanOrEqual(validAt);
+  for (const label of [
+    '1 payment listed for filing year 2025',
+    '24 payments listed for filing year 2025',
+    'Showing 50 of 1,284 payments for filing year 2025',
+    'Showing 50 payments for filing year 2025',
+  ]) {
+    await page.goto('about:blank');
+    await page.setContent(`<div role="heading" aria-level="1">Who gave to this committee</div>
+      <button role="button" aria-pressed="true">2025</button>
+      <div dir="auto">LARGEST FIRST</div><div dir="auto">$25</div>
+      <div dir="auto" id="count">0 payments listed for filing year 2025</div>
+      <div role="list"><div role="listitem" id="payment">Example donor $25</div></div>`);
+    expect(await observedAfterFrames(page)).toBeUndefined();
+    await page.evaluate((label) => {
+      document.getElementById('count')!.textContent = label.replace('2025', '2026');
+    }, label);
+    expect(await observedAfterFrames(page)).toBeUndefined();
+    await page.evaluate((label) => {
+      document.getElementById('count')!.textContent = label;
+      document.getElementById('payment')!.hidden = true;
+    }, label);
+    expect(await observedAfterFrames(page)).toBeUndefined();
+    const validAt = await page.evaluate((label) => {
+      document.getElementById('payment')!.hidden = false;
+      // The live page repeats the count in its accessible status announcement.
+      const status = document.createElement('div');
+      status.setAttribute('role', 'status');
+      status.setAttribute('dir', 'auto');
+      status.textContent = label;
+      document.body.append(status);
+      return performance.now();
+    }, label);
+    expect(await observedAfterFrames(page)).toBeGreaterThanOrEqual(validAt);
+    await waitForRequestedContent(page, 'payments');
+  }
 });
 
 test('beacon suppression preserves program downloads and the browser HTTP cache', async ({
