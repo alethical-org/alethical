@@ -275,6 +275,22 @@ describe('lobbying results distinguish absent records from failed searches', () 
     expect(words()).toContain(copy.noMatchHint);
   });
 
+  it('shows one retry when both responses report unavailable records', async () => {
+    request.mockImplementation(
+      async (path) => response(kindOf(path), [], { state: 'unavailable', total: null }) as never,
+    );
+    open('Kozak');
+    await settle();
+    expect(words()).toContain(copy.unavailable);
+    expect(words()).not.toContain('0 MATCHES');
+    expect(words()).not.toContain(copy.noMatchHint);
+    request.mockImplementation(async (path) => response(kindOf(path)) as never);
+    click('Try again');
+    await settle();
+    expect(request).toHaveBeenCalledTimes(4);
+    expect(words()).toContain(copy.noMatchHint);
+  });
+
   it('does not show stale rows or zero counts in a group marked unavailable', async () => {
     request.mockImplementation(
       async (path) =>
