@@ -109,7 +109,7 @@ import {
   outsideSpendingRecordPageFromPayload,
   outsideSpendingRecordQueryKey,
 } from '../lib/outsideSpending';
-import { PAYMENTS_UNDER_NAME_PAGE_SIZE, type PaymentNameRole } from '../lib/paymentsUnderName';
+import { PAYMENTS_UNDER_NAME_PAGE_SIZE, type PaymentNameRole } from '../lib/paymentNameRoute';
 import { trackState, TrackState } from '../lib/trackedState';
 import { routePath } from '../navigation/links';
 import { screenLoaderForPath } from '../navigation/screenPreload';

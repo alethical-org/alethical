@@ -2,7 +2,7 @@ import { plainBillSummary } from './billDetail';
 import { registrationNumberFromSlug } from './committeeMoneyShared';
 import { directoryPagePath } from './directoryPagination';
 import { MONEY_SECTION_NAME } from './moneySectionName';
-import { paymentNameRole, paymentsUnderNameHeading } from './paymentsUnderName';
+import { paymentNameRole, paymentsUnderNameHeading } from './paymentNameRoute';
 import {
   READ_PAGE_HEADING,
   READ_PAGE_INTRO,

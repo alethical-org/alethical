@@ -1,5 +1,5 @@
 import { registrationNumberFromSlug } from '../lib/committeeMoneyShared';
-import { paymentNameRole } from '../lib/paymentsUnderName';
+import { paymentNameRole } from '../lib/paymentNameRoute';
 import { pieceAddressFolder, researchBySlug } from '../lib/research';
 import type { MainTabParamList, RootStackParamList } from './types';
 
