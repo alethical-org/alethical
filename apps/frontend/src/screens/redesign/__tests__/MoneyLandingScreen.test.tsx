@@ -182,10 +182,17 @@ describe('the money landing makes the reporting periods and destinations explici
     expect(words).toContain('covers Jan 1, 2025 – Dec 31, 2025');
     expect(words).toContain('covers Jan 1, 2026 – Jul 20, 2026');
     expect(words).toContain(
-      'Most recently received first. If the received date is missing, we use the reporting period’s end date.',
+      'Newest first by received date.\nIf missing, we use the reporting period’s end.',
     );
+    expect(
+      getComputedStyle(
+        exactText(
+          host,
+          'Newest first by received date.\nIf missing, we use the reporting period’s end.',
+        ),
+      ).textAlign,
+    ).toBe('right');
     expect(words).not.toContain('Never by amount');
-    expect(words).not.toContain('Newest');
     expect(words).not.toContain('reports cover this period');
   });
 

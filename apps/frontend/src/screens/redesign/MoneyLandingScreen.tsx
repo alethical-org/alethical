@@ -871,12 +871,19 @@ const styles = StyleSheet.create({
   filingsSort: {
     flex: 1,
     paddingTop: 30,
+    textAlign: 'right',
     color: t.colors.text.muted,
     fontFamily: t.typography.body,
     fontSize: 14.5,
     lineHeight: 22,
   },
-  filingsSortNarrow: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', paddingTop: 0 },
+  filingsSortNarrow: {
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
+    paddingTop: 0,
+    textAlign: 'left',
+  },
   filingsTie: {
     marginTop: 14,
     color: t.colors.text.primary,

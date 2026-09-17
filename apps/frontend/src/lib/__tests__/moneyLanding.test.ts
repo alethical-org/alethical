@@ -365,8 +365,7 @@ describe('the filed date, which is the one fact a page may not substitute for', 
     // undated rows are the majority.
     const mixed = orderingSentence('filed_date_then_period_end');
     expect(mixed).toBe(
-      'Most recently received first. If the received date is missing, we use the reporting ' +
-        'period’s end date.',
+      'Newest first by received date.\nIf missing, we use the reporting period’s end.',
     );
   });
 

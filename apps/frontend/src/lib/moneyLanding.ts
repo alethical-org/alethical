@@ -151,10 +151,7 @@ export function filingPeriodLine(filing: Pick<MoneyFilingRow, 'periodStart' | 'p
 export function orderingSentence(orderedBy: string): string | null {
   if (orderedBy === 'period_end') return 'Latest reporting periods first, then by filer name';
   if (orderedBy === 'filed_date_then_period_end') {
-    return (
-      'Most recently received first. If the received date is missing, we use the reporting ' +
-      'period’s end date.'
-    );
+    return 'Newest first by received date.\nIf missing, we use the reporting period’s end.';
   }
   return null;
 }
