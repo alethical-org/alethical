@@ -69,7 +69,9 @@ import {
 } from "../apps/frontend/src/lib/committeeConfirmation";
 import {
   campaignFinanceFilingsQueryKey,
+  campaignFinanceFilingsFromPayload,
   campaignFinanceSummaryQueryKey,
+  type ApiCampaignFinanceFilingsPayload,
 } from "../apps/frontend/src/lib/moneyLanding";
 import {
   outsideSpendingRecordPageFromPayload,
@@ -668,7 +670,7 @@ async function moneyLandingContent(): Promise<PageContent> {
     getCurrentClaimRead<MoneySummaryPayload>("/campaign-finance/summary").catch(
       () => null,
     ),
-    getApiData<unknown>(
+    getApiData<ApiCampaignFinanceFilingsPayload>(
       `/campaign-finance/filings?limit=${MONEY_LANDING_FILINGS_LIMIT}`,
     ).catch(() => null),
     getApiData<LobbyingSummary>("/lobbying/summary").catch(() => null),
@@ -700,6 +702,9 @@ async function moneyLandingContent(): Promise<PageContent> {
             ? (summary.register.filer_count ?? null)
             : null,
         filesLastCopiedAt: summary?.freshness?.downloads_fetched_at ?? null,
+        lobbyingFilesLastCopiedAt:
+          lobbying?.state === "reported" ? lobbying.copied_at : null,
+        filings: filings ? campaignFinanceFilingsFromPayload(filings) : null,
         registeredLobbyists:
           lobbying?.state === "reported" ? lobbying.registered_lobbyists : null,
       }),

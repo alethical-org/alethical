@@ -20,13 +20,58 @@ import { formatDay } from './legislatorCampaignMoney';
 import { UNION_FINANCES_NOTE } from './committeeMoneyShared';
 import { MONEY_SECTION_NAME } from './moneySectionName';
 
+interface ApiMoneyFilingPayload {
+  registration_number?: string | null;
+  filer_name: string;
+  report_name: string;
+  period_start?: string | null;
+  period_end?: string | null;
+  filed_date?: string | null;
+}
+
+export interface ApiCampaignFinanceFilingsPayload {
+  state?: string;
+  ordered_by?: string;
+  filings?: ApiMoneyFilingPayload[] | null;
+  newest_period?: { period_end?: string | null; filing_count?: number | null } | null;
+}
+
+/** The same filed-report mapping serves the app and the first HTML response. */
+export function campaignFinanceFilingsFromPayload(
+  payload: ApiCampaignFinanceFilingsPayload,
+): MoneyFilingsFeed {
+  return {
+    state: payload.state === 'reported' ? 'reported' : 'unavailable',
+    orderedBy: payload.ordered_by ?? '',
+    filings:
+      payload.state === 'reported'
+        ? (payload.filings ?? []).map((filing) => ({
+            registrationNumber: filing.registration_number ?? null,
+            filerName: filing.filer_name,
+            reportName: filing.report_name,
+            periodStart: filing.period_start ?? null,
+            periodEnd: filing.period_end ?? null,
+            filedDate: filing.filed_date ?? null,
+          }))
+        : [],
+    // Absent counts remain absent, never an invented zero.
+    newestPeriod:
+      payload.state === 'reported' && typeof payload.newest_period?.filing_count === 'number'
+        ? {
+            periodEnd: payload.newest_period.period_end ?? null,
+            filingCount: payload.newest_period.filing_count,
+          }
+        : null,
+  };
+}
+
 /** A filing's plain date in the section's one form ("Jul 24, 2026"), or the raw
  *  value where it is not a date, so a row is never silently emptied. */
 function dayLabel(isoDate: string): string {
   return formatDay(isoDate) ?? isoDate;
 }
 
-/** The three permanent gaps, shown above anything a reader might search for.
+/** The 3 shared campaign-record limits used outside the landing.
  *  The donor sentence is rule 12's exact wording. It says a small donor NEED NOT
  *  be named, never that they are not: the $200 test is a floor on who a committee
  *  must name, and nothing stops one naming a smaller donor (#1755).
@@ -39,18 +84,14 @@ export const RECORD_DOES_NOT_COVER = [
   'Donors who gave $200 or less in total for the year need not be named',
 ] as const;
 
-/**
- * The landing's own copy of that block carries a 4th line (accepted 8 Sep 2026, proposed
- * by Design): the fact that used to sit inside the Who got paid card. It describes a
- * property of the record rather than of the lane, so it moved to the block that lists the
- * record's properties, and the card kept only what the lane does. The other pages that
- * draw the 3-line block are not the landing and keep the 3.
- */
-export const MONEY_LANDING_COVERAGE_HEADING = 'What the campaign files do not cover';
+/** The landing has its own 4-item limits block; sibling pages keep the shared block. */
+export const MONEY_LANDING_COVERAGE_HEADING = 'Limits of the campaign records';
 
 export const MONEY_LANDING_RECORD_DOES_NOT_COVER = [
-  ...RECORD_DOES_NOT_COVER,
-  'No list of every payee — a paid name carries only its spelling on the filing',
+  'Payment records start in 2015',
+  'Donors who gave $200 or less in total for the year need not be named',
+  'There is no complete directory of payment recipients. Names are shown as filed, and different spellings may refer to the same person or business.',
+  UNION_FINANCES_NOTE,
 ] as const;
 
 /** "1,603" — grouped the way the register pages print counts. */
@@ -69,8 +110,8 @@ export function laneCountLine(count: number | null, unit: string): string | null
 }
 
 /**
- * What each counted lane counts, in the words its count line prints after the number.
- * Four lanes carry a count and the 5th, Who got paid, carries none: its slot is empty,
+ * Units for the 4 counted campaign lanes. Lobbying's count lives in lobbyingDirectoryCopy.
+ * Who got paid carries no count: its slot is empty,
  * with no label, dash or placeholder (ruled 8 Sep 2026). A grey "NOTHING TO COUNT" was
  * proposed for it and withdrawn: false, because we hold hundreds of thousands of payment
  * rows and that card searches them, and colour was its only signal.
@@ -108,12 +149,11 @@ export function filingPeriodLine(filing: Pick<MoneyFilingRow, 'periodStart' | 'p
  * not know prints no sentence rather than a guess.
  */
 export function orderingSentence(orderedBy: string): string | null {
-  if (orderedBy === 'period_end')
-    return 'Newest reporting periods first, then by filer name. Never by amount';
+  if (orderedBy === 'period_end') return 'Latest reporting periods first, then by filer name';
   if (orderedBy === 'filed_date_then_period_end') {
     return (
-      'Newest first by date received. Where that date is not available, we use the end of ' +
-      'the reporting period. Never by amount'
+      'Most recently received first. If the received date is missing, we use the reporting ' +
+      'period’s end date.'
     );
   }
   return null;
@@ -124,11 +164,11 @@ export function orderingSentence(orderedBy: string): string | null {
 export function newestPeriodSentence(period: MoneyFilingsFeed['newestPeriod']): string | null {
   if (!period?.periodEnd) return null;
   const noun = period.filingCount === 1 ? 'report covers' : 'reports cover';
-  return `Newest completed period: ${formatCount(period.filingCount)} ${noun} through ${dayLabel(period.periodEnd)}`;
+  return `Latest completed period: ${formatCount(period.filingCount)} ${noun} through ${dayLabel(period.periodEnd)}`;
 }
 
 /**
- * "filed Jul 24, 2026", or null on a row the Board states no filing date for.
+ * "Filed Jul 24, 2026", or null on a row the Board states no filing date for.
  *
  * Null prints nothing at all. The tempting alternative — falling back to the period
  * end — is the fabricated fact #1670 exists to prevent, and the row still shows its
@@ -136,7 +176,7 @@ export function newestPeriodSentence(period: MoneyFilingsFeed['newestPeriod']): 
  */
 export function filedDateSentence(filedDate: string | null | undefined): string | null {
   if (!filedDate) return null;
-  return `filed ${dayLabel(filedDate)}`;
+  return `Filed ${dayLabel(filedDate)}`;
 }
 
 /**
@@ -159,11 +199,9 @@ export function centralDateLabel(isoTimestamp: string): string {
 }
 
 /**
- * The Legislators lane's own sentence — the lane is where the promise is made,
- * so it carries the confirmed state in its own words, with both numbers served
- * live (campaign money IA §01). It is the LAST sentence of a card description, so
- * it ends bare (copy rule C, 1 Sep 2026); `legislatorsLaneBody` supplies the full
- * stop that separates it from the sentence before it.
+ * The Legislators lane's confirmation sentence uses both served counts (campaign money
+ * IA §01). `legislatorsLaneBody` appends it for partial confirmation and uses a compact
+ * single sentence when all sitting members are confirmed.
  *
  * **Once every sitting member is confirmed the sentence says so and stops.** The
  * counted wording ends "for the rest, no figures show on a profile", and with the 2
@@ -179,7 +217,7 @@ export function legislatorsLaneSentence(confirmation: {
   confirmed: number;
   total: number;
 }): string {
-  if (confirmation.confirmed === confirmation.total) {
+  if (confirmation.total > 0 && confirmation.confirmed === confirmation.total) {
     return 'Campaign committee matches confirmed for every sitting legislator';
   }
   return (
@@ -192,7 +230,8 @@ export function legislatorsLaneSentence(confirmation: {
 // --- The landing's own fixed wording ----------------------------------------
 
 /**
- * The heading, the sentence under it, and the 5 lane cards.
+ * The heading, subtitle, and 5 campaign lane cards. The 6th card's wording lives in
+ * `lobbyingDirectoryCopy.ts`.
  *
  * These lived as literals inside `screens/redesign/MoneyLandingScreen.tsx` until
  * the first server response started carrying the landing's own text (#1812). They
@@ -200,7 +239,7 @@ export function legislatorsLaneSentence(confirmation: {
  * `lib/research.ts`: the served page and the drawn page must be the same words,
  * and 2 copies of a sentence is how one gets fixed and the other does not.
  *
- * All 5 lane cards live here now. The "Who got paid" card was inert until #1780,
+ * The "Who got paid" card was inert until #1780,
  * because the design set draws no browse-all-payees list and its card promised
  * one; it now opens the name search, which is the only honest way in — see
  * MONEY_LANE_WHO_GOT_PAID below.
@@ -208,10 +247,8 @@ export function legislatorsLaneSentence(confirmation: {
 export const MONEY_LANDING_HEADING = MONEY_SECTION_NAME;
 
 /**
- * The subtitle and all 5 lane bodies end without a full stop (ruled 1 Sep 2026, #1924).
- * The subtitle stands alone under the heading, and the 5 bodies are a column of card
- * descriptions, so the rule reaches each of them. A body carrying 2 sentences keeps the
- * full stop BETWEEN them and loses only the final one — see MONEY_LANE_WHO_GOT_PAID.
+ * The subtitle and stored lane bodies each contain 1 standalone sentence and end bare.
+ * `legislatorsLaneBody` preserves the separator before a partial confirmation sentence.
  */
 /**
  * "donation and payment", not the filing system's "contribution and expenditure" (ruled
@@ -219,20 +256,11 @@ export const MONEY_LANDING_HEADING = MONEY_SECTION_NAME;
  * section avoids for money out, and this is the first sentence a reader meets.
  */
 export const MONEY_LANDING_SUBTITLE =
-  'Search Minnesota’s published campaign donations, payments, and lobbying records by name';
+  'Search Minnesota’s published campaign donations, payments, and lobbying records';
 
-/**
- * The line under the search field: what the matching does, in one line, and no more
- * (accepted 8 Sep 2026, proposed by Design). It used to go on to rule out a nearest-match
- * guess and say why; that sentence is not gone from the product, it is printed where the
- * case arises — `NO_MATCH_WHY` in `lib/moneyNameSearch.ts` shows it on the results page
- * when a search finds nothing — and 3 lines above the page's primary actions was a high
- * price for pre-empting it. A standalone line, so no full stop (copy rule C). It lives here
- * rather than as text inside the screen so a test can pin it, like every other sentence
- * the landing shows.
- */
+/** Search guidance stays brief here. Spelling limits are explained with no-match results. */
 export const MONEY_LANDING_SEARCH_NOTE =
-  'Try all or part of a name: a person, committee, payee, or lobbyist. Spelling must match the filing';
+  'Try all or part of a name: a person, committee, payee, or lobbyist';
 export const MONEY_LANDING_SEARCH_PLACEHOLDER = 'Search a name';
 export const RECENT_FILINGS_HEADING = 'Recently filed reports';
 
@@ -244,11 +272,11 @@ export const MONEY_LANE_LEGISLATORS = {
 /**
  * The Legislators lane's body as the card actually draws it.
  *
- * **The one lane whose body gains a second sentence at render time**, and therefore the
- * one place a full stop after `MONEY_LANE_LEGISLATORS.body` is INTERNAL rather than
+ * A partial confirmation count gains a second sentence at render time, making the
+ * full stop after `MONEY_LANE_LEGISLATORS.body` INTERNAL rather than
  * terminal. The card joins the body and the confirmation sentence into a single run of
  * text, so with the second sentence attached the 2 need separating; with no confirmation
- * served the body stands alone and takes no closing mark, exactly like the other 2 lanes
+ * served the body stands alone and takes no closing mark, exactly like the other lanes
  * and like the standalone copy the first server response serves as a link's detail.
  *
  * It lives here rather than in the screen because this module's rule is that every
@@ -260,7 +288,10 @@ export const MONEY_LANE_LEGISLATORS = {
 export function legislatorsLaneBody(
   confirmation: { confirmed: number; total: number } | null | undefined,
 ): string {
-  if (!confirmation) return MONEY_LANE_LEGISLATORS.body;
+  if (!confirmation || confirmation.total <= 0) return MONEY_LANE_LEGISLATORS.body;
+  if (confirmation.confirmed === confirmation.total) {
+    return 'Each legislator’s campaign donations and payments, with their committee match confirmed';
+  }
   return `${MONEY_LANE_LEGISLATORS.body}. ${legislatorsLaneSentence(confirmation)}`;
 }
 
@@ -283,21 +314,15 @@ export const MONEY_LANE_COMMITTEES = {
  * There is no honest ordering, so the lane opens the search field, and one name
  * opens every payment filed under that exact spelling.
  *
- * The card says only what the lane does. The "no list of every payee" fact it used to
- * carry as a second sentence is a property of the record, not of the lane, and since
- * 8 Sep 2026 it is the 4th line of `MONEY_LANDING_RECORD_DOES_NOT_COVER`, one screen below.
+ * The card says only what the lane does. The lack of a complete recipient directory
+ * is explained in `MONEY_LANDING_RECORD_DOES_NOT_COVER` rather than in this card.
  */
 export const MONEY_LANE_WHO_GOT_PAID = {
   title: 'Who got paid',
-  body: 'Search a name to see every payment filed under that exact spelling',
+  body: 'Every payment filed under a name, as spelled on the filing',
 } as const;
 
 /**
- * The 4th and 5th lanes, added 4 Sep 2026 when their pages went live (#1954, #1945).
- * The drawing of the landing predates both pages and shows no way in to either, so
- * they take the shape already on the page: a card in the same row as the 3 above,
- * rather than a new element nobody drew.
- *
  * Money by race: the card promises no ranking and no total (rule 12), and it no longer
  * states the list's order — "in district and then name order" was cut on 8 Sep 2026
  * (accepted, proposed by Design), because the order is a property of the list and the
@@ -307,49 +332,29 @@ export const MONEY_LANE_WHO_GOT_PAID = {
  */
 export const MONEY_LANE_BY_RACE = {
   title: 'Money by race',
-  body: 'See each candidate committee’s filed figures, grouped by the seat it is running for',
+  body: 'Candidate committees’ filed figures, grouped by the seat',
 } as const;
 
 export const MONEY_LANE_OUTSIDE_SPENDING = {
   title: 'Outside spending',
-  body: 'See money spent for or against candidates without their campaigns’ involvement',
+  body: 'Money spent for or against candidates, without their campaigns',
 } as const;
 
-/** The one freshness date the landing shows, worded as the screen words it: the
- *  day we copied the files, never the period any money covers (rule 12). */
-export const FILES_LAST_COPIED_LABEL = 'Files last copied';
-
-export const FILES_LAST_COPIED_NOTE =
-  'When we last copied new filings from the Board. Not the period the money covers — every ' +
-  'figure carries its own period, and each one ends earlier than this date.';
-
-/** The heading over the permanent gaps, on the landing and on the committees list. */
+/** The shared coverage heading used outside the landing. */
 export const RECORD_DOES_NOT_COVER_HEADING = 'What this record does not cover';
 
 /**
- * The research row, a quiet row above the filing-period list (redrawn 8 Sep 2026). It
- * used to be a large card above the lanes headed WHAT WE FOUND, a 3rd name for a thing
- * the product already calls Research on the page the row links to, so the label is the
- * product's own word. With nothing published the row reads its one line and nothing
- * else: no count of 0 pieces, no second link. Research pieces only, never a guide: the
- * link says "Read the research", so a guide featured here would be labelled as something
- * it is not.
+ * The Research card sits between the navigation cards and the records explanation.
+ * With nothing published it carries 1 line, no count and no second link.
+ * Research pieces only, never a guide: the link says "Read the research", so a guide
+ * featured here would be labelled as something it is not.
  */
 export const RESEARCH_ROW_LABEL = 'RESEARCH';
 export const RESEARCH_ROW_LINK = 'Read the research';
 export const RESEARCH_ROW_EMPTY = 'Nothing is published yet';
 
 /**
- * The landing's closing line under the 3 gaps, standalone in the card and so bare
- * (copy rule C). It says what kind of absence these are — the record's own — now that
- * the block no longer carries our confirmation count beside them, which was a
- * different kind of absence: ours to close.
- */
-export const RECORD_DOES_NOT_COVER_NOTE =
-  'These are properties of the record itself, not gaps we can close';
-
-/**
- * The React Query keys the /money landing's 2 reads answer. Shared with
+ * The React Query keys for the /money landing's 2 campaign reads. Shared with
  * `api/page.ts` so the payloads it already read are labelled with the keys the
  * app asks for (issue #1966).
  */

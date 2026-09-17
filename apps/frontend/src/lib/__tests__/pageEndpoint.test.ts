@@ -1391,7 +1391,10 @@ describe('the records a money page hands to the app', () => {
       // campaign-finance summary's age or download date.
       { key: ['lobbying-summary'], payload: { data: lobbyingLive.summary } },
     ]);
-    expect(body).toContain('1,665 REGISTERED IN THIS COPY');
+    expect(body).toContain('1,665 REGISTERED LOBBYISTS');
+    expect(body).toContain('Campaign payment files last copied: Sep 1, 2026');
+    expect(body).toContain('Lobbying files last copied: Sep 13, 2026');
+    expect(body).toContain('<details><summary>View source links</summary>');
   });
 
   it.each(['unavailable', 'failed'])(

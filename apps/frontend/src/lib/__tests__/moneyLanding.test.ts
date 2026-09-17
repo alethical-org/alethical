@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MONEY_LANE_LOBBYING } from '../lobbyingDirectoryCopy';
 
 import {
   filedDateSentence,
@@ -10,6 +11,7 @@ import {
   LANE_COUNT_UNITS,
   legislatorsLaneBody,
   legislatorsLaneSentence,
+  MONEY_LANDING_COVERAGE_HEADING,
   MONEY_LANDING_RECORD_DOES_NOT_COVER,
   MONEY_LANDING_SEARCH_NOTE,
   MONEY_LANDING_SUBTITLE,
@@ -20,18 +22,17 @@ import {
   MONEY_LANE_WHO_GOT_PAID,
   orderingSentence,
   RECORD_DOES_NOT_COVER,
-  RECORD_DOES_NOT_COVER_NOTE,
   RESEARCH_ROW_EMPTY,
   RESEARCH_ROW_LABEL,
   RESEARCH_ROW_LINK,
 } from '../moneyLanding';
 
-// Ruled 1 Sep 2026 (#1924). The subtitle stands alone under the heading and the 5 lane
-// bodies are a column of card descriptions, so all 6 end bare. The distinction the rule
+// The subtitle stands alone under the heading and each stored lane body is 1 sentence.
+// All 7 standalone lines end bare. The distinction the rule
 // turns on is INTERNAL versus TERMINAL: a body made of 2 sentences keeps the full stop
 // that separates them, because that one is doing work a reader needs.
 describe('the landing’s own standalone lines end without a full stop', () => {
-  it('leaves the subtitle and all 5 lane descriptions bare', () => {
+  it('leaves the subtitle and all 6 lane descriptions bare', () => {
     const standalone = [
       MONEY_LANDING_SUBTITLE,
       MONEY_LANE_LEGISLATORS.body,
@@ -39,8 +40,9 @@ describe('the landing’s own standalone lines end without a full stop', () => {
       MONEY_LANE_WHO_GOT_PAID.body,
       MONEY_LANE_BY_RACE.body,
       MONEY_LANE_OUTSIDE_SPENDING.body,
+      MONEY_LANE_LOBBYING.body,
     ];
-    expect(standalone).toHaveLength(6);
+    expect(standalone).toHaveLength(7);
     for (const line of standalone) {
       expect(line.endsWith('.')).toBe(false);
       expect(line.length).toBeGreaterThan(0);
@@ -57,6 +59,7 @@ describe('the landing’s own standalone lines end without a full stop', () => {
       MONEY_LANE_WHO_GOT_PAID.body,
       MONEY_LANE_BY_RACE.body,
       MONEY_LANE_OUTSIDE_SPENDING.body,
+      MONEY_LANE_LOBBYING.body,
     ]) {
       expect(body).not.toContain('.');
     }
@@ -64,7 +67,7 @@ describe('the landing’s own standalone lines end without a full stop', () => {
 
   it('the Who got paid card says only what the lane does', () => {
     expect(MONEY_LANE_WHO_GOT_PAID.body).toBe(
-      'Search a name to see every payment filed under that exact spelling',
+      'Every payment filed under a name, as spelled on the filing',
     );
     expect(MONEY_LANE_WHO_GOT_PAID.body).not.toContain('no list of every payee');
   });
@@ -74,20 +77,16 @@ describe('the landing’s own standalone lines end without a full stop', () => {
   // above the rows, so the card no longer states it. The card still promises no ranking.
   it('the race lane names the grouping and nothing about order, ranking or total', () => {
     expect(MONEY_LANE_BY_RACE.body).toBe(
-      'See each candidate committee’s filed figures, grouped by the seat it is running for',
+      'Candidate committees’ filed figures, grouped by the seat',
     );
     expect(MONEY_LANE_BY_RACE.body).not.toContain('order');
     expect(MONEY_LANE_BY_RACE.body).not.toMatch(/total|most|largest|top/i);
   });
 
-  // The Legislators lane is the one card whose body gains a SECOND sentence when the
-  // card draws, so the stop after its stored body is internal rather than terminal.
-  // Dropping it unconditionally shipped a run-on to the live landing (#1924): "…the
-  // profile they already have Confirmed for 200 of Minnesota's 200 sitting legislators".
-  it('separates the 2 sentences once the confirmation sentence is attached', () => {
+  it('uses the compact confirmed wording only when every sitting member is confirmed', () => {
     const drawn = legislatorsLaneBody({ confirmed: 200, total: 200 });
-    expect(drawn).toContain(
-      'payments. Campaign committee matches confirmed for every sitting legislator',
+    expect(drawn).toBe(
+      'Each legislator’s campaign donations and payments, with their committee match confirmed',
     );
   });
 
@@ -95,15 +94,9 @@ describe('the landing’s own standalone lines end without a full stop', () => {
     // Ruled 2 Sep 2026 (copy proposal 3): "expenditure" is the word every other string in
     // the section avoids for money out, and the subtitle is the first sentence a reader meets.
     expect(MONEY_LANDING_SUBTITLE).toBe(
-      'Search Minnesota’s published campaign donations, payments, and lobbying records by name',
+      'Search Minnesota’s published campaign donations, payments, and lobbying records',
     );
     expect(MONEY_LANDING_SUBTITLE).not.toContain('expenditure');
-  });
-
-  it('closes the does-not-cover card with a bare line about the record itself', () => {
-    expect(RECORD_DOES_NOT_COVER_NOTE).toBe(
-      'These are properties of the record itself, not gaps we can close',
-    );
   });
 
   it('leaves the same body bare when no confirmation is served', () => {
@@ -162,17 +155,23 @@ describe('the does-not-cover block', () => {
     expect(MONEY_LANDING_RECORD_DOES_NOT_COVER.join(' ').toLowerCase()).not.toContain('lobby');
   });
 
-  // Accepted 8 Sep 2026 (proposed by Design). The fact that left the Who got paid card
-  // is a property of the record, so the landing's block carries it as a 4th line; the
-  // other pages drawing the shared 3-line block are not the landing and keep the 3.
-  it('the landing’s copy adds the payee line as a 4th, after the shared 3', () => {
-    expect(MONEY_LANDING_RECORD_DOES_NOT_COVER).toHaveLength(4);
-    expect(MONEY_LANDING_RECORD_DOES_NOT_COVER.slice(0, 3)).toEqual([...RECORD_DOES_NOT_COVER]);
-    expect(MONEY_LANDING_RECORD_DOES_NOT_COVER[3]).toBe(
-      'No list of every payee — a paid name carries only its spelling on the filing',
-    );
-    // Copy rule C: a line in a stack ends bare.
-    expect(MONEY_LANDING_RECORD_DOES_NOT_COVER[3].endsWith('.')).toBe(false);
+  it('gives the landing its own ordered limits without changing the shared block', () => {
+    expect(MONEY_LANDING_COVERAGE_HEADING).toBe('Limits of the campaign records');
+    expect(MONEY_LANDING_RECORD_DOES_NOT_COVER).toEqual([
+      'Payment records start in 2015',
+      'Donors who gave $200 or less in total for the year need not be named',
+      'There is no complete directory of payment recipients. Names are shown as filed, and different spellings may refer to the same person or business.',
+      'These files cover union political funds, not a union’s wider finances',
+    ]);
+    expect(RECORD_DOES_NOT_COVER).toHaveLength(3);
+    expect(RECORD_DOES_NOT_COVER[0]).toBe('No campaign payments held before 2015');
+  });
+
+  it('keeps periods in the multi-sentence limit and leaves single-sentence limits bare', () => {
+    expect(MONEY_LANDING_RECORD_DOES_NOT_COVER[2].endsWith('.')).toBe(true);
+    for (const index of [0, 1, 3]) {
+      expect(MONEY_LANDING_RECORD_DOES_NOT_COVER[index].endsWith('.')).toBe(false);
+    }
   });
 });
 
@@ -189,11 +188,11 @@ describe('lane counts', () => {
     expect(laneCountLine(null, 'registered filers')).toBeNull();
   });
 
-  // The 4 counted lanes, in the words the drawing prints (8 Sep 2026). The unit is a
+  // The 4 counted campaign lanes. Lobbying has its own count helper. The unit is a
   // count of rows or of groupings, never money: "payments" counts the rows of the
   // independent-expenditures file, and "contests" the race page's office-and-district
   // groupings.
-  it('prints the 4 count lines the drawing shows, from served numbers', () => {
+  it('prints the 4 campaign count lines from served numbers', () => {
     expect(laneCountLine(200, LANE_COUNT_UNITS.legislators)).toBe('200 MEMBERS');
     expect(laneCountLine(1603, LANE_COUNT_UNITS.committees)).toBe('1,603 REGISTERED FILERS');
     expect(laneCountLine(222, LANE_COUNT_UNITS.byRace)).toBe('222 CONTESTS');
@@ -214,15 +213,13 @@ describe('lane counts', () => {
   });
 });
 
-describe('the research row', () => {
-  // A quiet row above the filing list (8 Sep 2026), labelled with the product's own word
-  // for its writing; "WHAT WE FOUND" was a 3rd name for the same thing.
-  it('is labelled RESEARCH and links with the same words as before', () => {
+describe('the research card', () => {
+  it('is labelled RESEARCH and links to research', () => {
     expect(RESEARCH_ROW_LABEL).toBe('RESEARCH');
     expect(RESEARCH_ROW_LINK).toBe('Read the research');
   });
 
-  // With nothing published the row reads 1 line and nothing else: no count of 0 pieces,
+  // With nothing published the card reads 1 line and nothing else: no count of 0 pieces,
   // and no second link out to the /read page (proposed, refused).
   it('says only that nothing is published yet, with no count and no full stop', () => {
     expect(RESEARCH_ROW_EMPTY).toBe('Nothing is published yet');
@@ -255,7 +252,7 @@ describe('filing rows', () => {
   // ordering value must not acquire an explanation we cannot support.
   it('derives the ordering sentence from ordered_by, and stays silent on an unknown value', () => {
     expect(orderingSentence('period_end')).toBe(
-      'Newest reporting periods first, then by filer name. Never by amount',
+      'Latest reporting periods first, then by filer name',
     );
     expect(orderingSentence('filed_at')).toBeNull();
     expect(orderingSentence('')).toBeNull();
@@ -311,6 +308,11 @@ describe('confirmation progress', () => {
     );
   });
 
+  it('does not claim every member is confirmed when no sitting members are served', () => {
+    expect(legislatorsLaneBody({ confirmed: 0, total: 0 })).toBe(MONEY_LANE_LEGISLATORS.body);
+    expect(legislatorsLaneSentence({ confirmed: 0, total: 0 })).not.toContain('every');
+  });
+
   // Copy rule C: the sentence is the last one in a card description, so the drawn body
   // ends without a full stop even though it carries one between its 2 sentences.
   it('ends the drawn Legislators body bare, with the internal stop kept', () => {
@@ -323,7 +325,7 @@ describe('confirmation progress', () => {
 describe('the newest period count names its own cutoff independently of the list', () => {
   it('counts reports and states the supplied cutoff', () => {
     expect(newestPeriodSentence({ filingCount: 1203, periodEnd: '2026-07-20' })).toBe(
-      'Newest completed period: 1,203 reports cover through Jul 20, 2026',
+      'Latest completed period: 1,203 reports cover through Jul 20, 2026',
     );
   });
 
@@ -338,7 +340,7 @@ describe('the newest period count names its own cutoff independently of the list
     [1, '1 report covers'],
   ])('preserves a served count of %s', (filingCount, words) => {
     expect(newestPeriodSentence({ filingCount, periodEnd: '2026-07-20' })).toBe(
-      `Newest completed period: ${words} through Jul 20, 2026`,
+      `Latest completed period: ${words} through Jul 20, 2026`,
     );
   });
 });
@@ -355,7 +357,7 @@ describe('the filed date, which is the one fact a page may not substitute for', 
   });
 
   it('prints the day the Board received the report when there is one', () => {
-    expect(filedDateSentence('2026-07-24')).toBe('filed Jul 24, 2026');
+    expect(filedDateSentence('2026-07-24')).toBe('Filed Jul 24, 2026');
   });
 
   it('says the order is a mix, because a flat "by the date filed" would be false', () => {
@@ -363,23 +365,23 @@ describe('the filed date, which is the one fact a page may not substitute for', 
     // undated rows are the majority.
     const mixed = orderingSentence('filed_date_then_period_end');
     expect(mixed).toBe(
-      'Newest first by date received. Where that date is not available, we use the end of ' +
-        'the reporting period. Never by amount',
+      'Most recently received first. If the received date is missing, we use the reporting ' +
+        'period’s end date.',
     );
   });
 
-  it('keeps ordering separate from totals and states that amounts do not decide it', () => {
+  it('keeps ordering separate from totals without repeating the removed amount disclaimer', () => {
     for (const orderedBy of ['period_end', 'filed_date_then_period_end']) {
-      expect(orderingSentence(orderedBy)).toContain('Never by amount');
+      expect(orderingSentence(orderedBy)).not.toContain('Never by amount');
       expect(orderingSentence(orderedBy)).not.toMatch(/\d|reports cover/);
     }
   });
 });
 
 describe('the line under the search field', () => {
-  it('explains partial-name search and exact spelling, ending bare', () => {
+  it('explains partial-name search without repeating the name field or spelling caveat', () => {
     expect(MONEY_LANDING_SEARCH_NOTE).toBe(
-      'Try all or part of a name: a person, committee, payee, or lobbyist. Spelling must match the filing',
+      'Try all or part of a name: a person, committee, payee, or lobbyist',
     );
     expect(MONEY_LANDING_SEARCH_NOTE).not.toContain('nearest match');
     expect(MONEY_LANDING_SEARCH_NOTE.endsWith('.')).toBe(false);

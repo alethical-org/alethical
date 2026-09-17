@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useCallback, useId, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { Skeleton } from '../../components/Skeleton';
+import { LinkArrow } from '../../components/LinkArrow';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
 import { useLobbyingSummary } from '../../hooks/useLobbying';
-import { MONEY_LANE_LOBBYING, lobbyistLaneCount } from '../../lib/lobbyingDirectoryCopy';
+import { MONEY_LANE_LOBBYING, moneyLandingLobbyistCount } from '../../lib/lobbyingDirectoryCopy';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
   useCampaignFinanceFilings,
@@ -20,8 +22,6 @@ import {
   laneCountLine,
   legislatorsLaneBody,
   orderingSentence,
-  FILES_LAST_COPIED_LABEL,
-  FILES_LAST_COPIED_NOTE,
   LANE_COUNT_UNITS,
   MONEY_LANDING_HEADING,
   MONEY_LANDING_COVERAGE_HEADING,
@@ -35,14 +35,18 @@ import {
   MONEY_LANE_LEGISLATORS,
   MONEY_LANE_OUTSIDE_SPENDING,
   MONEY_LANE_WHO_GOT_PAID,
-  RECORD_DOES_NOT_COVER_NOTE,
   RESEARCH_ROW_EMPTY,
   RESEARCH_ROW_LABEL,
   RESEARCH_ROW_LINK,
 } from '../../lib/moneyLanding';
 import { committeeSlug } from '../../lib/committeeMoneyShared';
-import { BOARD_VIEWER_INDEX } from '../../lib/boardRecordLink';
-import { piecesLabelledResearch, researchDatesLine } from '../../lib/research';
+import { piecesLabelledResearch, isoDateCapsLabel } from '../../lib/research';
+import {
+  MONEY_SOURCE_GROUPS,
+  MONEY_SOURCES_HEADING,
+  MONEY_SOURCES_ATTRIBUTION,
+  MONEY_SOURCES_PERIOD_NOTE,
+} from '../../lib/moneyLandingSources';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
@@ -52,9 +56,8 @@ import { theme as t } from '../../theme/tokens';
  * The campaign money landing at /money — public, no sign-in gate ("Campaign
  * money IA.dc.html" §01, plus Eugene's 18 Aug 2026 decision that every lane card
  * is visible, so a reader sees the whole shape of the section). Redrawn 8 Sep
- * 2026 (LIVE Money.dc.html, design package money-landing-2026-09-08): the lanes
- * come straight after the search, 4 of the 5 carry a live count, and the
- * research card became a quiet row above the filing list.
+ * 2026 and refined 17 Sep: 6 lanes follow the search, then research, sources
+ * and copy dates with an optional disclosure, record limits, and filed reports.
  *
  * What this page may never do (IA §04): no lane counts money, no top raisers,
  * no amount on any row that lists more than one member, and no count that is
@@ -77,20 +80,6 @@ const laneCardShadow = Platform.select({
   },
 }) as object;
 
-function ForwardArrow({ color, size = 18 }: { color: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <Path
-        d="M5 12 H19 M14 7 L19 12 L14 17"
-        stroke={color}
-        strokeWidth={2.2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
-
 function LaneCard({
   title,
   body,
@@ -98,6 +87,9 @@ function LaneCard({
   href,
   onOpen,
   stacked,
+  tablet,
+  wide,
+  cardWidth,
 }: {
   title: string;
   body: string;
@@ -109,24 +101,60 @@ function LaneCard({
   onOpen: () => void;
   /** Phone: the cards stack, so each is as tall as its own words (rule D5). */
   stacked: boolean;
+  tablet: boolean;
+  wide: boolean;
+  cardWidth: number;
 }) {
   return (
     <Pressable
       {...linkProps(href, onOpen)}
-      style={[styles.laneCard, laneCardShadow, stacked && styles.stackedCard]}
+      style={[
+        styles.laneCard,
+        laneCardShadow,
+        { width: cardWidth },
+        tablet && styles.laneCardTablet,
+        stacked && styles.laneCardMobile,
+      ]}
     >
-      <View style={styles.laneTitleRow}>
-        <Text style={styles.laneTitle}>{title}</Text>
-        <ForwardArrow color={t.colors.text.greenOnLight} />
+      <View
+        style={[styles.laneTitleRow, { minHeight: stacked ? 0 : tablet ? 30 : wide ? 50 : 32 }]}
+      >
+        <Text
+          style={[
+            styles.laneTitle,
+            tablet && styles.laneTitleTablet,
+            stacked && styles.laneTitleMobile,
+          ]}
+        >
+          {title}
+        </Text>
+        <LinkArrow color={t.colors.text.greenOnLight} style={{ width: 18, height: 18 }} />
       </View>
-      <Text style={styles.laneBody}>{body}</Text>
-      {countLine ? <Text style={styles.laneCount}>{countLine}</Text> : null}
+      <Text style={[styles.laneBody, (tablet || stacked) && styles.laneBodyNarrow]}>{body}</Text>
+      {countLine ? (
+        <Text style={[styles.laneCount, stacked && styles.laneCountMobile]}>{countLine}</Text>
+      ) : null}
     </Pressable>
   );
 }
 
 export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding'>) {
-  const { isMobile } = useResponsive();
+  const { isMobile, isTablet, width } = useResponsive();
+  const narrow = isMobile || isTablet;
+  const wide = width >= 1440;
+  const columns = isMobile ? 1 : isTablet ? 2 : wide ? 6 : 3;
+  const gap = isMobile ? 12 : isTablet ? 14 : 16;
+  const gutter = isMobile ? 20 : isTablet ? 32 : 56;
+  const cardWidth = (width - 2 * gutter - gap * (columns - 1)) / columns;
+  const laneLayout = { stacked: isMobile, tablet: isTablet, wide, cardWidth };
+  const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [sourceControlFocused, setSourceControlFocused] = useState(false);
+  const sourceGroupsId = useId();
+  useFocusEffect(
+    useCallback(() => {
+      setSourcesOpen(false);
+    }, []),
+  );
   const summaryQuery = useCampaignFinanceSummary();
   const lobbyingQuery = useLobbyingSummary();
   const filingsQuery = useCampaignFinanceFilings(5);
@@ -165,13 +193,7 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
     navigation.navigate('MoneySearch', q ? { q } : {});
   };
   const filesLastCopied = summary?.freshness.downloadsFetchedAt ?? null;
-  // The note's "Not" is the word the sentence turns on, so it alone is set heavy.
-  // Split on the word rather than a copy of the sentence, so the string stays in one
-  // place (lib/moneyLanding.ts) and a reworded note cannot leave a stale half here.
-  const notAt = FILES_LAST_COPIED_NOTE.indexOf(' Not ');
-  const noteBeforeNot =
-    notAt === -1 ? FILES_LAST_COPIED_NOTE : FILES_LAST_COPIED_NOTE.slice(0, notAt + 1);
-  const noteAfterNot = notAt === -1 ? '' : FILES_LAST_COPIED_NOTE.slice(notAt + 4);
+  const lobbyingLastCopied = lobbyingQuery.data?.copied_at ?? null;
   const feed = filingsQuery.data;
   const filings = feed?.state === 'reported' ? feed.filings : [];
 
@@ -180,15 +202,29 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
       <ScrollView contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
 
-        <Container style={[styles.main, isMobile && styles.mainMobile]}>
+        <Container
+          style={[styles.main, isTablet && styles.mainTablet, isMobile && styles.mainMobile]}
+        >
           <Text
             accessibilityRole="header"
             aria-level={1}
-            style={[styles.heading, isMobile && styles.headingMobile]}
+            style={[
+              styles.heading,
+              isTablet && styles.headingTablet,
+              isMobile && styles.headingMobile,
+            ]}
           >
             {MONEY_LANDING_HEADING}
           </Text>
-          <Text style={styles.subtitle}>{MONEY_LANDING_SUBTITLE}</Text>
+          <Text
+            style={[
+              styles.subtitle,
+              isTablet && styles.subtitleTablet,
+              isMobile && styles.subtitleMobile,
+            ]}
+          >
+            {MONEY_LANDING_SUBTITLE}
+          </Text>
 
           {/* The search front door, working since issue #1696: it commits on
               Enter or the button rather than as you type, because every search
@@ -204,20 +240,26 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
               onSubmit={onSearch}
               placeholder={MONEY_LANDING_SEARCH_PLACEHOLDER}
               showSubmitButton
+              stacked={isMobile}
+              controlGap={isMobile ? 10 : undefined}
+              fieldHeight={isMobile ? 52 : isTablet ? 54 : undefined}
             />
             <Text style={styles.searchNote}>{MONEY_LANDING_SEARCH_NOTE}</Text>
           </View>
 
           {/* All 6 destinations remain visible. Each live count belongs to its
               own source; cards wrap at tablet widths and stack on the phone. */}
-          <View style={[styles.laneRow, isMobile && styles.laneRowMobile]}>
+          <View
+            testID="money-lanes"
+            style={[styles.laneRow, { gap }, isMobile && styles.laneRowMobile]}
+          >
             <LaneCard
               title={MONEY_LANE_LEGISLATORS.title}
               body={legislatorsLaneBody(confirmations)}
               countLine={laneCountLine(confirmations?.total ?? null, LANE_COUNT_UNITS.legislators)}
               href={routePath.legislators()}
               onOpen={() => navigation.navigate('Legislators')}
-              stacked={isMobile}
+              {...laneLayout}
             />
             <LaneCard
               title={MONEY_LANE_COMMITTEES.title}
@@ -225,7 +267,7 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
               countLine={laneCountLine(register?.filerCount ?? null, LANE_COUNT_UNITS.committees)}
               href={routePath.moneyCommittees()}
               onOpen={() => navigation.navigate('CommitteeList')}
-              stacked={isMobile}
+              {...laneLayout}
             />
             {/* Search-only, and the card says so. Its count slot is empty and
                 stays empty: there is no honest count of separate payees (a paid
@@ -238,7 +280,7 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
               countLine={null}
               href={routePath.moneySearch()}
               onOpen={() => navigation.navigate('MoneySearch')}
-              stacked={isMobile}
+              {...laneLayout}
             />
             <LaneCard
               title={MONEY_LANE_BY_RACE.title}
@@ -246,7 +288,7 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
               countLine={laneCountLine(contestCount, LANE_COUNT_UNITS.byRace)}
               href={routePath.moneyRaces()}
               onOpen={() => navigation.navigate('MoneyByRace')}
-              stacked={isMobile}
+              {...laneLayout}
             />
             <LaneCard
               title={MONEY_LANE_OUTSIDE_SPENDING.title}
@@ -254,88 +296,23 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
               countLine={laneCountLine(outsideSpendingRows, LANE_COUNT_UNITS.outsideSpending)}
               href={routePath.moneyOutsideSpending()}
               onOpen={() => navigation.navigate('OutsideSpending')}
-              stacked={isMobile}
+              {...laneLayout}
             />
             <LaneCard
               title={MONEY_LANE_LOBBYING.title}
               body={MONEY_LANE_LOBBYING.body}
-              countLine={lobbyistLaneCount(
+              countLine={moneyLandingLobbyistCount(
                 lobbyingQuery.data?.state === 'reported'
                   ? lobbyingQuery.data.registered_lobbyists
                   : null,
               )}
               href={routePath.lobbying()}
               onOpen={() => navigation.navigate('LobbyingLanding')}
-              stacked={isMobile}
+              {...laneLayout}
             />
           </View>
 
-          <Text style={styles.sourceNote}>
-            Campaign records from the{' '}
-            <Text
-              {...externalLinkProps(
-                BOARD_VIEWER_INDEX,
-                () => void Linking.openURL(BOARD_VIEWER_INDEX),
-              )}
-              style={styles.sourceLink}
-            >
-              Minnesota Campaign Finance and Public Disclosure Board
-            </Text>
-          </Text>
-
-          {/* Two short blocks, side by side from 768 up and stacked below: the
-              page's one freshness date, and the record's permanent gaps. */}
-          <View style={[styles.infoGrid, isMobile && styles.infoGridMobile]}>
-            {/* The one freshness date this page shows — when we last copied new
-                filings, never the period any money covers (rule 12). Rendered
-                only when served. "Not" is set heavy because it is the word the
-                whole note turns on. */}
-            {summaryQuery.isLoading ? (
-              <View
-                style={[styles.infoCard, isMobile && styles.stackedCard]}
-                accessible
-                accessibilityLabel="Loading the latest-copy date"
-              >
-                <Text style={styles.infoLabel}>{FILES_LAST_COPIED_LABEL.toUpperCase()}</Text>
-                <View style={styles.freshnessSkeleton}>
-                  <Skeleton width={160} height={24} />
-                </View>
-              </View>
-            ) : filesLastCopied ? (
-              <View style={[styles.infoCard, isMobile && styles.stackedCard]}>
-                <Text style={styles.infoLabel}>{FILES_LAST_COPIED_LABEL.toUpperCase()}</Text>
-                <Text style={styles.freshnessDate}>{centralDateLabel(filesLastCopied)}</Text>
-                <Text style={styles.infoNote}>
-                  {noteBeforeNot}
-                  <Text style={styles.infoNoteHeavy}>Not</Text>
-                  {noteAfterNot}
-                </Text>
-              </View>
-            ) : null}
-
-            {/* The gaps, in plain words, above anything a reader might search
-                for: someone who types a name and gets nothing must not conclude
-                the person gave nothing. The 4th line is the fact that left the
-                Who got paid card (8 Sep 2026). The confirmed-member count is
-                stated once on this page, in the Legislators lane, and not again
-                here. */}
-            <View style={[styles.infoCard, isMobile && styles.stackedCard]}>
-              <Text style={styles.infoLabel}>{MONEY_LANDING_COVERAGE_HEADING.toUpperCase()}</Text>
-              <View style={styles.notCoveredList}>
-                {MONEY_LANDING_RECORD_DOES_NOT_COVER.map((line) => (
-                  <Text key={line} style={styles.notCoveredLine}>
-                    {line}
-                  </Text>
-                ))}
-              </View>
-              <Text style={styles.infoNote}>{RECORD_DOES_NOT_COVER_NOTE}</Text>
-            </View>
-          </View>
-
-          {/* RESEARCH — a quiet row, not a card: the newest research piece with
-              its standfirst and both dates, linking to the piece itself. With
-              nothing published it reads its one line and nothing else — no count
-              of 0, no second link out. */}
+          {/* Research has its own boundary, separate from the records below it. */}
           <View style={styles.researchBlock}>
             <Text accessibilityRole="header" aria-level={2} style={styles.infoLabel}>
               {RESEARCH_ROW_LABEL}
@@ -347,21 +324,161 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                 )}
                 style={[styles.researchRow, isMobile && styles.researchRowMobile]}
               >
-                <View style={styles.researchText}>
+                <View style={[styles.researchText, isMobile && styles.stackedCard]}>
                   <Text style={[styles.researchTitle, isMobile && styles.researchTitleMobile]}>
                     {newestPiece.title}
                   </Text>
                   <Text style={styles.researchDek}>{newestPiece.dek}</Text>
-                  <Text style={styles.researchDates}>{researchDatesLine(newestPiece)}</Text>
+                  <Text style={styles.researchDates}>
+                    PUBLISHED {isoDateCapsLabel(newestPiece.publishedOn)}
+                  </Text>
                 </View>
-                <View style={styles.researchCta}>
+                <View style={[styles.researchCta, isMobile && styles.researchCtaMobile]}>
                   <Text style={styles.researchCtaText}>{RESEARCH_ROW_LINK}</Text>
-                  <ForwardArrow color={t.colors.text.greenOnLight} size={16} />
+                  <LinkArrow color={t.colors.text.greenOnLight} />
                 </View>
               </Pressable>
             ) : (
-              <Text style={styles.researchEmpty}>{RESEARCH_ROW_EMPTY}</Text>
+              <View style={[styles.researchRow, isMobile && styles.researchRowMobile]}>
+                <Text style={styles.researchEmpty}>{RESEARCH_ROW_EMPTY}</Text>
+              </View>
             )}
+          </View>
+
+          <View style={[styles.infoGrid, narrow && styles.infoGridNarrow]}>
+            <View
+              testID="money-sources"
+              style={[
+                styles.infoCard,
+                styles.sourceCard,
+                narrow && styles.stackedCard,
+                isMobile && styles.infoCardMobile,
+              ]}
+            >
+              <Text
+                accessibilityRole="header"
+                aria-level={2}
+                style={[styles.infoLabel, isMobile && styles.infoLabelMobile]}
+              >
+                {MONEY_SOURCES_HEADING.toUpperCase()}
+              </Text>
+              <Text style={styles.infoNote}>{MONEY_SOURCES_ATTRIBUTION}</Text>
+              <View style={styles.copyDates}>
+                <Text style={styles.infoBody}>
+                  Campaign payment files last copied:{' '}
+                  <Text style={styles.freshnessDate}>
+                    {filesLastCopied
+                      ? centralDateLabel(filesLastCopied)
+                      : summaryQuery.isLoading
+                        ? 'Loading…'
+                        : 'Copy date unavailable'}
+                  </Text>
+                </Text>
+                <Text style={styles.infoBody}>
+                  Lobbying files last copied:{' '}
+                  <Text style={styles.freshnessDate}>
+                    {lobbyingLastCopied
+                      ? centralDateLabel(lobbyingLastCopied)
+                      : lobbyingQuery.isLoading
+                        ? 'Loading…'
+                        : 'Copy date unavailable'}
+                  </Text>
+                </Text>
+              </View>
+              <Text style={styles.infoNote}>{MONEY_SOURCES_PERIOD_NOTE}</Text>
+              <Pressable
+                accessibilityRole="button"
+                aria-expanded={sourcesOpen}
+                aria-controls={sourcesOpen ? sourceGroupsId : undefined}
+                onPress={() => setSourcesOpen((open) => !open)}
+                onFocus={() => setSourceControlFocused(true)}
+                onBlur={() => setSourceControlFocused(false)}
+                style={[styles.sourceControl, sourceControlFocused && styles.sourceControlFocus]}
+              >
+                <Text style={styles.sourceControlText}>
+                  {sourcesOpen ? 'Hide source links' : 'View source links'}
+                </Text>
+                <Svg
+                  width={18}
+                  height={18}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden
+                  style={{ flexShrink: 0 }}
+                >
+                  <Path
+                    d={sourcesOpen ? 'M6 15 L12 9 L18 15' : 'M6 9 L12 15 L18 9'}
+                    stroke={t.colors.text.greenOnLight}
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Svg>
+              </Pressable>
+              {sourcesOpen ? (
+                <View nativeID={sourceGroupsId}>
+                  {MONEY_SOURCE_GROUPS.map((group) => (
+                    <View key={group.title} style={styles.sourceGroup}>
+                      <Text
+                        accessibilityRole="header"
+                        aria-level={3}
+                        style={[styles.sourceGroupTitle, narrow && styles.sourceGroupTitleNarrow]}
+                      >
+                        {group.title}
+                      </Text>
+                      {group.paragraphs.map((paragraph, index) => (
+                        <Text
+                          key={index}
+                          style={[styles.sourceParagraph, isMobile && styles.sourceParagraphMobile]}
+                        >
+                          {paragraph.map((part, partIndex) =>
+                            part.href ? (
+                              <Text
+                                key={partIndex}
+                                {...externalLinkProps(
+                                  part.href,
+                                  () => void Linking.openURL(part.href!),
+                                )}
+                                style={[styles.sourceLink, isMobile && styles.sourceLinkMobile]}
+                              >
+                                {part.text}
+                              </Text>
+                            ) : (
+                              part.text
+                            ),
+                          )}
+                        </Text>
+                      ))}
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+            <View
+              style={[
+                styles.infoCard,
+                narrow && styles.stackedCard,
+                isMobile && styles.infoCardMobile,
+              ]}
+            >
+              <Text
+                accessibilityRole="header"
+                aria-level={2}
+                style={[styles.infoLabel, isMobile && styles.infoLabelMobile]}
+              >
+                {MONEY_LANDING_COVERAGE_HEADING.toUpperCase()}
+              </Text>
+              <View style={styles.notCoveredList}>
+                {MONEY_LANDING_RECORD_DOES_NOT_COVER.map((line) => (
+                  <View key={line} style={styles.notCoveredItem}>
+                    <Text aria-hidden style={styles.notCoveredBullet}>
+                      •
+                    </Text>
+                    <Text style={styles.notCoveredLine}>{line}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
           </View>
 
           {/* Recent reports can cover different periods. The separate count
@@ -379,43 +496,42 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
             </View>
           ) : filings.length > 0 ? (
             <View style={styles.filingsBlock}>
-              <View style={styles.filingsHeadingRow}>
-                <Text accessibilityRole="header" aria-level={2} style={styles.infoLabel}>
-                  {RECENT_FILINGS_HEADING.toUpperCase()}
-                </Text>
+              <View style={[styles.filingsHeadingRow, narrow && styles.filingsHeadingRowNarrow]}>
+                <View style={[styles.filingsHeadingText, narrow && styles.stackedCard]}>
+                  <Text accessibilityRole="header" aria-level={2} style={styles.infoLabel}>
+                    {RECENT_FILINGS_HEADING.toUpperCase()}
+                  </Text>
+                  {newestPeriodSentence(feed?.newestPeriod ?? null) ? (
+                    <Text style={[styles.filingsTie, isMobile && styles.filingsTieMobile]}>
+                      {newestPeriodSentence(feed?.newestPeriod ?? null)}
+                    </Text>
+                  ) : null}
+                </View>
                 {orderingSentence(feed?.orderedBy ?? '') ? (
-                  <Text style={styles.filingsSort}>{orderingSentence(feed?.orderedBy ?? '')}</Text>
+                  <Text style={[styles.filingsSort, narrow && styles.filingsSortNarrow]}>
+                    {orderingSentence(feed?.orderedBy ?? '')}
+                  </Text>
                 ) : null}
               </View>
-              {newestPeriodSentence(feed?.newestPeriod ?? null) ? (
-                <Text style={styles.filingsTie}>
-                  {newestPeriodSentence(feed?.newestPeriod ?? null)}
-                </Text>
-              ) : null}
               <View style={styles.filingsList}>
                 {filings.map((filing, index) => {
                   const filed = filedDateSentence(filing.filedDate);
                   const slug = filing.registrationNumber
                     ? committeeSlug(filing.filerName, filing.registrationNumber)
                     : null;
+                  const Row = slug ? Pressable : View;
                   return (
-                    <View
+                    <Row
                       key={index}
+                      {...(slug
+                        ? linkProps(routePath.moneyCommittee(slug), () =>
+                            navigation.navigate('CommitteeMoney', { slug }),
+                          )
+                        : {})}
                       style={[styles.filingRow, isMobile && styles.filingRowMobile]}
                     >
                       <View style={styles.filingBody}>
-                        {slug ? (
-                          <Text
-                            {...linkProps(routePath.moneyCommittee(slug), () =>
-                              navigation.navigate('CommitteeMoney', { slug }),
-                            )}
-                            style={[styles.filingCommittee, styles.sourceLink]}
-                          >
-                            {filing.filerName}
-                          </Text>
-                        ) : (
-                          <Text style={styles.filingCommittee}>{filing.filerName}</Text>
-                        )}
+                        <Text style={styles.filingCommittee}>{filing.filerName}</Text>
                         <Text style={styles.filingReport}>
                           {filing.reportName}
                           {filingPeriodLine(filing) ? ` · ${filingPeriodLine(filing)}` : ''}
@@ -426,10 +542,10 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                           substituted when the Board states no date (#1670). */}
                       {filed ? (
                         <Text style={[styles.filingFiled, isMobile && styles.filingFiledMobile]}>
-                          {filed.toUpperCase()}
+                          {filed}
                         </Text>
                       ) : null}
-                    </View>
+                    </Row>
                   );
                 })}
               </View>
@@ -450,7 +566,8 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
 const styles = StyleSheet.create({
   page: { flexGrow: 1 },
   main: { paddingTop: 44, paddingBottom: 72, flexGrow: 1 },
-  mainMobile: { paddingTop: 28, paddingBottom: 52 },
+  mainTablet: { paddingHorizontal: 32 },
+  mainMobile: { paddingTop: 28, paddingBottom: 52, paddingHorizontal: 20 },
   heading: {
     color: t.colors.text.primary,
     fontFamily: t.typography.title,
@@ -460,6 +577,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1.4,
   },
   headingMobile: { fontSize: 30, lineHeight: 34, letterSpacing: -0.9 },
+  headingTablet: { fontSize: 40, lineHeight: 46 },
   subtitle: {
     marginTop: 14,
     maxWidth: 860,
@@ -468,6 +586,8 @@ const styles = StyleSheet.create({
     fontSize: 19,
     lineHeight: 29,
   },
+  subtitleTablet: { fontSize: 20, lineHeight: 30 },
+  subtitleMobile: { fontSize: 17, lineHeight: 26 },
   searchModule: { marginTop: 28 },
   searchNote: {
     marginTop: 12,
@@ -478,19 +598,25 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   laneRow: { marginTop: 40, flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
-  laneRowMobile: { marginTop: 32, flexDirection: 'column', gap: 16 },
+  laneRowMobile: { marginTop: 32, flexDirection: 'column' },
   // Six readable cards share a wide row; narrower rows wrap before text is cramped.
   laneCard: {
-    flex: 1,
-    flexBasis: 180,
+    flexGrow: 0,
+    flexShrink: 0,
     minWidth: 0,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink10,
     borderRadius: 18,
-    paddingVertical: 26,
-    paddingHorizontal: 24,
+    paddingVertical: 24,
+    paddingHorizontal: 22,
   },
+  laneCardTablet: { paddingVertical: 22, paddingHorizontal: 20 },
+  laneCardMobile: { padding: 18, paddingHorizontal: 18, paddingVertical: 18, borderRadius: 16 },
+  laneTitleTablet: { fontSize: 21, lineHeight: 26 },
+  laneTitleMobile: { fontSize: 20, lineHeight: 25 },
+  laneBodyNarrow: { fontSize: 16.5, lineHeight: 25 },
+  laneCountMobile: { fontSize: 12 },
   // `flex: 1` shares a ROW; in a stacked column it would share the column's height
   // instead and let a long body spill past its card, so stacked cards size to content.
   // Spelled out as the 3 properties: react-native-web drops a bare `flex: 0`.
@@ -506,7 +632,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
     fontFamily: t.typography.title,
     fontSize: 22,
-    lineHeight: 27,
+    lineHeight: 25,
     fontWeight: t.fontWeights.heavy,
     letterSpacing: -0.4,
   },
@@ -514,6 +640,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     color: t.colors.text.secondary,
     fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
     fontSize: 17,
     lineHeight: 26,
   },
@@ -529,8 +656,17 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.8,
   },
-  infoGrid: { marginTop: 44, maxWidth: 1200, flexDirection: 'row', gap: 20 },
-  infoGridMobile: { marginTop: 32, flexDirection: 'column', gap: 16 },
+  infoGrid: {
+    marginTop: 44,
+    paddingTop: 30,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(17,21,15,0.12)',
+    maxWidth: 1200,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 20,
+  },
+  infoGridNarrow: { flexDirection: 'column', alignItems: 'stretch', gap: 16 },
   infoCard: {
     flex: 1,
     minWidth: 0,
@@ -542,6 +678,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 26,
     paddingBottom: 26,
   },
+  sourceCard: { flex: 1.45 },
+  infoCardMobile: { padding: 20, paddingTop: 20, paddingHorizontal: 20, paddingBottom: 20 },
   infoLabel: {
     color: t.colors.text.secondary,
     fontFamily: t.typography.mono,
@@ -549,26 +687,31 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     letterSpacing: 1.4,
   },
-  freshnessSkeleton: { marginTop: 10 },
-  sourceNote: {
-    marginTop: 32,
+  infoLabelMobile: { fontSize: 11.5 },
+  copyDates: { marginTop: 18, gap: 8 },
+  infoBody: {
     color: t.colors.text.secondary,
     fontFamily: t.typography.body,
-    fontSize: 15,
-    lineHeight: 23,
+    fontSize: 16.5,
+    lineHeight: 25,
   },
   sourceLink: {
     color: t.colors.text.greenOnLight,
+    fontWeight: t.fontWeights.semibold,
     textDecorationLine: 'underline',
+    paddingVertical: 3,
+    ...(Platform.OS === 'web'
+      ? ({ display: 'inline-block', textUnderlineOffset: 3 } as object)
+      : {}),
   },
+  sourceLinkMobile: { paddingVertical: 5 },
   freshnessDate: {
-    marginTop: 10,
     color: t.colors.text.primary,
     fontFamily: t.typography.body,
     fontVariant: ['tabular-nums'],
-    fontSize: 24,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: -0.2,
+    fontSize: 16.5,
+    fontWeight: t.fontWeights.heavy,
+    ...(Platform.OS === 'web' ? ({ display: 'inline-block', whiteSpace: 'nowrap' } as object) : {}),
   },
   infoNote: {
     marginTop: 12,
@@ -577,11 +720,57 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
   },
-  infoNoteHeavy: { color: t.colors.text.primary, fontWeight: t.fontWeights.heavy },
-  notCoveredList: { marginTop: 14, gap: 8 },
+  sourceControl: {
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    marginTop: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 2,
+  },
+  sourceControlFocus: Platform.select({
+    web: { outlineStyle: 'solid', outlineWidth: 2, outlineColor: '#7c5cff', outlineOffset: 2 },
+    default: { borderWidth: 2, borderColor: '#7c5cff' },
+  }) as object,
+  sourceControlText: {
+    fontFamily: t.typography.body,
+    fontSize: 16.5,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.greenOnLight,
+    textDecorationLine: 'underline',
+    ...(Platform.OS === 'web' ? ({ textUnderlineOffset: 3 } as object) : {}),
+  },
+  sourceGroup: {
+    borderTopWidth: 1,
+    borderTopColor: t.colors.alpha.ink10,
+    paddingTop: 16,
+    marginTop: 16,
+  },
+  sourceGroupTitle: {
+    fontFamily: t.typography.body,
+    fontWeight: t.fontWeights.bold,
+    fontSize: 14,
+    lineHeight: 21,
+    color: t.colors.text.primary,
+  },
+  sourceGroupTitleNarrow: { fontSize: 14.5 },
+  sourceParagraph: {
+    marginTop: 8,
+    color: t.colors.text.secondary,
+    fontFamily: t.typography.body,
+    fontSize: 16.5,
+    lineHeight: 27,
+  },
+  sourceParagraphMobile: { lineHeight: 29 },
+  notCoveredList: { marginTop: 14, gap: 12 },
+  notCoveredItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 9 },
+  notCoveredBullet: { color: t.colors.ink, fontSize: 16.5, lineHeight: 25 },
   notCoveredLine: {
+    flex: 1,
     color: t.colors.ink,
     fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
     fontSize: 16.5,
     lineHeight: 25,
   },
@@ -590,7 +779,7 @@ const styles = StyleSheet.create({
     paddingTop: 30,
     maxWidth: 1200,
     borderTopWidth: 1,
-    borderTopColor: t.colors.alpha.ink10,
+    borderTopColor: 'rgba(17,21,15,0.12)',
   },
   researchRow: {
     marginTop: 14,
@@ -598,12 +787,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 32,
-    paddingTop: 18,
-    paddingBottom: 20,
-    borderTopWidth: 1,
-    borderTopColor: t.colors.alpha.ink08,
+    padding: 28,
+    borderWidth: 1,
+    borderColor: '#bfe3ce',
+    borderRadius: 18,
+    backgroundColor: '#eaf6ef',
   },
-  researchRowMobile: { flexDirection: 'column', alignItems: 'flex-start', gap: 14 },
+  researchRowMobile: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: 14,
+    padding: 20,
+    borderRadius: 16,
+  },
   researchText: { flex: 1, minWidth: 0 },
   researchTitle: {
     color: t.colors.text.primary,
@@ -616,21 +812,36 @@ const styles = StyleSheet.create({
   researchTitleMobile: { fontSize: 20, lineHeight: 25 },
   researchDek: {
     marginTop: 5,
-    color: t.colors.text.secondary,
+    color: '#41493f',
     fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
     fontSize: 17,
     lineHeight: 26,
   },
   researchDates: {
     marginTop: 9,
-    color: t.colors.text.muted,
+    color: '#5f6763',
     fontFamily: t.typography.body,
     fontVariant: ['tabular-nums'],
     fontSize: 12,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.9,
   },
-  researchCta: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  researchCta: {
+    flexShrink: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    minHeight: 44,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#bfe3ce',
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+  },
+  researchCtaMobile: { width: '100%' },
   researchCtaText: {
     color: t.colors.text.greenOnLight,
     fontFamily: t.typography.ui,
@@ -638,12 +849,7 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
   },
   researchEmpty: {
-    marginTop: 14,
-    paddingTop: 20,
-    paddingBottom: 22,
-    borderTopWidth: 1,
-    borderTopColor: t.colors.alpha.ink08,
-    color: t.colors.text.muted,
+    color: '#41493f',
     fontFamily: t.typography.body,
     fontSize: 17,
     lineHeight: 26,
@@ -653,30 +859,37 @@ const styles = StyleSheet.create({
     paddingTop: 30,
     maxWidth: 1200,
     borderTopWidth: 1,
-    borderTopColor: t.colors.alpha.ink10,
+    borderTopColor: 'rgba(17,21,15,0.12)',
   },
   filingsHeadingRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    flexWrap: 'wrap',
-    columnGap: 14,
-    rowGap: 6,
+    alignItems: 'flex-start',
+    gap: 30,
   },
+  filingsHeadingRowNarrow: { flexDirection: 'column', gap: 12 },
+  filingsHeadingText: { flex: 1, minWidth: 0 },
   filingsSort: {
-    color: t.colors.text.muted,
-    fontFamily: t.typography.body,
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  filingsTie: {
-    marginTop: 8,
+    flex: 1,
+    paddingTop: 30,
     color: t.colors.text.muted,
     fontFamily: t.typography.body,
     fontSize: 14.5,
     lineHeight: 22,
   },
+  filingsSortNarrow: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', paddingTop: 0 },
+  filingsTie: {
+    marginTop: 14,
+    color: t.colors.text.primary,
+    fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
+    fontSize: 19,
+    fontWeight: t.fontWeights.semibold,
+    lineHeight: 28,
+  },
+  filingsTieMobile: { fontSize: 18, lineHeight: 26 },
   filingsList: { marginTop: 10 },
   filingRow: {
+    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
@@ -685,11 +898,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: t.colors.alpha.ink08,
   },
-  filingRowMobile: { flexDirection: 'column', gap: 6, paddingVertical: 14 },
+  filingRowMobile: { flexDirection: 'column', gap: 6, paddingVertical: 14, minHeight: 60 },
   filingBody: { flex: 1, minWidth: 0 },
   filingCommittee: {
     color: t.colors.text.primary,
     fontFamily: t.typography.ui,
+    fontVariant: ['tabular-nums'],
     fontSize: 18,
     fontWeight: t.fontWeights.bold,
   },
@@ -697,6 +911,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
     color: t.colors.text.secondary,
     fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
     fontSize: 16,
     lineHeight: 23,
   },
@@ -705,9 +920,8 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
     fontFamily: t.typography.body,
     fontVariant: ['tabular-nums'],
-    fontSize: 12.5,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.8,
+    fontSize: 15,
+    fontWeight: t.fontWeights.semibold,
   },
   filingFiledMobile: { flexShrink: 1 },
 });

@@ -1,5 +1,11 @@
 import { Platform } from 'react-native';
 import {
+  campaignFinanceFilingsFromPayload,
+  type ApiCampaignFinanceFilingsPayload,
+} from '../lib/moneyLanding';
+export { campaignFinanceFilingsFromPayload } from '../lib/moneyLanding';
+export type { ApiCampaignFinanceFilingsPayload } from '../lib/moneyLanding';
+import {
   committeeConfirmationFromPayload,
   type ApiCommitteeConfirmationPayload,
 } from '../lib/committeeConfirmation';
@@ -2698,22 +2704,6 @@ export interface ApiCampaignFinanceSummaryPayload {
   } | null;
 }
 
-interface ApiMoneyFilingPayload {
-  registration_number?: string | null;
-  filer_name: string;
-  report_name: string;
-  period_start?: string | null;
-  period_end?: string | null;
-  filed_date?: string | null;
-}
-
-export interface ApiCampaignFinanceFilingsPayload {
-  state?: string;
-  ordered_by?: string;
-  filings?: ApiMoneyFilingPayload[] | null;
-  newest_period?: { period_end?: string | null; filing_count?: number | null } | null;
-}
-
 function blockState(state: string | undefined): 'reported' | 'unavailable' {
   return state === 'reported' ? 'reported' : 'unavailable';
 }
@@ -2776,36 +2766,6 @@ export async function getCampaignFinanceSummaryFromApi(): Promise<MoneyLandingSu
  * printed ordering sentence derives from `ordered_by` through
  * lib/moneyLanding.ts so the words and the order cannot drift apart.
  */
-export function campaignFinanceFilingsFromPayload(
-  payload: ApiCampaignFinanceFilingsPayload,
-): MoneyFilingsFeed {
-  return {
-    state: blockState(payload.state),
-    orderedBy: payload.ordered_by ?? '',
-    filings:
-      payload.state === 'reported'
-        ? (payload.filings ?? []).map((filing) => ({
-            registrationNumber: filing.registration_number ?? null,
-            filerName: filing.filer_name,
-            reportName: filing.report_name,
-            periodStart: filing.period_start ?? null,
-            periodEnd: filing.period_end ?? null,
-            filedDate: filing.filed_date ?? null,
-          }))
-        : [],
-    // Only a real number becomes a count. A missing or null figure leaves the
-    // block null so the sentence falls back to its no-count wording, rather
-    // than rendering 0 reports for a period that plainly has some.
-    newestPeriod:
-      payload.state === 'reported' && typeof payload.newest_period?.filing_count === 'number'
-        ? {
-            periodEnd: payload.newest_period.period_end ?? null,
-            filingCount: payload.newest_period.filing_count,
-          }
-        : null,
-  };
-}
-
 export async function getCampaignFinanceFilingsFromApi(limit = 5): Promise<MoneyFilingsFeed> {
   const params = new URLSearchParams({ limit: String(limit) });
   const response = await publicApiRequest<DetailResponse<ApiCampaignFinanceFilingsPayload>>(

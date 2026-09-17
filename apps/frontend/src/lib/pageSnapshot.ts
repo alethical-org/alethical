@@ -1,4 +1,10 @@
-import { MONEY_LANE_LOBBYING, lobbyistLaneCount } from './lobbyingDirectoryCopy';
+import { MONEY_LANE_LOBBYING, moneyLandingLobbyistCount } from './lobbyingDirectoryCopy';
+import {
+  MONEY_SOURCES_HEADING,
+  MONEY_SOURCES_ATTRIBUTION,
+  MONEY_SOURCES_PERIOD_NOTE,
+  MONEY_SOURCE_GROUPS,
+} from './moneyLandingSources';
 import { MONEY_SECTION_NAME } from './moneySectionName';
 import { MONEY_LIST_COVERAGE, MONEY_LIST_COVERAGE_HEADING } from './moneyListCopy';
 import {
@@ -15,7 +21,7 @@ import {
   statusLabel,
 } from './billDetail';
 import { citationSectionHref } from './billText';
-import type { CommitteeConfirmation } from '../data/types';
+import type { CommitteeConfirmation, MoneyFilingsFeed } from '../data/types';
 import { CONFIRMATION_UNAVAILABLE_LINE } from './committeeConfirmation';
 import {
   committeeMoneyPreferences,
@@ -50,6 +56,8 @@ import {
   piecePath,
   researchRunsText,
   researchSourceText,
+  piecesLabelledResearch,
+  isoDateCapsLabel,
   type ResearchInline,
   type ResearchPiece,
   type ResearchBlock,
@@ -153,8 +161,14 @@ import {
 } from './legislatorCampaignMoney';
 import {
   centralDateLabel,
-  FILES_LAST_COPIED_LABEL,
-  FILES_LAST_COPIED_NOTE,
+  filedDateSentence,
+  filingPeriodLine,
+  newestPeriodSentence,
+  orderingSentence,
+  RECENT_FILINGS_HEADING,
+  RESEARCH_ROW_LABEL,
+  RESEARCH_ROW_LINK,
+  RESEARCH_ROW_EMPTY,
   laneCountLine,
   MONEY_LANDING_HEADING,
   MONEY_LANDING_COVERAGE_HEADING,
@@ -257,6 +271,8 @@ export interface PageSnapshot {
   bodyIsList: boolean;
   /** The records shown on this directory page, each as a normal crawlable link. */
   records?: SnapshotRecordLink[];
+  /** Navigation on /money precedes its research, sources and report sections. */
+  recordsBeforeSections?: boolean;
   /** Extra factual blocks that the loaded page also draws. */
   sections?: SnapshotSection[];
   links: SnapshotLink[];
@@ -301,6 +317,10 @@ export interface SnapshotSection {
   body?: string[];
   bodyIsList?: boolean;
   items?: SnapshotSectionItem[];
+  /** Supporting source links stay closed until requested, including without JavaScript. */
+  sourceGroups?: typeof MONEY_SOURCE_GROUPS;
+  separated?: boolean;
+  researchFeature?: boolean;
 }
 
 function clean(value: string | null | undefined): string {
@@ -950,21 +970,25 @@ export interface MoneyLandingSnapshotSource {
   registerFilerCount: number | null;
   /** When we last copied the Board's files, as the served instant. */
   filesLastCopiedAt: string | null;
+  lobbyingFilesLastCopiedAt?: string | null;
+  filings?: MoneyFilingsFeed | null;
 }
 
-export function moneyLandingPageSnapshot(source: MoneyLandingSnapshotSource): PageSnapshot {
+export function moneyLandingPageSnapshot(
+  source: MoneyLandingSnapshotSource,
+  researchPieces: readonly ResearchPiece[] = piecesLabelledResearch(),
+): PageSnapshot {
   const committeeCount = laneCountLine(source.registerFilerCount, 'registered filers');
+  const newestPiece = researchPieces[0];
+  const filings = source.filings;
   return {
     heading: MONEY_LANDING_HEADING,
     subheading: '',
     bodyHeading: '',
     body: [MONEY_LANDING_SUBTITLE],
     bodyIsList: false,
-    // The 2 lanes that lead to something worth crawling. All 3 cards on the drawn
-    // page open a page since #1780, but the 3rd opens the name search, which is
-    // `noindex` because its address is whatever somebody typed — so a link to it
-    // here would hand a crawler a page it is told not to index. A reader still
-    // gets all 3 the moment the app renders.
+    recordsBeforeSections: true,
+    // Indexable destinations only. Who got paid opens the noindex name search.
     records: [
       {
         label: MONEY_LANE_LEGISLATORS.title,
@@ -988,28 +1012,74 @@ export function moneyLandingPageSnapshot(source: MoneyLandingSnapshotSource): Pa
       },
       {
         label: MONEY_LANE_LOBBYING.title,
-        detail: [MONEY_LANE_LOBBYING.body, lobbyistLaneCount(source.registeredLobbyists)]
+        detail: [MONEY_LANE_LOBBYING.body, moneyLandingLobbyistCount(source.registeredLobbyists)]
           .filter(Boolean)
           .join(' · '),
         href: '/money/lobbying',
       },
     ],
-    // The one freshness date this page shows, with the sentence that says what it
-    // is: the day we copied the files, never the period any money covers.
-    facts: source.filesLastCopiedAt
-      ? [
-          {
-            label: FILES_LAST_COPIED_LABEL,
-            lines: [centralDateLabel(source.filesLastCopiedAt), FILES_LAST_COPIED_NOTE],
-          },
-        ]
-      : [],
+    facts: [],
     sections: [
+      {
+        heading: RESEARCH_ROW_LABEL,
+        separated: true,
+        researchFeature: true,
+        body: newestPiece
+          ? [
+              newestPiece.title,
+              newestPiece.dek,
+              `PUBLISHED ${isoDateCapsLabel(newestPiece.publishedOn)}`,
+            ]
+          : [RESEARCH_ROW_EMPTY],
+        items: newestPiece ? [{ label: RESEARCH_ROW_LINK, href: piecePath(newestPiece) }] : [],
+      },
+      {
+        heading: MONEY_SOURCES_HEADING,
+        separated: true,
+        body: [
+          MONEY_SOURCES_ATTRIBUTION,
+          ...(source.filesLastCopiedAt
+            ? [`Campaign payment files last copied: ${centralDateLabel(source.filesLastCopiedAt)}`]
+            : []),
+          ...(source.lobbyingFilesLastCopiedAt
+            ? [`Lobbying files last copied: ${centralDateLabel(source.lobbyingFilesLastCopiedAt)}`]
+            : []),
+          MONEY_SOURCES_PERIOD_NOTE,
+        ],
+        sourceGroups: MONEY_SOURCE_GROUPS,
+      },
       {
         heading: MONEY_LANDING_COVERAGE_HEADING,
         body: [...MONEY_LANDING_RECORD_DOES_NOT_COVER],
         bodyIsList: true,
       },
+      ...(filings?.state === 'reported' && filings.filings.length > 0
+        ? [
+            {
+              heading: RECENT_FILINGS_HEADING,
+              separated: true,
+              body: [
+                newestPeriodSentence(filings.newestPeriod),
+                orderingSentence(filings.orderedBy),
+              ].filter((line): line is string => !!line),
+              items: filings.filings.map((filing) => ({
+                label: filing.filerName,
+                detail: [
+                  filing.reportName,
+                  filingPeriodLine(filing),
+                  filedDateSentence(filing.filedDate),
+                ]
+                  .filter(Boolean)
+                  .join(' · '),
+                ...(filing.registrationNumber
+                  ? {
+                      href: `/money/committees/${encodeURIComponent(committeeSlug(filing.filerName, filing.registrationNumber))}`,
+                    }
+                  : {}),
+              })),
+            },
+          ]
+        : []),
     ],
     links: [{ label: READ_PAGE_HEADING, href: '/read' }],
   };
@@ -1865,8 +1935,28 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
             )
             .join('')}</ul>`
         : '';
-      return orderedBlocks || sectionBody || items
-        ? `<h2>${escapeHtml(section.heading)}</h2>${orderedBlocks}${sectionBody}${items}`
+      const sourceGroups = section.sourceGroups
+        ? `<details><summary>View source links</summary>${section.sourceGroups
+            .map(
+              (group) =>
+                `<h3>${escapeHtml(group.title)}</h3>${group.paragraphs
+                  .map(
+                    (parts) =>
+                      `<p class="ps-prose">${parts
+                        .map((part) =>
+                          part.href
+                            ? `<a href="${escapeHtml(part.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(part.text)}</a>`
+                            : escapeHtml(part.text),
+                        )
+                        .join('')}</p>`,
+                  )
+                  .join('')}`,
+            )
+            .join('')}</details>`
+        : '';
+      const content = `${orderedBlocks}${sectionBody}${items}${sourceGroups}`;
+      return content
+        ? `${section.separated ? '<hr />' : ''}<h2>${escapeHtml(section.heading)}</h2>${section.researchFeature ? `<div style="background:#eaf6ef;border:1px solid #bfe3ce;border-radius:18px;padding:24px">${content}</div>` : content}`
         : '';
     })
     .join('');
@@ -1894,9 +1984,7 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
     body
       ? `${snapshot.bodyHeading ? `<h2>${escapeHtml(snapshot.bodyHeading)}</h2>` : ''}${body}`
       : '',
-    sections,
-    facts,
-    records,
+    ...(snapshot.recordsBeforeSections ? [records, sections, facts] : [sections, facts, records]),
     links,
     '</div>',
     '</div>',

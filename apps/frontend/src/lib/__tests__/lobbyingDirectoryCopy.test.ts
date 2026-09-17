@@ -3,6 +3,7 @@ import {
   LOBBYING_DIRECTORY_COPY as copy,
   MONEY_LANE_LOBBYING,
   lobbyistLaneCount,
+  moneyLandingLobbyistCount,
   principalLaneCount,
   lobbyingHeldYearsNote,
   lobbyingPrincipalCount,
@@ -19,6 +20,13 @@ describe('lobbying directory wording', () => {
     expect(principalLaneCount(1748, null)).toBeNull();
     expect(lobbyingHeldYearsNote(2014)).toBe('The spending records shown here begin in 2014');
     expect(lobbyingHeldYearsNote(null)).toBeNull();
+  });
+  it('names registered lobbyists on /money without implying the count is from today', () => {
+    expect(moneyLandingLobbyistCount(1665)).toBe('1,665 REGISTERED LOBBYISTS');
+    expect(moneyLandingLobbyistCount(0)).toBe('0 REGISTERED LOBBYISTS');
+    expect(moneyLandingLobbyistCount(null)).toBeNull();
+    expect(moneyLandingLobbyistCount(undefined)).toBeNull();
+    expect(lobbyistLaneCount(1665)).toBe('1,665 REGISTERED IN THIS COPY');
   });
   it('keeps full counts beside the page interval', () => {
     expect(lobbyingShowingLine('lobbyists', 2, 50, 1665)).toBe(
@@ -49,7 +57,7 @@ describe('lobbying directory wording', () => {
   it('keeps the sixth lane copy bare', () => {
     expect(MONEY_LANE_LOBBYING.title).toBe('Lobbying');
     expect(MONEY_LANE_LOBBYING.body).toBe(
-      'Who is registered to lobby the state, who they represent, and what those organisations report spending each year',
+      'Who is registered to lobby, who they represent, and what is reported spent',
     );
     expect(MONEY_LANE_LOBBYING.body.endsWith('.')).toBe(false);
   });
