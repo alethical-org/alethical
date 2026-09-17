@@ -176,6 +176,15 @@ describe('the money landing makes the reporting periods and destinations explici
   it('labels a mixed-period list separately from the dated newest-period count', () => {
     const { host } = mount();
     const words = host.textContent!;
+    const periodLine = exactText(
+      host,
+      'Latest completed period: 1,203 reports cover through Jul 20, 2026',
+    );
+    const periodColumn = periodLine.parentElement!;
+    const orderingLine = exactText(
+      host,
+      'Newest first by received date.\nIf missing, we use the reporting period’s end.',
+    );
     expect(words).toContain('RECENTLY FILED REPORTS');
     expect(words).not.toContain('THE MOST RECENT COMPLETED FILING PERIOD');
     expect(words).toContain('Latest completed period: 1,203 reports cover through Jul 20, 2026');
@@ -184,16 +193,22 @@ describe('the money landing makes the reporting periods and destinations explici
     expect(words).toContain(
       'Newest first by received date.\nIf missing, we use the reporting period’s end.',
     );
-    expect(
-      getComputedStyle(
-        exactText(
-          host,
-          'Newest first by received date.\nIf missing, we use the reporting period’s end.',
-        ),
-      ).textAlign,
-    ).toBe('right');
+    expect(getComputedStyle(orderingLine).textAlign).toBe('right');
+    expect(getComputedStyle(periodColumn).flexGrow).toBe('1.26');
+    expect(getComputedStyle(orderingLine).flexGrow).toBe('0.74');
+    expect(getComputedStyle(periodLine).marginTop).toBe('31px');
     expect(words).not.toContain('Never by amount');
     expect(words).not.toContain('reports cover this period');
+  });
+
+  it('restores the compact heading spacing when the report heading stacks', () => {
+    viewport.width = 900;
+    const { host } = mount();
+    const periodLine = exactText(
+      host,
+      'Latest completed period: 1,203 reports cover through Jul 20, 2026',
+    );
+    expect(getComputedStyle(periodLine).marginTop).toBe('14px');
   });
 
   it('links a known registration number without inventing a link or received date for another name', () => {
