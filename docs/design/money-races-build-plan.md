@@ -1,6 +1,6 @@
 # `/money/races` compact-directory build and release plan
 
-Status: implementation and focused checks in progress. Updated 17 September 2026.
+Status: implementation and automated checks complete; browser review blocks release. Updated 17 September 2026.
 The current coding agent owns the authorized build through a checked live release.
 
 ## Authorization and scope
@@ -31,7 +31,9 @@ new recurring task, navigation redesign or unrelated money-page changes are incl
   applicable. `group` uses the server's existing generated anchor, such as `house-12a`
   or `governor`. Opening a group clears the search in its new address; Back restores
   the previous directory search, office and position. Legacy `#house-12a` links still
-  resolve. Real links keep new-tab behavior. Focus moves to the group heading.
+  resolve only while the race screen is active. Real links keep new-tab behavior. Focus
+  moves to the group heading. The shared Share control preserves the current office,
+  group, year and search text in the same query-based address.
 - All data requests remain unfiltered by office so search can reach other offices.
   Directory filtering and displayed committee counts use that held response. Office
   counts remain global. Old rows and counts are hidden while another year loads.
@@ -77,13 +79,20 @@ new recurring task, navigation redesign or unrelated money-page changes are incl
 - [x] Implement copy, route state and directory/focused initial response.
 - [x] Run focused helper, snapshot, route and page-handler tests: 378 passed.
 - [x] Run TypeScript checks after the initial integration: passed.
-- [ ] Finish screen/search integration and focused interaction tests.
-- [ ] Complete independent review and appropriate release checks on the final changes.
+- [x] Finish screen/search integration and 25 focused interaction tests.
+- [x] Complete independent source review, TypeScript, formatting and all 3,274 frontend tests.
+- [x] Fix ambiguous-Enter focus loss, literal-null search matches and inactive-screen hash handling.
 - [ ] Complete permitted browser review of phone, tablet and desktop states.
-- [ ] Open the pull request, pass checks, merge, deploy and exercise the live flow.
+- [ ] Open the draft pull request and finish remote checks.
+- [ ] After browser review passes, mark ready, merge, deploy and exercise the live flow.
 
 Browser access is currently blocked because the browser tool could not verify the
 admin-enforced policy. No alternate browser, headless route or other indirect path may
 bypass that refusal. The user-side reconnection is pending; continue independent safe
 implementation and checks while that boundary remains. Static checks do not count as
 browser or live-release evidence. The parent agent retains the release work.
+
+Current branch: `codex/money-races-directory-v2`. The saved changes include the current
+sitewide Share control and the shared scroll-restoration protections. Resume browser
+review, any resulting corrections, the merge and live verification within the existing
+user authorization; another build approval is not required.
