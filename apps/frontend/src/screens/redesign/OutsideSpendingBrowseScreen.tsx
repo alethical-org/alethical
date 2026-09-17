@@ -427,7 +427,6 @@ export function OutsideSpendingBrowseScreen({
             <Chevron />
             <Text style={styles.backText}>{MONEY_SECTION_NAME}</Text>
           </Pressable>
-          <Text style={styles.eyebrow}>CAMPAIGN MONEY</Text>
           <ResultsHeading
             isMobile={isMobile}
             content={
@@ -673,14 +672,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: t.colors.text.secondary,
-  },
-  eyebrow: {
-    fontFamily: t.typography.body,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 2.4,
-    color: t.colors.text.greenOnLight,
-    marginBottom: 12,
   },
   h1: {
     fontFamily: t.typography.title,

@@ -134,6 +134,8 @@ afterEach(() => {
 describe('outside spending browsing', () => {
   it('opens filed IDs in outside spending and leaves missing IDs visible without links', async () => {
     await render({ year: '2024' });
+    expect(host.textContent).toContain('Spending by group');
+    expect(host.textContent).not.toContain('CAMPAIGN MONEY');
     state.record = { ...state.record!, year: 2024 };
     state.names = { ...state.names!, year: 2024 };
     await render({ year: '2024' });
