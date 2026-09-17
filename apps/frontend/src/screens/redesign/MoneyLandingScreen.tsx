@@ -888,7 +888,7 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
   filingsTie: {
-    marginTop: 31,
+    marginTop: 23,
     color: t.colors.text.primary,
     fontFamily: t.typography.body,
     fontVariant: ['tabular-nums'],
