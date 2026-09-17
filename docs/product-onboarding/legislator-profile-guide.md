@@ -81,7 +81,9 @@ design sample.
 ## Share and planned features
 
 Share uses the legislator's public Alethical address and the common rules in
-[`sharing-guide.md`](sharing-guide.md).
+[`sharing-guide.md`](sharing-guide.md). Sharing Campaign money keeps `tab=money`, the
+selected year and the contribution rows open for each committee. The shared address
+reopens that view on phones and computers.
 
 Planned profile claiming and vote explanations are clearly labelled **ON THE ROADMAP**.
 Their examples are not interactive. Alethical must not offer a button that looks usable

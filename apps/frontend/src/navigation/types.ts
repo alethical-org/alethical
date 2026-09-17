@@ -98,6 +98,7 @@ export type RootStackParamList = {
     contributionDetails?: string;
     evidence?: string;
     earlierYears?: string;
+    spendingSort?: string;
   };
   CommitteePayments: { slug: string; tab?: string; year?: string };
   // The register of filers, A to Z. The name box, the kind filter and the

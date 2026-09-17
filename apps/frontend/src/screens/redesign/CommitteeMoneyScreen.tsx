@@ -2,7 +2,7 @@ import {
   CONFIRMATION_LOADING_LINE,
   CONFIRMATION_UNAVAILABLE_LINE,
 } from '../../lib/committeeConfirmation';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -308,6 +308,7 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
               contributionDetails={route.params?.contributionDetails}
               evidenceOpen={route.params?.evidence === '1'}
               earlierYearsOpen={route.params?.earlierYears === '1'}
+              spendingSort={route.params?.spendingSort}
             />
           )}
         </View>
@@ -407,10 +408,12 @@ function CommitteeBody({
   contributionDetails,
   evidenceOpen,
   earlierYearsOpen,
+  spendingSort,
 }: {
   contributionDetails?: string;
   evidenceOpen: boolean;
   earlierYearsOpen: boolean;
+  spendingSort?: string;
   money: CommitteeMoney;
   year: number;
   tab: CommitteeTab;
@@ -481,6 +484,7 @@ function CommitteeBody({
         contributionDetails,
         evidence: evidenceOpen ? '1' : undefined,
         earlierYears: earlierYearsOpen ? '1' : undefined,
+        spendingSort,
       }),
     ),
   };
@@ -577,6 +581,7 @@ function CommitteeBody({
             preferences={preferences}
             onPreferences={onPreferences}
             contributionDetails={contributionDetails}
+            spendingSort={spendingSort}
             moneyControls={
               <>
                 <View style={[styles.yearRow, isMobile && styles.yearRowMobile]}>
@@ -858,8 +863,10 @@ function PaymentsSection({
   moneyControls,
   moneyFooter,
   contributionDetails,
+  spendingSort,
 }: {
   contributionDetails?: string;
+  spendingSort?: string;
   money: CommitteeMoney;
   year: number;
   tab: CommitteeTab;
@@ -876,7 +883,9 @@ function PaymentsSection({
   onPreferences: (preferences: MoneyDetailsPreferences) => void;
 }) {
   const { isMobile, isTablet } = useResponsive();
-  const [sort, setSort] = useState<OutsideSpendingSort>('newest');
+  const sort: OutsideSpendingSort = spendingSort === 'largest' ? 'largest' : 'newest';
+  const setSort = (next: OutsideSpendingSort) =>
+    navigation.setParams({ spendingSort: next === 'largest' ? next : undefined });
   const spentBy = useOutsideSpending({ spender: registrationNumber }, sort);
   const first = spentBy.data?.pages[0];
   const hasByRows = first?.state === 'reported' && (first.totalRows ?? 0) > 0;
@@ -1015,9 +1024,9 @@ function PaymentsSection({
  * never-added sentence sits above the rows on both tabs, because this file is never
  * added to the ordinary expenditures file.
  *
- * Sorted newest first by default, largest first on request; the sort is the page's
- * own state rather than part of the address, because it is a view over one list
- * rather than a location. Pages of 50 accumulate under "Show more payments".
+ * Sorted newest first by default, largest first on request. The address preserves
+ * spendingSort separately from donor sorting. Pages of 50 accumulate under
+ * "Show more payments".
  */
 function OutsideSpendingPanel({
   tab,
@@ -1092,6 +1101,10 @@ function OutsideSpendingPanel({
                 onPress={() => onSelectSort(option)}
                 accessibilityRole="button"
                 aria-pressed={active}
+                style={(state) => [
+                  { minHeight: 44, justifyContent: 'center' },
+                  Boolean('focused' in state && state.focused) && detailsStyles.focus,
+                ]}
               >
                 <Text style={[styles.listSort, active && styles.listSortActive]}>
                   {OUTSIDE_SORT_LABELS[option].toUpperCase()}

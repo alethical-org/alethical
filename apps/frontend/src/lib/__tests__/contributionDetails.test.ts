@@ -25,6 +25,7 @@ describe('shared contribution details addresses', () => {
         contributionDetails: '19019.2025.0,19019.2025.2',
         evidence: '1',
         earlierYears: '1',
+        spendingSort: 'largest',
       },
     },
     {

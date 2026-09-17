@@ -457,6 +457,54 @@ describe('one committee shares the donation browser', () => {
     expect(window.history.state).not.toEqual(entry);
   });
 
+  it('keeps independent spending order in its address and Share without changing donor choices', async () => {
+    state.by = true;
+    params = { ...params, tab: 'by', category: 'committees', sort: 'smallest' };
+    window.history.replaceState({}, '', pathForRoute({ name: 'CommitteeMoney', params }));
+    initializeWebHistory();
+    await render();
+    expect(button('NEWEST FIRST')?.getAttribute('aria-pressed')).toBe('true');
+    click(button('LARGEST FIRST'));
+    expect(params).toMatchObject({
+      tab: 'by',
+      spendingSort: 'largest',
+      category: 'committees',
+      sort: 'smallest',
+    });
+    expect(new URLSearchParams(window.location.search).get('spendingSort')).toBe('largest');
+    const share = host.querySelector<HTMLAnchorElement>('[data-testid="share-url"]')!;
+    const sharedAddress = new URL(share.href);
+    expect(sharedAddress.searchParams.get('spendingSort')).toBe('largest');
+    expect(sharedAddress.searchParams.get('sort')).toBe('smallest');
+    expect(sharedAddress.searchParams.get('category')).toBe('committees');
+    expect(vi.mocked(useOutsideSpending).mock.lastCall).toEqual([{ spender: '19193' }, 'largest']);
+
+    click(button('Campaign money'));
+    await render();
+    expect(params).toMatchObject({
+      spendingSort: 'largest',
+      category: 'committees',
+      sort: 'smallest',
+    });
+    expect(tab('Committees & Funds')?.getAttribute('aria-selected')).toBe('true');
+    expect(
+      host.querySelector('[aria-label="Sort names, currently Smallest first"]'),
+    ).not.toBeNull();
+
+    // A fresh mount receives the saved shared address rather than surviving local state.
+    act(() => root.unmount());
+    root = createRoot(host);
+    params = paramsFromAddress(sharedAddress.pathname + sharedAddress.search);
+    await render();
+    expect(button('LARGEST FIRST')?.getAttribute('aria-pressed')).toBe('true');
+    expect(vi.mocked(useOutsideSpending).mock.lastCall).toEqual([{ spender: '19193' }, 'largest']);
+    expect(params).toMatchObject({
+      spendingSort: 'largest',
+      category: 'committees',
+      sort: 'smallest',
+    });
+  });
+
   it('labels Independent spending as all years and keeps payments outside the cards’ selected year', async () => {
     params.tab = 'by';
     state.by = true;

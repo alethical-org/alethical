@@ -37,6 +37,7 @@ type WebRouteTarget =
       contributionDetails?: string;
       evidence?: string;
       earlierYears?: string;
+      spendingSort?: string;
       slug: string;
       tab?: string;
       year?: string;
@@ -417,6 +418,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
         contributionDetails: searchParams.get('contributionDetails') ?? undefined,
         evidence: searchParams.get('evidence') ?? undefined,
         earlierYears: searchParams.get('earlierYears') ?? undefined,
+        spendingSort: searchParams.get('spendingSort') ?? undefined,
         category: searchParams.get('category') ?? undefined,
         sort: searchParams.get('sort') ?? undefined,
       };
@@ -687,11 +689,12 @@ export function pathForRoute(activeRoute: {
         params.set('year', String(activeRoute.params.year));
       }
       if (activeRoute.name === 'CommitteeMoney') {
-        const { category, sort, tab, contributionDetails, evidence, earlierYears } =
+        const { category, sort, tab, contributionDetails, evidence, earlierYears, spendingSort } =
           activeRoute.params ?? {};
         if (contributionDetails) params.set('contributionDetails', String(contributionDetails));
         if (evidence === '1') params.set('evidence', '1');
         if (earlierYears === '1') params.set('earlierYears', '1');
+        if (spendingSort === 'largest') params.set('spendingSort', spendingSort);
         if (category && (category !== 'individuals' || tab === 'spent'))
           params.set('category', String(category));
         if (sort && sort !== 'largest') params.set('sort', String(sort));
