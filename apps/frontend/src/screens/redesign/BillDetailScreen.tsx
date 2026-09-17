@@ -918,7 +918,10 @@ function BillDetailMobileScreen() {
                             onPress={() => jumpTo('actions')}
                             style={styles.phasedLink}
                           >
-                            <LinkArrowLabel label="See dates" />
+                            {'See dates\u00A0'}
+                            <Text aria-hidden style={styles.phasedArrow}>
+                              →
+                            </Text>
                           </Text>
                         </Text>
                       ) : null}
@@ -1484,7 +1487,7 @@ function ActionRow({
             <Text style={styles.undatedNoteText}>{row.note}</Text>
           </View>
         ) : null}
-        {onViewVotes ? <TextLink label="View votes" arrow size={15} onPress={onViewVotes} /> : null}
+        {onViewVotes ? <TextLink label="View votes →" size={15} onPress={onViewVotes} /> : null}
       </View>
     </View>
   );
@@ -2516,6 +2519,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
   },
   phasedLink: { fontWeight: t.fontWeights.bold, color: t.colors.text.green },
+  phasedArrow: { fontWeight: t.fontWeights.regular },
   // Same quiet caption weight as the phased-law one: it qualifies the status it
   // sits under rather than competing with it (#757).
   pointerCaption: {

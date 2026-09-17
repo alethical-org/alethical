@@ -1,12 +1,18 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import ts from 'typescript';
 
 const SRC = join(__dirname, '..', '..');
 
 const legacyTextArrowLimits: Record<string, number> = {
   'components/billDetail/CitationCard.tsx': 1,
   'screens/redesign/LegislatorProfileMobileScreen.tsx': 1,
+  // On-screen actions restored to their pre-link-standardization appearance.
+  'components/billDetail/FactsRail.tsx': 1, // See dates: section jump.
+  'components/billDetail/ActionsTab.tsx': 1, // View votes: section jump.
+  'screens/redesign/BillDetailScreen.tsx': 2, // See dates and View votes.
+  'screens/redesign/AskAnswerScreen.tsx': 1, // Try again: retry in place.
 };
 
 function tsxFiles(directory: string): string[] {
@@ -23,7 +29,38 @@ function visibleTextArrowCount(source: string) {
 }
 
 describe('mobile link arrows', () => {
-  it('blocks new text arrows so phone links use the shared, consistently drawn arrow', () => {
+  it('does not put destination-link arrow helpers inside on-screen buttons', () => {
+    for (const path of tsxFiles(SRC)) {
+      const file = relative(SRC, path);
+      const source = ts.createSourceFile(
+        path,
+        readFileSync(path, 'utf8'),
+        ts.ScriptTarget.Latest,
+        true,
+      );
+      function visit(node: ts.Node) {
+        if (
+          ts.isJsxElement(node) &&
+          node.openingElement.attributes.properties.some(
+            (attr) =>
+              ts.isJsxAttribute(attr) &&
+              ['accessibilityRole', 'role'].includes(attr.name.getText(source)) &&
+              attr.initializer &&
+              ts.isStringLiteral(attr.initializer) &&
+              attr.initializer.text === 'button',
+          )
+        ) {
+          expect
+            .soft(node.getText(source), `${file} gave an on-screen button a destination arrow`)
+            .not.toMatch(/<(?:GreenLinkArrow|LinkArrowLabel)\b/);
+        }
+        ts.forEachChild(node, visit);
+      }
+      visit(source);
+    }
+  });
+
+  it('blocks new text link arrows while preserving accepted on-screen action arrows', () => {
     for (const path of tsxFiles(SRC)) {
       const file = relative(SRC, path);
       const arrowCount = visibleTextArrowCount(readFileSync(path, 'utf8'));
@@ -33,13 +70,16 @@ describe('mobile link arrows', () => {
     }
   });
 
-  it('blocks local copies of the old green arrow drawing', () => {
+  it('blocks local copies of the old green link drawing outside the restored reveal action', () => {
     const oldGreenArrow =
       /d="M5 12 H19 M1[34] [67] L19 12 L1[34] 1[78]"[\s\S]{0,180}stroke="#0f7a45"/;
 
     for (const path of tsxFiles(SRC)) {
       const file = relative(SRC, path);
-      const source = readFileSync(path, 'utf8');
+      let source = readFileSync(path, 'utf8');
+      if (file === 'components/lobbying/LobbyingRecordCards.tsx') {
+        source = source.replace(/function RevealArrow\(\) \{[\s\S]*?\n\}/, '');
+      }
       expect(source, `${file} drew an old green arrow instead of using LinkArrow`).not.toMatch(
         oldGreenArrow,
       );

@@ -139,7 +139,7 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   issue label without relying on color alone. On phones, its 44px target comes from a minimum height,
   not inflated vertical padding. The shared implementation is `VoteCountLinkChip`; the action
   timeline's per-action "View votes →" text link is a different element and stays unchanged.
-- **Every green trailing link arrow uses the Board-refund treatment (Eugene, 17 Sep 2026).** The
+- **Every green trailing destination-link arrow uses the Board-refund treatment (Eugene, 17 Sep 2026).** The
   approved example is “The Board’s refund summaries” on the legislator money page. Draw the arrow
   with [`LinkArrow.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/LinkArrow.tsx):
   a 19×19 box, `#0f7a45` stroke, 1.8px line, rounded ends and joins, and the shared path in that
@@ -151,11 +151,24 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   the label. Do not type `→` or `↗`, draw a local copy, change its size, invent a different gap, or
   add `top`, `bottom`, a vertical margin, `translateY`, or `verticalAlign` to a page's arrow. If a
   Design drawing shows another arrow treatment or local vertical adjustment, this approved treatment
-  wins and the build corrects the drawing. The `mobileLinkArrows.test.ts` check rejects typed arrows,
-  old local drawings, and page-specific vertical adjustments.
+  wins and the build corrects the drawing. The `mobileLinkArrows.test.ts` check rejects typed link
+  arrows, old local link drawings, and page-specific link-arrow vertical adjustments, while allowing
+  the restored on-screen action treatments below.
 - **The rule standardizes arrows that already exist; it does not add them.** A green link whose
   accepted surface has no trailing arrow keeps no arrow. Back arrows, disclosure chevrons, and
   arrows used as data or diagrams are outside this rule.
+- **On-screen actions keep their own appearance (Eugene, 17 Sep 2026).** This treatment applies
+  to links that open another internal or external page, not controls that act on the current
+  screen. Preserve an action's accepted arrow presence or absence, drawing, size, spacing,
+  and alignment. Action colors are a separate treatment, not inherited from green destination
+  links. This includes Show earlier years, Show the next 30, Show more
+  payments, retry, expand/collapse, filters, year selection, and jumps to another section of the
+  same page. An action may already have an arrow; that does not make it a destination link.
+  A URL that saves a filter, year, tab, or scroll target does not change that
+  distinction. Inspect what the control does, not just whether it has an `href`. Use the shared
+  destination-link arrow helpers only for destination links. During Design review and build,
+  apply the approved Board-refund treatment to destination arrows and preserve action controls
+  separately; never sweep both into 1 styling rule.
 - **Optical centering for icon + label buttons.** Our icons are drawn on a 24-unit viewBox with the
   marks inset to roughly the middle 50% (the ✕ runs 6,6 → 18,18; chevrons 6 → 18; the plus 5 → 19), so
   at our 13–17px sizes an icon carries ~3px of empty box on its outer side. Symmetric padding then

@@ -1,5 +1,6 @@
 import React, { useState, type ReactNode } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 import { GreenLinkArrow, LinkArrowLabel, linkArrowRow } from '../LinkArrow';
 import { useHover } from '../billDetail/interactions';
@@ -431,9 +432,24 @@ function RevealButton({ onPress, label }: { onPress: () => void; label: string }
         ]}
       >
         <Text style={styles.revealLabel}>{label}</Text>
-        <GreenLinkArrow />
+        <RevealArrow />
       </Pressable>
     </View>
+  );
+}
+
+// An on-screen reveal, not a destination link. Preserve its original small arrow.
+function RevealArrow() {
+  return (
+    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <Path
+        d="M5 12 H19 M14 7 L19 12 L14 17"
+        stroke="#0f7a45"
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
   );
 }
 
@@ -561,7 +577,9 @@ const styles: Record<string, any> = {
     borderTopColor: 'rgba(17,21,15,0.1)',
   },
   revealButton: {
-    ...linkArrowRow,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     minHeight: 52,
     width: '100%',
     justifyContent: 'center',

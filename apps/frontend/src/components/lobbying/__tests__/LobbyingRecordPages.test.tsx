@@ -185,6 +185,13 @@ describe('lobbying record lists', () => {
     expect(page.querySelectorAll('[role="listitem"]')).toHaveLength(5);
     expect(page.querySelectorAll('[role="listitem"] > a[href]')).toHaveLength(linkCount(5));
     expect(page.querySelector('[role="listitem"] > a')?.getAttribute('role')).toBe('link');
+    const reveal = [...page.querySelectorAll('[role="button"]')].find(
+      (button) => button.textContent === 'Show 5 more clients',
+    )!;
+    expect(reveal.querySelector('[data-testid="link-arrow"]')).toBeNull();
+    expect(reveal.querySelector('svg')?.getAttribute('width')).toBe('14');
+    expect(reveal.querySelector('path')?.getAttribute('d')).toBe('M5 12 H19 M14 7 L19 12 L14 17');
+    expect(reveal.querySelector('path')?.getAttribute('stroke')).toBe('#0f7a45');
     clickButton(page, 'Show 5 more clients');
     expect(page.textContent).toContain('86 clients · showing 10');
     expect(page.querySelectorAll('[role="listitem"]')).toHaveLength(10);
