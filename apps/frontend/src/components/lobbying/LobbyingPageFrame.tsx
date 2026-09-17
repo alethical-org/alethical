@@ -20,6 +20,7 @@ export function LobbyingPageFrame({
   title,
   details,
   shareContent,
+  narrow = false,
   children,
   onBack,
   onHome,
@@ -28,6 +29,7 @@ export function LobbyingPageFrame({
   title?: string;
   details?: ReactNode;
   shareContent?: ShareContent;
+  narrow?: boolean;
   children: ReactNode;
   onBack: () => void;
   onHome: () => void;
@@ -39,7 +41,14 @@ export function LobbyingPageFrame({
       <ScrollView {...scrollRestoration} contentContainerStyle={styles.page}>
         <TopNav onHome={onHome} />
         <Container
-          style={[styles.main, isTablet && styles.mainTablet, isMobile && styles.mainMobile]}
+          style={[
+            styles.main,
+            isTablet && styles.mainTablet,
+            isMobile && styles.mainMobile,
+            narrow && styles.mainNarrow,
+            narrow && isTablet && styles.mainNarrowTablet,
+            narrow && isMobile && styles.mainNarrowMobile,
+          ]}
         >
           <Pressable {...backLinkProps(routePath.lobbying(), onBack)} style={styles.backLink}>
             <BackArrow />
@@ -53,7 +62,14 @@ export function LobbyingPageFrame({
                 <Text
                   accessibilityRole="header"
                   aria-level={1}
-                  style={[styles.h1, isTablet && styles.h1Tablet, isMobile && styles.h1Mobile]}
+                  style={[
+                    styles.h1,
+                    isTablet && styles.h1Tablet,
+                    isMobile && styles.h1Mobile,
+                    narrow && styles.h1Narrow,
+                    narrow && isTablet && styles.h1NarrowTablet,
+                    narrow && isMobile && styles.h1NarrowMobile,
+                  ]}
                 >
                   {title}
                 </Text>
@@ -74,23 +90,49 @@ export function LobbyingPageFrame({
 export function LobbyingCard({
   label,
   title,
+  scan = false,
   children,
 }: {
   label: string;
   title: string;
+  scan?: boolean;
   children: ReactNode;
 }) {
   const { isMobile, isTablet } = useResponsive();
-  const headingSize = isMobile ? 20 : isTablet ? 22 : 24;
+  const headingSize = scan
+    ? isMobile
+      ? 21
+      : isTablet
+        ? 24
+        : 27
+    : isMobile
+      ? 20
+      : isTablet
+        ? 22
+        : 24;
+  const padding = scan
+    ? isMobile
+      ? '22px 18px 18px'
+      : isTablet
+        ? '26px 28px 22px'
+        : '30px 34px 24px'
+    : isMobile
+      ? '20px 18px'
+      : isTablet
+        ? '26px 26px 24px'
+        : '30px 32px 28px';
   return (
     <article
       aria-label={label}
       style={{
         ...card,
-        padding: isMobile ? '20px 18px' : isTablet ? '26px 26px 24px' : '30px 32px 28px',
+        ...(scan ? scanCard : null),
+        padding,
       }}
     >
-      <h2 style={{ ...cardHeading, fontSize: headingSize }}>{title}</h2>
+      <h2 style={{ ...cardHeading, ...(scan ? scanCardHeading : null), fontSize: headingSize }}>
+        {title}
+      </h2>
       {children}
     </article>
   );
@@ -163,11 +205,39 @@ const cardHeading: CSSProperties = {
   lineHeight: 1.2,
 };
 
+const scanCard: CSSProperties = {
+  marginTop: 20,
+  borderRadius: 18,
+  boxShadow: '0 1px 2px rgba(17,21,15,0.04), 0 12px 28px rgba(17,21,15,0.05)',
+};
+
+const scanCardHeading: CSSProperties = {
+  letterSpacing: '-0.02em',
+  lineHeight: 1.16,
+};
+
 const styles: Record<string, any> = {
   page: { flexGrow: 1 },
   main: { paddingTop: 24, paddingBottom: 40 },
   mainTablet: { paddingTop: 24 },
   mainMobile: { paddingTop: 20, paddingBottom: 32 },
+  mainNarrow: {
+    maxWidth: 1032,
+    alignSelf: 'center',
+    paddingTop: 22,
+    paddingBottom: 48,
+  },
+  mainNarrowTablet: {
+    maxWidth: '100%',
+    paddingHorizontal: 32,
+    paddingTop: 24,
+    paddingBottom: 44,
+  },
+  mainNarrowMobile: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 36,
+  },
   backLink: {
     minHeight: 44,
     alignSelf: 'flex-start',
@@ -210,6 +280,9 @@ const styles: Record<string, any> = {
   },
   h1Tablet: { fontSize: 38, lineHeight: 41, letterSpacing: -1.14 },
   h1Mobile: { fontSize: 30, lineHeight: 32.4, letterSpacing: -0.9 },
+  h1Narrow: { fontSize: 38, lineHeight: 40.3, letterSpacing: -1.14 },
+  h1NarrowTablet: { fontSize: 34, lineHeight: 36, letterSpacing: -1.02 },
+  h1NarrowMobile: { fontSize: 28, lineHeight: 29.7, letterSpacing: -0.84 },
   body: { marginTop: 4 },
   stateBody: { marginTop: 18 },
   stateCard: {

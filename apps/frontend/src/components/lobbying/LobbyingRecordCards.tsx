@@ -2,6 +2,7 @@ import React, { useState, type ReactNode } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
 
 import { GreenLinkArrow, LinkArrowLabel, linkArrowRow } from '../LinkArrow';
+import { useHover } from '../billDetail/interactions';
 import { useResponsive } from '../../hooks/useResponsive';
 import { committeeSlug, registerKindLabel } from '../../lib/committeeMoneyShared';
 import { formatDay, formatMoney } from '../../lib/legislatorCampaignMoney';
@@ -56,15 +57,13 @@ export function PrincipalLobbyistsCard({
           <View role="list" style={styles.list}>
             {visible.map((row) => (
               <View key={row.registration_number} role="listitem">
-                <Pressable
-                  {...linkProps(
-                    routePath.lobbyingLobbyist(`${slugName(row.name)}-${row.registration_number}`),
-                    () => onOpenLobbyist(row),
+                <ClientLinkRow
+                  label={row.name}
+                  path={routePath.lobbyingLobbyist(
+                    `${slugName(row.name)}-${row.registration_number}`,
                   )}
-                  style={styles.linkRow}
-                >
-                  <LinkArrowLabel label={row.name} style={styles.rowName} />
-                </Pressable>
+                  onPress={() => onOpenLobbyist(row)}
+                />
               </View>
             ))}
           </View>
@@ -99,9 +98,19 @@ export function LobbyistPrincipalsCard({
   const visible = rows.slice(0, shown);
   const hasMissingSpendingPages = visible.some((row) => !row.linkable);
   return (
-    <LobbyingCard label="Clients on the copy date" title={lobbyingLobbyistCopy.principalsHeading}>
+    <LobbyingCard
+      scan
+      label="Clients on the copy date"
+      title={lobbyingLobbyistCopy.principalsHeading}
+    >
       <Paragraph fullWidth>{lobbyingLobbyistCopy.principalsIntroduction}</Paragraph>
-      <LobbyingSourceLink url={LOBBYIST_SOURCE_URL} label={lobbyingLobbyistCopy.sourceLabel} />
+      <RecordStrip sourceUrl={LOBBYIST_SOURCE_URL} sourceLabel={lobbyingLobbyistCopy.sourceLabel}>
+        {state === 'reported' && total !== null && total > 0 ? (
+          <CountLine inline>
+            {recordCountLine(total, visible.length, 'client', 'clients')}
+          </CountLine>
+        ) : null}
+      </RecordStrip>
       {state === 'unavailable' || total === null ? (
         <Unavailable>{LOBBYIST_PRINCIPALS_UNAVAILABLE}</Unavailable>
       ) : state === 'not_registered_today' ? (
@@ -112,7 +121,6 @@ export function LobbyistPrincipalsCard({
         <Paragraph primary>{lobbyingLobbyistCopy.noPrincipals}</Paragraph>
       ) : (
         <>
-          <CountLine>{recordCountLine(total, visible.length, 'client', 'clients')}</CountLine>
           {hasMissingSpendingPages ? (
             <Text style={styles.listNote}>
               {lobbyingMissingSpendingPagesNote(latestYear ?? null)}
@@ -122,17 +130,13 @@ export function LobbyistPrincipalsCard({
             {visible.map((row) =>
               row.linkable ? (
                 <View key={`${row.entity_id}-${row.position}`} role="listitem">
-                  <Pressable
-                    {...linkProps(
-                      routePath.lobbyingPrincipal(
-                        `${slugName(row.spending_name ?? row.name)}-${row.entity_id}`,
-                      ),
-                      () => onOpenPrincipal(row),
+                  <ClientLinkRow
+                    label={row.name}
+                    path={routePath.lobbyingPrincipal(
+                      `${slugName(row.spending_name ?? row.name)}-${row.entity_id}`,
                     )}
-                    style={styles.linkRow}
-                  >
-                    <LinkArrowLabel label={row.name} style={styles.rowName} />
-                  </Pressable>
+                    onPress={() => onOpenPrincipal(row)}
+                  />
                 </View>
               ) : (
                 <View
@@ -183,24 +187,28 @@ export function LobbyistDonationsCard({
   );
   return (
     <LobbyingCard
+      scan
       label="Campaign donations under this registration number"
       title={lobbyingLobbyistCopy.donationsHeading}
     >
       <Paragraph>{lobbyingLobbyistCopy.donationsIntroduction}</Paragraph>
-      {copiedDate ? <FileDate>{copiedDate}</FileDate> : null}
-      {contributions.source_url ? (
-        <LobbyingSourceLink
-          url={contributions.source_url}
-          label={CAMPAIGN_CONTRIBUTION_SOURCE_LABEL}
-        />
-      ) : null}
+      <RecordStrip
+        sourceUrl={contributions.source_url}
+        sourceLabel={CAMPAIGN_CONTRIBUTION_SOURCE_LABEL}
+      >
+        {total !== null && total > 0 ? (
+          <CountLine inline>
+            {recordCountLine(total, visibleCount, 'donation', 'donations')}
+          </CountLine>
+        ) : null}
+        {copiedDate ? <FileDate inline>{copiedDate}</FileDate> : null}
+      </RecordStrip>
       {contributions.state === 'unavailable' || total === null ? (
         <Unavailable>{LOBBYIST_DONATIONS_UNAVAILABLE}</Unavailable>
       ) : total === 0 || contributions.state === 'not_reported' ? (
         <Paragraph primary>{lobbyingLobbyistCopy.noDonations}</Paragraph>
       ) : (
         <>
-          <CountLine>{recordCountLine(total, visibleCount, 'donation', 'donations')}</CountLine>
           {visible.map((year) => (
             <DonationYear
               key={year.year ?? 'unknown'}
@@ -234,9 +242,15 @@ function DonationYear({
   registeredName: string;
   onOpenCommittee: (registrationNumber: string, name: string) => void;
 }) {
+  const { isMobile, isTablet } = useResponsive();
+  const paymentDateWidth = isMobile ? 100 : isTablet ? 116 : 124;
+  const paymentAmountWidth = isMobile ? 96 : isTablet ? 104 : 108;
   return (
     <View style={styles.donationYear}>
-      <Text style={styles.yearLabel}>{year.year ?? 'YEAR NOT REPORTED'}</Text>
+      <View style={styles.yearBand}>
+        <Text style={styles.yearLabel}>{year.year ?? 'YEAR NOT REPORTED'}</Text>
+        <View style={styles.yearRule} />
+      </View>
       <View role="list" style={styles.committeeList}>
         {year.committees.map((committee, index) => {
           const name = committee.name ?? 'Committee name not reported';
@@ -272,7 +286,7 @@ function DonationYear({
                   const donatedGoods = payment.in_kind === 'Yes';
                   return (
                     <View key={payment.record_number} style={styles.paymentRow}>
-                      <View style={styles.paymentText}>
+                      <View style={[styles.paymentText, { width: paymentDateWidth }]}>
                         <Text style={styles.paymentDate}>
                           {formatDay(payment.received_on) ?? 'Date not reported'}
                         </Text>
@@ -286,7 +300,7 @@ function DonationYear({
                           </Text>
                         ) : null}
                       </View>
-                      <Text style={styles.paymentAmount}>
+                      <Text style={[styles.paymentAmount, { width: paymentAmountWidth }]}>
                         {formatMoney(payment.amount) ?? 'Not reported'}
                       </Text>
                     </View>
@@ -301,6 +315,50 @@ function DonationYear({
   );
 }
 
+function ClientLinkRow({
+  path,
+  label,
+  onPress,
+}: {
+  path: string;
+  label: string;
+  onPress: () => void;
+}) {
+  const [hovered, hover] = useHover();
+  return (
+    <Pressable
+      {...linkProps(path, onPress)}
+      {...hover}
+      style={({ pressed }) => [
+        styles.linkRow,
+        hovered && styles.rowHover,
+        pressed && styles.rowPressed,
+      ]}
+    >
+      <Text style={styles.rowName}>{label}</Text>
+      <GreenLinkArrow />
+    </Pressable>
+  );
+}
+
+function RecordStrip({
+  sourceUrl,
+  sourceLabel,
+  children,
+}: {
+  sourceUrl: string | null | undefined;
+  sourceLabel: string;
+  children: ReactNode;
+}) {
+  const { isMobile } = useResponsive();
+  return (
+    <View style={[styles.recordStrip, isMobile && styles.recordStripMobile]}>
+      <View style={styles.recordStripCount}>{children}</View>
+      {sourceUrl ? <LobbyingSourceLink url={sourceUrl} label={sourceLabel} /> : null}
+    </View>
+  );
+}
+
 function Paragraph({
   children,
   primary = false,
@@ -311,11 +369,12 @@ function Paragraph({
   fullWidth?: boolean;
 }) {
   const { isMobile, isTablet } = useResponsive();
+  const measure = isMobile ? 295 : isTablet ? 620 : 640;
   return (
     <Text
       style={[
         styles.paragraph,
-        !fullWidth && styles.paragraphConstrained,
+        !fullWidth && { maxWidth: measure },
         { fontSize: isMobile || isTablet ? 16 : 17 },
         primary && styles.paragraphPrimary,
       ]}
@@ -325,12 +384,12 @@ function Paragraph({
   );
 }
 
-function CountLine({ children }: { children: ReactNode }) {
-  return <Text style={styles.countLine}>{children}</Text>;
+function CountLine({ children, inline = false }: { children: ReactNode; inline?: boolean }) {
+  return <Text style={[styles.countLine, inline && styles.countLineInline]}>{children}</Text>;
 }
 
-function FileDate({ children }: { children: ReactNode }) {
-  return <Text style={styles.fileDate}>{children}</Text>;
+function FileDate({ children, inline = false }: { children: ReactNode; inline?: boolean }) {
+  return <Text style={[styles.fileDate, inline && styles.fileDateInline]}>{children}</Text>;
 }
 
 function Unavailable({ children }: { children: ReactNode }) {
@@ -342,22 +401,39 @@ function Unavailable({ children }: { children: ReactNode }) {
 }
 
 export function LobbyingSourceLink({ url, label }: { url: string; label: string }) {
+  const [hovered, hover] = useHover();
   return (
     <Pressable
       {...externalLinkProps(url, () => void Linking.openURL(url))}
+      {...hover}
       style={styles.sourceLink}
     >
-      <LinkArrowLabel label={label} style={styles.sourceLabel} />
+      <LinkArrowLabel
+        label={label}
+        style={[styles.sourceLabel, hovered && styles.sourceLabelHover]}
+      />
     </Pressable>
   );
 }
 
 function RevealButton({ onPress, label }: { onPress: () => void; label: string }) {
+  const [hovered, hover] = useHover();
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.revealButton}>
-      <Text style={styles.revealLabel}>{label}</Text>
-      <GreenLinkArrow />
-    </Pressable>
+    <View style={styles.revealWrap}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onPress}
+        {...hover}
+        style={({ pressed }) => [
+          styles.revealButton,
+          hovered && styles.revealButtonHover,
+          pressed && styles.revealButtonPressed,
+        ]}
+      >
+        <Text style={styles.revealLabel}>{label}</Text>
+        <GreenLinkArrow />
+      </Pressable>
+    </View>
   );
 }
 
@@ -375,16 +451,28 @@ const styles: Record<string, any> = {
     fontFamily: theme.typography.body,
     lineHeight: 26,
   },
-  paragraphConstrained: { maxWidth: 820 },
   paragraphPrimary: { marginTop: 16, color: '#11150f' },
+  recordStrip: {
+    minHeight: 45,
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+    flexWrap: 'wrap',
+  },
+  recordStripMobile: { alignItems: 'flex-start' },
+  recordStripCount: { minWidth: 0, gap: 2 },
   countLine: {
     marginTop: 14,
-    color: '#4f5651',
+    color: '#3f463f',
     fontFamily: theme.typography.body,
     fontSize: 15,
     fontWeight: '800',
+    letterSpacing: 0.15,
     fontVariant: ['tabular-nums'],
   },
+  countLineInline: { marginTop: 0 },
   fileDate: {
     marginTop: 12,
     color: '#4f5651',
@@ -393,13 +481,11 @@ const styles: Record<string, any> = {
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
+  fileDateInline: { marginTop: 0 },
   sourceLink: {
-    marginTop: 4,
-    minHeight: 44,
+    minHeight: 45,
+    paddingVertical: 13,
     alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
   },
   sourceLabel: {
     color: '#0f7a45',
@@ -408,6 +494,7 @@ const styles: Record<string, any> = {
     fontWeight: '700',
     lineHeight: 22,
   },
+  sourceLabelHover: { color: '#11832b', textDecorationLine: 'underline' },
   unavailable: {
     marginTop: 16,
     maxWidth: 820,
@@ -416,22 +503,32 @@ const styles: Record<string, any> = {
     fontSize: 16,
     lineHeight: 24,
   },
-  list: { marginTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(17,21,15,0.08)' },
+  list: { marginTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(17,21,15,0.14)' },
   linkRow: {
     minHeight: 52,
-    paddingHorizontal: 2,
+    marginHorizontal: -10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     ...linkArrowRow,
+    justifyContent: 'space-between',
+    borderRadius: 8,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(17,21,15,0.08)',
+    borderBottomColor: 'rgba(17,21,15,0.07)',
   },
+  rowHover: { backgroundColor: '#f4f6f4' },
+  rowPressed: { backgroundColor: '#eaeeea' },
   plainRow: {
     minHeight: 56,
-    paddingVertical: 10,
-    paddingHorizontal: 2,
-    justifyContent: 'center',
-    gap: 3,
+    marginHorizontal: -10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(17,21,15,0.08)',
+    borderBottomColor: 'rgba(17,21,15,0.07)',
   },
   rowName: {
     flexShrink: 1,
@@ -445,22 +542,41 @@ const styles: Record<string, any> = {
     color: '#6b716b',
     fontFamily: theme.typography.body,
     fontSize: 15,
+    fontWeight: '600',
     lineHeight: 21,
     fontVariant: ['tabular-nums'],
   },
   listNote: {
-    marginTop: 8,
-    maxWidth: 820,
+    marginTop: 4,
     color: '#6b716b',
     fontFamily: theme.typography.body,
     fontSize: 15,
     lineHeight: 22,
     fontVariant: ['tabular-nums'],
   },
+  revealWrap: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(17,21,15,0.1)',
+  },
   revealButton: {
     ...linkArrowRow,
-    minHeight: 44,
-    alignSelf: 'flex-start',
+    minHeight: 52,
+    width: '100%',
+    justifyContent: 'center',
+    backgroundColor: '#f7f8f7',
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.14)',
+    borderRadius: 10,
+  },
+  revealButtonHover: {
+    backgroundColor: '#eef1ee',
+    borderColor: 'rgba(17,21,15,0.28)',
+  },
+  revealButtonPressed: {
+    backgroundColor: '#e7eae7',
+    borderColor: 'rgba(17,21,15,0.36)',
   },
   revealLabel: {
     color: '#0f7a45',
@@ -469,6 +585,8 @@ const styles: Record<string, any> = {
     fontWeight: '700',
   },
   donationYear: { marginTop: 20 },
+  yearBand: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  yearRule: { height: 1, flex: 1, backgroundColor: 'rgba(17,21,15,0.14)' },
   yearLabel: {
     color: '#4f5651',
     fontFamily: theme.typography.body,
@@ -477,21 +595,12 @@ const styles: Record<string, any> = {
     letterSpacing: 1.3,
     fontVariant: ['tabular-nums'],
   },
-  committeeList: {
-    marginTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(17,21,15,0.12)',
-  },
-  committeeBlock: {
-    paddingTop: 6,
-    paddingBottom: 13,
-    paddingHorizontal: 2,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(17,21,15,0.08)',
-  },
+  committeeList: { marginTop: 2 },
+  committeeBlock: { marginTop: 18 },
   committeeLink: {
     ...linkArrowRow,
-    minHeight: 44,
+    minHeight: 45,
+    paddingVertical: 12,
     alignSelf: 'flex-start',
   },
   committeeName: {
@@ -503,36 +612,44 @@ const styles: Record<string, any> = {
   },
   committeeMeta: {
     color: '#656c66',
-    fontFamily: theme.typography.mono,
-    fontSize: 12,
+    fontFamily: theme.typography.body,
+    fontSize: 12.5,
     fontWeight: '800',
-    letterSpacing: 0.96,
+    letterSpacing: 1.125,
     fontVariant: ['tabular-nums'],
   },
-  payments: { marginTop: 8, gap: 6 },
+  payments: {
+    marginTop: 8,
+    marginLeft: 16,
+    paddingLeft: 16,
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(17,21,15,0.14)',
+  },
   paymentRow: {
-    minHeight: 30,
-    paddingLeft: 18,
+    minHeight: 34,
+    paddingVertical: 6,
     flexDirection: 'row',
     alignItems: 'baseline',
-    justifyContent: 'space-between',
     gap: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(17,21,15,0.07)',
   },
-  paymentText: { flex: 1, minWidth: 0 },
+  paymentText: { flexShrink: 0, minWidth: 0 },
   paymentDate: {
     color: '#11150f',
     fontFamily: theme.typography.body,
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 15.5,
+    fontWeight: '700',
     lineHeight: 21,
     fontVariant: ['tabular-nums'],
   },
   paymentAmount: {
     color: '#11150f',
     fontFamily: theme.typography.body,
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 16.5,
+    fontWeight: '800',
     lineHeight: 21,
+    textAlign: 'right',
     fontVariant: ['tabular-nums'],
   },
   paymentNote: {

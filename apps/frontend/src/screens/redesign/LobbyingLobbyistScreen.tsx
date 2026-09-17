@@ -57,6 +57,7 @@ export function LobbyingLobbyistScreen({ route, navigation }: RootScreenProps<'L
 
   const shell = (children: React.ReactNode) => (
     <LobbyingPageFrame
+      narrow
       onBack={() => navigation.navigate('LobbyingLanding')}
       onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
     >
@@ -108,6 +109,7 @@ export function LobbyingLobbyistScreen({ route, navigation }: RootScreenProps<'L
 
   return (
     <LobbyingPageFrame
+      narrow
       eyebrow={`LOBBYIST · REGISTRATION ${lobbyist.registration_number}`}
       title={displayName}
       details={<View>{copiedLine ? <Text style={styles.copyDate}>{copiedLine}</Text> : null}</View>}
