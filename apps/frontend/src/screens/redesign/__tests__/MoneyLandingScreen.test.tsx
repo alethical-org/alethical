@@ -196,7 +196,7 @@ describe('the money landing makes the reporting periods and destinations explici
     expect(getComputedStyle(orderingLine).textAlign).toBe('right');
     expect(getComputedStyle(periodColumn).flexGrow).toBe('1.26');
     expect(getComputedStyle(orderingLine).flexGrow).toBe('0.74');
-    expect(getComputedStyle(periodLine).marginTop).toBe('31px');
+    expect(getComputedStyle(periodLine).marginTop).toBe('23px');
     expect(words).not.toContain('Never by amount');
     expect(words).not.toContain('reports cover this period');
   });
