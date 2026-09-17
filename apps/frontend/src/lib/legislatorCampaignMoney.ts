@@ -36,6 +36,15 @@ export const EARLIEST_CAMPAIGN_MONEY_YEAR = 2015;
 export type CampaignMoneyYear = number;
 
 /**
+ * The React Query key for one member's money in one year. Defined here, in a
+ * module both sides already load, so the page function can hand the answer it
+ * read to the app under the exact key the app's hook asks for (`lib/pageData.ts`).
+ */
+export function legislatorCampaignMoneyQueryKey(legislatorId: string, year: number) {
+  return ['legislator-campaign-money', legislatorId, year] as const;
+}
+
+/**
  * The recent years offered by the existing committee record controls, newest first.
  *
  * Read off the calendar rather than written down, and that is the whole point. A

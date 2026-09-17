@@ -46,6 +46,7 @@ export {
   PAYMENT_NAME_ROLES,
   PAYMENTS_UNDER_NAME_PAGE_SIZE,
   paymentNameRole,
+  paymentUnderName,
   paymentsUnderNameHeading,
   type PaymentNameRole,
 } from './paymentNameRoute';

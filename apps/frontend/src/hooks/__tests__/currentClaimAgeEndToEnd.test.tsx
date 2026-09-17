@@ -27,6 +27,7 @@ import {
   CURRENT_CLAIM_MAX_AGE_MS,
   PAGE_SHARED_CACHE_MAX_AGE_MS,
 } from '../../lib/currentClaimFreshness';
+import { legislatorCampaignMoneyQueryKey } from '../../lib/legislatorCampaignMoney';
 import { campaignFinanceSummaryQueryKey } from '../../lib/moneyLanding';
 import { renderPageData, resetSeededPayloadsForTests } from '../../lib/pageData';
 import {
@@ -34,6 +35,7 @@ import {
   useCampaignFinanceCommittees,
   useCommitteeMoney,
   useCommitteeConfirmation,
+  useLegislatorCampaignMoney,
 } from '../useAppQueries';
 import { useCurrentClaimExpiry } from '../useCurrentClaimExpiry';
 
@@ -277,6 +279,69 @@ describe('an answer embedded in a page reaches the app with its real age', () =>
     expect(ageNow).toBe(API_SHARED_CACHE_MAX_AGE_MS + PAGE_SHARED_CACHE_MAX_AGE_MS);
     expect(ageNow).toBe(16 * 60_000);
     expect(currentClaimIsWithheld(ageNow)).toBe(false);
+  });
+});
+
+/** What `/legislators/jim-abeler/campaign-finance?year=2025` serves: `link_state` is
+ *  the claim that expires, exactly as a committee confirmation does. */
+const LEGISLATOR_MONEY = {
+  legislator_id: 'jim-abeler',
+  year: 2025,
+  link_state: 'confirmed',
+  release_id: 'release-1',
+  fetched_at: '2026-09-01T12:00:00Z',
+  current_claim_validated_at: '2026-09-07T11:54:00.000Z',
+  committees: [],
+};
+
+describe('a money-tab page hands its money answer to the app with its real age', () => {
+  it('counts the API cache once for a served legislator money answer, not twice', () => {
+    seed(
+      renderPageData([
+        {
+          key: legislatorCampaignMoneyQueryKey('jim-abeler', 2025),
+          payload: LEGISLATOR_MONEY,
+          validatedAgeMs: API_SHARED_CACHE_MAX_AGE_MS,
+        },
+      ]),
+    );
+
+    const passes: { servedAgeMs: number | undefined; dataUpdatedAt: number; isStale: boolean }[] =
+      [];
+    function Probe() {
+      const query = useLegislatorCampaignMoney('jim-abeler', 2025);
+      passes.push({
+        servedAgeMs: query.data?.currentClaim.servedAgeMs,
+        dataUpdatedAt: query.dataUpdatedAt,
+        isStale: query.isStale,
+      });
+      return null;
+    }
+    const host = document.createElement('div');
+    document.body.append(host);
+    const client = createAppQueryClient();
+    act(() => {
+      createRoot(host).render(
+        (
+          <QueryClientProvider client={client}>
+            <Probe />
+          </QueryClientProvider>
+        ) as ReactNode,
+      );
+    });
+
+    // Drawn in the first frame from the served answer, with no request made.
+    expect(passes[0].servedAgeMs).toBe(0);
+    expect(fetch).not.toHaveBeenCalled();
+    const ageNow = currentClaimAgeMs({
+      servedAgeMs: passes[0].servedAgeMs ?? 0,
+      receivedAt: passes[0].dataUpdatedAt,
+      now: NOON.getTime(),
+    });
+    expect(ageNow).toBe(API_SHARED_CACHE_MAX_AGE_MS + PAGE_SHARED_CACHE_MAX_AGE_MS);
+    expect(currentClaimIsWithheld(ageNow)).toBe(false);
+    // An answer this old is already stale, so the next focus asks the service again.
+    expect(passes[0].isStale).toBe(true);
   });
 });
 

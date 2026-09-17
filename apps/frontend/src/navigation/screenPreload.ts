@@ -5,7 +5,13 @@ import { stateFromPathname } from './webRoutes';
 /** Route names that are a second address for one screen, so both fetch one piece. */
 const SHARED_SCREEN: Record<string, ScreenChunkName> = { Guide: 'Research' };
 
-/** The screen an address lands on, read from the router itself. */
+/**
+ * The screen an address lands on, read from the router itself.
+ *
+ * Give it the whole address, query string included. The router decides some
+ * screens from the query string alone: `/money/payments?name=…&role=…` is the
+ * payments-under-a-name screen and bare `/money/payments` is the not-found page.
+ */
 export function screenNameForPath(pathname: string): string | null {
   const state = stateFromPathname(pathname);
   const route = state.routes[state.index ?? state.routes.length - 1];

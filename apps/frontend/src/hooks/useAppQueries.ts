@@ -23,6 +23,12 @@ import {
   getMetaFromApi,
   getLegislatorCampaignMoneyFromApi,
   getLegislatorFromApi,
+  legislatorCampaignMoneyFromPayload,
+  mapLegislator,
+  paymentsUnderNamePageFromPayload,
+  type ApiLegislatorCampaignMoneyPayload,
+  type ApiLegislatorDetailPayload,
+  type ApiPaymentsUnderNamePayload,
   getLegislatorOutsideSpendingFromApi,
   getLegislatorVotesFromApi,
   campaignFinanceFilingsFromPayload,
@@ -96,7 +102,8 @@ import {
   campaignFinanceSummaryQueryKey,
 } from '../lib/moneyLanding';
 import { readerIsSavingData } from '../lib/dataSaving';
-import { campaignMoneyYear } from '../lib/legislatorCampaignMoney';
+import { campaignMoneyYear, legislatorCampaignMoneyQueryKey } from '../lib/legislatorCampaignMoney';
+import { legislatorRecordQueryKey } from '../lib/legislatorProfile';
 import { seededQuery } from '../lib/pageData';
 import {
   committeeConfirmationQueryKey,
@@ -109,7 +116,11 @@ import {
   outsideSpendingRecordPageFromPayload,
   outsideSpendingRecordQueryKey,
 } from '../lib/outsideSpending';
-import { PAYMENTS_UNDER_NAME_PAGE_SIZE, type PaymentNameRole } from '../lib/paymentNameRoute';
+import {
+  PAYMENTS_UNDER_NAME_PAGE_SIZE,
+  paymentsUnderNameQueryKey,
+  type PaymentNameRole,
+} from '../lib/paymentNameRoute';
 import { trackState, TrackState } from '../lib/trackedState';
 import { routePath } from '../navigation/links';
 import { screenLoaderForPath } from '../navigation/screenPreload';
@@ -314,9 +325,14 @@ export function useLegislators(
 }
 
 export function useLegislator(legislatorId: string) {
+  const key = legislatorRecordQueryKey(legislatorId);
   return useQuery({
-    queryKey: ['legislator', legislatorId],
+    queryKey: key,
     queryFn: () => getLegislatorFromApi(legislatorId),
+    // The profile's first response already carries this record, read with the same
+    // fields this hook asks for, so the profile draws it in its first frame instead
+    // of a skeleton until the identical request comes back (issue 1966).
+    ...seededQuery(key, (payload: ApiLegislatorDetailPayload) => mapLegislator(payload)),
     retry: false,
   });
 }
@@ -371,9 +387,17 @@ export function useLegislatorCampaignMoney(
   year: number,
   options: { enabled?: boolean } = {},
 ) {
+  const key = legislatorCampaignMoneyQueryKey(legislatorId, year);
   return useQuery({
-    queryKey: ['legislator-campaign-money', legislatorId, year],
+    queryKey: key,
     queryFn: () => getLegislatorCampaignMoneyFromApi(legislatorId, year),
+    // A money-tab address carries this answer in its first response. Its claim
+    // about whose committee this is expires, so the seed's whole age rides in
+    // `initialDataUpdatedAt` and the shaped answer says 0, as the committee
+    // confirmation seed does (`lib/pageData.ts`, issue 2023).
+    ...seededQuery(key, (payload: ApiLegislatorCampaignMoneyPayload) =>
+      legislatorCampaignMoneyFromPayload(payload, { servedAgeMs: 0 }),
+    ),
     enabled: Boolean(legislatorId) && (options.enabled ?? true),
     retry: false,
   });
@@ -724,8 +748,9 @@ export function useCommitteePaymentsList(
  * does not.
  */
 export function usePaymentsUnderName(name: string, role: PaymentNameRole | null) {
+  const key = paymentsUnderNameQueryKey(name, role);
   return useInfiniteQuery({
-    queryKey: ['payments-under-name', name, role],
+    queryKey: key,
     queryFn: async ({ pageParam, signal }): Promise<PaymentsUnderNamePage> => {
       const page = await getPaymentsUnderNameFromApi(name, role as PaymentNameRole, {
         limit: PAYMENTS_UNDER_NAME_PAGE_SIZE,
@@ -747,6 +772,18 @@ export function usePaymentsUnderName(name: string, role: PaymentNameRole | null)
         : undefined,
     enabled: name.length > 0 && role !== null,
     retry: false,
+    // The address's first response carries this same first page, so the rows a
+    // reader can already read as text are not taken away and fetched again.
+    // Spread last for the same reason the committee payments hook does.
+    ...seededQuery(
+      key,
+      (
+        payload: ApiPaymentsUnderNamePayload,
+      ): InfiniteData<PaymentsUnderNamePage, { offset: number; releaseId: string | null }> => ({
+        pages: [paymentsUnderNamePageFromPayload(payload, name, role as PaymentNameRole)],
+        pageParams: [{ offset: 0, releaseId: null }],
+      }),
+    ),
   });
 }
 

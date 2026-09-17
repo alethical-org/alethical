@@ -16,5 +16,11 @@ import { preloadScreenForPath } from './src/navigation/screenPreload';
 if (typeof document === 'undefined') {
   registerRootComponent(App);
 } else {
-  void preloadScreenForPath(window.location.pathname).then(() => registerRootComponent(App));
+  // The whole address, query string included: /money/payments?name=…&role=… is
+  // one screen and the same path with no query string is the not-found page, so
+  // reading the pathname alone fetched the wrong screen's file and then made the
+  // right one wait behind React's 300 ms marker (measured 17 Sep 2026).
+  void preloadScreenForPath(`${window.location.pathname}${window.location.search}`).then(() =>
+    registerRootComponent(App),
+  );
 }

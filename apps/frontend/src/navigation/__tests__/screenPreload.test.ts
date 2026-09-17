@@ -25,6 +25,16 @@ describe('screenNameForPath', () => {
     expect(screenNameForPath('/bills/HF1')).toBe('BillDetail');
     expect(screenNameForPath('/legislators')).toBe('Legislators');
   });
+
+  // The address's query string decides this screen. Reading the pathname alone
+  // fetched the not-found page's file on every payments-by-name visit and left the
+  // real screen waiting behind React's 300 ms marker (17 Sep 2026).
+  it('reads the query string, which alone tells payments-by-name from not-found', () => {
+    expect(screenNameForPath('/money/payments?name=Larsen%2C+Mary+Lu&role=contributor')).toBe(
+      'PaymentsUnderName',
+    );
+    expect(screenNameForPath('/money/payments')).toBe('NotFound');
+  });
 });
 
 describe('screenLoaderForPath', () => {

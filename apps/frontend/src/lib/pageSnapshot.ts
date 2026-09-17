@@ -1,3 +1,18 @@
+import {
+  filesLastCopiedLine,
+  INDEPENDENT_IS_A_SEPARATE_FILING,
+  LIST_NOTE,
+  nothingFiledTitle,
+  nothingFiledWhy,
+  ORDERED_NEWEST_FIRST,
+  paymentsShowingLine,
+  paymentsUnderNameHeading,
+  paymentsUnderNameStandfirst,
+  RECORDS_UNAVAILABLE_TITLE,
+  RECORDS_UNAVAILABLE_WHY,
+  type PaymentUnderNameRow,
+} from './paymentsUnderName';
+import type { PaymentNameRole } from './paymentNameRoute';
 import { MONEY_LANE_LOBBYING, moneyLandingLobbyistCount } from './lobbyingDirectoryCopy';
 import {
   MONEY_SOURCES_HEADING,
@@ -1404,6 +1419,83 @@ export function moneySearchPageSnapshot(): PageSnapshot {
     links: [
       { label: BROWSE_ALL_COMMITTEES, href: '/money/committees' },
       { label: OUTSIDE_SPENDING_HEADING, href: OUTSIDE_SPENDING_PATH },
+      { label: MONEY_LANDING_HEADING, href: '/money' },
+    ],
+  };
+}
+
+/**
+ * Every payment filed under one printed name, as text, in the first response
+ * (`/money/payments?name=…&role=…`). The same rows the app's first page draws,
+ * in the same order the server serves them (newest first), each with the
+ * committee link the interactive row offers. Every sentence is the screen's own
+ * wording (`lib/paymentsUnderName.ts`), so the served page and the drawn page
+ * cannot say different things about the same spelling.
+ */
+export function paymentsUnderNamePageSnapshot(
+  name: string,
+  role: PaymentNameRole,
+  page: {
+    state?: string | null;
+    rows: readonly PaymentUnderNameRow[];
+    hasMore: boolean;
+    fetchedAt?: string | null;
+  },
+): PageSnapshot {
+  const served = page.state === 'reported';
+  const copiedOn = page.fetchedAt ? centralDateLabel(page.fetchedAt) : null;
+  const body = [
+    paymentsUnderNameStandfirst(role),
+    ...(role === 'independent_vendor' ? [INDEPENDENT_IS_A_SEPARATE_FILING] : []),
+    filesLastCopiedLine(copiedOn),
+  ];
+  const rows = served ? page.rows : [];
+  const listState: string[] = served
+    ? rows.length > 0
+      ? // No filer count: the served page reads the rows one at a time, and a
+        // count over a capped list would read as the number of committees that filed.
+        [paymentsShowingLine(rows.length, null, page.hasMore, role), ORDERED_NEWEST_FIRST]
+      : [nothingFiledTitle(name), nothingFiledWhy(role)]
+    : [RECORDS_UNAVAILABLE_TITLE, RECORDS_UNAVAILABLE_WHY];
+  return {
+    heading: paymentsUnderNameHeading(name, role),
+    subheading: '',
+    bodyHeading: '',
+    body,
+    bodyIsList: false,
+    facts: [],
+    sections: [
+      {
+        heading: listState[0],
+        body: listState.slice(1),
+        bodyIsList: false,
+        items: rows.map((row) => ({
+          label: [
+            row.name,
+            row.inKind ? IN_KIND_CHIP : '',
+            row.meta,
+            row.date ?? 'Date not given in the filing',
+            row.amount ?? 'Amount not given',
+          ]
+            .filter(Boolean)
+            .join(' · '),
+          // The same destination the interactive row offers, and only where this
+          // release holds that number as a filer, so the link opens a page that exists.
+          href:
+            row.linkNumber && row.linkName
+              ? `/money/committees/${encodeURIComponent(committeeSlug(row.linkName, row.linkNumber))}`
+              : undefined,
+        })),
+        ...(rows.length > 0 ? { blocks: [{ kind: 'prose' as const, lines: [LIST_NOTE] }] } : {}),
+      },
+      {
+        heading: MONEY_LIST_COVERAGE_HEADING,
+        body: [...MONEY_LIST_COVERAGE],
+        bodyIsList: true,
+      },
+    ],
+    links: [
+      { label: 'Search another name', href: '/money/search' },
       { label: MONEY_LANDING_HEADING, href: '/money' },
     ],
   };
