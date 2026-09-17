@@ -1,8 +1,21 @@
-import { useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type TextInput,
+} from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
+import { LinkArrow } from '../../components/LinkArrow';
+import { LobbyingSearchResults } from '../../components/lobbying/LobbyingSearchResults';
+import { useLobbyingNameSearch } from '../../hooks/useLobbyingNameSearch';
+import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
+import { LOBBYING_SEARCH_COPY, LOBBYING_SEARCH_MIN_LENGTH } from '../../lib/lobbyingSearch';
 import { useLobbyingSummary } from '../../hooks/useLobbying';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
@@ -21,11 +34,22 @@ import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
 
-export function LobbyingLandingScreen({ navigation }: RootScreenProps<'LobbyingLanding'>) {
+export function LobbyingLandingScreen({ navigation, route }: RootScreenProps<'LobbyingLanding'>) {
   const { isMobile, isTablet } = useResponsive();
   const summary = useLobbyingSummary();
   const data = summary.data?.state === 'reported' ? summary.data : null;
-  const [query, setQuery] = useState('');
+  const submitted = typeof route.params?.q === 'string' ? route.params.q.trim() : '';
+  const [query, setQuery] = useState(submitted);
+  const [invalid, setInvalid] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+  useEffect(() => {
+    setQuery(submitted);
+    setInvalid(false);
+  }, [submitted]);
+  const search = useLobbyingNameSearch(submitted);
+  const hasSearch = submitted.length >= LOBBYING_SEARCH_MIN_LENGTH;
+  const scroll = useHistoryScrollRestoration();
+  const shortMessage = invalid || (submitted.length > 0 && !hasSearch);
   const fontSize = isMobile ? 16 : isTablet ? 16 : 17;
   const body = { fontSize, lineHeight: fontSize * 1.5 };
   const h1Size = isMobile ? 32 : isTablet ? 44 : 56;
@@ -35,7 +59,25 @@ export function LobbyingLandingScreen({ navigation }: RootScreenProps<'LobbyingL
     : isTablet
       ? { paddingTop: 26, paddingHorizontal: 26, paddingBottom: 24 }
       : { paddingTop: 30, paddingHorizontal: 32, paddingBottom: 28 };
-  const goSearch = () => navigation.navigate('MoneySearch', { q: query.trim() || undefined });
+  const goSearch = () => {
+    const next = query.trim();
+    if (next.length < LOBBYING_SEARCH_MIN_LENGTH) {
+      setInvalid(true);
+      return;
+    }
+    setInvalid(false);
+    setQuery(next);
+    if (next === submitted) {
+      void search.lobbyists.refetch();
+      void search.principals.refetch();
+    } else navigation.setParams({ q: next });
+  };
+  const clearSearch = () => {
+    setQuery('');
+    setInvalid(false);
+    navigation.setParams({ q: undefined });
+    inputRef.current?.focus();
+  };
   const heldYears = lobbyingHeldYearsNote(data?.first_year);
   useDocumentTitle(
     routePath.lobbying(),
@@ -44,7 +86,7 @@ export function LobbyingLandingScreen({ navigation }: RootScreenProps<'LobbyingL
 
   return (
     <PageBackground>
-      <ScrollView contentContainerStyle={styles.page}>
+      <ScrollView {...scroll} contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
         <Container style={[styles.main, { paddingHorizontal: isMobile ? 20 : isTablet ? 32 : 56 }]}>
           <Pressable
@@ -56,7 +98,6 @@ export function LobbyingLandingScreen({ navigation }: RootScreenProps<'LobbyingL
             </Svg>
             <Text style={styles.backText}>{MONEY_SECTION_NAME}</Text>
           </Pressable>
-          <Text style={styles.eyebrow}>{copy.landingLabel}</Text>
           <Text
             accessibilityRole="header"
             aria-level={1}
@@ -69,24 +110,56 @@ export function LobbyingLandingScreen({ navigation }: RootScreenProps<'LobbyingL
           </Text>
           <View style={styles.search}>
             <MoneyNameSearchField
+              inputRef={inputRef}
+              maxLength={200}
+              label={LOBBYING_SEARCH_COPY.label}
+              labelStyle={styles.searchLabel}
               value={query}
-              onChangeText={setQuery}
+              onChangeText={(next) => {
+                setQuery(next);
+                setInvalid(false);
+              }}
               onSubmit={goSearch}
               placeholder={copy.search}
               submitLabel={copy.searchButton}
               showSubmitButton
-              maxWidth={780}
+              maxWidth={840}
               fieldHeight={isMobile ? 52 : isTablet ? 56 : 62}
               fieldFontSize={fontSize}
               stacked={isMobile}
             />
-            <Text style={styles.searchNote}>{copy.searchNote}</Text>
+            {shortMessage ? (
+              <Text accessibilityRole="alert" style={styles.validation}>
+                {LOBBYING_SEARCH_COPY.tooShort}
+              </Text>
+            ) : null}
+            <View style={[styles.helperRow, isMobile && styles.column]}>
+              <Text style={styles.searchNote}>{copy.searchNote}</Text>
+              {submitted ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={clearSearch}
+                  style={[styles.clear, isMobile && styles.clearMobile]}
+                >
+                  <Text style={styles.clearText}>{LOBBYING_SEARCH_COPY.clear}</Text>
+                </Pressable>
+              ) : null}
+            </View>
           </View>
-          <View style={[styles.lanes, isMobile && styles.column]}>
+          {hasSearch ? (
+            <LobbyingSearchResults
+              query={submitted}
+              search={search}
+              navigation={navigation}
+              isMobile={isMobile}
+              isTablet={isTablet}
+            />
+          ) : null}
+          <View style={[styles.lanes, hasSearch && styles.compactLanes, isMobile && styles.column]}>
             {[
               {
                 title: copy.lobbyists.title,
-                body: copy.lobbyists.intro,
+                body: copy.lobbyists.lane,
                 count: lobbyistLaneCount(data?.registered_lobbyists),
                 href: routePath.lobbyingLobbyists(),
                 open: () => navigation.navigate('LobbyingLobbyists'),
@@ -102,7 +175,7 @@ export function LobbyingLandingScreen({ navigation }: RootScreenProps<'LobbyingL
               <Pressable
                 key={lane.title}
                 {...linkProps(lane.href, lane.open)}
-                style={[styles.lane, isMobile && styles.stacked]}
+                style={[styles.lane, hasSearch && styles.compactLane, isMobile && styles.stacked]}
               >
                 <View style={styles.laneTitleRow}>
                   <Text
@@ -112,16 +185,9 @@ export function LobbyingLandingScreen({ navigation }: RootScreenProps<'LobbyingL
                   >
                     {lane.title}
                   </Text>
-                  <Svg width={18} height={18} viewBox="0 0 24 24" aria-hidden>
-                    <Path
-                      d="M5 12 H19 M14 7 L19 12 L14 17"
-                      fill="none"
-                      stroke="#0f7a45"
-                      strokeWidth={2.2}
-                    />
-                  </Svg>
+                  <LinkArrow color="#0f7a45" />
                 </View>
-                <Text style={[styles.laneBody, body]}>{lane.body}</Text>
+                {!hasSearch ? <Text style={[styles.laneBody, body]}>{lane.body}</Text> : null}
                 {lane.count ? <Text style={styles.laneCount}>{lane.count}</Text> : null}
               </Pressable>
             ))}
@@ -150,21 +216,22 @@ export function LobbyingLandingScreen({ navigation }: RootScreenProps<'LobbyingL
                 <Text style={styles.cardLabel}>{copy.copiedLabel}</Text>
                 <Text style={styles.date}>{centralDateLabel(data.copied_at)}</Text>
                 <Text style={styles.note}>{copy.copiedNote}</Text>
-                <Text
+                <Pressable
                   {...externalLinkProps(
                     LOBBYING_SOURCE_URL,
                     () => void Linking.openURL(LOBBYING_SOURCE_URL),
                   )}
                   style={styles.sourceLink}
                 >
-                  {copy.sourceLabel} ↗
-                </Text>
+                  <Text style={styles.sourceText}>{copy.sourceLabel}</Text>
+                  <LinkArrow color="#0f7a45" />
+                </Pressable>
               </View>
             ) : null}
             <View style={[styles.card, styles.infoCard, cardPadding, isMobile && styles.stacked]}>
               <Text style={styles.cardLabel}>{copy.coverageLabel}</Text>
               <View role="list" style={styles.coverage}>
-                {[copy.currentOnly, copy.annual, heldYears]
+                {[copy.currentOnly, [copy.annual, heldYears].filter(Boolean).join(' ')]
                   .filter((line): line is string => line != null)
                   .map((line) => (
                     <View role="listitem" key={line}>
@@ -192,33 +259,56 @@ const styles = StyleSheet.create({
     gap: 9,
   },
   backText: { fontFamily: t.typography.body, fontSize: 16, fontWeight: '600', color: '#4f5651' },
-  eyebrow: {
-    marginTop: 14,
-    fontFamily: t.typography.body,
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 2.6,
-    color: '#0f7a45',
-    fontVariant: ['tabular-nums'],
-  },
   h1: {
-    marginTop: 12,
+    marginTop: 14,
     fontFamily: t.typography.title,
     fontWeight: '800',
     letterSpacing: -1.5,
     color: '#11150f',
   },
   intro: { marginTop: 16, maxWidth: 860, fontFamily: t.typography.body, color: '#4f5651' },
-  search: { marginTop: 30, maxWidth: 780 },
-  searchNote: {
+  search: { marginTop: 30, maxWidth: 840 },
+  searchLabel: {
+    fontFamily: t.typography.body,
+    fontSize: 16,
+    letterSpacing: 0.1,
+    textTransform: 'none',
+    fontWeight: '800',
+    color: '#2c322c',
+    marginBottom: 10,
+  },
+  helperRow: { marginTop: 12, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  validation: {
     marginTop: 12,
-    marginLeft: 14,
+    fontFamily: t.typography.body,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#11150f',
+  },
+  clear: {
+    minHeight: 44,
+    paddingHorizontal: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.16)',
+    borderRadius: 12,
+    backgroundColor: '#fff',
+  },
+  clearMobile: { width: '100%' },
+  clearText: { fontFamily: t.typography.body, fontWeight: '700', fontSize: 15, color: '#11150f' },
+  compactLanes: { maxWidth: 900, marginTop: 28 },
+  compactLane: { paddingVertical: 18, paddingHorizontal: 20, boxShadow: undefined },
+  searchNote: {
+    flex: 1,
+    minWidth: 0,
+    maxWidth: 640,
     fontFamily: t.typography.body,
     fontSize: 15,
     lineHeight: 22.5,
     color: '#6b716b',
   },
-  lanes: { marginTop: 36, maxWidth: 780, flexDirection: 'row', gap: 16 },
+  lanes: { marginTop: 36, maxWidth: 900, flexDirection: 'row', gap: 16 },
   column: { flexDirection: 'column' },
   stacked: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto' },
   lane: {
@@ -251,9 +341,9 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     fontFamily: t.typography.body,
     fontVariant: ['tabular-nums'],
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '800',
-    letterSpacing: 0.9,
+    letterSpacing: 0.15,
     color: '#0f7a45',
   },
   information: { marginTop: 36, maxWidth: 1200, flexDirection: 'row', gap: 16 },
@@ -289,7 +379,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22.5,
   },
+  sourceText: {
+    flexShrink: 1,
+    fontFamily: t.typography.body,
+    fontWeight: '700',
+    color: '#0f7a45',
+    fontSize: 15,
+    lineHeight: 22,
+  },
   sourceLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     alignSelf: 'flex-start',
     minHeight: 44,
     paddingTop: 12,

@@ -13,6 +13,12 @@ const state = vi.hoisted(() => {
     principals: {} as Record<string, unknown>,
   };
 });
+vi.mock('../../../hooks/useLobbyingNameSearch', () => ({
+  useLobbyingNameSearch: () => ({
+    lobbyists: { isPending: true },
+    principals: { isPending: true },
+  }),
+}));
 vi.mock('../../../hooks/useLobbying', () => ({
   useLobbyingSummary: () => state.summary,
   useLobbyingLobbyists: () => state.lobbyists,
@@ -122,7 +128,7 @@ describe('lobbying landing', () => {
     render(
       <LobbyingLandingScreen navigation={navigation as never} route={route('LobbyingLanding')} />,
     );
-    expect(words()).toContain('1,665 REGISTERED IN THIS COPY');
+    expect(words()).toContain('1,665 LOBBYISTS LISTED');
     expect(words()).toContain('1,748 REPORTED SPENDING FOR 2025');
     expect(words()).toContain('Sep 13, 2026');
     expect(words()).toContain(copy.annual);
@@ -163,7 +169,7 @@ describe('lobbying landing', () => {
     const button = host.querySelector('[role="button"]')!;
     expect(input.getAttribute('placeholder')).toBe('Search by name');
     expect(words()).toContain(
-      'Searches lobbying and campaign records. Part of a filed name works; spelling is not corrected',
+      'Search lobbyists and organisations by name. You can enter part of a name, but spelling is not corrected.',
     );
     expect(getComputedStyle(input.parentElement!).height).toBe('52px');
     expect(getComputedStyle(input).height).toBe('100%');

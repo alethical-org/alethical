@@ -57,7 +57,7 @@ const base = (heading: string, subheading = ''): PageSnapshot => ({
 
 export function lobbyingLandingSnapshot(data: LobbyingSummary): PageSnapshot {
   return {
-    ...base(directory.title, directory.landingLabel),
+    ...base(directory.title),
     links: [
       { label: directory.sourceLabel, href: LOBBYING_SOURCE_URL },
       { label: MONEY_SECTION_NAME, href: '/money' },
@@ -67,7 +67,7 @@ export function lobbyingLandingSnapshot(data: LobbyingSummary): PageSnapshot {
       {
         label: directory.lobbyists.title,
         href: '/money/lobbying/lobbyists',
-        detail: [directory.lobbyists.intro, lobbyistLaneCount(data.registered_lobbyists)]
+        detail: [directory.lobbyists.lane, lobbyistLaneCount(data.registered_lobbyists)]
           .filter(Boolean)
           .join(' · '),
       },
@@ -93,8 +93,7 @@ export function lobbyingLandingSnapshot(data: LobbyingSummary): PageSnapshot {
         heading: directory.coverageLabel,
         body: [
           directory.currentOnly,
-          directory.annual,
-          lobbyingHeldYearsNote(data.first_year),
+          [directory.annual, lobbyingHeldYearsNote(data.first_year)].filter(Boolean).join(' '),
         ].filter((line): line is string => Boolean(line)),
         bodyIsList: true,
       },
