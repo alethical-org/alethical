@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { LinkArrowLabel } from './LinkArrow';
 import { useHover } from './billDetail/interactions';
 import { changeEyebrow } from '../lib/trackedBillsChanges';
 import type { BillChanges } from '../lib/billDetail';
@@ -68,12 +69,10 @@ export function ChangeBlock({
           {...hover}
           style={styles.changeMore}
         >
-          <Text style={[styles.changeMoreText, hovered && styles.changeMoreTextHover]}>
-            {earlier === 1 ? '1 earlier step' : `${earlier} earlier steps`}{' '}
-            <Text style={styles.changeMoreArrow} aria-hidden>
-              →
-            </Text>
-          </Text>
+          <LinkArrowLabel
+            label={earlier === 1 ? '1 earlier step' : `${earlier} earlier steps`}
+            style={[styles.changeMoreText, hovered && styles.changeMoreTextHover]}
+          />
         </Pressable>
       ) : null}
     </View>
@@ -131,5 +130,4 @@ const styles = StyleSheet.create({
     color: t.colors.brand.forest, // 5.05:1 on the panel; see changeEyebrow
   },
   changeMoreTextHover: { color: t.colors.text.primary },
-  changeMoreArrow: { fontWeight: t.fontWeights.regular },
 });

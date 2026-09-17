@@ -1,5 +1,41 @@
-import { StyleProp, StyleSheet, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, Text, TextStyle, ViewStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+
+/**
+ * The approved spacing and vertical alignment for a green link followed by an arrow.
+ * Keep the text and LinkArrow as siblings inside the same row.
+ */
+export const linkArrowRow: ViewStyle = {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 6,
+};
+
+export const GREEN_LINK_ARROW_COLOR = '#0f7a45';
+
+/**
+ * The approved treatment for a label that may wrap. The last word and arrow stay
+ * together, while the arrow keeps the same 6px space and centered position.
+ */
+export function LinkArrowLabel({ label, style }: { label: string; style?: StyleProp<TextStyle> }) {
+  const lastSpace = label.lastIndexOf(' ');
+  const start = lastSpace < 0 ? '' : `${label.slice(0, lastSpace)} `;
+  const end = lastSpace < 0 ? label : label.slice(lastSpace + 1);
+  return (
+    <Text style={style}>
+      {start}
+      <Text style={styles.keepTogether}>
+        {end}
+        <LinkArrow color={GREEN_LINK_ARROW_COLOR} style={styles.inlineArrow} />
+      </Text>
+    </Text>
+  );
+}
+
+/** The approved arrow for a green link whose label and arrow are separate siblings. */
+export function GreenLinkArrow() {
+  return <LinkArrow color={GREEN_LINK_ARROW_COLOR} />;
+}
 
 /**
  * The one trailing arrow for phone and desktop links.
@@ -16,7 +52,7 @@ export function LinkArrow({ color, style }: { color: string; style?: StyleProp<V
       height={19}
       viewBox="0 0 24 24"
       fill="none"
-      style={[styles.arrow, style]}
+      style={StyleSheet.flatten([styles.arrow, style])}
       aria-hidden
       testID="link-arrow"
     >
@@ -34,4 +70,6 @@ export function LinkArrow({ color, style }: { color: string; style?: StyleProp<V
 const styles = StyleSheet.create({
   // The 1px optical nudge centers the mark on the neighboring letters' x-height.
   arrow: { position: 'relative', top: 1, flexShrink: 0, pointerEvents: 'none' },
+  keepTogether: { ...({ whiteSpace: 'nowrap' } as object) },
+  inlineArrow: { marginLeft: 6, ...({ verticalAlign: 'middle' } as object) },
 });

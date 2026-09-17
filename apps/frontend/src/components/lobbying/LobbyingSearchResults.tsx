@@ -9,7 +9,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { LinkArrow } from '../LinkArrow';
+import { LinkArrowLabel, linkArrowRow } from '../LinkArrow';
 import type { useLobbyingNameSearch } from '../../hooks/useLobbyingNameSearch';
 import { committeeSlug } from '../../lib/committeeMoneyShared';
 import { lobbyingNoSpendingRows } from '../../lib/lobbyingDirectoryCopy';
@@ -160,9 +160,14 @@ export function LobbyingSearchResults({
                           : navigation.navigate('LobbyingPrincipal', { slug });
                       const text = (hovered = false) => (
                         <View style={styles.rowWords}>
-                          <Text style={[styles.rowName, body, hovered && styles.underline]}>
-                            {row.name}
-                          </Text>
+                          {linkable ? (
+                            <LinkArrowLabel
+                              label={row.name}
+                              style={[styles.rowName, body, hovered && styles.underline]}
+                            />
+                          ) : (
+                            <Text style={[styles.rowName, body]}>{row.name}</Text>
+                          )}
                           <Text style={styles.meta}>{lobbyingResultMeta(row)}</Text>
                           {!lobbyist && !row.linkable ? (
                             <Text style={styles.meta}>
@@ -184,12 +189,7 @@ export function LobbyingSearchResults({
                         <View role="listitem" key={id}>
                           {linkable ? (
                             <SearchLink href={href} onPress={open} style={styles.row}>
-                              {(hovered) => (
-                                <>
-                                  {text(hovered)}
-                                  <LinkArrow color="#0f7a45" />
-                                </>
-                              )}
+                              {(hovered) => text(hovered)}
                             </SearchLink>
                           ) : (
                             <View style={styles.row}>{text()}</View>
@@ -202,12 +202,10 @@ export function LobbyingSearchResults({
                 {!isFailed && part.data?.has_more ? (
                   <SearchLink href={moreHref} onPress={openMore} style={styles.link}>
                     {(hovered) => (
-                      <>
-                        <Text style={[styles.linkText, body, hovered && styles.underline]}>
-                          {copy[kind].more}
-                        </Text>
-                        <LinkArrow color="#0f7a45" />
-                      </>
+                      <LinkArrowLabel
+                        label={copy[kind].more}
+                        style={[styles.linkText, body, hovered && styles.underline]}
+                      />
                     )}
                   </SearchLink>
                 ) : null}
@@ -223,12 +221,10 @@ export function LobbyingSearchResults({
         style={[styles.link, styles.wider]}
       >
         {(hovered) => (
-          <>
-            <Text style={[styles.linkText, body, hovered && styles.underline]}>
-              {lobbyingWiderSearchLabel(query)}
-            </Text>
-            <LinkArrow color="#0f7a45" />
-          </>
+          <LinkArrowLabel
+            label={lobbyingWiderSearchLabel(query)}
+            style={[styles.linkText, body, hovered && styles.underline]}
+          />
         )}
       </SearchLink>
     </View>
@@ -290,10 +286,7 @@ const styles = StyleSheet.create({
   rows: { marginTop: 12, borderTopWidth: 1, borderColor: 'rgba(17,21,15,0.1)' },
   row: {
     minHeight: 60,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 16,
+    ...linkArrowRow,
     paddingVertical: 11,
     paddingHorizontal: 2,
     borderBottomWidth: 1,
@@ -317,12 +310,10 @@ const styles = StyleSheet.create({
   message: { marginTop: 14, fontFamily: t.typography.body, color: '#11150f' },
   strong: { fontWeight: '700' },
   link: {
+    ...linkArrowRow,
     marginTop: 6,
     minHeight: 44,
     alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
     maxWidth: '100%',
   },
   linkText: {

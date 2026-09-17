@@ -1,7 +1,7 @@
 import React, { useState, type ReactNode } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 
+import { GreenLinkArrow, LinkArrowLabel, linkArrowRow } from '../LinkArrow';
 import { useResponsive } from '../../hooks/useResponsive';
 import { committeeSlug, registerKindLabel } from '../../lib/committeeMoneyShared';
 import { formatDay, formatMoney } from '../../lib/legislatorCampaignMoney';
@@ -65,8 +65,7 @@ export function PrincipalLobbyistsCard({
                   )}
                   style={styles.linkRow}
                 >
-                  <Text style={styles.rowName}>{row.name}</Text>
-                  <RowArrow />
+                  <LinkArrowLabel label={row.name} style={styles.rowName} />
                 </Pressable>
               </View>
             ))}
@@ -122,8 +121,7 @@ export function LobbyistPrincipalsCard({
                     )}
                     style={styles.linkRow}
                   >
-                    <Text style={styles.rowName}>{row.name}</Text>
-                    <RowArrow />
+                    <LinkArrowLabel label={row.name} style={styles.rowName} />
                   </Pressable>
                 </View>
               ) : (
@@ -185,7 +183,7 @@ export function LobbyistDonationsCard({
           )}
           style={styles.contributionSource}
         >
-          {CAMPAIGN_CONTRIBUTION_SOURCE_LABEL} ↗
+          <LinkArrowLabel label={CAMPAIGN_CONTRIBUTION_SOURCE_LABEL} />
         </Text>
       ) : null}
       {contributions.state === 'unavailable' || total === null ? (
@@ -246,8 +244,7 @@ function DonationYear({
                   )}
                   style={styles.committeeLink}
                 >
-                  <Text style={styles.committeeName}>{name}</Text>
-                  <RowArrow small />
+                  <LinkArrowLabel label={name} style={styles.committeeName} />
                 </Pressable>
               ) : (
                 <Text style={styles.committeeName}>{name}</Text>
@@ -324,23 +321,8 @@ function RevealButton({ onPress }: { onPress: () => void }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={styles.revealButton}>
       <Text style={styles.revealLabel}>{SHOW_NEXT_30}</Text>
-      <RowArrow small />
+      <GreenLinkArrow />
     </Pressable>
-  );
-}
-
-function RowArrow({ small = false }: { small?: boolean }) {
-  const size = small ? 14 : 16;
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <Path
-        d="M5 12 H19 M14 7 L19 12 L14 17"
-        stroke="#0f7a45"
-        strokeWidth={2.2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
   );
 }
 
@@ -397,10 +379,7 @@ const styles: Record<string, any> = {
   linkRow: {
     minHeight: 52,
     paddingHorizontal: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 16,
+    ...linkArrowRow,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(17,21,15,0.08)',
   },
@@ -429,11 +408,9 @@ const styles: Record<string, any> = {
     fontVariant: ['tabular-nums'],
   },
   revealButton: {
+    ...linkArrowRow,
     minHeight: 44,
     alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
   },
   revealLabel: {
     color: '#0f7a45',
@@ -463,11 +440,9 @@ const styles: Record<string, any> = {
     borderBottomColor: 'rgba(17,21,15,0.08)',
   },
   committeeLink: {
+    ...linkArrowRow,
     minHeight: 44,
     alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
   },
   committeeName: {
     color: '#11150f',

@@ -3,7 +3,7 @@ import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-nativ
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { ChangeBlock } from '../ChangeBlock';
-import { LinkArrow } from '../LinkArrow';
+import { LinkArrowLabel, linkArrowRow } from '../LinkArrow';
 import { Skeleton } from '../Skeleton';
 import { isWeb, useHover } from '../billDetail/interactions';
 import type { Bill } from '../../data/types';
@@ -332,8 +332,10 @@ function CardLink({ label, href, onPress }: { label: string; href?: string; onPr
   const press = href ? linkProps(href, onPress) : { onPress: pressInsideLink(onPress) };
   return (
     <Pressable accessibilityRole="link" {...press} {...hover} style={styles.cardLink}>
-      <Text style={[styles.cardLinkText, hovered && styles.cardLinkTextHover]}>{label}</Text>
-      <LinkArrow color={t.colors.text.green} style={styles.cardLinkArrow} />
+      <LinkArrowLabel
+        label={label}
+        style={[styles.cardLinkText, hovered && styles.cardLinkTextHover]}
+      />
     </Pressable>
   );
 }
@@ -505,7 +507,7 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.onGreen,
   },
-  cardLink: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  cardLink: { ...linkArrowRow, flexShrink: 0 },
   cardLinkText: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.small,
@@ -513,5 +515,4 @@ const styles = StyleSheet.create({
     color: t.colors.text.green,
   },
   cardLinkTextHover: { color: t.colors.text.green },
-  cardLinkArrow: { width: 14, height: 14, top: 0 },
 });

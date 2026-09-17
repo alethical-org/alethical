@@ -8,7 +8,7 @@ import {
   getSiteMetricRecordTotalsFromApi,
 } from '../data/siteMetricsApi';
 import { type AccountSignupTotals } from '../lib/accountSignupMetrics';
-import { LinkArrow } from '../components/LinkArrow';
+import { GreenLinkArrow, linkArrowRow } from '../components/LinkArrow';
 import { useResponsive } from '../hooks/useResponsive';
 import {
   formatTrafficWindowEnd,
@@ -1197,7 +1197,7 @@ function AvailabilityPanel({ state, now }: { state: SourceState<UptimeTotals>; n
         >
           <View style={styles.publicLinkContent}>
             <Text style={styles.publicLink}>See detailed availability</Text>
-            <LinkArrow color="#0f7a45" style={styles.publicLinkArrow} />
+            <GreenLinkArrow />
           </View>
         </Pressable>
       ) : null}
@@ -2106,8 +2106,7 @@ const styles = StyleSheet.create({
   },
   speedValueMobile: { minWidth: 0, fontSize: 17, lineHeight: 22 },
   publicLinkTarget: { minHeight: 44, alignSelf: 'flex-start', justifyContent: 'center' },
-  publicLinkContent: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  publicLinkArrow: { width: 16, height: 16, top: 0 },
+  publicLinkContent: linkArrowRow,
   publicLink: {
     color: '#0f7a45',
     fontFamily: theme.typography.ui,

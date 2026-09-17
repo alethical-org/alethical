@@ -6,6 +6,7 @@ import { theme } from '../../theme/tokens';
 import { ResultsHeader, SearchPageShell, SortControl } from '../../components/search/searchPieces';
 import { BillResultCard } from '../../components/search/BillResultCard';
 import { CitationCard, SuggestedQuestionChip } from '../../components/billDetail/CitationCard';
+import { LinkArrowLabel } from '../../components/LinkArrow';
 import { SourceLine } from '../../components/billDetail/SourceLine';
 import { Skeleton } from '../../components/Skeleton';
 import { GoBackLink } from '../../components/GoBackLink';
@@ -59,6 +60,10 @@ import { STICKY_RAIL } from '../../components/billDetail/interactions';
 import { AskAnswerBill, AskAnswerLegislator } from '../../data/types';
 
 const t = theme;
+
+function GreenArrowLink({ label }: { label: string }) {
+  return <LinkArrowLabel label={label} style={styles.viewBillLink} />;
+}
 const isWeb = Platform.OS === 'web';
 
 // The chip-reached Ask answer page. Spec of record:
@@ -200,7 +205,7 @@ function AnswerBillCard({
         {...linkProps(routePath.bill(bill.id), onOpen)}
         accessibilityLabel={`View bill ${bill.identifier}`}
       >
-        <Text style={styles.viewBillLink}>View bill →</Text>
+        <GreenArrowLink label="View bill" />
       </Pressable>
     </View>
   );
@@ -239,7 +244,7 @@ function AnswerLegislatorRow({
           {...linkProps(routePath.legislator(legislator.slug ?? legislator.id), onOpenProfile)}
           accessibilityLabel={`View profile for ${legislator.fullName}`}
         >
-          <Text style={styles.viewBillLink}>View profile →</Text>
+          <GreenArrowLink label="View profile" />
         </Pressable>
       </View>
       <Text style={styles.legCounts}>{counts.join(' · ')}</Text>
@@ -427,13 +432,13 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
           eyebrow: 'OUT OF SCOPE',
           muted: true,
           body: 'Alethical answers questions about Minnesota bills, legislators, and votes. This one falls outside that — so we won’t guess.',
-          cta: 'Browse Minnesota bills in Search →',
+          cta: 'Browse Minnesota bills in Search',
         }
       : {
           eyebrow: 'NO BILL MATCHED',
           muted: true,
           body: 'We couldn’t match this to a single Minnesota bill’s text. Try naming the bill, or browse bills by issue in Search.',
-          cta: 'Browse bills in Search →',
+          cta: 'Browse bills in Search',
         };
 
   // §4.7 rule 4: follow-up chips fire their fully-qualified submit directly
@@ -610,7 +615,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
       <View style={styles.stateBox}>
         <Text style={styles.stateText}>Something went wrong answering this question.</Text>
         <Pressable accessibilityRole="button" onPress={() => askQuery.refetch()}>
-          <Text style={styles.viewBillLink}>Try again →</Text>
+          <GreenArrowLink label="Try again" />
         </Pressable>
       </View>,
     );
@@ -626,7 +631,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
           suggested questions.
         </Text>
         <Pressable {...linkProps(routePath.bills(), () => navigation.navigate('Bills'))}>
-          <Text style={styles.viewBillLink}>Browse Minnesota bills in Search →</Text>
+          <GreenArrowLink label="Browse Minnesota bills in Search" />
         </Pressable>
       </View>,
     );
@@ -639,7 +644,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
       <View style={styles.narrowColumn}>
         <Text style={styles.bodyText}>{pending.body}</Text>
         <Pressable {...linkProps(routePath.bills(), () => navigation.navigate('Bills'))}>
-          <Text style={styles.viewBillLink}>{pending.cta}</Text>
+          <GreenArrowLink label={pending.cta} />
         </Pressable>
       </View>,
     );
@@ -669,7 +674,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               )}
               accessibilityLabel={`See all votes on ${resolvedBill.identifier}`}
             >
-              <Text style={styles.viewBillLink}>See all votes on {resolvedBill.identifier} →</Text>
+              <GreenArrowLink label={`See all votes on ${resolvedBill.identifier}`} />
             </Pressable>
           </View>
         ) : compactBills.length > 0 ? (
@@ -695,7 +700,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
           </>
         ) : (
           <Pressable {...linkProps(routePath.bills(), () => navigation.navigate('Bills'))}>
-            <Text style={styles.viewBillLink}>Browse bills to see their votes →</Text>
+            <GreenArrowLink label="Browse bills to see their votes" />
           </Pressable>
         )}
       </View>,
@@ -909,7 +914,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               ),
           )}
         >
-          <Text style={styles.viewBillLink}>Search all bills →</Text>
+          <GreenArrowLink label="Search all bills" />
         </Pressable>
       </View>,
     );
@@ -962,7 +967,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
           >
             {/* Search defaults to the whole Legislature and receives the same
                 Issue filter as Ask, so the total and bill set stay identical. */}
-            <Text style={styles.viewBillLink}>See all {answer.topic} bills in Search →</Text>
+            <GreenArrowLink label={`See all ${answer.topic} bills in Search`} />
           </Pressable>
         ) : null}
         <FollowUpChips chips={followUpChips} onAsk={askFollowUp} />
@@ -1051,7 +1056,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
             {/* The total belongs in the header once. This link is the disclosure that
                 the five-card window leaves more matches to browse, so it only renders
                 when `issueAnswerHasMore` proves that a remainder exists. */}
-            <Text style={styles.viewBillLink}>See all {issueTopic} bills in Search →</Text>
+            <GreenArrowLink label={`See all ${issueTopic} bills in Search`} />
           </Pressable>
         ) : null}
         <FollowUpChips chips={followUpChips} onAsk={askFollowUp} />

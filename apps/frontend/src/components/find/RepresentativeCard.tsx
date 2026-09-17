@@ -4,7 +4,7 @@ import { Image, Linking, Platform, Pressable, StyleSheet, Text, View } from 'rea
 import type { Legislator } from '../../data/types';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
-import { LinkArrow } from '../LinkArrow';
+import { LinkArrow, LinkArrowLabel, linkArrowRow } from '../LinkArrow';
 
 const isWeb = Platform.OS === 'web';
 
@@ -68,16 +68,14 @@ function ContactLink({
     >
       {trailingArrow ? (
         <View style={styles.arrowLinkContent}>
-          <Text
+          <LinkArrowLabel
+            label={label}
             style={[
               styles.contactLink,
               mobile && styles.contactLinkMobile,
               hovered && styles.contactLinkHovered,
             ]}
-          >
-            {label}
-          </Text>
-          <LinkArrow color={t.colors.brand.deep} />
+          />
           {newTab ? (
             <Text
               style={[styles.visuallyHidden, isWeb ? ({ clipPath: 'inset(50%)' } as object) : null]}
@@ -636,7 +634,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     ...(isWeb ? ({ overflowWrap: 'anywhere' } as object) : null),
   },
-  arrowLinkContent: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  arrowLinkContent: linkArrowRow,
   visuallyHidden: {
     position: 'absolute',
     width: 1,

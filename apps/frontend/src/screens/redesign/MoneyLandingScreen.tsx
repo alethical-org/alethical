@@ -4,7 +4,7 @@ import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from
 import Svg, { Path } from 'react-native-svg';
 
 import { Skeleton } from '../../components/Skeleton';
-import { LinkArrow } from '../../components/LinkArrow';
+import { LinkArrow, LinkArrowLabel, linkArrowRow } from '../../components/LinkArrow';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
 import { useLobbyingSummary } from '../../hooks/useLobbying';
 import { MONEY_LANE_LOBBYING, moneyLandingLobbyistCount } from '../../lib/lobbyingDirectoryCopy';
@@ -334,8 +334,7 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                   </Text>
                 </View>
                 <View style={[styles.researchCta, isMobile && styles.researchCtaMobile]}>
-                  <Text style={styles.researchCtaText}>{RESEARCH_ROW_LINK}</Text>
-                  <LinkArrow color={t.colors.text.greenOnLight} />
+                  <LinkArrowLabel label={RESEARCH_ROW_LINK} style={styles.researchCtaText} />
                 </View>
               </Pressable>
             ) : (
@@ -828,11 +827,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.9,
   },
   researchCta: {
+    ...linkArrowRow,
     flexShrink: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    gap: 9,
     minHeight: 44,
     paddingHorizontal: 20,
     paddingVertical: 12,

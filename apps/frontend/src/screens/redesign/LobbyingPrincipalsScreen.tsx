@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
+import { LinkArrowLabel } from '../../components/LinkArrow';
 import { Pagination } from '../../components/search/searchPieces';
 import { useDebouncedSearchCommit } from '../../hooks/useDebouncedSearchCommit';
 import { useLobbyingPrincipals } from '../../hooks/useLobbying';
@@ -199,19 +200,13 @@ export function LobbyingDirectoryPage({
                     const contents = (
                       <>
                         <View style={styles.rowText}>
-                          <Text style={[styles.rowName, body]}>{row.name}</Text>
+                          {row.linkable ? (
+                            <LinkArrowLabel label={row.name} style={[styles.rowName, body]} />
+                          ) : (
+                            <Text style={[styles.rowName, body]}>{row.name}</Text>
+                          )}
                           {row.meta ? <Text style={styles.rowMeta}>{row.meta}</Text> : null}
                         </View>
-                        {row.linkable ? (
-                          <Svg width={16} height={16} viewBox="0 0 24 24" aria-hidden>
-                            <Path
-                              d="M5 12 H19 M14 7 L19 12 L14 17"
-                              fill="none"
-                              stroke="#0f7a45"
-                              strokeWidth={2.2}
-                            />
-                          </Svg>
-                        ) : null}
                       </>
                     );
                     const href =

@@ -1,8 +1,8 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
-import Svg, { Path } from 'react-native-svg';
 
+import { LinkArrowLabel, linkArrowRow } from '../LinkArrow';
 import { useLobbyingLobbyist } from '../../hooks/useLobbying';
 import type { MoneyDetailsGroup } from '../../lib/campaignMoneyDetails';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
@@ -72,8 +72,10 @@ function LobbyistContext({ number, filedName }: { number: string; filedName: str
           )}
           style={(state) => [styles.link, Boolean('focused' in state && state.focused) && s.focus]}
         >
-          <Text style={[s.small, styles.linkText]}>{copy.representsLink(registeredName)}</Text>
-          <LinkArrow />
+          <LinkArrowLabel
+            label={copy.representsLink(registeredName)}
+            style={[s.small, styles.linkText]}
+          />
         </Pressable>
       ) : failed ? (
         <View style={styles.recovery}>
@@ -121,26 +123,10 @@ function CommitteeContext({
           )}
           style={(state) => [styles.link, Boolean('focused' in state && state.focused) && s.focus]}
         >
-          <Text style={[s.small, styles.linkText]}>{copy.committeeLink}</Text>
-          <LinkArrow />
+          <LinkArrowLabel label={copy.committeeLink} style={[s.small, styles.linkText]} />
         </Pressable>
       ) : null}
     </View>
-  );
-}
-
-function LinkArrow() {
-  return (
-    <Svg width={14} height={14} viewBox="0 0 24 24" aria-hidden>
-      <Path
-        d="M5 12 H19 M14 7 L19 12 L14 17"
-        stroke={c.link}
-        strokeWidth={2.2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </Svg>
   );
 }
 
@@ -154,10 +140,8 @@ const styles = StyleSheet.create({
   },
   registration: { fontWeight: '700', color: c.secondary, fontVariant: ['tabular-nums'] },
   link: {
+    ...linkArrowRow,
     minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
     minWidth: 0,
     flexShrink: 1,
   },

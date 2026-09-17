@@ -7,7 +7,7 @@ import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 import { refundCopy as copy, visibleRefundYears } from '../../lib/committeeRefunds';
 import { formatDay, formatMoney } from '../../lib/legislatorCampaignMoney';
 import { externalLinkProps } from '../../navigation/links';
-import { LinkArrow } from '../LinkArrow';
+import { GreenLinkArrow, linkArrowRow } from '../LinkArrow';
 import { theme as t } from '../../theme/tokens';
 import { committeeCardStyles, detailsStyles, useCampaignMoneyTypography } from './detailsStyles';
 
@@ -253,7 +253,7 @@ export function CommitteeRefundCard({ refunds, registrationNumber }: Props) {
           <Text style={[styles.sourceText, { fontSize: type.small, lineHeight: type.small * 1.5 }]}>
             {copy.summaries}
           </Text>
-          <LinkArrow color={c.link} />
+          <GreenLinkArrow />
         </Pressable>
       ) : null}
     </View>
@@ -275,10 +275,8 @@ const styles = StyleSheet.create({
   },
   notes: { marginTop: 18, gap: 7 },
   sourceLink: {
+    ...linkArrowRow,
     alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
     marginTop: 12,
     minHeight: 44,
     justifyContent: 'center',

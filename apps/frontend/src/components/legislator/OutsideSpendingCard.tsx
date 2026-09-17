@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { theme as t } from '../../theme/tokens';
 import { useResponsive } from '../../hooks/useResponsive';
 import { externalLinkProps } from '../../navigation/links';
-import { LinkArrow } from '../LinkArrow';
+import { LinkArrowLabel, linkArrowRow } from '../LinkArrow';
 import { useHover } from '../billDetail/interactions';
 import { formatMoney } from '../../lib/legislatorCampaignMoney';
 import { downloadsPageUrl, NAMED_DONATIONS_LINK_LABEL } from '../../lib/committeeMoneyShared';
@@ -188,13 +188,12 @@ function SourceLink({
   onPress: () => void;
 }) {
   const [hovered, hover] = useHover();
-  // A drawn arrow, not the text character: Libre Franklin omits it, so each operating
-  // system picks a different fallback and the mark lands at a different size on phones.
-  const color = hovered ? t.colors.brand.forest : t.colors.brand.deep;
   return (
     <Pressable style={styles.sourceLinkRow} {...externalLinkProps(href, onPress)} {...hover}>
-      <Text style={[styles.sourceLink, hovered && styles.sourceLinkHover]}>{label}</Text>
-      <LinkArrow color={color} />
+      <LinkArrowLabel
+        label={label}
+        style={[styles.sourceLink, hovered && styles.sourceLinkHover]}
+      />
     </Pressable>
   );
 }
@@ -273,7 +272,7 @@ const styles = StyleSheet.create({
   },
   sharedReason: { marginTop: 18 },
   sourceRow: { marginTop: 24, gap: 6 },
-  sourceLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  sourceLinkRow: linkArrowRow,
   sourceLink: {
     fontFamily: t.typography.body,
     fontSize: 16,

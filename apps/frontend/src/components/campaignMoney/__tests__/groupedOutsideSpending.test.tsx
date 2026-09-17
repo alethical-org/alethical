@@ -10,7 +10,9 @@ vi.mock('../../../data/groupedOutsideSpending', () => ({
 }));
 const band = vi.hoisted(() => ({ isMobile: false, isTablet: false }));
 vi.mock('../../../hooks/useResponsive', () => ({ useResponsive: () => band }));
-vi.mock('../../LinkArrow', () => ({ LinkArrow: () => null }));
+vi.mock('../../LinkArrow', () => ({
+  LinkArrowLabel: ({ label }: { label: string }) => <span>{label}</span>,
+}));
 vi.mock('react-native-svg', () => ({
   default: ({ children }: { children?: React.ReactNode }) => <svg>{children}</svg>,
   Path: () => <path />,

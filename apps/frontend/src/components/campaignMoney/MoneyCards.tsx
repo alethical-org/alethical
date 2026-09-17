@@ -93,7 +93,7 @@ import {
   type SplitState,
 } from '../../lib/legislatorCampaignMoney';
 import { externalLinkProps } from '../../navigation/links';
-import { LinkArrow } from '../LinkArrow';
+import { LinkArrowLabel } from '../LinkArrow';
 import { theme as t } from '../../theme/tokens';
 import { useCampaignMoneyTypography } from './detailsStyles';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -693,13 +693,7 @@ export function CampaignDownloadsLink({ sourceUrl }: { sourceUrl: string | null 
         Boolean('focused' in state && state.focused) && styles.sourceFocused,
       ]}
     >
-      <CardText numeric={false} style={styles.downloadLabel}>
-        {NAMED_DONATIONS_LINK_LABEL}
-        <Text style={{ fontWeight: '400' }}>
-          {'\u00a0'}
-          <LinkArrow color={c.link} />
-        </Text>
-      </CardText>
+      <LinkArrowLabel label={NAMED_DONATIONS_LINK_LABEL} style={styles.downloadLabel} />
     </Pressable>
   );
 }
@@ -811,7 +805,11 @@ const defaultStyles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   sourceFocused: {},
-  downloadLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
+  downloadLink: {
+    minHeight: 44,
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+  },
   downloadLabel: { fontFamily: t.typography.body, fontSize: 15, fontWeight: '700', color: c.link },
   stamp: {
     backgroundColor: t.colors.surfaces.s100,

@@ -11,7 +11,7 @@ import {
 import Svg, { Path } from 'react-native-svg';
 
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
-import { LinkArrow } from '../../components/LinkArrow';
+import { LinkArrow, LinkArrowLabel, linkArrowRow } from '../../components/LinkArrow';
 import { LobbyingSearchResults } from '../../components/lobbying/LobbyingSearchResults';
 import { useLobbyingNameSearch } from '../../hooks/useLobbyingNameSearch';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
@@ -223,8 +223,7 @@ export function LobbyingLandingScreen({ navigation, route }: RootScreenProps<'Lo
                   )}
                   style={styles.sourceLink}
                 >
-                  <Text style={styles.sourceText}>{copy.sourceLabel}</Text>
-                  <LinkArrow color="#0f7a45" />
+                  <LinkArrowLabel label={copy.sourceLabel} style={styles.sourceText} />
                 </Pressable>
               </View>
             ) : null}
@@ -388,9 +387,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   sourceLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    ...linkArrowRow,
     alignSelf: 'flex-start',
     minHeight: 44,
     paddingTop: 12,

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import { LinkArrowLabel } from '../LinkArrow';
 import { Bill, BillSponsor } from '../../data/types';
 import { usePrefetchBill } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -181,14 +182,10 @@ function ChiefAuthorLink({
       {...hover}
       style={clickable ? styles.interactiveLayer : undefined}
     >
-      <Text style={[styles.metaText, styles.authorLink, hovered && styles.authorLinkHover]}>
-        {authorNameOnly(author.name)}{' '}
-        {/* Arrow marks the name as a profile link: name's own font/size, weight 400,
-            hidden from screen readers (the link's accessible name is the member's). */}
-        <Text style={styles.nameArrow} aria-hidden>
-          →
-        </Text>
-      </Text>
+      <LinkArrowLabel
+        label={authorNameOnly(author.name)}
+        style={[styles.metaText, styles.authorLink, hovered && styles.authorLinkHover]}
+      />
     </Pressable>
   );
 }
@@ -683,7 +680,6 @@ const styles = StyleSheet.create({
   metaLabel: { color: '#6f756f' },
   authorLink: { color: t.colors.brand.deep, fontWeight: t.fontWeights.bold },
   authorLinkHover: { color: t.colors.brand.forest }, // #0f7a45
-  nameArrow: { fontWeight: t.fontWeights.regular }, // arrow at weight 400 inside the bold link
   actionValue: { color: t.colors.text.primary, fontWeight: t.fontWeights.semibold }, // #11150f / 600
   // Latest-action line only (not the shared metaRow, which the Chief-author line
   // reuses): a flex-wrap row whose column-gap gives the 8px between label/action/date

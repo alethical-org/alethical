@@ -29,7 +29,7 @@ import { HOT_ISSUE_BILL_KEYS } from '../../lib/hotIssues';
 import { HomeLegislatorFinder } from '../../components/home/HomeLegislatorFinder';
 import { HOME_BILL_GROUP_CONTINUATIONS, HOME_PUBLIC_INTRO } from '../../lib/homepage';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
-import { LinkArrow } from '../../components/LinkArrow';
+import { LinkArrow, LinkArrowLabel, linkArrowRow } from '../../components/LinkArrow';
 import type { Bill } from '../../data/types';
 
 const t = theme;
@@ -148,7 +148,7 @@ function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () => void }
   return [hovered, { onHoverIn: () => setHovered(true), onHoverOut: () => setHovered(false) }];
 }
 
-/** Green inline text link (chief author, "View bill profile →"). */
+/** Green inline text link with the approved trailing arrow. */
 function TextLink({
   label,
   href,
@@ -175,7 +175,8 @@ function TextLink({
     : { accessibilityRole: 'link' as const, onPress };
   return (
     <Pressable {...anchorProps} {...hoverProps}>
-      <Text
+      <LinkArrowLabel
+        label={label}
         style={{
           fontFamily: t.typography.ui,
           fontSize: size,
@@ -183,9 +184,7 @@ function TextLink({
           color: t.colors.text.green,
           textDecorationLine: hovered ? 'underline' : 'none',
         }}
-      >
-        {label}
-      </Text>
+      />
     </Pressable>
   );
 }
@@ -224,19 +223,22 @@ function BillGroupContinuationLink({
             : undefined
         }
       >
-        {/* Row, not an inline glyph: the arrow is drawn (LinkArrow), and `alignItems:
-            center` is what puts it on the label's midline at every font size. */}
         <View style={styles.billGroupContinuationContent}>
-          <Text
-            style={[
-              fullWidth ? m.billGroupContinuationText : styles.billGroupContinuationText,
-              hovered && !fullWidth && styles.billGroupContinuationTextHover,
-              { color },
-            ]}
-          >
-            {label}
-          </Text>
-          <LinkArrow color={color} style={styles.billGroupContinuationArrow} />
+          {fullWidth ? (
+            <>
+              <Text style={[m.billGroupContinuationText, { color }]}>{label}</Text>
+              <LinkArrow color={color} style={styles.billGroupContinuationArrow} />
+            </>
+          ) : (
+            <LinkArrowLabel
+              label={label}
+              style={[
+                styles.billGroupContinuationText,
+                hovered && styles.billGroupContinuationTextHover,
+                { color },
+              ]}
+            />
+          )}
         </View>
       </Pressable>
     </View>
@@ -431,7 +433,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
               <View style={styles.billMetaLinkRow}>
                 <Text style={styles.billMetaText}>Chief author </Text>
                 <TextLink
-                  label="Rep. Peggy Scott →"
+                  label="Rep. Peggy Scott"
                   href={routePath.legislator(PEGGY_SCOTT_LEGISLATOR_ID)}
                   internal
                   size={13}
@@ -475,7 +477,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
                 <View style={styles.billMetaLinkRow}>
                   <Text style={styles.billMetaText}>Chief author </Text>
                   <TextLink
-                    label="Rep. Peggy Scott →"
+                    label="Rep. Peggy Scott"
                     href={routePath.legislator(PEGGY_SCOTT_LEGISLATOR_ID)}
                     internal
                     size={13}
@@ -542,7 +544,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
 
       <View style={styles.answerFooter}>
         <TextLink
-          label="View bill profile →"
+          label="View bill profile"
           href={routePath.bill(HF4138_BILL_ID)}
           internal
           onPress={() => navigation.navigate('BillDetail', { billId: HF4138_BILL_ID })}
@@ -2459,12 +2461,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.green,
   },
   billGroupContinuationTextHover: { textDecorationLine: 'underline' },
-  billGroupContinuationContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  // 17px against the 15–16px label: the drawn arrow's ink is inset in its box, so a
-  // box matched to the font size renders visibly shorter than the neighbouring caps.
-  // `top: 0` cancels LinkArrow's default 1px drop, which is tuned for x-height
-  // alignment; here the label is bold sentence case, so the arrow rides the cap band
-  // (measured: cap-band centre 405.23px, arrow centre 405.75px — half a pixel).
+  billGroupContinuationContent: linkArrowRow,
   billGroupContinuationArrow: { width: 17, height: 17, top: 0 },
   billCard: {
     backgroundColor: t.colors.surfaces.base,

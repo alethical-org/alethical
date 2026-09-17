@@ -46,7 +46,7 @@ import { externalLinkProps, linkProps, routePath } from '../../navigation/links'
 import type { RootStackParamList } from '../../navigation/types';
 import Svg, { Path } from 'react-native-svg';
 
-import { LinkArrow } from '../LinkArrow';
+import { LinkArrowLabel } from '../LinkArrow';
 import { numericText, useCampaignMoneyTypography, useDetailsStyles } from './detailsStyles';
 
 export interface GroupedOutsideSpendingProps {
@@ -252,13 +252,10 @@ function OutsideYear({
               Boolean('focused' in state && state.focused) && s.focus,
             ]}
           >
-            <Text style={[s.small, s.link, styles.sourceLabel]}>
-              {NAMED_DONATIONS_LINK_LABEL}
-              <Text style={styles.arrowRun}>
-                {'\u00a0'}
-                <LinkArrow color={c.link} />
-              </Text>
-            </Text>
+            <LinkArrowLabel
+              label={NAMED_DONATIONS_LINK_LABEL}
+              style={[s.small, s.link, styles.sourceLabel]}
+            />
           </Pressable>
         </View>
       </View>
@@ -517,7 +514,10 @@ const styles = StyleSheet.create({
   // Tabular figures so "$200" sits straight, but the ordinary body weight: it is a
   // sentence about the file, not a figure of its own.
   sourceFile: { fontVariant: ['tabular-nums'] },
-  source: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
-  arrowRun: { ...({ whiteSpace: 'nowrap' } as object) },
+  source: {
+    minHeight: 44,
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+  },
   sourceLabel: { fontWeight: '700' },
 });

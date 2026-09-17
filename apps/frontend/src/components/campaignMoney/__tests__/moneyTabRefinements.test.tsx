@@ -299,14 +299,10 @@ describe('the money tab after the 13 Sep refinements', () => {
     const row = [...page.querySelectorAll('a')].find((node) =>
       node.textContent?.startsWith(moneyDetailsPageCopy.fullRecord),
     )!;
-    // Label and arrow are 1 inline run inside 1 element, with a no-break space
-    // between them. A flex row holding the label and the arrow as 2 items is what
-    // centres the arrow against a wrapped label and leaves roughly 140px of empty
-    // space in front of it on a 375-wide canvas.
-    const run = [...row.querySelectorAll('*')].find((node) =>
-      node.textContent?.startsWith(moneyDetailsPageCopy.fullRecord),
-    )!;
-    expect(run.textContent).toBe(`${moneyDetailsPageCopy.fullRecord} `);
+    // The final word and arrow are 1 no-wrap run. The earlier words can wrap, but
+    // the arrow cannot drop to a line by itself or sit beside the whole 2-line block.
+    const run = [...row.querySelectorAll('span')].find((node) => node.querySelector('svg'))!;
+    expect(run.textContent).toBe('filings');
     expect(run.querySelector('svg')).not.toBeNull();
   });
 

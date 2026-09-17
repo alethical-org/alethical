@@ -69,7 +69,7 @@ import {
 } from './MoneyDetailsOnDemand';
 import { CommitteeRefundCard } from './CommitteeRefundCard';
 import { useCampaignMoneyYearStates } from '../../hooks/useCampaignMoneyYearStates';
-import { LinkArrow } from '../LinkArrow';
+import { LinkArrowLabel } from '../LinkArrow';
 import { boardRecordUrl, committeeNumberSuffix } from '../../lib/boardRecordLink';
 import { paymentDateRangeLabel, splitExplanation } from '../../lib/legislatorCampaignMoney';
 import { linkProps, routePath } from '../../navigation/links';
@@ -481,17 +481,10 @@ function CommitteeRecordLink({
         () => navigation.navigate('CommitteeMoney', recordParams),
       )}
     >
-      {/* Label and arrow are 1 inline run with a no-break space between them, so on a
-          phone, where the label wraps to 2 lines, the arrow stays against the last
-          word instead of being centred against the wrapped block with roughly 140px
-          of empty space in front of it. */}
-      <Text style={[styles.recordLinkLabel, { fontSize: type.small }]}>
-        {copy.fullRecord}
-        <Text style={styles.arrowRun}>
-          {'\u00a0'}
-          <LinkArrow color={c.link} />
-        </Text>
-      </Text>
+      <LinkArrowLabel
+        label={copy.fullRecord}
+        style={[styles.recordLinkLabel, { fontSize: type.small }]}
+      />
     </Pressable>
   );
 }
@@ -843,13 +836,7 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: c.link,
   },
-  // The no-break space alone does not hold a drawn arrow against the last word: the
-  // arrow is its own inline box, so the browser breaks in front of it and drops it to
-  // the left edge of the next line. Forbidding a break inside this run keeps the space
-  // and the arrow with the word before them, and a label too long for the line then
-  // wraps at an earlier word and carries the arrow down with it.
-  arrowRun: { ...({ whiteSpace: 'nowrap' } as object) },
-  // Same reason as `arrowRun`: a hyphen is a place a browser may break a line, so
+  // Same reason as `LinkArrowLabel`: a hyphen is a place a browser may break a line, so
   // without this the card ends a line on a dangling `-` and strands the number.
   numberRun: { ...({ whiteSpace: 'nowrap' } as object) },
   freshness: { gap: 8 },
@@ -880,5 +867,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
-  recordLink: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44 },
+  recordLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
 });

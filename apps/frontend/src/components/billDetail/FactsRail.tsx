@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { LinkArrowLabel } from '../LinkArrow';
 import { theme as t } from '../../theme/tokens';
 import { Bill } from '../../data/types';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
@@ -137,7 +138,7 @@ export function FactsRail({
         <View style={styles.linkCol}>
           {overviewUrl ? (
             <TextLink
-              label="Bill overview →"
+              label="Bill overview"
               href={overviewUrl}
               external
               onPress={() => onOpenUrl(overviewUrl)}
@@ -145,7 +146,7 @@ export function FactsRail({
           ) : null}
           {readUrl ? (
             <TextLink
-              label={`${read.label} →`}
+              label={read.label}
               href={readUrl}
               external
               onPress={() => onOpenUrl(readUrl)}
@@ -156,7 +157,7 @@ export function FactsRail({
           <View style={styles.companionRow}>
             <Text style={styles.authorFieldLabel}>Companion</Text>
             <TextLink
-              label={`${bill.companion.chamber} (${bill.companion.identifier}) →`}
+              label={`${bill.companion.chamber} (${bill.companion.identifier})`}
               href={routePath.bill(bill.companion.id)}
               onPress={() => onOpenBill(bill.companion!.id)}
             />
@@ -178,7 +179,7 @@ export function FactsRail({
               <Text style={styles.authorFieldLabel}>{authorTitleLabel(author.chamber)}</Text>
               {author.legislatorId ? (
                 <TextLink
-                  label={`${authorNameOnly(author.name)} →`}
+                  label={authorNameOnly(author.name)}
                   href={routePath.legislator(author.slug ?? author.legislatorId)}
                   onPress={() => onOpenLegislator((author.slug ?? author.legislatorId) as string)}
                 />
@@ -239,9 +240,10 @@ function TextLink({
   const anchor = external ? externalLinkProps(href, onPress) : linkProps(href, onPress);
   return (
     <Pressable {...anchor} {...hover}>
-      <Text style={[styles.tlink, large && styles.tlinkLarge, hovered && styles.tlinkHover]}>
-        {label}
-      </Text>
+      <LinkArrowLabel
+        label={label}
+        style={[styles.tlink, large && styles.tlinkLarge, hovered && styles.tlinkHover]}
+      />
     </Pressable>
   );
 }
@@ -284,12 +286,7 @@ function PhasedCaption({
         {...hover}
         style={[styles.phasedCaption, styles.phasedLink, hovered && styles.phasedLinkHover]}
       >
-        {/* Non-breaking space: a plain one lets the arrow orphan onto its own
-            line in the narrow column, leaving a lone "→" under the label. */}
-        {'See dates\u00A0'}
-        <Text aria-hidden style={styles.phasedArrow}>
-          →
-        </Text>
+        <LinkArrowLabel label="See dates" />
       </Text>
     </View>
   );
@@ -358,7 +355,6 @@ const styles = StyleSheet.create({
   phasedSep: { color: t.colors.text.muted },
   phasedLink: { fontWeight: t.fontWeights.bold, color: t.colors.text.green },
   phasedLinkHover: { color: t.colors.brand.forest, textDecorationLine: 'underline' },
-  phasedArrow: { fontWeight: t.fontWeights.regular },
   // Same quiet caption weight as the phased-law one above: it qualifies the status
   // it sits under without competing with it (#757).
   pointerCaption: {

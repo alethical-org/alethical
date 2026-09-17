@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { theme as t } from '../../theme/tokens';
+import { LinkArrowLabel } from '../LinkArrow';
 import { Bill } from '../../data/types';
 import {
   authorAddPrefix,
@@ -396,7 +397,10 @@ function ViewVotesLink({ onPress }: { onPress: () => void }) {
   const [hovered, hover] = useHover();
   return (
     <Pressable accessibilityRole="button" onPress={onPress} {...hover} style={styles.viewVotes}>
-      <Text style={[styles.viewVotesText, hovered && styles.viewVotesHover]}>View votes →</Text>
+      <LinkArrowLabel
+        label="View votes"
+        style={[styles.viewVotesText, hovered && styles.viewVotesHover]}
+      />
     </Pressable>
   );
 }
