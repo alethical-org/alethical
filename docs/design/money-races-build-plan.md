@@ -1,6 +1,6 @@
 # `/money/races` compact-directory build and release plan
 
-Status: implementation and automated checks complete; browser review blocks release. Updated 17 September 2026.
+Status: implementation and browser review complete; final release checks pending. Updated 17 September 2026.
 The current coding agent owns the authorized build through a checked live release.
 
 ## Authorization and scope
@@ -82,15 +82,18 @@ new recurring task, navigation redesign or unrelated money-page changes are incl
 - [x] Finish screen/search integration and 25 focused interaction tests.
 - [x] Complete independent source review, TypeScript, formatting and all 3,274 frontend tests.
 - [x] Fix ambiguous-Enter focus loss, literal-null search matches and inactive-screen hash handling.
-- [ ] Complete permitted browser review of phone, tablet and desktop states.
-- [ ] Open the draft pull request and finish remote checks.
+- [x] Complete permitted browser review of phone, tablet and desktop states.
+- [x] Open the draft pull request and finish remote checks.
 - [ ] After browser review passes, mark ready, merge, deploy and exercise the live flow.
 
-Browser access is currently blocked because the browser tool could not verify the
-admin-enforced policy. No alternate browser, headless route or other indirect path may
-bypass that refusal. The user-side reconnection is pending; continue independent safe
-implementation and checks while that boundary remains. Static checks do not count as
-browser or live-release evidence. The parent agent retains the release work.
+Browser access recovered after the user restarted Codex and resumed the task. Review
+at 390, 900 and 1440 pixels covered the compact directory, selected House district,
+all 28 Governor committees, keyboard selection, ambiguous Enter, global search from
+a House-filtered directory, Back restoring search and office, and Clear search.
+The local preview used a saved public 2026 API response. Missing amounts and real $0
+figures remained distinct, dates stayed attached to each amount, and the phone layout
+had no horizontal overflow. The earlier unavailable-records state and retry were also
+exercised. Final production verification remains required after deployment.
 
 Current branch: `codex/money-races-directory-v2`. The saved changes include the current
 sitewide Share control and the shared scroll-restoration protections. Resume browser
