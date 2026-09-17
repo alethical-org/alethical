@@ -2,7 +2,7 @@ import React, { useState, type ReactNode } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { GreenLinkArrow, LinkArrowLabel, linkArrowRow } from '../LinkArrow';
+import { LinkArrowLabel, linkArrowRow } from '../LinkArrow';
 import { useHover } from '../billDetail/interactions';
 import { useResponsive } from '../../hooks/useResponsive';
 import { committeeSlug, registerKindLabel } from '../../lib/committeeMoneyShared';
