@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useId, useRef, useState, type Ref } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
@@ -46,6 +46,9 @@ export function MoneyNameSearchField({
   controlGap,
   appearance = 'default',
   accessibilityLabel,
+  inputRef: externalInputRef,
+  labelStyle,
+  maxLength,
 }: {
   value: string;
   onChangeText: (next: string) => void;
@@ -62,6 +65,9 @@ export function MoneyNameSearchField({
   controlGap?: number;
   appearance?: 'default' | 'list';
   accessibilityLabel?: string;
+  inputRef?: Ref<TextInput>;
+  labelStyle?: import('react-native').StyleProp<import('react-native').TextStyle>;
+  maxLength?: number;
 }) {
   const inputId = useId();
   const listAppearance = appearance === 'list';
@@ -74,7 +80,7 @@ export function MoneyNameSearchField({
       {label ? (
         <Text
           nativeID={`${inputId}-label`}
-          style={[styles.label, listAppearance && styles.listLabel]}
+          style={[styles.label, listAppearance && styles.listLabel, labelStyle]}
         >
           {label}
         </Text>
@@ -108,7 +114,12 @@ export function MoneyNameSearchField({
         >
           <MagnifierGlyph color={t.colors.text.faint} />
           <TextInput
-            ref={inputRef}
+            ref={(input) => {
+              inputRef.current = input;
+              if (typeof externalInputRef === 'function') externalInputRef(input);
+              else if (externalInputRef) externalInputRef.current = input;
+            }}
+            maxLength={maxLength}
             nativeID={inputId}
             aria-labelledby={label ? `${inputId}-label` : undefined}
             // The placeholder is the field's accessible name where no visible

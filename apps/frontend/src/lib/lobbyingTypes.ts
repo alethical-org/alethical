@@ -148,6 +148,8 @@ export interface LobbyingListPage extends LobbyingSourceStamp {
 }
 
 export interface LobbyingPrincipalListRow {
+  /** Distinct current registered spellings sharing this official entity ID. */
+  registered_names?: string[];
   entity_id: number;
   name: string;
   state: 'reported' | 'no_spending_rows';

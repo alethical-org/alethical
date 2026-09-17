@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/screens/redesign/LobbyingLandingScreen.tsx, apps/frontend/src/screens/redesign/LobbyingPrincipalsScreen.tsx, apps/frontend/src/screens/redesign/LobbyingLobbyistsScreen.tsx, apps/frontend/src/screens/redesign/LobbyingPrincipalScreen.tsx, apps/frontend/src/screens/redesign/LobbyingLobbyistScreen.tsx, apps/frontend/src/lib/lobbyingDirectoryCopy.ts, apps/frontend/src/lib/lobbyingRecordCopy.ts, apps/frontend/src/lib/lobbyingTypes.ts, apps/frontend/src/data/lobbying.ts, apps/frontend/src/data/moneyNameSearch.ts, apps/frontend/src/hooks/useLobbying.ts, apps/frontend/src/lib/lobbyingPageSnapshot.ts, apps/frontend/src/lib/lobbyingMetadata.ts, apps/frontend/src/components/lobbying/LobbyingDonationContext.tsx, apps/frontend/src/lib/lobbyingPanelCopy.ts, apps/frontend/src/navigation/webRoutes.ts, api/page.ts, api/sitemap.ts -->
+<!-- describes: apps/frontend/src/screens/redesign/LobbyingLandingScreen.tsx, apps/frontend/src/screens/redesign/LobbyingPrincipalsScreen.tsx, apps/frontend/src/screens/redesign/LobbyingLobbyistsScreen.tsx, apps/frontend/src/screens/redesign/LobbyingPrincipalScreen.tsx, apps/frontend/src/screens/redesign/LobbyingLobbyistScreen.tsx, apps/frontend/src/lib/lobbyingDirectoryCopy.ts, apps/frontend/src/lib/lobbyingRecordCopy.ts, apps/frontend/src/lib/lobbyingTypes.ts, apps/frontend/src/data/lobbying.ts, apps/frontend/src/data/moneyNameSearch.ts, apps/frontend/src/hooks/useLobbying.ts, apps/frontend/src/hooks/useLobbyingNameSearch.ts, apps/frontend/src/components/lobbying/LobbyingSearchResults.tsx, apps/frontend/src/lib/lobbyingSearch.ts, apps/frontend/src/lib/lobbyingPageSnapshot.ts, apps/frontend/src/lib/lobbyingMetadata.ts, apps/frontend/src/components/lobbying/LobbyingDonationContext.tsx, apps/frontend/src/lib/lobbyingPanelCopy.ts, apps/frontend/src/navigation/webRoutes.ts, api/page.ts, api/sitemap.ts -->
 
 # How the lobbying pages work
 
@@ -27,6 +27,41 @@ choose or join identities. Each address opens directly, without first visiting a
 screen. `/money` has a sixth lane named Lobbying. `/money/search` adds 2 separately
 counted groups, Lobbyists and Principals. The lobbying-under-development strip is removed
 from all money screens in the same release.
+
+## Search within lobbying
+
+Submitting the name field on `/money/lobbying` keeps the reader on that address and
+stores the submitted query in `q`. Search needs at least 3 characters and runs on
+Search or Enter. Typing alone does not submit. A shorter submission keeps the last
+results under their original query heading and shows “Enter at least 3 characters”.
+
+Lobbyists appear before Principals, with up to 5 rows per group. Each group carries
+its own exact count, including zero when the search succeeds without matches. A
+failed group carries its own retry and no count. A successful group stays available
+when the other fails. Searches use separate lobbying list requests; campaign searches
+run only after “Search all money records for “{query}”” is opened.
+
+“View all matching lobbyists” and “View all matching principals” retain the submitted
+query in their full directory links. The ordinary browse cards open unfiltered lists;
+they condense below results and stack on phones. “Clear search” removes the query,
+restores the starting view and focuses the field. Old responses cannot restore cleared
+results or replace a newer search. Refresh and browser history preserve the submitted
+query; returning from a result restores the saved scroll position.
+
+Principal rows display their stated latest year when available. A principal found only
+in the lobbyist list remains unlinked and explains why there is no spending page.
+Distinct alternate registered spellings appear beneath the spending-file name, matched
+by official entity ID within the same pair of source files, never by similar names.
+The registered spellings do not broaden the directory’s existing filed-name filter.
+
+The opening copy defines the search scope, names the source agency, and explains that
+registration is dated by the held copy and spending is reported by calendar year. The
+Lobbyists card says “LOBBYISTS LISTED”; the Principals card’s reported-spending count
+is the count for its named year, not the total principal directory population. The
+copied-date card links to the official downloads using the shared horizontal arrow.
+Counts and supporting explanations are at least 15 pixels; controls are at least
+44 pixels tall. A short live announcement describes search changes while result links
+remain ordinary links within list items.
 
 ## The 2 directories
 

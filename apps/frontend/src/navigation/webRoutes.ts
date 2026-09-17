@@ -26,7 +26,7 @@ type WebRouteTarget =
   | { kind: 'legislators'; params: Record<string, string> }
   | { kind: 'findMyLegislator'; address?: string }
   | { kind: 'moneyLanding' }
-  | { kind: 'lobbyingLanding' }
+  | { kind: 'lobbyingLanding'; params?: { q: string } }
   | { kind: 'lobbyingPrincipals' | 'lobbyingLobbyists'; params: Record<string, string> }
   | { kind: 'lobbyingPrincipal' | 'lobbyingLobbyist'; slug: string }
   | { kind: 'read' }
@@ -366,7 +366,10 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   }
 
   if (segments[0] === 'money' && segments[1] === 'lobbying') {
-    if (segments.length === 2) return { kind: 'lobbyingLanding' };
+    if (segments.length === 2) {
+      const q = searchParams.get('q');
+      return q ? { kind: 'lobbyingLanding', params: { q } } : { kind: 'lobbyingLanding' };
+    }
     const principals = segments[2] === 'principals';
     if (!principals && segments[2] !== 'lobbyists') return { kind: 'notFound', path: pathname };
     if (segments.length === 3) {
@@ -608,8 +611,10 @@ export function pathForRoute(activeRoute: {
     }
     case 'MoneyLanding':
       return '/money';
-    case 'LobbyingLanding':
-      return '/money/lobbying';
+    case 'LobbyingLanding': {
+      const q = activeRoute.params?.q;
+      return q ? `/money/lobbying?${new URLSearchParams({ q: String(q) })}` : '/money/lobbying';
+    }
     case 'LobbyingPrincipals':
     case 'LobbyingLobbyists': {
       const base =
@@ -834,7 +839,13 @@ export function stateFromPathname(pathname: string): WebNavigationState {
         index: 1,
       };
     case 'lobbyingLanding':
-      return { routes: [homeTabs, { name: 'LobbyingLanding' }], index: 1 };
+      return {
+        routes: [
+          homeTabs,
+          { name: 'LobbyingLanding', ...(target.params ? { params: target.params } : {}) },
+        ],
+        index: 1,
+      };
     case 'lobbyingPrincipals':
     case 'lobbyingLobbyists':
       return {

@@ -1,4 +1,5 @@
 import { publicApiRequest } from './api';
+import { LOBBYING_SEARCH_LIMIT } from '../lib/lobbyingSearch';
 import {
   LOBBYING_PAGE_SIZE,
   lobbyingListOptions,
@@ -74,4 +75,14 @@ export function getLobbyingLobbyists(
   signal?: AbortSignal,
 ): Promise<LobbyingLobbyistsPage> {
   return read<LobbyingLobbyistsPage>(listPath('lobbyists', options), signal);
+}
+
+/** Five-row previews have distinct query keys from the 50-row directories. */
+export function getLobbyingSearchLobbyists(q: string, signal?: AbortSignal) {
+  const params = new URLSearchParams({ limit: String(LOBBYING_SEARCH_LIMIT), offset: '0', q });
+  return read<LobbyingLobbyistsPage>(`/lobbying/lobbyists?${params}`, signal);
+}
+export function getLobbyingSearchPrincipals(q: string, signal?: AbortSignal) {
+  const params = new URLSearchParams({ limit: String(LOBBYING_SEARCH_LIMIT), offset: '0', q });
+  return read<LobbyingPrincipalsPage>(`/lobbying/principals?${params}`, signal);
 }

@@ -292,6 +292,101 @@ def test_numbered_lists_count_the_whole_and_include_list_only_principals(client,
     assert client.get("/api/v1/lobbying/lobbyists?limit=51").status_code == 422
 
 
+def test_principal_list_preserves_distinct_registered_names_by_number(client, db):
+    active, _, _ = _pair(db)
+    for position, (entity_id, name) in enumerate(
+        (
+            (2263, "AMERICAN EXPRESS"),
+            (2263, "American Express Co."),
+            (2263, "AMERICAN EXPRESS"),
+            (999999, "American Express"),
+            (999999, "Another organisation's name"),
+        ),
+        100,
+    ):
+        db.add(
+            models.LobbyistAssociation(
+                snapshot_id=active.id,
+                registration_number="9865",
+                position=position,
+                entity_id=entity_id,
+                principal_name=name,
+            )
+        )
+        active.association_count += 1
+    db.commit()
+
+    data = _get(client, "principals?q=American%20Express")
+    assert data["total"] == 1
+    assert data["has_more"] is False
+    assert data["principals"][0] == {
+        "entity_id": 2263,
+        "name": "American Express",
+        "registered_names": ["AMERICAN EXPRESS", "American Express Co."],
+        "state": "reported",
+        "linkable": True,
+        "latest_reported_year": 2025,
+    }
+    # Registered spellings explain a result but do not change name matching.
+    assert _get(client, "principals?q=Express%20Co.")["principals"] == []
+
+
+def test_principal_list_has_empty_registered_names_without_a_different_spelling(
+    client, db
+):
+    _, spending, _ = _pair(db)
+    db.add(
+        models.LobbyingExpenditureRow(
+            snapshot_id=spending.id, **FIXTURE["blank_spending"]
+        )
+    )
+    spending.row_count += 1
+    db.commit()
+    for query in ("American%20Express", "Hunter%20Valley", "Moorhead"):
+        data = _get(client, f"principals?q={query}")
+        assert len(data["principals"]) == 1
+        assert data["principals"][0]["registered_names"] == []
+
+
+def test_principal_list_registered_names_use_only_the_current_pair(client, db):
+    old_active, _, _ = _pair(db)
+    old_name = db.get(models.LobbyistAssociation, (old_active.id, "141", 1))
+    old_name.principal_name = "Old registered spelling"
+    db.commit()
+    active, _, _ = _pair(db)
+    current_name = db.get(models.LobbyistAssociation, (active.id, "141", 1))
+    current_name.principal_name = "Current registered spelling"
+    db.commit()
+    data = _get(client, "principals?q=American%20Express")
+    assert data["principals"][0]["registered_names"] == ["Current registered spelling"]
+    db.execute(text("UPDATE lobbying_current_release SET release_id = NULL"))
+    db.commit()
+    unavailable = _get(client, "principals?q=American%20Express")
+    assert unavailable["state"] == "unavailable"
+    assert unavailable["principals"] == []
+
+
+def test_principal_list_query_count_does_not_grow_with_the_page(db):
+    _pair(db)
+    pair = lobbying.published_pair(db)
+    counts = []
+    for limit in (1, 50):
+        statements = []
+
+        def record_query(_connection, _cursor, statement, *_rest):
+            statements.append(statement)
+
+        connection = db.connection()
+        event.listen(connection, "before_cursor_execute", record_query)
+        try:
+            data = lobbying.principals_page(db, pair, limit=limit, offset=0)
+        finally:
+            event.remove(connection, "before_cursor_execute", record_query)
+        assert len(data["principals"]) == limit
+        counts.append(len(statements))
+    assert counts[0] == counts[1]
+
+
 def test_search_returns_separate_lobbying_groups_with_literal_matching(client, db):
     _pair(db)
     kozak = client.get("/api/v1/campaign-finance/search?q=Kozak").json()["data"]

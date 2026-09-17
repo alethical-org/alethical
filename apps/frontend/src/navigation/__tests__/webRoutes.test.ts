@@ -854,3 +854,14 @@ describe('lobbying addresses', () => {
     expect(targetFromPathname(path).kind).toBe('notFound');
   });
 });
+
+describe('lobbying search address', () => {
+  it('retains an encoded submitted name on direct load and navigation', () => {
+    const path = pathForRoute({ name: 'LobbyingLanding', params: { q: 'Smith & Co' } });
+    expect(path).toBe('/money/lobbying?q=Smith+%26+Co');
+    expect(targetFromPathname(path)).toEqual({
+      kind: 'lobbyingLanding',
+      params: { q: 'Smith & Co' },
+    });
+  });
+});

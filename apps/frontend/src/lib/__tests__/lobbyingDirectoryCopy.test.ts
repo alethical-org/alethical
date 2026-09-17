@@ -13,12 +13,12 @@ import {
 
 describe('lobbying directory wording', () => {
   it('uses filed counts and years, not illustrative drawing figures', () => {
-    expect(lobbyistLaneCount(1665)).toBe('1,665 REGISTERED IN THIS COPY');
+    expect(lobbyistLaneCount(1665)).toBe('1,665 LOBBYISTS LISTED');
     expect(principalLaneCount(1748, 2025)).toBe('1,748 REPORTED SPENDING FOR 2025');
     expect(principalLaneCount(0, 2025)).toBe('0 REPORTED SPENDING FOR 2025');
     expect(lobbyistLaneCount(null)).toBeNull();
     expect(principalLaneCount(1748, null)).toBeNull();
-    expect(lobbyingHeldYearsNote(2014)).toBe('The spending records shown here begin in 2014');
+    expect(lobbyingHeldYearsNote(2014)).toBe('The spending records shown here begin in 2014.');
     expect(lobbyingHeldYearsNote(null)).toBeNull();
   });
   it('names registered lobbyists on /money without implying the count is from today', () => {
@@ -26,7 +26,7 @@ describe('lobbying directory wording', () => {
     expect(moneyLandingLobbyistCount(0)).toBe('0 REGISTERED LOBBYISTS');
     expect(moneyLandingLobbyistCount(null)).toBeNull();
     expect(moneyLandingLobbyistCount(undefined)).toBeNull();
-    expect(lobbyistLaneCount(1665)).toBe('1,665 REGISTERED IN THIS COPY');
+    expect(lobbyistLaneCount(1665)).toBe('1,665 LOBBYISTS LISTED');
   });
   it('keeps full counts beside the page interval', () => {
     expect(lobbyingShowingLine('lobbyists', 2, 50, 1665)).toBe(
@@ -40,9 +40,7 @@ describe('lobbying directory wording', () => {
     expect(lobbyingPrincipalCount(86)).toBe('86 principals today');
   });
   it('does not turn a deadline into a claim about an actual filing date', () => {
-    expect(copy.annual).toBe(
-      'Spending is reported by calendar year, with reports due the following March',
-    );
+    expect(copy.annual).toBe('Spending is reported by calendar year.');
     expect(copy.principals.intro).toBe(
       "Organisations named in the Board's lobbying spending file or current lobbyist list",
     );

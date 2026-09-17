@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import ts from 'typescript';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const READ_ONLY_TEXT_FIELD = 'components/billDetail/SharePopover.tsx';
@@ -14,10 +15,31 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
+function rendersTextInput(file: string) {
+  const source = ts.createSourceFile(
+    file,
+    readFileSync(file, 'utf8'),
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  let found = false;
+  const visit = (node: ts.Node) => {
+    if (
+      (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+      node.tagName.getText(source) === 'TextInput'
+    )
+      found = true;
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return found;
+}
+
 const EDITABLE_TEXT_FIELD_SOURCES = sourceFiles(SRC)
   .filter((file) => {
     const name = relative(SRC, file);
-    return name !== READ_ONLY_TEXT_FIELD && readFileSync(file, 'utf8').includes('<TextInput');
+    return name !== READ_ONLY_TEXT_FIELD && rendersTextInput(file);
   })
   .map((file) => relative(SRC, file));
 

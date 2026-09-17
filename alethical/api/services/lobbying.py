@@ -206,6 +206,18 @@ def principals_page(
         .limit(limit)
         .offset(offset)
     ).all()
+    registered_names: dict[int, set[str]] = {}
+    if rows:
+        association = schema.LobbyistAssociation
+        for entity_id, name in db.execute(
+            select(association.entity_id, association.principal_name)
+            .where(
+                association.snapshot_id == pair.lobbyist_snapshot_id,
+                association.entity_id.in_([int(row.entity_id) for row in rows]),
+            )
+            .distinct()
+        ):
+            registered_names.setdefault(entity_id, set()).add(name)
     return {
         **base,
         "state": REPORTED if total else NOT_REPORTED,
@@ -216,6 +228,11 @@ def principals_page(
             {
                 "entity_id": int(row.entity_id),
                 "name": row.name,
+                "registered_names": sorted(
+                    name
+                    for name in registered_names.get(int(row.entity_id), ())
+                    if name != row.name
+                ),
                 "state": REPORTED if row.source == "0" else "no_spending_rows",
                 "linkable": row.source == "0",
                 "latest_reported_year": row.latest_reported_year,
