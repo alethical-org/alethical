@@ -144,11 +144,15 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   with [`LinkArrow.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/LinkArrow.tsx):
   a 19×19 box, `#0f7a45` stroke, 1.8px line, rounded ends and joins, and the shared path in that
   component. Use `GreenLinkArrow` with the shared centered row (`linkArrowRow`) for a simple label,
-  or `LinkArrowLabel` when the label can wrap. Both keep the arrow 6px after the label and preserve
-  the component's 1px optical drop. Do not type `→` or `↗`, draw a local copy, change its size, or
-  invent a different gap. If a Design drawing shows another arrow treatment, this approved treatment
-  wins and the build corrects the drawing. The `mobileLinkArrows.test.ts` check rejects typed arrows
-  and old local drawings.
+  or `LinkArrowLabel` when the label can wrap. `linkArrowRow` centers a separate arrow beside the
+  complete label. `LinkArrowLabel` keeps the final word and arrow in one unbreakable group, then
+  centers the arrow against that word's own line. The shared component therefore handles different
+  text sizes and wrapping without a page moving the arrow up or down. Both keep the arrow 6px after
+  the label. Do not type `→` or `↗`, draw a local copy, change its size, invent a different gap, or
+  add `top`, `bottom`, a vertical margin, `translateY`, or `verticalAlign` to a page's arrow. If a
+  Design drawing shows another arrow treatment or local vertical adjustment, this approved treatment
+  wins and the build corrects the drawing. The `mobileLinkArrows.test.ts` check rejects typed arrows,
+  old local drawings, and page-specific vertical adjustments.
 - **The rule standardizes arrows that already exist; it does not add them.** A green link whose
   accepted surface has no trailing arrow keeps no arrow. Back arrows, disclosure chevrons, and
   arrows used as data or diagrams are outside this rule.

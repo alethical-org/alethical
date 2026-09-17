@@ -68,8 +68,18 @@ export function LinkArrow({ color, style }: { color: string; style?: StyleProp<V
 }
 
 const styles = StyleSheet.create({
-  // The 1px optical nudge centers the mark on the neighboring letters' x-height.
-  arrow: { position: 'relative', top: 1, flexShrink: 0, pointerEvents: 'none' },
-  keepTogether: { ...({ whiteSpace: 'nowrap' } as object) },
-  inlineArrow: { marginLeft: 6, ...({ verticalAlign: 'middle' } as object) },
+  // The surrounding layout owns vertical centering. A shared top offset cannot serve
+  // both an inline label and a separate flex-row arrow: it moves one of them twice.
+  arrow: { flexShrink: 0, pointerEvents: 'none' },
+  // The last word and arrow are one unbreakable inline flex group. Centering inside
+  // that group follows the label's own line box at every supported text size.
+  keepTogether: {
+    ...({
+      whiteSpace: 'nowrap',
+      display: 'inline-flex',
+      alignItems: 'center',
+      verticalAlign: 'baseline',
+    } as object),
+  },
+  inlineArrow: { marginLeft: 6 },
 });
