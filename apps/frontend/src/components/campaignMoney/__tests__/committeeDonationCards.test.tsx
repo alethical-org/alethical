@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import React from 'react';
+import React, { act } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -112,7 +113,7 @@ describe('drawn donation cards from committee 17868 in 2025', () => {
     const page = render({ payments: singleClosingPayment });
     const [filing, locations, connections] = cards(page);
     expect(cards(page)).toHaveLength(3);
-    expect(cards(page).map((card) => card.querySelector('h2')?.textContent)).toEqual([
+    expect(cards(page).map((card) => card.querySelector('h3')?.textContent)).toEqual([
       'What the committee’s own report says',
       'Where itemized individual contributions came from',
       'Contributor names also listed for other candidates',
@@ -363,27 +364,43 @@ describe('all donation-card states', () => {
     ]);
   });
 
-  it.each(['political_fund', 'party_unit'])('removes only card 2 on a %s page', (kind) => {
-    const page = render({ registerKind: kind });
-    expect(cards(page).map((card) => card.querySelector('h2')?.textContent)).toEqual([
-      'What the committee’s own report says',
-      'Contributor names also listed for other candidates',
-    ]);
-    expect(page.textContent).not.toContain('Where itemized individual contributions came from');
-  });
-
   it.each(['party_unit', 'political_committee_or_fund'])(
-    'holds an omitted candidate-report comparison after a successful %s read',
+    'omits unsupported rows by established %s type, even when candidate fields are present',
     (registerKind) => {
-      const filing = cards(
-        render({ registerKind, committee: committee({ statedByKind: undefined }) }),
-      )[0];
-      expect(filing.textContent).toContain(
-        'This card needs a filed report for 2025 and our own figures checked against it. We do not yet have both, so no figures are drawn here.',
+      for (const failed of [false, true]) {
+        const page = render({ registerKind, failed });
+        expect(cards(page)).toHaveLength(1);
+        expect(cards(page)[0].querySelector('h3')?.textContent).toBe(
+          'Contributor names also listed for other candidates',
+        );
+        expect(page.textContent).not.toContain('What the committee’s own report says');
+        expect(page.textContent).not.toContain('Where itemized individual contributions came from');
+      }
+    },
+  );
+
+  it.each(['missing', 'withheld', 'disagreeing', 'incomplete'] as const)(
+    'keeps valid geography and name results when the report comparison is %s',
+    (state) => {
+      const statedByKind: CardCommittee['statedByKind'] =
+        state === 'missing'
+          ? undefined
+          : state === 'withheld'
+            ? null
+            : state === 'disagreeing'
+              ? { ...source.stated_by_kind, state: 'sources_disagree' }
+              : { ...source.stated_by_kind, lines: [] };
+      const [filing, locations, connections] = cards(
+        render({ committee: committee({ statedByKind }) }),
       );
-      expect(filing.querySelector('[role="alert"]')).toBeNull();
       expect(filing.querySelector('table')).toBeNull();
-      expect(filing.textContent).not.toContain('$0');
+      expect(locations.textContent).toContain('Minnesota');
+      expect(locations.textContent).toContain('$38,700');
+      expect(locations.querySelectorAll('table')).toHaveLength(1);
+      expect(connections.textContent).toContain('19 of 74 names');
+      expect(connections.querySelectorAll('table')).toHaveLength(2);
+      expect(locations.querySelector('[role="alert"]')).toBeNull();
+      expect(connections.querySelector('[role="alert"]')).toBeNull();
     },
   );
 
@@ -395,7 +412,7 @@ describe('all donation-card states', () => {
     expect(filing.querySelector('table')).toBeNull();
   });
 
-  it.each(['party_unit', 'political_committee_or_fund', 'candidate_committee'])(
+  it.each(['candidate_committee', null])(
     'keeps a failed %s request separate from an unsupported comparison',
     (registerKind) => {
       const filing = cards(
@@ -502,4 +519,104 @@ it('lists positive matches without padding and ends the shorter list without a r
   expect(connections.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe(
     '19 of 74 names are also listed for at least one other candidate committee. 0 other candidate committees, 55 names; 1 other candidate committee, 11 names; 2 other candidate committees, 5 names; 3 other candidate committees, 1 name; 4 or more other candidate committees, 2 names',
   );
+});
+
+describe('shared contribution panel disclosures', () => {
+  it('uses explicit address rows and keeps other open rows when toggled', () => {
+    (
+      globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
+    const mount = document.createElement('div');
+    const root = createRoot(mount);
+    const onExpandedRowsChange = vi.fn();
+    try {
+      act(() =>
+        root.render(
+          <CommitteeDonationCardsView
+            committee={committee()}
+            year={2025}
+            registerKind="candidate_committee"
+            payments={singleClosingPayment}
+            expandedRows={[0, 2]}
+            onExpandedRowsChange={onExpandedRowsChange}
+          />,
+        ),
+      );
+      const buttons = [...mount.querySelectorAll('button')];
+      expect(buttons.map((button) => button.getAttribute('aria-expanded'))).toEqual([
+        'true',
+        'false',
+        'true',
+      ]);
+      act(() => buttons[1].click());
+      expect(onExpandedRowsChange).toHaveBeenLastCalledWith([0, 2, 1]);
+      act(() => buttons[0].click());
+      expect(onExpandedRowsChange).toHaveBeenLastCalledWith([2]);
+    } finally {
+      act(() => root.unmount());
+    }
+  });
+
+  it('starts closed, opens several rows independently, and resets on another committee or year', () => {
+    (
+      globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
+    const mount = document.createElement('div');
+    document.body.append(mount);
+    const root = createRoot(mount);
+    const draw = (year: number, registrationNumber = realCommittee.registrationNumber) =>
+      act(() =>
+        root.render(
+          <CommitteeDonationCardsView
+            committee={committee({ registrationNumber })}
+            year={year}
+            registerKind="candidate_committee"
+            payments={singleClosingPayment}
+          />,
+        ),
+      );
+    try {
+      draw(2025);
+      const buttons = [...mount.querySelectorAll('button')];
+      expect(buttons).toHaveLength(3);
+      expect(buttons.map((button) => button.getAttribute('aria-expanded'))).toEqual([
+        'false',
+        'false',
+        'false',
+      ]);
+      for (const button of buttons) {
+        const content = document.getElementById(button.getAttribute('aria-controls')!)!;
+        expect(content.hidden).toBe(true);
+        expect(content.getAttribute('aria-labelledby')).toBe(button.id);
+      }
+      act(() => buttons[0].click());
+      act(() => buttons[1].click());
+      expect(buttons.map((button) => button.getAttribute('aria-expanded'))).toEqual([
+        'true',
+        'true',
+        'false',
+      ]);
+      expect(document.getElementById(buttons[0].getAttribute('aria-controls')!)!.hidden).toBe(
+        false,
+      );
+      act(() => buttons[0].click());
+      expect(buttons[1].getAttribute('aria-expanded')).toBe('true');
+      draw(2026);
+      expect(
+        [...mount.querySelectorAll('button')].every(
+          (button) => button.getAttribute('aria-expanded') === 'false',
+        ),
+      ).toBe(true);
+      act(() => mount.querySelector('button')!.click());
+      draw(2026, '99999');
+      expect(
+        [...mount.querySelectorAll('button')].every(
+          (button) => button.getAttribute('aria-expanded') === 'false',
+        ),
+      ).toBe(true);
+    } finally {
+      act(() => root.unmount());
+      mount.remove();
+    }
+  });
 });

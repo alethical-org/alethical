@@ -6,12 +6,12 @@ Share sends the page a reader chose, with enough plain-language context for anot
 
 ## What each page shares
 
-| Page       | Title                                                       | Description                                                                                | Link                                                                                                                 |
-| ---------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| Bill       | Bill code, session year, and the short plain-language title | The first sentence of the plain-language summary                                           | The bill profile, without a selected tab                                                                             |
-| Legislator | Name, plus chamber and district when serving now            | A fixed sentence naming committees, chief-authored bills, and contact information          | The readable legislator profile address                                                                              |
-| Ask answer | The reader's question                                       | A fixed sentence saying the answer is cited and links to the official record               | The public Ask address, keeping only the question, bill, legislator, and saved-suggestion fields needed to rebuild it |
-| Committee money | The committee's filed name and campaign money | A fixed sentence identifying the committee's record and Minnesota's filings | The committee address, keeping the selected year and section plus the nondefault donor category and sort |
+| Page            | Title                                                       | Description                                                                       | Link                                                                                                                                                                        |
+| --------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bill            | Bill code, session year, and the short plain-language title | The first sentence of the plain-language summary                                  | The bill profile, without a selected tab                                                                                                                                    |
+| Legislator      | Name, plus chamber and district when serving now            | A fixed sentence naming committees, chief-authored bills, and contact information | The readable legislator profile address; Campaign money retains its selected year and open contribution rows                                                                |
+| Ask answer      | The reader's question                                       | A fixed sentence saying the answer is cited and links to the official record      | The public Ask address, keeping only the question, bill, legislator, and saved-suggestion fields needed to rebuild it                                                       |
+| Committee money | The committee's filed name and campaign money               | A fixed sentence identifying the committee's record and Minnesota's filings       | The committee address, retaining the year, section, donor category and sort, independent-spending sort, open contribution rows, ownership evidence and earlier-year choices |
 
 A bill's title reads `HF 719 (2025): Statewide Capital Projects and Bonding Bill`. The year is there
 because bill numbers repeat every two years, so the number alone never identifies one bill for good.
@@ -39,6 +39,12 @@ section is added to or removed from the profile, this sentence changes with it**
 (`buildLegislatorShareContent` in `apps/frontend/src/lib/share.ts`, pinned by `share.test.ts`) —
 otherwise we advertise a capability we do not ship
 (`.claude/rules/grounded-answers.md` rule 6).
+
+Sharing a legislator's Campaign money view retains `tab=money`, the selected year and
+open contribution rows for each committee. The same link reopens that view on phones
+and computers. Committee Share also retains open ownership evidence and earlier-year
+choices. Independent spending keeps its own Newest first or Largest first order through
+`spendingSort`; this does not overwrite the donor browser's separate saved sort.
 
 The Share panel uses the same prepared title, description, and link for each destination.
 The bill, legislator and Ask share text comes from `apps/frontend/src/lib/share.ts`.
@@ -132,7 +138,7 @@ does not cover, and links into the 4 indexable destinations: legislators, commit
 races and outside spending. **`/money/committees` arrives with an
 ordinary link to every committee on the page**, 50 at a time on numbered addresses — the load-bearing
 part: behind a "Show more" button Google will not press, 1,553 of the 1,603 committee pages
-would have no link anywhere on the site. **One committee**
+would have no link anywhere on the site. **One committee’s Campaign money view**
 arrives with its filed name, the register's kind and its registration number, the seat it registered
 for where the register states one, the sentence saying whose committee it is — carrying, once a
 person here has confirmed the link, that member's name and an ordinary link to their campaign money
@@ -140,7 +146,7 @@ person here has confirmed the link, that member's name and an ordinary link to t
 the official spending total when held or the sentence saying Alethical does not hold it, and the
 day we copied the files. Its money-in figures keep their source and split explanations. The first
 response links to the selected year's full received and outgoing lists, the year choices and
-Filings. Those Year and Filings links keep the selected donor category and sort.
+Filed reports. Those Year and Filed reports links keep the selected donor category and sort.
 The donor chart and grouped tabs appear after their complete selected-year records load.
 The shared committee address restores the same donor category and sort when the app starts;
 those choices do not change the financial facts in the first response. Individuals and
@@ -153,9 +159,11 @@ reads "$0", and a test fails if the served page ever prints an amount the filing
 ([`.claude/rules/grounded-answers.md` rule 12](../../.claude/rules/grounded-answers.md)). A year named in the
 address is the year those figures are for, and on the payments page a direction named in the address
 is the direction those payments go, so a shared link never opens on an answer to a different
-question. A tab that only picks which part of one record to look at is still ignored by the served
-text, which carries the page's plain state, exactly as a bill serves its Summary whichever tab the
-address names.
+question. Committee Filed reports and Independent spending responses instead show their
+all-years heading and scope, with the Board record link. They omit selected-year figures,
+year controls and money footers. Their rows load when the app starts, and the initial
+response invents no empty result. Bill first responses continue to serve Summary whichever
+tab the address names.
 
 **The bare `/money/races` address** arrives with every group and an ordinary link to every
 candidate committee registered for its district or seat. Each committee carries its 2 figures,
@@ -218,7 +226,7 @@ piece's own address, which is what keeps an older piece reachable on a first vis
 after the app starts. Not a word of a piece is
 rewritten, shortened or summarised for this: the served sentences are the stored sentences
 ([`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md) forbids editing
-a piece's text at all), and whether a search engine may *list* a piece is still the separate,
+a piece's text at all), and whether a search engine may _list_ a piece is still the separate,
 per-piece decision described in
 [campaign-money-section-guide.md](campaign-money-section-guide.md) — a piece marked to be skipped is
 served in full and still asks to be skipped.

@@ -18,7 +18,10 @@ const state = vi.hoisted(() => ({
   by: false,
   byRows: [] as CommitteeOutsideSpendingRow[],
   filings: null as unknown,
+  filingsQuery: {} as Record<string, unknown>,
 }));
+const filingsRefetch = vi.hoisted(() => vi.fn());
+const filingsFetchNextPage = vi.hoisted(() => vi.fn());
 const navigate = vi.hoisted(() => vi.fn());
 vi.mock('../../../hooks/useResponsive', () => ({
   useResponsive: () => ({
@@ -64,6 +67,13 @@ vi.mock('../../../hooks/useAppQueries', () => ({
     data: { pages: [state.filings ?? { state: 'not_reported', filings: [] }] },
     isPending: false,
     isError: false,
+    isFetching: false,
+    isFetchingNextPage: false,
+    isFetchNextPageError: false,
+    hasNextPage: false,
+    refetch: filingsRefetch,
+    fetchNextPage: filingsFetchNextPage,
+    ...state.filingsQuery,
   }),
   usePrefetchCommitteeMoney: () => () => {},
   usePrefetchLegislator: () => () => {},
@@ -99,7 +109,7 @@ vi.mock('react-native-svg', () => ({
   Circle: () => <circle />,
 }));
 
-import { CommitteeMoneyScreen } from '../CommitteeMoneyScreen';
+import { CommitteeMoneyScreen, FilingsList } from '../CommitteeMoneyScreen';
 import {
   committeeFinanceFromPayload,
   publicApiRequest,
@@ -209,6 +219,9 @@ beforeEach(() => {
   state.by = false;
   state.byRows = [];
   state.filings = null;
+  state.filingsQuery = {};
+  filingsRefetch.mockClear();
+  filingsFetchNextPage.mockClear();
   navigate.mockClear();
   setParams.mockClear();
   consumeWebHistoryReplaceMark();
@@ -413,7 +426,7 @@ describe('one committee shares the donation browser', () => {
     params.tab = 'spent';
     await render();
     expect(tab('Expenditures')?.getAttribute('aria-selected')).toBe('true');
-    click(button('Filings'));
+    click(button('Filed reports'));
     expect(params).toMatchObject({ tab: 'filings', category: 'expenditures' });
     click(button('Campaign money'));
     expect(tab('Expenditures')?.getAttribute('aria-selected')).toBe('true');
@@ -444,7 +457,55 @@ describe('one committee shares the donation browser', () => {
     expect(window.history.state).not.toEqual(entry);
   });
 
-  it('labels Spent by them as all years and keeps payments outside the cards’ selected year', async () => {
+  it('keeps independent spending order in its address and Share without changing donor choices', async () => {
+    state.by = true;
+    params = { ...params, tab: 'by', category: 'committees', sort: 'smallest' };
+    window.history.replaceState({}, '', pathForRoute({ name: 'CommitteeMoney', params }));
+    initializeWebHistory();
+    await render();
+    expect(button('NEWEST FIRST')?.getAttribute('aria-pressed')).toBe('true');
+    click(button('LARGEST FIRST'));
+    expect(params).toMatchObject({
+      tab: 'by',
+      spendingSort: 'largest',
+      category: 'committees',
+      sort: 'smallest',
+    });
+    expect(new URLSearchParams(window.location.search).get('spendingSort')).toBe('largest');
+    const share = host.querySelector<HTMLAnchorElement>('[data-testid="share-url"]')!;
+    const sharedAddress = new URL(share.href);
+    expect(sharedAddress.searchParams.get('spendingSort')).toBe('largest');
+    expect(sharedAddress.searchParams.get('sort')).toBe('smallest');
+    expect(sharedAddress.searchParams.get('category')).toBe('committees');
+    expect(vi.mocked(useOutsideSpending).mock.lastCall).toEqual([{ spender: '19193' }, 'largest']);
+
+    click(button('Campaign money'));
+    await render();
+    expect(params).toMatchObject({
+      spendingSort: 'largest',
+      category: 'committees',
+      sort: 'smallest',
+    });
+    expect(tab('Committees & Funds')?.getAttribute('aria-selected')).toBe('true');
+    expect(
+      host.querySelector('[aria-label="Sort names, currently Smallest first"]'),
+    ).not.toBeNull();
+
+    // A fresh mount receives the saved shared address rather than surviving local state.
+    act(() => root.unmount());
+    root = createRoot(host);
+    params = paramsFromAddress(sharedAddress.pathname + sharedAddress.search);
+    await render();
+    expect(button('LARGEST FIRST')?.getAttribute('aria-pressed')).toBe('true');
+    expect(vi.mocked(useOutsideSpending).mock.lastCall).toEqual([{ spender: '19193' }, 'largest']);
+    expect(params).toMatchObject({
+      spendingSort: 'largest',
+      category: 'committees',
+      sort: 'smallest',
+    });
+  });
+
+  it('labels Independent spending as all years and keeps payments outside the cards’ selected year', async () => {
     params.tab = 'by';
     state.by = true;
     state.byRows = [2026, 2024].map((year) => ({
@@ -469,17 +530,13 @@ describe('one committee shares the donation browser', () => {
       recordNumber: year,
     }));
     await render();
-    expect(host.textContent).toContain(
-      'This list shows payments from all years in the state’s file.',
-    );
+    expect(host.textContent).toContain('Payments from all years in the state’s file');
     expect(host.textContent).toContain('PAID JAN 12, 2026');
     expect(host.textContent).toContain('PAID JAN 12, 2024');
     expect(vi.mocked(useOutsideSpending).mock.lastCall).toEqual([{ spender: '19193' }, 'newest']);
     params = { ...params, tab: 'gave' };
     await render();
-    expect(host.textContent).not.toContain(
-      'This list shows payments from all years in the state’s file.',
-    );
+    expect(host.textContent).not.toContain('Payments from all years in the state’s file');
   });
 
   it('reads only the candidate year, prints its real rows and groups ABOUT spending once', async () => {
@@ -515,7 +572,9 @@ describe('one committee shares the donation browser', () => {
       'Source file: “Itemized independent expenditures of over $200”',
     );
     const fullLinks = [...host.querySelectorAll('a')].filter((node) =>
-      ['Who gave', 'Where it went'].some((label) => node.textContent?.startsWith(label)),
+      ['All received payments', 'All expenditure payments'].some((label) =>
+        node.textContent?.startsWith(label),
+      ),
     );
     expect(fullLinks.map((link) => link.getAttribute('href'))).toEqual([
       '/money/committees/gottfried-david-house-committee-19193/payments?tab=gave&year=2025',
@@ -539,7 +598,7 @@ describe('one committee shares the donation browser', () => {
     expect(host.textContent).toContain(
       'No outside group reported spending to support or oppose this committee in 2025',
     );
-    expect(host.textContent).toContain('Spent by them');
+    expect(host.textContent).toContain('Independent spending');
     expect(request.mock.calls).toHaveLength(9);
     expect(request.mock.calls.every(([path]) => path.includes('/20003/payments'))).toBe(true);
     click(tab('Expenditures'));
@@ -621,7 +680,7 @@ describe('one committee shares the donation browser', () => {
   });
 
   it.each(['filings', 'by'])(
-    'keeps withheld and donated-goods explanations on %s without a chart',
+    'keeps selected-year figures and explanations out of the all-years %s section',
     async (addressed) => {
       payload = {
         ...payload,
@@ -631,8 +690,12 @@ describe('one committee shares the donation browser', () => {
       state.by = true;
       shape();
       await render();
-      expect(host.textContent).toContain(splitExplanation('sources_disagree'));
-      expect(host.textContent).toContain(inKindDonationsNote('$25'));
+      expect(host.textContent).not.toContain(splitExplanation('sources_disagree'));
+      expect(host.textContent).not.toContain(inKindDonationsNote('$25'));
+      const headings = [...host.querySelectorAll('[role=heading]')].map((node) => node.textContent);
+      expect(headings).not.toContain('Money in');
+      expect(headings).not.toContain('Money out');
+      expect(button('2026')).toBeUndefined();
       expect(host.textContent).not.toContain('Who gave');
       expect(request).not.toHaveBeenCalled();
     },
@@ -766,7 +829,7 @@ describe('committee refinement preserves the record', () => {
     expect(host.textContent).toContain('AMENDED');
     expect(host.textContent).not.toContain('AMENDED JAN');
     const content = host.textContent!;
-    expect(content.indexOf("The Board's catalogue lists")).toBeLessThan(
+    expect(content.indexOf("The Board's catalogue lists")).toBeGreaterThan(
       content.indexOf('Year-end report'),
     );
     expect(content.indexOf('End dates come from the reports')).toBeGreaterThan(
@@ -778,5 +841,156 @@ describe('committee refinement preserves the record', () => {
     expect(parseFloat(getComputedStyle(filed!).fontSize)).toBeGreaterThanOrEqual(15);
     expect(getComputedStyle(filed!).fontFamily).not.toContain('Mono');
     expect([...host.querySelectorAll('a')].some((a) => a.textContent === 'OPEN')).toBe(false);
+  });
+});
+
+describe('filed reports keep their source and recover without losing rows', () => {
+  const boardUrl =
+    'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/19019/2026/';
+  const filing = (index = 0) => ({
+    filingYear: 2026 - index,
+    reportType: 'year_end',
+    reportName: `Report ${index + 1}`,
+    periodStart: '2025-01-01',
+    periodEnd: '2025-12-31',
+    filedDate: '2026-01-29',
+    effectiveAmendmentIndex: 0,
+  });
+  const reportPage = (count = 1) => ({
+    state: 'reported',
+    orderedBy: 'filed_date_then_period_end',
+    total: count,
+    cataloguedWithoutRecord: 0,
+    asOf: '2026-08-12',
+    filings: Array.from({ length: count }, (_, index) => filing(index)),
+  });
+  function draw() {
+    act(() => root.render(<FilingsList registrationNumber="19019" boardUrl={boardUrl} />));
+  }
+  function sourceAndHeadingRemain() {
+    expect(host.querySelector('[role="heading"]')?.textContent).toBe(
+      'Reports this committee has filed',
+    );
+    expect(host.textContent).toContain('All years in our copy');
+    const link = host.querySelector('a')!;
+    expect(link.textContent).toBe('The Board’s record for this committee');
+    expect(link.getAttribute('href')).toBe(boardUrl);
+  }
+
+  it.each(['loading', 'empty', 'failed'])(
+    'keeps the source and section title available while %s',
+    (result) => {
+      state.filingsQuery =
+        result === 'loading'
+          ? { data: undefined, isPending: true, isFetching: true }
+          : result === 'failed'
+            ? { data: undefined, isError: true }
+            : { data: { pages: [reportPage(0)] } };
+      draw();
+      sourceAndHeadingRemain();
+      if (result === 'loading') {
+        expect(host.querySelector('[role="status"]')?.textContent).toBe('Loading reports');
+        expect(host.textContent).not.toContain('reports filed');
+      } else if (result === 'failed') {
+        expect(host.querySelector('[role="alert"]')?.textContent).toContain('gap on our side');
+        click(button('Try again'));
+        expect(filingsRefetch).toHaveBeenCalledTimes(1);
+      } else {
+        expect(host.textContent).toContain('No filed reports in our copy');
+        expect(host.textContent).toContain('not a statement about the committee');
+        expect(button('Try again')).toBeUndefined();
+      }
+    },
+  );
+
+  it('uses the catalogue response copy date and omits missing or invalid dates', () => {
+    for (const asOf of [undefined, null, 'invalid', '2026-08-12']) {
+      state.filings = { ...reportPage(), asOf };
+      draw();
+      expect(host.textContent?.includes('Minnesota’s report catalogue copied')).toBe(
+        asOf === '2026-08-12',
+      );
+      if (asOf === '2026-08-12') expect(host.textContent).toContain('copied Aug 12, 2026');
+    }
+    state.filingsQuery = { data: undefined, isError: true };
+    draw();
+    expect(host.textContent).not.toContain('catalogue copied');
+  });
+
+  it('retains a successful copy date and rows when a later request fails', () => {
+    state.filings = reportPage();
+    state.filingsQuery = { isError: true, isFetchNextPageError: true, hasNextPage: true };
+    draw();
+    expect(host.textContent).toContain('Report 1');
+    expect(host.textContent).toContain('catalogue copied Aug 12, 2026');
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe(
+      'We couldn’t load more reports. The reports already shown are still available.',
+    );
+    click(button('Try again'));
+    expect(filingsFetchNextPage).toHaveBeenCalledTimes(1);
+    expect(filingsRefetch).not.toHaveBeenCalled();
+  });
+
+  it('keeps a filing date and amendment label together and explains only present gaps', () => {
+    state.filings = { ...reportPage(), filings: [{ ...filing(), effectiveAmendmentIndex: 1 }] };
+    draw();
+    const filedDate = [...host.querySelectorAll('div')].find(
+      (node) => node.textContent === 'FILED JAN 29, 2026',
+    )!;
+    expect(filedDate.parentElement?.textContent).toBe('FILED JAN 29, 2026AMENDED');
+    expect(host.textContent).toContain('Amended means the committee filed a revised version');
+    expect(host.textContent).not.toContain('Filing dates appear only');
+    state.filings = { ...reportPage(), filings: [{ ...filing(), filedDate: null }] };
+    draw();
+    expect(host.textContent).not.toContain('AMENDED');
+    expect(host.textContent).not.toContain('Amended means');
+    expect(host.textContent).toContain('Filing dates appear only where our records include them');
+    expect(host.textContent).not.toContain('FILED DEC 31, 2025');
+  });
+
+  it('prints the unestablished-status note only for a known positive count', () => {
+    for (const cataloguedWithoutRecord of [undefined, null, 0, 2]) {
+      state.filings = { ...reportPage(), cataloguedWithoutRecord };
+      draw();
+      expect(host.textContent?.includes('without saying whether')).toBe(
+        cataloguedWithoutRecord === 2,
+      );
+      expect(host.textContent).toContain('1 report filed');
+    }
+  });
+
+  it('disables retry and next-page controls during a request', () => {
+    state.filingsQuery = { data: undefined, isError: true, isFetching: true };
+    draw();
+    expect(button('Try again')?.getAttribute('aria-disabled')).toBe('true');
+    click(button('Try again'));
+    expect(filingsRefetch).not.toHaveBeenCalled();
+    state.filings = { ...reportPage(), total: 8 };
+    state.filingsQuery = { hasNextPage: true, isFetching: true, isFetchingNextPage: true };
+    draw();
+    const more = button('Loading more reports')!;
+    expect(more.getAttribute('aria-disabled')).toBe('true');
+    click(more);
+    expect(filingsFetchNextPage).not.toHaveBeenCalled();
+    expect(host.textContent).toContain('Report 1');
+    expect(host.textContent).toContain('Showing 1 of 8 reports filed');
+    expect(host.querySelector('[role="status"]')?.textContent).toBe('Loading more reports');
+  });
+
+  it('shows a complete 6-report list with one count and no more button', () => {
+    state.filings = reportPage(6);
+    draw();
+    expect(host.textContent?.match(/6 reports filed/g)).toHaveLength(1);
+    expect(button('Show more reports')).toBeUndefined();
+    expect(button('Try again')).toBeUndefined();
+    expect(host.textContent).not.toContain('couldn’t load more');
+    expect(host.querySelectorAll('a')).toHaveLength(1);
+    const firstReport = [...host.querySelectorAll('div')].find(
+      (node) => node.textContent === 'Report 1',
+    )!;
+    expect(
+      host.querySelector('a')!.compareDocumentPosition(firstReport) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });

@@ -46,7 +46,12 @@ export type RootStackParamList = {
   // `year` rides in the URL for the same reason the tab does: a figure someone
   // sends to somebody else has to arrive showing the year they were looking at
   // (grounded-answers.md rule 5, "Anything linked to must be URL-addressable").
-  LegislatorProfile: { legislatorId: string; tab?: 'money'; year?: string };
+  LegislatorProfile: {
+    legislatorId: string;
+    tab?: 'money';
+    year?: string;
+    contributionDetails?: string;
+  };
   // The address to look up rides in the route (and the URL query) so the home
   // page's Find field can hand off what the visitor typed, and so the results
   // are reload-safe / shareable (grounded-answers.md rule 5). Absent = the
@@ -84,7 +89,17 @@ export type RootStackParamList = {
   // collide, numbers do not — so an old or misspelled name part still lands on
   // the page. `tab` and `year` ride in the address so a shared link carries what
   // the sender saw.
-  CommitteeMoney: { slug: string; tab?: string; year?: string; category?: string; sort?: string };
+  CommitteeMoney: {
+    slug: string;
+    tab?: string;
+    year?: string;
+    category?: string;
+    sort?: string;
+    contributionDetails?: string;
+    evidence?: string;
+    earlierYears?: string;
+    spendingSort?: string;
+  };
   CommitteePayments: { slug: string; tab?: string; year?: string };
   // The register of filers, A to Z. The name box, the kind filter and the
   // numbered page all ride in the address, so a narrowed or paged list is

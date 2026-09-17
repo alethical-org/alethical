@@ -401,7 +401,7 @@ export function LegislatorProfileMobileScreen() {
     navigation.setParams({ tab: tab === 'overview' ? undefined : tab });
   };
   const selectMoneyYear = (year: CampaignMoneyYear) => {
-    navigation.setParams({ tab: 'money', year: String(year) });
+    navigation.setParams({ tab: 'money', year: String(year), contributionDetails: undefined });
   };
 
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
@@ -473,7 +473,18 @@ export function LegislatorProfileMobileScreen() {
     ? buildLegislatorShareContent({
         displayName: legislatorDisplayName(leg.name, leg.chamber),
         districtLine: currentDistrictLine(leg),
-        url: publicPageUrl(`/legislators/${encodeURIComponent(leg.slug ?? leg.id)}`),
+        url: publicPageUrl(
+          routePath.legislator(
+            leg.slug ?? leg.id,
+            activeTab === 'money'
+              ? {
+                  tab: 'money',
+                  year: String(moneyYear),
+                  contributionDetails: route.params?.contributionDetails,
+                }
+              : undefined,
+          ),
+        ),
       })
     : {
         subject: 'legislator' as const,
@@ -602,6 +613,10 @@ export function LegislatorProfileMobileScreen() {
                       legislatorName={legislatorDisplayName(leg.name, leg.chamber)}
                       year={moneyYear}
                       onSelectYear={selectMoneyYear}
+                      contributionDetails={route.params?.contributionDetails}
+                      onContributionDetailsChange={(value) =>
+                        navigation.setParams({ contributionDetails: value })
+                      }
                       money={moneyQuery.data}
                       isLoading={moneyQuery.isLoading}
                       isError={moneyQuery.isError}

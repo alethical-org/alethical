@@ -1,5 +1,5 @@
 import { registrationNumberFromSlug } from '../lib/committeeMoneyShared';
-import { paymentNameRole } from '../lib/paymentsUnderName';
+import { paymentNameRole } from '../lib/paymentNameRoute';
 import { pieceAddressFolder, researchBySlug } from '../lib/research';
 import type { MainTabParamList, RootStackParamList } from './types';
 
@@ -15,7 +15,13 @@ type WebNavigationState = {
 type WebRouteTarget =
   | { kind: 'tab'; screen: keyof MainTabParamList }
   | { kind: 'bill'; billId: string; tab?: string; track?: boolean }
-  | { kind: 'legislator'; legislatorId: string; tab?: string; year?: string }
+  | {
+      kind: 'legislator';
+      legislatorId: string;
+      tab?: string;
+      year?: string;
+      contributionDetails?: string;
+    }
   | { kind: 'bills'; params: Record<string, string> }
   | { kind: 'legislators'; params: Record<string, string> }
   | { kind: 'findMyLegislator'; address?: string }
@@ -28,6 +34,10 @@ type WebRouteTarget =
   | { kind: 'guide'; slug: string }
   | {
       kind: 'moneyCommittee';
+      contributionDetails?: string;
+      evidence?: string;
+      earlierYears?: string;
+      spendingSort?: string;
       slug: string;
       tab?: string;
       year?: string;
@@ -98,15 +108,21 @@ const BILLS_FILTER_PARAMS = [
   'page',
 ] as const;
 
-function billsFilterParams(searchParams: URLSearchParams): Record<string, string> {
+/** One extraction loop for the route-specific allow-lists below. */
+function selectedSearchParams(
+  searchParams: URLSearchParams,
+  keys: readonly string[],
+): Record<string, string> {
   const params: Record<string, string> = {};
-  for (const key of BILLS_FILTER_PARAMS) {
+  for (const key of keys) {
     const value = searchParams.get(key);
-    if (value) {
-      params[key] = value;
-    }
+    if (value) params[key] = value;
   }
   return params;
+}
+
+function billsFilterParams(searchParams: URLSearchParams): Record<string, string> {
+  return selectedSearchParams(searchParams, BILLS_FILTER_PARAMS);
 }
 
 // URL-addressable Search Legislators filters — same shape as Bills so a filtered
@@ -115,14 +131,7 @@ function billsFilterParams(searchParams: URLSearchParams): Record<string, string
 const LEGISLATORS_FILTER_PARAMS = ['q', 'chamber', 'party', 'session', 'page'] as const;
 
 function legislatorsFilterParams(searchParams: URLSearchParams): Record<string, string> {
-  const params: Record<string, string> = {};
-  for (const key of LEGISLATORS_FILTER_PARAMS) {
-    const value = searchParams.get(key);
-    if (value) {
-      params[key] = value;
-    }
-  }
-  return params;
+  return selectedSearchParams(searchParams, LEGISLATORS_FILTER_PARAMS);
 }
 
 // URL-addressable committees-list state (campaign money phase 3): the name box,
@@ -138,14 +147,7 @@ function legislatorsFilterParams(searchParams: URLSearchParams): Record<string, 
 const COMMITTEE_LIST_PARAMS = ['q', 'kind', 'page'] as const;
 
 function committeeListParams(searchParams: URLSearchParams): Record<string, string> {
-  const params: Record<string, string> = {};
-  for (const key of COMMITTEE_LIST_PARAMS) {
-    const value = searchParams.get(key);
-    if (value) {
-      params[key] = value;
-    }
-  }
-  return params;
+  return selectedSearchParams(searchParams, COMMITTEE_LIST_PARAMS);
 }
 
 // URL-addressable outside-spending view (issue #1945): which subject, which filing
@@ -153,28 +155,14 @@ function committeeListParams(searchParams: URLSearchParams): Record<string, stri
 const OUTSIDE_SPENDING_PARAMS = ['spender', 'about', 'year', 'sort', 'page'] as const;
 
 function outsideSpendingParams(searchParams: URLSearchParams): Record<string, string> {
-  const params: Record<string, string> = {};
-  for (const key of OUTSIDE_SPENDING_PARAMS) {
-    const value = searchParams.get(key);
-    if (value) {
-      params[key] = value;
-    }
-  }
-  return params;
+  return selectedSearchParams(searchParams, OUTSIDE_SPENDING_PARAMS);
 }
 
 // URL-addressable Money by race state (issue #1954): the office chip and the year.
 const MONEY_BY_RACE_PARAMS = ['office', 'year'] as const;
 
 function moneyByRaceParams(searchParams: URLSearchParams): Record<string, string> {
-  const params: Record<string, string> = {};
-  for (const key of MONEY_BY_RACE_PARAMS) {
-    const value = searchParams.get(key);
-    if (value) {
-      params[key] = value;
-    }
-  }
-  return params;
+  return selectedSearchParams(searchParams, MONEY_BY_RACE_PARAMS);
 }
 
 function moneySearchParams(searchParams: URLSearchParams): Record<string, string> {
@@ -427,6 +415,10 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
       return {
         kind: 'moneyCommittee',
         ...params,
+        contributionDetails: searchParams.get('contributionDetails') ?? undefined,
+        evidence: searchParams.get('evidence') ?? undefined,
+        earlierYears: searchParams.get('earlierYears') ?? undefined,
+        spendingSort: searchParams.get('spendingSort') ?? undefined,
         category: searchParams.get('category') ?? undefined,
         sort: searchParams.get('sort') ?? undefined,
       };
@@ -459,6 +451,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     return {
       kind: 'legislator',
       legislatorId: decodeURIComponent(segments[1]),
+      contributionDetails: searchParams.get('contributionDetails') ?? undefined,
       // Both are passed through as written and validated by the screen, which is
       // how the bill page already handles an unknown `tab`. A year outside the
       // years we hold has to land on a real page saying so, not on a 404.
@@ -602,6 +595,8 @@ export function pathForRoute(activeRoute: {
       if (activeRoute.params?.year) {
         params.set('year', String(activeRoute.params.year));
       }
+      if (activeRoute.params?.contributionDetails)
+        params.set('contributionDetails', String(activeRoute.params.contributionDetails));
       const query = params.toString();
       return query ? `${path}?${query}` : path;
     }
@@ -694,7 +689,12 @@ export function pathForRoute(activeRoute: {
         params.set('year', String(activeRoute.params.year));
       }
       if (activeRoute.name === 'CommitteeMoney') {
-        const { category, sort, tab } = activeRoute.params ?? {};
+        const { category, sort, tab, contributionDetails, evidence, earlierYears, spendingSort } =
+          activeRoute.params ?? {};
+        if (contributionDetails) params.set('contributionDetails', String(contributionDetails));
+        if (evidence === '1') params.set('evidence', '1');
+        if (earlierYears === '1') params.set('earlierYears', '1');
+        if (spendingSort === 'largest') params.set('spendingSort', spendingSort);
         if (category && (category !== 'individuals' || tab === 'spent'))
           params.set('category', String(category));
         if (sort && sort !== 'largest') params.set('sort', String(sort));
@@ -810,6 +810,7 @@ export function stateFromPathname(pathname: string): WebNavigationState {
             name: 'LegislatorProfile',
             params: {
               legislatorId: target.legislatorId,
+              contributionDetails: target.contributionDetails,
               tab: target.tab,
               year: target.year,
             },

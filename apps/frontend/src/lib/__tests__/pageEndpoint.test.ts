@@ -2318,7 +2318,7 @@ describe('a committee page hands its records to the app', () => {
       payload: CONFIRMATION,
       validatedAgeMs: 42_000,
     });
-    expect(body).toContain('href="/legislators/jane-fonda?tab=money"');
+    expect(body).toContain('href="/legislators/jane-fonda?tab=money&amp;year=2026"');
   });
 
   it('starts the figures and the ownership check together', async () => {
@@ -2512,9 +2512,12 @@ describe('a committee page hands its records to the app', () => {
       `href="/money/committees/${SLUG}?year=2026&amp;tab=filings&amp;category=committees&amp;sort=smallest"`,
     );
     expect(body).toContain(
-      `href="/money/committees/${SLUG}?year=2025&amp;tab=filings&amp;category=committees&amp;sort=smallest"`,
+      `href="/money/committees/${SLUG}?year=2026&amp;category=committees&amp;sort=smallest"`,
     );
-    expect(body).toContain(`href="/money/committees/${SLUG}/payments?tab=gave&amp;year=2026"`);
+    expect(body).not.toContain('Year 2025');
+    expect(body).not.toContain(`/money/committees/${SLUG}/payments?`);
+    expect(body).toContain('All years in our copy');
+    expect(body).not.toContain('Money in');
     expect(calls.map((url) => new URL(url).pathname + new URL(url).search)).toEqual([
       '/api/v1/committees/41326/finance?year=2026&include_confirmation=false',
       '/api/v1/committees/41326/confirmation',

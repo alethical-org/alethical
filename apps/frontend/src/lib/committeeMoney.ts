@@ -134,10 +134,7 @@ export function whoseCommitteeText(
     );
   }
   if (registerKind === 'political_committee_or_fund') {
-    return (
-      'The register carries this filer as a political committee or fund. A fund ' +
-      'is not a candidate’s committee, so there is no person to attach it to.'
-    );
+    return 'This record covers the political committee or fund named above.';
   }
   return (
     'These are this committee’s own figures. We have not linked them to a person; ' +
@@ -159,8 +156,8 @@ export function confirmedMemberLinkLabel(fullName: string): string {
  * app carry the same address, and pinned against the router's own builder by a test
  * (`navigation/__tests__/links.test.ts`) so the 2 spellings cannot drift.
  */
-export function confirmedMemberMoneyPath(slug: string): string {
-  return `/legislators/${encodeURIComponent(slug)}?tab=money`;
+export function confirmedMemberMoneyPath(slug: string, year?: number): string {
+  return `/legislators/${encodeURIComponent(slug)}?tab=money${year === undefined ? '' : `&year=${year}`}`;
 }
 
 /** The stamp for a closed committee's empty year. */
@@ -260,14 +257,14 @@ export function committeeTabFromParam(raw: string | undefined | null): Committee
 export const COMMITTEE_TAB_LABELS: Record<CommitteeTab, string> = {
   gave: 'Who gave',
   spent: 'Where it went',
-  filings: 'Filings',
+  filings: 'Filed reports',
   about: 'Spent about them',
-  by: 'Spent by them',
+  by: 'Independent spending',
 };
 export const COMMITTEE_MONEY_SECTION_LABEL = 'Campaign money';
 
 /** The retained spender list spans the file, independently of the cards' year. */
-export const OUTSIDE_BY_ALL_YEARS = 'This list shows payments from all years in the state’s file.';
+export const OUTSIDE_BY_ALL_YEARS = 'Payments from all years in the state’s file';
 
 export type OutsideSpendingSort = 'newest' | 'largest';
 
@@ -410,7 +407,7 @@ export function outsideUnpaidNote(unpaid: string | null | undefined): string | n
 /** Not "every report" — the Board's catalogue carries no filing record for most
  *  pre-2008 rows, so a completeness claim would be one we cannot check. The rows
  *  themselves are each a filed report; `unlistedReportsLine` says the boundary. */
-export const FILINGS_HEADLINE = 'REPORTS THIS COMMITTEE HAS FILED';
+export const FILINGS_HEADLINE = 'Reports this committee has filed';
 
 /**
  * The printed ordering sentence, derived from the served `ordered_by` through this

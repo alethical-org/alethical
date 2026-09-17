@@ -112,9 +112,10 @@ unfinished clerical job of ours.
 ## What the tab shows once a member is matched
 
 **Everything about one committee stays together, and the block repeats for each one.**
-A committee's card comes first, then its 3 selected-year donation cards: **What the
-committee’s own report says**, **Where itemized individual contributions came from**, and
-**Contributor names also listed for other candidates**. Then come that committee's **How the mix
+A committee's card comes first, including its chart, Money in and Money out summaries,
+and payment browser. Next is **More on this year’s contributions**, with independently
+opening rows for **What the committee’s own report says**, **Where itemized individual
+contributions came from**, and **Contributor names also listed for other candidates**. Then come that committee's **How the mix
 of itemized contributions changed by year** chart and its **Refunds Minnesota paid this
 committee's donors** card. The mix chart repeats the donor kinds from **Who gave**
 across years, using only itemized contributions. **Spending by outside groups**
@@ -257,14 +258,12 @@ no figures available for the selected year. That does not establish a filed zero
 a failure to file or a closed registration:
 
 - **No figures to show for 2026.** When no closing date is held, the explanation reads:
-  “We have confirmed this member’s committee, but have no figures to show for it in
-  2026. Try another year. This does not mean the committee has closed.”
+  “We have confirmed this member’s committee, but have no figures to show for it in 2026. Try another year. This does not mean the committee has closed.”
 - **This committee has closed.** When the Board's register gives a closing date, the
   explanation names that date without predicting whether later amendments may appear.
 
 The committee's name and registration number remain above the grey panel. Inside it
-are the selected year, the heading and explanation, and **Everything we hold on this
-committee**. The link keeps the selected year. This state has no invented report
+are the selected year, the heading and explanation, and **Committee details and filings**. The link keeps the selected year. This state has no invented report
 period, official figure or filing schedule. Refund history remains below its own
 committee's card.
 
@@ -317,8 +316,8 @@ candidate search cannot find a party unit or a political fund at all, so a guess
 a reader in a search their committee can never appear in
 ([issue 2179](https://github.com/alethical-org/alethical/issues/2179)).
 
-The panel's last row is a link on our own site, **Everything we hold on this committee**,
-which opens `/money/committees/<name>-<number>`. It sits inside the panel because it is
+The panel's last row is a link on our own site, **Committee details and filings**,
+which opens `/money/committees/<name>-<number>?tab=filings&year=<year>`. It sits inside the panel because it is
 about the same committee the dates describe. Without a held official total, the panel
 uses the first and last payment dates, or the selected year when those dates are absent.
 Its explanation identifies the missing official total and the itemized source. It makes
@@ -378,9 +377,8 @@ by Eugene on 11 Sep 2026:
 
 Beside the donor chart the card carries figures and nothing else: the sentence explaining
 both labels is the chart's own opening paragraph, a few lines above
-([#2182](https://github.com/alethical-org/alethical/issues/2182)). Where no chart draws —
-the committee page's Filings and "Spent by them" tabs — each figure keeps its own sentence
-under it, and the itemized one reads exactly:
+([#2182](https://github.com/alethical-org/alethical/issues/2182)). Where a summary appears without its chart, each figure keeps its own explanation.
+The itemized explanation reads exactly:
 
 > Donations where the filing names who gave. Named donors include people, lobbyists,
 > other campaigns, political committees and funds, and party organisations. Minnesota
@@ -396,7 +394,7 @@ The official figures and evidence use the shared
 and both `/legislators/<name>?tab=money` and `/money/committees/{name}-{number}` put
 the same donor chart before the summary and the same grouped payment tabs below it.
 The committee address scopes every figure to its own registration, without requiring
-a legislator match. It keeps its own year choices, Track, Share and Filings controls;
+a legislator match. It keeps its own year choices, Track, Share and Filed reports controls;
 the profile's mix-by-year chart stays on the profile.
 
 **Non-itemized contributions** appears only when the server supplies a checked split.
@@ -673,12 +671,17 @@ prints it. A held official total stays visible even when that comparison is unpr
 the comparison does not decide whether the total exists. Its mechanics are under "Where
 the data comes from" below.
 
-### The 3 selected-year donation cards
+### The selected-year contribution panel
 
-[Issue 2205](https://github.com/alethical-org/alethical/issues/2205) adds 3 separate
-cards before the history chart. Each uses the selected committee and year. The
-committee's own `/money/committees/<slug>` page uses the same cards in its Campaign
-money section, without needing a legislator confirmation.
+**More on this year’s contributions** follows the committee's main card and precedes
+its history chart. Its 3 rows start closed on a fresh address, open independently,
+and can remain open together. The address records the open rows for each committee
+and year, so a shared address can reopen that view. Changing committee or year starts
+that context's closed view unless the address names open rows for it. The heading and
+arrow form one control with at least a 44px target. Opening a row shows the existing
+table and its qualifications without another copy of its heading or a new data request.
+The committee's own `/money/committees/<slug>` address uses the same panel after its
+full-payment links, without requiring a legislator confirmation.
 
 **What the committee’s own report says** opens with “Contributions reported by the
 committee, beside itemized contributions in the state’s list”. It prints the 5 filing
@@ -714,12 +717,14 @@ candidate committees, and up to 5 names with the highest positive counts. Names 
 19 of 74 names, and the distribution is 55 / 11 / 5 / 1 / 2. This is a same-year
 count, not a money total or a claim that spelling identifies a person.
 
-All 3 cards require the selected year's agreeing stated-split check. A missing
+The rows retain the selected year's agreeing stated-split check. A missing
 filing and a check without agreement use the same accepted held sentences, which
 describe what Alethical can show rather than claiming the committee failed to file.
-An explicitly withheld 5-line block also keeps the filing card held, even when the
-overall split agrees: the server currently supplies these lines only for candidate
-committees. A failed read uses the card's load-failed sentence, never an empty state. Loading
+An explicitly withheld 5-line block keeps the report-comparison row held, even when
+the overall split agrees. It does not hide independently available geography or name
+results. The server supplies these report lines only for candidate committees, so
+party units and political committees or funds omit that comparison row. Noncandidate
+committees omit geography. Missing or failed data does not remove an eligible row. A failed read uses the card's load-failed sentence, never an empty state. Loading
 keeps each heading above a labelled placeholder, with its pulse suppressed when a
 reader requests reduced motion. Missing blocks in an older cached response never
 become zeros. The filing card keeps its 5 rows when there are no itemized individual
@@ -727,7 +732,8 @@ donations; the other 2 show their selected-year empty sentences. If donation row
 exist but none carries a usable name, the names card uses its load-failed words
 rather than saying there were no individual donations.
 
-The card surfaces use the existing committee card's border, padding and shadow.
+The shared panel uses the existing committee card's border, padding and shadow.
+Thin separators divide the row controls, and expanded content remains within its row.
 The filing table stacks each kind into 3 labelled figures below 768px; the location
 table keeps 3 columns. The name distribution and highest-name tables stack below
 768px. The size changes at 768px and 1100px follow the tab's existing text sizes,
@@ -735,8 +741,8 @@ including 15px small text on a phone. The money section uses 32px side margins o
 tablets instead of the overview's 640px maximum column, so the fixed table columns
 leave enough space for the contribution-line labels.
 
-Docs check: The 3 selected-year cards, their order, checked and empty states, exact
-spelling caveat, payment-count note and location privacy match the shared component.
+Docs check: The shared contribution panel preserves row order, independent states,
+exact-spelling qualifications, payment-count notes and location privacy.
 
 ### Refunds Minnesota paid a committee's donors
 
@@ -1161,8 +1167,9 @@ committee that reported nothing, which is the missing-versus-zero confusion the 
 above exists to prevent.
 
 **The profile uses Libre Franklin for amounts, dates, registration numbers and counts.**
-Lines containing numbers use a heavier weight and equal-width digits, so changing a
-number does not move the figures beside it. The filing's period uses a slightly lighter
+Amounts, dates, registration numbers and counts use a heavier weight and equal-width
+digits, so changing a number does not move the figures beside it. Explanatory prose
+uses regular weight even when it contains dollar thresholds, dates or counts. The filing's period uses a slightly lighter
 weight, and the filing-schedule note uses regular weight. JetBrains Mono remains on
 short lettered labels, such as DONATED GOODS OR SERVICES.
 
@@ -1371,7 +1378,7 @@ opens. That split is deliberate: the data describes records and the page frames 
   `GET /api/v1/legislators/{id}/campaign-finance?year=YYYY`.
   `alethical/pipeline/campaign_finance_reader.py` reads the saved payment files.
   Separate services read filed figures and calculate the optional `stated_by_kind`,
-  `donor_states`, and `name_connections` blocks displayed by the 3 donation cards.
+  `donor_states`, and `name_connections` blocks displayed by the shared contribution panel.
   The name comparison counts exact printed spellings shared with other candidate
   registrations in the same year; it does not identify people or add their money.
   Every amount is stamped with the committee that reported it so a person's committees

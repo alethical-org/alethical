@@ -1,5 +1,9 @@
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
-import { committeeFinanceFromPayload, getLegislatorCampaignMoneyFromApi } from '../api';
+import {
+  committeeFinanceFromPayload,
+  getLegislatorCampaignMoneyFromApi,
+  getCommitteeFilingsFromApi,
+} from '../api';
 import { publicReadResponse } from '../../lib/publicRead';
 
 vi.hoisted(() => vi.stubEnv('EXPO_PUBLIC_API_URL', 'https://api.example.test'));
@@ -46,3 +50,24 @@ describe('source dates survive the API mapping separately', () => {
     },
   );
 });
+
+it.each(['2026-08-12', null, undefined])(
+  'uses the catalogue response copy date %s',
+  async (asOf) => {
+    vi.mocked(publicReadResponse).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            state: 'reported',
+            as_of: asOf,
+            filings: [],
+            page: { total: 0, has_more: false },
+          },
+        }),
+      ),
+    );
+    const result = await getCommitteeFilingsFromApi('19019');
+    expect(result.asOf).toBe(asOf ?? null);
+    expect(result.total).toBe(0);
+  },
+);

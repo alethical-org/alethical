@@ -46,7 +46,7 @@ export const moneyDetailsPageCopy = {
     'We could not load this right now. This is a problem at our end and says nothing about what was spent.',
   chartLoading: 'Loading the contribution breakdown…',
   outsideLoading: 'Loading the list of outside spenders…',
-  fullRecord: 'Everything we hold on this committee',
+  fullRecord: 'Committee details and filings',
   freshnessMismatch:
     'We cannot give these money records one shared download date. Their recorded dates differ or a date is missing.',
   refreshRecords: 'Check these records again',

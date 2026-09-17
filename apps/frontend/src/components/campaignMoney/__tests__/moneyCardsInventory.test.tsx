@@ -225,7 +225,7 @@ describe('the money cards on the profile, at the final inventory', () => {
     expect(html).not.toContain(BOARD_RECORD_LINK_LABEL);
     // The way to everything we hold on the committee survives that state, because it
     // is the only route off this card and the emptiest year is when it is wanted most.
-    expect(html).toContain('Everything we hold on this committee');
+    expect(html).toContain('Committee details and filings');
   });
 
   it('labels the rows that are not contributions "Not a contribution", and hides Miscellaneous', () => {

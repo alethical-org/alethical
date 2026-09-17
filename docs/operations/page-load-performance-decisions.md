@@ -737,6 +737,14 @@ sections and moved-helper references were read and updated; previous 3-file
 measurements remain dated history, and reader-facing words and financial contracts
 are unchanged by these 2 download changes.
 
+## Payment-name rows wait for their screen, 17 September 2026
+
+[Pull request 2236](https://github.com/alethical-org/alethical/pull/2236) adds shared committee-view state. Its hosted preview at [commit 2fcded11](https://github.com/alethical-org/alethical/commit/2fcded115212e8ad591e77ca8d6725cbf3e03ef9) measured 339,106 startup bytes, 34 above the unchanged 339,072-byte limit. Local compressed sizes did not establish hosted headroom.
+
+Startup address validation, share headings and request sizing had imported the full payment-name formatting and grouping module. Those unchanged definitions now live in the dependency-free `apps/frontend/src/lib/paymentNameRoute.ts`. Startup imports that small module; `apps/frontend/src/lib/paymentsUnderName.ts` keeps the row formatting, source qualifications and grouping with its screens and re-exports the existing public helpers.
+
+The local diagnostic build measures 337,261 bytes. All 3,092 frontend tests and TypeScript pass. Hosted builds still enforce their own measured size; this change does not raise the limit or change labels, sorting, amounts, request sizes, source facts or cache behavior. The release evidence is recorded on [pull request 2236](https://github.com/alethical-org/alethical/pull/2236).
+
 ## Sign-in is fetched when someone signs in
 
 Everything sign-in is 1 download that a reader fetches only when sign-in is reachable

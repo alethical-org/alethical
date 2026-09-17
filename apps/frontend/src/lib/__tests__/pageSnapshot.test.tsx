@@ -1635,7 +1635,7 @@ describe('a committee’s record in the first response', () => {
     });
     const links = chosen.links.filter(
       (link) =>
-        ['Campaign money', 'Filings'].includes(link.label) || link.label.startsWith('Year '),
+        ['Campaign money', 'Filed reports'].includes(link.label) || link.label.startsWith('Year '),
     );
     for (const link of links) {
       const query = new URL(link.href, 'https://example.test').searchParams;
@@ -1645,22 +1645,44 @@ describe('a committee’s record in the first response', () => {
     }
     expect(
       chosen.links.filter((link) => link.href.includes('/payments?')).map((link) => link.href),
-    ).toEqual([
-      '/money/committees/jane-fonda-climate-pac-41326/payments?tab=gave&year=2025',
-      '/money/committees/jane-fonda-climate-pac-41326/payments?tab=spent&year=2025',
+    ).toEqual([]);
+  });
+
+  it.each(['filings', 'by'])('keeps the %s first response scoped to all years', (tab) => {
+    const result = committeePageSnapshot(committeeFixture, '41326', { tab });
+    const html = renderPageSnapshot(result);
+    expect(result.sections?.map((section) => section.heading)).toEqual([
+      tab === 'filings' ? 'Reports this committee has filed' : 'Independent spending',
     ]);
+    expect(html).toContain(
+      tab === 'filings' ? 'All years in our copy' : 'Payments from all years in the state’s file',
+    );
+    expect(html).toContain('The Board’s record for this committee');
+    expect(html).not.toContain('Money in');
+    expect(html).not.toContain('Money out');
+    expect(html).not.toContain('Money figures start in 2015');
+    expect(html).not.toContain('payment files copied');
+    expect(html).not.toContain('No filed reports');
+    expect(
+      result.links.some(
+        (link) => link.label.startsWith('Year ') || link.href.includes('/payments?'),
+      ),
+    ).toBe(false);
+    expect(result.links.find((link) => link.label === 'Campaign money')?.href).toContain(
+      'year=2026',
+    );
   });
 
   it('materializes legacy Expenditures on served section links and respects explicit Individuals', () => {
     const legacy = committeePageSnapshot(committeeFixture, '41326', { tab: 'spent' });
-    expect(legacy.links.find((link) => link.label === 'Filings')?.href).toContain(
+    expect(legacy.links.find((link) => link.label === 'Filed reports')?.href).toContain(
       'category=expenditures',
     );
     const explicit = committeePageSnapshot(committeeFixture, '41326', {
       tab: 'spent',
       category: 'individuals',
     });
-    expect(explicit.links.find((link) => link.label === 'Filings')?.href).not.toContain(
+    expect(explicit.links.find((link) => link.label === 'Filed reports')?.href).not.toContain(
       'category=',
     );
     const year = explicit.links.find((link) => link.label.startsWith('Year '))!;
@@ -1672,7 +1694,12 @@ describe('a committee’s record in the first response', () => {
     expect(
       older.links
         .filter((link) =>
-          ['Who gave', 'Where it went', 'Filings', 'Campaign money'].includes(link.label),
+          [
+            'All received payments',
+            'All expenditure payments',
+            'Filed reports',
+            'Campaign money',
+          ].includes(link.label),
         )
         .every((link) => link.href.includes('year=2025')),
     ).toBe(true);
@@ -1714,10 +1741,10 @@ describe('a committee’s record in the first response', () => {
     );
     expect(confirmed.links[0]).toEqual({
       label: 'See Melissa Hortman’s campaign money',
-      href: '/legislators/melissa-hortman?tab=money',
+      href: '/legislators/melissa-hortman?tab=money&year=2026',
     });
     expect(renderPageSnapshot(confirmed)).toContain(
-      'href="/legislators/melissa-hortman?tab=money"',
+      'href="/legislators/melissa-hortman?tab=money&amp;year=2026"',
     );
   });
 

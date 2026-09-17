@@ -1,3 +1,4 @@
+import { contributionDetailRows, withContributionDetailRows } from '../../lib/contributionDetails';
 import { CommitteeDonationCards } from './CommitteeDonationCards';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 /**
@@ -92,6 +93,8 @@ import { theme as t } from '../../theme/tokens';
 import { outsideSpendingLoadFailure } from '../../lib/outsideSpending';
 
 type Props = {
+  contributionDetails?: string;
+  onContributionDetailsChange?: (value: string | undefined) => void;
   legislatorName: string;
   year: CampaignMoneyYear;
   onSelectYear: (year: CampaignMoneyYear) => void;
@@ -110,6 +113,8 @@ type Props = {
 };
 
 export function CampaignMoneyTab({
+  contributionDetails,
+  onContributionDetailsChange,
   legislatorName,
   year,
   onSelectYear,
@@ -126,6 +131,17 @@ export function CampaignMoneyTab({
   // Keep reader choices above the loading branch: changing years temporarily
   // removes committee cards, but must not reset their chosen tab or sort.
   const [preferences, setPreferences] = React.useState<Record<string, MoneyDetailsPreferences>>({});
+  const cardExpansion = (registration: string) => ({
+    expandedRows: onContributionDetailsChange
+      ? contributionDetailRows(contributionDetails, registration, year)
+      : undefined,
+    onExpandedRowsChange: onContributionDetailsChange
+      ? (rows: number[]) =>
+          onContributionDetailsChange(
+            withContributionDetailRows(contributionDetails, registration, year, rows),
+          )
+      : undefined,
+  });
   const cardPreferences = (registration: string) => ({
     preferences: preferences[registration] ?? DEFAULT_MONEY_DETAILS_PREFERENCES,
     onPreferences: (value: MoneyDetailsPreferences) =>
@@ -260,6 +276,7 @@ export function CampaignMoneyTab({
               onRefresh={refetchMoney}
               mixHistory={mixHistoryFor(committee)}
               {...cardPreferences(committee.registrationNumber)}
+              {...cardExpansion(committee.registrationNumber)}
             />
           ))}
           <OutsideYearCommitteeCards committees={money.committeesOutsideThisYear} year={year} />
@@ -303,6 +320,7 @@ export function CampaignMoneyTab({
               onRefresh={refetchMoney}
               mixHistory={mixHistoryFor(committee)}
               {...cardPreferences(committee.registrationNumber)}
+              {...cardExpansion(committee.registrationNumber)}
             />
           ))}
           <OutsideYearCommitteeCards committees={money.committeesOutsideThisYear} year={year} />
@@ -446,6 +464,7 @@ function CommitteeRecordLink({
   const type = useCampaignMoneyTypography();
   const recordParams = {
     slug: committeeSlug(name, registrationNumber),
+    tab: 'filings',
     year: String(year),
   };
   return (
@@ -454,8 +473,12 @@ function CommitteeRecordLink({
         styles.recordLink,
         Boolean('focused' in state && state.focused) && detailsStyles.focus,
       ]}
-      {...linkProps(routePath.moneyCommittee(recordParams.slug, { year: recordParams.year }), () =>
-        navigation.navigate('CommitteeMoney', recordParams),
+      {...linkProps(
+        routePath.moneyCommittee(recordParams.slug, {
+          tab: recordParams.tab,
+          year: recordParams.year,
+        }),
+        () => navigation.navigate('CommitteeMoney', recordParams),
       )}
     >
       {/* Label and arrow are 1 inline run with a no-break space between them, so on a
@@ -481,7 +504,11 @@ function CommitteeCard({
   mixHistory,
   preferences,
   onPreferences,
+  expandedRows,
+  onExpandedRowsChange,
 }: {
+  expandedRows?: readonly number[];
+  onExpandedRowsChange?: (rows: number[]) => void;
   committee: CampaignCommitteeMoney;
   year: CampaignMoneyYear;
   releaseId?: string;
@@ -604,6 +631,8 @@ function CommitteeCard({
         year={year}
         registerKind={committee.registerKind}
         releaseId={releaseId}
+        expandedRows={expandedRows}
+        onExpandedRowsChange={onExpandedRowsChange}
       />
       {mixHistory}
       <CommitteeRefundCard

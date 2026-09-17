@@ -127,7 +127,7 @@ export function LegislatorProfileWebScreen() {
     navigation.setParams({ tab: tab === 'overview' ? undefined : tab });
   };
   const selectMoneyYear = (year: CampaignMoneyYear) => {
-    navigation.setParams({ tab: 'money', year: String(year) });
+    navigation.setParams({ tab: 'money', year: String(year), contributionDetails: undefined });
   };
   // A person's name cannot be guessed from the address, so the tab keeps what
   // the server sent until the profile loads (#1325).
@@ -251,7 +251,18 @@ export function LegislatorProfileWebScreen() {
   const shareContent = buildLegislatorShareContent({
     displayName,
     districtLine,
-    url: publicPageUrl(`/legislators/${encodeURIComponent(shareSlug)}`),
+    url: publicPageUrl(
+      routePath.legislator(
+        shareSlug,
+        activeTab === 'money'
+          ? {
+              tab: 'money',
+              year: String(moneyYear),
+              contributionDetails: route.params?.contributionDetails,
+            }
+          : undefined,
+      ),
+    ),
   });
 
   const hero = (
@@ -451,6 +462,10 @@ export function LegislatorProfileWebScreen() {
           legislatorName={displayName}
           year={moneyYear}
           onSelectYear={selectMoneyYear}
+          contributionDetails={route.params?.contributionDetails}
+          onContributionDetailsChange={(value) =>
+            navigation.setParams({ contributionDetails: value })
+          }
           money={moneyQuery.data}
           isLoading={moneyQuery.isLoading}
           isError={moneyQuery.isError}
