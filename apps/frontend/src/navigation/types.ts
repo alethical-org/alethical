@@ -108,7 +108,7 @@ export type RootStackParamList = {
   // Money by race (issue #1954): every candidate committee grouped by the seat it
   // registered for. The office chip and the year ride in the address so a
   // narrowed list is shareable; a contest is linked by its #anchor.
-  MoneyByRace: { office?: string; year?: string } | undefined;
+  MoneyByRace: { office?: string; year?: string; group?: string; q?: string } | undefined;
   // One typed name matched across the 5 kinds of record. The query is the whole
   // state, so a results page is a link somebody can send.
   MoneySearch: { q?: string } | undefined;

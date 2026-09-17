@@ -197,19 +197,22 @@ year controls and money footers. Their rows load when the app starts, and the in
 response invents no empty result. Bill first responses continue to serve Summary whichever
 tab the address names.
 
-**The bare `/money/races` address** arrives with every group and an ordinary link to every
-candidate committee registered for its district or seat. Each committee carries its 2 figures,
-their separate dates and the same missing-figure explanations as the running screen. The
-first response includes the registration warning, figure definitions, comparison and donor-naming
-notes, register date, payment-file copy date when held, and the 2 coverage limits. A missing
-amount never becomes $0. An address narrowed by office or year keeps its existing instruction
-not to appear in search results and does not receive this first-response list.
+**The bare `/money/races` address** arrives as a compact directory of group headings,
+committee counts and ordinary links to the complete groups. It includes the introduction,
+ballot warning, register-copy date and limits, without printing every committee or money
+amount. A selected group address arrives with that group's complete committee list, its
+2 labelled figures with separate dates, and the same explanations and limits as the app.
+Filtered and shared group addresses keep their instruction not to appear in search results
+but now receive their corresponding first-response content and the all-office data reused
+by the screen. Missing amounts never become $0.
 
-The finder on `/money/races` adds the selected group’s existing target to the address, such as
-`/money/races?office=House&year=2026#house-12a`. Copying that address keeps the office, year and
-group together. Choosing a suggestion keeps all committee rows visible and moves keyboard
-focus to the chosen heading. Opening a group address or using browser Back or Forward restores
-the target after its rows arrive. Typed finder text itself is not added to the address.
+A selected group uses its existing server identifier in the address, such as
+`/money/races?office=House&year=2026&group=house-12a`. Legacy `#house-12a` targets still
+resolve. Directory search text is stored as `q`. Opening a group clears that search from
+the new address; Back restores the previous directory search, office and position. Search
+can reach another office directly, shows the whole chosen group and moves focus to its
+heading. Browser Back and Forward restore the selected view. Committee links retain the
+selected year and allow the reader to return to the group and its position.
 
 **The outside-spending record** arrives with the total the file holds, how many
 payments and which years that total covers, how many of them the filings call supporting and how

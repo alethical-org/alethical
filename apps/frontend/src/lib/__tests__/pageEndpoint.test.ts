@@ -1341,6 +1341,54 @@ describe('the records a money page hands to the app', () => {
     expect(served[0].payload).toEqual(races);
   });
 
+  it('serves a selected race with all-office seed data while keeping noindex', async () => {
+    const races = {
+      state: 'reported',
+      year: 2025,
+      ordered_by: 'district_then_name',
+      committee_count: 1,
+      contest_count: 1,
+      as_of: '2026-08-12',
+      offices: [{ office: 'House', committee_count: 1 }],
+      contests: [
+        {
+          office: 'House',
+          district: '12A',
+          anchor: 'house-12a',
+          committee_count: 1,
+          committees: [
+            {
+              registration_number: '90001',
+              name: 'Example House Committee',
+              reported_total: null,
+              named: { state: 'not_reported', total: null },
+            },
+          ],
+        },
+      ],
+    };
+    const calls: string[] = [];
+    stubNetwork((address) => {
+      calls.push(address);
+      return { status: 200, payload: { data: races } };
+    });
+    const { body } = await serve({
+      path: '/money/races',
+      office: 'House',
+      year: '2025',
+      group: 'house-12a',
+      q: 'house',
+    });
+    expect(body).toContain('House District 12A');
+    expect(body).toContain('No usable official total in our records for 2025');
+    expect(body).toMatch(/noindex/);
+    expect(servedData(body)[0].key).toEqual(['campaign-finance-races', 2025, 'all']);
+    expect(servedData(body)[0].payload).toEqual(races);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain('/campaign-finance/races?year=2025');
+    expect(calls[0]).not.toContain('office=');
+  });
+
   it('hands /money its 3 reads, started together, with lobbying in its own source envelope', async () => {
     const summary = {
       register: { state: 'reported', filer_count: 1603 },

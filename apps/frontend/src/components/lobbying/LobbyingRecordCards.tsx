@@ -18,6 +18,7 @@ import {
   lobbyingMissingSpendingPagesNote,
   lobbyingPrincipalCopy,
   lobbyingRevealLabel,
+  principalLobbyistsIntroduction,
   PRINCIPAL_LOBBYISTS_UNAVAILABLE,
   recordCountLine,
   visibleLobbyingDonationYears,
@@ -36,18 +37,25 @@ export function PrincipalLobbyistsCard({
   state,
   total,
   rows,
+  copiedDate,
   onOpenLobbyist,
 }: {
   state: 'reported' | 'not_reported' | 'unavailable';
   total: number | null;
   rows: readonly LobbyingPrincipalLobbyist[];
+  copiedDate: string | null;
   onOpenLobbyist: (row: LobbyingPrincipalLobbyist) => void;
 }) {
   const [shown, setShown] = useState(LOBBYING_RECORD_REVEAL_STEP);
   const visible = rows.slice(0, shown);
   return (
-    <LobbyingCard label="Lobbyists on the copy date" title={lobbyingPrincipalCopy.lobbyistsHeading}>
-      <Paragraph>{lobbyingPrincipalCopy.lobbyistsIntroduction}</Paragraph>
+    <LobbyingCard
+      scan
+      label="Lobbyists on the copy date"
+      title={lobbyingPrincipalCopy.lobbyistsHeading}
+    >
+      <Paragraph fullWidth>{principalLobbyistsIntroduction(copiedDate)}</Paragraph>
+      <LobbyingSourceLink url={LOBBYIST_SOURCE_URL} label={lobbyingLobbyistCopy.sourceLabel} />
       {state === 'unavailable' || total === null ? (
         <Unavailable>{PRINCIPAL_LOBBYISTS_UNAVAILABLE}</Unavailable>
       ) : total === 0 || state === 'not_reported' ? (
@@ -336,8 +344,7 @@ function ClientLinkRow({
         pressed && styles.rowPressed,
       ]}
     >
-      <Text style={styles.rowName}>{label}</Text>
-      <GreenLinkArrow />
+      <LinkArrowLabel label={label} style={styles.rowName} />
     </Pressable>
   );
 }
@@ -521,12 +528,12 @@ const styles: Record<string, any> = {
   },
   list: { marginTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(17,21,15,0.14)' },
   linkRow: {
-    minHeight: 52,
+    minHeight: 56,
     marginHorizontal: -10,
     paddingVertical: 8,
     paddingHorizontal: 10,
     ...linkArrowRow,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     borderRadius: 8,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(17,21,15,0.07)',

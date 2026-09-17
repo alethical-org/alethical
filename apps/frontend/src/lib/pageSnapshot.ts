@@ -77,6 +77,7 @@ import {
   RACE_COMPARISON_NOTE,
   RACE_COVERAGE,
   RACE_COVERAGE_HEADING,
+  RACE_DONOR_EXPLANATION,
   RACE_FIGURE_DEFINITIONS,
   RACE_REGISTRATION_NOTE,
   registerDateLine,
@@ -90,6 +91,9 @@ import {
   figuresYearLine,
   racesCountLine,
   racesOrderingLine,
+  officeFilterFromParam,
+  noContestsTitle,
+  raceGroupHref,
 } from './moneyByRace';
 import type { MoneyByRacePage } from '../data/types';
 import {
@@ -1162,66 +1166,119 @@ export function committeeDirectoryPageSnapshot(
 }
 
 /**
- * The Money by race page, with an ordinary link per committee inside its contest.
+ * The race directory or 1 complete selected group, matching the address.
  *
- * Every line is built by the same helpers the screen calls, so the first response
- * a search engine reads is the page a reader gets: contest headings carry a count
- * and never a sum, the order is printed, and each committee's 2 figures carry their
- * own dates (`.claude/rules/grounded-answers.md` rule 12).
+ * The initial directory contains group links and counts without every committee's
+ * money. A selected group carries both figures and their own dates, using the
+ * same wording helpers as the screen (`grounded-answers.md` rule 12).
  */
-export function moneyByRacePageSnapshot(page: MoneyByRacePage): PageSnapshot {
-  const count = racesCountLine(page.contestCount, shownCommitteeCount(page.contests));
-  const order = racesOrderingLine(page.orderedBy);
+export function moneyByRacePageSnapshot(
+  page: MoneyByRacePage,
+  params: { office?: string; group?: string; q?: string } = {},
+): PageSnapshot {
+  const office = officeFilterFromParam(params.office, page.offices);
+  const selected = params.group
+    ? page.contests.find((contest) => contest.anchor === params.group)
+    : undefined;
+  const directory = office
+    ? page.contests.filter((contest) => contest.office === office)
+    : page.contests;
+  const order = directory.length > 1 ? racesOrderingLine(page.orderedBy, office) : null;
+  const date = registerDateLine(page.asOf);
+  const limits: SnapshotSection = {
+    heading: RACE_COVERAGE_HEADING,
+    body: [...RACE_COVERAGE, ...(!selected ? [RACE_DONOR_EXPLANATION] : [])],
+    bodyIsList: false,
+    items: [],
+  };
+  const directoryHref = `/money/races?${new URLSearchParams({ year: String(page.year) })}`;
+  if (params.group && !selected) {
+    return {
+      heading: MONEY_BY_RACE_TITLE,
+      subheading: '',
+      bodyHeading: '',
+      body: [
+        'Candidate committees raise and spend money for a candidate’s campaign.',
+        RACE_REGISTRATION_NOTE,
+        'We couldn’t find this office, district or court seat in our records',
+      ],
+      bodyIsList: false,
+      facts: [],
+      sections: [limits],
+      links: [{ label: 'Choose another office, district or court seat', href: directoryHref }],
+    };
+  }
+  if (!selected) {
+    return {
+      heading: MONEY_BY_RACE_TITLE,
+      subheading: racesCountLine(directory.length, shownCommitteeCount(directory)) ?? '',
+      bodyHeading: '',
+      body: [
+        MONEY_BY_RACE_DEK,
+        RACE_REGISTRATION_NOTE,
+        ...(date ? [date] : []),
+        ...(directory.length
+          ? ['Choose an office, district or court seat to see its committees']
+          : [noContestsTitle(office), 'This does not mean there are no candidates.']),
+        ...(order ? [order] : []),
+      ],
+      bodyIsList: false,
+      facts: [],
+      records: directory.map((contest) => {
+        const [label, count] = contestHeadingParts(contest);
+        return {
+          label,
+          detail: `${count} · View committees`,
+          href: raceGroupHref(contest, page.year),
+        };
+      }),
+      recordsBeforeSections: true,
+      sections: [limits],
+      links: [
+        ...(office ? [{ label: 'Show all offices', href: directoryHref }] : []),
+        { label: 'Money in politics', href: '/money' },
+      ],
+    };
+  }
+  const [seat, count] = contestHeadingParts(selected);
   return {
-    heading: MONEY_BY_RACE_TITLE,
-    subheading: count ?? '',
+    heading: seat,
+    subheading: count,
     bodyHeading: '',
     body: [
-      MONEY_BY_RACE_DEK,
+      'Candidate committees raise and spend money for a candidate’s campaign.',
       RACE_REGISTRATION_NOTE,
-      ...(registerDateLine(page.asOf) ? [registerDateLine(page.asOf)!] : []),
+      ...(date ? [date] : []),
       figuresYearLine(page.year),
-      ...(order ? [order] : []),
+      'Committee names A–Z',
       RACE_COMPARISON_NOTE,
-      itemizedContributionsNote(false),
       MONEY_BY_RACE_NOTE,
+      ...(selected.periodsDiffer ? [MIXED_PERIODS_NOTE] : []),
+      ...RACE_FIGURE_DEFINITIONS.map((definition) => `${definition.label}: ${definition.text}`),
+      RACE_DONOR_EXPLANATION,
       ...(page.fetchedAt ? [`${FILES_COPIED_LABEL} ${centralDateLabel(page.fetchedAt)}`] : []),
-      RACE_COVERAGE_HEADING,
-      ...RACE_COVERAGE,
     ],
     bodyIsList: false,
     facts: [],
-    sections: page.contests.map((contest) => {
-      const [seat, committeeCount] = contestHeadingParts(contest);
-      return {
-        heading: `${seat} · ${committeeCount}`,
-        body: [
-          ...(contest.periodsDiffer ? [MIXED_PERIODS_NOTE] : []),
-          ...RACE_FIGURE_DEFINITIONS.map((definition) => `${definition.label}: ${definition.text}`),
-        ],
-        bodyIsList: false,
-        items: contest.committees.map((committee) => ({
-          label: [
-            committee.name,
-            `Registration ${committee.registrationNumber}`,
-            closedChipLabel(committee.terminationDate),
-            ...committeeFigures(committee).flatMap((figure) => [
-              `${figure.label}: ${figure.text}`,
-              figure.period ?? '',
-              figure.explanation ?? '',
-            ]),
-          ]
-            .filter(Boolean)
-            .join(' · '),
-          href: `/money/committees/${encodeURIComponent(
-            committeeSlug(committee.name, committee.registrationNumber),
-          )}`,
-        })),
-      };
-    }),
+    records: selected.committees.map((committee) => ({
+      label: committee.name,
+      detail: [
+        `Registration ${committee.registrationNumber}`,
+        closedChipLabel(committee.terminationDate) || (committee.isClosed ? 'Closed' : ''),
+        ...committeeFigures(committee, page.year).flatMap((figure) => [
+          `${figure.label}: ${figure.text}`,
+          figure.period ?? '',
+        ]),
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      href: `/money/committees/${encodeURIComponent(committeeSlug(committee.name, committee.registrationNumber))}?year=${page.year}`,
+    })),
+    recordsBeforeSections: true,
+    sections: [limits],
     links: [
-      { label: COMMITTEE_LIST_TITLE, href: '/money/committees' },
-      { label: MONEY_LANDING_HEADING, href: '/money' },
+      { label: 'Go back', href: directoryHref },
+      { label: 'Money in politics', href: '/money' },
     ],
   };
 }

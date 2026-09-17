@@ -66,6 +66,7 @@ export function LobbyingPrincipalScreen({
 
   const shell = (children: React.ReactNode) => (
     <LobbyingPageFrame
+      narrow
       onBack={() => navigation.navigate('LobbyingLanding')}
       onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
     >
@@ -105,11 +106,13 @@ export function LobbyingPrincipalScreen({
     description: `${principal.name}'s reported lobbying spending and lobbyists listed on the source copy date, from Minnesota's own records.`,
     url: publicPageUrl(routePath.lobbyingPrincipal(finalSlug)),
   };
+  const copiedDate = principal.copied_at ? centralDateLabel(principal.copied_at) : null;
   const copiedLine = boardFilesCopiedLine(principal.copied_at, centralDateLabel);
   const spellingLines = principalSpellingLines(principal.lobbyists.rows);
 
   return (
     <LobbyingPageFrame
+      narrow
       eyebrow={`PRINCIPAL · ENTITY ID ${principal.entity_id}`}
       title={principal.name}
       details={
@@ -127,7 +130,7 @@ export function LobbyingPrincipalScreen({
       onBack={() => navigation.navigate('LobbyingLanding')}
       onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
     >
-      <LobbyingCard label="Spending by year" title={lobbyingPrincipalCopy.spendingHeading}>
+      <LobbyingCard scan label="Spending by year" title={lobbyingPrincipalCopy.spendingHeading}>
         <CardParagraph>{lobbyingPrincipalCopy.spendingIntroduction}</CardParagraph>
         <LobbyingSourceLink url={PRINCIPAL_SOURCE_URL} label={lobbyingPrincipalCopy.sourceLabel} />
         {principal.spending.state === 'unavailable' ? (
@@ -138,16 +141,14 @@ export function LobbyingPrincipalScreen({
           principal.spending.state === 'no_spending_rows' ? (
           <Text style={styles.empty}>{lobbyingNoSpendingRows(principal.source_latest_year)}</Text>
         ) : (
-          <>
-            <Text style={styles.zeroNote}>{lobbyingPrincipalCopy.spendingZeroNote}</Text>
-            <LobbyingSpendingTable rows={principal.spending.rows} />
-          </>
+          <LobbyingSpendingTable rows={principal.spending.rows} />
         )}
       </LobbyingCard>
       <PrincipalLobbyistsCard
         state={principal.lobbyists.state}
         total={principal.lobbyists.total}
         rows={principal.lobbyists.rows}
+        copiedDate={copiedDate}
         onOpenLobbyist={(row: LobbyingPrincipalLobbyist) =>
           navigation.push('LobbyingLobbyist', {
             slug: lobbyingRecordSlug(row.name, row.registration_number),
@@ -203,15 +204,6 @@ const styles: Record<string, any> = {
     color: '#4f5651',
     fontFamily: theme.typography.body,
     lineHeight: 26,
-  },
-  zeroNote: {
-    marginTop: 8,
-    maxWidth: 820,
-    color: '#6b716b',
-    fontFamily: theme.typography.body,
-    fontSize: 15,
-    lineHeight: 22,
-    fontVariant: ['tabular-nums'],
   },
   unavailable: {
     marginTop: 16,
