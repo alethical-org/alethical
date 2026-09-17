@@ -457,10 +457,26 @@ export const OUTSIDE_SPENDING_VIEW_LABELS: Record<OutsideSpendingView, string> =
   about: 'One committee',
 };
 
+const OUTSIDE_SPENDING_VIEW_LINK_LABELS: Record<OutsideSpendingView, string> = {
+  record: 'The whole record',
+  spender: 'Browse groups',
+  about: 'Browse candidate committees',
+};
+
+/** The selected view names what is open; the other 2 links name where they go. */
+export function outsideSpendingViewLabel(
+  option: OutsideSpendingView,
+  current: OutsideSpendingView,
+): string {
+  return option === current
+    ? OUTSIDE_SPENDING_VIEW_LABELS[option]
+    : OUTSIDE_SPENDING_VIEW_LINK_LABELS[option];
+}
+
 export const BACK_TO_OUTSIDE_SPENDING = 'Outside spending';
 
 export const WHAT_THE_RECORD_HOLDS = 'What the record holds';
-export const DIRECTION_AS_FILED = 'Direction, as the filing states it';
+export const DIRECTION_AS_FILED = 'Payments by direction, as the filing states it';
 export const IN_KIND_LABEL = 'In kind';
 
 /** "across 41,130 payments, 2015 through 2026". Payments, not expenditures: the
@@ -472,28 +488,29 @@ export function recordSpanLine(figures: OutsideSpendingRecordFigures): string {
   return `across ${payments}, ${figures.firstYear} through ${figures.lastYear}`;
 }
 
-/** "31,718 supporting", counted rows, for the whole record's direction line. */
+/** "31,718 payments supporting", counted rows, for the whole record's direction line. */
 export function directionCountLine(count: number, direction: 'supporting' | 'opposing'): string {
-  return `${formatCount(count)} ${direction}`;
+  return `${formatCount(count)} ${count === 1 ? 'payment' : 'payments'} ${direction}`;
 }
 
 export function inKindCountLine(count: number): string {
-  return `${formatCount(count)} in goods or services`;
+  return `${formatCount(count)} ${count === 1 ? 'payment' : 'payments'} in goods or services`;
 }
 
 /** The sentence under the whole record's direction figures. Printed only while
  *  every row states a direction, which is what it claims; the moment a row does
  *  not, the third figure appears instead and this sentence goes. */
 export const EVERY_ROW_STATES_A_DIRECTION =
-  'Every row states a direction, so nothing here is filed without one. In-kind rows are ' +
-  'counted in both figures above, not beside them.';
+  'Every payment states a direction. Payments in goods or services are already included in ' +
+  'the supporting or opposing count. They are not additional payments.';
 
 export function directionNotRecordedLine(count: number): string {
-  return `${formatCount(count)} where the filing does not say which`;
+  return `${formatCount(count)} ${count === 1 ? 'payment' : 'payments'} where the filing does not say which`;
 }
 
 export const IN_KIND_COUNTED_INSIDE =
-  'In-kind rows are counted inside the figures above, not beside them.';
+  'Payments in goods or services are already included in the direction counts above. They ' +
+  'are not additional payments.';
 
 export const LANE_BY_SPENDER = {
   title: 'By the group that spent',
@@ -513,35 +530,36 @@ export function laneByCommitteeBody(committeesNotLinkable: number | null): strin
   const first = 'Every row names a committee, never a person.';
   if (committeesNotLinkable === null) return first;
   return (
-    `${first} ${formatCount(committeesNotLinkable)} of those names are not in the Board’s ` +
-    'register we hold and have no filing of their own, so they can only be printed as filed.'
+    `${first} We cannot link ${formatCount(committeesNotLinkable)} of those names to a ` +
+    'committee page in the records we hold, so they are printed as filed.'
   );
 }
 
-export const SEARCH_A_GROUP_OR_COMMITTEE = 'Search a group or a committee';
+export const SEARCH_A_GROUP_OR_COMMITTEE = 'Open search for a group or committee';
 
 export const HOW_TO_READ_IT = {
   heading: 'How to read it',
   body:
     'A row is one expenditure: who spent, the committee it was about, the direction stated ' +
-    'on the filing, and the date it was paid. Figures are shown one subject at a time. Two ' +
-    'groups are never totalled together and never placed side by side, because the state ' +
-    'publishes no date telling us when any report arrived — so we cannot tell whether one ' +
-    'group’s year is finished and another’s has barely started.',
+    'on the filing, and the date it was paid. The total above covers the whole file. An ' +
+    'individual group page shows that group alone and never places its figure beside another ' +
+    'group’s, because the state publishes no date telling us when any report arrived — so we ' +
+    'cannot tell whether one group’s year is finished and another’s has barely started.',
 };
 
 export const NOT_IN_THIS_RECORD = {
   heading: 'Not in this record',
   body:
-    'Anything before 2015. Spending by a group that files with a body other than this Board. ' +
-    'Any connection between an expenditure and a vote, a position, or an outcome — the ' +
-    'filings record spending, and nothing about what it did. No list here is offered as ' +
-    'complete.',
+    'Anything before 2015. Spending by a group that files with a body other than the ' +
+    'Minnesota Campaign Finance and Public Disclosure Board. Any connection between an ' +
+    'expenditure and a vote, a position, or an outcome — the filings record spending, and ' +
+    'nothing about what it did. No list here is offered as complete.',
 };
 
-export const READ_FROM_THE_BOARDS_FILE = 'Read from the Board’s file';
+export const READ_FROM_THE_BOARDS_FILE =
+  'Download the Minnesota Campaign Finance and Public Disclosure Board’s file';
 
-/** "Checked Aug 19, 2026". The one freshness date on the page (rule 12). */
+/** "Checked <date>", using the served copy date. The page's one freshness date. */
 export function checkedLine(checkedOn: string | null): string | null {
   return checkedOn ? `Checked ${checkedOn}` : null;
 }
