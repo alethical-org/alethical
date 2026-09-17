@@ -1422,8 +1422,8 @@ address is not a reason to show its reader nothing. Sorted for this section:
 | `/money/committees?q=…` or `?kind=…` | filtered view | head only, `noindex`, no canonical — unchanged |
 | `/money/committees/{slug}` and `?year=N` | **record** | the committee's own register facts and its money for the year the address asks for, defaulting to the current filing year; canonical on the bare address either way |
 | `/money/committees/{slug}/payments`, `?year=N` and `?tab=gave\|spent` | **record** | the same identity and period for that same year, plus the first 50 named payments in the direction the address asks for; canonical on the bare address in every case |
-| `/money/races` | record list | every candidate committee grouped by the contest it registered for, each an ordinary anchor, with each figure's own dates ([#1954](https://github.com/alethical-org/alethical/issues/1954)) |
-| `/money/races?office=…` | filtered view | head only, `noindex`, no canonical |
+| `/money/races` | record list | a compact directory of office, district and court-seat groups, with committee counts and ordinary links to each complete group |
+| `/money/races?office=…`, `?year=…`, `?group=…` and `?q=…` | filtered view | the matching directory or selected group, plus the all-office data for the selected year used by search; `noindex`, no canonical |
 | `/money/search` and `?q=…` | filtered view | `noindex` with no canonical, and a body carrying the page's own explanation and what these records do not cover — never a result for anything typed ([#1966](https://github.com/alethical-org/alethical/issues/1966)) |
 | `/money/payments?name=…&role=…` | **filtered view** | head only, `noindex`, no canonical — added by [#1780](https://github.com/alethical-org/alethical/issues/1780) |
 | `/money/outside-spending` | **record** | indexable, canonical on the bare address, with the whole file's own figures and the words introducing its group-and-committee directory as a body — the whole independent-expenditure file as one subject ([#1945](https://github.com/alethical-org/alethical/issues/1945), body added by [#1966](https://github.com/alethical-org/alethical/issues/1966)) |

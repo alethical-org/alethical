@@ -38,8 +38,8 @@ import type { MoneyByRacePage, RaceCommittee, RaceContest } from '../data/types'
 export const MONEY_BY_RACE_TITLE = 'Money by race';
 
 export const MONEY_BY_RACE_DEK =
-  'Candidate committees in Minnesota’s register, grouped by office and district or court seat. ' +
-  'A committee is the account used to raise and spend campaign money.';
+  'Find candidate committees and their reported donations by office, district or court seat. ' +
+  'Candidate committees raise and spend money for a candidate’s campaign.';
 
 /** The chip that clears the office filter. */
 export const ALL_OFFICES_LABEL = 'All offices';
@@ -49,8 +49,9 @@ export const ALL_OFFICES_LABEL = 'All offices';
  * `orderedBy` this mapping does not know prints nothing rather than a guess: the
  * sentence and the real order must not be able to drift apart.
  */
-export function racesOrderingLine(orderedBy: string): string | null {
-  return orderedBy === 'district_then_name' ? 'Office, then district or seat, then name A–Z' : null;
+export function racesOrderingLine(orderedBy: string, office?: string | null): string | null {
+  if (orderedBy !== 'district_then_name') return null;
+  return office ? 'By district or court seat' : 'By office, then district or court seat';
 }
 
 /**
@@ -93,6 +94,19 @@ export function contestSeatLabel(contest: { office: string; district: string | n
   return seat ? `${office} · District ${seat[1]} · Seat ${seat[2]}` : `${office} · ${district}`;
 }
 
+/** A group keeps the served identifier and year in a normal, shareable link. */
+export function raceGroupHref(
+  contest: Pick<RaceContest, 'office' | 'anchor'>,
+  year: number,
+): string {
+  const params = new URLSearchParams({
+    office: contest.office,
+    year: String(year),
+    group: contest.anchor,
+  });
+  return `/money/races?${params}`;
+}
+
 /** "3 candidate committees" — the count, and never a sum. */
 export function contestCountLabel(committeeCount: number): string {
   return `${formatCount(committeeCount)} ${candidateCommitteeNoun(committeeCount)}`;
@@ -126,9 +140,6 @@ export const REPORTED_FIGURE_LABEL = 'Total contributions';
 /** The label on the second figure, verbatim from the committee page's money-in card. */
 export const NAMED_FIGURE_LABEL = 'Itemized contributions';
 
-/** What stands in for a figure we do not hold. Words, never `$0`. */
-export const NOT_REPORTED_VALUE = 'Not reported';
-
 export interface RaceFigure extends FigureText {
   label: string;
   /** The figure's own dates, or null when there is nothing to date. */
@@ -146,10 +157,9 @@ export interface RaceFigure extends FigureText {
  * payments we hold, worded "Payments dated …" rather than "covering", because a
  * coverage claim is one we did not check.
  *
- * A missing official total names our gap. Missing named contributions read
- * "Not reported" with an explanation. Neither carries a date on a missing amount.
+ * A missing official total names our gap. Missing named contributions name the gap in our records and the requested year. Neither carries a date on a missing amount.
  */
-export function committeeFigures(committee: RaceCommittee): [RaceFigure, RaceFigure] {
+export function committeeFigures(committee: RaceCommittee, year: number): [RaceFigure, RaceFigure] {
   const reported = formatMoney(committee.reportedTotal);
   const reportedFigure: RaceFigure = reported
     ? {
@@ -165,7 +175,7 @@ export function committeeFigures(committee: RaceCommittee): [RaceFigure, RaceFig
       }
     : {
         label: REPORTED_FIGURE_LABEL,
-        text: 'We do not hold a usable official total for this committee for this year',
+        text: `No usable official total in our records for ${year}`,
         isFigure: false,
         period: null,
         explanation: null,
@@ -174,14 +184,12 @@ export function committeeFigures(committee: RaceCommittee): [RaceFigure, RaceFig
   const namedFigure: RaceFigure = {
     label: NAMED_FIGURE_LABEL,
     ...named,
-    text:
-      !named.isFigure && committee.named.state !== 'not_reported'
-        ? 'We couldn’t load this figure'
-        : named.text,
-    explanation:
-      !named.isFigure && committee.named.state === 'not_reported'
-        ? 'No named contributions in our payment records for this committee for this year'
-        : null,
+    text: named.isFigure
+      ? named.text
+      : committee.named.state === 'not_reported'
+        ? `No named contributions in our records for ${year}`
+        : 'We couldn’t load this figure',
+    explanation: null,
     period: named.isFigure
       ? paymentDateRangeLabel(committee.named.firstPaymentOn, committee.named.lastPaymentOn)
       : null,
@@ -196,15 +204,12 @@ export function racesCountLine(
   _asOf?: string | null,
 ): string | null {
   if (contestCount === null || committeeCount === null) return null;
-  return (
-    `${formatCount(contestCount)} ${contestCount === 1 ? 'contest' : 'contests'} · ` +
-    `${formatCount(committeeCount)} ${candidateCommitteeNoun(committeeCount)}`
-  );
+  return contestCountLabel(committeeCount);
 }
 
 export function registerDateLine(asOf: string | null): string | null {
   const day = formatDay(asOf);
-  return day ? `Register dated ${day}` : null;
+  return day ? `Committee list copied ${day}` : null;
 }
 
 /** Sum counts, never money. The API's top-level committee count is global. */
@@ -220,8 +225,7 @@ export function matchingRaceContests(
   const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
   if (!terms.length) return [];
   return contests.filter((contest) => {
-    if (!contest.district) return false;
-    const text = `${contestSeatLabel(contest)} ${contest.district}`.toLowerCase();
+    const text = `${contestSeatLabel(contest)} ${contest.district ?? ''}`.toLowerCase();
     return terms.every((term) => text.includes(term));
   });
 }
@@ -229,27 +233,29 @@ export function matchingRaceContests(
 export const RACE_FIGURE_DEFINITIONS = [
   {
     label: REPORTED_FIGURE_LABEL,
-    text: 'The contribution total from the committee’s filed report',
+    text: 'Donations the committee reported to the state',
   },
   {
     label: NAMED_FIGURE_LABEL,
-    text: 'The sum of contributions with named givers in our payment records',
+    text: 'Donations with named givers in our payment records',
   },
 ] as const;
-export const RACE_REGISTRATION_NOTE = 'Registration does not show who is on the ballot';
+export const RACE_REGISTRATION_NOTE = 'These records do not confirm who is on the ballot';
 export const RACE_COMPARISON_NOTE =
-  'The report and payment records can cover different dates. Read the dates beside each figure before comparing amounts.';
-export const RACE_COVERAGE_HEADING = 'What these records do not cover';
-export const RACE_COVERAGE = [
-  'No campaign payments held before 2015',
-  'Donors who gave $200 or less in total for the year need not be named',
-] as const;
+  'The report and payment records can cover different dates. Read the dates beside each amount before comparing.';
+export const RACE_COVERAGE_HEADING = 'Limits of the campaign records';
+export const RACE_COVERAGE = ['Payment records before 2015 are not included'] as const;
 
-/** "Money figures are for 2026" — which year the figures on the page belong to.
+export const RACE_DONOR_EXPLANATION =
+  'Named donors include people, lobbyists, other campaigns, political committees and funds, and party organisations. ' +
+  'A candidate committee must name a donor whose total donations to that committee exceed $200 in a calendar year. ' +
+  'It may also name donors who gave $200 or less.';
+
+/** "Campaign contributions for 2026" — which year the figures on the page belong to.
  *  Each figure still states its own period; this names the year the page asked
  *  the records for. */
 export function figuresYearLine(year: number): string {
-  return `Money figures are for ${year}`;
+  return `Campaign contributions for ${year}`;
 }
 
 /**
@@ -266,15 +272,14 @@ export const MONEY_BY_RACE_NOTE =
 /** The empty state's headline when an office filter finds nothing. */
 export function noContestsTitle(office: string | null): string {
   return office
-    ? `No ${office} candidate committees in our copy of the register`
-    : 'No candidate committees in our copy of the register';
+    ? `No ${office} candidate committees in our copy of the committee list`
+    : 'No candidate committees in our copy of the committee list';
 }
 
 /** What the page says when our copy of the register cannot be read. A gap on our
  *  side, never a claim that Minnesota has no candidates. */
 export const MONEY_BY_RACE_UNAVAILABLE =
-  'We could not read our copy of the Board’s register just now. This is a gap on our side, and ' +
-  'an empty list here is never a claim that Minnesota has no candidates.';
+  'We couldn’t load the committee list. This does not tell us who is running.';
 
 /*
  * The served payload and its shaping live here, not in `data/api.ts`: the server-side

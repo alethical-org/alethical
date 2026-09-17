@@ -628,12 +628,6 @@ type CommitteePaymentsPayload = {
 // docs/architecture/page-metadata-for-search-and-sharing-decisions.md records
 // which of these addresses are records and which are filtered views.
 
-/** The filing year both the app and this function default to, so the served
- *  figures are the ones the loaded page then draws. */
-function defaultMoneyYear(): number {
-  return campaignMoneyYear(undefined);
-}
-
 /** The number of filed reports the landing asks for, as its own screen does. */
 const MONEY_LANDING_FILINGS_LIMIT = 5;
 
@@ -713,11 +707,13 @@ async function moneyLandingContent(): Promise<PageContent> {
   };
 }
 
-async function moneyByRaceContent(): Promise<PageContent> {
+async function moneyByRaceContent(
+  params: Record<string, string> = {},
+): Promise<PageContent> {
   // The same shaping the app applies to the same read, so the first response
   // carries the page a reader gets: counts, never sums; the served order; every
   // figure with its own dates (issue #1954).
-  const year = defaultMoneyYear();
+  const year = campaignMoneyYear(params.year);
   const payload = await getApiResponse<{ data: unknown }>(
     `/campaign-finance/races?year=${year}`,
   );
@@ -729,10 +725,12 @@ async function moneyByRaceContent(): Promise<PageContent> {
     throw new DataUnavailable("races response has no contests to serve");
   }
   return {
-    metadata: moneyByRacePageMetadata(),
-    snapshot: renderPageSnapshot(moneyByRacePageSnapshot(page)),
-    // Without this the page downloaded all 778 rows a second time, as 271 KB of
-    // JSON describing the rows its own HTML already carried (#1966).
+    metadata: moneyByRacePageMetadata({
+      noindex: Object.keys(params).length > 0,
+    }),
+    snapshot: renderPageSnapshot(moneyByRacePageSnapshot(page, params)),
+    // Search uses every office. Reuse this payload when the app starts instead of
+    // downloading the same complete response again (#1966).
     data: [{ key: moneyByRaceQueryKey({ year }), payload: payload.data }],
   };
 }
@@ -1262,11 +1260,9 @@ async function contentFor(
         ? committeeListContent(directoryPageNumber(target.params.page))
         : headOnly(committeeListPageMetadata(1, { noindex: true }));
     case "moneyByRace":
-      // The bare list is the page worth listing; an office chip is a filtered
-      // view and gets no body and no canonical address.
-      return Object.keys(target.params).length === 0
-        ? moneyByRaceContent()
-        : headOnly(moneyByRacePageMetadata({ noindex: true }));
+      // Filtered/shared views keep their noindex policy, but readers still receive
+      // the selected content and the same unfiltered data the app uses for search.
+      return moneyByRaceContent(target.params);
     case "moneySearch":
       // Still `noindex`: the address is whatever somebody typed, so it is a
       // filtered view rather than a record. A body is not an instruction to a

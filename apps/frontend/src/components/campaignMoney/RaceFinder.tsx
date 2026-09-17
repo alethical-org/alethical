@@ -3,7 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-na
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import type { RaceContest } from '../../data/types';
-import { contestSeatLabel, matchingRaceContests } from '../../lib/moneyByRace';
+import { contestSeatLabel, contestCountLabel, matchingRaceContests } from '../../lib/moneyByRace';
 import { fieldFocusRing, fieldOutlineReset } from '../../theme/fieldFocus';
 import { theme as t } from '../../theme/tokens';
 
@@ -12,17 +12,20 @@ export function RaceFinder({
   contests,
   isMobile,
   onChoose,
+  query,
+  onQueryChange,
 }: {
   contests: readonly RaceContest[];
   isMobile: boolean;
   onChoose: (anchor: string) => void;
+  query: string;
+  onQueryChange: (value: string) => void;
 }) {
   const id = useId();
   const input = useRef<TextInput>(null);
-  const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [focused, setFocused] = useState(false);
-  const [active, setActive] = useState(0);
+  const [active, setActive] = useState(-1);
   const [hovered, setHovered] = useState(false);
   const matches = matchingRaceContests(contests, query);
   const expanded = open && query.trim().length > 0;
@@ -54,8 +57,7 @@ export function RaceFinder({
       input.current?.focus();
       return;
     }
-    setQuery(contestSeatLabel(contest));
-    setActive(0);
+    setActive(-1);
     setOpen(false);
     onChoose(contest.anchor);
   };
@@ -63,7 +65,7 @@ export function RaceFinder({
   return (
     <View nativeID={id} style={styles.card}>
       <Text nativeID={`${id}-label`} style={styles.label}>
-        Find a district or court seat
+        Find an office, district or court seat
       </Text>
       <View style={[styles.row, isMobile && styles.stacked]}>
         <View style={[styles.fieldAndMatches, isMobile && styles.mobileField]}>
@@ -81,7 +83,7 @@ export function RaceFinder({
               ref={input}
               value={query}
               accessibilityRole="combobox"
-              accessibilityLabel="Find a district or court seat"
+              accessibilityLabel="Find an office, district or court seat"
               aria-labelledby={`${id}-label`}
               aria-expanded={expanded}
               {...(Platform.OS === 'web'
@@ -92,18 +94,19 @@ export function RaceFinder({
                       expanded && selected ? `${id}-option-${active}` : undefined,
                   }
                 : {})}
-              placeholder="Enter a district or seat"
-              placeholderTextColor={t.colors.text.faint}
+              placeholder="Try House 12A or Governor"
+              placeholderTextColor={t.colors.text.secondary}
               autoCorrect={false}
               autoCapitalize="none"
               spellCheck={false}
               onChangeText={(value) => {
-                setQuery(value);
-                setActive(0);
+                onQueryChange(value);
+                setActive(-1);
                 setOpen(true);
               }}
               onFocus={() => {
                 setFocused(true);
+                setOpen(true);
               }}
               onBlur={() => setFocused(false)}
               onKeyPress={(event) => {
@@ -122,19 +125,45 @@ export function RaceFinder({
                 } else if (key === 'Escape') {
                   event.preventDefault();
                   setOpen(false);
+                  setActive(-1);
                 }
               }}
-              onSubmitEditing={() => choose(selected)}
+              onSubmitEditing={() =>
+                choose(selected ?? (matches.length === 1 ? matches[0] : undefined))
+              }
+              blurOnSubmit={false}
               returnKeyType="go"
               style={[styles.input, fieldOutlineReset]}
             />
+            {query ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
+                onPress={() => {
+                  onQueryChange('');
+                  setActive(-1);
+                  setOpen(false);
+                  input.current?.focus();
+                }}
+                style={styles.clear}
+              >
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <Path
+                    d="M6 6 L18 18 M18 6 L6 18"
+                    stroke={t.colors.text.primary}
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                  />
+                </Svg>
+              </Pressable>
+            ) : null}
           </View>
           {expanded ? (
             matches.length ? (
               <View
                 nativeID={`${id}-list`}
                 role={'listbox' as never}
-                aria-label="Matching districts and court seats"
+                aria-label="Matching offices, districts and court seats"
                 style={styles.list}
               >
                 {matches.map((contest, index) => (
@@ -148,15 +177,18 @@ export function RaceFinder({
                     style={[styles.option, index === active && styles.activeOption]}
                   >
                     <Text style={styles.optionLabel}>{contestSeatLabel(contest)}</Text>
+                    <Text style={styles.body}>{contestCountLabel(contest.committeeCount)}</Text>
                   </Pressable>
                 ))}
               </View>
             ) : (
               <View role="status" style={styles.noMatch}>
-                <Text style={styles.body}>No matching district or court seat in our records</Text>
                 <Text style={styles.body}>
-                  This means we hold no group with that name. It does not mean the district has no
-                  candidates.
+                  No matching office, district or court seat in our records
+                </Text>
+                <Text style={styles.body}>
+                  Try another name or clear your search. These records do not confirm who is on the
+                  ballot.
                 </Text>
               </View>
             )
@@ -164,12 +196,12 @@ export function RaceFinder({
         </View>
         <Pressable
           accessibilityRole="button"
-          onPress={() => choose(selected)}
+          onPress={() => choose(selected ?? (matches.length === 1 ? matches[0] : undefined))}
           onHoverIn={() => setHovered(true)}
           onHoverOut={() => setHovered(false)}
           style={[styles.button, hovered && styles.buttonHover, isMobile && styles.mobileButton]}
         >
-          <Text style={styles.buttonLabel}>Go to district or seat</Text>
+          <Text style={styles.buttonLabel}>View committees</Text>
         </Pressable>
       </View>
     </View>
@@ -177,13 +209,13 @@ export function RaceFinder({
 }
 
 const styles = StyleSheet.create({
-  card: {
-    marginTop: 20,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink10,
-    backgroundColor: t.colors.surfaces.base,
-    borderRadius: 16,
-    padding: 20,
+  card: { marginTop: 24, zIndex: 10 },
+  clear: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: -12,
   },
   label: {
     fontFamily: t.typography.body,
@@ -195,7 +227,7 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   stacked: { flexDirection: 'column' },
-  fieldAndMatches: { flex: 1, minWidth: 0, maxWidth: 580, width: '100%' },
+  fieldAndMatches: { flex: 1, minWidth: 0, maxWidth: 760, width: '100%', zIndex: 1 },
   mobileField: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto' },
   field: {
     height: 52,
@@ -218,7 +250,12 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   list: {
-    marginTop: 10,
+    position: 'absolute',
+    top: 60,
+    left: 0,
+    right: 0,
+    backgroundColor: t.colors.surfaces.base,
+    zIndex: 20,
     maxHeight: 288,
     overflow: 'scroll',
     borderWidth: 1,
@@ -243,7 +280,12 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   noMatch: {
-    marginTop: 10,
+    position: 'absolute',
+    top: 60,
+    left: 0,
+    right: 0,
+    backgroundColor: t.colors.surfaces.base,
+    zIndex: 20,
     padding: 14,
     gap: 8,
     borderWidth: 1,
