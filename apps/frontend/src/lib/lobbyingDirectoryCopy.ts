@@ -57,10 +57,15 @@ export const LOBBYING_DIRECTORY_COPY = {
 
 export const MONEY_LANE_LOBBYING = {
   title: 'Lobbying',
-  body: 'Who is registered to lobby the state, who they represent, and what those organisations report spending each year',
+  body: 'Who is registered to lobby, who they represent, and what is reported spent',
 } as const;
 
 const count = (value: number) => value.toLocaleString('en-US');
+
+/** /money names what is counted; its source box states the lobbying copy date. */
+export function moneyLandingLobbyistCount(value: number | null | undefined): string | null {
+  return value == null ? null : `${count(value)} REGISTERED LOBBYISTS`;
+}
 
 export function lobbyistLaneCount(value: number | null | undefined): string | null {
   return value == null ? null : `${count(value)} REGISTERED IN THIS COPY`;

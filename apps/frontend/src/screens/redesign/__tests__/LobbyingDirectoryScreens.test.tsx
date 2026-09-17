@@ -46,11 +46,15 @@ vi.mock('react-native-svg', () => ({
   Circle: () => null,
   Polygon: () => null,
 }));
-vi.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({}),
-  useRoute: () => ({}),
-  useIsFocused: () => true,
-}));
+vi.mock('@react-navigation/native', async () => {
+  const { useEffect } = await import('react');
+  return {
+    useNavigation: () => ({}),
+    useRoute: () => ({}),
+    useIsFocused: () => true,
+    useFocusEffect: (effect: () => void | (() => void)) => useEffect(effect, [effect]),
+  };
+});
 
 import { Pagination } from '../../../components/search/searchPieces';
 import { MoneyNameSearchField } from '../../../components/campaignMoney/MoneyNameSearchField';
@@ -199,9 +203,9 @@ describe('the sixth /money lane', () => {
   it('opens lobbying, uses the served count and removes the old notice', () => {
     render(<MoneyLandingScreen navigation={navigation as never} route={route('MoneyLanding')} />);
     const lane = host.querySelector('a[href="/money/lobbying"]')!;
-    expect(lane.textContent).toContain('1,665 REGISTERED IN THIS COPY');
-    expect(words()).toContain('WHAT THE CAMPAIGN FILES DO NOT COVER');
-    expect(words()).toContain('No campaign payments held before 2015');
+    expect(lane.textContent).toContain('1,665 REGISTERED LOBBYISTS');
+    expect(words()).toContain('LIMITS OF THE CAMPAIGN RECORDS');
+    expect(words()).toContain('Payment records start in 2015');
     expect(words()).not.toContain('Under development');
     act(() => (lane as HTMLElement).click());
     expect(navigation.navigate).toHaveBeenCalledWith('LobbyingLanding');
@@ -215,7 +219,7 @@ describe('the sixth /money lane', () => {
     render(<MoneyLandingScreen navigation={navigation as never} route={route('MoneyLanding')} />);
     const lane = host.querySelector('a[href="/money/lobbying"]')!;
     expect(lane).not.toBeNull();
-    expect(lane.textContent).not.toContain('REGISTERED IN THIS COPY');
+    expect(lane.textContent).not.toContain('REGISTERED LOBBYISTS');
   });
 });
 

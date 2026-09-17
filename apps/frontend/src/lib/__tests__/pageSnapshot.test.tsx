@@ -123,13 +123,11 @@ const { registerCountLine } = await import('../committeeList');
 const { campaignMoneyYears, formatDay, formatMoney } = await import('../legislatorCampaignMoney');
 const {
   centralDateLabel,
-  FILES_LAST_COPIED_LABEL,
-  FILES_LAST_COPIED_NOTE,
   MONEY_LANDING_HEADING,
   MONEY_LANDING_SUBTITLE,
   MONEY_LANE_BY_RACE,
   MONEY_LANE_OUTSIDE_SPENDING,
-  RECORD_DOES_NOT_COVER,
+  MONEY_LANDING_RECORD_DOES_NOT_COVER,
 } = await import('../moneyLanding');
 const {
   READ_PAGE_EMPTY_BODY,
@@ -1193,6 +1191,23 @@ describe('the money landing serves the section’s own words and a live count', 
   const snapshot = moneyLandingPageSnapshot({
     registerFilerCount: 1603,
     filesLastCopiedAt: '2026-08-12T02:54:22.402100Z',
+    lobbyingFilesLastCopiedAt: '2026-09-13T18:00:00Z',
+    registeredLobbyists: 1665,
+    filings: {
+      state: 'reported',
+      orderedBy: 'filed_date_then_period_end',
+      newestPeriod: { periodEnd: '2026-07-20', filingCount: 1203 },
+      filings: [
+        {
+          registrationNumber: '41326',
+          filerName: 'Jane Fonda Climate PAC',
+          reportName: '2026 Pre-Primary Report',
+          periodStart: '2026-01-01',
+          periodEnd: '2026-07-20',
+          filedDate: '2026-08-11',
+        },
+      ],
+    },
   });
   const text = visibleText(renderPageSnapshot(snapshot));
 
@@ -1234,16 +1249,112 @@ describe('the money landing serves the section’s own words and a live count', 
     expect(visibleText(renderPageSnapshot(unserved))).not.toContain('REGISTERED FILERS');
   });
 
-  it('carries the day we copied the files, labelled as the day we checked', () => {
-    expect(text).toContain(FILES_LAST_COPIED_LABEL);
-    expect(text).toContain(FILES_LAST_COPIED_NOTE);
-    expect(text).toContain(centralDateLabel('2026-08-12T02:54:22.402100Z'));
+  it('keeps the campaign and lobbying copy dates separate', () => {
+    expect(text).toContain('Sources and copy dates');
+    expect(text).toContain(
+      `Campaign payment files last copied: ${centralDateLabel('2026-08-12T02:54:22.402100Z')}`,
+    );
+    expect(text).toContain('Lobbying files last copied: Sep 13, 2026');
+    expect(text).toContain('Each report shows the dates its figures cover');
+    expect(text).toContain('1,665 REGISTERED LOBBYISTS');
+    expect(text).not.toContain('REGISTERED TODAY');
   });
 
   it('says what the record does not cover, in the same words the page draws', () => {
-    for (const line of RECORD_DOES_NOT_COVER) {
+    for (const line of MONEY_LANDING_RECORD_DOES_NOT_COVER) {
       expect(text).toContain(line);
     }
+  });
+
+  it('orders navigation, research, sources, limits and recently filed reports', () => {
+    const html = renderPageSnapshot(snapshot);
+    const positions = [
+      'class="ps-records"',
+      '<h2>RESEARCH</h2>',
+      '<h2>Sources and copy dates</h2>',
+      '<h2>Limits of the campaign records</h2>',
+      '<h2>Recently filed reports</h2>',
+    ].map((marker) => html.indexOf(marker));
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    expect(html.match(/<hr \/>/g)).toHaveLength(3);
+    expect(text).toContain(`PUBLISHED ${isoDateCapsLabel(MONEY_ONLY_GOES_ONE_WAY.publishedOn)}`);
+    expect(text).not.toContain('RECORDS THROUGH');
+    expect(text).toContain('Latest completed period: 1,203 reports cover through Jul 20, 2026');
+    expect(text).not.toContain('Never by amount');
+  });
+
+  it('keeps source links in a closed native disclosure, with both candidate links explained', () => {
+    const html = renderPageSnapshot(snapshot);
+    expect(html).toContain('<details><summary>View source links</summary>');
+    expect(html).not.toContain('<details open');
+    expect(
+      html.match(
+        /href="https:\/\/cfb\.mn\.gov\/reports-and-data\/viewers\/campaign-finance\/candidates\/"/g,
+      ),
+    ).toHaveLength(2);
+    expect(html).toContain('target="_blank" rel="noopener noreferrer">Candidate reports</a>');
+    expect(html).toContain('target="_blank" rel="noopener noreferrer">candidate committees</a>');
+    expect(html).not.toContain(
+      'href="https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/"',
+    );
+  });
+
+  it('links the whole report row, including its actual filing date', () => {
+    const html = renderPageSnapshot(snapshot);
+    expect(html).toContain(
+      '<a href="/money/committees/jane-fonda-climate-pac-41326"><span class="ps-record-label">Jane Fonda Climate PAC</span><span class="ps-record-detail">2026 Pre-Primary Report · covers Jan 1, 2026 – Jul 20, 2026 · Filed Aug 11, 2026</span></a>',
+    );
+  });
+
+  it('keeps the reports section absent when no report rows are served', () => {
+    const empty = renderPageSnapshot(
+      moneyLandingPageSnapshot({
+        registerFilerCount: null,
+        filesLastCopiedAt: null,
+        filings: {
+          state: 'reported',
+          orderedBy: 'period_end',
+          newestPeriod: { periodEnd: '2026-07-20', filingCount: 1203 },
+          filings: [],
+        },
+      }),
+    );
+    expect(empty).not.toContain('Recently filed reports');
+    expect(empty).not.toContain('Latest completed period:');
+  });
+
+  it('does not invent copy dates, filing dates, research or report counts when absent', () => {
+    const empty = renderPageSnapshot(
+      moneyLandingPageSnapshot(
+        {
+          registerFilerCount: null,
+          filesLastCopiedAt: null,
+          lobbyingFilesLastCopiedAt: null,
+          filings: {
+            state: 'reported',
+            orderedBy: 'period_end',
+            newestPeriod: null,
+            filings: [
+              {
+                registrationNumber: null,
+                filerName: 'Undated filer',
+                reportName: 'Annual report',
+                periodStart: null,
+                periodEnd: '2025-12-31',
+                filedDate: null,
+              },
+            ],
+          },
+        },
+        [],
+      ),
+    );
+    expect(empty).toContain('Nothing is published yet');
+    expect(empty).not.toContain('files last copied:');
+    expect(empty).not.toContain('Filed Dec 31');
+    expect(empty).not.toContain('Latest completed period:');
+    expect(empty).not.toContain('0 pieces');
   });
 
   // No lane counts money and the landing shows no amount at all (campaign money
@@ -1967,7 +2078,7 @@ describe('the money screens keep reading the helpers the server reads', () => {
       'MONEY_LANE_LEGISLATORS',
       'MONEY_LANE_BY_RACE',
       'MONEY_LANE_OUTSIDE_SPENDING',
-      'FILES_LAST_COPIED_NOTE',
+      'MONEY_SOURCES_PERIOD_NOTE',
     ]) {
       expect(landing).toContain(constant);
     }

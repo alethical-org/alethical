@@ -43,6 +43,7 @@ export function MoneyNameSearchField({
   fieldHeight,
   fieldFontSize,
   stacked = false,
+  controlGap,
   appearance = 'default',
   accessibilityLabel,
 }: {
@@ -58,6 +59,7 @@ export function MoneyNameSearchField({
   fieldHeight?: number;
   fieldFontSize?: number;
   stacked?: boolean;
+  controlGap?: number;
   appearance?: 'default' | 'list';
   accessibilityLabel?: string;
 }) {
@@ -77,7 +79,14 @@ export function MoneyNameSearchField({
           {label}
         </Text>
       ) : null}
-      <View style={[styles.row, fieldHeight != null && { gap: 12 }, stacked && styles.stackedRow]}>
+      <View
+        style={[
+          styles.row,
+          fieldHeight != null && { gap: 12 },
+          stacked && styles.stackedRow,
+          controlGap != null && { gap: controlGap },
+        ]}
+      >
         <Pressable
           accessible={false}
           focusable={false}
