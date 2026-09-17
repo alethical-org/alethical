@@ -156,7 +156,7 @@ describe('lobbying spending table', () => {
 });
 
 describe('lobbying record lists', () => {
-  it('reveals an 86-principal list as 30, 60 and 86 with one fixed control label', () => {
+  it('starts with 5 clients and reveals every remaining client in groups of 5', () => {
     const rows = live.long_list.principals.rows as LobbyingAssociation[];
     const total = live.long_list.principals.total;
     const linkCount = (limit: number) => rows.slice(0, limit).filter((row) => row.linkable).length;
@@ -170,20 +170,32 @@ describe('lobbying record lists', () => {
         onOpenPrincipal={() => undefined}
       />,
     );
-    expect(page.textContent).toContain('86 principals · showing 30');
-    expect(page.querySelectorAll('[role="listitem"]')).toHaveLength(30);
-    expect(page.querySelectorAll('[role="listitem"] > a[href]')).toHaveLength(linkCount(30));
+    expect(page.textContent).toContain('86 clients · showing 5');
+    const explanation = [...page.querySelectorAll<HTMLElement>('*')].find(
+      (node) =>
+        node.textContent ===
+        'The lobbyist list shows which organisations this lobbyist represented on the copy date. It does not show past clients.',
+    )!;
+    expect(getComputedStyle(explanation).maxWidth).not.toBe('820px');
+    expect(
+      page.querySelector(
+        'a[href="https://cfb.mn.gov/reports-and-data/viewers/lobbying/lobbyists/"]',
+      ),
+    ).not.toBeNull();
+    expect(page.querySelectorAll('[role="listitem"]')).toHaveLength(5);
+    expect(page.querySelectorAll('[role="listitem"] > a[href]')).toHaveLength(linkCount(5));
     expect(page.querySelector('[role="listitem"] > a')?.getAttribute('role')).toBe('link');
-    clickButton(page, 'Show the next 30');
-    expect(page.textContent).toContain('86 principals · showing 60');
-    expect(page.querySelectorAll('[role="listitem"]')).toHaveLength(60);
-    expect(page.querySelectorAll('[role="listitem"] > a[href]')).toHaveLength(linkCount(60));
-    clickButton(page, 'Show the next 30');
-    expect(page.textContent).toContain('86 principals');
+    clickButton(page, 'Show 5 more clients');
+    expect(page.textContent).toContain('86 clients · showing 10');
+    expect(page.querySelectorAll('[role="listitem"]')).toHaveLength(10);
+    expect(page.querySelectorAll('[role="listitem"] > a[href]')).toHaveLength(linkCount(10));
+    for (let shown = 15; shown <= 85; shown += 5) clickButton(page, 'Show 5 more clients');
+    clickButton(page, 'Show 1 more client');
+    expect(page.textContent).toContain('86 clients');
     expect(page.textContent).not.toContain('showing 86');
     expect(page.querySelectorAll('[role="listitem"]')).toHaveLength(86);
     expect(page.querySelectorAll('[role="listitem"] > a[href]')).toHaveLength(linkCount(86));
-    expect(page.textContent).not.toContain('Show the next 30');
+    expect(page.textContent).not.toContain('Show 1 more client');
   });
 
   it('keeps a list-only principal plain and states the source year', () => {
@@ -208,8 +220,9 @@ describe('lobbying record lists', () => {
     );
     expect(page.querySelector('[role="listitem"]')?.querySelector('a')).toBeNull();
     expect(page.textContent).toContain(
-      "No spending rows in the Board's file through 2025, so no page to open",
+      "Some organisations have no spending page because the Board's spending file has no rows for them through 2025.",
     );
+    expect(page.textContent).toContain('No spending page available');
   });
 });
 
@@ -224,7 +237,7 @@ describe('lobbyist donations', () => {
       '100.0000',
       '100.0000',
     ]);
-    const page = staticPage(
+    const page = mountPage(
       <LobbyistDonationsCard
         contributions={contributions}
         registeredName={live.kozak.name}
@@ -232,10 +245,13 @@ describe('lobbyist donations', () => {
         onOpenCommittee={() => undefined}
       />,
     );
-    expect(page.textContent).toContain('240 donations · showing 30');
+    expect(page.textContent).toContain('240 donations · showing 5');
+    expect(page.textContent).toContain('Show 5 more campaign donations');
     expect(page.textContent).toContain('Campaign contribution file copied Sep 1, 2026');
-    expect(page.textContent).toContain("The Board's campaign contribution file");
+    expect(page.textContent).toContain("View the Board's campaign contribution file");
     expect(page.textContent).toContain('Filed as Kozak, Andrew V');
+    for (let shown = 10; shown <= 30; shown += 5)
+      clickButton(page, 'Show 5 more campaign donations');
     const abelerLink = page.querySelector(
       'a[href="/money/committees/abeler-jim-senate-committee-17868"]',
     );

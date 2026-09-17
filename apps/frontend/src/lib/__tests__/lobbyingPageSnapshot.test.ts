@@ -40,11 +40,11 @@ describe('lobbying before the app starts', () => {
     expect(html).toContain('<th scope="row">2025</th><td colspan="6">Not reported</td>');
   });
 
-  it('shows the first 30 donations with their own copy date and no employer column', () => {
+  it('shows the first 5 donations with their own copy date and no employer column', () => {
     const data = live.kozak as LobbyingLobbyist;
     const page = lobbyingLobbyistSnapshot(data);
     const html = renderPageSnapshot(page);
-    expect(html).toContain('240 donations · showing 30');
+    expect(html).toContain('240 donations · showing 5');
     expect(html).toContain('Campaign contribution file copied Sep 1, 2026');
     expect(html).toContain('Filed as Kozak, Andrew V');
     expect(html).not.toContain('Employer as filed');
@@ -63,7 +63,7 @@ describe('lobbying before the app starts', () => {
     expect(html).toContain('/money/lobbying/lobbyists');
     expect(html).toContain('/money/lobbying/principals');
     expect(html).toContain('1,665 LOBBYISTS LISTED');
-    expect(html).toContain('1,748 REPORTED SPENDING FOR 2025');
+    expect(html).toContain('1,748 ORGANISATIONS REPORTED SPENDING FOR 2025');
     expect(html).toContain('The spending records shown here begin in 2014.');
     expect(html).not.toContain('filed by 15 March');
   });
@@ -93,9 +93,16 @@ describe('lobbying before the app starts', () => {
   });
 
   it('prints only official yearly spending, preserving a filed zero', () => {
-    const html = renderPageSnapshot(lobbyingPrincipalSnapshot(live.principal as LobbyingPrincipal));
+    const snapshot = lobbyingPrincipalSnapshot(live.principal as LobbyingPrincipal);
+    const html = renderPageSnapshot(snapshot);
     expect(html).toContain('American Express');
     expect(html).toContain('$0');
+    expect(html).toContain('PRINCIPAL · ENTITY ID 2263');
+    expect(html).toContain('A shown $0 is a filed value.');
+    expect(snapshot.links).toContainEqual({
+      label: "View the Board's Lobbying Organizations Search Tool",
+      href: 'https://cfb.mn.gov/reports-and-data/viewers/lobbying/lobbying-organizations/',
+    });
     expect(html).not.toContain('Not broken out by these kinds before 2024');
     expect(html).toContain('/money/lobbying/lobbyists/kozak-andrew-141');
     expect(html).not.toMatch(/street|telephone|email_address|zip_code/i);
@@ -104,7 +111,7 @@ describe('lobbying before the app starts', () => {
   it('does not turn an absent current registration into a failed donation read', () => {
     const data = live.absent as LobbyingLobbyist;
     const html = renderPageSnapshot(lobbyingLobbyistSnapshot(data));
-    expect(html).toContain('not registered today');
+    expect(html).toContain('not listed on the copy date');
     expect(html).toContain('names no donation under this registration number');
     expect(html).not.toContain('Total contributed');
   });

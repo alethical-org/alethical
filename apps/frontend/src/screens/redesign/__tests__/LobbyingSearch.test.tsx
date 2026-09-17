@@ -362,7 +362,7 @@ it('uses filed IDs for links, shows registered spellings, and keeps principals w
   expect(
     host.querySelector('a[href="/money/lobbying/principals/actwireless-7325"]'),
   ).not.toBeNull();
-  expect(words()).toContain('Registration 00141 · 13 principals listed');
+  expect(words()).toContain('Registration 00141 · 13 clients listed');
   expect(words()).toContain(
     'Registered as Association for Wireless Communications in the lobbyist list',
   );

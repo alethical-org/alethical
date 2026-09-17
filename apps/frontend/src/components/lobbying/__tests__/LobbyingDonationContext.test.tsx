@@ -105,10 +105,10 @@ describe('the registration context inside an open payment row', () => {
     expect(group.name).toBe('Kozak, Andrew V');
   });
 
-  it('prints not registered today only after a completed lookup says so', () => {
+  it('prints absence from the copied list only after a completed lookup says so', () => {
     lookup.mockReturnValue(answer('', 'not_registered_today'));
     const view = mount(<LobbyingDonationContext group={kozak} year={2025} />);
-    expect(view.textContent).toBe('Registration 141 · not registered today');
+    expect(view.textContent).toBe('Registration 141 · not listed on the copy date');
     expect(view.querySelector('a')).toBeNull();
   });
 
@@ -128,9 +128,9 @@ describe('the registration context inside an open payment row', () => {
       });
       const view = mount(<LobbyingDonationContext group={kozak} year={2025} />);
       expect(view.textContent).toContain(
-        "Could not load this registration from the Board's current lobbyist list.",
+        "Could not load this registration from the Board's lobbyist list.",
       );
-      expect(view.textContent).not.toContain('not registered today');
+      expect(view.textContent).not.toContain('not listed on the copy date');
       expect(view.querySelector('a')).toBeNull();
       click(view.querySelector('[role="button"]'));
       expect(lookup.mock.results[0].value.refetch).toHaveBeenCalled();
@@ -140,8 +140,8 @@ describe('the registration context inside an open payment row', () => {
   it('shows a loading message without claiming the number is absent', () => {
     lookup.mockReturnValue({ data: undefined, isPending: true, isError: false, refetch: vi.fn() });
     const view = mount(<LobbyingDonationContext group={kozak} year={2025} />);
-    expect(view.textContent).toContain("Loading the Board's current lobbyist list");
-    expect(view.textContent).not.toContain('not registered today');
+    expect(view.textContent).toContain("Loading the Board's lobbyist list");
+    expect(view.textContent).not.toContain('not listed on the copy date');
   });
 
   it('gives each distinct held number its own context while preserving the name group', () => {
@@ -168,7 +168,7 @@ describe('the registration context inside an open payment row', () => {
       const view = mount(<LobbyingDonationContext group={group} year={2025} />);
       expect(lookup).not.toHaveBeenCalled();
       expect(view.querySelector('a')).toBeNull();
-      expect(view.textContent).not.toContain('not registered today');
+      expect(view.textContent).not.toContain('not listed on the copy date');
     },
   );
 

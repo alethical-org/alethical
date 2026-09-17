@@ -129,11 +129,18 @@ describe('lobbying landing', () => {
       <LobbyingLandingScreen navigation={navigation as never} route={route('LobbyingLanding')} />,
     );
     expect(words()).toContain('1,665 LOBBYISTS LISTED');
-    expect(words()).toContain('1,748 REPORTED SPENDING FOR 2025');
+    expect(words()).toContain('1,748 ORGANISATIONS REPORTED SPENDING FOR 2025');
     expect(words()).toContain('Sep 13, 2026');
     expect(words()).toContain(copy.annual);
     expect(words()).toContain('The spending records shown here begin in 2014');
     expect(words()).toContain('Minnesota Campaign Finance and Public Disclosure Board');
+    expect(words()).toContain('RECORDS LAST COPIED');
+    expect(words()).toContain(
+      'People registered to influence government decisions on behalf of others',
+    );
+    expect(words()).toContain(
+      'People or organisations that fund lobbying and must report their spending under Minnesota law',
+    );
     const source = host.querySelector(
       'a[href="https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/"]',
     );
@@ -144,6 +151,9 @@ describe('lobbying landing', () => {
     expect(words()).not.toContain('$');
     expect(host.querySelector('a[href="/money/lobbying/principals"]')).not.toBeNull();
     expect(host.querySelector('a[href="/money/lobbying/lobbyists"]')).not.toBeNull();
+    expect(
+      getComputedStyle(host.querySelector('[data-testid="lobbying-main"]')!).paddingBottom,
+    ).toBe('88px');
     expect(useDocumentTitle).toHaveBeenCalledWith(
       '/money/lobbying',
       lobbyingPageMetadata('/money/lobbying', 'Lobbying').title,
@@ -168,14 +178,15 @@ describe('lobbying landing', () => {
     const input = host.querySelector('input')!;
     const button = host.querySelector('[role="button"]')!;
     expect(input.getAttribute('placeholder')).toBe('Search by name');
-    expect(words()).toContain(
-      'Search lobbyists and organisations by name. You can enter part of a name, but spelling is not corrected.',
-    );
+    expect(words()).toContain('Find lobbyists or organisations using all or part of a name.');
     expect(getComputedStyle(input.parentElement!).height).toBe('52px');
     expect(getComputedStyle(input).height).toBe('100%');
     expect(getComputedStyle(input.parentElement!.parentElement!).flexDirection).toBe('column');
     expect(getComputedStyle(button).width).toBe('100%');
     expect(getComputedStyle(button).minHeight).toBe('52px');
+    expect(
+      getComputedStyle(host.querySelector('[data-testid="lobbying-main"]')!).paddingBottom,
+    ).toBe('56px');
   });
 });
 
@@ -240,7 +251,10 @@ describe('lobbying directories', () => {
     expect(words()).toContain('Showing 51–100 of 1,665 registered lobbyists');
     expect(listRows()).toHaveLength(50);
     expect(words()).toContain('Askelin, Laura');
-    expect(words()).toContain('1 principal today');
+    expect(words()).toContain('1 client listed');
+    expect(words()).toContain('Search lobbyists by name');
+    expect(words()).toContain('Enter all or part of a name.');
+    expect(words()).toContain('Registrations shown as listed in records copied Sep 13, 2026.');
     expect(host.querySelector('a[href="/money/lobbying/lobbyists?page=3"]')).not.toBeNull();
     expect(host.querySelector('a[aria-label="Previous page"]')?.getAttribute('href')).toBe(
       '/money/lobbying/lobbyists',
@@ -270,6 +284,9 @@ describe('lobbying directories', () => {
     );
     expect(words()).toContain('Showing 51–100 of 3,443 principals');
     expect(words()).toContain(copy.principals.intro);
+    expect(words()).toContain(copy.principals.definition);
+    expect(words()).toContain('Search organisations by name');
+    expect(words()).toContain('The Lobbying page’s spending count covers 2025 only.');
     expect(listRows()).toHaveLength(50);
     const plain = fixture.principals_page_2.principals.find((row) => !row.linkable)!;
     expect(plain).toBeDefined();

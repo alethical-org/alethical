@@ -15,11 +15,11 @@ that exact spelling
 lives one level up, on the `/read` page, which the money landing points at. One piece is
 published there.
 
-Lobbying is available at `/money/lobbying`, with current registrations, organisations
-and yearly spending. The earlier lobbying-under-development strip is removed from every
-money surface in this release. The separate campaign and lobbying files keep their own
-copy dates. Challengers remain at `/money/races`, and outside spending remains at
-`/money/outside-spending`. See [lobbying-guide.md](lobbying-guide.md).
+Lobbying is available at `/money/lobbying`, with the copied lobbyist list, represented
+organisations and yearly spending. The earlier lobbying-under-development strip is removed
+from every money surface in this release. The separate campaign and lobbying files keep
+their own copy dates. Challengers remain at `/money/races`, and outside spending remains
+at `/money/outside-spending`. See [lobbying-guide.md](lobbying-guide.md).
 
 **"Report" means one thing on this site: the document a campaign files with the state.** Our
 own writing is **Research**, and a short piece explaining 1 term is a **Guide** (settled
@@ -140,8 +140,8 @@ The card descriptions are:
 - **Outside spending:** “Money spent for or against candidates, without their campaigns”.
   The count is rows in the independent-spending file, not the sum of their payments.
 - **Lobbying:** “Who is registered to lobby, who they represent, and what is reported spent”.
-  The count reads “{count} REGISTERED LOBBYISTS”, not “registered today”, and comes
-  separately from `/api/v1/lobbying/summary`.
+  The count reads “{count} REGISTERED LOBBYISTS” and comes separately from
+  `/api/v1/lobbying/summary`.
 
 There is no browse-all-payees list. Minnesota supplies printed payee names rather
 than stable identities. Ranking those spellings by money, activity or recency would
@@ -203,7 +203,7 @@ The `/money` box has these 4 bullets, in this order:
 
 The $200 test is a donor’s yearly total, not 1 gift, and sets when a name becomes
 required rather than forbidding committees from naming smaller donors. This box
-describes campaign records. Lobbying’s current-only and held-year limits belong
+describes campaign records. Lobbying’s copied-list and held-year limits belong
 at `/money/lobbying`. Sibling campaign pages retain their shared 3-line coverage
 block; the new heading and recipient explanation belong to `/money`.
 
@@ -1538,7 +1538,9 @@ The full row descriptions and qualifications are in the
 ## Lobbying links and search groups
 
 [Issue 2164](https://github.com/alethical-org/alethical/issues/2164) adds the Lobbyists and
-Principals groups after the original campaign search groups. Each has its own served count;
+Principals groups after the original campaign search groups. [Issue 2241](https://github.com/alethical-org/alethical/issues/2241)
+replaces current-day claims with the displayed copy date and calls the organisations listed
+under a lobbyist clients. Each group has its own served count;
 no count is added across groups. A successfully searched empty lobbying group is omitted.
 An unavailable lobbying group remains visible with the existing could-not-search sentence.
 The Principals group includes IDs from both source files; an ID without spending rows is
@@ -1546,16 +1548,17 @@ plain text with the Board-file coverage year. More results open the correspondin
 list with the same typed name.
 
 In the Lobbyists donation tab, the employer and payment count stay under the printed name.
-Expanding the row reveals each distinct held registration and, when registered today, a
-link to the lobbyist's current principals. A different registered spelling is stated.
-A completed lookup absent from the current list says "not registered today" without a link;
+Expanding the row reveals each distinct held registration and, when it appears in the copied
+list, a link to the organisations that lobbyist represents. A different registered spelling
+is stated. A completed lookup absent from the copied list says "not listed on the copy date"
+without a link;
 a missing number or failed lookup never makes that claim. Committees & Funds use the same
 expanded context with their existing linkable committee number. Several numbers under one
 printed name remain separate, without choosing a single identity.
 
 Docs check: The lobbying release updates all money entry points, search groups, expanded
-registration links and removal of the old under-development strip. The complete 5-address
-behavior is described in [lobbying-guide.md](lobbying-guide.md).
+registration links, copied-date wording and removal of the old under-development strip. The
+complete 5-address behavior is described in [lobbying-guide.md](lobbying-guide.md).
 
 The committee page shares the revised report comparison, contribution locations and
 exact-spelling name rows described in [the legislator campaign-money guide](legislator-campaign-money-guide.md).
