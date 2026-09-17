@@ -1,13 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildAnswerShareContent,
   buildBillShareContent,
   buildLegislatorShareContent,
-  buildShareIntents,
   publicPageUrl,
-  X_SHORT_LINK_LENGTH,
+  type ShareContent,
 } from '../share';
+import { buildShareIntents, BLUESKY_POST_LENGTH, X_SHORT_LINK_LENGTH } from '../shareIntents';
 
 describe('shared page text', () => {
   it('shares a bill with its number, session year, plain title and first summary sentence', () => {
@@ -144,6 +144,114 @@ describe('platform links', () => {
     expect(email).toContain(content.description);
     expect(email).toContain(content.url);
     expect(email).toContain('Shared from Alethical');
+  });
+
+  it('gives WhatsApp the complete prepared message without choosing a recipient', () => {
+    const whatsapp = new URL(intents.whatsapp);
+
+    expect(`${whatsapp.origin}${whatsapp.pathname}`).toBe('https://wa.me/');
+    expect(whatsapp.searchParams.get('text')).toBe(
+      `${content.title}\n\n${content.description}\n\n${content.url}`,
+    );
+    expect(whatsapp.searchParams.has('phone')).toBe(false);
+  });
+
+  it('gives Bluesky a bounded draft ending with the complete supplied URL', () => {
+    const bluesky = new URL(intents.bluesky);
+    const text = bluesky.searchParams.get('text') ?? '';
+    const segments = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+
+    expect(`${bluesky.origin}${bluesky.pathname}`).toBe('https://bsky.app/intent/compose');
+    expect(text.startsWith(content.title)).toBe(true);
+    expect(text).toContain('This intentionally long summary');
+    expect(text.endsWith(`\n\n${content.url}`)).toBe(true);
+    expect(Array.from(segments.segment(text)).length).toBeLessThanOrEqual(BLUESKY_POST_LENGTH);
+  });
+
+  it('preserves punctuation, Unicode, and the exact year, tab, filters, and fragment', () => {
+    const special: ShareContent = {
+      subject: 'committee',
+      title: 'O’Brien & García: “Schools + roads?” 👨‍👩‍👧‍👦',
+      description: 'Compare café donations, 50% shares & the “gave” view.',
+      url: publicPageUrl('/money/committees/example?year=2026&tab=gave&q=A%2BB%20%26%20C#payments'),
+    };
+    const links = buildShareIntents(special);
+
+    for (const destination of ['whatsapp', 'bluesky'] as const) {
+      const text = new URL(links[destination]).searchParams.get('text') ?? '';
+      expect(text).toContain(special.title);
+      expect(text).toContain(special.description);
+      expect(text.endsWith(special.url)).toBe(true);
+    }
+    expect(new URL(links.x).searchParams.get('url')).toBe(special.url);
+    expect(new URL(links.facebook).searchParams.get('u')).toBe(special.url);
+    expect(new URL(links.linkedin).searchParams.get('url')).toBe(special.url);
+    expect(new URL(links.email).searchParams.get('body')).toContain(special.url);
+  });
+
+  it('shortens long Unicode titles without splitting graphemes or losing the link', () => {
+    const unicode = { ...content, title: '👨‍👩‍👧‍👦e\u0301'.repeat(180) };
+    const text = new URL(buildShareIntents(unicode).bluesky).searchParams.get('text') ?? '';
+    const segments = Array.from(
+      new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text),
+      (part) => part.segment,
+    );
+    const prose = text.slice(0, text.indexOf('\n\n'));
+
+    expect(segments.length).toBeLessThanOrEqual(BLUESKY_POST_LENGTH);
+    expect(new TextEncoder().encode(text).length).toBeLessThanOrEqual(3000);
+    expect(prose).toMatch(/^(?:👨‍👩‍👧‍👦é)*(?:👨‍👩‍👧‍👦)?…$/u);
+    expect(text.endsWith(unicode.url)).toBe(true);
+  });
+
+  it.each([297, 298, 299, 300, 500])(
+    'keeps a %i-character URL intact when it leaves no room for useful Bluesky prose',
+    (length) => {
+      const base = publicPageUrl('/ask?q=');
+      const longLink = { ...content, url: base + 'a'.repeat(length - base.length) };
+      const links = buildShareIntents(longLink);
+
+      expect(new URL(links.bluesky).searchParams.get('text')).toBe(longLink.url);
+      expect(new URL(links.whatsapp).searchParams.get('text')).toBe(
+        `${content.title}\n\n${content.description}\n\n${longLink.url}`,
+      );
+    },
+  );
+
+  it('falls back safely when a browser cannot count grapheme clusters', () => {
+    const fallbackIntl = Object.create(Intl);
+    fallbackIntl.Segmenter = undefined;
+    vi.stubGlobal('Intl', fallbackIntl);
+    try {
+      const text =
+        new URL(
+          buildShareIntents({ ...content, title: '🦋'.repeat(500) }).bluesky,
+        ).searchParams.get('text') ?? '';
+      expect(Array.from(text).length).toBeLessThanOrEqual(BLUESKY_POST_LENGTH);
+      expect(text.endsWith(content.url)).toBe(true);
+      expect(text).not.toContain('\ufffd');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('keeps research dates in prepared text without substituting the shorter panel preview', () => {
+    const research: ShareContent = {
+      subject: 'research',
+      title: 'The Money Only Goes One Way',
+      description: 'Published Aug 20, 2026 · records through Jul 20, 2026.',
+      previewDescription: 'Published Aug 20, 2026',
+      url: publicPageUrl('/read/research/the-money-only-goes-one-way'),
+    };
+    const links = buildShareIntents(research);
+
+    for (const destination of ['whatsapp', 'bluesky', 'x'] as const) {
+      const text = new URL(links[destination]).searchParams.get('text') ?? '';
+      expect(text).toContain(research.title);
+      expect(text).toContain(research.description);
+    }
+    expect(new URL(links.email).searchParams.get('body')).toContain(research.description);
+    expect(research.previewDescription).toBe('Published Aug 20, 2026');
   });
 
   it('has no direct Instagram destination', () => {

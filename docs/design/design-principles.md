@@ -175,10 +175,8 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   ([`AccountControl.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/auth/AccountControl.tsx)),
   the phone menu drawer
   ([`primitives.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/theme/primitives.tsx)),
-  the phone share sheet
-  ([`MobileShareSheet.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/share/MobileShareSheet.tsx)),
-  the desktop share popover
-  ([`SharePopover.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/billDetail/SharePopover.tsx)),
+  the shared phone, tablet and desktop sharing panel
+  ([`SharePanelContent.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/share/SharePanelContent.tsx)),
   and the chat citation panel
   ([`ChatSessionScreen.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/screens/ChatSessionScreen.tsx)).
 - **Elevation.** Soft, low-spread shadows for gentle lift — the page feels like paper with light

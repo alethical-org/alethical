@@ -10,8 +10,7 @@ const signIn = read('components/auth/SignInContainer.tsx');
 const signInDialog = read('components/auth/SignInDialog.tsx');
 const account = read('components/auth/AccountControl.tsx');
 const drawer = read('theme/primitives.tsx');
-const mobileShare = read('components/share/MobileShareSheet.tsx');
-const desktopShare = read('components/billDetail/SharePopover.tsx');
+const sharePanel = read('components/share/SharePanelContent.tsx');
 const chat = read('screens/ChatSessionScreen.tsx');
 
 function sourceFiles(directory: string, relative = ''): string[] {
@@ -62,16 +61,13 @@ describe('corner close-control spacing', () => {
     );
   });
 
-  it('matches the other phone corner controls to their 22px or 24px side padding', () => {
-    expect(mobileShare).toMatch(/sheet: \{[\s\S]*?paddingHorizontal: 22/);
-    expect(mobileShare).toMatch(/close: \{[\s\S]*?top: 22,[\s\S]*?right: 22/);
+  it('matches the phone menu corner control to its 24px side padding', () => {
     expect(drawer).toMatch(/menuSheet: \{[\s\S]*?paddingHorizontal: 24,[\s\S]*?paddingTop: 24/);
   });
 
-  it('keeps the already-correct desktop popover and chat panel in the inventory', () => {
-    expect(desktopShare).toMatch(
-      /sharePanel: \{[\s\S]*?paddingHorizontal: 20,[\s\S]*?paddingTop: 20/,
-    );
+  it('keeps the shared Share close control and chat panel in the inventory', () => {
+    // SharePanelContent.test.tsx checks the rendered padding in all 3 bands.
+    expect(sharePanel).toMatch(/close: \{[\s\S]*?width: 44,[\s\S]*?height: 44/);
     expect(chat).toMatch(/citationSidebar: \{[\s\S]*?padding: theme\.spacing\.md/);
   });
 
@@ -89,6 +85,7 @@ describe('corner close-control spacing', () => {
       'components/auth/SignInContainer.tsx',
       'components/billDetail/SharePopover.tsx',
       'components/share/MobileShareSheet.tsx',
+      'components/share/SharePanelContent.tsx',
       'screens/ChatSessionScreen.tsx',
       'screens/redesign/LegislatorProfileMobileScreen.tsx',
       'screens/redesign/LegislatorProfileWebScreen.tsx',

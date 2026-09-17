@@ -34,11 +34,6 @@ export const HOME_PAGE_DESCRIPTION =
 const BILL_LIST_SUBJECT = 'Search Minnesota bills';
 const LEGISLATOR_LIST_SUBJECT = 'Minnesota House and Senate members';
 
-// X counts every HTTPS link as 23 characters after shortening it. Leave 1 more
-// character for the space X adds between the prepared text and URL.
-export const X_SHORT_LINK_LENGTH = 23;
-const X_TEXT_LENGTH = 280 - X_SHORT_LINK_LENGTH - 1;
-
 export type ShareSubject =
   'bill' | 'legislator' | 'answer' | 'research' | 'guide' | 'committee' | 'principal' | 'lobbyist';
 
@@ -51,26 +46,8 @@ export interface ShareContent {
   url: string;
 }
 
-export interface ShareIntents {
-  linkedin: string;
-  x: string;
-  facebook: string;
-  email: string;
-}
-
 function clean(value: string): string {
   return value.replace(/\s+/g, ' ').trim();
-}
-
-function truncateAtWord(value: string, maxLength: number): string {
-  const normalized = clean(value);
-  if (normalized.length <= maxLength) return normalized;
-
-  const shortened = normalized.slice(0, Math.max(0, maxLength - 1)).trimEnd();
-  const lastSpace = shortened.lastIndexOf(' ');
-  const wordSafe =
-    lastSpace >= Math.floor(maxLength * 0.65) ? shortened.slice(0, lastSpace) : shortened;
-  return `${wordSafe.trimEnd()}…`;
 }
 
 export function publicPageUrl(path: string): string {
@@ -173,25 +150,6 @@ export function buildAnswerShareContent({
       'Read Alethical’s cited answer, with links to the Minnesota Legislature’s official record.',
     url,
   };
-}
-
-export function buildShareIntents(content: ShareContent): ShareIntents {
-  const enc = encodeURIComponent;
-  const xText = truncateAtWord(`${content.title}\n\n${content.description}`, X_TEXT_LENGTH);
-  const emailBody = `${content.title}\n\n${content.description}\n\n${content.url}\n\nShared from Alethical`;
-
-  return {
-    linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${enc(content.url)}`,
-    x: `https://twitter.com/intent/tweet?text=${enc(xText)}&url=${enc(content.url)}`,
-    facebook: `https://www.facebook.com/sharer/sharer.php?u=${enc(content.url)}`,
-    email: `mailto:?subject=${enc(content.title)}&body=${enc(emailBody)}`,
-  };
-}
-
-export function nativeShareText(content: ShareContent, includeUrl: boolean): string {
-  return [content.title, content.description, includeUrl ? content.url : null]
-    .filter((part): part is string => Boolean(part))
-    .join('\n\n');
 }
 
 export function escapeHtml(value: string): string {

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import ts from 'typescript';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const READ_ONLY_TEXT_FIELD = 'components/billDetail/SharePopover.tsx';
+const READ_ONLY_TEXT_FIELD = 'components/share/SharePanelContent.tsx';
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((entry) => {

@@ -1,5 +1,7 @@
 # How sharing works
 
+<!-- describes: apps/frontend/src/lib/shareIntents.ts, apps/frontend/src/components/share/SharePanelContent.tsx, apps/frontend/src/components/share/ShareDestinationIcon.tsx -->
+
 <!-- describes: apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/lib/committeeMoneyPreferences.ts, apps/frontend/src/lib/share.ts, apps/frontend/src/lib/pageSnapshot.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/lib/legislatorProfile.ts, apps/frontend/src/components/billDetail/SharePopover.tsx, apps/frontend/src/components/share/MobileShareSheet.tsx, apps/frontend/src/screens/redesign/BillDetailScreen.tsx, apps/frontend/src/screens/redesign/BillDetailWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/navigation/documentTitle.ts, apps/frontend/public/index.html, apps/frontend/public/robots.txt, apps/frontend/scripts/generate-brand-assets.mjs, api/page.ts, api/sitemap.ts, vercel.json -->
 
 Share sends the page a reader chose, with enough plain-language context for another person to know why the link matters. Copy link remains the dependable choice when another app cannot accept prepared text.
@@ -12,6 +14,9 @@ Share sends the page a reader chose, with enough plain-language context for anot
 | Legislator      | Name, plus chamber and district when serving now            | A fixed sentence naming committees, chief-authored bills, and contact information | The readable legislator profile address; Campaign money retains its selected year and open contribution rows                                                                |
 | Ask answer      | The reader's question                                       | A fixed sentence saying the answer is cited and links to the official record      | The public Ask address, keeping only the question, bill, legislator, and saved-suggestion fields needed to rebuild it                                                       |
 | Committee money | The committee's filed name and campaign money               | A fixed sentence identifying the committee's record and Minnesota's filings       | The committee address, retaining the year, section, donor category and sort, independent-spending sort, open contribution rows, ownership evidence and earlier-year choices |
+| Research and guide | The published title | The existing publication and records-through dates, without figures or article text | The published article address |
+| Lobbyist | The record's existing title | The existing description for its registration state | The lobbyist's public record address |
+| Lobbying principal | The organisation's existing title | Its reported spending and registered lobbyists | The organisation's public record address |
 
 A bill's title reads `HF 719 (2025): Statewide Capital Projects and Bonding Bill`. The year is there
 because bill numbers repeat every two years, so the number alone never identifies one bill for good.
@@ -46,7 +51,11 @@ and computers. Committee Share also retains open ownership evidence and earlier-
 choices. Independent spending keeps its own Newest first or Largest first order through
 `spendingSort`; this does not overwrite the donor browser's separate saved sort.
 
-The Share panel uses the same prepared title, description, and link for each destination.
+The Share panel keeps the page's prepared title, description, and link. Research and
+guides can show a shorter date description inside the panel while retaining their
+existing outgoing date description. Each destination receives the fields it supports.
+Destination addresses are built in `apps/frontend/src/lib/shareIntents.ts`, kept
+with the screens that use sharing rather than the program every first page loads.
 The bill, legislator and Ask share text comes from `apps/frontend/src/lib/share.ts`.
 The committee screen supplies its record-specific share text and selected address
 (`apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx`). Browser-tab titles
@@ -57,21 +66,25 @@ and search previews use the page's metadata, drawn from the same record fields.
 | Destination      | What Alethical sends                                            | Important limit                                                                                                                           |
 | ---------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | Copy link        | The exact public page link                                      | No title or description is copied                                                                                                         |
+| Email            | Full title, description, page link, and “Shared from Alethical” | The reader can edit everything before sending                                                                                             |
+| WhatsApp         | Full title, description, and page link | Opens a prepared message; the reader chooses where to send it |
+| Facebook         | The page link                                                   | Facebook builds the visible title, description, and image from the page preview data; its share address does not accept our prepared text |
 | LinkedIn         | The page link                                                   | LinkedIn builds the visible title, description, and image from the page preview data; its share address does not accept our prepared text |
 | X                | Title, description, and page link                               | The prepared words are shortened so the post stays within 280 characters after X counts the shortened link                                |
-| Facebook         | The page link                                                   | Facebook builds the visible title, description, and image from the page preview data; its share address does not accept our prepared text |
-| Email            | Full title, description, page link, and “Shared from Alethical” | The reader can edit everything before sending                                                                                             |
-| Phone Share menu | Title, description, and page link                               | The receiving app decides which fields it keeps                                                                                           |
+| Bluesky          | Title, description, and the exact page link | Prose is shortened to fit its text limits; a long link is sent alone, never cut |
+| Device Share menu | Title, description, and page link                               | The receiving app decides which fields it keeps                                                                                           |
 
 Instagram has no direct button. It cannot open a prepared visitor post containing this text, a dependable clickable Alethical link, and a website preview card. On a phone, Instagram may appear inside the normal Share menu if the installed app says it can receive the share. Instagram still decides what it keeps.
 
 ## What readers see
 
-- On the website, Share opens one panel showing the title, description, and link before the reader chooses LinkedIn, X, Facebook, email, or Copy link.
-- On a wide screen that panel hangs from the Share button, lined up with its right edge, and sits in front of everything else on the page. If there is not enough room below the button it opens above it instead, and it always keeps its whole self inside the window, so no row of it is ever cut off or covered. Nothing on the page behind it moves when it opens or closes.
+- Share opens one panel showing the title, description, and selectable link. Copy appears first, followed by Email, WhatsApp, Facebook, LinkedIn, X, and Bluesky.
+- At 1,100 pixels and wider, the 366-pixel panel hangs from the existing Share button. It opens above the button when needed and stays inside the window. Long content scrolls inside the panel while Close stays reachable.
 - Three ways to close it, all of which work: click or tap anywhere outside it, press Esc, or use the X in its corner. The keyboard goes into the panel when it opens, stays inside it while it is open, and comes back to the Share button when it closes.
-- On a phone, every Share button opens the same bottom sheet over a dimmed page, on bill, legislator, answered Ask, campaign-money report, and committee money pages. It closes the same three ways, and it adds **Share using another app** when the phone or browser supports the normal Share menu.
-- Copy link confirms the copy for about 2 seconds. The native app and website both copy the real link.
+- Below 1,100 pixels, the existing Share buttons open the same bottom sheet over a dimmed page. Phone screens below 768 pixels use 2 rows of 3 destinations and a full-width copy button. Tablet screens use 1 row of 6 and an inline copy button.
+- **Share using another app** appears only when the browser or device can share the supplied content, including on supported desktop browsers. Cancelling that menu is not an error.
+- A successful copy shows **Copied** on desktop or **Link copied** on a sheet for about 2 seconds. A failed copy gives a visible explanation and leaves the full link available to select and copy manually.
+- All 8 content types use `SharePanelContent.tsx`; `SharePopover.tsx` and `MobileShareSheet.tsx` own its placement. Shared platform artwork lives in `ShareDestinationIcon.tsx`.
 - No share includes a reader's account details, saved bills, address, or sign-in information.
 
 ## Link preview cards

@@ -89,7 +89,7 @@ describe('browser-filled field scope', () => {
     'components/billDetail/VotesTab.tsx',
     'screens/redesign/BillDetailScreen.tsx',
     'screens/ChatSessionScreen.tsx',
-    'components/billDetail/SharePopover.tsx',
+    'components/share/SharePanelContent.tsx',
   ])('keeps the excluded field in %s out of browser-fill styling', (path) => {
     const fieldSource = readFileSync(join(SRC, path), 'utf8');
 
