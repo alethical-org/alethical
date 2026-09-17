@@ -107,15 +107,21 @@ const BILLS_FILTER_PARAMS = [
   'page',
 ] as const;
 
-function billsFilterParams(searchParams: URLSearchParams): Record<string, string> {
+/** One extraction loop for the route-specific allow-lists below. */
+function selectedSearchParams(
+  searchParams: URLSearchParams,
+  keys: readonly string[],
+): Record<string, string> {
   const params: Record<string, string> = {};
-  for (const key of BILLS_FILTER_PARAMS) {
+  for (const key of keys) {
     const value = searchParams.get(key);
-    if (value) {
-      params[key] = value;
-    }
+    if (value) params[key] = value;
   }
   return params;
+}
+
+function billsFilterParams(searchParams: URLSearchParams): Record<string, string> {
+  return selectedSearchParams(searchParams, BILLS_FILTER_PARAMS);
 }
 
 // URL-addressable Search Legislators filters — same shape as Bills so a filtered
@@ -124,14 +130,7 @@ function billsFilterParams(searchParams: URLSearchParams): Record<string, string
 const LEGISLATORS_FILTER_PARAMS = ['q', 'chamber', 'party', 'session', 'page'] as const;
 
 function legislatorsFilterParams(searchParams: URLSearchParams): Record<string, string> {
-  const params: Record<string, string> = {};
-  for (const key of LEGISLATORS_FILTER_PARAMS) {
-    const value = searchParams.get(key);
-    if (value) {
-      params[key] = value;
-    }
-  }
-  return params;
+  return selectedSearchParams(searchParams, LEGISLATORS_FILTER_PARAMS);
 }
 
 // URL-addressable committees-list state (campaign money phase 3): the name box,
@@ -147,14 +146,7 @@ function legislatorsFilterParams(searchParams: URLSearchParams): Record<string, 
 const COMMITTEE_LIST_PARAMS = ['q', 'kind', 'page'] as const;
 
 function committeeListParams(searchParams: URLSearchParams): Record<string, string> {
-  const params: Record<string, string> = {};
-  for (const key of COMMITTEE_LIST_PARAMS) {
-    const value = searchParams.get(key);
-    if (value) {
-      params[key] = value;
-    }
-  }
-  return params;
+  return selectedSearchParams(searchParams, COMMITTEE_LIST_PARAMS);
 }
 
 // URL-addressable outside-spending view (issue #1945): which subject, which filing
@@ -162,28 +154,14 @@ function committeeListParams(searchParams: URLSearchParams): Record<string, stri
 const OUTSIDE_SPENDING_PARAMS = ['spender', 'about', 'year', 'sort', 'page'] as const;
 
 function outsideSpendingParams(searchParams: URLSearchParams): Record<string, string> {
-  const params: Record<string, string> = {};
-  for (const key of OUTSIDE_SPENDING_PARAMS) {
-    const value = searchParams.get(key);
-    if (value) {
-      params[key] = value;
-    }
-  }
-  return params;
+  return selectedSearchParams(searchParams, OUTSIDE_SPENDING_PARAMS);
 }
 
 // URL-addressable Money by race state (issue #1954): the office chip and the year.
 const MONEY_BY_RACE_PARAMS = ['office', 'year'] as const;
 
 function moneyByRaceParams(searchParams: URLSearchParams): Record<string, string> {
-  const params: Record<string, string> = {};
-  for (const key of MONEY_BY_RACE_PARAMS) {
-    const value = searchParams.get(key);
-    if (value) {
-      params[key] = value;
-    }
-  }
-  return params;
+  return selectedSearchParams(searchParams, MONEY_BY_RACE_PARAMS);
 }
 
 function moneySearchParams(searchParams: URLSearchParams): Record<string, string> {
