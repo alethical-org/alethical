@@ -51,8 +51,13 @@ vi.mock('../../../components/lobbying/LobbyingSpendingTable', () => ({
 }));
 vi.mock('../../../components/lobbying/LobbyingRecordCards', () => ({
   LobbyingSourceLink: ({ url, label }: any) => <a href={url}>{label}</a>,
-  PrincipalLobbyistsCard: ({ state, total, rows }: any) => (
-    <div data-testid="principal-lobbyists" data-state={state} data-total={total ?? ''}>
+  PrincipalLobbyistsCard: ({ state, total, rows, copiedDate }: any) => (
+    <div
+      data-testid="principal-lobbyists"
+      data-state={state}
+      data-total={total ?? ''}
+      data-copied={copiedDate ?? ''}
+    >
       {rows.length} lobbyists
     </div>
   ),
@@ -167,11 +172,9 @@ describe('LobbyingPrincipalScreen', () => {
       'PRINCIPAL · ENTITY ID 2263',
     );
     expect(page.textContent).toContain(
-      'Each row shows this principal’s reported lobbying spending for one calendar year.',
+      'Each row shows this principal’s reported lobbying spending for 1 calendar year.',
     );
-    expect(page.textContent).toContain(
-      'A shown $0 is a filed value. “Not reported” means the Board’s file leaves the value blank.',
-    );
+    expect(page.textContent).toContain('Lobbying spending reported, by year');
     expect(page.textContent).toContain("View the Board's Lobbying Organizations Search Tool");
     expect(page.textContent).toContain('Registered as American Express Co in the lobbyist list');
     expect(page.querySelector('[data-testid="spending-table"]')?.textContent).toBe(
@@ -180,6 +183,9 @@ describe('LobbyingPrincipalScreen', () => {
     expect(
       page.querySelector('[data-testid="principal-lobbyists"]')?.getAttribute('data-total'),
     ).toBe('1');
+    expect(
+      page.querySelector('[data-testid="principal-lobbyists"]')?.getAttribute('data-copied'),
+    ).toBe('Sep 12, 2026');
     expect(replaceHistory).toHaveBeenCalledOnce();
     expect(nav.setParams).toHaveBeenCalledWith({ slug: 'american-express-company-2263' });
   });

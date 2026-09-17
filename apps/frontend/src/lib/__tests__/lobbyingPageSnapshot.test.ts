@@ -23,7 +23,7 @@ describe('lobbying before the app starts', () => {
     expect(lobbyingRecordNumberFromSlug('unlisted-999999999999999999999')).toBeNull();
   });
 
-  it('keeps table captions, year headers, and a single spanning blank state', () => {
+  it('keeps table captions, year headers, and labels every blank amount', () => {
     const data = structuredClone(live.principal) as LobbyingPrincipal;
     const row = data.spending.rows[0];
     for (const key of [
@@ -37,7 +37,10 @@ describe('lobbying before the app starts', () => {
       row[key] = null;
     const html = renderPageSnapshot(lobbyingPrincipalSnapshot(data));
     expect(html).toContain('<caption>Reported lobbying spending by year</caption>');
-    expect(html).toContain('<th scope="row">2025</th><td colspan="6">Not reported</td>');
+    expect(html).toContain(
+      '<th scope="row">2025</th><td>Not reported</td><td>Not reported</td><td>Not reported</td>',
+    );
+    expect(html).toContain('“Not reported” means the file leaves the value blank.');
   });
 
   it('shows the first 5 donations with their own copy date and no employer column', () => {
@@ -98,10 +101,14 @@ describe('lobbying before the app starts', () => {
     expect(html).toContain('American Express');
     expect(html).toContain('$0');
     expect(html).toContain('PRINCIPAL · ENTITY ID 2263');
-    expect(html).toContain('A shown $0 is a filed value.');
+    expect(html).toContain('Reported amounts may be rounded. $0 is the value in the Board’s file.');
     expect(snapshot.links).toContainEqual({
       label: "View the Board's Lobbying Organizations Search Tool",
       href: 'https://cfb.mn.gov/reports-and-data/viewers/lobbying/lobbying-organizations/',
+    });
+    expect(snapshot.links).toContainEqual({
+      label: "View the Board's Lobbyist Search Tool",
+      href: 'https://cfb.mn.gov/reports-and-data/viewers/lobbying/lobbyists/',
     });
     expect(html).not.toContain('Not broken out by these kinds before 2024');
     expect(html).toContain('/money/lobbying/lobbyists/kozak-andrew-141');

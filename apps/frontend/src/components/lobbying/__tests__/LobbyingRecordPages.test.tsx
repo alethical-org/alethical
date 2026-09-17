@@ -8,15 +8,19 @@ import live from '../../../data/__tests__/fixtures/lobbying-live.json';
 import type {
   LobbyingAssociation,
   LobbyingContributions,
+  LobbyingPrincipalLobbyist,
   LobbyingSpendingRow,
 } from '../../../lib/lobbyingTypes';
 import {
   lobbyingRecordNumberFromSlug,
   principalSpellingLines,
-  spendingRowHasFullKinds,
   visibleLobbyingDonationYears,
 } from '../../../lib/lobbyingRecordCopy';
-import { LobbyistDonationsCard, LobbyistPrincipalsCard } from '../LobbyingRecordCards';
+import {
+  LobbyistDonationsCard,
+  LobbyistPrincipalsCard,
+  PrincipalLobbyistsCard,
+} from '../LobbyingRecordCards';
 import { LobbyingSpendingTable } from '../LobbyingSpendingTable';
 
 const responsive = vi.hoisted(() => ({ isMobile: false, isTablet: false, isDesktop: true }));
@@ -111,11 +115,13 @@ describe('lobbying spending table', () => {
     row(2021, 4),
   ];
 
-  it('keeps missing amounts distinct from filed zero and labels the old three-kind gap', () => {
+  it('keeps all 5 spending kinds visible and distinguishes missing amounts from filed zero', () => {
     const page = staticPage(<LobbyingSpendingTable rows={rows} />);
-    const table = page.querySelector('table')!;
-    expect(table.querySelector('caption')?.textContent).toBe('Reported lobbying spending by year');
-    expect([...table.querySelectorAll('thead th')].map((cell) => cell.textContent)).toEqual([
+    const table = page.querySelector('[role="table"]')!;
+    expect(table.getAttribute('aria-label')).toBe('Reported lobbying spending by year');
+    expect(
+      [...table.querySelectorAll('[role="columnheader"]')].map((cell) => cell.textContent),
+    ).toEqual([
       'Year',
       'Total spent',
       'PUC',
@@ -124,38 +130,70 @@ describe('lobbying spending table', () => {
       'Administrative',
       'Metropolitan',
     ]);
-    const bodyRows = [...table.querySelectorAll('tbody tr')];
+    const bodyRows = [...table.querySelectorAll('[role="row"]')].slice(1);
     expect(bodyRows[0].textContent).toContain('2024$100$0$100Not reportedNot reportedNot reported');
     expect(bodyRows[1].textContent).toContain('2023$75$25$50$0Not reportedNot reported');
-    expect(bodyRows[2].textContent).toContain(
-      '2022$40$10$30Not broken out by these kinds before 2024',
+    expect(bodyRows[2].textContent).toContain('2022$40$10$30Not reportedNot reportedNot reported');
+    expect(bodyRows[3].textContent).toBe(
+      '2021Not reportedNot reportedNot reportedNot reportedNot reportedNot reported',
     );
-    expect(bodyRows[3].textContent).toBe('2021Not reported');
-    expect(spendingRowHasFullKinds(rows[0])).toBe(true);
-    expect(spendingRowHasFullKinds(rows[1])).toBe(true);
-    expect(spendingRowHasFullKinds(rows[2])).toBe(false);
+    expect(page.textContent).toContain('“Not reported” means the file leaves the value blank.');
   });
 
-  it('uses the phone table and keeps both explanatory notes at 15 pixels', () => {
+  it('uses labeled year blocks below 1100 pixels and puts the glossary first', () => {
     responsive.isMobile = true;
     responsive.isDesktop = false;
     const page = staticPage(<LobbyingSpendingTable rows={rows} />);
-    expect([...page.querySelectorAll('thead th')].map((cell) => cell.textContent)).toEqual([
-      'Year',
-      'Reported spending',
-    ]);
-    const oldKinds = [...page.querySelectorAll('p')].find((node) =>
-      node.textContent?.startsWith('Not broken out by legislative'),
+    const blocks = [...page.querySelectorAll('section')];
+    expect(blocks).toHaveLength(4);
+    expect(blocks[0].textContent).toContain(
+      '2024Reported spending$100PUC$0General$100LegislativeNot reportedAdministrativeNot reportedMetropolitanNot reported',
     );
-    const puc = [...page.querySelectorAll('p')].find((node) =>
-      node.textContent?.startsWith('PUC is the Public Utilities Commission'),
-    );
-    expect(oldKinds?.getAttribute('style')).toContain('font-size:15px');
-    expect(puc?.getAttribute('style')).toContain('font-size:15px');
+    const notes = [...page.querySelectorAll('p')].map((node) => node.textContent);
+    expect(notes[0]).toMatch(/^PUC means Public Utilities Commission/);
+    expect(notes[1]).toContain('Reported amounts may be rounded.');
+    expect(notes[2]).toMatch(/^Before 2024/);
+
+    responsive.isMobile = false;
+    responsive.isTablet = true;
+    const tablet = staticPage(<LobbyingSpendingTable rows={rows} />);
+    expect(tablet.querySelectorAll('section')).toHaveLength(4);
   });
 });
 
 describe('lobbying record lists', () => {
+  it('dates and sources the principal lobbyist list, with arrows attached to names', () => {
+    const rows: LobbyingPrincipalLobbyist[] = [
+      {
+        registration_number: '141',
+        name: 'Anderson, Chas',
+        formatted_name: 'Chas Anderson',
+        principal_name_as_listed: 'Pangea World Theater',
+        principal_name_differs: false,
+      },
+    ];
+    const page = staticPage(
+      <PrincipalLobbyistsCard
+        state="reported"
+        total={1}
+        rows={rows}
+        copiedDate="Sep 13, 2026"
+        onOpenLobbyist={() => undefined}
+      />,
+    );
+    expect(page.textContent).toContain(
+      'The lobbyist list shows who was registered for this principal in records copied Sep 13, 2026.',
+    );
+    expect(
+      page.querySelector(
+        'a[href="https://cfb.mn.gov/reports-and-data/viewers/lobbying/lobbyists/"]',
+      ),
+    ).not.toBeNull();
+    const row = page.querySelector('[role="listitem"] > a')!;
+    expect(row.textContent).toContain('Anderson, Chas');
+    expect(row.querySelector('svg')).not.toBeNull();
+  });
+
   it('starts with 5 clients and reveals every remaining client in groups of 5', () => {
     const rows = live.long_list.principals.rows as LobbyingAssociation[];
     const total = live.long_list.principals.total;

@@ -14,22 +14,19 @@ export const LOBBYIST_SOURCE_URL =
 
 export const lobbyingPrincipalCopy = {
   gloss:
-    'A principal is a person or organisation that funds lobbying and must report its spending under Minnesota law.',
-  spendingHeading: 'Lobbying spending reported to the Board, by year',
+    'A principal is a person or organisation that funds lobbying and must report its spending under Minnesota law',
+  spendingHeading: 'Lobbying spending reported, by year',
   spendingIntroduction:
-    'Each row shows this principal’s reported lobbying spending for one calendar year. Reports are due the following March. Every figure, including the total, comes from the Board.',
-  spendingZeroNote:
-    'A shown $0 is a filed value. “Not reported” means the Board’s file leaves the value blank.',
+    'Each row shows this principal’s reported lobbying spending for 1 calendar year. Reports are due the following March. Every figure, including the total, comes from the Minnesota Campaign Finance and Public Disclosure Board.',
+  spendingValueNote: 'Reported amounts may be rounded. $0 is the value in the Board’s file.',
+  spendingMissingValueNote: '“Not reported” means the file leaves the value blank.',
   spendingCaption: 'Reported lobbying spending by year',
-  oldKindsWide: 'Not broken out by these kinds before 2024',
-  oldKindsPhone:
-    'Not broken out by legislative, administrative or metropolitan lobbying before 2024',
+  oldKindsNote:
+    'Before 2024, most spending outside the Public Utilities Commission was reported under General rather than divided among Legislative, Administrative and Metropolitan',
   kindsNote:
-    "PUC is the Public Utilities Commission; metropolitan is lobbying of a metropolitan governmental unit, the Board's own category",
+    'PUC means Public Utilities Commission. Legislative covers lawmaking; Administrative covers state agency rulemaking. Metropolitan is the Board’s label for lobbying metropolitan governmental units.',
   lobbyistsHeading: 'Lobbyists listed for this principal',
-  lobbyistsIntroduction:
-    'The lobbyist list shows who was registered for this principal on the copy date. It does not show earlier registrations.',
-  noLobbyists: 'The lobbyist list names no lobbyist for this principal on the copy date.',
+  noLobbyists: 'The lobbyist list names no lobbyist for this principal on the copy date',
   sourceLabel: "View the Board's Lobbying Organizations Search Tool",
 } as const;
 
@@ -99,6 +96,12 @@ export function boardFilesCopiedLine(copiedAt: string | null, dateLabel: (date: 
   return copiedAt ? `Lobbying records copied ${dateLabel(copiedAt)}` : null;
 }
 
+export function principalLobbyistsIntroduction(copiedDate: string | null): string {
+  return copiedDate
+    ? `The lobbyist list shows who was registered for this principal in records copied ${copiedDate}. It does not show who represented it in earlier spending years.`
+    : 'The lobbyist list shows who was registered for this principal in the copied records. It does not show who represented it in earlier spending years.';
+}
+
 export function campaignContributionCopiedLine(
   copiedAt: string | null,
   dateLabel: (date: string) => string,
@@ -125,26 +128,16 @@ export function recordCountLine(total: number, shown: number, one: string, many:
     : `${totalLabel} ${unit}`;
 }
 
-export function spendingRowIsBlank(row: LobbyingSpendingRow): boolean {
-  return [
-    row.total_spent,
-    row.puc_lobbying_amount,
-    row.general_lobbying_amount,
-    row.legislative_lobbying_amount,
-    row.administrative_lobbying_amount,
-    row.mgu_lobbying_amount,
-  ].every((value) => value === null);
-}
-
-/** A filed zero is a value and therefore reveals the full five-kind breakdown. */
-export function spendingRowHasFullKinds(row: LobbyingSpendingRow): boolean {
-  return (
-    (row.year !== null && row.year >= 2024) ||
+export function spendingRowsHaveMissingAmounts(rows: readonly LobbyingSpendingRow[]): boolean {
+  return rows.some((row) =>
     [
+      row.total_spent,
+      row.puc_lobbying_amount,
+      row.general_lobbying_amount,
       row.legislative_lobbying_amount,
       row.administrative_lobbying_amount,
       row.mgu_lobbying_amount,
-    ].some((value) => value !== null)
+    ].some((value) => value === null),
   );
 }
 
