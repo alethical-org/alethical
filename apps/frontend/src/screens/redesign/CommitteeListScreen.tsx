@@ -462,8 +462,14 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     color: t.colors.text.greenOnLight,
   },
-  findRow: { marginTop: 26 },
-  chipRow: { marginTop: 20, flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
+  findRow: { marginTop: 38 },
+  chipRow: {
+    marginTop: 24,
+    marginBottom: 34,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 9,
+  },
   // 44px on the chip's own box at every width (phone band rule F1).
   chip: {
     flexDirection: 'row',
