@@ -174,7 +174,7 @@ the target after its rows arrive. Typed finder text itself is not added to the a
 **The outside-spending record** arrives with the total the file holds, how many
 payments and which years that total covers, how many of them the filings call supporting and how
 many opposing, how many were given as goods rather than cash, the day we read the Board's file, and
-links to the 2 lists that lead to one group's or one committee's own rows. **The name search**
+the words introducing the group-and-committee directory. **The name search**
 arrives with its heading, what it searches, and the sentence saying what these records do not
 cover — never a result for anything typed, since the address is whatever somebody put in the box.
 Those last 2 pages used to arrive with a title and nothing else, so a reader looked at a blank

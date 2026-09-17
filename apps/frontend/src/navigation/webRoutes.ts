@@ -150,7 +150,15 @@ function committeeListParams(searchParams: URLSearchParams): Record<string, stri
 
 // URL-addressable outside-spending view (issue #1945): which subject, which filing
 // year, which sort and which page. Everything the page shows is in the address.
-const OUTSIDE_SPENDING_PARAMS = ['spender', 'about', 'year', 'sort', 'page'] as const;
+const OUTSIDE_SPENDING_PARAMS = [
+  'spender',
+  'about',
+  'year',
+  'sort',
+  'page',
+  'browse',
+  'q',
+] as const;
 
 function outsideSpendingParams(searchParams: URLSearchParams): Record<string, string> {
   const params: Record<string, string> = {};

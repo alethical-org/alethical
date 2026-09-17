@@ -102,6 +102,7 @@ from alethical.api.services.outside_spending import (
     UnknownSubject as UnknownOutsideSpendingSubject,
     outside_spending as outside_spending_record_page,
 )
+from alethical.api.services.outside_spending_names import outside_spending_names
 from alethical.api.services.issue_bills import MIN_ISSUE_LENGTH, matched_issue_bill_ids
 from alethical.api.services.legislator_finance import (
     confirmed_member_for_committee,
@@ -254,6 +255,7 @@ MONEY_RECORD_PATHS = frozenset(
         "/api/v1/campaign-finance/committees",
         "/api/v1/campaign-finance/filings",
         "/api/v1/campaign-finance/outside-spending",
+        "/api/v1/campaign-finance/outside-spending/names",
         "/api/v1/campaign-finance/payments-under-name",
         "/api/v1/campaign-finance/races",
     }
@@ -3663,6 +3665,37 @@ def committee_payments(
             "year": year,
             **_payment_page_payload(page),
         }
+    )
+
+
+@router.get("/campaign-finance/outside-spending/names", response_model=DetailResponse)
+def outside_spending_name_list(
+    browse: Literal["groups", "committees"] = Query(default="groups"),
+    year: int | None = Query(default=None, ge=2015, le=2100),
+    q: str = Query(default="", max_length=200),
+    page: int = Query(default=1, ge=1),
+    snapshot_id: UUID | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    """Names actually filed in outside-spending records, 12 per alphabetic page.
+
+    Search is a case-insensitive literal substring of the displayed filed name,
+    never a registration-number search. Counts cover every matching identity in
+    the selected period; duplicate payments do not duplicate names. A usable filed
+    number can open its outside-spending record without appearing in the register.
+    Pin ``snapshot_id`` to the overview's copy; a replaced copy is unavailable.
+    """
+    release = _resolve_campaign_finance_release(db)
+    return DetailResponse(
+        data=outside_spending_names(
+            db,
+            release,
+            browse=browse,
+            year=year,
+            query=q,
+            page_number=page,
+            snapshot_id=snapshot_id,
+        )
     )
 
 

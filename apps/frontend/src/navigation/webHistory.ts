@@ -91,6 +91,12 @@ export function hasInAppBackEntry() {
   return Boolean(entry && entry.depth > 0);
 }
 
+/** The current local entry, for a named return link that skips intermediate filters. */
+export function currentWebHistoryEntry(): AppHistoryEntry | null {
+  if (typeof window === 'undefined') return null;
+  return historyEntryFromState(window.history.state, currentSessionId());
+}
+
 function currentScrollStorageKey() {
   const sessionId = currentSessionId();
   const entry = historyEntryFromState(window.history.state, sessionId);

@@ -1505,6 +1505,41 @@ and at least 1100 pixels.
   when a narrow viewport cannot fit them beside the logo. The initial served text uses the same wording
   helpers as the interactive screens.
 
+**Outside-spending browsing redraw (17 Sep 2026).** The accepted `Alethical UX (13).zip`
+changes the bare `/money/outside-spending` address into the complete directory of groups and
+committees named in the held independent-expenditures source. It keeps the existing
+`spender=<filed identifier>` and `about=<filed identifier>` payment views, their rows and their
+figures. It removes the old 3-choice strip and the shortcuts from this route to `/money/search`
+or `/money/committees`; those 2 destinations and their other entrances stay available.
+
+- The browsing address uses `browse=groups|committees`, `year`, `q` and `page`. Missing values mean
+  groups, all years, no query and page 1. “All years” omits `year`. Changing browsing choice keeps
+  year but clears query and page; changing year or query resets page. Invalid pages are clamped.
+- The service builds both name lists, their matching counts and their distinct newest-first year
+  list from the complete held source for 1 resolved snapshot. Search matches names only across the
+  complete chosen list. Results sort alphabetically with a stable tie-breaker and contain no
+  per-name amount. Similar spellings remain separate identities. A filed name with no usable
+  identifier stays searchable and counted but renders as plain text.
+- Every page returns 12 names at every width. Pagination is centred as Previous chevron, “Page X of
+  Y”, Next chevron. The end control remains in place and disabled on the first or last page.
+- The overview and name directory resolve the same source copy. Query, browsing choice and page do
+  not change overview figures; year changes both figures and period. Missing amounts withhold a
+  total without erasing valid counts. A missing direction remains a separately labelled count.
+  A names failure may leave a successful overview visible, and a failed refresh keeps the last
+  successful records with their own period and source-copy date.
+- A usable name opens its existing payment view with the chosen year. Browser Back and the payment
+  view's **Outside spending** link restore browsing choice, year, query, page and list position when
+  that state is available. A directly opened payment view falls back to the matching browsing choice
+  and year, no query and page 1. An older chosen year remains selectable in the payment view.
+- The source link is the Board's [campaign-finance download
+  page](https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/), followed by
+  the instruction to choose “All” under “Itemized independent expenditures of over $200”. The page
+  prints the actual copy date for the records displayed and prints no manufactured date when unknown.
+- Persistent labels, visible focus, selected-state announcements, non-activating disabled pagination,
+  44-pixel controls and one reading order apply at every width. At least 1100 pixels uses 2 columns;
+  768 through 1099 and below 768 use 1 column, with the overview between controls and names. Below
+  768, the year choices use a labelled menu.
+
 
 These bind any surface showing this data. The rules about what may be *asserted* live in
 `.claude/rules/grounded-answers.md` rule 3 (grounded neutrality) and rule 12 (campaign

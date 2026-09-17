@@ -188,33 +188,24 @@ import {
   MONEY_LANE_OUTSIDE_SPENDING,
 } from './moneyLanding';
 import {
-  DIRECTION_AS_FILED,
   directionCountLine,
   directionNotRecordedLine,
-  EVERY_ROW_STATES_A_DIRECTION,
-  FIGURES_WITHHELD,
-  HOW_TO_READ_IT,
-  IN_KIND_COUNTED_INSIDE,
-  IN_KIND_LABEL,
   inKindCountLine,
-  LANE_BY_COMMITTEE_TITLE,
-  LANE_BY_SPENDER,
-  laneByCommitteeBody,
-  NOTHING_ON_RECORD,
-  nothingOnRecordWhy,
-  NOT_IN_THIS_RECORD,
   OUTSIDE_SPENDING_HEADING,
   OUTSIDE_SPENDING_PATH,
-  OUTSIDE_SPENDING_STANDFIRST,
-  READ_FROM_THE_BOARDS_FILE,
   RECORD_UNAVAILABLE_TITLE,
   RECORD_UNAVAILABLE_WHY,
-  recordSpanLine,
-  SEARCH_A_GROUP_OR_COMMITTEE,
-  WHAT_THE_RECORD_HOLDS,
-  checkedLine,
   type OutsideSpendingRecordPage,
 } from './outsideSpending';
+import {
+  HOW_TO_READ_OUTSIDE,
+  OUTSIDE_BROWSE_INTRO,
+  OUTSIDE_BROWSE_SCOPE,
+  OUTSIDE_DOWNLOADS,
+  OUTSIDE_LIMITS,
+  OUTSIDE_OUTCOMES,
+  outsideBrowsePeriod,
+} from './outsideSpendingBrowse';
 import {
   NAME_SEARCH_EMPTY_QUERY_TITLE,
   NAME_SEARCH_EMPTY_QUERY_WHY,
@@ -1238,72 +1229,85 @@ export function moneyByRacePageSnapshot(page: MoneyByRacePage): PageSnapshot {
  * answered — and on this page that read is 2,975 ms when Cloudflare misses,
  * which made it the slowest first load on the money pages.
  *
- * The whole record's view, which is what the bare address draws. Every word and
- * every figure comes from the same helpers in `lib/outsideSpending.ts` the screen
- * calls, so the served page is the drawn page: a withheld total says so rather
- * than reading 0, a count is never turned into a sum, and the one freshness date
- * is the day we read the Board's file (`.claude/rules/grounded-answers.md`
- * rule 12).
- *
- * No rows, matching the screen: a list across every group would rank one group's
- * payment beside another's, which is the comparison this record cannot support.
- * The 2 lanes lead to a subject, where the rows are.
+ * The bare address now introduces browsing groups or committees inside this same
+ * record. The first response has the overview payload but not the directory
+ * payload, so it serves the overview and the 2 real browsing destinations without
+ * inventing a name. The loaded screen then adds the chosen 12-name page.
  */
 export function outsideSpendingPageSnapshot(page: OutsideSpendingRecordPage): PageSnapshot {
   const figures = page.state === 'reported' ? page.figures : null;
   const total = figures ? formatMoney(figures.amountTotal) : null;
-  const everyRowStated = figures ? figures.directionNotRecordedCount === 0 : false;
-  const checkedOn = page.fetchedAt ? checkedLine(centralDateLabel(page.fetchedAt)) : null;
+  const copiedOn = page.fetchedAt ? centralDateLabel(page.fetchedAt) : null;
+  const body = figures
+    ? [
+        outsideBrowsePeriod(page),
+        OUTSIDE_BROWSE_SCOPE,
+        total ?? 'Some payments have no amount recorded, so we cannot show a complete total',
+        ...(total ? ['Total of the listed payments for this period'] : []),
+        `${figures.rowCount.toLocaleString('en-US')} ${figures.rowCount === 1 ? 'payment' : 'payments'}`,
+        'Payments supporting or opposing',
+        directionCountLine(figures.supportingCount, 'supporting'),
+        directionCountLine(figures.opposingCount, 'opposing'),
+        ...(figures.directionNotRecordedCount
+          ? [directionNotRecordedLine(figures.directionNotRecordedCount)]
+          : []),
+        inKindCountLine(figures.inKindCount),
+        'Payments in goods or services are included in the counts above',
+      ]
+    : page.state === 'unavailable'
+      ? [RECORD_UNAVAILABLE_TITLE, RECORD_UNAVAILABLE_WHY]
+      : [
+          page.year
+            ? `No outside-spending records for ${page.year}`
+            : 'No outside-spending records available',
+          page.year
+            ? 'We have no matching records for this year. That does not mean nothing was spent.'
+            : 'We have no outside-spending records to show from our current copy',
+        ];
   return {
     heading: OUTSIDE_SPENDING_HEADING,
-    subheading: OUTSIDE_SPENDING_STANDFIRST,
-    bodyHeading: WHAT_THE_RECORD_HOLDS,
-    body: figures
-      ? [
-          total ?? FIGURES_WITHHELD,
-          recordSpanLine(figures),
-          `${DIRECTION_AS_FILED}: ${[
-            directionCountLine(figures.supportingCount, 'supporting'),
-            directionCountLine(figures.opposingCount, 'opposing'),
-            ...(everyRowStated
-              ? []
-              : [directionNotRecordedLine(figures.directionNotRecordedCount)]),
-            `${IN_KIND_LABEL}: ${inKindCountLine(figures.inKindCount)}`,
-          ].join(' · ')}`,
-          everyRowStated ? EVERY_ROW_STATES_A_DIRECTION : IN_KIND_COUNTED_INSIDE,
-        ]
-      : page.state === 'unavailable'
-        ? [RECORD_UNAVAILABLE_TITLE, RECORD_UNAVAILABLE_WHY]
-        : [NOTHING_ON_RECORD, nothingOnRecordWhy('record')],
+    subheading: OUTSIDE_BROWSE_INTRO,
+    bodyHeading: figures ? 'Spending in these records' : '',
+    body,
     bodyIsList: false,
-    facts: checkedOn ? [{ label: READ_FROM_THE_BOARDS_FILE, lines: [checkedOn] }] : [],
-    // The 2 lanes, each an ordinary link, so what the drawn page reaches by a
-    // press is reachable in the first response as well.
-    records: [
-      {
-        label: LANE_BY_SPENDER.title,
-        detail: LANE_BY_SPENDER.body,
-        href: '/money/committees?kind=political_committee_or_fund',
-      },
-      {
-        label: LANE_BY_COMMITTEE_TITLE,
-        detail: laneByCommitteeBody(figures?.committeesNotLinkable ?? null),
-        href: '/money/committees?kind=candidate_committee',
-      },
-    ],
+    facts: [],
     sections: [
       {
-        heading: HOW_TO_READ_IT.heading,
-        blocks: [{ kind: 'prose', lines: [HOW_TO_READ_IT.body] }],
+        heading: 'How to read these records',
+        blocks: [{ kind: 'prose', lines: [HOW_TO_READ_OUTSIDE] }],
       },
       {
-        heading: NOT_IN_THIS_RECORD.heading,
-        blocks: [{ kind: 'prose', lines: [NOT_IN_THIS_RECORD.body] }],
+        heading: 'Limits of these records',
+        blocks: [{ kind: 'prose', lines: [OUTSIDE_LIMITS, OUTSIDE_OUTCOMES] }],
+      },
+      {
+        heading: 'Source: Minnesota Campaign Finance and Public Disclosure Board',
+        blocks: [
+          {
+            kind: 'links',
+            items: [
+              {
+                label: 'Minnesota’s campaign-finance downloads',
+                href: OUTSIDE_DOWNLOADS,
+              },
+            ],
+          },
+          {
+            kind: 'prose',
+            lines: [
+              'On the state’s download page, choose ‘All’ under ‘Itemized independent expenditures of over $200’',
+              ...(copiedOn ? [`Records copied ${copiedOn}`] : []),
+            ],
+          },
+        ],
       },
     ],
     links: [
-      { label: SEARCH_A_GROUP_OR_COMMITTEE, href: '/money/search' },
-      { label: COMMITTEE_LIST_TITLE, href: '/money/committees' },
+      { label: 'Who spent?', href: '/money/outside-spending?browse=groups' },
+      {
+        label: 'Who was supported or opposed?',
+        href: '/money/outside-spending?browse=committees',
+      },
       { label: MONEY_LANDING_HEADING, href: '/money' },
     ],
   };
