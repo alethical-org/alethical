@@ -82,7 +82,6 @@ export function OutsideSpendingBrowseScreen({
   route,
 }: RootScreenProps<'OutsideSpending'>) {
   const { isMobile, isDesktop } = useResponsive();
-  const scroll = useHistoryScrollRestoration();
   const address = route.params ?? {};
   const mode = outsideBrowseMode(address.browse);
   const year = outsideSpendingYear(address.year);
@@ -112,6 +111,9 @@ export function OutsideSpendingBrowseScreen({
     names.data?.state === 'unavailable' || names.data?.snapshot_id === record?.snapshotId
       ? names.data
       : undefined;
+  const scroll = useHistoryScrollRestoration(
+    !waitingForYear && (record?.state !== 'reported' || Boolean(data) || names.isError),
+  );
   const years = [...new Set([...lastYears.current, ...(year === null ? [] : [year])])].sort(
     (a, b) => b - a,
   );

@@ -19,6 +19,7 @@ const state = vi.hoisted(() => ({
   placeholder: false,
 }));
 const fetchNames = vi.hoisted(() => vi.fn());
+const restoreScroll = vi.hoisted(() => vi.fn());
 const refetch = vi.hoisted(() => vi.fn());
 vi.mock('../../../hooks/useAppQueries', () => ({
   useOutsideSpendingRecord: () => ({
@@ -39,7 +40,10 @@ vi.mock('../../../hooks/useResponsive', () => ({
   useResponsive: () => ({ isMobile: state.mobile, isDesktop: !state.mobile, isTablet: false }),
 }));
 vi.mock('../../../hooks/useHistoryScrollRestoration', () => ({
-  useHistoryScrollRestoration: () => ({}),
+  useHistoryScrollRestoration: (ready: boolean) => {
+    restoreScroll(ready);
+    return {};
+  },
 }));
 vi.mock('../../../navigation/documentTitle', () => ({ useDocumentTitle: () => {} }));
 vi.mock('../../../theme/primitives', () => ({
@@ -206,6 +210,15 @@ describe('outside spending browsing', () => {
     expect(fetchNames).toHaveBeenLastCalledWith(
       expect.objectContaining({ q: 'nothing', snapshotId: 'snapshot' }),
     );
+  });
+  it('waits for the names before restoring a cold return position', async () => {
+    const names = state.names;
+    state.names = undefined;
+    await render();
+    expect(restoreScroll).toHaveBeenLastCalledWith(false);
+    state.names = names;
+    await render();
+    expect(restoreScroll).toHaveBeenLastCalledWith(true);
   });
   it('keeps counts when a total is incomplete and prints unstated direction separately', async () => {
     state.record!.figures!.amountTotal = null;
