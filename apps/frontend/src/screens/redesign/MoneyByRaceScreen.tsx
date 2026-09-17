@@ -284,7 +284,11 @@ function MoneyByRaceView({ navigation, route }: RootScreenProps<'MoneyByRace'>) 
           ) : selected ? (
             <View>
               <View style={styles.listHead}>
-                <Text accessibilityRole="header" aria-level={2} style={styles.listYear}>
+                <Text
+                  accessibilityRole="header"
+                  aria-level={2}
+                  style={[styles.listYear, styles.contributionsHeading]}
+                >
                   {figuresYearLine(year)}
                 </Text>
                 <Text style={styles.listSort}>Committee names A–Z</Text>
@@ -293,19 +297,15 @@ function MoneyByRaceView({ navigation, route }: RootScreenProps<'MoneyByRace'>) 
               {selected.periodsDiffer ? (
                 <Text style={[styles.explain, styles.mixedPeriods]}>{MIXED_PERIODS_NOTE}</Text>
               ) : null}
+              <Text style={styles.listNote}>{MONEY_BY_RACE_NOTE}</Text>
               <ContestBlock
+                fetchedAt={page.fetchedAt}
                 contest={selected}
                 year={year}
                 isMobile={isMobile}
                 isTablet={isTablet}
                 onOpen={(slug) => navigation.push('CommitteeMoney', { slug, year: String(year) })}
               />
-              <Text style={styles.listNote}>{MONEY_BY_RACE_NOTE}</Text>
-              {page.fetchedAt ? (
-                <Text style={styles.freshness}>
-                  {FILES_COPIED_LABEL} {centralDateLabel(page.fetchedAt)}
-                </Text>
-              ) : null}
             </View>
           ) : contests.length === 0 ? (
             <View style={styles.card}>
@@ -453,6 +453,7 @@ function OfficeChip({
 
 /** Every committee in the selected group, retaining the served order. */
 function ContestBlock({
+  fetchedAt,
   contest,
   year,
   isMobile,
@@ -460,13 +461,14 @@ function ContestBlock({
   onOpen,
 }: {
   contest: RaceContest;
+  fetchedAt: string | null;
   year: number;
   isMobile: boolean;
   isTablet: boolean;
   onOpen: (slug: string) => void;
 }) {
   return (
-    <View style={styles.contest}>
+    <View style={[styles.contest, isMobile && styles.contestMobile]}>
       <View
         style={[
           styles.columnHead,
@@ -486,6 +488,11 @@ function ContestBlock({
         ))}
       </View>
       <Text style={styles.donorNote}>{RACE_DONOR_EXPLANATION}</Text>
+      {fetchedAt ? (
+        <Text style={styles.freshness}>
+          {FILES_COPIED_LABEL} {centralDateLabel(fetchedAt)}
+        </Text>
+      ) : null}
       <View style={styles.rows}>
         {contest.committees.map((committee) => (
           <CommitteeRow
@@ -583,6 +590,7 @@ const styles = StyleSheet.create({
   directoryHover: { backgroundColor: '#f1f5f2' },
   directoryText: { flexGrow: 1, flexShrink: 1, minWidth: 0 },
   directoryName: {
+    fontVariant: ['tabular-nums'],
     fontFamily: t.typography.body,
     fontSize: 17,
     lineHeight: 25,
@@ -599,7 +607,8 @@ const styles = StyleSheet.create({
   },
   donorNote: {
     maxWidth: 920,
-    marginBottom: 18,
+    marginBottom: 0,
+    fontVariant: ['tabular-nums'],
     fontFamily: t.typography.body,
     fontSize: 15,
     lineHeight: 24,
@@ -624,6 +633,7 @@ const styles = StyleSheet.create({
     color: t.colors.brand.deep,
   },
   h1: {
+    fontVariant: ['tabular-nums'],
     marginTop: 12,
     fontFamily: t.typography.title,
     fontSize: 42,
@@ -705,6 +715,7 @@ const styles = StyleSheet.create({
     gap: 18,
     flexWrap: 'wrap',
   },
+  contributionsHeading: { fontSize: 24, lineHeight: 32 },
   listYear: {
     fontFamily: t.typography.body,
     fontSize: 17,
@@ -721,7 +732,17 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
   },
   comparisonNote: { marginTop: 12, maxWidth: 920 },
-  contest: { marginTop: 12 },
+  contest: {
+    marginTop: 20,
+    paddingTop: 22,
+    paddingHorizontal: 26,
+    paddingBottom: 10,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink10,
+    borderRadius: 16,
+    backgroundColor: t.colors.surfaces.base,
+  },
+  contestMobile: { paddingTop: 18, paddingHorizontal: 18 },
   contestCount: {
     marginTop: 3,
     fontFamily: t.typography.body,
@@ -746,7 +767,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: t.colors.text.muted,
   },
-  rows: { borderTopWidth: 1, borderTopColor: t.colors.alpha.ink08 },
+  rows: { marginTop: 16, borderTopWidth: 1, borderTopColor: t.colors.alpha.ink08 },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -821,11 +842,9 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   listNote: {
-    marginTop: 30,
+    marginTop: 10,
     maxWidth: 920,
-    paddingTop: 22,
-    borderTopWidth: 1,
-    borderTopColor: t.colors.alpha.ink08,
+    fontWeight: '600',
     fontFamily: t.typography.body,
     fontSize: 16,
     lineHeight: 25,

@@ -1252,6 +1252,7 @@ export function moneyByRacePageSnapshot(
       figuresYearLine(page.year),
       'Committee names A–Z',
       RACE_COMPARISON_NOTE,
+      MONEY_BY_RACE_NOTE,
       ...(selected.periodsDiffer ? [MIXED_PERIODS_NOTE] : []),
       ...RACE_FIGURE_DEFINITIONS.map((definition) => `${definition.label}: ${definition.text}`),
       RACE_DONOR_EXPLANATION,
@@ -1274,7 +1275,7 @@ export function moneyByRacePageSnapshot(
       href: `/money/committees/${encodeURIComponent(committeeSlug(committee.name, committee.registrationNumber))}?year=${page.year}`,
     })),
     recordsBeforeSections: true,
-    sections: [{ heading: '', body: [MONEY_BY_RACE_NOTE], bodyIsList: false, items: [] }, limits],
+    sections: [limits],
     links: [
       { label: 'Go back', href: directoryHref },
       { label: 'Money in politics', href: '/money' },
