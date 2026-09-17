@@ -817,18 +817,12 @@ export function usePrefetchLegislator() {
 // Warm a committee's money-page cache AND its screen file on navigation intent
 // (row hover / press-in), so the page opens with no loading skeleton and no
 // waiting on a separate download, matching usePrefetchBill / usePrefetchLegislator
-// (#1966 AC5) plus the route-splitting piece each screen now downloads on its
-// own (screenLoaderForPath, #1970/#1975). A money row's link never carries a
-// year (CommitteeMoney is always pushed with just a slug), so the screen falls
-// back to the current filing year (campaignMoneyYear with no route param) —
-// prefetch that same year so the key lines up exactly with what the screen
-// reads. `slug` is the same value the row's own link already builds with
-// committeeSlug(), so screenLoaderForPath resolves the same CommitteeMoney
-// chunk the click would load.
+// (#1966 AC5) Warm the same filing year the destination address asks for.
+// Callers without a year retain the committee page's current-year default.
 export function usePrefetchCommitteeMoney() {
   const queryClient = useQueryClient();
-  return (registrationNumber: string, slug: string) => {
-    const year = campaignMoneyYear(undefined);
+  return (registrationNumber: string, slug: string, requestedYear?: number) => {
+    const year = requestedYear ?? campaignMoneyYear(undefined);
     void queryClient.prefetchQuery({
       queryKey: committeeMoneyQueryKey(registrationNumber, year),
       queryFn: () => getCommitteeFinanceFromApi(registrationNumber, year),
@@ -839,7 +833,7 @@ export function usePrefetchCommitteeMoney() {
       queryFn: () => getCommitteeConfirmationFromApi(registrationNumber),
       retry: false,
     });
-    void screenLoaderForPath(routePath.moneyCommittee(slug))?.();
+    void screenLoaderForPath(routePath.moneyCommittee(slug, { year: String(year) }))?.();
   };
 }
 

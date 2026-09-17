@@ -114,17 +114,17 @@ describe('a contest heading carries a count and never a sum', () => {
     for (const count of [1, 2, 28, 1_000]) {
       expect(contestCountLabel(count)).not.toMatch(/\$/);
     }
-    expect(racesCountLine(222, 778, '2026-08-12')).toBe('222 contests · 778 candidate committees');
-    expect(racesCountLine(222, 778)).toBe('222 contests · 778 candidate committees');
-    expect(racesCountLine(1, 1)).toBe('1 contest · 1 candidate committee');
-    expect(racesCountLine(0, 0)).toBe('0 contests · 0 candidate committees');
+    expect(racesCountLine(222, 778, '2026-08-12')).toBe('778 candidate committees');
+    expect(racesCountLine(222, 778)).toBe('778 candidate committees');
+    expect(racesCountLine(1, 1)).toBe('1 candidate committee');
+    expect(racesCountLine(0, 0)).toBe('0 candidate committees');
     // No served count: no sentence, rather than one counted off the rows on screen.
     expect(racesCountLine(null, 778, '2026-08-12')).toBeNull();
     expect(racesCountLine(222, null, '2026-08-12')).toBeNull();
   });
 
   it('keeps the register date separate from the displayed counts', () => {
-    expect(registerDateLine('2026-08-12')).toBe('Register dated Aug 12, 2026');
+    expect(registerDateLine('2026-08-12')).toBe('Committee list copied Aug 12, 2026');
     expect(registerDateLine(null)).toBeNull();
     expect(registerDateLine('invalid')).toBeNull();
   });
@@ -134,7 +134,7 @@ describe('a contest heading carries a count and never a sum', () => {
     expect(shownCommitteeCount(filtered)).toBe(5);
     expect(shownCommitteeCount([])).toBe(0);
     expect(racesCountLine(filtered.length, shownCommitteeCount(filtered))).toBe(
-      '2 contests · 5 candidate committees',
+      '5 candidate committees',
     );
   });
 
@@ -147,25 +147,24 @@ describe('a contest heading carries a count and never a sum', () => {
 
 describe('the page prints its order, and it is never by amount', () => {
   it('names the served order and nothing else', () => {
-    expect(racesOrderingLine('district_then_name')).toBe(
-      'Office, then district or seat, then name A–Z',
-    );
+    expect(racesOrderingLine('district_then_name')).toBe('By office, then district or court seat');
     // An order this page does not know prints no sentence rather than a guess.
+    expect(racesOrderingLine('district_then_name', 'House')).toBe('By district or court seat');
     expect(racesOrderingLine('amount')).toBeNull();
     expect(racesOrderingLine('')).toBeNull();
   });
 
   it('says so in the dek, in the words Design drew', () => {
     expect(MONEY_BY_RACE_DEK).toBe(
-      'Candidate committees in Minnesota’s register, grouped by office and district or court seat. ' +
-        'A committee is the account used to raise and spend campaign money.',
+      'Find candidate committees and their reported donations by office, district or court seat. ' +
+        'Candidate committees raise and spend money for a candidate’s campaign.',
     );
   });
 });
 
 describe('every figure carries its own dates', () => {
   it('gives the reported total its filing’s period and the named figure its payment dates', () => {
-    const [reported, named] = committeeFigures(committee());
+    const [reported, named] = committeeFigures(committee(), 2026);
     expect(reported).toEqual({
       label: REPORTED_FIGURE_LABEL,
       text: '$61,200',
@@ -188,13 +187,14 @@ describe('every figure carries its own dates', () => {
   });
 
   it('never assumes a period start the Board’s calendars do not print', () => {
-    const [reported] = committeeFigures(committee({ reportedPeriodStart: null }));
+    const [reported] = committeeFigures(committee({ reportedPeriodStart: null }), 2026);
     expect(reported.period).toBe('Figures through Jul 20, 2026');
   });
 
   it('does not borrow payment dates when the official period is missing', () => {
     const [reported, named] = committeeFigures(
       committee({ reportedThrough: null, reportedPeriodStart: null }),
+      2026,
     );
     expect(reported.period).toBeNull();
     expect(named.period).toBe('Payments dated Feb 3, 2026 to Jun 15, 2026');
@@ -212,6 +212,7 @@ describe('every figure carries its own dates', () => {
           lastPaymentOn: '2026-07-20',
         },
       }),
+      2026,
     );
     expect(reported.text).toBe('$225,766');
     expect(reported.period).toBe('Figures for Jan 1, 2026 to Mar 31, 2026');
@@ -225,6 +226,7 @@ describe('every figure carries its own dates', () => {
         reportedTotal: '61200.9900',
         named: { ...committee().named, total: '999.99' },
       }),
+      2026,
     );
     expect(reported.text).toBe('$61,200');
     expect(named.text).toBe('$999');
@@ -243,10 +245,11 @@ describe('a missing figure states our gap and never becomes $0', () => {
   it('prints the words with no period when no filing speaks for the year', () => {
     const [reported] = committeeFigures(
       committee({ reportedTotal: null, reportedThrough: null, reportedPeriodStart: null }),
+      2026,
     );
     expect(reported).toEqual({
       label: REPORTED_FIGURE_LABEL,
-      text: 'We do not hold a usable official total for this committee for this year',
+      text: 'No usable official total in our records for 2026',
       isFigure: false,
       period: null,
       explanation: null,
@@ -256,6 +259,7 @@ describe('a missing figure states our gap and never becomes $0', () => {
   it('keeps a verified zero as $0, because a filed zero is a fact', () => {
     const [reported, named] = committeeFigures(
       committee({ reportedTotal: '0.0000', named: { ...committee().named, total: '0.00' } }),
+      2026,
     );
     expect(reported.text).toBe('$0');
     expect(reported.isFigure).toBe(true);
@@ -275,13 +279,14 @@ describe('a missing figure states our gap and never becomes $0', () => {
           lastPaymentOn: null,
         },
       }),
+      2026,
     )[1];
     expect(silent).toEqual({
       label: NAMED_FIGURE_LABEL,
-      text: 'Not reported',
+      text: 'No named contributions in our records for 2026',
       isFigure: false,
       period: null,
-      explanation: 'No named contributions in our payment records for this committee for this year',
+      explanation: null,
     });
     const gap = committeeFigures(
       committee({
@@ -293,6 +298,7 @@ describe('a missing figure states our gap and never becomes $0', () => {
           lastPaymentOn: null,
         },
       }),
+      2026,
     )[1];
     expect(gap.isFigure).toBe(false);
     expect(gap.text).toBe('We couldn’t load this figure');
@@ -301,7 +307,10 @@ describe('a missing figure states our gap and never becomes $0', () => {
   });
 
   it('does not claim no named contributions when a reported response has no usable amount', () => {
-    const named = committeeFigures(committee({ named: { ...committee().named, total: null } }))[1];
+    const named = committeeFigures(
+      committee({ named: { ...committee().named, total: null } }),
+      2026,
+    )[1];
     expect(named.text).toBe('We couldn’t load this figure');
     expect(named.isFigure).toBe(false);
     expect(named.period).toBeNull();
@@ -314,6 +323,7 @@ describe('a missing figure states our gap and never becomes $0', () => {
         reportedTotal: null,
         named: { ...committee().named, state: 'unavailable' },
       }),
+      2026,
     );
     expect(reported.isFigure).toBe(false);
     expect(reported.period).toBeNull();
@@ -350,7 +360,8 @@ describe('the finder navigates among complete district and seat groups', () => {
     expect(matchingRaceContests(groups, 'House 41')).toEqual([]);
     expect(matchingRaceContests(groups, 'Lindqvist')).toEqual([]);
     expect(matchingRaceContests(groups, '31544')).toEqual([]);
-    expect(matchingRaceContests(groups, 'Governor')).toEqual([]);
+    expect(matchingRaceContests(groups, 'Governor')).toEqual([governor]);
+    expect(matchingRaceContests(groups, 'null')).toEqual([]);
     expect(matchingRaceContests(groups, '   ')).toEqual([]);
   });
 
@@ -384,12 +395,12 @@ describe('the office filter offers only what the register holds', () => {
   it('labels the clearing chip and the empty state plainly', () => {
     expect(ALL_OFFICES_LABEL).toBe('All offices');
     expect(noContestsTitle('Senate')).toBe(
-      'No Senate candidate committees in our copy of the register',
+      'No Senate candidate committees in our copy of the committee list',
     );
-    expect(noContestsTitle(null)).toBe('No candidate committees in our copy of the register');
+    expect(noContestsTitle(null)).toBe('No candidate committees in our copy of the committee list');
   });
 
   it('names the year the figures are for', () => {
-    expect(figuresYearLine(2026)).toBe('Money figures are for 2026');
+    expect(figuresYearLine(2026)).toBe('Campaign contributions for 2026');
   });
 });

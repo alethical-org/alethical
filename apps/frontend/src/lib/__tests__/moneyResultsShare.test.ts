@@ -91,12 +91,19 @@ describe('money results sharing', () => {
     expect(content.resultsKind).toBe('race');
     expect(content.description).toContain('House District 12A');
     expect(content.description).toContain('figures shown separately');
-    expect(new URL(content.url).hash).toBe('#house-12a');
+    expect(new URL(content.url).hash).toBe('');
     expect(destination(content.url)).toMatchObject({
       name: 'MoneyByRace',
-      params: { office: 'House', year: '2026' },
+      params: { office: 'House', year: '2026', group: 'house-12a' },
     });
     expect(new URL(moneyByRaceShareContent(races, 'access_token=private').url).hash).toBe('');
+    expect(
+      new URL(moneyByRaceShareContent(races, 'access_token=private').url).searchParams.has('group'),
+    ).toBe(false);
+    expect(destination(moneyByRaceShareContent(races, '', 'House 12').url)).toMatchObject({
+      name: 'MoneyByRace',
+      params: { office: 'House', year: '2026', q: 'House 12' },
+    });
   });
 
   it('uses both accepted outside subjects and their year, ordering and page', () => {

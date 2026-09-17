@@ -167,7 +167,7 @@ function outsideSpendingParams(searchParams: URLSearchParams): Record<string, st
 }
 
 // URL-addressable Money by race state (issue #1954): the office chip and the year.
-const MONEY_BY_RACE_PARAMS = ['office', 'year'] as const;
+const MONEY_BY_RACE_PARAMS = ['office', 'year', 'group', 'q'] as const;
 
 function moneyByRaceParams(searchParams: URLSearchParams): Record<string, string> {
   return selectedSearchParams(searchParams, MONEY_BY_RACE_PARAMS);

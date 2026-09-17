@@ -1,7 +1,7 @@
 import type { MoneyByRacePage } from '../data/types';
 import { routePath } from '../navigation/links';
 import { committeeSlug, type PaymentsTab } from './committeeMoneyShared';
-import { MONEY_BY_RACE_TITLE } from './moneyByRace';
+import { MONEY_BY_RACE_TITLE, contestSeatLabel } from './moneyByRace';
 import { nameSearchHeading } from './moneyNameSearch';
 import {
   OUTSIDE_SPENDING_HEADING,
@@ -66,18 +66,25 @@ export function committeePaymentsShareContent({
   );
 }
 
-export function moneyByRaceShareContent(page: MoneyByRacePage, anchor: string): ShareContent {
+export function moneyByRaceShareContent(
+  page: MoneyByRacePage,
+  anchor: string,
+  query?: string,
+): ShareContent {
   const contest = page.contests.find((candidate) => candidate.anchor === anchor);
   const office = page.office || 'All offices';
-  const scope = contest
-    ? `${contest.office}${contest.district ? ` District ${contest.district}` : ''}`
-    : office;
-  const path = routePath.moneyRaces({ year: String(page.year), office: page.office || undefined });
+  const scope = contest ? contestSeatLabel(contest) : office;
+  const path = routePath.moneyRaces({
+    year: String(page.year),
+    office: contest?.office || page.office || undefined,
+    group: contest?.anchor,
+    q: query || undefined,
+  });
   return results(
     'race',
     MONEY_BY_RACE_TITLE,
     `${scope} · filing year ${page.year} · each committee’s figures shown separately`,
-    contest ? `${path}#${encodeURIComponent(contest.anchor)}` : path,
+    path,
   );
 }
 

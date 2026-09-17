@@ -1,16 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import Svg, { Path } from 'react-native-svg';
+import { GoBackLink } from '../../components/GoBackLink';
+import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { RaceFinder } from '../../components/campaignMoney/RaceFinder';
 import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
 import { Skeleton } from '../../components/Skeleton';
 import { useCampaignFinanceRaces, usePrefetchCommitteeMoney } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
-import {
-  closedChipLabel,
-  committeeSlug,
-  itemizedContributionsNote,
-} from '../../lib/committeeMoneyShared';
+import { closedChipLabel, committeeSlug } from '../../lib/committeeMoneyShared';
 import { campaignMoneyYear } from '../../lib/legislatorCampaignMoney';
 import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
 import { moneyByRaceShareContent } from '../../lib/moneyResultsShare';
@@ -23,6 +22,7 @@ import {
   MONEY_BY_RACE_TITLE,
   MONEY_BY_RACE_UNAVAILABLE,
   RACE_COMPARISON_NOTE,
+  RACE_DONOR_EXPLANATION,
   RACE_COVERAGE,
   RACE_COVERAGE_HEADING,
   RACE_FIGURE_DEFINITIONS,
@@ -30,7 +30,8 @@ import {
   registerDateLine,
   shownCommitteeCount,
   committeeFigures,
-  contestHeadingParts,
+  contestSeatLabel,
+  contestCountLabel,
   figuresYearLine,
   noContestsTitle,
   officeFilterFromParam,
@@ -48,209 +49,268 @@ import type { RaceCommittee, RaceContest } from '../../data/types';
 
 const isWeb = Platform.OS === 'web';
 
-// Room above a contest heading when the page jumps to its #anchor, so the heading
-// does not land flush against the top edge.
-const SCROLL_MARGIN = { scrollMarginTop: 24 } as object;
-
-function jumpToAnchor(anchor: string, focus = false) {
-  if (!isWeb || typeof document === 'undefined') return;
-  const heading = document.getElementById(anchor);
-  heading?.scrollIntoView({ behavior: 'auto', block: 'start' });
-  if (focus) heading?.focus({ preventScroll: true });
+/** A compact directory opens 1 complete group at its own shareable address. */
+export function MoneyByRaceScreen(props: RootScreenProps<'MoneyByRace'>) {
+  // A new view needs its own scroll restoration. Typing keeps the same input.
+  const { group, office, year } = props.route.params ?? {};
+  return <MoneyByRaceView key={`${group ?? ''}:${office ?? ''}:${year ?? ''}`} {...props} />;
 }
 
-/**
- * Money by race at /money/races ("Money by race.dc.html", 3 Sep 2026 campaign-money
- * package; issue #1954): every candidate committee, grouped by the office and
- * district it registered for.
- *
- * Three constraints are the whole design, and each is enforced by a test on the
- * read behind the page (`alethical/tests/test_campaign_finance_races.py`) as well
- * as drawn here:
- *
- * - **No per-contest total, ever.** A heading carries a count of committees.
- *   Nothing on this page adds 2 committees' figures: a person can hold 2
- *   committees at once and money moved between them is reported by both (#1663).
- * - **Never ordered by amount.** The list arrives ordered by office, district as a
- *   person reads it, then filed name, and the page prints that order beside the
- *   count. The page never re-sorts what it is served.
- * - **Every figure carries its own dates.** Each row prints its 2 figures with the
- *   period each covers, and a contest whose reported totals cover different periods
- *   says so above its rows.
- *
- * The office chip rides in the address, so a narrowed list is a link somebody can
- * send (grounded-answers rule 5). Every contest has an anchor (`#house-12a`) for
- * the same reason. Every row opens its committee by registration number, so a
- * committee that changes its name keeps its address.
- */
-export function MoneyByRaceScreen({ navigation, route }: RootScreenProps<'MoneyByRace'>) {
+function MoneyByRaceView({ navigation, route }: RootScreenProps<'MoneyByRace'>) {
   const { isMobile, isTablet } = useResponsive();
+  const headingId = `race-group-${useId()}`;
   const year = campaignMoneyYear(route.params?.year);
-  const requestedOffice = typeof route.params?.office === 'string' ? route.params.office : '';
-
-  // The request is narrowed by whatever the address says; the chips then label
-  // themselves from the served office list, so an office the register does not
-  // hold shows the whole list with no chip pressed rather than an empty page.
-  const races = useCampaignFinanceRaces({ year, office: requestedOffice || undefined });
-  // The hook retains the last response so office choices stay available during
-  // a request. Never label those old rows/counts with the new office or year.
+  const requestedOffice = route.params?.office ?? '';
+  const group = route.params?.group;
+  const query = route.params?.q ?? '';
+  // Search always includes every office, even while the directory is narrowed.
+  const races = useCampaignFinanceRaces({ year });
   const page = races.isPlaceholderData ? null : (races.data ?? null);
   const loading = races.isPending || races.isPlaceholderData;
+  const scroll = useHistoryScrollRestoration(!loading);
   const served = page?.state === 'reported';
   const offices = races.data?.offices ?? [];
   const office = officeFilterFromParam(requestedOffice, offices);
+  const allContests = page?.contests ?? [];
+  const selected = group ? allContests.find((contest) => contest.anchor === group) : undefined;
+  const contests = office
+    ? allContests.filter((contest) => contest.office === office)
+    : allContests;
+  const count = selected?.committeeCount ?? shownCommitteeCount(contests);
+  const countLine = served ? racesCountLine(contests.length, count) : null;
+  const registerDate = registerDateLine(page?.asOf ?? null);
+  const orderLine = page && contests.length > 1 ? racesOrderingLine(page.orderedBy, office) : null;
+  const directoryParams = {
+    year: route.params?.year,
+    office: undefined,
+    group: undefined,
+    q: undefined,
+  };
+  const directoryHref = routePath.moneyRaces(directoryParams);
 
-  useDocumentTitle('/money/races', `${MONEY_BY_RACE_TITLE} — campaign money | Alethical`);
-
-  const [anchor, setAnchor] = useState(() =>
-    isWeb && typeof window !== 'undefined' ? window.location.hash.slice(1) : '',
+  useDocumentTitle(
+    '/money/races',
+    `${selected ? contestSeatLabel(selected) + ' | ' : ''}${MONEY_BY_RACE_TITLE} | Alethical`,
   );
+
   useEffect(() => {
     if (!isWeb) return;
-    const sync = () => setAnchor(window.location.hash.slice(1));
-    window.addEventListener('hashchange', sync);
-    window.addEventListener('popstate', sync);
-    return () => {
-      window.removeEventListener('hashchange', sync);
-      window.removeEventListener('popstate', sync);
+    // Retain links shared before focused group views existed. Replacement keeps
+    // the real previous history entry, including a previous directory search.
+    const migrateHash = () => {
+      if (
+        window.location.pathname === '/money/races' &&
+        navigation.isFocused() &&
+        window.location.hash &&
+        !group
+      ) {
+        const anchor = window.location.hash.slice(1);
+        markNextWebHistoryChangeAsReplace();
+        navigation.setParams({ group: anchor });
+      }
     };
-  }, []);
-  const anchorReady = !!anchor && !!page?.contests.some((contest) => contest.anchor === anchor);
-  useEffect(() => {
-    if (!anchorReady) return;
-    let cancelled = false;
-    const jump = () => {
-      if (!cancelled) jumpToAnchor(anchor, true);
-    };
-    const first = setTimeout(jump, 0);
-    // Fonts can change the height of every row before this group.
-    if (isWeb && document.fonts?.ready) void document.fonts.ready.then(jump);
-    return () => {
-      cancelled = true;
-      clearTimeout(first);
-    };
-  }, [anchorReady, anchor, page]);
+    migrateHash();
+    window.addEventListener('hashchange', migrateHash);
+    return () => window.removeEventListener('hashchange', migrateHash);
+  }, [group, navigation]);
 
   useEffect(() => {
-    if (page?.state === 'reported' && requestedOffice && !office) {
+    if (served && requestedOffice && !office) {
       markNextWebHistoryChangeAsReplace();
       navigation.setParams({ office: undefined });
     }
-  }, [page, office, requestedOffice, navigation]);
+  }, [served, office, requestedOffice, navigation]);
+
+  useEffect(() => {
+    if (!group || !served || !isWeb) return;
+    const frame = requestAnimationFrame(() => {
+      document.getElementById(headingId)?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [group, served, headingId]);
 
   const onSelectOffice = (next: string | null) => {
-    setAnchor('');
-    navigation.setParams({ office: next ?? undefined });
+    navigation.setParams({ office: next ?? undefined, group: undefined, q: undefined });
   };
-  const onChooseGroup = (next: string) => {
-    if (isWeb) {
-      const url = new URL(window.location.href);
-      url.hash = next;
-      if (window.location.hash !== url.hash)
-        window.history.pushState(window.history.state, '', url);
-    }
-    setAnchor(next);
-    jumpToAnchor(next, true);
+  const onChooseGroup = (anchor: string) => {
+    const contest = allContests.find((entry) => entry.anchor === anchor);
+    if (contest)
+      navigation.setParams({
+        group: anchor,
+        office: contest.office,
+        year: String(year),
+        q: undefined,
+      });
   };
-  const contests = page?.contests ?? [];
-  const countLine = page ? racesCountLine(page.contestCount, shownCommitteeCount(contests)) : null;
-  const registerDate = registerDateLine(page?.asOf ?? null);
-  const orderLine = page ? racesOrderingLine(page.orderedBy) : null;
+  const onQueryChange = (value: string) => {
+    if (value === query) return;
+    markNextWebHistoryChangeAsReplace();
+    navigation.setParams({ q: value || undefined });
+  };
 
   return (
     <PageBackground>
-      <ScrollView contentContainerStyle={styles.page}>
+      <ScrollView {...scroll} contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
-
         <Container
           style={[styles.main, isTablet && styles.mainTablet, isMobile && styles.mainMobile]}
         >
-          <Pressable
-            {...linkProps(routePath.money(), () => navigation.navigate('MoneyLanding'))}
-            style={styles.backLink}
-          >
-            <Text style={styles.backLabel}>{MONEY_SECTION_NAME}</Text>
-          </Pressable>
-
-          <Text style={styles.eyebrow}>CAMPAIGN MONEY</Text>
+          {group ? (
+            <GoBackLink
+              href={directoryHref}
+              onPress={() => navigation.setParams(directoryParams)}
+              mobile={isMobile}
+              style={styles.goBack}
+            />
+          ) : (
+            <Pressable
+              {...linkProps(routePath.money(), () => navigation.navigate('MoneyLanding'))}
+              style={styles.backLink}
+            >
+              <Text style={styles.backLabel}>{MONEY_SECTION_NAME}</Text>
+            </Pressable>
+          )}
+          <Text style={styles.eyebrow}>{group ? MONEY_BY_RACE_TITLE : 'CAMPAIGN MONEY'}</Text>
           <ResultsHeading
             isMobile={isMobile}
-            content={served && page ? moneyByRaceShareContent(page, anchor) : null}
+            content={
+              served && page && (!group || selected)
+                ? moneyByRaceShareContent({ ...page, office }, group ?? '', query)
+                : null
+            }
           >
             <Text
+              nativeID={headingId}
+              {...(group && isWeb ? { tabIndex: -1 } : {})}
               accessibilityRole="header"
               aria-level={1}
               style={[styles.h1, isMobile && styles.h1Mobile]}
             >
-              {MONEY_BY_RACE_TITLE}
+              {selected ? contestSeatLabel(selected) : MONEY_BY_RACE_TITLE}
             </Text>
           </ResultsHeading>
-          <Text style={styles.dek}>{MONEY_BY_RACE_DEK}</Text>
-          <View style={styles.registrationNote}>
-            <Text style={styles.registrationLabel}>{RACE_REGISTRATION_NOTE}</Text>
-          </View>
+          <Text style={styles.dek}>
+            {group
+              ? 'Candidate committees raise and spend money for a candidate’s campaign.'
+              : MONEY_BY_RACE_DEK}
+          </Text>
+          <Text style={styles.registrationLabel}>{RACE_REGISTRATION_NOTE}</Text>
 
           {loading ? (
-            <View style={styles.countRow} accessible accessibilityLabel="Loading the register">
-              <Skeleton width={320} height={13} />
+            <View
+              style={styles.countRow}
+              role="status"
+              aria-busy
+              accessibilityLabel="Loading committee records"
+            >
+              <Text style={styles.hidden}>Loading committee records</Text>
+              <Skeleton width={260} height={24} />
             </View>
-          ) : countLine ? (
-            <View style={[styles.countRow, isMobile && styles.countRowMobile]}>
+          ) : countLine && (!group || selected) ? (
+            <View style={styles.countRow}>
               <Text style={styles.countLine}>{countLine}</Text>
               {registerDate ? <Text style={styles.registerDate}>{registerDate}</Text> : null}
             </View>
           ) : null}
 
-          {/* The register's own office values, a closed set of 9 on the live
-              register, as chips that wrap — no select, no "more offices" menu.
-              Each chip's count is the whole register's, so a count never looks
-              like the filter found fewer than exist. */}
-          <View style={styles.chipRow} role="group" aria-label="Filter by office">
-            <OfficeChip
-              label={ALL_OFFICES_LABEL}
-              count={races.data?.committeeCount ?? null}
-              active={office === null}
-              onPress={() => onSelectOffice(null)}
+          {served ? (
+            <RaceFinder
+              contests={allContests}
+              isMobile={isMobile}
+              query={query}
+              onQueryChange={onQueryChange}
+              onChoose={onChooseGroup}
             />
-            {offices.map((entry) => (
-              <OfficeChip
-                key={entry.office}
-                label={entry.office}
-                count={entry.committeeCount}
-                active={office === entry.office}
-                onPress={() => onSelectOffice(entry.office)}
-              />
-            ))}
-          </View>
+          ) : null}
+
+          {!group ? (
+            <View style={styles.officeControls}>
+              <Text style={styles.figureLabel}>Candidate committees by office</Text>
+              <View style={styles.chipRow} role="group" aria-label="Candidate committees by office">
+                <OfficeChip
+                  label={ALL_OFFICES_LABEL}
+                  count={loading ? null : (page?.committeeCount ?? null)}
+                  active={office === null}
+                  onPress={() => onSelectOffice(null)}
+                />
+                {offices.map((entry) => (
+                  <OfficeChip
+                    key={entry.office}
+                    label={entry.office}
+                    count={loading ? null : entry.committeeCount}
+                    active={office === entry.office}
+                    onPress={() => onSelectOffice(entry.office)}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
 
           {loading ? (
-            <View style={styles.listLoading}>
-              <View role="status" aria-busy style={styles.hidden}>
-                <Text>Loading contests</Text>
-              </View>
-              <Skeleton width={260} height={11} />
+            <View style={styles.listLoading} role="status" aria-busy>
+              <Text style={styles.explain}>Loading committees</Text>
               {(['58%', '72%', '44%'] as const).map((width, index) => (
                 <View key={index} style={styles.rowLoading}>
                   <Skeleton width={width} height={15} />
-                  <Skeleton width={120} height={15} />
                 </View>
               ))}
             </View>
-          ) : races.isError && !page ? (
-            <View style={styles.card}>
-              <Text accessibilityRole="alert" style={styles.explain}>
-                We couldn’t load the register just now. This is a problem on our side and says
-                nothing about who is running. Please try again in a moment.
-              </Text>
-            </View>
           ) : !served ? (
-            <View style={styles.card}>
-              <Text style={styles.h3}>{noContestsTitle(office)}</Text>
+            <View style={styles.card} role="alert">
+              <Text accessibilityRole="header" aria-level={2} style={styles.h3}>
+                Committee records unavailable
+              </Text>
               <Text style={styles.explain}>{MONEY_BY_RACE_UNAVAILABLE}</Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => void races.refetch()}
+                style={styles.primaryButton}
+              >
+                <Text style={styles.primaryButtonLabel}>Try again</Text>
+              </Pressable>
+            </View>
+          ) : group && !selected ? (
+            <View style={styles.card}>
+              <Text style={styles.h3}>
+                We couldn’t find this office, district or court seat in our records
+              </Text>
+              <Pressable
+                {...linkProps(directoryHref, () => navigation.setParams(directoryParams))}
+                style={styles.backLink}
+              >
+                <Text style={styles.backLabel}>Choose another office, district or court seat</Text>
+              </Pressable>
+            </View>
+          ) : selected ? (
+            <View>
+              <View style={styles.listHead}>
+                <Text
+                  accessibilityRole="header"
+                  aria-level={2}
+                  style={[styles.listYear, styles.contributionsHeading]}
+                >
+                  {figuresYearLine(year)}
+                </Text>
+                <Text style={styles.listSort}>Committee names A–Z</Text>
+              </View>
+              <Text style={[styles.explain, styles.comparisonNote]}>{RACE_COMPARISON_NOTE}</Text>
+              {selected.periodsDiffer ? (
+                <Text style={[styles.explain, styles.mixedPeriods]}>{MIXED_PERIODS_NOTE}</Text>
+              ) : null}
+              <Text style={styles.listNote}>{MONEY_BY_RACE_NOTE}</Text>
+              <ContestBlock
+                fetchedAt={page.fetchedAt}
+                contest={selected}
+                year={year}
+                isMobile={isMobile}
+                isTablet={isTablet}
+                onOpen={(slug) => navigation.push('CommitteeMoney', { slug, year: String(year) })}
+              />
             </View>
           ) : contests.length === 0 ? (
             <View style={styles.card}>
               <Text style={styles.h3}>{noContestsTitle(office)}</Text>
+              <Text style={styles.explain}>This does not mean there are no candidates.</Text>
               {office ? (
                 <Pressable
                   onPress={() => onSelectOffice(null)}
@@ -263,60 +323,92 @@ export function MoneyByRaceScreen({ navigation, route }: RootScreenProps<'MoneyB
             </View>
           ) : (
             <View>
-              {contests.some((contest) => !!contest.district) ? (
-                <RaceFinder
-                  key={`${year}-${office ?? 'all'}`}
-                  contests={contests}
-                  isMobile={isMobile}
-                  onChoose={onChooseGroup}
-                />
-              ) : null}
               <View style={styles.listHead}>
-                <Text style={styles.listYear}>{figuresYearLine(year)}</Text>
+                <Text style={styles.listYear}>
+                  Choose an office, district or court seat to see its committees
+                </Text>
                 {orderLine ? <Text style={styles.listSort}>{orderLine}</Text> : null}
               </View>
-
-              <View style={styles.comparisonNote}>
-                <Text style={styles.explain}>{RACE_COMPARISON_NOTE}</Text>
-                <Text style={styles.explain}>{itemizedContributionsNote(false)}</Text>
+              <View style={styles.directory}>
+                {contests.map((contest, index) => (
+                  <View
+                    key={contest.anchor}
+                    style={
+                      !isMobile && !isTablet
+                        ? [
+                            styles.directoryHalf,
+                            index % 2 === 0 ? styles.directoryLeft : styles.directoryRight,
+                          ]
+                        : styles.directoryFull
+                    }
+                  >
+                    <DirectoryRow
+                      contest={contest}
+                      year={String(year)}
+                      isMobile={isMobile}
+                      onChoose={onChooseGroup}
+                    />
+                  </View>
+                ))}
               </View>
-              {contests.map((contest) => (
-                <ContestBlock
-                  key={contest.anchor}
-                  contest={contest}
-                  isMobile={isMobile}
-                  isTablet={isTablet}
-                  onOpen={(slug) => navigation.push('CommitteeMoney', { slug })}
-                />
-              ))}
-
-              <Text style={styles.listNote}>{MONEY_BY_RACE_NOTE}</Text>
-
-              {/* The one freshness date this page shows: the day we copied the
-                  Board's download the named figures come from. Never the period
-                  any money covers — each figure carries its own (rule 12, #861). */}
-              {page?.fetchedAt ? (
-                <Text style={styles.freshness}>
-                  {FILES_COPIED_LABEL} {centralDateLabel(page.fetchedAt)}
-                </Text>
-              ) : null}
             </View>
           )}
 
           <View style={styles.notCoveredBox}>
-            <Text style={styles.notCoveredLabel}>{RACE_COVERAGE_HEADING}</Text>
+            <Text accessibilityRole="header" aria-level={2} style={styles.notCoveredLabel}>
+              {RACE_COVERAGE_HEADING}
+            </Text>
             <View style={styles.notCoveredList}>
               {RACE_COVERAGE.map((line) => (
                 <Text key={line} style={styles.notCoveredLine}>
                   {line}
                 </Text>
               ))}
+              {!selected ? (
+                <Text style={styles.notCoveredLine}>{RACE_DONOR_EXPLANATION}</Text>
+              ) : null}
             </View>
           </View>
         </Container>
         <Footer />
       </ScrollView>
     </PageBackground>
+  );
+}
+
+function DirectoryRow({
+  contest,
+  year,
+  isMobile,
+  onChoose,
+}: {
+  contest: RaceContest;
+  year?: string;
+  isMobile: boolean;
+  onChoose: (anchor: string) => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <Pressable
+      {...linkProps(
+        routePath.moneyRaces({ year, office: contest.office, group: contest.anchor }),
+        () => onChoose(contest.anchor),
+      )}
+      accessibilityLabel={`View committees for ${contestSeatLabel(contest)}`}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={[
+        styles.directoryRow,
+        hovered && styles.directoryHover,
+        isMobile && styles.directoryRowMobile,
+      ]}
+    >
+      <View style={styles.directoryText}>
+        <Text style={styles.directoryName}>{contestSeatLabel(contest)}</Text>
+        <Text style={styles.contestCount}>{contestCountLabel(contest.committeeCount)}</Text>
+      </View>
+      <Text style={styles.directoryAction}>View committees</Text>
+    </Pressable>
   );
 }
 
@@ -338,6 +430,17 @@ function OfficeChip({
       aria-pressed={active}
       style={[styles.chip, active && styles.chipActive]}
     >
+      {active ? (
+        <Svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden>
+          <Path
+            d="M3 8 L6.5 11.5 L13 4.5"
+            stroke={t.colors.surfaces.base}
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </Svg>
+      ) : null}
       <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>{label}</Text>
       {count !== null ? (
         <Text style={[styles.chipCount, active && styles.chipCountActive]}>
@@ -348,47 +451,24 @@ function OfficeChip({
   );
 }
 
-/**
- * One contest: its heading with a count, the mixed-period line when it applies,
- * then every committee — all of them, in the order served. No collapse and no
- * "show more": a contest partially shown is a contest misread, and the Governor's
- * 28 is the largest this ever draws.
- */
+/** Every committee in the selected group, retaining the served order. */
 function ContestBlock({
+  fetchedAt,
   contest,
+  year,
   isMobile,
   isTablet,
   onOpen,
 }: {
   contest: RaceContest;
+  fetchedAt: string | null;
+  year: number;
   isMobile: boolean;
   isTablet: boolean;
   onOpen: (slug: string) => void;
 }) {
-  const [seat, count] = contestHeadingParts(contest);
-  const figureWidth = isTablet ? styles.figureTablet : styles.figure;
   return (
-    <View style={styles.contest}>
-      <Text
-        nativeID={contest.anchor}
-        {...(isWeb ? { tabIndex: -1 } : {})}
-        accessibilityRole="header"
-        aria-level={2}
-        style={[
-          styles.contestHeading,
-          isTablet && styles.contestHeadingTablet,
-          isMobile && styles.contestHeadingMobile,
-          SCROLL_MARGIN as never,
-        ]}
-      >
-        {seat}
-      </Text>
-      <Text style={styles.contestCount}>{count}</Text>
-      {contest.periodsDiffer ? (
-        <View style={styles.mixedPeriods}>
-          <Text style={styles.explain}>{MIXED_PERIODS_NOTE}</Text>
-        </View>
-      ) : null}
+    <View style={[styles.contest, isMobile && styles.contestMobile]}>
       <View
         style={[
           styles.columnHead,
@@ -398,17 +478,27 @@ function ContestBlock({
       >
         {!isMobile ? <View style={styles.rowText} /> : null}
         {RACE_FIGURE_DEFINITIONS.map((definition) => (
-          <View key={definition.label} style={isMobile ? styles.figureMobile : figureWidth}>
+          <View
+            key={definition.label}
+            style={isMobile ? styles.figureMobile : isTablet ? styles.figureTablet : styles.figure}
+          >
             <Text style={styles.figureLabel}>{definition.label}</Text>
             <Text style={styles.figureDefinition}>{definition.text}</Text>
           </View>
         ))}
       </View>
+      <Text style={styles.donorNote}>{RACE_DONOR_EXPLANATION}</Text>
+      {fetchedAt ? (
+        <Text style={styles.freshness}>
+          {FILES_COPIED_LABEL} {centralDateLabel(fetchedAt)}
+        </Text>
+      ) : null}
       <View style={styles.rows}>
         {contest.committees.map((committee) => (
           <CommitteeRow
             key={committee.registrationNumber}
             committee={committee}
+            year={year}
             isMobile={isMobile}
             isTablet={isTablet}
             onOpen={onOpen}
@@ -421,34 +511,38 @@ function ContestBlock({
 
 function CommitteeRow({
   committee,
+  year,
   isMobile,
   isTablet,
   onOpen,
 }: {
   committee: RaceCommittee;
+  year: number;
   isMobile: boolean;
   isTablet: boolean;
   onOpen: (slug: string) => void;
 }) {
   const slug = committeeSlug(committee.name, committee.registrationNumber);
-  const closed = committee.isClosed ? closedChipLabel(committee.terminationDate) : null;
+  const closed = committee.isClosed
+    ? (closedChipLabel(committee.terminationDate) ?? 'Closed')
+    : null;
   const prefetchCommitteeMoney = usePrefetchCommitteeMoney();
-  const warm = () => prefetchCommitteeMoney(committee.registrationNumber, slug);
+  const warm = () => prefetchCommitteeMoney(committee.registrationNumber, slug, year);
   return (
     <View style={[styles.row, isTablet && styles.tabletRow, isMobile && styles.rowMobile]}>
       <View style={[styles.rowText, isMobile && styles.rowTextMobile]}>
         <Pressable
-          {...linkProps(routePath.moneyCommittee(slug), () => onOpen(slug))}
+          {...linkProps(routePath.moneyCommittee(slug, { year: String(year) }), () => onOpen(slug))}
           onPressIn={warm}
           onHoverIn={warm}
-          style={[styles.rowNameLink, isMobile && styles.rowNameLinkMobile]}
+          style={styles.rowNameLink}
         >
           <Text style={styles.rowName}>{committee.name}</Text>
         </Pressable>
         <Text style={styles.rowReg}>Registration {committee.registrationNumber}</Text>
         {closed ? <Text style={styles.closedLabel}>{closed}</Text> : null}
       </View>
-      {committeeFigures(committee).map((figure) => (
+      {committeeFigures(committee, year).map((figure) => (
         <View
           key={figure.label}
           style={isMobile ? styles.figureMobile : isTablet ? styles.figureTablet : styles.figure}
@@ -469,6 +563,57 @@ function CommitteeRow({
 
 const styles = StyleSheet.create({
   page: { flexGrow: 1 },
+  goBack: {
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink14,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    backgroundColor: t.colors.surfaces.base,
+  },
+  officeControls: { marginTop: 26 },
+  directory: { marginTop: 14, flexDirection: 'row', flexWrap: 'wrap' },
+  directoryFull: { width: '100%' },
+  directoryHalf: { width: '50%' },
+  directoryLeft: { paddingRight: 22 },
+  directoryRight: { paddingLeft: 22 },
+  directoryRow: {
+    minHeight: 76,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: t.colors.alpha.ink10,
+  },
+  directoryRowMobile: { flexDirection: 'column', alignItems: 'flex-start', gap: 8 },
+  directoryHover: { backgroundColor: '#f1f5f2' },
+  directoryText: { flexGrow: 1, flexShrink: 1, minWidth: 0 },
+  directoryName: {
+    fontVariant: ['tabular-nums'],
+    fontFamily: t.typography.body,
+    fontSize: 17,
+    lineHeight: 25,
+    fontWeight: '700',
+    color: t.colors.text.primary,
+  },
+  directoryAction: {
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    lineHeight: 22,
+    fontWeight: '700',
+    color: t.colors.brand.deep,
+    textDecorationLine: 'underline',
+  },
+  donorNote: {
+    maxWidth: 920,
+    marginBottom: 0,
+    fontVariant: ['tabular-nums'],
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    lineHeight: 24,
+    color: t.colors.text.secondary,
+  },
   main: { paddingTop: 28, paddingBottom: 64 },
   mainTablet: { paddingHorizontal: 40 },
   mainMobile: { paddingTop: 18, paddingHorizontal: 20 },
@@ -488,6 +633,7 @@ const styles = StyleSheet.create({
     color: t.colors.brand.deep,
   },
   h1: {
+    fontVariant: ['tabular-nums'],
     marginTop: 12,
     fontFamily: t.typography.title,
     fontSize: 42,
@@ -505,36 +651,19 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     color: t.colors.text.secondary,
   },
-  registrationNote: {
-    marginTop: 16,
-    alignSelf: 'flex-start',
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink10,
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-  },
   registrationLabel: {
+    marginTop: 14,
     fontFamily: t.typography.body,
     fontSize: 15,
     lineHeight: 22,
     fontWeight: '600',
     color: t.colors.text.primary,
   },
-  countRow: {
-    marginTop: 24,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  countRowMobile: { flexDirection: 'column' },
+  countRow: { marginTop: 28, gap: 6 },
   countLine: {
     fontFamily: t.typography.body,
-    fontSize: 21,
-    lineHeight: 28,
+    fontSize: 30,
+    lineHeight: 38,
     fontWeight: '800',
     color: t.colors.text.primary,
     fontVariant: ['tabular-nums'],
@@ -547,7 +676,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
     fontVariant: ['tabular-nums'],
   },
-  chipRow: { marginTop: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
+  chipRow: { marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -586,6 +715,7 @@ const styles = StyleSheet.create({
     gap: 18,
     flexWrap: 'wrap',
   },
+  contributionsHeading: { fontSize: 24, lineHeight: 32 },
   listYear: {
     fontFamily: t.typography.body,
     fontSize: 17,
@@ -601,49 +731,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: t.colors.text.secondary,
   },
-  comparisonNote: {
-    marginTop: 12,
-    maxWidth: 920,
-    backgroundColor: t.colors.surfaces.base,
+  comparisonNote: { marginTop: 12, maxWidth: 920 },
+  contest: {
+    marginTop: 20,
+    paddingTop: 22,
+    paddingHorizontal: 26,
+    paddingBottom: 10,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink10,
-    borderRadius: 15,
-    padding: 20,
-    gap: 10,
+    borderRadius: 16,
+    backgroundColor: t.colors.surfaces.base,
   },
-  contest: { marginTop: 34 },
-  contestHeading: {
-    ...(isWeb
-      ? ({ outlineColor: t.colors.purple.base, outlineOffset: 3, outlineWidth: 2 } as object)
-      : {}),
-    fontFamily: t.typography.body,
-    fontSize: 27,
-    lineHeight: 34,
-    fontWeight: '800',
-    letterSpacing: -0.6,
-    color: t.colors.text.primary,
-    fontVariant: ['tabular-nums'],
-  },
-  contestHeadingTablet: { fontSize: 24, lineHeight: 31 },
-  contestHeadingMobile: { fontSize: 22, lineHeight: 29 },
+  contestMobile: { paddingTop: 18, paddingHorizontal: 18 },
   contestCount: {
-    marginTop: 4,
+    marginTop: 3,
     fontFamily: t.typography.body,
-    fontSize: 15,
-    lineHeight: 23,
-    fontWeight: '600',
+    fontSize: 14,
+    lineHeight: 22,
     color: t.colors.text.secondary,
     fontVariant: ['tabular-nums'],
   },
-  mixedPeriods: {
-    marginTop: 12,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink10,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
+  mixedPeriods: { marginTop: 12, maxWidth: 920 },
   columnHead: {
     marginTop: 16,
     marginBottom: 10,
@@ -651,15 +759,7 @@ const styles = StyleSheet.create({
     gap: 24,
     alignItems: 'flex-start',
   },
-  columnHeadMobile: {
-    flexDirection: 'column',
-    gap: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink10,
-    borderRadius: 12,
-    backgroundColor: t.colors.surfaces.base,
-  },
+  columnHeadMobile: { flexDirection: 'column', gap: 12 },
   figureDefinition: {
     marginTop: 3,
     fontFamily: t.typography.body,
@@ -667,7 +767,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: t.colors.text.muted,
   },
-  rows: { borderTopWidth: 1, borderTopColor: t.colors.alpha.ink08 },
+  rows: { marginTop: 16, borderTopWidth: 1, borderTopColor: t.colors.alpha.ink08 },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -676,12 +776,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: t.colors.alpha.ink08,
   },
-  tabletRow: { gap: 18 },
+  tabletRow: { gap: 16 },
   rowMobile: { flexDirection: 'column', gap: 12, paddingVertical: 14 },
   rowText: { flex: 1, minWidth: 0 },
   rowTextMobile: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: '100%' },
-  rowNameLink: { alignSelf: 'flex-start', maxWidth: '100%' },
-  rowNameLinkMobile: { minHeight: 44, justifyContent: 'center', marginTop: -8, marginBottom: -8 },
+  rowNameLink: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    minHeight: 44,
+    justifyContent: 'center',
+    marginTop: -8,
+    marginBottom: -8,
+  },
   rowName: {
     fontFamily: t.typography.body,
     fontSize: 17.5,
@@ -710,7 +816,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   figure: { width: 250, flexShrink: 0, minWidth: 0 },
-  figureTablet: { width: 200, flexShrink: 0, minWidth: 0 },
+  figureTablet: { width: 190, flexShrink: 0, minWidth: 0 },
   figureMobile: { width: '100%' },
   figureLabel: {
     fontFamily: t.typography.body,
@@ -742,11 +848,9 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   listNote: {
-    marginTop: 30,
+    marginTop: 10,
     maxWidth: 920,
-    paddingTop: 22,
-    borderTopWidth: 1,
-    borderTopColor: t.colors.alpha.ink08,
+    fontWeight: '600',
     fontFamily: t.typography.body,
     fontSize: 16,
     lineHeight: 25,
@@ -800,13 +904,11 @@ const styles = StyleSheet.create({
     color: t.colors.surfaces.base,
   },
   notCoveredBox: {
-    marginTop: 20,
+    marginTop: 34,
     maxWidth: 920,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink10,
-    borderRadius: 15,
-    padding: 20,
+    paddingTop: 22,
+    borderTopWidth: 1,
+    borderTopColor: t.colors.alpha.ink10,
   },
   notCoveredLabel: {
     fontFamily: t.typography.body,
