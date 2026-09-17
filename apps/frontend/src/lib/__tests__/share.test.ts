@@ -5,12 +5,62 @@ import {
   buildBillShareContent,
   buildLegislatorShareContent,
   publicPageUrl,
+  shareDialogLabel,
   type ShareContent,
 } from '../share';
-import { buildShareIntents, BLUESKY_POST_LENGTH, X_SHORT_LINK_LENGTH } from '../shareIntents';
+import {
+  buildShareIntents,
+  BLUESKY_POST_LENGTH,
+  complementaryShareDescription,
+  nativeShareText,
+  X_SHORT_LINK_LENGTH,
+} from '../shareIntents';
 
 describe('shared page text', () => {
-  it('shares a bill with its number, session year, plain title and first summary sentence', () => {
+  it.each([
+    'bill',
+    'legislator',
+    'answer',
+    'research',
+    'guide',
+    'committee',
+    'principal',
+    'lobbyist',
+    'results',
+  ] as const)('keeps a subject-specific accessible label for %s', (subject) => {
+    expect(shareDialogLabel(subject)).toBe(
+      subject === 'results' ? 'Share these results' : `Share this ${subject}`,
+    );
+  });
+
+  it.each([
+    ['search', 'Share these search results'],
+    ['payments', 'Share these payment records'],
+    ['race', 'Share this race comparison'],
+    ['outside-spending', 'Share these outside-spending results'],
+  ] as const)(
+    'identifies %s results without adding the heading to shared text',
+    (resultsKind, label) => {
+      expect(shareDialogLabel('results', resultsKind)).toBe(label);
+      const content: ShareContent = {
+        subject: 'results',
+        resultsKind,
+        title: 'Selected records',
+        description: 'Minnesota’s official filings',
+        url: publicPageUrl('/money/search?q=schools&year=2026'),
+      };
+      const links = buildShareIntents(content);
+      for (const intent of Object.values(links)) {
+        expect(decodeURIComponent(intent)).not.toContain(label);
+      }
+      expect(nativeShareText(content, false)).toBe(`${content.title}\n\n${content.description}`);
+      expect(nativeShareText(content, true)).toBe(
+        `${content.title}\n\n${content.description}\n\n${content.url}`,
+      );
+    },
+  );
+
+  it('shares a bill identity once with complementary record context', () => {
     const content = buildBillShareContent({
       identifier: 'HF 719',
       billId: '94-2025-HF719',
@@ -23,7 +73,7 @@ describe('shared page text', () => {
     expect(content).toEqual({
       subject: 'bill',
       title: 'HF 719 (2025): Funds local infrastructure projects across Minnesota',
-      description: 'Funds roads, bridges, water systems, and public buildings across Minnesota.',
+      description: 'Bill text, legislative progress, and official sources',
       url: 'https://www.alethical.com/bills/94-2025-HF719',
     });
   });
@@ -37,12 +87,10 @@ describe('shared page text', () => {
       url: publicPageUrl('/bills/94-2025-SF1'),
     });
 
-    expect(content.description).toBe(
-      'See what SF 1 would do and where it stands in the Minnesota Legislature.',
-    );
+    expect(content.description).toBe('Bill text, legislative progress, and official sources');
   });
 
-  it('keeps the complete first sentence of the live SF 746 summary', () => {
+  it('does not repeat a bill title through a summary that paraphrases it', () => {
     const content = buildBillShareContent({
       identifier: 'SF 746',
       billId: '94-2025-SF746',
@@ -52,9 +100,7 @@ describe('shared page text', () => {
       url: publicPageUrl('/bills/94-2025-SF746'),
     });
 
-    expect(content.description).toBe(
-      'Sets a rule that new peace officer license applicants in Minnesota must be U.S. citizens.',
-    );
+    expect(content.description).toBe('Bill text, legislative progress, and official sources');
   });
 
   // A bill with no plain-language short title is named by its number and year and
@@ -81,8 +127,7 @@ describe('shared page text', () => {
       }),
     ).toMatchObject({
       title: 'Rep. Patti Anderson, Minnesota House District 33A',
-      description:
-        'See Rep. Patti Anderson’s committee assignments, chief-authored bills, and contact information in the Minnesota Legislature.',
+      description: 'Committee assignments, chief-authored bills, and contact information',
     });
 
     expect(
@@ -111,15 +156,67 @@ describe('shared page text', () => {
   });
 });
 
+describe('complementary sharing copy', () => {
+  it.each([
+    'O’Brien & García',
+    '  O’Brien   &  García  ',
+    'O’BRIEN & GARCÍA!',
+    "O'Brien & García.",
+  ])('suppresses a whole-line repeat despite harmless formatting: %s', (description) => {
+    const content: ShareContent = {
+      subject: 'committee',
+      title: 'O’Brien & García',
+      description,
+      url: publicPageUrl('/money/committees/example-123?year=2026&tab=gave#payments'),
+    };
+    expect(complementaryShareDescription(content.title, description)).toBe('');
+    const links = buildShareIntents(content);
+    expect(new URL(links.x).searchParams.get('text')).toBe(content.title);
+    expect(new URL(links.x).searchParams.get('url')).toBe(content.url);
+    for (const destination of ['whatsapp', 'bluesky'] as const) {
+      expect(new URL(links[destination]).searchParams.get('text')).toBe(
+        `${content.title}\n\n${content.url}`,
+      );
+    }
+    const email = new URL(links.email);
+    expect(email.searchParams.get('subject')).toBe(content.title);
+    expect(email.searchParams.get('body')).toBe(content.url);
+    expect(new URL(links.facebook).searchParams.get('u')).toBe(content.url);
+    expect(new URL(links.linkedin).searchParams.get('url')).toBe(content.url);
+    expect(nativeShareText(content, false)).toBe(content.title);
+    expect(nativeShareText(content, true)).toBe(`${content.title}\n\n${content.url}`);
+  });
+
+  it.each([
+    ['School funding', 'School funding does not include building repairs'],
+    ['Committee 123', 'Committee 1234'],
+    ['O’Brien', 'Donations filed under O’Brien are not a confirmed identity'],
+    ['Published Aug 20, 2026', 'Records through Jul 20, 2026'],
+  ])('preserves distinct factual copy: %s / %s', (title, description) => {
+    expect(complementaryShareDescription(title, description)).toBe(description);
+  });
+
+  it('leaves an empty description out without adding blank prose', () => {
+    const content: ShareContent = {
+      subject: 'results',
+      title: 'Search results',
+      description: '  ',
+      url: publicPageUrl('/bills?q=schools'),
+    };
+    expect(nativeShareText(content, false)).toBe(content.title);
+    expect(new URL(buildShareIntents(content).email).searchParams.get('body')).toBe(content.url);
+  });
+});
+
 describe('platform links', () => {
-  const content = buildBillShareContent({
-    identifier: 'HF 719',
-    billId: '94-2025-HF719',
-    shortTitle: 'A very long plain-language bill title that still needs room for a useful summary',
-    summary:
+  const content: ShareContent = {
+    subject: 'bill',
+    title:
+      'HF 719 (2025): A very long plain-language bill title that still needs room for useful context',
+    description:
       'This intentionally long summary explains many parts of the bill so the X version must shorten the words before adding the link while email can keep the complete description for the reader.',
     url: publicPageUrl('/bills/94-2025-HF719'),
-  });
+  };
   const intents = buildShareIntents(content);
 
   it('keeps X within 280 characters after its shortened link is counted', () => {
@@ -137,13 +234,13 @@ describe('platform links', () => {
     expect(intents.linkedin).not.toContain('summary');
   });
 
-  it('gives email the full title, description, URL, and source', () => {
-    const email = decodeURIComponent(intents.email);
+  it('puts the title in the email subject once and complementary context in its body', () => {
+    const email = new URL(intents.email);
 
-    expect(email).toContain(content.title);
-    expect(email).toContain(content.description);
-    expect(email).toContain(content.url);
-    expect(email).toContain('Shared from Alethical');
+    expect(email.searchParams.get('subject')).toBe(content.title);
+    expect(email.searchParams.get('body')).toBe(`${content.description}\n\n${content.url}`);
+    expect(email.searchParams.get('body')).not.toContain(content.title);
+    expect(email.searchParams.get('body')).not.toContain('Shared from Alethical');
   });
 
   it('gives WhatsApp the complete prepared message without choosing a recipient', () => {

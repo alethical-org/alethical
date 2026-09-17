@@ -1893,7 +1893,7 @@ the snapshot. `/about/contact` carries its heading, explanation, email and socia
 links; the interactive form and its send states belong to the loaded screen.
 Neither response needs a data-service request.
 
-Search descriptions and bill-card teasers preserve dotted initialisms such as
+Bill-card teasers preserve dotted initialisms such as
 `U.S. citizens` and `U.S. Department` within a sentence. The sentence cutter also
 preserves decimal numbers and closing quotation marks. It does not rewrite or
 invent summary text. The regression includes SF746's complete citizenship
@@ -1904,5 +1904,19 @@ description appears under **Official description**, with an **Official bill
 page** link. The same precedence applies to the first response and both screen
 sizes. This uses the separate description field in the official record, never
 the long statutory title. Missing short titles still use the bill number in the
-heading and the number plus year in metadata. Missing AI summaries still use
-the honest fixed metadata description.
+heading and the number plus year in metadata.
+
+## 26. Share previews identify once, then add context
+
+On September 17, 2026, the user required non-repeating copy inside Share and in
+outgoing messages. The bill description is now **Bill text, legislative progress,
+and official sources**, regardless of whether a generated summary exists. The
+short title identifies the bill, and the description names what readers can find.
+The complete summary remains in the served body and loaded bill page. This
+supersedes the earlier first-summary-sentence preview decision, not summary display.
+
+Committee and lobbying social titles omit the website suffix. Descriptions do not
+repeat the record name. The contextual window label, such as **Share this committee**,
+is not transmitted.
+[How sharing works](../product-onboarding/sharing-guide.md) owns the complete current
+subject, destination, and results-view behavior.

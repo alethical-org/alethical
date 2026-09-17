@@ -108,13 +108,63 @@ describe('shared panel content', () => {
     'committee',
     'principal',
     'lobbyist',
+    'results',
   ] as const)(
     'identifies the %s without replacing its supplied title or description',
     (subject) => {
       render('desktop', { ...content, subject });
-      expect(mount.textContent).toContain(`Share this ${subject}`);
+      expect(mount.querySelector('[role="heading"], h2')?.textContent).toBe(
+        subject === 'results' ? 'Share these results' : `Share this ${subject}`,
+      );
       expect(mount.textContent).toContain(content.title);
       expect(mount.textContent).toContain(content.description);
+    },
+  );
+
+  it.each([
+    ['search', 'Share these search results'],
+    ['payments', 'Share these payment records'],
+    ['race', 'Share this race comparison'],
+    ['outside-spending', 'Share these outside-spending results'],
+  ] as const)(
+    'names %s results in the panel but not the outgoing message',
+    async (resultsKind, heading) => {
+      const resultContent: ShareContent = { ...content, subject: 'results', resultsKind };
+      const share = vi.fn().mockResolvedValue(undefined);
+      setDeviceShare(share);
+      render('desktop', resultContent);
+      expect(mount.querySelector('[role="heading"], h2')?.textContent).toBe(heading);
+      expect(mount.textContent?.split(resultContent.title)).toHaveLength(2);
+      await click(control('Share using another app'));
+      expect(share).toHaveBeenCalledWith({
+        text: `${resultContent.title}\n\n${resultContent.description}`,
+        url: resultContent.url,
+      });
+      expect(JSON.stringify(share.mock.calls)).not.toContain(heading);
+    },
+  );
+
+  it.each(['desktop', 'tablet', 'phone'] as const)(
+    'names the committee once inside the %s panel',
+    (variant) => {
+      const committee = {
+        ...content,
+        title: 'Walz for Governor',
+        description: 'Campaign money from Minnesota’s official filings',
+      };
+      render(variant, committee);
+      expect(mount.textContent?.split(committee.title)).toHaveLength(2);
+      expect(mount.textContent).toContain(committee.description);
+      expect(mount.textContent).not.toContain('— Alethical');
+    },
+  );
+
+  it.each(['description', 'previewDescription'] as const)(
+    'does not display a whole-line title repeat from %s',
+    (field) => {
+      render('desktop', { ...content, title: 'School funding', [field]: ' SCHOOL   FUNDING! ' });
+      expect(mount.textContent).toContain('School funding');
+      expect(mount.textContent).not.toContain('SCHOOL');
     },
   );
 
@@ -221,7 +271,6 @@ describe('device sharing', () => {
       render(variant);
       await click(control('Share using another app'));
       const payload = {
-        title: content.title,
         text: nativeShareText(content, false),
         url: content.url,
       };

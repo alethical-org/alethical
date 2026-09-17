@@ -20,6 +20,22 @@ function clean(value: string): string {
   return value.replace(/\s+/g, ' ').trim();
 }
 
+/** Whole-line duplicates add no context. Never rewrite factual prose word by word. */
+export function complementaryShareDescription(title: string, description: string): string {
+  const comparable = (value: string) =>
+    clean(value)
+      .toLocaleLowerCase('en-US')
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim();
+  return comparable(title) === comparable(description) ? '' : description.trim();
+}
+
+function shareProse(content: ShareContent): string {
+  return [content.title.trim(), complementaryShareDescription(content.title, content.description)]
+    .filter(Boolean)
+    .join('\n\n');
+}
+
 function truncateAtWord(value: string, maxLength: number): string {
   const normalized = clean(value);
   if (normalized.length <= maxLength) return normalized;
@@ -58,7 +74,7 @@ function blueskyShareText(content: ShareContent): string {
   const byteBudget = BLUESKY_POST_BYTES - encoder.encode(content.url).length - 2;
   if (proseBudget <= 1 || byteBudget <= 3) return content.url;
 
-  const fullText = clean(`${content.title}\n\n${content.description}`);
+  const fullText = clean(shareProse(content));
   const prose = graphemes(fullText);
   let text = fullText;
   if (prose.length > proseBudget || encoder.encode(fullText).length > byteBudget) {
@@ -80,8 +96,10 @@ function blueskyShareText(content: ShareContent): string {
 
 export function buildShareIntents(content: ShareContent): ShareIntents {
   const enc = encodeURIComponent;
-  const xText = truncateAtWord(`${content.title}\n\n${content.description}`, X_TEXT_LENGTH);
-  const emailBody = `${content.title}\n\n${content.description}\n\n${content.url}\n\nShared from Alethical`;
+  const xText = truncateAtWord(shareProse(content), X_TEXT_LENGTH);
+  const emailBody = [complementaryShareDescription(content.title, content.description), content.url]
+    .filter(Boolean)
+    .join('\n\n');
 
   return {
     linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${enc(content.url)}`,
@@ -94,7 +112,7 @@ export function buildShareIntents(content: ShareContent): ShareIntents {
 }
 
 export function nativeShareText(content: ShareContent, includeUrl: boolean): string {
-  return [content.title, content.description, includeUrl ? content.url : null]
+  return [shareProse(content), includeUrl ? content.url : null]
     .filter((part): part is string => Boolean(part))
     .join('\n\n');
 }

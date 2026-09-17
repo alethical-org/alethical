@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { RaceFinder } from '../../components/campaignMoney/RaceFinder';
+import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
 import { Skeleton } from '../../components/Skeleton';
 import { useCampaignFinanceRaces, usePrefetchCommitteeMoney } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -12,6 +13,7 @@ import {
 } from '../../lib/committeeMoneyShared';
 import { campaignMoneyYear } from '../../lib/legislatorCampaignMoney';
 import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
+import { moneyByRaceShareContent } from '../../lib/moneyResultsShare';
 import {
   ALL_OFFICES_LABEL,
   FILES_COPIED_LABEL,
@@ -171,13 +173,18 @@ export function MoneyByRaceScreen({ navigation, route }: RootScreenProps<'MoneyB
           </Pressable>
 
           <Text style={styles.eyebrow}>CAMPAIGN MONEY</Text>
-          <Text
-            accessibilityRole="header"
-            aria-level={1}
-            style={[styles.h1, isMobile && styles.h1Mobile]}
+          <ResultsHeading
+            isMobile={isMobile}
+            content={served && page ? moneyByRaceShareContent(page, anchor) : null}
           >
-            {MONEY_BY_RACE_TITLE}
-          </Text>
+            <Text
+              accessibilityRole="header"
+              aria-level={1}
+              style={[styles.h1, isMobile && styles.h1Mobile]}
+            >
+              {MONEY_BY_RACE_TITLE}
+            </Text>
+          </ResultsHeading>
           <Text style={styles.dek}>{MONEY_BY_RACE_DEK}</Text>
           <View style={styles.registrationNote}>
             <Text style={styles.registrationLabel}>{RACE_REGISTRATION_NOTE}</Text>

@@ -473,9 +473,9 @@ function CommitteeBody({
 
   const { isTablet } = useResponsive();
   const shareContent: ShareContent = {
-    title: `${name} — Alethical`,
+    title: name,
     subject: 'committee',
-    description: `${name}’s campaign money record, from Minnesota’s own filings.`,
+    description: 'Campaign money from Minnesota’s official filings',
     url: publicPageUrl(
       routePath.moneyCommittee(committeeSlug(name, registrationNumber), {
         tab: tab === 'spent' ? 'gave' : tab,

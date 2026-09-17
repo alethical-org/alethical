@@ -98,8 +98,9 @@ export function LobbyingPrincipalScreen({
     subject: 'principal',
     title: lobbyingPageMetadata(routePath.lobbyingPrincipal(finalSlug), principal.name, {
       kind: 'principal',
-    }).title,
-    description: `${principal.name}'s reported lobbying spending and current registered lobbyists, from Minnesota's own records.`,
+    }).socialTitle,
+    description:
+      'Reported spending and current registered lobbyists, from Minnesota’s official records',
     url: publicPageUrl(routePath.lobbyingPrincipal(finalSlug)),
   };
   const copiedLine = boardFilesCopiedLine(principal.copied_at, centralDateLabel);
