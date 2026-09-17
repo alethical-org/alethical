@@ -24,7 +24,7 @@ that already names both sides of a money relationship.
 | `/money/payments` for money received                    | GOT PAID                         | Removed; the title names the person or group and the payer                                               |
 | `/money/payments` for independent spending              | PAID BY INDEPENDENT SPENDING     | Removed; the title names the person or group and the spender                                             |
 | `/money/races`                                          | CAMPAIGN MONEY                   | Removed; the title says Spending by race                                                                 |
-| `/money/outside-spending`                               | CAMPAIGN MONEY                   | Removed; the title says Spending by group                                                                |
+| `/money/outside-spending`                               | CAMPAIGN MONEY                   | Removed; the title says Spending by groups that are not the campaign                                     |
 | A sitting member's `/legislators/<name>?tab=money` page | LEGISLATOR PROFILE               | Removed; Rep. or Sen., the district and the party supply the context                                     |
 | A former member's `/legislators/<name>?tab=money` page  | LEGISLATOR PROFILE               | Retained because the page deliberately omits a current title, district and party                         |
 | `/money/lobbying/lobbyists`                             | LOBBYING                         | Removed; the title says Lobbyists                                                                        |
