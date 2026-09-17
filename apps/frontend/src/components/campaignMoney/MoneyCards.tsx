@@ -93,7 +93,6 @@ import {
   type SplitState,
 } from '../../lib/legislatorCampaignMoney';
 import { externalLinkProps } from '../../navigation/links';
-import { LinkArrowLabel } from '../LinkArrow';
 import { theme as t } from '../../theme/tokens';
 import { useCampaignMoneyTypography } from './detailsStyles';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -691,24 +690,6 @@ function Row({ label, value, note }: { label: string; value: string; note?: stri
   );
 }
 
-/** A download source belongs outside the human identity-check evidence. */
-export function CampaignDownloadsLink({ sourceUrl }: { sourceUrl: string | null | undefined }) {
-  const styles = useCardStyles();
-  if (!sourceUrl) return null;
-  const url = downloadsPageUrl(sourceUrl);
-  return (
-    <Pressable
-      {...externalLinkProps(url, () => void Linking.openURL(url))}
-      style={(state) => [
-        styles.downloadLink,
-        Boolean('focused' in state && state.focused) && styles.sourceFocused,
-      ]}
-    >
-      <LinkArrowLabel label={NAMED_DONATIONS_LINK_LABEL} style={styles.downloadLabel} />
-    </Pressable>
-  );
-}
-
 function SourceLink({ label, url }: { label: string; url: string }) {
   const styles = useCardStyles();
   const [focused, setFocused] = useState(false);
@@ -816,12 +797,6 @@ const defaultStyles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   sourceFocused: {},
-  downloadLink: {
-    minHeight: 44,
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-  },
-  downloadLabel: { fontFamily: t.typography.body, fontSize: 15, fontWeight: '700', color: c.link },
   stamp: {
     backgroundColor: t.colors.surfaces.s100,
     borderWidth: 1,

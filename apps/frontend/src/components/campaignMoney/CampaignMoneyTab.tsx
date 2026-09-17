@@ -55,7 +55,6 @@ import { useResponsive } from '../../hooks/useResponsive';
 import {
   CampaignMoneyCardTheme,
   CheckedByBlock,
-  CampaignDownloadsLink,
   FilingStamp,
   MoneyInBlock,
   MoneyOutBlock,
@@ -615,7 +614,6 @@ function CommitteeCard({
           {/* The stored check belongs to this committee, at the foot of its card. */}
           <View style={styles.cardFoot}>
             <CheckedByBlock checked={committee.checked} />
-            <CampaignDownloadsLink sourceUrl={committee.moneyIn?.sourceUrl} />
           </View>
         </View>
       </View>

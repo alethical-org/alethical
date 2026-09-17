@@ -131,7 +131,7 @@ function doc(html: string): Document {
 }
 
 describe('the money tab after the 13 Sep refinements', () => {
-  it('places the downloads link after the human check and outside that evidence block', () => {
+  it('keeps the human check without repeating the outside-spending downloads link', () => {
     const page = doc(
       render([
         committee({
@@ -144,16 +144,12 @@ describe('the money tab after the 13 Sep refinements', () => {
         }),
       ]),
     );
-    const source = [...page.querySelectorAll('a')].find((node) =>
-      node.textContent?.includes('Minnesota’s campaign-finance downloads'),
-    )!;
-    const check = source.previousElementSibling!;
-    expect(check.textContent).toContain('Checked by Alethical');
-    expect(check.querySelector('a')).toBeNull();
-    expect(check.contains(source)).toBe(false);
-    expect(source.getAttribute('href')).toBe(
-      'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/',
-    );
+    expect(page.body.textContent).toContain('Checked by Alethical');
+    expect(
+      [...page.querySelectorAll('a')].filter((node) =>
+        node.textContent?.includes('Minnesota’s campaign-finance downloads'),
+      ),
+    ).toHaveLength(0);
   });
 
   it.each([

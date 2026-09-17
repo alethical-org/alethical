@@ -32,4 +32,4 @@ The separate task Fix green link arrows sitewide owns green navigation arrows. R
 
 ## Progress
 
-Implementation complete. All 3198 frontend tests and type checks pass. Local browser checks at 375/900/1440 show matching year controls, full-width filing explanations, arrow focus and no page overflow. Independent code review findings on focus-selector precedence and first-response historical years are fixed. Independent reader pass, arrow-task merge/rebase, final build, CI and live release remain pending.
+Implementation complete. All 3198 frontend tests and type checks pass. Local browser checks at 375/900/1440 show matching year controls, full-width filing explanations, arrow focus and no page overflow. Independent code review findings on focus-selector precedence and first-response historical years are fixed. Independent reader checks and the production build pass. Both committee and profile generic download footers are removed, leaving the outside-spending source link. An unrelated paging test now waits for query completion rather than 20ms, with a delayed-response reproduction. Arrow-task merge/rebase, current-head checks and live release remain pending.
