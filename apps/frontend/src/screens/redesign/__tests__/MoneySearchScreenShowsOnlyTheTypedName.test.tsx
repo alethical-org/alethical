@@ -92,6 +92,7 @@ function openSearchPage(firstQuery: string) {
   const host = document.createElement('div');
   document.body.append(host);
   const client = createAppQueryClient();
+  const push = vi.fn();
   let setQuery: ((next: string) => void) | null = null;
 
   function Host() {
@@ -99,7 +100,7 @@ function openSearchPage(firstQuery: string) {
     setQuery = set;
     const navigation = {
       navigate: () => {},
-      push: () => {},
+      push,
       setParams: (next: { q?: string }) => set(next.q ?? ''),
     };
     return (
@@ -123,6 +124,8 @@ function openSearchPage(firstQuery: string) {
 
   return {
     host,
+    client,
+    push,
     words: () => host.textContent ?? '',
     type: (next: string) => act(() => setQuery?.(next)),
   };
@@ -242,7 +245,7 @@ describe('lobbying search groups keep their own counts and proven destinations',
     const page = openSearchPage('Kozak');
     await settle();
     const group = section(page.host, 'PRINCIPALS')!;
-    expect(group.textContent).toContain('gap on our side');
+    expect(group.textContent).toContain('does not mean there are no matching records');
     expect(group.textContent).not.toContain('0 MATCHES');
     expect(group.textContent).not.toContain('Nothing here carries that spelling');
     expect(group.textContent).not.toContain(lobbyingLive.list_only_principal.name);
@@ -261,7 +264,7 @@ describe('lobbying search groups keep their own counts and proven destinations',
     const page = openSearchPage('Kozak');
     await settle();
     expect(page.words()).toContain('We could not search all of these records just now');
-    expect(page.words()).not.toContain('Nothing is filed under');
+    expect(page.words()).not.toContain('No matching names for');
   });
 });
 
@@ -301,12 +304,12 @@ describe('the money search page shows only what it found for the name in its hea
     serve({ smith: answerFor('smith', []) });
     const page = openSearchPage('smith');
     await settle();
-    expect(page.words()).toContain('Nothing is filed under');
+    expect(page.words()).toContain('No matching names for');
 
     page.type('jones');
     await settle();
 
-    expect(page.words()).not.toContain('Nothing is filed under');
+    expect(page.words()).not.toContain('No matching names for');
     expect(page.words()).toContain('Searching these records');
   });
 
@@ -393,5 +396,58 @@ describe('the money search page shows only what it found for the name in its hea
 
     expect(page.words()).toContain('We couldn’t search these records just now');
     expect(page.words()).not.toContain('Searching these records');
+  });
+});
+
+describe('search retries preserve the name and successful groups', () => {
+  it('keeps same-name results after a failed refresh and clears the notice after retry', async () => {
+    let failing = false;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        failing
+          ? new Response('unavailable', { status: 500 })
+          : new Response(JSON.stringify(answerFor('smith', [SMITH_ROW])), {
+              headers: { 'content-type': 'application/json' },
+            }),
+      ),
+    );
+    const page = openSearchPage('smith');
+    await settle();
+    expect(page.words()).toContain('Smith for Senate');
+    failing = true;
+    await act(async () => {
+      await page.client.invalidateQueries({ queryKey: ['campaign-finance-name-search'] });
+    });
+    await settle();
+    expect(page.words()).toContain('We couldn’t refresh these results');
+    expect(page.words()).toContain('Smith for Senate');
+    expect(page.words()).not.toContain('No matching names for');
+    failing = false;
+    const retry = [...page.host.querySelectorAll('[role="button"],button')].find(
+      (node) => node.textContent === 'Try again',
+    ) as HTMLElement;
+    act(() => retry.click());
+    await settle();
+    expect(page.words()).not.toContain('We couldn’t refresh these results');
+    expect(page.words()).toContain('Smith for Senate');
+  });
+});
+
+it('carries the original search into both the payment link and in-app navigation', async () => {
+  serve({ Kozak: { data: lobbyingLive.kozak } });
+  const page = openSearchPage('Kozak');
+  await settle();
+  const link = [...page.host.querySelectorAll('a')].find((node) =>
+    node.getAttribute('href')?.includes('/money/payments?'),
+  )!;
+  const params = new URL(link.href).searchParams;
+  expect(params.get('q')).toBe('Kozak');
+  expect(params.get('name')).not.toBe('Kozak');
+  act(() => link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
+  expect(page.push).toHaveBeenCalledWith('PaymentsUnderName', {
+    name: params.get('name'),
+    role: params.get('role'),
+    q: 'Kozak',
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -7,6 +7,7 @@ import {
   RowArrow,
 } from '../../components/campaignMoney/MoneyListRows';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
+import { ChevronLeft } from '../../components/icons';
 import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import type { NameSearchGroup, NameSearchRow } from '../../data/types';
 import { useCampaignFinanceNameSearch } from '../../hooks/useAppQueries';
@@ -47,7 +48,7 @@ import {
   tooShortWhy,
   type NameSearchGroupKind,
 } from '../../lib/moneyNameSearch';
-import { RECORD_DOES_NOT_COVER } from '../../lib/moneyLanding';
+import { MONEY_LIST_COVERAGE } from '../../lib/moneyListCopy';
 import { paymentNameRole } from '../../lib/paymentsUnderName';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { linkProps, routePath } from '../../navigation/links';
@@ -85,7 +86,7 @@ import { theme as t } from '../../theme/tokens';
  * hold the record.
  */
 export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneySearch'>) {
-  const { isMobile } = useResponsive();
+  const { isMobile, isTablet } = useResponsive();
   const oneScreenTall = useOneScreenTall();
   const query = typeof route.params?.q === 'string' ? route.params.q : '';
 
@@ -126,7 +127,7 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
    * zero). The committee page has held its figures this way for months
    * (`CommitteeMoneyScreen.tsx`, its `isHoldingStale`).
    */
-  const isHoldingStale = search.isError && answer !== null;
+  const isHoldingStale = search.isError && answer !== null && !search.isPlaceholderData;
 
   useDocumentTitle(
     '/money/search',
@@ -139,7 +140,6 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
   const groups = answer?.groups ?? [];
   const anyResult = hasAnyResult(groups);
   const everySearched = everyGroupWasSearched(groups);
-  const anyCapped = groups.some((group) => group.total === null && group.atLeast !== null);
 
   useSearchMetric({
     event: 'money_search_with_results',
@@ -170,6 +170,7 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
             {...linkProps(routePath.money(), () => navigation.navigate('MoneyLanding'))}
             style={styles.backLink}
           >
+            <ChevronLeft size={18} strokeWidth={2.2} color={t.colors.text.secondary} aria-hidden />
             <Text style={styles.backLabel}>{MONEY_SECTION_NAME}</Text>
           </Pressable>
 
@@ -177,7 +178,7 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
           <Text
             accessibilityRole="header"
             aria-level={1}
-            style={[styles.h1, isMobile && styles.h1Mobile]}
+            style={[styles.h1, isTablet && styles.h1Tablet, isMobile && styles.h1Mobile]}
           >
             {nameSearchHeading(query)}
           </Text>
@@ -188,15 +189,21 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
               onChangeText={setQueryInput}
               onSubmit={() => applyQuery(queryInput.trim())}
               placeholder={NAME_SEARCH_PLACEHOLDER}
+              label="Search these records by name"
+              appearance="list"
+              showSubmitButton
+              fieldFontSize={16}
+              stacked={isMobile}
+              maxWidth={640}
             />
           </View>
 
           {/* Above the results on purpose (IA §06). A reader who is told nothing
               reads an empty answer as "they gave nothing". */}
           <View style={styles.notCoveredBox}>
-            <Text style={styles.notCoveredLabel}>WHAT THIS RECORD DOES NOT COVER</Text>
+            <Text style={styles.notCoveredLabel}>WHAT THE CAMPAIGN RECORDS DO NOT COVER</Text>
             <View style={styles.notCoveredList}>
-              {RECORD_DOES_NOT_COVER.map((line) => (
+              {MONEY_LIST_COVERAGE.map((line) => (
                 <Text key={line} style={styles.notCoveredLine}>
                   {line}
                 </Text>
@@ -210,6 +217,23 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
               their search would watch the footer climb into view the moment the
               rows are replaced. */}
           <View style={oneScreenTall}>
+            <View role="status" aria-live="polite" style={styles.hidden}>
+              <Text>
+                {!query.trim()
+                  ? NAME_SEARCH_EMPTY_QUERY_TITLE
+                  : waitingForThisQuery
+                    ? 'Searching these records'
+                    : search.isError && !answer
+                      ? 'We couldn’t search these records just now'
+                      : tooShort
+                        ? tooShortTitle(answer?.minQueryLength ?? null)
+                        : anyResult
+                          ? `Results for “${query.trim()}” loaded`
+                          : !everySearched
+                            ? NOT_ALL_SEARCHED_TITLE
+                            : noMatchTitle(query)}
+              </Text>
+            </View>
             {/* Above the results, for the same reason the not-covered box is: a
                 reader who scrolls one row and stops must still be told. Not
                 drawn over the too-short card, which is about the query rather
@@ -219,6 +243,7 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
                 <Text accessibilityRole="alert" style={styles.heldNoteText}>
                   {HELD_RESULTS_NOTE}
                 </Text>
+                <RetrySearch onRetry={() => void search.refetch()} busy={search.isFetching} />
               </View>
             ) : null}
             {query.trim().length === 0 ? (
@@ -229,9 +254,7 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
               </View>
             ) : waitingForThisQuery ? (
               <View style={styles.groupsLoading}>
-                <View role="status" aria-busy style={styles.hidden}>
-                  <Text>Searching these records</Text>
-                </View>
+                <Text style={styles.explain}>Searching these records</Text>
                 <MoneyListRows isMobile={isMobile}>
                   {(['58%', '72%', '44%'] as const).map((width, index) => (
                     <MoneyListRow key={index} isMobile={isMobile} first={index === 0}>
@@ -245,10 +268,11 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
               </View>
             ) : search.isError && !answer ? (
               <View style={styles.card}>
-                <Text accessibilityRole="alert" style={styles.explain}>
-                  We couldn’t search these records just now. This is a problem on our side and says
-                  nothing about anyone’s giving. Please try again in a moment.
+                <Text accessibilityRole="alert" style={styles.h3}>
+                  We couldn’t search these records just now
                 </Text>
+                <Text style={styles.explain}>This is a problem on our side. Please try again.</Text>
+                <RetrySearch onRetry={() => void search.refetch()} busy={search.isFetching} />
               </View>
             ) : tooShort ? (
               <View style={styles.card}>
@@ -261,7 +285,7 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
               <View style={styles.card}>
                 <Text style={styles.h3}>{NOT_ALL_SEARCHED_TITLE}</Text>
                 <Text style={styles.explain}>{NOT_ALL_SEARCHED_WHY}</Text>
-                <BrowseAllCommittees navigation={navigation} />
+                <RetrySearch onRetry={() => void search.refetch()} busy={search.isFetching} />
               </View>
             ) : !anyResult ? (
               <View style={styles.card}>
@@ -286,6 +310,9 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
                       group={group}
                       query={query}
                       isMobile={isMobile}
+                      countedUpTo={answer?.countedUpTo ?? null}
+                      onRetry={() => void search.refetch()}
+                      retrying={search.isFetching}
                       navigation={navigation}
                     />
                   );
@@ -294,11 +321,6 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
                   how the names were matched, and the counting ceiling when one
                   group hit it. */}
                 <Text style={styles.matchedOn}>{NAME_SEARCH_MATCHED_ON}</Text>
-                {anyCapped && countedUpToNote(answer?.countedUpTo ?? null) ? (
-                  <Text style={styles.matchedOn}>
-                    {countedUpToNote(answer?.countedUpTo ?? null)}
-                  </Text>
-                ) : null}
               </View>
             )}
           </View>
@@ -306,6 +328,19 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
         <Footer />
       </ScrollView>
     </PageBackground>
+  );
+}
+
+function RetrySearch({ onRetry, busy }: { onRetry: () => void; busy: boolean }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={busy}
+      onPress={onRetry}
+      style={styles.primaryButton}
+    >
+      <Text style={styles.primaryButtonLabel}>{busy ? 'Trying again…' : 'Try again'}</Text>
+    </Pressable>
   );
 }
 
@@ -331,8 +366,14 @@ function ResultGroup({
   group,
   query,
   isMobile,
+  countedUpTo,
+  onRetry,
+  retrying,
   navigation,
 }: {
+  countedUpTo: number | null;
+  onRetry: () => void;
+  retrying: boolean;
   kind: NameSearchGroupKind;
   group: NameSearchGroup;
   query: string;
@@ -340,7 +381,8 @@ function ResultGroup({
   navigation: RootScreenProps<'MoneySearch'>['navigation'];
 }) {
   const heading = groupHeading(kind);
-  const count = groupCountLabel(group.total, group.atLeast);
+  const count = group.state === 'unavailable' ? null : groupCountLabel(group.total, group.atLeast);
+  const capNote = group.atLeast !== null ? countedUpToNote(countedUpTo) : null;
   const lobbyingKind = kind === 'lobbyists' || kind === 'principals' ? kind : null;
   const seeAll =
     lobbyingKind && group.hasMore
@@ -375,43 +417,51 @@ function ResultGroup({
           over a verified nothing is the missing-versus-zero failure rule 12
           forbids. */}
       {group.state === 'unavailable' ? (
-        <Text style={styles.groupEmpty}>{GROUP_UNAVAILABLE}</Text>
+        <View role="alert" style={styles.groupUnavailable}>
+          <Text style={styles.explain}>{GROUP_UNAVAILABLE}</Text>
+          <RetrySearch onRetry={onRetry} busy={retrying} />
+        </View>
       ) : group.results.length === 0 ? (
         <Text style={styles.groupEmpty}>{GROUP_EMPTY}</Text>
       ) : (
-        <MoneyListRows isMobile={isMobile}>
+        <View style={styles.resultRows}>
           {group.results.map((row, index) => (
             <ResultRow
               key={`${group.kind}-${index}`}
               row={row}
+              query={query}
               isMobile={isMobile}
               first={index === 0}
               navigation={navigation}
             />
           ))}
-        </MoneyListRows>
+        </View>
       )}
 
-      {seeAll ? (
+      {group.results.length > 0 && group.state !== 'unavailable' ? (
+        <>
+          {capNote ? <Text style={styles.groupNote}>{capNote}</Text> : null}
+          <Text style={styles.groupNote}>{groupNote(kind)}</Text>
+        </>
+      ) : null}
+      {seeAll && group.state !== 'unavailable' ? (
         <Pressable {...linkProps(moreHref, openMore)} style={styles.seeAll}>
           <Text style={styles.seeAllLabel}>{seeAll}</Text>
         </Pressable>
       ) : null}
-
-      {/* The group's note comes after its rows, as drawn: what a reader has just
-          seen is what the sentence explains. */}
-      <Text style={styles.groupNote}>{groupNote(kind)}</Text>
     </View>
   );
 }
 
 function ResultRow({
   row,
+  query,
   isMobile,
   first,
   navigation,
 }: {
   row: NameSearchRow;
+  query: string;
   isMobile: boolean;
   first: boolean;
   navigation: RootScreenProps<'MoneySearch'>['navigation'];
@@ -419,7 +469,7 @@ function ResultRow({
   if (row.kind === 'person') {
     const legislatorId = row.slug || row.legislatorId;
     return (
-      <MoneyListRow
+      <SearchResultRow
         isMobile={isMobile}
         first={first}
         link={{
@@ -428,11 +478,11 @@ function ResultRow({
         }}
       >
         <View style={styles.rowText}>
-          <Text style={styles.rowName}>{row.fullName}</Text>
+          <Text style={[styles.rowName, isMobile && styles.rowNameMobile]}>{row.fullName}</Text>
           <Text style={styles.rowMeta}>{personMeta(row)}</Text>
         </View>
-        {isMobile ? null : <RowArrow />}
-      </MoneyListRow>
+        <RowArrow />
+      </SearchResultRow>
     );
   }
 
@@ -440,7 +490,7 @@ function ResultRow({
     const slug = committeeSlug(row.name, row.registrationNumber);
     const closed = row.isClosed ? closedChipLabel(row.terminationDate) : null;
     return (
-      <MoneyListRow
+      <SearchResultRow
         isMobile={isMobile}
         first={first}
         link={{
@@ -450,8 +500,8 @@ function ResultRow({
       >
         <View style={styles.rowText}>
           <View style={styles.rowNameLine}>
-            <Text style={styles.rowName}>{row.name}</Text>
-            {closed ? <Text style={styles.closedChip}>{closed.toUpperCase()}</Text> : null}
+            <Text style={[styles.rowName, isMobile && styles.rowNameMobile]}>{row.name}</Text>
+            {closed ? <Text style={styles.closedChip}>{closed}</Text> : null}
           </View>
           <Text style={styles.rowMeta}>
             {committeeRowMeta({
@@ -459,18 +509,12 @@ function ResultRow({
               subType: row.subType,
               office: row.office,
               district: row.district,
-            })}
+            })}{' '}
+            · REG {row.registrationNumber}
           </Text>
-          {/* A third line on the phone rather than dropped (phone band rule D3). */}
-          {isMobile ? <Text style={styles.rowRegMobile}>REG {row.registrationNumber}</Text> : null}
         </View>
-        {isMobile ? null : (
-          <>
-            <Text style={styles.rowReg}>REG {row.registrationNumber}</Text>
-            <RowArrow />
-          </>
-        )}
-      </MoneyListRow>
+        <RowArrow />
+      </SearchResultRow>
     );
   }
 
@@ -483,7 +527,7 @@ function ResultRow({
     const linkable = isLobbyist || row.linkable;
     const href = isLobbyist ? routePath.lobbyingLobbyist(slug) : routePath.lobbyingPrincipal(slug);
     return (
-      <MoneyListRow
+      <SearchResultRow
         isMobile={isMobile}
         first={first}
         link={
@@ -499,14 +543,14 @@ function ResultRow({
         }
       >
         <View style={styles.rowText}>
-          <Text style={styles.rowName}>{row.name}</Text>
+          <Text style={[styles.rowName, isMobile && styles.rowNameMobile]}>{row.name}</Text>
           <Text style={styles.rowMeta}>{lobbyingSearchMeta(row)}</Text>
           {!isLobbyist && !row.linkable ? (
             <Text style={styles.rowMeta}>{principalWithoutSpending(row.sourceLatestYear)}</Text>
           ) : null}
         </View>
-        {!isMobile && linkable ? <RowArrow /> : null}
-      </MoneyListRow>
+        {linkable ? <RowArrow /> : null}
+      </SearchResultRow>
     );
   }
 
@@ -516,27 +560,48 @@ function ResultRow({
   // from and the file its payments are read out of cannot drift apart.
   const inner = (
     <View style={styles.rowText}>
-      <Text style={styles.rowName}>{row.name}</Text>
+      <Text style={[styles.rowName, isMobile && styles.rowNameMobile]}>{row.name}</Text>
       <Text style={styles.rowMeta}>{paymentNameMeta(row.paymentCount)}</Text>
     </View>
   );
   const role = paymentNameRole(row.role);
   return (
-    <MoneyListRow
+    <SearchResultRow
       isMobile={isMobile}
       first={first}
       link={
         role
           ? {
-              href: routePath.moneyPaymentsUnderName(row.name, role),
-              onPress: () => navigation.push('PaymentsUnderName', { name: row.name, role }),
+              href: routePath.moneyPaymentsUnderName(row.name, role, query),
+              onPress: () =>
+                navigation.push('PaymentsUnderName', { name: row.name, role, q: query }),
             }
           : null
       }
     >
       {inner}
-      {isMobile || !role ? null : <RowArrow />}
-    </MoneyListRow>
+      {role ? <RowArrow /> : null}
+    </SearchResultRow>
+  );
+}
+
+function SearchResultRow({
+  first,
+  link,
+  children,
+}: {
+  isMobile: boolean;
+  first: boolean;
+  link?: { href: string; onPress: () => void } | null;
+  children: ReactNode;
+}) {
+  const style = [styles.resultRow, !first && styles.resultRowDivided];
+  return link ? (
+    <Pressable {...linkProps(link.href, link.onPress)} style={style}>
+      {children}
+    </Pressable>
+  ) : (
+    <View style={style}>{children}</View>
   );
 }
 
@@ -544,7 +609,13 @@ const styles = StyleSheet.create({
   page: { flexGrow: 1 },
   main: { paddingTop: 28, paddingBottom: 64 },
   mainMobile: { paddingTop: 18 },
-  backLink: { alignSelf: 'flex-start' },
+  backLink: {
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   backLabel: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
@@ -557,18 +628,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 2.4,
-    color: t.colors.brand.base,
+    color: t.colors.text.greenOnLight,
   },
   h1: {
     marginTop: 12,
     maxWidth: 1000,
     fontFamily: t.typography.title,
-    fontSize: 38,
-    lineHeight: 44,
+    fontSize: 42,
+    lineHeight: 48,
     fontWeight: t.fontWeights.heavy,
     letterSpacing: -1,
     color: t.colors.text.primary,
   },
+  h1Tablet: { fontSize: 34, lineHeight: 39, letterSpacing: -1 },
   h1Mobile: { fontSize: 28, lineHeight: 34, letterSpacing: -0.6 },
   findRow: { marginTop: 22 },
   matchedOn: {
@@ -578,15 +650,35 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: t.colors.text.muted,
   },
-  groups: { marginTop: 30, gap: 18 },
+  groups: { marginTop: 28, gap: 26, maxWidth: 960 },
   groupsLoading: { marginTop: 18 },
   hidden: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 },
-  group: {
+  group: { gap: 0 },
+  resultRows: {
+    marginTop: 10,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink10,
-    borderRadius: 15,
-    padding: 22,
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    ...(t.shadows.card as object),
+  },
+  resultRow: {
+    minHeight: 60,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  resultRowDivided: { borderTopWidth: 1, borderTopColor: t.colors.alpha.ink08 },
+  groupUnavailable: {
+    marginTop: 10,
+    padding: 18,
+    gap: 10,
+    borderRadius: 12,
+    backgroundColor: '#fff7ea',
+    borderWidth: 1,
+    borderColor: '#f0d7a8',
   },
   groupHead: {
     flexDirection: 'row',
@@ -603,14 +695,16 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
   },
   groupCount: {
-    fontFamily: t.typography.mono,
+    fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
     fontSize: 10.5,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 1,
     color: t.colors.text.muted,
   },
   groupNote: {
-    marginTop: 14,
+    marginTop: 8,
+    marginLeft: t.spacing.underCardText,
     maxWidth: 780,
     fontFamily: t.typography.body,
     fontSize: 14.5,
@@ -618,7 +712,13 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
   },
   groupEmpty: {
-    marginTop: 14,
+    marginTop: 10,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: t.colors.alpha.ink18,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     lineHeight: 22,
@@ -632,32 +732,19 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
+  rowNameMobile: { fontSize: 16 },
   rowMeta: {
+    fontVariant: ['tabular-nums'],
     marginTop: 4,
     fontFamily: t.typography.body,
     fontSize: 14.5,
     lineHeight: 22,
     color: t.colors.text.secondary,
   },
-  rowReg: {
-    width: 96,
-    textAlign: 'right',
-    fontFamily: t.typography.mono,
-    fontSize: 12,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.5,
-    color: t.colors.text.muted,
-  },
-  rowRegMobile: {
-    marginTop: 5,
-    fontFamily: t.typography.mono,
-    fontSize: 12,
-    fontWeight: t.fontWeights.medium,
-    color: t.colors.text.muted,
-  },
   closedChip: {
-    fontFamily: t.typography.mono,
-    fontSize: 9.5,
+    fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
+    fontSize: 12,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.8,
     color: t.colors.text.secondary,
@@ -668,7 +755,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     overflow: 'hidden',
   },
-  seeAll: { marginTop: 14, minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
+  seeAll: {
+    marginTop: 10,
+    marginLeft: t.spacing.underCardText,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+  },
   seeAllLabel: {
     fontFamily: t.typography.ui,
     fontSize: 15.5,
@@ -716,20 +809,21 @@ const styles = StyleSheet.create({
   },
   notCoveredBox: {
     marginTop: 26,
-    maxWidth: 760,
-    backgroundColor: t.colors.surfaces.s200,
+    maxWidth: 960,
+    backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink08,
     borderRadius: 15,
-    padding: 22,
+    padding: 18,
   },
   // The not-covered box's own panel, because this says the same kind of thing
   // about our records rather than about a search. Inside the reserved height, so
   // the container cannot change size when the note appears or goes.
   heldNote: {
     marginBottom: 26,
-    maxWidth: 760,
-    backgroundColor: t.colors.surfaces.s200,
+    maxWidth: 960,
+    backgroundColor: '#fff7ea',
+    gap: 10,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink08,
     borderRadius: 15,

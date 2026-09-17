@@ -137,13 +137,20 @@ export function filesLastCopiedLine(checkedOn: string | null): string {
  * and no count of committees either — a committee count over a capped list would
  * read as the number of committees that filed.
  */
-export function paymentsShowingLine(shown: number, committees: number, hasMore: boolean): string {
+export function paymentsShowingLine(
+  shown: number,
+  committees: number | null,
+  hasMore: boolean,
+  role: PaymentNameRole = 'vendor',
+): string {
   if (hasMore) {
     return `Showing the first ${formatCount(shown)} ${shown === 1 ? 'payment' : 'payments'}, newest first`;
   }
   const payments = `${formatCount(shown)} ${shown === 1 ? 'payment' : 'payments'}`;
-  const filers = `${formatCount(committees)} ${committees === 1 ? 'committee' : 'committees'}`;
-  return `${payments}, from ${filers}`;
+  if (committees === null) return payments;
+  const unit = role === 'independent_vendor' ? 'spender' : 'committee';
+  const filers = `${formatCount(committees)} ${unit}${committees === 1 ? '' : 's'}`;
+  return `${payments} ${role === 'contributor' ? 'to' : 'from'} ${filers}`;
 }
 
 /** What the rows are ordered by, said where a reader can see it. The server
@@ -160,9 +167,7 @@ export const PAYMENTS_UNDER_NAME_PAGE_SIZE = 250;
  *  those words — and never how many are left, which we are not told. */
 export const CAP_HEADING = 'THIS PAGE IS CAPPED';
 
-export const CAP_NOTE =
-  'We load 250 at a time, newest first — the cap is ours, not the filings’. The reports ' +
-  'these payments come from list every one of them, and they are public.';
+export const CAP_NOTE = 'We load up to 250 payments at a time. More records may remain.';
 
 export const CAP_NEXT_LABEL = 'Show more payments';
 
@@ -172,24 +177,28 @@ export const CAP_NEXT_LABEL = 'Show more payments';
  * on: there is no total, and the reason is the filing calendars.
  */
 export const LIST_NOTE =
-  'Every row is one committee’s own filing, and it opens that committee’s page where our ' +
-  'records hold that committee as a filer. There is no total: these payments come from ' +
-  'committees on different filing calendars, so adding them would set one period against ' +
-  'another. Whether the same business is behind 2 spellings is a question the filings do ' +
-  'not answer, so we do not merge them.';
+  'Payments are grouped by filing year and committee. Any subtotal covers only the payments ' +
+  'shown for that committee in that filing year. Committees report on different schedules, ' +
+  'so we do not add amounts across committees or years. Similar name spellings are kept separate.';
 
 /** Nothing carries this spelling. A fact about the spelling and our records, and
  *  never about anybody's giving — which is why it names neither a person nor a
  *  reason. */
 export function nothingFiledTitle(name: string): string {
-  return `Nothing is filed under “${name}” as spelled`;
+  return `No matching payments under “${name}”`;
 }
 
-export const NOTHING_FILED_WHY =
-  'Spellings vary between filings, so a name that does appear in the records may be filed a ' +
-  'little differently — try a shorter part of it. We do not offer a nearest match: names ' +
-  'here differ from each other by a single character often enough that a guess would put ' +
-  'you on the wrong one.';
+export function nothingFiledWhy(role: PaymentNameRole): string {
+  const records = {
+    contributor: 'received-payment',
+    vendor: 'ordinary spending',
+    independent_vendor: 'independent-spending',
+  }[role];
+  return `Our copy of the ${records} records contains no payments under this exact spelling. Other spellings are kept separate.`;
+}
+
+/** Compatibility for callers that explicitly read received payments. */
+export const NOTHING_FILED_WHY = nothingFiledWhy('contributor');
 
 export const SEARCH_ANOTHER_NAME = 'Search another name';
 
@@ -198,13 +207,14 @@ export const SEARCH_ANOTHER_NAME = 'Search another name';
 export const RECORDS_UNAVAILABLE_TITLE = 'We could not read this part of our records just now';
 
 export const RECORDS_UNAVAILABLE_WHY =
-  'Our copy of Minnesota’s file behind this list did not answer, so an empty page here is ' +
-  'not a statement that nothing is filed under that name. This is a gap on our side. Try ' +
-  'again in a moment.';
+  'This is a problem with our copy of the records. It does not mean nothing was filed under this name.';
 
-export const LOAD_ERROR =
-  'We couldn’t load these payments just now. This is a problem on our side and says nothing ' +
-  'about anyone’s giving. Please try again in a moment.';
+export const LOAD_ERROR = 'We couldn’t load these payments just now';
+export const LOAD_ERROR_WHY = 'This is a problem on our side. Please try again.';
+export const LOAD_MORE_ERROR =
+  'We couldn’t load more payments. The payments already loaded are still shown.';
+export const REFRESH_ERROR =
+  'We couldn’t refresh these payments. The payments already loaded are still shown.';
 
 export const BACK_TO_RESULTS = 'Search results';
 
@@ -312,19 +322,11 @@ export function paymentUnderNameRow(
   };
 }
 
-/**
- * How many committees the loaded rows come from, counted by registration number
- * where a row carries one and by the filed name where it does not. Only ever
- * printed when nothing is held back, so it is a count of what we hold rather than
- * a claim about how many committees filed under this name.
- */
-export function committeesInRows(payments: readonly PaymentUnderName[]): number {
-  const seen = new Set<string>();
-  for (const payment of payments) {
-    const key = payment.filerRegistrationNumber ?? payment.filerName;
-    if (key) seen.add(key);
-  }
-  return seen.size;
+/** A filer count needs a registration on every row. A spelling cannot identify
+ * an unnumbered filer, so any missing registration withholds the whole count. */
+export function committeesInRows(payments: readonly PaymentUnderName[]): number | null {
+  if (payments.some((payment) => !payment.filerRegistrationNumber)) return null;
+  return new Set(payments.map((payment) => payment.filerRegistrationNumber)).size;
 }
 
 export const YEAR_MAY_CONTINUE = 'This year may continue below the cap';
@@ -412,7 +414,7 @@ export function paymentsUnderNameYears(
       year,
       groups,
       paymentCount: groups.reduce((count, group) => count + group.payments.length, 0),
-      mayContinue: hasMore && index === years.length - 1,
+      mayContinue: hasMore && year !== null && index === years.length - 1,
     };
   });
 }

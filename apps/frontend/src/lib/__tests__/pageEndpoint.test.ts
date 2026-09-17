@@ -1546,7 +1546,7 @@ describe('the records a money page hands to the app', () => {
     expect(body).toContain('Type a name to search');
     // The sentence the screen puts ABOVE its results, for the same reason: a
     // reader told nothing reads an empty answer as "they gave nothing".
-    expect(body).toContain('What this record does not cover');
+    expect(body).toContain('What the campaign records do not cover');
     expect(body).toContain('href="/money/committees"');
     // The results are whatever somebody typed, so the address stays unlistable.
     expect(headers.get('X-Robots-Tag')).toBe('noindex');
@@ -2594,6 +2594,33 @@ describe('a committee page hands its records to the app', () => {
     const read = new URL(calls.find((url) => url.includes('/payments'))!);
     expect(read.searchParams.get('limit')).toBe('50');
     expect(read.searchParams.get('offset')).toBe('0');
+  });
+
+  it('keeps payment records visible when the report request fails', async () => {
+    stubNetwork((url) =>
+      new URL(url).pathname.endsWith('/payments')
+        ? { status: 200, payload: { data: paymentsPayload('received') } }
+        : { status: 500 },
+    );
+    const { body, headers, status } = await serve({
+      path: `/money/committees/${SLUG}/payments`,
+      year: '2026',
+    });
+    expect(status).toBe(200);
+    expect(body).toContain('We couldn’t load the report information');
+    expect(body).not.toContain('Donors who gave $200');
+    expect(body).toContain(
+      `rel="canonical" href="https://www.alethical.com/money/committees/${SLUG}/payments"`,
+    );
+    expect(body).not.toContain('No donors named');
+    expect(headers.get('Cache-Control')).toBe('no-store');
+    expect(servedData(body).map((entry) => entry.key[0])).toEqual(['committee-payments-list']);
+  });
+
+  it('returns not found only when neither the register/report nor payments know the committee', async () => {
+    stubNetwork(() => ({ status: 404 }));
+    const { status } = await serve({ path: `/money/committees/${SLUG}/payments`, year: '2026' });
+    expect(status).toBe(404);
   });
 
   it('serves the committee’s own words when the payments read fails', async () => {

@@ -31,10 +31,14 @@ import {
   LIST_NOTE,
   LOAD_ERROR,
   NOTHING_FILED_WHY,
+  LOAD_MORE_ERROR,
+  REFRESH_ERROR,
   RECORDS_UNAVAILABLE_TITLE,
   YEAR_MAY_CONTINUE,
 } from '../../../lib/paymentsUnderName';
 import type { RootScreenProps } from '../../../navigation/types';
+import { routePath } from '../../../navigation/links';
+import { stateFromPathname } from '../../../navigation/webRoutes';
 
 const rows = source.data.payments.map((p) => paymentUnderName(p, 'contributor'));
 const page = (payments = rows, extra = {}) => ({
@@ -48,15 +52,16 @@ const page = (payments = rows, extra = {}) => ({
 const fetchMore = vi.fn();
 const refetch = vi.fn();
 const push = vi.fn();
+const navigate = vi.fn();
 let host: HTMLDivElement;
 let root: ReturnType<typeof createRoot>;
-function draw(role = 'contributor') {
+function draw(role = 'contributor', q?: string) {
   act(() =>
     root.render(
       <PaymentsUnderNameScreen
         {...({
-          navigation: { navigate: vi.fn(), push },
-          route: { params: { name: 'Nystrom, Mary Ann', role } },
+          navigation: { navigate, push },
+          route: { params: { name: 'Nystrom, Mary Ann', role, q } },
         } as unknown as RootScreenProps<'PaymentsUnderName'>)}
       />,
     ),
@@ -187,6 +192,7 @@ it('retains loan and goods labels, missing dates, and phone reading order', () =
   });
   state.mobile = true;
   draw();
+  expect(host.textContent).toContain('Date not given in the filing');
   expect(host.textContent).toContain('Loan — reported on its own schedule, not a donation');
   expect(host.textContent).toContain('DONATED GOODS OR SERVICES');
   const payment = host.querySelector('[role="listitem"]')!;
@@ -195,11 +201,12 @@ it('retains loan and goods labels, missing dates, and phone reading order', () =
   );
 });
 
-it('shows the existing error after a failed next-page read and retries the complete reading', () => {
+it('keeps loaded payments after a failed next-page read and retries the complete reading', () => {
   open({ hasNextPage: true, isFetchNextPageError: true });
-  expect(host.textContent).toContain(LOAD_ERROR);
+  expect(host.textContent).toContain(LOAD_MORE_ERROR);
+  expect(host.querySelectorAll('[role="listitem"]')).toHaveLength(29);
   const more = [...host.querySelectorAll('[role="button"]')].find(
-    (b) => b.textContent === 'Show more payments',
+    (b) => b.textContent === 'Try again',
   ) as HTMLElement;
   act(() => more.click());
   expect(refetch).toHaveBeenCalledTimes(1);
@@ -214,7 +221,7 @@ describe('existing whole-page states', () => {
   });
   it('keeps the exact-spelling empty explanation', () => {
     open({ data: { pages: [page([], { state: 'not_reported' })] } });
-    expect(host.textContent).toContain('Nothing is filed under “Nystrom, Mary Ann” as spelled');
+    expect(host.textContent).toContain('No matching payments under “Nystrom, Mary Ann”');
     expect(host.textContent).toContain(NOTHING_FILED_WHY);
   });
   it('distinguishes unavailable records from an empty name', () => {
@@ -226,4 +233,93 @@ describe('existing whole-page states', () => {
     open({ data: undefined, isError: true });
     expect(host.textContent).toContain(LOAD_ERROR);
   });
+});
+
+it('keeps a group count but withholds its subtotal when an amount is missing', () => {
+  const one = { ...rows[0], year: 2025, amount: '10.0000' };
+  open({ data: { pages: [page([one, { ...one, amount: null }])] } });
+  expect(host.textContent).toContain('2 payments');
+  expect(host.textContent).toContain('Amount not given');
+  expect(host.textContent?.match(/\$10/g)).toHaveLength(1);
+});
+it.each(['contributor', 'vendor', 'independent_vendor'])(
+  'uses a role-specific empty explanation for %s',
+  (role) => {
+    open({ data: { pages: [page([])] } });
+    draw(role);
+    expect(host.textContent).toContain(
+      role === 'contributor'
+        ? 'received-payment records'
+        : role === 'vendor'
+          ? 'ordinary spending records'
+          : 'independent-spending records',
+    );
+    expect(host.textContent).toContain('No matching payments under “Nystrom, Mary Ann”');
+  },
+);
+it('retains rows after a refresh failure and provides a retry', () => {
+  open({ isError: true });
+  expect(host.textContent).toContain(REFRESH_ERROR);
+  expect(host.querySelectorAll('[role="listitem"]')).toHaveLength(29);
+  const retry = [...host.querySelectorAll('[role="button"]')].find(
+    (b) => b.textContent === 'Try again',
+  ) as HTMLElement;
+  act(() => retry.click());
+  expect(refetch).toHaveBeenCalledTimes(1);
+});
+it('does not fire two continuation requests for rapid repeated clicks', async () => {
+  let finish: () => void = () => {};
+  fetchMore.mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  open({ hasNextPage: true });
+  const more = [...host.querySelectorAll('[role="button"]')].find(
+    (b) => b.textContent === 'Show more payments',
+  ) as HTMLElement;
+  act(() => {
+    more.click();
+    more.click();
+  });
+  expect(fetchMore).toHaveBeenCalledTimes(1);
+  await act(async () => finish());
+});
+
+it('does not merge unidentified filers or claim how many committees they represent', () => {
+  const unknown = { ...rows[0], filerRegistrationNumber: null, amount: '23.0000' };
+  open({ data: { pages: [page([unknown, unknown])] } });
+  expect(host.querySelectorAll('[aria-level="3"]')).toHaveLength(2);
+  expect(host.querySelector('[role="status"]')?.textContent).toBe('2 payments');
+  expect(host.textContent).toContain('No registration number in the file');
+  expect(host.textContent).not.toContain('$46');
+});
+
+it('returns to the original search after opening an exact-name result', () => {
+  open();
+  const savedLink = routePath.moneyPaymentsUnderName('Nystrom, Mary Ann', 'contributor', 'Nystrom');
+  const reloaded = stateFromPathname(savedLink)!.routes[1].params as { role: string; q: string };
+  draw(String(reloaded.role), String(reloaded.q));
+  const back = host.querySelector('a[href="/money/search?q=Nystrom"]') as HTMLAnchorElement;
+  expect(back).not.toBeNull();
+  act(() => back.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
+  expect(navigate).toHaveBeenCalledWith('MoneySearch', { q: 'Nystrom' });
+  expect(host.textContent).toContain('Nystrom, Mary Ann');
+});
+
+it('uses the same original search in the no-matching-payments action', () => {
+  open({ data: { pages: [page([])] } });
+  draw('contributor', 'Nystrom');
+  const action = [...host.querySelectorAll('a')].find(
+    (node) => node.textContent === 'Search another name',
+  )!;
+  expect(action.getAttribute('href')).toBe('/money/search?q=Nystrom');
+  act(() => action.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
+  expect(navigate).toHaveBeenCalledWith('MoneySearch', { q: 'Nystrom' });
+});
+
+it('falls back to the exact name for links that did not start at name search', () => {
+  open();
+  expect(host.querySelector('a[href="/money/search?q=Nystrom%2C%20Mary%20Ann"]')).not.toBeNull();
 });

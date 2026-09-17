@@ -595,6 +595,7 @@ type CommitteeRegisterPayload = {
  */
 type CommitteePaymentsPayload = {
   state?: string | null;
+  fetched_at?: string | null;
   payments?:
     | {
         contributor?: string | null;
@@ -614,7 +615,7 @@ type CommitteePaymentsPayload = {
         purpose?: string | null;
       }[]
     | null;
-  page?: { total_payments?: number | null } | null;
+  page?: { total_payments?: number | null; has_more?: boolean } | null;
   linkable_registration_numbers?: string[] | null;
 };
 
@@ -847,13 +848,8 @@ async function committeeConfirmation(registrationNumber: string) {
   }
 }
 
-/**
- * One page of a committee's payments, or `null` where the read failed.
- *
- * A payments read is an addition to a page that already reads correctly, so
- * losing it serves the committee's identity and period with the list's own
- * failed-read words rather than taking the address down.
- */
+/** The caller handles report and payment failures separately, retaining either
+ * successful answer and declaring a missing committee only after both return 404. */
 async function committeePayments(
   registrationNumber: string,
   options: { direction: "received" | "made"; year: number; limit: number },
@@ -865,13 +861,9 @@ async function committeePayments(
     limit: String(options.limit),
     offset: "0",
   });
-  try {
-    return await getApiData<CommitteePaymentsPayload>(
-      `/committees/${encodeURIComponent(registrationNumber)}/payments?${params.toString()}`,
-    );
-  } catch {
-    return null;
-  }
+  return getApiData<CommitteePaymentsPayload>(
+    `/committees/${encodeURIComponent(registrationNumber)}/payments?${params.toString()}`,
+  );
 }
 
 async function committeeContent(
@@ -940,7 +932,7 @@ async function committeePaymentsContent(
   // Neither read needs the other's answer, so they run together. This address
   // used to wait for the figures before asking for the rows, which added the
   // whole payments round trip to the first response for nothing (issue 2024).
-  const [money, payments] = await Promise.all([
+  const [reportRead, paymentsRead] = await Promise.allSettled([
     committeeFinance(registrationNumber, year),
     committeePayments(registrationNumber, {
       direction,
@@ -948,15 +940,35 @@ async function committeePaymentsContent(
       limit: FIRST_PAYMENTS_LIMIT,
     }),
   ]);
+  if (
+    reportRead.status === "rejected" &&
+    reportRead.reason instanceof RecordNotFound &&
+    paymentsRead.status === "rejected" &&
+    paymentsRead.reason instanceof RecordNotFound
+  ) {
+    throw reportRead.reason;
+  }
+  const reportUnavailable = reportRead.status === "rejected";
+  const money =
+    reportRead.status === "fulfilled"
+      ? reportRead.value
+      : {
+          registration_number: registrationNumber,
+          year,
+        };
+  const payments =
+    paymentsRead.status === "fulfilled" ? paymentsRead.value : null;
   const linkable = new Set<string>(
     payments?.linkable_registration_numbers ?? [],
   );
-  const data: PageDataEntry[] = [
-    {
-      key: committeeMoneyQueryKey(registrationNumber, year),
-      payload: money,
-    },
-  ];
+  const data: PageDataEntry[] = reportUnavailable
+    ? []
+    : [
+        {
+          key: committeeMoneyQueryKey(registrationNumber, year),
+          payload: money,
+        },
+      ];
   const failedPayments = paymentsUnavailable(payments?.state);
   if (payments && !failedPayments) {
     data.push({
@@ -969,13 +981,14 @@ async function committeePaymentsContent(
     });
   }
   return {
-    noStore: failedPayments,
+    noStore: failedPayments || reportUnavailable,
     data,
     metadata: committeeMoneyPageMetadata(slug, "payments", {
       name: committeeSnapshotName(money, registrationNumber),
-      canonicalSlug:
-        committeeSnapshotPath(money, registrationNumber).split("/").pop() ??
-        slug,
+      canonicalSlug: reportUnavailable
+        ? slug
+        : (committeeSnapshotPath(money, registrationNumber).split("/").pop() ??
+          slug),
     }),
     snapshot: renderPageSnapshot(
       committeePaymentsPageSnapshot(
@@ -1020,8 +1033,11 @@ async function committeePaymentsContent(
                 )
               : [],
           totalPayments: payments?.page?.total_payments ?? null,
+          hasMore: payments?.page?.has_more,
+          fetchedAt: payments?.fetched_at,
         },
         tab,
+        reportUnavailable,
       ),
     ),
   };

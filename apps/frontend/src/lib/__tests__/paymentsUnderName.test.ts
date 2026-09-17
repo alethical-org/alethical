@@ -108,7 +108,7 @@ describe('the page is a spelling, never an organisation', () => {
   it('says nothing about a person when a spelling matches nothing', () => {
     const title = nothingFiledTitle('Aguirre Printing');
     expect(title).toContain('“Aguirre Printing”');
-    expect(title).toContain('as spelled');
+    expect(title).toContain('No matching payments under');
   });
 });
 
@@ -118,16 +118,16 @@ describe('no total across committees, in any form', () => {
   // would set one period against another (rule 12).
   //
   it('says out loud that there is no total, and why', () => {
-    expect(LIST_NOTE).toContain('There is no total');
-    expect(LIST_NOTE).toContain('different filing calendars');
+    expect(LIST_NOTE).toContain('we do not add amounts across committees or years');
+    expect(LIST_NOTE).toContain('different schedules');
   });
 
   // The one figure a reader could mistake for a claim about the world. It is a
   // count of rows and committees, never money.
   it('counts payments and committees, never amounts', () => {
-    expect(paymentsShowingLine(9, 7, false)).toBe('9 payments, from 7 committees');
-    expect(paymentsShowingLine(1, 1, false)).toBe('1 payment, from 1 committee');
-    expect(paymentsShowingLine(1284, 96, false)).toBe('1,284 payments, from 96 committees');
+    expect(paymentsShowingLine(9, 7, false)).toBe('9 payments from 7 committees');
+    expect(paymentsShowingLine(1, 1, false)).toBe('1 payment from 1 committee');
+    expect(paymentsShowingLine(1284, 96, false)).toBe('1,284 payments from 96 committees');
   });
 });
 
@@ -143,8 +143,8 @@ describe('a capped list says only what it is showing', () => {
   });
 
   it('says the cap is ours and matches the order the server actually serves', () => {
-    expect(CAP_NOTE).toContain('the cap is ours');
-    expect(CAP_NOTE).toContain('newest first');
+    expect(CAP_NOTE).toContain('up to 250 payments at a time');
+    expect(CAP_NOTE).toContain('More records may remain');
     expect(ORDERED_NEWEST_FIRST).toBe('NEWEST FIRST');
     expect(PAYMENTS_UNDER_NAME_PAGE_SIZE).toBe(250);
   });
@@ -226,9 +226,9 @@ describe('rows', () => {
         payment({ filerRegistrationNumber: '20003', filerName: 'MN DFL State Central Committee' }),
       ]),
     ).toBe(2);
-    // A row carrying no number still counts, by the name the filing printed.
+    // A spelling cannot identify a filer when the registration is missing.
     expect(committeesInRows([payment({ filerRegistrationNumber: null, filerName: 'Anon' })])).toBe(
-      1,
+      null,
     );
   });
 });
@@ -236,3 +236,12 @@ describe('rows', () => {
 /** Keeps the role type referenced, so a rename cannot leave this file compiling
  *  against a type nothing uses. */
 export type _Role = PaymentNameRole;
+
+it.each([
+  ['contributor', '2 payments to 1 committee'],
+  ['vendor', '2 payments from 1 committee'],
+  ['independent_vendor', '2 payments from 1 spender'],
+] as const)('counts completed records in the right direction for %s', (role, expected) => {
+  expect(paymentsShowingLine(2, 1, false, role)).toBe(expected);
+  expect(paymentsShowingLine(2, null, false, role)).toBe('2 payments');
+});

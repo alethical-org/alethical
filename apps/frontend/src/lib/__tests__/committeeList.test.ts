@@ -66,22 +66,24 @@ describe('how many rows one numbered page holds', () => {
 describe('the count line', () => {
   it('counts the register live and dates it from the register’s own date', () => {
     expect(registerCountLine(1603, '2026-08-12')).toBe(
-      '1,603 REGISTERED FILERS · COUNTED FROM THE REGISTER AUG 12, 2026',
+      '1,603 registered filers · State register dated Aug 12, 2026',
     );
   });
 
   // `as_of` is a plain calendar date. Running one through a timezone conversion
   // would move it back a day, which is why this reads Aug 12 and not Aug 11.
   it('keeps the register’s date on its own day', () => {
-    expect(registerCountLine(1603, '2026-08-12')).toContain('AUG 12, 2026');
+    expect(registerCountLine(1603, '2026-08-12')).toContain('Aug 12, 2026');
   });
 
   it('prints the count with no date rather than an invented one', () => {
-    expect(registerCountLine(1603, null)).toBe('1,603 REGISTERED FILERS');
+    expect(registerCountLine(1603, null)).toBe('1,603 registered filers');
   });
 
-  it('prints nothing at all when no count is served', () => {
-    expect(registerCountLine(null, '2026-08-12')).toBeNull();
+  it('keeps a served date when no count is available', () => {
+    expect(registerCountLine(null, '2026-08-12')).toBe('State register dated Aug 12, 2026');
+    expect(registerCountLine(null, null)).toBeNull();
+    expect(registerCountLine(1, null)).toBe('1 registered filer');
   });
 });
 
@@ -178,12 +180,14 @@ describe('the empty state', () => {
   // every one of those pairs is a different organisation, so a nearest-match
   // suggestion would hand a reader the wrong organisation (#1661).
   it('rules out a nearest match out loud', () => {
-    expect(committeeEmptyWhy('all')).toContain('We do not offer a nearest match');
+    expect(committeeEmptyWhy('all')).toContain('do not guess corrections');
   });
 
-  it('offers dropping the filter only when one is applied', () => {
-    expect(committeeEmptyWhy('party_unit')).toContain('drop the filter');
-    expect(committeeEmptyWhy('all')).not.toContain('drop the filter');
+  it('distinguishes an empty register from a search without matches', () => {
+    expect(committeeEmptyWhy('party_unit', '')).toBe(
+      'Our copy of the register contains no entries in this category.',
+    );
+    expect(committeeEmptyWhy('all', 'Smith')).toContain('Try a shorter part of the name');
   });
 });
 
@@ -200,11 +204,12 @@ describe('the list note', () => {
   // No row carries an amount and nothing sorts by one: these filers file to
   // different calendars (grounded-answers rule 12).
   it('says why a list of many committees carries no dollar figures', () => {
-    expect(COMMITTEE_LIST_NOTE).toContain('no dollar figures');
-    expect(COMMITTEE_LIST_NOTE).toContain('different calendars');
+    expect(COMMITTEE_LIST_NOTE).toContain('leave amounts out of this list');
+    expect(COMMITTEE_LIST_NOTE).toContain('different schedules');
   });
 
-  it('says a row opens by its registration number, not its name', () => {
-    expect(COMMITTEE_LIST_NOTE).toContain('registration number');
+  it('explains where amounts and their dates can be read', () => {
+    expect(COMMITTEE_LIST_NOTE).toContain('each committee’s page');
+    expect(COMMITTEE_LIST_NOTE).toContain('dates they cover');
   });
 });

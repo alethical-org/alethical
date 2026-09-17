@@ -1173,10 +1173,16 @@ const styles = StyleSheet.create({
   logoLink: { alignSelf: 'center' },
   logoLinkPressed: { opacity: 0.72 },
   navRow: { paddingTop: 26, paddingBottom: 8, zIndex: 60 },
-  navBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  navBar: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: 12,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   navLinks: { flexDirection: 'row', alignItems: 'center', gap: 30 },
   navTriggerGroup: { flexDirection: 'row', alignItems: 'center', gap: 34 },
-  navMobileRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  navMobileRight: { flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 'auto' },
   // v2 dropdown triggers + panels
   navTriggerWrap: { position: 'relative', zIndex: 60 },
   navTrigger: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },

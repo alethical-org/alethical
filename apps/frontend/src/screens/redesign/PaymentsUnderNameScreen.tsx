@@ -1,5 +1,13 @@
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState, type ComponentProps } from 'react';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { MoneyListRow, MoneyListRows } from '../../components/campaignMoney/MoneyListRows';
@@ -7,11 +15,8 @@ import { Skeleton } from '../../components/Skeleton';
 import { usePaymentsUnderName } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
 import { committeeSlug, IN_KIND_CHIP } from '../../lib/committeeMoneyShared';
-import {
-  centralDateLabel,
-  RECORD_DOES_NOT_COVER,
-  RECORD_DOES_NOT_COVER_HEADING,
-} from '../../lib/moneyLanding';
+import { centralDateLabel } from '../../lib/moneyLanding';
+import { MONEY_LIST_COVERAGE, MONEY_LIST_COVERAGE_HEADING } from '../../lib/moneyListCopy';
 import {
   BACK_TO_RESULTS,
   CAP_HEADING,
@@ -22,7 +27,10 @@ import {
   INDEPENDENT_IS_A_SEPARATE_FILING,
   LIST_NOTE,
   LOAD_ERROR,
-  NOTHING_FILED_WHY,
+  nothingFiledWhy,
+  LOAD_ERROR_WHY,
+  LOAD_MORE_ERROR,
+  REFRESH_ERROR,
   ORDERED_NEWEST_FIRST,
   paymentNameRole,
   paymentsShowingLine,
@@ -97,12 +105,30 @@ export function PaymentsUnderNameScreen({
 }: RootScreenProps<'PaymentsUnderName'>) {
   const { isMobile, isTablet } = useResponsive();
   const name = route.params?.name ?? '';
+  const backQuery = route.params?.q ?? name;
   // The router refuses an address with no name or an unserved role, so a resolved
   // route always has both. Re-read here anyway rather than casting: this screen is
   // also reachable by an in-app navigate, which does not pass through the router.
   const role = paymentNameRole(route.params?.role);
 
   const list = usePaymentsUnderName(name, role);
+  const requestPending = useRef(false);
+  const [requestBusy, setRequestBusy] = useState(false);
+  const request = async (more: boolean) => {
+    if (requestPending.current || list.isFetching) return;
+    requestPending.current = true;
+    setRequestBusy(true);
+    try {
+      // A failed continuation can mean the release changed. Re-read the held
+      // pages first rather than joining records from two different releases.
+      await (more && !list.isFetchNextPageError
+        ? list.fetchNextPage({ cancelRefetch: false })
+        : list.refetch({ cancelRefetch: false }));
+    } finally {
+      requestPending.current = false;
+      setRequestBusy(false);
+    }
+  };
 
   // The pathname alone, without the query string: the tab-title store is keyed by
   // pathname and only writes the title when it matches `window.location.pathname`,
@@ -118,7 +144,7 @@ export function PaymentsUnderNameScreen({
   const rows = pages.flatMap((page) => page.payments);
   const linkable = new Set(pages.flatMap((page) => page.linkableRegistrationNumbers));
   const checkedOn = firstPage?.fetchedAt ? centralDateLabel(firstPage.fetchedAt) : null;
-  const backToSearch = routePath.moneySearch({ q: name });
+  const backToSearch = routePath.moneySearch({ q: backQuery });
 
   if (!role) {
     // Only reachable by an in-app navigate with a role we do not serve. Nothing to
@@ -129,15 +155,15 @@ export function PaymentsUnderNameScreen({
         <ScrollView contentContainerStyle={styles.page}>
           <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
 
-          <Container
-            style={[styles.main, isTablet && styles.mainTablet, isMobile && styles.mainMobile]}
-          >
+          <Container style={[styles.main, isMobile && styles.mainMobile]}>
             <View style={styles.card}>
               <Text accessibilityRole="header" aria-level={1} style={styles.h3}>
-                {nothingFiledTitle(name)}
+                This payment list is not available
               </Text>
-              <Text style={styles.explain}>{NOTHING_FILED_WHY}</Text>
-              <SearchAnotherName href={backToSearch} navigation={navigation} name={name} />
+              <Text style={styles.explain}>
+                Search for a name to open its available payment records
+              </Text>
+              <SearchAnotherName href={backToSearch} navigation={navigation} query={backQuery} />
             </View>
           </Container>
           <Footer />
@@ -153,16 +179,14 @@ export function PaymentsUnderNameScreen({
       <ScrollView contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
 
-        <Container
-          style={[styles.main, isTablet && styles.mainTablet, isMobile && styles.mainMobile]}
-        >
-          <Pressable
-            {...linkProps(backToSearch, () => navigation.navigate('MoneySearch', { q: name }))}
+        <Container style={[styles.main, isMobile && styles.mainMobile]}>
+          <FocusPressable
+            {...linkProps(backToSearch, () => navigation.navigate('MoneySearch', { q: backQuery }))}
             style={styles.backLink}
           >
             <BackChevron />
             <Text style={styles.backLabel}>{BACK_TO_RESULTS}</Text>
-          </Pressable>
+          </FocusPressable>
 
           <Text style={styles.eyebrow}>{paymentsUnderNameEyebrow(role)}</Text>
           <Text
@@ -180,11 +204,36 @@ export function PaymentsUnderNameScreen({
               covers — every row carries its own date (rule 12). */}
           <Text style={styles.stamp}>{filesLastCopiedLine(checkedOn).toUpperCase()}</Text>
 
+          <Text accessibilityLiveRegion="polite" role="status" style={styles.hidden}>
+            {list.isPending
+              ? 'Loading these payments'
+              : rows.length > 0
+                ? paymentsShowingLine(
+                    rows.length,
+                    committeesInRows(rows),
+                    Boolean(list.hasNextPage),
+                    role,
+                  )
+                : list.isError
+                  ? LOAD_ERROR
+                  : state === 'unavailable'
+                    ? RECORDS_UNAVAILABLE_TITLE
+                    : nothingFiledTitle(name)}
+          </Text>
+          {list.isError && rows.length > 0 && !list.isFetchNextPageError ? (
+            <View style={styles.refreshNotice}>
+              <Text accessibilityRole="alert" style={styles.explain}>
+                {REFRESH_ERROR}
+              </Text>
+              <RetryButton
+                onPress={() => void request(false)}
+                busy={requestBusy || list.isFetching}
+              />
+            </View>
+          ) : null}
           {list.isPending ? (
             <View style={styles.listLoading}>
-              <View role="status" aria-busy style={styles.hidden}>
-                <Text>Loading these payments</Text>
-              </View>
+              <Text style={styles.explain}>Loading these payments</Text>
               <MoneyListRows isMobile={isMobile}>
                 {[0, 1, 2, 3, 4, 5].map((index) => (
                   <MoneyListRow key={index} isMobile={isMobile} first={index === 0}>
@@ -199,9 +248,14 @@ export function PaymentsUnderNameScreen({
             </View>
           ) : list.isError && rows.length === 0 ? (
             <View style={styles.card}>
-              <Text accessibilityRole="alert" style={styles.explain}>
+              <Text accessibilityRole="alert" style={styles.h3}>
                 {LOAD_ERROR}
               </Text>
+              <Text style={styles.explain}>{LOAD_ERROR_WHY}</Text>
+              <RetryButton
+                onPress={() => void request(false)}
+                busy={requestBusy || list.isFetching}
+              />
             </View>
           ) : state === 'unavailable' ? (
             /* Our copy of the download did not answer. Never "nothing is filed":
@@ -209,12 +263,16 @@ export function PaymentsUnderNameScreen({
             <View style={styles.card}>
               <Text style={styles.h3}>{RECORDS_UNAVAILABLE_TITLE}</Text>
               <Text style={styles.explain}>{RECORDS_UNAVAILABLE_WHY}</Text>
+              <RetryButton
+                onPress={() => void request(false)}
+                busy={requestBusy || list.isFetching}
+              />
             </View>
           ) : rows.length === 0 ? (
             <View style={styles.card}>
               <Text style={styles.h3}>{nothingFiledTitle(name)}</Text>
-              <Text style={styles.explain}>{NOTHING_FILED_WHY}</Text>
-              <SearchAnotherName href={backToSearch} navigation={navigation} name={name} />
+              <Text style={styles.explain}>{nothingFiledWhy(role)}</Text>
+              <SearchAnotherName href={backToSearch} navigation={navigation} query={backQuery} />
             </View>
           ) : (
             <PaymentRows
@@ -224,21 +282,17 @@ export function PaymentsUnderNameScreen({
               role={role}
               linkable={linkable}
               hasNextPage={Boolean(list.hasNextPage)}
-              isFetchingNextPage={list.isFetchingNextPage}
-              onMore={() =>
-                void (list.isFetchNextPageError ? list.refetch() : list.fetchNextPage())
-              }
+              isFetchingNextPage={list.isFetching || requestBusy}
+              onMore={() => void request(true)}
               loadMoreError={list.isFetchNextPageError}
               navigation={navigation}
             />
           )}
 
           <View style={styles.notCoveredBox}>
-            <Text style={styles.notCoveredLabel}>
-              {RECORD_DOES_NOT_COVER_HEADING.toUpperCase()}
-            </Text>
+            <Text style={styles.notCoveredLabel}>{MONEY_LIST_COVERAGE_HEADING.toUpperCase()}</Text>
             <View style={styles.notCoveredList}>
-              {RECORD_DOES_NOT_COVER.map((line) => (
+              {MONEY_LIST_COVERAGE.map((line) => (
                 <Text key={line} style={styles.notCoveredLine}>
                   {line}
                 </Text>
@@ -255,19 +309,54 @@ export function PaymentsUnderNameScreen({
 function SearchAnotherName({
   href,
   navigation,
-  name,
+  query,
 }: {
   href: string;
   navigation: RootScreenProps<'PaymentsUnderName'>['navigation'];
-  name: string;
+  query: string;
 }) {
   return (
-    <Pressable
-      {...linkProps(href, () => navigation.navigate('MoneySearch', { q: name }))}
+    <FocusPressable
+      {...linkProps(href, () => navigation.navigate('MoneySearch', { q: query }))}
       style={styles.primaryButton}
     >
       <Text style={styles.primaryButtonLabel}>{SEARCH_ANOTHER_NAME}</Text>
-    </Pressable>
+    </FocusPressable>
+  );
+}
+
+function FocusPressable({
+  style,
+  ...props
+}: Omit<ComponentProps<typeof Pressable>, 'style'> & { style?: StyleProp<ViewStyle> }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <Pressable
+      {...props}
+      onFocus={(event) => {
+        setFocused(true);
+        props.onFocus?.(event);
+      }}
+      onBlur={(event) => {
+        setFocused(false);
+        props.onBlur?.(event);
+      }}
+      style={[style, focused && styles.focused]}
+    />
+  );
+}
+
+function RetryButton({ onPress, busy }: { onPress: () => void; busy: boolean }) {
+  return (
+    <FocusPressable
+      accessibilityRole="button"
+      onPress={onPress}
+      disabled={busy}
+      aria-busy={busy}
+      style={styles.primaryButton}
+    >
+      <Text style={styles.primaryButtonLabel}>{busy ? 'Loading…' : 'Try again'}</Text>
+    </FocusPressable>
   );
 }
 
@@ -295,16 +384,16 @@ export function PaymentRows({
   navigation: RootScreenProps<'PaymentsUnderName'>['navigation'];
 }) {
   const years = paymentsUnderNameYears(rows, hasNextPage);
-  const bodySize = isMobile ? 15 : isTablet ? 16 : 17;
+  const nameSize = isMobile ? 16 : 17;
+  const metaSize = isMobile ? 14 : 15;
   return (
-    <View>
+    <View style={styles.listWidth}>
       <View style={styles.listHead}>
         <Text style={styles.listCount}>
-          {paymentsShowingLine(rows.length, committeesInRows(rows), hasNextPage)}
+          {paymentsShowingLine(rows.length, committeesInRows(rows), hasNextPage, role)}
         </Text>
-        {!hasNextPage ? <Text style={styles.listSort}>{ORDERED_NEWEST_FIRST}</Text> : null}
       </View>
-      {years.map((year) => (
+      {years.map((year, yearIndex) => (
         <View key={year.year ?? 'unknown'} style={styles.yearSection}>
           <View style={styles.yearHeadingRow}>
             <Text
@@ -314,9 +403,12 @@ export function PaymentRows({
             >
               {year.year ?? UNKNOWN_FILING_YEAR}
             </Text>
-            {year.mayContinue ? <Text style={styles.yearWarning}>{YEAR_MAY_CONTINUE}</Text> : null}
+            <Text style={styles.yearCount}>{paymentsUnderNameYearCount(year, role)}</Text>
+            {!hasNextPage && yearIndex === 0 ? (
+              <Text style={styles.listSort}>{ORDERED_NEWEST_FIRST}</Text>
+            ) : null}
           </View>
-          <Text style={styles.yearCount}>{paymentsUnderNameYearCount(year, role)}</Text>
+          {year.mayContinue ? <Text style={styles.yearWarning}>{YEAR_MAY_CONTINUE}</Text> : null}
           <View style={styles.groups}>
             {year.groups.map((group) => {
               const header = paymentUnderNameRow(group.newest, role, linkable);
@@ -334,29 +426,34 @@ export function PaymentRows({
                           href={routePath.moneyCommittee(slug)}
                           onPress={() => navigation.push('CommitteeMoney', { slug })}
                           name={header.name}
-                          size={bodySize}
+                          size={nameSize}
                         />
                       ) : (
                         <Text
                           accessibilityRole="header"
                           aria-level={3}
-                          style={[styles.filerName, { fontSize: bodySize }]}
+                          style={[styles.filerName, { fontSize: nameSize }]}
                         >
                           {header.name}
                         </Text>
                       )}
-                      {kind || registration ? (
-                        <Text style={styles.filerMeta}>
-                          {[kind, registration ? filerRegistrationLabel(registration) : null]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </Text>
-                      ) : null}
+                      <Text style={styles.filerMeta}>
+                        {[
+                          kind,
+                          registration
+                            ? filerRegistrationLabel(registration)
+                            : 'No registration number in the file',
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </Text>
                     </View>
                     {group.payments.length > 1 ? (
                       <View style={styles.groupAmount}>
                         {group.subtotal !== null ? (
-                          <Text style={styles.subtotal}>{formatMoney(group.subtotal)}</Text>
+                          <Text style={[styles.subtotal, { fontSize: nameSize }]}>
+                            {formatMoney(group.subtotal)}
+                          </Text>
                         ) : null}
                         <Text style={styles.paymentCount}>
                           {groupPaymentCount(group.payments.length)}
@@ -367,7 +464,12 @@ export function PaymentRows({
                   <View role="list">
                     {group.payments.map((payment, index) => {
                       const row = paymentUnderNameRow(payment, role, linkable);
-                      const detail = role === 'contributor' ? payment.employer : payment.purpose;
+                      const detail =
+                        role === 'contributor'
+                          ? payment.employer
+                            ? `Employer: ${payment.employer}`
+                            : null
+                          : row.meta;
                       const receiptLabel =
                         role === 'contributor'
                           ? nonContributionReceiptLabel(payment.receiptType)
@@ -376,16 +478,16 @@ export function PaymentRows({
                         <Text
                           style={[
                             styles.paymentDate,
-                            { fontSize: bodySize },
+                            { fontSize: metaSize },
                             isMobile && styles.paymentDateMobile,
                           ]}
                         >
-                          {row.date ?? ''}
+                          {row.date ?? 'Date not given in the filing'}
                         </Text>
                       );
                       const amount = (
-                        <Text style={[styles.paymentAmount, { fontSize: bodySize }]}>
-                          {row.amount ?? ''}
+                        <Text style={[styles.paymentAmount, { fontSize: nameSize }]}>
+                          {row.amount ?? 'Amount not given'}
                         </Text>
                       );
                       const description = (
@@ -393,7 +495,7 @@ export function PaymentRows({
                           style={[styles.paymentDetail, isMobile && styles.paymentDetailMobile]}
                         >
                           {detail ? (
-                            <Text style={[styles.paymentPurpose, { fontSize: bodySize }]}>
+                            <Text style={[styles.paymentPurpose, { fontSize: metaSize }]}>
                               {detail}
                             </Text>
                           ) : null}
@@ -411,21 +513,14 @@ export function PaymentRows({
                           key={`${payment.recordNumber ?? index}-${index}`}
                           style={[styles.paymentRow, isMobile && styles.paymentRowMobile]}
                         >
-                          {isMobile ? (
-                            <>
-                              <View style={styles.paymentFirstLine}>
-                                {date}
-                                {amount}
-                              </View>
-                              {description}
-                            </>
-                          ) : (
-                            <>
+                          <View style={styles.paymentText}>
+                            <View style={styles.paymentFirstLine}>
                               {date}
-                              {description}
-                              {amount}
-                            </>
-                          )}
+                              {isMobile ? amount : null}
+                            </View>
+                            {description}
+                          </View>
+                          {!isMobile ? amount : null}
                         </View>
                       );
                     })}
@@ -443,21 +538,22 @@ export function PaymentRows({
           <Text style={styles.capNote}>{CAP_NOTE}</Text>
           {loadMoreError ? (
             <Text accessibilityRole="alert" style={styles.capNote}>
-              {LOAD_ERROR}
+              {LOAD_MORE_ERROR}
             </Text>
           ) : null}
           <View style={styles.capActions}>
-            <Pressable
+            <FocusPressable
               onPress={onMore}
               accessibilityRole="button"
               aria-disabled={isFetchingNextPage}
               disabled={isFetchingNextPage}
+              aria-busy={isFetchingNextPage}
               style={styles.capButton}
             >
               <Text style={styles.capButtonLabel}>
-                {isFetchingNextPage ? 'Loading…' : CAP_NEXT_LABEL}
+                {isFetchingNextPage ? 'Loading…' : loadMoreError ? 'Try again' : CAP_NEXT_LABEL}
               </Text>
-            </Pressable>
+            </FocusPressable>
           </View>
         </View>
       ) : null}
@@ -500,8 +596,9 @@ function FilerLink({
 const styles = StyleSheet.create({
   page: { flexGrow: 1 },
   main: { paddingTop: 28, paddingBottom: 64 },
-  mainMobile: { paddingTop: 18, paddingHorizontal: 20 },
-  mainTablet: { paddingHorizontal: 32 },
+  mainMobile: { paddingTop: 18 },
+  listWidth: { maxWidth: 1100 },
+  refreshNotice: { marginTop: 20, gap: 12 },
   backLink: {
     minHeight: 44,
     flexDirection: 'row',
@@ -521,7 +618,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 2.4,
-    color: t.colors.brand.base,
+    color: t.colors.text.greenOnLight,
   },
   h1: {
     marginTop: 12,
@@ -531,6 +628,7 @@ const styles = StyleSheet.create({
     lineHeight: 49,
     fontWeight: t.fontWeights.heavy,
     letterSpacing: -1,
+    ...({ overflowWrap: 'anywhere' } as object),
     color: t.colors.text.primary,
   },
   h1Tablet: { fontSize: 34, lineHeight: 41 },
@@ -573,6 +671,7 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.9,
     color: t.colors.text.muted,
+    marginLeft: 'auto',
   },
   listLoading: { marginTop: 14 },
   hidden: {
@@ -604,14 +703,11 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: t.colors.text.secondary,
   },
-  yearSection: { marginTop: 34 },
+  yearSection: { marginTop: 30 },
   yearHeadingRow: {
-    borderBottomWidth: 2,
-    borderBottomColor: t.colors.text.primary,
-    paddingBottom: 10,
+    paddingBottom: 4,
     flexDirection: 'row',
     alignItems: 'baseline',
-    justifyContent: 'space-between',
     gap: 12,
     flexWrap: 'wrap',
   },
@@ -621,17 +717,28 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     color: t.colors.text.primary,
   },
-  yearWarning: { fontFamily: t.typography.body, fontSize: 14, color: '#8f5a12', flexShrink: 1 },
-  yearCount: {
+  yearWarning: {
     marginTop: 10,
-    marginBottom: 14,
+    alignSelf: 'flex-start',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#f0d7a8',
+    backgroundColor: '#fff7ea',
+    fontFamily: t.typography.body,
+    fontSize: 13,
+    color: '#5a4410',
+    flexShrink: 1,
+  },
+  yearCount: {
     fontFamily: t.typography.body,
     fontSize: 15,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
     color: t.colors.text.secondary,
   },
-  groups: { gap: 14 },
+  groups: { gap: 12, marginTop: 14 },
   groupCard: {
     backgroundColor: '#fff',
     borderWidth: 1,
@@ -661,8 +768,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: t.colors.text.primary,
     flexShrink: 1,
+    ...({ overflowWrap: 'anywhere' } as object),
   },
-  filerNameLink: { color: '#0f7a45' },
+  filerNameLink: { color: t.colors.text.greenOnLight },
   filerMeta: {
     fontFamily: t.typography.body,
     fontSize: 14,
@@ -671,7 +779,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     color: t.colors.text.secondary,
   },
-  groupAmount: { alignItems: 'flex-end', gap: 4, paddingTop: 10 },
+  groupAmount: { alignItems: 'flex-end', gap: 4, paddingTop: 10, maxWidth: '100%' },
   subtotal: {
     fontFamily: t.typography.body,
     fontSize: 20,
@@ -688,35 +796,40 @@ const styles = StyleSheet.create({
   },
   paymentRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 16,
-    paddingVertical: 10,
+    alignItems: 'flex-start',
+    gap: 14,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: 'rgba(17,21,15,0.10)',
   },
-  paymentRowMobile: { flexDirection: 'column', gap: 6 },
+  paymentRowMobile: { gap: 6 },
+  paymentText: { flex: 1, minWidth: 0 },
   paymentFirstLine: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
     gap: 12,
     width: '100%',
   },
   paymentDate: {
-    width: 130,
     fontFamily: t.typography.body,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
     color: t.colors.text.primary,
   },
-  paymentDateMobile: { width: 'auto', flex: 1 },
-  paymentDetail: { flex: 1, minWidth: 0, gap: 5, alignItems: 'flex-start' },
+  paymentDateMobile: { flexShrink: 1 },
+  paymentDetail: { marginTop: 3, minWidth: 0, gap: 5, alignItems: 'flex-start' },
   paymentDetailMobile: { width: '100%' },
-  paymentPurpose: { fontFamily: t.typography.body, color: '#4f5651', lineHeight: 23 },
-  paymentAmount: {
-    minWidth: 80,
+  paymentPurpose: {
     fontFamily: t.typography.body,
-    fontWeight: '700',
+    color: '#2c322c',
+    lineHeight: 23,
+    ...({ overflowWrap: 'anywhere' } as object),
+  },
+  paymentAmount: {
+    flexShrink: 1,
+    fontFamily: t.typography.body,
+    fontWeight: '800',
     fontVariant: ['tabular-nums'],
     color: t.colors.text.primary,
     textAlign: 'right',
@@ -763,7 +876,7 @@ const styles = StyleSheet.create({
   },
   linkNote: {
     marginTop: 16,
-    marginHorizontal: 12,
+    marginHorizontal: 17,
     maxWidth: 960,
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.meta,

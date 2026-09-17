@@ -77,32 +77,17 @@ export function groupHeading(kind: NameSearchGroupKind): string {
  * told will infer, and the inferences available here are all wrong.
  */
 const GROUP_NOTES: Record<NameSearchGroupKind, string> = {
-  lobbyists: 'Everyone registered to lobby today, and the organisations each one represents',
-  principals: "Organisations named in the Board's lobbying spending file or current lobbyist list",
+  lobbyists: 'People currently registered to lobby, with the organizations they represent',
+  principals: 'Organizations named in the Board’s lobbying spending file or current lobbyist list',
   people:
-    'A person is a result only where we hold a record of them beyond these filings — the 200 ' +
-    'sitting legislators. Everyone else on a filing resolves to what they filed.',
+    'These results are sitting legislators with a profile on Alethical. A donor’s name alone does not create a profile.',
   committees:
-    'A committee carries a registration number, so its row opens a page about the committee ' +
-    'itself and that address survives a change of name. Two committees registered under one ' +
-    'person’s name are never added together — money moved between committees one person ' +
-    'controls is filed as a contribution in both, so a combined figure would count the same ' +
-    'dollars twice.',
-  gave:
-    'A row opens the payments filed under that exact spelling, and is deliberately not a ' +
-    'profile. We never join 2 spellings into one person: the records hold “Messinger, Alida”, ' +
-    '“Messinger, Alida R” and “Messinger, Alida Rockefelle” as 3 separate strings, and the same ' +
-    'file holds 2 spellings of another name that any rule loose enough to join the first 3 ' +
-    'would join to each other.',
+    'Each row opens a registered committee. Committees remain separate even when their names include the same person.',
+  gave: 'Each row opens payments filed under that exact spelling. Similar names are not combined.',
   got_paid:
-    'A name that only ever got paid carries no registration number, so it has no page about ' +
-    'it — a row opens the payments filed under that name, exactly as spelled here. The number ' +
-    'beside it counts payment records under that spelling, and it is never an amount.',
+    'Each row opens payments filed under that exact spelling. The count is payment records, not dollars.',
   got_paid_independent:
-    'A separate filing from the one above, and the 2 are never added: 491 rows of the ' +
-    'independent-spending file share a spender, name, amount and date with an ordinary ' +
-    'expenditure row, and whether that is one payment filed twice or 2 that coincide is not ' +
-    'established.',
+    'These records come from a separate file. Some may also appear in ordinary spending records, so the 2 files are not added together.',
 };
 
 export function groupNote(kind: NameSearchGroupKind): string {
@@ -123,10 +108,7 @@ export function groupCountLabel(total: number | null, atLeast: number | null): s
  *  200" is never read as a shrug. */
 export function countedUpToNote(countedUpTo: number | null): string | null {
   if (countedUpTo === null) return null;
-  return (
-    `We stop counting distinct names at ${formatCount(countedUpTo)}. A common name genuinely ` +
-    `matches thousands, and a ceiling printed as a total would be a figure we made up.`
-  );
+  return `We stopped counting after ${formatCount(countedUpTo)} distinct names. More matches exist.`;
 }
 
 /** "9 payments filed under this name" — a count of records, never an amount. */
@@ -165,7 +147,7 @@ export function seeAllCommitteesLabel(total: number | null, hasMore: boolean): s
   return `See all ${formatCount(total)} ${total === 1 ? 'committee' : 'committees'}`;
 }
 
-export const NAME_SEARCH_PLACEHOLDER = 'Search any name — people, committees, who got paid';
+export const NAME_SEARCH_PLACEHOLDER = 'Search any name: people, committees, who got paid';
 
 /** The heading. The query is quoted rather than standing alone as the heading, so
  *  a screen reader announces what the page is before what was typed. */
@@ -177,17 +159,16 @@ export function nameSearchHeading(query: string): string {
 /** The list's footnote, printed under the groups as the drawing places it
  *  ("Money lists.dc.html", issue #1946) — so it says "above", never "below". */
 export const NAME_SEARCH_MATCHED_ON =
-  'Matched on the name as it was filed, exactly as typed. Each group above is counted on its ' +
-  'own and the counts are never added: 2 of them come from 2 separate filings whose rows ' +
-  'overlap.';
+  'Names are matched as filed, using the spelling you typed. Each group is counted separately. ' +
+  'The counts are not added because some records overlap.';
 
 /** Nothing typed yet. Not an error and not "no matches" — the field simply has
  *  nothing to search on. */
 export const NAME_SEARCH_EMPTY_QUERY_TITLE = 'Type a name to search';
 
 export const NAME_SEARCH_EMPTY_QUERY_WHY =
-  'This searches Minnesota state campaign filings by the name each record was filed under — a ' +
-  'legislator, a committee, a party unit, a donor, or a business that got paid. It also searches the Board’s current lobbyist list and yearly principal spending file.';
+  'This searches campaign records by a legislator’s, committee’s, donor’s, or recipient’s filed name. ' +
+  'It also searches the Board’s current lobbyist list and yearly principal spending file.';
 
 /** Below the index's floor. A served state, not an error: a trigram index holds
  *  no whole trigram for a 2-character query, so searching on one would fall back
@@ -199,11 +180,7 @@ export function tooShortTitle(minLength: number | null): string {
 
 export function tooShortWhy(minLength: number | null): string {
   const floor = minLength ?? 3;
-  return (
-    `A shorter piece of text has nothing for the name index to match on, so we do not search ` +
-    `on it. Type ${floor} or more characters of the name as it was filed. This is a limit of ` +
-    `ours, and says nothing about what is in the records.`
-  );
+  return `Enter at least ${floor} characters of the name. Shorter searches are not supported.`;
 }
 
 /** Nothing carried that spelling. A fact about the spelling and our records,
@@ -211,13 +188,11 @@ export function tooShortWhy(minLength: number | null): string {
  *  agency nor a reason. */
 export function noMatchTitle(query: string): string {
   const trimmed = query.trim();
-  return trimmed ? `Nothing is filed under “${trimmed}”` : 'Nothing is filed under that name';
+  return trimmed ? `No matching names for “${trimmed}”` : 'No matching names';
 }
 
 export const NO_MATCH_WHY =
-  'Names are searched as they were filed, and spellings vary between filings — try a shorter ' +
-  'part of the name. We do not offer a nearest match: names here differ from each other by a ' +
-  'single character often enough that a guess would put you on the wrong organisation.';
+  'Try a shorter part of the name or a different spelling. We search names as they were filed and do not guess corrections.';
 
 export const BROWSE_ALL_COMMITTEES = 'Browse all committees';
 
@@ -226,11 +201,10 @@ export const BROWSE_ALL_COMMITTEES = 'Browse all committees';
  *  separate copies of Minnesota's data and one missing copy must not blank the
  *  groups that do not depend on it. */
 export const GROUP_UNAVAILABLE =
-  'We could not search this part of our records just now. A gap on our side, not a statement ' +
-  'about anyone’s giving.';
+  'We could not search this part of our records just now. This does not mean there are no matching records.';
 
 /** What one group says when it is served and holds nothing. */
-export const GROUP_EMPTY = 'Nothing here carries that spelling.';
+export const GROUP_EMPTY = 'Nothing here carries that spelling';
 
 /**
  * What the page says above results it is holding because a recheck failed.
@@ -248,8 +222,7 @@ export const GROUP_EMPTY = 'Nothing here carries that spelling.';
  * way. No date: the served answer carries no checked-on stamp to print.
  */
 export const HELD_RESULTS_NOTE =
-  'We could not reach our own data service just now, so these are the last results we ' +
-  'accepted for this name — held until it answers rather than expiring on a timer.';
+  'We couldn’t refresh these results. The last results loaded for this name are still shown.';
 
 /**
  * Whether the whole answer has anything to show. Used to choose between the
@@ -276,9 +249,7 @@ export function everyGroupWasSearched(groups: readonly { state: string }[]): boo
 export const NOT_ALL_SEARCHED_TITLE = 'We could not search all of these records just now';
 
 export const NOT_ALL_SEARCHED_WHY =
-  'Part of our copy of Minnesota’s files did not answer, so an empty result here is not a ' +
-  'statement that nothing is filed under that name. This is a gap on our side. Try again in a ' +
-  'moment.';
+  'Part of our records was unavailable. We cannot tell whether that part contains a match.';
 
 export function lobbyingSearchMeta(
   row:

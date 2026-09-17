@@ -29,6 +29,8 @@ import {
   paymentsTitle,
   receivedRowMeta,
   showingLine,
+  reportPeriodLine,
+  reportPeriodDetail,
 } from '../committeePaymentsPage';
 import {
   COMMITTEE_TAB_LABELS,
@@ -579,39 +581,43 @@ describe('the payments view', () => {
   });
 
   it('says how much of the population is showing, from a measured count', () => {
-    expect(showingLine(250, 1284)).toBe('Showing 250 of 1,284 payments named');
-    expect(showingLine(41, 41)).toBe('41 payments named in this period');
-    expect(showingLine(1, 1)).toBe('1 payment named in this period');
+    expect(showingLine(250, 1284, 2026)).toBe('Showing 250 of 1,284 payments for filing year 2026');
+    expect(showingLine(41, 41, 2026)).toBe('41 payments listed for filing year 2026');
+    expect(showingLine(1, 1, 2026)).toBe('1 payment listed for filing year 2026');
     // No served count, no claim.
-    expect(showingLine(50, null)).toBeNull();
+    expect(showingLine(50, null, 2026, true)).toBe('Showing 50 payments for filing year 2026');
   });
 
   it('owns its cap in plain words', () => {
-    expect(CAP_NOTE).toContain('the cap is ours, not the filing’s');
+    expect(CAP_NOTE).toContain('This limit is ours, not the filing’s');
+    expect(capNextLabel(50, null)).toBe('Show more payments');
     expect(capNextLabel(250, 1284)).toBe('Show the next 250');
     expect(capNextLabel(1250, 1284)).toBe('Show the next 34');
   });
 
-  it('the link note drops the threshold sentence on a ballot-question page', () => {
-    // The ordinary note names the threshold as the point a name becomes REQUIRED,
-    // rather than as a line below which nobody is named (#1755).
-    expect(listLinkNote('gave', false)).toContain('more than $200 in total for the year');
-    expect(listLinkNote('spent', false)).toContain(
-      'payments to them pass $200 in total for the year',
-    );
-    const explanation =
-      'A linked committee name opens its registered committee’s page. Other linked names open ' +
-      'payments filed under that exact spelling. A name alone does not identify a person or business.';
-    for (const tab of ['gave', 'spent'] as const) {
-      expect(listLinkNote(tab, true)).toBe(explanation);
-      expect(listLinkNote(tab, false).startsWith(explanation)).toBe(true);
+  it('names the correct donor threshold without claiming rows never add up', () => {
+    expect(listLinkNote('gave', false)).toContain('$200 or less');
+    expect(listLinkNote('gave', true)).toContain('$500 or less');
+    expect(listLinkNote('gave', true)).toContain('may name a smaller donor');
+    for (const ballot of [true, false]) {
+      expect(listLinkNote('spent', ballot)).not.toContain('$');
+      expect(listLinkNote('gave', ballot)).not.toContain('never sum');
     }
+  });
+  it('separates report dates from filing-year counts and never fabricates a start date', () => {
+    expect(reportPeriodLine('2026-07-20', null)).toBe('Report figures through Jul 20, 2026');
+    expect(reportPeriodLine('2026-07-20', '2026-01-01')).toBe(
+      'Report figures for Jan 1, 2026 – Jul 20, 2026',
+    );
+    expect(reportPeriodLine(null, '2026-01-01')).toBeNull();
+    expect(reportPeriodDetail('2026-01-01')).toContain('Board’s disclosure calendar');
+    expect(reportPeriodDetail(null)).toBe('The end date comes from the committee’s report');
   });
 
   it('an empty year’s list says which year, and that older payments stay put', () => {
     expect(emptyListTitle('gave', 2026)).toBe('No donors named for 2026');
     expect(emptyListTitle('spent', 2026)).toBe('No payments named for 2026');
-    expect(emptyListWhy(2026)).toContain('we do not show them under a 2026 heading');
+    expect(emptyListWhy(2026)).toContain('Records from another year are not shown under this year');
   });
 });
 

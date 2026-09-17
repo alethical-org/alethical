@@ -92,8 +92,8 @@ export const COMMITTEE_LIST_TITLE = 'Committees';
  *  one-line dek carries no terminal period (copy rule C, adopted 1 Sep 2026;
  *  issue #1946), and this line is one sentence alone on its line. */
 export const COMMITTEE_LIST_DEK =
-  'Everyone registered to raise or spend money in Minnesota state politics — candidate ' +
-  'committees, party units, and the committees and funds that give to them';
+  'Everyone registered to raise or spend money in Minnesota state politics: candidate ' +
+  'committees, party units, and political committees and funds';
 
 export const COMMITTEE_FIND_LABEL = 'Find a committee by name';
 
@@ -112,10 +112,11 @@ export const COMMITTEE_ORDER_LABEL = 'NAME A–Z';
  * timezone conversion moves it back a day.
  */
 export function registerCountLine(total: number | null, asOf: string | null): string | null {
-  if (total === null) return null;
-  const head = `${formatCount(total)} REGISTERED FILERS`;
+  const parts: string[] = [];
+  if (total !== null) parts.push(`${formatCount(total)} ${kindFilterNoun('all', total)}`);
   const day = formatDay(asOf);
-  return day ? `${head} · COUNTED FROM THE REGISTER ${day.toUpperCase()}` : head;
+  if (day) parts.push(`State register dated ${day}`);
+  return parts.length ? parts.join(' · ') : null;
 }
 
 /**
@@ -174,10 +175,12 @@ export function committeeRowMeta(row: {
  * rather than a name.
  */
 export const COMMITTEE_LIST_NOTE =
-  'Ordered by name, and a list of many committees carries no dollar figures — they file to ' +
-  'different calendars, so 2 rows side by side would set one period against another. Money is ' +
-  'on each committee’s own page, where the period it belongs to is stated. Every row opens by ' +
-  'its registration number, so a committee that changes its name keeps its address.';
+  'Committees are listed alphabetically. Dollar amounts appear on each committee’s page, ' +
+  'with the dates they cover. We leave amounts out of this list because committees report ' +
+  'on different schedules.';
+
+export const COMMITTEE_LIST_SOURCE =
+  'Campaign money reported to the Minnesota Campaign Finance and Public Disclosure Board';
 
 /**
  * The empty state's headline. The design's own version read "No all kinds match"
@@ -197,22 +200,16 @@ export function committeeEmptyTitle(query: string, filter: CommitteeKindFilter):
  * pairs is a different organisation, so a correction would quietly hand a reader
  * one organisation under another's name.
  */
-export function committeeEmptyWhy(filter: CommitteeKindFilter): string {
-  const shorter =
-    'Names are searched as they were filed, and spellings vary between filings — try a shorter ' +
-    'part of the name.';
-  const dropFilter = filter === 'all' ? '' : ' You can also drop the filter and search every kind.';
-  const noGuess =
-    ' We do not offer a nearest match: names here differ from each other by a single character ' +
-    'often enough that a guess would put you on the wrong organisation.';
-  return shorter + dropFilter + noGuess;
+export function committeeEmptyWhy(_filter: CommitteeKindFilter, query = 'search'): string {
+  return query.trim()
+    ? 'Try a shorter part of the name or a different spelling. We search names as they were filed and do not guess corrections.'
+    : 'Our copy of the register contains no entries in this category.';
 }
 
 /** What the page says when our copy of the register cannot be read. A gap on our
  *  side, never a claim that Minnesota registers nobody. */
 export const COMMITTEE_LIST_UNAVAILABLE =
-  'We could not read our copy of the Board’s register just now. This is a gap on our side, and ' +
-  'an empty list here is never a claim that Minnesota registers nobody.';
+  'This is a problem with our records, not a statement about who is registered.';
 
 /**
  * The React Query key one page of the register answers. Built here rather than

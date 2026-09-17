@@ -55,10 +55,10 @@ describe('all 5 groups are drawn, in the server’s own order', () => {
   // date with an ordinary expenditure row, and whether that is one payment filed
   // twice or 2 that coincide is not established (grounded-answers rule 12).
   it('says the 2 vendor groups are separate filings and are never added', () => {
-    expect(groupNote('got_paid_independent')).toContain('never added');
-    expect(NAME_SEARCH_MATCHED_ON).toContain('never added');
+    expect(groupNote('got_paid_independent')).toContain('not added');
+    expect(NAME_SEARCH_MATCHED_ON).toContain('not added');
     // Printed under the groups, so it points up at them, never down.
-    expect(NAME_SEARCH_MATCHED_ON).toContain('Each group above');
+    expect(NAME_SEARCH_MATCHED_ON).toContain('Each group is counted separately');
     expect(NAME_SEARCH_MATCHED_ON).not.toContain('below');
   });
 
@@ -67,11 +67,11 @@ describe('all 5 groups are drawn, in the server’s own order', () => {
   // the 2 kinds its rows are: rows that looked alike would promise a profile of a
   // business, which nothing in these records can support.
   it('says a payment name opens its payments and not a page about anybody', () => {
-    expect(groupNote('got_paid')).toContain('no page about it');
-    expect(groupNote('got_paid')).toContain('exactly as spelled');
-    expect(groupNote('gave')).toContain('deliberately not a profile');
-    expect(groupNote('gave')).toContain('opens the payments filed under that exact spelling');
-    expect(groupNote('committees')).toContain('page about the committee');
+    expect(groupNote('got_paid')).toContain('payments filed under that exact spelling');
+    expect(groupNote('gave')).toContain('Similar names are not combined');
+    expect(groupNote('gave')).toContain('opens payments filed under that exact spelling');
+    expect(groupNote('people')).toContain('A donor’s name alone does not create a profile');
+    expect(groupNote('committees')).toContain('opens a registered committee');
   });
 });
 
@@ -93,7 +93,7 @@ describe('a group’s count', () => {
   });
 
   it('says why a count stops, so "more than 200" is not read as a shrug', () => {
-    expect(countedUpToNote(200)).toContain('stop counting distinct names at 200');
+    expect(countedUpToNote(200)).toContain('stopped counting after 200 distinct names');
     expect(countedUpToNote(null)).toBeNull();
   });
 
@@ -136,18 +136,18 @@ describe('the page’s states', () => {
   // under it would fall back to reading all 583,152 contribution rows (#1486).
   it('says the index’s own floor rather than "nothing found"', () => {
     expect(tooShortTitle(3)).toBe('Type at least 3 characters');
-    expect(tooShortWhy(3)).toContain('This is a limit of ours');
-    expect(tooShortWhy(null)).toContain('3 or more characters');
+    expect(tooShortWhy(3)).toContain('Shorter searches are not supported');
+    expect(tooShortWhy(null)).toContain('at least 3 characters');
   });
 
   it('makes a no-match a fact about the spelling, and offers no guess', () => {
-    expect(noMatchTitle('aguire')).toBe('Nothing is filed under “aguire”');
-    expect(NO_MATCH_WHY).toContain('We do not offer a nearest match');
-    expect(NO_MATCH_WHY).toContain('try a shorter part of the name');
+    expect(noMatchTitle('aguire')).toBe('No matching names for “aguire”');
+    expect(NO_MATCH_WHY).toContain('do not guess corrections');
+    expect(NO_MATCH_WHY).toContain('Try a shorter part of the name');
   });
 
   it('tells an unreadable group apart from an empty one', () => {
-    expect(GROUP_UNAVAILABLE).toContain('gap on our side');
+    expect(GROUP_UNAVAILABLE).toContain('does not mean there are no matching records');
     expect(GROUP_EMPTY).toContain('Nothing here carries that spelling');
   });
 
@@ -157,7 +157,7 @@ describe('the page’s states', () => {
   });
 
   // The first build of this page collapsed the server's `not_reported` onto
-  // `unavailable`, so every zero-match group printed "a gap on our side" over a
+  // `unavailable`, so every zero-match group printed "a does not mean there are no matching records" over a
   // search that had run and found nothing. That is the missing-versus-zero
   // failure grounded-answers rule 12 forbids, in the one place a reader would
   // read it as our data being broken rather than as an answer.
@@ -176,15 +176,15 @@ describe('the page’s states', () => {
   // empty page whose groups did not all answer says we could not look instead.
   it('never claims nothing is filed when part of the records went unread', () => {
     expect(NOT_ALL_SEARCHED_TITLE).toContain('could not search all of these records');
-    expect(NOT_ALL_SEARCHED_WHY).toContain('not a statement that nothing is filed');
+    expect(NOT_ALL_SEARCHED_WHY).toContain('cannot tell whether that part contains a match');
   });
 
   // Held results stay on screen and say so. The sentence tracks the committee
   // page's `staleHoldNote`, which has said the same thing for months, so a reader
   // who sees both surfaces reads one explanation rather than two (issue #2048).
   it('says held results are held until the service answers, never that they timed out', () => {
-    expect(HELD_RESULTS_NOTE).toContain('last results we accepted');
-    expect(HELD_RESULTS_NOTE).toContain('held until it answers');
+    expect(HELD_RESULTS_NOTE).toContain('last results loaded for this name');
+    expect(HELD_RESULTS_NOTE).toContain('still shown');
     expect(HELD_RESULTS_NOTE).not.toContain('expired');
   });
 

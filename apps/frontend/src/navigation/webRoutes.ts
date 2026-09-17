@@ -38,7 +38,7 @@ type WebRouteTarget =
   | { kind: 'moneyCommitteeList'; params: Record<string, string> }
   | { kind: 'moneyByRace'; params: Record<string, string> }
   | { kind: 'moneySearch'; params: Record<string, string> }
-  | { kind: 'paymentsUnderName'; name: string; role: string }
+  | { kind: 'paymentsUnderName'; name: string; role: string; q?: string }
   | { kind: 'outsideSpending'; params: Record<string, string> }
   | { kind: 'privacy' }
   | { kind: 'adminUsers' }
@@ -369,7 +369,12 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     if (!name || !role) {
       return { kind: 'notFound', path: pathname };
     }
-    return { kind: 'paymentsUnderName', name, role };
+    return {
+      kind: 'paymentsUnderName',
+      name,
+      role,
+      ...(searchParams.has('q') ? { q: searchParams.get('q') ?? '' } : {}),
+    };
   }
 
   if (segments[0] === 'money' && segments[1] === 'lobbying') {
@@ -674,6 +679,7 @@ export function pathForRoute(activeRoute: {
         name: String(activeRoute.params?.name ?? ''),
         role: String(activeRoute.params?.role ?? ''),
       });
+      if (typeof activeRoute.params?.q === 'string') params.set('q', activeRoute.params.q);
       return `/money/payments?${params.toString()}`;
     }
     case 'CommitteeMoney':
@@ -910,7 +916,14 @@ export function stateFromPathname(pathname: string): WebNavigationState {
       return {
         routes: [
           homeTabs,
-          { name: 'PaymentsUnderName', params: { name: target.name, role: target.role } },
+          {
+            name: 'PaymentsUnderName',
+            params: {
+              name: target.name,
+              role: target.role,
+              ...(target.q !== undefined ? { q: target.q } : {}),
+            },
+          },
         ],
         index: 1,
       };

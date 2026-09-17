@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
@@ -10,8 +10,8 @@ import { theme as t } from '../../theme/tokens';
  * committees list and the search results page ("Campaign money IA.dc.html" §02:
  * "one field that takes a person or an organisation").
  *
- * One component rather than 3 so the field cannot look or behave differently on
- * the page that offers it and the page that answers it. It holds only its own
+ * Shared behavior keeps searching consistent across the campaign-money surfaces.
+ * The list appearance adds its visible label, outline and clear control. It holds only its own
  * draft text and its focus ring; the applied query lives in the address, which is
  * what makes a search shareable (`.claude/rules/grounded-answers.md` rule 5).
  *
@@ -37,13 +37,14 @@ export function MoneyNameSearchField({
    *  committees list, where the page already has a bigger search story. */
   label,
   submitLabel = 'Search',
-  /** The landing needs the button; the results page commits as you type and does
-   *  not. */
+  /** Callers can keep a visible submit button alongside automatic searching. */
   showSubmitButton = false,
   maxWidth = 760,
   fieldHeight,
   fieldFontSize,
   stacked = false,
+  appearance = 'default',
+  accessibilityLabel,
 }: {
   value: string;
   onChangeText: (next: string) => void;
@@ -57,14 +58,25 @@ export function MoneyNameSearchField({
   fieldHeight?: number;
   fieldFontSize?: number;
   stacked?: boolean;
+  appearance?: 'default' | 'list';
+  accessibilityLabel?: string;
 }) {
+  const inputId = useId();
+  const listAppearance = appearance === 'list';
   const { focused, focusProps } = useFieldFocus();
   const inputRef = useRef<TextInput>(null);
   const [hovered, setHovered] = useState(false);
 
   return (
     <View style={[styles.wrap, { maxWidth }]}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+      {label ? (
+        <Text
+          nativeID={`${inputId}-label`}
+          style={[styles.label, listAppearance && styles.listLabel]}
+        >
+          {label}
+        </Text>
+      ) : null}
       <View style={[styles.row, fieldHeight != null && { gap: 12 }, stacked && styles.stackedRow]}>
         <Pressable
           accessible={false}
@@ -81,12 +93,15 @@ export function MoneyNameSearchField({
               borderRadius: 14,
             },
             stacked && styles.stackedBox,
+            listAppearance && styles.listBox,
             ...fieldFocusRing(focused),
           ]}
         >
           <MagnifierGlyph color={t.colors.text.faint} />
           <TextInput
             ref={inputRef}
+            nativeID={inputId}
+            aria-labelledby={label ? `${inputId}-label` : undefined}
             // The placeholder is the field's accessible name where no visible
             // label sits above it, matching the bill and legislator search boxes.
             value={value}
@@ -96,7 +111,7 @@ export function MoneyNameSearchField({
             onSubmitEditing={onSubmit}
             returnKeyType="search"
             placeholder={placeholder}
-            accessibilityLabel={label ?? placeholder}
+            accessibilityLabel={accessibilityLabel ?? label ?? placeholder}
             placeholderTextColor={t.colors.text.faint}
             autoCorrect={false}
             autoCapitalize="none"
@@ -108,6 +123,26 @@ export function MoneyNameSearchField({
               fieldOutlineReset,
             ]}
           />
+          {listAppearance && value ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Clear the field"
+              onPress={() => {
+                onChangeText('');
+                inputRef.current?.focus();
+              }}
+              style={styles.clearButton}
+            >
+              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
+                <Path
+                  d="M6 6 L18 18 M18 6 L6 18"
+                  stroke={t.colors.text.secondary}
+                  strokeWidth={2.2}
+                  strokeLinecap="round"
+                />
+              </Svg>
+            </Pressable>
+          ) : null}
         </Pressable>
         {showSubmitButton ? (
           <Pressable
@@ -122,6 +157,7 @@ export function MoneyNameSearchField({
                 borderRadius: 14,
                 paddingHorizontal: 32,
               },
+              listAppearance && styles.listButton,
               stacked && styles.stackedButton,
               hovered && styles.buttonHover,
             ]}
@@ -140,6 +176,28 @@ export function MoneyNameSearchField({
 
 const styles = StyleSheet.create({
   wrap: { width: '100%' },
+  listLabel: {
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    letterSpacing: 0,
+    textTransform: 'none',
+  },
+  listBox: {
+    borderWidth: 2,
+    borderColor: t.colors.text.primary,
+    minWidth: 0,
+    height: 52,
+    paddingHorizontal: 14,
+    ...(t.shadows.card as object),
+  },
+  listButton: { minHeight: 52, paddingHorizontal: 18, paddingVertical: 0 },
+  clearButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: -12,
+  },
   label: {
     marginBottom: 8,
     color: t.colors.text.secondary,

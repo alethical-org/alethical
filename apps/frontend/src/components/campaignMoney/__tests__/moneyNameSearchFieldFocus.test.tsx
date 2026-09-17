@@ -18,23 +18,26 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-function mount() {
+function mount(listAppearance = false) {
   const host = document.createElement('div');
   document.body.append(host);
   root = createRoot(host);
   const onSubmit = vi.fn();
+  const onChangeText = vi.fn();
   act(() => {
     root.render(
       <MoneyNameSearchField
         value="Smith"
-        onChangeText={() => {}}
+        onChangeText={onChangeText}
         onSubmit={onSubmit}
         placeholder="Search a name"
+        appearance={listAppearance ? 'list' : 'default'}
+        label={listAppearance ? 'Find a committee by name' : undefined}
         showSubmitButton
       />,
     );
   });
-  return { host, onSubmit, input: host.querySelector('input')! };
+  return { host, onSubmit, onChangeText, input: host.querySelector('input')! };
 }
 
 describe('the whole visible name field focuses its input', () => {
@@ -60,5 +63,20 @@ describe('the whole visible name field focuses its input', () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
     act(() => (host.querySelector('button,[role="button"]') as HTMLElement).click());
     expect(onSubmit).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('the list search field', () => {
+  it('keeps its label associated after typing and clearing without submitting', () => {
+    const { host, input, onSubmit, onChangeText } = mount(true);
+    const labelId = input.getAttribute('aria-labelledby');
+    expect(labelId).toBeTruthy();
+    expect(document.getElementById(labelId!)?.textContent).toBe('Find a committee by name');
+    const clear = host.querySelector('[aria-label="Clear the field"]') as HTMLElement;
+    expect(clear).not.toBeNull();
+    act(() => clear.click());
+    expect(onChangeText).toHaveBeenCalledWith('');
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(input);
   });
 });

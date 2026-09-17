@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -18,6 +18,7 @@ import {
   COMMITTEE_FIND_PLACEHOLDER,
   COMMITTEE_LIST_DEK,
   COMMITTEE_LIST_NOTE,
+  COMMITTEE_LIST_SOURCE,
   COMMITTEE_LIST_TITLE,
   COMMITTEE_LIST_UNAVAILABLE,
   COMMITTEE_ORDER_LABEL,
@@ -40,11 +41,8 @@ import {
   directoryTotalPages,
   loadedDirectoryPageIsOutOfRange,
 } from '../../lib/directoryPagination';
-import {
-  formatCount,
-  RECORD_DOES_NOT_COVER,
-  RECORD_DOES_NOT_COVER_HEADING,
-} from '../../lib/moneyLanding';
+import { formatCount } from '../../lib/moneyLanding';
+import { MONEY_LIST_COVERAGE, MONEY_LIST_COVERAGE_HEADING } from '../../lib/moneyListCopy';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
@@ -76,10 +74,18 @@ import { theme as t } from '../../theme/tokens';
  * its address (#1661).
  */
 export function CommitteeListScreen({ navigation, route }: RootScreenProps<'CommitteeList'>) {
-  const { isMobile } = useResponsive();
+  const { isMobile, isTablet } = useResponsive();
   const query = typeof route.params?.q === 'string' ? route.params.q : '';
   const filter = kindFilterFromParam(route.params?.kind);
   const page = directoryPageNumber(route.params?.page);
+  const scrollRef = useRef<ScrollView>(null);
+  const previousPage = useRef(page);
+  useEffect(() => {
+    if (previousPage.current !== page) {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      previousPage.current = page;
+    }
+  }, [page]);
 
   const [queryInput, setQueryInput] = useState(query);
   // Resync the draft when the address changes from outside the field: Back,
@@ -105,7 +111,8 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
     `${COMMITTEE_LIST_TITLE}${page > 1 ? ` — page ${page}` : ''} — campaign money | Alethical`,
   );
 
-  const register = list.data ?? null;
+  const waitingForThisList = list.isPending || list.isPlaceholderData;
+  const register = list.isPlaceholderData ? null : (list.data ?? null);
   // Only the plain register pages by a numbered address a search engine may list.
   // A typed name or a kind chip is one of unlimited query-string combinations, so
   // its pages get working controls and no shareable page addresses (§18).
@@ -124,7 +131,7 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
   // as it is on /bills and /legislators — never clamped to the last real page,
   // which would answer 200 for an address with nothing behind it.
   const outOfRange = loadedDirectoryPageIsOutOfRange({
-    isSuccess: list.isSuccess && served,
+    isSuccess: list.isSuccess && !list.isPlaceholderData && served,
     isDefaultDirectory: unfiltered,
     page,
     total: register?.total,
@@ -138,7 +145,7 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
 
   return (
     <PageBackground>
-      <ScrollView contentContainerStyle={styles.page}>
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
 
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
@@ -154,16 +161,18 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
           <Text
             accessibilityRole="header"
             aria-level={1}
-            style={[styles.h1, isMobile && styles.h1Mobile]}
+            style={[styles.h1, isTablet && styles.h1Tablet, isMobile && styles.h1Mobile]}
           >
             {COMMITTEE_LIST_TITLE}
           </Text>
-          <Text style={styles.dek}>{COMMITTEE_LIST_DEK}</Text>
+          <Text style={[styles.dek, isTablet && styles.dekTablet, isMobile && styles.dekMobile]}>
+            {COMMITTEE_LIST_DEK}
+          </Text>
 
           {/* The register's own size, counted live. A count of what we hold
               carries no freshness date under rule 12; the register's own date
               rides along anyway because it answers "how old is this list". */}
-          {list.isPending ? (
+          {waitingForThisList ? (
             <View style={styles.countRow} accessible accessibilityLabel="Loading the register">
               <Skeleton width={300} height={13} />
             </View>
@@ -180,7 +189,11 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
               onSubmit={() => applyQuery(queryInput.trim())}
               label={COMMITTEE_FIND_LABEL}
               placeholder={COMMITTEE_FIND_PLACEHOLDER}
-              maxWidth={560}
+              maxWidth={640}
+              appearance="list"
+              showSubmitButton
+              fieldFontSize={16}
+              stacked={isMobile}
             />
           </View>
 
@@ -202,9 +215,15 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
                   onPress={() => onSelectKind(option)}
                   accessibilityRole="button"
                   aria-pressed={active}
-                  style={[styles.chip, active && styles.chipActive]}
+                  style={[styles.chip, isMobile && styles.chipMobile, active && styles.chipActive]}
                 >
-                  <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>
+                  <Text
+                    style={[
+                      styles.chipLabel,
+                      isMobile && styles.chipLabelMobile,
+                      active && styles.chipLabelActive,
+                    ]}
+                  >
                     {kindFilterLabel(option)}
                   </Text>
                   {count !== null ? (
@@ -217,7 +236,7 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
             })}
           </View>
 
-          {list.isPending ? (
+          {waitingForThisList ? (
             <View style={styles.listLoading}>
               <View role="status" aria-busy style={styles.hidden}>
                 <Text>Loading committees</Text>
@@ -236,21 +255,25 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
             </View>
           ) : list.isError && rows.length === 0 ? (
             <View style={styles.card}>
-              <Text accessibilityRole="alert" style={styles.explain}>
-                We couldn’t load the register just now. This is a problem on our side and says
-                nothing about who is registered. Please try again in a moment.
+              <Text accessibilityRole="alert" style={styles.h3}>
+                We couldn’t load the register just now
               </Text>
+              <Text style={styles.explain}>This is a problem on our side. Please try again.</Text>
+              <RetryRegister onRetry={() => void list.refetch()} busy={list.isFetching} />
             </View>
           ) : !served ? (
             <View style={styles.card}>
-              <Text style={styles.h3}>{committeeEmptyTitle('', filter)}</Text>
+              <Text accessibilityRole="alert" style={styles.h3}>
+                We could not read our copy of the Board’s register just now
+              </Text>
               <Text style={styles.explain}>{COMMITTEE_LIST_UNAVAILABLE}</Text>
+              <RetryRegister onRetry={() => void list.refetch()} busy={list.isFetching} />
             </View>
           ) : rows.length === 0 ? (
-            <View style={styles.card}>
+            <View role="status" style={styles.card}>
               <Text style={styles.h3}>{committeeEmptyTitle(query, filter)}</Text>
-              <Text style={styles.explain}>{committeeEmptyWhy(filter)}</Text>
-              {filter !== 'all' ? (
+              <Text style={styles.explain}>{committeeEmptyWhy(filter, query)}</Text>
+              {filter !== 'all' && query.trim() ? (
                 <Pressable
                   onPress={() => onSelectKind('all')}
                   accessibilityRole="button"
@@ -262,7 +285,16 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
             </View>
           ) : (
             <View>
-              <View style={styles.listHead}>
+              {list.isError ? (
+                <View role="alert" style={styles.heldNote}>
+                  <Text style={styles.explain}>
+                    We couldn’t refresh the register. The last records loaded for this search are
+                    still shown.
+                  </Text>
+                  <RetryRegister onRetry={() => void list.refetch()} busy={list.isFetching} />
+                </View>
+              ) : null}
+              <View style={styles.listHead} aria-live="polite">
                 <Text style={styles.listCount}>
                   {committeeShowingLine(page, rows.length, register?.total ?? null, filter) ?? ''}
                 </Text>
@@ -291,18 +323,24 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
                     >
                       <View style={styles.rowText}>
                         <View style={styles.rowNameLine}>
-                          <Text style={styles.rowName}>{row.name}</Text>
-                          {closed ? (
-                            <Text style={styles.closedChip}>{closed.toUpperCase()}</Text>
-                          ) : null}
+                          <Text style={[styles.rowName, isMobile && styles.rowNameMobile]}>
+                            {row.name}
+                          </Text>
                         </View>
                         <Text style={styles.rowMeta}>{committeeRowMeta(row)}</Text>
+                        {isTablet && closed ? <Text style={styles.rowClosed}>{closed}</Text> : null}
                         {isMobile ? (
-                          <Text style={styles.rowRegMobile}>REG {row.registrationNumber}</Text>
+                          <Text style={styles.rowRegMobile}>
+                            REG {row.registrationNumber}
+                            {closed ? ` · ${closed}` : ''}
+                          </Text>
                         ) : null}
                       </View>
                       {isMobile ? null : (
                         <>
+                          {!isTablet && closed ? (
+                            <Text style={styles.closedChip}>{closed}</Text>
+                          ) : null}
                           <Text style={styles.rowReg}>REG {row.registrationNumber}</Text>
                           <RowArrow />
                         </>
@@ -334,17 +372,15 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
                     : undefined
                 }
               />
-
-              <Text style={styles.listNote}>{COMMITTEE_LIST_NOTE}</Text>
             </View>
           )}
 
+          <Text style={styles.listNote}>{COMMITTEE_LIST_NOTE}</Text>
+          <Text style={styles.sourceLine}>{COMMITTEE_LIST_SOURCE}</Text>
           <View style={styles.notCoveredBox}>
-            <Text style={styles.notCoveredLabel}>
-              {RECORD_DOES_NOT_COVER_HEADING.toUpperCase()}
-            </Text>
+            <Text style={styles.notCoveredLabel}>{MONEY_LIST_COVERAGE_HEADING.toUpperCase()}</Text>
             <View style={styles.notCoveredList}>
-              {RECORD_DOES_NOT_COVER.map((line) => (
+              {MONEY_LIST_COVERAGE.map((line) => (
                 <Text key={line} style={styles.notCoveredLine}>
                   {line}
                 </Text>
@@ -358,11 +394,30 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
   );
 }
 
+function RetryRegister({ onRetry, busy }: { onRetry: () => void; busy: boolean }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={busy}
+      onPress={onRetry}
+      style={styles.primaryButton}
+    >
+      <Text style={styles.primaryButtonLabel}>{busy ? 'Trying again…' : 'Try again'}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   page: { flexGrow: 1 },
   main: { paddingTop: 28, paddingBottom: 64 },
   mainMobile: { paddingTop: 18 },
-  backLink: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
+  backLink: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
+  },
   backLabel: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
@@ -375,7 +430,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 2.4,
-    color: t.colors.brand.base,
+    color: t.colors.text.greenOnLight,
   },
   h1: {
     marginTop: 12,
@@ -386,23 +441,26 @@ const styles = StyleSheet.create({
     letterSpacing: -1.2,
     color: t.colors.text.primary,
   },
-  h1Mobile: { fontSize: 30, lineHeight: 36, letterSpacing: -0.8 },
+  h1Tablet: { fontSize: 34, lineHeight: 39, letterSpacing: -1 },
+  h1Mobile: { fontSize: 28, lineHeight: 33, letterSpacing: -0.8 },
+  dekTablet: { fontSize: 16, lineHeight: 25 },
+  dekMobile: { fontSize: 15, lineHeight: 23 },
   dek: {
     marginTop: 12,
-    maxWidth: 760,
+    maxWidth: 820,
     fontFamily: t.typography.body,
-    fontSize: 18,
-    lineHeight: 28,
+    fontSize: 17,
+    lineHeight: 26,
     color: t.colors.text.secondary,
   },
   countRow: { marginTop: 14 },
   countLine: {
     marginTop: 14,
-    fontFamily: t.typography.mono,
-    fontSize: 11,
+    fontFamily: t.typography.body,
+    fontSize: 14,
     fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.9,
-    color: t.colors.text.muted,
+    fontVariant: ['tabular-nums'],
+    color: t.colors.text.greenOnLight,
   },
   findRow: { marginTop: 26 },
   chipRow: { marginTop: 20, flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
@@ -415,10 +473,12 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink14,
-    borderRadius: 999,
+    borderRadius: 11,
     paddingVertical: 9,
     paddingHorizontal: 15,
   },
+  chipMobile: { flexGrow: 1, flexBasis: '45%', justifyContent: 'center', paddingHorizontal: 9 },
+  chipLabelMobile: { fontSize: 13, flexShrink: 1 },
   chipActive: {
     backgroundColor: t.colors.text.primary,
     borderColor: t.colors.text.primary,
@@ -431,10 +491,10 @@ const styles = StyleSheet.create({
   },
   chipLabelActive: { color: t.colors.surfaces.base },
   chipCount: {
-    fontFamily: t.typography.mono,
-    fontSize: 11,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.6,
+    fontFamily: t.typography.body,
+    fontSize: 12,
+    fontWeight: t.fontWeights.heavy,
+    fontVariant: ['tabular-nums'],
     color: t.colors.text.muted,
   },
   chipCountActive: { color: t.colors.surfaces.s300 },
@@ -449,6 +509,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   listCount: {
+    fontVariant: ['tabular-nums'],
     fontFamily: t.typography.body,
     fontSize: 15,
     fontWeight: t.fontWeights.bold,
@@ -469,7 +530,9 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
+  rowNameMobile: { fontSize: 16 },
   rowMeta: {
+    fontVariant: ['tabular-nums'],
     marginTop: 4,
     fontFamily: t.typography.body,
     fontSize: 14.5,
@@ -479,22 +542,32 @@ const styles = StyleSheet.create({
   rowReg: {
     width: 96,
     textAlign: 'right',
-    fontFamily: t.typography.mono,
+    fontFamily: t.typography.body,
     fontSize: 12,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.5,
     color: t.colors.text.muted,
+    fontVariant: ['tabular-nums'],
   },
   rowRegMobile: {
     marginTop: 5,
-    fontFamily: t.typography.mono,
+    fontFamily: t.typography.body,
     fontSize: 12,
     fontWeight: t.fontWeights.medium,
     color: t.colors.text.muted,
+    fontVariant: ['tabular-nums'],
+  },
+  rowClosed: {
+    marginTop: 4,
+    fontFamily: t.typography.body,
+    fontSize: 13,
+    fontWeight: t.fontWeights.bold,
+    fontVariant: ['tabular-nums'],
+    color: t.colors.text.secondary,
   },
   closedChip: {
-    fontFamily: t.typography.mono,
-    fontSize: 9.5,
+    fontFamily: t.typography.body,
+    fontSize: 12,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.8,
     color: t.colors.text.secondary,
@@ -504,10 +577,26 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: 7,
     overflow: 'hidden',
+    fontVariant: ['tabular-nums'],
+  },
+  sourceLine: {
+    marginTop: 10,
+    maxWidth: 960,
+    fontFamily: t.typography.body,
+    fontSize: 14.5,
+    lineHeight: 23,
+    color: t.colors.text.muted,
+  },
+  heldNote: {
+    marginTop: 24,
+    padding: 18,
+    gap: 12,
+    borderRadius: 12,
+    backgroundColor: t.colors.surfaces.s200,
   },
   listNote: {
-    marginTop: 20,
-    maxWidth: 780,
+    marginTop: 30,
+    maxWidth: 960,
     fontFamily: t.typography.body,
     fontSize: 14.5,
     lineHeight: 22,
