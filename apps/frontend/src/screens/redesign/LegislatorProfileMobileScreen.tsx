@@ -18,6 +18,7 @@ import { profilePartyBadgeAppearance } from '../../theme/legislatorBadgeAppearan
 import { Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import { GoBackLink } from '../../components/GoBackLink';
+import { LinkArrowLabel } from '../../components/LinkArrow';
 import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';
 import { coAuthorCount, formatMonoDate, partyFull, plainBillSummary } from '../../lib/billDetail';
 import {
@@ -119,7 +120,7 @@ function statusSegments(status: string): number {
 }
 
 // ── shared inline components ────────────────────────────────────────────────
-// Inline text link with the "→" text glyph appended by the caller (house style).
+// Inline green text link with the approved drawn arrow.
 // Serves both an in-app destination (default) and an external one (`external`) —
 // the two calls below need different anchor behaviour, so the caller says which.
 function TextLink({
@@ -141,15 +142,14 @@ function TextLink({
       {...(external ? externalLinkProps(href, onPress) : linkProps(href, onPress))}
       {...hover}
     >
-      <Text
+      <LinkArrowLabel
+        label={label}
         style={[
           styles.textLink,
           { fontSize: size },
           hovered && { color: t.colors.brand.forest, textDecorationLine: 'underline' },
         ]}
-      >
-        {label}
-      </Text>
+      />
     </Pressable>
   );
 }
@@ -744,7 +744,7 @@ export function LegislatorProfileMobileScreen() {
                             ) : null}
                             {leg.profileUrl ? (
                               <TextLink
-                                label={`Official ${leg.chamber} profile →`}
+                                label={`Official ${leg.chamber} profile`}
                                 href={leg.profileUrl}
                                 onPress={() => openExternal(leg.profileUrl as string)}
                                 external

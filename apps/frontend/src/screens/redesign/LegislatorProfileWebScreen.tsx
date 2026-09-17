@@ -14,6 +14,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { theme as t } from '../../theme/tokens';
 import { GoBackLink } from '../../components/GoBackLink';
+import { LinkArrowLabel } from '../../components/LinkArrow';
 import { profilePartyBadgeAppearance } from '../../theme/legislatorBadgeAppearance';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { externalLinkProps, linkProps, pressInsideLink, routePath } from '../../navigation/links';
@@ -410,7 +411,7 @@ export function LegislatorProfileWebScreen() {
               ) : null}
               {legislator.profileUrl ? (
                 <SourceLink
-                  label={`Official ${chamberWord} profile →`}
+                  label={`Official ${chamberWord} profile`}
                   href={legislator.profileUrl}
                   onPress={() => openUrl(legislator.profileUrl!)}
                 />
@@ -931,7 +932,10 @@ function SourceLink({
   const [hovered, hover] = useHover();
   return (
     <Pressable {...externalLinkProps(href, onPress)} {...hover}>
-      <Text style={[styles.sourceLink, hovered && styles.sourceLinkHover]}>{label}</Text>
+      <LinkArrowLabel
+        label={label}
+        style={[styles.sourceLink, hovered && styles.sourceLinkHover]}
+      />
     </Pressable>
   );
 }

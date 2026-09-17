@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
+import { LinkArrowLabel } from '../LinkArrow';
 import { theme as t } from '../../theme/tokens';
 import { Bill, VoteEvent } from '../../data/types';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
@@ -384,7 +385,7 @@ function RecordLink({ url, onOpen }: { url: string; onOpen: (url: string) => voi
       {...hoverProps}
       style={[styles.recordLink, hovered && styles.recordLinkHover]}
     >
-      Official record <Text style={styles.recordArrow}>→</Text>
+      <LinkArrowLabel label="Official record" />
     </Text>
   );
 }
@@ -537,7 +538,6 @@ const styles = StyleSheet.create({
     color: t.colors.text.green,
   },
   recordLinkHover: { color: t.colors.brand.forest, textDecorationLine: 'underline' },
-  recordArrow: { fontWeight: t.fontWeights.regular },
   crossLegend: { marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 7 },
   crossLegendText: {
     fontFamily: t.typography.body,

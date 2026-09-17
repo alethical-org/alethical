@@ -15,6 +15,6 @@ describe('Search Legislators address link', () => {
   it('uses a real link to Find My Legislator with the approved words', () => {
     expect(source).toContain('...linkProps(routePath.findMyLegislator()');
     expect(source).toContain('Find your legislator by address');
-    expect(source).toContain('aria-hidden');
+    expect(source).toContain('<LinkArrowLabel');
   });
 });

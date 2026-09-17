@@ -78,6 +78,7 @@ import { citationSectionAnchor, citationSectionHref } from '../../lib/billText';
 import { NormalizedMotion, normalizeMemberName, normalizeMotion } from '../../lib/motionNormalize';
 import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import { GoBackLink } from '../../components/GoBackLink';
+import { LinkArrowLabel } from '../../components/LinkArrow';
 import { FullTextTab } from '../../components/billDetail/FullTextTab';
 import { SuggestedQuestionChip } from '../../components/billDetail/CitationCard';
 import { BillDetailWebScreen } from './BillDetailWebScreen';
@@ -246,9 +247,8 @@ function CircleCheck() {
 }
 
 // A tap/press-glowing text link (green, per the design's inline-link treatment).
-// With `arrow`, a trailing "→" (U+2192) is appended in the link's own font at its
-// size but weight 400 (the label stays 700) — a decorative, aria-hidden span so
-// screen readers announce the label alone.
+// With `arrow`, the approved drawn green arrow follows the label and stays with
+// its final word when the label wraps.
 function TextLink({
   label,
   href,
@@ -275,20 +275,26 @@ function TextLink({
     : { accessibilityRole: 'link' as const, onPress };
   return (
     <Pressable {...anchor} {...hover}>
-      <Text
-        style={[
-          styles.textLink,
-          { fontSize: size },
-          hovered && { color: t.colors.brand.forest, textDecorationLine: 'underline' },
-        ]}
-      >
-        {label}
-        {arrow ? (
-          <Text aria-hidden style={styles.linkArrow}>
-            {' →'}
-          </Text>
-        ) : null}
-      </Text>
+      {arrow ? (
+        <LinkArrowLabel
+          label={label}
+          style={[
+            styles.textLink,
+            { fontSize: size },
+            hovered && { color: t.colors.brand.forest, textDecorationLine: 'underline' },
+          ]}
+        />
+      ) : (
+        <Text
+          style={[
+            styles.textLink,
+            { fontSize: size },
+            hovered && { color: t.colors.brand.forest, textDecorationLine: 'underline' },
+          ]}
+        >
+          {label}
+        </Text>
+      )}
     </Pressable>
   );
 }
@@ -912,10 +918,7 @@ function BillDetailMobileScreen() {
                             onPress={() => jumpTo('actions')}
                             style={styles.phasedLink}
                           >
-                            {'See dates\u00A0'}
-                            <Text aria-hidden style={styles.phasedArrow}>
-                              →
-                            </Text>
+                            <LinkArrowLabel label="See dates" />
                           </Text>
                         </Text>
                       ) : null}
@@ -1481,7 +1484,7 @@ function ActionRow({
             <Text style={styles.undatedNoteText}>{row.note}</Text>
           </View>
         ) : null}
-        {onViewVotes ? <TextLink label="View votes →" size={15} onPress={onViewVotes} /> : null}
+        {onViewVotes ? <TextLink label="View votes" arrow size={15} onPress={onViewVotes} /> : null}
       </View>
     </View>
   );
@@ -1907,9 +1910,10 @@ function RecordLink({ url, onOpen }: { url: string; onOpen: (url: string) => voi
   return (
     <Pressable {...externalLinkProps(url, () => onOpen(url))}>
       {({ pressed }) => (
-        <Text style={[styles.recordLink, pressed && styles.recordLinkPressed]}>
-          Official record →
-        </Text>
+        <LinkArrowLabel
+          label="Official record"
+          style={[styles.recordLink, pressed && styles.recordLinkPressed]}
+        />
       )}
     </Pressable>
   );
@@ -1969,9 +1973,10 @@ function VersionRow({
         </View>
         {date ? <Text style={styles.versionDate}>{date}</Text> : null}
         {onPress ? (
-          <Text style={styles.versionLink}>
-            {isLaw ? 'Read the full law →' : 'Read the bill text →'}
-          </Text>
+          <LinkArrowLabel
+            label={isLaw ? 'Read the full law' : 'Read the bill text'}
+            style={styles.versionLink}
+          />
         ) : null}
       </View>
     </Pressable>
@@ -2431,10 +2436,6 @@ const styles = StyleSheet.create({
       ? ({ transitionProperty: 'color', transitionDuration: '0.15s' } as object)
       : null),
   },
-  // The "→" (U+2192) comes from an OS fallback font (Libre Franklin omits the
-  // glyph), whose baseline sits low against the link letters — nudge it up so it
-  // optically centers on the text to its left.
-  linkArrow: { fontWeight: t.fontWeights.regular, position: 'relative', top: -2 },
 
   // ask card
   askCard: {
@@ -2515,7 +2516,6 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
   },
   phasedLink: { fontWeight: t.fontWeights.bold, color: t.colors.text.green },
-  phasedArrow: { fontWeight: t.fontWeights.regular },
   // Same quiet caption weight as the phased-law one: it qualifies the status it
   // sits under rather than competing with it (#757).
   pointerCaption: {

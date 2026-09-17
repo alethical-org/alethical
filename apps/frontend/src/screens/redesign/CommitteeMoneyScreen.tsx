@@ -9,6 +9,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { contributionDetailRows, withContributionDetailRows } from '../../lib/contributionDetails';
 import { SharePopover } from '../../components/billDetail/SharePopover';
+import { GreenLinkArrow, LinkArrowLabel, linkArrowRow } from '../../components/LinkArrow';
 import {
   CommitteeDonations,
   GroupedOutsideSpending,
@@ -164,20 +165,6 @@ function BackChevron() {
       <Path
         d="M15 5 L8 12 L15 19"
         stroke={t.colors.text.secondary}
-        strokeWidth={2.2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
-
-function ForwardArrow({ color }: { color: string }) {
-  return (
-    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <Path
-        d="M5 12 H19 M14 7 L19 12 L14 17"
-        stroke={color}
         strokeWidth={2.2}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -557,10 +544,10 @@ function CommitteeBody({
                 onHoverIn={warmConfirmedFor}
                 style={[styles.seeAll, styles.confirmedLink]}
               >
-                <Text style={[styles.seeAllLabel, styles.confirmedLinkLabel]}>
-                  {confirmedMemberLinkLabel(nameableMember.fullName)}
-                </Text>
-                <ForwardArrow color={c.link} />
+                <LinkArrowLabel
+                  label={confirmedMemberLinkLabel(nameableMember.fullName)}
+                  style={[styles.seeAllLabel, styles.confirmedLinkLabel]}
+                />
               </Pressable>
             ) : null}
           </CheckedByBlock>
@@ -806,7 +793,7 @@ function MoneyInCard({
           <Pressable onPress={() => onSelectYear(otherYear)} accessibilityRole="button">
             <View style={styles.seeOtherYear}>
               <Text style={styles.seeOtherYearLabel}>See {otherYear}</Text>
-              <ForwardArrow color={t.colors.brand.base} />
+              <GreenLinkArrow />
             </View>
           </Pressable>
         </View>
@@ -970,7 +957,7 @@ function PaymentsSection({
                     <Text style={styles.seeAllLabel}>
                       {tab === 'gave' ? 'All received payments' : 'All expenditure payments'}
                     </Text>
-                    <ForwardArrow color={t.colors.brand.base} />
+                    <GreenLinkArrow />
                   </Pressable>
                 ))}
               </View>
@@ -1203,7 +1190,7 @@ function OutsideSpendingPanel({
           style={styles.seeAll}
         >
           <Text style={styles.seeAllLabel}>Show more payments</Text>
-          <ForwardArrow color={t.colors.brand.base} />
+          <GreenLinkArrow />
         </Pressable>
       ) : null}
       {first.sourceUrl ? (
@@ -1527,7 +1514,7 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   inlineLinks: { gap: 12 },
-  seeOtherYear: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  seeOtherYear: linkArrowRow,
   seeOtherYearLabel: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
@@ -1775,11 +1762,9 @@ const styles = StyleSheet.create({
     color: c.text,
   },
   seeAll: {
+    ...linkArrowRow,
     minHeight: 44,
     marginTop: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
     alignSelf: 'flex-start',
   },
   seeAllLabel: {

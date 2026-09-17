@@ -11,9 +11,9 @@
 > reviewing** screens in the RN/Expo codebase.
 >
 > **Scope — visual & interaction only.** Voice and copy are owned by `docs/design/ui-copy-guide.md`;
-> what a screen may *claim* is owned by `.claude/rules/grounded-answers.md` (a line must be true
+> what a screen may _claim_ is owned by `.claude/rules/grounded-answers.md` (a line must be true
 > before it can be on-brand). Exact token values are owned by `apps/frontend/src/theme/tokens.ts`
-> — this doc describes *character and intent*, never a parallel value sheet (it would drift;
+> — this doc describes _character and intent_, never a parallel value sheet (it would drift;
 > generate a value sheet from the file if one is ever needed).
 >
 > **Sources of truth:** `apps/frontend/src/theme/tokens.ts` + `theme/primitives.tsx` (implemented
@@ -34,7 +34,7 @@ credibility first.
   facts, not a consumer app selling excitement. When a choice trades credibility for flash,
   credibility wins.
 - **Calm chrome, confident content.** The interface is quiet so the information is loud. The
-  product's voice can be bold in *words* (`ui-copy-guide.md`), but the *surfaces* those words sit
+  product's voice can be bold in _words_ (`ui-copy-guide.md`), but the _surfaces_ those words sit
   on stay calm — bold headline, restrained page. The chrome never competes with the content.
 - **Clarity over density, but honest about volume.** Legislative data is dense; we make it
   scannable through hierarchy and whitespace, never by hiding how much there is.
@@ -52,7 +52,7 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   plain warm-neutral background on phone widths; green is the single brand accent, used with intent
   (brand fills, CTAs, links, focus), not sprinkled. Text is a
   near-black **green-tinted ink**, not pure black, so the page reads warm and calm. A purple accent
-  is reserved specifically for the "Grounded Ask" / AI affordance and focus — it is a *meaning*, not
+  is reserved specifically for the "Grounded Ask" / AI affordance and focus — it is a _meaning_, not
   decoration. A red ramp is reserved for genuine danger/veto status. Green fills carry **dark ink
   text, never white** (a deliberate contrast choice — see §3).
 - **Green roles on light surfaces.** UI-sized green text, including links such as
@@ -108,8 +108,8 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   small chips/badges smaller, full pills only for genuinely pill-shaped controls. Rounded = approachable
   and modern; restrained radius = still serious.
   **On a filtering surface, radius carries meaning and is not a taste call.** A **full pill (999px)**
-  belongs to the *applied-filter* layer — the active-filter chips and any "Clear all" that acts on
-  them. A **rounded rect (11–12px)** belongs to the controls you use to *build* a query — segmented
+  belongs to the _applied-filter_ layer — the active-filter chips and any "Clear all" that acts on
+  them. A **rounded rect (11–12px)** belongs to the controls you use to _build_ a query — segmented
   chamber control, status and session dropdowns, the Omnibus toggle, the ISSUES chips, sort. One
   action also gets one label, one fill, and one shape wherever it appears: the Search Bills empty
   state repeats the chip row's "Clear all" verbatim, as a black pill, because both are on screen at
@@ -127,13 +127,19 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   issue label without relying on color alone. On phones, its 44px target comes from a minimum height,
   not inflated vertical padding. The shared implementation is `VoteCountLinkChip`; the action
   timeline's per-action "View votes →" text link is a different element and stays unchanged.
-- **Trailing arrows on links.** Use the shared `LinkArrow` drawing beside the label on every new
-  arrow-bearing link or button that can appear at a phone width. Never type the `→` character into
-  new interactive UI. Libre Franklin does not contain that character, so desktop and Android
-  browsers choose different fallback fonts: desktop gets a long, centered arrow while Android gets
-  a short, low one. `LinkArrow` fixes the length and alignment in one place. The
-  `mobileLinkArrows.test.ts` check rejects new text arrows and caps the older exceptions until each
-  is replaced.
+- **Every green trailing link arrow uses the Board-refund treatment (Eugene, 17 Sep 2026).** The
+  approved example is “The Board’s refund summaries” on the legislator money page. Draw the arrow
+  with [`LinkArrow.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/LinkArrow.tsx):
+  a 19×19 box, `#0f7a45` stroke, 1.8px line, rounded ends and joins, and the shared path in that
+  component. Use `GreenLinkArrow` with the shared centered row (`linkArrowRow`) for a simple label,
+  or `LinkArrowLabel` when the label can wrap. Both keep the arrow 6px after the label and preserve
+  the component's 1px optical drop. Do not type `→` or `↗`, draw a local copy, change its size, or
+  invent a different gap. If a Design drawing shows another arrow treatment, this approved treatment
+  wins and the build corrects the drawing. The `mobileLinkArrows.test.ts` check rejects typed arrows
+  and old local drawings.
+- **The rule standardizes arrows that already exist; it does not add them.** A green link whose
+  accepted surface has no trailing arrow keeps no arrow. Back arrows, disclosure chevrons, and
+  arrows used as data or diagrams are outside this rule.
 - **Optical centering for icon + label buttons.** Our icons are drawn on a 24-unit viewBox with the
   marks inset to roughly the middle 50% (the ✕ runs 6,6 → 18,18; chevrons 6 → 18; the plus 5 → 19), so
   at our 13–17px sizes an icon carries ~3px of empty box on its outer side. Symmetric padding then
@@ -152,7 +158,7 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
     nothing to trim, and adding a negative margin would pull the glyph outside the content column.
   - **A full-width button that centres its content** (`justifyContent: 'center'`, no side padding) —
     the group is centred as a block, so the error is half as large (~1.5px) and the correction would
-    be padding on the side *away* from the icon rather than a trim. Left alone until it's measured.
+    be padding on the side _away_ from the icon rather than a trim. Left alone until it's measured.
   - **An icon inside its own tile** (the mega-menu rows' 40×40 icon square, the capability cards'
     48×48 tile, the version rows' 38×38 box) — the tile already centres the glyph, so the inset
     never reaches the button's edge.
@@ -162,6 +168,7 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
 
   Build new buttons this way. It applies to auth-gated controls (account nav, Sign out,
   Track/Tracking, Continue with Google).
+
 - **A corner close control is inset by its own button box, never by the ✕ inside it.** Give the
   button at least 16px of clear space from every nearby surface edge, and use the same inset from
   the top and side so its corner placement reads as deliberate. A phone sheet uses its own side
@@ -210,7 +217,7 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
 
 Non-negotiable for every screen. These are platform-agnostic principles adapted from Vercel's
 **Web Interface Guidelines** (MIT — see attribution) and reconciled to our RN/Expo, web-first stack.
-On web, `react-native-web` maps *most* RN accessibility props to real ARIA — so these are checkable
+On web, `react-native-web` maps _most_ RN accessibility props to real ARIA — so these are checkable
 on the rendered site and fixable in RN. **`accessibilityState` is the exception, and it is a silent
 one: see the box below before writing one.**
 
@@ -236,11 +243,11 @@ one: see the box below before writing one.**
 > meaningful inside a `listbox`, `tablist`, `grid` or `tree`, and this app has none of those. What
 > the fifteen sites actually needed:
 >
-> | The control | Write | Why |
-> | --- | --- | --- |
+> | The control                                                                                                                      | Write                                                                                             | Why                                                       |
+> | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
 > | Marks where you are — nav rail, mobile tab bar, bill tabs, section rail, jump chips, the chosen row in a filter or sort dropdown | `aria-current` (`"page"` for a URL, `"location"` for a spot in the page, `"true"` in a plain set) | Says which one is current, promises no keyboard behaviour |
-> | A toggle that stays on — Track, roll-call and chamber filters, Omnibus only, issue pills, chat citations | `aria-pressed` | It is a toggle button, and that is the attribute for one |
-> | Anything else | nothing | Silence beats a state claim that is not true |
+> | A toggle that stays on — Track, roll-call and chamber filters, Omnibus only, issue pills, chat citations                         | `aria-pressed`                                                                                    | It is a toggle button, and that is the attribute for one  |
+> | Anything else                                                                                                                    | nothing                                                                                           | Silence beats a state claim that is not true              |
 >
 > **Two of those three are unchecked by TypeScript, so a typo ships.** `aria-current` and
 > `aria-pressed` are not in React Native's `ViewAccessibility.d.ts`; they compile with any value at
@@ -286,13 +293,13 @@ one: see the box below before writing one.**
 > state, and the two dropdown rows that name something not built yet.
 >
 > **Why not just `aria-disabled` as a prop there too?** Measured: react-native-web turns it into a
-> real native `disabled` attribute, which makes the browser *drop focus* off the element. That is
+> real native `disabled` attribute, which makes the browser _drop focus_ off the element. That is
 > right for a row nobody ever focuses and wrong for a button someone just pressed — the reader gets
 > thrown out of the very control whose new state they need to hear. Verified with the helper: focus
 > stays on the sign-in button while it connects.
 >
 > **`accessibilityRole` is fine, including the roles you would not expect.** Measured: `menuitem`
-> renders `role="menuitem"`, and `tab` renders `role="tab"`. Whether either *should* be used is a
+> renders `role="menuitem"`, and `tab` renders `role="tab"`. Whether either _should_ be used is a
 > separate question, and the answer for both is no: our dropdowns are deliberately disclosures
 > containing a labelled group of buttons, not ARIA menus, and the three `tab` sites were dropped in
 > [#1036](https://github.com/alethical-org/alethical/issues/1036) — they rendered a real `role="tab"`
@@ -310,7 +317,7 @@ one: see the box below before writing one.**
   no `aria-level` returns `'h1'`. Nothing warns, so `accessibilityRole="header"` on a section label
   silently claims to be the most important heading on the page. Every heading therefore carries
   `aria-level={n}` — **the page's subject is the only 1, section labels are 2, anything nested under
-  one is 3** — and the level follows the page's *structure*, never the type size, so a small-type
+  one is 3** — and the level follows the page's _structure_, never the type size, so a small-type
   section label in a sidebar is still a 2. Measured on production 11 Aug 2026 before the fix
   ([#1355](https://github.com/alethical-org/alethical/issues/1355)): a bill page carried **52**
   `<h1>` at phone width and a legislator profile **9**, with the person's own name not a heading at
@@ -407,15 +414,6 @@ one: see the box below before writing one.**
   Source: [`LoadingButton.tsx`, `LoadingButton`, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/components/auth/LoadingButton.tsx#L19-L145)
   and [`SignInDialog.tsx`, `SignInDialog`, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/components/auth/SignInDialog.tsx#L486-L493)
   ([#1533](https://github.com/alethical-org/alethical/issues/1533)).
-- **A link's mark is whatever the drawing gives it (Eugene, 13 Sep 2026).** A row link ends with
-  the arrow Design drew on it, and a link that leaves the site keeps the diagonal where Design drew
-  that. Follow the drawing rather than inventing a scheme across surfaces, and never strip a mark a
-  drawing shows because a neighbouring surface has none.
-- **A surface whose own drawing carries no mark is left alone rather than retrofitted.** Consistency
-  arrives with the next drawing of that surface, never as a sweep across surfaces nobody has
-  redrawn. A sweep changes screens no one has looked at, which is how a small visual decision turns
-  into a release with no reviewer.
-
 
 ## 4. What to avoid (directionally wrong for Alethical)
 
@@ -436,7 +434,7 @@ The generic "make it striking" instinct pulls the wrong way for a civic-records 
 - **At preview time (generation):** paste §1–§4 into the design tool prompt as the standing brief,
   then describe the specific page. This gives the design tool the editorial direction it otherwise
   averages away. Keep prompts definitive (state the design, don't ask it to decide scope).
-- **Structural option:** the same intent can be pushed to a claude.ai/design *design-system project*
+- **Structural option:** the same intent can be pushed to a claude.ai/design _design-system project_
   (via the `DesignSync` tool) so Claude Design generates against our real tokens + primitives rather
   than a prose description. Prose brief is the lightweight path; the synced system is the durable one.
 - **At build time (implementation):** this guide plus `tokens.ts`/`primitives.tsx` is the shared
@@ -458,7 +456,7 @@ The generic "make it striking" instinct pulls the wrong way for a civic-records 
 
 ---
 
-*§3's interaction/accessibility rules are adapted from Vercel's
+_§3's interaction/accessibility rules are adapted from Vercel's
 [Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines) (MIT License),
 reduced to the platform-agnostic subset and reconciled to Alethical's React Native / Expo, web-first
-stack.*
+stack._

@@ -5,20 +5,8 @@ import { describe, expect, it } from 'vitest';
 const SRC = join(__dirname, '..', '..');
 
 const legacyTextArrowLimits: Record<string, number> = {
-  'components/ChangeBlock.tsx': 1,
-  'components/billDetail/ActionsTab.tsx': 1,
-  'components/billDetail/BillNotFound.tsx': 2,
   'components/billDetail/CitationCard.tsx': 1,
-  'components/billDetail/FactsRail.tsx': 5,
-  'components/billDetail/VersionsTab.tsx': 1,
-  'components/billDetail/VotesTab.tsx': 1,
-  'components/search/BillResultCard.tsx': 1,
-  'screens/redesign/AskAnswerScreen.tsx': 11,
-  'screens/redesign/BillDetailScreen.tsx': 6,
-  'screens/redesign/HomeSignedOutScreen.tsx': 3,
-  'screens/redesign/LegislatorProfileMobileScreen.tsx': 2,
-  'screens/redesign/LegislatorProfileWebScreen.tsx': 1,
-  'screens/redesign/SearchLegislatorsScreen.tsx': 1,
+  'screens/redesign/LegislatorProfileMobileScreen.tsx': 1,
 };
 
 function tsxFiles(directory: string): string[] {
@@ -31,7 +19,7 @@ function tsxFiles(directory: string): string[] {
 
 function visibleTextArrowCount(source: string) {
   const withoutComments = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
-  return withoutComments.match(/→/g)?.length ?? 0;
+  return withoutComments.match(/[→↗]/g)?.length ?? 0;
 }
 
 describe('mobile link arrows', () => {
@@ -41,6 +29,19 @@ describe('mobile link arrows', () => {
       const arrowCount = visibleTextArrowCount(readFileSync(path, 'utf8'));
       expect(arrowCount, `${file} added a phone-dependent text arrow`).toBeLessThanOrEqual(
         legacyTextArrowLimits[file] ?? 0,
+      );
+    }
+  });
+
+  it('blocks local copies of the old green arrow drawing', () => {
+    const oldGreenArrow =
+      /d="M5 12 H19 M1[34] [67] L19 12 L1[34] 1[78]"[\s\S]{0,180}stroke="#0f7a45"/;
+
+    for (const path of tsxFiles(SRC)) {
+      const file = relative(SRC, path);
+      const source = readFileSync(path, 'utf8');
+      expect(source, `${file} drew an old green arrow instead of using LinkArrow`).not.toMatch(
+        oldGreenArrow,
       );
     }
   });

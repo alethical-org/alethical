@@ -64,7 +64,7 @@ describe('district map credits', () => {
     );
     expect(markup).not.toContain('certified by the Census Bureau.');
     expect(source).toContain("{' (opens in a new tab)'}");
-    expect(source).toContain("import { LinkArrow } from './LinkArrow'");
+    expect(source).toContain("import { LinkArrowLabel, linkArrowRow } from './LinkArrow'");
     expect(source).not.toContain("{' →'}");
     expect(markup).toContain('data-testid="link-arrow"');
     expect(source).toMatch(/creditLink:\s*\{[\s\S]*color: t.colors.brand.deep/);

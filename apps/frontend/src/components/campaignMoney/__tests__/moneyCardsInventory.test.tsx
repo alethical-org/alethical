@@ -275,7 +275,9 @@ describe('the money cards on the profile, at the final inventory', () => {
 
   it('links money in to the Board’s downloads page, not to the download itself', () => {
     const raw = render([committee()]);
-    expect(raw).toContain(NAMED_DONATIONS_LINK_LABEL);
+    expect(new DOMParser().parseFromString(raw, 'text/html').body.textContent).toContain(
+      NAMED_DONATIONS_LINK_LABEL,
+    );
     expect(raw).toContain(
       'href="https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/"',
     );

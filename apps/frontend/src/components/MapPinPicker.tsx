@@ -21,7 +21,7 @@ import {
 } from '../lib/districtMap';
 import { externalLinkProps } from '../navigation/links';
 import { theme as t } from '../theme/tokens';
-import { LinkArrow } from './LinkArrow';
+import { LinkArrowLabel, linkArrowRow } from './LinkArrow';
 
 const TILE_SIZE = 256;
 const MIN_ZOOM = 5;
@@ -94,8 +94,10 @@ function MapCredit({ href, label }: { href: string; label: string }) {
       onHoverOut={() => setHovered(false)}
       style={styles.creditTarget}
     >
-      <Text style={[styles.creditLink, hovered && styles.creditLinkHovered]}>{label}</Text>
-      <LinkArrow color={t.colors.brand.deep} />
+      <LinkArrowLabel
+        label={label}
+        style={[styles.creditLink, hovered && styles.creditLinkHovered]}
+      />
       <Text style={[styles.visuallyHidden, isWeb ? ({ clipPath: 'inset(50%)' } as object) : null]}>
         {' (opens in a new tab)'}
       </Text>
@@ -717,7 +719,7 @@ const styles = StyleSheet.create({
   },
   creditsMobile: { marginTop: 240 },
   creditRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
-  creditTarget: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  creditTarget: linkArrowRow,
   creditText: {
     fontFamily: t.typography.body,
     fontSize: 12,

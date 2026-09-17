@@ -44,7 +44,7 @@ describe('issue answer page structure', () => {
 
   it('only offers Search when more matching bills exist than are rendered', () => {
     expect(answer).toContain('issueAnswerHasMore(answer.totalMatches, shownIssueBills.length)');
-    expect(answer).toContain('See all {issueTopic} bills in Search →');
+    expect(answer).toContain('label={`See all ${issueTopic} bills in Search`}');
     expect(answer).not.toContain('See all {answer.totalMatches}');
   });
 

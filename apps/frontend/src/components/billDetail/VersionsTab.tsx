@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { LinkArrowLabel } from '../LinkArrow';
 import { theme as t } from '../../theme/tokens';
 import { Bill } from '../../data/types';
 import { formatMonoDate, orderBillVersions, versionTrackTag } from '../../lib/billDetail';
@@ -123,7 +124,7 @@ function VersionRow({
           </Text>
         ) : null}
       </View>
-      <Text style={styles.rowLink}>{linkLabel} →</Text>
+      <LinkArrowLabel label={linkLabel} style={styles.rowLink} />
     </Pressable>
   );
 }

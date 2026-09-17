@@ -5,6 +5,7 @@ import { useRef } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import { LinkArrowLabel, linkArrowRow } from '../../components/LinkArrow';
 import { Skeleton } from '../../components/Skeleton';
 import { useOutsideSpendingRecord, usePrefetchCommitteeMoney } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -124,20 +125,6 @@ function BackChevron() {
       <Path
         d="M15 5 L8 12 L15 19"
         stroke={t.colors.text.secondary}
-        strokeWidth={2.2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
-
-function ForwardArrow({ color }: { color: string }) {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <Path
-        d="M5 12 H19 M13 6 L19 12 L13 18"
-        stroke={color}
         strokeWidth={2.2}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -380,15 +367,14 @@ function SubjectView({
               {...linkProps(hrefFor({ year: undefined }), () => goTo({ year: undefined }))}
               style={styles.seeAll}
             >
-              <Text style={styles.seeAllLabel}>{SEE_ALL_YEARS}</Text>
-              <ForwardArrow color={t.colors.brand.deep} />
+              <LinkArrowLabel label={SEE_ALL_YEARS} style={styles.seeAllLabel} />
             </Pressable>
           ) : ownMoneyHref ? (
             <Pressable {...linkProps(ownMoneyHref, openOwnMoney)} style={styles.seeAll}>
-              <Text style={styles.seeAllLabel}>
-                {view === 'spender' ? SEE_OWN_MONEY_SPENDER : SEE_OWN_MONEY}
-              </Text>
-              <ForwardArrow color={t.colors.brand.deep} />
+              <LinkArrowLabel
+                label={view === 'spender' ? SEE_OWN_MONEY_SPENDER : SEE_OWN_MONEY}
+                style={styles.seeAllLabel}
+              />
             </Pressable>
           ) : null}
         </View>
@@ -434,8 +420,10 @@ function WhoseCommittee({
           )}
           style={styles.seeAll}
         >
-          <Text style={styles.seeAllLabel}>{`See ${member.fullName}’s campaign money`}</Text>
-          <ForwardArrow color={t.colors.brand.deep} />
+          <LinkArrowLabel
+            label={`See ${member.fullName}’s campaign money`}
+            style={styles.seeAllLabel}
+          />
         </Pressable>
       ) : null}
     </View>
@@ -1106,10 +1094,8 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
   },
   seeAll: {
+    ...linkArrowRow,
     marginTop: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
     minHeight: 44,
     alignSelf: 'flex-start',
   },

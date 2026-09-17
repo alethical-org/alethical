@@ -2,6 +2,7 @@ import React, { type CSSProperties, type ReactNode } from 'react';
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import { LinkArrowLabel } from '../LinkArrow';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
@@ -72,7 +73,7 @@ export function LobbyingPageFrame({
               {...externalLinkProps(source.url, () => void Linking.openURL(source.url))}
               style={[styles.sourceLink, isMobile && styles.sourceLinkMobile]}
             >
-              {source.label} ↗
+              <LinkArrowLabel label={source.label} />
             </Text>
           ) : null}
         </Container>

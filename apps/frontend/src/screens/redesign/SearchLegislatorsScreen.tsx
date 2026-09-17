@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
+import { LinkArrowLabel } from '../../components/LinkArrow';
 import { theme as t } from '../../theme/tokens';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { useSearchMetric } from '../../hooks/useSearchMetric';
@@ -61,12 +62,10 @@ function FindMyLegislatorLink({ mobile, onPress }: { mobile?: boolean; onPress: 
       onHoverOut={() => setHovered(false)}
       style={[styles.addressLink, mobile && styles.addressLinkMobile]}
     >
-      <Text style={[styles.addressLinkText, hovered && styles.addressLinkTextHover]}>
-        Find your legislator by address
-      </Text>
-      <Text aria-hidden style={styles.addressLinkArrow}>
-        →
-      </Text>
+      <LinkArrowLabel
+        label="Find your legislator by address"
+        style={[styles.addressLinkText, hovered && styles.addressLinkTextHover]}
+      />
     </Pressable>
   );
 }
@@ -408,12 +407,6 @@ const styles = StyleSheet.create({
     color: '#0f7a45',
   },
   addressLinkTextHover: { textDecorationLine: 'underline' },
-  addressLinkArrow: {
-    fontFamily: t.typography.body,
-    fontSize: 14,
-    fontWeight: t.fontWeights.regular,
-    color: '#0f7a45',
-  },
   grid: { marginTop: 22, flexDirection: 'row', flexWrap: 'wrap', gap: 18 },
   gridItem: { flexBasis: '48%', flexGrow: 1, minWidth: 0 },
   gridItemMobile: { flexBasis: '100%', width: '100%' },

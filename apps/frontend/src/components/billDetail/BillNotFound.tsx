@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { LinkArrowLabel } from '../LinkArrow';
 import { theme as t } from '../../theme/tokens';
 import { linkProps, routePath } from '../../navigation/links';
 import { useHover } from './interactions';
@@ -37,8 +38,8 @@ export function BillNotFound({
           : 'Nothing in the Minnesota Legislature’s records matches that link. It may be mistyped, or point to a bill we don’t carry.'}
       </Text>
       <View style={styles.actions}>
-        <WayOut label="Browse all bills →" href={routePath.bills()} onPress={onBrowseBills} />
-        {onAsk ? <WayOut label="Ask a question →" href={routePath.ask()} onPress={onAsk} /> : null}
+        <WayOut label="Browse all bills" href={routePath.bills()} onPress={onBrowseBills} />
+        {onAsk ? <WayOut label="Ask a question" href={routePath.ask()} onPress={onAsk} /> : null}
       </View>
     </View>
   );
@@ -48,7 +49,7 @@ function WayOut({ label, href, onPress }: { label: string; href: string; onPress
   const [hovered, hover] = useHover();
   return (
     <Pressable {...linkProps(href, onPress)} {...hover}>
-      <Text style={[styles.wayOut, hovered && styles.wayOutHover]}>{label}</Text>
+      <LinkArrowLabel label={label} style={[styles.wayOut, hovered && styles.wayOutHover]} />
     </Pressable>
   );
 }

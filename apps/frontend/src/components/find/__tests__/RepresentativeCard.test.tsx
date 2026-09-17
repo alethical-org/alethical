@@ -194,7 +194,7 @@ describe('RepresentativeCard accepted layout', () => {
     expect(html).toContain('View profile');
     expect(html).not.toContain('View full profile');
     expect(html).toContain('data-testid="link-arrow"');
-    expect(componentSource).toContain("import { LinkArrow } from '../LinkArrow'");
+    expect(componentSource).toContain('LinkArrowLabel');
     expect(componentSource).not.toContain("{' →'}");
     expect(componentSource).not.toMatch(/>\s*→\s*</);
   });
