@@ -1548,7 +1548,7 @@ describe('the records a money page hands to the app', () => {
     expect(body).toContain('Type a name to search');
     // The sentence the screen puts ABOVE its results, for the same reason: a
     // reader told nothing reads an empty answer as "they gave nothing".
-    expect(body).toContain('What the campaign records do not cover');
+    expect(body).toContain('Limits of the campaign records');
     expect(body).toContain('href="/money/committees"');
     // The results are whatever somebody typed, so the address stays unlistable.
     expect(headers.get('X-Robots-Tag')).toBe('noindex');

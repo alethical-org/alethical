@@ -204,12 +204,12 @@ describe('the list note', () => {
   // No row carries an amount and nothing sorts by one: these filers file to
   // different calendars (grounded-answers rule 12).
   it('says why a list of many committees carries no dollar figures', () => {
-    expect(COMMITTEE_LIST_NOTE).toContain('leave amounts out of this list');
+    expect(COMMITTEE_LIST_NOTE).toContain('Amounts are left out of this list');
     expect(COMMITTEE_LIST_NOTE).toContain('different schedules');
   });
 
   it('explains where amounts and their dates can be read', () => {
-    expect(COMMITTEE_LIST_NOTE).toContain('each committee’s page');
+    expect(COMMITTEE_LIST_NOTE).toContain('Open a committee');
     expect(COMMITTEE_LIST_NOTE).toContain('dates they cover');
   });
 });
