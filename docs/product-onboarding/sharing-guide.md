@@ -157,9 +157,21 @@ question. A tab that only picks which part of one record to look at is still ign
 text, which carries the page's plain state, exactly as a bill serves its Summary whichever tab the
 address names.
 
-**Money by race** arrives with every contest, and inside each one an ordinary link to every
-candidate committee registered for that seat, with each committee's 2 figures and the dates each
-figure covers. **The outside-spending record** arrives with the total the file holds, how many
+**The bare `/money/races` address** arrives with every group and an ordinary link to every
+candidate committee registered for its district or seat. Each committee carries its 2 figures,
+their separate dates and the same missing-figure explanations as the running screen. The
+first response includes the registration warning, figure definitions, comparison and donor-naming
+notes, register date, payment-file copy date when held, and the 2 coverage limits. A missing
+amount never becomes $0. An address narrowed by office or year keeps its existing instruction
+not to appear in search results and does not receive this first-response list.
+
+The finder on `/money/races` adds the selected group’s existing target to the address, such as
+`/money/races?office=House&year=2026#house-12a`. Copying that address keeps the office, year and
+group together. Choosing a suggestion keeps all committee rows visible and moves keyboard
+focus to the chosen heading. Opening a group address or using browser Back or Forward restores
+the target after its rows arrive. Typed finder text itself is not added to the address.
+
+**The outside-spending record** arrives with the total the file holds, how many
 payments and which years that total covers, how many of them the filings call supporting and how
 many opposing, how many were given as goods rather than cash, the day we read the Board's file, and
 links to the 2 lists that lead to one group's or one committee's own rows. **The name search**

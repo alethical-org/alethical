@@ -474,57 +474,90 @@ placeholders that announce themselves to screen readers.
 
 ## Money by race (`/money/races`)
 
-Every candidate committee on the register, grouped by the office and district it registered
-for: 222 contests on the live register, from "House District 12A · 3 candidate committees" to
-"Governor · Statewide · 28 candidate committees". The register itself supplies the office for all
-778 candidate committees and the district for 729, with no person-checked link involved, so a
-challenger is on this page from the day the Board registers their committee.
+Candidate committees in Minnesota’s register, grouped by office and district or court
+seat. The introduction explains that a committee is the account used to raise and spend
+campaign money. “Registration does not show who is on the ballot” stays visible above
+the counts. This list reads the register directly; it does not use a person-checked
+match to a legislator.
 
-Three rules are the whole page, and each is enforced by a test on the read behind it
-(`alethical/tests/test_campaign_finance_races.py`) as well as drawn:
+3 rules govern `/money/races`:
 
-- **No contest carries a total, ever.** A heading counts committees and adds nothing. One person
-  can hold 2 committees at once, and money moved between them is reported by both, so a sum
-  across committees counts the same dollars twice. The page says so under the list.
-- **Nothing is ordered by amount.** The order is office, then district as a person reads it (2
-  before 10, 12A before 12B), then the committee's filed name A to Z, and the page prints that
-  order ("DISTRICT, THEN NAME A–Z") beside the count so a reader never infers a ranking from where
-  a row sits. The page never re-sorts what it is served.
-- **Every figure carries its own dates.** Each committee shows the same 2 money-in figures its own
-  page shows, under the same labels: "Total contributions", with the period its filing states
-  ("Figures for 1 Jan 2026 – 20 Jul 2026", or "Figures through 20 Jul 2026" where the Board's
-  calendars print no start), and "Itemized contributions", with the dates of the payments we
-  hold ("Payments dated 3 Feb 2026 to 15 Jun 2026"). A committee with no
-  filing for the year reads "Not reported", never $0. Where 2 committees in one contest report
-  over different periods, a line above the rows says so.
+- **Count committees, never add their money.** Each group heading counts its committees.
+  “We do not add committees’ money together. Transfers between committees could otherwise
+  be counted twice.” appears below the list.
+- **Keep the served order.** “Office, then district or seat, then name A–Z” describes
+  the order above the groups. Districts follow their numeric order, and names follow the
+  spelling on the register. The finder never sorts by amounts or changes committee order.
+- **Keep each figure with its own dates.** “Total contributions” is the contribution
+  total from the committee’s filed report. “Itemized contributions” is the sum of
+  contributions with named givers in our payment records. Both labels and definitions
+  appear at each group. The official figure says “Figures for Jan 1, 2026 to Jul 20,
+  2026”, or “Figures through Jul 20, 2026” when no start is held. The named figure says
+  “Payments dated Feb 3, 2026 to Jun 15, 2026”. These dates are examples, never fixed
+  product values. A missing date is never filled from the other figure.
 
 Top to bottom:
 
-1. **The count line**: "222 CONTESTS · 778 CANDIDATE COMMITTEES · COUNTED FROM THE REGISTER 12 AUG
-   2026". Counts of what we hold, read live from the register, never pasted.
-2. **Office chips**, one per office on the register plus "All offices", each with its count of the
-   whole register: House, Senate, Governor, Attorney General, Secretary of State, State Auditor,
-   Supreme Court, Appellate Court, District Court. The chips wrap; there is no dropdown. The chosen
-   office rides in the address (`?office=Senate`), so a narrowed list can be shared.
-3. **"Money figures are for 2026"** and the printed order, on one line above the contests.
-4. **The contests**, every one, with every committee under it — the Governor's 28 included, with no
-   collapse and no "show more", because a contest partially shown is a contest misread. Each
-   contest has its own link target (`/money/races#house-12a`). Each row shows the filed name (a
-   link to the committee's own page, by registration number), the registration number, a CLOSED
-   chip where the register says so, and the 2 dated figures. On a phone each contest is a card and
-   the figures move under the name.
-5. **The sentence under the list**, saying why there is no total, why the list is not ranked, and
-   why a row opens by number.
-6. **"Files last copied"**, the page's one freshness date: the day we copied the Board's download
-   the named figures come from.
-7. **Limits of the campaign records**, with these 3 lines: "Campaign payment records before
-   2015 are not included"; "These records cover campaign finances, not the wider finances of
-   organizations with political committees or funds"; and the explanation of non-itemized
-   contributions and the $200 and $500 yearly thresholds.
+1. **Counts and register date.** The count line describes the groups currently shown,
+   such as “1 contest · 28 candidate committees” after choosing Governor. “Register dated
+   Aug 12, 2026” is a separate line, using the served register date. Office-button counts
+   still describe the whole register. No example count or date is stored in the screen.
+2. **All office buttons stay visible.** The register supplies the office names and their
+   global counts, with “All offices” first. The buttons wrap rather than hiding choices
+   inside a menu. The selected office is in the address (`?office=Senate`); a `year`
+   already in the address is retained when the office changes.
+3. **“Find a district or court seat”.** Typing shows matching groups from the selected
+   office, or every office when All offices is selected. Each typed word must match the
+   group’s office, district, or seat label; letter case and extra spaces do not matter.
+   The finder searches groups, not committee names or registration numbers. It has no
+   result cap and keeps served order. It is absent when the shown groups have no district
+   or seat, such as Governor alone.
+4. **Choosing a group jumps to its heading.** A suggestion, Enter, or “Go to district or
+   seat” scrolls to the complete group and moves keyboard focus to its heading. Up and
+   Down choose a suggestion; Escape closes the suggestions. The chosen group enters the
+   address as an existing target, such as `#house-12a`, while office and year remain.
+   Opening that address and using browser Back or Forward return to its group. Changing
+   offices clears the old target and finder text; changing years resets the finder too.
+   No committee rows disappear when the finder is used.
+5. **Year and reading notes.** “Money figures are for 2026” uses the selected year. The
+   warning stays visible: “The report and payment records can cover different dates. Read
+   the dates beside each figure before comparing amounts.” The full shared donor-naming
+   paragraph follows before the groups, including its spelling “party organisations”
+   and the rule about a donor’s yearly total exceeding $200. It is not moved into a
+   hidden explanation or the footer.
+6. **Every group and every committee.** There is no folded group or “show more” limit.
+   Each row has its complete filed name linked by registration number, “Registration
+   {number}”, a closed date where the register supplies one, and both figure positions.
+   Court headings distinguish districts and seats: “District Court · District 4 · Seat
+   12”, “Appellate Court · Seat 7”, or “Supreme Court · Chief justice”. Unfamiliar seat
+   wording stays as filed. A group whose official totals cover different periods says:
+   “The reported totals in this group cover different periods. Each total shows its own
+   dates.”
+7. **“Payment files copied {date}”.** This is the copy date of the payment download used
+   for the named figures. It does not claim when official totals or the register were
+   copied, and it is absent when that date is not held.
+8. **“What these records do not cover”.** The 2 lines are “No campaign payments held
+   before 2015” and “Donors who gave $200 or less in total for the year need not be named”.
+   The unrelated line about a union’s wider finances is absent from `/money/races`.
 
-Its own states: an office with no candidate committees in our copy (a way to drop the filter is
-offered); our copy of the register could not be read (said as our gap, never as a claim that
-Minnesota has no candidates); and loading placeholders that announce themselves to screen readers.
+A missing official total reads “We do not hold a usable official total for this committee
+for this year”. Missing named contributions retain “Not reported”, followed by “No named
+contributions in our payment records for this committee for this year”. An unavailable
+named figure reads “We couldn’t load this figure”. None of these states prints a date on
+an absent amount or substitutes $0. A held, reported zero remains $0.
+
+The finder’s no-match state says “No matching district or court seat in our records”,
+followed by “This means we hold no group with that name. It does not mean the district has
+no candidates.” An empty register and a failed read also describe our records, not who is
+running. While an office or year change loads, old rows and top counts are withheld so
+they cannot be read under the new choice. Office buttons remain available.
+
+There are 3 layouts: below 768 pixels, from 768 through 1099, and 1100 or wider. On the
+2 wider layouts the money columns are fixed at 200 and 250 pixels respectively, keeping
+amounts and dates aligned across rows. Below 768 the name, registration, closed date and
+2 labelled figures stack in order. Long names wrap without losing text. Reader text and
+numbers use Libre Franklin, with equal-width digits on amounts, dates and counts. The
+shared navigation and footer keep their existing appearance.
 
 ## A legislator's Campaign money tab (`/legislators/<name>?tab=money`)
 
