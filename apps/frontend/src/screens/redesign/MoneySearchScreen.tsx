@@ -7,6 +7,7 @@ import {
   RowArrow,
 } from '../../components/campaignMoney/MoneyListRows';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
+import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
 import { ChevronLeft } from '../../components/icons';
 import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import type { NameSearchGroup, NameSearchRow } from '../../data/types';
@@ -17,6 +18,7 @@ import { useSearchMetric } from '../../hooks/useSearchMetric';
 import { committeeRowMeta } from '../../lib/committeeList';
 import { closedChipLabel, committeeSlug } from '../../lib/committeeMoneyShared';
 import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
+import { moneySearchShareContent } from '../../lib/moneyResultsShare';
 import {
   BROWSE_ALL_COMMITTEES,
   countedUpToNote,
@@ -175,13 +177,22 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
           </Pressable>
 
           <Text style={styles.eyebrow}>SEARCH RESULTS</Text>
-          <Text
-            accessibilityRole="header"
-            aria-level={1}
-            style={[styles.h1, isTablet && styles.h1Tablet, isMobile && styles.h1Mobile]}
+          <ResultsHeading
+            isMobile={isMobile}
+            content={
+              query.trim() && !waitingForThisQuery && answer?.state === 'reported'
+                ? moneySearchShareContent(query)
+                : null
+            }
           >
-            {nameSearchHeading(query)}
-          </Text>
+            <Text
+              accessibilityRole="header"
+              aria-level={1}
+              style={[styles.h1, isTablet && styles.h1Tablet, isMobile && styles.h1Mobile]}
+            >
+              {nameSearchHeading(query)}
+            </Text>
+          </ResultsHeading>
 
           <View style={styles.findRow}>
             <MoneyNameSearchField

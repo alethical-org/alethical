@@ -7,12 +7,14 @@ import Svg, { Path } from 'react-native-svg';
 
 import { LinkArrowLabel, linkArrowRow } from '../../components/LinkArrow';
 import { Skeleton } from '../../components/Skeleton';
+import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
 import { useOutsideSpendingRecord, usePrefetchCommitteeMoney } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
 import { committeeSlug, registerKindLabel } from '../../lib/committeeMoneyShared';
 import { campaignMoneyYears, formatMoney } from '../../lib/legislatorCampaignMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
+import { outsideSubjectShareContent } from '../../lib/moneyResultsShare';
 import {
   ALL_YEARS,
   BACK_TO_OUTSIDE_SPENDING,
@@ -309,13 +311,15 @@ function SubjectView({
             {kind ? <Text style={styles.kindChip}>{kind.toUpperCase()}</Text> : null}
             <Text style={styles.regLine}>{registrationLine(subject.registrationNumber)}</Text>
           </View>
-          <Text
-            accessibilityRole="header"
-            aria-level={1}
-            style={[styles.h1, isMobile && styles.h1Mobile]}
-          >
-            {subjectName(subject)}
-          </Text>
+          <ResultsHeading isMobile={isMobile} content={outsideSubjectShareContent(page, view)}>
+            <Text
+              accessibilityRole="header"
+              aria-level={1}
+              style={[styles.h1, isMobile && styles.h1Mobile]}
+            >
+              {subjectName(subject)}
+            </Text>
+          </ResultsHeading>
 
           {view === 'spender' ? (
             <Text style={styles.standfirst}>

@@ -1,4 +1,3 @@
-import { plainBillSummary } from './billDetail';
 import { registrationNumberFromSlug } from './committeeMoneyShared';
 import { directoryPagePath } from './directoryPagination';
 import { MONEY_SECTION_NAME } from './moneySectionName';
@@ -35,10 +34,38 @@ const BILL_LIST_SUBJECT = 'Search Minnesota bills';
 const LEGISLATOR_LIST_SUBJECT = 'Minnesota House and Senate members';
 
 export type ShareSubject =
-  'bill' | 'legislator' | 'answer' | 'research' | 'guide' | 'committee' | 'principal' | 'lobbyist';
+  | 'bill'
+  | 'legislator'
+  | 'answer'
+  | 'research'
+  | 'guide'
+  | 'committee'
+  | 'principal'
+  | 'lobbyist'
+  | 'results';
+
+export type ShareResultsKind = 'search' | 'payments' | 'race' | 'outside-spending';
+
+export function shareDialogLabel(subject: ShareSubject, resultsKind?: ShareResultsKind): string {
+  if (subject !== 'results') return `Share this ${subject}`;
+  switch (resultsKind) {
+    case 'search':
+      return 'Share these search results';
+    case 'payments':
+      return 'Share these payment records';
+    case 'race':
+      return 'Share this race comparison';
+    case 'outside-spending':
+      return 'Share these outside-spending results';
+    default:
+      return 'Share these results';
+  }
+}
 
 export interface ShareContent {
   subject: ShareSubject;
+  /** Window/accessible heading context only, never included in outgoing messages. */
+  resultsKind?: ShareResultsKind;
   title: string;
   description: string;
   /** Optional shorter line shown in the Share panel without changing prepared post text. */
@@ -76,7 +103,6 @@ export function buildBillShareContent({
   identifier,
   billId,
   shortTitle,
-  summary,
   url,
 }: {
   identifier: string;
@@ -95,14 +121,11 @@ export function buildBillShareContent({
   const year = billSessionYear(billId);
   const numberAndYear = year ? `${cleanIdentifier} (${year})` : cleanIdentifier;
   const cleanTitle = clean(shortTitle ?? '');
-  const description = plainBillSummary(summary ?? null, { firstSentenceOnly: true });
 
   return {
     subject: 'bill',
     title: cleanTitle ? `${numberAndYear}: ${cleanTitle}` : numberAndYear,
-    description:
-      description ||
-      `See what ${cleanIdentifier} would do and where it stands in the Minnesota Legislature.`,
+    description: 'Bill text, legislative progress, and official sources',
     url,
   };
 }
@@ -110,11 +133,14 @@ export function buildBillShareContent({
 export function buildLegislatorShareContent({
   displayName,
   districtLine,
+  moneyYear,
   url,
 }: {
   displayName: string;
   /** Chamber and district as the profile shows it, e.g. `House District 62A`. */
   districtLine: string;
+  /** Selected filing year when the shared link opens Campaign money. */
+  moneyYear?: number;
   url: string;
 }): ShareContent {
   const name = clean(displayName);
@@ -131,7 +157,10 @@ export function buildLegislatorShareContent({
     // sentence promised a section that is not there (grounded-answers.md rule 6
     // — copy claims match shipped capability). When a section is added to or
     // removed from the profile, this sentence changes with it.
-    description: `See ${name}’s committee assignments, chief-authored bills, and contact information in the Minnesota Legislature.`,
+    description:
+      moneyYear === undefined
+        ? 'Committee assignments, chief-authored bills, and contact information'
+        : `Campaign money for filing year ${moneyYear}, from Minnesota’s official filings`,
     url,
   };
 }
@@ -348,7 +377,7 @@ export function committeeMoneyPageMetadata(
   if (view === 'payments') {
     return pageMetadata({
       title: titleFor(`${label} — every payment named`),
-      socialTitle: `${label} — every payment named`,
+      socialTitle: label,
       description:
         'Every named payment behind one committee’s figures, largest first, from Minnesota’s own campaign-finance filings.',
       canonicalPath: `${base}/payments`,
@@ -356,7 +385,7 @@ export function committeeMoneyPageMetadata(
   }
   return pageMetadata({
     title: titleFor(`${label} — campaign money`),
-    socialTitle: `${label} — campaign money`,
+    socialTitle: label,
     description:
       'One committee’s money in and money out, from Minnesota’s own campaign-finance filings.',
     canonicalPath: base,
@@ -393,7 +422,7 @@ export function committeeListPageMetadata(
  * no canonical, so 1 address stands for the page.
  */
 export function moneyByRacePageMetadata(options: { noindex?: boolean } = {}): PageMetadata {
-  const subject = 'Money by race — campaign money';
+  const subject = 'Money by race';
   return pageMetadata({
     title: titleFor(subject),
     socialTitle: subject,
@@ -464,13 +493,12 @@ export function paymentsUnderNamePageMetadata(name: string, role: string): PageM
  */
 export function outsideSpendingPageMetadata(params: Record<string, string> = {}): PageMetadata {
   const filtered = Object.values(params).some(Boolean);
-  const label = 'Outside spending: groups that are not the campaign';
+  const label = 'Outside spending';
   return pageMetadata({
     title: titleFor(label),
     socialTitle: label,
     description:
-      'What groups that are not a candidate’s campaign spent supporting or opposing Minnesota ' +
-      'campaign committees, from the Board’s independent-expenditure filings, one subject at a time.',
+      'Independent-expenditure filings showing support for or opposition to Minnesota campaign committees.',
     canonicalPath: filtered ? '' : '/money/outside-spending',
     noindex: filtered,
   });

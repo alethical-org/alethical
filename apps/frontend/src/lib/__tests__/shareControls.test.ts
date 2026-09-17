@@ -32,4 +32,33 @@ describe('responsive Share controls', () => {
     expect(webPopover).not.toContain('buildShareIntents');
     expect(phoneSheet).not.toContain('buildShareIntents');
   });
+
+  it('uses the same contextual labels for triggers, dialogs, and visible panel headings', () => {
+    const panel = source('../../components/share/SharePanelContent.tsx');
+    expect(webPopover).toContain(
+      'accessibilityLabel={shareDialogLabel(content.subject, content.resultsKind)}',
+    );
+    expect(webPopover).toContain(
+      'aria-label={shareDialogLabel(content.subject, content.resultsKind)}',
+    );
+    expect(phoneSheet).toContain(
+      'aria-label={shareDialogLabel(content.subject, content.resultsKind)}',
+    );
+    expect(panel).toContain('shareDialogLabel(content.subject, content.resultsKind)');
+    for (const component of [webPopover, phoneSheet, panel]) {
+      expect(component).not.toContain('shareDialogLabel(content.subject)');
+    }
+  });
+
+  it('keeps the committee name in the share title and adds context without repeating it', () => {
+    const committee = source('../../screens/redesign/CommitteeMoneyScreen.tsx');
+    const shareContent = committee.slice(
+      committee.indexOf('const shareContent: ShareContent'),
+      committee.indexOf('return (', committee.indexOf('const shareContent: ShareContent')),
+    );
+    expect(shareContent).toContain('title: name');
+    expect(shareContent).toContain('Campaign money from Minnesota’s official filings');
+    expect(shareContent).not.toContain('${name}');
+    expect(shareContent).not.toContain('— Alethical');
+  });
 });

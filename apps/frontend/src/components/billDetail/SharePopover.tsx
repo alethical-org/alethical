@@ -6,7 +6,7 @@ import { MobileShareSheet } from '../share/MobileShareSheet';
 import { SharePanelContent } from '../share/SharePanelContent';
 import { useResponsive } from '../../hooks/useResponsive';
 import { PANEL_EDGE_MARGIN, placeAnchoredPanel, type AnchorRect } from '../../lib/anchoredPanel';
-import { type ShareContent } from '../../lib/share';
+import { shareDialogLabel, type ShareContent } from '../../lib/share';
 import { theme as t } from '../../theme/tokens';
 import { isWeb, useHover } from './interactions';
 
@@ -52,7 +52,7 @@ export function SharePopover({ content }: { content: ShareContent }) {
       <Pressable
         ref={shareBtnRef}
         accessibilityRole="button"
-        accessibilityLabel={`Share this ${content.subject}`}
+        accessibilityLabel={shareDialogLabel(content.subject, content.resultsKind)}
         aria-expanded={open}
         aria-haspopup="dialog"
         onPress={() => setOpen((value) => !value)}
@@ -76,7 +76,7 @@ export function SharePopover({ content }: { content: ShareContent }) {
         <MobileShareSheet visible={open} onClose={() => setOpen(false)} content={content} />
       ) : (
         <Modal
-          aria-label={`Share this ${content.subject}`}
+          aria-label={shareDialogLabel(content.subject, content.resultsKind)}
           visible={open}
           transparent
           animationType="none"
@@ -94,7 +94,7 @@ export function SharePopover({ content }: { content: ShareContent }) {
           />
           <View
             ref={panelRef}
-            aria-label={`Share this ${content.subject}`}
+            aria-label={shareDialogLabel(content.subject, content.resultsKind)}
             onLayout={measure}
             style={[
               styles.sharePanel,

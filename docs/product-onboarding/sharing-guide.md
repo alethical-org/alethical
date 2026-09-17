@@ -10,24 +10,25 @@ Share sends the page a reader chose, with enough plain-language context for anot
 
 | Page            | Title                                                       | Description                                                                       | Link                                                                                                                                                                        |
 | --------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Bill            | Bill code, session year, and the short plain-language title | The first sentence of the plain-language summary                                  | The bill profile, without a selected tab                                                                                                                                    |
-| Legislator      | Name, plus chamber and district when serving now            | A fixed sentence naming committees, chief-authored bills, and contact information | The readable legislator profile address; Campaign money retains its selected year and open contribution rows                                                                |
+| Bill            | Bill code, session year, and the short plain-language title | Bill text, legislative progress, and official sources | The bill profile, without a selected tab |
+| Legislator      | Name, plus chamber and district when serving now | General profile: committees, chief-authored bills, and contact information. Money view: campaign money and its selected filing year | The readable legislator profile address; Campaign money retains its selected year and open contribution rows |
 | Ask answer      | The reader's question                                       | A fixed sentence saying the answer is cited and links to the official record      | The public Ask address, keeping only the question, bill, legislator, and saved-suggestion fields needed to rebuild it                                                       |
-| Committee money | The committee's filed name and campaign money               | A fixed sentence identifying the committee's record and Minnesota's filings       | The committee address, retaining the year, section, donor category and sort, independent-spending sort, open contribution rows, ownership evidence and earlier-year choices |
+| Committee money | The committee's filed name | Campaign money from Minnesota’s official filings | The committee address, retaining the year, section, donor category and sort, independent-spending sort, open contribution rows, ownership evidence and earlier-year choices |
 | Research and guide | The published title | The existing publication and records-through dates, without figures or article text | The published article address |
 | Lobbyist | The record's existing title | The existing description for its registration state | The lobbyist's public record address |
 | Lobbying principal | The organisation's existing title | Its reported spending and registered lobbyists | The organisation's public record address |
+| Name-search results | The searched name | The kinds of records searched | The public name-search address and query |
+| Payments under a name | Payment direction and exact filed name | Coverage across the years held and newest-first order | The exact name, direction, and originating search |
+| Committee payments | Committee name | Payment direction, filing year, and largest-first order | The committee, year, and received/made section |
+| Money by race | Money by race | Office or selected race, filing year, and separate committee figures | Year, office filter, and valid race link target |
+| Outside-spending results | Group or committee name, or Outside spending for the browse view | Direction, filing year, and sort or browse context | Subject, year, sort, page, and any browse mode/name filter |
 
 A bill's title reads `HF 719 (2025): Statewide Capital Projects and Bonding Bill`. The year is there
 because bill numbers repeat every two years, so the number alone never identifies one bill for good.
 A bill with no plain-language short title yet is named by its number and year alone — never by its
 official statutory title, which is a paragraph of legal cross-references
-(`.claude/rules/grounded-answers.md` rule 10). A bill without a generated summary uses an honest
-fixed description instead.
-
-Dotted abbreviations such as `U.S. citizens` and `U.S. Department` stay inside
-the complete summary sentence. Decimal numbers and closing quotation marks also
-survive the sentence cut; the words are never rewritten for a search preview.
+(`.claude/rules/grounded-answers.md` rule 10). The description names what readers can
+find instead of paraphrasing the title. The bill's full summary remains on its own page.
 
 A legislator's title carries no party label. District and chamber identify a person just as well,
 never go stale mid-term, and keep a partisan word out of a link preview or a search result read on
@@ -46,12 +47,24 @@ otherwise we advertise a capability we do not ship
 (`.claude/rules/grounded-answers.md` rule 6).
 
 Sharing a legislator's Campaign money view retains `tab=money`, the selected year and
-open contribution rows for each committee. The same link reopens that view on phones
+open contribution rows for each committee. Its description names campaign money and
+the selected filing year instead of the general profile's sections. The same link reopens that view on phones
 and computers. Committee Share also retains open ownership evidence and earlier-year
 choices. Independent spending keeps its own Newest first or Largest first order through
 `spendingSort`; this does not overwrite the donor browser's separate saved sort.
 
-The Share panel keeps the page's prepared title, description, and link. Research and
+The visible panel heading names what is shared: **Share this committee**,
+**Share this bill**, **Share these search results**, **Share these payment records**,
+**Share this race comparison**, or **Share these outside-spending results**. The
+accessible name uses the same words. This is a window label, never part of the
+outgoing message. The title identifies the record
+once. The description adds context rather than repeating the name, title, or an
+Alethical suffix. Do not manufacture a decorative heading. This applies to every
+subject and outgoing destination. A shared whole-line guard also omits descriptions
+identical to their title after case and punctuation normalization; it does not
+remove words from distinct facts.
+
+Research and
 guides can show a shorter date description inside the panel while retaining their
 existing outgoing date description. Each destination receives the fields it supports.
 Destination addresses are built in `apps/frontend/src/lib/shareIntents.ts`, kept
@@ -61,18 +74,24 @@ The committee screen supplies its record-specific share text and selected addres
 (`apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx`). Browser-tab titles
 and search previews use the page's metadata, drawn from the same record fields.
 
+Result Share controls sit beside headings on wide layouts and below headings on
+phones. They share the accepted, displayed response rather than a pending filter
+change. Unavailable or invalid results do not offer a misleading Share control.
+The landing at `/money`, `/money/lobbying`, and directories used only to choose a
+record remain without Share. Individual payment rows do not gain Share buttons.
+
 ## What each destination receives
 
 | Destination      | What Alethical sends                                            | Important limit                                                                                                                           |
 | ---------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | Copy link        | The exact public page link                                      | No title or description is copied                                                                                                         |
-| Email            | Full title, description, page link, and “Shared from Alethical” | The reader can edit everything before sending                                                                                             |
+| Email            | Title in the subject; complementary description and link in the body | The reader can edit everything before sending |
 | WhatsApp         | Full title, description, and page link | Opens a prepared message; the reader chooses where to send it |
 | Facebook         | The page link                                                   | Facebook builds the visible title, description, and image from the page preview data; its share address does not accept our prepared text |
 | LinkedIn         | The page link                                                   | LinkedIn builds the visible title, description, and image from the page preview data; its share address does not accept our prepared text |
 | X                | Title, description, and page link                               | The prepared words are shortened so the post stays within 280 characters after X counts the shortened link                                |
 | Bluesky          | Title, description, and the exact page link | Prose is shortened to fit its text limits; a long link is sent alone, never cut |
-| Device Share menu | Title, description, and page link                               | The receiving app decides which fields it keeps                                                                                           |
+| Device Share menu | One complete message containing title and context, plus one link | No second title field repeats the message title; the receiving app decides which fields it keeps |
 
 Instagram has no direct button. It cannot open a prepared visitor post containing this text, a dependable clickable Alethical link, and a website preview card. On a phone, Instagram may appear inside the normal Share menu if the installed app says it can receive the share. Instagram still decides what it keeps.
 
@@ -84,7 +103,7 @@ Instagram has no direct button. It cannot open a prepared visitor post containin
 - Below 1,100 pixels, the existing Share buttons open the same bottom sheet over a dimmed page. Phone screens below 768 pixels use 2 rows of 3 destinations and a full-width copy button. Tablet screens use 1 row of 6 and an inline copy button.
 - **Share using another app** appears only when the browser or device can share the supplied content, including on supported desktop browsers. Cancelling that menu is not an error.
 - A successful copy shows **Copied** on desktop or **Link copied** on a sheet for about 2 seconds. A failed copy gives a visible explanation and leaves the full link available to select and copy manually.
-- All 8 content types use `SharePanelContent.tsx`; `SharePopover.tsx` and `MobileShareSheet.tsx` own its placement. Shared platform artwork lives in `ShareDestinationIcon.tsx`.
+- All 9 content types, including results, use `SharePanelContent.tsx`; `SharePopover.tsx` and `MobileShareSheet.tsx` own its placement. Shared platform artwork lives in `ShareDestinationIcon.tsx`.
 - No share includes a reader's account details, saved bills, address, or sign-in information.
 
 ## Link preview cards
@@ -98,7 +117,7 @@ image, and the release check rebuilds and compares it pixel for pixel.
 
 Bill and legislator preview text comes from the same public API data the page uses. Ask preview text uses the public question and the fixed cited-answer description.
 
-Preview services keep their own caches, so a card already posted elsewhere may take time to refresh after a bill summary changes.
+Preview services keep their own caches, so an existing card may take time to refresh after preview text changes. A receiving platform may also add its own link card beside the prepared message; Alethical controls the supplied text, not that platform's presentation.
 
 ## What search engines get
 

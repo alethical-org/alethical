@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { useResponsive } from '../../hooks/useResponsive';
-import { type ShareContent } from '../../lib/share';
+import { shareDialogLabel, type ShareContent } from '../../lib/share';
 import { theme as t } from '../../theme/tokens';
 import { SharePanelContent } from './SharePanelContent';
 
@@ -19,7 +19,7 @@ export function MobileShareSheet({
   const closeButtonRef = useRef<View>(null);
   return (
     <Modal
-      aria-label={`Share this ${content.subject}`}
+      aria-label={shareDialogLabel(content.subject, content.resultsKind)}
       visible={visible}
       transparent
       animationType="none"
@@ -39,7 +39,7 @@ export function MobileShareSheet({
         <View
           style={styles.sheet}
           accessibilityViewIsModal
-          aria-label={`Share this ${content.subject}`}
+          aria-label={shareDialogLabel(content.subject, content.resultsKind)}
         >
           {visible ? (
             <SharePanelContent

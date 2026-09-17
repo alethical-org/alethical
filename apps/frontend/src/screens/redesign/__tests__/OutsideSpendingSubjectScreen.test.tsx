@@ -34,6 +34,7 @@ vi.mock('../../../theme/primitives', () => ({
 vi.mock('react-native-svg', () => ({
   default: ({ children }: { children: ReactNode }) => <svg>{children}</svg>,
   Path: () => null,
+  Circle: () => null,
 }));
 
 import { OutsideSpendingScreen } from '../OutsideSpendingScreen';
@@ -142,3 +143,4 @@ describe.each(['spender', 'about'] as const)('outside-spending %s filters', (sub
     });
   });
 });
+vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn() }));

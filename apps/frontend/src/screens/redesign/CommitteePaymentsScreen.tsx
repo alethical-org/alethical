@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { YearControl } from '../../components/campaignMoney/YearControl';
+import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
 import { Skeleton } from '../../components/Skeleton';
 import type { CommitteeMadePayment, CommitteeReceivedPayment } from '../../data/types';
 import { useCommitteeMoney, useCommitteePaymentsList } from '../../hooks/useAppQueries';
@@ -65,6 +66,7 @@ import {
 } from '../../lib/boardRecordLink';
 import { campaignMoneyYear } from '../../lib/legislatorCampaignMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
+import { committeePaymentsShareContent } from '../../lib/moneyResultsShare';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
@@ -269,13 +271,26 @@ export function CommitteePaymentsScreen({
               <Text style={[styles.eyebrow, styles.eyebrowSpaced]}>
                 {paymentsEyebrow(tab).toUpperCase()}
               </Text>
-              <Text
-                accessibilityRole="header"
-                aria-level={1}
-                style={[styles.h1, isTablet && styles.h1Tablet, isMobile && styles.h1Mobile]}
+              <ResultsHeading
+                isMobile={isMobile}
+                content={
+                  registrationNumber &&
+                  firstPage &&
+                  firstPage.state !== 'unavailable' &&
+                  !list.isPlaceholderData &&
+                  !moneyQuery.isPlaceholderData
+                    ? committeePaymentsShareContent({ name, registrationNumber, year, tab })
+                    : null
+                }
               >
-                {paymentsTitle(tab)}
-              </Text>
+                <Text
+                  accessibilityRole="header"
+                  aria-level={1}
+                  style={[styles.h1, isTablet && styles.h1Tablet, isMobile && styles.h1Mobile]}
+                >
+                  {paymentsTitle(tab)}
+                </Text>
+              </ResultsHeading>
               <View style={styles.chipRow}>
                 {registrationNumber ? (
                   <Text style={styles.regChip}>REG {registrationNumber}</Text>

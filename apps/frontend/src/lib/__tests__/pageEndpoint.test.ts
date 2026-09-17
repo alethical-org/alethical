@@ -354,6 +354,9 @@ describe('first-response page tags', () => {
     );
     expect(body).toContain('<h1>Statewide Capital Projects and Bonding Bill</h1>');
     expect(body).toContain('Authorizes borrowing for public buildings.');
+    expect(body).toContain(
+      '<meta property="og:description" content="Bill text, legislative progress, and official sources" />',
+    );
     expect(body).toContain('<h2>Cited sections</h2>');
     expect(body).toContain('href="/bills/94-2025-HF719?tab=text#ft-laws.1.1.0-1"');
     expect(body).toContain('/_expo/static/js/web/index-abc.js');

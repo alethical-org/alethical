@@ -11,11 +11,13 @@ import {
 import Svg, { Path } from 'react-native-svg';
 
 import { MoneyListRow, MoneyListRows } from '../../components/campaignMoney/MoneyListRows';
+import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
 import { Skeleton } from '../../components/Skeleton';
 import { usePaymentsUnderName } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
 import { committeeSlug, IN_KIND_CHIP } from '../../lib/committeeMoneyShared';
 import { centralDateLabel } from '../../lib/moneyLanding';
+import { paymentsUnderNameShareContent } from '../../lib/moneyResultsShare';
 import { MONEY_LIST_COVERAGE, MONEY_LIST_COVERAGE_HEADING } from '../../lib/moneyListCopy';
 import {
   BACK_TO_RESULTS,
@@ -146,7 +148,7 @@ export function PaymentsUnderNameScreen({
   const checkedOn = firstPage?.fetchedAt ? centralDateLabel(firstPage.fetchedAt) : null;
   const backToSearch = routePath.moneySearch({ q: backQuery });
 
-  if (!role) {
+  if (!role || !name.trim()) {
     // Only reachable by an in-app navigate with a role we do not serve. Nothing to
     // say about a question we did not ask, so the page sends the reader back to
     // the search rather than showing an empty list.
@@ -189,13 +191,22 @@ export function PaymentsUnderNameScreen({
           </FocusPressable>
 
           <Text style={styles.eyebrow}>{paymentsUnderNameEyebrow(role)}</Text>
-          <Text
-            accessibilityRole="header"
-            aria-level={1}
-            style={[styles.h1, isTablet && styles.h1Tablet, isMobile && styles.h1Mobile]}
+          <ResultsHeading
+            isMobile={isMobile}
+            content={
+              firstPage && firstPage.state !== 'unavailable' && !list.isPlaceholderData
+                ? paymentsUnderNameShareContent(name, role, route.params?.q)
+                : null
+            }
           >
-            {paymentsUnderNameHeading(name, role)}
-          </Text>
+            <Text
+              accessibilityRole="header"
+              aria-level={1}
+              style={[styles.h1, isTablet && styles.h1Tablet, isMobile && styles.h1Mobile]}
+            >
+              {paymentsUnderNameHeading(name, role)}
+            </Text>
+          </ResultsHeading>
           <Text style={styles.standfirst}>{paymentsUnderNameStandfirst(role)}</Text>
           {role === 'independent_vendor' ? (
             <Text style={styles.standfirst}>{INDEPENDENT_IS_A_SEPARATE_FILING}</Text>

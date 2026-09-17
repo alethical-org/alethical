@@ -45,7 +45,7 @@ describe('page metadata', () => {
       'HF 719 (2025): Statewide Capital Projects and Bonding Bill | Alethical',
     );
     expect(meta.canonicalPath).toBe('/bills/94-2025-HF719');
-    expect(meta.description).toBe('Authorizes borrowing for public buildings.');
+    expect(meta.description).toBe('Bill text, legislative progress, and official sources');
     expect(meta.noindex).toBe(false);
   });
 

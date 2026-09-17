@@ -30,6 +30,12 @@ from all money screens in the same release.
 
 ## Search within lobbying
 
+Individual lobbyist and principal records have Share controls; the landing and
+chooser directories do not. The window names the kind of record, then shows its
+title once and complementary context. Lobbyist context reflects registration
+status; principal context names reported spending and current registered lobbyists.
+[How sharing works](sharing-guide.md) owns the shared controls and destinations.
+
 Submitting the name field on `/money/lobbying` keeps the reader on that address and
 stores the submitted query in `q`. Search needs at least 3 characters and runs on
 Search or Enter. Typing alone does not submit. A shorter submission keeps the last

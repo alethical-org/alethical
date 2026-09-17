@@ -35,10 +35,15 @@ describe('shared lobbying page titles', () => {
   ] as const)(
     'keeps the accepted %s title for the browser and shared preview',
     (kind, name, label) => {
-      expect(lobbyingPageMetadata('/money/lobbying/record', name, { kind })).toMatchObject({
+      const metadata = lobbyingPageMetadata('/money/lobbying/record', name, { kind });
+      expect(metadata).toMatchObject({
         title: `${name} — ${label} | Alethical`,
         socialTitle: `${name} — ${label}`,
       });
+      expect(metadata.description).not.toContain(name);
+      expect(metadata.description).toBe(
+        'Records from the Minnesota Campaign Finance and Public Disclosure Board',
+      );
     },
   );
 

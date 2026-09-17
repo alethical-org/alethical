@@ -13,8 +13,13 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import type { ShareContent } from '../../lib/share';
-import { buildShareIntents, nativeShareText, type ShareIntents } from '../../lib/shareIntents';
+import { shareDialogLabel, type ShareContent } from '../../lib/share';
+import {
+  buildShareIntents,
+  complementaryShareDescription,
+  nativeShareText,
+  type ShareIntents,
+} from '../../lib/shareIntents';
 import { theme as t } from '../../theme/tokens';
 import { useHover } from '../billDetail/interactions';
 import { ShareDestinationIcon } from './ShareDestinationIcon';
@@ -93,7 +98,13 @@ export function SharePanelContent({
   const generation = useRef(0);
   const copying = useRef(false);
   const intents = buildShareIntents(content);
-  const payload = { title: content.title, text: nativeShareText(content, false), url: content.url };
+  // Some receiving apps print both title and text. Carry the complete identity
+  // once in text, and the URL once in its own field.
+  const payload = { text: nativeShareText(content, false), url: content.url };
+  const description = complementaryShareDescription(
+    content.title,
+    content.previewDescription ?? content.description,
+  );
   let canUseDeviceShare = !isWeb;
   if (isWeb && typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
     try {
@@ -151,11 +162,11 @@ export function SharePanelContent({
     try {
       if (isWeb) await navigator.share(payload);
       else
-        await Share.share({
-          title: content.title,
-          message: nativeShareText(content, true),
-          url: content.url,
-        });
+        await Share.share(
+          Platform.OS === 'ios'
+            ? { message: nativeShareText(content, false), url: content.url }
+            : { message: nativeShareText(content, true) },
+        );
     } catch (reason) {
       if (!(
         reason &&
@@ -214,7 +225,9 @@ export function SharePanelContent({
           accessibilityRole="header"
           aria-level={2}
           style={[styles.heading, { fontSize: band.heading }]}
-        >{`Share this ${content.subject}`}</Text>
+        >
+          {shareDialogLabel(content.subject, content.resultsKind)}
+        </Text>
         <Pressable
           ref={closeButtonRef}
           accessibilityRole="button"
@@ -245,14 +258,14 @@ export function SharePanelContent({
           >
             {content.title}
           </Text>
-          {(content.previewDescription ?? content.description) ? (
+          {description ? (
             <Text
               style={[
                 styles.description,
                 { fontSize: band.description, lineHeight: band.description * 1.4 },
               ]}
             >
-              {content.previewDescription ?? content.description}
+              {description}
             </Text>
           ) : null}
           <View

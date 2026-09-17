@@ -2,6 +2,7 @@ import { outsideSpendingReturnContext } from '../../hooks/useOutsideSpendingRetu
 import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
+import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
 
 import { useOutsideSpendingRecord } from '../../hooks/useAppQueries';
 import { useOutsideSpendingNames } from '../../hooks/useOutsideSpendingNames';
@@ -10,6 +11,7 @@ import { useResponsive } from '../../hooks/useResponsive';
 import { formatMoney } from '../../lib/legislatorCampaignMoney';
 import { centralDateLabel, formatCount } from '../../lib/moneyLanding';
 import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
+import { outsideBrowseShareContent } from '../../lib/moneyResultsShare';
 import {
   OUTSIDE_SPENDING_HEADING,
   outsideSpendingPageNumber,
@@ -405,13 +407,22 @@ export function OutsideSpendingBrowseScreen({
             <Text style={styles.backText}>{MONEY_SECTION_NAME}</Text>
           </Pressable>
           <Text style={styles.eyebrow}>CAMPAIGN MONEY</Text>
-          <Text
-            accessibilityRole="header"
-            aria-level={1}
-            style={[styles.h1, isMobile && styles.h1Mobile]}
+          <ResultsHeading
+            isMobile={isMobile}
+            content={
+              !waitingForYear && record?.state === 'reported' && data?.state === 'reported'
+                ? outsideBrowseShareContent(data)
+                : null
+            }
           >
-            {OUTSIDE_SPENDING_HEADING}
-          </Text>
+            <Text
+              accessibilityRole="header"
+              aria-level={1}
+              style={[styles.h1, isMobile && styles.h1Mobile]}
+            >
+              {OUTSIDE_SPENDING_HEADING}
+            </Text>
+          </ResultsHeading>
           <Text style={[styles.intro, isMobile && styles.introMobile]}>{OUTSIDE_BROWSE_INTRO}</Text>
           {overview.isError && record ? (
             <Message

@@ -5,6 +5,8 @@ import { createRoot } from 'react-dom/client';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn() }));
+
 vi.hoisted(() => {
   (globalThis as { __DEV__?: boolean }).__DEV__ = false;
   process.env.EXPO_PUBLIC_API_URL = 'http://records.test';

@@ -94,11 +94,11 @@ export function LobbyingLobbyistScreen({ route, navigation }: RootScreenProps<'L
     subject: 'lobbyist',
     title: lobbyingPageMetadata(routePath.lobbyingLobbyist(finalSlug), displayName, {
       kind: 'lobbyist',
-    }).title,
+    }).socialTitle,
     description:
       lobbyist.state === 'not_registered_today'
-        ? `See campaign donations filed under registration ${lobbyist.registration_number} and whether the Board lists it today.`
-        : `See the organisations ${displayName} represents today and, separately, campaign donations filed under registration ${lobbyist.registration_number}.`,
+        ? `Campaign donations filed under registration ${lobbyist.registration_number} and its current registration status`
+        : `Current clients and campaign donations filed under registration ${lobbyist.registration_number}`,
     url: publicPageUrl(routePath.lobbyingLobbyist(finalSlug)),
   };
   const copiedLine = boardFilesCopiedLine(lobbyist.copied_at, centralDateLabel);

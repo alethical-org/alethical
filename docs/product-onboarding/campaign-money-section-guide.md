@@ -30,6 +30,15 @@ permanently and straight to the `/read` address it belongs to, never through the
 
 ## Ways in
 
+Share is available on `/money/search`, `/money/payments`, committee payment lists,
+`/money/races`, and both browse and subject results at `/money/outside-spending`.
+The control sits beside the heading on wider screens and beneath it on phones.
+It preserves the displayed year, section, search, filters, order, page, and valid
+race anchor. Committee and legislator-money records keep their existing controls.
+The landing and pure record-chooser directories do not gain Share buttons.
+[How sharing works](sharing-guide.md) owns the contextual window headings and
+non-repeating prepared messages.
+
 - Choose **Search**, then **Money in politics** (marked with a green NEW chip) in the shared
   top menu, on a computer or in the phone menu.
 - Choose **Money in politics** on the homepage card headed **Follow the money**.
@@ -1439,7 +1448,8 @@ differs:
 - **One line under the title instead of a research masthead**, reading
   `GUIDE · 5 MIN · WRITTEN AUGUST 2026`. The kind, how long it takes to read, and one date.
   There is no second date on it.
-- **The word GUIDE is in that line and nowhere else on the page.** A research piece prints
+- **The article prints GUIDE only in that line.** The separate Share window names its
+  action **Share this guide**. A research piece prints
   RESEARCH above its title because its own masthead is 2 dates and nothing else; a guide's line
   already says it, and saying it twice is what §2.10 narrows away.
 - **The reading time is worked out from the guide's own words**, at 200 words a minute, rounded

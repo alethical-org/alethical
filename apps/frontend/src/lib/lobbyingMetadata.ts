@@ -21,7 +21,7 @@ export function lobbyingPageMetadata(
   return {
     title: `${subject} | Alethical`,
     socialTitle: subject,
-    description: `${name}: Minnesota Campaign Finance and Public Disclosure Board lobbying records`,
+    description: 'Records from the Minnesota Campaign Finance and Public Disclosure Board',
     canonicalPath: options.noindex ? '' : path,
     noindex: options.noindex ?? false,
   };
