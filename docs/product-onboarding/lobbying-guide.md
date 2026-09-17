@@ -34,7 +34,7 @@ from all money screens in the same release.
 Individual lobbyist and principal records have Share controls; the landing and
 chooser directories do not. The window names the kind of record, then shows its
 title once and complementary context. Lobbyist context reflects registration
-status; principal context names reported spending and current registered lobbyists.
+status; principal context names reported spending and listed lobbyists.
 [How sharing works](sharing-guide.md) owns the shared controls and destinations.
 
 Submitting the name field on `/money/lobbying` keeps the reader on that address and
@@ -143,8 +143,8 @@ not claim an empty list.
 “Organisations represented” lists distinct principal IDs from the copied list, retaining the
 source order. Its explanation uses the full card width. It starts with the whole count,
 reveals 5 rows, then offers “Show 5 more clients” until all rows are visible. The list holds
-no past clients. A current registration
-missing from the held list says “not listed on the copy date”; it can still have older donations.
+no past clients. A registration missing from the copied list says “not listed on the copy
+date”; it can still have older donations.
 
 “Campaign donations filed under this registration number” is a separate card. It says that
 campaign donations are separate from lobbying spending and the represented organisations.
@@ -155,8 +155,8 @@ Dates, amounts and donated-goods-or-services markers stay on the payment lines.
 A differently typed donor name remains visible as "Filed as {name}". Repeated rows remain
 separate payments. No amount is added per committee, year or page.
 
-There is no sentence joining a client's spending to a legislator. Current principals and
-donations are different records. No chart, ranking, map, trend or combined money total is
+There is no sentence joining a client's spending to a legislator. Listed clients and donations
+are different records. No chart, ranking, map, trend or combined money total is
 drawn on the lobbying screens.
 
 ## Expanded donation rows elsewhere
