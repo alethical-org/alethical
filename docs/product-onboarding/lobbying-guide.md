@@ -2,8 +2,9 @@
 
 # How the lobbying pages work
 
-Net: `/money/lobbying` shows who is registered to lobby Minnesota, which organisations
-they represent today, and what those organisations report spending in each year.
+Net: `/money/lobbying` shows who was registered to lobby Minnesota when the displayed
+files were copied, which organisations they represented, and what those organisations
+report spending in each year.
 
 The Board calls an organisation that pays for lobbying a **principal**. The current
 lobbyist list and the yearly spending file are different records, copied together with
@@ -13,13 +14,13 @@ The source and recovery process is described in
 
 ## Addresses and entry points
 
-| Address | What it shows |
-| --- | --- |
-| `/money/lobbying` | Search, 2 directory links, source date and coverage limits |
-| `/money/lobbying/lobbyists` | Everyone in the current lobbyist list, by filed name |
-| `/money/lobbying/principals` | Distinct organisation IDs from either lobbying file |
-| `/money/lobbying/lobbyists/<name>-<registration>` | Current principals and separately filed donations under that registration |
-| `/money/lobbying/principals/<name>-<entity ID>` | Official yearly spending and lobbyists currently registered for that organisation |
+| Address                                           | What it shows                                                                     |
+| ------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `/money/lobbying`                                 | Search, 2 directory links, source date, source link and coverage limits           |
+| `/money/lobbying/lobbyists`                       | Everyone in the current lobbyist list, by filed name                              |
+| `/money/lobbying/principals`                      | Distinct organisation IDs from either lobbying file                               |
+| `/money/lobbying/lobbyists/<name>-<registration>` | Current principals and separately filed donations under that registration         |
+| `/money/lobbying/principals/<name>-<entity ID>`   | Official yearly spending and lobbyists currently registered for that organisation |
 
 Only the final number identifies a record. The readable name in an address does not
 choose or join identities. Each address opens directly, without first visiting another

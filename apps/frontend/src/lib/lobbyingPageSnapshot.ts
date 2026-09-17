@@ -8,6 +8,7 @@ import type {
 } from './lobbyingTypes';
 import {
   LOBBYING_DIRECTORY_COPY as directory,
+  LOBBYING_SOURCE_URL,
   lobbyingShowingLine,
   lobbyingNoSpendingRows,
   lobbyingPrincipalCount,
@@ -57,7 +58,10 @@ const base = (heading: string, subheading = ''): PageSnapshot => ({
 export function lobbyingLandingSnapshot(data: LobbyingSummary): PageSnapshot {
   return {
     ...base(directory.title, directory.landingLabel),
-    links: [{ label: MONEY_SECTION_NAME, href: '/money' }],
+    links: [
+      { label: directory.sourceLabel, href: LOBBYING_SOURCE_URL },
+      { label: MONEY_SECTION_NAME, href: '/money' },
+    ],
     body: [directory.intro],
     records: [
       {
@@ -91,7 +95,6 @@ export function lobbyingLandingSnapshot(data: LobbyingSummary): PageSnapshot {
           directory.currentOnly,
           directory.annual,
           lobbyingHeldYearsNote(data.first_year),
-          directory.coverageCloser,
         ].filter((line): line is string => Boolean(line)),
         bodyIsList: true,
       },

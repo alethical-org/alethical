@@ -12,12 +12,12 @@ import {
 
 describe('lobbying directory wording', () => {
   it('uses filed counts and years, not illustrative drawing figures', () => {
-    expect(lobbyistLaneCount(1665)).toBe('1,665 REGISTERED TODAY');
+    expect(lobbyistLaneCount(1665)).toBe('1,665 REGISTERED IN THIS COPY');
     expect(principalLaneCount(1748, 2025)).toBe('1,748 REPORTED SPENDING FOR 2025');
     expect(principalLaneCount(0, 2025)).toBe('0 REPORTED SPENDING FOR 2025');
     expect(lobbyistLaneCount(null)).toBeNull();
     expect(principalLaneCount(1748, null)).toBeNull();
-    expect(lobbyingHeldYearsNote(2014)).toBe('No lobbying spending held before 2014');
+    expect(lobbyingHeldYearsNote(2014)).toBe('The spending records shown here begin in 2014');
     expect(lobbyingHeldYearsNote(null)).toBeNull();
   });
   it('keeps full counts beside the page interval', () => {
