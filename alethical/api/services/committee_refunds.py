@@ -116,20 +116,27 @@ def refunds_for_committee(db: Session, *, registration_number: str) -> Committee
     this feeds shows a history, and a single year of it would say nothing about whether a
     gap is a quiet year or a year Minnesota published nothing.
     """
-    published = db.execute(
+    # Every candidate-refund summary we hold, published or not, in one read: the
+    # published ones carry the figures and every one of them names a year the source
+    # publishes, which used to be a second trip for the same rows.
+    summaries = db.execute(
         select(
             schema.CampaignFinanceRefundSummary.id,
             schema.CampaignFinanceRefundSummary.year,
             schema.CampaignFinanceRefundSummary.source_url,
             schema.CampaignFinanceRefundSummary.fetched_on,
             schema.CampaignFinanceRefundSummary.validation_json,
+            schema.CampaignFinanceRefundSummary.status,
         ).where(
             schema.CampaignFinanceRefundSummary.kind
             == schema.CampaignFinanceRefundKind.candidate,
-            schema.CampaignFinanceRefundSummary.status
-            == schema.CampaignFinanceRefundStatus.published,
         )
     ).all()
+    published = [
+        row[:5]
+        for row in summaries
+        if row[5] == schema.CampaignFinanceRefundStatus.published
+    ]
     matched = {
         row[0]: (row[1], row[2])
         for row in db.execute(
@@ -165,14 +172,7 @@ def refunds_for_committee(db: Session, *, registration_number: str) -> Committee
     )
     since = _registered_since(db, registration_number)
     held = {row[1]: (row[2], row[3], row[4]) for row in published}
-    known_years = set(
-        db.scalars(
-            select(schema.CampaignFinanceRefundSummary.year).where(
-                schema.CampaignFinanceRefundSummary.kind
-                == schema.CampaignFinanceRefundKind.candidate
-            )
-        ).all()
-    )
+    known_years = {row[1] for row in summaries}
     if not published and not known_years:
         return CommitteeRefunds(state=UNAVAILABLE, years=())
     for row in published:

@@ -292,14 +292,10 @@ def filings_copied_at(db: Session) -> datetime | None:
     run, a report's receipt date, and the payment release cannot date those figures.
     No current filing source means no date, even when payment files are available.
     Call inside the request's pinned database view so the figures and date agree.
+    The same resolver every figure used, so inside a pinned request it costs no trip.
     """
-    snapshot = schema.CampaignFinanceFilingSnapshot
-    pointer = schema.CampaignFinanceFilingCurrentSnapshot
-    return db.execute(
-        select(snapshot.fetch_completed_at)
-        .join(pointer, pointer.snapshot_id == snapshot.id)
-        .where(pointer.id.is_(True))
-    ).scalar_one_or_none()
+    snapshot = filings.live_filings_snapshot(db)
+    return None if snapshot is None else snapshot.fetch_completed_at
 
 
 def pin_to_one_view(db: Session) -> None:
@@ -328,8 +324,12 @@ def pin_to_one_view(db: Session) -> None:
 
     Must be the first statement in the transaction; Postgres refuses it once a
     statement has run, so callers call it before resolving anything.
+
+    Once pinned, the live register is resolved once per request rather than once per
+    caller (``campaign_finance_filings.mark_pinned_read``).
     """
     db.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"))
+    filings.mark_pinned_read(db)
 
 
 def current_release(db: Session) -> Release | None:

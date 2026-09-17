@@ -272,8 +272,30 @@ def current_release(db: Session) -> Release | None:
     return Release(snapshot_id=row[0], source_url=row[1], fetched_at=fetched_at)
 
 
+def every_link(db: Session, legislator_id: UUID) -> list[LegislatorCampaignCommittee]:
+    """Every review decision recorded for this legislator, whatever its verdict.
+
+    One read that serves 3 questions asked of the same few rows on every year of a
+    member's money tab: whether anyone has reviewed them at all (``link_state``), which
+    confirmed committees cover the year (``confirmed_committees``) and which do not
+    (``committees_outside_the_year``). Each of those accepts the list so the page asks
+    the database once rather than 3 times a region away (17 Sep 2026).
+    """
+    return list(
+        db.scalars(
+            select(LegislatorCampaignCommittee).where(
+                LegislatorCampaignCommittee.legislator_id == legislator_id
+            )
+        ).all()
+    )
+
+
 def confirmed_committees(
-    db: Session, legislator_id: UUID, *, year: int
+    db: Session,
+    legislator_id: UUID,
+    *,
+    year: int,
+    links: list[LegislatorCampaignCommittee] | None = None,
 ) -> list[LegislatorCampaignCommittee]:
     """This legislator's confirmed **legislative** committees covering ``year``.
 
@@ -293,14 +315,18 @@ def confirmed_committees(
     measurements and the 2 traps: never filter on the member's own chamber, and keep a
     committee whose office is blank.
     """
-    rows = _confirmed_links(db, legislator_id, year=year)
+    rows = _confirmed_links(db, legislator_id, year=year, links=links)
     return [
         link for link in rows if is_for_a_legislative_office(link.office_as_reviewed)
     ]
 
 
 def committees_outside_the_year(
-    db: Session, legislator_id: UUID, *, year: int
+    db: Session,
+    legislator_id: UUID,
+    *,
+    year: int,
+    links: list[LegislatorCampaignCommittee] | None = None,
 ) -> list[LegislatorCampaignCommittee]:
     """This legislator's confirmed **legislative** committees that do not cover ``year``.
 
@@ -318,13 +344,7 @@ def committees_outside_the_year(
     """
     return [
         link
-        for link in db.scalars(
-            select(LegislatorCampaignCommittee).where(
-                LegislatorCampaignCommittee.legislator_id == legislator_id,
-                LegislatorCampaignCommittee.decision
-                == CommitteeLinkReviewDecision.confirmed,
-            )
-        ).all()
+        for link in _every_confirmed_link(db, legislator_id, links=links)
         if is_for_a_legislative_office(link.office_as_reviewed)
         and not _period_covers(link, year)
     ]
@@ -387,19 +407,32 @@ def count_committees_for_another_race(db: Session, legislator_id: UUID) -> int:
 
 
 def _confirmed_links(
-    db: Session, legislator_id: UUID, *, year: int
+    db: Session,
+    legislator_id: UUID,
+    *,
+    year: int,
+    links: list[LegislatorCampaignCommittee] | None = None,
 ) -> list[LegislatorCampaignCommittee]:
     """Every confirmed link covering ``year``, whatever office it is for."""
     return [
         link
-        for link in _every_confirmed_link(db, legislator_id)
+        for link in _every_confirmed_link(db, legislator_id, links=links)
         if _period_covers(link, year)
     ]
 
 
 def _every_confirmed_link(
-    db: Session, legislator_id: UUID
+    db: Session,
+    legislator_id: UUID,
+    links: list[LegislatorCampaignCommittee] | None = None,
 ) -> list[LegislatorCampaignCommittee]:
+    """The confirmed links, filtered from ``links`` when a caller already holds them."""
+    if links is not None:
+        return [
+            link
+            for link in links
+            if link.decision == CommitteeLinkReviewDecision.confirmed
+        ]
     """Every confirmed link, whatever office and whatever year."""
     return list(
         db.scalars(

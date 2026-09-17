@@ -1374,7 +1374,38 @@ beside the rows themselves.
 | Asking a per-row question about a per-committee fact | 1.3 s to test 41,130 rows for linkability, 30 ms to test the 1,131 committees they name | Reduce to the distinct subjects before the question that is about subjects |
 | Reading every filing in Minnesota to answer about a few committees | 55,845 figure rows returned, built twice per committee page | `campaign_finance_filings.reported_totals_for` for a read; `filings_context` is the loader's own sweep |
 | Asking a 1-row question in 2 requests | resolving the live register read the pointer and then the snapshot it names, on every money read and twice on 4 of them | Join the pointer to what it names, so the answer costs 1 request; `campaign_finance_filings.live_filings_snapshot` |
-| Asking for a list and its length separately | 2 walks of one matched set, 1 round trip apart | Carry the count on the rows with a window, as `campaign_finance_search` does for members |
+| Asking for a list and its length separately | 2 walks of one matched set, 1 round trip apart | Carry the count on the rows with a window, as `campaign_finance_search` does for members and `campaign_finance_payments._fetch` does for a committee's payments |
+| Asking "does this filer have any row" as `SELECT DISTINCT ... UNION` | 2.0 s to walk the 72,951 rows the 59 counterparties on one page of donations had ever filed, when 1 row each answers it | One `EXISTS` per number over `unnest(:numbers)`, which stops at the first hit: 45 ms for the same answer (`campaign_finance_payments.linkable_committees`) |
+| Asking which register is live once per caller inside 1 pinned request | 3 round trips on a committee page, 6 on one year of a legislator's money tab, every answer identical because `REPEATABLE READ` makes it so | Remember the first answer for the life of the pinned transaction and no longer (`campaign_finance_filings.mark_pinned_read`); an unpinned session, which is what the loader holds, still asks every time |
+| Proving a snapshot's rows are still held with a `count(*)` per table | 3 round trips before any lobbying read could begin | Ride the counts on the statement that names the snapshots, as scalar subqueries (`lobbying.published_pair`) |
+| Reading the same few rows about 1 subject from 3 functions | a legislator's review decisions read 3 times a year-request; a committee's refund summaries twice | Read once and pass the list down (`independent_spending.every_link`); split published from known in Python (`committee_refunds`) |
+
+**Measured again on 17 Sep 2026, for the deepest money pages, with the same
+per-trip cost.** Traced from a laptop 32 ms from the database, so a saved trip is worth
+what it is worth from Railway, and every response was compared byte for byte against
+the live origin's before the change (only the `current_claim_validated_at` clock
+differs). Statement counts exclude the tracer's own `SET TRANSACTION READ ONLY`.
+
+| Route | Statements before | Statements after | Warm time before | Warm time after |
+|---|---:|---:|---:|---:|
+| `GET /committees/20003/payments?direction=received&year=2025&limit=250` | 6 | 5 | 809 ms (0.44 s of it 1 statement) | 332 ms |
+| `GET /committees/20003/payments?direction=made&year=2025&limit=250` | 6 | 5 | 1,373 ms (1.0 s of it 1 statement) | 326 ms |
+| `GET /committees/20003/finance?year=2025` | 24 | 21 | 999 ms | 897 ms |
+| `GET /legislators/jim-abeler/campaign-finance?year=2024` | 38 | 30 | 1,448 ms | 1,158 ms |
+| `GET /campaign-finance/outside-spending?spender=20003` | 8 | 7 | 448 ms | 394 ms |
+| `GET /lobbying/principals/5359` | 9 | 5 | 475 ms | 304 ms |
+| `GET /lobbying/lobbyists/1733` | 11 | 8 | 766 ms (0.5 s of it 1 statement) | 659 ms before the index below |
+
+The 2 payment reads were 1 bad plan each: the link check above. The lobbyist page's
+remaining 0.5 s is 1 statement, the lobbyist's own campaign donations, which walked all
+583,222 live contribution rows because nothing indexed the donor's registration number;
+migration `0055_cf_contributor_number_index` adds a partial index on
+`(snapshot_id, contrib_reg_num)` over the 85,771 rows that carry one, built with
+`CREATE INDEX CONCURRENTLY` from Alembic's `autocommit_block` so the deploy never blocks
+the nightly load. The 2 aggregate routes are now almost entirely trips: no statement on
+the committee page or the legislator year takes more than about 50 ms of work, and every
+one that remains is a different question, so what is left there is asking fewer questions
+per block rather than any plan.
 
 **A statement count is a test and a time is not.** A seeded test database holds a few
 rows on the same machine as the tests, so it cannot reproduce the distance to the

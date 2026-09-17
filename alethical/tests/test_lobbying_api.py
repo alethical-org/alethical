@@ -366,6 +366,28 @@ def test_principal_list_registered_names_use_only_the_current_pair(client, db):
     assert unavailable["principals"] == []
 
 
+def test_resolving_the_published_pair_costs_one_request(db):
+    """The pointer, its 2 snapshots and the 3 row counts that prove them, in 1 statement.
+
+    Every lobbying read starts by resolving the pair, and the 3 counts used to be 3 more
+    trips to a database a region away, about 100 ms of a 400 ms answer.
+    """
+    _pair(db)
+    statements = []
+
+    def record_query(_connection, _cursor, statement, *_rest):
+        statements.append(statement)
+
+    connection = db.connection()
+    event.listen(connection, "before_cursor_execute", record_query)
+    try:
+        pair = lobbying.published_pair(db)
+    finally:
+        event.remove(connection, "before_cursor_execute", record_query)
+    assert pair is not None
+    assert len(statements) == 1, statements
+
+
 def test_principal_list_query_count_does_not_grow_with_the_page(db):
     _pair(db)
     pair = lobbying.published_pair(db)

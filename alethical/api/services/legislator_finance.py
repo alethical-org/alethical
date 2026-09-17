@@ -119,6 +119,7 @@ from alethical.api.services.independent_spending import (
     REPORTED,
     committees_outside_the_year,
     confirmed_committees,
+    every_link,
 )
 from alethical.db.schema import load_schema
 from alethical.pipeline import campaign_finance_reader as reader
@@ -393,7 +394,11 @@ def is_for_a_legislative_office(office: str | None) -> bool:
     return office in LEGISLATIVE_OFFICES
 
 
-def link_state(db: Session, legislator_id: UUID) -> str:
+def link_state(
+    db: Session,
+    legislator_id: UUID,
+    links: list[LegislatorCampaignCommittee] | None = None,
+) -> str:
     """Whether anyone has confirmed which committees are this legislator's.
 
     Asked without a year, deliberately. Whether a *confirmed* link covers the year on
@@ -403,12 +408,16 @@ def link_state(db: Session, legislator_id: UUID) -> str:
     member with a confirmed 2024-only committee read as unreviewed in 2026, which is
     the opposite of true.
     """
-    decisions = set(
-        db.scalars(
-            select(LegislatorCampaignCommittee.decision).where(
-                LegislatorCampaignCommittee.legislator_id == legislator_id
-            )
-        ).all()
+    decisions = (
+        {link.decision for link in links}
+        if links is not None
+        else set(
+            db.scalars(
+                select(LegislatorCampaignCommittee.decision).where(
+                    LegislatorCampaignCommittee.legislator_id == legislator_id
+                )
+            ).all()
+        )
     )
     if CommitteeLinkReviewDecision.confirmed in decisions:
         return LINK_CONFIRMED
@@ -892,8 +901,11 @@ def legislator_finance(
     and we have not yet confirmed which is theirs -- never that no committee is
     registered for them, which §5.1 measured as false for all 200 sitting members.
     """
-    state = link_state(db, legislator_id)
-    confirmed = confirmed_committees(db, legislator_id, year=year)
+    # The 3 questions asked of this member's review decisions (here, here and in
+    # ``_committees_outside_this_year``) read the same few rows, so they are read once.
+    decisions = every_link(db, legislator_id)
+    state = link_state(db, legislator_id, decisions)
+    confirmed = confirmed_committees(db, legislator_id, year=year, links=decisions)
     # §7's office boundary, applied here rather than trusted to the reviewer. A person
     # confirms that a committee is *this member's*, which is a different question from
     # whether it is their *legislative* committee, and a run for Attorney General is
@@ -988,7 +1000,7 @@ def legislator_finance(
         committees=tuple(committees),
         other_office_committees=other_office,
         committees_outside_this_year=_committees_outside_this_year(
-            db, legislator_id=legislator_id, year=year
+            db, legislator_id=legislator_id, year=year, links=decisions
         ),
     )
 
@@ -1020,7 +1032,11 @@ def _match_check(link) -> CommitteeMatchCheck | None:
 
 
 def _committees_outside_this_year(
-    db: Session, *, legislator_id: UUID, year: int
+    db: Session,
+    *,
+    legislator_id: UUID,
+    year: int,
+    links: list[LegislatorCampaignCommittee] | None = None,
 ) -> tuple[CommitteeOutsideThisYear, ...]:
     """The confirmed committees this year leaves out, each with its closing date if any.
 
@@ -1030,10 +1046,10 @@ def _committees_outside_this_year(
     money for the year on screen. Saying their registration had ended would have been
     false on a named person's page.
     """
-    links = committees_outside_the_year(db, legislator_id, year=year)
-    if not links:
+    outside = committees_outside_the_year(db, legislator_id, year=year, links=links)
+    if not outside:
         return ()
-    closed_on = _closing_dates(db, [link.registration_number for link in links])
+    closed_on = _closing_dates(db, [link.registration_number for link in outside])
     return tuple(
         CommitteeOutsideThisYear(
             registration_number=link.registration_number,
@@ -1045,7 +1061,7 @@ def _committees_outside_this_year(
                 else None
             ),
         )
-        for link in sorted(links, key=lambda row: row.registration_number)
+        for link in sorted(outside, key=lambda row: row.registration_number)
     )
 
 
