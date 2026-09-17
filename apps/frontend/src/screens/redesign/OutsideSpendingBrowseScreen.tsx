@@ -218,39 +218,41 @@ export function OutsideSpendingBrowseScreen({
       <Text nativeID="outside-name-label" style={styles.fieldLabel}>
         Search {plural}
       </Text>
-      <View style={[styles.field, ...fieldFocusRing(focused)]}>
-        <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
-          <Circle cx={10.5} cy={10.5} r={6.5} stroke={t.colors.text.primary} strokeWidth={2} />
-          <Path d="M16 16 L21 21" stroke={t.colors.text.primary} strokeWidth={2} />
-        </Svg>
-        <TextInput
-          role="searchbox"
-          ref={inputRef}
-          value={input}
-          onChangeText={setInput}
-          {...focusProps}
-          aria-labelledby="outside-name-label"
-          accessibilityLabel={`Search ${plural}`}
-          maxLength={200}
-          onSubmitEditing={() => apply({ q: input.trim().slice(0, 200) || undefined })}
-          returnKeyType="search"
-          autoCapitalize="none"
-          autoCorrect={false}
-          spellCheck={false}
-          style={[styles.input, fieldOutlineReset]}
-        />
+      <View style={styles.searchRow}>
+        <View style={[styles.field, ...fieldFocusRing(focused)]}>
+          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
+            <Circle cx={10.5} cy={10.5} r={6.5} stroke={t.colors.text.primary} strokeWidth={2} />
+            <Path d="M16 16 L21 21" stroke={t.colors.text.primary} strokeWidth={2} />
+          </Svg>
+          <TextInput
+            role="searchbox"
+            ref={inputRef}
+            value={input}
+            onChangeText={setInput}
+            {...focusProps}
+            aria-labelledby="outside-name-label"
+            accessibilityLabel={`Search ${plural}`}
+            maxLength={200}
+            onSubmitEditing={() => apply({ q: input.trim().slice(0, 200) || undefined })}
+            returnKeyType="search"
+            autoCapitalize="none"
+            autoCorrect={false}
+            spellCheck={false}
+            style={[styles.input, fieldOutlineReset]}
+          />
+        </View>
+        {q && (data?.names.length ?? 0) > 0 ? (
+          <Action
+            style={styles.clearSearch}
+            label="Clear search"
+            onPress={() => {
+              setInput('');
+              apply({ q: undefined });
+              inputRef.current?.focus();
+            }}
+          />
+        ) : null}
       </View>
-      {q && (data?.names.length ?? 0) > 0 ? (
-        <Action
-          style={styles.clearSearch}
-          label="Clear search"
-          onPress={() => {
-            setInput('');
-            apply({ q: undefined });
-            inputRef.current?.focus();
-          }}
-        />
-      ) : null}
     </View>
   );
 
@@ -580,7 +582,7 @@ function Overview({ record, wide }: { record: OutsideSpendingRecordPage; wide: b
   const total = formatMoney(figures.amountTotal);
   const count = figures.rowCount;
   const directions = [
-    { label: 'supporting', count: figures.supportingCount, color: '#2b6377' },
+    { label: 'supporting', count: figures.supportingCount, color: '#3f87a6' },
     { label: 'opposing', count: figures.opposingCount, color: '#11150f' },
     ...(figures.directionNotRecordedCount
       ? [
@@ -624,7 +626,9 @@ function Overview({ record, wide }: { record: OutsideSpendingRecordPage; wide: b
                 style={{
                   width: `${count ? (d.count / count) * 100 : 0}%`,
                   backgroundColor: d.color,
-                  height: 13,
+                  borderLeftColor: '#fff',
+                  borderLeftWidth: d.label === 'opposing' ? 2 : 0,
+                  height: 14,
                 }}
               />
             ))}
@@ -654,7 +658,7 @@ function Overview({ record, wide }: { record: OutsideSpendingRecordPage; wide: b
 
 const styles = StyleSheet.create({
   page: { flexGrow: 1 },
-  main: { paddingTop: 32, paddingBottom: 60 },
+  main: { maxWidth: 1280, alignSelf: 'center', paddingTop: 32, paddingBottom: 60 },
   mainMobile: { paddingTop: 22, paddingBottom: 40 },
   back: {
     flexDirection: 'row',
@@ -709,8 +713,8 @@ const styles = StyleSheet.create({
   years: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   yearButton: {
     minHeight: 44,
-    paddingHorizontal: 16,
-    borderRadius: 11,
+    paddingHorizontal: 15,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink14,
     backgroundColor: '#fff',
@@ -737,7 +741,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   cardMobile: { padding: 18 },
-  choices: { flexDirection: 'row', gap: 14, marginBottom: 20 },
+  choices: { flexDirection: 'row', gap: 12, marginBottom: 20 },
   stacked: { flexDirection: 'column' },
   choice: {
     flex: 1,
@@ -745,7 +749,7 @@ const styles = StyleSheet.create({
     gap: 10,
     borderRadius: 13,
     borderWidth: 2,
-    borderColor: t.colors.alpha.ink14,
+    borderColor: 'rgba(17,21,15,0.18)',
     padding: 16,
   },
   choiceActive: { borderColor: '#11150f' },
@@ -776,7 +780,10 @@ const styles = StyleSheet.create({
   },
   radioActive: { borderColor: t.colors.text.primary },
   radioDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: t.colors.text.primary },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   field: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -785,7 +792,6 @@ const styles = StyleSheet.create({
     borderColor: t.colors.text.primary,
     borderRadius: 13,
     paddingHorizontal: 14,
-    maxWidth: 600,
   },
   input: {
     flex: 1,
@@ -834,7 +840,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   nameRow: {
-    paddingVertical: 12,
+    paddingTop: 3,
+    paddingBottom: 14,
     minHeight: 60,
     borderBottomWidth: 1,
     borderBottomColor: t.colors.alpha.ink08,
@@ -845,12 +852,13 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     fontWeight: '700',
     color: t.colors.text.primary,
+    minHeight: 45,
+    paddingVertical: 11,
+    ...(Platform.OS === 'web' ? ({ display: 'inline-block' } as object) : {}),
   },
   nameLink: {
     color: t.colors.text.greenOnLight,
     textDecorationLine: 'underline',
-    minHeight: 44,
-    paddingVertical: 10,
     ...(Platform.OS === 'web' ? ({ overflowWrap: 'anywhere' } as object) : {}),
   },
   nameNote: {
@@ -859,7 +867,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: t.colors.text.secondary,
     fontVariant: ['tabular-nums'],
-    marginTop: 2,
+    marginTop: -5,
   },
   pagination: {
     flexDirection: 'row',
@@ -869,9 +877,18 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     marginTop: 20,
   },
-  paginationMobile: { gap: 12, marginTop: 18 },
-  pageButtonMobile: { gap: 8, paddingHorizontal: 15 },
-  pageButtonTextMobile: { fontSize: 15 },
+  paginationMobile: {
+    justifyContent: 'space-between',
+    flexWrap: 'nowrap',
+    gap: 10,
+    marginHorizontal: -18,
+    marginTop: 18,
+  },
+  pageButtonMobile: { flexShrink: 0, gap: 7, paddingHorizontal: 13 },
+  pageButtonTextMobile: {
+    fontSize: 15,
+    ...(Platform.OS === 'web' ? ({ whiteSpace: 'nowrap' } as object) : {}),
+  },
   pageButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -892,12 +909,14 @@ const styles = StyleSheet.create({
   disabledButton: { borderColor: 'rgba(17,21,15,0.1)' },
   disabledText: { color: '#9aa09a' },
   pageCount: {
+    flexShrink: 0,
     fontFamily: t.typography.body,
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.28,
     fontVariant: ['tabular-nums'],
     color: t.colors.text.secondary,
+    ...(Platform.OS === 'web' ? ({ whiteSpace: 'nowrap' } as object) : {}),
   },
   overview: {
     borderWidth: 1,
@@ -958,14 +977,15 @@ const styles = StyleSheet.create({
   },
   bar: {
     flexDirection: 'row',
-    height: 13,
-    borderRadius: 8,
+    height: 14,
+    borderRadius: 7,
     overflow: 'hidden',
+    backgroundColor: '#eceeed',
     marginTop: 10,
     marginBottom: 12,
   },
   legend: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
-  swatch: { width: 11, height: 11, borderRadius: 3 },
+  swatch: { width: 12, height: 12, borderRadius: 3 },
   legendText: {
     flex: 1,
     fontFamily: t.typography.body,
@@ -1000,7 +1020,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 6,
   },
-  clearSearch: { marginTop: 16 },
+  clearSearch: { minHeight: 52, marginTop: 0 },
   actionLabel: {
     fontFamily: t.typography.body,
     fontSize: 15,
