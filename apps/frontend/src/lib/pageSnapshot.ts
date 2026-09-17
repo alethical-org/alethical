@@ -21,6 +21,7 @@ import {
   MONEY_SOURCE_GROUPS,
 } from './moneyLandingSources';
 import { MONEY_SECTION_NAME } from './moneySectionName';
+import { itemsByMenu, NAV_BAR } from '../navigation/ia';
 import { MONEY_LIST_COVERAGE, MONEY_LIST_COVERAGE_HEADING } from './moneyListCopy';
 import {
   authorNameOnly,
@@ -281,10 +282,24 @@ export interface SnapshotRecordLink extends SnapshotLink {
 }
 
 export interface PageSnapshot {
+  /**
+   * The small link above the heading that returns to the section this page sits
+   * in, drawn exactly where the app draws its own (`/money` for a committee).
+   */
+  backLink?: SnapshotLink;
+  /** The short capitalised label the app draws above the heading, e.g. `STATE PARTY COMMITTEE`. */
+  eyebrow?: string;
   /** The page's `<h1>`. */
   heading: string;
   /** The identifying line beneath it, e.g. `HF 719 · 2025–26 LEGISLATIVE SESSION`. */
   subheading: string;
+  /**
+   * The row of short labels the app draws under the heading instead of one
+   * line, the first one boxed (`REG 20003`, `Registered as: party unit`). When
+   * present the served page draws these and not `subheading`, which stays for
+   * the title tag and for tests that read the identity as one line.
+   */
+  chips?: string[];
   /** Heading above the prose block, worded as the app labels it. */
   bodyHeading: string;
   /** Bullets when `bodyIsList`, otherwise paragraphs. */
@@ -1559,6 +1574,8 @@ interface CommitteeIdentity {
   isPartyUnit: boolean;
   eyebrow: string | null;
   subheading: string;
+  /** The same facts as `subheading`, minus the eyebrow, as the drawn chip row. */
+  chips: string[];
   checkedOn: string | null;
   filingsCopiedOn: string | null;
   state: 'closed-empty' | 'empty-year' | 'figures';
@@ -1649,6 +1666,18 @@ function committeeIdentity(
       notInRegister: register.state === 'not_registered',
       closed: closedChipLabel(register.termination_date),
     }),
+    chips: [
+      `REG ${registrationNumber}`,
+      clean(
+        registeredForLine({
+          kind: registerKind,
+          office: register.office ?? null,
+          district: register.district ?? null,
+        }),
+      ),
+      register.state === 'not_registered' ? NOT_IN_REGISTER_LINE : '',
+      (closedChipLabel(register.termination_date) ?? '').toUpperCase(),
+    ].filter(Boolean),
     state,
     checkedOn,
     filingsCopiedOn: money.filings_copied_at ? centralDateLabel(money.filings_copied_at) : null,
@@ -1833,8 +1862,11 @@ export function committeePageSnapshot(
   });
 
   return {
+    backLink: { label: MONEY_SECTION_NAME, href: '/money' },
+    eyebrow: (identity.eyebrow ?? 'Committee').toUpperCase(),
     heading: identity.name,
     subheading: identity.subheading,
+    chips: identity.chips,
     bodyHeading: '',
     body: [
       view.confirmedFor === undefined
@@ -1979,8 +2011,14 @@ export function committeePaymentsPageSnapshot(
       : `Minnesota’s payment files copied ${copiedOn}. This is a copy date, not a reporting period.`
     : null;
   return {
+    backLink: {
+      label: identity.name,
+      href: `/money/committees/${encodeURIComponent(identity.slug)}?tab=${tab}&year=${year}`,
+    },
+    eyebrow: (identity.eyebrow ?? 'Committee').toUpperCase(),
     heading: paymentsTitle(tab),
     subheading: [identity.name, `REG ${identity.registrationNumber}`].join(' · '),
+    chips: [identity.name, `REG ${identity.registrationNumber}`],
     bodyHeading: '',
     body: [
       ...(showing ? [showing] : []),
@@ -2098,11 +2136,52 @@ function renderSnapshotBlock(block: SnapshotBlock): string {
 }
 
 /**
+ * The site's top bar, as the app draws it, so the first paint carries the same
+ * chrome the app replaces it with rather than a bare document.
+ *
+ * The labels and the Read link come from the same registry the app's `TopNav`
+ * reads (`navigation/ia.ts`). The 2 dropdown menus cannot open before the app
+ * runs, so each links to the first page under it. "Sign in" is a control that
+ * only the app can operate, so here it is a label in the button's place: it holds
+ * the layout the app fills in, and never pretends to be a link.
+ */
+function renderSnapshotNav(): string {
+  const links = NAV_BAR.map((entry) => {
+    if (entry.kind === 'link') {
+      return `<a href="${escapeHtml(entry.item.path)}">${escapeHtml(entry.item.label)}</a>`;
+    }
+    const first = itemsByMenu(entry.key).find((item) => item.availability === 'mvp');
+    return first
+      ? `<a href="${escapeHtml(first.path)}">${escapeHtml(entry.label)}</a>`
+      : `<span>${escapeHtml(entry.label)}</span>`;
+  });
+  return (
+    '<header class="ps-nav"><div class="ps-inner ps-nav-row">' +
+    '<a class="ps-logo" href="/" aria-label="Alethical home">' +
+    `<svg class="ps-mark" viewBox="0 0 84 82" fill="none" aria-hidden="true"><path d="${LOGO_MARK_PATH}" fill="currentColor"></path></svg>` +
+    '<span class="ps-wordmark">ALETHICAL</span></a>' +
+    `<nav class="ps-nav-links" aria-label="Site">${links.join('')}<span class="ps-signin">Sign in</span></nav>` +
+    '</div></header>'
+  );
+}
+
+/** The twin-peak mark, the same path the app's `Logo` draws (`theme/primitives.tsx`). */
+export const LOGO_MARK_PATH = 'M0 82 L38 0 L38 82 Z M84 82 L46 0 L46 82 Z';
+
+/** A left-pointing chevron, the same path as the app's `BackChevron`. */
+const BACK_CHEVRON =
+  '<svg class="ps-back-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 5 L8 12 L15 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
+
+/**
  * The snapshot as HTML. Every value is escaped: 10,471 AI-written summaries are
  * 10,471 chances for one stray character to break the markup.
  *
  * The class names are styled by the static block in
- * `apps/frontend/public/index.html`, so a page carries no per-address CSS.
+ * `apps/frontend/public/index.html`, so a page carries no per-address CSS. The
+ * shape is the app's own: the top bar, then the page header (back link, eyebrow,
+ * heading, chips), then each block of facts in its own card, in the same
+ * typeface and colours, so what paints first and what the app replaces it with
+ * read as one page rather than an old design and a new one.
  */
 export function renderPageSnapshot(snapshot: PageSnapshot): string {
   const body = snapshot.body.length
@@ -2110,14 +2189,17 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
       ? `<ul class="ps-list">${snapshot.body.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
       : snapshot.body.map((item) => `<p class="ps-prose">${escapeHtml(item)}</p>`).join('')
     : '';
+  const bodyCard = body
+    ? `<section class="ps-card">${snapshot.bodyHeading ? `<h2>${escapeHtml(snapshot.bodyHeading)}</h2>` : ''}${body}</section>`
+    : '';
 
   const facts = snapshot.facts.length
-    ? `<dl class="ps-facts">${snapshot.facts
+    ? `<section class="ps-card"><dl class="ps-facts">${snapshot.facts
         .map(
           (item) =>
             `<dt>${escapeHtml(item.label)}</dt><dd>${item.lines.map((line) => escapeHtml(line)).join('<br />')}</dd>`,
         )
-        .join('')}</dl>`
+        .join('')}</dl></section>`
     : '';
 
   const sections = (snapshot.sections ?? [])
@@ -2164,7 +2246,7 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
         : '';
       const content = `${orderedBlocks}${sectionBody}${items}${sourceGroups}`;
       return content
-        ? `${section.separated ? '<hr />' : ''}<h2>${escapeHtml(section.heading)}</h2>${section.researchFeature ? `<div style="background:#eaf6ef;border:1px solid #bfe3ce;border-radius:18px;padding:24px">${content}</div>` : content}`
+        ? `${section.separated ? '<hr />' : ''}<section class="ps-card${section.researchFeature ? ' ps-card-feature' : ''}"><h2>${escapeHtml(section.heading)}</h2>${content}</section>`
         : '';
     })
     .join('');
@@ -2184,17 +2266,30 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
         .join('')}</nav>`
     : '';
 
+  const chips = snapshot.chips?.length
+    ? `<div class="ps-chips">${snapshot.chips
+        .map(
+          (chip, index) =>
+            `<span class="${index === 0 ? 'ps-chip' : 'ps-chip-text'}">${escapeHtml(chip)}</span>`,
+        )
+        .join('')}</div>`
+    : '';
+
   return [
     '<div class="page-snapshot">',
-    '<div class="ps-inner">',
-    `<h1>${escapeHtml(snapshot.heading)}</h1>`,
-    snapshot.subheading ? `<p class="ps-sub">${escapeHtml(snapshot.subheading)}</p>` : '',
-    body
-      ? `${snapshot.bodyHeading ? `<h2>${escapeHtml(snapshot.bodyHeading)}</h2>` : ''}${body}`
+    renderSnapshotNav(),
+    '<main class="ps-inner">',
+    snapshot.backLink
+      ? `<a class="ps-back" href="${escapeHtml(snapshot.backLink.href)}">${BACK_CHEVRON}${escapeHtml(snapshot.backLink.label)}</a>`
       : '',
+    snapshot.eyebrow ? `<p class="ps-eyebrow">${escapeHtml(snapshot.eyebrow)}</p>` : '',
+    `<h1>${escapeHtml(snapshot.heading)}</h1>`,
+    chips ||
+      (snapshot.subheading ? `<p class="ps-sub">${escapeHtml(snapshot.subheading)}</p>` : ''),
+    bodyCard,
     ...(snapshot.recordsBeforeSections ? [records, sections, facts] : [sections, facts, records]),
     links,
-    '</div>',
+    '</main>',
     '</div>',
   ]
     .filter(Boolean)

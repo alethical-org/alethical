@@ -915,7 +915,9 @@ describe('the piece snapshot serves the piece’s own writing, unchanged', () =>
     // linked at its source, and a link the reader only gets after the app runs is
     // not a link at all to anything reading the first response.
     expect(sourceAddresses.length).toBeGreaterThan(0);
-    expect(html.match(/href="/g)).toHaveLength(1 + sourceAddresses.length);
+    // Counted below the site's top bar, whose 4 links every served page carries.
+    const pageBody = html.slice(html.indexOf('<main'));
+    expect(pageBody.match(/href="/g)).toHaveLength(1 + sourceAddresses.length);
     for (const { href } of sourceAddresses) {
       expect(html).toContain(`<a href="${href}">`);
     }
@@ -1052,8 +1054,9 @@ describe('the guide snapshot serves the guide\u2019s own writing, unchanged', ()
       expect(html).toContain(`<a href="${(run as { href: string }).href}">`);
     }
     // One anchor back to the list, plus one per source address and one per internal
-    // link, and no others.
-    expect(html.match(/href="/g)).toHaveLength(1 + hrefs.length + internal.length);
+    // link, and no others below the site's top bar (whose 4 links every served page carries).
+    const pageBody = html.slice(html.indexOf('<main'));
+    expect(pageBody.match(/href="/g)).toHaveLength(1 + hrefs.length + internal.length);
     expect(snapshot.links).toEqual([{ label: READ_PAGE_HEADING, href: '/read' }]);
   });
 
@@ -1777,7 +1780,7 @@ describe('a committee’s record in the first response', () => {
       tab === 'filings' ? 'All years in our copy' : 'Payments from all years in the state’s file',
     );
     expect(html).toContain('The Board’s record for this committee');
-    expect(html).not.toContain('Money in');
+    expect(html).not.toContain('>Money in<');
     expect(html).not.toContain('Money out');
     expect(html).not.toContain('Campaign finance figures in our copy start in 2015');
     expect(html).not.toContain('payment files copied');

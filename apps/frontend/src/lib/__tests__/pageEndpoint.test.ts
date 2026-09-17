@@ -2766,7 +2766,7 @@ describe('a committee page hands its records to the app', () => {
     expect(body).not.toContain('Year 2025');
     expect(body).not.toContain(`/money/committees/${SLUG}/payments?`);
     expect(body).toContain('All years in our copy');
-    expect(body).not.toContain('Money in');
+    expect(body).not.toContain('>Money in<');
     expect(calls.map((url) => new URL(url).pathname + new URL(url).search)).toEqual([
       '/api/v1/committees/41326/finance?year=2026&include_confirmation=false',
       '/api/v1/committees/41326/confirmation',
