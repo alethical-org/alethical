@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
 import { createAppQueryClient } from '../lib/appQueryClient';
+import { initialWebWindowMetrics } from '../lib/initialWindowMetrics';
 import { AuthProvider } from './AuthProvider';
 import { SignInModalProvider } from './SignInModalProvider';
 import { TrackedBillWriteProvider } from './TrackedBillWriteProvider';
@@ -12,9 +13,12 @@ import { TrafficAnalytics } from '../components/TrafficAnalytics';
 
 export function AppProviders({ children }: PropsWithChildren) {
   const [queryClient] = useState(createAppQueryClient);
+  // Known before the first draw on the web, so no screen waits a frame for the
+  // provider to measure a window that has no insets (`lib/initialWindowMetrics.ts`).
+  const [initialMetrics] = useState(initialWebWindowMetrics);
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider initialMetrics={initialMetrics}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <TrackedBillWriteProvider>

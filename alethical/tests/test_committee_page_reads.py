@@ -764,6 +764,72 @@ def test_failed_dated_finance_does_not_get_the_long_window(db, client, status):
     assert "cache-control" not in response.headers
 
 
+@pytest.mark.parametrize("direction", ["received", "made"])
+def test_a_committee_payments_page_gets_the_dated_money_window(db, client, direction):
+    """Each payment row carries its own date and no current claim, so an anonymous
+    page of them is held like every other dated money record: the day-long window
+    that `payments-under-name` already has for the same rows keyed by name. These
+    2 reads were the slowest on a committee's page and nearly every reader of a
+    rarely-visited committee paid the origin for them (17 Sep 2026)."""
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="100.00")
+    _payment(db, published.expenditures, reg_num=CANDIDATE, amount="250.00")
+    db.commit()
+    response = client.get(
+        f"/api/v1/committees/{CANDIDATE}/payments",
+        params={"direction": direction, "year": 2025, "sort": "amount", "limit": 250},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["state"] == "reported"
+    assert response.headers["cache-control"] == public.MONEY_RECORDS_CACHE_CONTROL
+
+
+def test_a_year_with_no_payments_is_also_a_dated_fact_and_keeps_the_money_window(
+    db, client
+):
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="100.00")
+    # The download reaches 2025 (another filer spent), so this committee's silence
+    # is a fact about the year rather than a gap in our copy.
+    _payment(db, published.expenditures, reg_num="20003", amount="75.00")
+    db.commit()
+    response = client.get(
+        f"/api/v1/committees/{CANDIDATE}/payments",
+        params={"direction": "made", "year": 2025},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["state"] == "not_reported"
+    assert response.headers["cache-control"] == public.MONEY_RECORDS_CACHE_CONTROL
+
+
+def test_a_year_our_copy_does_not_reach_keeps_the_short_window(db, client):
+    """`unavailable` says our own copy could not answer, which is a passing fault
+    rather than a dated fact, so it is not handed out for a day."""
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="100.00")
+    db.commit()
+    response = client.get(
+        f"/api/v1/committees/{CANDIDATE}/payments",
+        params={"direction": "made", "year": 2025},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["state"] == "unavailable"
+    assert response.headers["cache-control"] == public.PUBLIC_CACHE_CONTROL
+
+
+def test_authenticated_payments_do_not_get_the_shared_cache_window(db, client):
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="100.00")
+    db.commit()
+    response = client.get(
+        f"/api/v1/committees/{CANDIDATE}/payments",
+        params={"direction": "received", "year": 2025},
+        headers={"Authorization": "Bearer reader"},
+    )
+    assert response.status_code == 200, response.text
+    assert "cache-control" not in response.headers
+
+
 @pytest.mark.parametrize("method", ["POST", "HEAD"])
 @pytest.mark.parametrize("route", ["finance", "confirmation"])
 def test_non_get_committee_reads_do_not_get_shared_cache_headers(

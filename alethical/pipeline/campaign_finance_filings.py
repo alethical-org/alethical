@@ -1900,13 +1900,46 @@ PUBLISH_LOCK_KEY = 610312263011
 KEEP_SUPERSEDED_GENERATIONS = 1
 
 
+#: ``Session.info`` key under which a pinned read remembers its transaction.
+_PINNED_READ = "campaign_finance_pinned_read"
+
+
+def mark_pinned_read(db: Session) -> None:
+    """Record that this transaction reads one instant of the database.
+
+    Called by the API's ``pin_to_one_view`` straight after ``SET TRANSACTION ISOLATION
+    LEVEL REPEATABLE READ``. Inside such a transaction the live-register pointer cannot
+    move between statements, so ``live_filings_snapshot`` may answer from the first read
+    rather than asking again: a committee page asked it 3 times and a legislator's money
+    tab 6 times, at a round trip each (17 Sep 2026). The memo is keyed on the transaction
+    object itself, so it dies with the transaction and a later one asks afresh.
+
+    The loader never calls this. It publishes by moving the pointer with a statement and
+    then reads the pointer back in the same session, and there the memo would hand it
+    the register that was live *before* the publish -- the exact hazard the docstring
+    below describes.
+    """
+    transaction = db.get_transaction()
+    if transaction is not None:
+        db.info[_PINNED_READ] = {"transaction": transaction}
+
+
+def _pinned_read(db: Session) -> Optional[dict]:
+    memo = db.info.get(_PINNED_READ)
+    if memo is None or memo["transaction"] is not db.get_transaction():
+        return None
+    return memo
+
+
 def live_filings_snapshot(db: Session) -> Optional[Any]:
     """Which filings snapshot is live, read from the database rather than from memory.
 
     One statement, joining the pointer to the snapshot it names. Every money read calls
     this, several of them twice, and the database is in a different region from the
     server, so each round trip saved here is saved on every one of those pages
-    ([#1966](https://github.com/alethical-org/alethical/issues/1966)).
+    ([#1966](https://github.com/alethical-org/alethical/issues/1966)). Inside a
+    transaction marked by ``mark_pinned_read`` the first answer is reused, because a
+    ``REPEATABLE READ`` transaction would read the same pointer again anyway.
 
     The pointer is never taken from the identity map: it is read as a join condition, so
     its value comes from the database on every call. ``populate_existing=True`` gives the
@@ -1919,14 +1952,20 @@ def live_filings_snapshot(db: Session) -> Optional[Any]:
     ``None`` when no pointer row exists, when it names no snapshot, and when the snapshot
     it names is gone — the same 3 answers, because a caller can act on none of them.
     """
+    memo = _pinned_read(db)
+    if memo is not None and "snapshot" in memo:
+        return memo["snapshot"]
     pointer = schema.CampaignFinanceFilingCurrentSnapshot
     snapshot = schema.CampaignFinanceFilingSnapshot
-    return db.execute(
+    live = db.execute(
         select(snapshot)
         .join(pointer, pointer.snapshot_id == snapshot.id)
         .where(pointer.id.is_(True))
         .execution_options(populate_existing=True)
     ).scalar_one_or_none()
+    if memo is not None:
+        memo["snapshot"] = live
+    return live
 
 
 def ensure_filings_pointer_row(db: Session) -> None:

@@ -29,6 +29,15 @@ import { Bill, LegislativeService, LegislatorVote } from '../data/types';
  * app redrew it a second later as `Sen. Joe Schomacker` of `Senate District
  * Unknown` from its own separate guesses (#2061).
  */
+/**
+ * The React Query key for one member's record, keyed by the id in the address
+ * (a readable slug or a UUID), because that is what the profile screen asks with.
+ * Shared with the page function so a served record seeds the app's own read.
+ */
+export function legislatorRecordQueryKey(legislatorId: string) {
+  return ['legislator', legislatorId] as const;
+}
+
 export function currentChamber(value: string | null | undefined): 'House' | 'Senate' | '' {
   const normalized = (value ?? '').trim().toLowerCase();
   return normalized === 'house' ? 'House' : normalized === 'senate' ? 'Senate' : '';

@@ -3584,6 +3584,8 @@ def _refuse_a_committee_we_hold_no_record_of(
 def committee_payments(
     registration_number: str,
     direction: Literal["received", "made", "independent", "independent_by"],
+    request: Request,
+    response: Response,
     year: int | None = Query(default=None, ge=2015, le=2100),
     sort: Literal["date", "amount"] = Query(default="date"),
     limit: int = Query(default=50, ge=1, le=MAX_PAYMENTS),
@@ -3658,6 +3660,21 @@ def committee_payments(
         offset=offset,
         order=ORDER_BY_AMOUNT if sort == "amount" else ORDER_BY_DATE,
     )
+    # These rows are a dated record and nothing else: each carries its own date,
+    # and no later event makes yesterday's copy of a filed payment false. So an
+    # anonymous read of a page we could answer gets the campaign-money window,
+    # the same one `payments-under-name` already has for the same rows keyed by
+    # name. A committee's payment lists were the slowest reads on its page (1.4 to
+    # 4.7 s at the origin on 17 Sep 2026), and the short window sent nearly every
+    # reader of a rarely-visited committee to the origin for them. An answer that
+    # says our own copy could not be read (`unavailable`) keeps the short window,
+    # so a passing fault is not handed out for a day.
+    if (
+        request.method == "GET"
+        and "authorization" not in request.headers
+        and page.state in ("reported", "not_reported")
+    ):
+        response.headers["Cache-Control"] = MONEY_RECORDS_CACHE_CONTROL
     return DetailResponse(
         data={
             "registration_number": registration_number,

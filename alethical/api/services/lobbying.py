@@ -51,8 +51,28 @@ def published_pair(db: Session) -> PublishedPair | None:
     release = schema.LobbyingRelease
     spending = schema.LobbyingExpenditureSnapshot
     active = schema.LobbyistSnapshot
+
+    # The pointer, the 2 snapshots it names and the 3 row counts that prove their rows
+    # are still held, in one statement. Every lobbying read starts here, and the database
+    # is a region away, so the 3 counts ride along as scalar subqueries rather than
+    # costing 3 more trips (about 100 ms of a 400 ms answer, 17 Sep 2026).
+    def held_rows(model, snapshot_id):
+        return (
+            select(func.count())
+            .select_from(model)
+            .where(model.snapshot_id == snapshot_id)
+            .scalar_subquery()
+        )
+
     row = db.execute(
-        select(release, spending, active)
+        select(
+            release,
+            spending,
+            active,
+            held_rows(schema.LobbyingExpenditureRow, spending.id),
+            held_rows(schema.LobbyistRow, active.id),
+            held_rows(schema.LobbyistAssociation, active.id),
+        )
         .join(
             schema.LobbyingCurrentRelease,
             schema.LobbyingCurrentRelease.release_id == release.id,
@@ -63,27 +83,14 @@ def published_pair(db: Session) -> PublishedPair | None:
     ).one_or_none()
     if row is None:
         return None
-    release_row, spending_row, active_row = row
+    release_row, spending_row, active_row, spending_held, active_held, links_held = row
     loaded = schema.CampaignFinanceSnapshotStatus.loaded
     if spending_row.status != loaded or active_row.status != loaded:
         return None
-    for model, snapshot in (
-        (schema.LobbyingExpenditureRow, spending_row),
-        (schema.LobbyistRow, active_row),
-    ):
-        held = db.scalar(
-            select(func.count())
-            .select_from(model)
-            .where(model.snapshot_id == snapshot.id)
-        )
+    for held, snapshot in ((spending_held, spending_row), (active_held, active_row)):
         if snapshot.row_count is None or held != snapshot.row_count:
             return None
-    associations_held = db.scalar(
-        select(func.count())
-        .select_from(schema.LobbyistAssociation)
-        .where(schema.LobbyistAssociation.snapshot_id == active_row.id)
-    )
-    if associations_held != active_row.association_count:
+    if links_held != active_row.association_count:
         return None
     return PublishedPair(
         id=release_row.id,
@@ -117,6 +124,26 @@ def _latest_year(
             *((row.entity_id == str(entity_id),) if entity_id is not None else ()),
         )
     )
+
+
+def _latest_years(
+    db: Session, pair: PublishedPair, entity_id: int
+) -> tuple[int | None, int | None]:
+    """The source's newest reported year and this principal's, from one statement.
+
+    The same question ``_latest_year`` asks, twice over the same rows, so the 2 answers
+    are 2 aggregates of one walk rather than 2 trips to the database.
+    """
+    row = schema.LobbyingExpenditureRow
+    return db.execute(
+        select(
+            func.max(row.report_year),
+            func.max(row.report_year).filter(row.entity_id == str(entity_id)),
+        ).where(
+            row.snapshot_id == pair.expenditure_snapshot_id,
+            or_(*(getattr(row, name).is_not(None) for name in MONEY_COLUMNS)),
+        )
+    ).one()
 
 
 def _principal_names(pair: PublishedPair):
@@ -391,12 +418,13 @@ def principal(db: Session, pair: PublishedPair | None, entity_id: int) -> dict:
         )
     ).all()
     name = spending[0].principal if spending else None
+    source_latest_year, latest_reported_year = _latest_years(db, pair, entity_id)
     return {
         **base,
         "state": REPORTED if spending else "no_spending_rows",
         "name": name,
-        "latest_reported_year": _latest_year(db, pair, entity_id),
-        "source_latest_year": _latest_year(db, pair),
+        "latest_reported_year": latest_reported_year,
+        "source_latest_year": source_latest_year,
         "spending": {
             "state": REPORTED if spending else "no_spending_rows",
             "rows": [

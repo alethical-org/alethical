@@ -65,37 +65,24 @@ describe('a loading page holds its space', () => {
     expect(shellFrame).toMatch(/if \(hero != null && height > 0 && height !== lastHeroHeight\)/);
   });
 
-  it('lays the served text out in fonts the reader already has', () => {
-    // Libre Franklin is fetched with display=swap, which paints the reader's own
-    // system font first and swaps ours in when it arrives. The two set different
-    // widths, so a long bill title fits on 2 lines in one and wraps to 3 in the
-    // other: 0.0531 of movement on a bill page at 390x844, against a passing
-    // mark of 0.1 for the whole page (#1997). Naming only fonts already on the
-    // device means what paints first is what stays.
+  it('lays the served text out in the app’s own typeface, which the head asks for first', () => {
+    // The served text used to name only fonts already on the device, because
+    // Libre Franklin came from Google after the first paint and the swap moved a
+    // long title by a line (0.0531 on a bill page at 390x844, #1997). The font
+    // now comes from this address and is asked for in the head before anything
+    // else, so it is in place for the first paint, and the text the app replaces
+    // it with is set in the same typeface at the same sizes: nothing moves at
+    // the handoff, and nothing reads as an old design giving way to a new one.
     const block = shell.match(/<style id="alethical-page-snapshot">[\s\S]*?<\/style>/)?.[0];
     expect(block).toBeTruthy();
-    // Scoped to that one rule's own braces: the hidden marks below it name
-    // Libre Franklin on purpose, and a greedier pattern would read them as this
-    // rule's and pass either way.
     expect(block).toMatch(
-      /\.page-snapshot \{[^}]*font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;/,
+      /\.page-snapshot \{[^}]*font-family: 'Libre Franklin', Helvetica, Arial, sans-serif;/,
     );
-    expect(block).not.toMatch(/\.page-snapshot \{[^}]*font-family: 'Libre Franklin'/);
-  });
-
-  it('still asks for the web font while the served text is on screen', () => {
-    // Removing the only early mention of Libre Franklin also removes the reason
-    // the browser fetches the file early: measured at 476ms with the old stack
-    // and 9057ms without it, which moves the swap onto the app's own text rather
-    // than removing it. Two hidden marks ask for it at the two weights the
-    // served text used, and lay out nothing.
-    const block = shell.match(/<style id="alethical-page-snapshot">[\s\S]*?<\/style>/)?.[0];
-    expect(block).toMatch(/\.page-snapshot::before,\s*\n?\s*\.page-snapshot::after \{/);
-    expect(block).toMatch(
-      /\.page-snapshot::before,[\s\S]*?font-family: 'Libre Franklin';[\s\S]*?visibility: hidden;/,
+    expect(shell).toMatch(
+      /<link\s+rel="preload"\s+as="font"\s+type="font\/woff2"\s+crossorigin\s+href="\/fonts\/libre-franklin-latin\.woff2"/,
     );
-    // display: none would make the browser skip the font altogether.
-    expect(block).not.toMatch(/\.page-snapshot::before,[\s\S]*?display: none;/);
+    // The hidden marks that once warmed the font are gone: the preload does that job.
+    expect(block).not.toContain('.page-snapshot::before');
   });
 
   it.each([

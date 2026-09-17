@@ -74,13 +74,85 @@
     </script>
     <!--/alethical:page-head-->
     <link rel="preconnect" href="https://api.alethical.com" crossorigin />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!--
+      The site's 3 typefaces are served from this address (public/fonts/) rather
+      than from Google Fonts, and the 2 the first paint needs are asked for
+      before anything else: Libre Franklin for every word on the page and Space
+      Grotesk for the wordmark in the top bar. Served from here, a font file
+      arrives on the connection the page already has, in parallel with the HTML
+      still being read, so the text the server sends can be laid out in the app's
+      own typeface from its first paint instead of in a stand-in that the app then
+      swaps out. From Google it cost 2 more connections and arrived after the
+      first paint (measured at 476 ms on 4 Sep 2026, issue 1997). The
+      declarations sit inline so no stylesheet request stands between the HTML
+      and the text. Each family is 1 variable file per character set, covering
+      every weight the app uses (public/fonts/fonts.css keeps the same
+      declarations for reference; licences sit beside the files).
+    -->
     <link
-      id="alethical-fonts"
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500&display=swap"
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      crossorigin
+      href="/fonts/libre-franklin-latin.woff2"
     />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      crossorigin
+      href="/fonts/space-grotesk-latin.woff2"
+    />
+    <style id="alethical-fonts">
+      @font-face {
+        font-family: 'Libre Franklin';
+        font-style: normal;
+        font-weight: 300 800;
+        font-display: swap;
+        src: url(/fonts/libre-franklin-latin-ext.woff2) format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      @font-face {
+        font-family: 'Libre Franklin';
+        font-style: normal;
+        font-weight: 300 800;
+        font-display: swap;
+        src: url(/fonts/libre-franklin-latin.woff2) format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: 'JetBrains Mono';
+        font-style: normal;
+        font-weight: 400 700;
+        font-display: swap;
+        src: url(/fonts/jetbrains-mono-latin-ext.woff2) format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      @font-face {
+        font-family: 'JetBrains Mono';
+        font-style: normal;
+        font-weight: 400 700;
+        font-display: swap;
+        src: url(/fonts/jetbrains-mono-latin.woff2) format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: 'Space Grotesk';
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+        src: url(/fonts/space-grotesk-latin-ext.woff2) format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      @font-face {
+        font-family: 'Space Grotesk';
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+        src: url(/fonts/space-grotesk-latin.woff2) format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+    </style>
     <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
     <style id="expo-reset">
       /* These styles make the body full-height */
@@ -113,9 +185,20 @@
     <!--
       The look of the factual snapshot api/page.ts puts inside #root for a record
       or public directory (issues #1325 and #1396). It is static and ships with
-      the shell, so no address carries CSS of its own. The colours mirror
-      apps/frontend/src/theme/tokens.ts, so what arrives first does not flash a
-      different palette than the app that replaces it.
+      the shell, so no address carries CSS of its own.
+
+      It is the app's own design, not a plain document: the same top bar, the same
+      header (back link, eyebrow, heading, chips), every block of facts in the same
+      white card, in the same typeface, sizes and colours the app draws
+      (theme/tokens.ts, theme/primitives.tsx, the committee screen's styles). What
+      paints first and what the app replaces it with then read as one page loading
+      rather than an old design giving way to a new one, which is what a reader saw
+      for about 200 ms on every address before 17 Sep 2026.
+
+      Libre Franklin is named here on purpose. The fonts are served from this
+      address and asked for in the head above, so the typeface is normally in
+      place for the first paint; naming a system font first was the right call
+      only while the font came late from Google (issue 1997).
     -->
     <style id="alethical-page-snapshot">
       .page-snapshot {
@@ -123,95 +206,180 @@
         overflow-y: auto;
         background: #ffffff;
         color: #11150f;
-        /*
-          No 'Libre Franklin' here on purpose. It is fetched from Google Fonts
-          with display=swap, which paints the reader's own system font first and
-          swaps our typeface in when it arrives. The two set different widths, so
-          a long bill title that fits on 2 lines in one wraps to 3 in the other
-          and everything below it jumps down a line: measured on the live site on
-          4 Sep 2026 as a movement of 0.0531 on a bill page at phone width,
-          against a passing mark of 0.1 for the whole page (issue #1997). Naming
-          only fonts already on the reader's device means what paints first is
-          what stays until the app replaces this text, and nothing moves.
-
-          The cost is one thing and it is smaller than it sounds: because
-          display=swap already paints the system font first, this text looked
-          like this at first paint anyway. What goes is the brief window between
-          the font arriving and the app taking over, which only exists on a
-          connection slow enough for the jump to be the bigger harm. The app
-          itself still uses Libre Franklin everywhere, and the words a search
-          engine reads are unchanged.
-        */
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-family: 'Libre Franklin', Helvetica, Arial, sans-serif;
         line-height: 1.55;
       }
-      /*
-        Nothing above lays out in Libre Franklin any more, and the browser only
-        fetches a font file once something on the page asks for it. Left alone,
-        that first ask would come from the app's own first paint instead: the
-        file was requested at 476ms with the old stack and at 9057ms without it,
-        which does not remove the swap, it moves it off this text and onto the
-        app's. These 2 hidden marks ask for the file at the same moment the old
-        stack did, at the 2 weights this text used, and lay out nothing: they are
-        out of the flow and sized to nothing, which is why every address measures
-        the same as before except the one this change is fixing. `visibility:
-        hidden` rather than `display: none` on purpose, because a browser skips
-        the font of an element it is not laying out at all.
-      */
-      .page-snapshot::before,
-      .page-snapshot::after {
-        content: '.';
-        font-family: 'Libre Franklin';
-        position: absolute;
-        width: 0;
-        height: 0;
-        overflow: hidden;
-        visibility: hidden;
-      }
-      .page-snapshot::before {
-        font-weight: 400;
-      }
-      .page-snapshot::after {
-        font-weight: 700;
-      }
       .page-snapshot .ps-inner {
-        max-width: 720px;
-        margin: 0 auto;
-        padding: 48px 24px 64px;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0 56px;
       }
-      .page-snapshot h1 {
-        font-size: 32px;
-        font-weight: 700;
+      .page-snapshot main.ps-inner {
+        padding-top: 28px;
+        padding-bottom: 64px;
+      }
+      .page-snapshot .ps-nav-row {
+        display: flex;
+        flex-wrap: wrap;
+        row-gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+        padding-top: 26px;
+        padding-bottom: 8px;
+      }
+      .page-snapshot .ps-logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #11150f;
+        text-decoration: none;
+      }
+      .page-snapshot .ps-mark {
+        width: 30.7px;
+        height: 30px;
+      }
+      .page-snapshot .ps-wordmark {
+        font-family: 'Space Grotesk', 'Libre Franklin', Helvetica, Arial, sans-serif;
+        font-weight: 500;
+        font-size: 26px;
+        line-height: 26px;
+        letter-spacing: 4.16px;
+      }
+      .page-snapshot .ps-nav-links {
+        display: flex;
+        align-items: center;
+        gap: 34px;
+      }
+      .page-snapshot .ps-nav-links a,
+      .page-snapshot .ps-nav-links > span:not(.ps-signin) {
+        color: #11150f;
+        text-decoration: none;
+        font-size: 18px;
+        font-weight: 500;
+        padding: 4px 0;
+      }
+      .page-snapshot .ps-signin {
+        margin-left: -4px;
+        background: #2ed47e;
+        color: #11150f;
+        border-radius: 12px;
+        padding: 12px 22px;
+        font-size: 18px;
         line-height: 1.2;
-        margin: 0 0 8px;
+        font-weight: 600;
       }
-      .page-snapshot h2 {
+      .page-snapshot .ps-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: #4f5651;
+        font-size: 15px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .page-snapshot .ps-back-chevron {
+        width: 18px;
+        height: 18px;
+      }
+      .page-snapshot .ps-eyebrow {
+        margin: 22px 0 0;
         font-size: 13px;
         font-weight: 700;
-        letter-spacing: 0.08em;
+        letter-spacing: 2.4px;
         text-transform: uppercase;
-        color: #4f5651;
-        margin: 32px 0 12px;
+        color: #0f7a45;
+      }
+      .page-snapshot h1 {
+        margin: 12px 0 0;
+        font-size: 40px;
+        line-height: 46px;
+        font-weight: 800;
+        letter-spacing: -1px;
       }
       .page-snapshot .ps-sub {
-        margin: 0;
+        margin: 8px 0 0;
         color: #4f5651;
-        font-size: 14px;
+        font-size: 16px;
+      }
+      .page-snapshot .ps-chips {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      .page-snapshot .ps-chip {
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.15px;
+        line-height: 22.5px;
+        font-variant-numeric: tabular-nums;
+        color: #4f5651;
+        background: #fbfcfd;
+        border: 1px solid rgba(17, 21, 15, 0.08);
+        border-radius: 8px;
+        padding: 6px 11px;
+      }
+      .page-snapshot .ps-chip-text {
+        font-size: 16px;
+        color: #4f5651;
+      }
+      .page-snapshot .ps-card {
+        margin-top: 22px;
+        background: #ffffff;
+        border: 1px solid rgba(17, 21, 15, 0.12);
+        border-radius: 16px;
+        padding: 30px 32px 28px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      }
+      .page-snapshot .ps-card-feature {
+        background: #eaf6ef;
+        border-color: #bfe3ce;
+      }
+      .page-snapshot h2 {
+        margin: 0 0 14px;
+        font-size: 24px;
+        line-height: 1.2;
+        font-weight: 800;
+        letter-spacing: -0.2px;
+        color: #11150f;
+      }
+      .page-snapshot h3 {
+        margin: 18px 0 8px;
+        font-size: 17px;
+        font-weight: 700;
+      }
+      .page-snapshot .ps-prose {
+        margin: 0 0 12px;
+        font-size: 17px;
+        line-height: 26.35px;
+        color: #4f5651;
+      }
+      .page-snapshot .ps-prose:last-child {
+        margin-bottom: 0;
       }
       .page-snapshot .ps-list {
         margin: 0;
         padding-left: 20px;
+        font-size: 17px;
+        line-height: 26.35px;
+        color: #4f5651;
       }
       .page-snapshot .ps-list li {
         margin-bottom: 8px;
       }
-      .page-snapshot .ps-prose {
-        margin: 0 0 12px;
+      .page-snapshot .ps-list li:last-child {
+        margin-bottom: 0;
+      }
+      .page-snapshot .ps-list a,
+      .page-snapshot .ps-prose a,
+      .page-snapshot details a {
+        color: #0f7a45;
+        font-weight: 600;
+        text-decoration: none;
       }
       .page-snapshot .ps-facts {
-        margin: 24px 0 0;
-        border-top: 1px solid #cfd6d2;
-        padding-top: 16px;
+        margin: 0;
       }
       .page-snapshot .ps-facts dt {
         font-size: 12px;
@@ -221,8 +389,13 @@
         color: #4f5651;
         margin-top: 12px;
       }
+      .page-snapshot .ps-facts dt:first-child {
+        margin-top: 0;
+      }
       .page-snapshot .ps-facts dd {
         margin: 2px 0 0;
+        font-size: 17px;
+        line-height: 26.35px;
       }
       .page-snapshot .ps-records {
         list-style: none;
@@ -247,6 +420,7 @@
       .page-snapshot .ps-record-detail {
         display: block;
         margin-top: 3px;
+        color: #4f5651;
       }
       .page-snapshot .ps-table {
         margin: 0 0 16px;
@@ -254,6 +428,7 @@
         width: 100%;
         display: block;
         overflow-x: auto;
+        font-size: 16px;
       }
       .page-snapshot .ps-table th,
       .page-snapshot .ps-table td {
@@ -269,6 +444,17 @@
         text-transform: uppercase;
         color: #4f5651;
       }
+      .page-snapshot hr {
+        border: 0;
+        height: 0;
+        margin: 0;
+      }
+      .page-snapshot details summary {
+        cursor: pointer;
+        color: #0f7a45;
+        font-weight: 600;
+        margin-top: 12px;
+      }
       .page-snapshot .ps-links {
         margin-top: 28px;
         display: flex;
@@ -278,6 +464,53 @@
       .page-snapshot .ps-links a {
         color: #0f7a45;
         font-weight: 600;
+        text-decoration: none;
+      }
+      /* Tablet: the app folds the bar's links into a menu and grows the logo. */
+      @media (max-width: 1099px) {
+        .page-snapshot .ps-nav-links a,
+        .page-snapshot .ps-nav-links > span:not(.ps-signin) {
+          display: none;
+        }
+        .page-snapshot .ps-mark {
+          width: 34.8px;
+          height: 34px;
+        }
+        .page-snapshot .ps-wordmark {
+          font-size: 30px;
+          line-height: 30px;
+          letter-spacing: 4.8px;
+        }
+      }
+      /* Phone: narrower gutters, a smaller logo, a smaller heading. */
+      @media (max-width: 767px) {
+        .page-snapshot .ps-inner {
+          padding-left: 24px;
+          padding-right: 24px;
+        }
+        .page-snapshot main.ps-inner {
+          padding-top: 18px;
+        }
+        .page-snapshot .ps-mark {
+          width: 22.5px;
+          height: 22px;
+        }
+        .page-snapshot .ps-wordmark {
+          font-size: 20px;
+          line-height: 20px;
+          letter-spacing: 3.2px;
+        }
+        .page-snapshot .ps-signin {
+          padding: 10px 16px;
+          font-size: 16px;
+        }
+        .page-snapshot h1 {
+          font-size: 30px;
+          line-height: 36px;
+        }
+        .page-snapshot .ps-card {
+          padding: 20px 22px;
+        }
       }
     </style>
   </head>
@@ -343,7 +576,7 @@
       and no extra script to run. `/` carries Home's text here because the home
       page is served straight off the filesystem and never reaches api/page.ts.
     -->
-    <div id="root"><!--alethical:page-snapshot--><div class="page-snapshot"><div class="ps-inner"><h1>Grounded answers on Minnesota politics</h1><p class="ps-sub">TRUTH, UNCONCEALED</p><p class="ps-prose">We read every bill so you don’t have to — what it says, where it stands, and how legislators voted. And the money: who gives, who spends, who gets paid, and who lobbies. Plain language, with every claim linked to the official record.</p><nav class="ps-links"><a href="/bills">Search Bills</a><a href="/legislators">Search Legislators</a><a href="/find-my-legislator">Find My Legislator</a><a href="/money">Money in politics</a><a href="/read">Read</a></nav></div></div><!--/alethical:page-snapshot--></div>
+    <div id="root"><!--alethical:page-snapshot--><div class="page-snapshot"><header class="ps-nav"><div class="ps-inner ps-nav-row"><a class="ps-logo" href="/" aria-label="Alethical home"><svg class="ps-mark" viewBox="0 0 84 82" fill="none" aria-hidden="true"><path d="M0 82 L38 0 L38 82 Z M84 82 L46 0 L46 82 Z" fill="currentColor"></path></svg><span class="ps-wordmark">ALETHICAL</span></a><nav class="ps-nav-links" aria-label="Site"><a href="/bills">Search</a><a href="/read">Read</a><a href="/about">About</a><span class="ps-signin">Sign in</span></nav></div></header><main class="ps-inner"><h1>Grounded answers on Minnesota politics</h1><p class="ps-sub">TRUTH, UNCONCEALED</p><section class="ps-card"><p class="ps-prose">We read every bill so you don’t have to — what it says, where it stands, and how legislators voted. And the money: who gives, who spends, who gets paid, and who lobbies. Plain language, with every claim linked to the official record.</p></section><nav class="ps-links"><a href="/bills">Search Bills</a><a href="/legislators">Search Legislators</a><a href="/find-my-legislator">Find My Legislator</a><a href="/money">Money in politics</a><a href="/read">Read</a></nav></main></div><!--/alethical:page-snapshot--></div>
     <!--
       The records api/page.ts already read for this address, handed to the app in
       the same response so it draws them without asking the data service for the

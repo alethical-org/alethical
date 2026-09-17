@@ -29,8 +29,10 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import event, text
 
+from alethical.api.services import campaign_finance_payments as payments_service
 from alethical.api.services import campaign_finance_races as races_service
 from alethical.api.services import committee_finance as committee_service
+from alethical.api.services import legislator_finance as legislator_service
 from alethical.api.services import outside_spending as outside_spending_service
 from alethical.db import models
 from alethical.db.session import get_engine, get_session_factory
@@ -412,3 +414,108 @@ def test_a_person_search_reads_its_rows_and_its_count_together(db, published) ->
     member_reads = [s for s in sent.sent if "legislator_service_period" in s]
     assert len(member_reads) == 1, member_reads
     assert group.total is not None
+
+
+def test_a_committee_payments_page_costs_two_requests(db, published) -> None:
+    """The rows and their count ride together, and the link check is 1 existence test.
+
+    It used to be 3, and the third was the whole cost of the page: asking which of the
+    counterparty numbers this release holds as a filer walked every row those filers had
+    ever filed (72,951 rows for one page of a party unit's donations, 2.0 s on
+    production) where one hit per number answers it (45 ms). The count now rides on the
+    rows as a window rather than re-walking the same filter a round trip later.
+    """
+    release = committee_service.current_release(db)
+    db.add(
+        models.CampaignFinanceContributionRow(
+            snapshot_id=release.contributions.snapshot_id,
+            row_number=90,
+            recipient="Port, Lindsey Senate Committee",
+            recipient_reg_num=SENATE_COMMITTEE,
+            recipient_type="PCC",
+            contributor="Stephenson, Zachary House Committee",
+            contrib_reg_num=HOUSE_COMMITTEE,
+            contrib_type="PCC",
+            receipt_type="Contribution",
+            year=2026,
+            receipt_date=date(2026, 4, 1),
+            amount=Decimal("500.00"),
+        )
+    )
+    db.commit()
+    with Statements() as sent:
+        page = payments_service.payments_received(
+            db, release, registration_number=SENATE_COMMITTEE, year=2026
+        )
+    assert page.state == "reported"
+    assert len(page.payments) == 2
+    assert page.total_payments == 2
+    assert page.linkable_registration_numbers == frozenset({HOUSE_COMMITTEE})
+    assert len(sent.sent) == 2, sent.sent
+    rows_read, link_check = sent.sent
+    assert "count(*) OVER ()" in rows_read
+    assert "EXISTS" in link_check and "DISTINCT" not in link_check
+
+
+def test_a_pinned_read_resolves_the_live_register_once(db, published) -> None:
+    """Inside one pinned request the pointer cannot move, so it is read once.
+
+    A committee page asked which register is live 3 times and a legislator's money tab
+    6 times, a round trip each, and every answer was the same because ``REPEATABLE
+    READ`` guarantees it. The memo dies with the transaction: the next one asks again,
+    which is what keeps the loader's publish-then-read safe.
+    """
+    committee_service.pin_to_one_view(db)
+    with Statements() as sent:
+        first = filings.live_filings_snapshot(db)
+        second = filings.live_filings_snapshot(db)
+        copied_at = committee_service.filings_copied_at(db)
+    assert first is not None and second is first
+    assert copied_at == first.fetch_completed_at
+    assert len(sent.touching("cf_filing_current")) == 1, sent.sent
+
+    db.commit()
+    with Statements() as sent:
+        filings.live_filings_snapshot(db)
+    assert len(sent.touching("cf_filing_current")) == 1, sent.sent
+
+
+def test_an_unpinned_read_asks_the_database_every_time(db, published) -> None:
+    """Without the pin there is no promise the pointer stayed put, so nothing is reused."""
+    with Statements() as sent:
+        filings.live_filings_snapshot(db)
+        filings.live_filings_snapshot(db)
+    assert len(sent.touching("cf_filing_current")) == 2, sent.sent
+
+
+def test_a_legislator_year_reads_its_confirmed_links_once(db, published) -> None:
+    """Whether anyone reviewed them, which committees cover the year and which do not
+    are 3 questions about the same few rows, so they cost 1 read.
+
+    The money tab asks this route once per year, 11 times a visit, so every trip saved
+    here is saved 11 times over.
+    """
+    legislator_id = db.execute(text("SELECT id FROM legislator LIMIT 1")).scalar_one()
+    db.add(
+        models.LegislatorCampaignCommittee(
+            legislator_id=legislator_id,
+            registration_number=SENATE_COMMITTEE,
+            decision=models.CommitteeLinkReviewDecision.confirmed,
+            committee_name_as_reviewed="Port, Lindsey Senate Committee",
+            office_as_reviewed="Senate",
+            reviewed_by="a person",
+        )
+    )
+    db.commit()
+    release = committee_service.current_release(db)
+    with Statements() as sent:
+        finance = legislator_service.legislator_finance(
+            db, release, legislator_id=legislator_id, year=2026
+        )
+    assert finance.link_state == legislator_service.LINK_CONFIRMED
+    assert [entry.registration_number for entry in finance.committees] == [
+        SENATE_COMMITTEE
+    ]
+    assert len(sent.touching("legislator_campaign_committee")) == 1, sent.touching(
+        "legislator_campaign_committee"
+    )

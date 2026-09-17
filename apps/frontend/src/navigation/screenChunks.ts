@@ -86,10 +86,12 @@ export const screenChunks = {
     })),
   MoneyByRace: () =>
     import('../screens/redesign/MoneyByRaceScreen').then((m) => ({ default: m.MoneyByRaceScreen })),
+  // The screen and the chart code it draws in its first frame, together: see
+  // `committeeMoneyScreenPieces` for why the pieces are not fetched one after the other.
   CommitteeMoney: () =>
-    import('../screens/redesign/CommitteeMoneyScreen').then((m) => ({
-      default: m.CommitteeMoneyScreen,
-    })),
+    import('../screens/redesign/CommitteeMoneyScreen').then((m) =>
+      m.committeeMoneyScreenPieces().then(() => ({ default: m.CommitteeMoneyScreen })),
+    ),
   CommitteePayments: () =>
     import('../screens/redesign/CommitteePaymentsScreen').then((m) => ({
       default: m.CommitteePaymentsScreen,

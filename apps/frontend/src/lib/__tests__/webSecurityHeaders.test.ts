@@ -55,15 +55,12 @@ describe('web security response headers', () => {
       'https://naakzorbkqqgbsreulqi.supabase.co',
       'https://cloudflareinsights.com',
     ]);
-    expect(directives.get('font-src')).toEqual(["'self'", 'data:', 'https://fonts.gstatic.com']);
+    // Fonts are served from this address (public/fonts), so no outside font host is allowed.
+    expect(directives.get('font-src')).toEqual(["'self'", 'data:']);
     expect(directives.get('frame-src')).toEqual(["'none'"]);
     expect(directives.get('img-src')).toEqual(["'self'", 'data:', 'blob:', 'https:']);
     expect(directives.get('object-src')).toEqual(["'none'"]);
-    expect(directives.get('style-src')).toEqual([
-      "'self'",
-      "'unsafe-inline'",
-      'https://fonts.googleapis.com',
-    ]);
+    expect(directives.get('style-src')).toEqual(["'self'", "'unsafe-inline'"]);
     expect(directives.get('base-uri')).toEqual(["'none'"]);
     expect(directives.get('form-action')).toEqual(["'self'"]);
     expect(directives.get('frame-ancestors')).toEqual(["'none'"]);

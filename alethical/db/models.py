@@ -2254,6 +2254,15 @@ class CampaignFinanceContributionRow(Base):
             postgresql_using="gin",
             postgresql_ops={"contributor": "gin_trgm_ops"},
         ),
+        # The donor's own registration number, for a lobbyist's campaign donations
+        # (migration 0055). Partial, because 497,451 of the live file's 583,222 rows
+        # are individuals with no number and no lookup by number can match them.
+        Index(
+            "ix_cf_contribution_row_snapshot_contrib_number",
+            "snapshot_id",
+            "contrib_reg_num",
+            postgresql_where=text("contrib_reg_num IS NOT NULL"),
+        ),
     )
 
 

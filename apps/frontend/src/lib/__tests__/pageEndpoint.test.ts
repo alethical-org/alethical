@@ -315,6 +315,19 @@ describe('retired forgot-password address', () => {
   });
 });
 
+/** Every entry in the served data block, as the app's own reader parses it. */
+function servedProfileData(body: string): {
+  key: unknown[];
+  payload: Record<string, unknown>;
+  validatedAgeMs?: number;
+}[] {
+  const block = body.match(
+    /<script type="application\/json" id="alethical-page-data">([\s\S]*?)<\/script>/,
+  )?.[1];
+  if (!block) return [];
+  return JSON.parse(block);
+}
+
 describe('first-response page tags', () => {
   it('gives a bill its own title and leaves the app body intact', async () => {
     stubNetwork(() => ({
@@ -411,7 +424,112 @@ describe('first-response page tags', () => {
     expect(body).toContain('Community organizer and small business owner.');
     expect(body).toContain('Elected to the House: 2018');
     expect(body).toContain('Term: 4th');
-    expect(calls[0]).toContain('include=current_service,committees,service_history');
+    // The same fields the profile screen asks for (`getLegislatorFromApi`), so the
+    // record read here is the record handed on below, and the app makes no second
+    // request for it.
+    expect(calls[0]).toContain('include=current_service,committees,stats,service_history');
+    const served = servedProfileData(body);
+    expect(served.map((entry) => entry.key)).toEqual([
+      ['legislator', '8c31565f-e674-462d-b71f-a1d1ebcc'],
+    ]);
+    expect(served[0].payload.full_name).toBe('Aisha Gomez');
+    // A member's record is a dated read here: no age travels with it.
+    expect(served[0]).not.toHaveProperty('validatedAgeMs');
+  });
+
+  it('hands a money-tab address its money answer with its age, and the record with none', async () => {
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      calls.push(url);
+      if (url.includes('/campaign-finance?year=2025')) {
+        return {
+          status: 200,
+          age: 90,
+          payload: {
+            data: {
+              legislator_id: 'aisha-gomez',
+              year: 2025,
+              link_state: 'confirmed',
+              release_id: 'release-1',
+              current_claim_validated_at: '2026-09-17T12:00:00Z',
+              committees: [],
+            },
+          },
+        };
+      }
+      if (url.includes('/bills?')) return { status: 200, payload: { data: [] } };
+      return {
+        status: 200,
+        payload: {
+          data: {
+            slug: 'aisha-gomez',
+            full_name: 'Aisha Gomez',
+            current_service: { chamber: 'house' },
+          },
+        },
+      };
+    });
+
+    const { body, status } = await serve({
+      path: '/legislators/aisha-gomez',
+      tab: 'money',
+      year: '2025',
+    });
+
+    expect(status).toBe(200);
+    // Read alongside the record, not after it: 3 reads, one round trip.
+    expect(calls.filter((url) => url.includes('/campaign-finance?year=2025'))).toHaveLength(1);
+    const served = servedProfileData(body);
+    expect(served.map((entry) => entry.key)).toEqual([
+      ['legislator', 'aisha-gomez'],
+      ['legislator-campaign-money', 'aisha-gomez', 2025],
+    ]);
+    // Whose committee this is expires, so the answer carries how old it already was.
+    expect(served[1].validatedAgeMs).toBe(90_000);
+    expect(served[1].payload.year).toBe(2025);
+  });
+
+  it('keeps a money-tab profile readable, with no money seed, when the money read fails', async () => {
+    stubNetwork((url) => {
+      if (url.includes('/campaign-finance?year=')) return { status: 503 };
+      if (url.includes('/bills?')) return { status: 200, payload: { data: [] } };
+      return {
+        status: 200,
+        payload: {
+          data: {
+            slug: 'aisha-gomez',
+            full_name: 'Aisha Gomez',
+            current_service: { chamber: 'house' },
+          },
+        },
+      };
+    });
+
+    const { body, status } = await serve({ path: '/legislators/aisha-gomez', tab: 'money' });
+
+    expect(status).toBe(200);
+    expect(body).toContain('<h1>Rep. Aisha Gomez</h1>');
+    expect(servedProfileData(body).map((entry) => entry.key[0])).toEqual(['legislator']);
+  });
+
+  it('asks for no money answer on a profile address that does not name the money tab', async () => {
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      calls.push(url);
+      if (url.includes('/bills?')) return { status: 200, payload: { data: [] } };
+      return {
+        status: 200,
+        payload: {
+          data: {
+            slug: 'aisha-gomez',
+            full_name: 'Aisha Gomez',
+            current_service: { chamber: 'house' },
+          },
+        },
+      };
+    });
+    await serve({ path: '/legislators/aisha-gomez' });
+    expect(calls.some((url) => url.includes('/campaign-finance'))).toBe(false);
   });
 
   it('serves the current chief-authored bill links with the member profile', async () => {
@@ -1038,7 +1156,7 @@ describe('addresses that are not real pages', () => {
   // engines, and a page indexed under a name reads as a profile of whoever
   // carries it — the one thing this page may never be
   // (page-metadata-for-search-and-sharing-decisions.md §22, §20.5 rule 4).
-  it('keeps a payments-under-a-name address out of the index, and asks the API for nothing', async () => {
+  it('keeps a payments-under-a-name address out of the index, and stays readable when its read fails', async () => {
     const calls: string[] = [];
     stubNetwork((url) => {
       calls.push(url);
@@ -1053,6 +1171,8 @@ describe('addresses that are not real pages', () => {
 
     expect(status).toBe(200);
     expect(headers.get('X-Robots-Tag')).toBe('noindex');
+    // A failed read is not cached as the page (issue 2068); the app fetches instead.
+    expect(headers.get('Cache-Control')).toBe('no-store');
     expect(body).not.toContain('rel="canonical"');
     expect(body).toContain(
       '<title>Money given under the name “Heat &amp; Frost Insulators Local #34” | Alethical</title>',
@@ -1060,7 +1180,88 @@ describe('addresses that are not real pages', () => {
     expect(body).toContain(
       '<div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',
     );
-    expect(calls).toHaveLength(0);
+    // Exactly the app's own first request: 250 rows from the start.
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain(
+      '/campaign-finance/payments-under-name?name=Heat+%26+Frost+Insulators+Local+%2334&role=contributor&limit=250&offset=0',
+    );
+  });
+
+  it('serves a payments-under-a-name page its rows as text and hands the same page to the app', async () => {
+    stubNetwork(() => ({
+      status: 200,
+      payload: {
+        data: {
+          name: 'Larsen, Mary Lu',
+          role: 'contributor',
+          release_id: 'release-9',
+          state: 'reported',
+          payments: [
+            {
+              recipient_name: '100 Percent Future Fund',
+              recipient_registration_number: '41363',
+              recipient_type: 'PCF',
+              receipt_type: 'Contribution',
+              amount: '250.0000',
+              received_on: '2025-03-04',
+              in_kind: 'N',
+              year: 2025,
+            },
+          ],
+          page: { limit: 250, offset: 0, has_more: false, total_payments: 1 },
+          linkable_registration_numbers: ['41363'],
+          fetched_at: '2026-09-01T12:00:00Z',
+        },
+      },
+    }));
+
+    const { body, headers, status } = await serve({
+      path: '/money/payments',
+      name: 'Larsen, Mary Lu',
+      role: 'contributor',
+    });
+
+    expect(status).toBe(200);
+    expect(headers.get('X-Robots-Tag')).toBe('noindex');
+    expect(headers.get('Cache-Control')).not.toBe('no-store');
+    expect(body).toContain('<h1>Money given under the name “Larsen, Mary Lu”</h1>');
+    expect(body).toContain('100 Percent Future Fund');
+    expect(body).toContain('$250');
+    expect(body).toContain('Mar 4, 2025');
+    // The committee link the interactive row offers, and only because this release holds it as a filer.
+    expect(body).toContain('href="/money/committees/100-percent-future-fund-41363"');
+    const served = servedProfileData(body);
+    expect(served.map((entry) => entry.key)).toEqual([
+      ['payments-under-name', 'Larsen, Mary Lu', 'contributor'],
+    ]);
+    expect(served[0].payload.release_id).toBe('release-9');
+  });
+
+  it('hands nothing on when the payments answer names a different spelling', async () => {
+    stubNetwork(() => ({
+      status: 200,
+      payload: {
+        data: {
+          name: 'Larsen, Mary',
+          role: 'contributor',
+          release_id: 'release-9',
+          state: 'reported',
+          payments: [],
+          page: { has_more: false },
+        },
+      },
+    }));
+    const { body, headers, status } = await serve({
+      path: '/money/payments',
+      name: 'Larsen, Mary Lu',
+      role: 'contributor',
+    });
+    expect(status).toBe(200);
+    expect(headers.get('Cache-Control')).toBe('no-store');
+    expect(servedProfileData(body)).toEqual([]);
+    expect(body).toContain(
+      '<div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',
+    );
   });
 
   it('returns 404 for a payments-under-a-name address with no name or an unserved role', async () => {
@@ -2565,7 +2766,7 @@ describe('a committee page hands its records to the app', () => {
     expect(body).not.toContain('Year 2025');
     expect(body).not.toContain(`/money/committees/${SLUG}/payments?`);
     expect(body).toContain('All years in our copy');
-    expect(body).not.toContain('Money in');
+    expect(body).not.toContain('>Money in<');
     expect(calls.map((url) => new URL(url).pathname + new URL(url).search)).toEqual([
       '/api/v1/committees/41326/finance?year=2026&include_confirmation=false',
       '/api/v1/committees/41326/confirmation',

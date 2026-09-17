@@ -41,6 +41,11 @@ describe('Vercel release caching', () => {
       rule.headers.some((header) => header.value.includes('immutable')),
     );
 
-    expect(immutableRules.map((rule) => rule.source)).toEqual(['/_expo/static/(.*)']);
+    // Content-named program files and the font files, whose names never change
+    // for a changed file, are the only things held for a year.
+    expect(immutableRules.map((rule) => rule.source)).toEqual([
+      '/_expo/static/(.*)',
+      '/fonts/(.*)',
+    ]);
   });
 });

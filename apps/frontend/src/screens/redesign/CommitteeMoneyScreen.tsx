@@ -13,6 +13,7 @@ import { LinkArrowLabel, linkArrowRow } from '../../components/LinkArrow';
 import {
   CommitteeDonations,
   GroupedOutsideSpending,
+  preloadMoneyDetails,
 } from '../../components/campaignMoney/MoneyDetailsOnDemand';
 import type { MoneyDetailsPreferences } from '../../lib/campaignMoneyPreferences';
 import {
@@ -185,6 +186,26 @@ function ActionArrow() {
       />
     </Svg>
   );
+}
+
+/**
+ * Everything this screen's first frame needs, downloaded together with the screen.
+ *
+ * The chart, the payment lists and the reads behind them arrive in their own pieces
+ * (`MoneyDetailsBundle`, `data/campaignMoneyDetails`). Fetched after the screen
+ * mounted, the committee card drew twice: its figures under "Loading the
+ * contribution breakdown…", then the same figures under the chart about 90 ms
+ * later, which read as an old page being replaced by a new one (measured live
+ * 17 Sep 2026). `screenChunks.CommitteeMoney` waits for this before the screen
+ * draws, the same way the legislator profile's money tab does
+ * (`CampaignMoneyTabOnDemand`). Neither optional piece can hold the screen back: a
+ * failure there reaches the card's own fallback, exactly as before.
+ */
+export function committeeMoneyScreenPieces(): Promise<void> {
+  return Promise.all([
+    preloadMoneyDetails().catch(() => undefined),
+    import('../../data/campaignMoneyDetails').catch(() => undefined),
+  ]).then(() => undefined);
 }
 
 export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'CommitteeMoney'>) {

@@ -19,6 +19,7 @@ import {
 import committeeEmptyYearFixture from './fixtures/committee-empty-year-snapshot.json';
 import committeePaymentsFixture from './fixtures/committee-payments-page-snapshot.json';
 import legislatorFixture from './fixtures/legislator-page-snapshot.json';
+import nystromFixture from './fixtures/payments-under-name-nystrom.json';
 
 /**
  * The one property release 2 of #1325 lives or dies on: **the text served in the
@@ -99,6 +100,7 @@ const {
   legislatorPageSnapshot,
   moneyLandingPageSnapshot,
   outsideSpendingPageSnapshot,
+  paymentsUnderNamePageSnapshot,
   researchPageSnapshot,
   readPageSnapshot,
   renderPageSnapshot,
@@ -913,7 +915,9 @@ describe('the piece snapshot serves the piece’s own writing, unchanged', () =>
     // linked at its source, and a link the reader only gets after the app runs is
     // not a link at all to anything reading the first response.
     expect(sourceAddresses.length).toBeGreaterThan(0);
-    expect(html.match(/href="/g)).toHaveLength(1 + sourceAddresses.length);
+    // Counted below the site's top bar, whose 4 links every served page carries.
+    const pageBody = html.slice(html.indexOf('<main'));
+    expect(pageBody.match(/href="/g)).toHaveLength(1 + sourceAddresses.length);
     for (const { href } of sourceAddresses) {
       expect(html).toContain(`<a href="${href}">`);
     }
@@ -1050,8 +1054,9 @@ describe('the guide snapshot serves the guide\u2019s own writing, unchanged', ()
       expect(html).toContain(`<a href="${(run as { href: string }).href}">`);
     }
     // One anchor back to the list, plus one per source address and one per internal
-    // link, and no others.
-    expect(html.match(/href="/g)).toHaveLength(1 + hrefs.length + internal.length);
+    // link, and no others below the site's top bar (whose 4 links every served page carries).
+    const pageBody = html.slice(html.indexOf('<main'));
+    expect(pageBody.match(/href="/g)).toHaveLength(1 + hrefs.length + internal.length);
     expect(snapshot.links).toEqual([{ label: READ_PAGE_HEADING, href: '/read' }]);
   });
 
@@ -1775,7 +1780,7 @@ describe('a committee’s record in the first response', () => {
       tab === 'filings' ? 'All years in our copy' : 'Payments from all years in the state’s file',
     );
     expect(html).toContain('The Board’s record for this committee');
-    expect(html).not.toContain('Money in');
+    expect(html).not.toContain('>Money in<');
     expect(html).not.toContain('Money out');
     expect(html).not.toContain('Campaign finance figures in our copy start in 2015');
     expect(html).not.toContain('payment files copied');
@@ -2383,4 +2388,72 @@ describe('every posted guide is served whole, before the app runs', () => {
       }
     },
   );
+});
+
+const { paymentUnderName, paymentUnderNameRow, paymentsUnderNameStandfirst, LIST_NOTE } =
+  await import('../paymentsUnderName');
+
+describe('the payments-under-a-name snapshot serves the rows the screen draws', () => {
+  const linkable = new Set<string>(nystromFixture.data.linkable_registration_numbers ?? []);
+  const rows = nystromFixture.data.payments.map((row) =>
+    paymentUnderNameRow(paymentUnderName(row, 'contributor'), 'contributor', linkable),
+  );
+  const snapshot = paymentsUnderNamePageSnapshot('Nystrom, Mary Ann', 'contributor', {
+    state: 'reported',
+    rows,
+    hasMore: false,
+    fetchedAt: nystromFixture.data.fetched_at,
+  });
+  const html = renderPageSnapshot(snapshot);
+  const text = visibleText(html);
+
+  it('heads the page with the screen’s own heading and standfirst', () => {
+    expect(snapshot.heading).toBe('Money given under the name “Nystrom, Mary Ann”');
+    expect(snapshot.body[0]).toBe(paymentsUnderNameStandfirst('contributor'));
+    expect(text).toContain('files last copied');
+  });
+
+  it('prints every served row with its committee, date and amount, newest first', () => {
+    expect(snapshot.sections?.[0].items).toHaveLength(nystromFixture.data.payments.length);
+    expect(text).toContain('Senate Victory Fund (SVF)');
+    expect(text).toContain('$25,000');
+    expect(text).toContain('Apr 20, 2026');
+    expect(text).toContain(`${nystromFixture.data.payments.length} payments`);
+    expect(text).toContain(LIST_NOTE);
+  });
+
+  it('links a row only to a committee this release holds as a filer', () => {
+    const links = (snapshot.sections?.[0].items ?? []).map((item) => item.href);
+    for (const [index, row] of rows.entries()) {
+      expect(links[index] === undefined).toBe(row.linkNumber === null);
+    }
+    expect(html).toContain('href="/money/committees/senate-victory-fund-svf-20013"');
+  });
+
+  it('says nothing is filed under the spelling, and never that nobody gave', () => {
+    const empty = renderPageSnapshot(
+      paymentsUnderNamePageSnapshot('Nobody, Named', 'vendor', {
+        state: 'reported',
+        rows: [],
+        hasMore: false,
+      }),
+    );
+    expect(empty).toContain('No matching payments under “Nobody, Named”');
+    expect(empty).toContain('Other spellings are kept separate.');
+    expect(empty).not.toContain('$0');
+  });
+
+  it('says our copy did not answer, never that nothing is filed, when the read is unavailable', () => {
+    const unavailable = visibleText(
+      renderPageSnapshot(
+        paymentsUnderNamePageSnapshot('Anyone', 'contributor', {
+          state: 'unavailable',
+          rows: [],
+          hasMore: false,
+        }),
+      ),
+    );
+    expect(unavailable).not.toContain('No matching payments');
+    expect(unavailable).toContain('records');
+  });
 });

@@ -419,7 +419,7 @@ interface ApiServiceHistoryPayload {
   periods: ApiElectionPeriodPayload[];
 }
 
-interface ApiLegislatorDetailPayload extends ApiLegislatorListItemPayload {
+export interface ApiLegislatorDetailPayload extends ApiLegislatorListItemPayload {
   biography?: string | null;
   service_history?: ApiServiceHistoryPayload | null;
 }
@@ -607,7 +607,7 @@ interface ApiCommitteeRefundsPayload {
   }[];
 }
 
-interface ApiLegislatorCampaignMoneyPayload {
+export interface ApiLegislatorCampaignMoneyPayload {
   /** When the origin last confirmed `link_state`. A validation time, never a
    *  record date (`alethical/api/routers/public.py`). */
   current_claim_validated_at?: string | null;
@@ -2571,13 +2571,37 @@ export async function getLegislatorCampaignMoneyFromApi(
   const response = await publicApiRequestWithAge<DetailResponse<ApiLegislatorCampaignMoneyPayload>>(
     `/legislators/${encodeURIComponent(legislatorId)}/campaign-finance?${params.toString()}`,
   );
-  const payload = response.body.data;
+  return legislatorCampaignMoneyFromPayload(response.body.data, {
+    servedAgeMs: servedClaimAgeMs(response.ageSeconds),
+  });
+}
+
+/**
+ * One member's money answer, shaped from the service's own JSON.
+ *
+ * Pure, so the page function can hand the answer it already read to the app in
+ * the first response and the app shapes it here exactly as it shapes a fetched
+ * one. `servedAgeMs` is how old the answer's current claim (whose committee this
+ * is) already was: a fetched answer passes the API cache's `Age`, and a seeded
+ * answer passes 0, because its whole age rides in React Query's
+ * `initialDataUpdatedAt` instead (`lib/pageData.ts`, issue 2023).
+ */
+export function legislatorCampaignMoneyFromPayload(
+  payload: ApiLegislatorCampaignMoneyPayload,
+  options: { servedAgeMs: number },
+): LegislatorCampaignMoney {
+  if (typeof payload?.legislator_id !== 'string' || !Array.isArray(payload.committees)) {
+    throw new Error('Legislator campaign money is incomplete');
+  }
   return {
     legislatorId: payload.legislator_id,
     releaseId: payload.release_id,
     year: payload.year,
     linkState: payload.link_state,
-    currentClaim: currentClaimFreshness(payload.current_claim_validated_at, response.ageSeconds),
+    currentClaim: {
+      servedAgeMs: options.servedAgeMs,
+      validatedAt: payload.current_claim_validated_at ?? null,
+    },
     fetchedAt: payload.fetched_at ?? null,
     filingsCopiedAt: payload.filings_copied_at ?? null,
     otherOfficeCommittees: payload.other_office_committees ?? 0,
@@ -3581,79 +3605,43 @@ export async function getPaymentsUnderNameFromApi(
   const params = new URLSearchParams({ name, role });
   if (options.limit !== undefined) params.set('limit', String(options.limit));
   if (options.offset !== undefined) params.set('offset', String(options.offset));
-  const response = await publicApiRequest<
-    DetailResponse<
-      ApiCommitteePaymentsPayload & { name?: string; role?: string; release_id?: string }
-    >
-  >(`/campaign-finance/payments-under-name?${params.toString()}`, options.signal);
-  if (response.data.name !== name || response.data.role !== role || !response.data.release_id) {
+  const response = await publicApiRequest<DetailResponse<ApiPaymentsUnderNamePayload>>(
+    `/campaign-finance/payments-under-name?${params.toString()}`,
+    options.signal,
+  );
+  return paymentsUnderNamePageFromPayload(response.data, name, role);
+}
+
+export type ApiPaymentsUnderNamePayload = ApiCommitteePaymentsPayload & {
+  name?: string;
+  role?: string;
+  release_id?: string;
+};
+
+/**
+ * One page of payments under a name, shaped from the service's own JSON. Pure, so
+ * the page the page function already read can be handed to the app in the first
+ * response and shaped here rather than fetched again.
+ */
+export function paymentsUnderNamePageFromPayload(
+  payload: ApiPaymentsUnderNamePayload,
+  name: string,
+  role: PaymentNameRole,
+): PaymentsUnderNamePage {
+  if (payload?.name !== name || payload.role !== role || !payload.release_id) {
     throw new Error('Payments did not identify the requested name, role and release');
   }
   return {
-    ...committeePaymentsPage(response.data, (row) => paymentUnderName(row, role)),
-    releaseId: response.data.release_id,
+    ...committeePaymentsPage(payload, (row) => paymentUnderName(row, role)),
+    releaseId: payload.release_id,
   };
 }
 
-/** One served row, whichever of the 3 downloads it came from. */
-export function paymentUnderName(
-  row: Record<string, unknown>,
-  role: PaymentNameRole,
-): PaymentUnderName {
-  const filed = {
-    year: typeof row.year === 'number' && Number.isInteger(row.year) ? row.year : null,
-    employer: asText(row.employer),
-    filerKind: asText(row.filer_kind),
-    recordNumber: typeof row.record_number === 'number' ? row.record_number : null,
-  };
-  if (role === 'contributor') {
-    return {
-      ...filed,
-      filerName: asText(row.recipient_name),
-      filerRegistrationNumber: asText(row.recipient_registration_number),
-      filerEntityType: asText(row.recipient_type),
-      receiptType: asText(row.receipt_type),
-      purpose: null,
-      expenditureType: null,
-      affectedCommitteeName: null,
-      stance: null,
-      amount: asText(row.amount),
-      paidOn: asText(row.received_on),
-      inKind: asText(row.in_kind),
-    };
-  }
-  if (role === 'vendor') {
-    return {
-      ...filed,
-      filerName: asText(row.committee_name),
-      filerRegistrationNumber: asText(row.committee_registration_number),
-      filerEntityType: null,
-      receiptType: null,
-      purpose: asText(row.purpose),
-      expenditureType: asText(row.expenditure_type),
-      affectedCommitteeName: null,
-      stance: null,
-      amount: asText(row.amount),
-      paidOn: asText(row.paid_on),
-      inKind: asText(row.in_kind),
-    };
-  }
-  return {
-    ...filed,
-    filerName: asText(row.spender),
-    filerRegistrationNumber: asText(row.spender_registration_number),
-    filerEntityType: null,
-    receiptType: null,
-    purpose: asText(row.purpose),
-    expenditureType: asText(row.expenditure_type),
-    affectedCommitteeName: asText(row.affected_committee_name),
-    stance: asText(row.stance),
-    amount: asText(row.amount),
-    paidOn: asText(row.paid_on),
-    // The independent-expenditures download carries no in-kind column at all.
-    inKind: null,
-  };
-}
+// `paymentUnderName`, the pure row shaper, lives in `lib/paymentsUnderName.ts` so the
+// page function (which cannot load this react-native-importing module) shapes a
+// served row exactly as the app does. Re-exported for the callers that reach it here.
+import { paymentUnderName } from '../lib/paymentNameRoute';
+export { paymentUnderName };
 
 interface ApiCommitteeFilingPayload {
   report_name?: string | null;

@@ -1,4 +1,4 @@
-<!-- describes: .github/workflows/production-release-failed.yml, apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/loadOnDemand.tsx, apps/frontend/src/navigation/screenPreload.ts, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py, scripts/report_origin_share_by_address.py, apps/frontend/src/lib/committeeConfirmation.ts -->
+<!-- describes: .github/workflows/production-release-failed.yml, apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/loadOnDemand.tsx, apps/frontend/src/navigation/screenPreload.ts, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py, scripts/report_origin_share_by_address.py, apps/frontend/src/lib/committeeConfirmation.ts, apps/frontend/src/lib/initialWindowMetrics.ts, apps/frontend/src/navigation/screenChunks.ts -->
 
 <!-- describes: apps/frontend/metro.config.js, patches/@expo__metro-config@57.0.7.patch, pnpm-workspace.yaml, pnpm-lock.yaml, apps/frontend/scripts/__tests__/sharedScreenChunks.test.ts, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeePaymentsPage.ts, apps/frontend/src/lib/committeeMoneyShared.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsBundle.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsOnDemand.tsx, apps/frontend/src/lib/committeeOutsideSpending.ts -->
 
@@ -43,7 +43,7 @@ the records behind them change at genuinely different rates.
 | Layer | Header | Where it is set |
 |---|---|---|
 | Cloudflare, bill / vote / legislator reads | `public, max-age=60, stale-while-revalidate=300` | `PUBLIC_CACHE_CONTROL` in `alethical/api/routers/public.py` |
-| Cloudflare, the 6 named campaign-money record reads and explicit dated-only committee finance | `public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800` | `MONEY_RECORDS_CACHE_CONTROL`, same file, granted to `MONEY_RECORD_PATHS` by `public_cache_control_for_path`, and by the finance handler only after a successful anonymous `GET` with `include_confirmation=false` |
+| Cloudflare, the 6 named campaign-money record reads, explicit dated-only committee finance, and a committee's own payment pages | `public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800` | `MONEY_RECORDS_CACHE_CONTROL`, same file, granted to `MONEY_RECORD_PATHS` by `public_cache_control_for_path`, by the finance handler only after a successful anonymous `GET` with `include_confirmation=false`, and by the payments handler after an anonymous `GET` whose answer is `reported` or `not_reported` |
 | Vercel, in front of the page HTML | `public, max-age=0, s-maxage=300, stale-while-revalidate=300, stale-if-error=300` | `OK_CACHE` in `api/page.ts` |
 
 **Bill, vote and legislator reads keep the short window. The 6 named
@@ -73,6 +73,7 @@ read never gains that window from a query parameter alone.
 | `/api/v1/campaign-finance/payments-under-name` | `/api/v1/committees/{registration_number}/finance` |
 | `/api/v1/campaign-finance/races` | `/api/v1/committees/{registration_number}/confirmation` |
 | `/api/v1/committees/{registration_number}/finance?year=2025&include_confirmation=false` | every other public read |
+| `/api/v1/committees/{registration_number}/payments` when the answer is `reported` or `not_reported` | `/api/v1/committees/{registration_number}/payments` when our own copy could not be read (`unavailable`) |
 
 **The test is what an answer CLAIMS, never whether it names a person.** A person's
 name printed inside an accepted filing is a dated record: the filing happened, its
@@ -624,6 +625,61 @@ arrived. `apps/frontend/src/navigation/__tests__/screenPreload.test.ts` fails if
 fetch-ahead path stops going through it, and
 `apps/frontend/src/lib/__tests__/loadOnDemand.test.tsx` fails if a piece the browser
 already holds goes back to drawing an empty marker first.
+
+## The deepest money pages draw from their first response, 17 September 2026
+
+**A first visit to a money page shows the finished page once: the served text is the app's own
+design, the app's first frame carries the records, and nothing white or half-drawn sits between
+them.** Measured live before the change, cold browser, 1280x900, unthrottled, 1 load per address:
+
+| Address | Served text on screen | Blank frame | App's first frame | What the reader then watched |
+|---|---:|---:|---:|---|
+| `/money/committees/…-20003?year=2025` | 482 to 510 ms | 516 ms | 547 ms | "Loading the contribution breakdown…" until the chart's code arrived at 636 ms, then the chart |
+| `/money/committees/…-41363/payments?year=2025` | 292 to 455 ms | 461 ms | 504 ms | |
+| `/money/payments?name=…&role=contributor` | none served | | 524 ms | placeholder rows until the list arrived at 1,193 ms |
+| `/money/lobbying/principals/…-5359` | 878 to 947 ms | 952 ms | 989 ms | |
+| `/legislators/jim-abeler?tab=money&year=2025` | 827 to 898 ms | | 930 ms | a skeleton until the record arrived at 1,361 ms; "Loading campaign money…" until 2,020 ms; the outside-groups card then pushed everything below it (a layout shift of 0.2078 at 2,036 ms) |
+
+Five causes, each with the rule that follows from it:
+
+- **The safe-area provider drew nothing until it had measured the window.** Given no starting
+  metrics, `SafeAreaProvider` renders its children only once `insets` is set, and on the web that
+  measurement lands a frame later, so every address painted an empty full-height box for about
+  40 ms between the served text and the app. A browser window's insets are 0 before anything
+  draws, so the app hands the provider the document's size up front
+  (`apps/frontend/src/lib/initialWindowMetrics.ts`). The rule: a provider that gates the whole
+  tree on a measurement is given the measurement it can already know.
+- **The screen's file was chosen from the pathname alone.** `/money/payments?name=…&role=…` is
+  one screen and bare `/money/payments` is the not-found page, so the fetch-ahead downloaded the
+  not-found page's file (48,602 bytes) and the real screen then waited behind React's 300 ms
+  marker. The whole address, query string included, chooses the file (`apps/frontend/index.ts`).
+- **A read the page function had already made was made again by the app.** The legislator record
+  (read here with the profile's own field list), the member's money answer on a money-tab
+  address (carried with its age, because whose committee this is expires) and the first page of
+  payments under a name are handed on under the hooks' own keys, and the payments-by-name page
+  gets its rows as served text. The rule stands from
+  [#1966](https://github.com/alethical-org/alethical/issues/1966): what the function read to write
+  the page, the app draws from without asking again.
+- **The committee screen's chart code arrived after the screen.** Fetched after the screen
+  mounted, the card drew its figures under "Loading the contribution breakdown…" and then the
+  same figures under the chart about 90 ms later, which read as an old page being replaced by a
+  new one. The screen's loader waits for the chart piece and the payment reads' code
+  (`committeeMoneyScreenPieces`), as the legislator tab's loader already did.
+- **The served text looked like a different, older page.** It was a plain document in a system
+  font; the app's design replaced it. It is now drawn in the app's design and typeface, with the
+  fonts served from our own address so the typeface is in place at the first paint
+  (`docs/architecture/page-metadata-for-search-and-sharing-decisions.md` §24 and §26).
+
+Two costs, both accepted: the committee screen draws when its chart code has also arrived, about
+40 ms after the screen file alone on a warm edge, and a first visit downloads the Libre Franklin
+and Space Grotesk files (29,336 and 13,372 bytes) from this address before the first paint,
+instead of after it from Google.
+
+**What still waits on the data service, and where that is measured.** The committee page's 2
+complete payment lists and the legislator tab's 11 yearly reads are origin reads on a
+rarely-visited page; their statement counts and plans are the subject of "What an uncached money
+answer spends its time on" below, and a committee's payment pages now carry the day-long money
+window ("How long a nearby cache holds a public read" above).
 
 ## Shared screen code stays with the screen, 13 September 2026
 
@@ -1374,7 +1430,38 @@ beside the rows themselves.
 | Asking a per-row question about a per-committee fact | 1.3 s to test 41,130 rows for linkability, 30 ms to test the 1,131 committees they name | Reduce to the distinct subjects before the question that is about subjects |
 | Reading every filing in Minnesota to answer about a few committees | 55,845 figure rows returned, built twice per committee page | `campaign_finance_filings.reported_totals_for` for a read; `filings_context` is the loader's own sweep |
 | Asking a 1-row question in 2 requests | resolving the live register read the pointer and then the snapshot it names, on every money read and twice on 4 of them | Join the pointer to what it names, so the answer costs 1 request; `campaign_finance_filings.live_filings_snapshot` |
-| Asking for a list and its length separately | 2 walks of one matched set, 1 round trip apart | Carry the count on the rows with a window, as `campaign_finance_search` does for members |
+| Asking for a list and its length separately | 2 walks of one matched set, 1 round trip apart | Carry the count on the rows with a window, as `campaign_finance_search` does for members and `campaign_finance_payments._fetch` does for a committee's payments |
+| Asking "does this filer have any row" as `SELECT DISTINCT ... UNION` | 2.0 s to walk the 72,951 rows the 59 counterparties on one page of donations had ever filed, when 1 row each answers it | One `EXISTS` per number over `unnest(:numbers)`, which stops at the first hit: 45 ms for the same answer (`campaign_finance_payments.linkable_committees`) |
+| Asking which register is live once per caller inside 1 pinned request | 3 round trips on a committee page, 6 on one year of a legislator's money tab, every answer identical because `REPEATABLE READ` makes it so | Remember the first answer for the life of the pinned transaction and no longer (`campaign_finance_filings.mark_pinned_read`); an unpinned session, which is what the loader holds, still asks every time |
+| Proving a snapshot's rows are still held with a `count(*)` per table | 3 round trips before any lobbying read could begin | Ride the counts on the statement that names the snapshots, as scalar subqueries (`lobbying.published_pair`) |
+| Reading the same few rows about 1 subject from 3 functions | a legislator's review decisions read 3 times a year-request; a committee's refund summaries twice | Read once and pass the list down (`independent_spending.every_link`); split published from known in Python (`committee_refunds`) |
+
+**Measured again on 17 Sep 2026, for the deepest money pages, with the same
+per-trip cost.** Traced from a laptop 32 ms from the database, so a saved trip is worth
+what it is worth from Railway, and every response was compared byte for byte against
+the live origin's before the change (only the `current_claim_validated_at` clock
+differs). Statement counts exclude the tracer's own `SET TRANSACTION READ ONLY`.
+
+| Route | Statements before | Statements after | Warm time before | Warm time after |
+|---|---:|---:|---:|---:|
+| `GET /committees/20003/payments?direction=received&year=2025&limit=250` | 6 | 5 | 809 ms (0.44 s of it 1 statement) | 332 ms |
+| `GET /committees/20003/payments?direction=made&year=2025&limit=250` | 6 | 5 | 1,373 ms (1.0 s of it 1 statement) | 326 ms |
+| `GET /committees/20003/finance?year=2025` | 24 | 21 | 999 ms | 897 ms |
+| `GET /legislators/jim-abeler/campaign-finance?year=2024` | 38 | 30 | 1,448 ms | 1,158 ms |
+| `GET /campaign-finance/outside-spending?spender=20003` | 8 | 7 | 448 ms | 394 ms |
+| `GET /lobbying/principals/5359` | 9 | 5 | 475 ms | 304 ms |
+| `GET /lobbying/lobbyists/1733` | 11 | 8 | 766 ms (0.5 s of it 1 statement) | 659 ms before the index below |
+
+The 2 payment reads were 1 bad plan each: the link check above. The lobbyist page's
+remaining 0.5 s is 1 statement, the lobbyist's own campaign donations, which walked all
+583,222 live contribution rows because nothing indexed the donor's registration number;
+migration `0055_cf_contributor_number_index` adds a partial index on
+`(snapshot_id, contrib_reg_num)` over the 85,771 rows that carry one, built with
+`CREATE INDEX CONCURRENTLY` from Alembic's `autocommit_block` so the deploy never blocks
+the nightly load. The 2 aggregate routes are now almost entirely trips: no statement on
+the committee page or the legislator year takes more than about 50 ms of work, and every
+one that remains is a different question, so what is left there is asking fewer questions
+per block rather than any plan.
 
 **A statement count is a test and a time is not.** A seeded test database holds a few
 rows on the same machine as the tests, so it cannot reproduce the distance to the

@@ -351,15 +351,21 @@ def linkable_committees(
     wanted = sorted({number for number in registration_numbers if number})
     if not wanted:
         return frozenset()
+    # One existence test per number, never a walk of the numbers' rows. The question is
+    # "does this release hold any row filed BY this number", and one matching row answers
+    # it, so each subquery stops at its first hit. Written as ``SELECT DISTINCT ... UNION``
+    # it walked every row every counterparty had ever filed: 72,951 rows for the 59
+    # numbers on one page of a party unit's donations, 2.0 s on production, against
+    # 45 ms for the same answer asked this way (17 Sep 2026).
     rows = db.execute(
         text(
-            "SELECT DISTINCT recipient_reg_num FROM cf_contribution_row "
-            " WHERE snapshot_id = :contributions "
-            "   AND recipient_reg_num = ANY(:numbers) "
-            " UNION "
-            "SELECT DISTINCT committee_reg_num FROM cf_expenditure_row "
-            " WHERE snapshot_id = :expenditures "
-            "   AND committee_reg_num = ANY(:numbers)"
+            "SELECT number FROM unnest(CAST(:numbers AS text[])) AS number "
+            " WHERE EXISTS ("
+            "   SELECT 1 FROM cf_contribution_row "
+            "    WHERE snapshot_id = :contributions AND recipient_reg_num = number)"
+            "    OR EXISTS ("
+            "   SELECT 1 FROM cf_expenditure_row "
+            "    WHERE snapshot_id = :expenditures AND committee_reg_num = number)"
         ),
         {
             "contributions": release.contributions.snapshot_id,
@@ -427,10 +433,16 @@ def _fetch(
     offset: int,
     order: str = ORDER_BY_DATE,
     by_year_first: bool = False,
-) -> tuple[list, bool]:
-    """One page of rows, plus whether anything is left after it.
+    count_total: bool = False,
+) -> tuple[list, bool, Optional[int]]:
+    """One page of rows, whether anything is left after it, and how many match in all.
 
     ``limit + 1`` rows are asked for so ``has_more`` is measured rather than guessed.
+    With ``count_total`` the count of every row the same WHERE clause matches rides on
+    each row as a window (``count(*) OVER ()``), so the page and its length cost one
+    trip rather than two, and cannot describe different populations. It is ``None``
+    when not asked for and when no row came back, which is why the empty-page case
+    still calls ``_count_rows``.
     ``order`` is ``ORDER_BY_DATE`` (newest first) or ``ORDER_BY_AMOUNT`` (largest
     first); both end on the record number, which is unique within a snapshot, so paging
     cannot repeat or skip a row -- and the tiebreak must not be the row's contents, of
@@ -460,16 +472,18 @@ def _fetch(
     }
     if year is not None:
         params["year"] = year
+    counted = ", count(*) OVER () AS total_matching" if count_total else ""
     rows = db.execute(
         text(
-            f"SELECT {columns} FROM {table} "
+            f"SELECT {columns}{counted} FROM {table} "
             f" WHERE snapshot_id = :snapshot AND {key_column} = :key{clause} "
             f" ORDER BY {order_by} "
             f" LIMIT :limit OFFSET :offset"
         ),
         params,
     ).all()
-    return list(rows[:limit]), len(rows) > limit
+    total = int(rows[0][-1]) if count_total and rows else None
+    return list(rows[:limit]), len(rows) > limit, total
 
 
 def _count_rows(
@@ -664,7 +678,7 @@ def _payments(
     """
     dataset = download.dataset
     try:
-        rows, has_more = _fetch(
+        rows, has_more, total = _fetch(
             db,
             columns=download.columns,
             table=download.table,
@@ -677,6 +691,7 @@ def _payments(
             offset=offset,
             order=order,
             by_year_first=by_year_first,
+            count_total=count_total,
         )
         if not rows:
             # A page past the last row of a real result still deserves the total: with
@@ -711,18 +726,6 @@ def _payments(
         return _unavailable(release, dataset, limit=limit, offset=offset)
 
     payments = tuple(download.build(row) for row in rows)
-    total = (
-        _count_rows(
-            db,
-            table=download.table,
-            key_column=key_column,
-            key_value=key_value,
-            snapshot_id=release.file_for(dataset).snapshot_id,
-            year=year,
-        )
-        if count_total
-        else None
-    )
     return _page(
         state=REPORTED,
         payments=payments,

@@ -25,6 +25,7 @@ import { contactPageSnapshot } from "../apps/frontend/src/lib/contactUs";
 import {
   currentDistrictLine,
   legislatorDisplayName,
+  legislatorRecordQueryKey,
 } from "../apps/frontend/src/lib/legislatorProfile";
 import {
   billDirectoryPageSnapshot,
@@ -51,6 +52,7 @@ import {
   type CommitteeMoneySnapshotSource,
   type LegislatorDirectorySnapshotSource,
   type LegislatorSnapshotSource,
+  paymentsUnderNamePageSnapshot,
 } from "../apps/frontend/src/lib/pageSnapshot";
 import {
   COMMITTEE_PAGE_SIZE,
@@ -92,7 +94,17 @@ import {
   paymentsDirection,
   receivedPaymentRow,
 } from "../apps/frontend/src/lib/committeePaymentsPage";
-import { campaignMoneyYear } from "../apps/frontend/src/lib/legislatorCampaignMoney";
+import {
+  campaignMoneyYear,
+  legislatorCampaignMoneyQueryKey,
+} from "../apps/frontend/src/lib/legislatorCampaignMoney";
+import {
+  paymentNameRole,
+  paymentsUnderNameQueryKey,
+  paymentUnderName,
+  PAYMENTS_UNDER_NAME_PAGE_SIZE,
+} from "../apps/frontend/src/lib/paymentNameRoute";
+import { paymentUnderNameRow } from "../apps/frontend/src/lib/paymentsUnderName";
 import {
   BILL_DIRECTORY_PAGE_SIZE,
   compareLegislatorNames,
@@ -347,6 +359,13 @@ type BillPayload = BillSnapshotSource & { id?: string };
 
 type LegislatorPayload = LegislatorSnapshotSource & { slug?: string };
 
+/** What `/campaign-finance/payments-under-name` serves, as far as this file reads it. */
+type PaymentsUnderNamePayload = CommitteePaymentsPayload & {
+  name?: string;
+  role?: string;
+  release_id?: string;
+};
+
 type CollectionPayload<T> = {
   data: T[];
   page?: {
@@ -408,11 +427,28 @@ async function billContent(id: string): Promise<PageContent> {
   };
 }
 
-async function legislatorContent(id: string): Promise<PageContent> {
+/**
+ * The fields the profile screen asks for (`getLegislatorFromApi` in
+ * `apps/frontend/src/data/api.ts`). Read here with exactly that list, so the
+ * record this function reads to write the page is the record the app draws from,
+ * handed on in the same response rather than fetched a second time.
+ */
+const LEGISLATOR_RECORD_INCLUDE =
+  "include=current_service,committees,stats,service_history";
+
+async function legislatorContent(
+  id: string,
+  view: { tab?: string; year?: string } = {},
+): Promise<PageContent> {
   const encodedId = encodeURIComponent(id);
-  const [legislator, chiefBills] = await Promise.all([
+  // The money tab's own answer, read alongside the record when the address names
+  // that tab, so the committee card draws its figures in the app's first frame
+  // instead of "Loading campaign money…" until the identical request returns.
+  // Whose committee this is expires (`link_state`), so the read carries its age.
+  const moneyYear = view.tab === "money" ? campaignMoneyYear(view.year) : null;
+  const [legislator, chiefBills, moneyRead] = await Promise.all([
     getApiData<LegislatorPayload>(
-      `/legislators/${encodedId}?include=current_service,committees,service_history`,
+      `/legislators/${encodedId}?${LEGISLATOR_RECORD_INCLUDE}`,
     ),
     // The loaded profile shows these same 2 current-session chief-authored bills.
     // Keep their links in the first response too. An unavailable bill list must
@@ -420,11 +456,29 @@ async function legislatorContent(id: string): Promise<PageContent> {
     getApiData<BillDirectorySnapshotSource[]>(
       `/legislators/${encodedId}/bills?limit=2&offset=0&role=chief_author`,
     ).catch(() => null),
+    moneyYear === null
+      ? Promise.resolve(null)
+      : getCurrentClaimRead<{ legislator_id?: string; year?: number }>(
+          `/legislators/${encodedId}/campaign-finance?year=${moneyYear}`,
+        ).catch(() => null),
   ]);
   const chamber = titleCase(legislator.current_service?.chamber || "");
   // A UUID address canonicalises to the readable slug the profile links use.
   const slug = legislator.slug || id;
+  const data: PageDataEntry[] = [
+    { key: legislatorRecordQueryKey(id), payload: legislator },
+  ];
+  // Handed on only when the answer names the year the address asked for; a
+  // failed or mismatched read leaves the app to make its own, as it always did.
+  if (moneyRead && moneyYear !== null && moneyRead.data?.year === moneyYear) {
+    data.push({
+      key: legislatorCampaignMoneyQueryKey(id, moneyYear),
+      payload: moneyRead.data,
+      validatedAgeMs: moneyRead.validatedAgeMs,
+    });
+  }
   return {
+    data,
     metadata: legislatorPageMetadata({
       slug,
       displayName: legislatorDisplayName(
@@ -1047,6 +1101,74 @@ async function committeePaymentsContent(
 }
 
 /**
+ * Every payment filed under one printed name (`/money/payments?name=…&role=…`).
+ *
+ * The first page of rows, exactly the page the app's own list asks for first
+ * (`usePaymentsUnderName`: 250 rows from offset 0), read here and handed on under
+ * that hook's key, with the same rows written out as text. A read that fails or
+ * answers for a different name leaves the head-only page this address always
+ * served, and the app fetches the list itself as it did before.
+ */
+async function paymentsUnderNameContent(
+  name: string,
+  role: string,
+): Promise<PageContent> {
+  const metadata = paymentsUnderNamePageMetadata(name, role);
+  const validRole = paymentNameRole(role);
+  if (!validRole) return headOnly(metadata);
+  const params = new URLSearchParams({
+    name,
+    role: validRole,
+    limit: String(PAYMENTS_UNDER_NAME_PAGE_SIZE),
+    offset: "0",
+  });
+  let payload: PaymentsUnderNamePayload | null = null;
+  try {
+    payload = await getApiData<PaymentsUnderNamePayload>(
+      `/campaign-finance/payments-under-name?${params.toString()}`,
+    );
+  } catch {
+    payload = null;
+  }
+  const answersThisName =
+    payload !== null &&
+    payload.name === name &&
+    payload.role === validRole &&
+    typeof payload.release_id === "string" &&
+    payload.release_id.length > 0;
+  if (!payload || !answersThisName) {
+    return { ...headOnly(metadata), noStore: true };
+  }
+  const failed = paymentsUnavailable(payload.state);
+  const linkable = new Set<string>(payload.linkable_registration_numbers ?? []);
+  return {
+    // A partial answer is not cached as if it were the page (issue 2068).
+    noStore: failed,
+    metadata,
+    data: failed
+      ? []
+      : [{ key: paymentsUnderNameQueryKey(name, validRole), payload }],
+    snapshot: renderPageSnapshot(
+      paymentsUnderNamePageSnapshot(name, validRole, {
+        state: payload.state ?? null,
+        rows:
+          payload.state === "reported"
+            ? (payload.payments ?? []).map((row) =>
+                paymentUnderNameRow(
+                  paymentUnderName(row, validRole),
+                  validRole,
+                  linkable,
+                ),
+              )
+            : [],
+        hasMore: payload.page?.has_more ?? false,
+        fetchedAt: payload.fetched_at ?? null,
+      }),
+    ),
+  };
+}
+
+/**
  * The outside-spending record's own page (#1945), which returned a title and an
  * empty body until now. On a cold Cloudflare cache this read is 2,975 ms, so the
  * address was the money section's slowest first load and showed nothing at all
@@ -1197,7 +1319,10 @@ async function contentFor(
     case "bill":
       return billContent(target.billId);
     case "legislator":
-      return legislatorContent(target.legislatorId);
+      return legislatorContent(target.legislatorId, {
+        tab: target.tab,
+        year: target.year,
+      });
     case "bills":
       return isDefaultBillDirectoryParams(target.params)
         ? billListContent(directoryPageNumber(target.params.page))
@@ -1274,10 +1399,13 @@ async function contentFor(
         metadata: moneySearchPageMetadata(target.params.q),
         snapshot: renderPageSnapshot(moneySearchPageSnapshot()),
       };
-    // A filtered view of one free-text spelling, not a record, so head only with
-    // noindex — see §22's table of which money addresses are which.
+    // A filtered view of one free-text spelling, not a record, so `noindex` and no
+    // canonical — see §22's table of which money addresses are which. A body is
+    // not an instruction to a search engine: it is what a reader sees before the
+    // program arrives, and this page drew placeholder rows for about a second
+    // while it fetched the page this function can read in the same breath.
     case "paymentsUnderName":
-      return headOnly(paymentsUnderNamePageMetadata(target.name, target.role));
+      return paymentsUnderNameContent(target.name, target.role);
     // The whole record is indexable on its bare address; a subject's or a
     // filtered view is head only with noindex (#1945).
     case "outsideSpending":
