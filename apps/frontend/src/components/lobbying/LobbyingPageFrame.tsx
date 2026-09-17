@@ -10,7 +10,7 @@ import {
   lobbyingRecordNotFound,
 } from '../../lib/lobbyingRecordCopy';
 import type { ShareContent } from '../../lib/share';
-import { backLinkProps, routePath } from '../../navigation/links';
+import { linkProps, routePath } from '../../navigation/links';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme } from '../../theme/tokens';
 import { SharePopover } from '../billDetail/SharePopover';
@@ -50,7 +50,7 @@ export function LobbyingPageFrame({
             narrow && isMobile && styles.mainNarrowMobile,
           ]}
         >
-          <Pressable {...backLinkProps(routePath.lobbying(), onBack)} style={styles.backLink}>
+          <Pressable {...linkProps(routePath.lobbying(), onBack)} style={styles.backLink}>
             <BackArrow />
             <Text style={styles.backLabel}>Back to Lobbying</Text>
           </Pressable>
