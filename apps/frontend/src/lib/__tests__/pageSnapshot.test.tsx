@@ -98,6 +98,7 @@ const {
   legislatorDirectoryPageSnapshot,
   legislatorPageSnapshot,
   moneyLandingPageSnapshot,
+  outsideSpendingPageSnapshot,
   researchPageSnapshot,
   readPageSnapshot,
   renderPageSnapshot,
@@ -151,6 +152,14 @@ const { MONEY_ONLY_GOES_ONE_WAY } = await import('../researchPieces/moneyOnlyGoe
 const { WHO_HAS_TO_REPORT_THEIR_MONEY } =
   await import('../researchPieces/whoHasToReportTheirMoney');
 const { legislatorDisplayName, legislatorDistrictLine } = await import('../legislatorProfile');
+const {
+  HOW_TO_READ_OUTSIDE,
+  OUTSIDE_BROWSE_INTRO,
+  OUTSIDE_BROWSE_SCOPE,
+  OUTSIDE_DOWNLOADS,
+  OUTSIDE_LIMITS,
+  OUTSIDE_OUTCOMES,
+} = await import('../outsideSpendingBrowse');
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -1361,6 +1370,80 @@ describe('the money landing serves the section’s own words and a live count', 
   // IA §04). The $200 naming threshold in the gaps list is a rule, not a figure.
   it('prints no money amount anywhere', () => {
     expect(text).not.toMatch(/\$[\d,]+\.\d{2}/);
+  });
+});
+
+describe('the outside-spending snapshot serves the browse page meaning', () => {
+  const page = {
+    state: 'reported' as const,
+    about: null,
+    spender: null,
+    year: null,
+    sort: 'newest' as const,
+    rows: [],
+    pageNumber: 1,
+    pageSize: 50,
+    totalRows: 41130,
+    hasMore: true,
+    figures: {
+      rowCount: 41130,
+      rowsMissingAnAmount: 0,
+      amountTotal: '178579449.6700',
+      supportingCount: 31718,
+      supportingAmount: '140000000.00',
+      opposingCount: 9412,
+      opposingAmount: '38579449.67',
+      directionNotRecordedCount: 0,
+      directionNotRecordedAmount: '0',
+      inKindCount: 1065,
+      firstYear: 2015,
+      lastYear: 2026,
+      committeeCount: 1131,
+      spenderCount: 250,
+      committeesNotLinkable: 340,
+    },
+    sourceUrl: OUTSIDE_DOWNLOADS,
+    fetchedAt: '2026-09-01T12:00:00Z',
+  };
+  const snapshot = outsideSpendingPageSnapshot(page);
+  const html = renderPageSnapshot(snapshot);
+  const text = visibleText(html);
+
+  it('uses the loaded browse page introduction, overview, explanations and source', () => {
+    expect(snapshot.subheading).toBe(OUTSIDE_BROWSE_INTRO);
+    expect(text).toContain('2015 through 2026');
+    expect(text).toContain(formatMoney(page.figures.amountTotal));
+    expect(text).toContain('41,130 payments');
+    expect(text).toContain(OUTSIDE_BROWSE_SCOPE);
+    expect(text).toContain(HOW_TO_READ_OUTSIDE);
+    expect(text).toContain(OUTSIDE_LIMITS);
+    expect(text).toContain(OUTSIDE_OUTCOMES);
+    expect(text).toContain(
+      'On the state’s download page, choose ‘All’ under ‘Itemized independent expenditures of over $200’',
+    );
+    expect(text).toContain('Records copied Sep 1, 2026');
+    expect(html).toContain(`href="${OUTSIDE_DOWNLOADS}"`);
+    expect(text).not.toContain('Open search for a group or committee');
+    expect(text).not.toContain('Not in this record');
+  });
+
+  it('links the 2 real browsing choices without inventing a name or a subject total', () => {
+    expect(snapshot.records).toBeUndefined();
+    expect(snapshot.links).toEqual([
+      { label: 'Who spent?', href: '/money/outside-spending?browse=groups' },
+      {
+        label: 'Who was supported or opposed?',
+        href: '/money/outside-spending?browse=committees',
+      },
+      { label: MONEY_LANDING_HEADING, href: '/money' },
+    ]);
+    expect(html).not.toContain('/money/search');
+    expect(html).not.toContain('/money/committees?kind=');
+  });
+
+  it('does not invent a source-copy date when none was served', () => {
+    const undated = renderPageSnapshot(outsideSpendingPageSnapshot({ ...page, fetchedAt: null }));
+    expect(undated).not.toContain('Records copied');
   });
 });
 

@@ -250,6 +250,7 @@ afterEach(() => {
   window.sessionStorage.clear();
   window.history.replaceState({}, '', '/');
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe('one committee shares the donation browser', () => {
@@ -282,6 +283,14 @@ describe('one committee shares the donation browser', () => {
   });
 
   it('restores the prior committee’s donor kind, sort and position on Back', async () => {
+    // jsdom has no layout; this mounted screen's scroller is visible in the browser.
+    vi.spyOn(HTMLElement.prototype, 'getClientRects').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return (this.dataset.testid === 'committee-money-scroll'
+        ? [{}]
+        : []) as unknown as DOMRectList;
+    });
     const frames = new Map<number, FrameRequestCallback>();
     let frameId = 0;
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {

@@ -389,6 +389,7 @@ export interface OutsideSpendingSubject {
 }
 
 export interface OutsideSpendingRecordPage {
+  snapshotId?: string | null;
   state: OutsideSpendingRecordState;
   about: OutsideSpendingSubject | null;
   spender: OutsideSpendingSubject | null;
@@ -581,7 +582,8 @@ export function subjectName(subject: OutsideSpendingSubject): string {
  * of the same page; here the group's own money is its own page, so the sentence
  * says that and links there only where that page exists.
  */
-export const SPENDER_INTRO = 'Registered with the Board to make independent expenditures.';
+export const SPENDER_INTRO =
+  'This group reported outside spending to support or oppose committees.';
 export const SPENDER_OWN_MONEY_LINK = 'What it raised and paid out';
 export const SPENDER_OWN_MONEY_TAIL = ' is on its own page.';
 
@@ -903,6 +905,7 @@ export const SUBJECT_NOT_FOUND_WHY =
 
 /** The record page's payload, exactly as `/campaign-finance/outside-spending` sends it. */
 export interface ApiOutsideSpendingRecordPagePayload {
+  snapshot_id?: string | null;
   state?: string;
   about?: Record<string, unknown> | null;
   spender?: Record<string, unknown> | null;
@@ -999,6 +1002,7 @@ export function outsideSpendingRecordPageFromPayload(
   const state = recordState(payload.state);
   return {
     state,
+    snapshotId: asText(payload.snapshot_id),
     about: outsideSpendingRecordSubject(payload.about),
     spender: outsideSpendingRecordSubject(payload.spender),
     year: payload.year ?? null,

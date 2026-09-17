@@ -1426,8 +1426,8 @@ address is not a reason to show its reader nothing. Sorted for this section:
 | `/money/races?office=…` | filtered view | head only, `noindex`, no canonical |
 | `/money/search` and `?q=…` | filtered view | `noindex` with no canonical, and a body carrying the page's own explanation and what these records do not cover — never a result for anything typed ([#1966](https://github.com/alethical-org/alethical/issues/1966)) |
 | `/money/payments?name=…&role=…` | **filtered view** | head only, `noindex`, no canonical — added by [#1780](https://github.com/alethical-org/alethical/issues/1780) |
-| `/money/outside-spending` | **record** | indexable, canonical on the bare address, and the whole file's own figures and 2 lanes as a body — the whole independent-expenditure file as one subject ([#1945](https://github.com/alethical-org/alethical/issues/1945), body added by [#1966](https://github.com/alethical-org/alethical/issues/1966)) |
-| `/money/outside-spending?spender=…`, `?about=…`, `?year=…`, `?sort=…`, `?page=…` | filtered view | head only, `noindex`, no canonical — one group's or one committee's view of the same rows; each has its own record page at `/money/committees/{slug}` |
+| `/money/outside-spending` | **record** | indexable, canonical on the bare address, with the whole file's own figures and the words introducing its group-and-committee directory as a body — the whole independent-expenditure file as one subject ([#1945](https://github.com/alethical-org/alethical/issues/1945), body added by [#1966](https://github.com/alethical-org/alethical/issues/1966)) |
+| `/money/outside-spending?browse=…`, `?q=…`, `?spender=…`, `?about=…`, `?year=…`, `?sort=…`, `?page=…` | filtered view | head only, `noindex`, no canonical — a narrowed directory or one group's or one committee's view of the same rows; each usable subject name opens its filed identifier |
 
 ### Decisions
 
@@ -1701,7 +1701,7 @@ uncached money answer fast may remove the reason for any long window
 under 0.3 s).
 
 Where each side sits today: this function is 5 minutes on all 3 windows. The data
-service grants the dated money window to 5 named record paths and successful
+service grants the dated money window to 6 named record paths and successful
 anonymous `GET` requests for `finance?year=2025&include_confirmation=false`
 (`MONEY_RECORDS_CACHE_CONTROL` in `alethical/api/routers/public.py`). The default
 mixed finance answer remains compatible and short. `/confirmation`, legislator

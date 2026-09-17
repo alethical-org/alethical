@@ -1106,45 +1106,76 @@ skipped when the first page is smaller.
 ## The outside-spending record (`/money/outside-spending`)
 
 Money spent by groups that are **not** the candidate's campaign, supporting or opposing a
-committee. Minnesota calls it an independent expenditure, and the law requires it to be made
-without the candidate's cooperation, so the page's first sentence says what every row is: what a
-group spent, not what a campaign received, and not what any of it achieved. The rows come from
+committee. Minnesota calls it an independent expenditure, and
+[Minnesota Statutes 10A.01](https://www.revisor.mn.gov/statutes/cite/10A.01) subdivision 18
+requires it to be made without the candidate's cooperation, so the page's first sentence says
+what every row is: what a group spent, not what a campaign received, and not what any of it
+achieved. The rows come from
 the Minnesota Campaign Finance and Public Disclosure Board's independent-expenditures
 download, and **they are never added to the ordinary
 payments-out figures anywhere**: 491 of them coincide with a payment in the expenditures file,
 and whether that is one payment filed twice or two that coincide is not established.
 
-The page opens with a back arrow labelled **Money in politics**, linked to `/money`. Three
-views over the one record are chosen in the address. A row of 3 buttons names them. The pressed
-button names the view on screen: **The whole record**, **One group**, or **One committee**. An
-unpressed subject button names its destination instead: **Browse groups** or **Browse candidate
-committees**. The whole-record button always leads back to the bare address. The 2 browsing
-buttons open the matching register list, from which a committee's own page leads here.
+The page opens with a back arrow labelled **Money in politics**, linked to `/money`. The bare
+address is now the complete directory of names in the outside-spending records, rather than an
+overview with shortcuts to other lists. Its browsing state lives in the address:
+`browse=groups|committees`, `year`, `q` and `page`. Missing values mean groups, all years, no
+search and page 1. “All years” leaves `year` out rather than writing `year=all`.
 
-1. **The whole record** (`/money/outside-spending`). A green card headed WHAT THE RECORD HOLDS
-   carries the file's total in whole dollars, "across 41,130 payments, 2015 through 2026"
-   (every figure counted live), then PAYMENTS BY DIRECTION, AS THE FILING STATES IT: a bar in cyan and
-   ink — never green against red, which would score the spending as good and bad — with the
-   count of supporting payments, the count of opposing payments, and an IN KIND label with the
-   count of payments given in goods or services. Under it: "Every payment states a direction.
-   Payments in goods or services are already included in the supporting or opposing count. They
-   are not additional payments." That
-   sentence prints only while it is true; the day a row states neither direction, a third
-   figure appears in its place. Beside the card, 2 lane cards, **By the group that spent** and
-   **By the committee it was about**, and an **Open search for a group or committee** link that opens
-   the name search. The committee lane's sentence carries a served count of the committees
-   whose number resolves to no page of ours (340 on 3 Sep 2026, 283 of them under the negative
-   numbers the Board assigns local candidates). Two reading blocks follow, HOW TO READ IT and
-   NOT IN THIS RECORD. The whole record lists no rows: a list across every group would set one
-   group's payment beside another's, so the rows live on the 2 subject views.
-2. **One group that spent** (`?spender=<registration number>`). The group's register kind as
+The browsing page is ordered like this:
+
+1. **Year.** “All years” comes first, followed by every distinct filing year in the held
+   outside-spending source, newest first. Changing year keeps the browsing choice and search,
+   and returns to page 1. The overview figures and their period change with the year.
+2. **The browsing task.** **Who spent?** lists groups. **Who was supported or opposed?** lists
+   committees named in the filings. Changing between them keeps the year, clears the search,
+   and returns to page 1. Neither choice opens `/money/search` or the committee register.
+3. **Search and names.** The visible field label is **Search groups** or **Search committees**,
+   with no duplicate placeholder. Search matches names only, across the complete name list for
+   the chosen period rather than only the 12 names on screen. Names are alphabetical, with a
+   stable second sorting rule when 2 printed names match. No name is ranked or accompanied by a
+   spending amount. The Committees list explains once: “A campaign committee is the organization
+   that handles a candidate’s campaign money”.
+4. **Numbered pages.** Every page holds 12 names at every width. Under the names, a centred row
+   reads **‹ Previous · Page X of Y · Next ›**. Previous stays in place but cannot be used on the
+   first page; Next stays in place but cannot be used on the last page. A changed year, browsing
+   choice or search returns to page 1, and a shared out-of-range page is brought back inside the
+   available range.
+5. **The overview.** The card states the total of the listed payments, the payment count, the
+   period, supporting and opposing payment counts, and the count given in goods or services.
+   Under the period it says “These figures cover the whole period, whatever name you search for”.
+   Search, browsing choice and page never change these figures; year changes the figures and
+   period together. Supporting uses cyan and opposing uses ink, never green against red, and
+   both figures are written beside the bar so colour carries no meaning. A direction not stated
+   gets its own labelled count rather than being forced into either side. An unreadable amount
+   withholds the total but not valid counts. The overview and directory always describe the same
+   held source copy.
+6. **How to read these records, limits and source.** These blocks sit after the names. The source
+   is the [Minnesota Campaign Finance and Public Disclosure Board's campaign-finance
+   downloads](https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/),
+   followed by “On the state’s download page, choose ‘All’ under ‘Itemized independent
+   expenditures of over $200’”. “Records copied {date}” uses the actual date of the source copy
+   displayed and is absent when that date is unknown.
+
+At 1100 pixels and wider the browsing controls and names sit in the main column and the overview
+sits beside them. From 768 through 1099 pixels, and below 768 pixels, the page becomes 1 column:
+the overview follows the browsing controls and precedes the names. Below 768 pixels, the year
+choices become a labelled menu. On narrow screens, the overview sits between the search controls and names; on desktop it sits beside them.
+
+The list includes every filed name in the held outside-spending source, even if the name is absent
+from the committee register. Filed identifiers remain the identity: similar names are not combined.
+A name with a usable filed identifier opens its existing payment view and carries the chosen year.
+A name without one remains searchable and counted but is plain text, followed by “We cannot open a
+separate spending record for this name”.
+
+1. **One group that spent** (`?spender=<registration number>`). The group's register kind as
    a chip, "Registration 41207", its name, and a line saying it is registered with the Board
    to make independent expenditures, with a link to its own money page where one exists. Then
    the figures for that group alone: the subject line (OUTSIDE SPENDING · 2026, or the span of
    years), the total, the ruled count line "12 payments about 5 committees" (singular
    "1 payment about 1 committee"), the direction bar with each side's money, and a period
    note. Rows are headed **The committees this spending was about**.
-3. **One committee the spending was about** (`?about=<registration number>`). The same
+2. **One committee the spending was about** (`?about=<registration number>`). The same
    shape, headed **The groups that spent**, count line "12 payments by 5 groups". Above the
    figures sits WHOSE COMMITTEE THIS IS. Until a person at Alethical has confirmed the link,
    it names the committee only: "The register records this committee for State
@@ -1152,6 +1183,13 @@ buttons open the matching register list, from which a committee's own page leads
    page names the committee only. Every figure below is spending about this committee — not
    about a candidate we have identified." A confirmation adds one sentence naming the member
    with a link to their campaign money, and changes no figure: the filings never name a person.
+
+The old 3-choice strip is absent from both payment views. Their **Outside spending** link and
+browser Back return to the browsing choice, year, search, page and name position the reader left
+when that state is available. A directly opened group or committee address returns instead to the
+matching browsing choice and year, with no search and page 1. It never claims another reader's
+search history belongs in the subject address. An older chosen year remains visible and selected
+in the payment view even when it is outside the 2 newest filing years normally offered there.
 
 Every row shows its own facts and nothing inferred: the counterparty's name (a link with its
 REG number where this release holds a page for it; otherwise plain text with "Not in the
@@ -1168,7 +1206,14 @@ filing years. Over 50 rows the list pages, "Showing 50 of 1,284 payments", "Page
 Previous and Next, and the note under the rows says the rest are on their own pages — this list
 is never a sample of a longer one without saying so.
 
-States, each at both widths:
+The browsing page has separate loading, no-match, no-names, no-records and failure states. A name
+list failure leaves a successful overview in place. A failed refresh keeps the last successful
+names and overview with their own year and copy date. When payments exist but the chosen side has
+no names, it says **No group names are recorded for this period** or **No committee names are
+recorded for this period**, followed by “We hold spending records for this period, but no names to
+list in this view.” A failure never reads as an empty result or a zero.
+
+The payment views keep these states at every width:
 
 - **Nothing on record** (grey, in the body face) with the reason: "No independent expenditure
   about this committee appears in the file we hold for the period above. Minnesota publishes no
@@ -1187,9 +1232,25 @@ States, each at both widths:
 - A row whose amount the filing leaves blank withholds every total on the page and keeps every
   count, with a sentence saying why; 0 rows in the live file are like this.
 
-The page ends with "Download the Minnesota Campaign Finance and Public Disclosure Board's file"
-(a link to the download) and the day that file was copied, such as "Checked Sep 1, 2026".
-That is the one freshness date on the page. At phone width (below 768) the columns
+The page ends with the 2 fixed explanations below, then the linked source instruction and the
+actual copy date described above:
+
+> **How to read these records**
+>
+> Choose a group to see which committees its spending supported or opposed. Choose a committee to
+> see which groups spent supporting or opposing it. Each payment shows its amount, date, purpose,
+> and who was paid, when those details appear in the filing.
+>
+> **Limits of these records**
+>
+> These records cover filings held by the Minnesota Campaign Finance and Public Disclosure Board
+> from 2015 onward. They do not include spending reported only to other agencies. We cannot tell
+> whether each group has finished reporting for a year.
+>
+> The filings show spending, not whether it changed a vote, a position, or an election result. No
+> matching record does not mean nothing was spent.
+
+At phone width (below 768) the columns
 stack and each row becomes a card: name, direction, the meta line, then the amount left-aligned
 under the name with its date beneath it; nothing is sticky. The server answers the bare address
 with its title, its description and the figures above, and search engines may list it; a

@@ -87,8 +87,14 @@ export function pushWebHistory(path: string) {
 }
 
 export function hasInAppBackEntry() {
-  const entry = historyEntryFromState(window.history.state, currentSessionId());
+  const entry = currentWebHistoryEntry();
   return Boolean(entry && entry.depth > 0);
+}
+
+/** The current local entry, for a named return link that skips intermediate filters. */
+export function currentWebHistoryEntry(): AppHistoryEntry | null {
+  if (typeof window === 'undefined') return null;
+  return historyEntryFromState(window.history.state, currentSessionId());
 }
 
 function currentScrollStorageKey() {

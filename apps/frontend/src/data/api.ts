@@ -1,4 +1,8 @@
 import { Platform } from 'react-native';
+import type {
+  OutsideSpendingNamesPage,
+  OutsideSpendingBrowseMode,
+} from '../lib/outsideSpendingBrowse';
 import {
   campaignFinanceFilingsFromPayload,
   type ApiCampaignFinanceFilingsPayload,
@@ -3838,4 +3842,21 @@ export async function getOutsideSpendingRecordFromApi(options: {
     throw error;
   }
   return outsideSpendingRecordPageFromPayload(payload);
+}
+
+export async function getOutsideSpendingNamesFromApi(options: {
+  browse: OutsideSpendingBrowseMode;
+  year: number | null;
+  q: string;
+  page: number;
+  snapshotId: string;
+}): Promise<OutsideSpendingNamesPage> {
+  const params = new URLSearchParams({ browse: options.browse, snapshot_id: options.snapshotId });
+  if (options.year !== null) params.set('year', String(options.year));
+  if (options.q) params.set('q', options.q);
+  if (options.page > 1) params.set('page', String(options.page));
+  const response = await publicApiRequest<DetailResponse<OutsideSpendingNamesPage>>(
+    `/campaign-finance/outside-spending/names?${params}`,
+  );
+  return response.data;
 }

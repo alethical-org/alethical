@@ -1,3 +1,6 @@
+import { OutsideSpendingBrowseScreen } from './OutsideSpendingBrowseScreen';
+import { useOutsideSpendingReturn } from '../../hooks/useOutsideSpendingReturn';
+import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { useRef } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -13,39 +16,29 @@ import {
   ALL_YEARS,
   BACK_TO_OUTSIDE_SPENDING,
   checkedLine,
-  DIRECTION_AS_FILED,
   DIRECTION_NOT_STATED,
   directionAmountLine,
   directionCountLine,
   directionNotRecordedLine,
   directionShares,
   EVERY_ROW_SHOWN_NOTE,
-  EVERY_ROW_STATES_A_DIRECTION,
   FIGURES_AS_ACCEPTED,
   FIGURES_WITHHELD,
   figuresAsAcceptedNote,
   FILING_YEAR_LABEL,
-  HOW_TO_READ_IT,
   IN_KIND_COUNTED_INSIDE,
   IN_KIND_LABEL,
   inKindCountLine,
-  LANE_BY_COMMITTEE_TITLE,
-  LANE_BY_SPENDER,
-  laneByCommitteeBody,
   NEXT_PAGE,
   NOT_IN_REGISTER_ROW_NOTE,
-  NOT_IN_THIS_RECORD,
   NOTHING_ON_RECORD,
   nothingOnRecordWhy,
   OPPOSING_CHIP,
-  OUTSIDE_SPENDING_EYEBROW,
   OUTSIDE_SPENDING_HEADING,
   OUTSIDE_SPENDING_PATH,
-  OUTSIDE_SPENDING_STANDFIRST,
   outsideSpendingPageNumber,
   outsideSpendingSort,
   outsideSpendingView,
-  outsideSpendingViewLabel,
   outsideSpendingYear,
   pageLine,
   paidLine,
@@ -55,14 +48,12 @@ import {
   READ_FROM_THE_BOARDS_FILE,
   RECORD_UNAVAILABLE_TITLE,
   RECORD_UNAVAILABLE_WHY,
-  recordSpanLine,
   registrationChip,
   registrationLine,
   rowCounterparty,
   ROWS_DEK,
   rowsCountLine,
   rowsHeading,
-  SEARCH_A_GROUP_OR_COMMITTEE,
   SEE_ALL_YEARS,
   SEE_OWN_MONEY,
   SEE_OWN_MONEY_SPENDER,
@@ -81,7 +72,6 @@ import {
   typeText,
   unpaidNote,
   vendorText,
-  WHAT_THE_RECORD_HOLDS,
   WHOSE_COMMITTEE_THIS_IS,
   whoseCommitteeConfirmed,
   whoseCommitteeUnconfirmed,
@@ -156,20 +146,16 @@ function ForwardArrow({ color }: { color: string }) {
   );
 }
 
-function SearchGlyph() {
-  return (
-    <Svg width={17} height={17} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <Path
-        d="M11 4.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13Z M16 16 L21 21"
-        stroke={t.colors.ink}
-        strokeWidth={2}
-        strokeLinecap="round"
-      />
-    </Svg>
+export function OutsideSpendingScreen(props: RootScreenProps<'OutsideSpending'>) {
+  return outsideSpendingView(props.route.params ?? {}) === 'record' ? (
+    <OutsideSpendingBrowseScreen {...props} />
+  ) : (
+    <OutsideSpendingSubjectScreen {...props} />
   );
 }
 
-export function OutsideSpendingScreen({ navigation, route }: RootScreenProps<'OutsideSpending'>) {
+function OutsideSpendingSubjectScreen({ navigation, route }: RootScreenProps<'OutsideSpending'>) {
+  const scroll = useHistoryScrollRestoration();
   const { isMobile } = useResponsive();
   const address: Address = route.params ?? {};
   const view = outsideSpendingView(address);
@@ -207,21 +193,20 @@ export function OutsideSpendingScreen({ navigation, route }: RootScreenProps<'Ou
   // The same subject with one thing changed. Changing the year or the sort goes
   // back to page 1, because the pages are pages of a different list.
   const withChange = (change: Partial<Address>): Address => {
-    const kept: Address = {};
-    if (address.spender) kept.spender = address.spender;
-    if (address.about) kept.about = address.about;
-    if (address.year) kept.year = address.year;
-    if (address.sort && address.sort !== 'newest') kept.sort = address.sort;
-    const next: Address = { ...kept, ...change };
-    for (const key of Object.keys(next) as (keyof Address)[]) {
-      if (!next[key]) delete next[key];
-    }
+    const next: Address = {
+      spender: address.spender,
+      about: address.about,
+      year: address.year,
+      sort: address.sort,
+      page: undefined,
+      ...change,
+    };
     return next;
   };
 
   return (
     <PageBackground>
-      <ScrollView contentContainerStyle={styles.page}>
+      <ScrollView {...scroll} contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
 
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
@@ -232,8 +217,6 @@ export function OutsideSpendingScreen({ navigation, route }: RootScreenProps<'Ou
             <BackChevron />
             <Text style={styles.backLabel}>{MONEY_SECTION_NAME}</Text>
           </Pressable>
-
-          <ViewStrip view={view} address={address} navigation={navigation} />
 
           {query.isPending && !page ? (
             <LoadingBlock />
@@ -251,16 +234,9 @@ export function OutsideSpendingScreen({ navigation, route }: RootScreenProps<'Ou
               </Text>
               <Text style={styles.explain}>{SUBJECT_NOT_FOUND_WHY}</Text>
             </View>
-          ) : view === 'record' ? (
-            <WholeRecord
-              page={page}
-              isMobile={isMobile}
-              checkedOn={checkedOn}
-              serviceDown={serviceDown}
-              navigation={navigation}
-            />
           ) : (
             <SubjectView
+              address={address}
               view={view}
               page={page}
               year={year}
@@ -279,71 +255,6 @@ export function OutsideSpendingScreen({ navigation, route }: RootScreenProps<'Ou
   );
 }
 
-/**
- * The 3 view buttons. The current view is pressed; the whole-record button always
- * links back to the bare address. The 2 subject buttons need a subject, so where
- * the page is not already on one they open the register's list of the filers of
- * that kind, from which a committee's page leads here.
- */
-function ViewStrip({
-  view,
-  address,
-  navigation,
-}: {
-  view: OutsideSpendingView;
-  address: Address;
-  navigation: Navigation;
-}) {
-  const buttons: { key: OutsideSpendingView; href: string; onPress: () => void }[] = [
-    {
-      key: 'record',
-      href: routePath.moneyOutsideSpending(),
-      onPress: () => navigation.setParams(undefined),
-    },
-    {
-      key: 'spender',
-      href:
-        view === 'spender'
-          ? routePath.moneyOutsideSpending({ spender: address.spender })
-          : routePath.moneyCommittees({ kind: 'political_committee_or_fund' }),
-      onPress: () =>
-        view === 'spender'
-          ? undefined
-          : navigation.push('CommitteeList', { kind: 'political_committee_or_fund' }),
-    },
-    {
-      key: 'about',
-      href:
-        view === 'about'
-          ? routePath.moneyOutsideSpending({ about: address.about })
-          : routePath.moneyCommittees({ kind: 'candidate_committee' }),
-      onPress: () =>
-        view === 'about'
-          ? undefined
-          : navigation.push('CommitteeList', { kind: 'candidate_committee' }),
-    },
-  ];
-  return (
-    <View style={styles.viewStrip} role="group" aria-label="View">
-      {buttons.map((button) => {
-        const active = button.key === view;
-        return (
-          <Pressable
-            key={button.key}
-            {...linkProps(button.href, button.onPress)}
-            aria-pressed={active}
-            style={[styles.viewButton, active && styles.viewButtonActive]}
-          >
-            <Text style={[styles.viewButtonLabel, active && styles.viewButtonLabelActive]}>
-              {outsideSpendingViewLabel(button.key, view)}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
 function LoadingBlock() {
   return (
     <View style={styles.loading}>
@@ -357,159 +268,10 @@ function LoadingBlock() {
   );
 }
 
-// --- The whole record -----------------------------------------------------------
-
-function WholeRecord({
-  page,
-  isMobile,
-  checkedOn,
-  serviceDown,
-  navigation,
-}: {
-  page: OutsideSpendingRecordPage;
-  isMobile: boolean;
-  checkedOn: string | null;
-  serviceDown: boolean;
-  navigation: Navigation;
-}) {
-  const figures = page.figures;
-  return (
-    <View>
-      <Text style={styles.eyebrow}>{OUTSIDE_SPENDING_EYEBROW.toUpperCase()}</Text>
-      <Text
-        accessibilityRole="header"
-        aria-level={1}
-        style={[styles.h1, isMobile && styles.h1Mobile]}
-      >
-        {OUTSIDE_SPENDING_HEADING}
-      </Text>
-      <Text style={styles.standfirst}>{OUTSIDE_SPENDING_STANDFIRST}</Text>
-
-      {serviceDown ? <StaleNote checkedOn={checkedOn} /> : null}
-
-      <View style={[styles.twoColumns, isMobile && styles.oneColumn]}>
-        <View style={[styles.figureCard, !isMobile && styles.figureCardWide]}>
-          <Text style={styles.monoLabelGreen}>{WHAT_THE_RECORD_HOLDS.toUpperCase()}</Text>
-          {page.state === 'reported' && figures ? (
-            <RecordFigures figures={figures} isMobile={isMobile} />
-          ) : page.state === 'unavailable' ? (
-            <>
-              <Text style={styles.h3}>{RECORD_UNAVAILABLE_TITLE}</Text>
-              <Text style={styles.explain}>{RECORD_UNAVAILABLE_WHY}</Text>
-            </>
-          ) : (
-            <>
-              <Text style={styles.nothingTitle}>{NOTHING_ON_RECORD}</Text>
-              <Text style={styles.explain}>{nothingOnRecordWhy('record')}</Text>
-            </>
-          )}
-        </View>
-
-        <View style={styles.lanes}>
-          <Pressable
-            {...linkProps(routePath.moneyCommittees({ kind: 'political_committee_or_fund' }), () =>
-              navigation.push('CommitteeList', { kind: 'political_committee_or_fund' }),
-            )}
-            style={styles.laneCard}
-          >
-            <View style={styles.laneHead}>
-              <Text style={styles.laneTitle}>{LANE_BY_SPENDER.title}</Text>
-              <ForwardArrow color={t.colors.brand.deep} />
-            </View>
-            <Text style={styles.laneBody}>{LANE_BY_SPENDER.body}</Text>
-          </Pressable>
-          <Pressable
-            {...linkProps(routePath.moneyCommittees({ kind: 'candidate_committee' }), () =>
-              navigation.push('CommitteeList', { kind: 'candidate_committee' }),
-            )}
-            style={styles.laneCard}
-          >
-            <View style={styles.laneHead}>
-              <Text style={styles.laneTitle}>{LANE_BY_COMMITTEE_TITLE}</Text>
-              <ForwardArrow color={t.colors.brand.deep} />
-            </View>
-            <Text style={styles.laneBody}>
-              {laneByCommitteeBody(figures?.committeesNotLinkable ?? null)}
-            </Text>
-          </Pressable>
-          <Pressable
-            {...linkProps(routePath.moneySearch(), () => navigation.push('MoneySearch'))}
-            style={styles.searchRow}
-          >
-            <SearchGlyph />
-            <Text style={styles.searchPlaceholder}>{SEARCH_A_GROUP_OR_COMMITTEE}</Text>
-            <ForwardArrow color={t.colors.brand.deep} />
-          </Pressable>
-        </View>
-      </View>
-
-      <View style={[styles.readingColumns, isMobile && styles.oneColumn]}>
-        <View style={styles.readingBlock}>
-          <Text style={styles.monoLabel}>{HOW_TO_READ_IT.heading.toUpperCase()}</Text>
-          <Text style={styles.readingBody}>{HOW_TO_READ_IT.body}</Text>
-        </View>
-        <View style={styles.readingBlock}>
-          <Text style={styles.monoLabel}>{NOT_IN_THIS_RECORD.heading.toUpperCase()}</Text>
-          <Text style={styles.readingBody}>{NOT_IN_THIS_RECORD.body}</Text>
-        </View>
-      </View>
-
-      {/* The whole record lists no rows: a list across every group would rank one
-          group's payment beside another's, which is the comparison this record
-          cannot support. The 2 lanes lead to a subject, where the rows are. */}
-      <SourceStamp sourceUrl={page.sourceUrl} checkedOn={checkedOn} />
-    </View>
-  );
-}
-
-function RecordFigures({
-  figures,
-  isMobile,
-}: {
-  figures: OutsideSpendingRecordFigures;
-  isMobile: boolean;
-}) {
-  const total = formatMoney(figures.amountTotal);
-  const everyRowStated = figures.directionNotRecordedCount === 0;
-  const shares = directionShares(String(figures.supportingCount), String(figures.opposingCount));
-  return (
-    <View>
-      {total ? (
-        <Text style={[styles.bigFigure, isMobile && styles.bigFigureMobile]}>{total}</Text>
-      ) : (
-        <Text style={styles.explain}>{FIGURES_WITHHELD}</Text>
-      )}
-      <Text style={styles.figureUnder}>{recordSpanLine(figures)}</Text>
-
-      <Text style={[styles.monoLabel, { marginTop: 26 }]}>{DIRECTION_AS_FILED.toUpperCase()}</Text>
-      <DirectionBar shares={shares} />
-      <View style={styles.legendRow}>
-        <Legend color={SUPPORTING_COLOR}>
-          {directionCountLine(figures.supportingCount, 'supporting')}
-        </Legend>
-        <Legend color={OPPOSING_COLOR}>
-          {directionCountLine(figures.opposingCount, 'opposing')}
-        </Legend>
-        {everyRowStated ? null : (
-          <Legend color={t.colors.text.muted}>
-            {directionNotRecordedLine(figures.directionNotRecordedCount)}
-          </Legend>
-        )}
-        <View style={styles.legendItem}>
-          <Text style={styles.inKindLabel}>{IN_KIND_LABEL.toUpperCase()}</Text>
-          <Text style={styles.legendText}>{inKindCountLine(figures.inKindCount)}</Text>
-        </View>
-      </View>
-      <Text style={styles.figureNote}>
-        {everyRowStated ? EVERY_ROW_STATES_A_DIRECTION : IN_KIND_COUNTED_INSIDE}
-      </Text>
-    </View>
-  );
-}
-
 // --- One subject ----------------------------------------------------------------
 
 function SubjectView({
+  address,
   view,
   page,
   year,
@@ -520,6 +282,7 @@ function SubjectView({
   hrefFor,
   goTo,
 }: {
+  address: Address;
   view: OutsideSpendingView;
   page: OutsideSpendingRecordPage;
   /** The year the address asks for, which picks the pressed chip. The figures are
@@ -532,6 +295,7 @@ function SubjectView({
   hrefFor: (change: Partial<Address>) => string;
   goTo: (change: Partial<Address>) => void;
 }) {
+  const returnLink = useOutsideSpendingReturn(address, navigation);
   const subject = view === 'spender' ? page.spender : page.about;
   const figures = page.figures;
   const kind = registerKindLabel(subject?.kind);
@@ -547,10 +311,7 @@ function SubjectView({
 
   return (
     <View>
-      <Pressable
-        {...linkProps(routePath.moneyOutsideSpending(), () => navigation.setParams(undefined))}
-        style={styles.backLink}
-      >
+      <Pressable {...linkProps(returnLink.href, returnLink.onReturn)} style={styles.backLink}>
         <BackChevron />
         <Text style={styles.backLabel}>{BACK_TO_OUTSIDE_SPENDING}</Text>
       </Pressable>
@@ -693,7 +454,9 @@ function YearChips({
 }) {
   const options: { label: string; value: number | null }[] = [
     { label: ALL_YEARS, value: null },
-    ...campaignMoneyYears().map((option) => ({ label: String(option), value: option })),
+    ...[...new Set([...campaignMoneyYears(), ...(year === null ? [] : [year])])]
+      .sort((a, b) => b - a)
+      .map((option) => ({ label: String(option), value: option })),
   ];
   return (
     <View style={styles.years} role="group" aria-label="Choose a filing year">

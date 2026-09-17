@@ -123,7 +123,19 @@ export type RootStackParamList = {
   // spent (`spender`), or one committee spent about (`about`), plus the filing
   // year, the sort and the page, all in the address so a view is a link.
   OutsideSpending:
-    { spender?: string; about?: string; year?: string; sort?: string; page?: string } | undefined;
+    | {
+        spender?: string;
+        about?: string;
+        year?: string;
+        sort?: string;
+        page?: string;
+        browse?: string;
+        q?: string;
+        /** Navigation-only return address; shared subject URLs use a safe fallback. */
+        returnTo?: string;
+        returnContext?: { href: string; depth: number; sessionId: string; subject: string };
+      }
+    | undefined;
   Privacy: undefined;
   AdminUsers: undefined;
   AdminSiteMetrics: undefined;

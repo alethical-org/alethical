@@ -55,7 +55,7 @@ The response headers that drive the cache are **already live** (PR #363):
 
 ```
 Cache-Control: public, max-age=60, stale-while-revalidate=300                             # anonymous bill / vote / legislator reads
-Cache-Control: public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800   # the 5 named record paths and explicit dated-only committee finance
+Cache-Control: public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800   # the 6 named record paths and explicit dated-only committee finance
 Cache-Control: private, no-store                                                          # signed-in / tracking reads
 ```
 
@@ -69,7 +69,7 @@ reader be handed a week-old bill status, which is the harm
 `.claude/rules/grounded-answers.md` rule 7 names: "a status-stale answer
 misframes enacted law as a pending proposal."
 
-**The 5 named campaign-money record paths and the explicit dated-only committee
+**The 6 named campaign-money record paths and the explicit dated-only committee
 finance variant get the longer window.** The finance variant is
 `/api/v1/committees/{registration_number}/finance?year=2025&include_confirmation=false`;
 it omits the ownership claim and performs no confirmation lookup. Its handler grants
