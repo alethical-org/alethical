@@ -208,7 +208,12 @@ period independently of the mixed-period report list.
 The ordering explanation follows the feed’s own ordering field:
 
 - “Latest reporting periods first, then by filer name”
-- “Most recently received first. If the received date is missing, we use the reporting period’s end date.”
+- “Newest first by received date.”
+  “If missing, we use the reporting period’s end.”
+
+The 2 sentences occupy separate lines. On wide screens, both lines are right-aligned so their
+ending periods share the filing dates’ right edge. On narrow screens, the explanation and filing
+dates both move to the left edge.
 
 An unknown ordering field prints no guessed explanation. There is no “Never by
 amount” clause, although the records still must not be ranked by amount.
