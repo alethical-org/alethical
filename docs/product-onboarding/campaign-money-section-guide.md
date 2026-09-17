@@ -214,6 +214,9 @@ The count line reads “Latest completed period: {count} reports cover through
 served block and appear only when both are available. They describe that completed
 period independently of the mixed-period report list.
 
+On wide screens, the count line stays on 1 line and ends level with the second line of the
+ordering explanation. On narrow screens, the 2 blocks stack and keep their compact spacing.
+
 The ordering explanation follows the feed’s own ordering field:
 
 - “Latest reporting periods first, then by filer name”

@@ -501,7 +501,13 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                     {RECENT_FILINGS_HEADING.toUpperCase()}
                   </Text>
                   {newestPeriodSentence(feed?.newestPeriod ?? null) ? (
-                    <Text style={[styles.filingsTie, isMobile && styles.filingsTieMobile]}>
+                    <Text
+                      style={[
+                        styles.filingsTie,
+                        narrow && styles.filingsTieNarrow,
+                        isMobile && styles.filingsTieMobile,
+                      ]}
+                    >
                       {newestPeriodSentence(feed?.newestPeriod ?? null)}
                     </Text>
                   ) : null}
@@ -864,9 +870,9 @@ const styles = StyleSheet.create({
     gap: 30,
   },
   filingsHeadingRowNarrow: { flexDirection: 'column', gap: 12 },
-  filingsHeadingText: { flex: 1, minWidth: 0 },
+  filingsHeadingText: { flex: 1.26, minWidth: 0 },
   filingsSort: {
-    flex: 1,
+    flex: 0.74,
     paddingTop: 30,
     textAlign: 'right',
     color: t.colors.text.muted,
@@ -882,7 +888,7 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
   filingsTie: {
-    marginTop: 14,
+    marginTop: 31,
     color: t.colors.text.primary,
     fontFamily: t.typography.body,
     fontVariant: ['tabular-nums'],
@@ -890,6 +896,7 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.semibold,
     lineHeight: 28,
   },
+  filingsTieNarrow: { marginTop: 14 },
   filingsTieMobile: { fontSize: 18, lineHeight: 26 },
   filingsList: { marginTop: 10 },
   filingRow: {
