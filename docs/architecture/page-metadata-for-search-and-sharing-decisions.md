@@ -1701,7 +1701,7 @@ uncached money answer fast may remove the reason for any long window
 under 0.3 s).
 
 Where each side sits today: this function is 5 minutes on all 3 windows. The data
-service grants the dated money window to 5 named record paths and successful
+service grants the dated money window to 6 named record paths and successful
 anonymous `GET` requests for `finance?year=2025&include_confirmation=false`
 (`MONEY_RECORDS_CACHE_CONTROL` in `alethical/api/routers/public.py`). The default
 mixed finance answer remains compatible and short. `/confirmation`, legislator

@@ -43,10 +43,10 @@ the records behind them change at genuinely different rates.
 | Layer | Header | Where it is set |
 |---|---|---|
 | Cloudflare, bill / vote / legislator reads | `public, max-age=60, stale-while-revalidate=300` | `PUBLIC_CACHE_CONTROL` in `alethical/api/routers/public.py` |
-| Cloudflare, the 5 named campaign-money record reads and explicit dated-only committee finance | `public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800` | `MONEY_RECORDS_CACHE_CONTROL`, same file, granted to `MONEY_RECORD_PATHS` by `public_cache_control_for_path`, and by the finance handler only after a successful anonymous `GET` with `include_confirmation=false` |
+| Cloudflare, the 6 named campaign-money record reads and explicit dated-only committee finance | `public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800` | `MONEY_RECORDS_CACHE_CONTROL`, same file, granted to `MONEY_RECORD_PATHS` by `public_cache_control_for_path`, and by the finance handler only after a successful anonymous `GET` with `include_confirmation=false` |
 | Vercel, in front of the page HTML | `public, max-age=0, s-maxage=300, stale-while-revalidate=300, stale-if-error=300` | `OK_CACHE` in `api/page.ts` |
 
-**Bill, vote and legislator reads keep the short window. The 5 named
+**Bill, vote and legislator reads keep the short window. The 6 named
 campaign-money record reads and explicit dated-only committee finance get the longer
 one.** The 2 differ because the records behind them change at genuinely different rates.
 `.github/workflows/vote-backfill.yml` re-reads and writes votes every day at 09:00
@@ -58,7 +58,7 @@ production's snapshot was dated 2026-08-12 when this was measured on 4 Sep 2026,
 23 days old. One window set from the money cadence and applied to both was wrong
 for bill reads.
 
-**The 5 paths are named one at a time, and the shape of an address grants nothing.**
+**The 6 paths are named one at a time, and the shape of an address grants nothing.**
 The finance path remains short by default for compatible mixed responses. Only its
 explicit `include_confirmation=false` variant can receive the dated window, after a
 successful anonymous `GET`. An unclassified route, an authorized request or a failed
@@ -69,6 +69,7 @@ read never gains that window from a query parameter alone.
 | `/api/v1/campaign-finance/committees` | `/api/v1/campaign-finance/search` |
 | `/api/v1/campaign-finance/filings` | `/api/v1/campaign-finance/summary` |
 | `/api/v1/campaign-finance/outside-spending` | `/api/v1/legislators/{id}/campaign-finance` |
+| `/api/v1/campaign-finance/outside-spending/names` | |
 | `/api/v1/campaign-finance/payments-under-name` | `/api/v1/committees/{registration_number}/finance` |
 | `/api/v1/campaign-finance/races` | `/api/v1/committees/{registration_number}/confirmation` |
 | `/api/v1/committees/{registration_number}/finance?year=2025&include_confirmation=false` | every other public read |
@@ -1461,7 +1462,7 @@ large.** On `/api/v1/bills` it is 5.3 points and on
 `/api/v1/campaign-finance/races` it is 32.9, which is more than half of that address's
 origin reads happening behind a reader who had already been answered. That is
 `stale-while-revalidate` doing its job, and it is on every public read, at 5 minutes
-for bill and vote records and at a day for the 5 named money records.
+for bill and vote records and at a day for the 6 named money records.
 
 **Nothing here prices the difference between those 2 windows, and the addresses
 cannot be compared to work it out.** Both windows carry a stale grace, so both
