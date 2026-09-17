@@ -112,31 +112,37 @@ date the lobbying records were copied.
 
 The first card prints each official yearly row, newest first. Its explanation says each
 row is 1 calendar year, reports are due the following March and every figure comes from
-the Board. It also says a shown `$0` is a filed value while “Not reported” means the file
-leaves the value blank. The official organisations-search source link sits in this card
-with the standard horizontal arrow. The 7 wide columns are
-Year, Total spent, PUC, General, Legislative, Administrative and Metropolitan. Total spent
-is the Board's own figure; the screen adds no total across years. Whole dollars cut off
-cents rather than rounding. A filed zero prints `$0`. A blank value never becomes zero.
-An entirely blank row says "Not reported" across its figure columns.
+the Minnesota Campaign Finance and Public Disclosure Board. The official
+organisations-search source link sits in this card with the standard horizontal arrow.
+The notes first explain the 5 categories, then explain rounding and filed `$0` values,
+then explain why older spending was commonly reported under General. The “Not reported”
+definition appears only when at least 1 amount is blank.
 
-Before 2024, absent later kinds share the sentence "Not broken out by these kinds before
-2024". Any row carrying one of the later 3 kinds prints all 5 kinds, whatever its year.
-Every 2024-or-later row also prints all 5 kinds, with blank cells labelled honestly.
-On a phone the table has Year and Reported spending columns, keeping all the same figures.
+At 1100 pixels and wider, the figures use 7 labelled columns: Year, Total spent, PUC,
+General, Legislative, Administrative and Metropolitan. Year and Total spent carry the
+strongest weight, and 1 vertical line separates them from the 5-category breakdown. At
+smaller widths, each year becomes a block with the year and Total spent on 1 line, followed
+by 5 rows pairing each category label with its amount. Every width shows all 5 categories.
+Total spent is the Board’s own figure; the screen adds no total across years. Whole dollars
+cut off cents rather than rounding. A filed zero prints `$0`. Every blank amount says “Not
+reported” and never becomes zero.
 
 The annual report is due the following March. The downloaded file does not prove the day
 each report was filed, so the screen says "with reports due the following March". It does
 not claim every filing arrived by 15 March. The Board's 2026 calendar moved that year's
 deadline to Monday 16 March.
 
-The second card names lobbyists listed for this principal on the displayed copy date, not
-the lobbyists from each spending year. The full count appears before the first 5 rows.
-“Show 5 more lobbyists” reveals the next 5 inside the card. When the association's printed
-principal name differs
+The second card names lobbyists listed for this principal in records copied on the displayed
+date, not the lobbyists from each spending year. The official lobbyist-search source link
+sits before the full count. The first 5 rows appear immediately, and the reveal control
+names the number it will add. When the association's printed principal name differs
 from the spending file's name, the heading area says "Registered as {name} in the lobbyist
 list". A successfully read empty list has its own no-lobbyist sentence; a failed read does
 not claim an empty list.
+
+At phone widths, Share sits below the copied-date line so the title, definition and date
+each use the full content width. At tablet and computer widths, Share stays beside the
+heading block.
 
 ## The lobbyist address
 
