@@ -29,10 +29,12 @@ export const screenChunks = {
     import('../screens/redesign/AskAnswerScreen').then((m) => ({ default: m.AskAnswerScreen })),
   BillDetail: () =>
     import('../screens/redesign/BillDetailScreen').then((m) => ({ default: m.BillDetailScreen })),
+  // On a money-tab address the tab's own pieces download with the screen: see
+  // `legislatorProfileScreenPieces` for the 2-step draw this removes.
   LegislatorProfile: () =>
-    import('../screens/LegislatorProfileScreen').then((m) => ({
-      default: m.LegislatorProfileScreen,
-    })),
+    import('../screens/LegislatorProfileScreen').then((m) =>
+      m.legislatorProfileScreenPieces().then(() => ({ default: m.LegislatorProfileScreen })),
+    ),
   FindMyLegislator: () =>
     import('../screens/FindMyLegislatorScreen').then((m) => ({
       default: m.FindMyLegislatorScreen,

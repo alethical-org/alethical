@@ -675,6 +675,46 @@ Two costs, both accepted: the committee screen draws when its chart code has als
 and Space Grotesk files (29,336 and 13,372 bytes) from this address before the first paint,
 instead of after it from Google.
 
+**Measured live after the release** ([pull request 2259](https://github.com/alethical-org/alethical/pull/2259)),
+same conditions, 1 load per address. "Served text" is the first paint; "app" is the frame in
+which the app's own page is complete, with its records. The served text and the app's frame
+are now the same design, and the app's text is present in the very frame the served text
+leaves, so no blank frame appears anywhere.
+
+| Address | Served text | App, complete | Before: app's first frame, then |
+|---|---:|---:|---|
+| `/money/committees/…-20003?year=2025` | 652 ms | 929 ms, chart drawn | 547 ms, chart at 636 ms, loading line in between |
+| `/money/committees/…-41363/payments?year=2025` | 173 ms | 306 ms | 504 ms |
+| `/money/payments?name=…&role=contributor` | 487 ms, rows served | 638 ms, no request made | 524 ms, placeholder rows until 1,193 ms |
+| `/money/lobbying/principals/…-5359` | 491 ms | 645 ms | 989 ms |
+| `/legislators/jim-abeler?tab=money&year=2025` | 1,258 ms | 1,490 ms, card with figures | 930 ms, skeleton until 1,361 ms, "Loading campaign money…" until 2,020 ms |
+
+The committee's 2 complete payment lists now take 350 to 430 ms per 250-row page at the
+origin against 3.5 to 4.2 s before (the database change under "What an uncached money answer
+spends its time on").
+
+**The one number that moved the wrong way, and why it is kept.** The legislator money-tab
+page's first paint moved from 827 to 1,258 ms, because the page function now waits for the
+member's money answer (about 0.9 s at the origin) before it can hand it on. What that buys is
+the page being complete at 1,490 ms instead of 2,020 ms, with no skeleton and no loading line
+in between, and every figure on screen the moment anything is. The lever for that first paint
+is the money read's own cost, which is the subject of the section below, not the page.
+
+**One limit, measured rather than promised.** The served text paints in the app's typeface when
+the font file has arrived, and on a cold visit that is decided by the race between the HTML and
+the font: on `/money/committees/…-20003` the HTML took 507 ms, the font 161 ms more, and the
+served text painted at 652 ms in the fallback face, swapping about 45 ms later. On the other
+4 addresses the font landed before the first paint. `font-display: swap` is kept, because
+holding text invisible for a font is the worse trade on the slow connections where the swap is
+visible at all.
+
+**The profile drew its money tab in 2 steps until the tab's code travelled with the screen.**
+On a `?tab=money` address the profile's header drew at 1,383 ms with an empty band under the
+tab strip, and the band filled at 1,490 ms when the tab's own piece landed: both profile screens
+started that download in an effect after they mounted. `screenChunks.LegislatorProfile` now
+waits for the tab's pieces when the address names the tab (`legislatorProfileScreenPieces`),
+the same way the committee screen waits for its chart.
+
 **What still waits on the data service, and where that is measured.** The committee page's 2
 complete payment lists and the legislator tab's 11 yearly reads are origin reads on a
 rarely-visited page; their statement counts and plans are the subject of "What an uncached money
