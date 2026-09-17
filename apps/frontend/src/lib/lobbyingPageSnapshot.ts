@@ -22,10 +22,10 @@ import {
 import {
   lobbyingPrincipalCopy as principalCopy,
   lobbyingLobbyistCopy as lobbyistCopy,
+  principalLobbyistsIntroduction,
   principalSpellingLines,
   recordCountLine,
-  spendingRowIsBlank,
-  spendingRowHasFullKinds,
+  spendingRowsHaveMissingAmounts,
   PRINCIPAL_SOURCE_URL,
   LOBBYIST_SOURCE_URL,
   LOBBYIST_DONATIONS_UNAVAILABLE,
@@ -169,7 +169,7 @@ export function lobbyingPrincipalSnapshot(data: LobbyingPrincipal): PageSnapshot
     blocks: [
       {
         kind: 'prose',
-        lines: [principalCopy.spendingIntroduction, principalCopy.spendingZeroNote],
+        lines: [principalCopy.spendingIntroduction],
       },
       {
         kind: 'table',
@@ -184,25 +184,29 @@ export function lobbyingPrincipalSnapshot(data: LobbyingPrincipal): PageSnapshot
           'Administrative',
           'Metropolitan',
         ],
-        rows: data.spending.rows.map((row) =>
-          spendingRowIsBlank(row)
-            ? [String(row.year ?? 'Not reported'), { text: 'Not reported', colSpan: 6 }]
-            : [
-                String(row.year ?? 'Not reported'),
-                amount(row.total_spent),
-                amount(row.puc_lobbying_amount),
-                amount(row.general_lobbying_amount),
-                ...(spendingRowHasFullKinds(row)
-                  ? [
-                      amount(row.legislative_lobbying_amount),
-                      amount(row.administrative_lobbying_amount),
-                      amount(row.mgu_lobbying_amount),
-                    ]
-                  : [{ text: principalCopy.oldKindsWide, colSpan: 3 }]),
-              ],
-        ),
+        rows: data.spending.rows.map((row) => [
+          String(row.year ?? 'Not reported'),
+          amount(row.total_spent),
+          amount(row.puc_lobbying_amount),
+          amount(row.general_lobbying_amount),
+          amount(row.legislative_lobbying_amount),
+          amount(row.administrative_lobbying_amount),
+          amount(row.mgu_lobbying_amount),
+        ]),
       },
-      { kind: 'prose', lines: [principalCopy.kindsNote] },
+      {
+        kind: 'prose',
+        lines: [
+          principalCopy.kindsNote,
+          [
+            principalCopy.spendingValueNote,
+            ...(spendingRowsHaveMissingAmounts(data.spending.rows)
+              ? [principalCopy.spendingMissingValueNote]
+              : []),
+          ].join(' '),
+          principalCopy.oldKindsNote,
+        ],
+      },
     ],
   };
   if (data.spending.state !== 'reported' || data.spending.rows.length === 0) {
@@ -230,7 +234,7 @@ export function lobbyingPrincipalSnapshot(data: LobbyingPrincipal): PageSnapshot
       {
         heading: principalCopy.lobbyistsHeading,
         body: [
-          principalCopy.lobbyistsIntroduction,
+          principalLobbyistsIntroduction(data.copied_at ? centralDateLabel(data.copied_at) : null),
           ...(data.lobbyists.state === 'reported' &&
           data.lobbyists.total != null &&
           data.lobbyists.total > 0
@@ -250,6 +254,7 @@ export function lobbyingPrincipalSnapshot(data: LobbyingPrincipal): PageSnapshot
     ],
     links: [
       { label: principalCopy.sourceLabel, href: PRINCIPAL_SOURCE_URL },
+      { label: lobbyistCopy.sourceLabel, href: LOBBYIST_SOURCE_URL },
       { label: directory.principals.title, href: '/money/lobbying/principals' },
     ],
   };

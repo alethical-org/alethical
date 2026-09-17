@@ -75,7 +75,11 @@ export function LobbyingPageFrame({
                 </Text>
                 {details}
               </View>
-              {shareContent ? <SharePopover content={shareContent} /> : null}
+              {shareContent ? (
+                <View style={narrow && isMobile ? styles.shareRowMobile : undefined}>
+                  <SharePopover content={shareContent} />
+                </View>
+              ) : null}
             </View>
           ) : null}
 
@@ -269,6 +273,7 @@ const styles: Record<string, any> = {
     flexWrap: 'wrap',
   },
   headingRowMobile: { gap: 16 },
+  shareRowMobile: { width: '100%' },
   headingCopy: { flex: 1, minWidth: 0, maxWidth: 1000 },
   h1: {
     color: '#11150f',
