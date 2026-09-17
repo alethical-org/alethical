@@ -7,25 +7,32 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ALL_YEARS,
+  DIRECTION_AS_FILED,
   directionAmountLine,
+  directionCountLine,
   directionShares,
   EVERY_ROW_STATES_A_DIRECTION,
   figuresAsAcceptedNote,
+  HOW_TO_READ_IT,
+  inKindCountLine,
   laneByCommitteeBody,
   nothingOnRecordWhy,
   OUTSIDE_SPENDING_VIEW_LABELS,
   outsideSpendingPageNumber,
   outsideSpendingSort,
   outsideSpendingView,
+  outsideSpendingViewLabel,
   outsideSpendingYear,
   pageLine,
   paidLine,
   periodNote,
   purposeText,
+  READ_FROM_THE_BOARDS_FILE,
   recordSpanLine,
   rowCounterparty,
   rowsCountLine,
   rowsHeading,
+  SEARCH_A_GROUP_OR_COMMITTEE,
   seatLine,
   SORT_LABELS,
   subjectCountLine,
@@ -137,6 +144,9 @@ describe('which view an address asks for', () => {
     for (const label of Object.values(OUTSIDE_SPENDING_VIEW_LABELS)) {
       expect(label.toLowerCase()).not.toContain('explorer');
     }
+    expect(outsideSpendingViewLabel('spender', 'record')).toBe('Browse groups');
+    expect(outsideSpendingViewLabel('about', 'record')).toBe('Browse candidate committees');
+    expect(outsideSpendingViewLabel('spender', 'spender')).toBe('One group');
     expect(ALL_YEARS).toBe('All years');
   });
 });
@@ -151,16 +161,32 @@ describe('the whole record', () => {
 
   it('names the count that is served, and says nothing when none is', () => {
     expect(laneByCommitteeBody(340)).toBe(
-      'Every row names a committee, never a person. 340 of those names are not in the Board’s ' +
-        'register we hold and have no filing of their own, so they can only be printed as filed.',
+      'Every row names a committee, never a person. We cannot link 340 of those names to a ' +
+        'committee page in the records we hold, so they are printed as filed.',
     );
     expect(laneByCommitteeBody(null)).toBe('Every row names a committee, never a person.');
   });
 
   it('claims every row states a direction in exactly those words', () => {
     expect(EVERY_ROW_STATES_A_DIRECTION).toBe(
-      'Every row states a direction, so nothing here is filed without one. In-kind rows are ' +
-        'counted in both figures above, not beside them.',
+      'Every payment states a direction. Payments in goods or services are already included ' +
+        'in the supporting or opposing count. They are not additional payments.',
+    );
+  });
+
+  it('labels the bar as payment counts and names each count', () => {
+    expect(DIRECTION_AS_FILED).toBe('Payments by direction, as the filing states it');
+    expect(directionCountLine(1, 'supporting')).toBe('1 payment supporting');
+    expect(directionCountLine(31718, 'supporting')).toBe('31,718 payments supporting');
+    expect(inKindCountLine(1)).toBe('1 payment in goods or services');
+    expect(inKindCountLine(1065)).toBe('1,065 payments in goods or services');
+  });
+
+  it('makes the next actions and whole-file explanation explicit', () => {
+    expect(SEARCH_A_GROUP_OR_COMMITTEE).toBe('Open search for a group or committee');
+    expect(HOW_TO_READ_IT.body).toContain('The total above covers the whole file.');
+    expect(READ_FROM_THE_BOARDS_FILE).toBe(
+      'Download the Minnesota Campaign Finance and Public Disclosure Board’s file',
     );
   });
 });

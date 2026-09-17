@@ -8,6 +8,7 @@ import { useResponsive } from '../../hooks/useResponsive';
 import { committeeSlug, registerKindLabel } from '../../lib/committeeMoneyShared';
 import { campaignMoneyYears, formatMoney } from '../../lib/legislatorCampaignMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
+import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
 import {
   ALL_YEARS,
   BACK_TO_OUTSIDE_SPENDING,
@@ -41,10 +42,10 @@ import {
   OUTSIDE_SPENDING_HEADING,
   OUTSIDE_SPENDING_PATH,
   OUTSIDE_SPENDING_STANDFIRST,
-  OUTSIDE_SPENDING_VIEW_LABELS,
   outsideSpendingPageNumber,
   outsideSpendingSort,
   outsideSpendingView,
+  outsideSpendingViewLabel,
   outsideSpendingYear,
   pageLine,
   paidLine,
@@ -224,6 +225,14 @@ export function OutsideSpendingScreen({ navigation, route }: RootScreenProps<'Ou
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
 
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
+          <Pressable
+            {...linkProps(routePath.money(), () => navigation.navigate('MoneyLanding'))}
+            style={styles.moneyBackLink}
+          >
+            <BackChevron />
+            <Text style={styles.backLabel}>{MONEY_SECTION_NAME}</Text>
+          </Pressable>
+
           <ViewStrip view={view} address={address} navigation={navigation} />
 
           {query.isPending && !page ? (
@@ -326,7 +335,7 @@ function ViewStrip({
             style={[styles.viewButton, active && styles.viewButtonActive]}
           >
             <Text style={[styles.viewButtonLabel, active && styles.viewButtonLabelActive]}>
-              {OUTSIDE_SPENDING_VIEW_LABELS[button.key]}
+              {outsideSpendingViewLabel(button.key, view)}
             </Text>
           </Pressable>
         );
@@ -429,6 +438,7 @@ function WholeRecord({
           >
             <SearchGlyph />
             <Text style={styles.searchPlaceholder}>{SEARCH_A_GROUP_OR_COMMITTEE}</Text>
+            <ForwardArrow color={t.colors.brand.deep} />
           </Pressable>
         </View>
       </View>
@@ -1030,6 +1040,7 @@ const styles = StyleSheet.create({
   loading: { marginTop: 26 },
 
   viewStrip: {
+    marginTop: 14,
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 4,
@@ -1096,6 +1107,13 @@ const styles = StyleSheet.create({
     gap: 8,
     alignSelf: 'flex-start',
     marginTop: 22,
+    minHeight: 44,
+  },
+  moneyBackLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
     minHeight: 44,
   },
   backLabel: {

@@ -1499,7 +1499,9 @@ describe('the records a money page hands to the app', () => {
     expect(body).toContain('$12,345,678');
     expect(body).toContain('across 4,321 payments, 2015 through 2026');
     expect(body).toContain('href="/money/committees?kind=political_committee_or_fund"');
-    expect(body).toContain('Read from the Board’s file');
+    expect(body).toContain(
+      'Download the Minnesota Campaign Finance and Public Disclosure Board’s file',
+    );
     expect(servedData(body)).toEqual([
       {
         key: ['outside-spending-record', null, null, null, 'newest', 1],

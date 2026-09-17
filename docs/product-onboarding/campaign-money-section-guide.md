@@ -1017,26 +1017,29 @@ Money spent by groups that are **not** the candidate's campaign, supporting or o
 committee. Minnesota calls it an independent expenditure, and the law requires it to be made
 without the candidate's cooperation, so the page's first sentence says what every row is: what a
 group spent, not what a campaign received, and not what any of it achieved. The rows come from
-the Board's independent-expenditures download, and **they are never added to the ordinary
+the Minnesota Campaign Finance and Public Disclosure Board's independent-expenditures
+download, and **they are never added to the ordinary
 payments-out figures anywhere**: 491 of them coincide with a payment in the expenditures file,
 and whether that is one payment filed twice or two that coincide is not established.
 
-Three views over the one record, chosen in the address. A row of 3 buttons at the top names
-them: **The whole record**, **One group**, **One committee**. The pressed one is the view on
-screen; the whole-record button always leads back to the bare address, and the 2 subject
-buttons, where the page is not already on that subject, open the register's list of filers of
-that kind, from which a committee's own page leads here.
+The page opens with a back arrow labelled **Money in politics**, linked to `/money`. Three
+views over the one record are chosen in the address. A row of 3 buttons names them. The pressed
+button names the view on screen: **The whole record**, **One group**, or **One committee**. An
+unpressed subject button names its destination instead: **Browse groups** or **Browse candidate
+committees**. The whole-record button always leads back to the bare address. The 2 browsing
+buttons open the matching register list, from which a committee's own page leads here.
 
 1. **The whole record** (`/money/outside-spending`). A green card headed WHAT THE RECORD HOLDS
    carries the file's total in whole dollars, "across 41,130 payments, 2015 through 2026"
-   (every figure counted live), then DIRECTION, AS THE FILING STATES IT: a bar in cyan and
+   (every figure counted live), then PAYMENTS BY DIRECTION, AS THE FILING STATES IT: a bar in cyan and
    ink — never green against red, which would score the spending as good and bad — with the
-   count of supporting rows, the count of opposing rows, and an IN KIND label with the count
-   given in goods or services. Under it: "Every row states a direction, so nothing here is
-   filed without one. In-kind rows are counted in both figures above, not beside them." That
+   count of supporting payments, the count of opposing payments, and an IN KIND label with the
+   count of payments given in goods or services. Under it: "Every payment states a direction.
+   Payments in goods or services are already included in the supporting or opposing count. They
+   are not additional payments." That
    sentence prints only while it is true; the day a row states neither direction, a third
    figure appears in its place. Beside the card, 2 lane cards, **By the group that spent** and
-   **By the committee it was about**, and a **Search a group or a committee** box that opens
+   **By the committee it was about**, and an **Open search for a group or committee** link that opens
    the name search. The committee lane's sentence carries a served count of the committees
    whose number resolves to no page of ours (340 on 3 Sep 2026, 283 of them under the negative
    numbers the Board assigns local candidates). Two reading blocks follow, HOW TO READ IT and
@@ -1092,8 +1095,9 @@ States, each at both widths:
 - A row whose amount the filing leaves blank withholds every total on the page and keeps every
   count, with a sentence saying why; 0 rows in the live file are like this.
 
-The page ends with "Read from the Board's file" (a link to the download) and "Checked
-Aug 19, 2026", the one freshness date on the page. At phone width (below 768) the columns
+The page ends with "Download the Minnesota Campaign Finance and Public Disclosure Board's file"
+(a link to the download) and the day that file was copied, such as "Checked Sep 1, 2026".
+That is the one freshness date on the page. At phone width (below 768) the columns
 stack and each row becomes a card: name, direction, the meta line, then the amount left-aligned
 under the name with its date beneath it; nothing is sticky. The server answers the bare address
 with its title, its description and the figures above, and search engines may list it; a

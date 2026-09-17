@@ -29,6 +29,7 @@ describe('one name for the /money destination', () => {
     'MoneySearchScreen',
     'CommitteeMoneyScreen',
     'LobbyingLandingScreen',
+    'OutsideSpendingScreen',
   ])('uses the shared name on %s return links', (screen) => {
     const source = readFileSync(
       new URL(`../../screens/redesign/${screen}.tsx`, import.meta.url),
