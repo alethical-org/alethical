@@ -6,8 +6,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { SessionWatchCard } from '../SessionWatchCard';
 
 vi.mock('react-native-svg', () => ({
-  default: ({ children, ...props }: React.SVGProps<SVGSVGElement>) => (
-    <svg {...props}>{children}</svg>
+  default: ({
+    children,
+    testID,
+    ...props
+  }: React.SVGProps<SVGSVGElement> & { testID?: string }) => (
+    <svg data-testid={testID} {...props}>
+      {children}
+    </svg>
   ),
   Path: (props: React.SVGProps<SVGPathElement>) => <path {...props} />,
   Circle: (props: React.SVGProps<SVGCircleElement>) => <circle {...props} />,
@@ -48,6 +54,7 @@ describe('session watch actions and destination links', () => {
   it('keeps the approved destination arrow for All tracked bills', () => {
     const link = render('quiet').querySelector('a[href="/tracked"]')!;
     expect(link.textContent).toBe('All tracked bills');
+    expect(link.querySelector('[data-testid="link-arrow"]')).not.toBeNull();
     expect(link.querySelector('svg')?.getAttribute('width')).toBe('19');
   });
 });

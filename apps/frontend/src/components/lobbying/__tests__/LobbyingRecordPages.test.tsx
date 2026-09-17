@@ -30,8 +30,14 @@ vi.mock('../LobbyingPageFrame', () => ({
   ),
 }));
 vi.mock('react-native-svg', () => ({
-  default: ({ children, ...props }: React.SVGProps<SVGSVGElement>) => (
-    <svg {...props}>{children}</svg>
+  default: ({
+    children,
+    testID,
+    ...props
+  }: React.SVGProps<SVGSVGElement> & { testID?: string }) => (
+    <svg data-testid={testID} {...props}>
+      {children}
+    </svg>
   ),
   Path: (props: React.SVGProps<SVGPathElement>) => <path {...props} />,
 }));
