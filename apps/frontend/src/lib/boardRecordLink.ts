@@ -76,4 +76,4 @@ export function committeeNameWithNumber(
  * sentence is.
  */
 export const BOARD_RECORD_LINK_LABEL = 'The Board’s record for this committee';
-export const BOARD_RECORD_SENTENCE_TAIL = ' lists every report it filed, under Reports and Data.';
+export const BOARD_RECORD_SENTENCE_TAIL = ' lists every report it filed, under Reports and Data';

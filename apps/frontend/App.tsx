@@ -71,7 +71,8 @@ export default function App() {
     // App-wide keyboard focus ring (WCAG 2.4.7, Focus Visible). Every focusable
     // Pressable renders as a role/tabindex element, so one :focus-visible rule
     // covers all controls (buttons, links, pills, dropdowns, chips, toggles)
-    // without touching each component. :focus-visible = keyboard focus only, so
+    // except disclosures whose data-arrow-focus marker puts the ring on their arrow.
+    // This keeps one visible marker per control without touching each component. :focus-visible = keyboard focus only, so
     // the ring never flashes on mouse click. Text fields are excluded — they
     // carry their own purple focus ring (see theme/fieldFocus.ts), so an outline
     // would double it. Rule: docs/design/design-principles.md §3, keyboard focus
@@ -82,7 +83,7 @@ export default function App() {
       }
       const style = document.createElement('style');
       style.id = 'alethical-focus-visible';
-      style.textContent = `a:focus-visible,button:focus-visible,[role="button"]:focus-visible,[role="link"]:focus-visible,[tabindex]:not(input):not(textarea):not(select):not([role="heading"]):not(h1):not(h2):not(h3):not(h4):not(h5):not(h6):focus-visible{outline:2px solid #7c5cff !important;outline-offset:2px !important;}`;
+      style.textContent = `a:not([data-arrow-focus]):focus-visible,button:not([data-arrow-focus]):focus-visible,[role="button"]:not([data-arrow-focus]):focus-visible,[role="link"]:not([data-arrow-focus]):focus-visible,[tabindex]:not(input):not(textarea):not(select):not([role="heading"]):not(h1):not(h2):not(h3):not(h4):not(h5):not(h6):not([data-arrow-focus]):focus-visible{outline:2px solid #7c5cff !important;outline-offset:2px !important;}`;
       document.head.appendChild(style);
     };
 

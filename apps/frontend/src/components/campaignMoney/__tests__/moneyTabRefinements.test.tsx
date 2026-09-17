@@ -278,7 +278,7 @@ describe('the money tab after the 13 Sep refinements', () => {
     // The sentence it opens, and the sentence above it, are the handoff's words.
     expect(page.body.textContent).toContain(FILING_SOURCE_BOTH_DATES);
     expect(page.body.textContent).toContain(
-      `${BOARD_RECORD_LINK_LABEL} lists every report it filed, under Reports and Data.`,
+      `${BOARD_RECORD_LINK_LABEL} lists every report it filed, under Reports and Data`,
     );
     // The standalone link under the stamp is gone, so the stamp carries one way out.
     expect(page.body.textContent).not.toContain('on the state’s own site');

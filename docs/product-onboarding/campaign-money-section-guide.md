@@ -595,7 +595,11 @@ including the committee-confirmation deadline and every withheld-figure state, i
 [legislator-campaign-money-guide.md](https://github.com/alethical-org/alethical/blob/main/docs/product-onboarding/legislator-campaign-money-guide.md).
 
 This route shows each confirmed legislative committee separately. Its year buttons run
-from 2015 through the current calendar year, so 2026 offers 12 years. Dashed outlines use
+from the current calendar year back through 2015, so 2026 offers 12 years, newest
+first. They form 1 wrapping group with 1 normal-weight **Year** label. The label
+and numerals use weight 400; buttons use 10px rounded corners and at least a 44px
+target. The selected year has a black fill and white text on both the profile and
+committee record. Dashed outlines use
 the actual answers for those years to mark named-only coverage; they do not assume an
 older year lacks an official report. These style answers never renew the 20-minute check
 on whose committee is being shown. The 2022–2026 replacement of the held filing totals is
@@ -659,8 +663,8 @@ Independent spending), donor category and sort ride in the address, so a shared 
 same view.
 
 The identity card, reporting-period panel, section controls and record cards share
-one outer left edge. The identity and reporting-period panels use the same side
-insets as the shared contribution panel: 32px at 1100px and wider, 26px from 768px to
+one outer left edge. The header uses a white background. The identity and
+reporting-period panels use the same side insets as the shared contribution panel: 32px at 1100px and wider, 26px from 768px to
 1099px, and 18px below 768px. Their top and bottom padding is 18px.
 
 **Campaign money**, **Filed reports** and, where records exist, **Independent spending**
@@ -713,8 +717,10 @@ Campaign money, top to bottom:
    After a successful check returning no confirmed member, a candidate committee says:
    “These are this committee’s own figures. We have not linked them to a person; the
    committee’s name alone does not prove whose it is.” Party units, caucuses and ballot-question committees retain their separate
-   explanations. A political committee or fund says “This record covers the political
-   committee or fund named above.” Its finer registered kind remains above the name.
+   explanations. A political committee or fund has no extra sentence repeating the
+   registered kind already above its name. When that leaves no useful ownership
+   content, the ownership container is absent too. Candidate ownership explanations
+   and confirmation details remain.
 
    A confirmed candidate committee says: “A person at Alethical checked Minnesota’s
    records and confirmed this is {name}’s committee. These figures cover this committee;
@@ -750,14 +756,14 @@ Campaign money, top to bottom:
    under "How old a current claim can be, end to end"
    ([issue 2023](https://github.com/alethical-org/alethical/issues/2023)).
 
-3. **A year switch** (this calendar year and the one before), each year its own address.
-   An **Earlier years** disclosure exposes every year from 2015 through the
-   year before those 2 buttons. It stays open after a choice. A linked older year
-   remains visible and selected. The committee's year buttons
-   have 10px rounded corners and at least a 44px target. The selected year uses a
-   dark background and white text; other years use white with a dark border. This
-   appearance is scoped to committee pages; the legislator profile keeps its own
-   year-button appearance.
+3. **A year switch**, with every year from the current calendar year back through
+   2015 in 1 group, newest first. Each year has its own address and stays visible,
+   including a linked older year. There is 1 **Year** label, no earlier-year
+   disclosure. The label and Libre Franklin numerals use normal weight 400, with
+   equal-width digits. Buttons have 10px rounded corners and at least a 44px target.
+   The selected year uses a black background and white text; other years use white
+   with a dark border. The group wraps on smaller screens. The legislator profile
+   uses the same treatment.
 4. **The period panel**: what the committee's own report covers. The end is read off the
    filing; the start appears only when the Board's own published filing calendar prints
    one against that end (so "Figures for Jan 1, 2026 – Jul 20, 2026"), and otherwise the
@@ -781,6 +787,10 @@ Campaign money, top to bottom:
    says its calendar is its own. If our own data service stops answering, the page keeps
    the figures it already had and says they are held until it answers — never expiring
    on a timer.
+   The filing explanation uses the available width inside the card and wraps
+   naturally on phones. Its standalone source helper and Board-record sentence
+   omit their final periods, including when they wrap. Separate text units inside
+   this panel do not become a paragraph merely because they share the panel.
    The source link inside the committee's period explanation uses dark green
    (`#0f7a45`) and gains an underline on hover or keyboard focus. The legislator
    profile's source link keeps its standing underline.
@@ -830,20 +840,23 @@ Campaign money, top to bottom:
    sees it, and the page never subtracts. When the split is safe, the "Non-itemized
    contributions" figure appears, and away from the chart it carries one sentence of its
    own, the same for every kind of filer and repeating no threshold: "Donations inside the
-   committee's reported total whose givers the state's public file does not name." Beside
+   committee's reported total whose givers the state's public file does not name". Beside
    the chart both labels are explained once in its opening paragraph instead, and the card
    is figures only. The chart uses that split only after
    the complete named cash rows agree with it. Receipts that are
    not contributions (a public subsidy, interest, a loan) sit under a "Not a contribution"
    heading
    with the state's own label; **a row the state types `Miscellaneous` is not drawn, and
-   with no other row the heading is not drawn either** (ruled 11 Sep 2026). After the payment section comes the link "Minnesota's campaign-finance downloads", which opens the Board's downloads
-   page rather than the 9 MB bulk download the server's address points at: the page strips
-   the `?download=` part, so a new release id cannot break the link. The official figures
+   with no other row the heading is not drawn either** (ruled 11 Sep 2026). There is
+   no generic downloads footer after the
+   payment section. The Board record link remains in the period panel, and the
+   outside-spending card retains its own downloads link and source filename. The official figures
    share [MoneyCards.tsx](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/campaignMoney/MoneyCards.tsx)
    with the legislator profile. Both put the donor chart first, keep the goods-and-services
    explanation under that chart and omit a separate unnamed percentage below the summary.
-   Filed reports and Independent spending carry no money summaries. Supporting
+   Money in, Money out and any additional financial summary card use the same
+   grey `c.tile` surface as the profile. Filed reports and Independent spending
+   carry no money summaries. Supporting
    explanations remain regular weight even when they contain a dollar amount or date.
    On phones, the committee's money summaries leave 20px between their main
    elements. The non-itemized figure and its explanation stay together with an
@@ -911,8 +924,11 @@ Campaign money, top to bottom:
    appears immediately before Expenditures only when the received Contribution rows need it. Other candidate committees
    sit under Committees & Funds and retain the filed kind on their rows. The donor tabs
    include only receipts typed Contribution. Other receipts remain reachable through the
-   full **All received payments** list, while **All expenditure payments** opens
-   every named outgoing payment. These links follow the browser.
+   **View receipts and expenditures** link following the browser. It opens
+   `/money/committees/<slug>/payments?tab=gave&year=<year>`, preserving the chosen
+   year. That destination's 2 direction choices expose received and outgoing
+   payments. Receipts include non-contribution money, such as loans, so the link
+   must not call all received payments contributions.
 
    Every page must arrive from the same release before counts, sums, grouping or sorting
    claim a complete list. Failed reads keep the load-failed words and withhold those
@@ -955,7 +971,7 @@ Campaign money, top to bottom:
    grouped outside spending. The separate `/payments?tab=gave|spent&year=…` addresses
    retain their complete received and outgoing lists.
 
-9. **More on this year’s contributions**, after the full-payment links. This shared
+9. **More on this year’s contributions**, after the **View receipts and expenditures** link. This shared
    panel contains **What the committee’s own report says**, **Where itemized individual
    contributions came from**, and **Contributor names also listed for other candidates**,
    in that order. Each row starts closed on a fresh address, and several can stay open.
@@ -966,6 +982,9 @@ Campaign money, top to bottom:
    eligible row stays visible as that row's own explanation. One unavailable comparison
    does not erase an independently available geography or names result. Opening a row
    reuses the selected-year records already requested, rather than making a new request.
+   The whole heading row remains clickable and keyboard-accessible. Its purple
+   focus ring surrounds the arrow's rounded 44px area, with the arrow centred and
+   no second keyboard stop.
 
 10. **Spending by outside groups**, after the shared contribution panel. It
     follows the selected year and groups spending about this registration number by
@@ -979,9 +998,14 @@ Campaign money, top to bottom:
     A failed grouped read keeps any independently served figures and says the list
     failed; it never invents a count of spenders.
 
-11. **What this record covers**: “Money filed with the Minnesota Campaign Finance and
-    Public Disclosure Board”, “Money figures start in 2015”, and the donor sentence, which names **$200** on most pages and **$500**
-    on a ballot-question committee's page. Each page states only its own figure, because
+11. **What this record covers** contains 3 standalone lines:
+
+    - Campaign finance reports filed with the Minnesota Campaign Finance and Public Disclosure Board
+    - Campaign finance figures in our copy start in 2015
+    - Committees need not name contributors who gave $200 or less in total during the calendar year
+
+    A ballot-question committee uses the same last line with **$500** instead of
+    **$200**. Each page states only its own figure, because
     the risk is a reader taking one kind of committee's line for another's. $500 is what
    the law says for a ballot question and what the Board's own guide for those committees
    says, and it went up on 31 Aug 2026 after a check of both. Before that these pages
@@ -1062,10 +1086,11 @@ across the whole design set:
   rule in [design-principles.md, Type](../design/design-principles.md), even where its
   drawing uses a different numeric font. That rule does not require changing unrelated
   existing screens.
-- **No full stop at the end of a line that stands alone** — a caption, a date or meta
-  line, a label, a one-line card description, and any stack or column of those, including
-  the "What this record covers" block on both this page and the section landing. An
-  explaining paragraph inside a card keeps every full stop it has, however short.
+- **A standalone interface unit has no final period, even when it wraps.** A caption,
+  date, label, helper, source line or list item containing 1 sentence ends after its
+  last word. Separate units do not become a paragraph because they share a card.
+  Paragraphs containing 2 or more sentences, legal text and serious warnings retain
+  full punctuation. The coverage lines and Board-record sentence follow this rule.
 
 Empty and edge states, each its own honest sentence: a year with no report figures in
 our copy (the period panel says “We have no report figures for {year}” and “Our copy of
@@ -1490,7 +1515,7 @@ not before, and a person decides every such link rather than software proposing 
 ### Selected-year contribution panel on a committee record
 
 The Campaign money section at `/money/committees/<slug>` uses the same **More on this
-year’s contributions** panel as the legislator tab. It follows the full-payment links
+year’s contributions** panel as the legislator tab. It follows the **View receipts and expenditures** link
 and precedes outside spending. No legislator confirmation is needed to read a
 committee's own money. Each result retains its source limits and independent state.
 
@@ -1521,9 +1546,11 @@ behavior is described in [lobbying-guide.md](lobbying-guide.md).
 
 The committee page shares the revised report comparison, contribution locations and
 exact-spelling name rows described in [the legislator campaign-money guide](legislator-campaign-money-guide.md).
-Its downloads link sits after the contribution/payment section, outside Money in and
-outside the separate human-check evidence. On phones both money boxes grow with their
-contents; on wider screens they stretch to equal height.
+The generic downloads footer is absent. The Board record link stays in the period
+panel; the outside-spending card keeps its downloads link and exact source filename.
+Money in, Money out and any additional financial summary card use the same grey
+`c.tile` surface as the profile. On phones the boxes grow with their contents; on
+wider screens Money in and Money out stretch to equal height.
 
 Docs check: Updated the shared card wording and committee source placement and phone layout.
 
@@ -1548,7 +1575,11 @@ campaign components. It does not impose the drawing’s older 2-band claim on th
 links. The page continues to show one committee’s records, with the current cards, controls,
 section order, amounts, chart colours and missing-record protections.
 
-A committee link to an older year keeps that year visible and selected beside the
-current and prior years. When an older year has no report figures, its alternate-year
+A committee link to an older year keeps that year visible and selected within the
+complete newest-first year group. When an older year has no report figures, its alternate-year
 link returns to the current year; the current year’s alternate link still offers the
 prior year. The first served HTML exposes the same year choices.
+
+The 17 September control, source-copy and punctuation changes are recorded in
+[committee-money-refinements-copy.md](https://github.com/alethical-org/alethical/blob/main/docs/design/committee-money-refinements-copy.md),
+including the complete old-to-new strings for future Design work.

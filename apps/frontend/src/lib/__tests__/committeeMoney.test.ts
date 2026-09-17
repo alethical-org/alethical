@@ -236,7 +236,7 @@ describe('whose committee', () => {
   it('a party unit and a fund never imply a person is missing', () => {
     expect(whoseCommitteeText('party_unit', null, null)).toContain('not a candidate’s committee');
     expect(whoseCommitteeText('party_unit', 'CAU', null)).toContain('caucus');
-    expect(whoseCommitteeText('political_committee_or_fund', 'PC', null)).toContain('fund');
+    expect(whoseCommitteeText('political_committee_or_fund', 'PC', null)).toBe('');
     expect(whoseCommitteeText('political_committee_or_fund', 'BC', null)).toContain('ballot');
   });
 
@@ -342,7 +342,7 @@ describe('the period stamp', () => {
         'which prints the date',
     );
     expect(`${BOARD_RECORD_LINK_LABEL}${BOARD_RECORD_SENTENCE_TAIL}`).toBe(
-      'The Board’s record for this committee lists every report it filed, under Reports and Data.',
+      'The Board’s record for this committee lists every report it filed, under Reports and Data',
     );
     // Neither form interpolates a date, so a stale figure cannot reach them.
     for (const sentence of [FILING_SOURCE_BOTH_DATES, FILING_SOURCE_ONE_DATE]) {
@@ -682,13 +682,15 @@ describe('the record-coverage block', () => {
     expect(ordinary).toHaveLength(3);
     // No terminal full stop on any coverage line (#1924): each stands on its own line.
     expect(ordinary[2]).toBe(
-      'Donors who gave $200 or less in total for the year need not be named',
+      'Committees need not name contributors who gave $200 or less in total during the calendar year',
     );
     expect(ordinary.join(' ')).not.toContain('$500');
 
     const ballot = recordCoverageLines(true);
     expect(ballot).toHaveLength(3);
-    expect(ballot[2]).toBe('Donors who gave $500 or less in total for the year need not be named');
+    expect(ballot[2]).toBe(
+      'Committees need not name contributors who gave $500 or less in total during the calendar year',
+    );
     // The $200 line must not also appear here: 2 thresholds on one page is worse than
     // the silence this replaced.
     expect(ballot.join(' ')).not.toContain('$200');
@@ -730,7 +732,7 @@ describe('the record-coverage block', () => {
   it('says what non-itemized money is, in 1 sentence, for every filer kind', () => {
     const sentence =
       'Donations inside the committee’s reported total whose givers the state’s public ' +
-      'file does not name.';
+      'file does not name';
     expect(unnamedMoneyExplanation(false)).toBe(sentence);
     expect(unnamedMoneyExplanation(true)).toBe(sentence);
     // It says the file does not name them, never that nobody knows who they are.

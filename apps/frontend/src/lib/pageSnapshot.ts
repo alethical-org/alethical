@@ -99,7 +99,6 @@ import {
   closedPeriodLine,
   COMMITTEE_MONEY_SECTION_LABEL,
   COMMITTEE_TAB_LABELS,
-  committeeMoneyYears,
   confirmedMemberLinkLabel,
   confirmedMemberMoneyPath,
   EMPTY_YEAR_VALUE,
@@ -143,6 +142,7 @@ import {
   unnamedMoneyExplanation,
   ZERO_REPORTED_NOTE,
 } from './committeeMoneyShared';
+import { COMMITTEE_PAYMENTS_LINK_LABEL } from './committeeMoneyShared';
 import { paymentFilesDownloadedLine } from './campaignMoneyDetailsPageCopy';
 import {
   emptyListTitle,
@@ -162,6 +162,7 @@ import {
   type PaymentRow,
 } from './committeePaymentsPage';
 import {
+  campaignMoneyHistoryYears,
   formatMoney,
   moneyFigure,
   paymentCountLabel,
@@ -1690,7 +1691,7 @@ export function committeePageSnapshot(
       view.confirmedFor === undefined
         ? CONFIRMATION_UNAVAILABLE_LINE
         : whoseCommitteeText(identity.registerKind, money.entity_sub_type, confirmedMember),
-    ],
+    ].filter(Boolean),
     bodyIsList: false,
     facts: [],
     sections: allYears
@@ -1753,7 +1754,7 @@ export function committeePageSnapshot(
         label: COMMITTEE_MONEY_SECTION_LABEL,
         href: committeeViewPath(year),
       },
-      ...(allYears ? [] : committeeMoneyYears(year)).map((option) => ({
+      ...(allYears ? [] : campaignMoneyHistoryYears()).map((option) => ({
         label: `Year ${option}`,
         href: committeeViewPath(option, view.tab === 'spent' ? 'gave' : view.tab),
       })),
@@ -1764,10 +1765,16 @@ export function committeePageSnapshot(
       ...(view.tab === 'by'
         ? [{ label: COMMITTEE_TAB_LABELS.by, href: committeeViewPath(year, 'by') }]
         : []),
-      ...(allYears ? [] : (['gave', 'spent'] as const)).map((tab) => ({
-        label: tab === 'gave' ? 'All received payments' : 'All expenditure payments',
-        href: `/money/committees/${encodeURIComponent(identity.slug)}/payments?tab=${tab}&year=${year}`,
-      })),
+      ...(allYears
+        ? []
+        : [
+            {
+              label: COMMITTEE_PAYMENTS_LINK_LABEL,
+              href: `/money/committees/${encodeURIComponent(identity.slug)}/payments?tab=gave&year=${year}`,
+            },
+          ]),
+      // This first response does not render the outside-spending source card, so
+      // keep its one source link even when the running page can reuse that card's.
       ...(!allYears && moneyIn.source_url
         ? [{ label: NAMED_DONATIONS_LINK_LABEL, href: downloadsPageUrl(moneyIn.source_url) }]
         : []),

@@ -10,6 +10,7 @@ import type {
   CommitteeReceivedPayment,
 } from '../../../data/types';
 import { CommitteeDonationCardsView, CONNECTION_COLORS } from '../CommitteeDonationCards';
+import { CAMPAIGN_MONEY_COLORS as c } from '../../../lib/campaignMoneyColors';
 import source from './fixtures/committee-donation-cards-17868-2025.json';
 
 const responsive = vi.hoisted(() => ({ isMobile: false, isTablet: false }));
@@ -619,4 +620,53 @@ describe('shared contribution panel disclosures', () => {
       mount.remove();
     }
   });
+});
+
+it('keeps the full disclosure keyboard-focusable while focusing only the arrow', () => {
+  (
+    globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
+  const mount = document.createElement('div');
+  document.body.append(mount);
+  const root = createRoot(mount);
+  try {
+    act(() =>
+      root.render(
+        <CommitteeDonationCardsView
+          committee={committee()}
+          year={2025}
+          registerKind="candidate_committee"
+          payments={singleClosingPayment}
+        />,
+      ),
+    );
+    const button = mount.querySelector<HTMLButtonElement>('h3 > button')!;
+    const arrow = button.querySelector<HTMLElement>('span[aria-hidden="true"]')!;
+    const content = document.getElementById(button.getAttribute('aria-controls')!)!;
+    expect(button.type).toBe('button');
+    expect(button.tabIndex).toBe(0);
+    act(() => button.focus());
+    expect(document.activeElement).toBe(button);
+    expect(button.style.outline).toBe('none');
+    expect(arrow.style.width).toBe('44px');
+    expect(arrow.style.height).toBe('44px');
+    expect(arrow.style.borderRadius).toBe('12px');
+    expect(arrow.style.boxShadow).toBe(`0 0 0 3px ${c.fieldFocusRing}`);
+    const expectedBorder = document.createElement('span');
+    expectedBorder.style.borderColor = c.fieldFocusBorder;
+    expect(arrow.style.borderColor).toBe(expectedBorder.style.borderColor);
+    expect(content.hidden).toBe(true);
+    // Native buttons receive a click with detail 0 from keyboard activation.
+    act(() => button.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 })));
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(content.hidden).toBe(false);
+    act(() => button.querySelector('span')!.click());
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    act(() => button.blur());
+    expect(arrow.style.boxShadow).toBe('');
+    expect(arrow.style.borderColor).toBe('transparent');
+  } finally {
+    act(() => root.unmount());
+    mount.remove();
+  }
 });

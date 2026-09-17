@@ -84,7 +84,7 @@ async function installContentClock(page: Page, kind: string) {
               ) &&
               visible(`a[href^="${committee}/payments?"]`).some(
                 (node) =>
-                  /^All received payments$/.test(node.textContent || '') &&
+                  /^View receipts and expenditures$/.test(node.textContent || '') &&
                   new URL(node.getAttribute('href')!, location.origin).searchParams.get('year') ===
                     '2025',
               );
@@ -159,7 +159,9 @@ async function waitForRequestedContent(page: Page, kind: string) {
       ).toBeVisible();
     } else {
       // The full-list link exists only after this year's short payment list lands.
-      await expect(page.getByRole('link', { name: /^All received payments$/ })).toBeVisible();
+      await expect(
+        page.getByRole('link', { name: /^View receipts and expenditures$/ }),
+      ).toBeVisible();
     }
   }
   await expect(page.getByRole('status').and(page.locator('[aria-busy="true"]'))).toHaveCount(0);
@@ -443,7 +445,7 @@ test('committee to payments and Back preserves the requested year', async ({ pag
     await waitForRequestedContent(page, 'committee');
     stage = 'click_to_payments';
     const clickStarted = performance.now();
-    await page.getByRole('link', { name: /^All received payments$/ }).click();
+    await page.getByRole('link', { name: /^View receipts and expenditures$/ }).click();
     await expect(page).toHaveURL(/\/payments\?(?:[^#]*&)?(?:tab=gave&)?year=2025/);
     await waitForRequestedContent(page, 'payments');
     clickToAssertionCompleteMs = performance.now() - clickStarted;

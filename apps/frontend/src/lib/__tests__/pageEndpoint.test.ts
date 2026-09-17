@@ -2356,9 +2356,7 @@ describe('a committee page hands its records to the app', () => {
 
     expect(status).toBe(200);
     expect(body).toContain('$2,700');
-    expect(body).toContain(
-      escapeHtml(whoseCommitteeText('political_committee_or_fund', 'PC', null)),
-    );
+    expect(body).not.toContain('This record covers the political committee or fund named above');
     expect(body).not.toContain(CONFIRMATION_UNAVAILABLE_LINE);
     expect(body).not.toContain('/legislators/jane-fonda');
     expect(headers.get('Cache-Control')).toContain('s-maxage=300');
@@ -2403,9 +2401,7 @@ describe('a committee page hands its records to the app', () => {
       expect(body).toContain('$2,700');
       expect(body).toContain(CONFIRMATION_UNAVAILABLE_LINE);
       expect(body).not.toContain('/legislators/jane-fonda');
-      expect(body).not.toContain(
-        escapeHtml(whoseCommitteeText('political_committee_or_fund', 'PC', null)),
-      );
+      expect(body).not.toContain('This record covers the political committee or fund named above');
       expect(headers.get('Cache-Control')).toBe('no-store');
       expect(servedData(body)).toEqual([
         { key: ['committee-money', '41326', 2026], payload: FINANCE },

@@ -115,6 +115,18 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   state repeats the chip row's "Clear all" verbatim, as a black pill, because both are on screen at
   once and two names for one action make the user wonder whether one of them spares their search text
   ([#720](https://github.com/alethical-org/alethical/pull/720)).
+- **Campaign-money year choices share 1 treatment.** On `/money/committees/<slug>` and
+  `/legislators/<name>?tab=money`, show every year from 2015 through the current calendar
+  year, newest first, in 1 wrapping group. Use 1 normal-weight **Year** label, normal
+  weight 400 Libre Franklin numerals with equal-width digits, 10px rounded rectangles
+  and targets at least 44px tall. The selected year has the black active-control fill
+  and white text on both surfaces. A dashed border still identifies itemized-only
+  coverage from the held response; year availability never promises a report exists.
+- **Campaign-money summaries use 1 quiet surface.** Money in, Money out and any
+  additional financial summary card use the same grey `c.tile` surface as the profile.
+  The `/money/committees/<slug>` header is white; its grey financial summaries retain
+  their distinct role. Filing explanations use the available width inside their card
+  and wrap naturally on phones, without a separate narrow maximum width.
 - **Text below rounded cards.** A footnote, gloss, caveat, or trailing action row placed underneath a
   rounded card or card group starts 17px inside the group's left edge (`spacing.underCardText`). The
   inset keeps the line visually attached to the rounded shape. It applies on web and mobile. It does
@@ -337,6 +349,14 @@ one: see the box below before writing one.**
   (`theme/fieldFocus.ts`) while the cursor is in them. Text fields never receive focus on page load
   or navigation; the visitor must tap one or reach it with the keyboard. Never remove focus styling
   without an equivalent replacement.
+- **Contribution disclosures keep the row clickable and focus the arrow.** In the
+  shared **More on this year’s contributions** panel, **How Alethical confirmed this**
+  and grouped outside-spender disclosures, the row remains 1 keyboard control with
+  its visible name and expanded state announced. Its purple
+  keyboard-focus ring surrounds the arrow's rounded 44px area, with the arrow centred
+  inside. Do not add a second tab stop for the arrow. Where another disclosure uses
+  a ring around its whole row, leave at least 12px of horizontal interior space
+  between its text and ring. This rule does not request a sweep of unrelated controls.
 - **Browser-filled values keep the field's own appearance.** Browser-filled auth email, password,
   and code fields; the signed-in account proof code; both legislator address fields; and Contact us
   name, email, and phone fields keep a white interior with the normal dark value and caret while
