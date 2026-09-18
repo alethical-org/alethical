@@ -86,9 +86,15 @@ function useCurrentNavItemId(): string | null {
 }
 
 // --- Neutral page background. Phone widths use the plain base color. ---
-export function PageBackground({ children }: { children: ReactNode }) {
+export function PageBackground({
+  children,
+  flat = false,
+}: {
+  children: ReactNode;
+  flat?: boolean;
+}) {
   const { isMobile } = useResponsive();
-  const backgroundStyle = getPageBackgroundStyle(isMobile);
+  const backgroundStyle = flat ? { backgroundColor: '#f2f4f3' } : getPageBackgroundStyle(isMobile);
   // Dots are drawn page-relative inside the scroll content (see PageDots), not here,
   // so they scroll with the page and fade near the top and bottom like the mockup.
   return <View style={[styles.pageBg, backgroundStyle]}>{children}</View>;

@@ -178,7 +178,9 @@ export function RaceFinder({
                     style={[styles.option, index === active && styles.activeOption]}
                   >
                     <Text style={styles.optionLabel}>{contestSeatLabel(contest)}</Text>
-                    <Text style={styles.body}>{contestCountLabel(contest.committeeCount)}</Text>
+                    <Text style={styles.optionCount}>
+                      {contestCountLabel(contest.committeeCount)}
+                    </Text>
                   </Pressable>
                 ))}
               </View>
@@ -228,7 +230,7 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   stacked: { flexDirection: 'column' },
-  fieldAndMatches: { flex: 1, minWidth: 0, maxWidth: 760, width: '100%', zIndex: 1 },
+  fieldAndMatches: { flex: 1, minWidth: 0, maxWidth: 620, width: '100%', zIndex: 1 },
   mobileField: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto' },
   field: {
     height: 52,
@@ -238,7 +240,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderWidth: 2,
     borderColor: t.colors.text.primary,
-    borderRadius: 14,
+    borderRadius: 12,
   },
   input: {
     flex: 1,
@@ -246,7 +248,8 @@ const styles = StyleSheet.create({
     height: '100%',
     paddingVertical: 0,
     fontFamily: t.typography.body,
-    fontSize: 16,
+    fontSize: 17,
+    fontWeight: '500',
     color: t.colors.text.primary,
     fontVariant: ['tabular-nums'],
   },
@@ -257,33 +260,45 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: t.colors.surfaces.base,
     zIndex: 20,
-    maxHeight: 288,
-    overflow: 'scroll',
+    maxHeight: 300,
+    ...(Platform.OS === 'web'
+      ? ({ overflowY: 'auto', overflowX: 'hidden' } as object)
+      : { overflow: 'scroll' as const }),
     borderWidth: 1,
     borderColor: t.colors.alpha.ink10,
     borderRadius: 12,
   },
   option: {
     minHeight: 48,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    justifyContent: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: t.colors.alpha.ink08,
-  },
-  activeOption: {
-    outlineColor: t.colors.brand.base,
-    outlineWidth: 2,
-    outlineStyle: 'solid',
-    outlineOffset: -2,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
     borderRadius: 10,
   },
+  activeOption: {
+    borderColor: t.colors.brand.base,
+  },
   optionLabel: {
+    flex: 1,
+    minWidth: 0,
     fontFamily: t.typography.body,
     fontSize: 16,
     lineHeight: 24,
-    fontWeight: '700',
+    fontWeight: '500',
     color: t.colors.text.primary,
+    fontVariant: ['tabular-nums'],
+  },
+  optionCount: {
+    flexShrink: 0,
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    lineHeight: 24,
+    fontWeight: '600',
+    color: '#5a615c',
     fontVariant: ['tabular-nums'],
   },
   noMatch: {
@@ -307,8 +322,8 @@ const styles = StyleSheet.create({
   },
   button: {
     minHeight: 52,
-    paddingHorizontal: 18,
-    borderRadius: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
     justifyContent: 'center',
     backgroundColor: t.colors.text.primary,
   },
@@ -316,7 +331,7 @@ const styles = StyleSheet.create({
   buttonHover: { opacity: 0.9 },
   buttonLabel: {
     fontFamily: t.typography.body,
-    fontSize: 15,
+    fontSize: 16,
     lineHeight: 22,
     fontWeight: '700',
     color: t.colors.surfaces.base,

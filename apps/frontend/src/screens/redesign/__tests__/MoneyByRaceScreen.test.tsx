@@ -331,6 +331,19 @@ describe('Money by race directory and focused group', () => {
     expect(host.textContent).not.toContain('Show more');
     expect(groups()).toHaveLength(0);
   });
+  it('lets the card edge close the final committee row and both cells in the final directory row', () => {
+    render();
+    const directoryRows = groups();
+    expect(getComputedStyle(directoryRows[0]).borderBottomWidth).toBe('1px');
+    expect(getComputedStyle(directoryRows[1]).borderBottomWidth).toBe('1px');
+    expect(getComputedStyle(directoryRows[2]).borderBottomWidth).toBe('0px');
+    expect(getComputedStyle(directoryRows[3]).borderBottomWidth).toBe('0px');
+
+    act(() => updateParams({ group: house.anchor, year: '2026' }));
+    const committeeRows = committees().map((link) => link.parentElement?.parentElement);
+    expect(getComputedStyle(committeeRows[0]!).borderBottomWidth).toBe('1px');
+    expect(getComputedStyle(committeeRows[1]!).borderBottomWidth).toBe('0px');
+  });
   it('opens shared groups directly, focuses the heading and links back to the directory', async () => {
     render({ group: house.anchor, office: 'House', year: '2026' });
     await settle();
@@ -342,8 +355,9 @@ describe('Money by race directory and focused group', () => {
     const back = host.querySelector<HTMLAnchorElement>('a[aria-label="Go back"]')!;
     expect(queryOf(back)).toEqual({ year: '2026' });
     expect(back.querySelector('svg')).not.toBeNull();
-    expect(getComputedStyle(back).borderTopWidth).toBe('0px');
-    expect(getComputedStyle(back).backgroundColor).toBe('rgba(0, 0, 0, 0)');
+    expect(getComputedStyle(back).borderTopWidth).toBe('1px');
+    expect(getComputedStyle(back).minHeight).toBe('44px');
+    expect(getComputedStyle(back).backgroundColor).toBe('rgb(255, 255, 255)');
     // GoBackLink follows this native href on a fresh visit. Browser-history
     // behavior has its own tests; this harness models the destination route.
     act(() => updateParams({ year: '2026' }));
@@ -418,10 +432,13 @@ describe('Money by race finder', () => {
 
     expect(options[0].getAttribute('aria-selected')).toBe('false');
     expect(options[1].getAttribute('aria-selected')).toBe('true');
+    expect(window.getComputedStyle(options[0]).borderWidth).toBe('2px');
     const selectedStyle = window.getComputedStyle(options[1]);
-    expect(selectedStyle.outlineColor).toBe('rgb(46, 212, 126)');
-    expect(selectedStyle.outlineWidth).toBe('2px');
+    expect(selectedStyle.borderColor).toBe('rgb(46, 212, 126)');
+    expect(selectedStyle.borderWidth).toBe('2px');
     expect(selectedStyle.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+    expect(window.getComputedStyle(options[1].children[0]).fontWeight).toBe('500');
+    expect(window.getComputedStyle(options[1].children[1]).fontWeight).toBe('600');
   });
 
   it('keeps an ambiguous Enter focused without selecting a default, then accepts arrow selection', async () => {
@@ -504,6 +521,18 @@ describe('Money by race finder', () => {
 });
 
 describe('Money by race figures and unavailable records', () => {
+  it('puts the donor note and copy date before the figure headings and committee rows', () => {
+    render({ group: house.anchor, year: '2026' });
+    const text = host.textContent ?? '';
+    expect(text.indexOf('Named donors include people')).toBeLessThan(
+      text.indexOf('Payment files copied Sep 1, 2026'),
+    );
+    expect(text.indexOf('Payment files copied Sep 1, 2026')).toBeLessThan(
+      text.indexOf('Total contributions'),
+    );
+    expect(text.indexOf('Total contributions')).toBeLessThan(text.indexOf(reported.name));
+  });
+
   it.each(['phone', 'tablet', 'computer'])(
     'keeps each figure with its own dates and truthful gaps on %s',
     (band) => {

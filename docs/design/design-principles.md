@@ -290,10 +290,14 @@ On web, `react-native-web` maps _most_ RN accessibility props to real ARIA — s
 on the rendered site and fixable in RN. **`accessibilityState` is the exception, and it is a silent
 one: see the box below before writing one.**
 
-Instant search result lists use one selection treatment everywhere. Hover and keyboard movement put
-a 2px bright-green line (`#2ed47e`) around the current result with a 10px radius. The result keeps
-its white background, and the line does not change the result's size. The line accompanies
-`aria-selected`; it does not replace that spoken state.
+Instant search result lists use one selection treatment everywhere. Each row is at least 48px tall,
+uses 10px horizontal padding and reserves a transparent 2px border with a 10px radius. Hover and
+keyboard movement replace that transparent border with bright green (`#2ed47e`) around the 1 current
+result. The result keeps its white background, text weight and text color, so the border is its only
+visual change and no row moves. Row text is 16px at weight 500; a trailing count is 14px at weight
+600 and does not shrink. The line accompanies `aria-selected`; it does not replace that spoken state.
+The list scrolls vertically within its own maximum height and hides horizontal overflow. Long row
+names wrap inside their available width instead of creating a horizontal scrollbar.
 
 > **Marking a control disabled, busy, expanded or selected — read this first.**
 >

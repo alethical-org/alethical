@@ -3,6 +3,8 @@
 Status: live and checked on 17 September 2026.
 Released in [pull request 2250](https://github.com/alethical-org/alethical/pull/2250),
 [commit 0243a5a9](https://github.com/alethical-org/alethical/commit/0243a5a97022dd38454f01711cfb12f2167eb49c).
+The 18 September visual refinement is in
+[pull request 2285](https://github.com/alethical-org/alethical/pull/2285).
 
 ## Authorization and scope
 
@@ -105,3 +107,21 @@ the compact directory with no committee-detail rows, search opened House Distric
 with its 2 committees, and following Anderson, Paul H House Committee opened that
 committee's record with 2026 selected. The sitewide Share control and shared
 scroll-restoration protections remain integrated.
+
+## 18 September 2026 visual refinement
+
+- Instant search choices on `/money/races` and `/find-my-legislator` reserve a 2px
+  transparent boundary. Hover and arrow-key selection change that boundary to bright
+  green (`#2ed47e`) without filling the row or moving its contents. Each list scrolls
+  vertically within 300 pixels and cannot scroll sideways.
+- The focused race uses a flat warm-grey page, matched outlined Go back and Share
+  controls, a cyan context label, corrected type hierarchy, and a full-width divider
+  before Limits of the campaign records.
+- The contributions card places the donor explanation and payment-copy date before its
+  column headings. Wide screens use 264-pixel figure columns with a 32-pixel gap,
+  middle-width screens use 190-pixel columns with a 16-pixel gap, and phones stack the
+  figures. Date ranges may wrap only around “to”. The last committee row has no divider.
+- Browser review at 1280, 900 and 375 pixels covered House District 12A, its live 2026
+  amounts and dates, the 300-pixel race list, the address-suggestion list, keyboard
+  selection, and horizontal overflow. Both selected rows kept a transparent background
+  inside their 2px bright-green boundary.

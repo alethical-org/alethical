@@ -1103,22 +1103,33 @@ const styles = StyleSheet.create({
     color: '#6f756f',
   },
   choiceKey: { fontWeight: '700' },
-  choiceList: { marginTop: 8, borderTopWidth: 1, borderColor: t.colors.alpha.ink08 },
-  choiceRow: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: t.colors.alpha.ink08,
+  choiceList: {
+    marginTop: 8,
+    maxHeight: 300,
+    borderTopWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    ...(isWeb
+      ? ({ overflowY: 'auto', overflowX: 'hidden' } as object)
+      : { overflow: 'scroll' as const }),
   },
-  choiceRowActive: {
-    outlineColor: t.colors.brand.base,
-    outlineWidth: 2,
-    outlineStyle: 'solid',
-    outlineOffset: -2,
+  choiceRow: {
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    borderWidth: 2,
+    borderColor: 'transparent',
     borderRadius: 10,
   },
-  choiceText: { fontFamily: t.typography.body, fontSize: 15, color: t.colors.ink },
+  choiceRowActive: {
+    borderColor: t.colors.brand.base,
+  },
+  choiceText: {
+    minWidth: 0,
+    fontFamily: t.typography.body,
+    fontSize: 16,
+    fontWeight: '500',
+    color: t.colors.ink,
+  },
   errorAlert: {
     maxWidth: 720,
   },
