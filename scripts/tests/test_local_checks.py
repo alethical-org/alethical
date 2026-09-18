@@ -44,6 +44,7 @@ class LocalChecksTest(unittest.TestCase):
         for filename, expected in [
             ("apps/frontend/src/lib/example.ts", {"frontend"}),
             ("api/page.ts", {"frontend"}),
+            ("patches/query-string@7.1.3.patch", {"frontend"}),
             ("alethical/api/main.py", {"backend"}),
             ("docs/README.md", {"backend"}),
             ("package.json", {"backend", "frontend"}),

@@ -298,30 +298,25 @@ updates*, which follow the schedule in `.github/dependabot.yml`, and *security
 updates*, which are triggered by a Dependabot alert as soon as an advisory lands
 and ignore that schedule entirely.
 
-- **Alerts are on.** Turning them on for the first time in July 2026 returned 70
-  open alerts ([#691](https://github.com/alethical-org/alethical/issues/691)) —
-  nothing had ever been watching. Check
-  [the alerts page](https://github.com/alethical-org/alethical/security/dependabot)
-  when you're in a bump PR anyway; that is the only cadence this repo has, since
-  nothing here runs on a timer. While you're there, glance over
-  `docs/operations/repo-and-service-settings.md` — the settings it lists can't be
-  checked by CI, and this PR is the one recurring moment anyone looks at them.
-- **Automatic security fixes are on.** They were switched off in July 2026 after
-  opening nine separate unreviewed PRs in four minutes, one of them a major version
-  bump under the API, and switched back on the same month once the cause was fixed.
-  The cause was not the bot: a `groups` block covers *version* updates only unless
-  it says `applies-to: security-updates`, so grouped monthly sweeps still produced
-  one PR per advisory. Each ecosystem now carries both groups, so a batch of alerts
-  arrives as a single reviewable PR. Nothing self-merges — CI still has to pass and
-  a person still clicks merge.
-- One caveat: GitHub only raises alerts for actions referenced by version number,
-  not by commit hash. All six of ours use version numbers.
+- **Alerts and automatic security fixes are on.** Each ecosystem keeps a separate
+  `applies-to: security-updates` group so alert-driven fixes arrive together.
+  GitHub's update helper never merges its own changes; the required checks and a
+  reviewed merge still apply. Current alerts are on
+  [GitHub's security page](https://github.com/alethical-org/alethical/security/dependabot).
+- **Known package vulnerabilities block release.** The required `changes` job checks
+  every locked Python and JavaScript package, including development tools and Python
+  packages for other operating systems, on every pull request, merge-queue commit,
+  and push to `main`. Every severity is covered.
+  Scanner failures and incomplete reports fail the check. The narrow, time-limited
+  exceptions are recorded in
+  [`docs/operations/technology-health.md`](docs/operations/technology-health.md#recorded-security-exceptions).
+- Run `python scripts/check_technology_health.py --security-only` for the same check
+  locally, with the project's saved uv and pnpm versions available.
 
-The free monthly whole-system check (`.github/workflows/technology-health.yml`) is
-the backstop outside ordinary package files. It checks duplicated tool versions,
-unversioned commands, Python and JavaScript security reports, support deadlines,
-and whether the 3-month major-tool review is overdue. Its current support dates,
-exceptions, and review checklist live in
+The free technology check (`.github/workflows/technology-health.yml`) repeats the
+security scan every Monday. Its monthly full review also checks duplicated tool
+versions, unversioned commands, support deadlines, and whether the 3-month major-tool
+review is overdue. Current support dates, exceptions, and the review checklist live in
 [`docs/operations/technology-health.md`](docs/operations/technology-health.md).
 
 ## Deployment — why PRs matter
