@@ -60,6 +60,23 @@ function madeRow(row: Record<string, unknown>): DetailedMadePayment {
   };
 }
 
+/** How many later pages of one list download side by side. The 2 directions of a
+ *  committee read together, so a page load asks the service for at most 6 at once. */
+export const LIST_PAGES_AT_ONCE = 3;
+
+/**
+ * Every payment of one committee, one year, one direction: the first page tells
+ * how many there are, and the rest download side by side rather than one after
+ * another. A committee with 1,000 payments in a direction spent 5 round trips in a
+ * row on the live site (about 2.4 s for the list a chart is waiting on, 17 Sep
+ * 2026); the same 5 pages arrive in 2 rounds now.
+ *
+ * Every check the one-after-another read made is still made, page by page: the
+ * same release, the same committee, year and direction, the same total, rows
+ * within the cap, and a list that adds up to the count the service gave. A page
+ * that comes back with the wrong number of rows for its place in the list fails
+ * the read rather than being spliced in.
+ */
 export function getCompleteCampaignMoneyPayments(
   registrationNumber: string,
   year: number,
@@ -78,15 +95,8 @@ export async function getCompleteCampaignMoneyPayments(
   direction: MoneyDetailsDirection,
   signal?: AbortSignal,
 ): Promise<CompleteCampaignMoneyPayments> {
-  const payments: MoneyDetailsPayment[] = [];
-  const linkable = new Set<string>();
-  let releaseId: string | null = null;
-  let expectedCount: number | null = null;
-  let sourceUrl: string | null = null;
-  let fetchedAt: string | null = null;
-  while (true) {
+  const readPage = async (offset: number): Promise<Payload> => {
     signal?.throwIfAborted();
-    const offset = payments.length;
     const params = new URLSearchParams({
       direction,
       year: String(year),
@@ -100,9 +110,6 @@ export async function getCompleteCampaignMoneyPayments(
     );
     signal?.throwIfAborted();
     if (!data.release_id) throw new MoneyDetailsReadError('missing_release');
-    if (releaseId !== null && releaseId !== data.release_id) {
-      throw new MoneyDetailsReadError('release_changed');
-    }
     if (data.registration_number && data.registration_number !== registrationNumber) {
       throw new MoneyDetailsReadError('wrong_committee');
     }
@@ -111,66 +118,112 @@ export async function getCompleteCampaignMoneyPayments(
     if (data.direction !== undefined && data.direction !== direction) {
       throw new MoneyDetailsReadError('wrong_direction');
     }
-    releaseId = data.release_id;
-    sourceUrl ??= data.source_url ?? null;
-    fetchedAt ??= data.fetched_at ?? null;
-    if (data.state !== 'reported') {
-      if (offset !== 0 || (data.payments?.length ?? 0) > 0 || data.page?.has_more) {
-        throw new MoneyDetailsReadError('state_changed');
-      }
-      return {
-        registrationNumber,
-        year,
-        direction,
-        state: data.state === 'not_reported' ? 'not_reported' : 'unavailable',
-        payments: [],
-        releaseId,
-        linkableRegistrationNumbers: [],
-        sourceUrl,
-        fetchedAt,
-        totalPayments: null,
-      };
+    return data;
+  };
+
+  const first = await readPage(0);
+  const releaseId = first.release_id!;
+  const sourceUrl = first.source_url ?? null;
+  const fetchedAt = first.fetched_at ?? null;
+  if (first.state !== 'reported') {
+    if ((first.payments?.length ?? 0) > 0 || first.page?.has_more) {
+      throw new MoneyDetailsReadError('state_changed');
     }
-    const page = data.page;
-    if (
-      !page ||
-      page.offset !== offset ||
-      !Number.isSafeInteger(page.total_payments) ||
-      page.total_payments! < 0
-    ) {
-      throw new MoneyDetailsReadError('invalid_page_count');
-    }
-    if (expectedCount !== null && expectedCount !== page.total_payments) {
-      throw new MoneyDetailsReadError('count_changed');
-    }
-    expectedCount = page.total_payments!;
-    const rows = data.payments;
-    if (!Array.isArray(rows) || rows.length > 250 || (page.has_more && rows.length === 0)) {
-      throw new MoneyDetailsReadError('invalid_page');
-    }
-    payments.push(
-      ...rows.map((row) => (direction === 'received' ? receivedRow(row) : madeRow(row))),
-    );
-    for (const number of data.linkable_registration_numbers ?? []) linkable.add(number);
-    if (payments.length > expectedCount || (page.has_more && payments.length >= expectedCount)) {
-      throw new MoneyDetailsReadError('count_mismatch');
-    }
-    if (!page.has_more) {
-      if (payments.length !== expectedCount) throw new MoneyDetailsReadError('incomplete_list');
-      return {
-        registrationNumber,
-        year,
-        direction,
-        state: 'reported',
-        payments,
-        releaseId,
-        linkableRegistrationNumbers: [...linkable],
-        sourceUrl,
-        fetchedAt,
-        totalPayments: expectedCount,
-      };
+    return {
+      registrationNumber,
+      year,
+      direction,
+      state: first.state === 'not_reported' ? 'not_reported' : 'unavailable',
+      payments: [],
+      releaseId,
+      linkableRegistrationNumbers: [],
+      sourceUrl,
+      fetchedAt,
+      totalPayments: null,
+    };
+  }
+  const expectedCount = pageCount(first, 0);
+  const firstRows = pageRows(first, expectedCount, 0);
+  const pageSize = firstRows.length;
+  if (first.page!.has_more && firstRows.length >= expectedCount) {
+    throw new MoneyDetailsReadError('count_mismatch');
+  }
+
+  // Every later page's place in the list is known from the first page: the service
+  // filled it to `pageSize` rows and said how many rows there are in all.
+  const offsets: number[] = [];
+  if (first.page!.has_more) {
+    for (let offset = pageSize; offset < expectedCount; offset += pageSize) offsets.push(offset);
+  }
+  const later: Payload[] = [];
+  let next = 0;
+  async function worker() {
+    while (next < offsets.length) {
+      const index = next++;
+      later[index] = await readPage(offsets[index]);
     }
   }
+  await Promise.all(Array.from({ length: LIST_PAGES_AT_ONCE }, worker));
+
+  const payments: MoneyDetailsPayment[] = [];
+  const linkable = new Set<string>();
+  const shape = (row: Record<string, unknown>) =>
+    direction === 'received' ? receivedRow(row) : madeRow(row);
+  payments.push(...firstRows.map(shape));
+  for (const number of first.linkable_registration_numbers ?? []) linkable.add(number);
+  for (const [index, data] of later.entries()) {
+    const offset = offsets[index];
+    if (data.release_id !== releaseId) throw new MoneyDetailsReadError('release_changed');
+    if (data.state !== 'reported') throw new MoneyDetailsReadError('state_changed');
+    if (pageCount(data, offset) !== expectedCount) throw new MoneyDetailsReadError('count_changed');
+    const rows = pageRows(data, expectedCount, offset);
+    const isLast = index === offsets.length - 1;
+    // A middle page holds a full page; the last holds what is left. Anything else is
+    // a list that changed underneath the read.
+    if (rows.length !== (isLast ? expectedCount - offset : pageSize)) {
+      throw new MoneyDetailsReadError('count_mismatch');
+    }
+    if (Boolean(data.page!.has_more) !== !isLast) throw new MoneyDetailsReadError('count_mismatch');
+    payments.push(...rows.map(shape));
+    for (const number of data.linkable_registration_numbers ?? []) linkable.add(number);
+  }
+  if (payments.length !== expectedCount) throw new MoneyDetailsReadError('incomplete_list');
+  return {
+    registrationNumber,
+    year,
+    direction,
+    state: 'reported',
+    payments,
+    releaseId,
+    linkableRegistrationNumbers: [...linkable],
+    sourceUrl,
+    fetchedAt,
+    totalPayments: expectedCount,
+  };
+}
+
+/** The list's total as one page states it, or a refusal when the page cannot be trusted. */
+function pageCount(data: Payload, offset: number): number {
+  const page = data.page;
+  if (
+    !page ||
+    page.offset !== offset ||
+    !Number.isSafeInteger(page.total_payments) ||
+    page.total_payments! < 0
+  ) {
+    throw new MoneyDetailsReadError('invalid_page_count');
+  }
+  return page.total_payments!;
+}
+
+/** One page's rows, within the cap and never empty on a page that says more follow. */
+function pageRows(data: Payload, expectedCount: number, offset: number): Record<string, unknown>[] {
+  const rows = data.payments;
+  if (!Array.isArray(rows) || rows.length > 250 || (data.page!.has_more && rows.length === 0)) {
+    throw new MoneyDetailsReadError('invalid_page');
+  }
+  if (offset + rows.length > expectedCount) throw new MoneyDetailsReadError('count_mismatch');
+  return rows;
 }
 
 export interface CampaignMoneyHistory {

@@ -58,6 +58,32 @@ describe('complete single-committee payment reads', () => {
     expect(request.mock.calls[1][0]).toContain('offset=250');
   });
 
+  it('downloads the later pages side by side and keeps them in order', async () => {
+    const full = Array.from({ length: 250 }, () => row);
+    request.mockResolvedValueOnce(page(full, 0, 700, true));
+    request.mockResolvedValueOnce(page(full, 250, 700, true));
+    request.mockResolvedValueOnce(page(full.slice(0, 200), 500, 700, false));
+    const result = await getCompleteCampaignMoneyPayments('17868', 2025, 'received');
+    expect(result.payments).toHaveLength(700);
+    expect(result.totalPayments).toBe(700);
+    // The first page alone, then both later pages asked for before either answers.
+    expect(request.mock.calls.map((call) => String(call[0]).match(/offset=(\d+)/)?.[1])).toEqual([
+      '0',
+      '250',
+      '500',
+    ]);
+  });
+
+  it('refuses a later page holding the wrong number of rows for its place', async () => {
+    const full = Array.from({ length: 250 }, () => row);
+    request.mockResolvedValueOnce(page(full, 0, 700, true));
+    request.mockResolvedValueOnce(page(full.slice(0, 249), 250, 700, true));
+    request.mockResolvedValueOnce(page(full.slice(0, 200), 500, 700, false));
+    await expect(getCompleteCampaignMoneyPayments('17868', 2025, 'received')).rejects.toMatchObject(
+      { reason: 'count_mismatch' },
+    );
+  });
+
   it('rejects a release change rather than splicing generations', async () => {
     request.mockResolvedValueOnce(page([row], 0, 2, true));
     request.mockResolvedValueOnce(page([row], 1, 2, false, 'release-2'));
