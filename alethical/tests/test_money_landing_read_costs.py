@@ -674,31 +674,37 @@ def test_an_unfiled_report_is_still_left_out_of_the_feed(db, published) -> None:
 # --- What a whole request costs ---------------------------------------------------
 
 
-def test_the_money_landing_summary_costs_5_requests(client, db, published) -> None:
-    """The /money landing's own read, end to end: 10 crossings before, 5 now.
+def test_the_money_landing_summary_costs_4_requests(client, db, published) -> None:
+    """The /money landing's own read, end to end: 10 crossings before, 4 now.
 
-    Two of the 5 resolve which copy of Minnesota's data is live, and every money read
-    pays those. The other 3 are the register's counts, the confirmation state, and the
-    contests and outside-spending rows riding together.
+    One of the 4 resolves which copy of Minnesota's data is live -- the release and
+    the filings pointer ride on 1 statement inside a pinned request since
+    ``committee_finance.current_release`` folded them (#2266) -- and every money read
+    pays that one. The other 3 are the register's counts, the confirmation state, and
+    the contests and outside-spending rows riding together.
     """
     with Statements() as sent:
         response = client.get(SUMMARY)
 
     assert response.status_code == 200
-    assert len(sent.sent) == 5, sent.sent
+    assert len(sent.sent) == 4, sent.sent
     data = response.json()["data"]
     assert data["register"]["filer_count"] == 2
     assert data["contests"]["contest_count"] == 2
     assert data["independent_expenditure_rows"]["row_count"] == 2
 
 
-def test_the_committee_directory_costs_5_requests(client, db, published) -> None:
-    """The /money/committees directory: 8 crossings before, 5 now."""
+def test_the_committee_directory_costs_4_requests(client, db, published) -> None:
+    """The /money/committees directory: 8 crossings before, 4 now.
+
+    The release read carries the filings pointer (#2266); then the register's counts,
+    the page rows with their total, and the finer kinds from the 3 money files.
+    """
     with Statements() as sent:
         response = client.get(COMMITTEES, params={"limit": 50, "offset": 0})
 
     assert response.status_code == 200
-    assert len(sent.sent) == 5, sent.sent
+    assert len(sent.sent) == 4, sent.sent
     data = response.json()["data"]
     assert data["page"]["total"] == 2
     assert data["register_total"] == 2
