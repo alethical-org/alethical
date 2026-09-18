@@ -1232,7 +1232,7 @@ describe('the money landing serves the section’s own words and a live count', 
 
   it('links every indexable lane the loaded page links', () => {
     expect(snapshot.records?.map((record) => record.href)).toEqual([
-      '/legislators',
+      '/legislators?tab=money',
       '/money/committees',
       '/money/races',
       '/money/outside-spending',

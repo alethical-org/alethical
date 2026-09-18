@@ -39,6 +39,7 @@ interface LegislatorResultCardProps {
   legislator: LegislatorCardData;
   onPress?: () => void;
   portraitEager?: boolean;
+  profileTab?: 'money';
 }
 
 function WebPortrait({
@@ -131,6 +132,7 @@ export function LegislatorResultCard({
   legislator,
   onPress,
   portraitEager = true,
+  profileTab,
 }: LegislatorResultCardProps) {
   const [hovered, setHovered] = useState(false);
   // Fall back to initials when the portrait 404s, not just when the record has no
@@ -156,10 +158,14 @@ export function LegislatorResultCard({
   const authorshipLabel = billAuthorshipLabel(authored);
   const portraitUrl = legislator.photoUrl;
   const showingPortrait = shouldShowLegislatorPortrait(portraitUrl, photoFailed);
+  const profilePath = routePath.legislator(
+    legislator.slug ?? legislator.id,
+    profileTab ? { tab: profileTab } : undefined,
+  );
 
   return (
     <Pressable
-      {...linkProps(routePath.legislator(legislator.slug ?? legislator.id), onPress)}
+      {...linkProps(profilePath, onPress)}
       onPressIn={warm}
       onHoverIn={() => {
         setHovered(true);

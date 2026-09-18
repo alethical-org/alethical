@@ -45,6 +45,7 @@ describe('routePath builds the URL the router will land on', () => {
     expect(routePath.home()).toBe('/');
     expect(routePath.bills()).toBe('/bills');
     expect(routePath.legislators()).toBe('/legislators');
+    expect(routePath.legislators({ tab: 'money' })).toBe('/legislators?tab=money');
     expect(routePath.privacy()).toBe('/privacy');
     expect(routePath.siteMetrics()).toBe('/site-metrics');
     expect(routePath.terms()).toBe('/terms');

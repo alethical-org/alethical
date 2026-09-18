@@ -94,6 +94,7 @@ export function SearchLegislatorsScreen() {
   // The route params are the single source of truth; only the search-box draft
   // and open-menu/dropdown state are local.
   const params: Record<string, unknown> = route.params ?? {};
+  const profileTab = params.tab === 'money' ? 'money' : undefined;
   const query = typeof params.q === 'string' ? params.q : '';
   const chamber: ChamberFilter =
     params.chamber === 'House' || params.chamber === 'Senate' ? params.chamber : 'All';
@@ -349,10 +350,12 @@ export function SearchLegislatorsScreen() {
                 >
                   <LegislatorResultCard
                     legislator={legislator}
+                    profileTab={profileTab}
                     portraitEager={isLegislatorPortraitEager(cardIndex, isDesktop)}
                     onPress={() =>
                       navigation.navigate('LegislatorProfile', {
                         legislatorId: legislator.slug ?? legislator.id,
+                        ...(profileTab ? { tab: profileTab } : {}),
                       })
                     }
                   />

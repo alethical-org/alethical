@@ -100,7 +100,7 @@ importers:
         specifier: ~57.0.2
         version: 57.0.2(expo@57.0.11)(react-native@0.86.3(@babel/core@7.29.6)(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
       expo-linear-gradient:
-        specifier: 57.0.2
+        specifier: ~57.0.2
         version: 57.0.2(expo@57.0.11)(react-native@0.86.3(@babel/core@7.29.6)(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
       expo-splash-screen:
         specifier: 57.0.5
@@ -109,7 +109,7 @@ importers:
         specifier: 57.0.1
         version: 57.0.1(expo@57.0.11)(react-native@0.86.3(@babel/core@7.29.6)(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
       expo-web-browser:
-        specifier: 57.0.3
+        specifier: ~57.0.3
         version: 57.0.3(expo@57.0.11)(react-native@0.86.3(@babel/core@7.29.6)(@types/react@19.2.18)(react@19.2.3))
       react:
         specifier: 19.2.3

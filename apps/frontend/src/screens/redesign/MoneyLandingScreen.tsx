@@ -257,8 +257,8 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
               title={MONEY_LANE_LEGISLATORS.title}
               body={legislatorsLaneBody(confirmations)}
               countLine={laneCountLine(confirmations?.total ?? null, LANE_COUNT_UNITS.legislators)}
-              href={routePath.legislators()}
-              onOpen={() => navigation.navigate('Legislators')}
+              href={routePath.legislators({ tab: 'money' })}
+              onOpen={() => navigation.navigate('Legislators', { tab: 'money' })}
               {...laneLayout}
             />
             <LaneCard

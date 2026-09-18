@@ -111,6 +111,9 @@ Top to bottom:
    results page, which explains its 3-character minimum.
 3. **6 navigation cards**, in this order: Legislators, Committees, Who got paid,
    Money by race, Outside spending and Lobbying. Every card opens its named route.
+   Legislators opens `/legislators?tab=money`; profiles chosen from that directory open
+   Campaign money. The ordinary `/legislators` directory and direct profile addresses
+   keep opening Overview.
    Who got paid opens name search and has no count, dash or placeholder.
    Counts come from their own successful data blocks, never pasted examples
    or a missing value turned into 0.
