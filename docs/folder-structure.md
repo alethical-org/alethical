@@ -64,6 +64,8 @@ explanations are evidence and documentation, not design exports.
 
 - Link every retained Markdown document from [README.md](README.md), directly or
   through a linked folder index. A folder link alone does not index all its files.
+  Put index entries at the left edge or within 3 leading spaces; deeper indentation
+  is treated as a code example. Use a linked folder index for deeper grouping.
 - Give each notable product feature its own plain-language guide in
   `product-onboarding/`, with the code declaration described in
   [CONTRIBUTING.md](../CONTRIBUTING.md#keeping-docs-current).

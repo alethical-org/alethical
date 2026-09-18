@@ -4,6 +4,9 @@
 Only README.md and index.md are indexes. A link to a directory reaches its index,
 not every document inside it. Links in ordinary guides do not replace an index
 entry. Deleted working files are omitted so the check also works before staging.
+Index entries must start within the first 4 columns (at most 3 leading spaces).
+Deeper indentation, including tabs, is treated as a code example rather than an
+index entry; use a linked nested index for deeper grouping.
 """
 
 from __future__ import annotations
@@ -43,6 +46,7 @@ def link_targets(text: str) -> list[str]:
         text,
         flags=re.MULTILINE | re.DOTALL,
     )
+    text = re.sub(r"^(?: {4}| {0,3}\t)[^\n]*$", "", text, flags=re.MULTILINE)
     text = re.sub(r"`[^`\n]*`", "", text)
     definitions = {
         " ".join(label.lower().split()): target.strip("<>")

@@ -136,6 +136,24 @@ class DocStructureTest(unittest.TestCase):
             self.problems(), [DOCS + "README.md: documentation index is missing"]
         )
 
+    def test_indented_code_examples_are_not_index_entries(self):
+        self.write(DOCS + "guide.md")
+        for indentation in ["    ", "\t", "  \t"]:
+            with self.subTest(indentation=repr(indentation)):
+                self.write(
+                    DOCS + "README.md",
+                    "# Example\n\n" + indentation + "[Guide](guide.md)\n",
+                )
+                self.assertEqual(len(self.problems()), 1)
+                self.assertTrue(self.problems()[0].startswith(DOCS + "guide.md:"))
+
+    def test_list_entries_with_up_to_3_leading_spaces_are_supported(self):
+        self.write(DOCS + "guide.md")
+        for indentation in ["", " ", "  ", "   "]:
+            with self.subTest(indentation=repr(indentation)):
+                self.write(DOCS + "README.md", indentation + "- [Guide](guide.md)\n")
+                self.assertEqual(self.problems(), [])
+
 
 if __name__ == "__main__":
     unittest.main()
