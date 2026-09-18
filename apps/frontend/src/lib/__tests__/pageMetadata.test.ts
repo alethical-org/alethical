@@ -7,16 +7,13 @@ import {
   askPageMetadata,
   billListPageMetadata,
   billPageMetadata,
-  HEAD_MARKER_END,
-  HEAD_MARKER_START,
   homePageMetadata,
-  injectPageHead,
   legislatorListPageMetadata,
   legislatorPageMetadata,
-  renderPageHead,
   researchPageMetadata,
   STATIC_PAGE_METADATA,
 } from '../share';
+import { HEAD_MARKER_END, HEAD_MARKER_START, injectPageHead, renderPageHead } from '../pageHead';
 import { publishedResearch } from '../research';
 
 // The head block is HTML, so Prettier reformats it in the template and not in the
@@ -40,7 +37,10 @@ describe('page metadata', () => {
     const meta = billPageMetadata({
       billId: '94-2025-HF719',
       shortTitle: 'Statewide Capital Projects and Bonding Bill',
-      summaryLine: 'Authorizes borrowing for public buildings.',
+      lines: {
+        search: 'Authorizes borrowing for public buildings.',
+        card: 'Authorizes borrowing for public buildings.',
+      },
     });
 
     expect(meta.title).toBe(
@@ -60,8 +60,11 @@ describe('page metadata', () => {
       billPageMetadata({
         billId: '94-2025-SF746',
         shortTitle: 'Peace Officers Must Be US Citizens',
-        summaryLine:
-          'Sets a rule that new peace officer license applicants in Minnesota must be U.S. citizens.',
+        lines: {
+          search:
+            'Sets a rule that new peace officer license applicants in Minnesota must be U.S. citizens.',
+          card: '',
+        },
       }),
     );
     expect(restating).toContain(
@@ -74,7 +77,7 @@ describe('page metadata', () => {
       '<meta name="twitter:description" content="Bill text, legislative progress, and official sources" />',
     );
     // No summary: both say the fixed line.
-    expect(billPageMetadata({ billId: '94-2025-SF1', summaryLine: null }).description).toBe(
+    expect(billPageMetadata({ billId: '94-2025-SF1' }).description).toBe(
       'Bill text, legislative progress, and official sources',
     );
   });
@@ -154,7 +157,7 @@ describe('rendered head', () => {
       billPageMetadata({
         billId: '94-2025-HF1',
         shortTitle: 'Repeals <script> "quoting" & tags',
-        summaryLine: 'Ends the </script> loophole.',
+        lines: { search: 'Ends the </script> loophole.', card: 'Ends the </script> loophole.' },
       }),
     );
 

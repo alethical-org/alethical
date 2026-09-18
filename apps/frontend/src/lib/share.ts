@@ -1,5 +1,4 @@
 import { registrationNumberFromSlug } from './committeeRoute';
-import { SOCIAL_ACCOUNTS } from './socialLinks';
 import { directoryPagePath } from './directoryPagination';
 import { MONEY_SECTION_NAME } from './moneySectionName';
 import { paymentNameRole, paymentsUnderNameHeading } from './paymentNameRoute';
@@ -104,7 +103,7 @@ export function buildBillShareContent({
   identifier,
   billId,
   shortTitle,
-  summaryLine,
+  cardLine,
   url,
 }: {
   identifier: string;
@@ -117,70 +116,31 @@ export function buildBillShareContent({
    */
   shortTitle?: string | null;
   /**
-   * The summary's first sentence, already cleaned by `plainBillSummary`. The
-   * caller cleans it rather than this file, because this file loads with every
-   * page and that cleaner's regexes do not belong in a first download
-   * (`apps/frontend/src/lib/billSummaryText.ts` holds the measurement).
+   * What the card's second line should say, or empty for the fixed label below.
+   * `billDescriptionLines` in `apps/frontend/src/lib/billSummaryText.ts` decides
+   * it, and the caller runs that rather than this file, because this file loads
+   * with every page and neither the summary cleaner's regexes nor the
+   * title-repetition test belongs in a first download (that file holds the
+   * measurement that made this a rule).
    */
-  summaryLine?: string | null;
+  cardLine?: string | null;
   url: string;
 }): ShareContent {
   const cleanIdentifier = clean(identifier);
   const year = billSessionYear(billId);
   const numberAndYear = year ? `${cleanIdentifier} (${year})` : cleanIdentifier;
   const cleanTitle = clean(shortTitle ?? '');
-  // The card's second line says what this bill does, from the summary's first
-  // sentence, unless that sentence mostly restates the title: then the fixed
-  // label stays, so a card never says one thing twice (Eugene, 17 and 18 Sep
-  // 2026, decisions doc §26).
-  const sentence = clean(summaryLine ?? '');
 
   return {
     subject: 'bill',
     title: cleanTitle ? `${numberAndYear}: ${cleanTitle}` : numberAndYear,
-    description: sentence && !restatesTitle(cleanTitle, sentence) ? sentence : BILL_SHARE_LABEL,
+    description: clean(cardLine ?? '') || BILL_SHARE_LABEL,
     url,
   };
 }
 
-const BILL_SHARE_LABEL = 'Bill text, legislative progress, and official sources';
-
-/**
- * Whether a summary sentence mostly says the title again. The title's meaningful
- * words (3 letters or more, common connectives dropped) are looked for in the
- * sentence, a word counting as present when it matches whole or shares its first
- * 5 letters, so "officers" finds "officer" and "citizens" finds "citizenship".
- * Three quarters or more present is a restatement. Measured on the 3 bills the
- * ruling was argued over: "Peace Officers Must Be US Citizens" against "Sets a
- * rule that new peace officer license applicants in Minnesota must be U.S.
- * citizens." is 4 of 4 and keeps the label; "Statewide Capital Projects and
- * Bonding Bill" against "Authorizes billions in state bond financing…" is 2 of 5
- * and "New Rules For Minors' Social Media Accounts" against "Large social media
- * platforms will have to publicly explain…" is 2 of 6, and both gain the sentence.
- */
-export function restatesTitle(title: string, sentence: string): boolean {
-  const words = (value: string) =>
-    clean(value)
-      .toLocaleLowerCase('en-US')
-      .replace(/[^\p{L}\p{N}]+/gu, ' ')
-      .split(' ')
-      .filter((word) => word.length >= 4 && !CONNECTIVES.has(word));
-  const titleWords = words(title);
-  if (titleWords.length === 0) return false;
-  const sentenceWords = words(sentence);
-  const present = (word: string) =>
-    sentenceWords.some(
-      (other) =>
-        other === word ||
-        (word.length >= 5 && other.length >= 5 && other.slice(0, 5) === word.slice(0, 5)),
-    );
-  const matched = titleWords.filter(present).length;
-  return matched / titleWords.length >= 0.75;
-}
-
-// Words too common in both a Minnesota bill title and its summary to show that
-// one restates the other. Everything shorter than 4 letters is already dropped.
-const CONNECTIVES = new Set(['bill', 'act', 'minnesota', 'state']);
+/** The line a bill's card falls back to when its summary would only say the title again. */
+export const BILL_SHARE_LABEL = 'Bill text, legislative progress, and official sources';
 
 export function buildLegislatorShareContent({
   displayName,
@@ -344,21 +304,21 @@ export function legislatorListPageMetadata(
 export function billPageMetadata(input: {
   billId: string;
   shortTitle?: string | null;
-  /** The summary's first sentence, already cleaned (see `buildBillShareContent`). */
-  summaryLine?: string | null;
+  /** What a search result and a share card each say, from `billDescriptionLines`. */
+  lines?: { search: string; card: string };
 }): PageMetadata {
   const canonicalPath = `/bills/${encodeURIComponent(input.billId)}`;
   const content = buildBillShareContent({
     identifier: billNumberFromId(input.billId),
     billId: input.billId,
     shortTitle: input.shortTitle,
-    summaryLine: input.summaryLine,
+    cardLine: input.lines?.card,
     url: publicPageUrl(canonicalPath),
   });
   // The search result always gets this bill's own first sentence; the share card
   // gets it only when it adds to the title, and the fixed label when it restates
   // it (Eugene, 17 and 18 Sep 2026, decisions doc §26).
-  const searchDescription = clean(input.summaryLine ?? '');
+  const searchDescription = clean(input.lines?.search ?? '');
   return pageMetadata({
     title: titleFor(content.title),
     socialTitle: content.title,
@@ -732,132 +692,3 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
     noindex: true,
   }),
 };
-
-/**
- * The machine-readable description of a page. Deliberately small: only the types
- * a search engine demonstrably does something with (decisions doc §6). No
- * `Person`, no `ProfilePage`, no `Legislation` — all three are tidy labelling
- * that no shipped search feature consumes.
- *
- * No `BreadcrumbList` either, and that one shipped before it was removed. Google
- * asks for it where the page *shows* a breadcrumb trail. What a bill or a
- * legislator page shows is one control labelled "Go back" — and on the web it is
- * an anchor that goes back through browser history when this tab has an in-app
- * entry, and follows its own address to the list otherwise (`backLinkProps` in
- * `apps/frontend/src/navigation/links.ts`). So where it leads depends on how the
- * reader arrived, often the search results they came from. A `BreadcrumbList`
- * asserts a fixed position in a hierarchy; a control with no fixed destination
- * does not have one. Relabelling the link "Bills" to justify the markup would
- * change visible copy on every detail page to serve a minor search feature, and
- * would read as wrong whenever the button genuinely goes back — the trade
- * `docs/philosophy.md` principle 10 rejects. If a real breadcrumb trail is ever
- * designed, the markup comes back with it (decisions doc §6 and §12).
- */
-export function pageJsonLd(meta: PageMetadata): object[] {
-  if (meta.canonicalPath === '/') {
-    return [
-      {
-        '@context': 'https://schema.org',
-        '@type': 'WebSite',
-        name: SITE_NAME,
-        url: `${PUBLIC_SITE_ORIGIN}/`,
-      },
-      {
-        '@context': 'https://schema.org',
-        '@type': 'Organization',
-        name: SITE_NAME,
-        url: `${PUBLIC_SITE_ORIGIN}/`,
-        logo: `${PUBLIC_SITE_ORIGIN}/icon-512.png`,
-        // The accounts the footer already links, so a search engine can tie the
-        // site and its profiles to one organisation. Google's Organization
-        // guidance lists `sameAs` for exactly this; nothing else here is read.
-        sameAs: SOCIAL_ACCOUNTS.map((account) => account.url),
-      },
-    ];
-  }
-  return [];
-}
-
-/**
- * The head tags for one page, as HTML. `api/page.ts` drops this into the same
- * `index.html` the site already serves, so a search engine and a person receive
- * byte-identical HTML for the same address.
- *
- * Every value is escaped: 10,471 AI-written titles and summaries are 10,471
- * chances for one odd character to break the markup.
- */
-export function renderPageHead(meta: PageMetadata): string {
-  const title = escapeHtml(meta.title);
-  const socialTitle = escapeHtml(meta.socialTitle);
-  const description = escapeHtml(clean(meta.description));
-  const socialDescription = escapeHtml(clean(meta.socialDescription ?? meta.description));
-  // Empty on a "not found" page: it is not a copy of any real address, so it
-  // declares none rather than pointing a search engine at an unrelated page.
-  const url = meta.canonicalPath ? escapeHtml(publicPageUrl(meta.canonicalPath)) : '';
-  const image = escapeHtml(SOCIAL_PREVIEW_IMAGE_URL);
-  const imageAlt = escapeHtml(SOCIAL_PREVIEW_IMAGE_ALT);
-  const jsonLd = pageJsonLd(meta)
-    // `<` is escaped so a stored string can never close the script element early.
-    .map(
-      (block) =>
-        `    <script type="application/ld+json">${JSON.stringify(block).replace(/</g, '\\u003c')}</script>`,
-    )
-    .join('\n');
-
-  return [
-    `    <title>${title}</title>`,
-    `    <meta name="description" content="${description}" />`,
-    ...(url ? [`    <link rel="canonical" href="${url}" />`] : []),
-    ...(meta.noindex ? [`    <meta name="robots" content="noindex" />`] : []),
-    // Only an absolute https address is preloaded: anything else is a record
-    // field we do not control, and a bad hint costs a wasted request.
-    ...(meta.preloadImages ?? [])
-      .filter((href) => /^https:\/\/[^\s"'<>]+$/.test(href))
-      .map((href) => `    <link rel="preload" as="image" href="${escapeHtml(href)}" />`),
-    // A published piece is an article to the sites that read these tags; every
-    // other page is the site itself.
-    `    <meta property="og:type" content="${meta.article ? 'article' : 'website'}" />`,
-    ...(meta.article
-      ? [
-          `    <meta property="article:published_time" content="${escapeHtml(meta.article.publishedOn)}" />`,
-        ]
-      : []),
-    `    <meta property="og:site_name" content="${SITE_NAME}" />`,
-    `    <meta property="og:title" content="${socialTitle}" />`,
-    `    <meta property="og:description" content="${socialDescription}" />`,
-    ...(url ? [`    <meta property="og:url" content="${url}" />`] : []),
-    `    <meta property="og:image" content="${image}" />`,
-    `    <meta property="og:image:width" content="1200" />`,
-    `    <meta property="og:image:height" content="630" />`,
-    `    <meta property="og:image:alt" content="${imageAlt}" />`,
-    `    <meta name="twitter:card" content="summary_large_image" />`,
-    `    <meta name="twitter:title" content="${socialTitle}" />`,
-    `    <meta name="twitter:description" content="${socialDescription}" />`,
-    `    <meta name="twitter:image" content="${image}" />`,
-    `    <meta name="twitter:image:alt" content="${imageAlt}" />`,
-    ...(jsonLd ? [jsonLd] : []),
-  ].join('\n');
-}
-
-/**
- * The markers in `apps/frontend/public/index.html` that bound the replaceable
- * head. Everything between them is regenerated per address; everything outside
- * (fonts, the reset, the recovery script) is left exactly as the build wrote it.
- */
-export const HEAD_MARKER_START = '<!--alethical:page-head-->';
-export const HEAD_MARKER_END = '<!--/alethical:page-head-->';
-
-export function injectPageHead(shellHtml: string, meta: PageMetadata): string {
-  const start = shellHtml.indexOf(HEAD_MARKER_START);
-  const end = shellHtml.indexOf(HEAD_MARKER_END);
-  if (start < 0 || end < 0 || end < start) {
-    throw new Error('page shell is missing its head markers');
-  }
-  return (
-    shellHtml.slice(0, start + HEAD_MARKER_START.length) +
-    '\n' +
-    renderPageHead(meta) +
-    '\n    ' +
-    shellHtml.slice(end)
-  );
-}
