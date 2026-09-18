@@ -8,6 +8,7 @@ import {
 } from '../../components/campaignMoney/MoneyListRows';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
 import { ChevronLeft } from '../../components/icons';
+import { PageContextLabel } from '../../components/PageContextLabel';
 import { Pagination } from '../../components/search/searchPieces';
 import { Skeleton } from '../../components/Skeleton';
 import { useCampaignFinanceCommittees, usePrefetchCommitteeMoney } from '../../hooks/useAppQueries';
@@ -160,7 +161,7 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
             <Text style={styles.backLabel}>{MONEY_SECTION_NAME}</Text>
           </Pressable>
 
-          <Text style={styles.eyebrow}>CAMPAIGN MONEY</Text>
+          <PageContextLabel style={styles.eyebrow}>Campaign money</PageContextLabel>
           <Text
             accessibilityRole="header"
             aria-level={1}

@@ -3,6 +3,8 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-n
 
 import Svg, { Path } from 'react-native-svg';
 import { GoBackLink } from '../../components/GoBackLink';
+import { PageContextLabel } from '../../components/PageContextLabel';
+import { ChevronLeft } from '../../components/icons';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { RaceFinder } from '../../components/campaignMoney/RaceFinder';
 import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
@@ -168,10 +170,18 @@ function MoneyByRaceView({ navigation, route }: RootScreenProps<'MoneyByRace'>) 
               {...linkProps(routePath.money(), () => navigation.navigate('MoneyLanding'))}
               style={styles.backLink}
             >
+              <ChevronLeft
+                size={18}
+                strokeWidth={2.2}
+                color={t.colors.text.secondary}
+                aria-hidden
+              />
               <Text style={styles.backLabel}>{MONEY_SECTION_NAME}</Text>
             </Pressable>
           )}
-          {selected ? <Text style={styles.eyebrow}>{MONEY_BY_RACE_TITLE}</Text> : null}
+          {selected ? (
+            <PageContextLabel style={styles.eyebrow}>{MONEY_BY_RACE_TITLE}</PageContextLabel>
+          ) : null}
           <ResultsHeading
             isMobile={isMobile}
             content={
@@ -618,7 +628,14 @@ const styles = StyleSheet.create({
   main: { paddingTop: 28, paddingBottom: 64 },
   mainTablet: { paddingHorizontal: 40 },
   mainMobile: { paddingTop: 18, paddingHorizontal: 20 },
-  backLink: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
+  backLink: {
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   backLabel: {
     fontFamily: t.typography.body,
     fontSize: 16,
@@ -643,7 +660,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1.2,
     color: t.colors.text.primary,
   },
-  h1WithoutEyebrow: { marginTop: 24 },
+  h1WithoutEyebrow: { marginTop: 18 },
   h1Mobile: { fontSize: 30, lineHeight: 36, letterSpacing: -0.8 },
   dek: {
     marginTop: 12,

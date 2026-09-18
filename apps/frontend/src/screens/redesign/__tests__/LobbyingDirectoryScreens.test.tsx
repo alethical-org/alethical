@@ -254,6 +254,7 @@ describe('lobbying directories', () => {
     expect(words()).toContain('1 client listed');
     expect(words()).toContain('Search lobbyists by name');
     expect(words()).not.toContain(copy.directoryLabel);
+    expect(getComputedStyle(host.querySelector('[aria-level="1"]')!).marginTop).toBe('14px');
     expect(words()).toContain('Enter all or part of a name.');
     expect(words()).toContain('Registrations shown as listed in records copied Sep 13, 2026.');
     expect(host.querySelector('a[href="/money/lobbying/lobbyists?page=3"]')).not.toBeNull();

@@ -10,6 +10,7 @@ import Svg, { Path } from 'react-native-svg';
 import { contributionDetailRows, withContributionDetailRows } from '../../lib/contributionDetails';
 import { SharePopover } from '../../components/billDetail/SharePopover';
 import { LinkArrowLabel, linkArrowRow } from '../../components/LinkArrow';
+import { PageContextLabel } from '../../components/PageContextLabel';
 import {
   CommitteeDonations,
   GroupedOutsideSpending,
@@ -396,7 +397,7 @@ function NotFoundState({
 }) {
   return (
     <View style={styles.notFoundWrap}>
-      <Text style={styles.eyebrow}>COMMITTEES</Text>
+      <PageContextLabel style={styles.eyebrow}>Committees</PageContextLabel>
       <Text accessibilityRole="header" aria-level={1} style={styles.h1}>
         {notFoundTitle()}
       </Text>
@@ -525,7 +526,7 @@ function CommitteeBody({
   return (
     <View style={styles.bodyWrap}>
       <Container style={styles.heroContent}>
-        <Text style={styles.eyebrow}>{eyebrow ? eyebrow.toUpperCase() : 'COMMITTEE'}</Text>
+        <PageContextLabel style={styles.eyebrow}>{eyebrow ?? 'Committee'}</PageContextLabel>
         <View style={styles.headRow}>
           <Text
             accessibilityRole="header"

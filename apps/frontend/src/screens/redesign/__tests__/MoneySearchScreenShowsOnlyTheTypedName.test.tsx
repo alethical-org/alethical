@@ -295,6 +295,7 @@ describe('the money search page shows only what it found for the name in its hea
     expect(page.words()).toContain('Results for “smith”');
     expect(page.words()).toContain('Smith for Senate');
     expect(page.words()).not.toContain('SEARCH RESULTS');
+    expect(getComputedStyle(page.host.querySelector('[aria-level="1"]')!).marginTop).toBe('22px');
 
     page.type('jones');
     await settle();

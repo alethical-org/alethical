@@ -136,6 +136,9 @@ describe('outside spending browsing', () => {
     await render({ year: '2024' });
     expect(host.textContent).toContain('Spending by group');
     expect(host.textContent).not.toContain('CAMPAIGN MONEY');
+    expect(
+      getComputedStyle(host.querySelector<HTMLAnchorElement>('a[href="/money"]')!).marginBottom,
+    ).toBe('20px');
     state.record = { ...state.record!, year: 2024 };
     state.names = { ...state.names!, year: 2024 };
     await render({ year: '2024' });
