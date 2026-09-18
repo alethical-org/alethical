@@ -1,4 +1,4 @@
-import { registrationNumberFromSlug } from './committeeMoneyShared';
+import { registrationNumberFromSlug } from './committeeRoute';
 import { directoryPagePath } from './directoryPagination';
 import { MONEY_SECTION_NAME } from './moneySectionName';
 import { paymentNameRole, paymentsUnderNameHeading } from './paymentNameRoute';

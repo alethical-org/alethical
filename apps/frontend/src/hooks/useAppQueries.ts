@@ -91,7 +91,7 @@ import {
   committeePaymentsListQueryKey,
   FIRST_PAYMENTS_LIMIT,
   PAGE_CAP,
-} from '../lib/committeeMoneyShared';
+} from '../lib/committeeMoneyQueryKeys';
 import {
   getCampaignFinanceRacesFromApiPayload,
   moneyByRaceQueryKey,
@@ -102,7 +102,7 @@ import {
   campaignFinanceSummaryQueryKey,
 } from '../lib/moneyLanding';
 import { readerIsSavingData } from '../lib/dataSaving';
-import { campaignMoneyYear, legislatorCampaignMoneyQueryKey } from '../lib/legislatorCampaignMoney';
+import { campaignMoneyYear, legislatorCampaignMoneyQueryKey } from '../lib/campaignMoneyYears';
 import { legislatorRecordQueryKey } from '../lib/legislatorProfile';
 import { seededQuery } from '../lib/pageData';
 import {
