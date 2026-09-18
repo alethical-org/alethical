@@ -389,7 +389,7 @@ describe('first-response page tags', () => {
     );
   });
 
-  it('names a legislator, and canonicalises a UUID address to their readable one', async () => {
+  it('names a legislator, and forwards a UUID address to their readable one', async () => {
     const calls: string[] = [];
     stubNetwork((url) => {
       calls.push(url);
@@ -410,7 +410,19 @@ describe('first-response page tags', () => {
       };
     });
 
-    const { body } = await serve({ path: '/legislators/8c31565f-e674-462d-b71f-a1d1ebcc' });
+    // The UUID is a second address for one person. Search Console listed such
+    // addresses as duplicates while each carried the canonical link, so the
+    // answer is now a permanent forward that keeps the view asked for (§28).
+    const forwarded = await serve({
+      path: '/legislators/8c31565f-e674-462d-b71f-a1d1ebcc',
+      tab: 'money',
+    });
+    expect(forwarded.status).toBe(301);
+    expect(forwarded.headers.get('Location')).toBe(
+      'https://www.alethical.com/legislators/aisha-gomez?tab=money',
+    );
+
+    const { body } = await serve({ path: '/legislators/aisha-gomez' });
 
     expect(body).toContain(
       '<title>Rep. Aisha Gomez, Minnesota House District 62A | Alethical</title>',
@@ -427,11 +439,11 @@ describe('first-response page tags', () => {
     // The same fields the profile screen asks for (`getLegislatorFromApi`), so the
     // record read here is the record handed on below, and the app makes no second
     // request for it.
-    expect(calls[0]).toContain('include=current_service,committees,stats,service_history');
+    expect(calls[0]).toContain(
+      'include=current_service,committees,stats,service_history,campaign_committees',
+    );
     const served = servedProfileData(body);
-    expect(served.map((entry) => entry.key)).toEqual([
-      ['legislator', '8c31565f-e674-462d-b71f-a1d1ebcc'],
-    ]);
+    expect(served.map((entry) => entry.key)).toEqual([['legislator', 'aisha-gomez']]);
     expect(served[0].payload.full_name).toBe('Aisha Gomez');
     // A member's record is a dated read here: no age travels with it.
     expect(served[0]).not.toHaveProperty('validatedAgeMs');
@@ -2955,5 +2967,184 @@ describe('a committee page hands its records to the app', () => {
     // The list is an addition to a page that already reads correctly, so only the
     // list is missing and the app fetches it as it always did.
     expect(servedData(body).map((entry) => entry.key[0])).toEqual(['committee-money']);
+  });
+});
+
+describe('a record reached under another spelling forwards to its own address', () => {
+  it('forwards a committee slug with an old name part, keeping the year asked for', async () => {
+    stubNetwork((url) => {
+      if (url.includes('/confirmation'))
+        return {
+          status: 200,
+          payload: { data: { registration_number: '41326', confirmed_for: null } },
+        };
+      return {
+        status: 200,
+        payload: {
+          data: {
+            registration_number: '41326',
+            committee_name: 'Jane Fonda Climate PAC',
+            year: 2025,
+            register: {
+              state: 'reported',
+              kind: 'political_committee_or_fund',
+              name: 'Jane Fonda Climate PAC',
+            },
+            money_in: { state: 'not_reported' },
+            money_out: { state: 'not_reported' },
+            split: { state: 'no_reported_total' },
+          },
+        },
+      };
+    });
+
+    const { status, headers } = await serve({
+      path: '/money/committees/jane-fonda-pac-41326',
+      year: '2025',
+    });
+
+    expect(status).toBe(301);
+    expect(headers.get('Location')).toBe(
+      'https://www.alethical.com/money/committees/jane-fonda-climate-pac-41326?year=2025',
+    );
+    expect(headers.get('Cache-Control')).toContain('s-maxage=');
+  });
+
+  it('serves the record itself, with its register facts in the head, on its own address', async () => {
+    stubNetwork((url) => {
+      if (url.includes('/confirmation'))
+        return {
+          status: 200,
+          payload: { data: { registration_number: '41326', confirmed_for: null } },
+        };
+      return {
+        status: 200,
+        payload: {
+          data: {
+            registration_number: '41326',
+            committee_name: 'Jane Fonda Climate PAC',
+            entity_type: 'PCF',
+            entity_sub_type: 'PF',
+            year: 2025,
+            register: {
+              state: 'reported',
+              kind: 'political_committee_or_fund',
+              name: 'Jane Fonda Climate PAC',
+            },
+            money_in: { state: 'not_reported' },
+            money_out: { state: 'not_reported' },
+            split: { state: 'no_reported_total' },
+          },
+        },
+      };
+    });
+
+    const { status, body } = await serve({
+      path: '/money/committees/jane-fonda-climate-pac-41326',
+    });
+
+    expect(status).toBe(200);
+    expect(body).toContain(
+      '<title>Jane Fonda Climate PAC — Minnesota campaign money | Alethical</title>',
+    );
+    // The description names the Board's kind for it and no figure; the title
+    // already carries the name, so the description does not repeat it (§26).
+    expect(body).toContain(
+      '<meta name="description" content="Money in and money out for a Minnesota political fund, from the state’s own campaign-finance filings." />',
+    );
+  });
+
+  it('describes a candidate committee by the seat it registered for', async () => {
+    stubNetwork((url) => {
+      if (url.includes('/confirmation'))
+        return {
+          status: 200,
+          payload: { data: { registration_number: '19019', confirmed_for: null } },
+        };
+      return {
+        status: 200,
+        payload: {
+          data: {
+            registration_number: '19019',
+            committee_name: 'Repinski, Aaron House Committee',
+            entity_type: 'PCC',
+            year: 2026,
+            register: {
+              state: 'reported',
+              kind: 'candidate_committee',
+              name: 'Repinski, Aaron House Committee',
+              office: 'House',
+              district: '26A',
+            },
+            money_in: { state: 'not_reported' },
+            money_out: { state: 'not_reported' },
+            split: { state: 'no_reported_total' },
+          },
+        },
+      };
+    });
+
+    const { body } = await serve({
+      path: '/money/committees/repinski-aaron-house-committee-19019',
+    });
+
+    expect(body).toContain(
+      'content="Money in and money out for the candidate committee registered for House District 26A, from Minnesota’s own campaign-finance filings."',
+    );
+  });
+});
+
+describe('a served profile links the committee a person has confirmed as the member’s', () => {
+  const profile = {
+    slug: 'aaron-repinski',
+    full_name: 'Aaron Repinski',
+    current_service: { chamber: 'house', district: { code: '26A' } },
+  };
+
+  it('adds a Campaign money section with a link to each confirmed committee page', async () => {
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      calls.push(url);
+      if (url.includes('/bills?')) return { status: 200, payload: { data: [] } };
+      return {
+        status: 200,
+        payload: {
+          data: {
+            ...profile,
+            campaign_committees: [
+              { registration_number: '19019', committee_name: 'Repinski, Aaron House Committee' },
+            ],
+          },
+        },
+      };
+    });
+
+    const { body, status } = await serve({ path: '/legislators/aaron-repinski' });
+
+    expect(status).toBe(200);
+    expect(body).toContain('<h2>Campaign money</h2>');
+    expect(body).toContain('href="/money/committees/repinski-aaron-house-committee-19019"');
+    expect(body).toContain('Repinski, Aaron House Committee');
+    expect(body).toContain('a person has confirmed as Rep. Aaron Repinski’s');
+    // The link rides on the record: no money read is spent on a profile address
+    // that does not name the money tab.
+    expect(calls.some((url) => url.includes('/campaign-finance'))).toBe(false);
+    expect(servedProfileData(body).map((entry) => entry.key)).toEqual([
+      ['legislator', 'aaron-repinski'],
+    ]);
+  });
+
+  it('names no committee when the record carries none, or lacks the field', async () => {
+    for (const record of [{ ...profile, campaign_committees: [] }, profile]) {
+      stubNetwork((url) => {
+        if (url.includes('/bills?')) return { status: 200, payload: { data: [] } };
+        return { status: 200, payload: { data: record } };
+      });
+      const { body, status } = await serve({ path: '/legislators/aaron-repinski' });
+      expect(status).toBe(200);
+      expect(body).not.toContain('Campaign money</h2>');
+      expect(body).not.toContain('/money/committees/');
+      expect(body).toContain('<h1>Rep. Aaron Repinski</h1>');
+    }
   });
 });

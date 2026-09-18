@@ -4526,6 +4526,9 @@ def test_all_public_get_reads_carry_public_cache_control(client, auth_headers):
         response = client.get(path)
         assert response.status_code == 200, path
         assert response.headers.get("Cache-Control") == public, path
+        # Readable by anything, listed by nothing: the JSON is what the site's
+        # pages read, not a page a search result should ever land on.
+        assert response.headers.get("X-Robots-Tag") == "noindex", path
 
     # A /me read is per-user (carries Authorization) → never publicly cached.
     me_response = client.get("/api/v1/me", headers=auth_headers)

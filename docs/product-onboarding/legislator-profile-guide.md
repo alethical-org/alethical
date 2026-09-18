@@ -49,6 +49,15 @@ The first response also carries up to 2 chief-authored bill links from that same
 current-session list. An unavailable or empty list omits this extra section
 without claiming that the legislator authored no bills or hiding the profile.
 
+When a person has confirmed which campaign committee is this member's, the first
+response also carries a **Campaign money** section linking that committee's own page
+(`/money/committees/<name>-<number>`). The 2 ordinary states, nobody has checked and
+checked with none confirmed, show no section, because an empty section would itself be
+a statement about the person. The link comes with the member's record
+(`include=campaign_committees`); no money figures are read for a profile address that
+does not open the money tab. A profile reached by its long-code address forwards to
+its readable address.
+
 Preset questions come from issues on bills the member authored. They describe those bills,
 not the member's beliefs or priorities. A question that the current records cannot answer
 must not appear.

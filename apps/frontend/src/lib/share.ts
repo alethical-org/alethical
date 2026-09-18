@@ -1,4 +1,5 @@
 import { registrationNumberFromSlug } from './committeeRoute';
+import { SOCIAL_ACCOUNTS } from './socialLinks';
 import { directoryPagePath } from './directoryPagination';
 import { MONEY_SECTION_NAME } from './moneySectionName';
 import { paymentNameRole, paymentsUnderNameHeading } from './paymentNameRoute';
@@ -210,6 +211,12 @@ export interface PageMetadata {
    * had otherwise finished drawing.
    */
   preloadImages?: string[];
+  /**
+   * Set on a published piece: the preview type becomes `article` and the
+   * publication date travels as `article:published_time`. A date is the one
+   * thing rule 13 lets a piece's metadata carry beside its title.
+   */
+  article?: { publishedOn: string };
 }
 
 function pageMetadata(input: Partial<PageMetadata> & { title: string; description: string }) {
@@ -362,6 +369,7 @@ export function researchPageMetadata(piece: PieceIndexEntry): PageMetadata {
     // the 1 address the router accepts for it.
     canonicalPath: piece.indexed ? piecePath(piece) : '',
     noindex: !piece.indexed,
+    article: { publishedOn: piece.publishedOn },
   });
 }
 
@@ -380,7 +388,14 @@ export function committeeMoneyPageMetadata(
   // address may be old or misspelled, so the page a reader shares has to be the
   // one address we call canonical, not whichever spelling they arrived on
   // (#1812). Absent = the record could not be read, and the number stands in.
-  record?: { name: string; canonicalSlug: string },
+  record?: {
+    name: string;
+    canonicalSlug: string;
+    /** The register's kind, in the Board's words ("Candidate committee", "Political fund"). */
+    kind?: string | null;
+    /** "Registered for House District 12A", or "Registered as: political fund". */
+    registeredFor?: string | null;
+  },
 ): PageMetadata {
   const number = registrationNumberFromSlug(slug);
   const label = record?.name || (number ? `Committee ${number}` : 'Committee');
@@ -395,12 +410,36 @@ export function committeeMoneyPageMetadata(
     });
   }
   return pageMetadata({
-    title: titleFor(`${label} — campaign money`),
+    title: titleFor(`${label} — Minnesota campaign money`),
     socialTitle: label,
-    description:
-      'One committee’s money in and money out, from Minnesota’s own campaign-finance filings.',
+    description: committeeDescription(record),
     canonicalPath: base,
   });
+}
+
+/**
+ * One committee's description, from its register facts and nothing else: the
+ * Board's kind for it and what it registered for. Never the name, which the
+ * title already carries (§26: a description does not repeat the record name),
+ * and never a figure (§3 rule 4: a description states no number the page cannot
+ * back, and a search result shows no freshness date beside one). A record whose
+ * register row says neither falls back to the one sentence true of every
+ * committee page, which §3 rule 5 prefers over a varied guess.
+ */
+function committeeDescription(record?: {
+  kind?: string | null;
+  registeredFor?: string | null;
+}): string {
+  const registeredFor = clean(record?.registeredFor ?? '');
+  const seat = registeredFor.match(/^Registered for (.+)$/)?.[1];
+  const kind = clean(record?.kind ?? '').toLowerCase();
+  if (seat) {
+    return `Money in and money out for the ${kind || 'committee'} registered for ${seat}, from Minnesota’s own campaign-finance filings.`;
+  }
+  if (kind) {
+    return `Money in and money out for a Minnesota ${kind}, from the state’s own campaign-finance filings.`;
+  }
+  return 'One committee’s money in and money out, from Minnesota’s own campaign-finance filings.';
 }
 
 /**
@@ -414,7 +453,9 @@ export function committeeListPageMetadata(
   options: { noindex?: boolean } = {},
 ): PageMetadata {
   const subject =
-    page > 1 ? `Committees, page ${page} — campaign money` : 'Committees — campaign money';
+    page > 1
+      ? `Committees, page ${page} — Minnesota campaign money`
+      : 'Committees — Minnesota campaign money';
   return pageMetadata({
     title: titleFor(subject),
     socialTitle: subject,
@@ -432,11 +473,19 @@ export function committeeListPageMetadata(
  * same rule the other directories follow keeps every filtered view noindex with
  * no canonical, so 1 address stands for the page.
  */
-export function moneyByRacePageMetadata(options: { noindex?: boolean } = {}): PageMetadata {
-  const subject = 'Money by race';
+export function moneyByRacePageMetadata(
+  options: {
+    noindex?: boolean;
+    /** The one contest a `?group=` address opens on, e.g. "House District 12A". */
+    selectedLabel?: string | null;
+  } = {},
+): PageMetadata {
+  // "Race" alone reads 2 ways in a search result; the subject says which one.
+  const subject = 'Money by race: Minnesota candidates by office and district';
+  const selected = clean(options.selectedLabel ?? '');
   return pageMetadata({
-    title: titleFor(subject),
-    socialTitle: subject,
+    title: titleFor(selected ? `${selected} — ${subject}` : subject),
+    socialTitle: selected ? `${selected} — Money by race` : 'Money by race',
     description:
       'Every Minnesota candidate committee grouped by the office and district it is registered for, each with its own reported money in — ordered by district, then name, never by amount.',
     canonicalPath: options.noindex ? '' : '/money/races',
@@ -506,7 +555,7 @@ export function outsideSpendingPageMetadata(params: Record<string, string> = {})
   const filtered = Object.values(params).some(Boolean);
   const label = 'Outside spending';
   return pageMetadata({
-    title: titleFor(label),
+    title: titleFor('Outside spending in Minnesota campaigns'),
     socialTitle: label,
     description:
       'Independent-expenditure filings showing support for or opposition to Minnesota campaign committees.',
@@ -522,7 +571,7 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
   // committees list exists (issue #1696) — until they shipped it deliberately
   // promised only the record (grounded-answers.md rule 2).
   '/money': pageMetadata({
-    title: titleFor(MONEY_SECTION_NAME),
+    title: titleFor(`${MONEY_SECTION_NAME} in Minnesota`),
     socialTitle: MONEY_SECTION_NAME,
     description:
       'Contributions and spending for Minnesota state campaigns, as the state publishes them, searchable by the name each record was filed under.',
@@ -654,6 +703,10 @@ export function pageJsonLd(meta: PageMetadata): object[] {
         name: SITE_NAME,
         url: `${PUBLIC_SITE_ORIGIN}/`,
         logo: `${PUBLIC_SITE_ORIGIN}/icon-512.png`,
+        // The accounts the footer already links, so a search engine can tie the
+        // site and its profiles to one organisation. Google's Organization
+        // guidance lists `sameAs` for exactly this; nothing else here is read.
+        sameAs: SOCIAL_ACCOUNTS.map((account) => account.url),
       },
     ];
   }
@@ -695,7 +748,14 @@ export function renderPageHead(meta: PageMetadata): string {
     ...(meta.preloadImages ?? [])
       .filter((href) => /^https:\/\/[^\s"'<>]+$/.test(href))
       .map((href) => `    <link rel="preload" as="image" href="${escapeHtml(href)}" />`),
-    `    <meta property="og:type" content="website" />`,
+    // A published piece is an article to the sites that read these tags; every
+    // other page is the site itself.
+    `    <meta property="og:type" content="${meta.article ? 'article' : 'website'}" />`,
+    ...(meta.article
+      ? [
+          `    <meta property="article:published_time" content="${escapeHtml(meta.article.publishedOn)}" />`,
+        ]
+      : []),
     `    <meta property="og:site_name" content="${SITE_NAME}" />`,
     `    <meta property="og:title" content="${socialTitle}" />`,
     `    <meta property="og:description" content="${description}" />`,

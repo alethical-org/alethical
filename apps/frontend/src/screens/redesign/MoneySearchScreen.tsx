@@ -15,6 +15,7 @@ import { useCampaignFinanceNameSearch } from '../../hooks/useAppQueries';
 import { useDebouncedSearchCommit } from '../../hooks/useDebouncedSearchCommit';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useSearchMetric } from '../../hooks/useSearchMetric';
+import { moneySearchPageMetadata } from '../../lib/share';
 import { committeeRowMeta } from '../../lib/committeeList';
 import { closedChipLabel, committeeSlug } from '../../lib/committeeMoneyShared';
 import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
@@ -131,12 +132,7 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
    */
   const isHoldingStale = search.isError && answer !== null && !search.isPlaceholderData;
 
-  useDocumentTitle(
-    '/money/search',
-    query.trim()
-      ? `Campaign money search: ${query.trim()} | Alethical`
-      : 'Search campaign money by name | Alethical',
-  );
+  useDocumentTitle('/money/search', moneySearchPageMetadata(query).title);
 
   const tooShort = answer?.state === 'unavailable' && answer.reason === 'query_too_short';
   const groups = answer?.groups ?? [];

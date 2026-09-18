@@ -123,7 +123,7 @@ import {
   formatMoney,
 } from '../../lib/legislatorCampaignMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
-import { publicPageUrl, type ShareContent } from '../../lib/share';
+import { publicPageUrl, type ShareContent, committeeMoneyPageMetadata } from '../../lib/share';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { screenLoaderForPath } from '../../navigation/screenPreload';
@@ -259,7 +259,9 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
 
   useDocumentTitle(
     registrationNumber ? `/money/committees/${slug}` : null,
-    canonicalName ? `${canonicalName} — Campaign money | Alethical` : null,
+    canonicalName
+      ? committeeMoneyPageMetadata(slug, 'page', { name: canonicalName, canonicalSlug: slug }).title
+      : null,
   );
 
   const onSelectYear = (next: number) =>

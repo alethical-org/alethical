@@ -18,6 +18,7 @@ import { useOutsideSpendingRecord } from '../../hooks/useAppQueries';
 import { useOutsideSpendingNames } from '../../hooks/useOutsideSpendingNames';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { useResponsive } from '../../hooks/useResponsive';
+import { outsideSpendingPageMetadata } from '../../lib/share';
 import { formatMoney } from '../../lib/moneyFormat';
 import { centralDateLabel, formatCount } from '../../lib/moneyLanding';
 import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
@@ -143,7 +144,7 @@ export function OutsideSpendingBrowseScreen({
   const apply = (change: Partial<OutsideSpendingBrowseAddress>) =>
     navigation.setParams(outsideBrowseChange(address, change));
 
-  useDocumentTitle('/money/outside-spending', `${OUTSIDE_SPENDING_HEADING} | Alethical`);
+  useDocumentTitle('/money/outside-spending', outsideSpendingPageMetadata().title);
   useEffect(() => {
     setInput(q);
   }, [q, mode]);

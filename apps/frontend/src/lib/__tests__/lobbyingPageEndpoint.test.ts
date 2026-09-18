@@ -66,7 +66,7 @@ const destinations: {
     api: '/lobbying/summary',
     data: live.summary,
     key: ['lobbying-summary'],
-    title: 'Lobbying | Alethical',
+    title: 'Lobbying in Minnesota | Alethical',
     query: {},
   },
   {
@@ -74,7 +74,7 @@ const destinations: {
     api: '/lobbying/principals?limit=50&offset=50',
     data: live.principals_page_2,
     key: ['lobbying-principals', '', 2],
-    title: 'Principals — page 2 — lobbying | Alethical',
+    title: 'Principals — page 2 — Minnesota lobbying | Alethical',
     query: { page: '2' },
   },
   {
@@ -82,7 +82,7 @@ const destinations: {
     api: '/lobbying/lobbyists?limit=50&offset=50',
     data: live.lobbyists_page_2,
     key: ['lobbying-lobbyists', '', 2],
-    title: 'Lobbyists — page 2 — lobbying | Alethical',
+    title: 'Lobbyists — page 2 — Minnesota lobbying | Alethical',
     query: { page: '2' },
   },
   {
@@ -90,7 +90,7 @@ const destinations: {
     api: '/lobbying/principals/2263',
     data: live.principal,
     key: ['lobbying-principal', '2263'],
-    title: 'American Express — Lobbying principal | Alethical',
+    title: 'American Express — Minnesota lobbying principal | Alethical',
     query: {},
   },
   {
@@ -124,15 +124,18 @@ describe('every lobbying address works before the app loads', () => {
     },
   );
 
-  it('resolves only the trailing number and uses the source spelling for the canonical address', async () => {
+  it('resolves only the trailing number and forwards a mistyped name to the source spelling', async () => {
     const fetcher = answer(live.principal);
     const result = await serve({ path: '/money/lobbying/principals/mistyped-name-2263' });
-    expect(result.status).toBe(200);
+    // A permanent forward, not a second copy under a canonical link: one address
+    // per record is what a search index is told, outright (decisions doc §28).
+    expect(result.status).toBe(301);
     expect(fetcher.mock.calls[0][0]).toMatch('/lobbying/principals/2263');
-    expect(result.body).toContain(
+    expect(result.headers.get('Location')).toBe(
       'https://www.alethical.com/money/lobbying/principals/american-express-2263',
     );
-    expect(result.body).not.toContain('mistyped-name');
+    expect(result.headers.get('Cache-Control')).toContain('s-maxage=');
+    expect(result.body).not.toContain('<html');
   });
 
   it('keeps a lobbyist absent from the copied list readable without indexing it', async () => {
@@ -168,7 +171,12 @@ describe('every lobbying address works before the app loads', () => {
       },
     };
     answer(data);
-    const result = await serve({ path: '/money/lobbying/lobbyists/old-spelling-141' });
+    const forwarded = await serve({ path: '/money/lobbying/lobbyists/old-spelling-141' });
+    expect(forwarded.status).toBe(301);
+    expect(forwarded.headers.get('Location')).toBe(
+      'https://www.alethical.com/money/lobbying/lobbyists/kozak-andrew-141',
+    );
+    const result = await serve({ path: '/money/lobbying/lobbyists/kozak-andrew-141' });
     expect(result.status).toBe(200);
     expect(result.body).toContain('<title>Kozak, Andrew — Minnesota lobbyist | Alethical</title>');
     expect(result.body).toContain(

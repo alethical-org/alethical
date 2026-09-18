@@ -13,6 +13,7 @@ import { Skeleton } from '../../components/Skeleton';
 import { useCampaignFinanceCommittees, usePrefetchCommitteeMoney } from '../../hooks/useAppQueries';
 import { useDebouncedSearchCommit } from '../../hooks/useDebouncedSearchCommit';
 import { useResponsive } from '../../hooks/useResponsive';
+import { committeeListPageMetadata } from '../../lib/share';
 import {
   COMMITTEE_FIND_LABEL,
   COMMITTEE_FIND_PLACEHOLDER,
@@ -106,9 +107,11 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
   });
   const prefetchCommitteeMoney = usePrefetchCommitteeMoney();
 
+  // The same builder the first response and the share card read, so the tab
+  // can never say something the served page did not.
   useDocumentTitle(
     directoryPagePath('/money/committees', page),
-    `${COMMITTEE_LIST_TITLE}${page > 1 ? ` — page ${page}` : ''} — campaign money | Alethical`,
+    committeeListPageMetadata(page).title,
   );
 
   const waitingForThisList = list.isPending || list.isPlaceholderData;

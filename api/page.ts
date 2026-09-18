@@ -31,6 +31,7 @@ import {
   billDirectoryPageSnapshot,
   billPageSnapshot,
   committeeDirectoryPageSnapshot,
+  committeeMetadataRecord,
   committeePageSnapshot,
   committeePaymentsPageSnapshot,
   committeeSnapshotName,
@@ -133,6 +134,7 @@ import {
   NOT_FOUND_HEADING,
   notFoundPageMetadata,
   STATIC_PAGE_METADATA,
+  publicPageUrl,
   type PageMetadata,
 } from "../apps/frontend/src/lib/share";
 import {
@@ -403,6 +405,18 @@ type PageContent = {
   data?: PageDataEntry[];
   /** A partial read failure must be retried, not held as a successful page. */
   noStore?: boolean;
+  /**
+   * The one address this record answers on, for the addresses that also resolve
+   * under another spelling: a committee or lobbying slug whose name part is old
+   * or mistyped, a legislator's UUID. When the requested path differs, the
+   * handler answers with a permanent redirect to this path (query string kept)
+   * instead of serving a second copy under a canonical link. A redirect
+   * consolidates the 2 addresses in a search index outright, where a canonical
+   * link is a hint Google may set aside; Search Console reported legislator UUID
+   * addresses as "duplicate without user-selected canonical" while every one of
+   * them carried the link (decisions doc §28).
+   */
+  canonicalRecordPath?: string;
 };
 
 function headOnly(metadata: PageMetadata): PageContent {
@@ -433,8 +447,11 @@ async function billContent(id: string): Promise<PageContent> {
  * record this function reads to write the page is the record the app draws from,
  * handed on in the same response rather than fetched a second time.
  */
+// `campaign_committees` is the committees a person has confirmed as the member's,
+// so the served profile can link each one's own page (§28). It is a short list
+// off one indexed table, not the per-year money read.
 const LEGISLATOR_RECORD_INCLUDE =
-  "include=current_service,committees,stats,service_history";
+  "include=current_service,committees,stats,service_history,campaign_committees";
 
 async function legislatorContent(
   id: string,
@@ -479,6 +496,7 @@ async function legislatorContent(
   }
   return {
     data,
+    canonicalRecordPath: `/legislators/${encodeURIComponent(slug)}`,
     metadata: legislatorPageMetadata({
       slug,
       displayName: legislatorDisplayName(
@@ -500,9 +518,29 @@ async function legislatorContent(
       legislatorPageSnapshot(
         legislator,
         Array.isArray(chiefBills) ? chiefBills : null,
+        confirmedCommitteeLinks(legislator),
       ),
     ),
   };
+}
+
+/**
+ * The committees a person has confirmed as this member's, as links to their own
+ * pages, off the record itself. Only a confirmed review puts a committee here:
+ * the 2 ordinary states, unconfirmed and reviewed with none confirmed, arrive
+ * as an empty list and name nobody's money
+ * (`docs/architecture/campaign-finance-system-design.md` §5.1). A record served
+ * without the field names none either, so the profile stays complete without
+ * the section.
+ */
+function confirmedCommitteeLinks(
+  legislator: LegislatorPayload,
+): Array<{ name: string; registrationNumber: string }> {
+  return (legislator.campaign_committees ?? []).flatMap((committee) => {
+    const registrationNumber = committee.registration_number ?? "";
+    const name = committee.committee_name ?? "";
+    return registrationNumber && name ? [{ name, registrationNumber }] : [];
+  });
 }
 
 /**
@@ -957,12 +995,14 @@ async function committeeContent(
   });
   return {
     noStore: confirmationRead === null,
-    metadata: committeeMoneyPageMetadata(slug, "page", {
-      name: committeeSnapshotName(money, registrationNumber),
-      canonicalSlug:
-        committeeSnapshotPath(money, registrationNumber).split("/").pop() ??
-        slug,
-    }),
+    canonicalRecordPath: committeeSnapshotPath(money, registrationNumber),
+    // The head is built from the same register facts as the body, so the title
+    // and description can never describe a committee the served text does not.
+    metadata: committeeMoneyPageMetadata(
+      slug,
+      "page",
+      committeeMetadataRecord(money, registrationNumber),
+    ),
     snapshot: renderPageSnapshot(snapshot),
     data,
   };
@@ -1043,12 +1083,20 @@ async function committeePaymentsContent(
   return {
     noStore: failedPayments || reportUnavailable,
     data,
+    // A payments address whose report could not be read keeps the spelling it
+    // arrived on rather than forwarding to a name this response cannot vouch for.
+    ...(reportUnavailable
+      ? {}
+      : {
+          canonicalRecordPath: committeeSnapshotPath(
+            money,
+            registrationNumber,
+            "payments",
+          ),
+        }),
     metadata: committeeMoneyPageMetadata(slug, "payments", {
-      name: committeeSnapshotName(money, registrationNumber),
-      canonicalSlug: reportUnavailable
-        ? slug
-        : (committeeSnapshotPath(money, registrationNumber).split("/").pop() ??
-          slug),
+      ...committeeMetadataRecord(money, registrationNumber),
+      ...(reportUnavailable ? { canonicalSlug: slug } : {}),
     }),
     snapshot: renderPageSnapshot(
       committeePaymentsPageSnapshot(
@@ -1287,6 +1335,11 @@ async function lobbyingRecordContent(
   const name = payload.name ?? `Registration ${id}`;
   const path = `/money/lobbying/${kind}/${encodeURIComponent(committeeSlug(name, id))}`;
   return {
+    // A record absent from the copied list carries no canonical address, so it
+    // forwards nowhere either (its own body says what it is).
+    ...(payload.state === "not_registered_today"
+      ? {}
+      : { canonicalRecordPath: path }),
     metadata: lobbyingPageMetadata(path, name, {
       kind: "entity_id" in payload ? "principal" : "lobbyist",
       noindex: payload.state === "not_registered_today",
@@ -1509,6 +1562,39 @@ const NOT_FOUND_SNAPSHOT = renderPageSnapshot({
   ],
 });
 
+/**
+ * The absolute address to forward to when a record was reached under a spelling
+ * other than its own, or null when the requested path already is that address.
+ * Every query parameter but the rewrite's own `path` travels with it, so a
+ * `?year=2024` or `?tab=money` view of the record is kept. Compared decoded, so
+ * an address that differs only in percent-encoding never forwards to itself.
+ */
+function canonicalRedirect(
+  requestedPath: string,
+  query: Record<string, QueryValue>,
+  content: PageContent,
+): string | null {
+  const target = content.canonicalRecordPath;
+  if (!target) return null;
+  const same = (left: string, right: string) => {
+    try {
+      return decodeURIComponent(left) === decodeURIComponent(right);
+    } catch {
+      return left === right;
+    }
+  };
+  if (same(requestedPath, target)) return null;
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (key === "path") continue;
+    for (const item of Array.isArray(value) ? value : [value]) {
+      if (item !== undefined) params.append(key, item);
+    }
+  }
+  const suffix = params.toString();
+  return publicPageUrl(suffix ? `${target}?${suffix}` : target);
+}
+
 export default async function handler(
   request: RequestLike,
   response: ResponseLike,
@@ -1543,6 +1629,15 @@ export default async function handler(
       response.status(503).send("This page is temporarily unavailable.");
       return;
     }
+  }
+
+  const redirect = canonicalRedirect(requestedPath, query, content);
+  if (redirect) {
+    response.setHeader("Location", redirect);
+    response.setHeader("Cache-Control", OK_CACHE);
+    response.setHeader("Content-Type", "text/plain; charset=utf-8");
+    response.status(301).send(`Moved permanently to ${redirect}`);
+    return;
   }
 
   let html: string;

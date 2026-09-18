@@ -111,6 +111,13 @@ def create_app() -> FastAPI:
             )
             response.headers["X-Robots-Tag"] = "noindex, nofollow"
             return response
+        if request.url.path.startswith("/api/v1/"):
+            # The JSON is a resource the site's pages read, never a page of its
+            # own: Google's crawl statistics put JSON at 53% of its requests to us
+            # (7 Sep 2026), and a JSON address that ranks would hand a searcher a
+            # wall of braces. The header unlists the address without blocking the
+            # fetch, so a crawler rendering a page can still read what it needs.
+            response.headers.setdefault("X-Robots-Tag", "noindex")
         if (
             request.method == "GET"
             and response.status_code == 200

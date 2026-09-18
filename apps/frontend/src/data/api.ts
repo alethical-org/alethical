@@ -2498,7 +2498,9 @@ export async function suggestRepresentativeAddressesFromApi(
 
 export async function getLegislatorFromApi(legislatorId: string): Promise<Legislator | null> {
   const response = await publicApiRequest<DetailResponse<ApiLegislatorDetailPayload>>(
-    `/legislators/${encodeURIComponent(legislatorId)}?include=current_service,committees,stats,service_history`,
+    // The same list `api/page.ts` reads, so the record it hands the app is the
+    // record the app would have asked for (the page test pins the 2 together).
+    `/legislators/${encodeURIComponent(legislatorId)}?include=current_service,committees,stats,service_history,campaign_committees`,
   );
 
   return mapLegislator(response.data);

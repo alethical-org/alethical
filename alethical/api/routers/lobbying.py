@@ -21,6 +21,18 @@ def summary(db: Session = Depends(get_db)):
     return DetailResponse(data=lobbying.summary(db, _pair(db)))
 
 
+@router.get("/sitemap", response_model=DetailResponse)
+def sitemap(db: Session = Depends(get_db)):
+    """Every principal and lobbyist page worth listing, for the site's sitemap.
+
+    One request instead of paging both directories 50 rows at a time (about 70
+    round trips for the principals alone). Only the identity an address needs:
+    the caller builds each address with the one slug function the app's router
+    accepts, so this can never advertise an address that answers 404.
+    """
+    return DetailResponse(data=lobbying.sitemap_records(db, _pair(db)))
+
+
 @router.get("/principals", response_model=DetailResponse)
 def principals(
     limit: int = Query(default=50, ge=1, le=lobbying.MAX_LIST_ROWS),

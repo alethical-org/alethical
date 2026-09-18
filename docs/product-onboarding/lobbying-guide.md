@@ -91,6 +91,12 @@ the address as `q` and `page`, including Back and Forward. The name box filters 
 name; it does not offer a guessed spelling. Ordinary Previous and Next links work before
 the app starts, and `/sitemap.xml` names every numbered page, so each one is reachable
 without walking there. An unfiltered page beyond the served whole count is not found.
+Every principal with spending rows and every currently registered lobbyist has its own
+sitemap row too (`/sitemaps/lobbying-principals.xml`, `/sitemaps/lobbying-lobbyists.xml`);
+a record reached under a mistyped name forwards to the source spelling's address. Each
+lobbying page's browser-tab title names the state (“Kozak, Andrew — Minnesota lobbyist”), and
+its description says what that kind of page shows and where the records come from
+(`apps/frontend/src/lib/lobbyingMetadata.ts`).
 
 The Lobbyists directory defines lobbyists, says who they represent in these records, and
 dates the copied registration list. Its rows say “client listed” or “clients listed.” The
