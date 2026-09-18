@@ -22,6 +22,7 @@
  */
 
 import type { ResearchPiece } from '../research';
+import { WHY_NOBODY_CAN_FOLLOW_A_DOLLAR_INDEX_ENTRY } from '../researchIndex';
 import { WHO_HAS_TO_REPORT_THEIR_MONEY } from './whoHasToReportTheirMoney';
 import { WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT } from './whyTwoOfficialNumbersCanBothBeRight';
 
@@ -35,18 +36,13 @@ const PIECE_ONE_PATH = `/read/guides/${WHO_HAS_TO_REPORT_THEIR_MONEY.slug}`;
 const PIECE_THREE_PATH = `/read/guides/${WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT.slug}`;
 
 export const WHY_NOBODY_CAN_FOLLOW_A_DOLLAR: ResearchPiece = {
-  slug: 'why-nobody-can-follow-a-dollar',
-  traits: { research: false, guide: true },
+  ...WHY_NOBODY_CAN_FOLLOW_A_DOLLAR_INDEX_ENTRY,
   set: { name: 'How the Money Works', position: 5 },
-  indexed: true,
-  title: 'Why nobody can follow a dollar',
   // No standfirst: the manuscript's second line is the set's name, which is
   // stored as set membership above. Inventing a sentence to fill this slot
   // would be writing prose the author did not write.
   dek: '',
   authorLine: 'ALETHICAL',
-  publishedOn: '2026-08-27',
-  recordsThrough: '2026-08-27',
   filingBodies: ['Minnesota Campaign Finance Board'],
   // A guide states rules rather than findings, so there is nothing to summarise
   // above it and no SHORT VERSION box is drawn.

@@ -33,6 +33,7 @@
  */
 
 import type { ResearchPiece } from '../research';
+import { WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT_INDEX_ENTRY } from '../researchIndex';
 import { WHAT_THE_RECORDS_NAME } from './whatTheRecordsName';
 import { WHO_HAS_TO_REPORT_THEIR_MONEY } from './whoHasToReportTheirMoney';
 
@@ -55,18 +56,13 @@ const PIECE_TWO_PATH = `/read/guides/${WHAT_THE_RECORDS_NAME.slug}`;
 const PIECE_FOUR_PATH = '/read/guides/money-spent-without-a-campaigns-say';
 
 export const WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT: ResearchPiece = {
-  slug: 'why-2-official-numbers-can-both-be-right',
-  traits: { research: false, guide: true },
+  ...WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT_INDEX_ENTRY,
   set: { name: 'How the Money Works', position: 3 },
-  indexed: true,
-  title: 'Why 2 official numbers can both be right',
   // No standfirst: the manuscript's second line is the set's name, which is
   // stored as set membership above. Inventing a sentence to fill this slot
   // would be writing prose the author did not write.
   dek: '',
   authorLine: 'ALETHICAL',
-  publishedOn: '2026-08-27',
-  recordsThrough: '2026-08-27',
   filingBodies: ['Minnesota Campaign Finance Board'],
   // A guide states rules rather than findings, so there is nothing to summarise
   // above it and no SHORT VERSION box is drawn.

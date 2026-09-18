@@ -5,7 +5,7 @@ import { useResponsive } from '../../hooks/useResponsive';
 import { externalLinkProps } from '../../navigation/links';
 import { LinkArrowLabel, linkArrowRow } from '../LinkArrow';
 import { useHover } from '../billDetail/interactions';
-import { formatMoney } from '../../lib/legislatorCampaignMoney';
+import { formatMoney } from '../../lib/moneyFormat';
 import { downloadsPageUrl, NAMED_DONATIONS_LINK_LABEL } from '../../lib/committeeMoneyShared';
 import { OUTSIDE_GROUP_COPY, outsideCheckedZeroLabel } from '../../lib/groupedOutsideSpending';
 import {

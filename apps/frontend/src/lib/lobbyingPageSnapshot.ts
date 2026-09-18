@@ -42,7 +42,7 @@ import {
 import { centralDateLabel } from './moneyLanding';
 import { MONEY_SECTION_NAME } from './moneySectionName';
 import { committeeSlug, registerKindLabel } from './committeeMoneyShared';
-import { formatDay, formatMoney } from './legislatorCampaignMoney';
+import { formatDay, formatMoney } from './moneyFormat';
 import { directoryPagePath, directoryTotalPages } from './directoryPagination';
 
 const recordPath = (kind: 'principals' | 'lobbyists', name: string, id: string | number) =>

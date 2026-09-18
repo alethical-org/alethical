@@ -15,7 +15,7 @@ import {
   donationCardsCopy as copy,
   donorStateNames as stateNames,
 } from '../../lib/contributionFigures';
-import { formatMoney } from '../../lib/legislatorCampaignMoney';
+import { formatMoney } from '../../lib/moneyFormat';
 import { theme as t } from '../../theme/tokens';
 import { committeeCardStyles, useCampaignMoneyTypography } from './detailsStyles';
 

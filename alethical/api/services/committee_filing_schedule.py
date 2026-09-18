@@ -54,7 +54,11 @@ from alethical.pipeline.campaign_finance_filing_calendars import (
     UnknownBecause,
     classify,
 )
-from alethical.pipeline.campaign_finance_filings import live_filings_snapshot
+from alethical.pipeline.campaign_finance_filings import (
+    catalogued_reports_for,
+    filer_records,
+    live_filings_snapshot,
+)
 
 #: No filings snapshot is published at all, so nothing can be said about any committee's
 #: schedule. A fact about us, not about the committee.
@@ -143,15 +147,9 @@ def filing_schedule(
             ),
         )
 
-    filer = db.execute(
-        select(
-            schema.CampaignFinanceFiler.office,
-            schema.CampaignFinanceFiler.termination_date,
-        ).where(
-            schema.CampaignFinanceFiler.snapshot_id == snapshot.id,
-            schema.CampaignFinanceFiler.registration_number == registration_number,
-        )
-    ).first()
+    # The same register read the rest of a money page makes about this committee,
+    # so inside a pinned request it costs no trip of its own (`filer_records`).
+    filer = filer_records(db, [registration_number]).get(registration_number)
     if filer is None:
         return ScheduleUnavailable(
             registration_number=registration_number,
@@ -163,7 +161,7 @@ def filing_schedule(
                 "report is due"
             ),
         )
-    office, termination_date = filer
+    office, termination_date = filer.office, filer.termination_date
 
     return classify(
         registration_number=registration_number,
@@ -317,26 +315,22 @@ def _catalogued_reports(
     (``docs/architecture/campaign-finance-system-design.md`` §9.6,
     Which version is effective), but a read of our own rows has an index on
     ``(snapshot, registration, year)`` and no reason to load 28 rows to look at 3.
+
+    Read through ``catalogued_reports_for``, which the split's correction count also
+    reads, so inside a pinned request the 2 questions cost 1 trip. ``snapshot_id`` is
+    the live snapshot that read resolves for itself; it is kept in the signature so
+    the caller states which register its answer describes.
     """
-    rows = db.execute(
-        select(
-            schema.CampaignFinanceFilingReport.filing_year,
-            schema.CampaignFinanceFilingReport.report_name,
-            schema.CampaignFinanceFilingReport.special_election,
-        ).where(
-            schema.CampaignFinanceFilingReport.snapshot_id == snapshot_id,
-            schema.CampaignFinanceFilingReport.registration_number
-            == registration_number,
-            schema.CampaignFinanceFilingReport.filing_year == year,
-        )
-    ).all()
+    rows = catalogued_reports_for(db, [registration_number], [year]).get(
+        (registration_number, year), ()
+    )
     return [
         CataloguedReport(
-            filing_year=filing_year,
-            report_name=report_name or "",
-            special_election=bool(special_election),
+            filing_year=report.filing_year,
+            report_name=report.report_name or "",
+            special_election=bool(report.special_election),
         )
-        for filing_year, report_name, special_election in rows
+        for report in rows
     ]
 
 

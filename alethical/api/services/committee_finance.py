@@ -68,19 +68,20 @@ evidence, never assertions (§8).
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from alethical.api.services.independent_spending import (
     REPORTED,
     UNAVAILABLE,
     CommitteeSpending,
-    spending_for_committee,
+    spending_for_committee_if_year_covered,
 )
 from alethical.api.services.committee_stated_spending import (
     stated_spending_for_year,
@@ -312,23 +313,32 @@ def pin_to_one_view(db: Session) -> None:
     then reads the instant this transaction began, so a publish landing mid-request is
     invisible to it and cannot turn a figure into an absence.
 
-    Issued as a statement rather than set on the engine or the session, deliberately.
-    Production connects through Supabase's transaction pooler, where a *session*
-    setting can outlive the client that set it and reach another request on the same
-    backend connection -- the same hazard that makes a session-level advisory lock
-    unsafe in ``alethical/pipeline/campaign_finance.py``. ``SET TRANSACTION`` is scoped
-    to this transaction by definition and ends with it. Verified against production's
-    pooler on 12 Aug 2026: the default is ``read committed``, this makes it
-    ``repeatable read``, and the next transaction on that pooled connection is back to
-    ``read committed``.
+    Set for this connection through ``execution_options`` rather than on the engine
+    or the session, deliberately. Production connects through Supabase's transaction
+    pooler, where a *session* setting can outlive the client that set it and reach
+    another request on the same backend connection -- the same hazard that makes a
+    session-level advisory lock unsafe in ``alethical/pipeline/campaign_finance.py``.
+    An isolation level set this way is carried by psycopg inside the ``BEGIN`` it
+    sends for this transaction (``BEGIN ISOLATION LEVEL REPEATABLE READ``), which is
+    scoped to the transaction by definition and ends with it, and SQLAlchemy puts the
+    connection back to the engine's default when the request returns it to the pool.
+    A ``SET TRANSACTION`` statement says the same thing and costs a round trip of its
+    own on every money read, about 35 ms from Railway. Verified against production's
+    pooler on 17 Sep 2026: inside the transaction ``SHOW transaction_isolation``
+    reports ``repeatable read`` with no ``SET TRANSACTION`` statement sent, the
+    pointer read twice inside it is stable, and the next transaction on the same
+    pooled connection and a fresh checkout both report ``read committed``.
 
-    Must be the first statement in the transaction; Postgres refuses it once a
-    statement has run, so callers call it before resolving anything.
+    Must run before any statement in the transaction: once the session holds a
+    connection the option is ignored with a warning, so callers call it before
+    resolving anything. ``alethical/tests/test_committee_finance.py`` reads the level
+    while a request's own transaction is still open, and
+    ``alethical/tests/test_money_read_costs.py`` pins that pinning sends no statement.
 
     Once pinned, the live register is resolved once per request rather than once per
     caller (``campaign_finance_filings.mark_pinned_read``).
     """
-    db.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"))
+    db.connection(execution_options={"isolation_level": "REPEATABLE READ"})
     filings.mark_pinned_read(db)
 
 
@@ -474,11 +484,68 @@ def money_in(
     ``reported`` is this committee-year's filed figures where the caller has already
     read them, so a page showing money in and money out reads them once rather than
     twice (#1966). Left out, they are read here for this one committee and year.
+
+    The reads live here and the meaning of what they return lives in
+    ``fold_money_in``, so a caller holding several years' rows at once (the year
+    buttons of a legislator's money tab) reaches the same states by the same rules.
     """
-    source_url = release.contributions.source_url
     reported_total, reported_through = _reported_contributions(
         db, registration_number, year, reported
     )
+    try:
+        years = reader.money_in(db, release, registration_number, years=[year])
+    except ReleaseNoLongerHeld:
+        return fold_money_in(
+            None,
+            release=release,
+            year=year,
+            rows_gone=True,
+            reported_total=reported_total,
+            reported_through=reported_through,
+            covers_year=lambda: False,
+            every_named_contribution_is_in_kind=lambda: False,
+        )
+    return fold_money_in(
+        next((entry for entry in years if entry.year == year), None),
+        release=release,
+        year=year,
+        rows_gone=False,
+        reported_total=reported_total,
+        reported_through=reported_through,
+        # Both asked only on the branch that needs the answer, so the ordinary
+        # populated request pays for neither.
+        covers_year=lambda: _covers_year(db, release, Dataset.contributions, year),
+        every_named_contribution_is_in_kind=lambda: (
+            _every_named_contribution_is_in_kind(db, release, registration_number, year)
+        ),
+    )
+
+
+def fold_money_in(
+    found: reader.MoneyIn | None,
+    *,
+    release: Release,
+    year: int,
+    rows_gone: bool,
+    reported_total: Decimal | None,
+    reported_through: date | None,
+    covers_year: Callable[[], bool],
+    every_named_contribution_is_in_kind: Callable[[], bool],
+) -> MoneyIn:
+    """What one committee-year's contribution rows mean, given what was read.
+
+    ``found`` is the reader's answer for the year, or ``None`` where it returned no
+    row; ``rows_gone`` is the reader having refused because the release's rows have
+    been replaced out from under it. The 2 callables answer the questions a page asks
+    only on some branches -- whether the download holds any row for the year at all,
+    and whether every contribution row held was goods rather than money -- so a
+    caller with one year asks the database lazily and a caller with 12 answers from
+    what it already holds. Every state and every figure here is decided by exactly the
+    rules ``money_in`` applies, because this is where ``money_in`` applies them.
+    """
+    source_url = release.contributions.source_url
+    if rows_gone:
+        return MoneyIn(UNAVAILABLE, None, None, (), None, None, None, source_url)
     # The Board's own calendars print a start against this period end; a filer-year
     # the totals copy speaks for is never a special-election one, so the printed
     # start applies where one exists. ``None`` stays the covers-through state.
@@ -487,15 +554,9 @@ def money_in(
         if reported_through is not None
         else None
     )
-    try:
-        years = reader.money_in(db, release, registration_number, years=[year])
-    except ReleaseNoLongerHeld:
-        return MoneyIn(UNAVAILABLE, None, None, (), None, None, None, source_url)
-
-    found = next((entry for entry in years if entry.year == year), None)
     if found is None:
         return MoneyIn(
-            _empty_state(db, release, Dataset.contributions, year),
+            NOT_REPORTED if covers_year() else UNAVAILABLE,
             None,
             None,
             (),
@@ -529,7 +590,7 @@ def money_in(
         )
     if contributions.rows == 0:
         return MoneyIn(
-            _empty_state(db, release, Dataset.contributions, year),
+            NOT_REPORTED if covers_year() else UNAVAILABLE,
             None,
             None,
             others,
@@ -538,9 +599,7 @@ def money_in(
             period_start,
             source_url,
         )
-    if reported_total == 0 and _every_named_contribution_is_in_kind(
-        db, release, registration_number, year
-    ):
+    if reported_total == 0 and every_named_contribution_is_in_kind():
         # The Board's line is the filing's Cash column, and this filing's cash was
         # $0 because everything it took in was goods and services: filer 60084's 2025
         # year-end states "Total Contributions Received: Cash 0.00, In-kind 3,868.19,
@@ -773,16 +832,18 @@ def independent_spending_about(
     # The one block whose empty answer is a real 0, which is why it needs the year
     # check hardest: a 0 here is a published finding, so a year the download does not
     # reach would state "nobody spent anything about this committee" about a year
-    # nobody has filed for.
-    if not _covers_year(db, release, Dataset.independent_expenditures, year):
-        return IndependentSpendingAbout(UNAVAILABLE, None, source_url)
-    spending = spending_for_committee(
+    # nobody has filed for. The check rides on the same statement as the figures
+    # rather than costing a trip of its own, and ``None`` is the download not
+    # reaching the year.
+    spending = spending_for_committee_if_year_covered(
         db,
         registration_number=committee.registration_number,
         committee_name=committee.name,
         year=year,
         snapshot_id=release.independent_expenditures.snapshot_id,
     )
+    if spending is None:
+        return IndependentSpendingAbout(UNAVAILABLE, None, source_url)
     if spending.rows_missing_an_amount:
         # Rows we hold about this committee and cannot total: our gap, not a finding
         # about the committee. The same refusal `money_in` and `money_out` make, and

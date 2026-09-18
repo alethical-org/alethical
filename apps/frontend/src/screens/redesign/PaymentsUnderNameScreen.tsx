@@ -52,7 +52,7 @@ import {
   RECORDS_UNAVAILABLE_WHY,
   SEARCH_ANOTHER_NAME,
 } from '../../lib/paymentsUnderName';
-import { formatMoney } from '../../lib/legislatorCampaignMoney';
+import { formatMoney } from '../../lib/moneyFormat';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';

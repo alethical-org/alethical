@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { researchPageMetadata } from '../share';
 import {
+  PUBLISHED_PIECE_INDEX,
   PUBLISHED_RESEARCH,
   READ_PAGE_EMPTY_BODY,
   READ_PAGE_EMPTY_TITLE,
@@ -19,6 +20,7 @@ import {
   pieceContentsLabel,
   pieceRowTime,
   pieceSetSlug,
+  pieceIndexBySlug,
   pieceKindLabel,
   pieceMastheadLine,
   pieceReadingMinutes,
@@ -1041,5 +1043,33 @@ describe('the contents list is announced by the piece’s own kind', () => {
     // The visible heading is unchanged: nothing here touches what a sighted
     // reader sees.
     expect(source).toContain('CONTENTS');
+  });
+});
+
+describe('the light index agrees with the full registry', () => {
+  /**
+   * `lib/researchIndex.ts` is what the address table and page metadata read
+   * before any screen loads; `PUBLISHED_RESEARCH` holds the pieces with their
+   * text. Each piece spreads its own index entry, so the values cannot differ, and
+   * this pins the 2 lists to the same pieces in the same order so a piece added to
+   * one and not the other cannot post at an address the router does not know.
+   */
+  it('lists the same pieces in the same order, with the same address, kind, title and dates', () => {
+    expect(
+      PUBLISHED_RESEARCH.map(({ slug, traits, indexed, title, publishedOn, recordsThrough }) => ({
+        slug,
+        traits,
+        indexed,
+        title,
+        publishedOn,
+        recordsThrough,
+      })),
+    ).toEqual(PUBLISHED_PIECE_INDEX);
+    for (const piece of PUBLISHED_RESEARCH) {
+      expect(pieceIndexBySlug(piece.slug)).toEqual(
+        expect.objectContaining({ slug: piece.slug, title: piece.title }),
+      );
+    }
+    expect(pieceIndexBySlug('not-a-published-piece')).toBeUndefined();
   });
 });

@@ -58,7 +58,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, true
 from sqlalchemy.orm import Session
 
 from alethical.db.schema import load_schema
@@ -716,6 +716,11 @@ def _totals_by_committee(
             direction,
         )
     ).all()
+    return _fold_totals(rows)
+
+
+def _fold_totals(rows) -> dict[str, dict[str, _Bucket]]:
+    """``{registration_number: {direction: bucket}}`` from the grouped rows."""
     totals: dict[str, dict[str, _Bucket]] = {}
     for reg_num, for_against, amount, payments, first, last, missing in rows:
         # Every unreadable spelling merges into one bucket, so a download carrying
@@ -737,6 +742,74 @@ def _totals_by_committee(
             ),
         )
     return totals
+
+
+def spending_for_committee_if_year_covered(
+    db: Session,
+    *,
+    registration_number: str,
+    committee_name: str,
+    year: int,
+    snapshot_id: UUID,
+) -> CommitteeSpending | None:
+    """``spending_for_committee``, or ``None`` when the download holds no row for ``year``.
+
+    The same grouped read as ``_totals_by_committee``, carrying beside it the one
+    question a committee page has to ask before it may print this committee's 0 as a
+    finding: does the download hold *any* row for the year, from any committee
+    (``_snapshot_covers_year``). Asked separately it was a round trip on every
+    committee-year of a committee page and a legislator's money tab (17 Sep 2026); here
+    the answer rides on the statement as a column, and a committee with no rows still
+    gets it back on a single row of nulls through the outer join.
+
+    ``None`` is the download not reaching the year, which is our gap and never a figure
+    about the committee. The bucketing itself is ``_fold_totals``, shared with the
+    legislator path, so the rules about directions still exist once.
+    """
+    row = CampaignFinanceIndependentExpenditureRow
+    direction = func.initcap(func.trim(row.for_against))
+    totals = (
+        select(
+            row.affected_committee_reg_num.label("reg_num"),
+            direction.label("direction"),
+            func.coalesce(func.sum(row.amount), 0).label("amount"),
+            func.count().label("payments"),
+            func.min(row.transaction_date).label("first_payment_on"),
+            func.max(row.transaction_date).label("last_payment_on"),
+            (func.count() - func.count(row.amount)).label("rows_missing_an_amount"),
+        )
+        .where(
+            row.snapshot_id == snapshot_id,
+            row.year == year,
+            row.affected_committee_reg_num == registration_number,
+        )
+        .group_by(row.affected_committee_reg_num, direction)
+        .subquery("totals")
+    )
+    covered = select(
+        select(row.row_number)
+        .where(row.snapshot_id == snapshot_id, row.year == year)
+        .exists()
+        .label("covered")
+    ).subquery("covered")
+    rows = db.execute(
+        select(
+            covered.c.covered,
+            totals.c.reg_num,
+            totals.c.direction,
+            totals.c.amount,
+            totals.c.payments,
+            totals.c.first_payment_on,
+            totals.c.last_payment_on,
+            totals.c.rows_missing_an_amount,
+        ).select_from(covered.outerjoin(totals, true()))
+    ).all()
+    if not rows or not rows[0][0]:
+        return None
+    folded = _fold_totals(row[1:] for row in rows if row[1] is not None)
+    return _committee_spending(
+        registration_number, committee_name, None, folded.get(registration_number)
+    )
 
 
 def _merge(left: _Bucket, right: _Bucket) -> _Bucket:

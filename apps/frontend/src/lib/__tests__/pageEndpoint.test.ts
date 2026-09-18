@@ -437,6 +437,49 @@ describe('first-response page tags', () => {
     expect(served[0]).not.toHaveProperty('validatedAgeMs');
   });
 
+  it('asks for a sitting member’s portrait in the head, so it arrives with the page', async () => {
+    stubNetwork((url) => {
+      if (url.includes('/bills?')) return { status: 200, payload: { data: [] } };
+      return {
+        status: 200,
+        payload: {
+          data: {
+            slug: 'aisha-gomez',
+            full_name: 'Aisha Gomez',
+            current_service: {
+              chamber: 'house',
+              photo_url: 'https://www.house.mn.gov/hinfo/memberimg/62A.jpg',
+            },
+          },
+        },
+      };
+    });
+    const { body } = await serve({ path: '/legislators/aisha-gomez' });
+    expect(body).toContain(
+      '<link rel="preload" as="image" href="https://www.house.mn.gov/hinfo/memberimg/62A.jpg" />',
+    );
+  });
+
+  it('asks for no portrait when the member holds no seat or the address is not https', async () => {
+    for (const service of [
+      { chamber: null, photo_url: 'https://www.house.mn.gov/hinfo/memberimg/62A.jpg' },
+      { chamber: 'house', photo_url: 'http://insecure.example/62A.jpg' },
+      { chamber: 'house', photo_url: null },
+    ]) {
+      stubNetwork((url) => {
+        if (url.includes('/bills?')) return { status: 200, payload: { data: [] } };
+        return {
+          status: 200,
+          payload: {
+            data: { slug: 'aisha-gomez', full_name: 'Aisha Gomez', current_service: service },
+          },
+        };
+      });
+      const { body } = await serve({ path: '/legislators/aisha-gomez' });
+      expect(body).not.toContain('as="image"');
+    }
+  });
+
   it('hands a money-tab address its money answer with its age, and the record with none', async () => {
     const calls: string[] = [];
     stubNetwork((url) => {

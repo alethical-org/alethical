@@ -1968,6 +1968,148 @@ def live_filings_snapshot(db: Session) -> Optional[Any]:
     return live
 
 
+@dataclass(frozen=True)
+class FilerRecord:
+    """The columns of one register row that a money page reads about a committee.
+
+    One projection of ``cf_filer`` for the 4 questions a legislator's money tab asks of
+    it -- which kind of filer this is, which office it seeks, when it registered and
+    whether it has closed -- so they ride on one read rather than 3 (17 Sep 2026).
+    """
+
+    registration_number: str
+    kind: Any
+    office: Optional[str]
+    registration_date: Optional[date]
+    termination_date: Optional[date]
+
+
+def filer_records(
+    db: Session, registration_numbers: Iterable[str]
+) -> dict[str, FilerRecord]:
+    """Each committee's register row from the live snapshot, in one statement.
+
+    A missing number is a missing key rather than a guessed row: the filer list we hold
+    not carrying a committee is our gap, and a caller words it as ours. ``{}`` when no
+    register is published, for the same reason.
+
+    Inside a transaction marked by ``mark_pinned_read`` every row read is remembered,
+    absence included, and a later call asks only about numbers not yet seen. A
+    legislator's money tab read the same committee's row 3 times a year-request, once
+    per module that needed one column of it, at a round trip each.
+    """
+    wanted = sorted({number for number in registration_numbers if number})
+    if not wanted:
+        return {}
+    snapshot = live_filings_snapshot(db)
+    if snapshot is None:
+        return {}
+    memo = _pinned_read(db)
+    held: dict[str, Optional[FilerRecord]] = (
+        memo.setdefault("filers", {}) if memo is not None else {}
+    )
+    missing = [number for number in wanted if number not in held]
+    if missing:
+        filer = schema.CampaignFinanceFiler
+        rows = db.execute(
+            select(
+                filer.registration_number,
+                filer.kind,
+                filer.office,
+                filer.registration_date,
+                filer.termination_date,
+            ).where(
+                filer.snapshot_id == snapshot.id,
+                filer.registration_number.in_(missing),
+            )
+        ).all()
+        for number in missing:
+            held[number] = None
+        for number, kind, office, registered, terminated in rows:
+            held[number] = FilerRecord(number, kind, office, registered, terminated)
+    return {
+        number: record for number in wanted if (record := held.get(number)) is not None
+    }
+
+
+@dataclass(frozen=True)
+class CataloguedReportRecord:
+    """One report as the Board's catalogue lists it, with its version history."""
+
+    filing_year: int
+    report_name: Optional[str]
+    special_election: bool
+    effective_amendment_index: Optional[int]
+
+
+def catalogued_reports_for(
+    db: Session, registration_numbers: Iterable[str], years: Iterable[int]
+) -> dict[tuple[str, int], tuple[CataloguedReportRecord, ...]]:
+    """The reports the Board has scheduled for these committees in these years.
+
+    One read for the whole product of numbers and years, and a filer-year with no
+    catalogued report is present with an empty tuple, so a caller can tell "we asked"
+    from "we did not". ``{}`` when no register is published.
+
+    Two questions used to be asked of the same rows a round trip apart on every
+    committee-year of a legislator's money tab: which reports are scheduled (the
+    filing calendar) and how many times the year's report was corrected (the split's
+    explanation of a figure that will not subtract). Inside a transaction marked by
+    ``mark_pinned_read`` the rows read are remembered per filer-year, so whichever of
+    the 2 asks first pays the trip and the other asks nothing.
+    """
+    numbers = sorted({number for number in registration_numbers if number})
+    wanted_years = sorted({int(year) for year in years})
+    if not numbers or not wanted_years:
+        return {}
+    snapshot = live_filings_snapshot(db)
+    if snapshot is None:
+        return {}
+    memo = _pinned_read(db)
+    held: dict[tuple[str, int], tuple[CataloguedReportRecord, ...]] = (
+        memo.setdefault("catalogued_reports", {}) if memo is not None else {}
+    )
+    missing = [
+        (number, year)
+        for number in numbers
+        for year in wanted_years
+        if (number, year) not in held
+    ]
+    if missing:
+        missing_numbers = sorted({number for number, _ in missing})
+        missing_years = sorted({year for _, year in missing})
+        report = schema.CampaignFinanceFilingReport
+        rows = db.execute(
+            select(
+                report.registration_number,
+                report.filing_year,
+                report.report_name,
+                report.special_election,
+                report.effective_amendment_index,
+            )
+            .where(
+                report.snapshot_id == snapshot.id,
+                report.registration_number.in_(missing_numbers),
+                report.filing_year.in_(missing_years),
+            )
+            .order_by(report.row_number)
+        ).all()
+        read: dict[tuple[str, int], list[CataloguedReportRecord]] = {
+            (number, year): [] for number in missing_numbers for year in missing_years
+        }
+        for number, year, name, special, amendment in rows:
+            read[(number, int(year))].append(
+                CataloguedReportRecord(int(year), name, bool(special), amendment)
+            )
+        for key, found in read.items():
+            held[key] = tuple(found)
+    return {
+        (number, year): held[(number, year)]
+        for number in numbers
+        for year in wanted_years
+    }
+
+
 def ensure_filings_pointer_row(db: Session) -> None:
     """``SELECT ... FOR UPDATE`` locks nothing when there is no row, so the very first
     two concurrent runs would not see each other without this."""

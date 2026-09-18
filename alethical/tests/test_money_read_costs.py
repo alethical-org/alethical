@@ -519,3 +519,123 @@ def test_a_legislator_year_reads_its_confirmed_links_once(db, published) -> None
     assert len(sent.touching("legislator_campaign_committee")) == 1, sent.touching(
         "legislator_campaign_committee"
     )
+
+
+def test_pinning_a_request_to_one_view_sends_no_statement(db, published) -> None:
+    """The isolation level rides inside ``BEGIN`` rather than costing a trip of its own.
+
+    Every money read pins itself first, so a ``SET TRANSACTION`` statement here was a
+    round trip on every one of them, about 35 ms from Railway. The level is still the
+    pinned one while the transaction is open, which is what the pin is for.
+    """
+    with Statements() as sent:
+        committee_service.pin_to_one_view(db)
+    assert sent.sent == [], sent.sent
+    assert db.scalar(text("SHOW transaction_isolation")) == "repeatable read"
+    db.rollback()
+    assert db.scalar(text("SHOW transaction_isolation")) == "read committed"
+
+
+def _confirm(db, legislator_id, number: str, name: str, office: str) -> None:
+    db.add(
+        models.LegislatorCampaignCommittee(
+            legislator_id=legislator_id,
+            registration_number=number,
+            decision=models.CommitteeLinkReviewDecision.confirmed,
+            committee_name_as_reviewed=name,
+            office_as_reviewed=office,
+            reviewed_by="a person",
+        )
+    )
+
+
+def test_a_legislator_year_reads_each_shared_record_once(db, published) -> None:
+    """The register row, the report catalogue and the outside-spending rows cost 1 trip
+    each per committee, and the payment dates ride with the cash figure.
+
+    Measured on production before this, 17 Sep 2026: the committee's ``cf_filer`` row
+    was read 3 times a year-request (its kind, its office and closing date, its
+    registration date), its ``cf_filing_report`` rows twice (the filing calendar, then
+    the correction count), the outside-spending file twice (does the year have any row,
+    then the committee's rows) and its contribution rows separately for the dates and
+    for the cash. 6 trips of 30, on a route that is nearly all trips.
+    """
+    legislator_id = db.execute(text("SELECT id FROM legislator LIMIT 1")).scalar_one()
+    _confirm(
+        db, legislator_id, SENATE_COMMITTEE, "Port, Lindsey Senate Committee", "Senate"
+    )
+    db.commit()
+    committee_service.pin_to_one_view(db)
+    release = committee_service.current_release(db)
+    with Statements() as sent:
+        finance = legislator_service.legislator_finance(
+            db, release, legislator_id=legislator_id, year=2026
+        )
+    assert [entry.registration_number for entry in finance.committees] == [
+        SENATE_COMMITTEE
+    ]
+    assert len(sent.touching("cf_filer ")) == 1, sent.touching("cf_filer ")
+    catalogue = [s for s in sent.sent if s.startswith("SELECT cf_filing_report.")]
+    assert len(catalogue) == 1, catalogue
+    assert len(sent.touching("cf_independent_expenditure_row")) == 1, sent.touching(
+        "cf_independent_expenditure_row"
+    )
+    dates_and_cash = [s for s in sent.sent if "min(receipt_date)" in s]
+    assert len(dates_and_cash) == 1 and "FILTER" in dates_and_cash[0], sent.sent
+    assert not [
+        s
+        for s in sent.sent
+        if "coalesce(sum(amount), 0), count(*) " in s
+        and "receipt_type = " in s
+        and "GROUP BY year ORDER BY year" in s
+    ], "the cash figure must ride with the payment dates"
+    assert len(sent.sent) == 22, sent.sent
+
+
+def test_a_span_of_years_reads_each_dataset_once(db, published) -> None:
+    """The year buttons' request reads every dataset once for the whole span.
+
+    12 per-year requests for the same answer were 12 reads of every dataset; here the
+    filed totals and the report catalogue are 1 statement each for every committee
+    and all 12 years, the contribution rows, the payment dates and cash, and the
+    stated verdicts are 1 statement per committee for all 12 years, and which years the
+    download reaches is 1 existence test over the span.
+    """
+    legislator_id = db.execute(text("SELECT id FROM legislator LIMIT 1")).scalar_one()
+    _confirm(
+        db, legislator_id, SENATE_COMMITTEE, "Port, Lindsey Senate Committee", "Senate"
+    )
+    _confirm(
+        db,
+        legislator_id,
+        HOUSE_COMMITTEE,
+        "Stephenson, Zachary House Committee",
+        "House",
+    )
+    db.commit()
+    committee_service.pin_to_one_view(db)
+    release = committee_service.current_release(db)
+    years = list(range(2015, 2027))
+    with Statements() as sent:
+        states = legislator_service.legislator_year_states(
+            db, release, legislator_id=legislator_id, years=years
+        )
+    assert [entry.year for entry in states.years] == years
+    assert all(
+        [c.registration_number for c in entry.committees]
+        == [HOUSE_COMMITTEE, SENATE_COMMITTEE]
+        for entry in states.years
+    )
+    assert len(sent.touching("cf_filing_figure")) == 1, sent.touching(
+        "cf_filing_figure"
+    )
+    catalogue = [s for s in sent.sent if s.startswith("SELECT cf_filing_report.")]
+    assert len(catalogue) == 1, catalogue
+    verdicts = [s for s in sent.sent if "FROM cf_stated_split" in s]
+    assert len(verdicts) == 2, verdicts
+    # Per committee: its rows by year, its dates and cash by year. Once for the span:
+    # which numbers the release holds at all, and which years the download reaches.
+    assert len(sent.touching("cf_contribution_row")) == 2 * 2 + 2, sent.touching(
+        "cf_contribution_row"
+    )
+    assert len(sent.sent) == 13, sent.sent

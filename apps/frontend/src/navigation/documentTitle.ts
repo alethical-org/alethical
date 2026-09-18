@@ -12,7 +12,7 @@ import {
   SITE_NAME,
   STATIC_PAGE_METADATA,
 } from '../lib/share';
-import { researchBySlug } from '../lib/research';
+import { pieceIndexBySlug } from '../lib/researchIndex';
 
 import { MainTabParamList, RootStackParamList } from './types';
 import { pathForRoute } from './webRoutes';
@@ -72,7 +72,7 @@ function titleWithoutRecord(route: TitledRoute): string | null {
     case 'Guide':
     case 'Research': {
       const slug = route.params?.slug ? String(route.params.slug) : '';
-      const piece = slug ? researchBySlug(slug) : undefined;
+      const piece = slug ? pieceIndexBySlug(slug) : undefined;
       // An unknown slug renders the NotFound screen, which titles itself.
       return piece ? researchPageMetadata(piece).title : null;
     }

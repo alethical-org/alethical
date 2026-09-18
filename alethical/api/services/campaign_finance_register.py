@@ -77,7 +77,10 @@ from alethical.db import models as schema
 from alethical.pipeline.campaign_finance_filing_calendars import (
     printed_period_start_for_end,
 )
-from alethical.pipeline.campaign_finance_filings import live_filings_snapshot
+from alethical.pipeline.campaign_finance_filings import (
+    catalogued_reports_for,
+    live_filings_snapshot,
+)
 from alethical.pipeline.campaign_finance_reader import Dataset
 
 #: No filings snapshot is published, so the register and the catalogue can say nothing.
@@ -1636,14 +1639,18 @@ def report_corrections(
     version history. So this separates a third of the population rather than being
     true of everything.
     """
-    snapshot = live_filings_snapshot(db)
-    if snapshot is None:
-        return None
-    report = schema.CampaignFinanceFilingReport
-    return db.scalar(
-        select(func.max(report.effective_amendment_index)).where(
-            report.snapshot_id == snapshot.id,
-            report.registration_number == registration_number,
-            report.filing_year == year,
-        )
+    # The same catalogue read the filing schedule makes for this committee-year, so
+    # inside a pinned request whichever asks second costs no trip
+    # (``catalogued_reports_for``). The highest index across the year's reports, and
+    # ``None`` when no report carries one, exactly as ``max`` over the rows would be.
+    reports = catalogued_reports_for(db, [registration_number], [year]).get(
+        (registration_number, year)
     )
+    if not reports:
+        return None
+    indexes = [
+        report.effective_amendment_index
+        for report in reports
+        if report.effective_amendment_index is not None
+    ]
+    return max(indexes) if indexes else None

@@ -18,7 +18,7 @@ import { useOutsideSpendingRecord } from '../../hooks/useAppQueries';
 import { useOutsideSpendingNames } from '../../hooks/useOutsideSpendingNames';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { useResponsive } from '../../hooks/useResponsive';
-import { formatMoney } from '../../lib/legislatorCampaignMoney';
+import { formatMoney } from '../../lib/moneyFormat';
 import { centralDateLabel, formatCount } from '../../lib/moneyLanding';
 import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
 import { outsideBrowseShareContent } from '../../lib/moneyResultsShare';

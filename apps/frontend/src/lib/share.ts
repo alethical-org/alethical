@@ -1,4 +1,4 @@
-import { registrationNumberFromSlug } from './committeeMoneyShared';
+import { registrationNumberFromSlug } from './committeeRoute';
 import { directoryPagePath } from './directoryPagination';
 import { MONEY_SECTION_NAME } from './moneySectionName';
 import { paymentNameRole, paymentsUnderNameHeading } from './paymentNameRoute';
@@ -8,8 +8,8 @@ import {
   READ_PAGE_NAME,
   pieceShareDescription,
   piecePath,
-  type ResearchPiece,
-} from './research';
+  type PieceIndexEntry,
+} from './researchIndex';
 
 export const PUBLIC_SITE_ORIGIN = 'https://www.alethical.com';
 export const SOCIAL_PREVIEW_IMAGE_URL = `${PUBLIC_SITE_ORIGIN}/social-preview.png`;
@@ -202,6 +202,14 @@ export interface PageMetadata {
   canonicalPath: string;
   /** True when a search engine must not list the page. */
   noindex: boolean;
+  /**
+   * Images the page draws in its first frame, asked for in the head so they
+   * arrive with the HTML rather than after the app has mounted and asked. A
+   * legislator's portrait, on their profile: measured live 17 Sep 2026, the
+   * request left 1.4 s into the load and the photo landed 250 ms after the page
+   * had otherwise finished drawing.
+   */
+  preloadImages?: string[];
 }
 
 function pageMetadata(input: Partial<PageMetadata> & { title: string; description: string }) {
@@ -292,6 +300,8 @@ export function legislatorPageMetadata(input: {
   slug: string;
   displayName: string;
   districtLine: string;
+  /** The portrait the profile draws in its first frame, so the head can ask for it early. */
+  photoUrl?: string | null;
 }): PageMetadata {
   const canonicalPath = `/legislators/${encodeURIComponent(input.slug)}`;
   const content = buildLegislatorShareContent({
@@ -304,6 +314,7 @@ export function legislatorPageMetadata(input: {
     socialTitle: content.title,
     description: content.description,
     canonicalPath,
+    ...(input.photoUrl ? { preloadImages: [input.photoUrl] } : {}),
   });
 }
 
@@ -340,7 +351,7 @@ export function askPageMetadata(question?: string | null): PageMetadata {
  * It stays fully readable on the site either way; only search engines are held
  * off (rule 13's publishing order).
  */
-export function researchPageMetadata(piece: ResearchPiece): PageMetadata {
+export function researchPageMetadata(piece: PieceIndexEntry): PageMetadata {
   return pageMetadata({
     title: titleFor(piece.title),
     socialTitle: piece.title,
@@ -679,6 +690,11 @@ export function renderPageHead(meta: PageMetadata): string {
     `    <meta name="description" content="${description}" />`,
     ...(url ? [`    <link rel="canonical" href="${url}" />`] : []),
     ...(meta.noindex ? [`    <meta name="robots" content="noindex" />`] : []),
+    // Only an absolute https address is preloaded: anything else is a record
+    // field we do not control, and a bad hint costs a wasted request.
+    ...(meta.preloadImages ?? [])
+      .filter((href) => /^https:\/\/[^\s"'<>]+$/.test(href))
+      .map((href) => `    <link rel="preload" as="image" href="${escapeHtml(href)}" />`),
     `    <meta property="og:type" content="website" />`,
     `    <meta property="og:site_name" content="${SITE_NAME}" />`,
     `    <meta property="og:title" content="${socialTitle}" />`,

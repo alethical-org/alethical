@@ -107,6 +107,7 @@ from alethical.api.services.issue_bills import MIN_ISSUE_LENGTH, matched_issue_b
 from alethical.api.services.legislator_finance import (
     confirmed_member_for_committee,
     legislator_finance,
+    legislator_year_states,
     split_for_committee,
 )
 from alethical.api.services.representative_lookup import (
@@ -241,6 +242,8 @@ MONEY_RECORDS_CACHE_CONTROL = (
 #     confirmations.
 #   * `/api/v1/committees/{registration_number}/confirmation` -- serves `confirmed_for`.
 #   * `/api/v1/legislators/{legislator_id}/campaign-finance` -- serves `link_state`.
+#   * `/api/v1/legislators/{legislator_id}/campaign-finance/years` -- serves the same
+#     `link_state` once for a span of years.
 #
 # The legacy `/committees/{registration_number}/finance` answer includes that same
 # confirmation by default and therefore also stays short. Its explicit
@@ -5040,6 +5043,109 @@ def legislator_campaign_finance(
                     },
                 }
                 for entry in finance.committees
+            ],
+        }
+    )
+
+
+@router.get(
+    "/legislators/{legislator_id}/campaign-finance/years",
+    response_model=DetailResponse,
+)
+def legislator_campaign_finance_years(
+    legislator_id: str,
+    from_year: int = Query(alias="from", ge=2015, le=2100),
+    to_year: int = Query(alias="to", ge=2015, le=2100),
+    db: Session = Depends(get_db),
+):
+    """Which committees each year of a span would list, and each split's state.
+
+    The year buttons above a member's money need 2 facts per committee-year and
+    nothing else: whether the year's split may be drawn (``split.state``) and the
+    committee's own reported total for the year (``split.reported_total``), plus
+    ``link_state`` once. They used to read the whole per-year answer above 11 times
+    over, once per year from 2015, to colour 11 buttons. This answers the span in one
+    request, reading every dataset once for all of its years.
+
+    **For every year in the span, ``link_state``, the set of ``registration_number``s
+    and each committee's ``split.state`` and ``split.reported_total`` are exactly
+    what ``GET /legislators/{legislator_id}/campaign-finance?year=Y`` serves for that
+    year.** Same folds, same rules, same withheld states, from rows read once;
+    ``alethical/tests/test_legislator_finance_years.py`` pins the equality across
+    years the reviewed period does and does not cover and years with no filings. A
+    year outside a committee's reviewed period lists no committee, as the per-year
+    route lists none. Read ``link_state`` before reading any year, for the reasons
+    the per-year route gives: an empty year is never on its own a statement about
+    this person.
+
+    ``from`` and ``to`` are both inclusive, ``from`` may not exceed ``to``, and the
+    span may cover at most 20 years; either violation answers 422. Every year in the
+    span is present in ``years`` in ascending order, so a caller may index the
+    answer by year without checking for a gap.
+
+    ``link_state`` is a claim about right now -- whose committee this is -- so this
+    answer keeps the short cache window and carries ``current_claim_validated_at``,
+    exactly as the per-year route does. ``release_id`` and ``fetched_at`` date the
+    download the states were computed from.
+
+    503 means we hold no usable release at all, which is a fact about us and never a
+    figure about a named person.
+    """
+    if from_year > to_year:
+        raise HTTPException(
+            status_code=422, detail="`from` must not be later than `to`"
+        )
+    if to_year - from_year + 1 > 20:
+        raise HTTPException(
+            status_code=422, detail="the span may cover at most 20 years"
+        )
+    # First statement in the transaction, exactly as the per-year route: this request
+    # reads 3 datasets plus the filings snapshot for a whole span of years.
+    pin_campaign_finance_to_one_view(db)
+    legislator = get_legislator_by_id(db, legislator_id)
+    unusable = HTTPException(
+        status_code=503,
+        detail=(
+            "no usable campaign-finance release is published; "
+            "this says nothing about any legislator"
+        ),
+    )
+    try:
+        release = current_campaign_finance_release(db)
+        if release is None:
+            raise unusable
+        states = legislator_year_states(
+            db,
+            release,
+            legislator_id=legislator.id,
+            years=list(range(from_year, to_year + 1)),
+        )
+    except ReleaseNoLongerHeld:
+        raise unusable from None
+    return DetailResponse(
+        data={
+            "legislator_id": str(legislator.id),
+            "release_id": str(release.id),
+            "link_state": states.link_state,
+            # A claim about right now, so it expires; the record dates beside it do
+            # not (``current_claim_validated_at``, issue 2023).
+            "current_claim_validated_at": current_claim_validated_at(),
+            "fetched_at": release.fetched_at,
+            "years": [
+                {
+                    "year": entry.year,
+                    "committees": [
+                        {
+                            "registration_number": committee.registration_number,
+                            "split": {
+                                "state": committee.split_state,
+                                "reported_total": committee.reported_total,
+                            },
+                        }
+                        for committee in entry.committees
+                    ],
+                }
+                for entry in states.years
             ],
         }
     )

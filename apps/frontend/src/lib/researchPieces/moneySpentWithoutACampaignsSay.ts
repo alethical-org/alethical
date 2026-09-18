@@ -27,6 +27,7 @@
  */
 
 import type { ResearchPiece } from '../research';
+import { MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY_INDEX_ENTRY } from '../researchIndex';
 import { WHO_HAS_TO_REPORT_THEIR_MONEY } from './whoHasToReportTheirMoney';
 
 /**
@@ -45,18 +46,13 @@ const PIECE_ONE_PATH = `/read/guides/${WHO_HAS_TO_REPORT_THEIR_MONEY.slug}`;
 const PIECE_FIVE_PATH = '/read/guides/why-nobody-can-follow-a-dollar';
 
 export const MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY: ResearchPiece = {
-  slug: 'money-spent-without-a-campaigns-say',
-  traits: { research: false, guide: true },
+  ...MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY_INDEX_ENTRY,
   set: { name: 'How the Money Works', position: 4 },
-  indexed: true,
-  title: 'Money spent without a campaign’s say',
   // No standfirst: the manuscript's second line is the set's name, which is
   // stored as set membership above. Inventing a sentence to fill this slot
   // would be writing prose the author did not write.
   dek: '',
   authorLine: 'ALETHICAL',
-  publishedOn: '2026-08-27',
-  recordsThrough: '2026-08-27',
   filingBodies: ['Minnesota Campaign Finance Board'],
   // A guide states rules rather than findings, so there is nothing to summarise
   // above it and no SHORT VERSION box is drawn.

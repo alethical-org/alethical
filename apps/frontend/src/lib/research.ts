@@ -23,7 +23,35 @@
  * content that never ships on a route.
  */
 
-import { IA } from '../navigation/ia';
+import {
+  isoDateCapsLabel,
+  isoDateCommaCapsLabel,
+  isoDateLabel,
+  pieceKindLabel,
+  pieceWrittenLine,
+  pieceWrittenSentence,
+  type PieceIndexEntry,
+} from './researchIndex';
+
+export {
+  isoDateCapsLabel,
+  isoDateCommaCapsLabel,
+  isoDateLabel,
+  isoMonthYearCapsLabel,
+  pieceAddressFolder,
+  pieceKindLabel,
+  piecePath,
+  pieceShareDescription,
+  pieceWrittenLine,
+  pieceWrittenSentence,
+  PUBLISHED_PIECE_INDEX,
+  pieceIndexBySlug,
+  READ_PAGE_HEADING,
+  READ_PAGE_INTRO,
+  READ_PAGE_NAME,
+  researchShareDescription,
+} from './researchIndex';
+export type { PieceIndexEntry, PieceTraits } from './researchIndex';
 import { MONEY_ONLY_GOES_ONE_WAY } from './researchPieces/moneyOnlyGoesOneWay';
 import { MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY } from './researchPieces/moneySpentWithoutACampaignsSay';
 import { WHAT_THE_RECORDS_NAME } from './researchPieces/whatTheRecordsName';
@@ -103,23 +131,6 @@ export interface ResearchCorrection {
 }
 
 /**
- * Which of Alethical's 2 kinds of writing a piece carries. Two flags rather
- * than one `kind` value, because a piece can carry both and 1 of the planned
- * pieces already does: a guide that adds a figure up across legislators needs
- * `.claude/rules/grounded-answers.md` rule 13 in full
- * (`docs/architecture/published-writing-decisions.md` §2.8). A single-value
- * field would make that case impossible to state.
- *
- * The label a reader sees is derived, never stored: research trait present means
- * the label reads Research (§2.7), so a both-traits piece cannot show 2 labels
- * and claim 2 sets of promises when only the stricter one governs.
- */
-export interface PieceTraits {
-  research: boolean;
-  guide: boolean;
-}
-
-/**
  * A set is a group of pieces written to be read together. A piece does not need
  * one (§2.2).
  *
@@ -133,26 +144,9 @@ export interface PieceSet {
   position: number;
 }
 
-export interface ResearchPiece {
-  /**
-   * URL slug under the piece's own folder: /read/research/ for a piece
-   * carrying the research trait, /read/guides/ for one carrying only the
-   * guide trait (§2.1). `pieceAddressFolder` is the single place that decides.
-   */
-  slug: string;
-  /** Which kinds this piece carries. The reader-facing label derives from it. */
-  traits: PieceTraits;
+export interface ResearchPiece extends PieceIndexEntry {
   /** The set this piece belongs to, where it belongs to one. */
   set?: PieceSet;
-  /**
-   * Whether search engines may list the piece. **Every published piece is
-   * visible from the day it posts (Eugene, 25 Aug 2026)**, so this is `true` on
-   * anything we publish and the field exists only to hold a piece back for a
-   * reason Eugene names. It governs the sitemap row, the indexing tag and the
-   * canonical link together, so all 3 follow from the one value.
-   */
-  indexed: boolean;
-  title: string;
   /** Masthead and listing standfirst. Never appears in share previews (rule 13:
    * share previews carry title and dates only). */
   dek: string;
@@ -164,29 +158,6 @@ export interface ResearchPiece {
    * text. Never an invented name.
    */
   authorLine: string;
-  /** ISO date the piece was published, e.g. "2026-08-17". */
-  publishedOn: string;
-  /**
-   * ISO date the records run through, e.g. "2026-08-11". A research piece's
-   * masthead prints it beside the publication date (rule 13's publishing order,
-   * point 8). A guide's masthead prints 1 date and no second one, so on a guide
-   * this is the record of which release its figures were computed from rather
-   * than a line a reader sees; the guide's own prose states that date beside the
-   * figure.
-   */
-  recordsThrough: string;
-  /**
-   * ISO date somebody last re-checked the piece against the records, distinct
-   * from the publication date (settled 26 Aug 2026,
-   * `docs/architecture/published-writing-decisions.md` §4.4).
-   *
-   * Absent, the slot reads "Written August 2026" and promises nothing. Present,
-   * the same slot reads "Checked March 2027": one word swapped, never a second
-   * date. That is the point of the swap — re-verifying a piece moves its date
-   * forward, so staying accurate makes a piece look current instead of old,
-   * while a "Checked" date that never moves would say we stopped looking.
-   */
-  checkedOn?: string;
   /**
    * Every filing body the piece used. Kept on the record, rendered nowhere
    * since 20 Aug 2026: the sources block names the bodies in its own prose
@@ -245,50 +216,8 @@ export interface ResearchPiece {
   newerFilingsNote?: string;
 }
 
-/**
- * The /read page's own fixed wording, in one place because 3 surfaces draw
- * it: the screen, its search description in lib/share.ts, and the text
- * served in the first response before any JavaScript runs
- * (lib/pageSnapshot.ts). A second copy is how a served page and a rendered page
- * start disagreeing, which is worse than either one being wrong alone.
- */
-
-/**
- * The page's own name, taken from the label the top bar already draws for it
- * rather than typed again here.
- *
- * The page shows no visible title: the bar and the address both say the word
- * already, and a third visible instance is what the naming rule forbids (Design,
- * 27 Aug 2026). So this is the name a screen reader reads off the visually
- * hidden `h1` and the name the browser tab carries, and nothing draws it in ink.
- *
- * Read off the bar's own item because that is Design's whole reason for hiding
- * the title: 2 copies of the word could disagree, and this one cannot.
- */
-export const READ_PAGE_NAME = IA.find((item) => item.id === 'read')?.label ?? 'Read';
-
-/**
- * The page's descriptive title, for the 2 places its name has to survive out of
- * context: the back link at the top of a piece, and the share card. Neither has
- * the bar or the address beside it to supply the subject, so neither can use
- * `READ_PAGE_NAME`, because "Read" alone tells a person nothing about what they
- * would be opening.
- */
-export const READ_PAGE_HEADING = 'Campaign money research and guides';
-
-/**
- * The note under the hidden title. A note rather than a heading, in regular
- * weight and grey, because the bold heads on this page are the kind sections and
- * a reader should see the shape of what we publish before reading a sentence
- * about it (Design, 27 Aug 2026).
- *
- * No terminal period on this line or on the 2 empty-state lines below it: a
- * period says another sentence is coming, so on a line with nothing after it the
- * eye waits for something that never arrives (Eugene, 2 Sep 2026). A piece's own
- * standfirst, drawn on its card, keeps the period its author wrote.
- */
-export const READ_PAGE_INTRO =
-  'What we found in Minnesota\u2019s public records, plus guides to how state government works';
+/** The /read page's 2 empty-state lines. No terminal period on either: see
+ *  `READ_PAGE_INTRO` in `lib/researchIndex.ts`. */
 export const READ_PAGE_EMPTY_TITLE = 'Nothing published yet';
 export const READ_PAGE_EMPTY_BODY =
   'When we publish research or a guide on these records, it appears here, dated and carrying the date its records run through';
@@ -328,6 +257,11 @@ export function researchSourceText(source: ResearchSource): string {
  * Every posted piece, newest first. Posting puts a piece on the site, so this
  * is what the /read page, the money landing and every address-based reader
  * show. Whether a search engine may list it is the separate `indexed` flag.
+ *
+ * `PUBLISHED_PIECE_INDEX` in `lib/researchIndex.ts` lists the same pieces in the
+ * same order without their text, for the address table and page metadata every
+ * page loads. Each piece spreads its own index entry, so the 2 lists cannot
+ * disagree about a slug, a title or a date; research.test.ts pins the order.
  */
 export const PUBLISHED_RESEARCH: ResearchPiece[] = [
   WHAT_THE_RECORDS_NAME,
@@ -341,30 +275,6 @@ export const PUBLISHED_RESEARCH: ResearchPiece[] = [
 /** Every posted piece, of either kind: the /read page reads this. */
 export function publishedResearch(): ResearchPiece[] {
   return PUBLISHED_RESEARCH;
-}
-
-/**
- * The label a reader sees for a piece: **Research** when it carries the research
- * trait, otherwise **Guide** (§2.7). Derived, never stored, so a both-traits
- * piece shows 1 label and cannot claim 2 sets of promises.
- */
-export function pieceKindLabel(piece: Pick<ResearchPiece, 'traits'>): 'Research' | 'Guide' {
-  return piece.traits.research ? 'Research' : 'Guide';
-}
-
-/**
- * The folder a piece's address sits in: `research` for anything carrying the
- * research trait, including a piece that also teaches, and `guides` for a piece
- * carrying only the guide trait (§2.1). One place decides, so a piece has
- * exactly 1 address and the router can reject the other one.
- */
-export function pieceAddressFolder(piece: Pick<ResearchPiece, 'traits'>): 'research' | 'guides' {
-  return piece.traits.research ? 'research' : 'guides';
-}
-
-/** A piece's own address, the only one it answers on. */
-export function piecePath(piece: Pick<ResearchPiece, 'traits' | 'slug'>): string {
-  return `/read/${pieceAddressFolder(piece)}/${encodeURIComponent(piece.slug)}`;
 }
 
 /** Posted pieces the page labels Research, newest first. */
@@ -428,62 +338,9 @@ export function researchBySlug(slug: string): ResearchPiece | undefined {
   return PUBLISHED_RESEARCH.find((piece) => piece.slug === slug);
 }
 
-const MONTH_LABELS = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-] as const;
-
-/**
- * "2026-08-17" → "Aug 17, 2026". Parsed by hand so the label cannot shift a day
- * with the reader's time zone, which `new Date(iso)` (UTC midnight) would do.
- */
-export function isoDateLabel(isoDate: string): string {
-  const match = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return isoDate;
-  const month = MONTH_LABELS[Number(match[2]) - 1];
-  if (!month) return isoDate;
-  return `${month} ${Number(match[3])}, ${match[1]}`;
-}
-
-/**
- * The mono-caps card form: "AUG 20, 2026". The comma is Design's, and it is the
- * only place the 2 forms differ: a card's date sits inside a sentence of mono
- * caps beside the minutes, where the comma is what stops the day and the year
- * running together.
- */
-export function isoDateCommaCapsLabel(isoDate: string): string {
-  return isoDateLabel(isoDate).toUpperCase();
-}
-
-/** The mono-caps masthead form: "AUG 17 2026". */
-export function isoDateCapsLabel(isoDate: string): string {
-  const match = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return isoDate.toUpperCase();
-  const month = MONTH_LABELS[Number(match[2]) - 1];
-  if (!month) return isoDate.toUpperCase();
-  return `${month.toUpperCase()} ${Number(match[3])} ${match[1]}`;
-}
-
 /** "PUBLISHED AUG 17 2026 · RECORDS THROUGH AUG 11 2026" — listing and masthead. */
 export function researchDatesLine(piece: Pick<ResearchPiece, 'publishedOn' | 'recordsThrough'>) {
   return `PUBLISHED ${isoDateCapsLabel(piece.publishedOn)} · RECORDS THROUGH ${isoDateCapsLabel(piece.recordsThrough)}`;
-}
-
-/** What search metadata and prepared share text may carry: the piece's two dates. */
-export function researchShareDescription(
-  piece: Pick<ResearchPiece, 'publishedOn' | 'recordsThrough'>,
-): string {
-  return `Published ${isoDateLabel(piece.publishedOn)} · records through ${isoDateLabel(piece.recordsThrough)}.`;
 }
 
 /** The quiet identity line shown inside the Share panel. */
@@ -539,55 +396,6 @@ export function pieceReadingMinutes(piece: ResearchPiece): number {
   return Math.max(1, Math.round(pieceWordCount(piece) / WORDS_PER_MINUTE));
 }
 
-const FULL_MONTH_LABELS = [
-  'JANUARY',
-  'FEBRUARY',
-  'MARCH',
-  'APRIL',
-  'MAY',
-  'JUNE',
-  'JULY',
-  'AUGUST',
-  'SEPTEMBER',
-  'OCTOBER',
-  'NOVEMBER',
-  'DECEMBER',
-] as const;
-
-/**
- * "2026-08-27" → "AUGUST 2026". Month and year only: the day a guide was written
- * is precision nobody needs about a piece that explains a standing rule, and
- * parsed by hand for the same reason `isoDateLabel` is, so the label cannot shift
- * a month with the reader's time zone.
- */
-export function isoMonthYearCapsLabel(isoDate: string): string {
-  const match = isoDate.match(/^(\d{4})-(\d{2})/);
-  if (!match) return isoDate.toUpperCase();
-  const month = FULL_MONTH_LABELS[Number(match[2]) - 1];
-  if (!month) return isoDate.toUpperCase();
-  return `${month} ${match[1]}`;
-}
-
-/**
- * "WRITTEN AUGUST 2026" until somebody re-checks the piece, "CHECKED MARCH 2027"
- * from then on. Same slot, 1 word swapped, and never 2 dates (§4.4).
- */
-export function pieceWrittenLine(piece: Pick<ResearchPiece, 'publishedOn' | 'checkedOn'>): string {
-  return piece.checkedOn
-    ? `CHECKED ${isoMonthYearCapsLabel(piece.checkedOn)}`
-    : `WRITTEN ${isoMonthYearCapsLabel(piece.publishedOn)}`;
-}
-
-/** The sentence-case form of the same slot, for a share preview and a page description. */
-export function pieceWrittenSentence(
-  piece: Pick<ResearchPiece, 'publishedOn' | 'checkedOn'>,
-): string {
-  const line = pieceWrittenLine(piece);
-  const [word, ...rest] = line.split(' ');
-  const month = rest[0] ? `${rest[0][0]}${rest[0].slice(1).toLowerCase()}` : '';
-  return `${word[0]}${word.slice(1).toLowerCase()} ${[month, rest[1]].filter(Boolean).join(' ')}.`;
-}
-
 /**
  * The masthead line under a piece's title.
  *
@@ -604,11 +412,6 @@ export function pieceMastheadLine(piece: ResearchPiece): string {
     `${pieceReadingMinutes(piece)} MIN`,
     pieceWrittenLine(piece),
   ].join(' · ');
-}
-
-/** What a piece's own page metadata and prepared share text may carry: its dates. */
-export function pieceShareDescription(piece: ResearchPiece): string {
-  return piece.traits.research ? researchShareDescription(piece) : pieceWrittenSentence(piece);
 }
 
 /** The quiet identity line inside the Share panel, for either kind. */

@@ -6,6 +6,14 @@ import {
   reportedThroughLabel,
 } from './legislatorCampaignMoney';
 
+export { registrationNumberFromSlug } from './committeeRoute';
+export {
+  committeeMoneyQueryKey,
+  committeePaymentsListQueryKey,
+  FIRST_PAYMENTS_LIMIT,
+  PAGE_CAP,
+} from './committeeMoneyQueryKeys';
+
 /** The two Board sub-type codes that mark a ballot-question filer on its own money
  *  rows (data census #1661: 28 `BC` and 6 `BF` filers carry one). The register
  *  itself distinguishes only 3 kinds, so this is the one grounded ballot signal. */
@@ -171,46 +179,6 @@ export function committeeSlug(name: string | null | undefined, registrationNumbe
  * a fund tracks an organization's election money, not all of its finances. */
 export const UNION_FINANCES_NOTE =
   'These files cover union political funds, not a union’s wider finances';
-
-/**
- * The registration number out of an address part, or null when it carries none.
- * The trailing run of digits is the identity; everything before it is a name part
- * a reader may have mistyped, shortened, or copied from an old name. A committee
- * with a negative internal number has no addressable form here on purpose — those
- * exist only as targets of someone else's spending and are absent from the
- * register (phase 2 scope).
- */
-export function registrationNumberFromSlug(segment: string | null | undefined): string | null {
-  if (!segment) return null;
-  const match = /(\d+)$/.exec(segment);
-  return match ? match[1] : null;
-}
-
-// --- The reads these pages make -------------------------------------------------
-
-/**
- * The keys the committee pages' reads are stored under, written once so the page
- * function can hand a record on under the very key the app then asks for
- * (`lib/pageData.ts`, issue 2024). A key spelled out twice is a key that drifts,
- * and a drifted key does not fail: the app quietly fetches again and the second
- * wait comes back unnoticed.
- */
-export function committeeMoneyQueryKey(
-  registrationNumber: string | null,
-  year: number,
-): readonly unknown[] {
-  return ['committee-money', registrationNumber, year];
-}
-
-/** The full payments view's accumulating list, in one direction. */
-export function committeePaymentsListQueryKey(options: {
-  registrationNumber: string | null;
-  direction: 'received' | 'made';
-  year: number;
-}): readonly unknown[] {
-  const { registrationNumber, direction, year } = options;
-  return ['committee-payments-list', registrationNumber, direction, year];
-}
 
 // --- The period stamp ------------------------------------------------------------
 
@@ -456,9 +424,6 @@ export const OUTSIDE_NEVER_ADDED =
   'expenditures file: 491 rows share a spender, name, amount and date with an ' +
   'expenditure row, and whether that is one payment filed twice or 2 that coincide ' +
   'is not established.';
-
-export const FIRST_PAYMENTS_LIMIT = 50;
-export const PAGE_CAP = 250;
 
 // --- Payment rows -------------------------------------------------------------------
 

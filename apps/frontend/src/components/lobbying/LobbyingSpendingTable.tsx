@@ -1,7 +1,7 @@
 import React, { type CSSProperties } from 'react';
 
 import { useResponsive } from '../../hooks/useResponsive';
-import { formatMoney } from '../../lib/legislatorCampaignMoney';
+import { formatMoney } from '../../lib/moneyFormat';
 import {
   lobbyingPrincipalCopy as copy,
   spendingRowsHaveMissingAmounts,

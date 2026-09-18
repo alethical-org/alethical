@@ -85,24 +85,24 @@ import type {
   MoneyByRacePage,
 } from '../data/types';
 import { NotificationPreference, RepresentativeLookupInput } from '../data/types';
-import { COMMITTEE_PAGE_SIZE, committeeRegisterQueryKey } from '../lib/committeeList';
+import { COMMITTEE_PAGE_SIZE, committeeRegisterQueryKey } from '../lib/committeeListReads';
 import {
   committeeMoneyQueryKey,
   committeePaymentsListQueryKey,
   FIRST_PAYMENTS_LIMIT,
   PAGE_CAP,
-} from '../lib/committeeMoneyShared';
+} from '../lib/committeeMoneyQueryKeys';
 import {
   getCampaignFinanceRacesFromApiPayload,
   moneyByRaceQueryKey,
   type ApiMoneyByRacePayload,
-} from '../lib/moneyByRace';
+} from '../lib/moneyByRaceReads';
 import {
   campaignFinanceFilingsQueryKey,
   campaignFinanceSummaryQueryKey,
-} from '../lib/moneyLanding';
+} from '../lib/moneyLandingReads';
 import { readerIsSavingData } from '../lib/dataSaving';
-import { campaignMoneyYear, legislatorCampaignMoneyQueryKey } from '../lib/legislatorCampaignMoney';
+import { campaignMoneyYear, legislatorCampaignMoneyQueryKey } from '../lib/campaignMoneyYears';
 import { legislatorRecordQueryKey } from '../lib/legislatorProfile';
 import { seededQuery } from '../lib/pageData';
 import {
@@ -115,7 +115,7 @@ import {
   outsideSpendingLoadFailure,
   outsideSpendingRecordPageFromPayload,
   outsideSpendingRecordQueryKey,
-} from '../lib/outsideSpending';
+} from '../lib/outsideSpendingReads';
 import {
   PAYMENTS_UNDER_NAME_PAGE_SIZE,
   paymentsUnderNameQueryKey,

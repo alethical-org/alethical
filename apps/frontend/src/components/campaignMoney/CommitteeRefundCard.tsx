@@ -5,7 +5,7 @@ import type { CommitteeRefunds } from '../../data/types';
 import { useResponsive } from '../../hooks/useResponsive';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 import { refundCopy as copy, visibleRefundYears } from '../../lib/committeeRefunds';
-import { formatDay, formatMoney } from '../../lib/legislatorCampaignMoney';
+import { formatDay, formatMoney } from '../../lib/moneyFormat';
 import { externalLinkProps } from '../../navigation/links';
 import { GreenLinkArrow, linkArrowRow } from '../LinkArrow';
 import { theme as t } from '../../theme/tokens';
