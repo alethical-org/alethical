@@ -21,7 +21,7 @@ import {
   statusLabel,
   TRAILING_REFERRAL,
   TRAILING_RETURN,
-} from '../lib/billDetail';
+} from '../lib/billStatus';
 import type { FilingScheduleState } from '../lib/legislatorCampaignMoney';
 import {
   outsideSpendingRecordPageFromPayload,
