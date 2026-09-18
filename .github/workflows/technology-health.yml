@@ -1,11 +1,12 @@
 name: Review technology health
 
-# Free monthly backstop for the parts a normal package update cannot judge:
+# Free weekly security review and monthly backstop for the parts a package update cannot judge:
 # duplicated version pins, untracked command-line tools, support deadlines, and
 # the 3-month decision about major releases or useful new capabilities.
 on:
   schedule:
     - cron: "17 13 1 * *"
+    - cron: "41 13 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -45,6 +46,13 @@ jobs:
           node-version: "22"
 
       - name: Review versions, support, and known security problems
+        if: github.event.schedule != '41 13 * * 1'
         run: >
           python scripts/check_technology_health.py --online
+          --report "$GITHUB_STEP_SUMMARY"
+
+      - name: Review known security problems between releases
+        if: github.event.schedule == '41 13 * * 1'
+        run: >
+          python scripts/check_technology_health.py --security-only
           --report "$GITHUB_STEP_SUMMARY"

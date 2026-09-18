@@ -113,7 +113,7 @@ uv run uvicorn alethical.api.main:create_app --factory --host 0.0.0.0 --port $PO
 Create the Vercel project from the repository root so the root `pnpm-lock.yaml` is available. The repo-root `vercel.json` configures:
 
 - Ignored build command: stop documentation-only and backend-only builds; build
-  when `api/`, `apps/frontend/`, the root package files, or `vercel.json` changes
+  when `api/`, `apps/frontend/`, `patches/`, the root package files, or `vercel.json` changes
 - Install command: `pnpm install --frozen-lockfile`
 - Build command: `pnpm --dir apps/frontend run build`
 - Output directory: `apps/frontend/dist`

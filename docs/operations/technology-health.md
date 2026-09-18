@@ -1,4 +1,4 @@
-<!-- describes: .github/dependabot.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py -->
+<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py -->
 <!-- last-major-tool-review: 2026-08-15 -->
 
 # Keeping every tool supported and useful
@@ -14,12 +14,22 @@ the newest major release is never automatic.
   major releases arrive separately so one risky change cannot block safer changes.
 - Known security problems trigger GitHub's update helper immediately rather than
   waiting for the monthly date.
-- The free monthly technology check (`.github/workflows/technology-health.yml`) finds
-  inconsistent saved versions, commands with no saved version, new high-risk Python
-  or JavaScript package warnings, approaching support deadlines, and overdue major
-  tool reviews.
-- The monthly technology check reads public package lists and runs on GitHub's free
-  standard computer. It uses no AI, paid API, or larger paid computer.
+- The required `changes` check (`.github/workflows/ci.yml`) checks every locked
+  Python and JavaScript package, including development tools, before a pull request
+  or merge-queue commit can pass. Every severity blocks release unless the exact
+  finding meets the recorded exception below. Missing packages, unreadable reports,
+  scanner errors, and timeouts fail the check rather than reporting a clean result.
+- The same security check runs every Monday at 13:41 UTC through
+  `.github/workflows/technology-health.yml`, so new warnings are found between releases.
+- The monthly technology check (`.github/workflows/technology-health.yml`) also finds
+  inconsistent saved versions, commands with no saved version, approaching support
+  deadlines, and overdue major tool reviews. Routine tool updates do not block the
+  separate security-only check.
+- These checks read public package lists on GitHub's free standard computer. They
+  use no AI, paid API, or larger paid computer. Python checks read every locked
+  package version, including versions for other operating systems, without installing
+  the app's packages or running their build scripts. Each returned package list must
+  match the lock inventory. A stale lock or unsupported source fails the check.
 - Every GitHub job that installs `uv` saves 0.12.5, the release that passed the first
   live technology check. The monthly check rejects a missing or different saved
   version, and reports newer `uv` releases under the same monthly policy as other tools.
@@ -59,12 +69,18 @@ to test and release a replacement before support ends.
 
 ## Recorded security exceptions
 
-JavaScript currently has 2 high-severity warnings in `image-size` with no fixed
-release (`GHSA-w3rx-r6r6-pgpr`, `GHSA-5p2g-fcmc-qvqq`). Expo's build tool reads only
-project image files; this package is absent from the finished website. The monthly
-check ignores only these 2 exact warnings and fails on every new high or critical
-warning. The full evidence lives in
+JavaScript has 2 high-severity warnings in `image-size` with no fixed release
+(`GHSA-w3rx-r6r6-pgpr`, `GHSA-5p2g-fcmc-qvqq`). Expo's build tool reads only
+project image files; this package is absent from the finished website. The exception
+applies only to `image-size` 1.2.1 through Expo's Metro image loader, and only while
+the advisory reports no patched release. A different version or dependency path,
+an available fix, or the review deadline of 2026-10-18 makes these warnings block
+release too. Every other warning blocks release at every severity. The evidence lives in
 [`docs/verification/1493-build-tool-security/README.md`](../verification/1493-build-tool-security/README.md).
+
+Run `python scripts/check_technology_health.py --security-only` for the same release
+check locally. Run `python scripts/check_technology_health.py --online` for the
+full monthly review. Both commands require the project's saved uv and pnpm versions.
 
 ## Review completed on 2026-08-15
 

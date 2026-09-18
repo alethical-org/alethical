@@ -106,7 +106,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [Local code checks](operations/local-code-checks.md) — shared setup, selected-file formatting, exact-commit upload checks, and staged GitHub description-check activation
 - [Error monitoring](operations/error-monitoring.md) — which server failures alert through Sentry, the privacy limits, setup, incident checks, and why Alethical buys this instead of building it
 - [Repo and service settings](operations/repo-and-service-settings.md) — every setting that controls the project but doesn't live in the repo, and its intended value
-- [Keeping every tool supported and useful](operations/technology-health.md) — the free monthly checks, 3-month major-tool review, support dates, and recorded exceptions
+- [Keeping every tool supported and useful](operations/technology-health.md) — required release security checks, weekly security scans, monthly tool checks, support dates, and recorded exceptions
 - [Private repository cost outlook](operations/private-repository-cost-outlook.md) — the 2026-08-11 cost, security, access, job-limit, and Vercel-seat decision for making Alethical private
 - [API CDN setup](operations/api-cdn-setup.md) — Cloudflare in front of the API, plus email authentication records
 - [Page-load performance decisions](operations/page-load-performance-decisions.md): measured safe speed work, remaining tradeoffs, and the proof required before release
@@ -150,6 +150,7 @@ still describe today's service. Keep the evidence and its limits together.
 - [Track button checking state](verification/1013-track-button-forms/README.md) — button behavior while saved status loads
 - [Track button failure state](verification/1021-track-button-couldnt-check/README.md) — recovery when saved status cannot be read
 - [Build-tool security evidence](verification/1493-build-tool-security/README.md) — the release-tool security check and its limits
+- [September dependency security repair](verification/2026-09-18-dependency-security.md) — patched packages, required scans, limited exceptions, and release checks
 - [Board source comparison](verification/1662-board-source-comparison/report.md) — saved official-file comparisons and missing-row evidence
 - [Navigation checks](verification/1698-nav-revision/README.md) — menu and account-control screenshots
 - [Exact-name connection checks](verification/2145-exact-name-connections.md) — limits on connecting records by a filed name
