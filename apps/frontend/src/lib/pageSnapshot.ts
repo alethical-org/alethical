@@ -488,12 +488,20 @@ export interface LegislatorDirectorySnapshotSource {
   } | null;
 }
 
+/**
+ * `profileTab: 'money'` is the roster as the money section reaches it: every member
+ * link opens Campaign money and the page links keep the view, the same addresses the
+ * screen writes for `/legislators?tab=money` (#2264).
+ */
 export function legislatorDirectoryPageSnapshot(
   legislators: readonly LegislatorDirectorySnapshotSource[],
   total: number,
   page: number,
   pageSize: number,
+  options: { profileTab?: 'money' } = {},
 ): PageSnapshot {
+  const withTab = (href: string): string =>
+    options.profileTab ? `${href}${href.includes('?') ? '&' : '?'}tab=${options.profileTab}` : href;
   return {
     heading: LEGISLATOR_DIRECTORY_HEADING,
     subheading: resultCount(total, 'legislator'),
@@ -508,13 +516,15 @@ export function legislatorDirectoryPageSnapshot(
       return {
         label: clean(legislator.full_name) || 'Minnesota legislator',
         detail: [chamber, district ? `District ${district}` : ''].filter(Boolean).join(' · '),
-        href: `/legislators/${encodeURIComponent(legislator.slug || legislator.id)}`,
+        href: withTab(`/legislators/${encodeURIComponent(legislator.slug || legislator.id)}`),
       };
     }),
     links: directoryNavigation('/legislators', page, directoryTotalPages(total, pageSize), {
       label: 'Bills',
       href: '/bills',
-    }),
+    }).map((link) =>
+      link.href.startsWith('/legislators') ? { ...link, href: withTab(link.href) } : link,
+    ),
   };
 }
 

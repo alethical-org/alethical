@@ -589,7 +589,10 @@ async function billListContent(page: number): Promise<PageContent> {
   };
 }
 
-async function legislatorListContent(page: number): Promise<PageContent> {
+async function legislatorListContent(
+  page: number,
+  profileTab?: "money",
+): Promise<PageContent> {
   // No issue buttons on this page, so it reads 2 of the 3 rather than all 3.
   const [collection, seeds] = await Promise.all([
     getDirectoryApiResponse<
@@ -617,13 +620,18 @@ async function legislatorListContent(page: number): Promise<PageContent> {
     .sort(compareLegislatorNames)
     .slice(start, start + LEGISLATOR_DIRECTORY_PAGE_SIZE);
   return {
-    metadata: legislatorListPageMetadata(page),
+    // The money view is a second address for the same list, so it stays out of the
+    // index exactly as it did when it was served head only.
+    metadata: legislatorListPageMetadata(page, {
+      noindex: profileTab !== undefined,
+    }),
     snapshot: renderPageSnapshot(
       legislatorDirectoryPageSnapshot(
         legislators,
         total,
         page,
         LEGISLATOR_DIRECTORY_PAGE_SIZE,
+        { profileTab },
       ),
     ),
     data: seeds,
@@ -1215,6 +1223,25 @@ function isUnfilteredDirectory(params: Record<string, string>): boolean {
   return Object.keys(params).every((key) => key === "page");
 }
 
+/**
+ * `/legislators?tab=money` is the same roster reached from the money section: the
+ * list is identical and only the member links change, opening Campaign money
+ * instead of Overview (#2264). So it is served whole like the plain directory --
+ * its own text, its list and its seeds -- rather than head only, which left the
+ * money section's reader a blank list until the app's own read answered.
+ */
+function isLegislatorDirectoryView(params: Record<string, string>): boolean {
+  return Object.keys(params).every(
+    (key) => key === "page" || (key === "tab" && params[key] === "money"),
+  );
+}
+
+function legislatorDirectoryProfileTab(
+  params: Record<string, string>,
+): "money" | undefined {
+  return params.tab === "money" ? "money" : undefined;
+}
+
 async function lobbyingLandingContent(): Promise<PageContent> {
   const payload = await getApiData<LobbyingSummary>("/lobbying/summary");
   if (payload.state === "unavailable")
@@ -1331,8 +1358,11 @@ async function contentFor(
         ? billListContent(directoryPageNumber(target.params.page))
         : headOnly(billListPageMetadata(1, { noindex: true }));
     case "legislators":
-      return isUnfilteredDirectory(target.params)
-        ? legislatorListContent(directoryPageNumber(target.params.page))
+      return isLegislatorDirectoryView(target.params)
+        ? legislatorListContent(
+            directoryPageNumber(target.params.page),
+            legislatorDirectoryProfileTab(target.params),
+          )
         : headOnly(legislatorListPageMetadata(1, { noindex: true }));
     case "ask":
       return headOnly(askPageMetadata(target.params.q));

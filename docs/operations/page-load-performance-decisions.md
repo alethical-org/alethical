@@ -1040,6 +1040,13 @@ yes cases was removed on purpose and watched to fail.
 
 ## What a search page's first response carries
 
+`/legislators?tab=money`, the roster as the money section reaches it, is served whole
+exactly as `/legislators` is: same text, same seeds, and every member link and page link
+carrying `tab=money`, the way the screen writes them. It is the one filtered-looking
+directory address that is not a filter (the list is identical; only where a member
+opens changes), so it is not head only, and it stays out of the index as a second
+address for one list (`isLegislatorDirectoryView` in `api/page.ts`, 18 Sep 2026).
+
 `/bills` and `/legislators` are served with the small reads their own controls need
 already made, so the app draws those controls at its first paint rather than after a read
 of its own: the issue buttons, the session dropdown's list, and the date under the result
