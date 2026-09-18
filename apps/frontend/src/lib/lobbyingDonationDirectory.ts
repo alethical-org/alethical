@@ -3,8 +3,8 @@ import type { LobbyingLobbyistListRow } from './lobbyingTypes';
 
 export const LOBBYING_DONATION_SORTS = [
   { value: 'name', label: 'Name A–Z' },
-  { value: 'donations_desc', label: 'Recorded donations: highest first' },
-  { value: 'donations_asc', label: 'Recorded donations: lowest first' },
+  { value: 'donations_desc', label: 'Donations: highest first' },
+  { value: 'donations_asc', label: 'Donations: lowest first' },
 ] as const;
 
 export function lobbyingDonationAmountLabel(row: LobbyingLobbyistListRow, year?: number | null) {

@@ -49,9 +49,11 @@ No matching records is not $0. A missing amount is not $0. An unavailable source
 is not an empty list. The default year must be completed and support comparison.
 Any amount remains a sum of held matching records, never proof of complete giving.
 
-## Current checkpoint
+## Release evidence
 
-- Branch: `codex/lobbyist-donation-sort`; tracking [issue 2292](https://github.com/alethical-org/alethical/issues/2292).
+- Released on 18 September 2026 through [pull request 2293](https://github.com/alethical-org/alethical/pull/2293),
+  closing [issue 2292](https://github.com/alethical-org/alethical/issues/2292).
+  The initial public release serves [commit 06c3dcf7](https://github.com/alethical-org/alethical/commit/06c3dcf7e94d769641696dd93cc14163996e2598).
 - Live read on 18 September 2026: the 1,665-person roster supports 136 amounts for
   2025, with 105 unavailable amounts and 1,424 people without matching records.
   For 2024 the corresponding counts are 131, 100 and 1,434. The default is 2025.
@@ -59,7 +61,7 @@ Any amount remains a sum of held matching records, never proof of complete givin
 - API source guard, full-result ordering and pagination implemented; 51 focused
   backend tests passed, including source disagreement and partial pruning.
 - Frontend controls, saved addresses, first-response amounts and supporting-year
-  links implemented. 3,383 frontend tests and type checks pass. The production
+  links implemented. 3,384 frontend tests and type checks pass. The production
   build passes its asset, icon and first-load size checks.
 - Independent integration review found an empty-year sentence and a New Year
   timezone mismatch; both are corrected with regression tests.
@@ -70,5 +72,23 @@ Any amount remains a sum of held matching records, never proof of complete givin
   and desktop viewports without horizontal overflow.
 - Product guidance and source rules now carry the narrow directory exception.
 - No production data changes are part of this build.
-- Remaining: finish checks, independent browser review, PR, merge queue,
-  deployment, live exercise and release evidence.
+- The full backend suite passed 2,930 tests. Required checks passed on the final
+  change and on the merge queue's combined revision.
+- The [fallback release](https://github.com/alethical-org/alethical/actions/runs/35393979339)
+  built the merged revision while Vercel reported a deployment outage. The build
+  passed at 295,125 compressed program bytes against the 296,022-byte limit.
+  Its automatic domain assignment stalled; the reviewed ready deployment was
+  assigned to the existing production addresses with Vercel's alias command.
+- Live API checks returned 131 supported amounts for 2024, correctly ordered in
+  both directions. The highest amount was $11,450 and the lowest was $100.
+- Live browser checks passed year selection, amount ordering, name search,
+  supporting-year links, changing the donation year, and source-link wrapping at
+  320px without horizontal overflow.
+
+- Independent live reader review passed both amount orders, search, matching-year
+  links and missing-amount labels. It found clipped sort-choice text at 320px.
+  The shortened choices, “Donations: highest first” and “Donations: lowest first”,
+  fit at 320px and 390px; the results heading matches each selected choice.
+- The fallback workflow was cancelled after its completed deployment reached the
+  public addresses, stopping the redundant wait for Vercel’s stalled automatic
+  domain assignment. The apex address still redirects to `www.alethical.com`.
