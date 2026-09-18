@@ -867,6 +867,36 @@ sort of 33,612 report rows, 66 ms) rather than trips. A cold recording of
 and the app's finished frame, money card included, at 1,077 ms, against 988 ms and
 1,143 ms at the start of the day.
 
+**Then the reading itself, 18 September 2026.** With the trips folded, what was left on
+the race page and the money cards was the table, not the question. The rows of one
+committee are scattered: on the live release committee 18135's 305 rows for 2026 sit on
+302 separate pages, and the race page's 27,889 rows sit on 11,658 of that snapshot's
+12,458 pages, so reading them is very nearly reading the whole file. The race page's
+question touched 13,308 blocks and took 1,713 ms cold and 69 ms warm.
+
+`ix_cf_contribution_row_snapshot_recipient_year` (migration 0056) is
+`(snapshot_id, recipient_reg_num, year)` carrying `receipt_type`, `amount`,
+`receipt_date` and `in_kind`, which are every value those reads add up, so the answer
+comes out of the index and the scattered pages are never opened.
+
+**A plain index would have been worse than none**, which is the part worth remembering:
+measured on a local copy at production's volume (1,166,374 rows, 2 snapshots, the same
+per-year spread), the race page's question touches 3,217 blocks today, 15,609 with a
+plain `(snapshot_id, recipient_reg_num, year)` index, and 2,500 with the carrying one.
+The plain index trades one sweep of the table for 27,889 scattered fetches from it.
+
+**Live after the release, read-only against production:** the race page's question
+touches 1,376 blocks against 13,308, and runs in 147 ms cold and 17 ms warm against
+1,713 ms and 69 ms. One committee's rows for a year touch 7 blocks against 607, and run
+in 0.25 ms against 4.9 ms. Both now read the index alone (`Index Only Scan`).
+
+It works only where Postgres knows the rows are visible to everyone, and it does:
+99.8% of this table's 26,464 pages are marked so, because the loader replaces rows in
+bulk and autovacuum marks them minutes later. Where that is not yet true the planner
+reads `pg_class.relallvisible` and picks the old plan, so a load in flight makes the
+index do nothing rather than something wrong. It costs 86 MB beside a 207 MB table,
+2.3 s to build, and 1 second on each nightly load of 583,187 rows.
+
 **What stays separate, and why.** `find_committee` still asks up to 3 datasets in
 turn, because on the live release the first answers for nearly every committee and a
 `UNION` would read all 3 for everyone. `name_connections`, `independent_spending_about`,
