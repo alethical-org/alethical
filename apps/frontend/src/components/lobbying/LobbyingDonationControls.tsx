@@ -20,16 +20,18 @@ export function LobbyingSelect({
   options,
   onChange,
   disabled = false,
+  inRow = false,
 }: {
   label: string;
   value: string;
   options: readonly { value: string; label: string }[];
   onChange: (value: string) => void;
   disabled?: boolean;
+  inRow?: boolean;
 }) {
   useEffect(() => ensureYearFilterWebStyles(), []);
   return (
-    <View style={styles.field}>
+    <View style={[styles.field, inRow && styles.fieldInRow]}>
       <Text style={styles.label}>{label}</Text>
       {Platform.OS === 'web' ? (
         <select
@@ -94,6 +96,7 @@ export function LobbyingDonationControls({
     <View style={styles.section}>
       <View style={styles.controls}>
         <LobbyingSelect
+          inRow
           label="Year"
           value={String(selectedYear ?? '')}
           onChange={onYear}
@@ -105,6 +108,7 @@ export function LobbyingDonationControls({
           }
         />
         <LobbyingSelect
+          inRow
           label="Sort by"
           value={sort}
           options={LOBBYING_DONATION_SORTS}
@@ -115,8 +119,11 @@ export function LobbyingDonationControls({
       {date ? <Text style={styles.note}>Campaign contribution file copied {date}.</Text> : null}
       {loading ? null : donations?.eligible_count != null && donations.year != null ? (
         <Text style={styles.note}>
-          {donations.eligible_count.toLocaleString('en-US')} lobbyists in these results have an
-          amount available for {donations.year}.
+          {donations.eligible_count.toLocaleString('en-US')}{' '}
+          {donations.eligible_count === 1
+            ? 'lobbyist in these results has'
+            : 'lobbyists in these results have'}{' '}
+          an amount available for {donations.year}.
         </Text>
       ) : (
         <Text style={styles.note}>
@@ -129,7 +136,7 @@ export function LobbyingDonationControls({
         onPress={() => setExpanded(!expanded)}
         style={styles.disclosure}
       >
-        <Text style={styles.disclosureText}>
+        <Text style={[styles.disclosureText, styles.actionText]}>
           {expanded ? 'Hide how these amounts are counted' : 'How these amounts are counted'}
         </Text>
       </Pressable>
@@ -168,7 +175,8 @@ const selectStyle: CSSProperties = {
 const styles = StyleSheet.create({
   section: { marginTop: 20 },
   controls: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, alignItems: 'flex-end' },
-  field: { minWidth: 0, flexGrow: 1, flexBasis: 180, maxWidth: 370, gap: 8 },
+  field: { minWidth: 0, maxWidth: 370, gap: 8 },
+  fieldInRow: { flexGrow: 1, flexBasis: 180 },
   label: { fontFamily: theme.typography.body, color: '#2c322c', fontSize: 16, fontWeight: '700' },
   note: {
     marginTop: 10,
@@ -184,6 +192,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
+  actionText: { color: theme.colors.text.primary },
   explanation: {
     paddingHorizontal: 16,
     paddingBottom: 12,

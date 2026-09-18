@@ -18,7 +18,7 @@ The source and recovery process is described in
 | Address                                           | What it shows                                                           |
 | ------------------------------------------------- | ----------------------------------------------------------------------- |
 | `/money/lobbying`                                 | Search, 2 directory links, source date, source link and coverage limits |
-| `/money/lobbying/lobbyists`                       | Everyone in the copied lobbyist list, by filed name                     |
+| `/money/lobbying/lobbyists`                       | Registered lobbyists, with name search and annual donation order                     |
 | `/money/lobbying/principals`                      | Distinct organisation IDs from either lobbying file                     |
 | `/money/lobbying/lobbyists/<name>-<registration>` | Listed clients and separately filed donations under that registration   |
 | `/money/lobbying/principals/<name>-<entity ID>`   | Official yearly spending and lobbyists listed for that organisation     |
@@ -123,7 +123,7 @@ missing amounts follow supported amounts in either direction, with name and
 registration number breaking ties. Search, year, sort and page stay in the address.
 Changing a control returns to page 1. Filtered addresses are not indexed.
 
-Each amount links to that lobbyist's donation card with the same year selected.
+Each row opens that lobbyist's record with the same donation year selected.
 The directory prints the selected year, the campaign source copy date and source
 link separately from the lobbyist-list copy date. Its disclosure distinguishes
 campaign donations from client lobbying spending and warns that these are sums of
@@ -246,7 +246,7 @@ carrying later kinds, and failure versus absence. A repeated committee-link look
 removed only after its observed recipient numbers were shown to prove the same links in
 the same pinned contribution copy.
 
-Docs check: This guide describes the display and source states delivered by
-[issue 2164](https://github.com/alethical-org/alethical/issues/2164) and the copied-date and
-education corrections in [issue 2241](https://github.com/alethical-org/alethical/issues/2241).
-It adds no policy or changes to the protected campaign-finance architecture record.
+The annual donation controls and source guard are tracked in
+[issue 2292](https://github.com/alethical-org/alethical/issues/2292). The scoped
+directory exception also appears in the campaign-finance architecture and grounded
+answer rules; other lobbying surfaces retain their separate-record limits.

@@ -527,3 +527,19 @@ it('explains when no completed year supports an amount without printing a blank 
   expect(words()).toContain('Donation amounts are unavailable.');
   expect(words()).not.toContain('amount available for .');
 });
+
+it('uses singular wording for 1 supported donation amount', () => {
+  state.lobbyists = success({
+    ...fixture.lobbyists_page_2,
+    requested_year: null,
+    sort: 'name',
+    donations: { state: 'reported', year: 2025, available_years: [2025], eligible_count: 1 },
+  });
+  render(
+    <LobbyingLobbyistsScreen
+      navigation={navigation as never}
+      route={route('LobbyingLobbyists', { page: '2' })}
+    />,
+  );
+  expect(words()).toContain('1 lobbyist in these results has an amount available for 2025.');
+});

@@ -63,7 +63,11 @@ Any amount remains a sum of held matching records, never proof of complete givin
   build passes its asset, icon and first-load size checks.
 - Independent integration review found an empty-year sentence and a New Year
   timezone mismatch; both are corrected with regression tests.
-- Desktop and phone user-flow review is in progress.
+- Desktop and phone browsing, both amount orders, search, pagination, Back and
+  supporting-year links passed. Aafedt 2024 shows $2,500 matching 4 donation rows;
+  2025 shows $2,000 matching 2 rows. Mobile source wrapping and select spacing
+  corrected from the narrow-phone review. Source links fit within 320px, 390px
+  and desktop viewports without horizontal overflow.
 - Product guidance and source rules now carry the narrow directory exception.
 - No production data changes are part of this build.
 - Remaining: finish checks, independent browser review, PR, merge queue,

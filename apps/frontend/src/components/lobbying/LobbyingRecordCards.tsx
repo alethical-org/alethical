@@ -521,8 +521,8 @@ const styles: Record<string, any> = {
     gap: 16,
     flexWrap: 'wrap',
   },
-  recordStripMobile: { alignItems: 'flex-start' },
-  recordStripCount: { minWidth: 0, gap: 2 },
+  recordStripMobile: { flexDirection: 'column', alignItems: 'stretch', gap: 4 },
+  recordStripCount: { minWidth: 0, maxWidth: '100%', gap: 2 },
   countLine: {
     marginTop: 14,
     color: '#3f463f',
@@ -543,6 +543,9 @@ const styles: Record<string, any> = {
   },
   fileDateInline: { marginTop: 0 },
   sourceLink: {
+    minWidth: 0,
+    maxWidth: '100%',
+    flexShrink: 1,
     minHeight: 45,
     paddingVertical: 13,
     alignSelf: 'flex-start',
