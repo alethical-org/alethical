@@ -48,6 +48,7 @@ import {
   usePrefetchLegislator,
 } from '../../hooks/useAppQueries';
 import { useCurrentClaimExpiry } from '../../hooks/useCurrentClaimExpiry';
+import { useCampaignMoneyDetails } from '../../hooks/useCampaignMoneyDetails';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import {
@@ -57,12 +58,10 @@ import {
   closedPeriodDetail,
   closedPeriodLine,
   committeeTabFromParam,
-  committeeAlternativeYear,
   COMMITTEE_TAB_LABELS,
   COMMITTEE_MONEY_SECTION_LABEL,
   confirmedMemberLinkLabel,
   EMPTY_YEAR_VALUE,
-  emptyYearMoneyInWhy,
   filingIsAmended,
   filedDateLine,
   filingRowPeriodLine,
@@ -114,6 +113,8 @@ import {
   staleHoldNote,
   uncoveredPeriodDetail,
   uncoveredPeriodLine,
+  EMPTY_COMMITTEE_PAYMENTS,
+  VIEW_FILED_REPORTS,
 } from '../../lib/committeeMoneyShared';
 import { COMMITTEE_PAYMENTS_LINK_LABEL } from '../../lib/committeeMoneyShared';
 import { paymentFilesDownloadedLine } from '../../lib/campaignMoneyDetailsPageCopy';
@@ -175,7 +176,7 @@ function BackChevron() {
   );
 }
 
-// Year selection and revealing payments retain their original action arrow.
+// Revealing payments retains its original action arrow.
 function ActionArrow() {
   return (
     <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -478,7 +479,6 @@ function CommitteeBody({
   const closedChip = closedChipLabel(money.register.terminationDate);
   const state = yearDisplayState(money);
   const checkedOn = money.fetchedAt ? centralDateLabel(money.fetchedAt) : null;
-  const otherYear = committeeAlternativeYear(year);
   const prefetchLegislator = usePrefetchLegislator();
   // Warm the member's profile data AND its screen file on navigation intent,
   // matching the bill and legislator lists (usePrefetchBill /
@@ -505,6 +505,17 @@ function CommitteeBody({
     : confirmedMemberWithheld && confirmation.confirmedFor
       ? CONFIRMED_MEMBER_WITHHELD_LINE
       : whoseCommitteeText(registerKind, money.entitySubType, nameableMember);
+
+  const filedReportsLink = (
+    <Pressable
+      style={styles.seeAll}
+      {...linkProps(routePath.moneyCommittee(slug, { tab: 'filings', year: String(year) }), () =>
+        onSelectTab('filings'),
+      )}
+    >
+      <LinkArrowLabel label={VIEW_FILED_REPORTS} style={styles.seeAllLabel} />
+    </Pressable>
+  );
 
   const { isTablet } = useResponsive();
   const shareContent: ShareContent = {
@@ -616,7 +627,7 @@ function CommitteeBody({
             onPreferences={onPreferences}
             contributionDetails={contributionDetails}
             spendingSort={spendingSort}
-            moneyControls={
+            moneyControls={(emptyPayments) => (
               <>
                 <View style={[styles.yearRow, isMobile && styles.yearRowMobile]}>
                   <YearControl
@@ -635,9 +646,10 @@ function CommitteeBody({
                   boardUrl={boardUrl}
                   isHoldingStale={isHoldingStale}
                   isMobile={isMobile}
+                  emptyPaymentsAction={emptyPayments ? filedReportsLink : undefined}
                 />
               </>
-            }
+            )}
             moneyFooter={
               <>
                 <View
@@ -671,12 +683,10 @@ function CommitteeBody({
                 <MoneyInCard
                   money={money}
                   state={state}
-                  year={year}
                   isBallot={isBallot}
                   boardUrl={boardUrl}
-                  otherYear={otherYear}
                   isMobile={isMobile}
-                  onSelectYear={onSelectYear}
+                  filedReportsLink={filedReportsLink}
                   withDonorBreakdown={withDonorBreakdown}
                 />
                 <MoneyOutCard money={money} isMobile={isMobile} />
@@ -697,6 +707,7 @@ function PeriodStamp({
   boardUrl,
   isHoldingStale,
   isMobile,
+  emptyPaymentsAction,
 }: {
   money: CommitteeMoney;
   state: 'closed-empty' | 'empty-year' | 'figures';
@@ -705,6 +716,7 @@ function PeriodStamp({
   boardUrl: string;
   isHoldingStale: boolean;
   isMobile: boolean;
+  emptyPaymentsAction?: ReactNode;
 }) {
   // The filing's period, identity and link live here, once, above both cards: one
   // filing produces both, so stating any of it per card states one fact twice.
@@ -731,7 +743,11 @@ function PeriodStamp({
         surface="committee"
         line={line}
         detail={detail}
-        notes={isHoldingStale ? [staleHoldNote(null)] : []}
+        notes={[
+          ...(emptyPaymentsAction ? [EMPTY_COMMITTEE_PAYMENTS] : []),
+          ...(isHoldingStale ? [staleHoldNote(null)] : []),
+        ]}
+        ourRecord={emptyPaymentsAction}
         boardRecordUrl={state === 'figures' && through !== null ? boardUrl : null}
         covered={covered}
         isMobile={isMobile}
@@ -743,22 +759,18 @@ function PeriodStamp({
 function MoneyInCard({
   money,
   state,
-  year,
   isBallot,
   boardUrl,
-  otherYear,
   isMobile,
-  onSelectYear,
+  filedReportsLink,
   withDonorBreakdown,
 }: {
   money: CommitteeMoney;
   state: 'closed-empty' | 'empty-year' | 'figures';
-  year: number;
   isBallot: boolean;
   boardUrl: string;
-  otherYear: number;
   isMobile: boolean;
-  onSelectYear: (year: number) => void;
+  filedReportsLink: ReactNode;
   withDonorBreakdown: boolean;
 }) {
   const { isTablet } = useResponsive();
@@ -782,9 +794,7 @@ function MoneyInCard({
           isFigure={false}
           isMobile={isMobile}
         />
-        <Text style={styles.explain}>
-          {closed ? CLOSED_MONEY_IN_WHY : emptyYearMoneyInWhy(year)}
-        </Text>
+        {closed ? <Text style={styles.explain}>{CLOSED_MONEY_IN_WHY}</Text> : null}
         <View style={styles.inlineLinks}>
           {closed ? (
             <Text
@@ -794,12 +804,7 @@ function MoneyInCard({
               {BOARD_RECORD_LINK_LABEL}
             </Text>
           ) : null}
-          <Pressable onPress={() => onSelectYear(otherYear)} accessibilityRole="button">
-            <View style={styles.seeOtherYear}>
-              <Text style={styles.seeOtherYearLabel}>See {otherYear}</Text>
-              <ActionArrow />
-            </View>
-          </Pressable>
+          {filedReportsLink}
         </View>
       </View>
     );
@@ -878,7 +883,7 @@ function PaymentsSection({
   onRefresh: () => void;
   navigation: RootScreenProps<'CommitteeMoney'>['navigation'];
   children: (withDonorBreakdown: boolean) => ReactNode;
-  moneyControls: ReactNode;
+  moneyControls: (emptyPayments: boolean) => ReactNode;
   moneyFooter: ReactNode;
   preferences: MoneyDetailsPreferences;
   onPreferences: (preferences: MoneyDetailsPreferences) => void;
@@ -894,6 +899,21 @@ function PaymentsSection({
   const section =
     addressedTab === 'filings' ? 'filings' : addressedTab === 'by' && !byAbsent ? 'by' : 'gave';
   const sections = ['gave', 'filings', ...(hasByRows || section === 'by' ? ['by'] : [])] as const;
+  const details = useCampaignMoneyDetails(registrationNumber, year, {
+    history: false,
+    enabled: section === 'gave',
+  });
+  // An absent report does not establish empty payment lists. Wait for complete,
+  // successful reads of both directions from the summary's exact data release.
+  const emptyPayments =
+    yearDisplayState(money) !== 'figures' &&
+    Number(money.split.namedTotal ?? 0) === 0 &&
+    details.selectedComplete &&
+    !details.received.isError &&
+    !details.made.isError &&
+    details.received.data?.releaseId === money.releaseId &&
+    details.received.data?.payments.length === 0 &&
+    details.made.data?.payments.length === 0;
   return (
     <CampaignMoneyCardTheme>
       <View style={detailsStyles.section}>
@@ -933,67 +953,75 @@ function PaymentsSection({
           </>
         ) : (
           <>
-            {moneyControls}
-            <View
-              style={[
-                styles.card,
-                isTablet && committeeCardStyles.tablet,
-                isMobile && styles.cardMobile,
-              ]}
-            >
-              <CommitteeDonations
-                headingLevel={2}
-                isBallot={isBallotQuestionFiler(money.entitySubType)}
-                committee={money}
-                year={year}
-                releaseId={money.releaseId}
-                onRefresh={onRefresh}
-                preferences={preferences}
-                onPreferences={onPreferences}
-              >
-                {children(true)}
-              </CommitteeDonations>
-              <View style={detailsStyles.horizontal}>
-                <Pressable
-                  style={styles.seeAll}
-                  {...linkProps(
-                    routePath.moneyCommitteePayments(slug, { tab: 'gave', year: String(year) }),
-                    () =>
-                      navigation.navigate('CommitteePayments', {
-                        slug,
-                        tab: 'gave',
-                        year: String(year),
-                      }),
-                  )}
+            {moneyControls(emptyPayments)}
+            {!emptyPayments ? (
+              <>
+                <View
+                  style={[
+                    styles.card,
+                    isTablet && committeeCardStyles.tablet,
+                    isMobile && styles.cardMobile,
+                  ]}
                 >
-                  <LinkArrowLabel
-                    label={COMMITTEE_PAYMENTS_LINK_LABEL}
-                    style={styles.seeAllLabel}
-                  />
-                </Pressable>
-              </View>
-            </View>
-            <CommitteeDonationCards
-              expandedRows={contributionDetailRows(contributionDetails, registrationNumber, year)}
-              onExpandedRowsChange={(rows) =>
-                navigation.setParams({
-                  contributionDetails: withContributionDetailRows(
+                  <CommitteeDonations
+                    headingLevel={2}
+                    isBallot={isBallotQuestionFiler(money.entitySubType)}
+                    committee={money}
+                    year={year}
+                    releaseId={money.releaseId}
+                    onRefresh={onRefresh}
+                    preferences={preferences}
+                    onPreferences={onPreferences}
+                  >
+                    {children(true)}
+                  </CommitteeDonations>
+                  <View style={detailsStyles.horizontal}>
+                    <Pressable
+                      style={styles.seeAll}
+                      {...linkProps(
+                        routePath.moneyCommitteePayments(slug, { tab: 'gave', year: String(year) }),
+                        () =>
+                          navigation.navigate('CommitteePayments', {
+                            slug,
+                            tab: 'gave',
+                            year: String(year),
+                          }),
+                      )}
+                    >
+                      <LinkArrowLabel
+                        label={COMMITTEE_PAYMENTS_LINK_LABEL}
+                        style={styles.seeAllLabel}
+                      />
+                    </Pressable>
+                  </View>
+                </View>
+                <CommitteeDonationCards
+                  expandedRows={contributionDetailRows(
                     contributionDetails,
                     registrationNumber,
                     year,
-                    rows,
-                  ),
-                })
-              }
-              committee={money}
-              year={year}
-              registerKind={
-                money.register.state === 'reported'
-                  ? money.register.kind
-                  : registerKindFromEntityType(money.entityType)
-              }
-              releaseId={money.releaseId}
-            />
+                  )}
+                  onExpandedRowsChange={(rows) =>
+                    navigation.setParams({
+                      contributionDetails: withContributionDetailRows(
+                        contributionDetails,
+                        registrationNumber,
+                        year,
+                        rows,
+                      ),
+                    })
+                  }
+                  committee={money}
+                  year={year}
+                  registerKind={
+                    money.register.state === 'reported'
+                      ? money.register.kind
+                      : registerKindFromEntityType(money.entityType)
+                  }
+                  releaseId={money.releaseId}
+                />
+              </>
+            ) : null}
             <GroupedOutsideSpending
               surface="committee"
               year={committeeOutsideSpending(money)}
@@ -1527,15 +1555,8 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   inlineLinks: { gap: 12 },
-  seeOtherYear: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   actionRow: { gap: 8 },
   actionLabel: { color: c.text },
-  seeOtherYearLabel: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.body,
-    fontWeight: t.fontWeights.bold,
-    color: c.text,
-  },
   sectionTabs: {
     flexDirection: 'row',
     alignItems: 'center',

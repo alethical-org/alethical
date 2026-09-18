@@ -34,12 +34,11 @@ decisions were taken against text which had already been replaced. One session r
 keeping downloaded files in the database an hour after its own merged work had settled on
 Supabase Storage; another merged a display rule that a third had already measured to be wrong.
 
-- **The owner today** is the session **money ux** (`01a0ab28-d848-7890-9741-70e5ff7027fd`),
-  in `/Users/eug/.codex/worktrees/4a8c/Alethical` on branch `codex/money-page-refinements`.
-  It took the pen on 16 Sep 2026 for the source-backed union-coverage correction in §9.8,
-  part of Eugene's `/money` refinement request. The previous owner is absent from the live
-  task list and no open pull request changes this file. The correction's source is linked
-  in §9.8; the release pull request records the request and the change.
+- **The owner** is the task **Committees** (`01a0ab8e-ab12-7fa2-80ff-c2b6f042fcd9`),
+  on branch `codex/committee-empty-year`, for the empty-year and contribution-terminology
+  refinements in [issue 2274](https://github.com/alethical-org/alethical/issues/2274).
+  The task **money** (`01a0ab28-d848-7890-9741-70e5ff7027fd`) explicitly disclaims ownership
+  of this file and owns the separate selected-tab treatment.
   - The previous claim named `.claude/worktrees/zealous-curie-c0f954` on branch
     `claude/legislator-money-tab-review-6bf9e7`, appointed 12 Sep 2026. That worktree now
     holds `claude/tab-order-consult-only`. Its decisions came from
@@ -1845,8 +1844,9 @@ implies currency has to survive that gap (`.claude/rules/grounded-answers.md` ru
 - Each page shows one clearly labelled freshness date, consistent with
   [#861](https://github.com/alethical-org/alethical/issues/861).
 
-**Missing versus zero.** A missing value reads "Not reported". A verified zero reads "0". A
-candidate who genuinely raised nothing is not the same as one whose filing we do not have.
+**Missing versus zero.** A missing official report total reads “Report total unavailable”.
+A verified zero reads “0”. An empty itemized list does not establish a zero report total.
+Missing report figures are described as a gap in our copy, not as a failure to file.
 
 **A closed committee is a fifth state, and it is the one a reader is most likely to read as
 concealment.** A sitting member's committee can be terminated mid-year, and then the year is empty
@@ -1888,12 +1888,12 @@ date and source. A network view may show the shape; it may not imply continuatio
 [#2140](https://github.com/alethical-org/alethical/issues/2140)).** Every rule above still binds
 it. These are the rules the redesign adds, each with the reason it exists.
 
-- **The lead chart divides the filing's official cash total, and unnamed money is its own slice.**
-  Named slices are the state's donor kinds, cash only, each with dollars, a share and a count of
-  distinct printed names; the unnamed slice carries dollars and a share and no count. A chart of
-  named money alone would silently drop about 4 dollars in 10 on a typical member's page (§9.5).
+- **The lead chart divides the filing's official cash total, and non-itemized contributions are their own slice.**
+  Itemized slices are the state's donor kinds, cash only, each with dollars, a share and a count of
+  distinct printed names; the non-itemized slice carries dollars and a share and no count. A chart of
+  itemized contributions alone would silently drop about 4 dollars in 10 on a typical member's page (§9.5).
   Three states: where the split is shown, the full chart; where no official total exists, a chart
-  of named money labelled as named donations only; where the sources disagree, no chart and the 1
+  of itemized contributions headed “Who gave (itemized contributions only)”; where the sources disagree, no chart and the 1
   applicable withheld-split sentence. A percentage never makes an incomplete picture look complete.
 - **Five fixed tabs in a fixed order: Individuals, Lobbyists, Committees & Funds, Party Units,
   Expenditures.** A gift from another candidate's committee sits under Committees & Funds with the
@@ -1901,6 +1901,8 @@ it. These are the rules the redesign adds, each with the reason it exists.
   appears only for rows the state marks Self, Other, Unknown or blank. Every row lands in exactly 1
   tab. **The order never follows the figures** (Eugene, 16 Sep 2026): a tab holding nothing keeps
   its place, so Lobbyists sits second on a member no lobbyist gave to, reading `Lobbyists 0`.
+  When all itemized lists are successfully loaded and empty, the entire browser is replaced
+  by one plain empty-state sentence, without empty search, sort or zero-total controls.
   Ordering by size would move the tabs between 1 member and the next and between 1 year and the
   next, so a reader could never learn where a kind lives, and a count of 0 is a fact worth reading
   in the place a reader already looks for it. **Nor does the money section's own order reach into

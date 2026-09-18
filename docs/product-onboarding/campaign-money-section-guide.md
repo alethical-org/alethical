@@ -570,7 +570,7 @@ to that committee exceed $200 in a calendar year. It may also name donors who ga
 or less.” It is not moved entirely to the footer or hidden in a tooltip.
 
 A missing official total says “No usable official total in our records for {year}”.
-Missing named contributions say “No named contributions in our records for {year}”. A
+Missing itemized contributions say “No itemized contributions in our records for {year}”. A
 failed figure says “We couldn’t load this figure”. Missing values never receive leftover
 dates or become $0; a genuine reported zero remains $0.
 
@@ -603,7 +603,7 @@ first. They form 1 wrapping group with 1 normal-weight **Year** label. The label
 and numerals use weight 400; buttons use 10px rounded corners and at least a 44px
 target. The selected year has a black fill and white text on both the profile and
 committee record. Dashed outlines use
-the actual answers for those years to mark named-only coverage; they do not assume an
+the actual answers for those years to mark itemized-only coverage; they do not assume an
 older year lacks an official report. These style answers never renew the 20-minute check
 on whose committee is being shown. The 2022–2026 replacement of the held filing totals is
 tracked in [issue 2142](https://github.com/alethical-org/alethical/issues/2142).
@@ -611,10 +611,10 @@ The replacement remains held because the new Board feed omits an existing 2026 r
 the year buttons do not mean its totals have been published.
 
 The prominent donor chart shows shares of cash money by donor kind. A checked split uses
-the official cash total and includes unnamed cash. With no official total it uses the
-complete named cash list and says “named donations only”. Goods and services stay in the
-named amounts and rows, with 1 explanation under the chart, but never enter cash shares.
-There is no separate unnamed percentage under the profile's summary amount. Missing,
+the official cash total and includes non-itemized cash contributions. With no official total it uses the
+complete itemized cash contribution list and says “Who gave (itemized contributions only)”. Goods and services stay in the
+itemized amounts and rows, with 1 explanation under the chart, but never enter cash shares.
+There is no separate non-itemized percentage under the profile's summary amount. Missing,
 unsafe or incomplete figures retain their own explanation instead of a misleading circle.
 
 The fixed tabs are Individuals, Lobbyists, Committees & Funds, Party Units and Expenditures.
@@ -717,13 +717,13 @@ Campaign money, top to bottom:
    confirmation prevents that partial response being saved for later readers and
    leaves the browser to retry it.
 
-   After a successful check returning no confirmed member, a candidate committee says:
-   “These are this committee’s own figures. We have not linked them to a person; the
-   committee’s name alone does not prove whose it is.” Party units, caucuses and ballot-question committees retain their separate
+   After a successful check returning no confirmed member, a candidate committee shows
+   no ownership notice or replacement wording anywhere. “What this record covers” is
+   unchanged. Party units, caucuses and ballot-question committees retain their separate
    explanations. A political committee or fund has no extra sentence repeating the
    registered kind already above its name. When that leaves no useful ownership
-   content, the ownership container is absent too. Candidate ownership explanations
-   and confirmation details remain.
+   content, the ownership container is absent too. Confirmed profile links and the
+   confirmation loading, failure and withheld states remain.
 
    A confirmed candidate committee says: “A person at Alethical checked Minnesota’s
    records and confirmed this is {name}’s committee. These figures cover this committee;
@@ -800,9 +800,9 @@ Campaign money, top to bottom:
 5. **Who gave**, above the summary cards. This is the same chart as the legislator tab,
    read for this registration number and selected year. A safe, checked split includes
    Non-itemized contributions as its own grey slice. Without an official total, the chart
-   says “named donations only” and divides the complete named cash list. A withheld split,
+   says “Who gave (itemized contributions only)” and divides the complete itemized cash contribution list. A withheld split,
    failed read or incomplete list gets its own explanation, never a partly drawn whole.
-   Cash determines the slices; donated goods and services remain in the named amounts and
+   Cash determines the slices; donated goods and services remain in the itemized amounts and
    payment rows, with their explanation under the chart. The solid colors, category order
    and legend are shared with the legislator tab.
 
@@ -819,10 +819,12 @@ Campaign money, top to bottom:
 
 6. **Money in — two numbers, both correct.** "Total contributions", the total the committee
    itself reported to the state, drawn only when the filing's total exists, and "Itemized
-   contributions", the donations we can list with a donor's name, drawn always — a real
-   amount or the words "Not reported", never a blank. The reported figure is the filing's
+   contributions", the contributions the state itemizes, drawn when the full money section
+   is present: a real amount or its missing-record explanation, never a blank. A missing
+   report total reads “Report total unavailable”, never a claim that the committee failed
+   to report. The reported figure is the filing's
    **cash** column, which is what the Board's totals service serves, so where that column is
-   $0 and every named donation was goods and services the figure is not drawn: the page
+   $0 and every itemized contribution was goods and services the figure is not drawn: the page
    shows the in-kind donations and says it holds no official total it can stand behind
    rather than printing a $0 the filing's own Total column contradicts (16 committee-years
    across 2024 to 2026, 11 Sep 2026). The labels are the filing's own words
@@ -846,7 +848,7 @@ Campaign money, top to bottom:
    committee's reported total whose givers the state's public file does not name". Beside
    the chart both labels are explained once in its opening paragraph instead, and the card
    is figures only. The chart uses that split only after
-   the complete named cash rows agree with it. Receipts that are
+   the complete itemized cash contribution rows agree with it. Receipts that are
    not contributions (a public subsidy, interest, a loan) sit under a "Not a contribution"
    heading
    with the state's own label; **a row the state types `Miscellaneous` is not drawn, and
@@ -856,7 +858,7 @@ Campaign money, top to bottom:
    outside-spending card retains its own downloads link and source filename. The official figures
    share [MoneyCards.tsx](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/campaignMoney/MoneyCards.tsx)
    with the legislator profile. Both put the donor chart first, keep the goods-and-services
-   explanation under that chart and omit a separate unnamed percentage below the summary.
+   explanation under that chart and omit a separate non-itemized percentage below the summary.
    Money in, Money out and any additional financial summary card use the same
    grey `c.tile` surface as the profile. Filed reports and Independent spending
    carry no money summaries. Supporting
@@ -1095,12 +1097,26 @@ across the whole design set:
   Paragraphs containing 2 or more sentences, legal text and serious warnings retain
   full punctuation. The coverage lines and Board-record sentence follow this rule.
 
-Empty and edge states, each its own honest sentence: a year with no report figures in
-our copy (the period panel says “We have no report figures for {year}” and “Our copy of
-the state’s files contains no report figures for this committee for {year}. Figures from
-another year are not substituted.”; money in
-says “Not reported”; money out says Alethical does not hold an official spending total; neither prints
-a zero or last year's money under this year's heading); a closed
+**A missing-report year names the limits of our copy.** For every selected year, the
+period heading reads “No {year} report figures in our copy of the state’s files” and
+its detail reads “Figures from another year are not substituted”. These single-sentence
+units omit their final periods. A missing report total reads “Report total unavailable”.
+
+**A fully empty year uses one compact period card.** This requires both missing report
+figures and complete, successful receipt and expenditure lists from the same release
+with no rows. The period card adds “No itemized receipts or expenditures in our copy for
+this year” and **View filed reports**, which opens this committee's Filed reports tab.
+Hide the empty money cards, donor browser and contribution-detail disclosures in this
+state. Keep the independent outside-spending section and “What this record covers”.
+Missing report figures alone never hide available payments. A reported zero, partial
+lists, loading, failure or a release mismatch never qualifies as this empty state.
+Empty-state text uses regular weight 400.
+
+**The way onward is View filed reports.** Missing-year and closed-empty states never
+guess a useful destination year with “See {year}”. Their link opens the committee's
+Filed reports tab instead.
+
+Other edge states retain their own honest explanation: a closed
 committee's empty year (it closed, when, and that its final report exists and is public
 even though our copy of the figures does not include it); a registration number in neither
 our copy of the register nor the state's money files (a fact about our records, never

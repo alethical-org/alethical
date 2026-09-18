@@ -148,7 +148,7 @@ them have moved $121,241.64 between their own committees across 30 payments. For
 those candidate-years the moved money is **all** of it, read from the Board's own records
 on 28 August 2026:
 
-- **Diane Napper.** Her Senate committee (19520) reports one named donation for 2026:
+- **Diane Napper.** Her Senate committee (19520) reports 1 itemized contribution for 2026:
   $3,000.00 on 15 June 2026, from her own House committee (19121). Her House committee
   reports nothing at all for 2026. So a combined figure would read $3,000.00, and every
   dollar of it is money she moved from one of her own accounts to the other.
@@ -234,7 +234,7 @@ and at least a 44px target; the selected year has a black fill and white text.
 The committee record uses the same treatment. There is no separate earlier-year control.
 
 A dashed outline identifies a year for which the answers from our data service say the
-shown committees have named donations only, without an official total. It is not a fixed
+shown committees have itemized contributions only, without an official total. It is not a fixed
 cut-off such as “before 2025”. A button promises a way to read that year's records, not
 that we hold a complete report for it. The answers used to style these buttons never
 renew or replace the current committee-confirmation check.
@@ -440,7 +440,7 @@ outside-spending card retains its own downloads link and exact source filename.
 **The donor breakdown is the prominent chart inside each committee's card**, before the
 compact summary figures and grouped payment list. It explains where the money came from
 by cash amount, not by number of names. The heading is **Who gave**, with
-" (named donations only)" added in the state below where we hold no official total. It no
+" (itemized contributions only)" added in the state below where we hold no official total. It no
 longer says "by kind of donor": the slices carry the kinds as their own labels, and the
 largest slice on many committees is Non-itemized contributions, which is not a kind of
 donor at all ([#2182](https://github.com/alethical-org/alethical/issues/2182)).
@@ -484,10 +484,11 @@ kinds counts once. Amounts keep the existing whole-dollar format; the underlying
 retain every decimal place.
 
 When the server marks the split as `shown`, the base is the committee's official cash
-contribution total. The named cash slices and the unnamed cash slice must add exactly to
-that total before anything is drawn. A zero unnamed amount does not draw an empty slice.
-When the server says `no_reported_total`, the heading says “named donations only” and the
-base is the cash contributions in the complete named list. It shows no unnamed slice. The
+contribution total. The itemized cash contribution slices and the non-itemized cash
+contribution slice must add exactly to that total before anything is drawn. A zero
+non-itemized amount does not draw an empty slice.
+When the server says `no_reported_total`, the heading says “Who gave (itemized contributions only)” and the
+base is the cash contributions in the complete itemized list. It shows no non-itemized slice. The
 ring is drawn in one contiguous piece with no white cut between neighbouring slices, and
 the figure in its middle stands alone, with no grey word beneath it.
 
@@ -1145,7 +1146,7 @@ tab prints both figures and no subtraction.
   means Alethical lacks the official money-out figure. It never means the committee
   failed to report, and the Expenditures line is omitted.
 - **A "Total contributions" figure is the filing's cash column, and it is not drawn where
-  that column is $0 and every named donation was goods and services.** The Board's totals
+  that column is $0 and every itemized contribution was goods and services.** The Board's totals
   service serves the filing's Cash column: Citizens for Education Shakopee's 2025 year-end
   states "Cash 0.00, In-kind 3,868.19, Total 3,868.19", and the service serves $0.00. That
   zero is not the filing's total, so the page shows the itemized in-kind figure with the
@@ -1343,8 +1344,8 @@ opens. That split is deliberate: the data describes records and the page frames 
   on any day in 2026 one member's part-year total sits beside another member's figure
   covering different months, with nothing on screen to say so. Each member's figures
   carry their own dates instead.
-- It never draws an unnamed cash slice unless the server supplies a checked split and
-  the complete named cash rows agree with it. A chart does not loosen the figure checks.
+- It never draws a non-itemized cash contribution slice unless the server supplies a checked split and
+  the complete itemized cash contribution rows agree with it. A chart does not loosen the figure checks.
 - It never turns matching printed donor names into a donor identity or a claim that
   donations caused a vote.
 

@@ -158,7 +158,7 @@ function OutsideYear({
       {unavailable ? (
         <Text style={s.body}>{unavailable}</Text>
       ) : zero ? (
-        <Text style={[s.body, s.numeric]}>
+        <Text style={s.body}>
           {outsideCheckedZeroLabel(
             year.year,
             surface === 'committee' ? 'committee' : 'legislator',
