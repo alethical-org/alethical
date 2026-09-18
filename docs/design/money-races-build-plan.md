@@ -64,7 +64,7 @@ new recurring task, navigation redesign or unrelated money-page changes are incl
 - Consolidate an unavailable official total to “No usable official total in our records
   for {year}”. The word “usable” matters because a held total may fail the year or
   reporting-period guard. Drop the separate helper.
-- Missing named contributions on this address say “No named contributions in our records
+- Missing itemized contributions on this address say “No itemized contributions in our records
   for {year}”. This is a scoped exception to the older “Not reported” rule, not a change
   to the other money surfaces. A failed figure says “We couldn’t load this figure”.
 - Use “Limits of the campaign records” and “Payment records before 2015 are not included”.
