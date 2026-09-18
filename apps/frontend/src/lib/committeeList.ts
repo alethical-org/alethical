@@ -26,6 +26,10 @@
 import { committeeEyebrow, formatDay } from './committeeMoneyShared';
 import { formatCount } from './moneyLanding';
 
+import { COMMITTEE_PAGE_SIZE } from './committeeListReads';
+
+export { COMMITTEE_PAGE_SIZE, committeeRegisterQueryKey } from './committeeListReads';
+
 /** The register's own 3 kinds, plus the unfiltered view. The register holds 3
  *  and no finer filter may exist here: the finer sub-type is `null` for 33
  *  registered filers, so a "ballot question" chip would present "we cannot tell"
@@ -71,20 +75,6 @@ export function kindFilterFromParam(raw: string | null | undefined): CommitteeKi
   const match = COMMITTEE_KIND_FILTERS.find((filter) => filter === raw);
   return match ?? 'all';
 }
-
-/**
- * How many rows one numbered page holds. 50 is half the register endpoint's own
- * maximum, so a page is always one request.
- *
- * The register was a "Show more" button until #1812. Google states it does not
- * press buttons or run actions that need a person's click, so every filer past
- * the first 50 was unreachable to it and 1,553 of 1,603 committee pages had no
- * ordinary link anywhere on the site
- * (`docs/architecture/page-metadata-for-search-and-sharing-decisions.md` §20.5
- * rule 2). Numbered pages with their own addresses are what fixed that, and they
- * are the same shape the bills and legislators directories already use.
- */
-export const COMMITTEE_PAGE_SIZE = 50;
 
 export const COMMITTEE_LIST_TITLE = 'Committees';
 
@@ -210,24 +200,3 @@ export function committeeEmptyWhy(_filter: CommitteeKindFilter, query = 'search'
  *  side, never a claim that Minnesota registers nobody. */
 export const COMMITTEE_LIST_UNAVAILABLE =
   'This is a problem with our records, not a statement about who is registered.';
-
-/**
- * The React Query key one page of the register answers. Built here rather than
- * written out in the hook so `api/page.ts` can label the payload it already read
- * with the very key the app will ask for (issue #1966). Two copies of a key are
- * two chances to drift, and a drifted key seeds nothing and improves nothing.
- */
-export function committeeRegisterQueryKey(options: {
-  kind?: string;
-  query?: string;
-  page: number;
-  pageSize: number;
-}): readonly unknown[] {
-  return [
-    'campaign-finance-committees',
-    options.kind ?? 'all',
-    options.query ?? '',
-    options.page,
-    options.pageSize,
-  ];
-}

@@ -20,50 +20,12 @@ import { formatDay } from './legislatorCampaignMoney';
 import { UNION_FINANCES_NOTE } from './committeeMoneyShared';
 import { MONEY_SECTION_NAME } from './moneySectionName';
 
-interface ApiMoneyFilingPayload {
-  registration_number?: string | null;
-  filer_name: string;
-  report_name: string;
-  period_start?: string | null;
-  period_end?: string | null;
-  filed_date?: string | null;
-}
-
-export interface ApiCampaignFinanceFilingsPayload {
-  state?: string;
-  ordered_by?: string;
-  filings?: ApiMoneyFilingPayload[] | null;
-  newest_period?: { period_end?: string | null; filing_count?: number | null } | null;
-}
-
-/** The same filed-report mapping serves the app and the first HTML response. */
-export function campaignFinanceFilingsFromPayload(
-  payload: ApiCampaignFinanceFilingsPayload,
-): MoneyFilingsFeed {
-  return {
-    state: payload.state === 'reported' ? 'reported' : 'unavailable',
-    orderedBy: payload.ordered_by ?? '',
-    filings:
-      payload.state === 'reported'
-        ? (payload.filings ?? []).map((filing) => ({
-            registrationNumber: filing.registration_number ?? null,
-            filerName: filing.filer_name,
-            reportName: filing.report_name,
-            periodStart: filing.period_start ?? null,
-            periodEnd: filing.period_end ?? null,
-            filedDate: filing.filed_date ?? null,
-          }))
-        : [],
-    // Absent counts remain absent, never an invented zero.
-    newestPeriod:
-      payload.state === 'reported' && typeof payload.newest_period?.filing_count === 'number'
-        ? {
-            periodEnd: payload.newest_period.period_end ?? null,
-            filingCount: payload.newest_period.filing_count,
-          }
-        : null,
-  };
-}
+export {
+  campaignFinanceFilingsFromPayload,
+  campaignFinanceFilingsQueryKey,
+  campaignFinanceSummaryQueryKey,
+} from './moneyLandingReads';
+export type { ApiCampaignFinanceFilingsPayload } from './moneyLandingReads';
 
 /** A filing's plain date in the section's one form ("Jul 24, 2026"), or the raw
  *  value where it is not a date, so a row is never silently emptied. */
@@ -349,16 +311,3 @@ export const RECORD_DOES_NOT_COVER_HEADING = 'What this record does not cover';
 export const RESEARCH_ROW_LABEL = 'RESEARCH';
 export const RESEARCH_ROW_LINK = 'Read the research';
 export const RESEARCH_ROW_EMPTY = 'Nothing is published yet';
-
-/**
- * The React Query keys for the /money landing's 2 campaign reads. Shared with
- * `api/page.ts` so the payloads it already read are labelled with the keys the
- * app asks for (issue #1966).
- */
-export function campaignFinanceSummaryQueryKey(): readonly unknown[] {
-  return ['campaign-finance-summary'];
-}
-
-export function campaignFinanceFilingsQueryKey(limit: number): readonly unknown[] {
-  return ['campaign-finance-filings', limit];
-}
