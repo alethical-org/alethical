@@ -1111,7 +1111,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: t.colors.alpha.ink08,
   },
-  choiceRowActive: { backgroundColor: t.colors.tint.t100 },
+  choiceRowActive: {
+    outlineColor: t.colors.brand.base,
+    outlineWidth: 2,
+    outlineStyle: 'solid',
+    outlineOffset: -2,
+    borderRadius: 10,
+  },
   choiceText: { fontFamily: t.typography.body, fontSize: 15, color: t.colors.ink },
   errorAlert: {
     maxWidth: 720,

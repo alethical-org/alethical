@@ -62,7 +62,8 @@ close the list. The page shows the movement hint only when the list has at least
 choices.
 
 Both address lists use the same keyboard, mouse, and touch behavior. Moving with the
-arrow keys or hovering highlights the current choice. Alethical never chooses a
+arrow keys or hovering puts a bright-green line around the current choice while keeping its
+background white. Alethical never chooses a
 suggestion without the reader's click, tap, or Enter key.
 
 After a successful search, the address box and the page's browser link use the official

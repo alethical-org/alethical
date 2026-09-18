@@ -28,6 +28,8 @@ new recurring task, navigation redesign or unrelated money-page changes are incl
   label, ignoring case and extra spaces. Search never hides committees inside a group.
 - Several matches without a selection do not open the first match. Arrow keys select;
   Enter or “View committees” opens the chosen or unique match. Escape closes suggestions.
+- Hover and arrow keys put the same 2px bright-green line around the current suggestion.
+  The suggestion keeps its white background, and the line does not change the row's size.
 - The address retains `office`, `year`, selected `group` and directory search `q` as
   applicable. `group` uses the server's existing generated anchor, such as `house-12a`
   or `governor`. Opening a group clears the search in its new address; Back restores
