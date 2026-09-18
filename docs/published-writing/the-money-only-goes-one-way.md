@@ -40,9 +40,6 @@
      cover them, exactly as it does not cover the masthead's dates or the layout's own box
      labels.
 
-     WHERE IT LIVES. Published Guides and Research share docs/published-writing/.
-     The folder holds the manuscripts used by the word-for-word checks; it does not
-     change either kind's publishing rules or the provenance recorded above.
 -->
 
 # The Money Only Goes One Way
