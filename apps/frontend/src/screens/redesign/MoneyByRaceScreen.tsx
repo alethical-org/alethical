@@ -163,7 +163,6 @@ function MoneyByRaceView({ navigation, route }: RootScreenProps<'MoneyByRace'>) 
               href={directoryHref}
               onPress={() => navigation.setParams(directoryParams)}
               mobile={isMobile}
-              style={styles.goBack}
             />
           ) : (
             <Pressable
@@ -574,14 +573,6 @@ function CommitteeRow({
 
 const styles = StyleSheet.create({
   page: { flexGrow: 1 },
-  goBack: {
-    minHeight: 44,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink14,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    backgroundColor: t.colors.surfaces.base,
-  },
   officeControls: { marginTop: 26 },
   directory: { marginTop: 14, flexDirection: 'row', flexWrap: 'wrap' },
   directoryFull: { width: '100%' },
