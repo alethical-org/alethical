@@ -573,7 +573,11 @@ def run_security_audits(root: Path) -> list[str]:
     with tempfile.TemporaryDirectory(
         prefix="alethical-technology-health-"
     ) as directory:
-        current = _run(["uv", "lock", "--check", "--offline"], root)
+        # CI can install a newer Python patch than .python-version requests.
+        # Use the running interpreter so offline validation needs no download.
+        current = _run(
+            ["uv", "lock", "--check", "--offline", "--python", sys.executable], root
+        )
         if current.returncode:
             problems.append(
                 "Python's locked package list is stale or could not be checked"

@@ -285,7 +285,16 @@ def test_security_scan_uses_every_locked_python_group_without_installing_package
 
     monkeypatch.setattr(check_technology_health, "_run", run)
     assert check_technology_health.run_security_audits(ROOT) == []
-    assert commands[0] == ["uv", "lock", "--check", "--offline"]
+    # A clean runner may have a newer patch than .python-version. Offline lock
+    # validation must use the interpreter already running this security check.
+    assert commands[0] == [
+        "uv",
+        "lock",
+        "--check",
+        "--offline",
+        "--python",
+        sys.executable,
+    ]
     assert "--no-deps" in commands[1]
     assert "--disable-pip" in commands[1]
 

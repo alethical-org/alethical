@@ -72,8 +72,9 @@ program. This is an accepted, time-limited risk, not a fixed vulnerability.
 - Live security scan: all 79 Python registry versions covered, with no findings;
   JavaScript retains only the 2 limited image-size exceptions.
 - 50 focused prevention tests and 29 local-check selection tests pass.
-- All 3,342 frontend tests pass, along with TypeScript, Expo package compatibility,
-  formatting, and the production website build.
+- Upload checks pass all 2,885 backend tests and 3,355 frontend tests, along with
+  TypeScript, Expo package compatibility, and formatting. The production website
+  build and hosted preview build pass.
 - URL compatibility checks cover Unicode, spaces, plus signs, repeated/empty
   parameters, malformed escapes, and a long malformed input with a 5-second
   timeout. The old decoder exceeded 3 seconds on the regression input; the fixed
@@ -83,6 +84,10 @@ program. This is an accepted, time-limited risk, not a fixed vulnerability.
   deliberately does not allow this local preview's origin.
 - Independent review found and resolved gaps in cross-platform Python coverage
   and patch-only check/deployment selection.
+- A fresh GitHub runner exposed a Python patch-version mismatch during offline
+  lock validation. The check now explicitly uses its already-running Python.
+  A clean-cache reproduction passes without changing the lock, while a stale
+  manifest still fails.
 
 ## Release acceptance
 
