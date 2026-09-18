@@ -897,6 +897,24 @@ reads `pg_class.relallvisible` and picks the old plan, so a load in flight makes
 index do nothing rather than something wrong. It costs 86 MB beside a 207 MB table,
 2.3 s to build, and 1 second on each nightly load of 583,187 rows.
 
+**Measured and not taken: folding the outside-spending record's sweeps, 18 September
+2026.** That page's one statement sweeps its 41,130-row file 4 times, and 3 of those
+sweeps can be folded into 1 with `GROUPING SETS`. Head to head on production, alternated
+so cache state favoured neither, the fold gives 108.5 ms against 104.1 ms median, and
+both return identical answers. 4% is not worth it: the extra aggregation costs about
+what the extra sweeps saved, and this statement's own comments exist to make its
+one-population rule readable, which `GROUPING SETS` makes harder. Removing the 3
+whole-file counts entirely, to size a bigger prize, gives 92 ms, so they are 14 ms and
+not the cost either.
+
+**The reason none of it matters, which is the part to remember:** this read is cached for
+300 seconds and served stale for a day while it refreshes, and
+`.github/workflows/warm-money-pages.yml` asks for the address daily, so what waits for
+this statement is a background refresh rather than a reader. If it ever did matter, the
+remaining 29 ms is the page's own sweep and its top-50 sort, which an index on
+`(snapshot_id, transaction_date DESC NULLS LAST, row_number DESC)` would remove, at 1
+index per sort order on an 11 MB table.
+
 **What stays separate, and why.** `find_committee` still asks up to 3 datasets in
 turn, because on the live release the first answers for nearly every committee and a
 `UNION` would read all 3 for everyone. `name_connections`, `independent_spending_about`,
