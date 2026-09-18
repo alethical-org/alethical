@@ -175,11 +175,12 @@ def validate_legislator_profile(
     session: Session, engine, legislator_id
 ) -> SurfaceResult:
     session_id = session.scalar(select(LegislatorServicePeriod.session_id).limit(1))
-    stmt = legislator_profile_stmt(legislator_id, session_id)
+    stmt = legislator_profile_stmt(legislator_id=legislator_id)
     sponsored_bills_stmt = legislator_sponsored_bills_stmt(legislator_id, session_id)
     vote_history_stmt = legislator_vote_history_stmt(legislator_id, session_id)
     with QueryCounter(engine).capture() as counter:
-        legislator = session.scalar(stmt)
+        resolved = session.execute(stmt).unique().first()
+        legislator = resolved[0] if resolved is not None else None
         assert legislator is not None
         _ = len(legislator.committee_memberships)
         _ = [period.party for period in legislator.service_periods]

@@ -2896,9 +2896,32 @@ def legislator_detail(
     db: Session = Depends(get_db),
 ):
     include_set = {item.strip() for item in include.split(",")} if include else set()
-    session_row = get_session_by_slug(db, session)
-    legislator = get_legislator_by_id(db, legislator_id)
-    row = db.scalar(legislator_profile_stmt(legislator.id, session_row.id))
+    # One request resolves the session, the member, their current term, their district,
+    # their chamber and their stored counts. It used to be six, and each one was a round
+    # trip to a database in another region for a question that takes no time to answer.
+    # Profile URLs carry the readable slug (/legislators/melissa-hortman); UUID links
+    # shared before the slug switch still resolve, so a string that parses as a UUID
+    # looks up the key.
+    try:
+        parsed_id: UUID | None = UUID(legislator_id)
+    except ValueError:
+        parsed_id = None
+    resolved = (
+        db.execute(
+            legislator_profile_stmt(
+                legislator_id=parsed_id,
+                legislator_slug=None if parsed_id is not None else legislator_id,
+                session_slug=session,
+            )
+        )
+        .unique()
+        .first()
+    )
+    if resolved is None:
+        raise HTTPException(status_code=404, detail="session not found")
+    row = resolved[0]
+    if row is None:
+        raise HTTPException(status_code=404, detail="legislator not found")
     current_service = next(iter(row.service_periods), None)
     payload = {
         "id": str(row.id),
