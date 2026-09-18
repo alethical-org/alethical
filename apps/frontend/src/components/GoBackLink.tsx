@@ -12,11 +12,13 @@ export function GoBackLink({
   href,
   onPress,
   mobile = false,
+  outlined = false,
   style,
 }: {
   href: string;
   onPress: () => void;
   mobile?: boolean;
+  outlined?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const [active, setActive] = useState(false);
@@ -30,7 +32,13 @@ export function GoBackLink({
       onHoverOut={() => setActive(false)}
       onPressIn={() => setActive(true)}
       onPressOut={() => setActive(false)}
-      style={[styles.link, mobile && styles.linkMobile, style]}
+      style={[
+        styles.link,
+        mobile && styles.linkMobile,
+        outlined && styles.linkOutlined,
+        outlined && active && styles.linkOutlinedActive,
+        style,
+      ]}
     >
       <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
         <Path
@@ -41,7 +49,16 @@ export function GoBackLink({
           strokeLinejoin="round"
         />
       </Svg>
-      <Text style={[styles.label, mobile && styles.labelMobile, { color }]}>Go back</Text>
+      <Text
+        style={[
+          styles.label,
+          mobile && styles.labelMobile,
+          outlined && styles.labelOutlined,
+          { color: outlined ? ACTIVE_COLOR : color },
+        ]}
+      >
+        Go back
+      </Text>
     </Pressable>
   );
 }
@@ -57,6 +74,17 @@ const styles = StyleSheet.create({
   linkMobile: {
     minHeight: 44,
   },
+  linkOutlined: {
+    minHeight: 44,
+    marginBottom: 20,
+    paddingHorizontal: 14,
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.16)',
+    borderRadius: 12,
+  },
+  linkOutlinedActive: { borderColor: 'rgba(17,21,15,0.32)' },
   label: {
     fontFamily: t.typography.ui,
     fontSize: 16,
@@ -65,4 +93,5 @@ const styles = StyleSheet.create({
   labelMobile: {
     fontSize: 15,
   },
+  labelOutlined: { fontSize: 15.5, fontWeight: '700' },
 });

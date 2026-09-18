@@ -590,6 +590,12 @@ phones each committee's 2 labelled amounts stack below its name. Long names wrap
 full. Reader text is Libre Franklin with equal-width numeric digits. The shared navigation
 and footer keep their existing appearance.
 
+The focused view uses one flat light-grey page surface. Its contributions card opens with the donor
+explanation and payment-file copy date, then places the 2 figure headings directly above the rows they
+label. Figure columns are 264 pixels wide in the widest band and 190 pixels wide in the middle band;
+each date stays whole so a range may break only between its 2 dates. The final row has no second line
+above the card edge. The limits section spans the card width and leaves 96 pixels before the footer.
+
 ## A legislator's Campaign money tab (`/legislators/<name>?tab=money`)
 
 The September 2026 profile redesign is tracked in
