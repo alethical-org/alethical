@@ -6,49 +6,49 @@ import { describe, expect, it } from 'vitest';
 
 import { researchPageMetadata } from '../share';
 import {
-  PUBLISHED_PIECE_INDEX,
-  PUBLISHED_RESEARCH,
-  READ_PAGE_EMPTY_BODY,
-  READ_PAGE_EMPTY_TITLE,
-  READ_PAGE_INTRO,
-  WORDS_PER_MINUTE,
+  guidesOutsideEverySet,
   indexedResearch,
+  isoDateCapsLabel,
+  isoDateCommaCapsLabel,
+  isoDateLabel,
   isoMonthYearCapsLabel,
   pieceAddressFolder,
   pieceCardMetaLine,
   pieceCardSecondaryLine,
   pieceContentsLabel,
-  pieceRowTime,
-  pieceSetSlug,
   pieceIndexBySlug,
   pieceKindLabel,
   pieceMastheadLine,
+  piecePath,
   pieceReadingMinutes,
+  pieceRowTime,
+  pieceSetSlug,
   pieceShareDescription,
+  piecesLabelledGuide,
+  piecesLabelledResearch,
   pieceSourcesLabel,
   pieceWordCount,
   pieceWrittenLine,
-  piecePath,
-  piecesLabelledGuide,
-  piecesLabelledResearch,
+  PUBLISHED_PIECE_INDEX,
+  PUBLISHED_RESEARCH,
   publishedResearch,
   publishedSets,
-  guidesOutsideEverySet,
-  setMetaLine,
-  setReadingMinutes,
-  isoDateCommaCapsLabel,
+  READ_PAGE_EMPTY_BODY,
+  READ_PAGE_EMPTY_TITLE,
+  READ_PAGE_INTRO,
   researchBySlug,
-  researchRunsText,
-  researchSourceText,
-  isoDateCapsLabel,
-  isoDateLabel,
   researchDatesLine,
+  researchRunsText,
   researchSectionAnchor,
   researchSectionAnchors,
   researchShareDescription,
   researchSharePanelDescription,
+  researchSourceText,
+  setMetaLine,
+  setReadingMinutes,
   type ResearchBlock,
   type ResearchPiece,
+  WORDS_PER_MINUTE,
 } from '../research';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -217,6 +217,34 @@ describe('piece share previews', () => {
 
   it('shows only the publication date inside the Share panel', () => {
     expect(researchSharePanelDescription(SAMPLE_PIECE)).toBe('Published Aug 17, 2026');
+  });
+
+  // A date says nothing about whether a page answers the question somebody
+  // typed, and until 18 Sep 2026 it was the whole of what a guide told a search
+  // engine. A guide now describes its own subject there (Eugene, 18 Sep 2026),
+  // while the share preview stays on rule 13's dates-only wording.
+  it('gives every guide a search line about its subject, and keeps the card on dates', () => {
+    const guides = indexedResearch().filter((piece) => !piece.traits.research);
+    expect(guides.length).toBeGreaterThan(0);
+    for (const guide of guides) {
+      const metadata = researchPageMetadata(guide);
+      expect(metadata.description).toBe(guide.searchDescription);
+      expect(metadata.description).not.toBe(metadata.socialDescription);
+      expect(metadata.socialDescription).toBe(pieceShareDescription(guide));
+      // Rule 13's own bar, kept: the line describes the subject and states no
+      // amount, so no claim of the piece's travels without its method.
+      expect(metadata.description).not.toMatch(/\$|\d{3}/);
+      expect(metadata.description!.length).toBeGreaterThan(60);
+    }
+  });
+
+  // A research piece's 2 dates are the more useful line beside a title that
+  // already names its subject, so nothing changed for it.
+  it('leaves a research piece describing itself by its dates', () => {
+    const piece = indexedResearch().find((entry) => entry.traits.research)!;
+    const metadata = researchPageMetadata(piece);
+    expect(metadata.description).toBe(pieceShareDescription(piece));
+    expect(metadata.description).toBe(metadata.socialDescription);
   });
 });
 
@@ -1056,14 +1084,17 @@ describe('the light index agrees with the full registry', () => {
    */
   it('lists the same pieces in the same order, with the same address, kind, title and dates', () => {
     expect(
-      PUBLISHED_RESEARCH.map(({ slug, traits, indexed, title, publishedOn, recordsThrough }) => ({
-        slug,
-        traits,
-        indexed,
-        title,
-        publishedOn,
-        recordsThrough,
-      })),
+      PUBLISHED_RESEARCH.map(
+        ({ slug, traits, indexed, title, searchDescription, publishedOn, recordsThrough }) => ({
+          slug,
+          traits,
+          indexed,
+          title,
+          ...(searchDescription === undefined ? {} : { searchDescription }),
+          publishedOn,
+          recordsThrough,
+        }),
+      ),
     ).toEqual(PUBLISHED_PIECE_INDEX);
     for (const piece of PUBLISHED_RESEARCH) {
       expect(pieceIndexBySlug(piece.slug)).toEqual(

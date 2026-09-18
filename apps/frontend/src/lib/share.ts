@@ -387,9 +387,14 @@ export function researchPageMetadata(piece: PieceIndexEntry): PageMetadata {
   return pageMetadata({
     title: titleFor(piece.title),
     socialTitle: piece.title,
-    // A research piece is described by its 2 dates; a guide by the 1 slot that
-    // reads Written or Checked. Either way, dates only.
-    description: pieceShareDescription(piece),
+    // What a search result says: a guide describes what it covers, in its own
+    // words, and a piece with no such line falls back to its dates (Eugene,
+    // 18 Sep 2026). A date alone tells a searcher nothing about whether the page
+    // answers their question, and 5 guides were telling them nothing else.
+    description: piece.searchDescription || pieceShareDescription(piece),
+    // A share preview still carries title and dates only, which is rule 13's own
+    // wording and is unchanged.
+    socialDescription: pieceShareDescription(piece),
     // The canonical address comes from the piece's traits, so it can only ever be
     // the 1 address the router accepts for it.
     canonicalPath: piece.indexed ? piecePath(piece) : '',
