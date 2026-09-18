@@ -52,6 +52,7 @@ import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fi
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
 import {
+  ensureYearFilterWebStyles,
   yearFilterButtonStyle,
   yearFilterLabelStyle,
   yearFilterSelectProps,
@@ -150,6 +151,9 @@ export function OutsideSpendingBrowseScreen({
     navigation.setParams(outsideBrowseChange(address, change));
 
   useDocumentTitle('/money/outside-spending', outsideSpendingPageMetadata().title);
+  useEffect(() => {
+    ensureYearFilterWebStyles();
+  }, []);
   useEffect(() => {
     setInput(q);
   }, [q, mode]);

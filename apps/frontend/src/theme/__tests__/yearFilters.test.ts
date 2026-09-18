@@ -69,10 +69,13 @@ describe('the sitewide year-filter treatment', () => {
     expect(styles[0]?.textContent).toBe(yearFilterWebCss);
   });
 
-  it('installs the compact year-menu rule from the web app entry point', () => {
-    const app = readFileSync(resolve(process.cwd(), 'App.tsx'), 'utf8');
-    expect(app).toContain("import { ensureYearFilterWebStyles } from './src/theme/yearFilters'");
-    expect(app).toContain('ensureYearFilterWebStyles();');
+  it('installs the compact year-menu rule with the compact Year menu', () => {
+    const screen = readFileSync(
+      resolve(process.cwd(), 'src/screens/redesign/OutsideSpendingBrowseScreen.tsx'),
+      'utf8',
+    );
+    expect(screen).toContain('ensureYearFilterWebStyles,');
+    expect(screen).toContain('ensureYearFilterWebStyles();');
   });
 
   it('uses green for pointer hover and black for selection', () => {

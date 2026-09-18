@@ -8,7 +8,6 @@ import { loadSignInBundle } from './src/lib/auth/loadSignInBundle';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { loadOnDemand } from './src/lib/loadOnDemand';
 import { ensureBrowserFillStyles } from './src/theme/browserFill';
-import { ensureYearFilterWebStyles } from './src/theme/yearFilters';
 
 /**
  * The page an email sign-in link lands on. It draws at 2 addresses out of 30
@@ -93,7 +92,6 @@ export default function App() {
     ensureThemeColor();
     ensureFocusStyles();
     ensureBrowserFillStyles();
-    ensureYearFilterWebStyles();
 
     // Releases can change the JavaScript files a page needs. A saved-site worker
     // can keep serving an older page that requests files the new release no
