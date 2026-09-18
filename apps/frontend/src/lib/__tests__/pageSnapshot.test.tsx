@@ -736,6 +736,23 @@ describe('directory rows never guess missing facts', () => {
     expect(snapshot.records?.[0]).toMatchObject({ label: 'Pat Doe', detail: 'District 12A' });
     expect(snapshot.records?.[0].detail).not.toContain('Senate');
   });
+
+  it('carries the money view into every member link and page link', () => {
+    const snapshot = legislatorDirectoryPageSnapshot(
+      [{ id: 'member-1', slug: 'pat-doe', full_name: 'Pat Doe' }],
+      30,
+      2,
+      12,
+      { profileTab: 'money' },
+    );
+
+    expect(snapshot.records?.[0].href).toBe('/legislators/pat-doe?tab=money');
+    expect(snapshot.links.map((link) => link.href)).toEqual([
+      '/legislators?tab=money',
+      '/legislators?page=3&tab=money',
+      '/bills',
+    ]);
+  });
 });
 
 describe('both profile screens keep reading the shared name helper', () => {

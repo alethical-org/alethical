@@ -63,61 +63,70 @@ def stated_by_kind(
         "registration": registration_number,
         "year": year,
     }
-    figures = db.execute(
+    # The filed lines and the cash rows in 1 statement (18 Sep 2026). The cash rows
+    # are bounded by the filing's own period end, which only the first half knows, so
+    # the first half is a named sub-result the second reads its cutoff from, and the
+    # second runs only where a filed line exists at all.
+    answer = db.execute(
         text(
             """
-            SELECT figure.line_key, figure.label_as_served, figure.amount,
-                   filing.reported_through
-              FROM cf_filing_current current_copy
-              JOIN cf_filing filing ON filing.snapshot_id = current_copy.snapshot_id
-              JOIN cf_stated_split verdict
-                ON verdict.filings_snapshot_id = filing.snapshot_id
-               AND verdict.registration_number = filing.registration_number
-               AND verdict.filing_year = filing.filing_year
-              JOIN cf_filing_figure figure ON figure.filing_id = filing.id
-             WHERE current_copy.id IS TRUE
-               AND filing.registration_number = :registration
-               AND filing.filing_year = :year
-               AND filing.filer_kind = 'candidate_committee'
-               AND extract(year FROM filing.reported_through) = :year
-               AND verdict.snapshot_id = :contributions
-               AND verdict.status = 'agrees'
-               AND verdict.cut_off_date = filing.reported_through
-               AND NOT EXISTS (
-                   SELECT 1 FROM cf_filing_report report
-                    WHERE report.snapshot_id = filing.snapshot_id
-                      AND report.registration_number = filing.registration_number
-                      AND report.filing_year = filing.filing_year
-                      AND report.special_election IS TRUE
-               )
-            """
-        ),
-        params,
-    ).all()
-    filed = {row.line_key: row for row in figures if row.line_key in _LINE_ORDER}
-    if len(filed) != len(_LINE_ORDER):
-        return None
-    through = filed[_LINE_ORDER[0]].reported_through
-    cash_rows = db.execute(
-        text(
-            """
-            SELECT contrib_type,
+            WITH figures AS (
+                SELECT figure.line_key, figure.label_as_served, figure.amount,
+                       filing.reported_through
+                  FROM cf_filing_current current_copy
+                  JOIN cf_filing filing ON filing.snapshot_id = current_copy.snapshot_id
+                  JOIN cf_stated_split verdict
+                    ON verdict.filings_snapshot_id = filing.snapshot_id
+                   AND verdict.registration_number = filing.registration_number
+                   AND verdict.filing_year = filing.filing_year
+                  JOIN cf_filing_figure figure ON figure.filing_id = filing.id
+                 WHERE current_copy.id IS TRUE
+                   AND filing.registration_number = :registration
+                   AND filing.filing_year = :year
+                   AND filing.filer_kind = 'candidate_committee'
+                   AND extract(year FROM filing.reported_through) = :year
+                   AND verdict.snapshot_id = :contributions
+                   AND verdict.status = 'agrees'
+                   AND verdict.cut_off_date = filing.reported_through
+                   AND NOT EXISTS (
+                       SELECT 1 FROM cf_filing_report report
+                        WHERE report.snapshot_id = filing.snapshot_id
+                          AND report.registration_number = filing.registration_number
+                          AND report.filing_year = filing.filing_year
+                          AND report.special_election IS TRUE
+                   )
+            ),
+            through AS (SELECT min(reported_through) AS through FROM figures)
+            SELECT 'figure' AS part, line_key, label_as_served, amount,
+                   reported_through, NULL::text AS contrib_type, NULL::numeric AS cash,
+                   NULL::bigint AS unreadable
+              FROM figures
+            UNION ALL
+            SELECT 'cash', NULL::text, NULL::text, NULL::numeric, NULL::date,
+                   contrib_type,
                    coalesce(sum(amount), 0) AS cash,
                    count(*) FILTER (
                        WHERE amount IS NULL OR lower(coalesce(in_kind, '')) <> 'no'
                    ) AS unreadable
-              FROM cf_contribution_row
-             WHERE snapshot_id = :contributions
+              FROM cf_contribution_row, through
+             WHERE EXISTS (SELECT 1 FROM figures)
+               AND snapshot_id = :contributions
                AND recipient_reg_num = :registration
                AND year = :year
                AND receipt_type = 'Contribution'
                AND lower(coalesce(in_kind, '')) <> 'yes'
-               AND (receipt_date IS NULL OR receipt_date <= :through)
+               AND (receipt_date IS NULL OR receipt_date <= through.through)
              GROUP BY contrib_type
             """
         ),
-        {**params, "through": through},
+        params,
     ).all()
+    figures = [row for row in answer if row.part == "figure"]
+    filed = {row.line_key: row for row in figures if row.line_key in _LINE_ORDER}
+    if len(filed) != len(_LINE_ORDER):
+        return None
+    through = filed[_LINE_ORDER[0]].reported_through
+    cash_rows = [row for row in answer if row.part == "cash"]
     if not cash_rows:
         try:
             reader._refuse_if_rows_are_gone(db, release, reader.Dataset.contributions)

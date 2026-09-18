@@ -1931,6 +1931,20 @@ def _pinned_read(db: Session) -> Optional[dict]:
     return memo
 
 
+def pinned_memo(db: Session) -> Optional[dict]:
+    """The memo of this pinned transaction, or ``None`` outside one.
+
+    Anything a money read remembers for the rest of its request lives here, keyed by
+    the reader that stored it: the live filings snapshot (``"snapshot"``), the
+    committees' register rows (``"filers"``), the report catalogue
+    (``"catalogued_reports"``), the release's withheld filer-years
+    (``"withheld_filer_years"``), a committee-year's money rows (``"money_rows"``)
+    and its stored verdicts (``"verdicts"``). Every entry is safe only because the
+    transaction is ``REPEATABLE READ``: the database would answer identically anyway.
+    """
+    return _pinned_read(db)
+
+
 def live_filings_snapshot(db: Session) -> Optional[Any]:
     """Which filings snapshot is live, read from the database rather than from memory.
 

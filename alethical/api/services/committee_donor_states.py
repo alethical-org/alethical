@@ -57,53 +57,65 @@ def donor_states(
         "registration": registration_number,
         "year": year,
     }
-    eligible = db.execute(
+    # The eligibility test and the rows in 1 statement (18 Sep 2026): the test is a
+    # 1-row derived table, and the rows are a lateral read that runs only where it is
+    # true. So the answer is 1 row saying "not eligible", 1 row saying "eligible, no
+    # rows", or the rows themselves -- and each is told apart below by exactly the
+    # column that carries it, never by counting.
+    answer = db.execute(
         text("""
-            SELECT 1
-              FROM cf_filing_current current_copy
-              JOIN cf_filing filing ON filing.snapshot_id = current_copy.snapshot_id
-              JOIN cf_stated_split verdict
-                ON verdict.filings_snapshot_id = filing.snapshot_id
-               AND verdict.registration_number = filing.registration_number
-               AND verdict.filing_year = filing.filing_year
-             WHERE current_copy.id IS TRUE
-               AND filing.registration_number = :registration
-               AND filing.filing_year = :year
-               AND filing.filer_kind = 'candidate_committee'
-               AND extract(year FROM filing.reported_through) = :year
-               AND verdict.snapshot_id = :snapshot
-               AND verdict.status = 'agrees'
-               AND verdict.cut_off_date = filing.reported_through
-               AND NOT EXISTS (
-                   SELECT 1 FROM cf_filing_report report
-                    WHERE report.snapshot_id = filing.snapshot_id
-                      AND report.registration_number = filing.registration_number
-                      AND report.filing_year = filing.filing_year
-                      AND report.special_election IS TRUE
-               )
-        """),
-        params,
-    ).first()
-    if eligible is None:
-        return None
-    rows = db.execute(
-        text("""
-            SELECT contributor, contrib_zip,
-                   coalesce(sum(amount) FILTER (WHERE lower(in_kind) = 'no'), 0) AS cash,
-                   count(*) FILTER (
-                       WHERE lower(coalesce(in_kind, '')) NOT IN ('yes', 'no')
-                          OR (lower(in_kind) = 'no' AND amount IS NULL)
-                   ) AS unreadable
-              FROM cf_contribution_row
-             WHERE snapshot_id = :snapshot
-               AND recipient_reg_num = :registration
-               AND year = :year
-               AND contrib_type = 'Individual'
-               AND receipt_type = 'Contribution'
-             GROUP BY contributor, contrib_zip
+            SELECT eligible.ok, held.contributor, held.contrib_zip, held.cash,
+                   held.unreadable
+              FROM (
+                SELECT EXISTS (
+                  SELECT 1
+                    FROM cf_filing_current current_copy
+                    JOIN cf_filing filing ON filing.snapshot_id = current_copy.snapshot_id
+                    JOIN cf_stated_split verdict
+                      ON verdict.filings_snapshot_id = filing.snapshot_id
+                     AND verdict.registration_number = filing.registration_number
+                     AND verdict.filing_year = filing.filing_year
+                   WHERE current_copy.id IS TRUE
+                     AND filing.registration_number = :registration
+                     AND filing.filing_year = :year
+                     AND filing.filer_kind = 'candidate_committee'
+                     AND extract(year FROM filing.reported_through) = :year
+                     AND verdict.snapshot_id = :snapshot
+                     AND verdict.status = 'agrees'
+                     AND verdict.cut_off_date = filing.reported_through
+                     AND NOT EXISTS (
+                         SELECT 1 FROM cf_filing_report report
+                          WHERE report.snapshot_id = filing.snapshot_id
+                            AND report.registration_number = filing.registration_number
+                            AND report.filing_year = filing.filing_year
+                            AND report.special_election IS TRUE
+                     )
+                ) AS ok
+              ) eligible
+              LEFT JOIN LATERAL (
+                SELECT contributor, contrib_zip,
+                       coalesce(sum(amount) FILTER (WHERE lower(in_kind) = 'no'), 0) AS cash,
+                       count(*) FILTER (
+                           WHERE lower(coalesce(in_kind, '')) NOT IN ('yes', 'no')
+                              OR (lower(in_kind) = 'no' AND amount IS NULL)
+                       ) AS unreadable
+                  FROM cf_contribution_row
+                 WHERE eligible.ok
+                   AND snapshot_id = :snapshot
+                   AND recipient_reg_num = :registration
+                   AND year = :year
+                   AND contrib_type = 'Individual'
+                   AND receipt_type = 'Contribution'
+                 GROUP BY contributor, contrib_zip
+              ) held ON TRUE
         """),
         params,
     ).all()
+    if not answer or not answer[0].ok:
+        return None
+    # ``cash`` is coalesced inside the lateral read, so it is NULL only where the
+    # read found no row at all.
+    rows = [row for row in answer if row.cash is not None]
     if not rows:
         reader._refuse_if_rows_are_gone(db, release, reader.Dataset.contributions)
     cash: dict[str, Decimal] = {"unknown": Decimal(0)}

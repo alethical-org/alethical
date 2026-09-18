@@ -1972,6 +1972,36 @@ describe('the controls a search page hands to the app', () => {
     ]);
   });
 
+  it("serves the money section's roster whole, with every member link opening Campaign money", async () => {
+    // `/legislators?tab=money` is the same list as `/legislators`, reached from the
+    // money section (#2264). Head only, it drew a blank list until the app's own
+    // read answered; now its text, its seeds and its links arrive in the first
+    // response, and the links carry the view the way the screen writes them.
+    stubSearchPage(ROSTER);
+
+    const { body, headers } = await serve({ path: '/legislators', tab: 'money' });
+
+    expect(body).toContain('<h1>Search legislators</h1>');
+    expect(body).toContain('href="/legislators/ann-lee?tab=money"');
+    expect(body).not.toMatch(/href="\/legislators\/[^"?]+"/);
+    expect(servedData(body)).toEqual([
+      { key: ['sessions'], payload: SESSIONS },
+      { key: ['meta'], payload: META },
+    ]);
+    // Still a second address for one list: out of the index, no canonical of its own.
+    expect(headers.get('X-Robots-Tag')).toBe('noindex');
+    expect(body).not.toContain('rel="canonical"');
+  });
+
+  it('keeps any other legislators view head only', async () => {
+    const calls = stubSearchPage(ROSTER);
+
+    const { body } = await serve({ path: '/legislators', tab: 'votes' });
+
+    expect(calls).toEqual([]);
+    expect(servedData(body)).toEqual([]);
+  });
+
   it('serves the page whole when one of those reads fails', async () => {
     for (const missing of ['/policy-areas', '/sessions', '/meta']) {
       stubSearchPage(BILL_LIST, [missing]);

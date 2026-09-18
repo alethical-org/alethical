@@ -46,6 +46,7 @@ from typing import Iterable, Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from alethical.api.services.committee_stated_verdicts import SPLIT, verdict_rows
 from alethical.db.models import CampaignFinanceStatedSplitStatus as Status
 from alethical.pipeline.campaign_finance_reader import Release
 
@@ -120,19 +121,6 @@ class StatedSplit:
         return self.status == AGREES
 
 
-_SQL = """
-SELECT registration_number, filing_year, status, reason, stated_itemized,
-       ours_itemized, stated_non_itemized, cut_off_date, report_type,
-       amendment_index, self_test, checked_at
-  FROM cf_stated_split
- WHERE snapshot_id = :snapshot
-   AND filings_snapshot_id = (
-       SELECT snapshot_id FROM cf_filing_current WHERE id IS TRUE
-   )
-   AND registration_number = :reg_num
-"""
-
-
 def stated_split(
     db: Session,
     release: Release,
@@ -147,10 +135,9 @@ def stated_split(
     difference between "no answer" and "a clean answer" spelled out.
     """
     wanted = {int(year) for year in years} if years is not None else None
-    rows = db.execute(
-        text(_SQL),
-        {"snapshot": release.contributions.snapshot_id, "reg_num": reg_num},
-    ).all()
+    # Read with the spending verdict in 1 statement and remembered for the request
+    # (``committee_stated_verdicts``, which holds this table's filters).
+    rows = [row[:5] + row[6:] for row in verdict_rows(db, release, reg_num)[SPLIT]]
     found = [
         StatedSplit(
             reg_num=row[0],
