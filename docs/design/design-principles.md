@@ -128,12 +128,23 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   state repeats the chip row's "Clear all" verbatim, as a black pill, because both are on screen at
   once and two names for one action make the user wonder whether one of them spares their search text
   ([#720](https://github.com/alethical-org/alethical/pull/720)).
-- **Campaign-money year choices share 1 treatment.** On `/money/committees/<slug>` and
-  `/legislators/<name>?tab=money`, show every year from 2015 through the current calendar
-  year, newest first, in 1 wrapping group. Use 1 normal-weight **Year** label, normal
-  weight 400 Libre Franklin numerals with equal-width digits, 10px rounded rectangles
-  and targets at least 44px tall. The selected year has the black active-control fill
-  and white text on both surfaces. A dashed border still identifies itemized-only
+- **Year filters share 1 state treatment everywhere.** An unselected year keeps its surface's
+  accepted white background, neutral boundary, shape, spacing, and type. Pointer hover changes
+  that boundary to `brand.base` green. The selected year keeps the black active-control block
+  with white text, including while hovered, and a pointer click adds no purple outline. Keyboard
+  navigation still receives the sitewide purple `:focus-visible` ring on top of the current
+  unselected or selected state. This applies to every year filter at every screen width,
+  including campaign-money, outside-spending, committee-history, and future year choices.
+  **Every future Design handoff follows this year-filter rule.** When a drawing adds a purple
+  selected-state outline, changes the selected block, or omits the green hover boundary, the
+  current coding agent restores these shared states during the build without another approval.
+  Preserve the drawing's accepted shape, spacing, type, and other states unless a separate
+  approved change requires otherwise.
+- **Campaign-money year choices share 1 layout and coverage treatment.** On
+  `/money/committees/<slug>` and `/legislators/<name>?tab=money`, show every year from 2015
+  through the current calendar year, newest first, in 1 wrapping group. Use 1 normal-weight
+  **Year** label, normal weight 400 Libre Franklin numerals with equal-width digits, 10px rounded
+  rectangles and targets at least 44px tall. A dashed border still identifies itemized-only
   coverage from the held response; year availability never promises a report exists.
 - **Campaign-money summaries use 1 quiet surface.** Money in, Money out and any
   additional financial summary card use the same grey `c.tile` surface as the profile.

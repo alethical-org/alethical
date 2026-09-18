@@ -11,6 +11,7 @@ import {
 } from '../../lib/campaignMoneyDetails';
 import { numericText, useDetailsStyles } from './detailsStyles';
 import { moneyDetailsCopy as copy } from '../../lib/campaignMoneyDetailsCopy';
+import { yearFilterButtonStyle, yearFilterLabelStyle } from '../../theme/yearFilters';
 
 type Slice = ContributionChart['slices'][number];
 const percentage = (slice: Slice) => `${Math.round(slice.share * 1000) / 10}%`;
@@ -113,13 +114,9 @@ function MixHistory({
                   aria-pressed={year === rowYear}
                   accessibilityLabel={copy.chooseYear(rowYear)}
                   onPress={() => onSelectYear(rowYear)}
-                  style={(state) => [
-                    styles.year,
-                    year === rowYear && styles.active,
-                    Boolean('focused' in state && state.focused) && s.focus,
-                  ]}
+                  style={(state) => yearFilterButtonStyle(styles.year, year === rowYear, state)}
                 >
-                  <Text style={[s.controlText, s.numeric, year === rowYear && styles.activeText]}>
+                  <Text style={yearFilterLabelStyle([s.controlText, s.numeric], year === rowYear)}>
                     {rowYear}
                   </Text>
                 </Pressable>
@@ -247,9 +244,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 10,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
-  active: { backgroundColor: c.text },
-  activeText: { color: c.background },
   barAndControl: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12 },
   mobileBarAndControl: { flexDirection: 'column', alignItems: 'stretch', paddingVertical: 8 },
   bar: {
