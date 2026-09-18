@@ -1998,6 +1998,14 @@ download falls from 295,412 to 294,478 Brotli bytes: 934 bytes each visitor used
 nothing. Page speed is its own ranking factor, so this is a discovery fix rather than only a
 tidy-up, and it is what gave the bill change above room to ship.
 
+**4c. Each guide describes itself to a search engine.** The 5 guides at `/read/guides/...` sent
+one line each that was only a date, "Written August 2026.", because rule 13 holds a piece's
+claims out of metadata. Each now carries a sentence about what it covers, written from the
+guide's own words and stating no amount, while its share preview keeps the dates-only wording
+rule 13 sets. That rule's own text carries the ruling (Eugene, 18 Sep 2026); describing a
+subject is not making the claim, and a date tells a searcher nothing about whether the page
+answers their question.
+
 **5. Site-wide, 3 smaller things.** Every `/api/v1` response now carries `X-Robots-Tag: noindex`
 (`alethical/api/main.py`): Google's crawl statistics put JSON at 53% of its requests to us, and a
 JSON address in a result list hands a searcher a wall of braces; the header unlists the address
