@@ -15,7 +15,7 @@ Share sends the page a reader chose, with enough plain-language context for anot
 | Ask answer      | The reader's question                                       | A fixed sentence saying the answer is cited and links to the official record      | The public Ask address, keeping only the question, bill, legislator, and saved-suggestion fields needed to rebuild it                                                       |
 | Committee money | The committee's filed name | Campaign money from Minnesota’s official filings | The committee address, retaining the year, section, donor category and sort, independent-spending sort, open contribution rows, ownership evidence and earlier-year choices |
 | Research and guide | The published title | The existing publication and records-through dates, without figures or article text | The published article address |
-| Lobbyist | The record's existing title | The existing description for its registration state | The lobbyist's public record address |
+| Lobbyist | The record's existing title | The existing description for its registration state | The lobbyist's public record address, retaining the selected donation year |
 | Lobbying principal | The organisation's existing title | Its reported spending and registered lobbyists | The organisation's public record address |
 | Name-search results | The searched name | The kinds of records searched | The public name-search address and query |
 | Payments under a name | Payment direction and exact filed name | Coverage across the years held and newest-first order | The exact name, direction, and originating search |
@@ -155,10 +155,16 @@ belonged to, or which committees they sat on
 ([`.claude/rules/grounded-answers.md` rule 12](../../.claude/rules/grounded-answers.md) — a value we
 do not hold is reported as missing, never replaced by a plausible one). Home, Find My Legislator,
 and the plain Bills and Legislators directories arrive with their own readable text and links. Answer pages, legal pages and filtered
-lists carry no first-response snapshot, with 2 deliberate exceptions in the money section below:
+lists generally carry no first-response snapshot, with the money-section exceptions described below:
 where an address would otherwise show a reader nothing at all until the app arrives, it carries the
 page's own explanation. Serving those words changes nothing about whether a search engine may list
 the address.
+
+Lobbyist directory addresses with `year` and `sort` also receive first-response
+rows and supported donation amounts, with links retaining the selected year.
+These filtered addresses remain excluded from indexing. Name searches keep the
+head-only response. Lobbyist record addresses retain their selected donation year
+in sharing and filter the first-response donation rows to that year.
 
 When a bill has neither key points nor a generated summary, its first response
 and Summary section show the unchanged filed description under **Official

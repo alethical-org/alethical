@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
@@ -43,6 +43,8 @@ export interface LobbyingDirectoryRow {
   slug: string;
   linkable: boolean;
   meta: string | null;
+  donationLabel?: string;
+  year?: string;
 }
 
 /** Shared directory behavior keeps the name filter and numbered page in the address. */
@@ -53,6 +55,12 @@ export function LobbyingDirectoryPage({
   page,
   result,
   rows,
+  controls,
+  year,
+  navigationYear,
+  sort,
+  responseMatches = true,
+  orderLabel,
 }: {
   navigation: DirectoryNavigation;
   kind: LobbyingDirectoryKind;
@@ -66,12 +74,23 @@ export function LobbyingDirectoryPage({
     refetch: () => unknown;
   };
   rows: LobbyingDirectoryRow[];
+  controls?: ReactNode;
+  year?: string;
+  navigationYear?: string;
+  sort?: string;
+  responseMatches?: boolean;
+  orderLabel?: string;
 }) {
   const { isMobile, isTablet } = useResponsive();
   const words = copy[kind];
   const [draft, setDraft] = useState(query);
   useEffect(() => setDraft(query), [query]);
-  const applyQuery = (q: string) => navigation.setParams({ q: q || undefined, page: undefined });
+  const applyQuery = (q: string) =>
+    navigation.setParams({
+      q: q || undefined,
+      page: undefined,
+      ...(kind === 'lobbyists' && navigationYear ? { year: navigationYear } : {}),
+    });
   useDebouncedSearchCommit(draft, query, applyQuery);
   const address = (target: number) =>
     kind === 'principals'
@@ -80,6 +99,8 @@ export function LobbyingDirectoryPage({
           page: target > 1 ? String(target) : undefined,
         })
       : routePath.lobbyingLobbyists({
+          year: navigationYear ?? year,
+          sort,
           q: query || undefined,
           page: target > 1 ? String(target) : undefined,
         });
@@ -88,11 +109,12 @@ export function LobbyingDirectoryPage({
     lobbyingPageMetadata(address(page), words.title, {
       kind: 'directory',
       page,
-      noindex: Boolean(query.trim()),
+      noindex: Boolean(query.trim() || year || (sort && sort !== 'name')),
     }).title,
   );
   // A previous name/page's absence must never appear under the current name field.
   const data =
+    responseMatches &&
     result.data?.q === query.trim() &&
     result.data?.offset === (page - 1) * LOBBYING_DIRECTORY_PAGE_SIZE
       ? result.data
@@ -113,7 +135,10 @@ export function LobbyingDirectoryPage({
     if (outOfRange) navigation.replace('NotFound', { path: address(page) });
   }, [outOfRange, navigation, kind, page, query]);
   const goToPage = (target: number) =>
-    navigation.setParams({ page: target > 1 ? String(target) : undefined });
+    navigation.setParams({
+      page: target > 1 ? String(target) : undefined,
+      ...(kind === 'lobbyists' && navigationYear ? { year: navigationYear } : {}),
+    });
   const bodySize = isMobile || isTablet ? 16 : 17;
   const body = { fontSize: bodySize, lineHeight: bodySize * 1.55 };
   const titleSize = isMobile ? 30 : isTablet ? 38 : 46;
@@ -179,6 +204,7 @@ export function LobbyingDirectoryPage({
             />
             <Text style={styles.filterNote}>{copy.filterNote}</Text>
           </View>
+          {controls}
           {pending ? (
             <View role="status" aria-busy style={[styles.card, cardPadding]}>
               <Text style={[styles.body, body]}>{words.loading}</Text>
@@ -204,7 +230,9 @@ export function LobbyingDirectoryPage({
                     {lobbyingShowingLine(kind, page, rows.length, total)}
                   </Text>
                 ) : null}
-                {rows.length > 0 ? <Text style={styles.order}>{copy.order}</Text> : null}
+                {rows.length > 0 ? (
+                  <Text style={styles.order}>{orderLabel ?? copy.order}</Text>
+                ) : null}
               </View>
               {rows.length === 0 ? (
                 <View role="status" style={[styles.card, styles.emptyCard, cardPadding]}>
@@ -234,20 +262,36 @@ export function LobbyingDirectoryPage({
                           )}
                           {row.meta ? <Text style={styles.rowMeta}>{row.meta}</Text> : null}
                         </View>
+                        {row.donationLabel ? (
+                          <Text
+                            style={[styles.donationAmount, isMobile && styles.donationAmountMobile]}
+                          >
+                            {row.donationLabel}
+                          </Text>
+                        ) : null}
                       </>
                     );
                     const href =
                       kind === 'principals'
                         ? routePath.lobbyingPrincipal(row.slug)
-                        : routePath.lobbyingLobbyist(row.slug);
+                        : routePath.lobbyingLobbyist(row.slug, row.year);
                     const open = () =>
                       kind === 'principals'
                         ? navigation.push('LobbyingPrincipal', { slug: row.slug })
-                        : navigation.push('LobbyingLobbyist', { slug: row.slug });
+                        : navigation.push('LobbyingLobbyist', {
+                            slug: row.slug,
+                            ...(row.year ? { year: row.year } : {}),
+                          });
                     return (
                       <View role="listitem" key={row.id}>
                         {row.linkable ? (
-                          <Pressable {...linkProps(href, open)} style={styles.row}>
+                          <Pressable
+                            {...linkProps(href, open)}
+                            style={[
+                              styles.row,
+                              isMobile && row.donationLabel ? styles.donationRowMobile : null,
+                            ]}
+                          >
                             {contents}
                           </Pressable>
                         ) : (
@@ -417,6 +461,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(17,21,15,0.08)',
   },
+  donationRowMobile: { flexDirection: 'column', alignItems: 'stretch', gap: 6 },
+  donationAmount: {
+    fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#4f5651',
+    textAlign: 'right',
+    maxWidth: 260,
+  },
+  donationAmountMobile: { textAlign: 'left', maxWidth: '100%' },
   rowText: { minWidth: 0, flex: 1, gap: 3 },
   rowName: {
     color: '#11150f',

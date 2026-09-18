@@ -82,9 +82,9 @@ export type RootStackParamList = {
   MoneyLanding: undefined;
   LobbyingLanding: { q?: string } | undefined;
   LobbyingPrincipals: { q?: string; page?: string } | undefined;
-  LobbyingLobbyists: { q?: string; page?: string } | undefined;
+  LobbyingLobbyists: { q?: string; page?: string; year?: string; sort?: string } | undefined;
   LobbyingPrincipal: { slug: string };
-  LobbyingLobbyist: { slug: string };
+  LobbyingLobbyist: { slug: string; year?: string };
   Read: undefined;
   // One published piece of our own writing. Both names draw the same screen and
   // differ only in the address they write: a piece carrying the research trait

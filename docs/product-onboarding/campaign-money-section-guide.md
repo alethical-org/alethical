@@ -1529,9 +1529,13 @@ not before, and a person decides every such link rather than software proposing 
 - Every figure the section will ever show comes from official filings (Minnesota Campaign
   Finance Board; a signed research piece may also name other bodies, such as the FEC, in its
   sources block). No page here shows a figure it cannot back.
-- No page sums money across members or filers, ranks committees by amount, or shows a
-  dollar figure on a list of many committees. Signed research pieces are the one conditioned
-  exception, under rule 13.
+- Records do not combine member or committee finances, rank committees by amount,
+  or show a dollar figure on a list of many committees. Signed research pieces
+  follow the conditioned exception under rule 13. A separate scoped exception at
+  `/money/lobbying/lobbyists` permits guarded annual sums and optional ordering of
+  campaign donations matched to each lobbyist's registration number. It never
+  combines donors or claims complete giving or influence. The guard and source
+  limits are in [lobbying-guide.md, annual donation order](lobbying-guide.md#annual-donation-order-in-the-lobbyist-directory).
 - The section has no sign-in gate for reading records. The name search at `/money/search`
   sends the typed name to Alethical's own server, and to nobody else. Its address carries
   that name so the search can be shared; it is not stored against a reader. Searching

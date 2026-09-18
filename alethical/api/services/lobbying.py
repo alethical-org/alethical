@@ -1,14 +1,15 @@
 """Current registrations and dated spending, read from one published pair.
 
-The number joins records; names remain exactly as filed. No amount is summed across
-rows, years, principals or committees. Explicit projections keep contact fields out
-of both the response and the objects used to prepare it.
+The number joins records; names remain exactly as filed. The lobbyist directory
+alone offers guarded annual donation sums. Principal spending and individual
+payment rows remain as filed. Explicit projections keep contact fields out.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import String, cast, func, or_, select, text, union_all
@@ -16,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from alethical.api.services.campaign_finance_register import name_contains
 from alethical.api.services.committee_finance import current_release
+from alethical.api.services.lobbying_donations import annual_donations
 from alethical.db import models as schema
 from alethical.pipeline.campaign_finance_reader import (
     ReleaseNoLongerHeld,
@@ -270,7 +272,14 @@ def principals_page(
 
 
 def lobbyists_page(
-    db: Session, pair: PublishedPair | None, *, limit: int, offset: int, query: str = ""
+    db: Session,
+    pair: PublishedPair | None,
+    *,
+    limit: int,
+    offset: int,
+    query: str = "",
+    year: int | None = None,
+    sort: str = "name",
 ) -> dict:
     base = {
         **_stamp(pair),
@@ -278,6 +287,8 @@ def lobbyists_page(
         "offset": offset,
         "q": query,
         "matched_on": "substring_of_the_filed_name",
+        "sort": sort,
+        "requested_year": year,
     }
     if pair is None:
         return {
@@ -286,6 +297,15 @@ def lobbyists_page(
             "lobbyists": [],
             "total": None,
             "has_more": False,
+            "donations": {
+                "state": UNAVAILABLE,
+                "year": year,
+                "available_years": [],
+                "release_id": None,
+                "copied_at": None,
+                "source_url": None,
+                "eligible_count": None,
+            },
         }
     lobbyist = schema.LobbyistRow
     association = schema.LobbyistAssociation
@@ -301,6 +321,13 @@ def lobbyists_page(
         )
         .scalar_subquery()
     )
+    donations = annual_donations(db, pair.lobbyist_snapshot_id)
+    years = donations.metadata["available_years"]
+    selected_year = year if year is not None else (years[0] if years else None)
+    amounts = donations.amounts
+    available = donations.metadata["state"] == REPORTED
+    # The roster is small; fetch projected names once and order the whole match
+    # set, never just the current page. Source names and numbers break amount ties.
     rows = db.execute(
         select(
             lobbyist.registration_number,
@@ -310,15 +337,47 @@ def lobbyists_page(
         )
         .where(*where)
         .order_by(lobbyist.name, lobbyist.registration_number)
-        .limit(limit)
-        .offset(offset)
     ).all()
+    people = []
+    for row in rows:
+        key = (row.registration_number, selected_year)
+        amount = amounts.get(key)
+        state = (
+            REPORTED
+            if amount is not None
+            else "no_records"
+            if available and selected_year is not None and key not in amounts
+            else UNAVAILABLE
+        )
+        people.append(
+            {
+                **dict(row._mapping),
+                "donation_amount": str(amount) if amount is not None else None,
+                "donation_state": state,
+            }
+        )
+    if sort in {"donations_desc", "donations_asc"}:
+        # Python's stable sort retains the database's name/registration ordering.
+        people.sort(
+            key=lambda person: (
+                person["donation_amount"] is None,
+                Decimal(person["donation_amount"] or "0")
+                * (-1 if sort == "donations_desc" else 1),
+            )
+        )
+    eligible = sum(person["donation_state"] == REPORTED for person in people)
+    page = people[offset : offset + limit]
     return {
         **base,
         "state": REPORTED if total else NOT_REPORTED,
         "total": total,
-        "has_more": offset + len(rows) < total,
-        "lobbyists": [dict(row._mapping) for row in rows],
+        "has_more": offset + len(page) < total,
+        "donations": {
+            **donations.metadata,
+            "year": selected_year,
+            "eligible_count": eligible if available else None,
+        },
+        "lobbyists": page,
     }
 
 

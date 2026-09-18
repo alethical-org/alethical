@@ -2015,3 +2015,13 @@ a guide's description stays its dates (rule 13); both are Eugene's rulings and b
 visibility, so they are raised with him rather than changed here. Host, scheme and trailing-slash
 forwards, the 404 and 503 answers, `robots.txt`, `lang`, one `<h1>` per page, and the per-page
 canonical links all measured correct on 18 Sep 2026 and are unchanged.
+
+## Lobbyist annual donation addresses
+
+`/money/lobbying/lobbyists` addresses with `year` and `sort`, plus optional `page`,
+serve matching first-response rows and saved data. They remain `noindex` and carry
+no canonical address. Name searches with `q` retain the head-only response.
+Plain numbered directory pages remain indexable.
+
+A lobbyist record's `year` filters its served donation rows and survives a stale-name
+forward and sharing. Its canonical address remains the unfiltered record address.

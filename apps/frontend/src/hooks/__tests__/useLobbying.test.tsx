@@ -92,6 +92,32 @@ describe('the lobbying source reads', () => {
     expect(request.mock.calls[1][0]).toBe('/lobbying/principals?limit=50&offset=50&q=A+%26+B');
   });
 
+  it('requests year and dollar order and gives each combination its own cached result', async () => {
+    let year = 2025;
+    let sort: 'donations_desc' | 'donations_asc' = 'donations_desc';
+    let current: unknown;
+    request.mockResolvedValueOnce({ data: live.lobbyists_page_2 });
+    const rerender = mount(() => {
+      current = useLobbyingLobbyists({ year, sort, q: 'Ann', page: 2 }).data;
+      return null;
+    });
+    await settle();
+    expect(request.mock.calls[0][0]).toBe(
+      '/lobbying/lobbyists?limit=50&offset=50&q=Ann&year=2025&sort=donations_desc',
+    );
+    request.mockImplementation(() => new Promise(() => {}));
+    year = 2024;
+    rerender();
+    await settle();
+    expect(current).toBeUndefined();
+    const signal = request.mock.calls[1][1] as AbortSignal;
+    sort = 'donations_asc';
+    rerender();
+    await settle();
+    expect(signal.aborted).toBe(true);
+    expect(request.mock.calls[2][0]).toContain('year=2024&sort=donations_asc');
+  });
+
   it('keeps a failed read as an error, never as an empty source', async () => {
     request.mockRejectedValue(new Error('read failed'));
     await expect(getLobbyingSummary()).rejects.toThrow('read failed');

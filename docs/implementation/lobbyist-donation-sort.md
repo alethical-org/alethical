@@ -1,0 +1,94 @@
+# Lobbyist donation sorting
+
+## Authorization and scope
+
+On 18 September 2026 Eugene said **“build”** after the proposal to add a year
+selector, Name A–Z / Recorded donations highest first / Recorded donations lowest
+first, and a selected-year amount on `/money/lobbying/lobbyists`. Each amount must
+lead to its supporting donations on the lobbyist record. This is a scoped change
+to the earlier prohibition on combined donation amounts and ranking. It does not
+authorize client-spending rankings or any claim about political influence.
+
+Delivery includes implementation, tests, browser review, pull request, release and
+live checks. A missing drawing is not a dependency; reuse existing controls.
+
+## Sequence
+
+1. Establish usable annual coverage from the published records before choosing the
+   default year. Owner: this task, with an independent read-only evidence review.
+2. Implement the annual amount and whole-result sorting in the API, with tests for
+   source identity, missing amounts, untrusted records and stable pagination.
+3. Add the directory controls and donation-year links, including saved addresses,
+   browser history, first-response content and mobile behavior.
+4. Update the product guidance, review independently, run the required checks and
+   drive the behavior in a browser.
+5. Release through the merge queue and exercise the deployed behavior.
+
+## Counting constraints
+
+The campaign download can contain both original and amended donations, or omit
+corrected rows. See
+[campaign-finance-system-design.md, bulk-download amendment findings](../architecture/campaign-finance-system-design.md).
+An unguarded sum must not ship. Removing identical rows is not a correction:
+identical genuine donations occur too.
+
+The implemented guard requires every recipient-year touched by a lobbyist's
+donations to agree with that recipient's full-year filed report in the same
+published contribution snapshot. A missing or failed comparison, missing amount,
+missing recipient identity or payment outside the compared period withholds that
+lobbyist's entire annual amount. The comparison must use the current filings snapshot, pass its self-test, end on
+December 31 and match the direct itemized sum within $0.01. A partially pruned
+contribution snapshot withholds every amount.
+
+Match registration number, Lobbyist contributor kind and Contribution receipt
+kind. Use the source's year. Preserve signed decimal amounts and repeated rows.
+Include declared goods-and-services values, as the existing donation list does.
+Do not subtract state political contribution refunds from donor payments.
+
+No matching records is not $0. A missing amount is not $0. An unavailable source
+is not an empty list. The default year must be completed and support comparison.
+Any amount remains a sum of held matching records, never proof of complete giving.
+
+## Release evidence
+
+- Released on 18 September 2026 through [pull request 2293](https://github.com/alethical-org/alethical/pull/2293),
+  closing [issue 2292](https://github.com/alethical-org/alethical/issues/2292).
+  The initial public release serves [commit 06c3dcf7](https://github.com/alethical-org/alethical/commit/06c3dcf7e94d769641696dd93cc14163996e2598).
+- Live read on 18 September 2026: the 1,665-person roster supports 136 amounts for
+  2025, with 105 unavailable amounts and 1,424 people without matching records.
+  For 2024 the corresponding counts are 131, 100 and 1,434. The default is 2025.
+- Campaign copy date is 1 September 2026; lobbying copy date is 13 September 2026.
+- API source guard, full-result ordering and pagination implemented; 51 focused
+  backend tests passed, including source disagreement and partial pruning.
+- Frontend controls, saved addresses, first-response amounts and supporting-year
+  links implemented. 3,384 frontend tests and type checks pass. The production
+  build passes its asset, icon and first-load size checks.
+- Independent integration review found an empty-year sentence and a New Year
+  timezone mismatch; both are corrected with regression tests.
+- Desktop and phone browsing, both amount orders, search, pagination, Back and
+  supporting-year links passed. Aafedt 2024 shows $2,500 matching 4 donation rows;
+  2025 shows $2,000 matching 2 rows. Mobile source wrapping and select spacing
+  corrected from the narrow-phone review. Source links fit within 320px, 390px
+  and desktop viewports without horizontal overflow.
+- Product guidance and source rules now carry the narrow directory exception.
+- No production data changes are part of this build.
+- The full backend suite passed 2,930 tests. Required checks passed on the final
+  change and on the merge queue's combined revision.
+- The [fallback release](https://github.com/alethical-org/alethical/actions/runs/35393979339)
+  built the merged revision while Vercel reported a deployment outage. The build
+  passed at 295,125 compressed program bytes against the 296,022-byte limit.
+  Its automatic domain assignment stalled; the reviewed ready deployment was
+  assigned to the existing production addresses with Vercel's alias command.
+- Live API checks returned 131 supported amounts for 2024, correctly ordered in
+  both directions. The highest amount was $11,450 and the lowest was $100.
+- Live browser checks passed year selection, amount ordering, name search,
+  supporting-year links, changing the donation year, and source-link wrapping at
+  320px without horizontal overflow.
+
+- Independent live reader review passed both amount orders, search, matching-year
+  links and missing-amount labels. It found clipped sort-choice text at 320px.
+  The shortened choices, “Donations: highest first” and “Donations: lowest first”,
+  fit at 320px and 390px; the results heading matches each selected choice.
+- The fallback workflow was cancelled after its completed deployment reached the
+  public addresses, stopping the redundant wait for Vercel’s stalled automatic
+  domain assignment. The apex address still redirects to `www.alethical.com`.

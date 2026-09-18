@@ -1,3 +1,9 @@
+import {
+  lobbyingDonationAmountLabel,
+  LOBBYING_DONATION_AMOUNT_NOTE,
+  LOBBYING_DONATION_SCOPE_NOTE,
+  LOBBYING_DONATION_METHOD_NOTE,
+} from './lobbyingDonationDirectory';
 import type { PageSnapshot, SnapshotSection } from './pageSnapshot';
 import type {
   LobbyingSummary,
@@ -43,7 +49,7 @@ import { centralDateLabel } from './moneyLanding';
 import { MONEY_SECTION_NAME } from './moneySectionName';
 import { committeeSlug, registerKindLabel } from './committeeMoneyShared';
 import { formatDay, formatMoney } from './moneyFormat';
-import { directoryPagePath, directoryTotalPages } from './directoryPagination';
+import { directoryTotalPages } from './directoryPagination';
 
 const recordPath = (kind: 'principals' | 'lobbyists', name: string, id: string | number) =>
   `/money/lobbying/${kind}/${encodeURIComponent(committeeSlug(name, String(id)))}`;
@@ -115,6 +121,15 @@ export function lobbyingDirectorySnapshot(
   const total = data.total ?? 0;
   const pages = directoryTotalPages(total, 50);
   const path = `/money/lobbying/${kind}` as const;
+  const pagePath = (target: number) => {
+    const params = new URLSearchParams();
+    if (data.q) params.set('q', data.q);
+    if ('donations' in data && data.donations?.year)
+      params.set('year', String(data.donations.year));
+    if ('sort' in data && data.sort && data.sort !== 'name') params.set('sort', data.sort);
+    if (target > 1) params.set('page', String(target));
+    return params.size ? `${path}?${params}` : path;
+  };
   return {
     ...base(directory[kind].title, directory.directoryLabel),
     body: [
@@ -129,6 +144,7 @@ export function lobbyingDirectorySnapshot(
               centralDateLabel,
             ),
           ]),
+      ...(kind === 'lobbyists' ? [LOBBYING_DONATION_AMOUNT_NOTE] : []),
       lobbyingShowingLine(kind, page, rows.length, total),
       ...(rows.length ? [] : [directory[kind].empty, directory.noMatchWhy]),
     ].filter((line): line is string => Boolean(line)),
@@ -139,8 +155,13 @@ export function lobbyingDirectorySnapshot(
           if ('registration_number' in row)
             return {
               label: row.name,
-              detail: lobbyingPrincipalCount(row.principal_count),
-              href: recordPath('lobbyists', row.name, row.registration_number),
+              detail: [
+                lobbyingPrincipalCount(row.principal_count),
+                lobbyingDonationAmountLabel(row, 'donations' in data ? data.donations?.year : null),
+              ].join(' · '),
+              href:
+                recordPath('lobbyists', row.name, row.registration_number) +
+                ('donations' in data && data.donations?.year ? `?year=${data.donations.year}` : ''),
             };
           return {
             label: row.name,
@@ -153,10 +174,34 @@ export function lobbyingDirectorySnapshot(
           };
         }),
       },
+      ...(kind === 'lobbyists'
+        ? [
+            {
+              heading: 'How these amounts are counted',
+              body: [
+                LOBBYING_DONATION_SCOPE_NOTE,
+                LOBBYING_DONATION_METHOD_NOTE,
+                ...('donations' in data && data.donations?.copied_at
+                  ? [
+                      `Campaign contribution file copied ${centralDateLabel(data.donations.copied_at)}.`,
+                    ]
+                  : []),
+              ],
+            },
+          ]
+        : []),
     ],
     links: [
-      ...(page > 1 ? [{ label: 'Previous', href: directoryPagePath(path, page - 1) }] : []),
-      ...(page < pages ? [{ label: 'Next', href: directoryPagePath(path, page + 1) }] : []),
+      ...('donations' in data && data.donations?.source_url
+        ? [
+            {
+              label: 'View the Board’s campaign contribution file',
+              href: data.donations.source_url,
+            },
+          ]
+        : []),
+      ...(page > 1 ? [{ label: 'Previous', href: pagePath(page - 1) }] : []),
+      ...(page < pages ? [{ label: 'Next', href: pagePath(page + 1) }] : []),
       { label: directory.title, href: '/money/lobbying' },
     ],
   };
@@ -263,11 +308,20 @@ export function lobbyingPrincipalSnapshot(data: LobbyingPrincipal): PageSnapshot
   };
 }
 
-export function lobbyingLobbyistSnapshot(data: LobbyingLobbyist): PageSnapshot {
+export function lobbyingLobbyistSnapshot(
+  data: LobbyingLobbyist,
+  selectedYear?: number,
+): PageSnapshot {
+  const years = selectedYear
+    ? data.contributions.years.filter((item) => item.year === selectedYear)
+    : data.contributions.years;
+  const paymentCount = selectedYear
+    ? years.reduce((n, year) => n + year.payment_count, 0)
+    : data.contributions.payment_count;
   const rows = data.principals.rows.slice(0, LOBBYING_RECORD_REVEAL_STEP);
   const visibleYears =
     data.contributions.state === 'reported'
-      ? visibleLobbyingDonationYears(data.contributions.years, LOBBYING_RECORD_REVEAL_STEP)
+      ? visibleLobbyingDonationYears(years, LOBBYING_RECORD_REVEAL_STEP)
       : [];
   const shownPayments = visibleYears.reduce(
     (n, year) =>
@@ -363,16 +417,15 @@ export function lobbyingLobbyistSnapshot(data: LobbyingLobbyist): PageSnapshot {
         heading: lobbyistCopy.donationsHeading,
         body: [
           lobbyistCopy.donationsIntroduction,
+          ...(selectedYear ? [`Donation year: ${selectedYear}`] : []),
+          ...(selectedYear && paymentCount === 0 && data.contributions.state !== 'unavailable'
+            ? [
+                `The state’s contribution file names no donation under this registration number for ${selectedYear}. This does not mean no donation was made.`,
+              ]
+            : []),
           ...(donationDate ? [donationDate] : []),
           ...(data.contributions.state === 'reported' && data.contributions.payment_count != null
-            ? [
-                recordCountLine(
-                  data.contributions.payment_count,
-                  shownPayments,
-                  'donation',
-                  'donations',
-                ),
-              ]
+            ? [recordCountLine(paymentCount ?? 0, shownPayments, 'donation', 'donations')]
             : []),
           ...(data.contributions.state === 'not_reported'
             ? [lobbyistCopy.noDonations]
