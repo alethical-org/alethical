@@ -341,6 +341,9 @@ describe('Money by race directory and focused group', () => {
     expect(host.querySelector('input')).toBeTruthy();
     const back = host.querySelector<HTMLAnchorElement>('a[aria-label="Go back"]')!;
     expect(queryOf(back)).toEqual({ year: '2026' });
+    expect(back.querySelector('svg')).not.toBeNull();
+    expect(getComputedStyle(back).borderTopWidth).toBe('0px');
+    expect(getComputedStyle(back).backgroundColor).toBe('rgba(0, 0, 0, 0)');
     // GoBackLink follows this native href on a fresh visit. Browser-history
     // behavior has its own tests; this harness models the destination route.
     act(() => updateParams({ year: '2026' }));
