@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/screens/redesign/LobbyingLandingScreen.tsx, apps/frontend/src/screens/redesign/LobbyingPrincipalsScreen.tsx, apps/frontend/src/screens/redesign/LobbyingLobbyistsScreen.tsx, apps/frontend/src/screens/redesign/LobbyingPrincipalScreen.tsx, apps/frontend/src/screens/redesign/LobbyingLobbyistScreen.tsx, apps/frontend/src/lib/lobbyingDirectoryCopy.ts, apps/frontend/src/lib/lobbyingRecordCopy.ts, apps/frontend/src/lib/lobbyingTypes.ts, apps/frontend/src/data/lobbying.ts, apps/frontend/src/data/moneyNameSearch.ts, apps/frontend/src/hooks/useLobbying.ts, apps/frontend/src/hooks/useLobbyingNameSearch.ts, apps/frontend/src/components/lobbying/LobbyingPageFrame.tsx, apps/frontend/src/components/lobbying/LobbyingSearchResults.tsx, apps/frontend/src/lib/lobbyingSearch.ts, apps/frontend/src/lib/lobbyingPageSnapshot.ts, apps/frontend/src/lib/lobbyingMetadata.ts, apps/frontend/src/components/lobbying/LobbyingDonationContext.tsx, apps/frontend/src/lib/lobbyingPanelCopy.ts, apps/frontend/src/navigation/webRoutes.ts, api/page.ts, api/sitemap.ts -->
+<!-- describes: apps/frontend/src/screens/redesign/LobbyingLandingScreen.tsx, apps/frontend/src/screens/redesign/LobbyingPrincipalsScreen.tsx, apps/frontend/src/screens/redesign/LobbyingLobbyistsScreen.tsx, apps/frontend/src/screens/redesign/LobbyingPrincipalScreen.tsx, apps/frontend/src/screens/redesign/LobbyingLobbyistScreen.tsx, apps/frontend/src/lib/lobbyingDirectoryCopy.ts, apps/frontend/src/lib/lobbyingRecordCopy.ts, apps/frontend/src/lib/lobbyingTypes.ts, apps/frontend/src/data/lobbying.ts, apps/frontend/src/data/moneyNameSearch.ts, apps/frontend/src/hooks/useLobbying.ts, apps/frontend/src/hooks/useLobbyingNameSearch.ts, apps/frontend/src/components/lobbying/LobbyingPageFrame.tsx, apps/frontend/src/components/lobbying/LobbyingSearchResults.tsx, apps/frontend/src/lib/lobbyingSearch.ts, apps/frontend/src/lib/lobbyingPageSnapshot.ts, apps/frontend/src/lib/lobbyingMetadata.ts, apps/frontend/src/components/lobbying/LobbyingDonationContext.tsx, apps/frontend/src/components/lobbying/LobbyingDonationControls.tsx, apps/frontend/src/components/lobbying/LobbyistDirectoryCard.tsx, apps/frontend/src/lib/lobbyingDonationDirectory.ts, apps/frontend/src/lib/lobbyingPanelCopy.ts, apps/frontend/src/navigation/webRoutes.ts, api/page.ts, api/sitemap.ts -->
 
 # How the lobbying pages work
 
@@ -129,6 +129,24 @@ link separately from the lobbyist-list copy date. Its disclosure distinguishes
 campaign donations from client lobbying spending and warns that these are sums of
 held matching records, not complete giving totals. The supported-amount count
 covers the whole name search, not just the visible page.
+
+The name field sits above one results card. That card's header carries the result
+count, Year and Sort by together: side by side on a computer, the count above the
+2 controls on a tablet, and everything stacked on a phone. The count is the
+results heading and announces its own change politely. Under it, inside the same
+card, sit the amount limitation, the supported-amount count, the expandable
+explanation with its source link, and the campaign file's copy date. The rows
+follow, with name, client count, amount and arrow in aligned columns above the
+phone band and wrapped beneath the name on a phone. Nothing repeats the chosen
+order as a separate caption, because Sort by already names it.
+
+Loading, a failed read and both empty results keep that header and limitation,
+because they describe the list whatever it currently holds. A pending or failed
+read prints no count and no supported-amount sentence, since neither has been
+established; a completed search that matched nobody prints its real zero. A
+failure keeps Sort by usable and keeps a year already chosen in the address
+selected. Browser Back restores the search, year, order, page and the place in
+the list.
 
 A sum requires an exact registration-number match, Lobbyist contributor kind and
 Contribution receipt kind. It uses the source year and preserves signed amounts,

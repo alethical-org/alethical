@@ -45,6 +45,8 @@ export function MoneyNameSearchField({
   stacked = false,
   controlGap,
   appearance = 'default',
+  /** An outlined field with no list appearance can still offer the clear control. */
+  showClear = false,
   accessibilityLabel,
   inputRef: externalInputRef,
   labelStyle,
@@ -64,6 +66,7 @@ export function MoneyNameSearchField({
   stacked?: boolean;
   controlGap?: number;
   appearance?: 'default' | 'list';
+  showClear?: boolean;
   accessibilityLabel?: string;
   inputRef?: Ref<TextInput>;
   labelStyle?: import('react-native').StyleProp<import('react-native').TextStyle>;
@@ -143,7 +146,7 @@ export function MoneyNameSearchField({
               fieldOutlineReset,
             ]}
           />
-          {listAppearance && value ? (
+          {(listAppearance || showClear) && value ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Clear the field"

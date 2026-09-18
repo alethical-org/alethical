@@ -88,7 +88,59 @@ Any amount remains a sum of held matching records, never proof of complete givin
 - Independent live reader review passed both amount orders, search, matching-year
   links and missing-amount labels. It found clipped sort-choice text at 320px.
   The shortened choices, “Donations: highest first” and “Donations: lowest first”,
-  fit at 320px and 390px; the results heading matches each selected choice.
+  fit at 320px and 390px.
 - The fallback workflow was cancelled after its completed deployment reached the
   public addresses, stopping the redundant wait for Vercel’s stalled automatic
   domain assignment. The apex address still redirects to `www.alethical.com`.
+
+## Presentation refinement
+
+Design drew the directory again as one results card. Eugene authorised the build on
+18 September 2026 from `Alethical UX (24).zip` and its corrected handoff. The
+refinement changes what the page looks like and never what it counts: no API,
+schema, calculation or production-data change is part of it.
+
+What moved. Year and Sort by leave the strip above the card and join the result
+count in the card's header. The header arranges itself by band: 1 row on a
+computer, count above controls on a tablet, everything stacked on a phone. The
+amount limitation, supported-amount count, explanation control and campaign file
+date move inside the same card, above the rows. The repeated order caption is
+gone, because Sort by names the order 1 line away. Rows gain aligned name, client
+count, amount and arrow columns above the phone band, a hover wash across the full
+card width, and a bolder dollar figure beside a quieter year tail. Loading,
+failure and both empty results now sit inside that same card under the same header.
+
+Corrections the drawings do not carry. The real sort values stay `name`,
+`donations_desc` and `donations_asc`. Every control stays available during loading
+and after a failure; Year is disabled only when no year can be offered, and a year
+already in the address is never blanked. A pending or failed read prints no count
+and no supported-amount sentence, while a completed empty search prints its real
+zero. “No matching donation records” and “Amount unavailable” stay apart and
+neither becomes $0. Out-of-range routing, empty-page recovery and the pagination
+rules are unchanged.
+
+Two measured departures from the drawn values. The content column is 1000 wide as
+drawn but starts at the shared header's own left edge rather than centred, because
+the drawing's centred column came from its imitation header and the live header is
+full width. The Year box is 164 wide rather than 128, sized to hold `Loading
+years`, its own longest choice; at 128 the word `Unavailable` was cut off in a
+browser.
+
+Copy. Standalone single-sentence helpers lose their closing period, per
+[ui-copy-guide.md](../design/ui-copy-guide.md): the registration date line, the
+campaign file date, the supported-amount count and the field helper. The no-match
+helper now uses a semicolon. The field helper and the no-match helper are shared
+with `/money/lobbying/principals`, so both directories carry the corrected
+punctuation.
+
+Verification. Browser Back was measured rather than assumed: the address restored
+all 4 values and the place in the list was lost, so the directory now uses the
+shared `useHistoryScrollRestoration` hook, which the lobbying landing and record
+pages already use. Search, clear, both amount orders, all supported years,
+pagination, selected-year detail links, refresh, shared addresses, the disclosure,
+keyboard reach and focus, loading, failure with retry, an empty search and an
+empty numbered page were driven against production data. Widths checked: 1440,
+1100, 1099, 900, 768, 767, 640, 390 and 320, with a long name, a 5-figure amount
+and both missing-amount messages. Nothing clipped and nothing scrolled sideways.
+The gap from the last content block to the footer measures 72 on a computer, 56 on
+a tablet and 48 on a phone.

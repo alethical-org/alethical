@@ -1,6 +1,8 @@
 import {
+  lobbyingCampaignFileDate,
   lobbyingDonationAmountLabel,
   LOBBYING_DONATION_AMOUNT_NOTE,
+  LOBBYING_DONATION_EXPLANATION_LABEL,
   LOBBYING_DONATION_SCOPE_NOTE,
   LOBBYING_DONATION_METHOD_NOTE,
 } from './lobbyingDonationDirectory';
@@ -177,14 +179,12 @@ export function lobbyingDirectorySnapshot(
       ...(kind === 'lobbyists'
         ? [
             {
-              heading: 'How these amounts are counted',
+              heading: LOBBYING_DONATION_EXPLANATION_LABEL,
               body: [
                 LOBBYING_DONATION_SCOPE_NOTE,
                 LOBBYING_DONATION_METHOD_NOTE,
                 ...('donations' in data && data.donations?.copied_at
-                  ? [
-                      `Campaign contribution file copied ${centralDateLabel(data.donations.copied_at)}.`,
-                    ]
+                  ? [lobbyingCampaignFileDate(centralDateLabel(data.donations.copied_at))]
                   : []),
               ],
             },
