@@ -6,7 +6,7 @@ import { LinkArrowLabel, linkArrowRow } from '../LinkArrow';
 import { useHover } from '../billDetail/interactions';
 import { useResponsive } from '../../hooks/useResponsive';
 import { committeeSlug, registerKindLabel } from '../../lib/committeeMoneyShared';
-import { formatDay, formatMoney } from '../../lib/legislatorCampaignMoney';
+import { formatDay, formatMoney } from '../../lib/moneyFormat';
 import {
   CAMPAIGN_CONTRIBUTION_SOURCE_LABEL,
   LOBBYING_NO_SPENDING_PAGE,

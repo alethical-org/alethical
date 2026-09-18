@@ -1,5 +1,5 @@
 /** The standalone committee-payments view's words and rows, shared with its first served HTML. */
-import { formatDay, formatMoney } from './legislatorCampaignMoney';
+import { formatDay, formatMoney } from './moneyFormat';
 import {
   committeeSlug,
   isInKind,

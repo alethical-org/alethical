@@ -17,7 +17,7 @@ import {
   OUTSIDE_ABOUT_INTRO,
   OUTSIDE_NEVER_ADDED,
 } from '../../lib/committeeMoneyShared';
-import { formatDay, formatMoney } from '../../lib/legislatorCampaignMoney';
+import { formatDay, formatMoney } from '../../lib/moneyFormat';
 import {
   OUTSIDE_GROUP_COPY as copy,
   outsideCheckedZeroLabel,

@@ -39,7 +39,7 @@ import {
   registerKindLabel,
   UNNAMED_PAYMENT_PARTY,
 } from './committeeMoneyShared';
-import { formatDay, formatMoney } from './legislatorCampaignMoney';
+import { formatDay, formatMoney } from './moneyFormat';
 import { formatCount } from './moneyLanding';
 import type { PaymentNameRole } from './paymentNameRoute';
 export {

@@ -16,7 +16,7 @@
  */
 
 import type { MoneyFilingRow, MoneyFilingsFeed } from '../data/types';
-import { formatDay } from './legislatorCampaignMoney';
+import { formatDay } from './moneyFormat';
 import { UNION_FINANCES_NOTE } from './committeeMoneyShared';
 import { MONEY_SECTION_NAME } from './moneySectionName';
 
