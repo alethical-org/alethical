@@ -1,6 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
+import { StyleSheet, Text } from 'react-native';
+
+const { JSDOM } = require('jsdom') as {
+  JSDOM: new (html: string) => { window: Window & typeof globalThis };
+};
 
 const { renderToStaticMarkup } = require('react-dom/server') as {
   renderToStaticMarkup: (node: React.ReactNode) => string;
@@ -20,6 +25,52 @@ import { GreenLinkArrow, LinkArrow, LinkArrowLabel, linkArrowRow } from '../Link
 const source = readFileSync(join(__dirname, '..', 'LinkArrow.tsx'), 'utf8');
 
 describe('LinkArrow', () => {
+  it.each(['underline', 'none', 'underline line-through'] as const)(
+    'carries %s across the final-word layout without decorating the arrow',
+    (textDecorationLine) => {
+      const html = renderToStaticMarkup(
+        <LinkArrowLabel
+          label="Minnesota’s campaign-finance downloads"
+          style={[
+            { textDecorationLine: 'none' },
+            { textDecorationLine, textDecorationColor: '#123456', textDecorationStyle: 'dotted' },
+          ]}
+        />,
+      );
+      const sheet = (
+        StyleSheet as typeof StyleSheet & { getSheet(): { textContent: string } }
+      ).getSheet();
+      const dom = new JSDOM(`<style>${sheet.textContent}</style>${html}`);
+      const label = dom.window.document.body.firstElementChild!;
+      const group = label.querySelector('span')!;
+      expect(dom.window.getComputedStyle(label).textDecorationLine).toBe(textDecorationLine);
+      expect(dom.window.getComputedStyle(group).textDecorationLine).toBe(textDecorationLine);
+      expect(dom.window.getComputedStyle(group).textDecorationColor).toBe('rgb(18, 52, 86)');
+      expect(dom.window.getComputedStyle(group).textDecorationStyle).toBe('dotted');
+      expect(group.querySelector('svg')!.style.textDecorationLine).toBe('');
+      dom.window.close();
+    },
+  );
+
+  it('inherits parent-owned decoration, including single-word labels', () => {
+    const html = renderToStaticMarkup(
+      <Text style={{ textDecorationLine: 'underline', textDecorationColor: '#123456' }}>
+        <LinkArrowLabel label="Downloads" />
+      </Text>,
+    );
+    const sheet = (
+      StyleSheet as typeof StyleSheet & { getSheet(): { textContent: string } }
+    ).getSheet();
+    const dom = new JSDOM(`<style>${sheet.textContent}</style>${html}`);
+    const label = dom.window.document.body.firstElementChild!.firstElementChild!;
+    expect(dom.window.getComputedStyle(label).textDecorationLine).toBe('underline');
+    expect(dom.window.getComputedStyle(label).textDecorationColor).toBe('rgb(18, 52, 86)');
+    expect(dom.window.getComputedStyle(label.firstElementChild!).textDecorationLine).toBe(
+      'underline',
+    );
+    dom.window.close();
+  });
+
   it('draws one long, centered arrow instead of using a phone-dependent text character', () => {
     const html = renderToStaticMarkup(<LinkArrow color="#123456" />);
 

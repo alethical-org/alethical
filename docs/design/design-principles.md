@@ -163,6 +163,11 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   wins and the build corrects the drawing. The `mobileLinkArrows.test.ts` check rejects typed link
   arrows, old local link drawings, and page-specific link-arrow vertical adjustments, while allowing
   the restored on-screen action treatments below.
+- **A link's underline covers every word, including the final word beside its arrow.** Keep each
+  link's accepted always-visible or hover/focus-only underline behavior. `LinkArrowLabel` carries
+  that decoration across its final-word group, including when an enclosing text link owns the
+  style. The arrow and its 6px gap remain undecorated. Check single-word and wrapping labels as
+  well as complete lines; never copy a partial underline from a Design drawing.
 - **The rule standardizes arrows that already exist; it does not add them.** A green link whose
   accepted surface has no trailing arrow keeps no arrow. Back arrows, disclosure chevrons, and
   arrows used as data or diagrams are outside this rule.
