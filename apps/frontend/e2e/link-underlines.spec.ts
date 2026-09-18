@@ -8,10 +8,6 @@ test.skip(
   'Set LINK_UNDERLINE_RUN=1 for public-record checks',
 );
 
-test.afterEach(async ({ page }) => {
-  await page.unrouteAll({ behavior: 'wait' });
-});
-
 async function expectCompleteLabel(link: Locator) {
   const arrows = link.getByTestId('link-arrow');
   for (const arrow of await arrows.all()) {
@@ -46,19 +42,9 @@ async function expectCompleteLabel(link: Locator) {
 }
 
 for (const width of [375, 900, 1440]) {
-  test(`full link underlines at ${width}px`, async ({ page, context, baseURL }) => {
+  test(`full link underlines at ${width}px`, async ({ page, context }) => {
     test.setTimeout(120_000);
     await suppressSiteMetrics(context);
-    // Local browser origins need not be added to the public API's allowed origins.
-    if (baseURL?.startsWith('http://localhost:')) {
-      await page.route(
-        'https://alethical-api-production.up.railway.app/api/v1/**',
-        async (route) => {
-          if (route.request().method() !== 'GET') return route.abort();
-          await route.fulfill({ response: await route.fetch() });
-        },
-      );
-    }
     await page.setViewportSize({ width, height: 1000 });
     for (const path of [
       '/money/committees/abeyta-joseph-a-house-committee-18468?year=2026',
