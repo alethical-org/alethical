@@ -137,7 +137,7 @@ describe('the app and the API agree on which answers carry a current claim', () 
    * which reads are deliberately absent from it, so that comment is the source
    * read here.
    */
-  it('names the same 4 reads on both sides', () => {
+  it('names the same 5 reads on both sides', () => {
     const publicPy = readFileSync(join(REPO, 'alethical/api/routers/public.py'), 'utf8');
     const start = publicPy.indexOf('The 4 public reads that fail that test');
     const end = publicPy.indexOf('MONEY_RECORD_PATHS = frozenset');
@@ -150,27 +150,29 @@ describe('the app and the API agree on which answers carry a current claim', () 
       '/api/v1/campaign-finance/summary',
       '/api/v1/committees/{registration_number}/confirmation',
       '/api/v1/legislators/{legislator_id}/campaign-finance',
+      '/api/v1/legislators/{legislator_id}/campaign-finance/years',
     ];
     for (const path of apiPaths) {
       expect(absentFromTheLongWindow).toContain(path);
     }
-    // Exactly 4, so a 5th read joining that list without joining the app's is a
+    // Exactly 5, so a 6th read joining that list without joining the app's is a
     // failure here rather than a claim nobody rechecks.
     expect(absentFromTheLongWindow.match(/\* `\/api\/v1\//g)).toHaveLength(apiPaths.length);
 
     expect(currentClaimQueryRoots()).toEqual([
       'campaign-finance-name-search',
       'campaign-finance-summary',
+      'campaign-money-year-states',
       'committee-confirmation',
       'legislator-campaign-money',
     ]);
   });
 
-  it('serves a validation time from every one of those 4 reads and from no other', () => {
+  it('serves a validation time from every one of those 5 reads and from no other', () => {
     const publicPy = readFileSync(join(REPO, 'alethical/api/routers/public.py'), 'utf8');
-    // 4 payloads carry it, plus the one definition of the function itself.
+    // 5 payloads carry it, plus the one definition of the function itself.
     expect(
       publicPy.match(/"current_claim_validated_at": current_claim_validated_at\(\)/g),
-    ).toHaveLength(4);
+    ).toHaveLength(5);
   });
 });

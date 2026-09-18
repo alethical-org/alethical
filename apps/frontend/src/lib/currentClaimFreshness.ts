@@ -58,7 +58,7 @@ export const CURRENT_CLAIM_MAX_AGE_MS = 20 * 60_000;
 /**
  * The worst age the API's shared cache can hand the next reader: `max-age=60`
  * plus `stale-while-revalidate=300` from `PUBLIC_CACHE_CONTROL`
- * (`alethical/api/routers/public.py`). The 4 reads carrying a current claim are
+ * (`alethical/api/routers/public.py`). The 5 reads carrying a current claim are
  * deliberately kept on that short window and off the 24-hour money-records one.
  */
 export const API_SHARED_CACHE_MAX_AGE_MS = 360_000;
@@ -83,7 +83,7 @@ export function currentClaimDeadlineFitsTheChain(): boolean {
 /**
  * The reads whose answers carry a claim about the state of the world right now.
  *
- * These are the same 4 the API keeps off its long window, and they are named
+ * These are the same 5 the API keeps off its long window, and they are named
  * there one at a time for the same reason they are named here: a list cannot let
  * a new read inherit a window by where its address sits. The line is not "does
  * the answer mention a person" — a donor named inside an accepted filing is a
@@ -93,16 +93,19 @@ export function currentClaimDeadlineFitsTheChain(): boolean {
  *
  * - `committee-confirmation` serves `confirmed_for`, the member a person signed off.
  * - `legislator-campaign-money` serves `link_state`.
+ * - `campaign-money-year-states` is the same `link_state` for a span of years, read
+ *   once to colour the year buttons (`/legislators/{id}/campaign-finance/years`).
  * - `campaign-finance-name-search` rows carry chamber, district and party.
  * - `campaign-finance-summary` counts who sits and how many links are live.
  *
  * `alethical/tests/test_api_contract.py` pins the API half and
  * `apps/frontend/src/lib/__tests__/currentClaimFreshness.test.ts` pins that this
- * list and that one name the same 4 reads, so they cannot drift apart.
+ * list and that one name the same 5 reads, so they cannot drift apart.
  */
 const CURRENT_CLAIM_QUERY_ROOTS = new Set([
   'committee-confirmation',
   'legislator-campaign-money',
+  'campaign-money-year-states',
   'campaign-finance-name-search',
   'campaign-finance-summary',
 ]);

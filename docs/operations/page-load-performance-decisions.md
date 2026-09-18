@@ -1,4 +1,4 @@
-<!-- describes: .github/workflows/production-release-failed.yml, apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/loadOnDemand.tsx, apps/frontend/src/navigation/screenPreload.ts, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py, scripts/report_origin_share_by_address.py, apps/frontend/src/lib/committeeConfirmation.ts, apps/frontend/src/lib/initialWindowMetrics.ts, apps/frontend/src/navigation/screenChunks.ts -->
+<!-- describes: .github/workflows/production-release-failed.yml, apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/loadOnDemand.tsx, apps/frontend/src/navigation/screenPreload.ts, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py, scripts/report_origin_share_by_address.py, apps/frontend/src/lib/committeeConfirmation.ts, apps/frontend/src/lib/initialWindowMetrics.ts, apps/frontend/src/navigation/screenChunks.ts, apps/frontend/src/lib/moneyFormat.ts, apps/frontend/src/lib/researchIndex.ts, apps/frontend/src/lib/billStatus.ts, apps/frontend/src/data/campaignMoneyDetails.ts, apps/frontend/src/hooks/useCampaignMoneyYearStates.ts -->
 
 <!-- describes: apps/frontend/metro.config.js, patches/@expo__metro-config@57.0.7.patch, pnpm-workspace.yaml, pnpm-lock.yaml, apps/frontend/scripts/__tests__/sharedScreenChunks.test.ts, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeePaymentsPage.ts, apps/frontend/src/lib/committeeMoneyShared.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsBundle.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsOnDemand.tsx, apps/frontend/src/lib/committeeOutsideSpending.ts -->
 
@@ -720,6 +720,74 @@ complete payment lists and the legislator tab's 11 yearly reads are origin reads
 rarely-visited page; their statement counts and plans are the subject of "What an uncached money
 answer spends its time on" below, and a committee's payment pages now carry the day-long money
 window ("How long a nearby cache holds a public read" above).
+
+## Every page's first download loses the code only a few screens use, 18 September 2026
+
+**A module a startup file imports 1 name from travels whole in every reader's first
+download, so the few names startup needs live in small import-free modules and the
+wording, article text and page logic stay with their screens.** Measured on a local
+production-configured build, the first download fell from 337,181 to 294,686 bytes
+(12.6%), and the startup program from 80 modules to 73. The limit
+(`FIRST_LOAD_LIMIT`) is untouched until the hosted build reports its own figure, per
+the rule in `apps/frontend/scripts/check-first-load-budget.mjs`.
+
+What left, and the small module that now carries what startup needed:
+
+| Left the first download | Startup needed | Now in |
+|---|---|---|
+| `lib/legislatorCampaignMoney.ts`, `lib/committeeMoneyShared.ts` | the committee address parser, 4 money query keys and 2 limits, the year helpers | `lib/committeeRoute.ts`, `lib/committeeMoneyQueryKeys.ts`, `lib/campaignMoneyYears.ts` |
+| `lib/moneyLanding.ts`, `lib/moneyByRace.ts`, `lib/committeeList.ts`, `lib/outsideSpending.ts` | the payload shapers and keys `data/api.ts` and the hooks call | `lib/moneyLandingReads.ts`, `lib/moneyByRaceReads.ts`, `lib/committeeListReads.ts`, `lib/outsideSpendingReads.ts` |
+| `lib/billDetail.ts` (115 KB) and `lib/billText.ts` | 6 bill-status helpers | `lib/billStatus.ts` |
+| `lib/research.ts` and the 6 published pieces' text (about 100 KB) | each piece's address, title, dates and labels, for routing and page titles | `lib/researchIndex.ts`; each piece spreads its own index entry so nothing is written twice |
+| the 2 money formatters out of 6 screens' own downloads | `formatMoney`, `formatDay` | `lib/moneyFormat.ts` |
+
+Each original module re-exports what moved, so every screen keeps importing from
+where it always did, and every query key string is byte-identical
+(`apps/frontend/src/lib/__tests__/pageData.test.ts`). The cost is the one the
+13 September rule already names: code shared by screens travels with each screen, so
+the screen files grew (the 2 reading screens by 61,733 uncompressed bytes each for the
+article text they alone draw, the money landing by 83,936, the profile by 47,030), and
+a reader who visits several screens downloads some code more than once.
+
+**The 8 September reversal did not recur.** Pointing `data/api.ts` at the 6 bill-status
+helpers made the first load 1,164 bytes larger under the build rule of that day; under
+the 13 September rule the same move takes `billDetail.ts` and `billText.ts` out
+together. Re-measure a rejected move when the rule it was rejected under changes.
+
+**What stays in startup, deliberately.** `data/api.ts` (141 KB), `hooks/useAppQueries.ts`
+(45 KB), `data/types.ts`, `navigation/webRoutes.ts`, `lib/share.ts` and `navigation/ia.ts`
+are startup by nature. Taking `useAppQueries.ts` out through its one startup edge would
+copy it, and everything it reaches, into every screen file, a bill reader's included.
+
+## A member's money tab colours its year buttons from 1 request, 18 September 2026
+
+**The 11 year buttons above a member's money read the whole per-year answer 11 times,
+3 at a time, to learn each year's `link_state` and each committee's `split`: about 4 s
+on the live site while the buttons waited.** `GET /legislators/{id}/campaign-finance/years?from=2015&to=2026`
+answers the span in 1 request (490 ms warm at the origin, 11 statements against
+11 × 30), and `getCampaignMoneyYearStates` in `apps/frontend/src/data/campaignMoneyDetails.ts`
+reads it, falling back to the per-year reads only while a data service that predates
+the route answers 404 (the 2 halves deploy separately). The route carries `link_state`,
+so it is the 5th read on both sides' current-claim lists and keeps the short cache
+window. Per-year and span answers were compared equal for 9 members × 12 years on
+production with 0 differences.
+
+**Three more of the same day, each measured before it was written:**
+
+- **A committee list's later pages download 3 at a time** (`LIST_PAGES_AT_ONCE` in
+  `apps/frontend/src/data/campaignMoneyDetails.ts`). A committee with 1,000 payments
+  in a direction spent 5 round trips in a row on the list its chart waits on (about
+  2.4 s live); the first page says how many there are and the rest arrive in 2 rounds.
+  Every check the one-after-another read made is still made page by page, and a page
+  with the wrong number of rows for its place fails the read.
+- **A member's portrait is asked for in the page head** (`preloadImages` on
+  `PageMetadata`), only for a sitting member and only over https. Live, its request
+  left 1.4 s into the load and it landed 250 ms after the page had otherwise finished.
+- **A legislator's money year costs 24 database statements instead of 30**, and every
+  money read stops paying a round trip to set its read-only view: the isolation level
+  travels inside `BEGIN` (`pin_to_one_view`), verified against the production pooler
+  to hold inside the transaction and reset after it. The statement-by-statement
+  account is under "What an uncached money answer spends its time on".
 
 ## Shared screen code stays with the screen, 13 September 2026
 
