@@ -740,6 +740,7 @@ What left, and the small module that now carries what startup needed:
 | `lib/billDetail.ts` (115 KB) and `lib/billText.ts` | 6 bill-status helpers | `lib/billStatus.ts` |
 | `lib/research.ts` and the 6 published pieces' text (about 100 KB) | each piece's address, title, dates and labels, for routing and page titles | `lib/researchIndex.ts`; each piece spreads its own index entry so nothing is written twice |
 | the 2 money formatters out of 6 screens' own downloads | `formatMoney`, `formatDay` | `lib/moneyFormat.ts` |
+| `lib/share.ts`'s head building: the tags, the machine-readable block and the shell surgery, which only the server function runs (added 18 September 2026, 934 bytes) | nothing; the browser never renders a head | `lib/pageHead.ts` |
 
 Each original module re-exports what moved, so every screen keeps importing from
 where it always did, and every query key string is byte-identical
@@ -756,7 +757,9 @@ together. Re-measure a rejected move when the rule it was rejected under changes
 
 **What stays in startup, deliberately.** `data/api.ts` (141 KB), `hooks/useAppQueries.ts`
 (45 KB), `data/types.ts`, `navigation/webRoutes.ts`, `lib/share.ts` and `navigation/ia.ts`
-are startup by nature. Taking `useAppQueries.ts` out through its one startup edge would
+are startup by nature. `lib/share.ts` earns its place by the page titles and wording the
+browser really uses, so only that half stays: its head building left on 18 September 2026,
+and a startup file with a server-only half is worth re-reading for the same split. Taking `useAppQueries.ts` out through its one startup edge would
 copy it, and everything it reaches, into every screen file, a bill reader's included.
 
 ## A member's money tab colours its year buttons from 1 request, 18 September 2026

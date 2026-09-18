@@ -150,3 +150,69 @@ export function plainKeyPoints(points: string[] | undefined): string[] {
     .map((point) => plainBillSummary(point))
     .filter((point) => /[a-z]/i.test(point));
 }
+
+/**
+ * What a bill's search result and its share card each say.
+ *
+ * `search` is always the summary's first sentence, so no 2 of the 10,517 bill
+ * pages hand a search engine the same line. `card` is that sentence too, unless
+ * it mostly says the title again, in which case it is empty and the card falls
+ * back to its fixed label: a card shows the title directly above the line, and
+ * saying one thing twice there is what the 17 Sep 2026 ruling forbids
+ * (`docs/architecture/page-metadata-for-search-and-sharing-decisions.md` §26).
+ *
+ * This lives here rather than beside the other page wording because that file
+ * loads with every page on the site, and the test below is only ever asked about
+ * a bill (`apps/frontend/scripts/check-first-load-budget.mjs` failed the hosted
+ * release when it sat there, 18 Sep 2026).
+ */
+export function billDescriptionLines(
+  shortTitle: string | null | undefined,
+  summary: string | null | undefined,
+): { search: string; card: string } {
+  const sentence = plainBillSummary(summary ?? null, { firstSentenceOnly: true });
+  const title = (shortTitle ?? '').trim();
+  return {
+    search: sentence,
+    card: sentence && restatesTitle(title, sentence) ? '' : sentence,
+  };
+}
+
+/**
+ * Whether a summary sentence mostly says the title again. The title's words of 4
+ * letters or more, minus the few too common here to mean anything, are looked for
+ * in the sentence; a word counts as present when it matches whole or shares its
+ * first 5 letters, so "officers" finds "officer" and "citizens" finds
+ * "citizenship". Three quarters or more present is a restatement.
+ *
+ * Measured on the 3 bills the ruling was argued over: "Peace Officers Must Be US
+ * Citizens" against "Sets a rule that new peace officer license applicants in
+ * Minnesota must be U.S. citizens." is 4 of 4 and keeps the label; "Statewide
+ * Capital Projects and Bonding Bill" against "Authorizes billions in state bond
+ * financing…" is 2 of 5, and "New Rules For Minors' Social Media Accounts"
+ * against "Large social media platforms will have to publicly explain…" is 2 of
+ * 5, so both gain the sentence.
+ */
+export function restatesTitle(title: string, sentence: string): boolean {
+  const words = (value: string) =>
+    value
+      .toLocaleLowerCase('en-US')
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim()
+      .split(' ')
+      .filter((word) => word.length >= 4 && !TITLE_NOISE.has(word));
+  const titleWords = words(title);
+  if (titleWords.length === 0) return false;
+  const sentenceWords = words(sentence);
+  const present = (word: string) =>
+    sentenceWords.some(
+      (other) =>
+        other === word ||
+        (word.length >= 5 && other.length >= 5 && other.slice(0, 5) === word.slice(0, 5)),
+    );
+  return titleWords.filter(present).length / titleWords.length >= 0.75;
+}
+
+// Words too common in both a Minnesota bill title and its summary to show that
+// one restates the other. Everything shorter than 4 letters is already dropped.
+const TITLE_NOISE = new Set(['bill', 'act', 'minnesota', 'state']);

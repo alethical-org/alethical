@@ -17,7 +17,7 @@ import {
   type LobbyingPrincipal,
   type LobbyingLobbyist,
 } from "../apps/frontend/src/lib/lobbyingTypes";
-import { plainBillSummary } from "../apps/frontend/src/lib/billSummaryText";
+import { billDescriptionLines } from "../apps/frontend/src/lib/billSummaryText";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { aboutPageSnapshot } from "../apps/frontend/src/lib/aboutUs";
@@ -121,7 +121,6 @@ import {
   billListPageMetadata,
   billPageMetadata,
   homePageMetadata,
-  injectPageHead,
   legislatorListPageMetadata,
   legislatorPageMetadata,
   committeeListPageMetadata,
@@ -138,6 +137,7 @@ import {
   publicPageUrl,
   type PageMetadata,
 } from "../apps/frontend/src/lib/share";
+import { injectPageHead } from "../apps/frontend/src/lib/pageHead";
 import {
   publishedResearch,
   researchBySlug,
@@ -436,11 +436,12 @@ async function billContent(id: string): Promise<PageContent> {
       // number and year — never by its statutory title, which is a paragraph of
       // legal cross-references (.claude/rules/grounded-answers.md rule 10).
       shortTitle: bill.ai_analysis?.short_title,
-      // Cleaned here rather than inside the wording file, which loads with every
+      // Decided here rather than inside the wording file, which loads with every
       // page in the browser (apps/frontend/src/lib/billSummaryText.ts).
-      summaryLine: plainBillSummary(bill.ai_analysis?.summary ?? null, {
-        firstSentenceOnly: true,
-      }),
+      lines: billDescriptionLines(
+        bill.ai_analysis?.short_title,
+        bill.ai_analysis?.summary,
+      ),
     }),
     snapshot: renderPageSnapshot(billPageSnapshot({ ...bill, id: billId })),
   };

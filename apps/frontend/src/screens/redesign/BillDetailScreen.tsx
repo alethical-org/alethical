@@ -32,6 +32,7 @@ import { BillTrackButton } from '../../components/billDetail/BillTrackButton';
 import { MobileShareSheet } from '../../components/share/MobileShareSheet';
 import { Bill, VoteEvent } from '../../data/types';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
+import { billDescriptionLines } from '../../lib/billSummaryText';
 import { billPageMetadata, buildBillShareContent, publicPageUrl } from '../../lib/share';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import {
@@ -507,7 +508,7 @@ function BillDetailMobileScreen() {
         identifier: bill.identifier,
         billId: bill.id,
         shortTitle: bill.aiAnalysis?.shortTitle,
-        summaryLine: plainBillSummary(bill.aiAnalysis?.summary, { firstSentenceOnly: true }),
+        cardLine: billDescriptionLines(bill.aiAnalysis?.shortTitle, bill.aiAnalysis?.summary).card,
         url: publicPageUrl(`/bills/${bill.id}`),
       })
     : {

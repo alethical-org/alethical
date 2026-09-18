@@ -1890,15 +1890,15 @@ descriptions across thousands of pages are one of the signals it reads as copies
 report listed 6,612 bill pages as found but not crawled and 295 as crawled but not listed (§15).
 The no-repeat ruling holds by construction rather than by a fixed label.
 
-**The caller cleans the sentence, and that is a size rule, not a style one.** `share.ts` loads
-with every page, so importing the summary cleaner into it dragged `billDetail.ts` and its 4
-imports into every reader's first download: 12,332 bytes over the limit
+**The caller decides the 2 lines, and that is a size rule, not a style one.** `share.ts` loads
+with every page in the browser, so importing the summary cleaner into it dragged `billDetail.ts`
+and its 4 imports into every reader's first download: 12,332 bytes over the limit
 (`apps/frontend/scripts/check-first-load-budget.mjs`, caught by the frontend check on
-[pull request 2271](https://github.com/alethical-org/alethical/pull/2271)). The 3 cleaners now
-live in `apps/frontend/src/lib/billSummaryText.ts`, which `billDetail.ts` re-exports so no caller
-changed, and `billPageMetadata` and `buildBillShareContent` take `summaryLine`, the already-cleaned
-first sentence, from the server function and the 2 bill screens that each hold the cleaner
-already.
+[pull request 2271](https://github.com/alethical-org/alethical/pull/2271)). The cleaners and the
+repetition test now live in `apps/frontend/src/lib/billSummaryText.ts`, which `billDetail.ts`
+re-exports so no existing caller changed, and `billPageMetadata` and `buildBillShareContent` take
+the 2 finished lines from `billDescriptionLines`, run by the server function and by the 2 bill
+screens that hold that file already.
 [How sharing works](../product-onboarding/sharing-guide.md) owns the complete current
 subject, destination, and results-view behavior.
 
@@ -1990,6 +1990,13 @@ behind where the cleaning happens), and the
 served text links the bill's twin in the other chamber (`companion` on the record: "Companion
 bill SF 390"), so a crawler reaching either of a pair can follow to the other and the chief
 author's profile from one response.
+
+**4b. The head-building code left every reader's download.** `renderPageHead`, `injectPageHead`
+and the machine-readable block only ever run inside the server function, and sat in `share.ts`,
+which every page loads. Moved to `apps/frontend/src/lib/pageHead.ts`, every reader's first
+download falls from 295,412 to 294,478 Brotli bytes: 934 bytes each visitor used to fetch to run
+nothing. Page speed is its own ranking factor, so this is a discovery fix rather than only a
+tidy-up, and it is what gave the bill change above room to ship.
 
 **5. Site-wide, 3 smaller things.** Every `/api/v1` response now carries `X-Robots-Tag: noindex`
 (`alethical/api/main.py`): Google's crawl statistics put JSON at 53% of its requests to us, and a
