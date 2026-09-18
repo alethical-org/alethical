@@ -3974,27 +3974,75 @@ def legislator_directory_stmt(session_id: uuid.UUID):
     )
 
 
-def legislator_profile_stmt(legislator_id: uuid.UUID, session_id: uuid.UUID):
-    """Load one legislator profile root plus bounded child collections."""
+def legislator_profile_stmt(
+    *,
+    legislator_id: uuid.UUID | None = None,
+    legislator_slug: str | None = None,
+    session_slug: str | None = None,
+):
+    """Resolve one legislator profile, and the session it is asked about, together.
+
+    Every row this returns is ``(legislator, session_id)``. The session is the
+    ``FROM``, so the two ways a profile can be missing stay apart and keep the
+    order the route answered them in before they were folded together:
+
+    * no row at all -- the asked-for session does not exist,
+    * a row whose legislator is ``NULL`` -- the session exists, the member does not.
+
+    The member's term, district, chamber and stored counts ride on that one row
+    (each is at most one row per member per session, held there by
+    ``uq_legislator_service_period_one_current`` and by ``legislator_stats``'s
+    unique constraint, so no join here can multiply the answer). Committee seats
+    and election history load in one request each, with the committee and chamber
+    they name joined in rather than fetched afterwards.
+
+    ``legislator_id`` and ``legislator_slug`` are the two forms a profile URL
+    takes; pass exactly one. ``session_slug`` left empty means the current
+    session.
+
+    Read the result with ``.unique()`` -- joined eager loading against a
+    collection requires it.
+    """
+    session_row = (
+        select(LegislativeSession.id.label("session_id"))
+        .where(
+            LegislativeSession.slug == session_slug
+            if session_slug
+            else LegislativeSession.is_current.is_(True)
+        )
+        .limit(1)
+        .subquery()
+    )
     return (
-        select(Legislator)
-        .where(Legislator.id == legislator_id)
+        select(Legislator, session_row.c.session_id)
+        .select_from(session_row)
+        .outerjoin(
+            Legislator,
+            Legislator.id == legislator_id
+            if legislator_id is not None
+            else Legislator.slug == legislator_slug,
+        )
         .options(
-            selectinload(
+            joinedload(
                 Legislator.service_periods.and_(
-                    LegislatorServicePeriod.session_id == session_id,
+                    LegislatorServicePeriod.session_id == session_row.c.session_id,
                     LegislatorServicePeriod.is_current.is_(True),
                 )
-            ).selectinload(LegislatorServicePeriod.district),
+            ).options(
+                joinedload(LegislatorServicePeriod.district),
+                joinedload(LegislatorServicePeriod.chamber),
+            ),
+            joinedload(
+                Legislator.stats.and_(
+                    LegislatorStats.session_id == session_row.c.session_id
+                )
+            ),
             selectinload(
                 Legislator.committee_memberships.and_(
                     CommitteeMembership.is_current.is_(True)
                 )
-            ).selectinload(CommitteeMembership.committee),
-            selectinload(
-                Legislator.stats.and_(LegislatorStats.session_id == session_id)
-            ),
-            selectinload(Legislator.election_history).selectinload(
+            ).joinedload(CommitteeMembership.committee),
+            selectinload(Legislator.election_history).joinedload(
                 LegislatorElectionHistory.chamber
             ),
         )
