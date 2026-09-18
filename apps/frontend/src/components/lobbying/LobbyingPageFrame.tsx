@@ -14,6 +14,7 @@ import { linkProps, routePath } from '../../navigation/links';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme } from '../../theme/tokens';
 import { SharePopover } from '../billDetail/SharePopover';
+import { PageContextLabel } from '../PageContextLabel';
 
 export function LobbyingPageFrame({
   eyebrow,
@@ -55,7 +56,7 @@ export function LobbyingPageFrame({
             <Text style={styles.backLabel}>Back to Lobbying</Text>
           </Pressable>
 
-          {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
+          {eyebrow ? <PageContextLabel style={styles.eyebrow}>{eyebrow}</PageContextLabel> : null}
           {title ? (
             <View style={[styles.headingRow, isMobile && styles.headingRowMobile]}>
               <View style={styles.headingCopy}>

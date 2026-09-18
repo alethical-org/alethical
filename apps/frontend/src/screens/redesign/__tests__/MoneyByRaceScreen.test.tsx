@@ -41,7 +41,12 @@ vi.mock('../../../theme/primitives', async () => {
     Footer: () => null,
   };
 });
-vi.mock('react-native-svg', () => ({ default: () => null, Circle: () => null, Path: () => null }));
+vi.mock('react-native-svg', () => ({
+  default: ({ children }: { children?: ReactNode }) => <svg>{children}</svg>,
+  Circle: () => null,
+  Path: () => null,
+  Polygon: () => null,
+}));
 
 import { MoneyByRaceScreen } from '../MoneyByRaceScreen';
 import type { MoneyByRacePage, RaceCommittee, RaceContest } from '../../../data/types';
@@ -264,6 +269,14 @@ describe('Money by race directory and focused group', () => {
     expect(host.textContent).not.toContain('4 contests');
     expect(leaf('32 candidate committees')).toBeTruthy();
     expect(leaf('By office, then district or court seat')).toBeTruthy();
+  });
+  it('gives the directory back link an arrow and starts the title where a context label would', () => {
+    render();
+    const back = host.querySelector<HTMLAnchorElement>('a[href="/money"]')!;
+    const heading = host.querySelector<HTMLElement>('[aria-level="1"]')!;
+    expect(back.textContent).toBe('Money in politics');
+    expect(back.querySelector('svg')).not.toBeNull();
+    expect(getComputedStyle(heading).marginTop).toBe('18px');
   });
   it('shows a plain ballot sentence and a copy date directly below the count', () => {
     render();

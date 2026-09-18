@@ -12,6 +12,7 @@ import {
 import Svg, { Path } from 'react-native-svg';
 import { YearControl } from '../../components/campaignMoney/YearControl';
 import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
+import { PageContextLabel } from '../../components/PageContextLabel';
 import { Skeleton } from '../../components/Skeleton';
 import type { CommitteeMadePayment, CommitteeReceivedPayment } from '../../data/types';
 import { useCommitteeMoney, useCommitteePaymentsList } from '../../hooks/useAppQueries';
@@ -254,7 +255,7 @@ export function CommitteePaymentsScreen({
           </FocusPressable>
           {notFound && registrationNumber ? (
             <View style={styles.notFoundWrap}>
-              <Text style={styles.eyebrow}>COMMITTEES</Text>
+              <PageContextLabel style={styles.eyebrow}>Committees</PageContextLabel>
               <Text accessibilityRole="header" aria-level={1} style={styles.h1}>
                 {notFoundTitle()}
               </Text>
@@ -270,9 +271,9 @@ export function CommitteePaymentsScreen({
             </View>
           ) : (
             <>
-              <Text style={[styles.eyebrow, styles.eyebrowSpaced]}>
-                {paymentsEyebrow(tab).toUpperCase()}
-              </Text>
+              <PageContextLabel style={[styles.eyebrow, styles.eyebrowSpaced]}>
+                {paymentsEyebrow(tab)}
+              </PageContextLabel>
               <ResultsHeading
                 isMobile={isMobile}
                 content={

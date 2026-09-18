@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
 import { LinkArrowLabel } from '../../components/LinkArrow';
+import { PageContextLabel } from '../../components/PageContextLabel';
 import { Pagination } from '../../components/search/searchPieces';
 import { useDebouncedSearchCommit } from '../../hooks/useDebouncedSearchCommit';
 import { useLobbyingPrincipals } from '../../hooks/useLobbying';
@@ -143,11 +144,17 @@ export function LobbyingDirectoryPage({
             </Svg>
             <Text style={styles.backText}>{copy.back}</Text>
           </Pressable>
-          {kind === 'principals' ? <Text style={styles.eyebrow}>{copy.directoryLabel}</Text> : null}
+          {kind === 'principals' ? (
+            <PageContextLabel style={styles.eyebrow}>{copy.directoryLabel}</PageContextLabel>
+          ) : null}
           <Text
             accessibilityRole="header"
             aria-level={1}
-            style={[styles.h1, { fontSize: titleSize, lineHeight: titleSize * 1.08 }]}
+            style={[
+              styles.h1,
+              kind === 'lobbyists' && styles.h1WithoutEyebrow,
+              { fontSize: titleSize, lineHeight: titleSize * 1.08 },
+            ]}
           >
             {words.title}
           </Text>
@@ -326,6 +333,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -1.2,
   },
+  h1WithoutEyebrow: { marginTop: 14 },
   intro: { marginTop: 12, maxWidth: 860, color: '#4f5651', fontFamily: t.typography.body },
   education: { marginTop: 12, maxWidth: 860, color: '#4f5651', fontFamily: t.typography.body },
   directoryContext: {

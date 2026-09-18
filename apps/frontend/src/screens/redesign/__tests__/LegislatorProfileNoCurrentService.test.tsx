@@ -297,7 +297,7 @@ describe('the loaded profile of a member with no current service period', () => 
 describe('the loaded profile of a sitting member is unchanged', () => {
   it.each(SCREENS)(
     'keeps Campaign money in the tab bar without repeating a Campaign money card on %s',
-    async (_name, Screen) => {
+    async (layout, Screen) => {
       serve(SITTING);
       const page = openProfile(Screen, 'patty-acomb');
       await settle();
@@ -306,6 +306,9 @@ describe('the loaded profile of a sitting member is unchanged', () => {
       expect(words.match(/Campaign money/g)).toHaveLength(1);
       expect(words).not.toContain('Open the Campaign money tab');
       expect(words).not.toContain('rather than the Legislature');
+      expect(
+        getComputedStyle(page.host.querySelector('[data-testid="profile-hero-row"]')!).marginTop,
+      ).toBe(layout === 'web' ? '4px' : '0px');
     },
   );
 

@@ -15,6 +15,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { theme as t } from '../../theme/tokens';
 import { GoBackLink } from '../../components/GoBackLink';
 import { LinkArrowLabel } from '../../components/LinkArrow';
+import { PageContextLabel } from '../../components/PageContextLabel';
 import { profilePartyBadgeAppearance } from '../../theme/legislatorBadgeAppearance';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { externalLinkProps, linkProps, pressInsideLink, routePath } from '../../navigation/links';
@@ -510,9 +511,16 @@ function Hero({
         style={styles.backLink}
       />
       {!servesNow(legislator.chamber) ? (
-        <Text style={styles.eyebrow}>LEGISLATOR PROFILE</Text>
+        <PageContextLabel style={styles.eyebrow}>LEGISLATOR PROFILE</PageContextLabel>
       ) : null}
-      <View style={[styles.heroRow, !isDesktop && styles.heroRowMobile]}>
+      <View
+        testID="profile-hero-row"
+        style={[
+          styles.heroRow,
+          servesNow(legislator.chamber) && styles.heroRowWithoutEyebrow,
+          !isDesktop && styles.heroRowMobile,
+        ]}
+      >
         <View style={styles.identityRow}>
           <Portrait uri={legislator.photoUrl} name={displayName} />
           <View style={styles.identityText}>
@@ -1089,6 +1097,7 @@ const styles = StyleSheet.create({
     gap: 32,
     flexWrap: 'wrap',
   },
+  heroRowWithoutEyebrow: { marginTop: 4 },
   heroRowMobile: { alignItems: 'flex-start' },
   identityRow: { flexDirection: 'row', alignItems: 'center', gap: 24, flexShrink: 1 },
   identityText: { flexShrink: 1 },
