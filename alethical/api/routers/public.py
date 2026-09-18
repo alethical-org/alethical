@@ -105,6 +105,7 @@ from alethical.api.services.outside_spending import (
 from alethical.api.services.outside_spending_names import outside_spending_names
 from alethical.api.services.issue_bills import MIN_ISSUE_LENGTH, matched_issue_bill_ids
 from alethical.api.services.legislator_finance import (
+    confirmed_committee_links,
     confirmed_member_for_committee,
     legislator_finance,
     legislator_year_states,
@@ -2956,6 +2957,19 @@ def legislator_detail(
         service_history = service_history_payload(row.election_history)
         if service_history:
             payload["service_history"] = service_history.model_dump()
+    if "campaign_committees" in include_set:
+        # The committees a person has confirmed as this member's, so the served
+        # profile can link each one's own page. A claim about right now (whose
+        # committee this is), so it rides only in this record's short cache window
+        # and never in a dated figure. Empty for the 2 ordinary states, which say
+        # nothing about the person.
+        payload["campaign_committees"] = [
+            {
+                "registration_number": link.registration_number,
+                "committee_name": link.committee_name,
+            }
+            for link in confirmed_committee_links(db, row.id)
+        ]
     return DetailResponse(
         data={key: value for key, value in payload.items() if value is not None}
     )

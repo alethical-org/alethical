@@ -109,6 +109,9 @@ Rules that generate every page, not examples. They carry over to campaign financ
 | Legislator list | `Minnesota House and Senate members \| Alethical` | `Find a Minnesota legislator by name, chamber, or party.` |
 | Home | `Alethical: Minnesota's legislative record in plain language` | Current wording is correct; keep it. |
 | Campaign finance (Sept 2026) | `{Name}: campaign finance, Minnesota {chamber} District {code} \| Alethical` | `See who contributed to {Name}'s campaign, from official Minnesota filings.` |
+| Committee | `{Filed name} — Minnesota campaign money \| Alethical` | `Money in and money out for the {kind} registered for {seat}, from Minnesota’s own campaign-finance filings.` — the register's kind and seat; for a filer with no seat, `…for a Minnesota {kind}, from the state’s own campaign-finance filings.`; never the name (§26) and never a figure |
+| Money section pages | `{Page name} — Minnesota campaign money \| Alethical`, or the page's own subject with the state in it (`Money in politics in Minnesota`, `Outside spending in Minnesota campaigns`, `Money by race: Minnesota candidates by office and district`) | Each page's existing sentence |
+| Lobbying record | `{Name} — Minnesota lobbying principal \| Alethical` / `{Name} — Minnesota lobbyist \| Alethical` | What the page shows and where the records come from, per kind, without the name (`apps/frontend/src/lib/lobbyingMetadata.ts`) |
 
 Two changes from what ships today, both from the outside review:
 
@@ -1901,3 +1904,75 @@ subheading line carried, split the way the app splits them (`chips` on `PageSnap
 subheading line stays on the snapshot object for the title tag and for the tests that read a
 committee's identity as one line. Nothing here changes any address's `noindex`, canonical address
 or sitemap entry.
+
+## 28. The money section's addresses are found, forwarded and described (18 Sep 2026)
+
+A technical pass over the money section, then the same checks across the site, against the
+list a search agency runs: can every page be reached from a sitemap or a link, does one record
+answer on one address, does every page say what it is in its own words, and is anything a
+search engine fetches worth its time. Five findings, each fixed here.
+
+**1. Thousands of lobbying pages were in no sitemap.** `/sitemaps/committees.xml` listed 1,556
+committees, and no sitemap listed a single lobbying principal or lobbyist, of which the
+directories hold about 3,400 and 1,700. Two sections now exist, `/sitemaps/lobbying-principals.xml`
+and `/sitemaps/lobbying-lobbyists.xml`, read from one backend endpoint
+(`GET /api/v1/lobbying/sitemap`, `alethical/api/services/lobbying.py`) rather than by paging
+the directories 50 rows at a time. The same worth-listing rule as §22's committee sitemap: a
+principal is listed only when the Board's spending file holds a row for it, because a principal
+that appears only on a lobbyist's association list has no page to open; a lobbyist is listed
+only when it is on the Board's current registration list, because an absent one answers
+`noindex`. No `lastmod`, for §22's reason: the pair has 1 copy date for every row.
+
+**2. A record reached under an old or mistyped name served a second copy.** A committee slug
+whose name part was stale, a lobbying slug with a typo, and a legislator's UUID address all
+answered 200 with a canonical link to the real address. Search Console reported 7 legislator
+UUID addresses as *duplicate without user-selected canonical* while every one carried the link
+(§15's report, 7 Sep 2026). A canonical link is a hint; a redirect is an instruction. Those
+addresses now answer **301** to the record's own address, keeping every query parameter, so a
+`?year=2024` view of a committee or a `?tab=money` view of a member arrives where it was headed
+(`canonicalRecordPath` on `PageContent`, `api/page.ts`). A payments address whose report could
+not be read, and a lobbying record absent from the copied list, forward nowhere: this response
+cannot vouch for a name it could not read.
+
+**3. Every committee and every lobbying record shared one description.** 1,556 committee pages
+said "One committee's money in and money out…"; every lobbying page, landing and directory
+included, said only "Records from the Minnesota Campaign Finance and Public Disclosure Board".
+A committee's description now carries the Board's kind for it and the seat it registered for,
+built from the same `committeeIdentity` the served body reads (`committeeMetadataRecord`,
+`apps/frontend/src/lib/pageSnapshot.ts`), never the name (§26) and never a figure (§3 rule 4).
+Each lobbying page kind has its own sentence saying what it shows and where the records come
+from. Titles across the section now name the state, because a committee called "Smith for
+Senate" exists in many states and "Money by race" reads 2 ways in a result list; §3's table
+holds the shapes. Every money screen's browser-tab title now comes from the same builder the
+first response uses, which it did not before: the committee page's tab said "Campaign money"
+where the response said "campaign money", the payments page put the direction first, and the
+register's numbered pages used a different separator. A search engine that runs the page
+recorded a different title from the one it was served.
+
+**4. A legislator's profile never linked the committee a person had confirmed as theirs.** The
+committee page linked the member; the member's page, which is where readers and search engines
+arrive, did not link back. The served profile now carries a *Campaign money* section linking
+each confirmed committee's own page. The link rides on the legislator record
+(`include=campaign_committees`, off the one table a person's confirmation is written to), not on
+the per-year money read: that read costs about 3 times the record's own on a cache miss
+(0.73 s against 0.47 s, measured 18 Sep 2026), and a profile address that does not name the
+money tab still makes no money read at all. Only a confirmed review puts a committee here; the
+2 ordinary states name nobody's money (`docs/architecture/campaign-finance-system-design.md` §5.1).
+
+**5. Site-wide, 3 smaller things.** Every `/api/v1` response now carries `X-Robots-Tag: noindex`
+(`alethical/api/main.py`): Google's crawl statistics put JSON at 53% of its requests to us, and a
+JSON address in a result list hands a searcher a wall of braces; the header unlists the address
+without blocking the fetch a rendering crawler needs. The home page's `Organization` block names
+the site's social accounts (`sameAs`, from `apps/frontend/src/lib/socialLinks.ts`), which is what
+Google's Organization guidance reads to tie a site and its profiles together. A published piece's
+preview type is `article` with `article:published_time`, a date being the one thing rule 13 lets a
+piece's metadata carry beside its title.
+
+**What was checked and left alone, with the ruling it rests on.** No structured data on money
+pages: §6 admits only what a shipped search feature consumes, and no listed feature reads a
+`Dataset` or `ItemList` for pages like these; `BreadcrumbList` stays out for §12's reason. Filtered
+money views stay `noindex` (§22). The bill description stays the one fixed sentence §26 rules, and
+a guide's description stays its dates (rule 13); both are Eugene's rulings and both cost search
+visibility, so they are raised with him rather than changed here. Host, scheme and trailing-slash
+forwards, the 404 and 503 answers, `robots.txt`, `lang`, one `<h1>` per page, and the per-page
+canonical links all measured correct on 18 Sep 2026 and are unchanged.

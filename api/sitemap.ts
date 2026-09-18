@@ -10,6 +10,14 @@ import {
 } from "../apps/frontend/src/lib/directoryPagination";
 
 type QueryValue = string | string[] | undefined;
+
+/** What `/api/v1/lobbying/sitemap` serves: identity only, no dates (see the
+ *  endpoint's own docstring for why a shared copy date is left off). */
+type LobbyingSitemapPayload = {
+  state?: string;
+  principals?: Array<{ entity_id: number; name: string }>;
+  lobbyists?: Array<{ registration_number: string; name: string }>;
+};
 type RequestLike = { query?: Record<string, QueryValue> };
 type ResponseLike = {
   status: (code: number) => ResponseLike;
@@ -78,7 +86,14 @@ function urlset(entries: string[]): string {
 }
 
 function sitemapIndex(): string {
-  const children = ["pages", "bills", "legislators", "committees"].map(
+  const children = [
+    "pages",
+    "bills",
+    "legislators",
+    "committees",
+    "lobbying-principals",
+    "lobbying-lobbyists",
+  ].map(
     (name) =>
       `  <sitemap><loc>${escapeXml(publicPageUrl(`/sitemaps/${name}.xml`))}</loc></sitemap>`,
   );
@@ -169,6 +184,41 @@ function committeesUrlset(
   );
 }
 
+/**
+ * One entry per lobbying record page that exists and is indexable: every
+ * principal with a row in the Board's spending file, and every lobbyist on its
+ * current registration list. The address is built by the same `committeeSlug`
+ * the app's route reader accepts, so the sitemap can never advertise an address
+ * the router rejects. No `lastmod`, for the committee sitemap's reason: one copy
+ * date for thousands of rows is not a change date.
+ */
+function lobbyingUrlset(
+  kind: "principals" | "lobbyists",
+  data: LobbyingSitemapPayload,
+): string {
+  const records =
+    kind === "principals"
+      ? (data.principals ?? []).map((row) => ({
+          id: String(row.entity_id),
+          name: row.name,
+        }))
+      : (data.lobbyists ?? []).map((row) => ({
+          id: row.registration_number,
+          name: row.name,
+        }));
+  return urlset(
+    records.map((record) =>
+      urlEntry(
+        publicPageUrl(
+          `/money/lobbying/${kind}/${encodeURIComponent(
+            committeeSlug(record.name, record.id),
+          )}`,
+        ),
+      ),
+    ),
+  );
+}
+
 function billsUrlset(bills: SitemapPayload["bills"]): string {
   return urlset(
     bills.map((bill) =>
@@ -199,6 +249,16 @@ async function fetchSitemapData(): Promise<SitemapPayload> {
   });
   if (!response.ok) throw new Error(`API returned ${response.status}`);
   const payload = (await response.json()) as { data: SitemapPayload };
+  return payload.data;
+}
+
+async function fetchLobbyingSitemapData(): Promise<LobbyingSitemapPayload> {
+  const response = await fetch(`${API_ORIGIN}/api/v1/lobbying/sitemap`, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!response.ok) throw new Error(`API returned ${response.status}`);
+  const payload = (await response.json()) as { data: LobbyingSitemapPayload };
   return payload.data;
 }
 
@@ -298,6 +358,24 @@ export default async function handler(
       section === "bills"
         ? billsUrlset(data.bills)
         : legislatorsUrlset(data.legislators),
+    );
+    return;
+  }
+
+  if (section === "lobbying-principals" || section === "lobbying-lobbyists") {
+    let data: LobbyingSitemapPayload;
+    try {
+      data = await fetchLobbyingSitemapData();
+    } catch {
+      sendUnavailable(response);
+      return;
+    }
+    sendXml(
+      response,
+      lobbyingUrlset(
+        section === "lobbying-principals" ? "principals" : "lobbyists",
+        data,
+      ),
     );
     return;
   }

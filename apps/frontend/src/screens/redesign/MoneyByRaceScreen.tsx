@@ -9,6 +9,7 @@ import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
 import { Skeleton } from '../../components/Skeleton';
 import { useCampaignFinanceRaces, usePrefetchCommitteeMoney } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
+import { moneyByRacePageMetadata } from '../../lib/share';
 import { closedChipLabel, committeeSlug } from '../../lib/committeeMoneyShared';
 import { campaignMoneyYear } from '../../lib/legislatorCampaignMoney';
 import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
@@ -90,7 +91,7 @@ function MoneyByRaceView({ navigation, route }: RootScreenProps<'MoneyByRace'>) 
 
   useDocumentTitle(
     '/money/races',
-    `${selected ? contestSeatLabel(selected) + ' | ' : ''}${MONEY_BY_RACE_TITLE} | Alethical`,
+    moneyByRacePageMetadata({ selectedLabel: selected ? contestSeatLabel(selected) : null }).title,
   );
 
   useEffect(() => {

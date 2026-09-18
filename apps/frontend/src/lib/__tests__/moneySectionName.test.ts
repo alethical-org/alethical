@@ -14,7 +14,7 @@ describe('one name for the /money destination', () => {
     expect(IA.find((item) => item.path === '/money')?.label).toBe(MONEY_SECTION_NAME);
     expect(MONEY_PROMO_CTA).toBe(MONEY_SECTION_NAME);
     expect(MONEY_LANDING_HEADING).toBe(MONEY_SECTION_NAME);
-    expect(STATIC_PAGE_METADATA['/money'].title).toBe('Money in politics | Alethical');
+    expect(STATIC_PAGE_METADATA['/money'].title).toBe('Money in politics in Minnesota | Alethical');
     expect(STATIC_PAGE_METADATA['/money'].socialTitle).toBe(MONEY_SECTION_NAME);
     expect(LOBBYING_DIRECTORY_COPY.landingLabel).toBe('MONEY IN POLITICS');
   });

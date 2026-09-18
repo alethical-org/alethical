@@ -76,7 +76,11 @@ There is now a list of committee addresses handed to search engines
 (`/sitemaps/committees.xml`), holding every committee whose page has a filed record on it.
 A committee with nothing filed keeps its page and stays reachable through the register's own
 numbered pages; it is just not advertised, because a page with nothing on it is not worth
-sending anyone to.
+sending anyone to. A committee reached under an old or mistyped name part forwards to its
+current address, keeping the year or tab asked for. Each committee page's title names the state
+(“… — Minnesota campaign money”) and its description carries the Board's kind for the filer
+and the seat it registered for, never a figure and never the name the title already carries;
+every money page's browser-tab title comes from the same words the first response carries.
 
 **A reader gains from it too.** Writing those words means reading the same records the page
 itself needs, so the records travel in the same response and the page draws them at once.

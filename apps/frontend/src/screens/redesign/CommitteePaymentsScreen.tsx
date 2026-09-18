@@ -16,6 +16,7 @@ import { Skeleton } from '../../components/Skeleton';
 import type { CommitteeMadePayment, CommitteeReceivedPayment } from '../../data/types';
 import { useCommitteeMoney, useCommitteePaymentsList } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
+import { committeeMoneyPageMetadata } from '../../lib/share';
 import {
   CAP_NOTE,
   capNextLabel,
@@ -119,7 +120,7 @@ export function CommitteePaymentsScreen({
     : null;
   useDocumentTitle(
     registrationNumber ? `/money/committees/${slug}/payments` : null,
-    name ? `${paymentsTitle(tab)} — ${name} | Alethical` : null,
+    name ? committeeMoneyPageMetadata(slug, 'payments', { name, canonicalSlug: slug }).title : null,
   );
   const pages = (list.data?.pages ?? []).filter(
     (page): page is NonNullable<typeof page> => page !== null,

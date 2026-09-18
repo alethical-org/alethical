@@ -587,3 +587,43 @@ def test_nonidentifying_registration_numbers_never_gather_donations(client, db, 
     _payments(db)
     response = client.get(f"/api/v1/lobbying/lobbyists/{number}")
     assert response.status_code == 422
+
+
+def test_sitemap_lists_every_linkable_principal_and_every_registered_lobbyist(
+    client, db
+):
+    """A sitemap entry is a claim that a page exists and is worth reading.
+
+    A principal that appears only on a lobbyist's association list has no page to
+    open (the directory marks it ``linkable: False``), so listing it would advertise
+    a 404. A lobbyist on the current registration list always has a page; one absent
+    from it answers with ``noindex`` and is left out here too.
+    """
+    _pair(db, extra=60)
+
+    data = _get(client, "sitemap")
+
+    assert data["state"] == "reported"
+    linkable = set()
+    for offset in (0, 50):
+        page = _get(client, f"principals?limit=50&offset={offset}")
+        linkable.update(
+            row["entity_id"] for row in page["principals"] if row["linkable"]
+        )
+    listed = data["principals"]
+    assert {row["entity_id"] for row in listed} == linkable
+    assert len(listed) < 99, "list-only principals must not be advertised"
+    assert all(row["name"] for row in listed)
+    assert len(data["lobbyists"]) == 62
+    assert {"registration_number": "900000", "name": "Test lobbyist 000"} in data[
+        "lobbyists"
+    ]
+    # Identity only: nothing here is an address, an amount, or a date per row.
+    assert set(listed[0]) == {"entity_id", "name"}
+    assert set(data["lobbyists"][0]) == {"registration_number", "name"}
+
+
+def test_sitemap_without_a_published_pair_is_empty_rather_than_an_error(client, db):
+    data = _get(client, "sitemap")
+    assert data["state"] == "unavailable"
+    assert data["principals"] == [] and data["lobbyists"] == []

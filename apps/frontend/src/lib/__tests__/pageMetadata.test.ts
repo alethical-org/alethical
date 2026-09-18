@@ -14,8 +14,10 @@ import {
   legislatorListPageMetadata,
   legislatorPageMetadata,
   renderPageHead,
+  researchPageMetadata,
   STATIC_PAGE_METADATA,
 } from '../share';
+import { publishedResearch } from '../research';
 
 // The head block is HTML, so Prettier reformats it in the template and not in the
 // generated string. Comparing the tags with whitespace collapsed, and the
@@ -158,6 +160,22 @@ describe('rendered head', () => {
     ]) {
       expect(splitHead(renderPageHead(meta)).blocks).toEqual([]);
     }
+  });
+
+  // A published piece is an article to the sites that read these tags, and the
+  // one thing rule 13 lets its metadata carry beside the title is a date.
+  it('marks a published piece as an article with its publication date, and nothing else as one', () => {
+    const piece = publishedResearch()[0];
+    const head = renderPageHead(researchPageMetadata(piece));
+    expect(head).toContain('<meta property="og:type" content="article" />');
+    expect(head).toContain(
+      `<meta property="article:published_time" content="${piece.publishedOn}" />`,
+    );
+    expect(head).not.toContain('content="website"');
+
+    const bill = renderPageHead(billPageMetadata({ billId: '94-2025-HF719' }));
+    expect(bill).toContain('<meta property="og:type" content="website" />');
+    expect(bill).not.toContain('article:published_time');
   });
 
   // A missing page is not a copy of a real one, so it points a search engine at

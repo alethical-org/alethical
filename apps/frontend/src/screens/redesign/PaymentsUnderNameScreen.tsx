@@ -15,6 +15,7 @@ import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
 import { Skeleton } from '../../components/Skeleton';
 import { usePaymentsUnderName } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
+import { paymentsUnderNamePageMetadata } from '../../lib/share';
 import { committeeSlug, IN_KIND_CHIP } from '../../lib/committeeMoneyShared';
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { paymentsUnderNameShareContent } from '../../lib/moneyResultsShare';
@@ -137,7 +138,7 @@ export function PaymentsUnderNameScreen({
   // how this page shipped its first draft still showing the search's title.
   useDocumentTitle(
     role ? '/money/payments' : null,
-    role ? `${paymentsUnderNameHeading(name, role)} | Alethical` : null,
+    role ? paymentsUnderNamePageMetadata(name, role).title : null,
   );
 
   const pages = list.data?.pages ?? [];

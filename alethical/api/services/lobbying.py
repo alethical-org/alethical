@@ -322,6 +322,66 @@ def lobbyists_page(
     }
 
 
+def sitemap_records(db: Session, pair: PublishedPair | None) -> dict:
+    """Every lobbying record page worth a sitemap entry, from one published pair.
+
+    Two lists, each A to Z by the filed name, carrying only what an address needs:
+
+    * ``principals`` -- every organisation with at least 1 row in the Board's
+      spending file. That is the same test the directory uses for ``linkable``:
+      a principal that appears only on a lobbyist's association list has no page
+      to open, so it is left out rather than advertised as a 404.
+    * ``lobbyists`` -- every lobbyist on the Board's current registration list.
+      A registration number absent from that list still answers, but its page
+      says so and carries ``noindex``, so it is not listed either.
+
+    No dates. The pair has 1 copy date for every row, and Google trusts ``lastmod``
+    site-wide only when it is consistently accurate, so a shared fetch date copied
+    onto thousands of entries is worse than none (the same reasoning as the
+    committee sitemap in ``alethical/api/routers/public.py``).
+
+    Empty lists when no pair is published, so the sitemap section is empty rather
+    than a 503 that takes the other sections' reader with it.
+    """
+    if pair is None:
+        return {**_stamp(pair), "state": UNAVAILABLE, "principals": [], "lobbyists": []}
+    spending = schema.LobbyingExpenditureRow
+    newest = func.row_number().over(
+        partition_by=spending.entity_id,
+        order_by=(spending.report_year.desc().nulls_last(), spending.row_number.desc()),
+    )
+    named = (
+        select(spending.entity_id, spending.principal, newest.label("choice"))
+        .where(
+            spending.snapshot_id == pair.expenditure_snapshot_id,
+            spending.entity_id.is_not(None),
+        )
+        .subquery()
+    )
+    principals = db.execute(
+        select(named.c.entity_id, named.c.principal)
+        .where(named.c.choice == 1)
+        .order_by(named.c.principal, named.c.entity_id)
+    ).all()
+    lobbyist = schema.LobbyistRow
+    lobbyists = db.execute(
+        select(lobbyist.registration_number, lobbyist.name)
+        .where(lobbyist.snapshot_id == pair.lobbyist_snapshot_id)
+        .order_by(lobbyist.name, lobbyist.registration_number)
+    ).all()
+    return {
+        **_stamp(pair),
+        "state": REPORTED,
+        "principals": [
+            {"entity_id": int(entity_id), "name": name}
+            for entity_id, name in principals
+        ],
+        "lobbyists": [
+            {"registration_number": number, "name": name} for number, name in lobbyists
+        ],
+    }
+
+
 def summary(db: Session, pair: PublishedPair | None) -> dict:
     base = _stamp(pair)
     if pair is None:

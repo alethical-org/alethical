@@ -10,6 +10,7 @@ import { Skeleton } from '../../components/Skeleton';
 import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
 import { useOutsideSpendingRecord, usePrefetchCommitteeMoney } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
+import { outsideSpendingPageMetadata } from '../../lib/share';
 import { committeeSlug, registerKindLabel } from '../../lib/committeeMoneyShared';
 import { campaignMoneyYears, formatMoney } from '../../lib/legislatorCampaignMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
@@ -37,7 +38,6 @@ import {
   NOTHING_ON_RECORD,
   nothingOnRecordWhy,
   OPPOSING_CHIP,
-  OUTSIDE_SPENDING_HEADING,
   OUTSIDE_SPENDING_PATH,
   outsideSpendingPageNumber,
   outsideSpendingSort,
@@ -175,7 +175,7 @@ function OutsideSpendingSubjectScreen({ navigation, route }: RootScreenProps<'Ou
     page: pageNumber,
   });
 
-  useDocumentTitle(OUTSIDE_SPENDING_PATH, `${OUTSIDE_SPENDING_HEADING} | Alethical`);
+  useDocumentTitle(OUTSIDE_SPENDING_PATH, outsideSpendingPageMetadata().title);
 
   // `data` is the current answer, or the previous one kept while a new page or year
   // loads. `null` is a 404: the subject is in neither the register nor the file. When

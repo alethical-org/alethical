@@ -648,6 +648,11 @@ export function billPageSnapshot(bill: BillSnapshotSource): PageSnapshot {
 // --- Legislator ---
 
 export interface LegislatorSnapshotSource {
+  /** The committees a person has confirmed as this member's (`include=campaign_committees`). */
+  campaign_committees?: Array<{
+    registration_number?: string | null;
+    committee_name?: string | null;
+  }> | null;
   full_name?: string | null;
   biography?: string | null;
   current_service?: {
@@ -670,9 +675,24 @@ export interface LegislatorSnapshotSource {
   } | null;
 }
 
+/** The committees a person has confirmed as this member's, from the money read. */
+export interface ConfirmedCommitteeLink {
+  name: string;
+  registrationNumber: string;
+}
+
+/** The sentence over the confirmed committee's link on a served profile (§28). */
+export const CONFIRMED_COMMITTEE_SECTION_HEADING = 'Campaign money';
+export function confirmedCommitteeSectionLine(displayName: string, count: number): string {
+  return count === 1
+    ? `The campaign committee a person has confirmed as ${displayName}’s, from Minnesota’s campaign-finance register. Its money in and money out are on its own page.`
+    : `The campaign committees a person has confirmed as ${displayName}’s, from Minnesota’s campaign-finance register. Each one’s money in and money out are on its own page.`;
+}
+
 export function legislatorPageSnapshot(
   legislator: LegislatorSnapshotSource,
   chiefAuthoredBills?: readonly BillDirectorySnapshotSource[] | null,
+  confirmedCommittees: readonly ConfirmedCommitteeLink[] = [],
 ): PageSnapshot {
   const service = legislator.current_service ?? {};
   const chamber = currentChamber(service.chamber);
@@ -698,6 +718,25 @@ export function legislatorPageSnapshot(
       ]
     : [];
   const chiefBillRecords = chiefAuthoredBills?.slice(0, 2).map(billDirectoryRecord) ?? [];
+  // A confirmed committee is linked from the profile that names it, so the
+  // committee's page is reachable from a page search engines already visit, and
+  // a reader lands on the money without loading the tab first. Only a person's
+  // confirmation puts a committee here; the ordinary unconfirmed state adds nothing.
+  const committeeLinks: SnapshotSection[] = confirmedCommittees.length
+    ? [
+        {
+          heading: CONFIRMED_COMMITTEE_SECTION_HEADING,
+          body: [confirmedCommitteeSectionLine(displayName, confirmedCommittees.length)],
+          items: confirmedCommittees.map((committee) => ({
+            label: committee.name,
+            detail: `Registration ${committee.registrationNumber}`,
+            href: `/money/committees/${encodeURIComponent(
+              committeeSlug(committee.name, committee.registrationNumber),
+            )}`,
+          })),
+        },
+      ]
+    : [];
   const sections: SnapshotSection[] = [
     ...(chiefBillRecords.length > 0
       ? [
@@ -707,6 +746,7 @@ export function legislatorPageSnapshot(
           },
         ]
       : []),
+    ...committeeLinks,
     ...(biography ? [{ heading: 'Biography', body: [biography], bodyIsList: false }] : []),
     ...(serviceLines.length
       ? [{ heading: 'Legislative Service', body: serviceLines, bodyIsList: false }]
@@ -1712,6 +1752,30 @@ export function committeeSnapshotPath(
   const { slug } = committeeIdentity(money, fallbackRegistrationNumber);
   const base = `/money/committees/${encodeURIComponent(slug)}`;
   return view === 'payments' ? `${base}/payments` : base;
+}
+
+/**
+ * The register facts a committee's own title and description are built from:
+ * its filed name, the address that name makes, the Board's kind for it, and
+ * what it registered for. Read through the same `committeeIdentity` the served
+ * body reads, so the head can never describe a committee the body does not.
+ */
+export function committeeMetadataRecord(
+  money: CommitteeMoneySnapshotSource,
+  fallbackRegistrationNumber: string,
+): { name: string; canonicalSlug: string; kind: string | null; registeredFor: string | null } {
+  const identity = committeeIdentity(money, fallbackRegistrationNumber);
+  const register = money.register ?? {};
+  return {
+    name: identity.name,
+    canonicalSlug: identity.slug,
+    kind: identity.eyebrow,
+    registeredFor: registeredForLine({
+      kind: identity.registerKind,
+      office: register.office ?? null,
+      district: register.district ?? null,
+    }),
+  };
 }
 
 /** The heading a committee's record carries, for its own title tag. */

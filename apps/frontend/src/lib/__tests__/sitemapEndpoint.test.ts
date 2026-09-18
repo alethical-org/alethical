@@ -38,7 +38,7 @@ afterEach(() => {
 });
 
 describe('sitemap endpoint', () => {
-  it('lists exactly the four child sitemaps and makes no network call', async () => {
+  it('lists exactly the six child sitemaps and makes no network call', async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
     const recorder = responseRecorder();
@@ -52,7 +52,9 @@ describe('sitemap endpoint', () => {
     expect(body).toContain('<loc>https://www.alethical.com/sitemaps/bills.xml</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/sitemaps/legislators.xml</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/sitemaps/committees.xml</loc>');
-    expect(body.match(/<sitemap>/g)).toHaveLength(4);
+    expect(body).toContain('<loc>https://www.alethical.com/sitemaps/lobbying-principals.xml</loc>');
+    expect(body).toContain('<loc>https://www.alethical.com/sitemaps/lobbying-lobbyists.xml</loc>');
+    expect(body.match(/<sitemap>/g)).toHaveLength(6);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
@@ -365,6 +367,62 @@ describe('sitemap endpoint', () => {
     await handler({ query: { section: 'committees' } }, recorder.response);
 
     expect(recorder.read().status).toBe(503);
+  });
+
+  // A lobbying record page is worth a sitemap entry when it exists and is
+  // indexable: a principal with spending rows, a lobbyist on the current list.
+  // The API decides that; this asserts the address is built by the same slug
+  // rule the router reads, so the sitemap can never advertise an address it
+  // rejects, and that neither section carries a date.
+  it('renders one dateless entry per indexable lobbying record, by name and number', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          state: 'reported',
+          principals: [
+            { entity_id: 2263, name: 'American Express' },
+            { entity_id: 7325, name: 'ACTwireless' },
+          ],
+          lobbyists: [{ registration_number: '141', name: 'Kozak, Andrew' }],
+        },
+      }),
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const principals = responseRecorder();
+    await handler({ query: { section: 'lobbying-principals' } }, principals.response);
+    expect(principals.read().status).toBe(200);
+    expect(principals.read().body).toContain(
+      '<url><loc>https://www.alethical.com/money/lobbying/principals/american-express-2263</loc></url>',
+    );
+    expect(principals.read().body).toContain(
+      '<url><loc>https://www.alethical.com/money/lobbying/principals/actwireless-7325</loc></url>',
+    );
+    expect(principals.read().body).not.toContain('/money/lobbying/lobbyists/');
+    expect(principals.read().body).not.toContain('<lastmod>');
+
+    const lobbyists = responseRecorder();
+    await handler({ query: { section: 'lobbying-lobbyists' } }, lobbyists.response);
+    expect(lobbyists.read().status).toBe(200);
+    expect(lobbyists.read().body).toContain(
+      '<url><loc>https://www.alethical.com/money/lobbying/lobbyists/kozak-andrew-141</loc></url>',
+    );
+    expect(lobbyists.read().body).not.toContain('/money/lobbying/principals/');
+    expect(lobbyists.read().body.match(/<url>/g)).toHaveLength(1);
+    // Both sections read the one lobbying sitemap endpoint, never the paged directories.
+    for (const call of fetchSpy.mock.calls) {
+      expect(call[0]).toBe('https://api.alethical.com/api/v1/lobbying/sitemap');
+    }
+  });
+
+  it('responds 503 rather than an empty lobbying sitemap when the backend fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+    for (const section of ['lobbying-principals', 'lobbying-lobbyists']) {
+      const recorder = responseRecorder();
+      await handler({ query: { section } }, recorder.response);
+      expect(recorder.read().status).toBe(503);
+    }
   });
 
   it('responds 404 for an unknown section', async () => {
