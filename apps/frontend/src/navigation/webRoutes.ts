@@ -1,6 +1,6 @@
 import { registrationNumberFromSlug } from '../lib/committeeRoute';
 import { paymentNameRole } from '../lib/paymentNameRoute';
-import { pieceAddressFolder, researchBySlug } from '../lib/research';
+import { pieceAddressFolder, pieceIndexBySlug } from '../lib/researchIndex';
 import type { MainTabParamList, RootStackParamList } from './types';
 
 type WebNavigationState = {
@@ -77,7 +77,7 @@ type WebRouteTarget =
  * evening of 27 Aug 2026, so it forwards to `/read/guides/{slug}` below.
  */
 function retiredPieceAddress(slug: string, pathname: string): WebRouteTarget {
-  const piece = researchBySlug(slug);
+  const piece = pieceIndexBySlug(slug);
   return piece && pieceAddressFolder(piece) === 'research'
     ? { kind: 'research', slug }
     : { kind: 'notFound', path: pathname };
@@ -301,7 +301,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     (segments[1] === 'research' || segments[1] === 'guides')
   ) {
     const slug = decodeURIComponent(segments[2]);
-    const piece = researchBySlug(slug);
+    const piece = pieceIndexBySlug(slug);
     if (piece && pieceAddressFolder(piece) === segments[1]) {
       return segments[1] === 'guides' ? { kind: 'guide', slug } : { kind: 'research', slug };
     }

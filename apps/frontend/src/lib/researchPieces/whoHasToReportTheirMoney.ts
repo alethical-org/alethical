@@ -38,20 +38,16 @@
  * foot of the piece carries no link to it.
  */
 import type { ResearchPiece } from '../research';
+import { WHO_HAS_TO_REPORT_THEIR_MONEY_INDEX_ENTRY } from '../researchIndex';
 
 export const WHO_HAS_TO_REPORT_THEIR_MONEY: ResearchPiece = {
-  slug: 'who-has-to-report-their-money',
-  traits: { research: false, guide: true },
+  ...WHO_HAS_TO_REPORT_THEIR_MONEY_INDEX_ENTRY,
   set: { name: 'How the Money Works', position: 1 },
-  indexed: true,
-  title: 'Who has to report their money',
   // No standfirst: the draft's second line is the set's name, which is stored as
   // set membership above. Inventing a sentence to fill this slot would be writing
   // prose the author did not write.
   dek: '',
   authorLine: 'ALETHICAL',
-  publishedOn: '2026-08-27',
-  recordsThrough: '2026-08-12',
   filingBodies: ['Minnesota Campaign Finance Board'],
   // A guide states rules rather than findings, so there is nothing to summarise
   // above it and no SHORT VERSION box is drawn.

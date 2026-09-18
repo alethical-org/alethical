@@ -8,8 +8,8 @@ import {
   READ_PAGE_NAME,
   pieceShareDescription,
   piecePath,
-  type ResearchPiece,
-} from './research';
+  type PieceIndexEntry,
+} from './researchIndex';
 
 export const PUBLIC_SITE_ORIGIN = 'https://www.alethical.com';
 export const SOCIAL_PREVIEW_IMAGE_URL = `${PUBLIC_SITE_ORIGIN}/social-preview.png`;
@@ -351,7 +351,7 @@ export function askPageMetadata(question?: string | null): PageMetadata {
  * It stays fully readable on the site either way; only search engines are held
  * off (rule 13's publishing order).
  */
-export function researchPageMetadata(piece: ResearchPiece): PageMetadata {
+export function researchPageMetadata(piece: PieceIndexEntry): PageMetadata {
   return pageMetadata({
     title: titleFor(piece.title),
     socialTitle: piece.title,

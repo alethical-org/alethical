@@ -13,22 +13,14 @@
  * live page rather than gating it: rule 13's publishing order, points 3 to 5.
  */
 import type { ResearchPiece, ResearchBlock } from '../research';
+import { MONEY_ONLY_GOES_ONE_WAY_INDEX_ENTRY } from '../researchIndex';
 
 const p = (text: string): ResearchBlock => ({ kind: 'paragraph', runs: [{ kind: 'text', text }] });
 
 export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
-  slug: 'the-money-only-goes-one-way',
-  // Research only: it concludes, and it adds figures up across members, which is
-  // rule 13's exception. It teaches nothing as its purpose, so it carries no guide
-  // trait, and the label a reader sees derives from that
-  // (docs/architecture/published-writing-decisions.md §2.7 and §2.8).
-  traits: { research: true, guide: false },
-  indexed: true,
-  title: 'The Money Only Goes One Way',
+  ...MONEY_ONLY_GOES_ONE_WAY_INDEX_ENTRY,
   dek: "If you've ever given $50 to a candidate, this is where it went.",
   authorLine: 'ALETHICAL',
-  publishedOn: '2026-08-20',
-  recordsThrough: '2026-07-20',
   filingBodies: ['Minnesota Campaign Finance Board'],
   undatedRecordsNote:
     'The lobbying figures come from a yearly filing on its own cycle, held as our own dated copy since 31 August 2026 and running through the report due 16 March 2026, so the masthead’s records-through date does not speak for them.',

@@ -48,6 +48,7 @@
  * `recordsThrough` records that release; a guide's masthead prints no second date.
  */
 import type { ResearchPiece } from '../research';
+import { WHAT_THE_RECORDS_NAME_INDEX_ENTRY } from '../researchIndex';
 import { WHO_HAS_TO_REPORT_THEIR_MONEY } from './whoHasToReportTheirMoney';
 
 /**
@@ -59,24 +60,19 @@ import { WHO_HAS_TO_REPORT_THEIR_MONEY } from './whoHasToReportTheirMoney';
 const PIECE_ONE_PATH = `/read/guides/${WHO_HAS_TO_REPORT_THEIR_MONEY.slug}`;
 
 export const WHAT_THE_RECORDS_NAME: ResearchPiece = {
-  slug: 'what-the-records-name',
-  traits: { research: false, guide: true },
+  ...WHAT_THE_RECORDS_NAME_INDEX_ENTRY,
   set: { name: 'How the Money Works', position: 2 },
-  indexed: true,
   // Rule 13 point 7a: the corrected wording replaces the wrong wording and this dated
   // banner is its only trace. Eugene approved the cut on 27 Aug 2026.
   correction: {
     datedLabel: 'CORRECTED AUG 27 2026',
     note: 'Two quotations from the Board\u2019s Political Party Unit Handbook were removed. The Board replaced that handbook the day this piece posted, and the served copy no longer contains them.',
   },
-  title: 'What the records name, and what they leave out',
   // No standfirst: the draft's second line is the set's name, which is stored as
   // set membership above. Inventing a sentence to fill this slot would be writing
   // prose the author did not write.
   dek: '',
   authorLine: 'ALETHICAL',
-  publishedOn: '2026-08-27',
-  recordsThrough: '2026-08-12',
   filingBodies: ['Minnesota Campaign Finance Board'],
   // A guide states rules rather than findings, so there is nothing to summarise
   // above it and no SHORT VERSION box is drawn.
