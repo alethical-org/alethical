@@ -3,7 +3,7 @@
  * set "How the Money Works", and the fifth carrying only the **guide** trait.
  *
  * The prose is transcribed word for word from
- * `docs/reader-guides/why-nobody-can-follow-a-dollar.md`, which is where it was
+ * `docs/published-writing/why-nobody-can-follow-a-dollar.md`, which is where it was
  * written and settled before any container existed for it. Nothing here is edited
  * to fit a layout or to fit a check (rule 13's publishing order; point 2a is the
  * one door).

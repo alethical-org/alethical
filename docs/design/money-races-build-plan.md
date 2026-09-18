@@ -3,6 +3,8 @@
 Status: live and checked on 17 September 2026.
 Released in [pull request 2250](https://github.com/alethical-org/alethical/pull/2250),
 [commit 0243a5a9](https://github.com/alethical-org/alethical/commit/0243a5a97022dd38454f01711cfb12f2167eb49c).
+The 18 September visual refinement is in
+[pull request 2285](https://github.com/alethical-org/alethical/pull/2285).
 
 ## Authorization and scope
 
@@ -28,6 +30,8 @@ new recurring task, navigation redesign or unrelated money-page changes are incl
   label, ignoring case and extra spaces. Search never hides committees inside a group.
 - Several matches without a selection do not open the first match. Arrow keys select;
   Enter or “View committees” opens the chosen or unique match. Escape closes suggestions.
+- Hover and arrow keys put the same 2px bright-green line around the current suggestion.
+  The suggestion keeps its white background, and the line does not change the row's size.
 - The address retains `office`, `year`, selected `group` and directory search `q` as
   applicable. `group` uses the server's existing generated anchor, such as `house-12a`
   or `governor`. Opening a group clears the search in its new address; Back restores
@@ -64,7 +68,7 @@ new recurring task, navigation redesign or unrelated money-page changes are incl
 - Consolidate an unavailable official total to “No usable official total in our records
   for {year}”. The word “usable” matters because a held total may fail the year or
   reporting-period guard. Drop the separate helper.
-- Missing named contributions on this address say “No named contributions in our records
+- Missing itemized contributions on this address say “No itemized contributions in our records
   for {year}”. This is a scoped exception to the older “Not reported” rule, not a change
   to the other money surfaces. A failed figure says “We couldn’t load this figure”.
 - Use “Limits of the campaign records” and “Payment records before 2015 are not included”.
@@ -103,3 +107,21 @@ the compact directory with no committee-detail rows, search opened House Distric
 with its 2 committees, and following Anderson, Paul H House Committee opened that
 committee's record with 2026 selected. The sitewide Share control and shared
 scroll-restoration protections remain integrated.
+
+## 18 September 2026 visual refinement
+
+- Instant search choices on `/money/races` and `/find-my-legislator` reserve a 2px
+  transparent boundary. Hover and arrow-key selection change that boundary to bright
+  green (`#2ed47e`) without filling the row or moving its contents. Each list scrolls
+  vertically within 300 pixels and cannot scroll sideways.
+- The focused race uses a flat warm-grey page, matched outlined Go back and Share
+  controls, a cyan context label, corrected type hierarchy, and a full-width divider
+  before Limits of the campaign records.
+- The contributions card places the donor explanation and payment-copy date before its
+  column headings. Wide screens use 264-pixel figure columns with a 32-pixel gap,
+  middle-width screens use 190-pixel columns with a 16-pixel gap, and phones stack the
+  figures. Date ranges may wrap only around “to”. The last committee row has no divider.
+- Browser review at 1280, 900 and 375 pixels covered House District 12A, its live 2026
+  amounts and dates, the 300-pixel race list, the address-suggestion list, keyboard
+  selection, and horizontal overflow. Both selected rows kept a transparent background
+  inside their 2px bright-green boundary.

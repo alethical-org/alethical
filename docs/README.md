@@ -48,37 +48,34 @@ things work in practice and are the place to start if you're new.
 - [How the Campaign money section works (plain English)](product-onboarding/campaign-money-section-guide.md) — the public /money landing and its lanes, the working name search and its results page, the register's own committees list, the `/read` page that lists Alethical's own research, and what a research piece's page carries
 - [How sharing works](product-onboarding/sharing-guide.md) — what each page and destination receives, why Instagram has no direct button, and how link previews are built
 - [How Contact us works](product-onboarding/contact-us-guide.md) — the page, its 5 states, message delivery, and what reader data leaves Alethical
-- [How the Site metrics page works](product-onboarding/traffic-guide.md) — the 4 public totals, Vercel source, privacy boundary, team-account exclusion, and page states
 - [About Us page](product-onboarding/about-us-page-spec.md) — the public statement of Alethical’s name, beliefs, current features, roadmap, and correction policy
 
 ## Design
 
 - [Design principles](design/design-principles.md) — green system's design intent + visual/interaction/accessibility rules; brief for Claude Design
 - [UI copy guide](design/ui-copy-guide.md) — voice and tone
+- [Committee money wording](design/committee-money-refinements-copy.md) — approved labels and source-copy refinements
 - [Money page context labels](design/money-page-context-labels-copy.md) — when the green label below a back link adds useful context and the approved words on every money page kind
-- [Committee money page design prompt](design/committee-money-page-design-prompt.md) — frozen Claude Design request for #1442's committee money screen (dated 18 Aug 2026)
-- [Campaign money final review prompt](implementation/campaign-money-final-review-prompt.md) — the released non-lobbying changes, live checks and work that remains on hold
-- [Campaign money design handoff](design/handoff-campaign-money/) — the accepted Claude Design set for the whole money section (round 6, 18 Aug 2026): the plan and landing, the route map, the 4 list screens, the committee page, the report and its shelf, both profile surfaces, and the measured facts they rest on. Includes [the first piece's source text](design/handoff-campaign-money/follow-the-money-report.md), which has since posted as our live research at `/read/research/the-money-only-goes-one-way`
 
-## Reader guides
+## Published writing
 
-The words of every published reader-facing piece, one file each. Alethical calls a piece that teaches one part of how a system works and draws no conclusions a **Guide**, and calls its own digging **Research** (`docs/architecture/published-writing-decisions.md` §2.6, settled 27 Aug 2026). A signed research piece may add records up and reach a conclusion (`.claude/rules/grounded-answers.md` rule 13); a guide may not, and sits under rules 1 to 12 like every other surface. `apps/frontend/src/lib/__tests__/research.test.ts` compares every file here against the piece the site draws, word for word, so a sentence cannot be dropped or reworded in one place alone ([#1832](https://github.com/alethical-org/alethical/issues/1832)). Every page is built; the folder's name predates the Research word and is wrong for the 1 research file in it.
+The words of every published reader-facing piece, one file each. Alethical calls a piece that teaches one part of how a system works and draws no conclusions a **Guide**, and calls its own digging **Research** (`docs/architecture/published-writing-decisions.md` §2.6, settled 27 Aug 2026). A signed research piece may add records up and reach a conclusion (`.claude/rules/grounded-answers.md` rule 13); a guide may not, and sits under rules 1 to 12 like every other surface. `apps/frontend/src/lib/__tests__/research.test.ts` compares every file here against the piece the site draws, word for word, so a sentence cannot be dropped or reworded in one place alone ([#1832](https://github.com/alethical-org/alethical/issues/1832)). The manuscripts remain in the repository after publication to protect the published words.
 
 **How the Money Works** — 5 pieces in a fixed reading order, because each defines the words the next one uses.
 
-- [Who has to report their money](reader-guides/who-has-to-report-their-money.md) — piece 1: Minnesota's 3 kinds of registered political account, what a party unit and a legislative caucus are, what a PAC is, why the 3 kinds file different forms, and why counting campaign accounts is not counting candidates
-- [What the records name, and what they leave out](reader-guides/what-the-records-name.md) — piece 2: the $200 naming rule read correctly, as a test on one giver's total for the calendar year and never on the size of a single gift, why more than half of every named payment Minnesota publishes is a gift of $200 or less, and the lump sum with no donor named that the rule leaves behind
-- [Why 2 official numbers can both be right](reader-guides/why-2-official-numbers-can-both-be-right.md) — piece 3: the named payments on a filing against the total the same filing reports, why every report in a year restates that year from 1 January so a year's reports must never be added together, and why a giver can sit in the unnamed figure on one report and be named on the next
-- [Money spent without a campaign's say](reader-guides/money-spent-without-a-campaigns-say.md) — piece 4: independent spending and the 6 kinds of involvement the law rules out, the For and Against marker no contribution record carries, and lobbying as a separate set of records filed by whoever is doing the asking
-- [Why nobody can follow a dollar](reader-guides/why-nobody-can-follow-a-dollar.md) — piece 5: why 2 filed transfers in a row are not a route, why an account's opening balance makes the question unanswerable rather than merely unanswered, and what a picture of the flows may and may not be allowed to say
+- [Who has to report their money](published-writing/who-has-to-report-their-money.md) — piece 1: Minnesota's 3 kinds of registered political account, what a party unit and a legislative caucus are, what a PAC is, why the 3 kinds file different forms, and why counting campaign accounts is not counting candidates
+- [What the records name, and what they leave out](published-writing/what-the-records-name.md) — piece 2: the $200 naming rule read correctly, as a test on one giver's total for the calendar year and never on the size of a single gift, why more than half of every named payment Minnesota publishes is a gift of $200 or less, and the lump sum with no donor named that the rule leaves behind
+- [Why 2 official numbers can both be right](published-writing/why-2-official-numbers-can-both-be-right.md) — piece 3: the named payments on a filing against the total the same filing reports, why every report in a year restates that year from 1 January so a year's reports must never be added together, and why a giver can sit in the unnamed figure on one report and be named on the next
+- [Money spent without a campaign's say](published-writing/money-spent-without-a-campaigns-say.md) — piece 4: independent spending and the 6 kinds of involvement the law rules out, the For and Against marker no contribution record carries, and lobbying as a separate set of records filed by whoever is doing the asking
+- [Why nobody can follow a dollar](published-writing/why-nobody-can-follow-a-dollar.md) — piece 5: why 2 filed transfers in a row are not a route, why an account's opening balance makes the question unanswerable rather than merely unanswered, and what a picture of the flows may and may not be allowed to say
 
 **Research** — our own digging, in no set.
 
-- [The Money Only Goes One Way](reader-guides/the-money-only-goes-one-way.md) — where a $50 donation actually goes: $13.9 million leaving candidate accounts for the 6 party and caucus committees against $730,338 coming back down, the 191 PACs funding both parties' caucuses, and the $886 million of reported lobbying that dwarfs every election dollar. Unlike the 5 files above, this one was written from the shipped piece rather than settled before it, so it pins what shipped and says so in its own opening comment
+- [The Money Only Goes One Way](published-writing/the-money-only-goes-one-way.md) — where a $50 donation actually goes: $13.9 million leaving candidate accounts for the 6 party and caucus committees against $730,338 coming back down, the 191 PACs funding both parties' caucuses, and the $886 million of reported lobbying that dwarfs every election dollar. Unlike the 5 files above, this one was written from the shipped piece rather than settled before it, so it pins what shipped and says so in its own opening comment
 
 **The record of what we changed after publishing.**
 
-- [Corrections to Alethical's published writing](published-writing-corrections.md) — every correction to a posted piece, newest first, with the date, what it used to say, what it says now, why it moved, and whether the piece carries its own dated note. It exists for the reader we cannot reach: correcting a piece takes the wrong figure off the page, which serves whoever visits next and does nothing for whoever already quoted us ([#1770](https://github.com/alethical-org/alethical/issues/1770)). It sits at the root of `docs/` rather than in `reader-guides/`, which holds published prose only, and its address is meant to be cited
+- [Corrections to Alethical's published writing](published-writing-corrections.md) — every correction to a posted piece, newest first, with the date, the original and corrected wording, the reason, and whether the piece carries its own dated note. It exists for the reader we cannot reach: correcting a piece takes the wrong figure off the page, which serves whoever visits next and does nothing for whoever already quoted us ([#1770](https://github.com/alethical-org/alethical/issues/1770)). It sits at the root of `docs/` rather than in `published-writing/`, which holds published prose only, and its address is meant to be cited
 
 ## Architecture
 
@@ -86,7 +83,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [Bill refresh cadence decisions](architecture/bill-refresh-cadence-decisions.md) — how often to re-fetch bills and why: the measured activity data behind each interval, the four safety fixes that must land before anything is scheduled, and the alternatives that lost
 - [AI platform position](architecture/ai-platform-position.md) — what we buy direct, what we build ourselves, what we skip, and the trigger that would reverse each call
 - [How Alethical calls OpenAI and Anthropic, and when it retries](architecture/ai-provider-calls-and-retries.md): the accepted official-library plan, current failure risks, retry and deadline rules, honest reader states, work order, effort, and open questions
-- [Page metadata for search and sharing — decisions](architecture/page-metadata-for-search-and-sharing-decisions.md) — why every address serves search engines the same title today (link previews already work), the wording rule for each page type, robots/sitemap/structured-data calls, and the four ways to fix it with the recommended two-release plan (proposal, not built)
+- [Page metadata for search and sharing — decisions](architecture/page-metadata-for-search-and-sharing-decisions.md) — how public pages receive their own titles, descriptions and readable first responses; search access, page addresses, and the measured reasons for those choices
 - [Published writing — decisions](architecture/published-writing-decisions.md) — what Alethical publishes in its own name and every settled call governing it: the words Research and Guide, a piece that carries both traits, nested addresses and what flat lost on twice, a standalone guide, an emptied set, who authors a term link, the order the rename runs in, and the 4 fields no piece carries yet
 - [Backend API system design](architecture/backend-api-system-design.md) — REST conventions, namespace layout, and the endpoint inventory
 - [Database schema system design](architecture/db-schema-system-design.md) — table groups, modeling decisions, and the query rubric
@@ -105,10 +102,11 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [How a legislator is matched to their campaign account](operations/how-a-legislator-is-matched-to-their-campaign-account.md) — the public audit record of the one decision no machine may make: what we claim, the 3 pieces of evidence a person reads, who signs, how a wrong match surfaces, how to challenge one, and where all 200 sitting members stand today
 - [What runs, when, and what it costs](operations/jobs-and-scripts.md) — every GitHub workflow, command-line tool, and job-driven AI cost
 - [Copying the Board's lobbying files](operations/lobbying-source-import.md) — the paired import, contact-field exclusion, link checks and rollback
+- [Offline name-search comparison](operations/name-search-offline-benchmark.md) — how to compare name-search behavior without changing public results
 - [Local code checks](operations/local-code-checks.md) — shared setup, selected-file formatting, exact-commit upload checks, and staged GitHub description-check activation
 - [Error monitoring](operations/error-monitoring.md) — which server failures alert through Sentry, the privacy limits, setup, incident checks, and why Alethical buys this instead of building it
 - [Repo and service settings](operations/repo-and-service-settings.md) — every setting that controls the project but doesn't live in the repo, and its intended value
-- [Keeping every tool supported and useful](operations/technology-health.md) — the free monthly checks, 3-month major-tool review, support dates, and recorded exceptions
+- [Keeping every tool supported and useful](operations/technology-health.md) — required release security checks, weekly security scans, monthly tool checks, support dates, and recorded exceptions
 - [Private repository cost outlook](operations/private-repository-cost-outlook.md) — the 2026-08-11 cost, security, access, job-limit, and Vercel-seat decision for making Alethical private
 - [API CDN setup](operations/api-cdn-setup.md) — Cloudflare in front of the API, plus email authentication records
 - [Page-load performance decisions](operations/page-load-performance-decisions.md): measured safe speed work, remaining tradeoffs, and the proof required before release
@@ -118,7 +116,47 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [Keeping docs current — decisions](operations/keeping-docs-current-decisions.md) — why the stale-docs check relies on declarations a human writes, and the four automated alternatives we measured and rejected
 - [Production database schema drift](operations/production-database-schema-drift.md) — the eleven ways production and the code disagreed, which side was right in each, and the CI check that now catches the next one
 
+## Delivery records and held work
+
+These files belong to unfinished delivery or an active programme's closeout. The linked
+issues and pull requests establish what remains. Preserve explicit data-replacement holds;
+a completed code release does not approve a held data run. Remove a finished plan once its
+lasting decisions and release evidence have their permanent homes.
+
+- [Private account activation](implementation/admin-users-plan.md) — approved account access and the remaining administrator activation
+- [Campaign-finance history refresh](implementation/campaign-finance-history-refresh.md) — source-replacement boundaries, failed-source handling and saved recovery evidence
+- [Legislator campaign-money delivery](implementation/legislator-campaign-money-tab-plan.md) — coordinated releases, outstanding decisions and held data work
+- [Campaign-money review scope](implementation/campaign-money-final-review-prompt.md) — the releases to inspect and the work still excluded from that review
+- [Committee search and payment design](implementation/committee-search-payment-design.md) — the accepted committee and payment-list behavior
+- [Lobbying search delivery](implementation/lobbying-search-plan.md) — agreed search behavior and release checks
+- [Money page refinements](implementation/money-page-refinements.md) — wording, search and navigation acceptance checks
+- [Outside-spending browse delivery](implementation/outside-spending-browse-plan.md) — all-years browsing, paging and source checks
+- [Sharing delivery](implementation/sitewide-sharing-plan.md) — shared controls, address preservation and release checks
+- [Committee money refinements](plans/committee-money-refinements.md) — coordinated source-label and money-card refinements
+- [Committee empty-year refinements](plans/committee-empty-year-refinements.md) — missing figures, contribution terms and filed-report navigation
+- [Committee record delivery](plans/committee-record-redesign.md) — committee layout, filing lists and release checks
+- [Money races delivery](design/money-races-build-plan.md) — accepted race-page scope and completion checks
+- [Payments by year release evidence](operations/2141-payments-by-year-checkpoint.md) — real-row checks and remaining wording boundaries
+- [Refund-card release evidence](operations/2147-refund-card-checkpoint.md) — source corrections, metadata recovery evidence and the separate historical-data hold
+
+## Sources and verification evidence
+
+These are dated findings or source-backed references, not claims that old measurements
+still describe today's service. Keep the evidence and its limits together.
+
+- [Campaign-finance calendars](evidence/campaign-finance-calendars.md) — official filing schedules supporting date rules
+- [Money speed measurements](validation/money-speed-execution-2026-09-07.md) — measured request costs and the scope of the speed work
+- [Tracked bills on phones](verification/1007-tracked-bills-phone/README.md) — narrow-screen removal checks
+- [Track button checking state](verification/1013-track-button-forms/README.md) — button behavior while saved status loads
+- [Track button failure state](verification/1021-track-button-couldnt-check/README.md) — recovery when saved status cannot be read
+- [Build-tool security evidence](verification/1493-build-tool-security/README.md) — the release-tool security check and its limits
+- [September dependency security repair](verification/2026-09-18-dependency-security.md) — patched packages, required scans, limited exceptions, and release checks
+- [Board source comparison](verification/1662-board-source-comparison/report.md) — saved official-file comparisons and missing-row evidence
+- [Navigation checks](verification/1698-nav-revision/README.md) — menu and account-control screenshots
+- [Exact-name connection checks](verification/2145-exact-name-connections.md) — limits on connecting records by a filed name
+- [Donor-state checks](verification/2146-donor-state-reference.md) — reference results for filed donor-state values
+
 ## About this folder
 
 - [How `docs/` is organized](folder-structure.md) — the folder layout and where a new doc goes
-- **How these are kept current** — see "Keeping docs current" in [`CONTRIBUTING.md`](../CONTRIBUTING.md). Short version: a doc that describes behaviour names the code it describes in a `<!-- describes: -->` comment, and CI then fails any PR that changes that code without one `Docs check:` line saying what the author concluded. Selected guides also opt into a free check that exact quoted labels, colours, and settings still appear in that code. If you write a doc that describes how something behaves, give it that comment. Design working files stay outside `docs/`.
+- **How these are kept current** — see "Keeping docs current" in [`CONTRIBUTING.md`](../CONTRIBUTING.md). Short version: a doc that describes behaviour names the code it describes in a `<!-- describes: -->` comment, and CI then fails any PR that changes that code without one `Docs check:` line saying what the author concluded. Selected guides also opt into a free check that exact quoted labels, colours, and settings still appear in that code. If you write a doc that describes how something behaves, give it that comment. The folder check requires every retained Markdown document to be reachable from this index and rejects committed design exports anywhere in the repository.

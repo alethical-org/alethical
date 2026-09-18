@@ -16,6 +16,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { linkProps, routePath } from '../../navigation/links';
+import { contentTabStyle } from '../../theme/contentTabs';
 import { theme as t } from '../../theme/tokens';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 import { prefetchCampaignMoneyTab } from './CampaignMoneyTabOnDemand';
@@ -61,7 +62,7 @@ export function LegislatorProfileTabs({
             // there, so its pieces start downloading before the click lands.
             onHoverIn={tab.key === 'money' ? prefetchMoney : undefined}
             onFocus={tab.key === 'money' ? prefetchMoney : undefined}
-            style={[styles.tab, isActive && styles.tabActive]}
+            style={contentTabStyle(styles.tab, isActive)}
           >
             <Text
               style={[
@@ -88,10 +89,7 @@ const styles = StyleSheet.create({
   },
   tab: {
     paddingVertical: 12,
-    borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
   },
-  tabActive: { borderBottomColor: t.colors.brand.base },
   label: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.bodyLg,

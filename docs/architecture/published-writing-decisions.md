@@ -41,7 +41,7 @@ Two traits, not 2 mutually exclusive kinds. §2.7 is why that distinction matter
   none of them started.
 
   **A guide is finished when it is live, not when its words merge.** The 3 pieces above were
-  written on 27 Aug 2026 as manuscripts under `docs/reader-guides/` with no page, on the
+  written on 27 Aug 2026 as manuscripts with no page, on the
   understanding that registration was somebody else's step. Nobody held that step, so 3,010 words
   of checked writing sat where no reader could reach them until it was noticed. From now on the
   writing and the registration land together: a piece's words, its entry in `PUBLISHED_RESEARCH`,
@@ -249,7 +249,7 @@ conclusions, and does it teach 1 concept. Run against the 13 pieces in
 
 **That one is now written, classified guide only, and its outline claim turned out to be false as
 worded.** It became the independent-spending half of *Money spent without a campaign's say*
-([`docs/reader-guides/money-spent-without-a-campaigns-say.md`](../reader-guides/money-spent-without-a-campaigns-say.md)).
+([`docs/published-writing/money-spent-without-a-campaigns-say.md`](../published-writing/money-spent-without-a-campaigns-say.md)).
 Measured on the Board's own "Itemized independent expenditures of over $200 - All" download,
 counted as served on 27 Aug 2026: **31,718 of the 41,130 rows are marked For and 9,412 are marked
 Against**, so by payment count 77% support rather than attack. By dollars the outline is right,

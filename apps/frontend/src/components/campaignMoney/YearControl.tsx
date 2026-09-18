@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { campaignMoneyYears, type CampaignMoneyYear } from '../../lib/legislatorCampaignMoney';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 import { theme as t } from '../../theme/tokens';
-import { detailsStyles } from './detailsStyles';
+import { yearFilterButtonStyle, yearFilterLabelStyle } from '../../theme/yearFilters';
 
 /**
  * The year switch.
@@ -48,16 +48,14 @@ export function YearControl({
             // the way to the browser, so a screen reader would hear no difference
             // between the year in view and the one beside it.
             aria-pressed={active}
-            accessibilityLabel={`${option}${namesOnlyYears.has(option) ? ', named donations only' : ''}`}
+            accessibilityLabel={`${option}${namesOnlyYears.has(option) ? ', itemized contributions only' : ''}`}
             style={(state) => [
-              styles.yearButton,
+              yearFilterButtonStyle(styles.yearButton, active, state),
               namesOnlyYears.has(option) && { borderStyle: 'dashed' },
               fullWidth && styles.yearButtonFull,
-              active && styles.yearButtonActive,
-              Boolean('focused' in state && state.focused) && detailsStyles.focus,
             ]}
           >
-            <Text style={[styles.yearLabel, active && styles.yearLabelActive]}>{option}</Text>
+            <Text style={yearFilterLabelStyle(styles.yearLabel, active)}>{option}</Text>
           </Pressable>
         );
       })}
@@ -97,10 +95,6 @@ const styles = StyleSheet.create({
     borderColor: t.colors.alpha.ink18,
     backgroundColor: c.background,
   },
-  yearButtonActive: {
-    backgroundColor: c.text,
-    borderColor: c.text,
-  },
   yearLabel: {
     fontFamily: t.typography.body,
     fontSize: 15,
@@ -109,5 +103,4 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     color: c.text,
   },
-  yearLabelActive: { color: c.background },
 });

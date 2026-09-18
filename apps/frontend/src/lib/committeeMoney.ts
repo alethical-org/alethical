@@ -40,11 +40,7 @@ import {
   type PaymentsTab,
 } from './committeeMoneyShared';
 
-export {
-  committeeMoneyYears,
-  committeeAlternativeYear,
-  stampThroughDate,
-} from './committeeMoneyShared';
+export { committeeMoneyYears, stampThroughDate } from './committeeMoneyShared';
 
 /**
  * The line beside the registration chip. For a candidate committee the register
@@ -98,9 +94,9 @@ export interface ConfirmedCommitteeMember {
  *   supports, so the sentence says the money here is this committee's own and that a
  *   candidate can register more than one. The arithmetic guard against ever adding
  *   two of them together is #1663's; this is only the sentence.
- * - **Change nothing when nobody has confirmed.** A rejection is a decision about our
- *   own proposal, never a reader-facing claim about the committee (§7), so it arrives
- *   here as no confirmation at all and the page keeps its existing words.
+ * - **Do not add a notice when nobody has confirmed.** The committee title identifies
+ *   the record. An absent profile link never implies confirmation, and a rejection
+ *   of our own proposal is not a reader-facing claim about the committee (§7).
  */
 export function whoseCommitteeText(
   registerKind: string | null | undefined,
@@ -136,10 +132,7 @@ export function whoseCommitteeText(
   if (registerKind === 'political_committee_or_fund') {
     return '';
   }
-  return (
-    'These are this committee’s own figures. We have not linked them to a person; ' +
-    'the committee’s name alone does not prove whose it is.'
-  );
+  return '';
 }
 
 /** The link out of the confirmed sentence, to the member's own money.
@@ -211,18 +204,10 @@ export const CLOSED_MONEY_IN_WHY =
   'public and you can read it on the Board’s site, but our copy of the state’s ' +
   'figures does not include it, so there is no total to show here.';
 
-export function emptyYearMoneyInWhy(year: number): string {
-  return (
-    `No report figures covering ${year} are in the state’s files we hold for this ` +
-    `committee. Earlier years’ figures stay under their own years — we do not carry ` +
-    `them forward.`
-  );
-}
-
 /** What the big-figure slot reads in each empty case. Never set in the size money
  *  is set in — the screens use the stand-in style for these. */
 export const CLOSED_EMPTY_VALUE = 'Not available';
-export const EMPTY_YEAR_VALUE = 'Not reported';
+export const EMPTY_YEAR_VALUE = 'Report total unavailable';
 
 /** The header line for a number our copy of the Board's register does not carry,
  *  while the state's money files still hold rows under it. A fact about our copy

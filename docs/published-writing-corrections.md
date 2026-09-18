@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/lib/researchPieces/*.ts, apps/frontend/src/lib/research.ts, docs/reader-guides/*.md -->
+<!-- describes: apps/frontend/src/lib/researchPieces/*.ts, apps/frontend/src/lib/research.ts, docs/published-writing/*.md -->
 
 # Corrections to Alethical's published writing
 
@@ -46,7 +46,7 @@ Three things are not corrections and are deliberately not listed:
   just published, making an address clickable, a figure added so a reader can check a comparison.
   Nothing anyone was holding became wrong.
 - **Anything a reader never sees** — code comments, tests, the editorial headers on the drafts in
-  [`docs/reader-guides/`](reader-guides/).
+  [`docs/published-writing/`](published-writing/).
 - **A design or layout decision applied to a posted piece**, even when it changes what a reader
   sees. Nothing was wrong; the page was changed. Those live with the decision that made them,
   in [`docs/architecture/published-writing-decisions.md`](architecture/published-writing-decisions.md)

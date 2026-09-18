@@ -828,6 +828,42 @@ years, a payments page, the races page and the outside-spending record) compared
 to the folded code's answers, field for field, with only the per-request
 `current_claim_validated_at` set aside.
 
+**The same day, the reads above and around them, by 2 more pull requests
+([2265](https://github.com/alethical-org/alethical/pull/2265),
+[2268](https://github.com/alethical-org/alethical/pull/2268)):** a legislator's profile
+read (`GET /legislators/{slug}?include=...`) resolves the session, the member, their
+current term, district, chamber and stored counts on 1 statement and joins each
+collection's to-one child onto the collection's own statement, 11 → 4; the `/money`
+landing's summary counts the sitting members, the confirmed members and the newest
+confirmation on 1 statement and lets the contest count take the register summary it
+already holds, 10 → 4; the committee directory reads the 3 money files' finer kinds in 1
+`UNION ALL` ranked by file and carries its total on the page rows, 8 → 4; the newest
+filings carry their total and their special-election flag on the rows, 6 → 2. Both pull
+requests rebuild the answer the old way in their tests and demand equality
+(`alethical/tests/test_legislator_profile_read_costs.py`,
+`alethical/tests/test_money_landing_read_costs.py`). The second was dropped from the
+merge queue once: pinned before 2266 landed, its counts were 1 too high on combined
+main, because the release read had since started answering the filings pointer too.
+
+**Live at the origin after all 3 releases, warm, 3 samples each from a laptop whose
+floor to the service is 120 ms:**
+
+| Read | Start of day | After |
+|---|---:|---:|
+| `GET /legislators/jim-abeler/campaign-finance?year=2025` | 680 to 760 ms | 450 to 490 ms |
+| `GET /committees/18135/finance?year=2026` | 570 to 610 ms | 430 to 460 ms |
+| `GET /legislators/jim-abeler?include=current_service,...` | 380 to 430 ms | 230 to 300 ms |
+| `GET /campaign-finance/summary` | 380 to 410 ms | 290 to 340 ms |
+| `GET /campaign-finance/committees?limit=50` | 350 to 410 ms | 300 to 330 ms |
+| `GET /legislators/jim-abeler/campaign-finance/years?from=2015&to=2026` | 390 to 430 ms | 350 ms |
+| `GET /campaign-finance/filings?limit=6` | 380 to 390 ms | 365 to 390 ms |
+
+The filings read moved least because 2 of its remaining statements are real work (a
+sort of 33,612 report rows, 66 ms) rather than trips. A cold recording of
+`/legislators/jim-abeler?tab=money&year=2025` after the releases: served text at 525 ms
+and the app's finished frame, money card included, at 1,077 ms, against 988 ms and
+1,143 ms at the start of the day.
+
 **What stays separate, and why.** `find_committee` still asks up to 3 datasets in
 turn, because on the live release the first answers for nearly every committee and a
 `UNION` would read all 3 for everyone. `name_connections`, `independent_spending_about`,
@@ -1603,6 +1639,8 @@ beside the rows themselves.
 | Reading a second pointer table and a stored check after the release read | 2 trips before the first figure on every money read | Outer-join the pointer and carry the check on the release read; remember both (`committee_finance.current_release`) |
 | A yes-or-no test, then the rows it permits | 2 trips for the donors-by-state block | The test as a 1-row derived table and the rows as a `LATERAL` read gated on it, so 1 row comes back saying no (`committee_donor_states`) |
 | A value read first so a second read can be bounded by it | 2 trips for the filed lines by kind | Name the first read as a sub-result (`WITH`) and take the bound from it inside the same statement (`committee_stated_by_kind`) |
+| Loading a to-one child of each collection row with its own statement | 3 of a profile read's 11 statements | Chain `joinedload` onto the collection's `selectinload`, so the child rides on the collection's statement (`legislator_profile_stmt`) |
+| Counting 3 figures over one set in 3 statements | 4 of the landing summary's 10 | One statement with the set as a `WITH` and the figures as scalar subqueries (`legislator_committee_confirmations`) |
 
 **Measured again on 17 Sep 2026, for the deepest money pages, with the same
 per-trip cost.** Traced from a laptop 32 ms from the database, so a saved trip is worth

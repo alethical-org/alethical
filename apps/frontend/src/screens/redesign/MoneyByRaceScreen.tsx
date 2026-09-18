@@ -3,6 +3,8 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-n
 
 import Svg, { Path } from 'react-native-svg';
 import { GoBackLink } from '../../components/GoBackLink';
+import { PageContextLabel } from '../../components/PageContextLabel';
+import { ChevronLeft } from '../../components/icons';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { RaceFinder } from '../../components/campaignMoney/RaceFinder';
 import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
@@ -150,30 +152,44 @@ function MoneyByRaceView({ navigation, route }: RootScreenProps<'MoneyByRace'>) 
   };
 
   return (
-    <PageBackground>
+    <PageBackground flat={Boolean(group)}>
       <ScrollView {...scroll} contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
         <Container
-          style={[styles.main, isTablet && styles.mainTablet, isMobile && styles.mainMobile]}
+          style={[
+            styles.main,
+            group && styles.mainFocused,
+            isTablet && styles.mainTablet,
+            isMobile && styles.mainMobile,
+          ]}
         >
           {group ? (
             <GoBackLink
               href={directoryHref}
               onPress={() => navigation.setParams(directoryParams)}
               mobile={isMobile}
-              style={styles.goBack}
+              outlined
             />
           ) : (
             <Pressable
               {...linkProps(routePath.money(), () => navigation.navigate('MoneyLanding'))}
               style={styles.backLink}
             >
+              <ChevronLeft
+                size={18}
+                strokeWidth={2.2}
+                color={t.colors.text.secondary}
+                aria-hidden
+              />
               <Text style={styles.backLabel}>{MONEY_SECTION_NAME}</Text>
             </Pressable>
           )}
-          {selected ? <Text style={styles.eyebrow}>{MONEY_BY_RACE_TITLE}</Text> : null}
+          {selected ? (
+            <PageContextLabel style={styles.eyebrow}>{MONEY_BY_RACE_TITLE}</PageContextLabel>
+          ) : null}
           <ResultsHeading
             isMobile={isMobile}
+            districtControls={Boolean(group)}
             content={
               served && page && (!group || selected)
                 ? moneyByRaceShareContent({ ...page, office }, group ?? '', query)
@@ -284,7 +300,7 @@ function MoneyByRaceView({ navigation, route }: RootScreenProps<'MoneyByRace'>) 
             </View>
           ) : selected ? (
             <View>
-              <View style={styles.listHead}>
+              <View style={[styles.listHead, styles.focusedListHead]}>
                 <Text
                   accessibilityRole="header"
                   aria-level={2}
@@ -331,32 +347,43 @@ function MoneyByRaceView({ navigation, route }: RootScreenProps<'MoneyByRace'>) 
                 {orderLine ? <Text style={styles.listSort}>{orderLine}</Text> : null}
               </View>
               <View style={styles.directory}>
-                {contests.map((contest, index) => (
-                  <View
-                    key={contest.anchor}
-                    style={
-                      !isMobile && !isTablet
-                        ? [
-                            styles.directoryHalf,
-                            index % 2 === 0 ? styles.directoryLeft : styles.directoryRight,
-                          ]
-                        : styles.directoryFull
-                    }
-                  >
-                    <DirectoryRow
-                      contest={contest}
-                      year={String(year)}
-                      isMobile={isMobile}
-                      onChoose={onChooseGroup}
-                    />
-                  </View>
-                ))}
+                {contests.map((contest, index) => {
+                  const lastVisualRowStart =
+                    !isMobile && !isTablet
+                      ? contests.length - (contests.length % 2 || 2)
+                      : contests.length - 1;
+                  return (
+                    <View
+                      key={contest.anchor}
+                      style={
+                        !isMobile && !isTablet
+                          ? [
+                              styles.directoryHalf,
+                              index % 2 === 0 ? styles.directoryLeft : styles.directoryRight,
+                            ]
+                          : styles.directoryFull
+                      }
+                    >
+                      <DirectoryRow
+                        contest={contest}
+                        year={String(year)}
+                        isMobile={isMobile}
+                        hideBottomBorder={index >= lastVisualRowStart}
+                        onChoose={onChooseGroup}
+                      />
+                    </View>
+                  );
+                })}
               </View>
             </View>
           )}
 
-          <View style={styles.notCoveredBox}>
-            <Text accessibilityRole="header" aria-level={2} style={styles.notCoveredLabel}>
+          <View style={[styles.notCoveredBox, group && styles.notCoveredBoxFocused]}>
+            <Text
+              accessibilityRole="header"
+              aria-level={2}
+              style={[styles.notCoveredLabel, group && styles.notCoveredLabelFocused]}
+            >
               {RACE_COVERAGE_HEADING}
             </Text>
             <View style={styles.notCoveredList}>
@@ -381,11 +408,13 @@ function DirectoryRow({
   contest,
   year,
   isMobile,
+  hideBottomBorder,
   onChoose,
 }: {
   contest: RaceContest;
   year?: string;
   isMobile: boolean;
+  hideBottomBorder: boolean;
   onChoose: (anchor: string) => void;
 }) {
   const [hovered, setHovered] = useState(false);
@@ -400,6 +429,7 @@ function DirectoryRow({
       onHoverOut={() => setHovered(false)}
       style={[
         styles.directoryRow,
+        hideBottomBorder && styles.noBottomBorder,
         hovered && styles.directoryHover,
         isMobile && styles.directoryRowMobile,
       ]}
@@ -470,6 +500,13 @@ function ContestBlock({
 }) {
   return (
     <View style={[styles.contest, isMobile && styles.contestMobile]}>
+      <Text style={styles.donorNote}>{RACE_DONOR_EXPLANATION}</Text>
+      {fetchedAt ? (
+        <Text style={styles.freshness}>
+          {FILES_COPIED_LABEL} {centralDateLabel(fetchedAt)}
+        </Text>
+      ) : null}
+      <View style={[styles.cardIntroDivider, isTablet && styles.cardIntroDividerTablet]} />
       <View
         style={[
           styles.columnHead,
@@ -488,20 +525,16 @@ function ContestBlock({
           </View>
         ))}
       </View>
-      <Text style={styles.donorNote}>{RACE_DONOR_EXPLANATION}</Text>
-      {fetchedAt ? (
-        <Text style={styles.freshness}>
-          {FILES_COPIED_LABEL} {centralDateLabel(fetchedAt)}
-        </Text>
-      ) : null}
+      <View style={[styles.columnHeadDivider, isTablet && styles.columnHeadDividerTablet]} />
       <View style={styles.rows}>
-        {contest.committees.map((committee) => (
+        {contest.committees.map((committee, index) => (
           <CommitteeRow
             key={committee.registrationNumber}
             committee={committee}
             year={year}
             isMobile={isMobile}
             isTablet={isTablet}
+            isLast={index === contest.committees.length - 1}
             onOpen={onOpen}
           />
         ))}
@@ -515,12 +548,14 @@ function CommitteeRow({
   year,
   isMobile,
   isTablet,
+  isLast,
   onOpen,
 }: {
   committee: RaceCommittee;
   year: number;
   isMobile: boolean;
   isTablet: boolean;
+  isLast: boolean;
   onOpen: (slug: string) => void;
 }) {
   const slug = committeeSlug(committee.name, committee.registrationNumber);
@@ -530,7 +565,14 @@ function CommitteeRow({
   const prefetchCommitteeMoney = usePrefetchCommitteeMoney();
   const warm = () => prefetchCommitteeMoney(committee.registrationNumber, slug, year);
   return (
-    <View style={[styles.row, isTablet && styles.tabletRow, isMobile && styles.rowMobile]}>
+    <View
+      style={[
+        styles.row,
+        isTablet && styles.tabletRow,
+        isMobile && styles.rowMobile,
+        isLast && styles.noBottomBorder,
+      ]}
+    >
       <View style={[styles.rowText, isMobile && styles.rowTextMobile]}>
         <Pressable
           {...linkProps(routePath.moneyCommittee(slug, { year: String(year) }), () => onOpen(slug))}
@@ -552,7 +594,7 @@ function CommitteeRow({
           <Text style={figure.isFigure ? styles.figureValue : styles.figureStandIn}>
             {figure.text}
           </Text>
-          {figure.period ? <Text style={styles.figurePeriod}>{figure.period}</Text> : null}
+          {figure.period ? <PeriodLine text={figure.period} /> : null}
           {figure.explanation ? (
             <Text style={styles.figurePeriod}>{figure.explanation}</Text>
           ) : null}
@@ -562,16 +604,20 @@ function CommitteeRow({
   );
 }
 
+function PeriodLine({ text }: { text: string }) {
+  const [start, end] = text.split(' to ');
+  if (!end) return <Text style={styles.figurePeriod}>{text}</Text>;
+  return (
+    <Text style={styles.figurePeriod}>
+      <Text style={styles.noWrap}>{start}</Text>
+      {' to '}
+      <Text style={styles.noWrap}>{end}</Text>
+    </Text>
+  );
+}
+
 const styles = StyleSheet.create({
   page: { flexGrow: 1 },
-  goBack: {
-    minHeight: 44,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink14,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    backgroundColor: t.colors.surfaces.base,
-  },
   officeControls: { marginTop: 26 },
   directory: { marginTop: 14, flexDirection: 'row', flexWrap: 'wrap' },
   directoryFull: { width: '100%' },
@@ -588,6 +634,7 @@ const styles = StyleSheet.create({
     borderBottomColor: t.colors.alpha.ink10,
   },
   directoryRowMobile: { flexDirection: 'column', alignItems: 'flex-start', gap: 8 },
+  noBottomBorder: { borderBottomWidth: 0 },
   directoryHover: { backgroundColor: '#f1f5f2' },
   directoryText: { flexGrow: 1, flexShrink: 1, minWidth: 0 },
   directoryName: {
@@ -607,18 +654,26 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   donorNote: {
-    maxWidth: 920,
+    maxWidth: 900,
     marginBottom: 0,
     fontVariant: ['tabular-nums'],
     fontFamily: t.typography.body,
-    fontSize: 15,
-    lineHeight: 24,
-    color: t.colors.text.secondary,
+    fontSize: 14.5,
+    lineHeight: 23.2,
+    color: '#4f5651',
   },
   main: { paddingTop: 28, paddingBottom: 64 },
+  mainFocused: { paddingBottom: 96 },
   mainTablet: { paddingHorizontal: 40 },
   mainMobile: { paddingTop: 18, paddingHorizontal: 20 },
-  backLink: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
+  backLink: {
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   backLabel: {
     fontFamily: t.typography.body,
     fontSize: 16,
@@ -628,14 +683,14 @@ const styles = StyleSheet.create({
   eyebrow: {
     marginTop: 18,
     fontFamily: t.typography.body,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 2.4,
-    color: t.colors.brand.deep,
+    color: '#2b6377',
   },
   h1: {
     fontVariant: ['tabular-nums'],
-    marginTop: 12,
+    marginTop: 14,
     fontFamily: t.typography.title,
     fontSize: 42,
     lineHeight: 48,
@@ -643,7 +698,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1.2,
     color: t.colors.text.primary,
   },
-  h1WithoutEyebrow: { marginTop: 24 },
+  h1WithoutEyebrow: { marginTop: 18 },
   h1Mobile: { fontSize: 30, lineHeight: 36, letterSpacing: -0.8 },
   dek: {
     marginTop: 12,
@@ -656,10 +711,11 @@ const styles = StyleSheet.create({
   registrationLabel: {
     marginTop: 14,
     fontFamily: t.typography.body,
-    fontSize: 15,
-    lineHeight: 22,
-    fontWeight: '600',
-    color: t.colors.text.primary,
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '400',
+    color: '#4f5651',
+    fontVariant: ['tabular-nums'],
   },
   countRow: { marginTop: 28, gap: 6 },
   countLine: {
@@ -667,15 +723,16 @@ const styles = StyleSheet.create({
     fontSize: 30,
     lineHeight: 38,
     fontWeight: '800',
+    letterSpacing: -0.6,
     color: t.colors.text.primary,
     fontVariant: ['tabular-nums'],
   },
   registerDate: {
     fontFamily: t.typography.body,
-    fontSize: 15,
+    fontSize: 14.5,
     lineHeight: 23,
-    fontWeight: '600',
-    color: t.colors.text.secondary,
+    fontWeight: '500',
+    color: '#5a615c',
     fontVariant: ['tabular-nums'],
   },
   chipRow: { marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
@@ -717,7 +774,8 @@ const styles = StyleSheet.create({
     gap: 18,
     flexWrap: 'wrap',
   },
-  contributionsHeading: { fontSize: 24, lineHeight: 32 },
+  focusedListHead: { justifyContent: 'space-between' },
+  contributionsHeading: { fontSize: 24, lineHeight: 32, fontWeight: '800', letterSpacing: -0.432 },
   listYear: {
     fontFamily: t.typography.body,
     fontSize: 17,
@@ -727,18 +785,21 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   listSort: {
+    flex: 1,
+    minWidth: 0,
     fontFamily: t.typography.body,
-    fontSize: 15,
+    fontSize: 14.5,
     lineHeight: 23,
-    fontWeight: '600',
-    color: t.colors.text.secondary,
+    fontWeight: '500',
+    color: '#5a615c',
+    textAlign: 'right',
   },
   comparisonNote: { marginTop: 12, maxWidth: 920 },
   contest: {
     marginTop: 20,
     paddingTop: 22,
     paddingHorizontal: 26,
-    paddingBottom: 10,
+    paddingBottom: 6,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink10,
     borderRadius: 16,
@@ -756,30 +817,41 @@ const styles = StyleSheet.create({
   mixedPeriods: { marginTop: 12, maxWidth: 920 },
   columnHead: {
     marginTop: 16,
-    marginBottom: 10,
     flexDirection: 'row',
-    gap: 24,
+    gap: 32,
     alignItems: 'flex-start',
   },
   columnHeadMobile: { flexDirection: 'column', gap: 12 },
   figureDefinition: {
     marginTop: 3,
     fontFamily: t.typography.body,
-    fontSize: 13,
-    lineHeight: 20,
-    color: t.colors.text.muted,
+    fontSize: 13.5,
+    lineHeight: 19.575,
+    color: '#5a615c',
   },
-  rows: { marginTop: 16, borderTopWidth: 1, borderTopColor: t.colors.alpha.ink08 },
+  cardIntroDivider: {
+    marginTop: 20,
+    height: 1,
+    backgroundColor: t.colors.alpha.ink12,
+  },
+  cardIntroDividerTablet: { marginTop: 18 },
+  columnHeadDivider: {
+    marginTop: 14,
+    height: 1,
+    backgroundColor: t.colors.alpha.ink08,
+  },
+  columnHeadDividerTablet: { marginTop: 12 },
+  rows: {},
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 24,
+    gap: 32,
     paddingVertical: 17,
     borderBottomWidth: 1,
     borderBottomColor: t.colors.alpha.ink08,
   },
   tabletRow: { gap: 16 },
-  rowMobile: { flexDirection: 'column', gap: 12, paddingVertical: 14 },
+  rowMobile: { flexDirection: 'column', gap: 12, paddingVertical: 17 },
   rowText: { flex: 1, minWidth: 0 },
   rowTextMobile: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: '100%' },
   rowNameLink: {
@@ -804,8 +876,8 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.body,
     fontSize: 14,
     lineHeight: 22,
-    fontWeight: '600',
-    color: t.colors.text.secondary,
+    fontWeight: '500',
+    color: '#5a615c',
     fontVariant: ['tabular-nums'],
   },
   closedLabel: {
@@ -817,14 +889,14 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
     fontVariant: ['tabular-nums'],
   },
-  figure: { width: 250, flexShrink: 0, minWidth: 0 },
+  figure: { width: 264, flexShrink: 0, minWidth: 0 },
   figureTablet: { width: 190, flexShrink: 0, minWidth: 0 },
   figureMobile: { width: '100%' },
   figureLabel: {
     fontFamily: t.typography.body,
-    fontSize: 13,
+    fontSize: 14.5,
     lineHeight: 20,
-    fontWeight: '700',
+    fontWeight: '800',
     color: t.colors.text.primary,
   },
   figureValue: {
@@ -838,8 +910,9 @@ const styles = StyleSheet.create({
   figureStandIn: {
     fontFamily: t.typography.body,
     fontSize: 15,
-    lineHeight: 22,
-    color: t.colors.text.secondary,
+    lineHeight: 20.25,
+    fontWeight: '600',
+    color: '#4f5651',
   },
   figurePeriod: {
     marginTop: 3,
@@ -849,6 +922,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
     fontVariant: ['tabular-nums'],
   },
+  noWrap: isWeb ? ({ whiteSpace: 'nowrap' } as object) : {},
   listNote: {
     marginTop: 10,
     maxWidth: 920,
@@ -856,15 +930,16 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.body,
     fontSize: 16,
     lineHeight: 25,
-    color: t.colors.text.secondary,
+    color: '#2c322c',
+    fontVariant: ['tabular-nums'],
   },
   freshness: {
-    marginTop: 12,
+    marginTop: 8,
     fontFamily: t.typography.body,
-    fontSize: 15,
-    lineHeight: 23,
+    fontSize: 14,
+    lineHeight: 22,
     fontWeight: '600',
-    color: t.colors.text.secondary,
+    color: '#5a615c',
     fontVariant: ['tabular-nums'],
   },
   card: {
@@ -912,12 +987,24 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: t.colors.alpha.ink10,
   },
+  notCoveredBoxFocused: {
+    width: '100%',
+    maxWidth: '100%',
+    marginTop: 40,
+    paddingTop: 26,
+    borderTopColor: t.colors.alpha.ink12,
+  },
   notCoveredLabel: {
     fontFamily: t.typography.body,
     fontSize: 18,
     lineHeight: 26,
     fontWeight: '800',
     color: t.colors.text.primary,
+  },
+  notCoveredLabelFocused: {
+    fontSize: 24,
+    lineHeight: 32,
+    letterSpacing: -0.432,
   },
   notCoveredList: { marginTop: 8, gap: 6 },
   notCoveredLine: {

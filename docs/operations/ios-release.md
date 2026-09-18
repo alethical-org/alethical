@@ -82,6 +82,21 @@ Smoke test these flows in the simulator:
 - API calls point at the intended backend environment.
 - Text remains readable on small and large simulated iPhones.
 
+## Native account and tracking acceptance checks
+
+Run these checks before a native release; they are acceptance requirements, not a
+claim that the native client passes today.
+
+Use the designated Alethical test account for a real Google sign-in. The account
+and callback protections in [AGENTS.md](../../AGENTS.md#hard-lines) apply: never
+capture or print private callback values, and never complete sign-in merely to
+prove a return address is allowed.
+
+- Sign in, close the app, and reopen it. Confirm the signed-in state remains.
+- Sign out, close the app, and reopen it. Confirm the signed-out state remains.
+- With the same designated test account on web and native, track and untrack a bill
+  in each client. Refresh the other client and confirm its saved list matches.
+
 ## TestFlight sharing
 
 TestFlight requires paid Apple Developer Program membership and App Store Connect access.

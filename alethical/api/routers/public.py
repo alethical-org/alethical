@@ -61,9 +61,8 @@ from alethical.api.services.campaign_finance_register import (
     committee_filings,
     committees as register_committees,
     committees_worth_indexing,
-    contest_count,
+    contests_and_independent_expenditure_rows,
     freshness,
-    independent_expenditure_row_count,
     legislator_committee_confirmations,
     recent_filings,
     register_entry,
@@ -4011,9 +4010,17 @@ def campaign_finance_summary(db: Session = Depends(get_db)):
         release_no_longer_held = True
     summary = register_summary(db)
     confirmations = legislator_committee_confirmations(db)
-    contests = contest_count(db)
-    payments = independent_expenditure_row_count(
-        db, release, release_no_longer_held=release_no_longer_held
+    # The register count is already in hand, so the contests are counted off it rather
+    # than counting the register a second time, and they ride back with the
+    # independent-expenditure rows in one request
+    # ([#1966](https://github.com/alethical-org/alethical/issues/1966)). Each block still
+    # decides its own state and its own reason, which is what keeps one missing source
+    # from blanking another lane.
+    contests, payments = contests_and_independent_expenditure_rows(
+        db,
+        release,
+        summary=summary,
+        release_no_longer_held=release_no_longer_held,
     )
     dates = freshness(db, release)
     return DetailResponse(

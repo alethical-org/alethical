@@ -12,7 +12,13 @@ import { isWeb, useHover } from './interactions';
 
 // Keep the existing page triggers and supplied content. The portal escapes page
 // stacking contexts and ScrollViews; Modal owns Escape, focus trapping/restoration.
-export function SharePopover({ content }: { content: ShareContent }) {
+export function SharePopover({
+  content,
+  compact = false,
+}: {
+  content: ShareContent;
+  compact?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [btnHovered, btnHover] = useHover();
   const { isDesktop } = useResponsive();
@@ -48,7 +54,7 @@ export function SharePopover({ content }: { content: ShareContent }) {
       : null;
 
   return (
-    <View style={styles.shareWrap}>
+    <View style={[styles.shareWrap, compact && styles.shareWrapCompact]}>
       <Pressable
         ref={shareBtnRef}
         accessibilityRole="button"
@@ -57,7 +63,12 @@ export function SharePopover({ content }: { content: ShareContent }) {
         aria-haspopup="dialog"
         onPress={() => setOpen((value) => !value)}
         {...btnHover}
-        style={[styles.shareBtn, btnHovered && styles.shareBtnHover]}
+        style={[
+          styles.shareBtn,
+          compact && styles.shareBtnCompact,
+          btnHovered && styles.shareBtnHover,
+          compact && btnHovered && styles.shareBtnCompactHover,
+        ]}
       >
         <Svg width={17} height={17} viewBox="0 0 24 24" fill="none" aria-hidden>
           <Circle cx={18} cy={5} r={2.6} stroke={t.colors.text.primary} strokeWidth={2} />
@@ -70,7 +81,7 @@ export function SharePopover({ content }: { content: ShareContent }) {
             strokeLinecap="round"
           />
         </Svg>
-        <Text style={styles.shareBtnText}>Share</Text>
+        <Text style={[styles.shareBtnText, compact && styles.shareBtnTextCompact]}>Share</Text>
       </Pressable>
       {!isDesktop ? (
         <MobileShareSheet visible={open} onClose={() => setOpen(false)} content={content} />
@@ -131,6 +142,7 @@ function measureBox(node: View | null, apply: (box: AnchorRect) => void) {
 
 const styles = StyleSheet.create({
   shareWrap: { position: 'relative', zIndex: 60, marginBottom: 10 },
+  shareWrapCompact: { marginBottom: 0 },
   shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -144,12 +156,21 @@ const styles = StyleSheet.create({
     borderRadius: t.radii.md,
   },
   shareBtnHover: { borderColor: t.colors.alpha.ink32, backgroundColor: t.colors.surfaces.s200 },
+  shareBtnCompact: {
+    minHeight: 44,
+    gap: 9,
+    paddingVertical: 0,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+  },
+  shareBtnCompactHover: { backgroundColor: t.colors.surfaces.base },
   shareBtnText: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.bodyLg,
     fontWeight: t.fontWeights.semibold,
     color: t.colors.text.primary,
   },
+  shareBtnTextCompact: { fontSize: 15.5, fontWeight: '700' },
   sharePanel: {
     position: 'absolute',
     width: 366,

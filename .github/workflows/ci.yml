@@ -57,6 +57,31 @@ jobs:
           # Shared with local upload checks; JSON is also valid YAML.
           filters: .github/check-paths.json
 
+      # Security findings must block every release, including dependency changes
+      # that do not select an app test suite. Keep this in the required changes
+      # job, which always runs on pull requests and merge-queue commits.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          version: 0.12.5
+          enable-cache: true
+          prune-cache: true
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Check all locked Python and JavaScript packages for security problems
+        run: >
+          python scripts/check_technology_health.py --security-only
+          --report "$GITHUB_STEP_SUMMARY"
+
       # Free backstop for private-repo secret scanning. It checks only the new
       # commits in this push, PR or merge group and fails for a live credential or
       # a credential whose live check could not complete. Alethical has no Lob
@@ -78,6 +103,10 @@ jobs:
       # skip. Pure stdlib, so the Python setup above is the only dependency.
       - name: Check doc references resolve
         run: python scripts/check_doc_references.py
+      - name: Check documents are indexed and design exports stay out
+        run: python scripts/check_doc_structure.py
+      - name: Test document structure checks without database or network
+        run: python -m unittest discover -s scripts/tests -p 'test_doc_structure.py'
       - name: Test local upload selection without database or network
         run: python -m unittest discover -s scripts/tests -p 'test_local_checks.py'
       - name: Check quoted doc claims still exist

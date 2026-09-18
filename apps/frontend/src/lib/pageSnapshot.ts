@@ -124,7 +124,6 @@ import {
   EMPTY_YEAR_VALUE,
   FILINGS_HEADLINE,
   OUTSIDE_BY_ALL_YEARS,
-  emptyYearMoneyInWhy,
   NOT_IN_REGISTER_LINE,
   RECORD_COVERS_HEADING,
   recordCoverageLines,
@@ -1847,7 +1846,7 @@ export function committeePageSnapshot(
       kind: 'prose',
       lines: [
         `${MONEY_IN_REPORTED_LABEL}: ${closed ? CLOSED_EMPTY_VALUE : EMPTY_YEAR_VALUE}`,
-        closed ? CLOSED_MONEY_IN_WHY : emptyYearMoneyInWhy(year),
+        ...(closed ? [CLOSED_MONEY_IN_WHY] : []),
       ],
     });
   } else {

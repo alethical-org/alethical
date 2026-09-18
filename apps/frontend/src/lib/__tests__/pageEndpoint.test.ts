@@ -2124,7 +2124,7 @@ describe('a committee address naming a year is answered in that year', () => {
     outTotal: '40.0000',
   };
 
-  /** No filing covers the year: rule 12's "Not reported", never a 0. */
+  /** No report figures in our copy: unavailable, never a 0. */
   const NO_FILING = {
     splitState: 'no_reported_total',
     reportedTotal: null,
@@ -2235,7 +2235,7 @@ describe('a committee address naming a year is answered in that year', () => {
     expect(headers.get('X-Robots-Tag')).toBeUndefined();
   });
 
-  it('reads "Not reported" for a requested year with no filing, never 0', async () => {
+  it('describes unavailable report figures for the requested year, never 0', async () => {
     stubFinance({
       2025: financeFor(2025, NO_FILING),
       2026: financeFor(2026, OTHER_YEAR_FIGURES),
@@ -2243,8 +2243,8 @@ describe('a committee address naming a year is answered in that year', () => {
 
     const { body } = await serve({ path: `/money/committees/${SLUG}`, year: '2025' });
 
-    expect(body).toContain('Not reported');
-    expect(body).toContain('We have no report figures for 2025');
+    expect(body).toContain('Report total unavailable');
+    expect(body).toContain('No 2025 report figures in our copy of the state’s files');
     expect(body).not.toContain('$0');
     expect(body).not.toContain('$360');
   });

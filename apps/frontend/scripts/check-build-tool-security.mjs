@@ -53,7 +53,60 @@ const xcodeRequire = createRequire(require.resolve('xcode/package.json'));
 assertPackageVersion(xcodeRequire, 'uuid', '11.1.1');
 
 const plistRequire = createRequire(easRequire.resolve('@expo/plist/package.json'));
-assertPackageVersion(plistRequire, '@xmldom/xmldom', '0.8.13');
+assertPackageVersion(plistRequire, '@xmldom/xmldom', '0.8.15');
+
+const navigationRequire = createRequire(require.resolve('@react-navigation/core'));
+const queryStringEntry = navigationRequire.resolve('query-string');
+const queryStringRequire = createRequire(queryStringEntry);
+assertPackageVersion(queryStringRequire, 'decode-uri-component', '0.5.0');
+
+// React Navigation still uses query-string's CommonJS entry point. The small
+// package patch selects the fixed decoder's ESM default export without changing
+// its upstream decoding algorithm.
+const queryString = navigationRequire('query-string');
+assert.deepEqual(
+  { ...queryString.parse('q=Saint+Paul%20%C3%A5%20%F0%9F%98%80&encoded%20key=%2B') },
+  { 'encoded key': '+', q: 'Saint Paul å 😀' },
+  'Navigation must decode Unicode, spaces, plus signs, and query parameter names',
+);
+assert.deepEqual(
+  { ...queryString.parse('q=%E0%A4%A&literal=%25&bad=%GG') },
+  { bad: '%GG', literal: '%', q: '%E0%A4%A' },
+  'Malformed query text must remain readable without throwing',
+);
+assert.deepEqual(
+  { ...queryString.parse('q=first&q=second&flag&empty=') },
+  { empty: '', flag: null, q: ['first', 'second'] },
+  'Navigation must preserve repeated, empty, and valueless query parameters',
+);
+assert.equal(
+  queryString.stringify({ q: 'Saint Paul å 😀', symbol: '+' }, { sort: false }),
+  'q=Saint%20Paul%20%C3%A5%20%F0%9F%98%80&symbol=%2B',
+  'Navigation must still write shareable query strings',
+);
+
+// Keep the deliberately malformed input in a child process. A future regression
+// must fail within 5 seconds instead of freezing the entire security check.
+const malformedQueryResult = spawnSync(
+  process.execPath,
+  [
+    '--input-type=commonjs',
+    '--eval',
+    `const assert = require('node:assert/strict');
+     const queryString = require(process.argv[1]);
+     const malformed = '%80'.repeat(2048);
+     assert.equal(queryString.parse('q=' + malformed).q, malformed);`,
+    queryStringEntry,
+  ],
+  { encoding: 'utf8', timeout: 5000 },
+);
+assert.equal(
+  malformedQueryResult.status,
+  0,
+  `Malformed query text must finish within 5 seconds: ${
+    malformedQueryResult.error?.message || malformedQueryResult.stderr
+  }`,
+);
 
 const deepMerge = easRequire('ts-deepmerge').default;
 assert.equal(typeof deepMerge, 'function', 'EAS CLI needs the ts-deepmerge default export');

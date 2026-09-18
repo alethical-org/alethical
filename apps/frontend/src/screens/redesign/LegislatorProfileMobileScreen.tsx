@@ -19,6 +19,7 @@ import { Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import { GoBackLink } from '../../components/GoBackLink';
 import { LinkArrowLabel } from '../../components/LinkArrow';
+import { PageContextLabel } from '../../components/PageContextLabel';
 import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';
 import { coAuthorCount, formatMonoDate, partyFull, plainBillSummary } from '../../lib/billDetail';
 import {
@@ -546,9 +547,15 @@ export function LegislatorProfileMobileScreen() {
                 <View style={styles.column}>
                   <GoBackLink href={routePath.legislators()} onPress={goToLegislatorList} mobile />
                   {!servesNow(leg.chamber) ? (
-                    <Text style={styles.eyebrow}>LEGISLATOR PROFILE</Text>
+                    <PageContextLabel style={styles.eyebrow}>LEGISLATOR PROFILE</PageContextLabel>
                   ) : null}
-                  <View style={styles.heroIdentity}>
+                  <View
+                    testID="profile-hero-row"
+                    style={[
+                      styles.heroIdentity,
+                      servesNow(leg.chamber) && styles.heroIdentityWithoutEyebrow,
+                    ]}
+                  >
                     <View style={styles.portrait}>
                       {leg.photoUrl ? (
                         <Image
@@ -1003,6 +1010,7 @@ const styles = StyleSheet.create({
     color: t.colors.brand.deep,
   },
   heroIdentity: { marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 16 },
+  heroIdentityWithoutEyebrow: { marginTop: 0 },
   portrait: {
     width: 88,
     height: 114,

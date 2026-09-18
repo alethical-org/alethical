@@ -12,6 +12,7 @@ import {
 import Svg, { Path } from 'react-native-svg';
 import { YearControl } from '../../components/campaignMoney/YearControl';
 import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
+import { PageContextLabel } from '../../components/PageContextLabel';
 import { Skeleton } from '../../components/Skeleton';
 import type { CommitteeMadePayment, CommitteeReceivedPayment } from '../../data/types';
 import { useCommitteeMoney, useCommitteePaymentsList } from '../../hooks/useAppQueries';
@@ -55,7 +56,7 @@ import {
 } from '../../lib/committeeMoneyShared';
 import {
   committeeMoneyYears,
-  committeeAlternativeYear,
+  VIEW_FILED_REPORTS,
   stampThroughDate,
 } from '../../lib/committeeMoneyShared';
 import { paymentFilesDownloadedLine } from '../../lib/campaignMoneyDetailsPageCopy';
@@ -73,6 +74,7 @@ import { externalLinkProps, linkProps, routePath } from '../../navigation/links'
 import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
+import { contentTabStyle } from '../../theme/contentTabs';
 
 /** The report dates describe the report. The payment list is selected by filing
  * year independently, and either source can remain readable while the other fails. */
@@ -253,7 +255,7 @@ export function CommitteePaymentsScreen({
           </FocusPressable>
           {notFound && registrationNumber ? (
             <View style={styles.notFoundWrap}>
-              <Text style={styles.eyebrow}>COMMITTEES</Text>
+              <PageContextLabel style={styles.eyebrow}>Committees</PageContextLabel>
               <Text accessibilityRole="header" aria-level={1} style={styles.h1}>
                 {notFoundTitle()}
               </Text>
@@ -269,9 +271,9 @@ export function CommitteePaymentsScreen({
             </View>
           ) : (
             <>
-              <Text style={[styles.eyebrow, styles.eyebrowSpaced]}>
-                {paymentsEyebrow(tab).toUpperCase()}
-              </Text>
+              <PageContextLabel style={[styles.eyebrow, styles.eyebrowSpaced]}>
+                {paymentsEyebrow(tab)}
+              </PageContextLabel>
               <ResultsHeading
                 isMobile={isMobile}
                 content={
@@ -301,17 +303,17 @@ export function CommitteePaymentsScreen({
               <View style={styles.controls}>
                 <View style={styles.tabsRow} role="group" aria-label="Payment direction">
                   {(Object.keys(PAYMENTS_TAB_LABELS) as PaymentsTab[]).map((key) => (
-                    <FocusPressable
+                    <Pressable
                       key={key}
                       onPress={() => navigation.setParams({ tab: key })}
                       accessibilityRole="button"
                       aria-pressed={key === tab}
-                      style={[styles.tab, key === tab && styles.tabActive]}
+                      style={contentTabStyle(styles.tab, key === tab, styles.tabActive)}
                     >
                       <Text style={[styles.tabLabel, key === tab && styles.tabLabelActive]}>
                         {PAYMENTS_TAB_LABELS[key]}
                       </Text>
-                    </FocusPressable>
+                    </Pressable>
                   ))}
                 </View>
                 <YearControl
@@ -364,13 +366,18 @@ export function CommitteePaymentsScreen({
                       </Text>
                       <Text style={styles.explain}>{emptyListWhy(year)}</Text>
                       <FocusPressable
-                        onPress={() => selectYear(committeeAlternativeYear(year))}
-                        accessibilityRole="button"
+                        {...linkProps(
+                          routePath.moneyCommittee(slug, { tab: 'filings', year: String(year) }),
+                          () =>
+                            navigation.navigate('CommitteeMoney', {
+                              slug,
+                              tab: 'filings',
+                              year: String(year),
+                            }),
+                        )}
                         style={styles.primaryButton}
                       >
-                        <Text style={styles.primaryButtonLabel}>
-                          See {committeeAlternativeYear(year)}
-                        </Text>
+                        <Text style={styles.primaryButtonLabel}>{VIEW_FILED_REPORTS}</Text>
                       </FocusPressable>
                     </View>
                   ) : (
@@ -744,8 +751,12 @@ const styles = StyleSheet.create({
     borderBottomColor: t.colors.alpha.ink08,
   },
   // 44px on the tab's own box at every width (phone band rule F1).
-  tab: { minHeight: 44, justifyContent: 'flex-end', paddingBottom: 12 },
-  tabActive: { borderBottomWidth: 2, borderBottomColor: t.colors.text.primary, marginBottom: -1 },
+  tab: {
+    minHeight: 44,
+    justifyContent: 'flex-end',
+    paddingBottom: 12,
+  },
+  tabActive: { marginBottom: -1 },
   tabLabel: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.bodyLg,

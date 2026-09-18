@@ -51,6 +51,12 @@ import type { RootScreenProps } from '../../navigation/types';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
+import {
+  ensureYearFilterWebStyles,
+  yearFilterButtonStyle,
+  yearFilterLabelStyle,
+  yearFilterSelectProps,
+} from '../../theme/yearFilters';
 
 function Chevron({
   right = false,
@@ -145,6 +151,9 @@ export function OutsideSpendingBrowseScreen({
     navigation.setParams(outsideBrowseChange(address, change));
 
   useDocumentTitle('/money/outside-spending', outsideSpendingPageMetadata().title);
+  useEffect(() => {
+    ensureYearFilterWebStyles();
+  }, []);
   useEffect(() => {
     setInput(q);
   }, [q, mode]);
@@ -458,6 +467,7 @@ export function OutsideSpendingBrowseScreen({
               {isMobile && Platform.OS === 'web' ? (
                 <select
                   aria-label="Year"
+                  {...yearFilterSelectProps}
                   value={year ?? ''}
                   onChange={(e) => apply({ year: e.target.value || undefined })}
                   style={{
@@ -488,9 +498,9 @@ export function OutsideSpendingBrowseScreen({
                       accessibilityRole="button"
                       aria-pressed={year === y}
                       onPress={() => apply({ year: y === null ? undefined : String(y) })}
-                      style={[styles.yearButton, year === y && styles.yearActive]}
+                      style={(state) => yearFilterButtonStyle(styles.yearButton, year === y, state)}
                     >
-                      <Text style={[styles.yearText, year === y && styles.yearTextActive]}>
+                      <Text style={yearFilterLabelStyle(styles.yearText, year === y)}>
                         {y ?? 'All years'}
                       </Text>
                     </Pressable>
@@ -712,7 +722,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     justifyContent: 'center',
   },
-  yearActive: { backgroundColor: '#11150f', borderColor: '#11150f' },
   yearText: {
     fontFamily: t.typography.body,
     fontSize: 15,
@@ -720,7 +729,6 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     color: t.colors.text.secondary,
   },
-  yearTextActive: { color: '#fff' },
   desktopColumns: { flexDirection: 'row', gap: 24, alignItems: 'flex-start' },
   browseColumn: { flex: 1, minWidth: 0, gap: 18 },
   overviewColumn: { width: 372 },

@@ -168,7 +168,7 @@ describe('the donor chart explains what its cash shares represent', () => {
   it('draws the real sample as named cash only when no official total is held', () => {
     const view = markup(breakdown());
     expect(view.querySelector('svg')).not.toBeNull();
-    expect(view.textContent).toContain('Who gave (named donations only)');
+    expect(view.textContent).toContain('Who gave (itemized contributions only)');
     expect(view.textContent).toContain(
       'Shares of itemized contributions this year, excluding donated goods and services',
     );
@@ -281,17 +281,15 @@ describe('the donor list preserves the complete filed record', () => {
     expect(getComputedStyle(line).fontWeight).toBe('400');
   });
 
-  it('keeps the 5 fixed tabs when empty without inventing an Other category', () => {
+  it('replaces fully empty lists with a statement, without empty controls or a zero total', () => {
     const view = markup(list({ groups: [] }));
     const tabs = Array.from(view.querySelectorAll('[role="tab"]')).map((tab) => tab.textContent);
-    expect(tabs).toEqual([
-      'Individuals 0',
-      'Lobbyists 0',
-      'Committees & Funds 0',
-      'Party Units 0',
-      'Expenditures 0',
-    ]);
-    expect(view.textContent).toContain('names no individual');
+    expect(tabs).toEqual([]);
+    expect(view.textContent).toContain(
+      'No itemized contributions or expenditures in our copy for this year',
+    );
+    expect(view.querySelector('input')).toBeNull();
+    expect(view.textContent).not.toContain('$0');
   });
 
   it('keeps Other kinds with the contribution tabs and Expenditures last', () => {
@@ -486,7 +484,7 @@ describe('the accepted names-section controls', () => {
         tabs[index],
       ]);
       expect(getComputedStyle(tabs[index]).borderBottomWidth).toBe('3px');
-      expect(getComputedStyle(tabs[index]).borderBottomColor).toBe('rgb(17, 21, 15)');
+      expect(getComputedStyle(tabs[index]).borderBottomColor).toBe('rgb(46, 212, 126)');
     };
     expectChosen(0);
     expect(tabs[0].textContent).toBe('Individuals 74');

@@ -21,6 +21,7 @@ import { linkProps, routePath } from '../../navigation/links';
 import { numericText, useDetailsStyles } from './detailsStyles';
 import { moneyDetailsCopy as copy } from '../../lib/campaignMoneyDetailsCopy';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
+import { contentTabStyle } from '../../theme/contentTabs';
 import { LobbyingDonationContext } from '../lobbying/LobbyingDonationContext';
 
 function wash(hex: string): string {
@@ -95,6 +96,9 @@ export function DonorPaymentList({
   const current = MONEY_DETAILS_TABS.find((item) => item.id === tab)!;
   const isExpenditures = tab === 'expenditures';
   const summaryColor = isExpenditures ? c.secondary : c[tab];
+  if (ready && groups.length === 0) {
+    return <Text style={s.body}>{copy.emptyLists}</Text>;
+  }
   return (
     <View style={[s.section, styles.section]}>
       <View role="tablist" aria-label={copy.tabsLabel} style={styles.tabsScroll} {...tabKeys}>
@@ -110,11 +114,7 @@ export function DonorPaymentList({
               aria-controls={panelId}
               tabIndex={index === keyboardTabIndex ? 0 : -1}
               onPress={() => onSelectTab(item.id)}
-              style={(state) => [
-                styles.tab,
-                Boolean('focused' in state && state.focused) && s.namesFocus,
-                tab === item.id && styles.activeTab,
-              ]}
+              style={contentTabStyle(styles.tab, tab === item.id)}
             >
               {(state) => (
                 <Text
@@ -159,51 +159,55 @@ export function DonorPaymentList({
           </View>
         ) : (
           <>
-            <View style={[s.horizontal, styles.toolbar]}>
-              <TextInput
-                value={query}
-                onChangeText={(text) => {
-                  setQuery(text);
-                  setShowAll(false);
-                }}
-                {...focusProps}
-                accessibilityLabel={copy.search}
-                placeholder={copy.search}
-                autoComplete="off"
-                spellCheck={false}
-                placeholderTextColor={c.muted}
-                style={[
-                  s.body,
-                  styles.search,
-                  fieldOutlineReset,
-                  ...fieldFocusRing(focused),
-                  focused && styles.searchFocused,
-                ]}
-              />
-              <SortMenu key={`${year}-${tab}`} value={sort} onSelect={setSort} />
-            </View>
-            <View
-              testID="payment-list-summary"
-              style={[styles.summary, { backgroundColor: wash(summaryColor) }]}
-            >
-              <Text style={[s.body, styles.countText]}>
-                {copy.counts(data.nameCount, data.paymentCount)}
-              </Text>
-              <View style={styles.totalBlock}>
-                <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>{copy.tabTotal(isExpenditures)}</Text>
-                  <Text testID="payment-list-total" style={[s.body, styles.totalAmount]}>
-                    {formatMoney(data.amount) ?? copy.totalMissing}
-                  </Text>
+            {data.paymentCount > 0 ? (
+              <>
+                <View style={[s.horizontal, styles.toolbar]}>
+                  <TextInput
+                    value={query}
+                    onChangeText={(text) => {
+                      setQuery(text);
+                      setShowAll(false);
+                    }}
+                    {...focusProps}
+                    accessibilityLabel={copy.search}
+                    placeholder={copy.search}
+                    autoComplete="off"
+                    spellCheck={false}
+                    placeholderTextColor={c.muted}
+                    style={[
+                      s.body,
+                      styles.search,
+                      fieldOutlineReset,
+                      ...fieldFocusRing(focused),
+                      focused && styles.searchFocused,
+                    ]}
+                  />
+                  <SortMenu key={`${year}-${tab}`} value={sort} onSelect={setSort} />
                 </View>
-                {isAmountAboveZero(data.inKindAmount) ? (
-                  <Text style={[s.small, styles.goodsShare]}>
-                    {copy.goodsShare(formatMoney(data.inKindAmount))}
+                <View
+                  testID="payment-list-summary"
+                  style={[styles.summary, { backgroundColor: wash(summaryColor) }]}
+                >
+                  <Text style={[s.body, styles.countText]}>
+                    {copy.counts(data.nameCount, data.paymentCount)}
                   </Text>
-                ) : null}
-              </View>
-            </View>
-            {isExpenditures ? (
+                  <View style={styles.totalBlock}>
+                    <View style={styles.totalRow}>
+                      <Text style={styles.totalLabel}>{copy.tabTotal(isExpenditures)}</Text>
+                      <Text testID="payment-list-total" style={[s.body, styles.totalAmount]}>
+                        {formatMoney(data.amount) ?? copy.totalMissing}
+                      </Text>
+                    </View>
+                    {isAmountAboveZero(data.inKindAmount) ? (
+                      <Text style={[s.small, styles.goodsShare]}>
+                        {copy.goodsShare(formatMoney(data.inKindAmount))}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+              </>
+            ) : null}
+            {isExpenditures && data.paymentCount > 0 ? (
               <Text style={[s.small, styles.listedSpendingNote]}>{copy.listedSpendingNote}</Text>
             ) : null}
             {visible.length ? (
@@ -227,7 +231,7 @@ export function DonorPaymentList({
                 ))}
               </View>
             ) : (
-              <Text style={[s.body, styles.emptyList, !query && s.numeric]}>
+              <Text style={[s.body, styles.emptyList]}>
                 {query ? copy.noSearchMatch : copy.emptyTab(current.emptyWord, year)}
               </Text>
             )}
@@ -539,13 +543,11 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderWidth: 1,
     borderColor: 'transparent',
-    borderBottomWidth: 3,
     marginBottom: -1,
     borderTopLeftRadius: 4,
     borderTopRightRadius: 4,
     ...({ outlineStyle: 'none' } as object),
   },
-  activeTab: { borderBottomColor: c.text },
   tabLabel: { fontSize: 17, fontWeight: '700', ...({ whiteSpace: 'nowrap' } as object) },
   tabCount: { fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] },
   inactiveTab: { color: c.muted },

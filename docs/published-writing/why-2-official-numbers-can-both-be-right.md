@@ -10,8 +10,8 @@
      direct a change (point 2a) and forbids us editing them on our own initiative.
 
      WHAT IT IS. The third piece written in the set "How the Money Works", following
-     `docs/reader-guides/who-has-to-report-their-money.md` and
-     `docs/reader-guides/what-the-records-name.md`. Issue #1752's first comment fixes
+     `docs/published-writing/who-has-to-report-their-money.md` and
+     `docs/published-writing/what-the-records-name.md`. Issue #1752's first comment fixes
      the set's reading order and titles this one "Why 2 official numbers can both be
      right", which is also the subject piece 2's closing paragraph hands off to. A
      **Guide** teaches one piece of how the system works and draws no conclusions.

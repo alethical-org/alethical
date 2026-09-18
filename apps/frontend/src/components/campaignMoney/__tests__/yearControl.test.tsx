@@ -3,6 +3,7 @@ import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../../lib/campaignMoneyColors';
+import { theme as t } from '../../../theme/tokens';
 import { YearControl } from '../YearControl';
 
 let mount: HTMLDivElement;
@@ -24,6 +25,12 @@ function color(value: string) {
   const element = document.createElement('div');
   element.style.color = value;
   return element.style.color;
+}
+
+function pointerEnter(element: HTMLElement) {
+  const event = new Event('pointerenter');
+  Object.defineProperty(event, 'pointerType', { value: 'mouse' });
+  element.dispatchEvent(event);
 }
 
 describe('shared campaign money year buttons', () => {
@@ -48,7 +55,7 @@ describe('shared campaign money year buttons', () => {
       expect(buttons.map((button) => button.getAttribute('aria-label'))).toEqual([
         '2026',
         '2025',
-        '2024, named donations only',
+        '2024, itemized contributions only',
       ]);
       expect(buttons.map((button) => button.getAttribute('aria-pressed'))).toEqual([
         'true',
@@ -98,5 +105,20 @@ describe('shared campaign money year buttons', () => {
       expect(style.flexBasis).toBe('auto');
       expect(style.minWidth).toBe('76px');
     }
+  });
+
+  it('uses a green boundary on hover without replacing the black selected block', () => {
+    act(() => root.render(<YearControl year={2026} years={[2026, 2025]} onSelect={vi.fn()} />));
+    const [selected, unselected] = [...mount.querySelectorAll<HTMLElement>('[role="button"]')];
+
+    act(() => {
+      pointerEnter(unselected);
+    });
+    expect(getComputedStyle(unselected).borderColor).toBe(color(t.colors.brand.base));
+
+    act(() => pointerEnter(selected));
+    expect(getComputedStyle(selected).backgroundColor).toBe(color(t.colors.text.primary));
+    expect(getComputedStyle(selected).borderColor).toBe(color(t.colors.text.primary));
+    expect(getComputedStyle(selected).outlineStyle).toBe('none');
   });
 });

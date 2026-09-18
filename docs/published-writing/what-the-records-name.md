@@ -14,7 +14,7 @@
      carry it.
 
      WHAT IT IS. The second piece written in the set "How the Money Works", following
-     `docs/reader-guides/who-has-to-report-their-money.md`. Issue #1752's first comment
+     `docs/published-writing/who-has-to-report-their-money.md`. Issue #1752's first comment
      fixes the set's reading order and titles this one "What the records name, and what
      they leave out", which is also the phrase piece 1's closing paragraph uses to hand
      off to it. A **Guide** teaches one piece of how the system works and draws no

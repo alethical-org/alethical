@@ -1,4 +1,4 @@
-import { StyleProp, StyleSheet, Text, TextStyle, ViewStyle } from 'react-native';
+import { Platform, StyleProp, StyleSheet, Text, TextStyle, ViewStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 /**
@@ -26,9 +26,9 @@ export function LinkArrowLabel({ label, style }: { label: string; style?: StyleP
   const start = lastSpace < 0 ? '' : `${label.slice(0, lastSpace)} `;
   const end = lastSpace < 0 ? label : label.slice(lastSpace + 1);
   return (
-    <Text style={style}>
+    <Text style={[styles.inheritDecoration, style]}>
       {start}
-      <Text style={styles.keepTogether}>
+      <Text style={[styles.inheritDecoration, styles.keepTogether]}>
         {end}
         <LinkArrow color={GREEN_LINK_ARROW_COLOR} style={styles.inlineArrow} />
       </Text>
@@ -72,6 +72,18 @@ export function LinkArrow({ color, style }: { color: string; style?: StyleProp<V
 }
 
 const styles = StyleSheet.create({
+  // Text decoration does not cross an inline-flex boundary automatically. Inherit
+  // it explicitly, including parent-owned hover styles, so the final word matches
+  // the rest of the label. The SVG remains an undecorated flex item.
+  inheritDecoration:
+    Platform.OS === 'web'
+      ? ({
+          textDecorationLine: 'inherit',
+          textDecorationColor: 'inherit',
+          textDecorationStyle: 'inherit',
+          textDecorationThickness: 'inherit',
+        } as object)
+      : {},
   // The surrounding layout owns vertical centering. A shared top offset cannot serve
   // both an inline label and a separate flex-row arrow: it moves one of them twice.
   arrow: { flexShrink: 0, pointerEvents: 'none' },

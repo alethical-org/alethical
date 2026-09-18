@@ -62,7 +62,8 @@ close the list. The page shows the movement hint only when the list has at least
 choices.
 
 Both address lists use the same keyboard, mouse, and touch behavior. Moving with the
-arrow keys or hovering highlights the current choice. Alethical never chooses a
+arrow keys or hovering puts a bright-green line around the current choice while keeping its
+background white. Alethical never chooses a
 suggestion without the reader's click, tap, or Enter key.
 
 After a successful search, the address box and the page's browser link use the official
@@ -100,6 +101,14 @@ These 2 lines stay the same after an address, saved lookup, or map point loads.
 - Drag the map with a mouse or 1 finger to move around.
 - Drag the selected pin, or use its arrow keys, to adjust the location.
 
+Moving or zooming the map changes the view without changing the selected location
+or starting another lookup. Moving the pin with arrow keys starts a lookup 500
+milliseconds after the last movement; holding Shift moves the pin farther.
+
+If the background map images fail to load, the district lines, pin, and controls
+remain usable on a plain background. The OpenStreetMap credit appears when its
+images load; district-source credit stays visible in either case.
+
 After a match, the map draws the House and Senate district lines around the selected
 point. The district cards stay visible while a moved pin is being checked. If the new
 point fails, the page keeps the earlier cards and says it could not update the districts.
@@ -125,6 +134,9 @@ representative. A card can include:
 - phone, email, and office address;
 - a link to the member's official Minnesota Legislature profile; and
 - **View profile**, which opens Alethical's full legislator page.
+
+The card shows at most 6 issue labels, followed by **+N more** for the remainder.
+These labels describe the member's authored bills, not inferred personal priorities.
 
 Some fields are absent when the official record does not provide them. If a seat is
 vacant, the page says **Seat vacant** instead of inventing a member.
@@ -158,6 +170,9 @@ While a lookup is running, the page says **Looking up districts** and shows 2
 placeholder cards. The page does not show an old address result as if it belonged to a
 new typed address.
 
+The placeholder animation waits 250 milliseconds, so a quick result does not flash
+an animation on screen.
+
 ---
 
 ## 6. Sources and privacy
@@ -176,6 +191,9 @@ The lookup uses public records and public map services:
 
 On phones and computers, the 3 map credit lines begin below the first map view. They
 remain available by scrolling farther down the page.
+
+The complete Census notice reads: **This product uses the Census Bureau Data API
+but is not endorsed or certified by the Census Bureau**.
 
 What happens to the location data:
 

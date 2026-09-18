@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { theme as t } from '../../theme/tokens';
+import { contentTabStyle } from '../../theme/contentTabs';
 import { routePath } from '../../navigation/links';
 import { useResponsive } from '../../hooks/useResponsive';
 import type { ShareContent } from '../../lib/share';
@@ -148,7 +149,7 @@ function TabButton({
       onPressIn={onPressIn}
       onPress={onPress}
       {...hover}
-      style={[styles.tab, active && styles.tabActive]}
+      style={contentTabStyle(styles.tab, active)}
     >
       <Text
         style={[
@@ -285,11 +286,6 @@ const styles = StyleSheet.create({
   tab: {
     paddingHorizontal: 2,
     paddingBottom: 14,
-    borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
-  },
-  tabActive: {
-    borderBottomColor: t.colors.brand.base,
   },
   tabLabel: {
     fontFamily: t.typography.ui,

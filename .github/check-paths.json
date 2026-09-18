@@ -25,6 +25,7 @@
     "package.json",
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
+    "patches/**",
     "scripts/local_checks.py",
     "scripts/format_frontend.mjs",
     "scripts/tests/test_local_checks.py",

@@ -37,7 +37,7 @@ dependencies = [
   "pytest>=9.1.1",
   # Starlette's test client now runs on httpx2. Keep plain httpx below for the
   # production services and Supabase packages that still import it directly.
-  "httpx2>=2.0.0",
+  "httpx2>=2.12.0",
   "httpx>=0.28.1",
   "pytest-asyncio>=1.4.0",
   "supabase>=2.31.0",
@@ -67,7 +67,7 @@ dependencies = [
   # the deployed image beyond itself. Nothing is rebuilt from those documents -- one
   # stated subtotal is read per schedule and the payment rows keep coming from the
   # bulk download (§2.3).
-  "pypdf>=6.15.0",
+  "pypdf>=6.16.1",
   # Manual HUD ZIP-reference workbook import; API requests read packaged JSON.
   "openpyxl==3.1.5",
 ]

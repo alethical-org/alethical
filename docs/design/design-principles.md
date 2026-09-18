@@ -104,6 +104,19 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   and equal-width digits during the build, without another approval. Preserve the intended
   size and weight unless a separate approved change requires otherwise. Existing screens
   outside the task's scope do not need a separate migration to complete that handoff.
+- **Selected content tabs use one green underline everywhere.** Every horizontal content-tab
+  row uses a 3px `brand.base` green underline on the selected tab. Inactive tabs reserve the
+  same 3px space with a transparent line so the row never moves when the selection changes.
+  Selection never adds a purple outline: a pointer click leaves only the green underline.
+  Keyboard navigation still receives the sitewide purple `:focus-visible` ring, which marks
+  keyboard focus rather than selection and matches the legislator-profile tabs.
+  This applies to bill, legislator, committee, donation, payment, and future content tabs at
+  every screen width. Navigation bars remain navigation bars and keep their own selected-state
+  treatment. **Every future Design handoff follows this tab rule.** When a drawing omits the
+  selected underline, shows it in another color, or adds an outline to the selected state, the
+  current coding agent restores the shared green underline without a selected-state outline
+  during the build and without another approval. Preserve the drawing's spacing, type, and
+  other state changes unless a separate approved change requires otherwise.
 - **Shape.** Softly rounded, never sharp and never pill-everything: cards and inputs ~12px radius,
   small chips/badges smaller, full pills only for genuinely pill-shaped controls. Rounded = approachable
   and modern; restrained radius = still serious.
@@ -115,12 +128,27 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   state repeats the chip row's "Clear all" verbatim, as a black pill, because both are on screen at
   once and two names for one action make the user wonder whether one of them spares their search text
   ([#720](https://github.com/alethical-org/alethical/pull/720)).
-- **Campaign-money year choices share 1 treatment.** On `/money/committees/<slug>` and
-  `/legislators/<name>?tab=money`, show every year from 2015 through the current calendar
-  year, newest first, in 1 wrapping group. Use 1 normal-weight **Year** label, normal
-  weight 400 Libre Franklin numerals with equal-width digits, 10px rounded rectangles
-  and targets at least 44px tall. The selected year has the black active-control fill
-  and white text on both surfaces. A dashed border still identifies itemized-only
+- **Year filters share 1 state treatment everywhere.** An unselected year keeps its surface's
+  accepted white background, neutral boundary, shape, spacing, and type. Pointer hover changes
+  that boundary to `brand.base` green. The selected year keeps the black active-control block
+  with white text, including while hovered, and a pointer click adds no purple outline. Keyboard
+  navigation still receives the sitewide purple `:focus-visible` ring on top of the current
+  unselected or selected state. This applies to every year filter at every screen width,
+  including campaign-money, outside-spending, committee-history, and future year choices.
+  A compact Year menu keeps its accepted closed-menu shape: its boundary turns green on
+  pointer hover, pointer focus adds no outline, and keyboard focus adds the same purple ring.
+  The black selected block applies wherever the years are shown as separate choices; the
+  browser or operating system owns the selected row inside an opened compact menu.
+  **Every future Design handoff follows this year-filter rule.** When a drawing adds a purple
+  selected-state outline, changes the selected block, or omits the green hover boundary, the
+  current coding agent restores these shared states during the build without another approval.
+  Preserve the drawing's accepted shape, spacing, type, and other states unless a separate
+  approved change requires otherwise.
+- **Campaign-money year choices share 1 layout and coverage treatment.** On
+  `/money/committees/<slug>` and `/legislators/<name>?tab=money`, show every year from 2015
+  through the current calendar year, newest first, in 1 wrapping group. Use 1 normal-weight
+  **Year** label, normal weight 400 Libre Franklin numerals with equal-width digits, 10px rounded
+  rectangles and targets at least 44px tall. A dashed border still identifies itemized-only
   coverage from the held response; year availability never promises a report exists.
 - **Campaign-money summaries use 1 quiet surface.** Money in, Money out and any
   additional financial summary card use the same grey `c.tile` surface as the profile.
@@ -154,6 +182,11 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   wins and the build corrects the drawing. The `mobileLinkArrows.test.ts` check rejects typed link
   arrows, old local link drawings, and page-specific link-arrow vertical adjustments, while allowing
   the restored on-screen action treatments below.
+- **A link's underline covers every word, including the final word beside its arrow.** Keep each
+  link's accepted always-visible or hover/focus-only underline behavior. `LinkArrowLabel` carries
+  that decoration across its final-word group, including when an enclosing text link owns the
+  style. The arrow and its 6px gap remain undecorated. Check single-word and wrapping labels as
+  well as complete lines; never copy a partial underline from a Design drawing.
 - **The rule standardizes arrows that already exist; it does not add them.** A green link whose
   accepted surface has no trailing arrow keeps no arrow. Back arrows, disclosure chevrons, and
   arrows used as data or diagrams are outside this rule.
@@ -256,6 +289,15 @@ Non-negotiable for every screen. These are platform-agnostic principles adapted 
 On web, `react-native-web` maps _most_ RN accessibility props to real ARIA — so these are checkable
 on the rendered site and fixable in RN. **`accessibilityState` is the exception, and it is a silent
 one: see the box below before writing one.**
+
+Instant search result lists use one selection treatment everywhere. Each row is at least 48px tall,
+uses 10px horizontal padding and reserves a transparent 2px border with a 10px radius. Hover and
+keyboard movement replace that transparent border with bright green (`#2ed47e`) around the 1 current
+result. The result keeps its white background, text weight and text color, so the border is its only
+visual change and no row moves. Row text is 16px at weight 500; a trailing count is 14px at weight
+600 and does not shrink. The line accompanies `aria-selected`; it does not replace that spoken state.
+The list scrolls vertically within its own maximum height and hides horizontal overflow. Long row
+names wrap inside their available width instead of creating a horizontal scrollbar.
 
 > **Marking a control disabled, busy, expanded or selected — read this first.**
 >

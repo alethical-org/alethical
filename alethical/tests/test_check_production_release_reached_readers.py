@@ -240,6 +240,7 @@ class TestItWatchesWhatVercelActuallyBuildsFrom:
         command = json.loads((ROOT / "vercel.json").read_text())["ignoreCommand"]
         assert check.website_paths() == command.split(" -- ", 1)[1].split()
         assert "apps/frontend" in check.website_paths()
+        assert "patches" in check.website_paths()
 
     def test_the_stamps_name_matches_the_script_that_writes_it(self):
         writer = (ROOT / "apps/frontend/scripts/stamp-release-commit.mjs").read_text()

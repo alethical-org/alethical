@@ -88,7 +88,7 @@ describe('the first race response follows the directory or selected-group addres
     expect(snapshot.records?.[0].label).toBe('Example House Committee');
     expect(snapshot.records?.[0].href).toContain('?year=2026');
     expect(text).toContain('$1,234');
-    expect(text).toContain('No named contributions in our records for 2026');
+    expect(text).toContain('No itemized contributions in our records for 2026');
     expect(text).not.toContain('Example Governor Committee');
     expect(snapshot.body.filter((line) => line === RACE_DONOR_EXPLANATION)).toHaveLength(1);
     expect(snapshot.sections?.flatMap((section) => section.body)).not.toContain(

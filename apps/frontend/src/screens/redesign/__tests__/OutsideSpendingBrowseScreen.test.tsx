@@ -136,6 +136,9 @@ describe('outside spending browsing', () => {
     await render({ year: '2024' });
     expect(host.textContent).toContain('Spending by group');
     expect(host.textContent).not.toContain('CAMPAIGN MONEY');
+    expect(
+      getComputedStyle(host.querySelector<HTMLAnchorElement>('a[href="/money"]')!).marginBottom,
+    ).toBe('20px');
     state.record = { ...state.record!, year: 2024 };
     state.names = { ...state.names!, year: 2024 };
     await render({ year: '2024' });
@@ -271,6 +274,13 @@ describe('outside spending browsing', () => {
     state.mobile = true;
     await render();
     const select = host.querySelector('select[aria-label="Year"]') as HTMLSelectElement;
+    expect(select.getAttribute('data-alethical-year-filter')).toBe('true');
+    act(() => select.dispatchEvent(new Event('pointerdown', { bubbles: true })));
+    expect(select.getAttribute('data-alethical-pointer-focus')).toBe('true');
+    act(() =>
+      select.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })),
+    );
+    expect(select.hasAttribute('data-alethical-pointer-focus')).toBe(false);
     expect([...select.options].map((o) => o.text)).toEqual(['All years', '2026', '2024']);
     act(() => {
       select.value = '2024';

@@ -10,7 +10,7 @@
      direct a change (point 2a) and forbids us editing them on our own initiative.
 
      WHAT IT IS. The fourth piece written in the set "How the Money Works", following
-     `docs/reader-guides/why-2-official-numbers-can-both-be-right.md`. Issue #1752's
+     `docs/published-writing/why-2-official-numbers-can-both-be-right.md`. Issue #1752's
      first comment fixes the set's reading order and titles this one "Money spent
      without a campaign's say", folding independent spending, the rule against
      coordinating it, and lobbying disclosure as a separate set of records. A
@@ -41,7 +41,7 @@
      first special permission, and a guide gets no part of it. The row counts ARE
      printed, on the precedent guide 2 shipped under: a count of rows in a published
      download is a fact about the download, names nobody, and sums no member's money
-     (`docs/reader-guides/what-the-records-name.md` prints 583,152 and 337,888 on
+     (`docs/published-writing/what-the-records-name.md` prints 583,152 and 337,888 on
      exactly that ground). The piece then says in its own words that a count of
      payments is not a count of money and that the amounts are in the same file, so a
      reader is told the second answer exists rather than being handed our version of

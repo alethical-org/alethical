@@ -283,7 +283,7 @@ describe('a missing figure states our gap and never becomes $0', () => {
     )[1];
     expect(silent).toEqual({
       label: NAMED_FIGURE_LABEL,
-      text: 'No named contributions in our records for 2026',
+      text: 'No itemized contributions in our records for 2026',
       isFigure: false,
       period: null,
       explanation: null,

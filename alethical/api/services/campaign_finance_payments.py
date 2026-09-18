@@ -153,7 +153,7 @@ UNIDENTIFIED_REGISTRATION_NUMBER = "0"
 #: The most rows one request will list. A page asks again with a larger ``offset``, and
 #: ``has_more`` says whether there is anything left, so no list is ever presented as
 #: complete when it is not. 250 because that is the committee payments page's own cap
-#: (``docs/design/handoff-campaign-money/Money lists web.dc.html``, screen C), so one
+#: (``docs/product-onboarding/campaign-money-section-guide.md``), so one
 #: request fills one page of it.
 MAX_PAYMENTS = 250
 

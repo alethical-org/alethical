@@ -36,7 +36,6 @@ import {
   COMMITTEE_TAB_LABELS,
   committeeTabFromParam,
   committeeMoneyYears,
-  committeeAlternativeYear,
   NO_PURPOSE_GIVEN,
   NO_VENDOR_NAMED,
   OUTSIDE_SORT_LABELS,
@@ -101,11 +100,6 @@ describe('committee year choices', () => {
   it('shows a linked older year without duplicating recent choices', () => {
     expect(committeeMoneyYears(2017, today)).toEqual([2026, 2025, 2017]);
     expect(committeeMoneyYears(2025, today)).toEqual([2026, 2025]);
-  });
-  it('returns older-year gaps to current records and current-year gaps to the prior year', () => {
-    expect(committeeAlternativeYear(2017, today)).toBe(2026);
-    expect(committeeAlternativeYear(2025, today)).toBe(2026);
-    expect(committeeAlternativeYear(2026, today)).toBe(2025);
   });
 });
 
@@ -242,8 +236,7 @@ describe('whose committee', () => {
 
   it('a candidate committee’s filed name is never treated as a confirmation', () => {
     const text = whoseCommitteeText('candidate_committee', null, null);
-    expect(text).toContain('name alone does not prove whose it is');
-    expect(text).not.toContain('confirmed');
+    expect(text).toBe('');
   });
 
   // The state this page could not describe until #1680: a person read Minnesota's
@@ -406,11 +399,14 @@ describe('the period stamp', () => {
     );
   });
 
-  it('an uncovered year says no figures cover it, not that nothing happened', () => {
-    expect(uncoveredPeriodLine(2026)).toBe('We have no report figures for 2026');
-    const detail = uncoveredPeriodDetail(2026, 'Aug 11, 2026');
-    expect(detail).toContain('contains no report figures for this committee for 2026');
-    expect(detail).toContain('Figures from another year are not substituted');
+  it.each([2015, 2020, 2025, 2026])('describes our missing %i figures once', (year) => {
+    expect(uncoveredPeriodLine(year)).toBe(
+      `No ${year} report figures in our copy of the state’s files`,
+    );
+    expect(uncoveredPeriodDetail(year, null)).toBe('Figures from another year are not substituted');
+    expect(uncoveredPeriodDetail(year, 'Aug 11, 2026')).toBe(
+      'Figures from another year are not substituted. Files copied Aug 11, 2026.',
+    );
   });
 
   it('a closed committee’s stamp carries the termination date and the final report', () => {

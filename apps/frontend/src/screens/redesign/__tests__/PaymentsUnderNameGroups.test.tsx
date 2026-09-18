@@ -98,6 +98,7 @@ it('shows the real grouped years, exact employer text, registered anchors and ev
   open();
   expect(host.textContent).toContain('Money given under the name “Nystrom, Mary Ann”');
   expect(host.textContent).not.toContain('GAVE');
+  expect(getComputedStyle(host.querySelector('[aria-level="1"]')!).marginTop).toBe('22px');
   expect([...host.querySelectorAll('[aria-level="2"]')].map((e) => e.textContent)).toEqual([
     '2026',
     '2025',
