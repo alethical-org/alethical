@@ -53,7 +53,7 @@ Any amount remains a sum of held matching records, never proof of complete givin
 
 - Released on 18 September 2026 through [pull request 2293](https://github.com/alethical-org/alethical/pull/2293),
   closing [issue 2292](https://github.com/alethical-org/alethical/issues/2292).
-  The public website serves [commit 06c3dcf7](https://github.com/alethical-org/alethical/commit/06c3dcf7e94d769641696dd93cc14163996e2598).
+  The initial public release serves [commit 06c3dcf7](https://github.com/alethical-org/alethical/commit/06c3dcf7e94d769641696dd93cc14163996e2598).
 - Live read on 18 September 2026: the 1,665-person roster supports 136 amounts for
   2025, with 105 unavailable amounts and 1,424 people without matching records.
   For 2024 the corresponding counts are 131, 100 and 1,434. The default is 2025.
@@ -84,3 +84,11 @@ Any amount remains a sum of held matching records, never proof of complete givin
 - Live browser checks passed year selection, amount ordering, name search,
   supporting-year links, changing the donation year, and source-link wrapping at
   320px without horizontal overflow.
+
+- Independent live reader review passed both amount orders, search, matching-year
+  links and missing-amount labels. It found clipped sort-choice text at 320px.
+  The shortened choices, “Donations: highest first” and “Donations: lowest first”,
+  fit at 320px and 390px; the results heading matches each selected choice.
+- The fallback workflow was cancelled after its completed deployment reached the
+  public addresses, stopping the redundant wait for Vercel’s stalled automatic
+  domain assignment. The apex address still redirects to `www.alethical.com`.
