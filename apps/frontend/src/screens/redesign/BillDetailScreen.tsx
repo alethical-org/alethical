@@ -507,7 +507,7 @@ function BillDetailMobileScreen() {
         identifier: bill.identifier,
         billId: bill.id,
         shortTitle: bill.aiAnalysis?.shortTitle,
-        summary: bill.aiAnalysis?.summary,
+        summaryLine: plainBillSummary(bill.aiAnalysis?.summary, { firstSentenceOnly: true }),
         url: publicPageUrl(`/bills/${bill.id}`),
       })
     : {

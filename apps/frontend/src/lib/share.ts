@@ -104,6 +104,7 @@ export function buildBillShareContent({
   identifier,
   billId,
   shortTitle,
+  summaryLine,
   url,
 }: {
   identifier: string;
@@ -115,21 +116,71 @@ export function buildBillShareContent({
    * yet is titled by its number and year alone.
    */
   shortTitle?: string | null;
-  summary?: string | null;
+  /**
+   * The summary's first sentence, already cleaned by `plainBillSummary`. The
+   * caller cleans it rather than this file, because this file loads with every
+   * page and that cleaner's regexes do not belong in a first download
+   * (`apps/frontend/src/lib/billSummaryText.ts` holds the measurement).
+   */
+  summaryLine?: string | null;
   url: string;
 }): ShareContent {
   const cleanIdentifier = clean(identifier);
   const year = billSessionYear(billId);
   const numberAndYear = year ? `${cleanIdentifier} (${year})` : cleanIdentifier;
   const cleanTitle = clean(shortTitle ?? '');
+  // The card's second line says what this bill does, from the summary's first
+  // sentence, unless that sentence mostly restates the title: then the fixed
+  // label stays, so a card never says one thing twice (Eugene, 17 and 18 Sep
+  // 2026, decisions doc §26).
+  const sentence = clean(summaryLine ?? '');
 
   return {
     subject: 'bill',
     title: cleanTitle ? `${numberAndYear}: ${cleanTitle}` : numberAndYear,
-    description: 'Bill text, legislative progress, and official sources',
+    description: sentence && !restatesTitle(cleanTitle, sentence) ? sentence : BILL_SHARE_LABEL,
     url,
   };
 }
+
+const BILL_SHARE_LABEL = 'Bill text, legislative progress, and official sources';
+
+/**
+ * Whether a summary sentence mostly says the title again. The title's meaningful
+ * words (3 letters or more, common connectives dropped) are looked for in the
+ * sentence, a word counting as present when it matches whole or shares its first
+ * 5 letters, so "officers" finds "officer" and "citizens" finds "citizenship".
+ * Three quarters or more present is a restatement. Measured on the 3 bills the
+ * ruling was argued over: "Peace Officers Must Be US Citizens" against "Sets a
+ * rule that new peace officer license applicants in Minnesota must be U.S.
+ * citizens." is 4 of 4 and keeps the label; "Statewide Capital Projects and
+ * Bonding Bill" against "Authorizes billions in state bond financing…" is 2 of 5
+ * and "New Rules For Minors' Social Media Accounts" against "Large social media
+ * platforms will have to publicly explain…" is 2 of 6, and both gain the sentence.
+ */
+export function restatesTitle(title: string, sentence: string): boolean {
+  const words = (value: string) =>
+    clean(value)
+      .toLocaleLowerCase('en-US')
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .split(' ')
+      .filter((word) => word.length >= 4 && !CONNECTIVES.has(word));
+  const titleWords = words(title);
+  if (titleWords.length === 0) return false;
+  const sentenceWords = words(sentence);
+  const present = (word: string) =>
+    sentenceWords.some(
+      (other) =>
+        other === word ||
+        (word.length >= 5 && other.length >= 5 && other.slice(0, 5) === word.slice(0, 5)),
+    );
+  const matched = titleWords.filter(present).length;
+  return matched / titleWords.length >= 0.75;
+}
+
+// Words too common in both a Minnesota bill title and its summary to show that
+// one restates the other. Everything shorter than 4 letters is already dropped.
+const CONNECTIVES = new Set(['bill', 'act', 'minnesota', 'state']);
 
 export function buildLegislatorShareContent({
   displayName,
@@ -217,6 +268,14 @@ export interface PageMetadata {
    * thing rule 13 lets a piece's metadata carry beside its title.
    */
   article?: { publishedOn: string };
+  /**
+   * What a share card and an outgoing message say, when it differs from what a
+   * search result says. A bill's search text is the first sentence of its
+   * plain-language summary, so 10,517 pages do not hand Google one identical
+   * line; its share text stays the fixed line §26 rules, which never repeats a
+   * title through a summary that paraphrases it. Absent = the 2 are the same.
+   */
+  socialDescription?: string;
 }
 
 function pageMetadata(input: Partial<PageMetadata> & { title: string; description: string }) {
@@ -285,20 +344,26 @@ export function legislatorListPageMetadata(
 export function billPageMetadata(input: {
   billId: string;
   shortTitle?: string | null;
-  summary?: string | null;
+  /** The summary's first sentence, already cleaned (see `buildBillShareContent`). */
+  summaryLine?: string | null;
 }): PageMetadata {
   const canonicalPath = `/bills/${encodeURIComponent(input.billId)}`;
   const content = buildBillShareContent({
     identifier: billNumberFromId(input.billId),
     billId: input.billId,
     shortTitle: input.shortTitle,
-    summary: input.summary,
+    summaryLine: input.summaryLine,
     url: publicPageUrl(canonicalPath),
   });
+  // The search result always gets this bill's own first sentence; the share card
+  // gets it only when it adds to the title, and the fixed label when it restates
+  // it (Eugene, 17 and 18 Sep 2026, decisions doc §26).
+  const searchDescription = clean(input.summaryLine ?? '');
   return pageMetadata({
     title: titleFor(content.title),
     socialTitle: content.title,
-    description: content.description,
+    description: searchDescription || content.description,
+    socialDescription: content.description,
     canonicalPath,
   });
 }
@@ -725,6 +790,7 @@ export function renderPageHead(meta: PageMetadata): string {
   const title = escapeHtml(meta.title);
   const socialTitle = escapeHtml(meta.socialTitle);
   const description = escapeHtml(clean(meta.description));
+  const socialDescription = escapeHtml(clean(meta.socialDescription ?? meta.description));
   // Empty on a "not found" page: it is not a copy of any real address, so it
   // declares none rather than pointing a search engine at an unrelated page.
   const url = meta.canonicalPath ? escapeHtml(publicPageUrl(meta.canonicalPath)) : '';
@@ -758,7 +824,7 @@ export function renderPageHead(meta: PageMetadata): string {
       : []),
     `    <meta property="og:site_name" content="${SITE_NAME}" />`,
     `    <meta property="og:title" content="${socialTitle}" />`,
-    `    <meta property="og:description" content="${description}" />`,
+    `    <meta property="og:description" content="${socialDescription}" />`,
     ...(url ? [`    <meta property="og:url" content="${url}" />`] : []),
     `    <meta property="og:image" content="${image}" />`,
     `    <meta property="og:image:width" content="1200" />`,
@@ -766,7 +832,7 @@ export function renderPageHead(meta: PageMetadata): string {
     `    <meta property="og:image:alt" content="${imageAlt}" />`,
     `    <meta name="twitter:card" content="summary_large_image" />`,
     `    <meta name="twitter:title" content="${socialTitle}" />`,
-    `    <meta name="twitter:description" content="${description}" />`,
+    `    <meta name="twitter:description" content="${socialDescription}" />`,
     `    <meta name="twitter:image" content="${image}" />`,
     `    <meta name="twitter:image:alt" content="${imageAlt}" />`,
     ...(jsonLd ? [jsonLd] : []),

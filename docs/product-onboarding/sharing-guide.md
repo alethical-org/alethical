@@ -10,7 +10,7 @@ Share sends the page a reader chose, with enough plain-language context for anot
 
 | Page            | Title                                                       | Description                                                                       | Link                                                                                                                                                                        |
 | --------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Bill            | Bill code, session year, and the short plain-language title | Bill text, legislative progress, and official sources | The bill profile, without a selected tab |
+| Bill            | Bill code, session year, and the short plain-language title | The summary's first sentence, or `Bill text, legislative progress, and official sources` when that sentence mostly restates the title | The bill profile, without a selected tab |
 | Legislator      | Name, plus chamber and district when serving now | General profile: committees, chief-authored bills, and contact information. Money view: campaign money and its selected filing year | The readable legislator profile address; Campaign money retains its selected year and open contribution rows |
 | Ask answer      | The reader's question                                       | A fixed sentence saying the answer is cited and links to the official record      | The public Ask address, keeping only the question, bill, legislator, and saved-suggestion fields needed to rebuild it                                                       |
 | Committee money | The committee's filed name | Campaign money from Minnesota’s official filings | The committee address, retaining the year, section, donor category and sort, independent-spending sort, open contribution rows, ownership evidence and earlier-year choices |
@@ -123,7 +123,7 @@ Preview services keep their own caches, so an existing card may take time to ref
 
 Every address names itself in the very first response, before any of the app's own code runs — without that, all ~10,700 pages would hand a search engine the same nameless page, reading as one page repeated — and a bill page, a legislator page, or one of our own published reports also carries readable words in that same response.
 
-- **The browser tab and the preview say the same thing.** A bill page opens with the bill's number and year straight away, and gains its short title the moment the bill loads.
+- **The browser tab and the preview say the same thing.** A bill page opens with the bill's number and year straight away, and gains its short title the moment the bill loads. A bill's search-result description is always the first sentence of its plain-language summary, so every bill tells a search engine something different; its share card shows that sentence too, unless the sentence mostly repeats the title, when the fixed line in the table above is used instead.
 - **A bill or legislator that does not exist says so.** An address like `/bills/94-2025-HF999999` answers "not found" rather than a blank page that looks successful.
 - **An address that is not a page answers 404.** `/foo` and wrong-case shapes such as `/BILLS/94-2025-HF719` show a useful missing-page screen with links to Home, Bills, and Legislators. Retired addresses such as `/search`, old vote links, `/chat`, and `/account` still land on their intended live page. Putting a slash on the end sends the reader to the same address without the slash.
 - **A brief outage does not unlist real pages.** If the data service cannot be reached, the page says "temporarily unavailable" instead of "gone".
@@ -142,7 +142,8 @@ description a page supplies and writes the result text from what it can actually
 A **bill** arrives with its plain-language title, its bill code and session, its key points (or its
 summary, when a bill has no key points), where it stands, its chief author, the cited-section labels
 the Summary tab shows, and links to the exact current-version passages when their positions are
-known. It also links to the bill on revisor.mn.gov, to that author's profile, and to the bill list. A
+known. It also links to the bill on revisor.mn.gov, to that author's profile, to its companion bill
+in the other chamber when the Legislature links the pair, and to the bill list. A
 **legislator who currently holds a seat** arrives with their name, chamber and district, party,
 committee assignments, stored biography and legislative service when present, capitol office and
 phone, and links to their official chamber profile and to the member list. A **former member** —

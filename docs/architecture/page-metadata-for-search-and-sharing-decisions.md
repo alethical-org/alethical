@@ -1873,6 +1873,32 @@ supersedes the earlier first-summary-sentence preview decision, not summary disp
 Committee and lobbying social titles omit the website suffix. Descriptions do not
 repeat the record name. The contextual window label, such as **Share this committee**,
 is not transmitted.
+
+**The search-result text and the share text are 2 strings for a bill (Eugene, 18 Sep 2026).**
+A search result always says the first sentence of the bill's plain-language summary, or the
+fixed line above when a bill has none. A share card says that sentence too **when it adds to
+the title**, and the fixed line when it mostly restates the title, which is the case the 17 Sep
+ruling was argued over ("Peace Officers Must Be US Citizens" against "Sets a rule that new peace
+officer license applicants in Minnesota must be U.S. citizens."). `restatesTitle`
+(`apps/frontend/src/lib/share.ts`) decides it: the title's words of 4 letters or more, minus 4
+too common to mean anything here, counted as present when they match whole or share their first
+5 letters, and three quarters or more present is a restatement. `socialDescription` on
+`PageMetadata` carries the card's line when the 2 differ.
+
+One string for both had 10,517 bill pages handing Google one identical sentence, and identical
+descriptions across thousands of pages are one of the signals it reads as copies; Google's 7 Sep
+report listed 6,612 bill pages as found but not crawled and 295 as crawled but not listed (§15).
+The no-repeat ruling holds by construction rather than by a fixed label.
+
+**The caller cleans the sentence, and that is a size rule, not a style one.** `share.ts` loads
+with every page, so importing the summary cleaner into it dragged `billDetail.ts` and its 4
+imports into every reader's first download: 12,332 bytes over the limit
+(`apps/frontend/scripts/check-first-load-budget.mjs`, caught by the frontend check on
+[pull request 2271](https://github.com/alethical-org/alethical/pull/2271)). The 3 cleaners now
+live in `apps/frontend/src/lib/billSummaryText.ts`, which `billDetail.ts` re-exports so no caller
+changed, and `billPageMetadata` and `buildBillShareContent` take `summaryLine`, the already-cleaned
+first sentence, from the server function and the 2 bill screens that each hold the cleaner
+already.
 [How sharing works](../product-onboarding/sharing-guide.md) owns the complete current
 subject, destination, and results-view behavior.
 
@@ -1956,6 +1982,14 @@ the per-year money read: that read costs about 3 times the record's own on a cac
 (0.73 s against 0.47 s, measured 18 Sep 2026), and a profile address that does not name the
 money tab still makes no money read at all. Only a confirmed review puts a committee here; the
 2 ordinary states name nobody's money (`docs/architecture/campaign-finance-system-design.md` §5.1).
+
+**4a. Bill pages, the largest family.** Each bill's search-result text is now its own first
+summary sentence rather than one line shared by 10,517 pages, and its share card carries that
+sentence too unless the sentence restates the title (§26 holds both rulings and the size rule
+behind where the cleaning happens), and the
+served text links the bill's twin in the other chamber (`companion` on the record: "Companion
+bill SF 390"), so a crawler reaching either of a pair can follow to the other and the chief
+author's profile from one response.
 
 **5. Site-wide, 3 smaller things.** Every `/api/v1` response now carries `X-Robots-Tag: noindex`
 (`alethical/api/main.py`): Google's crawl statistics put JSON at 53% of its requests to us, and a

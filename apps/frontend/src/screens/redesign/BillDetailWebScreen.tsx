@@ -24,6 +24,7 @@ import { isNotFoundError } from '../../data/api';
 import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import { GoBackLink } from '../../components/GoBackLink';
 import { routePath } from '../../navigation/links';
+import { plainBillSummary } from '../../lib/billSummaryText';
 import { billPageMetadata, buildBillShareContent, publicPageUrl } from '../../lib/share';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import {
@@ -228,7 +229,7 @@ export function BillDetailWebScreen() {
     identifier: bill.identifier,
     billId: bill.id,
     shortTitle: bill.aiAnalysis?.shortTitle,
-    summary: bill.aiAnalysis?.summary,
+    summaryLine: plainBillSummary(bill.aiAnalysis?.summary, { firstSentenceOnly: true }),
     url: publicPageUrl(`/bills/${bill.id}`),
   });
   // ONE value for the whole page (every tab's source line shows the same stamp).

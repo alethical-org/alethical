@@ -532,6 +532,8 @@ export function legislatorDirectoryPageSnapshot(
 export interface BillSnapshotSource {
   id: string;
   description?: string | null;
+  /** The House or Senate twin of this bill, when the Legislature links the pair. */
+  companion?: { id?: string | null; code?: string | null } | null;
   session?: { name?: string | null } | null;
   current_status?: string | null;
   status_key?: string | null;
@@ -648,6 +650,17 @@ export function billPageSnapshot(bill: BillSnapshotSource): PageSnapshot {
         : []),
       ...(author?.slug && authorName
         ? [{ label: authorName, href: `/legislators/${encodeURIComponent(author.slug)}` }]
+        : []),
+      // The twin bill in the other chamber, so the pair link to each other from
+      // the first response: half of all bills have one, and a search engine
+      // reaching either can follow to the other (decisions doc §28).
+      ...(bill.companion?.id && bill.companion.code
+        ? [
+            {
+              label: `Companion bill ${clean(bill.companion.code)}`,
+              href: `/bills/${encodeURIComponent(bill.companion.id)}`,
+            },
+          ]
         : []),
       { label: 'Bills', href: '/bills' },
     ],
