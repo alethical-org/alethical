@@ -531,7 +531,7 @@ describe('a guide\u2019s masthead', () => {
 
 /**
  * Rule 13 forbids editing a posted piece's words, so this compares each shipped
- * piece, word for word, against its own file in `docs/reader-guides/`: a sentence
+ * piece, word for word, against its own file in `docs/published-writing/`: a sentence
  * re-punctuated, trimmed, dropped or reordered on either side fails here rather
  * than on the live page.
  *
@@ -602,7 +602,7 @@ function shippedWords(piece: ResearchPiece): string {
 /** The same words as the file holds them, with markdown marks removed. */
 function draftWords(file: string): string {
   return (
-    readFileSync(join(HERE, '../../../../..', `docs/reader-guides/${file}`), 'utf8')
+    readFileSync(join(HERE, '../../../../..', `docs/published-writing/${file}`), 'utf8')
       // The opening HTML comments are the doc-sync declaration and a note to
       // whoever maintains the page, never words a reader sees.
       .replace(/^(?:\s*<!--[\s\S]*?-->)+/, '')

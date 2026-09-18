@@ -40,10 +40,6 @@
      cover them, exactly as it does not cover the masthead's dates or the layout's own box
      labels.
 
-     WHERE IT LIVES. This folder is named for guides and this file is Research, which rule 13
-     makes a different class with different promises. The folder name is wrong for it. A
-     rename would touch all 6 files, the docs index and 2 architecture documents, so it is
-     tracked as its own job rather than done here, and no reader ever sees the folder.
 -->
 
 # The Money Only Goes One Way

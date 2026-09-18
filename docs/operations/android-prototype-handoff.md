@@ -100,3 +100,7 @@ Then install the APK and confirm:
 - Search loads bills from the backend.
 - Account no longer says Supabase is unconfigured.
 - Android status bar and bottom tab bar do not overlap app content.
+
+Before a native release, run the shared
+[native account and tracking acceptance checks](ios-release.md#native-account-and-tracking-acceptance-checks),
+including their test-account and private-callback protections.

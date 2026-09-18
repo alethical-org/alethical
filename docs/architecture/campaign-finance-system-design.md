@@ -1948,8 +1948,9 @@ allowed to add records up across members and to name a pattern, under the condit
 [`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 13
 That rule carries the permissions and their conditions, including the publishing order that
 separates posting a report from listing it publicly; this subsection carries the display half,
-and it describes **what a report page must do**. The drawn design is
-`docs/design/handoff-campaign-money/Money report web.dc.html`.
+and it describes **what a report page must do**. The current reading and publication
+contract is in
+[published-writing-decisions.md](published-writing-decisions.md).
 
 - **The masthead sits above the first claim** and names 2 things: the publication date and the
   date its records run through (Eugene, 20 Aug 2026). Authorship and the filing bodies moved into

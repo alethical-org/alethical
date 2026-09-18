@@ -340,3 +340,32 @@ failed-release watch above compares deployment state instead of fetching the sit
 
 The web app is the shipped client. [iOS release](ios-release.md) owns simulator,
 TestFlight, and future native iOS steps.
+
+## Preserve Site metrics history during rollback
+
+Rolling back application code must keep the accumulated Site metrics history. Leave
+`site_metric_receipt`, `site_metric_coverage`, and `site_metric_hourly_count` in place.
+Do not run the destructive downgrade in
+[`0052_site_metric_history.py`](../../alethical/alembic/versions/0052_site_metric_history.py):
+it drops those tables and deletes `money_search_with_results` events from
+`site_metric_event`. Use a compatible application release or a forward repair; an
+application rollback is not permission to discard measurement history.
+
+## Keep map-image requests compatible with OpenStreetMap
+
+When `/find-my-legislator` uses `tile.openstreetmap.org`, follow the
+[OpenStreetMap tile usage policy](https://operations.osmfoundation.org/policies/tiles/).
+Keep the browser's normal identification and caching. Do not add default
+`Cache-Control: no-cache` or `Pragma: no-cache` headers. Do not enable bulk map-image
+downloads, unseen-area prefetch, or offline downloads from that service.
+
+After changing deployment headers or the map-image provider, inspect an ordinary
+browser request from `/find-my-legislator`: the request must carry a valid `Referer`
+header and the browser's normal `User-Agent`. A `Referrer-Policy` header or HTML
+setting must not suppress the referrer for these requests. Check this on the public
+map route, not a private administrator page, whose privacy headers serve a different
+purpose. Preserve visible source attribution and the provider's cache headers.
+
+The map provider is configurable through `EXPO_PUBLIC_OPENSTREETMAP_TILE_URL`, with
+`EXPO_PUBLIC_MAP_TILE_URL` as the supported fallback setting. Check a replacement
+provider's own usage terms before switching.

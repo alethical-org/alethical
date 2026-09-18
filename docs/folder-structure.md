@@ -1,143 +1,77 @@
 # How `docs/` is organized
 
-Every document lives in a folder named for the question it answers, so you can guess where
-something is without a map. Only three files sit at the root: `README.md` (the index),
-`philosophy.md` (the *why*, which sits above every folder rather than inside one), and
-this file.
+[README.md](README.md) is the starting point for every retained document. Pick a
+folder by the question the document answers. Keep one current home for a decision;
+link to it from related guides instead of copying it.
 
-## Layout
+## Where things belong
 
-```
-docs/
-├── README.md              the index
-├── philosophy.md          the why beneath the product
-├── folder-structure.md    this doc
-├── published-writing-corrections.md   what we changed after publishing it
-│
-├── product-onboarding/    What we're building (and won't), plus how to learn how it works
-│   ├── product-scope.md
-│   ├── user-data-retention-policy.md
-│   ├── grounded-ask-spec.md
-│   ├── bill-search-screen-spec.md
-│   ├── home-screen-guide.md
-│   ├── bill-detail-guide.md
-│   ├── legislator-profile-guide.md
-│   ├── bill-text-tab-spec.md
-│   ├── tracked-bill-notifications-spec.md
-│   ├── ai-models-and-billing.md
-│   ├── data-ingestion-onboarding.md
-│   ├── search-bills-guide.md
-│   ├── site-navigation-guide.md
-│   └── find-my-legislator-guide.md
-│
-├── architecture/          How the system is built
-│   ├── backend-api-system-design.md
-│   ├── db-schema-system-design.md
-│   ├── data-model-relationships.html
-│   ├── layer-1-source-ingestion-system-design.md
-│   ├── layers-1-2-ingestion-pipeline.svg
-│   ├── layer-2-rag-ingestion-system-design.md
-│   ├── frontend-screen-system-design.md
-│   └── legislator-roster-canonical-membership-spec.md
-│
-├── design/                How it should look, feel, and read
-│   ├── design-principles.md
-│   └── ui-copy-guide.md
-│
-├── reader-guides/         What we publish to teach readers how a system works
-│   └── who-has-to-report-their-money.md
-│
-├── operations/            Running and shipping it
-│   ├── deployment.md
-│   ├── api-cdn-setup.md
-│   ├── ios-release.md
-│   ├── android-prototype-handoff.md
-│   ├── local-dev-windows.md
-│   ├── repo-and-service-settings.md
-│   └── keeping-docs-current-decisions.md
-│
-└── research/              Research findings
-```
+| Folder | What belongs here |
+| --- | --- |
+| `product-onboarding/` | What each feature does, how to use it, and its limits |
+| `architecture/` | How the system works and why its lasting technical choices were made |
+| `design/` | Shared visual rules and approved wording that still governs the product |
+| `operations/` | How to run, release, monitor, and recover the service |
+| `published-writing/` | The manuscripts of published Guides and Research, kept for word-for-word checks |
+| `implementation/` | Unfinished delivery plans, including dependencies and explicit holds |
+| `plans/` | Existing delivery plans; complete them in place and use `implementation/` for new plans |
+| `research/` | Dated investigations and the evidence behind their conclusions |
+| `evidence/` | Source facts supporting product decisions, such as official filing calendars |
+| `verification/` | Reproducible checks and supporting screenshots or source comparisons |
+| `validation/` | Existing dated measurement records; use `verification/` for new verification records |
 
-## Why the folders are what they are
+The root contains [README.md](README.md), [philosophy.md](philosophy.md), this
+[folder guide](folder-structure.md), and
+[published-writing-corrections.md](published-writing-corrections.md). The correction
+record keeps its short, stable address so readers can cite changes to published work.
 
-Each folder answers a question, and that is what lets someone find a doc by guessing:
-*what are we building and how do I learn it* (product-onboarding) · *how is it built*
-(architecture) · *how should it look* (design) · *how do I run it* (operations) ·
-*what do we publish for readers* (reader-guides). The remaining folder holds research
-material. Design working files stay with their task or
-pull request instead of becoming permanent documentation.
+## Current guidance and dated evidence
 
-Seven placements aren't obvious, so they're stated:
+Feature guides and operating instructions describe the current system. A dated
+investigation or verification record describes the conditions when it was made.
+Give dated evidence its date, scope, sources, and limits; do not present an old
+measurement as today's state. Preserve evidence that explains a decision, supports
+a published claim, or records an unresolved problem.
 
-- **`published-writing-corrections.md` sits at the root, not in a folder** — every folder here
-  answers a question asked by someone building or running Alethical, and this file answers a
-  question asked by someone outside it: *is the figure I quoted from you still the figure?* Its
-  reader is a journalist or researcher holding an old number, who will never think to look in
-  `architecture/`. It is not `reader-guides/` either, because that folder is published prose and
-  this is a record about it. Root also keeps its address short, which matters when the whole point
-  of the file is being citable ([#1770](https://github.com/alethical-org/alethical/issues/1770)).
+Delivery plans describe work still to do. Link each plan to its issue or pull
+request, name its dependencies and holds, and keep its next step current. On
+completion, put any lasting decisions into the appropriate guide and leave release
+evidence with the issue or pull request. Remove the completed plan after updating
+its incoming links. Never delete an unfinished plan or a data-replacement hold as
+part of routine cleanup.
 
-- **`frontend-screen-system-design.md` is architecture, not design** — it is a system design
-  for the screen layer; the visual rules live in `design/design-principles.md`. Its one
-  product-content section (Bill Detail Content Rules) is a candidate to move to
-  `product-onboarding/` on its own.
-- **`bill-search-screen-spec.md` is product, not design** — a screen spec defines behavior
-  and acceptance. A design preview is a temporary build aid, not a lasting product record.
-- **`legislator-roster-canonical-membership-spec.md` is architecture** — it specifies a
-  pipeline module (`roster_pdf.py`) and its reconciliation.
-- **There is no `mockups/` folder anymore** — design previews are working files that stay
-  with their task, pull request, or temporary storage, never under `docs/`. Its final
-  temporary occupant, the sign-in bundle, was reconciled into
-  `product-onboarding/sign-in-guide.md` and removed with the rev 17 sign-in build
-  ([#1533](https://github.com/alethical-org/alethical/issues/1533)).
-- **`reader-guides/` is published prose, not internal documentation and not design** — a
-  `product-onboarding/` guide explains our product to whoever builds or supports it; a
-  **Guide** in the published sense is a page a
-  reader reads, teaching one part of how Minnesota's system works
-  (`architecture/published-writing-decisions.md` §2.6, which settled that word on
-  27 Aug 2026 and replaced "explainer"). The folder is named `reader-guides/` rather than
-  `guides/` so the 2 senses of the word cannot be confused by their folder alone. It is kept
-  under `docs/`
-  only while the page that renders it does not exist
-  ([#1752](https://github.com/alethical-org/alethical/issues/1752)); once a piece is a
-  published surface, its words belong in code beside the research registry
-  (`apps/frontend/src/lib/research.ts`) and this folder keeps only what has not shipped.
-- **`user-data-retention-policy.md` is product, not operations** — it reads like an ops
-  concern because it names tables and third-party services, but the question it answers is
-  *what does the product keep about the people who read it, and what do we promise them*.
-  Its readers are whoever builds account deletion and whoever next edits the public Privacy
-  Policy, not someone running the service. The Supabase backup-retention setting it asks for
-  is the one genuinely operational piece, and that belongs in
-  `operations/repo-and-service-settings.md` instead.
+Published manuscripts remain after publication. The checks in
+[`research.test.ts`](../apps/frontend/src/lib/__tests__/research.test.ts) compare
+their words with the rendered pieces. Both Guides and Research belong in
+`published-writing/`; the publishing rules in
+[grounded-answers.md](../.claude/rules/grounded-answers.md) govern changes to them.
 
-## Adding a doc
+## Temporary design files
 
-Pick the folder by the question the doc answers. If it answers two, put it where a newcomer
-would look first and cross-link from the other. If it answers none, that is a sign the
-content belongs in an issue or an existing spec section, not a new file — `docs/` fills up
-fastest with files nobody quite needed.
+Design previews, exported HTML, copied assets, and conversation handoffs stay with
+the active task, pull request attachments, or temporary storage. Do not commit
+design-export packages anywhere in the repository, including its root. A temporary
+package is a build aid, not a second description of the product.
 
-4 things keep the folder honest:
+Before removing a package, compare it with the current code and guides. Preserve
+any still-valid behavior in the feature guide, shared visual rules in
+[design-principles.md](design/design-principles.md), and exact implementation values
+in code. Replace incoming references with those lasting homes. Superseded drawings
+remain available in Git history. Actual verification screenshots and useful HTML
+explanations are evidence and documentation, not design exports.
 
-- **Add it to `docs/README.md`'s index in the same change** — an unindexed doc is one nobody
-  finds.
-- **Give each notable feature page or named navigation destination its own plain-English
-  guide in `product-onboarding/`** — a system design, build spec, or design preview does not replace
-  the reader's guide.
-- **Keep design working files out of `docs/`.** Store previews, screenshots, copied assets,
-  and handoff notes with the active task or pull request. Move lasting product behavior into
-  the feature guide, shared visual rules into `design/design-principles.md`, and exact values
-  into code before the change lands.
-- **Keep references pointing at real files.** `scripts/check_doc_references.py` runs in CI and
-  fails the build if any `docs/...` path or any relative link inside `docs/` points at a
-  missing file. So when you move or rename a doc, rewrite the pointers to it in the same
-  change — including the `../` depth on relative links, which changes when a file moves
-  between folders. Run it locally with `python scripts/check_doc_references.py`.
+## Adding or moving a document
 
-When a doc stops describing how things work, delete it. `docs/` shows only what is
-present and current; retired specs and point-in-time reports are not kept here. The
-decision, measurement, or design a deleted doc recorded lives on in `git` history (and,
-where it still matters, in whatever superseded it — the live spec, a `.claude/rules/`
-invariant, or a GitHub issue). Before deleting, repoint or remove any inbound references
-so `scripts/check_doc_references.py` stays green.
+- Link every retained Markdown document from [README.md](README.md), directly or
+  through a linked folder index. A folder link alone does not index all its files.
+  Put index entries at the left edge or within 3 leading spaces; deeper indentation
+  is treated as a code example. Use a linked folder index for deeper grouping.
+- Give each notable product feature its own plain-language guide in
+  `product-onboarding/`, with the code declaration described in
+  [CONTRIBUTING.md](../CONTRIBUTING.md#keeping-docs-current).
+- Prefer extending the existing home of a decision to adding another document.
+- Update incoming references in the same change as a move or deletion. Preserve
+  published words and the checks that protect them when renaming a manuscript.
+- Run `python scripts/check_doc_references.py` for broken paths and
+  `python scripts/check_doc_structure.py` for missing index entries and committed
+  design exports. Both run on every pull request.

@@ -1492,7 +1492,7 @@ One guide is posted: **"Who has to report their money"**, which explains Minneso
 political account — a candidate's own campaign committee, a party unit, and a political
 committee or fund — and why the kind decides what the records will tell you. Its prose was
 written and settled in
-[`docs/reader-guides/who-has-to-report-their-money.md`](../reader-guides/who-has-to-report-their-money.md)
+[`docs/published-writing/who-has-to-report-their-money.md`](../published-writing/who-has-to-report-their-money.md)
 before the page existed, and a test compares the shipped page against that file word for word,
 so neither can drift from the other. It cites 11 sources: 8 at the Campaign Finance Board and 3
 at Minnesota's own statutes.

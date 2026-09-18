@@ -1515,7 +1515,7 @@ is not `reported`.
 
 Shipped Aug 19 2026. What the `/money` landing page opens with: 3 counted blocks and 2 dates,
 for the lane cards, the confirmation sentence and the "files last copied" line drawn in
-`docs/design/handoff-campaign-money/Campaign money IA.dc.html` section 01.
+[campaign-money-section-guide.md](../product-onboarding/campaign-money-section-guide.md).
 
 Purpose:
 

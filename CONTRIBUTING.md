@@ -255,6 +255,7 @@ On every PR (`.github/workflows/ci.yml`):
 - **Backend** (when backend paths change): `ruff check`, `ty check`, and `pytest` against a real Postgres
 - **Frontend** (when frontend paths change): `tsc --noEmit`, `prettier --check`, the Vitest suite, and a production build
 - **Doc references** (always, no path filter): `scripts/check_doc_references.py` confirms every `docs/...` path and every relative link inside `docs/` points at a real file. This one runs on every PR on purpose — a broken doc pointer is usually introduced by a docs-only or rules-only change, which the two jobs above skip. You can run it locally any time with `python scripts/check_doc_references.py`.
+- **Document organization** (always): `scripts/check_doc_structure.py` rejects committed design-export packages and requires every retained Markdown document under `docs/` to be linked from `docs/README.md` or a reachable folder index. Its focused tests run in the same job. See [the folder guide](docs/folder-structure.md) for placement and retention rules.
 - **Docs drift** (on pull requests and merge groups): [`scripts/check_pr_descriptions.py`](scripts/check_pr_descriptions.py) requires a visible, nonempty `Docs check:` explanation when declared code changes. The independent `description-checks` job reads the latest description on edits without rerunning app or server tests. Description validation does not live inside `changes`. [Local code checks](docs/operations/local-code-checks.md#github-description-check-activation) owns the release proof and required-check activation checklist.
 
 ### Keeping the workflow actions current
@@ -425,8 +426,9 @@ single home. What CI enforces on your PR:
   [Local code checks](docs/operations/local-code-checks.md#github-description-check-activation)
   explains how description edits refresh their own result without uploading the
   code again or restarting app and server tests.
-- **Design previews do not land under `docs/`.** Keep HTML previews, screenshots, copied
-  assets, and handoff notes with the active task or pull request. Before merging, move
+- **Design-export packages do not land in the repository.** Keep temporary HTML previews,
+  copied assets, and handoff notes with the active task or pull request attachments.
+  Actual verification screenshots remain useful evidence. Before merging, move
   lasting behavior and copy into the feature guide under `docs/product-onboarding/`,
   shared visual rules into `docs/design/design-principles.md`, and exact values into code.
 - Selected live guides carry `<!-- check-quoted-code: true -->`: exact labels, colours,

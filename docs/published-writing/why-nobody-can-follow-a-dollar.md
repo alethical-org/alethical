@@ -10,7 +10,7 @@
      direct a change (point 2a) and forbids us editing them on our own initiative.
 
      WHAT IT IS. The fifth piece written in the set "How the Money Works", following
-     `docs/reader-guides/money-spent-without-a-campaigns-say.md`. Issue #1752's first
+     `docs/published-writing/money-spent-without-a-campaigns-say.md`. Issue #1752's first
      comment fixes the set's reading order and titles this one "Why nobody can follow a
      dollar", folding transfers between committees, why money is fungible once it lands,
      and what a picture of the flows can and cannot mean. A **Guide** teaches one piece
@@ -81,7 +81,7 @@
         Alethical loaded on 12 Aug 2026, so the Board has added 66 rows since. The piece
         says **names** rather than donors on purpose: the count is of distinct strings in
         a column, and 2 spellings of 1 donor count twice, a caveat
-        `docs/reader-guides/what-the-records-name.md` already records for its own counts.
+        `docs/published-writing/what-the-records-name.md` already records for its own counts.
 
      WHY THE $9,852,277.08 AND THE 699 ARE NEVER PUT SIDE BY SIDE. The named payments in
      the download for that caucus-year sum to more than the filing's
@@ -89,7 +89,7 @@
      `docs/architecture/campaign-finance-system-design.md` §2.1 documents. Printing both
      would read as the Board's 2 publications contradicting each other, which #1647
      forbids and which
-     `docs/reader-guides/why-2-official-numbers-can-both-be-right.md` was written to
+     `docs/published-writing/why-2-official-numbers-can-both-be-right.md` was written to
      avoid. So the count of names is used only as a count of names, never as a total.
 
      ONE THING CHECKED AND SET ASIDE, because it looked like a contradiction and was not.
@@ -105,7 +105,7 @@
      1. Any total across accounts, per the classification above.
      2. The words a reader could lift as a label for the pattern. `.claude/rules/grounded-answers.md`
         rule 12 forbids a label that asserts what the flows mean, and
-        `docs/reader-guides/what-the-records-name.md`'s fourth wording decision
+        `docs/published-writing/what-the-records-name.md`'s fourth wording decision
         established that a catchy false phrase must not be printed even inside its own
         denial, because a skimmer or a search-engine snippet lifts it out. So the piece
         describes the kind of label it will not use and prints none.
