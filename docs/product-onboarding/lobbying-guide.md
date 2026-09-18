@@ -114,6 +114,38 @@ the directory and search, with "No spending rows in the Board's file through {la
 so no page to open". A link requires spending rows under the same entity ID. The displayed
 record name comes from the spending file where that file holds the principal.
 
+## Annual donation order in the lobbyist directory
+
+`/money/lobbying/lobbyists` adds Year and Sort by controls. Name A–Z remains the
+default. Recorded donations can be ordered highest or lowest first for a completed
+calendar year. The server orders the whole matching list before selecting 50 rows;
+missing amounts follow supported amounts in either direction, with name and
+registration number breaking ties. Search, year, sort and page stay in the address.
+Changing a control returns to page 1. Filtered addresses are not indexed.
+
+Each amount links to that lobbyist's donation card with the same year selected.
+The directory prints the selected year, the campaign source copy date and source
+link separately from the lobbyist-list copy date. Its disclosure distinguishes
+campaign donations from client lobbying spending and warns that these are sums of
+held matching records, not complete giving totals. The supported-amount count
+covers the whole name search, not just the visible page.
+
+A sum requires an exact registration-number match, Lobbyist contributor kind and
+Contribution receipt kind. It uses the source year and preserves signed amounts,
+repeated rows and declared goods-or-services values. Every receiving committee's
+full-year itemized sum must agree within $0.01 with the same published contribution
+snapshot's filing comparison, tied to the current filings snapshot, with a passed
+self-test and a December 31 cutoff. A missing comparison, recipient, amount or
+out-of-period payment withholds the donor's entire annual amount. A partially
+pruned contribution snapshot withholds all amounts. State political contribution
+refunds are not returned gifts and are not subtracted.
+
+The year menu offers completed years with at least 1 supported amount; the latest
+such year is the default. An explicitly requested unsupported completed year is
+retained and explains its missing amounts. “No matching donation records” and
+“Amount unavailable” never become $0. This approved directory order does not
+rank influence, combine donors or join client spending to donations.
+
 ## The principal address
 
 The page defines a principal as a person or organisation that funds lobbying and must
@@ -169,11 +201,14 @@ grouped by year and receiving committee, with the committee's kind and a link on
 records support one. It reveals 5 payment rows at first and 5 more per selection.
 Dates, amounts and donated-goods-or-services markers stay on the payment lines.
 A differently typed donor name remains visible as "Filed as {name}". Repeated rows remain
-separate payments. No amount is added per committee, year or page.
+separate payments. The Year control offers all years or a selected year and resets
+the visible payment count to 5 when changed. The card adds no per-committee,
+per-year or page total; the guarded directory amount above is the scoped exception.
 
 There is no sentence joining a client's spending to a legislator. Listed clients and donations
-are different records. No chart, ranking, map, trend or combined money total is
-drawn on the lobbying screens.
+are different records. Beyond the guarded annual donation order in the lobbyist
+directory, no chart, ranking, map, trend or combined money total is drawn on the
+lobbying screens.
 
 ## Expanded donation rows elsewhere
 

@@ -81,7 +81,7 @@ const destinations: {
     path: '/money/lobbying/lobbyists',
     api: '/lobbying/lobbyists?limit=50&offset=50',
     data: live.lobbyists_page_2,
-    key: ['lobbying-lobbyists', '', 2],
+    key: ['lobbying-lobbyists', '', 2, null, 'name'],
     title: 'Lobbyists — page 2 — Minnesota lobbying | Alethical',
     query: { page: '2' },
   },
@@ -104,6 +104,56 @@ const destinations: {
 ];
 
 describe('every lobbying address works before the app loads', () => {
+  it('serves the linked donation year while keeping the whole record seed', async () => {
+    answer(live.kozak);
+    const result = await serve({
+      path: '/money/lobbying/lobbyists/kozak-andrew-141',
+      year: '2024',
+    });
+    expect(result.status).toBe(200);
+    expect(snapshot(result.body)).toContain('Donation year: 2024');
+    expect(snapshot(result.body)).toContain('25 donations · showing 5');
+    expect(snapshot(result.body)).not.toContain('240 donations');
+    expect(seeds(result.body)[0]).toEqual({
+      key: ['lobbying-lobbyist', '141'],
+      payload: { data: live.kozak },
+    });
+  });
+
+  it('serves a dollar-sorted year with matching seeds and preserved numbered links', async () => {
+    const data = {
+      ...live.lobbyists_page_2,
+      requested_year: 2025,
+      sort: 'donations_desc',
+      donations: { year: 2025 },
+      lobbyists: live.lobbyists_page_2.lobbyists.map((row) => ({
+        ...row,
+        donation_state: 'reported',
+        donation_amount: '1200',
+      })),
+    };
+    const fetcher = answer(data);
+    const result = await serve({
+      path: '/money/lobbying/lobbyists',
+      page: '2',
+      year: '2025',
+      sort: 'donations_desc',
+    });
+    expect(result.status).toBe(200);
+    expect(fetcher.mock.calls[0][0]).toContain('limit=50&offset=50&year=2025&sort=donations_desc');
+    expect(seeds(result.body)[0].key).toEqual([
+      'lobbying-lobbyists',
+      '',
+      2,
+      2025,
+      'donations_desc',
+    ]);
+    expect(snapshot(result.body)).toContain('$1,200 recorded in 2025');
+    expect(snapshot(result.body)).toContain('?year=2025');
+    expect(snapshot(result.body)).toContain('year=2025&amp;sort=donations_desc&amp;page=3');
+    expect(result.body).toContain('noindex');
+  });
+
   it.each(destinations)(
     'serves $path with its own title, exact source and matching seed',
     async (entry) => {

@@ -37,7 +37,7 @@ export const lobbyingLobbyistCopy = {
   noPrincipals: 'The lobbyist list names no organisation for this lobbyist on the copy date.',
   donationsHeading: 'Campaign donations filed under this registration number',
   donationsIntroduction:
-    "Campaign donations are separate from lobbying spending and from the organisations represented above. They are found by registration number, never by name. Each row is the receiving committee's own filing, and committees file on different calendars, so no total is drawn across them.",
+    "Campaign donations are separate from lobbying spending and from the organisations represented above. They are found by registration number, never by name. Each row is the receiving committee's own filing. Committees file on different calendars, so the available rows may not cover a full year.",
   noDonations: "The state's contribution file names no donation under this registration number.",
   sourceLabel: "View the Board's Lobbyist Search Tool",
 } as const;

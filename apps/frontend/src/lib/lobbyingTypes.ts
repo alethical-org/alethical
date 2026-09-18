@@ -4,6 +4,35 @@ export type LobbyingIdentifier = string | number;
 export interface LobbyingListOptions {
   q?: string;
   page?: number;
+  year?: number;
+  sort?: LobbyingDonationSort;
+}
+
+export type LobbyingDonationSort = 'name' | 'donations_desc' | 'donations_asc';
+
+export function lobbyingDonationSort(value: unknown): LobbyingDonationSort {
+  return value === 'donations_desc' || value === 'donations_asc' ? value : 'name';
+}
+
+function lobbyingCalendarYear(): number {
+  return Number(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Chicago',
+      year: 'numeric',
+    }).format(new Date()),
+  );
+}
+
+export function lobbyingRecordDonationYear(value: unknown): number | undefined {
+  const year = Number(value);
+  return Number.isInteger(year) && year >= 2015 && year <= lobbyingCalendarYear()
+    ? year
+    : undefined;
+}
+
+export function lobbyingDonationYear(value: unknown): number | undefined {
+  const year = Number(value);
+  return Number.isInteger(year) && year >= 2015 && year < lobbyingCalendarYear() ? year : undefined;
 }
 
 export const LOBBYING_PAGE_SIZE = 50;
@@ -23,7 +52,13 @@ export function lobbyingPrincipalsQueryKey(options: LobbyingListOptions = {}) {
 }
 export function lobbyingLobbyistsQueryKey(options: LobbyingListOptions = {}) {
   const { q, page } = lobbyingListOptions(options);
-  return ['lobbying-lobbyists', q, page] as const;
+  return [
+    'lobbying-lobbyists',
+    q,
+    page,
+    lobbyingDonationYear(options.year) ?? null,
+    lobbyingDonationSort(options.sort),
+  ] as const;
 }
 
 export interface LobbyingSourceStamp {
@@ -168,8 +203,23 @@ export interface LobbyingLobbyistListRow {
   name: string;
   formatted_name: string;
   principal_count: number;
+  donation_amount?: string | null;
+  donation_state?: 'reported' | 'no_records' | 'unavailable';
 }
 
 export interface LobbyingLobbyistsPage extends LobbyingListPage {
   lobbyists: LobbyingLobbyistListRow[];
+  sort?: LobbyingDonationSort;
+  requested_year?: number | null;
+  donations?: LobbyingDirectoryDonations;
+}
+
+export interface LobbyingDirectoryDonations {
+  state: 'reported' | 'unavailable';
+  year: number | null;
+  available_years: number[];
+  release_id: string | null;
+  copied_at: string | null;
+  source_url: string | null;
+  eligible_count: number | null;
 }

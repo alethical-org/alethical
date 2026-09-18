@@ -128,6 +128,7 @@ lasting decisions and release evidence have their permanent homes.
 - [Legislator campaign-money delivery](implementation/legislator-campaign-money-tab-plan.md) — coordinated releases, outstanding decisions and held data work
 - [Campaign-money review scope](implementation/campaign-money-final-review-prompt.md) — the releases to inspect and the work still excluded from that review
 - [Committee search and payment design](implementation/committee-search-payment-design.md) — the accepted committee and payment-list behavior
+- [Lobbyist donation sorting](implementation/lobbyist-donation-sort.md) — annual amount safeguards, directory controls and release checks
 - [Lobbying search delivery](implementation/lobbying-search-plan.md) — agreed search behavior and release checks
 - [Money page refinements](implementation/money-page-refinements.md) — wording, search and navigation acceptance checks
 - [Outside-spending browse delivery](implementation/outside-spending-browse-plan.md) — all-years browsing, paging and source checks
