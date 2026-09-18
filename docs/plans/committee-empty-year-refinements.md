@@ -20,13 +20,15 @@ and confirmation failure states remain.
 - [x] Replace the unverified alternate-year shortcut with “View filed reports”
 - [x] Run focused behavior checks, types, formatting, full frontend checks and build
 - [x] Inspect desktop, tablet and phone behavior; independent review and corrections
-- [ ] Commit, push, open pull request, pass current checks, merge, inspect live result
+
+Release completion, including the pull request, current checks and live result, is
+tracked in [issue 2274](https://github.com/alethical-org/alethical/issues/2274).
 
 No data ingestion, source-data changes, new designs or coverage-footer copy changes
 are part of this work. The initial HTML has no complete payment lists, so it must
 not claim their absence; the running view may compact only after its complete reads.
 
-Local evidence: 3,347 frontend tests pass; types, production build and its size checks
+Local evidence: 3,351 frontend tests pass; types, production build and its size checks
 pass. Browser checks cover 390, 900 and 1440 pixel widths, missing years, filed reports
 and populated committee figures. Independent review covers partial receipts, including
-loans that do not belong in contributor groups. Release evidence belongs in issue 2274.
+loans that do not belong in contributor groups.
