@@ -29,7 +29,7 @@ describe('firstLoadFiles', () => {
   it('counts a single startup file without charging for later screen code', () => {
     const html = '<script src="/_expo/static/js/web/index-abc.js" defer></script>';
     expect(firstLoadFiles(html)).toEqual(['index-abc.js']);
-    expect(checkFirstLoadBudget([{ name: firstLoadFiles(html)[0], bytes: 338333 }])).toBe(338333);
+    expect(checkFirstLoadBudget([{ name: firstLoadFiles(html)[0], bytes: 295283 }])).toBe(295283);
   });
 
   it('never counts a file the page does not name, whatever it is called', () => {
@@ -79,17 +79,14 @@ describe('checkFirstLoadBudget', () => {
   });
 
   it('reports the actual hosted preview size without predicting production from a fixed offset', () => {
-    // Same code, hosted on 14 Sep: preview 338,978, production 338,820.
-    // The retired +542 estimate rejected the preview at a fictional 339,520.
+    // Same code, hosted on 14 Sep: preview 338,978, production 338,820, against
+    // that day's 339,072 limit. The retired +542 estimate rejected the preview at a
+    // fictional 339,520.
     expect(
-      checkFirstLoadBudget([{ name: 'index-preview.js', bytes: 338_978 }], FIRST_LOAD_LIMIT, false),
+      checkFirstLoadBudget([{ name: 'index-preview.js', bytes: 338_978 }], 339_072, false),
     ).toBe(338_978);
     expect(
-      checkFirstLoadBudget(
-        [{ name: 'index-production.js', bytes: 338_820 }],
-        FIRST_LOAD_LIMIT,
-        true,
-      ),
+      checkFirstLoadBudget([{ name: 'index-production.js', bytes: 338_820 }], 339_072, true),
     ).toBe(338_820);
   });
 
@@ -117,7 +114,7 @@ describe('checkFirstLoadBudget', () => {
           FIRST_LOAD_LIMIT,
           hasSettings,
         ),
-      ).toThrow(/over the 339072-byte limit by 1/);
+      ).toThrow(/over the 296022-byte limit by 1/);
     }
   });
 
@@ -145,14 +142,14 @@ describe('checkFirstLoadBudget', () => {
   });
 
   it('leaves room above the hosted production measurement', () => {
-    // Vercel's production target built committed source a30d7941 as 338,333 bytes.
-    // dpl_2wadpZBF3EsRdzsM97axhR8FuBsE, 13 September 2026.
-    expect(FIRST_LOAD_LIMIT).toBeGreaterThanOrEqual(338_333);
-    expect(FIRST_LOAD_LIMIT - 338_333).toBe(739);
+    // The hosted production build of merge commit a092f832 serves its program file
+    // as 295,283 Brotli bytes (read off www.alethical.com, 18 September 2026).
+    expect(FIRST_LOAD_LIMIT).toBeGreaterThanOrEqual(295_283);
+    expect(FIRST_LOAD_LIMIT - 295_283).toBe(739);
   });
 
   it('keeps the ratchet at the hosted figure plus its existing headroom', () => {
-    expect(FIRST_LOAD_LIMIT).toBeLessThanOrEqual(339_072);
+    expect(FIRST_LOAD_LIMIT).toBeLessThanOrEqual(296_022);
   });
 });
 

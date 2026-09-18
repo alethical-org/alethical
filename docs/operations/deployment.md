@@ -211,8 +211,9 @@ no file at all may carry the full icon registry (`scripts/check-icon-bundle.mjs`
 program files named by the HTML must together stay under the production-derived
 byte limit (`scripts/check-first-load-budget.mjs`). The check counts those files
 regardless of their number; it does not count later screen downloads. The limit
-is 339,072 bytes, from Vercel’s 338,333-byte production-target build plus 739
-bytes of headroom. A smaller local export alone cannot lower that limit.
+is 296,022 bytes, from the 295,283 Brotli bytes the hosted production build of
+18 September 2026 serves plus 739 bytes of headroom. A smaller local export alone
+cannot lower that limit.
 
 ### Frontend first-load recovery
 
