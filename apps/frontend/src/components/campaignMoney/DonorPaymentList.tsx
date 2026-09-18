@@ -21,6 +21,7 @@ import { linkProps, routePath } from '../../navigation/links';
 import { numericText, useDetailsStyles } from './detailsStyles';
 import { moneyDetailsCopy as copy } from '../../lib/campaignMoneyDetailsCopy';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
+import { contentTabUnderline } from '../../theme/contentTabs';
 import { LobbyingDonationContext } from '../lobbying/LobbyingDonationContext';
 
 function wash(hex: string): string {
@@ -539,13 +540,13 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderWidth: 1,
     borderColor: 'transparent',
-    borderBottomWidth: 3,
+    ...contentTabUnderline.base,
     marginBottom: -1,
     borderTopLeftRadius: 4,
     borderTopRightRadius: 4,
     ...({ outlineStyle: 'none' } as object),
   },
-  activeTab: { borderBottomColor: c.text },
+  activeTab: { ...contentTabUnderline.selected },
   tabLabel: { fontSize: 17, fontWeight: '700', ...({ whiteSpace: 'nowrap' } as object) },
   tabCount: { fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] },
   inactiveTab: { color: c.muted },

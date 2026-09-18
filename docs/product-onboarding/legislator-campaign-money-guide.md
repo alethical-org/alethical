@@ -520,7 +520,7 @@ The tabs form 1 underlined row, without boxes or a full-width line above them.
 The row starts 30px below the Money in and Money out blocks. Each name is 17px and bold (weight 700),
 with its count beside it in a separate 15px span at weight 800, such as **Individuals 74**,
 with no parentheses. Tabs are at least 44px tall. The chosen tab has dark text and a 3px
-underline; its state does not rely on colour alone. At widths below 768px the row scrolls
+brand-green underline; its state does not rely on colour alone. At widths below 768px the row scrolls
 sideways by swipe or keyboard, with 20px gaps and no visible scrollbar. At wider widths
 the gaps are 26px. The row never wraps, unlike the wrapping year buttons.
 

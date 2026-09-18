@@ -486,7 +486,7 @@ describe('the accepted names-section controls', () => {
         tabs[index],
       ]);
       expect(getComputedStyle(tabs[index]).borderBottomWidth).toBe('3px');
-      expect(getComputedStyle(tabs[index]).borderBottomColor).toBe('rgb(17, 21, 15)');
+      expect(getComputedStyle(tabs[index]).borderBottomColor).toBe('rgb(46, 212, 126)');
     };
     expectChosen(0);
     expect(tabs[0].textContent).toBe('Individuals 74');

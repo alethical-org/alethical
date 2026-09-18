@@ -131,6 +131,7 @@ import type { RootScreenProps } from '../../navigation/types';
 import { markNextWebHistoryChangeAsReplace } from '../../navigation/webHistory';
 import { Container, Footer, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
+import { contentTabUnderline } from '../../theme/contentTabs';
 
 /**
  * One committee's money at /money/committees/{name}-{registration number}
@@ -1551,11 +1552,10 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
     paddingBottom: 12,
-    borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
+    ...contentTabUnderline.base,
     marginBottom: -1,
   },
-  tabActive: { borderBottomColor: c.text },
+  tabActive: { ...contentTabUnderline.selected },
   sectionTabLabel: {
     fontFamily: t.typography.body,
     fontSize: 17,
