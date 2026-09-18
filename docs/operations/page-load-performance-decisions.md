@@ -882,6 +882,11 @@ per-year spread), the race page's question touches 3,217 blocks today, 15,609 wi
 plain `(snapshot_id, recipient_reg_num, year)` index, and 2,500 with the carrying one.
 The plain index trades one sweep of the table for 27,889 scattered fetches from it.
 
+**Live after the release, read-only against production:** the race page's question
+touches 1,376 blocks against 13,308, and runs in 147 ms cold and 17 ms warm against
+1,713 ms and 69 ms. One committee's rows for a year touch 7 blocks against 607, and run
+in 0.25 ms against 4.9 ms. Both now read the index alone (`Index Only Scan`).
+
 It works only where Postgres knows the rows are visible to everyone, and it does:
 99.8% of this table's 26,464 pages are marked so, because the loader replaces rows in
 bulk and autovacuum marks them minutes later. Where that is not yet true the planner
