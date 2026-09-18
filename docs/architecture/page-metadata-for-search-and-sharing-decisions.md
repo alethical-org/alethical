@@ -2,19 +2,17 @@
 
 # What each page tells search engines and link previews — decisions
 
-**Net:** Sharing a link on social media already works and shows the right title. Search engines are
-the half that is broken: every one of our 10,671 pages hands them the same nameless page, so they
-look like one page repeated. The fix is two releases — first give every visitor, person or robot,
-the same page with the right title in it, then put a short factual summary into that page as well.
-This doc proposes both and asks Eugene to approve the approach before anything is built.
+Public pages return their own titles, descriptions, and readable content in the first
+response. People and search engines receive the same page. The serving behavior and
+its evidence are recorded in §12 onward; later sections name subsequent extensions
+and their limits.
 
-For [#1325](https://github.com/alethical-org/alethical/issues/1325). The recommendation below was
-pressure-tested against an outside review; where that review corrected the first draft, this doc
-says so, because those corrections changed what got built.
-
-**Approved and built. Release 1 shipped — read §12 for what is live, and for the three places the
-build had to decide something this proposal left open or got slightly wrong.** Everything above §12
-is kept as written, because it is the record of *why*, and §12 is the record of *what*.
+Sections 1–11 preserve the dated initial proposal and measurements from 11 August
+2026 for [issue 1325](https://github.com/alethical-org/alethical/issues/1325). Their
+failure descriptions, unchecked acceptance list, and requests for approval are
+historical, not a list of current defects or pending decisions. Sections 12 and 13
+record the delivery of the 2 proposed releases. Use the later applicable section
+when it changes a choice in the initial proposal.
 
 ---
 

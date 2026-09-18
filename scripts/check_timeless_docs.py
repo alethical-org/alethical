@@ -7,8 +7,8 @@ branch ADDS relative to its merge base, so the existing corpus and every
 legitimate kept use (runtime behaviour like "an anchor whose position no
 longer matches", kept decision evidence) never trip it.
 
-Exempt entirely, matching rule 16's own list: dated snapshots. Design
-handoffs, the published-writing corrections log (whose format is
+Exempt entirely, matching rule 16's own list: dated snapshots. The
+published-writing corrections log (whose format is
 before/after by design), measurement and audit records, research findings,
 and the posted pieces' source files.
 
@@ -29,9 +29,8 @@ import sys
 CHECKED_PREFIXES = ("docs/", ".claude/rules/", "AGENTS.md")
 
 EXEMPT = (
-    "docs/reader-guides/",  # posted pieces' source of record (grounded-answers rule 13)
+    "docs/published-writing/",  # posted pieces' source of record (grounded-answers rule 13)
     "docs/published-writing-corrections.md",  # before/after per correction is its purpose
-    "docs/design/handoff-",  # frozen design handoffs
     "docs/research/",  # dated research findings
     "docs/operations/production-database-schema-drift.md",  # dated audit record
     "docs/operations/keeping-docs-current-decisions.md",  # measurement log

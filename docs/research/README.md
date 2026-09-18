@@ -8,10 +8,12 @@ Point-in-time research investigations, grouped by topic. These are **dated snaps
 - Group by topic once a topic has more than one report; don't nest deeper than `topic/` without cause.
 
 **Ungrouped reports:**
-- `real-visitor-page-speed-sources.md` — what Cloudflare Web Analytics and Vercel Analytics, both already loaded on every page, record about how fast real visits are; whether we can read it without paying; and the first per-address figures (4 Sep 2026).
-- `base44-campaign-finance-findings.md` — what the retired Base44 campaign-finance build got wrong.
-- `359-prior-biennium-public-readiness.md` — whether the prior biennium's records were ready to publish.
+- [real-visitor-page-speed-sources.md](real-visitor-page-speed-sources.md) — what Cloudflare Web Analytics and Vercel Analytics, both already loaded on every page, record about how fast real visits are; whether we can read it without paying; and the first per-address figures (4 Sep 2026).
+- [base44-campaign-finance-findings.md](base44-campaign-finance-findings.md) — what the retired Base44 campaign-finance build got wrong.
+- [359-prior-biennium-public-readiness.md](359-prior-biennium-public-readiness.md) — whether the prior biennium's records were ready to publish.
+
+- [Search visibility audit](seo-indexing-audit-2026-09-07.md) — search discovery and indexing findings, 7 September 2026.
 
 **Topics:**
-- `persona/` — real-human persona / agent-persona chatbots (identity grounding, role-vs-persona, citation fidelity).
-- `retrieval/` — retrieval strategy for grounded Q&A (embeddings, reranking, hybrid search, contextual retrieval, routing, evaluation).
+- [Persona research](persona/persona-rag-chatbot-research.md) — real-human persona / agent-persona chatbots (identity grounding, role-vs-persona, citation fidelity).
+- [Retrieval research](retrieval/retrieval-strategy-research.md) — retrieval strategy for grounded Q&A (embeddings, reranking, hybrid search, contextual retrieval, routing, evaluation).

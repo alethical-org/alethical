@@ -4,7 +4,7 @@
  * trait.
  *
  * The prose is transcribed word for word from
- * `docs/reader-guides/money-spent-without-a-campaigns-say.md`, which is where it
+ * `docs/published-writing/money-spent-without-a-campaigns-say.md`, which is where it
  * was written and settled before any container existed for it. Nothing here is
  * edited to fit a layout or to fit a check (rule 13's publishing order; point 2a
  * is the one door).

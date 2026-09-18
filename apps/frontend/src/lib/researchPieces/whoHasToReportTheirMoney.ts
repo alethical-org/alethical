@@ -3,7 +3,7 @@
  * Alethical publishes carrying only the **guide** trait.
  *
  * The prose is transcribed word for word from
- * `docs/reader-guides/who-has-to-report-their-money.md`, which is where it was
+ * `docs/published-writing/who-has-to-report-their-money.md`, which is where it was
  * written and settled before any container existed for it. Nothing here is
  * edited to fit a layout or to fit a check: rule 13's publishing order is
  * explicit that a piece posts exactly as its author wrote it, and its point 2a

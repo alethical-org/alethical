@@ -340,3 +340,13 @@ failed-release watch above compares deployment state instead of fetching the sit
 
 The web app is the shipped client. [iOS release](ios-release.md) owns simulator,
 TestFlight, and future native iOS steps.
+
+## Preserve Site metrics history during rollback
+
+Rolling back application code must keep the accumulated Site metrics history. Leave
+`site_metric_receipt`, `site_metric_coverage`, and `site_metric_hourly_count` in place.
+Do not run the destructive downgrade in
+[`0052_site_metric_history.py`](../../alethical/alembic/versions/0052_site_metric_history.py):
+it drops those tables and deletes `money_search_with_results` events from
+`site_metric_event`. Use a compatible application release or a forward repair; an
+application rollback is not permission to discard measurement history.

@@ -4,8 +4,9 @@ Net: the ``/money`` landing page opens with 5 lane cards, 4 of them carrying a c
 "files last copied" date and a list of the newest filings we hold. Every one of those is a
 count or a date over the live data, so the page cannot say 1,336 registered filers on a
 day the register holds 1,603 -- which is exactly what a pasted figure did once
-(``docs/design/handoff-campaign-money/Campaign money IA.dc.html``, section 01, and the
-data census in [#1661](https://github.com/alethical-org/alethical/issues/1661)).
+(the data census in [#1661](https://github.com/alethical-org/alethical/issues/1661)).
+The current display contract lives in
+``docs/product-onboarding/campaign-money-section-guide.md``.
 
 **The 4 counts are 4 different populations, and each names its own.** Sitting members
 and confirmed links come from tables we own; registered filers and contests come from the
