@@ -30,7 +30,17 @@ export type RootStackParamList = {
         page?: string;
       }
     | undefined;
-  Legislators: undefined;
+  Legislators:
+    | {
+        /** The Money in politics route opens a chosen member on Campaign money. */
+        tab?: 'money';
+        q?: string;
+        chamber?: string;
+        party?: string;
+        session?: string;
+        page?: string;
+      }
+    | undefined;
   BillDetail: {
     billId: string;
     // 'fulltext' is the retired name for 'text', still accepted so links shared

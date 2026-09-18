@@ -222,6 +222,16 @@ describe('live URLs still resolve to themselves', () => {
     ).toBe('/legislators/aisha-gomez');
   });
 
+  it('keeps the Money route through the legislator directory', () => {
+    expect(targetFromPathname('/legislators?tab=money')).toEqual({
+      kind: 'legislators',
+      params: { tab: 'money' },
+    });
+    expect(pathForRoute({ name: 'Legislators', params: { tab: 'money' } })).toBe(
+      '/legislators?tab=money',
+    );
+  });
+
   it('carries the campaign money tab and its year through reload or sharing', () => {
     // A figure someone sends to somebody else has to arrive showing the year they
     // were looking at (grounded-answers rule 5, #1329).

@@ -101,11 +101,9 @@ unfinished clerical job of ours.
 - Its own web address is `/legislators/<name>?tab=money`, and the year rides along as
   `&year=2025`. So a link somebody sends you opens on the same tab and the same year
   they were looking at.
-- The Overview tab carries a short **Campaign money** card pointing at the tab. It
-  deliberately carries **no figure**: a number there would drag a second "as of" date
-  onto the Overview tab, which is the problem the two tabs exist to avoid.
-
-![The Overview tab's pointer to the Campaign money tab](../verification/1329-legislator-campaign-money/overview-pointer-desktop-1280px.png)
+- Choosing **Legislators** on `/money`, then choosing a member, opens Campaign money.
+  Choosing **Legislators** from the top menu or opening a plain profile address opens
+  Overview. Overview does not repeat a card pointing to the tab directly above it.
 
 ---
 
