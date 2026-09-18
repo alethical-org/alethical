@@ -133,6 +133,7 @@ lasting decisions and release evidence have their permanent homes.
 - [Outside-spending browse delivery](implementation/outside-spending-browse-plan.md) — all-years browsing, paging and source checks
 - [Sharing delivery](implementation/sitewide-sharing-plan.md) — shared controls, address preservation and release checks
 - [Committee money refinements](plans/committee-money-refinements.md) — coordinated source-label and money-card refinements
+- [Committee empty-year refinements](plans/committee-empty-year-refinements.md) — missing figures, contribution terms and filed-report navigation
 - [Committee record delivery](plans/committee-record-redesign.md) — committee layout, filing lists and release checks
 - [Money races delivery](design/money-races-build-plan.md) — accepted race-page scope and completion checks
 - [Payments by year release evidence](operations/2141-payments-by-year-checkpoint.md) — real-row checks and remaining wording boundaries
