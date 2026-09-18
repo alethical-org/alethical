@@ -787,7 +787,55 @@ production with 0 differences.
   money read stops paying a round trip to set its read-only view: the isolation level
   travels inside `BEGIN` (`pin_to_one_view`), verified against the production pooler
   to hold inside the transaction and reset after it. The statement-by-statement
-  account is under "What an uncached money answer spends its time on".
+  account is under "What an uncached money answer spends its time on". The next
+  section takes the same read to 14.
+
+## The deepest money reads ask the database 14 questions instead of 24, 18 September 2026
+
+**Every statement a money read sends costs a round trip to a database in another
+region, and the statements themselves are trivial**, so once the sweeps were gone the
+remaining cost of the 2 deepest pages was their trip count: 24 statements behind a
+legislator's money year, 18 behind a committee page, none of them slow alone. Traced
+read-only against production from a laptop, every one of the 24 took 31 to 38 ms and
+the read took 960 ms wall; from the server the trip is shorter and the shape the same.
+
+**The folds, each keeping its statements' filters word for word, and each pinned by a
+test that compares the folded answer with the separate reads it replaces
+(`alethical/tests/test_money_read_costs.py`):**
+
+| Before | After | Where |
+|---|---|---|
+| The release pointer, then the filings pointer, then the release's stored checks: 3 statements before any figure | 1 statement inside a pinned request: the release read outer-joins the filings pointer and carries the contributions snapshot's `validation_json` (1.9 KB live); the register and the withheld filer-years are remembered for the request | `committee_finance.current_release`, `withheld_filer_years`; `campaign_finance_filings.pinned_memo` names every key the memo holds |
+| Money in, money out, the in-kind figure, and the split's dates and cash: 4 aggregates of the same 2 tables under the same 2 keys | 1 `UNION ALL` of the 4 reads' own groupings, remembered per committee and years asked | `campaign_finance_reader.money_rows`, `committee_finance.money_rows`; `legislator_finance.named_payment_facts` and the year-span read draw from it |
+| The money-out verdict and the money-in verdict, 2 tables read by 2 modules | 1 `UNION ALL` with `status::text` (the 2 tables' enums differ), remembered per committee | `committee_stated_verdicts.verdict_rows` |
+| Refunds: every candidate summary, then the lines matched to the committee, then the years the Board published nothing for | 1 statement: summaries outer-joined to their matched line, `UNION ALL` the not-published years as rows of their own kind | `committee_refunds.refunds_for_committee` |
+| Donors by state: an eligibility test, then the rows | 1 statement: the test as a 1-row derived table, the rows as a `LATERAL` read that runs only where it is true | `committee_donor_states.donor_states` |
+| Filed lines by kind: the filing's lines, then the cash rows bounded by the filing's period end | 1 statement: the lines as a named sub-result the cash read takes its cutoff from | `committee_stated_by_kind.stated_by_kind` |
+
+**Measured, read-only against production, before and after, warm:**
+
+| Route | Statements before | Statements after | Wall before | Wall after |
+|---|---:|---:|---:|---:|
+| `GET /legislators/jim-abeler/campaign-finance?year=2025` | 24 | 14 | 960 ms | 633 ms |
+| `GET /committees/18135/finance?year=2026` | 18 | 12 | 765 ms | 562 ms |
+| `GET /legislators/jim-abeler/campaign-finance/years?from=2015&to=2026` | 9 | 8 | 483 ms | 430 ms |
+| `GET /campaign-finance/races?year=2026` | 6 | 5 | 504 ms | 419 ms |
+| `GET /campaign-finance/outside-spending?sort=newest` | 3 | 2 | 420 ms | 470 ms (1 statement of 200 ms of real work; noise) |
+
+The wall times include the laptop's own 65 ms `SET TRANSACTION READ ONLY`, which the
+server never sends. 17 live answers (5 legislator years, 2 year spans, 7 committee
+years, a payments page, the races page and the outside-spending record) compared equal
+to the folded code's answers, field for field, with only the per-request
+`current_claim_validated_at` set aside.
+
+**What stays separate, and why.** `find_committee` still asks up to 3 datasets in
+turn, because on the live release the first answers for nearly every committee and a
+`UNION` would read all 3 for everyone. `name_connections`, `independent_spending_about`,
+the register row, the report catalogue and the confirmed links are 1 statement each and
+answer different questions of different tables. What remains on the legislator read is
+14 trips of about 25 ms from the server; the next saving of size would be sending
+independent statements without waiting for each answer, which this driver's session
+does not do.
 
 ## Shared screen code stays with the screen, 13 September 2026
 
@@ -1544,6 +1592,10 @@ beside the rows themselves.
 | Asking which register is live once per caller inside 1 pinned request | 3 round trips on a committee page, 6 on one year of a legislator's money tab, every answer identical because `REPEATABLE READ` makes it so | Remember the first answer for the life of the pinned transaction and no longer (`campaign_finance_filings.mark_pinned_read`); an unpinned session, which is what the loader holds, still asks every time |
 | Proving a snapshot's rows are still held with a `count(*)` per table | 3 round trips before any lobbying read could begin | Ride the counts on the statement that names the snapshots, as scalar subqueries (`lobbying.published_pair`) |
 | Reading the same few rows about 1 subject from 3 functions | a legislator's review decisions read 3 times a year-request; a committee's refund summaries twice | Read once and pass the list down (`independent_spending.every_link`); split published from known in Python (`committee_refunds`) |
+| Asking 4 aggregates of the same 2 tables under the same 2 keys separately | 4 of a legislator's 24 statements and 4 of a committee page's 18 | One `UNION ALL` of the 4 groupings, tagged by a `part` column, remembered for the pinned request (`campaign_finance_reader.money_rows`) |
+| Reading a second pointer table and a stored check after the release read | 2 trips before the first figure on every money read | Outer-join the pointer and carry the check on the release read; remember both (`committee_finance.current_release`) |
+| A yes-or-no test, then the rows it permits | 2 trips for the donors-by-state block | The test as a 1-row derived table and the rows as a `LATERAL` read gated on it, so 1 row comes back saying no (`committee_donor_states`) |
+| A value read first so a second read can be bounded by it | 2 trips for the filed lines by kind | Name the first read as a sub-result (`WITH`) and take the bound from it inside the same statement (`committee_stated_by_kind`) |
 
 **Measured again on 17 Sep 2026, for the deepest money pages, with the same
 per-trip cost.** Traced from a laptop 32 ms from the database, so a saved trip is worth

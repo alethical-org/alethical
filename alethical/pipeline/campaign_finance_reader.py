@@ -208,6 +208,16 @@ def live_release(db: Session) -> Optional[Release]:
     row = db.execute(_LIVE_RELEASE_SQL).one_or_none()
     if row is None:
         return None
+    return release_from_row(row)
+
+
+def release_from_row(row) -> Release:
+    """Build a ``Release`` from the 14 columns ``_LIVE_RELEASE_SQL`` selects, in order.
+
+    Shared with the API's pinned read, which selects the same 14 columns through the
+    same joins and rides 2 more answers on the statement (``committee_finance.
+    current_release``), so both paths refuse a pruned snapshot by the same test.
+    """
     (
         release_id,
         fetched_at,
@@ -516,7 +526,11 @@ def money_in(
     if not rows:
         _refuse_if_rows_are_gone(db, release, Dataset.contributions)
         return []
+    return _fold_money_in_rows(reg_num, rows)
 
+
+def _fold_money_in_rows(reg_num: str, rows) -> list[MoneyIn]:
+    """Group ``(year, receipt_type, count, total, missing)`` rows into ``MoneyIn``."""
     by_year: dict[int, list[Bucket]] = {}
     for year, receipt_type, count, total, missing in rows:
         label = receipt_type if receipt_type is not None else "(not stated)"
@@ -629,6 +643,17 @@ def filer_years_that_must_not_show_a_split(
         ),
         {"snapshot": release.contributions.snapshot_id},
     ).scalar()
+    return withheld_filer_years_from_checks(recorded)
+
+
+def withheld_filer_years_from_checks(recorded) -> frozenset[tuple[str, int]]:
+    """The filer-years a snapshot's recorded checks refuse a split for.
+
+    The parsing half of ``filer_years_that_must_not_show_a_split``, on its own so a
+    caller that already holds the snapshot's ``validation_json`` -- the pinned release
+    read carries it, because it is under 2 KB on the live release -- reaches the same
+    answer with no statement of its own.
+    """
     withheld: set[tuple[str, int]] = set()
     for check in (recorded or {}).get("checks") or []:
         if check.get("name") != "reported_totals_reconcile":
@@ -684,7 +709,11 @@ def money_out(
     if not rows:
         _refuse_if_rows_are_gone(db, release, Dataset.expenditures)
         return []
+    return _fold_money_out_rows(reg_num, rows)
 
+
+def _fold_money_out_rows(reg_num: str, rows) -> list[MoneyOut]:
+    """Group ``(year, type, count, total, missing)`` rows into ``MoneyOut``."""
     by_year: dict[int, list[Bucket]] = {}
     for year, label, count, total, missing in rows:
         by_year.setdefault(int(year), []).append(
@@ -767,6 +796,150 @@ def expenditure_in_kind(
         ExpenditureInKind(reg_num, int(year), total, int(count))
         for year, total, count in rows
     ]
+
+
+@dataclass(frozen=True)
+class ContributionFacts:
+    """One filer-year's named contribution rows, read for their dates and their cash.
+
+    ``first_payment_on`` and ``last_payment_on`` are the earliest and latest dated
+    ``Receipt type = 'Contribution'`` rows; ``cash_total`` sums the ones that were
+    money rather than goods, ``coalesce``d to 0 where cash rows exist, and ``None``
+    where no cash row exists at all -- the same 2 readings ``payment_dates`` and
+    ``contribution_cash`` give, because a legislator's money tab folds them together.
+    """
+
+    reg_num: str
+    year: int
+    first_payment_on: Optional[date]
+    last_payment_on: Optional[date]
+    cash_total: Optional[Decimal]
+    cash_rows: int
+
+
+@dataclass(frozen=True)
+class MoneyRows:
+    """Everything the 4 per-committee-year aggregate reads return, read together.
+
+    **No part of this has been checked against ``_refuse_if_rows_are_gone``.** The 4
+    reads it replaces each make that check when their own rows come back empty, and
+    the caller keeps that duty: ``money_in`` empty means ask about the contributions
+    file, ``money_out`` empty means ask about the expenditures file, before either
+    absence is read as silence about the committee.
+    """
+
+    money_in: tuple[MoneyIn, ...]
+    money_out: tuple[MoneyOut, ...]
+    in_kind_out: tuple[ExpenditureInKind, ...]
+    contribution_facts: dict[int, ContributionFacts]
+
+
+_MONEY_ROWS_SQL = text(
+    """
+    SELECT 'in' AS part, year, receipt_type AS label, count(*) AS rows,
+           coalesce(sum(amount), 0) AS total, count(*) - count(amount) AS missing,
+           NULL::date AS first_on, NULL::date AS last_on
+      FROM cf_contribution_row
+     WHERE snapshot_id = :contributions AND recipient_reg_num = :reg_num
+       AND year = ANY(:years)
+     GROUP BY year, receipt_type
+    UNION ALL
+    SELECT 'out', year, type, count(*), coalesce(sum(amount), 0),
+           count(*) - count(amount), NULL::date, NULL::date
+      FROM cf_expenditure_row
+     WHERE snapshot_id = :expenditures AND committee_reg_num = :reg_num
+       AND year = ANY(:years)
+     GROUP BY year, type
+    UNION ALL
+    SELECT 'in_kind_out', year, NULL::text, count(*), coalesce(sum(amount), 0),
+           NULL::bigint, NULL::date, NULL::date
+      FROM cf_expenditure_row
+     WHERE snapshot_id = :expenditures AND committee_reg_num = :reg_num
+       AND lower(coalesce(in_kind, '')) = 'yes'
+       AND year = ANY(:years)
+     GROUP BY year
+    UNION ALL
+    SELECT 'facts', year, NULL::text,
+           count(*) FILTER (WHERE lower(coalesce(in_kind, '')) <> 'yes'),
+           sum(amount) FILTER (WHERE lower(coalesce(in_kind, '')) <> 'yes'),
+           NULL::bigint, min(receipt_date), max(receipt_date)
+      FROM cf_contribution_row
+     WHERE snapshot_id = :contributions AND recipient_reg_num = :reg_num
+       AND year = ANY(:years) AND receipt_type = :contribution
+     GROUP BY year
+    ORDER BY 1, 2, 3
+    """
+)
+
+
+def money_rows(
+    db: Session, release: Release, reg_num: str, years: Iterable[int]
+) -> MoneyRows:
+    """``money_in``, ``money_out``, ``expenditure_in_kind`` and the contribution
+    dates and cash for one filer over ``years``, in **one statement**.
+
+    The 4 reads scan the same 2 tables under the same 2 keys, and each cost a round
+    trip to a database in another region: 4 of the 24 statements behind a
+    legislator's money tab and 4 of the 18 behind a committee page, 18 Sep 2026. The
+    4 branches are the 4 reads' own filters and groupings, word for word, so every
+    figure here equals the figure the separate read returns; the tests pin that.
+
+    ``years`` is required, because every caller that draws a page asks about the year
+    it is drawing, and ``year IS NOT NULL`` is implied by the ``ANY`` test.
+    """
+    wanted = sorted({int(year) for year in years})
+    if not wanted:
+        return MoneyRows((), (), (), {})
+    rows = db.execute(
+        _MONEY_ROWS_SQL,
+        {
+            "contributions": release.contributions.snapshot_id,
+            "expenditures": release.expenditures.snapshot_id,
+            "reg_num": reg_num,
+            "years": wanted,
+            "contribution": CONTRIBUTION_RECEIPT,
+        },
+    ).all()
+    parts: dict[str, list] = {"in": [], "out": [], "in_kind_out": [], "facts": []}
+    for part, year, label, count, total, missing, first_on, last_on in rows:
+        parts[part].append((year, label, count, total, missing, first_on, last_on))
+    return MoneyRows(
+        money_in=tuple(
+            _fold_money_in_rows(
+                reg_num,
+                [
+                    (y, label, n, total, missing)
+                    for y, label, n, total, missing, _, _ in parts["in"]
+                ],
+            )
+        ),
+        money_out=tuple(
+            _fold_money_out_rows(
+                reg_num,
+                [
+                    (y, label, n, total, missing)
+                    for y, label, n, total, missing, _, _ in parts["out"]
+                ],
+            )
+        ),
+        in_kind_out=tuple(
+            ExpenditureInKind(reg_num, int(y), total, int(n))
+            for y, _, n, total, _, _, _ in parts["in_kind_out"]
+        ),
+        contribution_facts={
+            int(y): ContributionFacts(
+                reg_num,
+                int(y),
+                first_on,
+                last_on,
+                # ``coalesce(sum, 0)`` over the cash rows, as ``contribution_cash``
+                # computes it, and ``None`` where there is no cash row to sum.
+                (cash if cash is not None else Decimal("0")) if cash_rows else None,
+                int(cash_rows),
+            )
+            for y, _, cash_rows, cash, _, first_on, last_on in parts["facts"]
+        },
+    )
 
 
 # --- Transfers between registered filers -------------------------------------

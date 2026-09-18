@@ -34,9 +34,15 @@ from alethical.api.services import campaign_finance_races as races_service
 from alethical.api.services import committee_finance as committee_service
 from alethical.api.services import legislator_finance as legislator_service
 from alethical.api.services import outside_spending as outside_spending_service
+from alethical.api.services.committee_donor_states import donor_states
+from alethical.api.services.committee_refunds import refunds_for_committee
+from alethical.api.services.committee_stated_by_kind import stated_by_kind
+from alethical.api.services.committee_stated_spending import stated_spending_for_year
+from alethical.api.services.committee_stated_split import stated_split_for_year
 from alethical.db import models
 from alethical.db.session import get_engine, get_session_factory
 from alethical.pipeline import campaign_finance_filings as filings
+from alethical.pipeline import campaign_finance_reader as reader
 from alethical.tests.filed_figures import (
     clear_filings_snapshots,
     publish_filings_snapshot,
@@ -589,7 +595,11 @@ def test_a_legislator_year_reads_each_shared_record_once(db, published) -> None:
         and "receipt_type = " in s
         and "GROUP BY year ORDER BY year" in s
     ], "the cash figure must ride with the payment dates"
-    assert len(sent.sent) == 22, sent.sent
+    # 22 on 17 Sep 2026; 15 since the 18 Sep folds, 3 of which this fixture pays for
+    # having no expenditure row (a second committee lookup, then 2 checks that the
+    # empty payments file is silence rather than pruning), so production sends 12
+    # here plus the legislator lookup and the release read.
+    assert len(sent.sent) == 15, sent.sent
 
 
 def test_a_span_of_years_reads_each_dataset_once(db, published) -> None:
@@ -633,9 +643,227 @@ def test_a_span_of_years_reads_each_dataset_once(db, published) -> None:
     assert len(catalogue) == 1, catalogue
     verdicts = [s for s in sent.sent if "FROM cf_stated_split" in s]
     assert len(verdicts) == 2, verdicts
-    # Per committee: its rows by year, its dates and cash by year. Once for the span:
-    # which numbers the release holds at all, and which years the download reaches.
-    assert len(sent.touching("cf_contribution_row")) == 2 * 2 + 2, sent.touching(
+    # Per committee: its rows by year with its dates and cash by year, 1 statement
+    # (``committee_finance.money_rows``). Once for the span: which numbers the release
+    # holds at all, and which years the download reaches.
+    assert len(sent.touching("cf_contribution_row")) == 2 + 2, sent.touching(
         "cf_contribution_row"
     )
-    assert len(sent.sent) == 13, sent.sent
+    assert len(sent.sent) == 9, sent.sent
+
+
+def test_a_pinned_release_read_answers_3_questions_in_one_statement(
+    db, published
+) -> None:
+    """Resolving the release also resolves the register and the withheld filer-years.
+
+    Before 18 Sep 2026 every money read spent 3 trips before its first figure: the
+    release pointer, the filings pointer, and the release's recorded checks. Pinned,
+    the 3 ride on 1 statement, and the 2 later asks send nothing. The answers must be
+    the ones the 3 separate reads give, which is what the second half pins.
+    """
+    committee_service.pin_to_one_view(db)
+    with Statements() as sent:
+        release = committee_service.current_release(db)
+    assert len(sent.sent) == 1, sent.sent
+    assert "cf_filing_snapshot" in sent.sent[0] and "validation_json" in sent.sent[0]
+    with Statements() as later:
+        snapshot = filings.live_filings_snapshot(db)
+        withheld = committee_service.withheld_filer_years(db, release)
+    assert later.sent == [], later.sent
+    assert snapshot is not None
+    db.rollback()
+    # The same 3 answers, each read the separate way in an unpinned session.
+    assert release == committee_service.current_release(db)
+    assert snapshot.id == filings.live_filings_snapshot(db).id
+    assert withheld == reader.filer_years_that_must_not_show_a_split(db, release)
+
+
+def test_a_pinned_release_read_remembers_a_missing_register(db, published) -> None:
+    """With no filings snapshot published, the fold says so once and asks no more."""
+    clear_filings_snapshots(db)
+    db.commit()
+    committee_service.pin_to_one_view(db)
+    with Statements() as sent:
+        release = committee_service.current_release(db)
+        snapshot = filings.live_filings_snapshot(db)
+    assert release is not None and snapshot is None
+    assert len(sent.sent) == 1, sent.sent
+
+
+def _add_payments_out(db, release) -> None:
+    """3 payments out for the Senate committee in 2026, 1 of them goods rather than cash."""
+    for row_number, (amount, in_kind, kind) in enumerate(
+        (
+            (Decimal("400.00"), "No", "Campaign Expenditure"),
+            (Decimal("125.50"), "Yes", "Campaign Expenditure"),
+            (Decimal("75.00"), "No", "General Expenditure"),
+        ),
+        start=1,
+    ):
+        db.add(
+            models.CampaignFinanceExpenditureRow(
+                snapshot_id=release.expenditures_snapshot_id,
+                row_number=row_number,
+                committee_reg_num=SENATE_COMMITTEE,
+                committee_name="Port, Lindsey Senate Committee",
+                entity_type="PCC",
+                vendor_name=f"Vendor {row_number}",
+                amount=amount,
+                unpaid_amount=Decimal("0"),
+                transaction_date=date(2026, 4, row_number),
+                year=2026,
+                type=kind,
+                in_kind=in_kind,
+                purpose="Printing",
+            )
+        )
+    db.commit()
+
+
+def test_a_committee_year_reads_its_money_rows_in_one_statement(db, published) -> None:
+    """Money in, money out, the in-kind figure and the split's dates and cash: 1 read.
+
+    4 statements per committee-year before 18 Sep 2026, over the same 2 tables under
+    the same 2 keys. The fold's 4 branches must return exactly what the 4 separate
+    reads return, so a page cannot print a different figure for having read faster.
+    """
+    _add_payments_out(db, published)
+    committee_service.pin_to_one_view(db)
+    release = committee_service.current_release(db)
+    with Statements() as sent:
+        finance = committee_service.committee_finance(
+            db, release, registration_number=SENATE_COMMITTEE, year=2026
+        )
+        split_facts = legislator_service.named_payment_facts(
+            db, release, registration_number=SENATE_COMMITTEE, years=[2026]
+        )
+    folded = [statement for statement in sent.sent if "'in_kind_out'" in statement]
+    assert len(folded) == 1, sent.sent
+    assert len(sent.touching("cf_contribution_row")) == 1, sent.touching(
+        "cf_contribution_row"
+    )
+    assert finance is not None
+    assert finance.money_in.itemized_contribution_total == Decimal("250.00")
+    assert finance.money_out.itemized_payment_total == Decimal("600.50")
+    assert finance.money_out.itemized_payments == 3
+    assert finance.money_out.in_kind_total == Decimal("125.50")
+    assert [entry.expenditure_type for entry in finance.money_out.by_type] == [
+        "Campaign Expenditure",
+        "General Expenditure",
+    ]
+    assert split_facts[2026].first_payment_on == date(2026, 3, 1)
+    assert split_facts[2026].cash_total == Decimal("250.00")
+    assert split_facts[2026].cash_rows == 1
+    # The 4 separate reads agree with the fold, field for field.
+    rows = reader.money_rows(db, release, SENATE_COMMITTEE, [2026])
+    assert list(rows.money_in) == reader.money_in(
+        db, release, SENATE_COMMITTEE, years=[2026]
+    )
+    assert list(rows.money_out) == reader.money_out(
+        db, release, SENATE_COMMITTEE, years=[2026]
+    )
+    assert list(rows.in_kind_out) == reader.expenditure_in_kind(
+        db, release, SENATE_COMMITTEE, years=[2026]
+    )
+    cash = reader.contribution_cash(db, release, SENATE_COMMITTEE, years=[2026])
+    assert [
+        (f.year, f.cash_total, f.cash_rows) for f in rows.contribution_facts.values()
+    ] == [(entry.year, entry.total, entry.rows) for entry in cash]
+    dates = legislator_service.payment_dates(
+        db, release, registration_number=SENATE_COMMITTEE, year=2026
+    )
+    assert (
+        rows.contribution_facts[2026].first_payment_on,
+        rows.contribution_facts[2026].last_payment_on,
+    ) == dates
+
+
+def test_an_empty_payments_file_is_still_checked_for_pruning(db, published) -> None:
+    """A committee with no payment rows still gets the is-it-gone check, once."""
+    committee_service.pin_to_one_view(db)
+    release = committee_service.current_release(db)
+    with Statements() as sent:
+        finance = committee_service.committee_finance(
+            db, release, registration_number=SENATE_COMMITTEE, year=2026
+        )
+    # ``unavailable``: this fixture's payments file holds no row for any year.
+    assert finance is not None and finance.money_out.state == "unavailable"
+    pruning_checks = [
+        s for s in sent.sent if s.startswith("SELECT cf_expenditure_row.row_number")
+    ]
+    # The question the separate read asked on this path: does the file reach the
+    # year at all. (The is-it-gone check asks nothing of a snapshot that published 0
+    # rows, here as before the fold.)
+    assert len(pruning_checks) == 1, sent.sent
+
+
+def test_both_stored_verdicts_are_read_in_one_statement(db, published) -> None:
+    """The money-out verdict and the money-in verdict come back on 1 read, remembered."""
+    filings_id = filings.live_filings_snapshot(db).id
+    db.add(
+        models.CampaignFinanceStatedSplit(
+            snapshot_id=published.contributions_snapshot_id,
+            registration_number=SENATE_COMMITTEE,
+            filing_year=2026,
+            filings_snapshot_id=filings_id,
+            status=models.CampaignFinanceStatedSplitStatus.agrees,
+            reason="the filing itemizes $250.00 and our rows hold $250.00",
+            stated_itemized=Decimal("250.00"),
+            ours_itemized=Decimal("250.00"),
+            cut_off_date=date(2026, 12, 31),
+            checked_at=datetime(2026, 8, 13, 12, 0, tzinfo=UTC),
+        )
+    )
+    db.add(
+        models.CampaignFinanceStatedSpending(
+            snapshot_id=published.expenditures_snapshot_id,
+            registration_number=SENATE_COMMITTEE,
+            filing_year=2026,
+            filings_snapshot_id=filings_id,
+            status=models.CampaignFinanceStatedSpendingStatus.disagrees,
+            reason="the filing itemizes $4,200.00 and our rows hold none of it",
+            stated_itemized=Decimal("4200.00"),
+            stated_itemized_paid=Decimal("4100.00"),
+            ours_itemized=Decimal("0"),
+            checked_at=datetime(2026, 8, 13, 12, 5, tzinfo=UTC),
+        )
+    )
+    db.commit()
+    committee_service.pin_to_one_view(db)
+    release = committee_service.current_release(db)
+    with Statements() as sent:
+        spending = stated_spending_for_year(db, release, SENATE_COMMITTEE, 2026)
+        split = stated_split_for_year(db, release, SENATE_COMMITTEE, 2026)
+    assert len(sent.sent) == 1, sent.sent
+    assert "cf_stated_spending" in sent.sent[0] and "cf_stated_split" in sent.sent[0]
+    assert (spending.status, spending.stated_itemized_paid) == (
+        "disagrees",
+        Decimal("4100.00"),
+    )
+    assert (split.status, split.stated_itemized, split.cut_off_date) == (
+        "agrees",
+        Decimal("250.00"),
+        date(2026, 12, 31),
+    )
+
+
+def test_the_side_blocks_cost_one_statement_each(db, published) -> None:
+    """Refunds, donors by state and the filed lines by kind: 1 statement apiece.
+
+    3, 2 and 2 statements before 18 Sep 2026. The values these return are pinned by
+    their own test files; this pins only what each costs.
+    """
+    committee_service.pin_to_one_view(db)
+    release = committee_service.current_release(db)
+    filings.filer_records(db, [SENATE_COMMITTEE])
+    with Statements() as sent:
+        refunds_for_committee(db, registration_number=SENATE_COMMITTEE)
+    assert len(sent.sent) == 1, sent.sent
+    assert "cf_refund_not_published" in sent.sent[0]
+    with Statements() as sent:
+        donor_states(db, release, SENATE_COMMITTEE, 2026)
+    assert len(sent.sent) == 1, sent.sent
+    with Statements() as sent:
+        stated_by_kind(db, release, SENATE_COMMITTEE, 2026)
+    assert len(sent.sent) == 1, sent.sent
