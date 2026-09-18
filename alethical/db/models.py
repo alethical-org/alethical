@@ -2236,6 +2236,17 @@ class CampaignFinanceContributionRow(Base):
 
     __table_args__ = (
         Index("ix_cf_contribution_row_recipient", "recipient_reg_num", "year"),
+        # The money pages' own shape: one committee, or a race's worth of committees,
+        # for one year. The 4 carried columns are every value those reads add up, so
+        # the answer comes from the index and the scattered table pages are never
+        # opened (migration 0056; the measurements are in its docstring).
+        Index(
+            "ix_cf_contribution_row_snapshot_recipient_year",
+            "snapshot_id",
+            "recipient_reg_num",
+            "year",
+            postgresql_include=["receipt_type", "amount", "receipt_date", "in_kind"],
+        ),
         # The 3 name indexes of #1486, snapshot first because every query filters both
         # and the snapshot narrows first -- which also lets the index prune the way the
         # rows do. These 2 answer an exact name; the trigram one below answers a
