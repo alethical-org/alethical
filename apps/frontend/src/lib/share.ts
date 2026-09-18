@@ -1,3 +1,4 @@
+import { plainBillSummary } from './billDetail';
 import { registrationNumberFromSlug } from './committeeRoute';
 import { SOCIAL_ACCOUNTS } from './socialLinks';
 import { directoryPagePath } from './directoryPagination';
@@ -217,6 +218,14 @@ export interface PageMetadata {
    * thing rule 13 lets a piece's metadata carry beside its title.
    */
   article?: { publishedOn: string };
+  /**
+   * What a share card and an outgoing message say, when it differs from what a
+   * search result says. A bill's search text is the first sentence of its
+   * plain-language summary, so 10,517 pages do not hand Google one identical
+   * line; its share text stays the fixed line §26 rules, which never repeats a
+   * title through a summary that paraphrases it. Absent = the 2 are the same.
+   */
+  socialDescription?: string;
 }
 
 function pageMetadata(input: Partial<PageMetadata> & { title: string; description: string }) {
@@ -295,10 +304,15 @@ export function billPageMetadata(input: {
     summary: input.summary,
     url: publicPageUrl(canonicalPath),
   });
+  // The search result gets this bill's own first sentence (Eugene, 18 Sep 2026,
+  // decisions doc §26); the share card keeps the fixed line. A bill with no
+  // summary sends the fixed line to both.
+  const searchDescription = plainBillSummary(input.summary ?? null, { firstSentenceOnly: true });
   return pageMetadata({
     title: titleFor(content.title),
     socialTitle: content.title,
-    description: content.description,
+    description: searchDescription || content.description,
+    socialDescription: content.description,
     canonicalPath,
   });
 }
@@ -725,6 +739,7 @@ export function renderPageHead(meta: PageMetadata): string {
   const title = escapeHtml(meta.title);
   const socialTitle = escapeHtml(meta.socialTitle);
   const description = escapeHtml(clean(meta.description));
+  const socialDescription = escapeHtml(clean(meta.socialDescription ?? meta.description));
   // Empty on a "not found" page: it is not a copy of any real address, so it
   // declares none rather than pointing a search engine at an unrelated page.
   const url = meta.canonicalPath ? escapeHtml(publicPageUrl(meta.canonicalPath)) : '';
@@ -758,7 +773,7 @@ export function renderPageHead(meta: PageMetadata): string {
       : []),
     `    <meta property="og:site_name" content="${SITE_NAME}" />`,
     `    <meta property="og:title" content="${socialTitle}" />`,
-    `    <meta property="og:description" content="${description}" />`,
+    `    <meta property="og:description" content="${socialDescription}" />`,
     ...(url ? [`    <meta property="og:url" content="${url}" />`] : []),
     `    <meta property="og:image" content="${image}" />`,
     `    <meta property="og:image:width" content="1200" />`,
@@ -766,7 +781,7 @@ export function renderPageHead(meta: PageMetadata): string {
     `    <meta property="og:image:alt" content="${imageAlt}" />`,
     `    <meta name="twitter:card" content="summary_large_image" />`,
     `    <meta name="twitter:title" content="${socialTitle}" />`,
-    `    <meta name="twitter:description" content="${description}" />`,
+    `    <meta name="twitter:description" content="${socialDescription}" />`,
     `    <meta name="twitter:image" content="${image}" />`,
     `    <meta name="twitter:image:alt" content="${imageAlt}" />`,
     ...(jsonLd ? [jsonLd] : []),

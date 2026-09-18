@@ -335,6 +335,7 @@ describe('first-response page tags', () => {
       payload: {
         data: {
           id: '94-2025-HF719',
+          companion: { id: '94-2025-SF390', code: 'SF 390' },
           ai_analysis: {
             short_title: 'Statewide Capital Projects and Bonding Bill',
             summary: 'Authorizes borrowing for public buildings. More detail follows.',
@@ -370,6 +371,12 @@ describe('first-response page tags', () => {
     expect(body).toContain(
       '<meta property="og:description" content="Bill text, legislative progress, and official sources" />',
     );
+    expect(body).toContain(
+      '<meta name="description" content="Authorizes borrowing for public buildings." />',
+    );
+    // The twin bill in the other chamber is linked from the first response.
+    expect(body).toContain('href="/bills/94-2025-SF390"');
+    expect(body).toContain('Companion bill SF 390');
     expect(body).toContain('<h2>Cited sections</h2>');
     expect(body).toContain('href="/bills/94-2025-HF719?tab=text#ft-laws.1.1.0-1"');
     expect(body).toContain('/_expo/static/js/web/index-abc.js');

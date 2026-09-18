@@ -1875,6 +1875,16 @@ supersedes the earlier first-summary-sentence preview decision, not summary disp
 Committee and lobbying social titles omit the website suffix. Descriptions do not
 repeat the record name. The contextual window label, such as **Share this committee**,
 is not transmitted.
+
+**The search-result text and the share text are 2 strings for a bill (Eugene, 18 Sep 2026).**
+The fixed line above is what a share card and an outgoing message say. What a search
+result says is the first sentence of the bill's plain-language summary, or the fixed line
+when a bill has none (`socialDescription` on `PageMetadata`, `apps/frontend/src/lib/share.ts`).
+One string for both had 10,517 bill pages handing Google one identical sentence, and
+identical descriptions across thousands of pages are one of the signals it reads as copies;
+Google's 7 Sep report listed 6,612 bill pages as found but not crawled and 295 as crawled but
+not listed (§15). The share ruling is unchanged: a card still never repeats a title through a
+summary that paraphrases it.
 [How sharing works](../product-onboarding/sharing-guide.md) owns the complete current
 subject, destination, and results-view behavior.
 
@@ -1958,6 +1968,12 @@ the per-year money read: that read costs about 3 times the record's own on a cac
 (0.73 s against 0.47 s, measured 18 Sep 2026), and a profile address that does not name the
 money tab still makes no money read at all. Only a confirmed review puts a committee here; the
 2 ordinary states name nobody's money (`docs/architecture/campaign-finance-system-design.md` §5.1).
+
+**4a. Bill pages, the largest family.** Each bill's search-result text is now its own first
+summary sentence rather than one line shared by 10,517 pages (§26 holds the ruling), and the
+served text links the bill's twin in the other chamber (`companion` on the record: "Companion
+bill SF 390"), so a crawler reaching either of a pair can follow to the other and the chief
+author's profile from one response.
 
 **5. Site-wide, 3 smaller things.** Every `/api/v1` response now carries `X-Robots-Tag: noindex`
 (`alethical/api/main.py`): Google's crawl statistics put JSON at 53% of its requests to us, and a

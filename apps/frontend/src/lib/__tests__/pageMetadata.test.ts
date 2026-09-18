@@ -47,8 +47,25 @@ describe('page metadata', () => {
       'HF 719 (2025): Statewide Capital Projects and Bonding Bill | Alethical',
     );
     expect(meta.canonicalPath).toBe('/bills/94-2025-HF719');
-    expect(meta.description).toBe('Bill text, legislative progress, and official sources');
+    // Search text is this bill's own first sentence; share text stays the fixed
+    // line, so a card never repeats a title through a paraphrasing summary (§26).
+    expect(meta.description).toBe('Authorizes borrowing for public buildings.');
+    expect(meta.socialDescription).toBe('Bill text, legislative progress, and official sources');
     expect(meta.noindex).toBe(false);
+    const head = renderPageHead(meta);
+    expect(head).toContain(
+      '<meta name="description" content="Authorizes borrowing for public buildings." />',
+    );
+    expect(head).toContain(
+      '<meta property="og:description" content="Bill text, legislative progress, and official sources" />',
+    );
+    expect(head).toContain(
+      '<meta name="twitter:description" content="Bill text, legislative progress, and official sources" />',
+    );
+    // No summary: both say the fixed line.
+    expect(billPageMetadata({ billId: '94-2025-SF1', summary: null }).description).toBe(
+      'Bill text, legislative progress, and official sources',
+    );
   });
 
   it('names the person in a legislator title, without their party', () => {
