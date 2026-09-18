@@ -49,7 +49,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import literal, null, select, union_all
 from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
@@ -116,57 +116,62 @@ def refunds_for_committee(db: Session, *, registration_number: str) -> Committee
     # Every candidate-refund summary we hold, published or not, in one read: the
     # published ones carry the figures and every one of them names a year the source
     # publishes, which used to be a second trip for the same rows.
-    summaries = db.execute(
+    # One statement for the 3 questions this used to ask in turn -- every candidate
+    # summary, the lines matched to this committee, and the years the Board published
+    # nothing for -- because each cost a round trip to a database in another region
+    # (18 Sep 2026). The summaries carry their matched line on the same row (an outer
+    # join, so an unmatched summary is still a row with empty figures) and the
+    # not-published years ride along as rows of their own kind.
+    summary_model = schema.CampaignFinanceRefundSummary
+    row_model = schema.CampaignFinanceRefundRow
+    candidate = schema.CampaignFinanceRefundKind.candidate
+    summaries_with_lines = (
         select(
-            schema.CampaignFinanceRefundSummary.id,
-            schema.CampaignFinanceRefundSummary.year,
-            schema.CampaignFinanceRefundSummary.source_url,
-            schema.CampaignFinanceRefundSummary.fetched_on,
-            schema.CampaignFinanceRefundSummary.validation_json,
-            schema.CampaignFinanceRefundSummary.status,
-        ).where(
-            schema.CampaignFinanceRefundSummary.kind
-            == schema.CampaignFinanceRefundKind.candidate,
+            literal("summary").label("part"),
+            summary_model.id,
+            summary_model.year,
+            summary_model.source_url,
+            summary_model.fetched_on,
+            summary_model.validation_json,
+            summary_model.status,
+            row_model.contribution_count,
+            row_model.refunded_amount,
         )
-    ).all()
-    published = [
-        row[:5]
-        for row in summaries
-        if row[5] == schema.CampaignFinanceRefundStatus.published
-    ]
-    matched = {
-        row[0]: (row[1], row[2])
-        for row in db.execute(
-            select(
-                schema.CampaignFinanceRefundSummary.year,
-                schema.CampaignFinanceRefundRow.contribution_count,
-                schema.CampaignFinanceRefundRow.refunded_amount,
-            )
-            .join(
-                schema.CampaignFinanceRefundSummary,
-                schema.CampaignFinanceRefundSummary.id
-                == schema.CampaignFinanceRefundRow.summary_id,
-            )
-            .where(
-                schema.CampaignFinanceRefundRow.matched_registration_number
-                == registration_number,
-                schema.CampaignFinanceRefundSummary.status
-                == schema.CampaignFinanceRefundStatus.published,
-                schema.CampaignFinanceRefundSummary.kind
-                == schema.CampaignFinanceRefundKind.candidate,
-            )
-        ).all()
-    }
-    unpublished_years = set(
-        db.execute(
-            select(schema.CampaignFinanceRefundNotPublished.year).where(
-                schema.CampaignFinanceRefundNotPublished.kind
-                == schema.CampaignFinanceRefundKind.candidate
-            )
+        .select_from(summary_model)
+        .outerjoin(
+            row_model,
+            (row_model.summary_id == summary_model.id)
+            & (row_model.matched_registration_number == registration_number),
         )
-        .scalars()
-        .all()
+        .where(summary_model.kind == candidate)
     )
+    not_published = select(
+        literal("not_published").label("part"),
+        null(),
+        schema.CampaignFinanceRefundNotPublished.year,
+        null(),
+        null(),
+        null(),
+        null(),
+        null(),
+        null(),
+    ).where(schema.CampaignFinanceRefundNotPublished.kind == candidate)
+    answer = db.execute(union_all(summaries_with_lines, not_published)).all()
+    published_status = schema.CampaignFinanceRefundStatus.published
+    summaries: dict = {}
+    matched: dict = {}
+    unpublished_years: set[int] = set()
+    for part, id_, year, url, fetched_on, validation, status, count, amount in answer:
+        if part == "not_published":
+            unpublished_years.add(int(year))
+            continue
+        summaries[id_] = (id_, year, url, fetched_on, validation, status)
+        if amount is not None and status == published_status:
+            # A matched line on a published summary. Where a year carries more than
+            # one, the last read wins, as it did when the lines were read alone.
+            matched[year] = (count, amount)
+    summaries = list(summaries.values())
+    published = [row[:5] for row in summaries if row[5] == published_status]
     since = _registered_since(db, registration_number)
     held = {row[1]: (row[2], row[3], row[4]) for row in published}
     known_years = {row[1] for row in summaries}

@@ -75,7 +75,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from alethical.api.services.independent_spending import (
     REPORTED,
@@ -350,10 +350,131 @@ def current_release(db: Session) -> Release | None:
     be told from emptiness, and refuses outright when a published release names a
     snapshot that is no longer loaded.
 
+    Inside a request pinned by ``pin_to_one_view`` and before anything else has been
+    read, the same statement also answers 2 questions every money read asks next:
+    which filings snapshot is live (``filings.live_filings_snapshot``), and which
+    filer-years the release's own checks refuse a split for
+    (``withheld_filer_years``). Both rode on statements of their own, 2 round trips
+    to a database in another region on every money page (18 Sep 2026). The filings
+    pointer is outer-joined, so a release with no register beside it still resolves,
+    and the register's absence is remembered exactly as its own read would report it.
+
     ``None`` means nothing is published, which is a fact about us and a real state on
     a fresh database.
     """
-    return reader.live_release(db)
+    memo = filings.pinned_memo(db)
+    if memo is None or "snapshot" in memo:
+        return reader.live_release(db)
+    release_model = schema.CampaignFinanceRelease
+    pointer = schema.CampaignFinanceCurrentRelease
+    contributions = aliased(schema.CampaignFinanceSnapshot)
+    expenditures = aliased(schema.CampaignFinanceSnapshot)
+    independent = aliased(schema.CampaignFinanceSnapshot)
+    filing_pointer = schema.CampaignFinanceFilingCurrentSnapshot
+    filing_snapshot = schema.CampaignFinanceFilingSnapshot
+    row = db.execute(
+        select(
+            release_model.id,
+            release_model.fetch_completed_at,
+            contributions.id,
+            contributions.source_url,
+            contributions.row_count,
+            contributions.status,
+            expenditures.id,
+            expenditures.source_url,
+            expenditures.row_count,
+            expenditures.status,
+            independent.id,
+            independent.source_url,
+            independent.row_count,
+            independent.status,
+            contributions.validation_json,
+            filing_snapshot,
+        )
+        .select_from(pointer)
+        .join(release_model, release_model.id == pointer.release_id)
+        .join(
+            contributions, contributions.id == release_model.contributions_snapshot_id
+        )
+        .join(expenditures, expenditures.id == release_model.expenditures_snapshot_id)
+        .join(
+            independent,
+            independent.id == release_model.independent_expenditures_snapshot_id,
+        )
+        .outerjoin(filing_pointer, filing_pointer.id.is_(True))
+        .outerjoin(filing_snapshot, filing_snapshot.id == filing_pointer.snapshot_id)
+        .where(pointer.id.is_(True))
+        .execution_options(populate_existing=True)
+    ).one_or_none()
+    if row is None:
+        return None
+    *release_columns, checks, snapshot = row
+    memo["snapshot"] = snapshot
+    memo["withheld_filer_years"] = reader.withheld_filer_years_from_checks(checks)
+    return reader.release_from_row(release_columns)
+
+
+def withheld_filer_years(db: Session, release: Release) -> frozenset[tuple[str, int]]:
+    """``reader.filer_years_that_must_not_show_a_split``, read once per pinned request.
+
+    The pinned release read already carries the answer; outside a pinned request, or
+    where that read did not run first, this asks the reader and remembers nothing.
+    """
+    memo = filings.pinned_memo(db)
+    if memo is not None and "withheld_filer_years" in memo:
+        return memo["withheld_filer_years"]
+    withheld = reader.filer_years_that_must_not_show_a_split(db, release)
+    if memo is not None:
+        memo["withheld_filer_years"] = withheld
+    return withheld
+
+
+def money_rows(
+    db: Session, release: Release, registration_number: str, years: list[int]
+) -> reader.MoneyRows:
+    """One committee's money rows for ``years``, read once per pinned request.
+
+    ``reader.money_rows`` folds the 4 per-committee-year aggregates into 1 statement;
+    this remembers its answer for the rest of the request, so the money-in card, the
+    money-out card, the in-kind figure, the all-in-kind check and the split's dates and
+    cash all draw from the one read. Keyed on the release, the committee and the exact
+    years asked, so a caller asking about a different span reads again rather than
+    getting a partial answer.
+    """
+    wanted = tuple(sorted({int(year) for year in years}))
+    memo = filings.pinned_memo(db)
+    held = memo.setdefault("money_rows", {}) if memo is not None else {}
+    key = (release.id, registration_number, wanted)
+    if key not in held:
+        held[key] = reader.money_rows(db, release, registration_number, wanted)
+    return held[key]
+
+
+def contribution_facts(
+    db: Session, release: Release, registration_number: str, years: list[int]
+) -> dict[int, reader.ContributionFacts]:
+    """The contribution dates and cash per year, off the same read as the cards."""
+    return money_rows(db, release, registration_number, years).contribution_facts
+
+
+def _money_in_rows(
+    db: Session, release: Release, registration_number: str, year: int
+) -> tuple[reader.MoneyIn, ...]:
+    """``reader.money_in`` for one year, off the shared read, refusals included."""
+    rows = money_rows(db, release, registration_number, [year]).money_in
+    if not rows:
+        reader._refuse_if_rows_are_gone(db, release, Dataset.contributions)
+    return rows
+
+
+def _money_out_rows(
+    db: Session, release: Release, registration_number: str, year: int
+) -> tuple[reader.MoneyOut, ...]:
+    """``reader.money_out`` for one year, off the shared read, refusals included."""
+    rows = money_rows(db, release, registration_number, [year]).money_out
+    if not rows:
+        reader._refuse_if_rows_are_gone(db, release, Dataset.expenditures)
+    return rows
 
 
 def _covers_year(db: Session, release: Release, dataset: Dataset, year: int) -> bool:
@@ -493,7 +614,7 @@ def money_in(
         db, registration_number, year, reported
     )
     try:
-        years = reader.money_in(db, release, registration_number, years=[year])
+        years = _money_in_rows(db, release, registration_number, year)
     except ReleaseNoLongerHeld:
         return fold_money_in(
             None,
@@ -634,8 +755,8 @@ def _every_named_contribution_is_in_kind(
     is ``Yes`` or ``No`` on every row of the live release, so "we hold rows and no cash
     row is among them" is a measurement, the same reading ``_in_kind_out`` makes.
     """
-    cash = reader.contribution_cash(db, release, registration_number, years=[year])
-    return not any(entry.year == year and entry.rows > 0 for entry in cash)
+    facts = contribution_facts(db, release, registration_number, [year]).get(year)
+    return facts is None or facts.cash_rows == 0
 
 
 def _filed_figure(
@@ -717,9 +838,7 @@ def _in_kind_out(
     in the live release, and the error it could cause is a figure too small, which
     a surface prints as nothing rather than as a wrong amount.
     """
-    for entry in reader.expenditure_in_kind(
-        db, release, registration_number, years=[year]
-    ):
+    for entry in money_rows(db, release, registration_number, [year]).in_kind_out:
         if entry.year == year:
             return entry.total
     return Decimal("0")
@@ -755,7 +874,7 @@ def money_out(
     # precisely where it matters most.
     checked = stated_spending_for_year(db, release, registration_number, year).status
     try:
-        years = reader.money_out(db, release, registration_number, years=[year])
+        years = _money_out_rows(db, release, registration_number, year)
     except ReleaseNoLongerHeld:
         return MoneyOut(
             UNAVAILABLE,

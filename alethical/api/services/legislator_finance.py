@@ -111,7 +111,12 @@ from alethical.api.services.committee_finance import (
     MoneyIn,
     _reported_contributions,
     committee_finance,
+    contribution_facts,
     fold_money_in,
+    money_rows,
+)
+from alethical.api.services.committee_finance import (
+    withheld_filer_years as withheld_filer_years_for,
 )
 from alethical.api.services.committee_stated_split import (
     AGREES,
@@ -570,38 +575,20 @@ def named_payment_facts(
     """
     if not years:
         return {}
-    rows = db.execute(
-        text(
-            "SELECT year, min(receipt_date), max(receipt_date), "
-            "       sum(amount) FILTER (WHERE lower(coalesce(in_kind, '')) <> 'yes'), "
-            "       count(*) FILTER (WHERE lower(coalesce(in_kind, '')) <> 'yes') "
-            "  FROM cf_contribution_row "
-            " WHERE snapshot_id = :snapshot "
-            "   AND recipient_reg_num = :reg_num "
-            "   AND year = ANY(:years) "
-            "   AND receipt_type = :contribution "
-            " GROUP BY year"
-        ),
-        {
-            "snapshot": release.contributions.snapshot_id,
-            "reg_num": registration_number,
-            "years": sorted(set(years)),
-            "contribution": reader.CONTRIBUTION_RECEIPT,
-        },
-    ).all()
+    # Since 18 Sep 2026 the dates and cash ride on the committee's one money read
+    # (``committee_finance.money_rows``), so inside a pinned request that has already
+    # drawn the cards this asks nothing at all.
     return {
-        int(year): NamedPaymentFacts(
-            year=int(year),
-            first_payment_on=first,
-            last_payment_on=last,
-            # ``coalesce(sum, 0)`` over the cash rows, as the reader computes it, and
-            # ``None`` where there is no cash row to sum.
-            cash_total=(cash if cash is not None else Decimal("0"))
-            if cash_rows
-            else None,
-            cash_rows=int(cash_rows),
+        year: NamedPaymentFacts(
+            year=year,
+            first_payment_on=facts.first_payment_on,
+            last_payment_on=facts.last_payment_on,
+            cash_total=facts.cash_total,
+            cash_rows=facts.cash_rows,
         )
-        for year, first, last, cash, cash_rows in rows
+        for year, facts in contribution_facts(
+            db, release, registration_number, list(years)
+        ).items()
     }
 
 
@@ -833,9 +820,7 @@ def split_for_committee(
     can resolve the release-wide set once; a single-committee caller omits it.
     """
     if withheld_filer_years is None:
-        withheld_filer_years = reader.filer_years_that_must_not_show_a_split(
-            db, release
-        )
+        withheld_filer_years = withheld_filer_years_for(db, release)
     facts = named_payment_facts(
         db, release, registration_number=registration_number, years=[year]
     ).get(year)
@@ -1020,7 +1005,7 @@ def legislator_finance(
         row for row in confirmed if is_for_a_legislative_office(row.office_as_reviewed)
     ]
     other_office = len(confirmed) - len(links)
-    withheld = reader.filer_years_that_must_not_show_a_split(db, release)
+    withheld = withheld_filer_years_for(db, release)
     committees: list[LegislatorCommitteeMoney] = []
     outside = committees_outside_the_year(db, legislator_id, year=year, links=decisions)
     # One read of the register for every committee this page names, the ones it lists
@@ -1179,7 +1164,7 @@ def legislator_year_states(
     splits: dict[tuple[str, int], CommitteeYearState] = {}
     if numbers:
         held = _committees_held_by_release(db, release, numbers)
-        withheld = reader.filer_years_that_must_not_show_a_split(db, release)
+        withheld = withheld_filer_years_for(db, release)
         reported = filings.reported_totals_for(db, numbers, years=years)
         corrections = _report_corrections_for(db, numbers, years)
         covered: set[int] | None = None
@@ -1201,11 +1186,15 @@ def legislator_year_states(
                     )
                 continue
             rows_gone = False
+            # One statement per committee for the span: its rows by year and its
+            # dates and cash by year together (``committee_finance.money_rows``).
+            span = money_rows(db, release, number, wanted)
             try:
-                found = {
-                    entry.year: entry
-                    for entry in reader.money_in(db, release, number, years=wanted)
-                }
+                if not span.money_in:
+                    reader._refuse_if_rows_are_gone(
+                        db, release, reader.Dataset.contributions
+                    )
+                found = {entry.year: entry for entry in span.money_in}
             except reader.ReleaseNoLongerHeld:
                 found, rows_gone = {}, True
             facts = named_payment_facts(
