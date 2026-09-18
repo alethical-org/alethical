@@ -1,9 +1,22 @@
+// @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { FocusEvent, KeyboardEvent, PointerEvent } from 'react';
 
 import { describe, expect, it } from 'vitest';
 
-import { yearFilterButtonStyle, yearFilterLabelStyle, yearFilterStates } from '../yearFilters';
+import {
+  YEAR_FILTER_SELECT_ATTRIBUTE,
+  YEAR_FILTER_POINTER_FOCUS_ATTRIBUTE,
+  YEAR_FILTER_WEB_STYLE_ID,
+  ensureYearFilterWebStyles,
+  yearFilterButtonStyle,
+  yearFilterLabelStyle,
+  yearFilterStates,
+  yearFilterSelectProps,
+  yearFilterWebCss,
+} from '../yearFilters';
 import { theme as t } from '../tokens';
 
 const YEAR_FILTER_OWNERS = [
@@ -14,6 +27,54 @@ const YEAR_FILTER_OWNERS = [
 ] as const;
 
 describe('the sitewide year-filter treatment', () => {
+  it('gives compact year menus the same pointer and keyboard states', () => {
+    expect(YEAR_FILTER_SELECT_ATTRIBUTE).toBe('data-alethical-year-filter');
+    expect(YEAR_FILTER_POINTER_FOCUS_ATTRIBUTE).toBe('data-alethical-pointer-focus');
+    expect(yearFilterWebCss).toContain('select[data-alethical-year-filter]{outline:none;}');
+    expect(yearFilterWebCss).toContain(
+      'select[data-alethical-year-filter]:hover{border-color:#2ed47e !important;}',
+    );
+    expect(yearFilterWebCss).toContain(
+      'select[data-alethical-year-filter]:focus-visible{outline:2px solid #7c5cff !important;outline-offset:2px !important;}',
+    );
+    expect(yearFilterWebCss).toContain(
+      'select[data-alethical-year-filter][data-alethical-pointer-focus="true"]:focus-visible{outline:none !important;}',
+    );
+  });
+
+  it('switches compact year menus between pointer and keyboard focus', () => {
+    const select = document.createElement('select');
+    yearFilterSelectProps.onPointerDown({
+      currentTarget: select,
+    } as PointerEvent<HTMLSelectElement>);
+    expect(select.getAttribute(YEAR_FILTER_POINTER_FOCUS_ATTRIBUTE)).toBe('true');
+
+    yearFilterSelectProps.onKeyDown({ currentTarget: select } as KeyboardEvent<HTMLSelectElement>);
+    expect(select.hasAttribute(YEAR_FILTER_POINTER_FOCUS_ATTRIBUTE)).toBe(false);
+
+    yearFilterSelectProps.onPointerDown({
+      currentTarget: select,
+    } as PointerEvent<HTMLSelectElement>);
+    yearFilterSelectProps.onBlur({ currentTarget: select } as FocusEvent<HTMLSelectElement>);
+    expect(select.hasAttribute(YEAR_FILTER_POINTER_FOCUS_ATTRIBUTE)).toBe(false);
+  });
+
+  it('installs 1 compact year-menu rule', () => {
+    document.head.innerHTML = '';
+    ensureYearFilterWebStyles();
+    ensureYearFilterWebStyles();
+
+    const styles = document.querySelectorAll(`#${YEAR_FILTER_WEB_STYLE_ID}`);
+    expect(styles).toHaveLength(1);
+    expect(styles[0]?.textContent).toBe(yearFilterWebCss);
+  });
+
+  it('installs the compact year-menu rule from the web app entry point', () => {
+    const app = readFileSync(resolve(process.cwd(), 'App.tsx'), 'utf8');
+    expect(app).toContain("import { ensureYearFilterWebStyles } from './src/theme/yearFilters'");
+    expect(app).toContain('ensureYearFilterWebStyles();');
+  });
+
   it('uses green for pointer hover and black for selection', () => {
     expect(yearFilterStates.hover).toEqual({ borderColor: t.colors.brand.base });
     expect(yearFilterStates.selected).toEqual({

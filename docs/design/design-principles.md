@@ -135,6 +135,10 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   navigation still receives the sitewide purple `:focus-visible` ring on top of the current
   unselected or selected state. This applies to every year filter at every screen width,
   including campaign-money, outside-spending, committee-history, and future year choices.
+  A compact Year menu keeps its accepted closed-menu shape: its boundary turns green on
+  pointer hover, pointer focus adds no outline, and keyboard focus adds the same purple ring.
+  The black selected block applies wherever the years are shown as separate choices; the
+  browser or operating system owns the selected row inside an opened compact menu.
   **Every future Design handoff follows this year-filter rule.** When a drawing adds a purple
   selected-state outline, changes the selected block, or omits the green hover boundary, the
   current coding agent restores these shared states during the build without another approval.

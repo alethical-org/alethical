@@ -51,7 +51,11 @@ import type { RootScreenProps } from '../../navigation/types';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
-import { yearFilterButtonStyle, yearFilterLabelStyle } from '../../theme/yearFilters';
+import {
+  yearFilterButtonStyle,
+  yearFilterLabelStyle,
+  yearFilterSelectProps,
+} from '../../theme/yearFilters';
 
 function Chevron({
   right = false,
@@ -459,6 +463,7 @@ export function OutsideSpendingBrowseScreen({
               {isMobile && Platform.OS === 'web' ? (
                 <select
                   aria-label="Year"
+                  {...yearFilterSelectProps}
                   value={year ?? ''}
                   onChange={(e) => apply({ year: e.target.value || undefined })}
                   style={{
