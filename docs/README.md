@@ -75,7 +75,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 
 **The record of what we changed after publishing.**
 
-- [Corrections to Alethical's published writing](published-writing-corrections.md) — every correction to a posted piece, newest first, with the date, what it used to say, what it says now, why it moved, and whether the piece carries its own dated note. It exists for the reader we cannot reach: correcting a piece takes the wrong figure off the page, which serves whoever visits next and does nothing for whoever already quoted us ([#1770](https://github.com/alethical-org/alethical/issues/1770)). It sits at the root of `docs/` rather than in `published-writing/`, which holds published prose only, and its address is meant to be cited
+- [Corrections to Alethical's published writing](published-writing-corrections.md) — every correction to a posted piece, newest first, with the date, the original and corrected wording, the reason, and whether the piece carries its own dated note. It exists for the reader we cannot reach: correcting a piece takes the wrong figure off the page, which serves whoever visits next and does nothing for whoever already quoted us ([#1770](https://github.com/alethical-org/alethical/issues/1770)). It sits at the root of `docs/` rather than in `published-writing/`, which holds published prose only, and its address is meant to be cited
 
 ## Architecture
 
