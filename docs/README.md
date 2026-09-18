@@ -150,6 +150,7 @@ still describe today's service. Keep the evidence and its limits together.
 - [Track button checking state](verification/1013-track-button-forms/README.md) — button behavior while saved status loads
 - [Track button failure state](verification/1021-track-button-couldnt-check/README.md) — recovery when saved status cannot be read
 - [Build-tool security evidence](verification/1493-build-tool-security/README.md) — the release-tool security check and its limits
+- [September dependency security repair](verification/2026-09-18-dependency-security.md) — patched packages, required scans, limited exceptions, and release checks
 - [Board source comparison](verification/1662-board-source-comparison/report.md) — saved official-file comparisons and missing-row evidence
 - [Navigation checks](verification/1698-nav-revision/README.md) — menu and account-control screenshots
 - [Exact-name connection checks](verification/2145-exact-name-connections.md) — limits on connecting records by a filed name
