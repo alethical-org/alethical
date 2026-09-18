@@ -73,7 +73,7 @@ import { externalLinkProps, linkProps, routePath } from '../../navigation/links'
 import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
-import { contentTabUnderline } from '../../theme/contentTabs';
+import { contentTabStyle } from '../../theme/contentTabs';
 
 /** The report dates describe the report. The payment list is selected by filing
  * year independently, and either source can remain readable while the other fails. */
@@ -302,17 +302,17 @@ export function CommitteePaymentsScreen({
               <View style={styles.controls}>
                 <View style={styles.tabsRow} role="group" aria-label="Payment direction">
                   {(Object.keys(PAYMENTS_TAB_LABELS) as PaymentsTab[]).map((key) => (
-                    <FocusPressable
+                    <Pressable
                       key={key}
                       onPress={() => navigation.setParams({ tab: key })}
                       accessibilityRole="button"
                       aria-pressed={key === tab}
-                      style={[styles.tab, key === tab && styles.tabActive]}
+                      style={contentTabStyle(styles.tab, key === tab, styles.tabActive)}
                     >
                       <Text style={[styles.tabLabel, key === tab && styles.tabLabelActive]}>
                         {PAYMENTS_TAB_LABELS[key]}
                       </Text>
-                    </FocusPressable>
+                    </Pressable>
                   ))}
                 </View>
                 <YearControl
@@ -749,9 +749,8 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'flex-end',
     paddingBottom: 12,
-    ...contentTabUnderline.base,
   },
-  tabActive: { ...contentTabUnderline.selected, marginBottom: -1 },
+  tabActive: { marginBottom: -1 },
   tabLabel: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.bodyLg,

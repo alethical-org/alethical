@@ -131,7 +131,7 @@ import type { RootScreenProps } from '../../navigation/types';
 import { markNextWebHistoryChangeAsReplace } from '../../navigation/webHistory';
 import { Container, Footer, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
-import { contentTabUnderline } from '../../theme/contentTabs';
+import { contentTabStyle } from '../../theme/contentTabs';
 
 /**
  * One committee's money at /money/committees/{name}-{registration number}
@@ -903,11 +903,7 @@ function PaymentsSection({
               accessibilityRole="button"
               aria-pressed={section === key}
               onPress={() => onSelectTab(key as CommitteeTab)}
-              style={(state) => [
-                styles.sectionTab,
-                section === key && styles.tabActive,
-                Boolean('focused' in state && state.focused) && detailsStyles.focus,
-              ]}
+              style={contentTabStyle(styles.sectionTab, section === key)}
             >
               <Text
                 style={[styles.sectionTabLabel, section === key && styles.sectionTabLabelActive]}
@@ -1552,10 +1548,8 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
     paddingBottom: 12,
-    ...contentTabUnderline.base,
     marginBottom: -1,
   },
-  tabActive: { ...contentTabUnderline.selected },
   sectionTabLabel: {
     fontFamily: t.typography.body,
     fontSize: 17,
