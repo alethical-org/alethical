@@ -1,4 +1,4 @@
-import { publicApiRequest, type ApiCommitteePaymentsPayload } from './api';
+import { publicApiRequest, type ApiCommitteePaymentsPayload, isNotFoundError } from './api';
 import type {
   DetailedMadePayment,
   DetailedReceivedPayment,
@@ -229,6 +229,91 @@ export interface CampaignMoneyYearState {
   linkState: string;
   committees: Record<string, { splitState: string; reportedTotal: string | null }>;
 }
+/** How many year reads run side by side on the per-year fallback; the API answered 4 at once in 0.6 s. */
+export const YEAR_STATE_READS_AT_ONCE = 3;
+
+/**
+ * Every year's state, in the order the years were asked for, from 1 request.
+ *
+ * The year buttons above a member's money need only each year's `link_state` and
+ * each committee's `split`, and read the whole per-year answer 11 times to get
+ * them: about 4 s on the live site, 3 at a time, while the buttons waited
+ * (17 Sep 2026). `/campaign-finance/years` answers the whole span at once.
+ *
+ * The frontend and the data service deploy separately, so a service that does
+ * not serve the route yet answers 404, and this falls back to the per-year reads
+ * for exactly that case. An unknown member is a 404 on both routes, and the
+ * fallback then fails the same way the per-year reads always did.
+ */
+export async function getCampaignMoneyYearStates(
+  legislatorId: string,
+  years: readonly number[],
+  signal?: AbortSignal,
+): Promise<CampaignMoneyYearState[]> {
+  if (years.length === 0) return [];
+  const from = Math.min(...years);
+  const to = Math.max(...years);
+  let data: {
+    link_state: string;
+    years: {
+      year: number;
+      committees: {
+        registration_number: string;
+        split: { state: string; reported_total: string | null };
+      }[];
+    }[];
+  };
+  try {
+    ({ data } = await publicApiRequest<{ data: typeof data }>(
+      `/legislators/${encodeURIComponent(legislatorId)}/campaign-finance/years?from=${from}&to=${to}`,
+      signal,
+    ));
+  } catch (error) {
+    if (!isNotFoundError(error)) throw error;
+    return readCampaignMoneyYearStates(years, signal, (year) =>
+      getCampaignMoneyYearState(legislatorId, year, signal),
+    );
+  }
+  const byYear = new Map(data.years.map((entry) => [entry.year, entry]));
+  return years.map((year) => {
+    const entry = byYear.get(year);
+    if (!entry) throw new MoneyDetailsReadError('wrong_year');
+    return {
+      year,
+      linkState: data.link_state,
+      committees: Object.fromEntries(
+        entry.committees.map((committee) => [
+          committee.registration_number,
+          { splitState: committee.split.state, reportedTotal: committee.split.reported_total },
+        ]),
+      ),
+    };
+  });
+}
+
+/**
+ * The per-year reads, a few at a time: never all at once (they would crowd out
+ * the selected year's own payment reads, which are what the reader is looking
+ * at) and never one after another (11 years took about 7 s that way).
+ */
+export async function readCampaignMoneyYearStates<State>(
+  years: readonly number[],
+  signal: AbortSignal | undefined,
+  read: (year: number) => Promise<State>,
+): Promise<State[]> {
+  const states: State[] = [];
+  let next = 0;
+  async function worker() {
+    while (next < years.length) {
+      signal?.throwIfAborted();
+      const index = next++;
+      states[index] = await read(years[index]);
+    }
+  }
+  await Promise.all(Array.from({ length: YEAR_STATE_READS_AT_ONCE }, worker));
+  return states;
+}
+
 export async function getCampaignMoneyYearState(
   legislatorId: string,
   year: number,

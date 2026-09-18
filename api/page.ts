@@ -492,6 +492,9 @@ async function legislatorContent(
         chamber,
         district: legislator.current_service?.district?.code,
       }),
+      // The same gate the profile uses for the portrait: only a sitting member's
+      // record carries a current photo worth asking for.
+      photoUrl: chamber ? legislator.current_service?.photo_url : null,
     }),
     snapshot: renderPageSnapshot(
       legislatorPageSnapshot(

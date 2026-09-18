@@ -2,11 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getCampaignMoneyHistory,
   getCampaignMoneyYearState,
+  getCampaignMoneyYearStates,
   getCompleteCampaignMoneyPayments,
 } from '../campaignMoneyDetails';
 import { publicApiRequest } from '../api';
 
-vi.mock('../api', () => ({ publicApiRequest: vi.fn() }));
+vi.mock('../api', () => ({
+  publicApiRequest: vi.fn(),
+  isNotFoundError: (error: unknown) => (error as { status?: number })?.status === 404,
+}));
 const request = vi.mocked(publicApiRequest);
 const row = {
   contributor: 'Same name',
@@ -189,5 +193,75 @@ describe('history and year availability', () => {
         '2': { splitState: 'no_reported_total', reportedTotal: null },
       },
     });
+  });
+});
+
+describe('every year’s state in 1 request', () => {
+  const span = {
+    data: {
+      legislator_id: 'member',
+      link_state: 'confirmed',
+      years: [
+        {
+          year: 2024,
+          committees: [
+            { registration_number: '1', split: { state: 'shown', reported_total: '5' } },
+          ],
+        },
+        { year: 2025, committees: [] },
+        {
+          year: 2026,
+          committees: [
+            {
+              registration_number: '1',
+              split: { state: 'no_reported_total', reported_total: null },
+            },
+          ],
+        },
+      ],
+    },
+  };
+
+  it('asks once for the whole span and answers in the order the years were asked', async () => {
+    request.mockResolvedValueOnce(span);
+    const states = await getCampaignMoneyYearStates('member', [2026, 2024, 2025]);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request.mock.calls[0][0]).toBe(
+      '/legislators/member/campaign-finance/years?from=2024&to=2026',
+    );
+    expect(states.map((state) => state.year)).toEqual([2026, 2024, 2025]);
+    expect(states[1]).toEqual({
+      year: 2024,
+      linkState: 'confirmed',
+      committees: { '1': { splitState: 'shown', reportedTotal: '5' } },
+    });
+    expect(states[2].committees).toEqual({});
+  });
+
+  it('refuses an answer missing one of the years asked for', async () => {
+    request.mockResolvedValueOnce(span);
+    await expect(getCampaignMoneyYearStates('member', [2023, 2024])).rejects.toMatchObject({
+      reason: 'wrong_year',
+    });
+  });
+
+  it('falls back to the per-year reads while the service does not serve the route', async () => {
+    request.mockRejectedValueOnce(Object.assign(new Error('not found'), { status: 404 }));
+    request.mockResolvedValueOnce({
+      data: { year: 2024, link_state: 'confirmed', committees: [] },
+    });
+    request.mockResolvedValueOnce({
+      data: { year: 2025, link_state: 'confirmed', committees: [] },
+    });
+    const states = await getCampaignMoneyYearStates('member', [2024, 2025]);
+    expect(request).toHaveBeenCalledTimes(3);
+    expect(request.mock.calls[1][0]).toBe('/legislators/member/campaign-finance?year=2024');
+    expect(states.map((state) => state.year)).toEqual([2024, 2025]);
+  });
+
+  it('passes any other failure through rather than hiding it behind 11 reads', async () => {
+    request.mockRejectedValueOnce(Object.assign(new Error('down'), { status: 503 }));
+    await expect(getCampaignMoneyYearStates('member', [2024])).rejects.toThrow('down');
+    expect(request).toHaveBeenCalledTimes(1);
   });
 });

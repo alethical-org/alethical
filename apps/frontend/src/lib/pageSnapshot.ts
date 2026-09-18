@@ -657,6 +657,7 @@ export interface LegislatorSnapshotSource {
     phone?: string | null;
     office_address?: string | null;
     profile_url?: string | null;
+    photo_url?: string | null;
   } | null;
   committees?: { name?: string | null; role?: string | null }[] | null;
   service_history?: {
