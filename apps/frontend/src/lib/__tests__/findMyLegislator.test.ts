@@ -96,6 +96,9 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).not.toContain('onKeyPress={onChoiceKey}');
     expect(source).toContain('setAddress(choice.matchedAddress)');
     expect(source).toContain('onHoverIn={() => setChoiceIndex(index)}');
+    expect(source).toContain('outlineColor: t.colors.brand.base');
+    expect(source).toContain('outlineWidth: 2');
+    expect(source).not.toContain('choiceRowActive: { backgroundColor:');
     expect(source).toContain('useDebouncedSearchCommit(');
     expect(source).toContain('useAddressSuggestions(');
     expect(source).toContain("'aria-autocomplete': 'list'");

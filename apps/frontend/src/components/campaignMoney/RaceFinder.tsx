@@ -173,6 +173,7 @@ export function RaceFinder({
                     role="option"
                     aria-selected={index === active}
                     tabIndex={-1}
+                    onHoverIn={() => setActive(index)}
                     onPress={() => choose(contest)}
                     style={[styles.option, index === active && styles.activeOption]}
                   >
@@ -270,7 +271,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: t.colors.alpha.ink08,
   },
-  activeOption: { backgroundColor: '#eef6f1' },
+  activeOption: {
+    outlineColor: t.colors.brand.base,
+    outlineWidth: 2,
+    outlineStyle: 'solid',
+    outlineOffset: -2,
+    borderRadius: 10,
+  },
   optionLabel: {
     fontFamily: t.typography.body,
     fontSize: 16,

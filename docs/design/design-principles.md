@@ -271,6 +271,11 @@ On web, `react-native-web` maps _most_ RN accessibility props to real ARIA — s
 on the rendered site and fixable in RN. **`accessibilityState` is the exception, and it is a silent
 one: see the box below before writing one.**
 
+Instant search result lists use one selection treatment everywhere. Hover and keyboard movement put
+a 2px bright-green line (`#2ed47e`) around the current result with a 10px radius. The result keeps
+its white background, and the line does not change the result's size. The line accompanies
+`aria-selected`; it does not replace that spoken state.
+
 > **Marking a control disabled, busy, expanded or selected — read this first.**
 >
 > **`accessibilityState={{ disabled, busy, expanded, selected }}` renders nothing on web.** No

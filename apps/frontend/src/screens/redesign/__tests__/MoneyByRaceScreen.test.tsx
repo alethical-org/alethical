@@ -385,6 +385,29 @@ describe('Money by race directory and focused group', () => {
 });
 
 describe('Money by race finder', () => {
+  it('puts the bright-green selection line around the hovered result without filling it', () => {
+    render();
+    type('district 1');
+    const options = Array.from(host.querySelectorAll<HTMLElement>('[role="option"]'));
+    expect(options).toHaveLength(3);
+
+    act(() => {
+      const move = new Event('pointermove', { bubbles: true });
+      const enter = new Event('pointerenter');
+      Object.defineProperty(move, 'pointerType', { value: 'mouse' });
+      Object.defineProperty(enter, 'pointerType', { value: 'mouse' });
+      document.dispatchEvent(move);
+      options[1].dispatchEvent(enter);
+    });
+
+    expect(options[0].getAttribute('aria-selected')).toBe('false');
+    expect(options[1].getAttribute('aria-selected')).toBe('true');
+    const selectedStyle = window.getComputedStyle(options[1]);
+    expect(selectedStyle.outlineColor).toBe('rgb(46, 212, 126)');
+    expect(selectedStyle.outlineWidth).toBe('2px');
+    expect(selectedStyle.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+  });
+
   it('keeps an ambiguous Enter focused without selecting a default, then accepts arrow selection', async () => {
     render();
     const input = type('district 1');
