@@ -88,6 +88,7 @@ import {
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps, RootStackParamList } from '../../navigation/types';
+import { yearFilterButtonStyle, yearFilterLabelStyle } from '../../theme/yearFilters';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
 
@@ -479,9 +480,9 @@ function YearChips({
             key={option.label}
             {...linkProps(hrefFor(change), () => goTo(change))}
             aria-pressed={active}
-            style={[styles.yearButton, active && styles.yearButtonActive]}
+            style={(state) => yearFilterButtonStyle(styles.yearButton, active, state)}
           >
-            <Text style={[styles.yearLabel, active && styles.yearLabelActive]}>{option.label}</Text>
+            <Text style={yearFilterLabelStyle(styles.yearLabel, active)}>{option.label}</Text>
           </Pressable>
         );
       })}
@@ -1086,14 +1087,12 @@ const styles = StyleSheet.create({
     borderColor: t.colors.alpha.ink08,
     backgroundColor: t.colors.surfaces.base,
   },
-  yearButtonActive: { backgroundColor: t.colors.brand.base, borderColor: t.colors.brand.base },
   yearLabel: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.secondary,
   },
-  yearLabelActive: { color: t.colors.surfaces.base },
 
   nothingCard: {
     marginTop: 24,
