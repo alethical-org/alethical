@@ -9,6 +9,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import tomllib
 import urllib.parse
 import urllib.request
 from datetime import date, timedelta
@@ -25,7 +26,10 @@ KNOWN_JAVASCRIPT_EXCEPTIONS = {
     "GHSA-5p2g-fcmc-qvqq",
     "GHSA-w3rx-r6r6-pgpr",
 }
-SEVERE_LEVELS = {"high", "critical"}
+# The reviewed build-only path has no patched upstream release. Any new path,
+# version, available fix, or overdue review closes this narrow exception.
+IMAGE_SIZE_REVIEW_EXPIRES = date(2026, 10, 18)
+IMAGE_SIZE_BUILD_PATH = "apps__frontend>expo>@expo/metro>metro>image-size"
 
 
 class VersionSource(NamedTuple):
@@ -411,32 +415,157 @@ def find_local_problems(root: Path, *, today: date | None = None) -> list[str]:
     return problems
 
 
-def javascript_audit_problems(payload: dict) -> list[str]:
+def javascript_audit_problems(payload: dict, *, today: date | None = None) -> list[str]:
+    today = today or date.today()
+    if not isinstance(payload, dict) or "error" in payload:
+        raise ValueError("JavaScript audit did not return a report")
+    advisories = payload.get("advisories")
+    metadata = payload.get("metadata")
+    if (
+        not isinstance(advisories, dict)
+        or not isinstance(metadata, dict)
+        or type(metadata.get("totalDependencies")) is not int
+        or metadata["totalDependencies"] <= 0
+    ):
+        raise ValueError("JavaScript audit did not report package coverage")
     problems = []
-    for key, advisory in payload.get("advisories", {}).items():
-        if advisory.get("severity") not in SEVERE_LEVELS:
-            continue
+    for key, advisory in advisories.items():
+        if not isinstance(advisory, dict) or advisory.get("severity") not in {
+            "info",
+            "low",
+            "moderate",
+            "high",
+            "critical",
+        }:
+            raise ValueError("JavaScript audit returned an invalid advisory")
         advisory_id = advisory.get("github_advisory_id") or key
-        if advisory_id not in KNOWN_JAVASCRIPT_EXCEPTIONS:
-            problems.append(f"{advisory_id} ({advisory.get('severity', 'unknown')})")
+        findings = advisory.get("findings")
+        if (
+            advisory_id in KNOWN_JAVASCRIPT_EXCEPTIONS
+            and today < IMAGE_SIZE_REVIEW_EXPIRES
+            and advisory.get("module_name") == "image-size"
+            and advisory.get("patched_versions") == "<0.0.0"
+            and isinstance(findings, list)
+            and findings
+            and all(
+                isinstance(finding, dict)
+                and finding.get("version") == "1.2.1"
+                and finding.get("paths") == [IMAGE_SIZE_BUILD_PATH]
+                for finding in findings
+            )
+        ):
+            continue
+        problems.append(f"{advisory_id} ({advisory['severity']})")
     return sorted(problems)
 
 
 def python_audit_problems(payload: dict) -> list[str]:
+    if (
+        not isinstance(payload, dict)
+        or "error" in payload
+        or not isinstance(payload.get("dependencies"), list)
+        or not payload["dependencies"]
+    ):
+        raise ValueError("Python audit did not report package coverage")
     problems = []
-    for dependency in payload.get("dependencies", []):
-        for vulnerability in dependency.get("vulns", []):
+    for dependency in payload["dependencies"]:
+        if (
+            not isinstance(dependency, dict)
+            or not isinstance(dependency.get("name"), str)
+            or not dependency["name"]
+            or not isinstance(dependency.get("version"), str)
+            or not dependency["version"]
+            or not isinstance(dependency.get("vulns"), list)
+            or "skip_reason" in dependency
+        ):
+            raise ValueError("Python audit skipped or could not read a package")
+        for vulnerability in dependency["vulns"]:
+            if (
+                not isinstance(vulnerability, dict)
+                or not isinstance(vulnerability.get("id"), str)
+                or not vulnerability["id"]
+            ):
+                raise ValueError("Python audit returned an invalid advisory")
             problems.append(
-                f"{dependency.get('name')} {dependency.get('version')}: "
-                f"{vulnerability.get('id', 'unknown vulnerability')}"
+                f"{dependency['name']} {dependency['version']}: {vulnerability['id']}"
             )
     return sorted(problems)
 
 
 def _run(command: list[str], root: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        command, cwd=root, capture_output=True, text=True, check=False
-    )
+    try:
+        return subprocess.run(
+            command, cwd=root, capture_output=True, text=True, check=False, timeout=180
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        # A missing scanner or timeout is a failed check, never a clean report.
+        return subprocess.CompletedProcess(command, 2, "", "Scanner did not complete")
+
+
+def security_audit_problems(
+    audited: subprocess.CompletedProcess[str],
+    language: str,
+    *,
+    expected_python: set[tuple[str, str]] | None = None,
+) -> list[str]:
+    try:
+        payload = json.loads(audited.stdout)
+        if language == "Python":
+            problems = python_audit_problems(payload)
+            has_findings = any(item["vulns"] for item in payload["dependencies"])
+            reported = {
+                (re.sub(r"[-_.]+", "-", item["name"]).lower(), item["version"])
+                for item in payload["dependencies"]
+            }
+            if expected_python is not None and reported != expected_python:
+                problems.append(
+                    "The Python security review did not cover every locked package version"
+                )
+        else:
+            problems = javascript_audit_problems(payload)
+            has_findings = bool(payload["advisories"])
+    except (ValueError, TypeError):
+        return [f"The {language} security review returned no complete readable result"]
+    # Both scanners use 1 for findings. A nonzero result with no findings, or
+    # any other exit code, means the scan failed even if stdout contains JSON.
+    if audited.returncode not in (0, 1) or (
+        audited.returncode == 1 and not has_findings
+    ):
+        problems.append(f"The {language} security review did not complete successfully")
+    return problems
+
+
+def locked_python_packages(root: Path) -> list[tuple[str, str]]:
+    """Read every registry pair, including packages for other operating systems."""
+    project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    project_name = project["project"]["name"]
+    lock = tomllib.loads((root / "uv.lock").read_text(encoding="utf-8"))
+    entries = lock.get("package")
+    if not isinstance(entries, list) or not entries:
+        raise ValueError("Python's lock has no package inventory")
+    packages = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise ValueError("Python's lock contains an unreadable package")
+        name, version, source = (
+            entry.get(key) for key in ("name", "version", "source")
+        )
+        if name == project_name and source == {"virtual": "."}:
+            continue
+        if (
+            not isinstance(name, str)
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", name)
+            or not isinstance(version, str)
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.!+_-]*", version)
+            or source != {"registry": "https://pypi.org/simple"}
+        ):
+            raise ValueError(
+                "Python's lock contains an unsupported package source or identity"
+            )
+        packages.add((re.sub(r"[-_.]+", "-", name).lower(), version))
+    if not packages:
+        raise ValueError("Python's lock contains no registry packages")
+    return sorted(packages)
 
 
 def run_security_audits(root: Path) -> list[str]:
@@ -444,60 +573,68 @@ def run_security_audits(root: Path) -> list[str]:
     with tempfile.TemporaryDirectory(
         prefix="alethical-technology-health-"
     ) as directory:
-        requirements = Path(directory) / "requirements.txt"
-        exported = _run(
-            [
-                "uv",
-                "export",
-                "--frozen",
-                "--no-dev",
-                "--no-hashes",
-                "--format",
-                "requirements-txt",
-                "--output-file",
-                str(requirements),
-            ],
-            root,
-        )
-        if exported.returncode:
+        current = _run(["uv", "lock", "--check", "--offline"], root)
+        if current.returncode:
             problems.append(
-                "Python's locked package list could not be prepared for review"
+                "Python's locked package list is stale or could not be checked"
             )
         else:
-            pin = _source_versions(
-                root,
-                next(pin.source for pin in REGISTRY_PINS if pin.name == "pip-audit"),
-            )[0]
-            audited = _run(
-                [
-                    "uvx",
-                    f"pip-audit@{pin}",
-                    "--requirement",
-                    str(requirements),
-                    "--progress-spinner",
-                    "off",
-                    "--strict",
-                    "--format",
-                    "json",
-                ],
-                root,
-            )
             try:
-                payload = json.loads(audited.stdout)
-            except json.JSONDecodeError:
+                packages = locked_python_packages(root)
+                pin = _source_versions(
+                    root,
+                    next(
+                        pin.source for pin in REGISTRY_PINS if pin.name == "pip-audit"
+                    ),
+                )[0]
+            except (OSError, ValueError, KeyError, IndexError):
                 problems.append(
-                    "The Python security review returned no readable result"
+                    "Python's locked package inventory or scanner version is unreadable or unsupported"
                 )
             else:
-                problems.extend(python_audit_problems(payload))
+                # pip-audit rejects duplicate names even with --no-deps. Split
+                # alternate locked versions so every pair is checked exactly once.
+                batches: list[list[tuple[str, str]]] = []
+                versions_per_name: dict[str, int] = {}
+                for name, version in packages:
+                    index = versions_per_name.get(name, 0)
+                    if index == len(batches):
+                        batches.append([])
+                    batches[index].append((name, version))
+                    versions_per_name[name] = index + 1
+                for index, batch in enumerate(batches):
+                    requirements = Path(directory) / f"requirements-{index}.txt"
+                    requirements.write_text(
+                        "".join(f"{name}=={version}\n" for name, version in batch),
+                        encoding="utf-8",
+                    )
+                    audited = _run(
+                        [
+                            "uvx",
+                            f"pip-audit@{pin}",
+                            "--requirement",
+                            str(requirements),
+                            "--progress-spinner",
+                            "off",
+                            "--strict",
+                            "--no-deps",
+                            "--disable-pip",
+                            "--format",
+                            "json",
+                        ],
+                        root,
+                    )
+                    problems.extend(
+                        security_audit_problems(
+                            audited, "Python", expected_python=set(batch)
+                        )
+                    )
+                print(
+                    f"Python lock inventory: {len(packages)} package versions across all platforms."
+                )
 
     audited = _run(["pnpm", "audit", "--json"], root)
-    try:
-        payload = json.loads(audited.stdout)
-    except json.JSONDecodeError:
-        problems.append("The JavaScript security review returned no readable result")
-    else:
-        problems.extend(javascript_audit_problems(payload))
+    problems.extend(security_audit_problems(audited, "JavaScript"))
     return problems
 
 
@@ -615,26 +752,49 @@ def render_report(
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--online", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--online", action="store_true")
+    mode.add_argument("--security-only", action="store_true")
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()
 
     today = date.today()
-    local = find_local_problems(ROOT, today=today)
+    local = [] if args.security_only else find_local_problems(ROOT, today=today)
     security: list[str] = []
     routine: list[str] = []
     major: list[str] = []
-    if args.online:
+    if args.online or args.security_only:
         security = run_security_audits(ROOT)
+    if args.online:
         routine, major = check_registry_versions(ROOT)
 
-    report = render_report(
-        local=local,
-        security=security,
-        routine=routine,
-        major=major,
-        today=today,
-    )
+    if args.security_only:
+        report = "\n".join(
+            ["# Dependency security", ""]
+            + (
+                [f"- {problem}" for problem in security]
+                if security
+                else ["- No unreviewed vulnerabilities found."]
+            )
+            + [""]
+        )
+    else:
+        report = render_report(
+            local=local,
+            security=security,
+            routine=routine,
+            major=major,
+            today=today,
+        )
+    if args.online or args.security_only:
+        report += (
+            "\nRecorded exception policy: only image-size 1.2.1 in Expo's Metro "
+            "build tool may retain "
+            + ", ".join(sorted(KNOWN_JAVASCRIPT_EXCEPTIONS))
+            + f" until {IMAGE_SIZE_REVIEW_EXPIRES.isoformat()}, while no patched "
+            "release is reported. A changed version or dependency path also "
+            "ends the exception.\n"
+        )
     print(report)
     if args.report:
         args.report.write_text(report, encoding="utf-8")
