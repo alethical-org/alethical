@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { theme as t } from '../../theme/tokens';
+import { contentTabUnderline } from '../../theme/contentTabs';
 import { routePath } from '../../navigation/links';
 import { useResponsive } from '../../hooks/useResponsive';
 import type { ShareContent } from '../../lib/share';
@@ -285,11 +286,10 @@ const styles = StyleSheet.create({
   tab: {
     paddingHorizontal: 2,
     paddingBottom: 14,
-    borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
+    ...contentTabUnderline.base,
   },
   tabActive: {
-    borderBottomColor: t.colors.brand.base,
+    ...contentTabUnderline.selected,
   },
   tabLabel: {
     fontFamily: t.typography.ui,

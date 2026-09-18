@@ -73,6 +73,7 @@ import { externalLinkProps, linkProps, routePath } from '../../navigation/links'
 import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
+import { contentTabUnderline } from '../../theme/contentTabs';
 
 /** The report dates describe the report. The payment list is selected by filing
  * year independently, and either source can remain readable while the other fails. */
@@ -744,8 +745,13 @@ const styles = StyleSheet.create({
     borderBottomColor: t.colors.alpha.ink08,
   },
   // 44px on the tab's own box at every width (phone band rule F1).
-  tab: { minHeight: 44, justifyContent: 'flex-end', paddingBottom: 12 },
-  tabActive: { borderBottomWidth: 2, borderBottomColor: t.colors.text.primary, marginBottom: -1 },
+  tab: {
+    minHeight: 44,
+    justifyContent: 'flex-end',
+    paddingBottom: 12,
+    ...contentTabUnderline.base,
+  },
+  tabActive: { ...contentTabUnderline.selected, marginBottom: -1 },
   tabLabel: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.bodyLg,

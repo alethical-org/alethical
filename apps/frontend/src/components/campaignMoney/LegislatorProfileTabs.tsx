@@ -16,6 +16,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { linkProps, routePath } from '../../navigation/links';
+import { contentTabUnderline } from '../../theme/contentTabs';
 import { theme as t } from '../../theme/tokens';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 import { prefetchCampaignMoneyTab } from './CampaignMoneyTabOnDemand';
@@ -88,10 +89,9 @@ const styles = StyleSheet.create({
   },
   tab: {
     paddingVertical: 12,
-    borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
+    ...contentTabUnderline.base,
   },
-  tabActive: { borderBottomColor: t.colors.brand.base },
+  tabActive: { ...contentTabUnderline.selected },
   label: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.bodyLg,

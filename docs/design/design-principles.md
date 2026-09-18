@@ -104,6 +104,15 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   and equal-width digits during the build, without another approval. Preserve the intended
   size and weight unless a separate approved change requires otherwise. Existing screens
   outside the task's scope do not need a separate migration to complete that handoff.
+- **Selected content tabs use one green underline everywhere.** Every horizontal content-tab
+  row uses a 3px `brand.base` green underline on the selected tab. Inactive tabs reserve the
+  same 3px space with a transparent line so the row never moves when the selection changes.
+  This applies to bill, legislator, committee, donation, payment, and future content tabs at
+  every screen width. Navigation bars remain navigation bars and keep their own selected-state
+  treatment. **Every future Design handoff follows this tab rule.** When a drawing omits the
+  selected underline or shows it in another color, the current coding agent adds the shared
+  green underline during the build without another approval. Preserve the drawing's spacing,
+  type, and other state changes unless a separate approved change requires otherwise.
 - **Shape.** Softly rounded, never sharp and never pill-everything: cards and inputs ~12px radius,
   small chips/badges smaller, full pills only for genuinely pill-shaped controls. Rounded = approachable
   and modern; restrained radius = still serious.
