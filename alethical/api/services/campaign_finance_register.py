@@ -69,8 +69,8 @@ from datetime import UTC, date, datetime
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import Select, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy import Select, func, literal, select, true, union_all
+from sqlalchemy.orm import Session, aliased
 
 from alethical.api.services.independent_spending import REPORTED, UNAVAILABLE
 from alethical.db import models as schema
@@ -494,39 +494,63 @@ def register_summary(db: Session) -> RegisterSummary:
     )
 
 
-def contest_count(db: Session) -> ContestCount:
-    """Count the race page's contests, live, off the published register.
+def _contests_stmt(snapshot_id: UUID) -> Select:
+    """Count the distinct office-and-district pairs the register's candidates registered.
 
     Mirrors the grouping in ``campaign_finance_races.races`` clause for clause: candidate
     committees on the published snapshot that the register gives an office to, grouped by
     office and district. ``DISTINCT`` treats 2 NULL districts as one group, exactly as the
     race page's own grouping does for a statewide office, so the Governor's race is 1
     contest here as it is there.
-
-    Refuses in the same 2 cases the register count refuses, with the register's own
-    reason, because the contests are read off the same rows.
     """
-    summary = register_summary(db)
-    if summary.state != REPORTED:
-        return ContestCount(
-            state=summary.state,
-            contest_count=None,
-            as_of=summary.as_of,
-            snapshot_id=summary.snapshot_id,
-            reason=summary.reason,
-        )
     filer = schema.CampaignFinanceFiler
     contests = (
         select(filer.office, filer.district)
         .where(
-            filer.snapshot_id == summary.snapshot_id,
+            filer.snapshot_id == snapshot_id,
             filer.kind == schema.CampaignFinanceFilerKind.candidate_committee,
             filer.office.is_not(None),
         )
         .distinct()
         .subquery()
     )
-    count = db.scalar(select(func.count()).select_from(contests)) or 0
+    return select(func.count()).select_from(contests)
+
+
+def _contests_refusal(summary: RegisterSummary) -> Optional[ContestCount]:
+    """The answer when the register itself could not be counted, or ``None`` to count.
+
+    Refuses in the same 2 cases the register count refuses, with the register's own
+    reason, because the contests are read off the same rows.
+    """
+    if summary.state == REPORTED:
+        return None
+    return ContestCount(
+        state=summary.state,
+        contest_count=None,
+        as_of=summary.as_of,
+        snapshot_id=summary.snapshot_id,
+        reason=summary.reason,
+    )
+
+
+def contest_count(
+    db: Session, *, summary: Optional[RegisterSummary] = None
+) -> ContestCount:
+    """Count the race page's contests, live, off the published register.
+
+    ``summary`` is the register count a caller has already read, passed in rather than
+    re-read: the ``/money`` landing counts the register for its own lane card and this
+    read wants the same answer, so asking a second time is a second crossing of the
+    distance to the database for a number already in hand
+    ([#1966](https://github.com/alethical-org/alethical/issues/1966)). Read here when a
+    caller has none, which keeps ``contest_count(db)`` answering on its own.
+    """
+    summary = register_summary(db) if summary is None else summary
+    refusal = _contests_refusal(summary)
+    if refusal is not None:
+        return refusal
+    count = db.scalar(_contests_stmt(summary.snapshot_id)) or 0
     return ContestCount(
         state=REPORTED,
         contest_count=count,
@@ -536,37 +560,41 @@ def contest_count(db: Session) -> ContestCount:
     )
 
 
-def independent_expenditure_row_count(
-    db: Session, release, *, release_no_longer_held: bool = False
-) -> IndependentExpenditureRowCount:
-    """Count the independent-expenditures rows of the published release, live.
+def _independent_expenditure_source(release, release_no_longer_held: bool):
+    """The file to count rows in, or the answer that stands in place of counting.
 
-    ``release`` is the download release the caller already resolved, or ``None`` when
-    nothing is published. ``release_no_longer_held`` is the caller saying the published
-    release names a pruned snapshot (``ReleaseNoLongerHeld``), which is the same
+    Exactly one of the 2 is ever set. ``release_no_longer_held`` is the caller saying the
+    published release names a pruned snapshot (``ReleaseNoLongerHeld``), which is the same
     ``rows_replaced`` gap the register count reports rather than a count of 0.
-
-    Refuses in the same way when the snapshot published rows and holds none now: those
-    rows survive exactly one further publish, so an empty count against a populated
-    snapshot means we are reading a replaced set.
     """
     if release_no_longer_held:
-        return IndependentExpenditureRowCount(
+        return None, IndependentExpenditureRowCount(
             state=UNAVAILABLE, row_count=None, release_id=None, reason=ROWS_REPLACED
         )
     if release is None:
-        return IndependentExpenditureRowCount(
+        return None, IndependentExpenditureRowCount(
             state=UNAVAILABLE,
             row_count=None,
             release_id=None,
             reason=NO_DOWNLOAD_RELEASE,
         )
-    source = release.file_for(Dataset.independent_expenditures)
+    return release.file_for(Dataset.independent_expenditures), None
+
+
+def _independent_expenditure_rows_stmt(source) -> Select:
     row = schema.CampaignFinanceIndependentExpenditureRow
-    count = (
-        db.scalar(select(func.count()).where(row.snapshot_id == source.snapshot_id))
-        or 0
-    )
+    return select(func.count()).where(row.snapshot_id == source.snapshot_id)
+
+
+def _independent_expenditure_answer(
+    count: int, *, source, release
+) -> IndependentExpenditureRowCount:
+    """What a counted number means, once the rows have been counted.
+
+    Refuses when the snapshot published rows and holds none now: those rows survive
+    exactly one further publish, so an empty count against a populated snapshot means we
+    are reading a replaced set.
+    """
     if count == 0 and source.row_count > 0:
         return IndependentExpenditureRowCount(
             state=UNAVAILABLE,
@@ -577,6 +605,70 @@ def independent_expenditure_row_count(
     return IndependentExpenditureRowCount(
         state=REPORTED, row_count=count, release_id=release.id, reason=None
     )
+
+
+def independent_expenditure_row_count(
+    db: Session, release, *, release_no_longer_held: bool = False
+) -> IndependentExpenditureRowCount:
+    """Count the independent-expenditures rows of the published release, live.
+
+    ``release`` is the download release the caller already resolved, or ``None`` when
+    nothing is published.
+    """
+    source, refusal = _independent_expenditure_source(release, release_no_longer_held)
+    if refusal is not None:
+        return refusal
+    count = db.scalar(_independent_expenditure_rows_stmt(source)) or 0
+    return _independent_expenditure_answer(count, source=source, release=release)
+
+
+def contests_and_independent_expenditure_rows(
+    db: Session,
+    release,
+    *,
+    summary: RegisterSummary,
+    release_no_longer_held: bool = False,
+) -> tuple[ContestCount, IndependentExpenditureRowCount]:
+    """The landing's last 2 counts, in one request instead of 2.
+
+    Two counts of 2 unrelated populations -- the register's contests and the rows of the
+    independent-expenditures download -- and they ride together only because one page
+    needs both. Each is the same count it would be on its own, sent as its own column, so
+    neither can be read off the other's rows.
+
+    **Their 2 refusals stay separate and are settled before anything is counted**, which
+    is what keeps this from averaging them: contests refuse when the register could not be
+    counted, with the register's own reason, and the rows refuse when no download release
+    is published or the one we resolved has been replaced. A half that has already refused
+    contributes no column, and when both have refused nothing is sent at all.
+    """
+    contests_refusal = _contests_refusal(summary)
+    source, rows_refusal = _independent_expenditure_source(
+        release, release_no_longer_held
+    )
+    columns = []
+    if contests_refusal is None:
+        columns.append(_contests_stmt(summary.snapshot_id).scalar_subquery())
+    if rows_refusal is None:
+        columns.append(_independent_expenditure_rows_stmt(source).scalar_subquery())
+    counted = list(db.execute(select(*columns)).one()) if columns else []
+    if contests_refusal is not None:
+        contests = contests_refusal
+    else:
+        contests = ContestCount(
+            state=REPORTED,
+            contest_count=counted.pop(0) or 0,
+            as_of=summary.as_of,
+            snapshot_id=summary.snapshot_id,
+            reason=None,
+        )
+    if rows_refusal is not None:
+        rows = rows_refusal
+    else:
+        rows = _independent_expenditure_answer(
+            counted.pop(0) or 0, source=source, release=release
+        )
+    return contests, rows
 
 
 #: The register is held and this number is on none of its 3 lists. A fact about our
@@ -789,6 +881,12 @@ def sub_types_for(db: Session, release, registration_numbers) -> dict[str, str]:
     file alone -- and it is fixed anyway rather than left to whichever query returns
     first.
 
+    **All 3 files are asked in one request, and the preference decides the answer here
+    rather than in the order the questions were asked.** Each file's rows come back
+    carrying the file's own rank, and the lowest rank wins per filer, which is the same
+    answer asking them one after another gave and costs 1 crossing of the distance to the
+    database instead of 3 ([#1966](https://github.com/alethical-org/alethical/issues/1966)).
+
     Scoped to the page's own filers, so the cost is a lookup for 25 rows rather than a
     scan that grows with the register. ``{}`` when no release is held: the sub-type is a
     label on top of the register rather than the register itself, so its absence leaves
@@ -820,22 +918,31 @@ def sub_types_for(db: Session, release, registration_numbers) -> dict[str, str]:
             independent.spender_sub_type,
         ),
     )
-    found: dict[str, str] = {}
-    for dataset, model, key_column, sub_type_column in lookups:
-        outstanding = [number for number in numbers if number not in found]
-        if not outstanding:
-            break
-        rows = db.execute(
-            select(key_column, sub_type_column)
-            .where(
-                model.snapshot_id == release.file_for(dataset).snapshot_id,
-                key_column.in_(outstanding),
-                sub_type_column.in_(DOCUMENTED_SUB_TYPES),
+    rows = db.execute(
+        union_all(
+            *(
+                select(
+                    key_column.label("registration_number"),
+                    sub_type_column.label("sub_type"),
+                    literal(rank).label("preference"),
+                )
+                .where(
+                    model.snapshot_id == release.file_for(dataset).snapshot_id,
+                    key_column.in_(numbers),
+                    sub_type_column.in_(DOCUMENTED_SUB_TYPES),
+                )
+                .distinct()
+                for rank, (dataset, model, key_column, sub_type_column) in enumerate(
+                    lookups
+                )
             )
-            .distinct()
-        ).all()
-        for registration_number, sub_type in rows:
-            found.setdefault(registration_number, sub_type)
+        )
+    ).all()
+    found: dict[str, str] = {}
+    for registration_number, sub_type, _preference in sorted(
+        rows, key=lambda row: row[2]
+    ):
+        found.setdefault(registration_number, sub_type)
     return found
 
 
@@ -915,7 +1022,6 @@ def committees(
         filters.append(filer.kind == schema.CampaignFinanceFilerKind(kind))
     if query:
         filters.append(name_contains(filer.name, query))
-    total = db.scalar(select(func.count()).select_from(filer).where(*filters)) or 0
     rows = db.execute(
         select(
             filer.registration_number,
@@ -924,6 +1030,14 @@ def committees(
             filer.office,
             filer.district,
             filer.termination_date,
+            # How many filers the filter matched, counted over the whole filtered set
+            # before the page was cut out of it, so "showing 8 of 778" rides back with
+            # the 8 rather than costing a second crossing of the distance to the database
+            # ([#1966](https://github.com/alethical-org/alethical/issues/1966)). The same
+            # shape ``paginated_scalars_with_total`` uses in
+            # ``alethical/api/routers/public.py``, including its one caveat: a page with
+            # no rows carries no number to read, so that case counts separately below.
+            func.count().over(),
         )
         .where(*filters)
         .order_by(filer.name.asc())
@@ -932,6 +1046,11 @@ def committees(
     ).all()
     has_more = len(rows) > limit
     page = rows[:limit]
+    total = (
+        rows[0][6]
+        if rows
+        else db.scalar(select(func.count()).select_from(filer).where(*filters)) or 0
+    )
     sub_types = sub_types_for(db, release, (row[0] for row in page))
     return CommitteesPage(
         state=REPORTED,
@@ -951,7 +1070,7 @@ def committees(
 
 
 def _committee_row(row, *, sub_types: dict[str, str]) -> CommitteeRow:
-    registration_number, name, kind, office, district, termination_date = row
+    registration_number, name, kind, office, district, termination_date = row[:6]
     return CommitteeRow(
         registration_number=registration_number,
         name=name,
@@ -966,12 +1085,16 @@ def _committee_row(row, *, sub_types: dict[str, str]) -> CommitteeRow:
     )
 
 
-def _sitting_members_stmt(session_id: UUID) -> Select:
+def _sitting_members_stmt(session_id) -> Select:
     """The sitting members, filtered exactly as the legislator directory filters them.
 
     Mirrors ``legislator_directory_stmt`` (``alethical/db/models.py``) clause for clause,
     including its exclusion of the placeholder ``-unknown`` districts, so the lane's
     count and the directory it opens cannot describe different populations.
+
+    ``session_id`` is the current session's id, either read already or as a subquery that
+    reads it inside the same statement. Either way the clause is the same comparison, so
+    the 2 callers cannot come to filter on different members.
 
     **Counted as people, once each.** The directory's own total counts rows of this join,
     which is the same number unless one member holds 2 current service periods in a
@@ -1008,13 +1131,52 @@ def legislator_committee_confirmations(db: Session) -> ConfirmationState:
     ``None`` for both counts when no session is current, because the confirmed count is
     only meaningful against the set it is out of, and a bare "0 confirmed" with no
     denominator invites a page to invent one.
+
+    **All 4 answers arrive in one request**, because 4 of them cost 4 crossings of the
+    distance between our server and our database and the work itself is trivial
+    ([#1966](https://github.com/alethical-org/alethical/issues/1966)). The current session
+    and the sitting set are named once each, as ``WITH`` blocks the 3 counts read, so the
+    3 figures are counted over one set rather than over 3 reads that could land either
+    side of a roster change. Whether a session is current is the session id coming back
+    at all, which is what keeps "no session is current" a separate answer from "a session
+    is current and nobody is sitting in it" -- both would count 0 members otherwise.
     """
-    session_id = db.scalar(
-        select(schema.LegislativeSession.id).where(
-            schema.LegislativeSession.is_current.is_(True)
-        )
+    current_session = (
+        select(schema.LegislativeSession.id)
+        .where(schema.LegislativeSession.is_current.is_(True))
+        # Exactly what reading the id on its own returned: the first row this filter
+        # matches. A second session marked current would widen the sitting set without
+        # it, which would be a different population from the one the directory lists.
+        .limit(1)
+        .cte("current_legislative_session")
     )
-    if session_id is None:
+    session_id = select(current_session.c.id).scalar_subquery()
+    sitting = _sitting_members_stmt(session_id).cte("sitting_members")
+    confirmed = (
+        select(
+            schema.LegislatorCampaignCommittee.legislator_id,
+            schema.LegislatorCampaignCommittee.reviewed_at,
+        )
+        .where(
+            schema.LegislatorCampaignCommittee.decision
+            == schema.CommitteeLinkReviewDecision.confirmed,
+            schema.LegislatorCampaignCommittee.legislator_id.in_(
+                select(sitting.c.legislator_id)
+            ),
+        )
+        .cte("confirmed_committee_links")
+    )
+    found_session, sitting_count, confirmed_count, reviewed_at = db.execute(
+        select(
+            session_id.label("session_id"),
+            select(func.count()).select_from(sitting).scalar_subquery(),
+            select(
+                func.count(func.distinct(confirmed.c.legislator_id))
+            ).scalar_subquery(),
+            select(func.max(confirmed.c.reviewed_at)).scalar_subquery(),
+        )
+    ).one()
+    if found_session is None:
         return ConfirmationState(
             state=UNAVAILABLE,
             confirmed_member_count=None,
@@ -1022,21 +1184,9 @@ def legislator_committee_confirmations(db: Session) -> ConfirmationState:
             newest_confirmation_at=None,
             reason=NO_CURRENT_SESSION,
         )
-    sitting = _sitting_members_stmt(session_id)
-    sitting_count = db.scalar(select(func.count()).select_from(sitting.subquery())) or 0
-    confirmed_rows = select(
-        schema.LegislatorCampaignCommittee.legislator_id,
-        schema.LegislatorCampaignCommittee.reviewed_at,
-    ).where(
-        schema.LegislatorCampaignCommittee.decision
-        == schema.CommitteeLinkReviewDecision.confirmed,
-        schema.LegislatorCampaignCommittee.legislator_id.in_(sitting),
-    )
-    confirmed = confirmed_rows.subquery()
-    confirmed_count = (
-        db.scalar(select(func.count(func.distinct(confirmed.c.legislator_id)))) or 0
-    )
-    newest = _as_utc(db.scalar(select(func.max(confirmed.c.reviewed_at))))
+    sitting_count = sitting_count or 0
+    confirmed_count = confirmed_count or 0
+    newest = _as_utc(reviewed_at)
     return ConfirmationState(
         state=REPORTED,
         confirmed_member_count=confirmed_count,
@@ -1251,6 +1401,39 @@ def recent_filings(
         (filer.snapshot_id == report.snapshot_id)
         & (filer.registration_number == report.registration_number),
     )
+    # Everything this page needs about the set the rows came from, carried back on the
+    # rows themselves ([#1966](https://github.com/alethical-org/alethical/issues/1966)).
+    # Each is counted over the identical filter it was counted over before, and each is
+    # its own column, so no figure is read off another's rows:
+    #
+    # * ``count(*) OVER ()`` is the filtered total, counted over the whole set before the
+    #   page was cut out of it.
+    # * ``bool_or(filed_date IS NOT NULL) OVER ()`` is the question ``_order_name`` asks:
+    #   does any row in the filtered set carry a filing date.
+    # * the joined ``newest_period`` block is the same grouped count, and it is joined
+    #   rather than counted per row so it is computed once. It returns exactly 1 row
+    #   whenever the filter matches anything, and no row when it matches nothing -- which
+    #   is the case where this query returns nothing anyway.
+    # * ``special_election_year`` asks per row exactly what
+    #   ``_special_election_filer_years`` asks in a set: does this filer have a
+    #   special-election report in this year.
+    newest_period = (
+        select(
+            report.cut_off_date.label("period_end"),
+            func.count().label("filing_count"),
+            func.count(func.distinct(report.registration_number)).label(
+                "committee_count"
+            ),
+        )
+        .select_from(report)
+        .join(*joined_to_filer)
+        .where(*filed_and_ended)
+        .group_by(report.cut_off_date)
+        .order_by(report.cut_off_date.desc())
+        .limit(1)
+        .subquery("newest_period")
+    )
+    special = aliased(report)
     rows = db.execute(
         select(
             report.registration_number,
@@ -1264,8 +1447,23 @@ def recent_filings(
             report.filed_date,
             filer.name,
             filer.kind,
+            select(literal(1))
+            .where(
+                special.snapshot_id == snapshot.id,
+                special.registration_number == report.registration_number,
+                special.filing_year == report.filing_year,
+                special.special_election.is_(True),
+            )
+            .exists()
+            .label("special_election_year"),
+            func.count().over().label("filtered_total"),
+            func.bool_or(report.filed_date.is_not(None)).over().label("any_filed_date"),
+            newest_period.c.period_end,
+            newest_period.c.filing_count,
+            newest_period.c.committee_count,
         )
         .join(*joined_to_filer)
+        .join(newest_period, true())
         .where(*filed_and_ended)
         .order_by(
             _filed_date_order(report),
@@ -1307,39 +1505,50 @@ def recent_filings(
             )
     has_more = len(rows) > limit
     page = rows[:limit]
-    special_years = _special_election_filer_years(
-        db, snapshot.id, {row[0] for row in page}
+    filings = tuple(
+        _filing_row(row[:11], special_election_year=row.special_election_year)
+        for row in page
     )
-    filings = tuple(_filing_row(row, special_years=special_years) for row in page)
-    total = (
-        db.scalar(
-            select(func.count())
+    if rows:
+        carrier = rows[0]
+        total = carrier.filtered_total
+        ordered_by = (
+            ORDERED_BY_FILED_DATE_THEN_PERIOD_END
+            if carrier.any_filed_date
+            else ORDERED_BY_PERIOD_END
+        )
+        newest = (carrier.period_end, carrier.filing_count, carrier.committee_count)
+    else:
+        # No row came back to carry them, which is an offset past the end of the set or a
+        # filter that matched nothing. Rare, and each figure is then asked for on its own
+        # rather than guessed at: a page past the end says nothing about how many rows the
+        # set holds.
+        total = (
+            db.scalar(
+                select(func.count())
+                .select_from(report)
+                .join(*joined_to_filer)
+                .where(*filed_and_ended)
+            )
+            or 0
+        )
+        ordered_by = _order_name(db, report, filed_and_ended, joined_to_filer)
+        newest = db.execute(
+            select(
+                report.cut_off_date,
+                func.count(),
+                func.count(func.distinct(report.registration_number)),
+            )
             .select_from(report)
             .join(*joined_to_filer)
             .where(*filed_and_ended)
-        )
-        or 0
-    )
-    # Counted over the same filter again rather than read off the rows: the newest
-    # period's filings run past the end of any one page, so a count taken from `filings`
-    # would be a count of this page wearing the period's name. Grouped and ordered
-    # rather than read from row 0, so it is right whatever offset the caller asked for.
-    newest = db.execute(
-        select(
-            report.cut_off_date,
-            func.count(),
-            func.count(func.distinct(report.registration_number)),
-        )
-        .select_from(report)
-        .join(*joined_to_filer)
-        .where(*filed_and_ended)
-        .group_by(report.cut_off_date)
-        .order_by(report.cut_off_date.desc())
-        .limit(1)
-    ).first()
+            .group_by(report.cut_off_date)
+            .order_by(report.cut_off_date.desc())
+            .limit(1)
+        ).first()
     return FilingsPage(
         state=REPORTED,
-        ordered_by=_order_name(db, report, filed_and_ended, joined_to_filer),
+        ordered_by=ordered_by,
         periods_ended_on_or_before=as_of,
         filings=filings,
         limit=limit,
@@ -1505,7 +1714,10 @@ def committee_filings(
     special_years = _special_election_filer_years(
         db, snapshot.id, {registration_number}
     )
-    filings = tuple(_filing_row(row, special_years=special_years) for row in page)
+    filings = tuple(
+        _filing_row(row, special_election_year=(row[0], row[1]) in special_years)
+        for row in page
+    )
     total = (
         db.scalar(
             select(func.count())
@@ -1571,7 +1783,15 @@ def _special_election_filer_years(
     }
 
 
-def _filing_row(row, *, special_years: set[tuple[str, int]]) -> FilingRow:
+def _filing_row(row, *, special_election_year: bool) -> FilingRow:
+    """One served row, with its period start withheld where the year is not a plain one.
+
+    ``special_election_year`` is "this filer filed a special-election report in this
+    row's year", which the landing feed answers per row inside its own read and a
+    committee's own page answers for its 1 filer in a set
+    (``_special_election_filer_years``). Both ask the identical question of the identical
+    rows; only where the asking happens differs.
+    """
     (
         registration_number,
         filing_year,
@@ -1586,7 +1806,7 @@ def _filing_row(row, *, special_years: set[tuple[str, int]]) -> FilingRow:
         filer_kind,
     ) = row
     start = None
-    if (registration_number, filing_year) not in special_years:
+    if not special_election_year:
         start = printed_period_start_for_end(cut_off_date)
     return FilingRow(
         registration_number=registration_number,
