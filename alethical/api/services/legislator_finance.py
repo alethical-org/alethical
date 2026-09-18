@@ -108,11 +108,15 @@ from alethical.api.services.committee_name_connections import (
 from alethical.api.services.committee_finance import (
     NOT_REPORTED,
     CommitteeFinance,
+    MoneyIn,
+    _reported_contributions,
     committee_finance,
+    fold_money_in,
 )
 from alethical.api.services.committee_stated_split import (
     AGREES,
     DISAGREES,
+    stated_split,
     stated_split_for_year,
 )
 from alethical.api.services.independent_spending import (
@@ -122,8 +126,12 @@ from alethical.api.services.independent_spending import (
     every_link,
 )
 from alethical.db.schema import load_schema
+from alethical.pipeline import campaign_finance_filings as filings
 from alethical.pipeline import campaign_finance_reader as reader
-from alethical.pipeline.campaign_finance_filings import live_filings_snapshot
+from alethical.pipeline.campaign_finance_filings import (
+    catalogued_reports_for,
+    filer_records,
+)
 
 schema = load_schema()
 CommitteeLinkReviewDecision = schema.CommitteeLinkReviewDecision
@@ -530,9 +538,108 @@ def payment_dates(
     return row[0], row[1]
 
 
+@dataclass(frozen=True)
+class NamedPaymentFacts:
+    """What one committee-year's named contribution rows say about themselves.
+
+    The 2 dates are facts about every ``Contribution`` row we hold for the year;
+    ``cash_total`` and ``cash_rows`` count only the rows that were money rather than
+    goods and services, which is the figure a reported total may be compared with.
+    ``cash_total`` is ``None`` when no cash row exists, for the reason
+    ``campaign_finance_reader.contribution_cash`` gives: in an itemized file absence is
+    silence, and only a caller that knows the rows are held may read it as a zero.
+    """
+
+    year: int
+    first_payment_on: date | None
+    last_payment_on: date | None
+    cash_total: Decimal | None
+    cash_rows: int
+
+
+def named_payment_facts(
+    db: Session, release: Release, *, registration_number: str, years: list[int]
+) -> dict[int, NamedPaymentFacts]:
+    """``payment_dates`` and the cash figure for several years, in one statement.
+
+    The dates and the cash-only sum are read off the same rows under the same filter
+    (``Receipt type = 'Contribution'``, the file's own ``Year`` column), so asking
+    them separately cost a round trip for nothing: 2 statements per committee-year of a
+    legislator's money tab, measured 17 Sep 2026. A year with no contribution row is
+    absent from the result, exactly as it is absent from both of the reads this folds.
+    """
+    if not years:
+        return {}
+    rows = db.execute(
+        text(
+            "SELECT year, min(receipt_date), max(receipt_date), "
+            "       sum(amount) FILTER (WHERE lower(coalesce(in_kind, '')) <> 'yes'), "
+            "       count(*) FILTER (WHERE lower(coalesce(in_kind, '')) <> 'yes') "
+            "  FROM cf_contribution_row "
+            " WHERE snapshot_id = :snapshot "
+            "   AND recipient_reg_num = :reg_num "
+            "   AND year = ANY(:years) "
+            "   AND receipt_type = :contribution "
+            " GROUP BY year"
+        ),
+        {
+            "snapshot": release.contributions.snapshot_id,
+            "reg_num": registration_number,
+            "years": sorted(set(years)),
+            "contribution": reader.CONTRIBUTION_RECEIPT,
+        },
+    ).all()
+    return {
+        int(year): NamedPaymentFacts(
+            year=int(year),
+            first_payment_on=first,
+            last_payment_on=last,
+            # ``coalesce(sum, 0)`` over the cash rows, as the reader computes it, and
+            # ``None`` where there is no cash row to sum.
+            cash_total=(cash if cash is not None else Decimal("0"))
+            if cash_rows
+            else None,
+            cash_rows=int(cash_rows),
+        )
+        for year, first, last, cash, cash_rows in rows
+    }
+
+
 def named_money_split(
     finance: CommitteeFinance,
     *,
+    first_payment_on: date | None,
+    last_payment_on: date | None,
+    named_cash_total: Decimal | None,
+    withheld_filer_years: frozenset[tuple[str, int]],
+    stated_split_state: str,
+    report_corrections: int | None = None,
+) -> NamedMoneySplit:
+    """Whether this committee-year's split may be drawn, and what it is.
+
+    Reads only ``finance.money_in``, the committee's number and the year, and hands
+    them to ``split_from_money_in``, which holds the rules; the year buttons of a
+    legislator's money tab reach the same rules with a ``MoneyIn`` folded from 12
+    years' rows at once.
+    """
+    return split_from_money_in(
+        finance.money_in,
+        registration_number=finance.committee.registration_number,
+        year=finance.year,
+        first_payment_on=first_payment_on,
+        last_payment_on=last_payment_on,
+        named_cash_total=named_cash_total,
+        withheld_filer_years=withheld_filer_years,
+        stated_split_state=stated_split_state,
+        report_corrections=report_corrections,
+    )
+
+
+def split_from_money_in(
+    money_in: MoneyIn,
+    *,
+    registration_number: str,
+    year: int,
     first_payment_on: date | None,
     last_payment_on: date | None,
     named_cash_total: Decimal | None,
@@ -563,7 +670,6 @@ def named_money_split(
     above 0 means the committee refiled with different figures, ``0`` means it did not,
     and ``None`` means we hold no version history and may not say either way.
     """
-    money_in = finance.money_in
     named_total = money_in.itemized_contribution_total
     # §7's coverage-end guard, applied once and before anything reads these 2 figures.
     # The Board's totals route ignores the year it is asked for when that year has no
@@ -579,7 +685,7 @@ def named_money_split(
     if (
         reported_total is None
         or reported_through is None
-        or reported_through.year != finance.year
+        or reported_through.year != year
     ):
         # Both dropped rather than one. A coverage end from the wrong year printed
         # beside a figure is the caption §7 says this guard must not become.
@@ -659,7 +765,7 @@ def named_money_split(
     # that decision rather than forming a second opinion against rows that may since
     # have been replaced. What it refused is the same negative subtraction the guard at
     # the foot of this function catches, so it reports the same states.
-    if (finance.committee.registration_number, finance.year) in withheld_filer_years:
+    if (registration_number, year) in withheld_filer_years:
         return cannot_be_subtracted()
 
     if money_in.state != REPORTED:
@@ -730,18 +836,13 @@ def split_for_committee(
         withheld_filer_years = reader.filer_years_that_must_not_show_a_split(
             db, release
         )
-    first_on, last_on = payment_dates(
-        db, release, registration_number=registration_number, year=year
-    )
-    cash = next(
-        (
-            entry.total
-            for entry in reader.contribution_cash(
-                db, release, registration_number, years=[year]
-            )
-            if entry.year == year
-        ),
-        None,
+    facts = named_payment_facts(
+        db, release, registration_number=registration_number, years=[year]
+    ).get(year)
+    first_on, last_on, cash = (
+        (facts.first_payment_on, facts.last_payment_on, facts.cash_total)
+        if facts is not None
+        else (None, None, None)
     )
     if cash is None and finance.money_in.state == REPORTED:
         # We hold this filer-year's contribution rows and not one of them is cash:
@@ -764,18 +865,23 @@ def split_for_committee(
         # Read from the Board's own report catalogue rather than inferred, and only
         # consulted where a subtraction has already refused to run.
         report_corrections=report_corrections(db, registration_number, year),
-        # Only ``agrees`` is a pass. Everything else -- the Board serving no document,
-        # our own reader failing to prove itself, or nobody having run the comparison
-        # -- is a fact about the check rather than about the committee, and the page
-        # says which it is rather than implying a verification that did not happen.
-        stated_split_state=(
-            STATED_SPLIT_AGREES
-            if stated.status == AGREES
-            else DISAGREES
-            if stated.status == DISAGREES
-            else STATED_SPLIT_NOT_CHECKED
-        ),
+        stated_split_state=_stated_split_state(stated.status),
     )
+
+
+def _stated_split_state(status: str | None) -> str:
+    """Which of the 3 served values a stored stated-split verdict becomes.
+
+    Only ``agrees`` is a pass. Everything else -- the Board serving no document, our
+    own reader failing to prove itself, or nobody having run the comparison -- is a
+    fact about the check rather than about the committee, and the page says which it
+    is rather than implying a verification that did not happen.
+    """
+    if status == AGREES:
+        return STATED_SPLIT_AGREES
+    if status == DISAGREES:
+        return DISAGREES
+    return STATED_SPLIT_NOT_CHECKED
 
 
 def reported_by_one_committee(
@@ -916,6 +1022,12 @@ def legislator_finance(
     other_office = len(confirmed) - len(links)
     withheld = reader.filer_years_that_must_not_show_a_split(db, release)
     committees: list[LegislatorCommitteeMoney] = []
+    outside = committees_outside_the_year(db, legislator_id, year=year, links=decisions)
+    # One read of the register for every committee this page names, the ones it lists
+    # and the ones it explains leaving out. Inside the pinned request the filing
+    # schedule, the refunds block and the closing dates then read from it rather than
+    # asking again, which was 3 trips per committee (17 Sep 2026).
+    filer_records(db, [row.registration_number for row in (*links, *outside)])
     register_kinds = _register_kinds(db, [row.registration_number for row in links])
     for link in sorted(links, key=lambda row: row.registration_number):
         finance = committee_finance(
@@ -999,10 +1111,231 @@ def legislator_finance(
         # number (#1663).
         committees=tuple(committees),
         other_office_committees=other_office,
-        committees_outside_this_year=_committees_outside_this_year(
-            db, legislator_id=legislator_id, year=year, links=decisions
+        committees_outside_this_year=_committees_outside_this_year(db, outside),
+    )
+
+
+@dataclass(frozen=True)
+class CommitteeYearState:
+    """The 2 facts about one committee-year that colour a year button (#2261)."""
+
+    registration_number: str
+    split_state: str
+    reported_total: Decimal | None
+
+
+@dataclass(frozen=True)
+class YearState:
+    """The committees a year of the money tab would list, each with its split state."""
+
+    year: int
+    committees: tuple[CommitteeYearState, ...]
+
+
+@dataclass(frozen=True)
+class LegislatorYearStates:
+    """``link_state`` once, and per year what ``legislator_finance`` would list.
+
+    For every year, the registration numbers and each committee's ``split.state`` and
+    ``split.reported_total`` are what ``legislator_finance`` serves for that year,
+    reached through the same folds and the same rules from rows read once for the
+    whole span. ``alethical/tests/test_legislator_finance_years.py`` pins that
+    equality against the per-year route.
+    """
+
+    legislator_id: UUID
+    link_state: str
+    years: tuple[YearState, ...]
+
+
+def legislator_year_states(
+    db: Session, release: Release, *, legislator_id: UUID, years: list[int]
+) -> LegislatorYearStates:
+    """Which committees each year lists and what each split's state is, for a span.
+
+    The year buttons above a member's money need only ``link_state`` and, per
+    committee-year, ``split.state`` and ``split.reported_total``. Read through the
+    per-year route that was 11 requests of about 30 statements each to colour 11
+    buttons (17 Sep 2026); here every dataset is read once for the whole span --
+    the filed totals, the contribution rows, the payment dates and cash, the stated
+    verdicts and the report catalogue -- and each committee-year is then folded by
+    exactly the functions the per-year route folds it with.
+    """
+    decisions = every_link(db, legislator_id)
+    state = link_state(db, legislator_id, decisions)
+    listed: dict[int, list[str]] = {
+        year: sorted(
+            row.registration_number
+            for row in confirmed_committees(
+                db, legislator_id, year=year, links=decisions
+            )
+            if is_for_a_legislative_office(row.office_as_reviewed)
+        )
+        for year in years
+    }
+    numbers = sorted(
+        {number for listed_year in listed.values() for number in listed_year}
+    )
+    splits: dict[tuple[str, int], CommitteeYearState] = {}
+    if numbers:
+        held = _committees_held_by_release(db, release, numbers)
+        withheld = reader.filer_years_that_must_not_show_a_split(db, release)
+        reported = filings.reported_totals_for(db, numbers, years=years)
+        corrections = _report_corrections_for(db, numbers, years)
+        covered: set[int] | None = None
+
+        def covers(year: int) -> bool:
+            nonlocal covered
+            if covered is None:
+                covered = _years_covered(db, release, years)
+            return year in covered
+
+        for number in numbers:
+            wanted = [year for year in years if number in listed[year]]
+            if number not in held:
+                # A confirmed link to a number the release holds no record of: the
+                # per-year route serves the link with no figures and this split.
+                for year in wanted:
+                    splits[(number, year)] = CommitteeYearState(
+                        number, SPLIT_NO_REPORTED_TOTAL, None
+                    )
+                continue
+            rows_gone = False
+            try:
+                found = {
+                    entry.year: entry
+                    for entry in reader.money_in(db, release, number, years=wanted)
+                }
+            except reader.ReleaseNoLongerHeld:
+                found, rows_gone = {}, True
+            facts = named_payment_facts(
+                db, release, registration_number=number, years=wanted
+            )
+            verdicts = {
+                entry.year: entry.status
+                for entry in stated_split(db, release, number, years=wanted)
+            }
+            for year in wanted:
+                fact = facts.get(year)
+                reported_total, reported_through = (
+                    _reported_contributions(db, number, year, reported)
+                    if reported is not None
+                    else (None, None)
+                )
+                money = fold_money_in(
+                    found.get(year),
+                    release=release,
+                    year=year,
+                    rows_gone=rows_gone,
+                    reported_total=reported_total,
+                    reported_through=reported_through,
+                    covers_year=lambda year=year: covers(year),
+                    every_named_contribution_is_in_kind=lambda fact=fact: (
+                        fact is None or fact.cash_rows == 0
+                    ),
+                )
+                cash = fact.cash_total if fact is not None else None
+                if cash is None and money.state == REPORTED:
+                    # The same measured zero ``split_for_committee`` reads: rows held
+                    # and not one of them cash.
+                    cash = Decimal(0)
+                split = split_from_money_in(
+                    money,
+                    registration_number=number,
+                    year=year,
+                    first_payment_on=fact.first_payment_on if fact else None,
+                    last_payment_on=fact.last_payment_on if fact else None,
+                    named_cash_total=cash,
+                    withheld_filer_years=withheld,
+                    stated_split_state=_stated_split_state(verdicts.get(year)),
+                    report_corrections=corrections.get((number, year)),
+                )
+                splits[(number, year)] = CommitteeYearState(
+                    number, split.state, split.reported_total
+                )
+    return LegislatorYearStates(
+        legislator_id=legislator_id,
+        link_state=state,
+        years=tuple(
+            YearState(
+                year=year,
+                committees=tuple(splits[(number, year)] for number in listed[year]),
+            )
+            for year in years
         ),
     )
+
+
+def _committees_held_by_release(
+    db: Session, release: Release, registration_numbers: list[str]
+) -> set[str]:
+    """Which of these numbers the release holds any row of, in any of its 3 files.
+
+    The span-wide twin of ``committee_finance.find_committee``'s existence test: one
+    ``EXISTS`` per file per number over ``unnest``, which stops at the first hit. And
+    the same refusal on a miss: before an absence is read as our records lacking the
+    committee, the reader checks the release's rows are not simply gone.
+    """
+    rows = db.execute(
+        text(
+            "SELECT number FROM unnest(CAST(:numbers AS text[])) AS number "
+            " WHERE EXISTS (SELECT 1 FROM cf_expenditure_row "
+            "                WHERE snapshot_id = :expenditures "
+            "                  AND committee_reg_num = number) "
+            "    OR EXISTS (SELECT 1 FROM cf_contribution_row "
+            "                WHERE snapshot_id = :contributions "
+            "                  AND recipient_reg_num = number) "
+            "    OR EXISTS (SELECT 1 FROM cf_independent_expenditure_row "
+            "                WHERE snapshot_id = :independent "
+            "                  AND affected_committee_reg_num = number)"
+        ),
+        {
+            "numbers": registration_numbers,
+            "expenditures": release.expenditures.snapshot_id,
+            "contributions": release.contributions.snapshot_id,
+            "independent": release.independent_expenditures.snapshot_id,
+        },
+    ).all()
+    held = {row[0] for row in rows}
+    if len(held) < len(set(registration_numbers)):
+        for dataset in reader.Dataset:
+            reader._refuse_if_rows_are_gone(db, release, dataset)
+    return held
+
+
+def _years_covered(db: Session, release: Release, years: list[int]) -> set[int]:
+    """Which of these years the contributions download holds any row for.
+
+    ``committee_finance._covers_year`` for a span: one existence test per year, so a
+    committee with no rows in a year can read as silence in a covered year and as our
+    gap in one the download does not reach (rule 12, missing versus zero).
+    """
+    rows = db.execute(
+        text(
+            "SELECT wanted.year FROM unnest(CAST(:years AS integer[])) AS wanted(year) "
+            " WHERE EXISTS (SELECT 1 FROM cf_contribution_row AS row "
+            "                WHERE row.snapshot_id = :snapshot "
+            "                  AND row.year = wanted.year)"
+        ),
+        {"years": sorted(set(years)), "snapshot": release.contributions.snapshot_id},
+    ).all()
+    return {int(row[0]) for row in rows}
+
+
+def _report_corrections_for(
+    db: Session, registration_numbers: list[str], years: list[int]
+) -> dict[tuple[str, int], int | None]:
+    """``campaign_finance_register.report_corrections`` for every filer-year, one read."""
+    reports = catalogued_reports_for(db, registration_numbers, years)
+    corrections: dict[tuple[str, int], int | None] = {}
+    for key, rows in reports.items():
+        indexes = [
+            row.effective_amendment_index
+            for row in rows
+            if row.effective_amendment_index is not None
+        ]
+        corrections[key] = max(indexes) if indexes else None
+    return corrections
 
 
 def _match_check(link) -> CommitteeMatchCheck | None:
@@ -1033,10 +1366,7 @@ def _match_check(link) -> CommitteeMatchCheck | None:
 
 def _committees_outside_this_year(
     db: Session,
-    *,
-    legislator_id: UUID,
-    year: int,
-    links: list[LegislatorCampaignCommittee] | None = None,
+    outside: list[LegislatorCampaignCommittee],
 ) -> tuple[CommitteeOutsideThisYear, ...]:
     """The confirmed committees this year leaves out, each with its closing date if any.
 
@@ -1045,8 +1375,10 @@ def _committees_outside_this_year(
     matches were confirmed are open, with no closing date, and had simply reported no
     money for the year on screen. Saying their registration had ended would have been
     false on a named person's page.
+
+    ``outside`` is ``independent_spending.committees_outside_the_year`` for the year,
+    already in the caller's hands.
     """
-    outside = committees_outside_the_year(db, legislator_id, year=year, links=links)
     if not outside:
         return ()
     closed_on = _closing_dates(db, [link.registration_number for link in outside])
@@ -1071,26 +1403,15 @@ def _register_kinds(db: Session, registration_numbers: list[str]) -> dict[str, s
     A missing row is a missing key rather than a guessed kind: the caller's fallback
     is the Board's own page listing all 3 searches, and that is honest where a guessed
     path segment would send the reader into a search the filer cannot appear in.
+
+    The same register read ``_closing_dates`` and the filing schedule make, through the
+    same pointer, so a committee cannot read as one kind on one part of the page and
+    another elsewhere, and inside a pinned request the rows are read once.
     """
-    schema = load_schema()
-    # The same snapshot ``_closing_dates`` and the filing schedule read, so a
-    # committee cannot read as one kind on one part of the page and another elsewhere.
-    snapshot = live_filings_snapshot(db)
-    if snapshot is None or not registration_numbers:
-        return {}
-    rows = db.execute(
-        select(
-            schema.CampaignFinanceFiler.registration_number,
-            schema.CampaignFinanceFiler.kind,
-        ).where(
-            schema.CampaignFinanceFiler.snapshot_id == snapshot.id,
-            schema.CampaignFinanceFiler.registration_number.in_(registration_numbers),
-        )
-    ).all()
     return {
-        row[0]: (row[1].value if hasattr(row[1], "value") else str(row[1]))
-        for row in rows
-        if row[1] is not None
+        number: (filer.kind.value if hasattr(filer.kind, "value") else str(filer.kind))
+        for number, filer in filer_records(db, registration_numbers).items()
+        if filer.kind is not None
     }
 
 
@@ -1102,19 +1423,7 @@ def _closing_dates(
     A missing row is a missing key, not a False: the filer list we hold not carrying a
     committee is our gap, and it may never render as the committee being open.
     """
-    schema = load_schema()
-    # The same snapshot ``committee_filing_schedule`` reads, through the same pointer, so
-    # a committee cannot read as closed on one part of the page and open on another.
-    snapshot = live_filings_snapshot(db)
-    if snapshot is None:
-        return {}
-    rows = db.execute(
-        select(
-            schema.CampaignFinanceFiler.registration_number,
-            schema.CampaignFinanceFiler.termination_date,
-        ).where(
-            schema.CampaignFinanceFiler.snapshot_id == snapshot.id,
-            schema.CampaignFinanceFiler.registration_number.in_(registration_numbers),
-        )
-    ).all()
-    return {row[0]: row[1] for row in rows}
+    return {
+        number: filer.termination_date
+        for number, filer in filer_records(db, registration_numbers).items()
+    }

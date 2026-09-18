@@ -1503,6 +1503,43 @@ the committee page or the legislator year takes more than about 50 ms of work, a
 one that remains is a different question, so what is left there is asking fewer questions
 per block rather than any plan.
 
+**Measured a third time on 17 Sep 2026, for the same pages, after the trips that were
+left were read for repeats across module boundaries.** Same method: a laptop 32 ms from
+the database, warm, best of 5, every response byte-identical to the live origin's before
+the change except the `current_claim_validated_at` clock. Statement counts exclude the
+tracer's own `SET TRANSACTION READ ONLY`.
+
+| Route | Statements before | Statements after | Warm time before | Warm time after |
+|---|---:|---:|---:|---:|
+| `GET /legislators/jim-abeler/campaign-finance?year=2024` | 30 | 24 | 1,104 ms | 942 ms |
+| `GET /legislators/dan-wolgamott/campaign-finance?year=2024` (2 committees) | not measured | 25 | not measured | 996 ms |
+| `GET /committees/20003/finance?year=2025` | 21 | 18 | 897 ms | 764 ms |
+| `GET /lobbying/principals/5359` | 5 | 4 | 304 ms | 281 ms |
+| `GET /lobbying/lobbyists/1733` | 8 | 7 | 659 ms | 382 ms (after the index above) |
+| `GET /campaign-finance/outside-spending?spender=20003` | 7 | 6 | 394 ms | 363 ms |
+| 11 year buttons on a member's money tab, 2015 to 2026 | 11 requests, ~30 statements each, about 4 s in all | 1 request, 11 statements (14 with 2 committees) | about 4 s | 490 ms (618 ms with 2 committees) |
+
+Every statement on these routes now costs about 33 ms and none does more than about
+50 ms of work, so each row above is the trips removed and nothing else. Six more rules
+follow from what was removed, each measured on the legislator year:
+
+| What cost the time | Measured on the live release | The rule |
+|---|---|---|
+| Reading one committee's register row from 3 modules | `cf_filer` read 3 times a year-request: its kind, its office and closing date, its registration date | One projection of the row, remembered for the life of the pinned transaction (`campaign_finance_filings.filer_records`); a legislator's year reads it once for every committee the page names |
+| Reading one committee-year's report catalogue from 2 modules | `cf_filing_report` read for the filing calendar and again, a round trip later, for the correction count | One read carrying the version history too, remembered per filer-year (`campaign_finance_filings.catalogued_reports_for`) |
+| Asking whether the outside-spending file reaches the year before reading the committee's rows | 2 statements per committee-year on every committee page and legislator year | The coverage question rides on the totals statement as a column, through an outer join that still answers on a committee with no rows (`independent_spending.spending_for_committee_if_year_covered`) |
+| Reading the payment dates and the cash figure off the same rows separately | 2 aggregates over the same filter, 1 round trip apart | One statement grouped by year (`legislator_finance.named_payment_facts`), which also answers for a span |
+| Setting the isolation level with a statement | `SET TRANSACTION ISOLATION LEVEL REPEATABLE READ` as the first trip of every money read | Carry it inside `BEGIN` through the connection's `execution_options`; verified against the production pooler that the level holds inside the transaction, sends no statement, and the next transaction on the same pooled connection is back to `read committed` (`committee_finance.pin_to_one_view`) |
+| Colouring 11 year buttons with 11 copies of the whole per-year answer | 11 requests, 3 at a time, about 4 s, reading only `link_state` and each committee's `split.state` and `split.reported_total` | One route for the span, `GET /legislators/{id}/campaign-finance/years?from=&to=`, reading each dataset once for all of its years and folding each committee-year through the per-year route's own functions; equality with the per-year route is pinned by `alethical/tests/test_legislator_finance_years.py` and was checked on production for 9 members across 2015 to 2026 with no difference |
+
+**What is left on a legislator's year is 24 different questions, and 4 of them are the
+same 2 verdicts asked twice.** The stated-split verdict table is read once for the split
+and joined twice more, once by the donor-kind block and once by the donor-state block,
+each with its own eligibility shape; the filing figures are read once for the totals and
+once by the donor-kind block with the verdict joined in. Folding those would mean one
+module reading another's SQL, and each block owns the honesty of its own join, so they are
+left as they are and named here so the next reader does not re-find them.
+
 **A statement count is a test and a time is not.** A seeded test database holds a few
 rows on the same machine as the tests, so it cannot reproduce the distance to the
 database and a wall-clock assertion there measures the laptop. What

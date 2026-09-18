@@ -6723,9 +6723,11 @@ def test_a_read_naming_a_confirmed_committee_for_a_member_gets_the_short_window(
 
     `confirmed_member_count` on the summary is the same claim counted, so it is read
     through a real request, as is the separate confirmation answer, which does not
-    need a money release. The 2 mixed finance routes need a seeded money release to
-    answer 200, which this fixture has not got, so real paths for them go through the
-    decision function the middleware itself calls.
+    need a money release. The 3 finance routes that serve `link_state` or
+    `confirmed_for` need a seeded money release to answer 200, which this fixture has
+    not got, so real paths for them go through the decision function the middleware
+    itself calls; `alethical/tests/test_legislator_finance_years.py` reads the span
+    route's header through a real request.
     """
     summary = client.get("/api/v1/campaign-finance/summary")
     assert summary.status_code == 200
@@ -6738,6 +6740,7 @@ def test_a_read_naming_a_confirmed_committee_for_a_member_gets_the_short_window(
 
     for identity_bearing in (
         "/api/v1/legislators/abc-123/campaign-finance",
+        "/api/v1/legislators/abc-123/campaign-finance/years",
         "/api/v1/committees/41363/finance",
     ):
         assert public_cache_control_for_path(identity_bearing) == SHORT_WINDOW, (

@@ -53,7 +53,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
-from alethical.pipeline.campaign_finance_filings import live_filings_snapshot
+from alethical.pipeline.campaign_finance_filings import filer_records
 
 # One year's answer, and the block's overall answer. The same 4 words, so a page never has
 # to learn 2 vocabularies for one idea.
@@ -96,17 +96,14 @@ def _registered_since(db: Session, registration_number: str) -> Optional[int]:
     Used only to stop the list running back through years the committee did not exist for.
     Listing those as ``not_matched`` would say we looked for a line that should have been
     there, which is not true and reads as a failure of ours.
+
+    The same register read the rest of a money page makes about this committee, so
+    inside a pinned request it costs no trip of its own (``filer_records``).
     """
-    snapshot = live_filings_snapshot(db)
-    if snapshot is None:
+    filer = filer_records(db, [registration_number]).get(registration_number)
+    if filer is None or filer.registration_date is None:
         return None
-    registered = db.execute(
-        select(schema.CampaignFinanceFiler.registration_date).where(
-            schema.CampaignFinanceFiler.snapshot_id == snapshot.id,
-            schema.CampaignFinanceFiler.registration_number == registration_number,
-        )
-    ).scalar_one_or_none()
-    return registered.year if registered is not None else None
+    return filer.registration_date.year
 
 
 def refunds_for_committee(db: Session, *, registration_number: str) -> CommitteeRefunds:
