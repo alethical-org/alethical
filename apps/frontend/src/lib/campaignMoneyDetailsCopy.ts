@@ -10,7 +10,8 @@ export { dekText, namedMoneyDefinition, type DekSegment };
 
 export const moneyDetailsCopy = {
   ...moneyDetailsPageCopy,
-  chartHeading: (namedOnly: boolean) => `Who gave${namedOnly ? ' (named donations only)' : ''}`,
+  chartHeading: (namedOnly: boolean) =>
+    `Who gave${namedOnly ? ' (itemized contributions only)' : ''}`,
   chartUnavailable: 'We cannot draw this breakdown from the payment amounts we hold',
   /**
    * The dek above the donut (#2182).
@@ -54,6 +55,7 @@ export const moneyDetailsCopy = {
   listedSpendingNote:
     'Minnesota makes a committee name a recipient only once payments to them pass $200 in total for the year. The listed payments may leave out smaller payments whose recipients are not named.',
   noSearchMatch: 'No names in this tab match that',
+  emptyLists: 'No itemized contributions or expenditures in our copy for this year',
   emptyTab: (word: string, year: number) =>
     `The state’s file names no ${word} for this committee in ${year}`,
   showRemaining: (count: number, expenditures: boolean) =>

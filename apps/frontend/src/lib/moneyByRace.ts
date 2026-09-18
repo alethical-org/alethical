@@ -190,7 +190,7 @@ export function committeeFigures(committee: RaceCommittee, year: number): [RaceF
     text: named.isFigure
       ? named.text
       : committee.named.state === 'not_reported'
-        ? `No named contributions in our records for ${year}`
+        ? `No itemized contributions in our records for ${year}`
         : 'We couldn’t load this figure',
     explanation: null,
     period: named.isFigure

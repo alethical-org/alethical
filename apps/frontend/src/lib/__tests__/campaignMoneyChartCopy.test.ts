@@ -35,7 +35,7 @@ describe('the heading over the donor chart', () => {
     // "by kind of donor" described the picture beside it, and the largest slice on many
     // committees is Non-itemized contributions, which is not a kind of donor at all.
     expect(copy.chartHeading(false)).toBe('Who gave');
-    expect(copy.chartHeading(true)).toBe('Who gave (named donations only)');
+    expect(copy.chartHeading(true)).toBe('Who gave (itemized contributions only)');
   });
 });
 

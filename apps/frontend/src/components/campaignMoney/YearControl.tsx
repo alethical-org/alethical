@@ -48,7 +48,7 @@ export function YearControl({
             // the way to the browser, so a screen reader would hear no difference
             // between the year in view and the one beside it.
             aria-pressed={active}
-            accessibilityLabel={`${option}${namesOnlyYears.has(option) ? ', named donations only' : ''}`}
+            accessibilityLabel={`${option}${namesOnlyYears.has(option) ? ', itemized contributions only' : ''}`}
             style={(state) => [
               styles.yearButton,
               namesOnlyYears.has(option) && { borderStyle: 'dashed' },

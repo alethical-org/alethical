@@ -86,7 +86,7 @@ export function DonorBreakdown({
         <Text style={[s.body, numericText(explanation)]}>{explanation}</Text>
       ) : chart?.state === 'no_rows' ? (
         <>
-          <Text style={[s.body, s.numeric]}>{copy.emptyTab('donor', year)}</Text>
+          <Text style={s.body}>{copy.emptyTab('donor', year)}</Text>
           <Dek segments={definition} />
         </>
       ) : chart?.state !== 'ready' ? (

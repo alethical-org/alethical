@@ -254,6 +254,146 @@ afterEach(() => {
 });
 
 describe('one committee shares the donation browser', () => {
+  function missingReports(year = 2025) {
+    payload.year = year;
+    params.year = String(year);
+    payload.split = {
+      ...payload.split,
+      reported_total: null,
+      named_total: null,
+      named_cash_total: null,
+      state: 'no_reported_total',
+    };
+    payload.money_in = { ...payload.money_in, state: 'not_reported', other_receipts: [] };
+    payload.money_out = {
+      ...payload.money_out,
+      state: 'not_reported',
+      reported_total: null,
+      by_type: [],
+    };
+    shape();
+  }
+
+  function emptyPaymentReads(options: { failed?: boolean; mismatch?: boolean } = {}) {
+    request.mockImplementation(async (path) => {
+      if (path.includes('outside-spending')) return structuredClone(candidateGroups) as never;
+      if (options.failed) throw new Error('payment read failed');
+      return {
+        data: {
+          registration_number: '19193',
+          year: payload.year,
+          state: 'not_reported',
+          payments: [],
+          release_id: options.mismatch ? 'another-release' : payload.release_id,
+        },
+      } as never;
+    });
+  }
+
+  it.each([2025, 2026])(
+    'compacts a complete empty %i year and links to filed reports',
+    async (year) => {
+      missingReports(year);
+      state.confirmation = { ...state.confirmation!, confirmedFor: null };
+      emptyPaymentReads();
+      await render();
+      expect(host.textContent).toContain(
+        `No ${year} report figures in our copy of the state’s files`,
+      );
+      expect(
+        host.textContent?.match(/Figures from another year are not substituted/g),
+      ).toHaveLength(1);
+      expect(host.textContent).toContain(
+        'No itemized receipts or expenditures in our copy for this year',
+      );
+      expect(host.textContent).not.toContain('Who gave');
+      expect(
+        [...host.querySelectorAll('[role="heading"]')].map((node) => node.textContent),
+      ).not.toContain('Money in');
+      expect(host.textContent).not.toContain('More on this year’s contributions');
+      expect(host.textContent).not.toContain('These are this committee’s own figures');
+      expect(host.textContent).not.toContain('linked them to a person');
+      expect(host.querySelector('a[href*="/legislators/"]')).toBeNull();
+      expect(host.querySelector('input')).toBeNull();
+      expect(host.querySelectorAll('[role="tab"]')).toHaveLength(0);
+      expect(host.textContent).toContain('Spending by outside groups');
+      const reports = [...host.querySelectorAll('a')].find(
+        (node) => node.textContent === 'View filed reports',
+      );
+      expect(reports?.getAttribute('href')).toContain(`tab=filings&year=${year}`);
+      click(reports);
+      expect(params.tab).toBe('filings');
+      await render();
+      expect(host.textContent).toContain('Reports this committee has filed');
+    },
+  );
+
+  it('keeps itemized records when the official report is absent', async () => {
+    missingReports();
+    await render();
+    expect(host.textContent).toContain('DFL House Caucus');
+    expect(host.textContent).toContain('Who gave (itemized contributions only)');
+    expect(host.textContent).toContain('Report total unavailable');
+    expect(host.textContent).not.toContain(
+      'No itemized receipts or expenditures in our copy for this year',
+    );
+  });
+
+  it('does not call a committee with an itemized loan empty', async () => {
+    missingReports();
+    request.mockImplementation(async (path) => {
+      if (path.includes('outside-spending')) return structuredClone(candidateGroups) as never;
+      const received = path.includes('direction=received');
+      return {
+        data: {
+          registration_number: '19193',
+          year: 2025,
+          state: received ? 'reported' : 'not_reported',
+          payments: received
+            ? [{ ...candidateReceived[0].data.payments[0], receipt_type: 'Loan' }]
+            : [],
+          page: { offset: 0, limit: 250, has_more: false, total_payments: received ? 1 : 0 },
+          release_id: payload.release_id,
+        },
+      } as never;
+    });
+    await render();
+    expect(host.textContent).not.toContain(
+      'No itemized receipts or expenditures in our copy for this year',
+    );
+    expect(host.textContent).toContain(
+      'No itemized contributions or expenditures in our copy for this year',
+    );
+    expect(host.textContent).toContain('View receipts and expenditures');
+  });
+
+  it.each([{ failed: true }, { mismatch: true }])(
+    'never calls an unsuccessful payment read empty: %j',
+    async (options) => {
+      missingReports();
+      emptyPaymentReads(options);
+      await render();
+      expect(host.textContent).not.toContain(
+        'No itemized receipts or expenditures in our copy for this year',
+      );
+      expect(host.textContent).toContain('We could not load the complete payment list');
+      expect(button('Try again')).toBeTruthy();
+    },
+  );
+
+  it('preserves an official zero when itemized lists are empty', async () => {
+    missingReports();
+    payload.split = { ...payload.split, state: 'shown', reported_total: '0.0000' };
+    payload.money_out = { ...payload.money_out!, reported_total: '0.0000' };
+    shape();
+    emptyPaymentReads();
+    await render();
+    expect(host.textContent).toContain('Money in');
+    expect(host.textContent).toContain('Money out');
+    expect(host.textContent).toContain('$0');
+    expect(host.textContent).toContain(MONEY_OUT_ZERO_NOTE);
+  });
+
   it('lets phone money boxes grow around every income row and keeps their source outside', async () => {
     state.mobile = true;
     payload = structuredClone(partyFinance.data) as ApiCommitteeMoneyPayload;
@@ -550,7 +690,7 @@ describe('one committee shares the donation browser', () => {
 
   it('reads only the candidate year, prints its real rows and groups ABOUT spending once', async () => {
     await render();
-    expect(host.textContent).toContain('Who gave (named donations only)');
+    expect(host.textContent).toContain('Who gave (itemized contributions only)');
     expect(
       [...host.querySelectorAll('[role=heading]')]
         .find((node) => node.textContent?.startsWith('Who gave'))
@@ -674,14 +814,13 @@ describe('one committee shares the donation browser', () => {
       } as never;
     });
     await render();
-    expect(tab('Expenditures')?.getAttribute('aria-selected')).toBe('true');
-    expect(host.querySelector('input')?.value).toBe('');
-    expect(
-      host.querySelector('[aria-label^="Sort names, currently"]')?.getAttribute('aria-label'),
-    ).toContain('Name A to Z');
+    expect(params.category).toBe('expenditures');
+    expect(params.sort).toBe('name');
+    expect(host.querySelector('input')).toBeNull();
+    expect(host.querySelector('[aria-label^="Sort names, currently"]')).toBeNull();
     expect(host.querySelectorAll('[aria-expanded="true"]')).toHaveLength(0);
     expect(host.textContent).toContain(
-      'The state’s file names no payees for this committee in 2026',
+      'No itemized contributions or expenditures in our copy for this year',
     );
   });
 

@@ -237,16 +237,19 @@ export function coveredPeriodDetail(
 
 /** The stamp when no figures cover the selected year. */
 export function uncoveredPeriodLine(year: number): string {
-  return `We have no report figures for ${year}`;
+  return `No ${year} report figures in our copy of the state’s files`;
 }
 
-export function uncoveredPeriodDetail(year: number, checkedOn: string | null): string {
+export function uncoveredPeriodDetail(_year: number, checkedOn: string | null): string {
   return (
-    `Our copy of the state’s files contains no report figures for this committee for ${year}. ` +
-    'Figures from another year are not substituted.' +
-    (checkedOn ? ` Files copied ${checkedOn}.` : '')
+    'Figures from another year are not substituted' +
+    (checkedOn ? `. Files copied ${checkedOn}.` : '')
   );
 }
+
+export const EMPTY_COMMITTEE_PAYMENTS =
+  'No itemized receipts or expenditures in our copy for this year';
+export const VIEW_FILED_REPORTS = 'View filed reports';
 
 /**
  * The extra sentence when our own service could not answer and the page is holding
@@ -446,12 +449,6 @@ export { formatDay, formatMoney };
 /** Keep a linked historical year visible alongside the usual recent choices. */
 export function committeeMoneyYears(selectedYear: number, today: Date = new Date()): number[] {
   return [...new Set([...campaignMoneyYears(today), selectedYear])].sort((a, b) => b - a);
-}
-
-/** A missing older year should lead back to the current records, not another old year. */
-export function committeeAlternativeYear(selectedYear: number, today: Date = new Date()): number {
-  const [current, previous = current] = campaignMoneyYears(today);
-  return selectedYear === current ? previous : current;
 }
 
 /**

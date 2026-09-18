@@ -55,7 +55,7 @@ import {
 } from '../../lib/committeeMoneyShared';
 import {
   committeeMoneyYears,
-  committeeAlternativeYear,
+  VIEW_FILED_REPORTS,
   stampThroughDate,
 } from '../../lib/committeeMoneyShared';
 import { paymentFilesDownloadedLine } from '../../lib/campaignMoneyDetailsPageCopy';
@@ -365,13 +365,18 @@ export function CommitteePaymentsScreen({
                       </Text>
                       <Text style={styles.explain}>{emptyListWhy(year)}</Text>
                       <FocusPressable
-                        onPress={() => selectYear(committeeAlternativeYear(year))}
-                        accessibilityRole="button"
+                        {...linkProps(
+                          routePath.moneyCommittee(slug, { tab: 'filings', year: String(year) }),
+                          () =>
+                            navigation.navigate('CommitteeMoney', {
+                              slug,
+                              tab: 'filings',
+                              year: String(year),
+                            }),
+                        )}
                         style={styles.primaryButton}
                       >
-                        <Text style={styles.primaryButtonLabel}>
-                          See {committeeAlternativeYear(year)}
-                        </Text>
+                        <Text style={styles.primaryButtonLabel}>{VIEW_FILED_REPORTS}</Text>
                       </FocusPressable>
                     </View>
                   ) : (

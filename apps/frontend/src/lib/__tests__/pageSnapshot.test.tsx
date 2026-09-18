@@ -119,8 +119,7 @@ const {
   unnamedMoneyExplanation,
   ZERO_REPORTED_NOTE,
 } = await import('../committeeMoneyShared');
-const { EMPTY_YEAR_VALUE, emptyYearMoneyInWhy, whoseCommitteeText } =
-  await import('../committeeMoney');
+const { EMPTY_YEAR_VALUE, whoseCommitteeText } = await import('../committeeMoney');
 const { listLinkNote, receivedPaymentRow, showingLine } = await import('../committeePaymentsPage');
 const { registerCountLine } = await import('../committeeList');
 const { formatDay, formatMoney } = await import('../legislatorCampaignMoney');
@@ -1695,12 +1694,15 @@ describe('a committee’s record in the first response', () => {
     expect(html).not.toContain('<p class="ps-prose"></p>');
   });
 
-  it('keeps the ownership caveat for an unconfirmed candidate committee', () => {
+  it('omits an unconfirmed candidate notice without adding a profile link', () => {
     const unconfirmed = committeePageSnapshot(committeeEmptyYearFixture, '18173', {
       confirmedFor: null,
     });
-    expect(unconfirmed.body).toEqual([whoseCommitteeText('candidate_committee', null, null)]);
-    expect(renderPageSnapshot(unconfirmed)).toContain('the committee’s name alone does not prove');
+    expect(unconfirmed.body).toEqual([]);
+    expect(unconfirmed.links.some((link) => link.href.startsWith('/legislators/'))).toBe(false);
+    expect(renderPageSnapshot(unconfirmed)).not.toContain(
+      'the committee’s name alone does not prove',
+    );
   });
 
   it.each([
@@ -1946,7 +1948,7 @@ describe('a committee-year with nothing filed', () => {
 
   it('still says what the record holds rather than serving an empty shell', () => {
     expect(snapshot.heading).toBe('Jackson, Carolyn C House Committee');
-    expect(text).toContain(emptyYearMoneyInWhy(2026));
+    expect(text).toContain('Figures from another year are not substituted');
     expect(text).toContain(MONEY_OUT_OFFICIAL_MISSING);
     expect(text).not.toContain('We do not hold a named-payments total');
     expect(text).not.toContain(MONEY_OUT_REPORTED_LABEL);

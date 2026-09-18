@@ -475,7 +475,7 @@ describe('Money by race figures and unavailable records', () => {
       expect(host.textContent).toContain('Figures for Jan 1, 2026 to Mar 31, 2026');
       expect(host.textContent).toContain('Payment dated Jul 20, 2026');
       expect(host.textContent).toContain('No usable official total in our records for 2026');
-      expect(host.textContent).toContain('No named contributions in our records for 2026');
+      expect(host.textContent).toContain('No itemized contributions in our records for 2026');
       expect(host.textContent).toContain(
         'The reported totals in this group cover different periods. Each total shows its own dates.',
       );
@@ -523,7 +523,7 @@ describe('Money by race figures and unavailable records', () => {
     ).toHaveLength(2);
     expect(host.textContent).toContain('No usable official total in our records for 2025');
     expect(host.textContent).toContain('We couldn’t load this figure');
-    expect(host.textContent).not.toContain('No named contributions in our records');
+    expect(host.textContent).not.toContain('No itemized contributions in our records');
   });
   it('never borrows dates for undated totals or attaches dates to missing figures', () => {
     respond({
@@ -554,7 +554,7 @@ describe('Money by race figures and unavailable records', () => {
       leaf('No usable official total in our records for 2026').parentElement?.textContent,
     ).not.toContain('Mar 31');
     expect(
-      leaf('No named contributions in our records for 2026').parentElement?.textContent,
+      leaf('No itemized contributions in our records for 2026').parentElement?.textContent,
     ).not.toContain('Jul 20');
   });
   it('preserves the year in native committee links and ordinary committee navigation', () => {

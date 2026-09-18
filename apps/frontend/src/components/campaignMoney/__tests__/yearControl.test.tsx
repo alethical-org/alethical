@@ -48,7 +48,7 @@ describe('shared campaign money year buttons', () => {
       expect(buttons.map((button) => button.getAttribute('aria-label'))).toEqual([
         '2026',
         '2025',
-        '2024, named donations only',
+        '2024, itemized contributions only',
       ]);
       expect(buttons.map((button) => button.getAttribute('aria-pressed'))).toEqual([
         'true',
