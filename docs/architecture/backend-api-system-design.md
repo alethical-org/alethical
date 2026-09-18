@@ -1948,9 +1948,10 @@ database view pins one published pair of files. The shared fields are `release_i
 unchanged spending file. If either complete row set is unavailable, the pair is
 `unavailable`; a failed read is never an empty-result claim.
 
-No response includes a street, city, state, ZIP, telephone or email field. Money
-stays a decimal string exactly from a source row, or `null` for blank. A source
-`.0000` is zero. No route computes a sum across years, committees or principals.
+No response includes a street, city, state, ZIP, telephone or email field. Source
+amounts remain decimal strings, or `null` for blank. A source `.0000` is zero.
+The lobbyist directory also computes a guarded annual sum of matching campaign
+donations across recipients. No route combines years, donors or principal spending.
 The current active list establishes registration today, never a past employment
 relationship.
 
@@ -1968,7 +1969,7 @@ are `null` when the pair is unavailable.
 Both accept `q` (optional, at most 200 characters), `limit` (1 to 50, default 50)
 and `offset` (0 or more). They return the whole matching `total` before paging,
 `limit`, `offset`, `has_more`, `q` and `matched_on: substring_of_the_filed_name`.
-Rows are alphabetical by filed name, with the source number breaking ties.
+The default order is alphabetical by filed name, with the source number breaking ties.
 
 The principals list counts distinct entity IDs across both files. It prefers the
 newest spending row's name; an ID found only in the active list stays plain text
@@ -1976,6 +1977,22 @@ with `state: no_spending_rows` and `linkable: false`. Each row's
 `latest_reported_year` is its own newest nonblank spending year. The response's
 year names the spending file's coverage. Lobbyist rows carry their registration
 number, filed and formatted names, and a count of distinct current principal IDs.
+
+The lobbyists route also accepts `year` (2015 through the last completed calendar
+year in America/Chicago) and `sort` (`name`, `donations_desc`, `donations_asc`).
+It echoes `requested_year` and `sort`. `donations` carries `state`, selected `year`,
+`available_years`, campaign `release_id`, `copied_at`, `source_url` and
+`eligible_count` for the whole current name search. Years offered have at least
+1 supported amount for the current roster; the latest is the default. Each row
+adds `donation_amount` (decimal string or null) and `donation_state` (`reported`,
+`no_records`, `unavailable`). Missing values sort last in either dollar order;
+name and registration break ties. Ordering precedes pagination. A requested
+unsupported completed year is retained. Source absence never means no gifts.
+
+The source guard and exact aggregation rules are owned by
+[lobbying-guide.md, annual donation order](../product-onboarding/lobbying-guide.md#annual-donation-order-in-the-lobbyist-directory).
+The lobbyist detail response remains all years; its page filters those rows to
+the selected year without computing a new amount.
 
 #### `GET /api/v1/lobbying/principals/{entity_id}`
 

@@ -1,0 +1,256 @@
+"""A donation sort must not turn incomplete or doubled records into a ranking."""
+
+from datetime import date, datetime, UTC
+from decimal import Decimal
+
+import pytest
+from sqlalchemy import func, select, text
+
+from alethical.api.services.lobbying_donations import last_completed_year
+from alethical.db import models as schema
+from alethical.tests.test_lobbying_api import _get, _pair, _payments
+from alethical.tests.test_lobbying_api import db as lobbying_db
+
+
+@pytest.fixture()
+def db(seed_database):
+    yield from lobbying_db.__wrapped__(seed_database)
+
+
+def _support(db, published):
+    """Test-only proof records, representing a successful full-year comparison."""
+    filings = db.scalar(select(schema.CampaignFinanceFilingCurrentSnapshot.snapshot_id))
+    gift = schema.CampaignFinanceContributionRow
+    rows = db.execute(
+        select(gift.recipient_reg_num, gift.year, func.sum(gift.amount))
+        .where(
+            gift.snapshot_id == published.contributions.id,
+            gift.receipt_type == "Contribution",
+        )
+        .group_by(gift.recipient_reg_num, gift.year)
+    ).all()
+    for recipient, year, total in rows:
+        db.add(
+            schema.CampaignFinanceStatedSplit(
+                snapshot_id=published.contributions.id,
+                registration_number=recipient,
+                filing_year=year,
+                filings_snapshot_id=filings,
+                status=schema.CampaignFinanceStatedSplitStatus.agrees,
+                reason="Synthetic full-year proof for this test fixture",
+                self_test="passed",
+                cut_off_date=date(year, 12, 31),
+                stated_itemized=total,
+                ours_itemized=total,
+                checked_at=datetime.now(UTC),
+            )
+        )
+    db.commit()
+
+
+def _gift(db, published, registration, amount, **overrides):
+    row = schema.CampaignFinanceContributionRow
+    number = db.scalar(select(func.max(row.row_number))) + 1
+    values = {
+        "snapshot_id": published.contributions.id,
+        "row_number": number,
+        "recipient_reg_num": "17868",
+        "recipient": "Abeler, Jim Senate Committee",
+        "contributor": "Test gift",
+        "contrib_reg_num": registration,
+        "contrib_type": "Lobbyist",
+        "receipt_type": "Contribution",
+        "amount": amount,
+        "year": 2025,
+        "receipt_date": date(2025, 5, 1),
+    }
+    values.update(overrides)
+    db.add(row(**values))
+    published.contributions.row_count += 1
+    db.commit()
+
+
+def _person(data, registration="141"):
+    return next(
+        p for p in data["lobbyists"] if p["registration_number"] == registration
+    )
+
+
+def test_supported_amount_preserves_identity_and_links_to_same_payment_rows(client, db):
+    _pair(db)
+    published = _payments(db)
+    # Same name, different official number must not enter this person's sum.
+    _gift(db, published, "999999", Decimal("5000"), contributor="Kozak, Andrew")
+    _gift(db, published, "141", Decimal("999"), contrib_type="Individual")
+    _gift(db, published, "141", Decimal("888"), receipt_type="Loan Payable")
+    _support(db, published)
+    data = _get(client, "lobbyists?sort=donations_desc")
+    assert data["sort"] == "donations_desc"
+    assert data["requested_year"] is None
+    assert data["donations"]["year"] == 2025
+    assert data["donations"]["available_years"] == [2025]
+    assert data["donations"]["eligible_count"] == 1
+    assert data["donations"]["release_id"] == str(published.release.id)
+    assert data["donations"]["copied_at"] != data["copied_at"]
+    assert data["donations"]["source_url"].endswith("contributions.csv")
+    assert _person(data)["donation_amount"] == "1200.0000"
+    assert _person(data)["donation_state"] == "reported"
+    record = _get(client, "lobbyists/141")
+    payments = record["contributions"]["years"][0]["committees"]
+    assert sum(
+        Decimal(p["amount"]) for c in payments for p in c["payments"]
+    ) == Decimal("1200")
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "status='disagrees'",
+        "status='not_checked'",
+        "status='reader_unproven'",
+        "self_test='failed'",
+        "self_test='not_available'",
+        "cut_off_date='2025-06-30'",
+        "cut_off_date='2026-12-31'",
+        "filings_snapshot_id=NULL",
+        "stated_itemized=ours_itemized-1",
+        "ours_itemized=NULL",
+    ],
+)
+def test_one_unsupported_recipient_withholds_the_entire_donor_amount(
+    client, db, mutation
+):
+    _pair(db)
+    published = _payments(db)
+    _support(db, published)
+    db.execute(
+        text(f"UPDATE cf_stated_split SET {mutation} WHERE registration_number='17868'")
+    )
+    db.commit()
+    data = _get(client, "lobbyists?year=2025&sort=donations_desc")
+    assert _person(data)["donation_amount"] is None
+    assert _person(data)["donation_state"] == "unavailable"
+    assert data["donations"]["eligible_count"] == 0
+    assert data["donations"]["available_years"] == []
+
+
+@pytest.mark.parametrize("missing", ["proof", "amount", "recipient", "late_receipt"])
+def test_missing_proof_or_gift_fields_never_make_a_smaller_total(client, db, missing):
+    _pair(db)
+    published = _payments(db)
+    _support(db, published)
+    if missing == "proof":
+        db.execute(
+            text("DELETE FROM cf_stated_split WHERE registration_number='17868'")
+        )
+    else:
+        assignment = {
+            "amount": "amount=NULL",
+            "recipient": "recipient_reg_num=NULL",
+            "late_receipt": "receipt_date='2026-01-01'",
+        }[missing]
+        db.execute(
+            text(f"UPDATE cf_contribution_row SET {assignment} WHERE row_number=367605")
+        )
+    db.commit()
+    data = _get(client, "lobbyists?year=2025")
+    assert _person(data)["donation_amount"] is None
+    assert _person(data)["donation_state"] == "unavailable"
+
+
+def test_duplicate_rows_signed_amounts_in_kind_and_zero_stay_as_filed(client, db):
+    _pair(db, extra=1)
+    published = _payments(db)
+    _gift(db, published, "141", Decimal("10.25"), in_kind="Yes")
+    _gift(db, published, "141", Decimal("10.25"), in_kind="Yes")
+    _gift(db, published, "141", Decimal("-20.50"))
+    _gift(db, published, "900000", Decimal("0"))
+    _support(db, published)
+    data = _get(client, "lobbyists?year=2025&sort=donations_asc")
+    assert data["lobbyists"][0]["registration_number"] == "900000"
+    assert _person(data, "900000")["donation_amount"] == "0.0000"
+    assert _person(data, "900000")["donation_state"] == "reported"
+    assert _person(data)["donation_amount"] == "1200.0000"
+    assert _person(data, "9865")["donation_amount"] is None
+    assert _person(data, "9865")["donation_state"] == "no_records"
+
+
+def test_source_year_controls_selection_and_newer_unsupported_year_is_not_default(
+    client, db
+):
+    _pair(db)
+    published = _payments(db)
+    _gift(
+        db, published, "141", Decimal("100"), year=2024, receipt_date=date(2023, 12, 1)
+    )
+    _support(db, published)
+    db.execute(
+        text("UPDATE cf_stated_split SET status='not_checked' WHERE filing_year=2025")
+    )
+    db.commit()
+    data = _get(client, "lobbyists")
+    assert data["donations"]["year"] == 2024
+    assert data["donations"]["available_years"] == [2024]
+    assert _person(data)["donation_amount"] == "100.0000"
+    assert (
+        _person(_get(client, "lobbyists?year=2023"))["donation_state"] == "no_records"
+    )
+
+
+def test_sort_orders_the_whole_matching_directory_before_pagination(client, db):
+    _pair(db, extra=60)
+    published = _payments(db)
+    _gift(db, published, "900059", Decimal("9999"))
+    _gift(db, published, "900002", Decimal("50"))
+    _gift(db, published, "900001", Decimal("50"))
+    _support(db, published)
+    highest = _get(client, "lobbyists?limit=1&sort=donations_desc")
+    assert highest["lobbyists"][0]["registration_number"] == "900059"
+    assert highest["total"] == 62
+    assert highest["donations"]["eligible_count"] == 4
+    assert highest["has_more"]
+    following = _get(client, "lobbyists?limit=1&offset=1&sort=donations_desc")
+    assert following["lobbyists"][0]["registration_number"] == "141"
+    lowest = _get(client, "lobbyists?limit=2&sort=donations_asc&q=Test")
+    assert [p["registration_number"] for p in lowest["lobbyists"]] == [
+        "900001",
+        "900002",
+    ]
+    assert lowest["total"] == 60
+    assert lowest["donations"]["eligible_count"] == 3
+    end = _get(client, "lobbyists?limit=1&offset=61&sort=donations_asc")
+    assert end["lobbyists"][0]["donation_amount"] is None
+    assert not end["has_more"]
+
+
+def test_campaign_data_absent_or_partly_pruned_never_claims_no_gifts(client, db):
+    _pair(db)
+    absent = _get(client, "lobbyists?year=2025")
+    assert absent["donations"]["state"] == "unavailable"
+    assert all(p["donation_state"] == "unavailable" for p in absent["lobbyists"])
+    published = _payments(db)
+    _support(db, published)
+    db.execute(text("DELETE FROM cf_contribution_row WHERE row_number=367605"))
+    db.commit()
+    pruned = _get(client, "lobbyists?year=2025&sort=donations_desc")
+    assert pruned["donations"]["state"] == "unavailable"
+    assert pruned["donations"]["eligible_count"] is None
+    assert all(p["donation_state"] == "unavailable" for p in pruned["lobbyists"])
+
+
+def test_unavailable_roster_keeps_donation_metadata_unavailable(client, db):
+    data = _get(client, "lobbyists?year=2025&sort=donations_desc")
+    assert data["state"] == "unavailable"
+    assert data["donations"]["state"] == "unavailable"
+    assert data["donations"]["year"] == 2025
+    assert data["requested_year"] == 2025
+
+
+@pytest.mark.parametrize("params", ["year=2014", "year=oops", "sort=biggest"])
+def test_bad_sort_or_year_is_rejected(client, params):
+    assert client.get(f"/api/v1/lobbying/lobbyists?{params}").status_code == 422
+
+
+def test_incomplete_year_cannot_be_compared(client):
+    year = last_completed_year() + 1
+    assert client.get(f"/api/v1/lobbying/lobbyists?year={year}").status_code == 422

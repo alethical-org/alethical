@@ -13,7 +13,7 @@ const DESCRIPTIONS = {
   principals:
     'Every organisation registered as a lobbying principal in Minnesota, A to Z, each with the latest year it reported lobbying spending, from the Campaign Finance and Public Disclosure Board.',
   lobbyists:
-    'Every lobbyist on Minnesota’s current registration list, A to Z, with how many organisations each represents, from the Campaign Finance and Public Disclosure Board.',
+    'Browse Minnesota’s copied lobbyist registration list by name or recorded campaign donations for a completed year, from the Campaign Finance and Public Disclosure Board.',
   principal:
     'Lobbying spending reported by year, and the lobbyists registered to represent this organisation, from Minnesota’s Campaign Finance and Public Disclosure Board.',
   lobbyist:

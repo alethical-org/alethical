@@ -1,11 +1,14 @@
 """Public reads for the Board's paired lobbying sources."""
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
 from alethical.api.schemas import DetailResponse
 from alethical.api.services import lobbying
 from alethical.api.services.committee_finance import pin_to_one_view
+from alethical.api.services.lobbying_donations import last_completed_year
 from alethical.db.session import get_db
 
 router = APIRouter(prefix="/lobbying")
@@ -52,10 +55,16 @@ def lobbyists(
     limit: int = Query(default=50, ge=1, le=lobbying.MAX_LIST_ROWS),
     offset: int = Query(default=0, ge=0),
     q: str = Query(default="", max_length=200),
+    year: int | None = Query(default=None, ge=2015),
+    sort: Literal["name", "donations_desc", "donations_asc"] = "name",
     db: Session = Depends(get_db),
 ):
+    if year is not None and year > last_completed_year():
+        raise HTTPException(status_code=422, detail="Choose a completed calendar year.")
     return DetailResponse(
-        data=lobbying.lobbyists_page(db, _pair(db), limit=limit, offset=offset, query=q)
+        data=lobbying.lobbyists_page(
+            db, _pair(db), limit=limit, offset=offset, query=q, year=year, sort=sort
+        )
     )
 
 

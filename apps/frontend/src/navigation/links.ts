@@ -59,7 +59,8 @@ export const routePath = {
     pathForRoute({ name: 'LobbyingLobbyists', params }),
   lobbyingPrincipal: (slug: string) =>
     pathForRoute({ name: 'LobbyingPrincipal', params: { slug } }),
-  lobbyingLobbyist: (slug: string) => pathForRoute({ name: 'LobbyingLobbyist', params: { slug } }),
+  lobbyingLobbyist: (slug: string, year?: string) =>
+    pathForRoute({ name: 'LobbyingLobbyist', params: { slug, year } }),
   read: () => pathForRoute({ name: 'Read' }),
   research: (slug: string) => pathForRoute({ name: 'Research', params: { slug } }),
   guide: (slug: string) => pathForRoute({ name: 'Guide', params: { slug } }),

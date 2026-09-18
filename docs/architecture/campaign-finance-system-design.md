@@ -1930,6 +1930,14 @@ it. These are the rules the redesign adds, each with the reason it exists.
 - **The tab links to the committee's own page** at `/money/committees/<slug>`, which carries the
   full record.
 
+**Scoped exception adopted 18 September 2026:** `/money/lobbying/lobbyists` supports
+an optional order by a guarded annual sum of held campaign donation records matched
+by registration number. This is separate from the excluded name-based donor-overlap
+ranking. It withholds amounts whenever any recipient's full-year source comparison
+is unsupported, and never claims complete giving or influence. The exact guard,
+coverage labels and supporting-row links are owned by
+[lobbying-guide.md, annual donation order](../product-onboarding/lobbying-guide.md#annual-donation-order-in-the-lobbyist-directory).
+
 **What the redesign leaves out, and why, so nobody re-derives it:** donor overlap and
 most-connected donors (a ranking of named people exposed to spelling,
 [#2145](https://github.com/alethical-org/alethical/issues/2145)); donors by state (the file carries

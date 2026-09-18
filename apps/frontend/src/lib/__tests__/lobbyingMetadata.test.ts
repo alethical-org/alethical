@@ -32,7 +32,7 @@ describe('shared lobbying page titles', () => {
       // The 2 directories show different things, so they say different things.
       expect(second.description).toContain(
         name === 'Lobbyists'
-          ? 'how many organisations each represents'
+          ? 'recorded campaign donations for a completed year'
           : 'reported lobbying spending',
       );
     },

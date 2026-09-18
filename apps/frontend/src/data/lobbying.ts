@@ -3,6 +3,8 @@ import { LOBBYING_SEARCH_LIMIT } from '../lib/lobbyingSearch';
 import {
   LOBBYING_PAGE_SIZE,
   lobbyingListOptions,
+  lobbyingDonationYear,
+  lobbyingDonationSort,
   type LobbyingIdentifier,
   type LobbyingListOptions,
   type LobbyingLobbyist,
@@ -39,6 +41,12 @@ function listPath(kind: 'principals' | 'lobbyists', options: LobbyingListOptions
     offset: String((page - 1) * LOBBYING_PAGE_SIZE),
   });
   if (q) params.set('q', q);
+  if (kind === 'lobbyists') {
+    const year = lobbyingDonationYear(options.year);
+    if (year) params.set('year', String(year));
+    const sort = lobbyingDonationSort(options.sort);
+    if (sort !== 'name') params.set('sort', sort);
+  }
   return `/lobbying/${kind}?${params.toString()}`;
 }
 

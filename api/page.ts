@@ -7,6 +7,9 @@ import {
 } from "../apps/frontend/src/lib/lobbyingPageSnapshot";
 import {
   lobbyingSummaryQueryKey,
+  lobbyingDonationYear,
+  lobbyingDonationSort,
+  lobbyingRecordDonationYear,
   lobbyingPrincipalQueryKey,
   lobbyingLobbyistQueryKey,
   lobbyingPrincipalsQueryKey,
@@ -1315,7 +1318,13 @@ async function lobbyingDirectoryContent(
   const path = `/money/lobbying/${kind}`;
   const name = kind === "principals" ? "Principals" : "Lobbyists";
   const noindex = !isUnfilteredDirectory(params);
-  if (noindex)
+  if (
+    noindex &&
+    (kind === "principals" ||
+      Object.keys(params).some(
+        (key) => !["page", "year", "sort"].includes(key),
+      ))
+  )
     return headOnly(
       lobbyingPageMetadata(path, name, {
         kind: "directory",
@@ -1323,9 +1332,18 @@ async function lobbyingDirectoryContent(
         noindex: true,
       }),
     );
+  const year =
+    kind === "lobbyists" ? lobbyingDonationYear(params.year) : undefined;
+  const sort = lobbyingDonationSort(params.sort);
+  const apiParams = new URLSearchParams({
+    limit: "50",
+    offset: String((page - 1) * 50),
+  });
+  if (year) apiParams.set("year", String(year));
+  if (kind === "lobbyists" && sort !== "name") apiParams.set("sort", sort);
   const payload = await getApiData<
     LobbyingPrincipalsPage | LobbyingLobbyistsPage
-  >(`/lobbying/${kind}?limit=50&offset=${(page - 1) * 50}`);
+  >(`/lobbying/${kind}?${apiParams}`);
   if (payload.state === "unavailable" || payload.total === null)
     throw new DataUnavailable("lobbying directory unavailable");
   if (page > directoryTotalPages(payload.total, 50))
@@ -1334,7 +1352,7 @@ async function lobbyingDirectoryContent(
     metadata: lobbyingPageMetadata(
       page > 1 ? `${path}?page=${page}` : path,
       name,
-      { kind: "directory", page },
+      { kind: "directory", page, noindex },
     ),
     snapshot: renderPageSnapshot(
       lobbyingDirectorySnapshot(payload, kind, page),
@@ -1344,7 +1362,7 @@ async function lobbyingDirectoryContent(
         key:
           kind === "principals"
             ? lobbyingPrincipalsQueryKey({ page })
-            : lobbyingLobbyistsQueryKey({ page }),
+            : lobbyingLobbyistsQueryKey({ page, year, sort }),
         payload: { data: payload },
       },
     ],
@@ -1354,6 +1372,7 @@ async function lobbyingDirectoryContent(
 async function lobbyingRecordContent(
   kind: "principals" | "lobbyists",
   slug: string,
+  selectedYear?: number,
 ): Promise<PageContent> {
   const id = registrationNumberFromSlug(slug);
   if (!id || Number(id) <= 0 || !Number.isSafeInteger(Number(id)))
@@ -1380,7 +1399,7 @@ async function lobbyingRecordContent(
     snapshot: renderPageSnapshot(
       "entity_id" in payload
         ? lobbyingPrincipalSnapshot(payload)
-        : lobbyingLobbyistSnapshot(payload),
+        : lobbyingLobbyistSnapshot(payload, selectedYear),
     ),
     data: [
       {
@@ -1445,7 +1464,11 @@ async function contentFor(
     case "lobbyingPrincipal":
       return lobbyingRecordContent("principals", target.slug);
     case "lobbyingLobbyist":
-      return lobbyingRecordContent("lobbyists", target.slug);
+      return lobbyingRecordContent(
+        "lobbyists",
+        target.slug,
+        lobbyingRecordDonationYear(target.year),
+      );
     case "read":
       // The /read page's own list, so the route to every posted piece exists before
       // any program runs (#1760). The registry is on the server already, so

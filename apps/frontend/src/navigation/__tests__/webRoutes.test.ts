@@ -847,6 +847,14 @@ describe('Mobile menu roadmap row', () => {
 
 describe('lobbying addresses', () => {
   it.each([
+    '/money/lobbying/lobbyists?q=Ann&page=2&year=2025&sort=donations_desc',
+    '/money/lobbying/lobbyists/anderson-chas-3337?year=2025',
+  ])('preserves donation choices at %s', (path) => {
+    const state = stateFromPathname(path);
+    expect(pathForRoute(state!.routes[1] as Parameters<typeof pathForRoute>[0])).toBe(path);
+  });
+
+  it.each([
     ['/money/lobbying', 'LobbyingLanding'],
     ['/money/lobbying/principals', 'LobbyingPrincipals'],
     ['/money/lobbying/lobbyists', 'LobbyingLobbyists'],

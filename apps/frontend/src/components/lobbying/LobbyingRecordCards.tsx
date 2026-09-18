@@ -1,4 +1,4 @@
-import React, { useState, type ReactNode } from 'react';
+import React, { useEffect, useState, type ReactNode } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -32,6 +32,7 @@ import type {
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { theme } from '../../theme/tokens';
 import { LobbyingCard } from './LobbyingPageFrame';
+import { LobbyingSelect } from './LobbyingDonationControls';
 
 export function PrincipalLobbyistsCard({
   state,
@@ -175,16 +176,35 @@ export function LobbyistDonationsCard({
   contributions,
   registeredName,
   copiedDate,
+  selectedYear,
+  onYearChange,
   onOpenCommittee,
 }: {
+  selectedYear?: number;
+  onYearChange?: (value: string) => void;
   contributions: LobbyingContributions;
   registeredName: string;
   copiedDate: string | null;
   onOpenCommittee: (registrationNumber: string, name: string) => void;
 }) {
   const [shown, setShown] = useState(LOBBYING_RECORD_REVEAL_STEP);
-  const total = contributions.payment_count;
-  const visible = visibleLobbyingDonationYears(contributions.years, shown);
+  useEffect(() => setShown(LOBBYING_RECORD_REVEAL_STEP), [selectedYear, contributions.release_id]);
+  const years = selectedYear
+    ? contributions.years.filter((item) => item.year === selectedYear)
+    : contributions.years;
+  const total =
+    contributions.payment_count === null
+      ? null
+      : selectedYear
+        ? years.reduce((n, item) => n + item.payment_count, 0)
+        : contributions.payment_count;
+  const availableYears = [
+    ...new Set([
+      ...contributions.years.flatMap((item) => (item.year === null ? [] : [item.year])),
+      ...(selectedYear ? [selectedYear] : []),
+    ]),
+  ].sort((a, b) => b - a);
+  const visible = visibleLobbyingDonationYears(years, shown);
   const visibleCount = visible.reduce(
     (yearTotal, year) =>
       yearTotal +
@@ -201,6 +221,19 @@ export function LobbyistDonationsCard({
       title={lobbyingLobbyistCopy.donationsHeading}
     >
       <Paragraph>{lobbyingLobbyistCopy.donationsIntroduction}</Paragraph>
+      {onYearChange ? (
+        <View style={{ marginTop: 16 }}>
+          <LobbyingSelect
+            label="Donation year"
+            value={selectedYear ? String(selectedYear) : ''}
+            onChange={onYearChange}
+            options={[
+              { value: '', label: 'All years' },
+              ...availableYears.map((year) => ({ value: String(year), label: String(year) })),
+            ]}
+          />
+        </View>
+      ) : null}
       <RecordStrip
         sourceUrl={contributions.source_url}
         sourceLabel={CAMPAIGN_CONTRIBUTION_SOURCE_LABEL}
@@ -215,7 +248,11 @@ export function LobbyistDonationsCard({
       {contributions.state === 'unavailable' || total === null ? (
         <Unavailable>{LOBBYIST_DONATIONS_UNAVAILABLE}</Unavailable>
       ) : total === 0 || contributions.state === 'not_reported' ? (
-        <Paragraph primary>{lobbyingLobbyistCopy.noDonations}</Paragraph>
+        <Paragraph primary>
+          {selectedYear
+            ? `The state’s contribution file names no donation under this registration number for ${selectedYear}. This does not mean no donation was made.`
+            : lobbyingLobbyistCopy.noDonations}
+        </Paragraph>
       ) : (
         <>
           {visible.map((year) => (
@@ -484,8 +521,8 @@ const styles: Record<string, any> = {
     gap: 16,
     flexWrap: 'wrap',
   },
-  recordStripMobile: { alignItems: 'flex-start' },
-  recordStripCount: { minWidth: 0, gap: 2 },
+  recordStripMobile: { flexDirection: 'column', alignItems: 'stretch', gap: 4 },
+  recordStripCount: { minWidth: 0, maxWidth: '100%', gap: 2 },
   countLine: {
     marginTop: 14,
     color: '#3f463f',
@@ -506,6 +543,9 @@ const styles: Record<string, any> = {
   },
   fileDateInline: { marginTop: 0 },
   sourceLink: {
+    minWidth: 0,
+    maxWidth: '100%',
+    flexShrink: 1,
     minHeight: 45,
     paddingVertical: 13,
     alignSelf: 'flex-start',

@@ -280,6 +280,51 @@ describe('lobbying record lists', () => {
 describe('lobbyist donations', () => {
   const contributions = live.kozak.contributions as LobbyingContributions;
 
+  it('filters to the linked year, reveals 5 payments, and resets the reveal after a year change', () => {
+    const onYear = vi.fn();
+    const render = (selectedYear?: number) => (
+      <LobbyistDonationsCard
+        contributions={contributions}
+        registeredName={live.kozak.name}
+        copiedDate="Campaign contribution file copied Sep 1, 2026"
+        selectedYear={selectedYear}
+        onYearChange={onYear}
+        onOpenCommittee={() => undefined}
+      />
+    );
+    const page = mountPage(render(2024));
+    expect(page.textContent).toContain(
+      `${contributions.years.find((item) => item.year === 2024)!.payment_count} donations · showing 5`,
+    );
+    clickButton(page, 'Show 5 more campaign donations');
+    expect(page.textContent).toContain('showing 10');
+    act(() => root!.render(render(2023)));
+    expect(page.textContent).toContain('showing 5');
+    const year = page.querySelector('select[aria-label="Donation year"]') as HTMLSelectElement;
+    expect(year.value).toBe('2023');
+    act(() => {
+      year.value = '';
+      year.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(onYear).toHaveBeenCalledWith('');
+    act(() =>
+      root!.render(
+        <LobbyistDonationsCard
+          contributions={{
+            ...contributions,
+            years: contributions.years.filter((item) => item.year !== 2015),
+          }}
+          selectedYear={2015}
+          registeredName={live.kozak.name}
+          copiedDate={null}
+          onOpenCommittee={() => undefined}
+        />,
+      ),
+    );
+    expect(page.textContent).toContain('for 2015. This does not mean no donation was made.');
+    expect(page.textContent).not.toContain('$0');
+  });
+
   it('keeps all 3 payments, the different filed name and the campaign-file date', () => {
     const year = contributions.years.find((candidate) => candidate.year === 2025)!;
     const abeler = year.committees.find((committee) => committee.registration_number === '17868')!;

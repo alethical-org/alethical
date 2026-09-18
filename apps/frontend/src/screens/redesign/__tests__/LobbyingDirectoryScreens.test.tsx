@@ -241,6 +241,108 @@ describe('the sixth /money lane', () => {
 });
 
 describe('lobbying directories', () => {
+  it('keeps year and dollar order in links and resets the page when a control changes', () => {
+    state.lobbyists = success({
+      ...fixture.lobbyists_page_2,
+      q: 'Ann',
+      requested_year: 2025,
+      sort: 'donations_desc',
+      donations: {
+        state: 'reported',
+        year: 2025,
+        available_years: [2025, 2024],
+        eligible_count: 2,
+        copied_at: '2026-09-01T12:00:00Z',
+        source_url: 'https://cfb.mn.gov/source.csv',
+      },
+      lobbyists: fixture.lobbyists_page_2.lobbyists.slice(0, 3).map((row, index) => ({
+        ...row,
+        donation_state: index === 0 ? 'reported' : index === 1 ? 'no_records' : 'unavailable',
+        donation_amount: index === 0 ? '1200.0000' : null,
+      })),
+    });
+    render(
+      <LobbyingLobbyistsScreen
+        navigation={navigation as never}
+        route={route('LobbyingLobbyists', {
+          q: 'Ann',
+          page: '2',
+          year: '2025',
+          sort: 'donations_desc',
+        })}
+      />,
+    );
+    expect(words()).toContain('$1,200 recorded in 2025');
+    expect(words()).toContain('No matching donation records');
+    expect(words()).toContain('Amount unavailable');
+    expect(words()).not.toContain('$0');
+    expect(listRows()[0].querySelector('a')?.getAttribute('href')).toContain('?year=2025');
+    const next = new URL(
+      host.querySelector('a[aria-label="Next page"]')!.getAttribute('href')!,
+      'https://test',
+    );
+    expect(Object.fromEntries(next.searchParams)).toEqual({
+      q: 'Ann',
+      page: '3',
+      year: '2025',
+      sort: 'donations_desc',
+    });
+    const year = host.querySelector('select[aria-label="Year"]') as HTMLSelectElement;
+    act(() => {
+      year.value = '2024';
+      year.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(navigation.setParams).toHaveBeenCalledWith({ year: '2024', page: undefined });
+    const sort = host.querySelector('select[aria-label="Sort by"]') as HTMLSelectElement;
+    act(() => {
+      sort.value = 'donations_asc';
+      sort.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(navigation.setParams).toHaveBeenCalledWith({
+      sort: 'donations_asc',
+      page: undefined,
+      year: '2025',
+    });
+    const disclosure = [...host.querySelectorAll('[role="button"]')].find(
+      (item) => item.textContent === 'How these amounts are counted',
+    ) as HTMLElement;
+    act(() => disclosure.click());
+    expect(words()).toContain('Campaign contribution file copied Sep 1, 2026.');
+    expect(words()).toContain('No matching records does not mean the lobbyist gave nothing.');
+  });
+  it('hides a previous year’s amounts while the requested year loads', () => {
+    state.lobbyists = success({ ...fixture.lobbyists_page_2, requested_year: 2025, sort: 'name' });
+    render(
+      <LobbyingLobbyistsScreen
+        navigation={navigation as never}
+        route={route('LobbyingLobbyists', { page: '2', year: '2024' })}
+      />,
+    );
+    expect(listRows()).toHaveLength(0);
+    expect(words()).toContain(copy.lobbyists.loading);
+  });
+  it('puts phone donation amounts beneath the name and client count', () => {
+    state.width = 390;
+    state.lobbyists = success({
+      ...fixture.lobbyists_page_2,
+      donations: { year: 2025, available_years: [2025], eligible_count: 1 },
+      lobbyists: [
+        {
+          ...fixture.lobbyists_page_2.lobbyists[0],
+          donation_state: 'reported',
+          donation_amount: '50',
+        },
+      ],
+    });
+    render(
+      <LobbyingLobbyistsScreen
+        navigation={navigation as never}
+        route={route('LobbyingLobbyists', { page: '2' })}
+      />,
+    );
+    expect(getComputedStyle(listRows()[0].querySelector('a')!).flexDirection).toBe('column');
+  });
+
   it('draws page 2 of real registered lobbyists with ordinary next/previous links', () => {
     render(
       <LobbyingLobbyistsScreen
@@ -407,4 +509,37 @@ describe('lobbying directories', () => {
       path: '/money/lobbying/lobbyists?page=1000',
     });
   });
+});
+
+it('explains when no completed year supports an amount without printing a blank year', () => {
+  state.lobbyists = success({
+    ...fixture.lobbyists_page_2,
+    requested_year: null,
+    sort: 'name',
+    donations: { state: 'reported', year: null, available_years: [], eligible_count: 0 },
+  });
+  render(
+    <LobbyingLobbyistsScreen
+      navigation={navigation as never}
+      route={route('LobbyingLobbyists', { page: '2' })}
+    />,
+  );
+  expect(words()).toContain('Donation amounts are unavailable.');
+  expect(words()).not.toContain('amount available for .');
+});
+
+it('uses singular wording for 1 supported donation amount', () => {
+  state.lobbyists = success({
+    ...fixture.lobbyists_page_2,
+    requested_year: null,
+    sort: 'name',
+    donations: { state: 'reported', year: 2025, available_years: [2025], eligible_count: 1 },
+  });
+  render(
+    <LobbyingLobbyistsScreen
+      navigation={navigation as never}
+      route={route('LobbyingLobbyists', { page: '2' })}
+    />,
+  );
+  expect(words()).toContain('1 lobbyist in these results has an amount available for 2025.');
 });

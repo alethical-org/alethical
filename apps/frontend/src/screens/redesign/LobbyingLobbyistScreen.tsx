@@ -22,7 +22,7 @@ import {
   lobbyingRecordSlug,
 } from '../../lib/lobbyingRecordCopy';
 import { publicPageUrl, type ShareContent } from '../../lib/share';
-import type { LobbyingAssociation } from '../../lib/lobbyingTypes';
+import { lobbyingRecordDonationYear, type LobbyingAssociation } from '../../lib/lobbyingTypes';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
@@ -33,6 +33,7 @@ const isWeb = Platform.OS === 'web';
 
 export function LobbyingLobbyistScreen({ route, navigation }: RootScreenProps<'LobbyingLobbyist'>) {
   const slug = route.params?.slug ?? '';
+  const selectedYear = lobbyingRecordDonationYear(route.params?.year);
   const registrationNumber = lobbyingRecordNumberFromSlug(slug);
   const query = useLobbyingLobbyist(registrationNumber);
   const lobbyist = query.data;
@@ -99,7 +100,9 @@ export function LobbyingLobbyistScreen({ route, navigation }: RootScreenProps<'L
       lobbyist.state === 'not_registered_today'
         ? `See campaign donations filed under registration ${lobbyist.registration_number} and whether the copied lobbyist list includes it.`
         : `See the organisations ${displayName} represented on the copy date and, separately, campaign donations filed under registration ${lobbyist.registration_number}.`,
-    url: publicPageUrl(routePath.lobbyingLobbyist(finalSlug)),
+    url: publicPageUrl(
+      routePath.lobbyingLobbyist(finalSlug, selectedYear ? String(selectedYear) : undefined),
+    ),
   };
   const copiedLine = boardFilesCopiedLine(lobbyist.copied_at, centralDateLabel);
   const contributionDate = campaignContributionCopiedLine(
@@ -131,6 +134,8 @@ export function LobbyingLobbyistScreen({ route, navigation }: RootScreenProps<'L
       />
       <LobbyistDonationsCard
         contributions={lobbyist.contributions}
+        selectedYear={selectedYear}
+        onYearChange={(value) => navigation.setParams({ year: value || undefined })}
         registeredName={lobbyist.name ?? displayName}
         copiedDate={contributionDate}
         onOpenCommittee={(committeeRegistration, committeeName) =>
