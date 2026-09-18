@@ -1,4 +1,4 @@
-import type { ViewStyle } from 'react-native';
+import type { StyleProp, ViewStyle } from 'react-native';
 
 import { theme as t } from './tokens';
 
@@ -14,5 +14,24 @@ export const contentTabUnderline = {
   } satisfies ViewStyle,
   selected: {
     borderBottomColor: t.colors.brand.base,
+    ...({ outlineStyle: 'none' } as object),
   } satisfies ViewStyle,
 } as const;
+
+/**
+ * Compose every content tab from the same selected-state treatment. Pointer
+ * focus adds no local outline; App.tsx supplies the sitewide purple
+ * `:focus-visible` ring when a keyboard user reaches the tab.
+ */
+export function contentTabStyle(
+  base: StyleProp<ViewStyle>,
+  selected: boolean,
+  selectedStyle?: StyleProp<ViewStyle>,
+): StyleProp<ViewStyle> {
+  return [
+    base,
+    contentTabUnderline.base,
+    selected && selectedStyle,
+    selected && contentTabUnderline.selected,
+  ];
+}
