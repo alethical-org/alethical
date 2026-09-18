@@ -40,30 +40,41 @@ describe('page metadata', () => {
     const meta = billPageMetadata({
       billId: '94-2025-HF719',
       shortTitle: 'Statewide Capital Projects and Bonding Bill',
-      summary: 'Authorizes borrowing for public buildings. More detail follows.',
+      summaryLine: 'Authorizes borrowing for public buildings.',
     });
 
     expect(meta.title).toBe(
       'HF 719 (2025): Statewide Capital Projects and Bonding Bill | Alethical',
     );
     expect(meta.canonicalPath).toBe('/bills/94-2025-HF719');
-    // Search text is this bill's own first sentence; share text stays the fixed
-    // line, so a card never repeats a title through a paraphrasing summary (§26).
+    // Search text is this bill's own first sentence. The share card carries it
+    // too when it adds to the title, and the fixed label when it restates it (§26).
     expect(meta.description).toBe('Authorizes borrowing for public buildings.');
-    expect(meta.socialDescription).toBe('Bill text, legislative progress, and official sources');
+    expect(meta.socialDescription).toBe('Authorizes borrowing for public buildings.');
     expect(meta.noindex).toBe(false);
     const head = renderPageHead(meta);
     expect(head).toContain(
       '<meta name="description" content="Authorizes borrowing for public buildings." />',
     );
-    expect(head).toContain(
+    const restating = renderPageHead(
+      billPageMetadata({
+        billId: '94-2025-SF746',
+        shortTitle: 'Peace Officers Must Be US Citizens',
+        summaryLine:
+          'Sets a rule that new peace officer license applicants in Minnesota must be U.S. citizens.',
+      }),
+    );
+    expect(restating).toContain(
+      '<meta name="description" content="Sets a rule that new peace officer license applicants in Minnesota must be U.S. citizens." />',
+    );
+    expect(restating).toContain(
       '<meta property="og:description" content="Bill text, legislative progress, and official sources" />',
     );
-    expect(head).toContain(
+    expect(restating).toContain(
       '<meta name="twitter:description" content="Bill text, legislative progress, and official sources" />',
     );
     // No summary: both say the fixed line.
-    expect(billPageMetadata({ billId: '94-2025-SF1', summary: null }).description).toBe(
+    expect(billPageMetadata({ billId: '94-2025-SF1', summaryLine: null }).description).toBe(
       'Bill text, legislative progress, and official sources',
     );
   });
@@ -143,7 +154,7 @@ describe('rendered head', () => {
       billPageMetadata({
         billId: '94-2025-HF1',
         shortTitle: 'Repeals <script> "quoting" & tags',
-        summary: 'Ends the </script> loophole. More follows.',
+        summaryLine: 'Ends the </script> loophole.',
       }),
     );
 

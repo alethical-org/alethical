@@ -5,6 +5,7 @@ import {
   buildBillShareContent,
   buildLegislatorShareContent,
   publicPageUrl,
+  restatesTitle,
   shareDialogLabel,
   type ShareContent,
 } from '../share';
@@ -65,15 +66,16 @@ describe('shared page text', () => {
       identifier: 'HF 719',
       billId: '94-2025-HF719',
       shortTitle: 'Funds local infrastructure projects across Minnesota',
-      summary:
-        'Funds roads, bridges, water systems, and public buildings across Minnesota. It also sets reporting rules.',
+      summaryLine: 'Funds roads, bridges, water systems, and public buildings across Minnesota.',
       url: publicPageUrl('/bills/94-2025-HF719'),
     });
 
+    // The sentence adds what the title does not (roads, bridges, water systems,
+    // buildings), so the card carries it (Eugene, 18 Sep 2026).
     expect(content).toEqual({
       subject: 'bill',
       title: 'HF 719 (2025): Funds local infrastructure projects across Minnesota',
-      description: 'Bill text, legislative progress, and official sources',
+      description: 'Funds roads, bridges, water systems, and public buildings across Minnesota.',
       url: 'https://www.alethical.com/bills/94-2025-HF719',
     });
   });
@@ -83,7 +85,7 @@ describe('shared page text', () => {
       identifier: 'SF 1',
       billId: '94-2025-SF1',
       shortTitle: 'Education funding',
-      summary: null,
+      summaryLine: null,
       url: publicPageUrl('/bills/94-2025-SF1'),
     });
 
@@ -95,12 +97,35 @@ describe('shared page text', () => {
       identifier: 'SF 746',
       billId: '94-2025-SF746',
       shortTitle: 'Peace Officers Must Be US Citizens',
-      summary:
-        "Sets a rule that new peace officer license applicants in Minnesota must be U.S. citizens. Officers who were already licensed without citizenship before July 1, 2025 can keep their license until June 30, 2027 if they meet every other requirement. Background checks on candidates for officer jobs must now include a check of citizenship status. It also takes the citizenship-rule authority away from the licensing board's rulemaking list, since the requirement is now spelled out directly in statute.",
+      summaryLine:
+        'Sets a rule that new peace officer license applicants in Minnesota must be U.S. citizens.',
       url: publicPageUrl('/bills/94-2025-SF746'),
     });
 
     expect(content.description).toBe('Bill text, legislative progress, and official sources');
+  });
+
+  it('judges a restatement by the title words the sentence carries', () => {
+    expect(
+      restatesTitle(
+        'Peace Officers Must Be US Citizens',
+        'Sets a rule that new peace officer license applicants in Minnesota must be U.S. citizens.',
+      ),
+    ).toBe(true);
+    expect(
+      restatesTitle(
+        'Statewide Capital Projects and Bonding Bill',
+        'Authorizes billions in state bond financing for construction and renovation projects spread across nearly every part of state government.',
+      ),
+    ).toBe(false);
+    expect(
+      restatesTitle(
+        'New Rules For Minors’ Social Media Accounts',
+        'Large social media platforms will have to publicly explain how their algorithms, notifications, and engagement features work.',
+      ),
+    ).toBe(false);
+    // No title to restate: the sentence always adds something.
+    expect(restatesTitle('', 'Authorizes borrowing.')).toBe(false);
   });
 
   // A bill with no plain-language short title is named by its number and year and
@@ -111,7 +136,7 @@ describe('shared page text', () => {
       identifier: 'HF 2904',
       billId: '94-2025-HF2904',
       shortTitle: null,
-      summary: null,
+      summaryLine: null,
       url: publicPageUrl('/bills/94-2025-HF2904'),
     });
 

@@ -368,8 +368,10 @@ describe('first-response page tags', () => {
     );
     expect(body).toContain('<h1>Statewide Capital Projects and Bonding Bill</h1>');
     expect(body).toContain('Authorizes borrowing for public buildings.');
+    // The summary sentence adds to the title, so search result and share card
+    // both carry it (§26).
     expect(body).toContain(
-      '<meta property="og:description" content="Bill text, legislative progress, and official sources" />',
+      '<meta property="og:description" content="Authorizes borrowing for public buildings." />',
     );
     expect(body).toContain(
       '<meta name="description" content="Authorizes borrowing for public buildings." />',
