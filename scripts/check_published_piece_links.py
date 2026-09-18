@@ -52,6 +52,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PIECES_DIR = ROOT / "apps/frontend/src/lib/researchPieces"
+# Each piece's address (its slug) lives in the light index the router reads, apart
+# from the piece's text, so a page's first download need not carry the articles.
+PIECE_INDEX = ROOT / "apps/frontend/src/lib/researchIndex.ts"
 
 # A browser User-Agent, because cfb.mn.gov serves a different page to an unnamed
 # client. Naming Alethical in it keeps the request honest in their logs.
@@ -88,7 +91,7 @@ def piece_files() -> list[Path]:
 
 def published_slugs(files: list[Path]) -> set[str]:
     slugs: set[str] = set()
-    for path in files:
+    for path in [*files, *([PIECE_INDEX] if PIECE_INDEX.exists() else [])]:
         slugs.update(
             match.group("slug") for match in _SLUG_RE.finditer(path.read_text())
         )
