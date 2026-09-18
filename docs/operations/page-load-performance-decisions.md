@@ -842,10 +842,11 @@ or settings files were uploaded. The build used the production target with
 `--skip-domain`. Vercel assigned only its project `.vercel.app` alias; the public
 `www.alethical.com` address still served `a8e42d9a` afterward.
 
-The size limit is **339,888 bytes**, the hosted figure for the Campaign money tab's
-contribution-label work plus the same 739-byte headroom. Vercel measured 339,149 bytes
-for it on 13 September 2026
-([deployment dpl_37gz5j4F52gyt7W68pH3PK3CR77N](https://vercel.com/alethical/alethical-web/37gz5j4F52gyt7W68pH3PK3CR77N),
+The size limit is **296,022 bytes**: the 295,283 Brotli bytes the hosted production
+build of merge commit a092f832 serves for its 1 program file (read off
+www.alethical.com on 18 September 2026, after the release that took the code only a
+few screens use out of the first download) plus the same 739-byte headroom. Before
+that release the hosted figure was 339,149 bytes (13 September 2026,
 [issue 2182](https://github.com/alethical-org/alethical/issues/2182)).
 
 **That 239-byte rise is compression packing, not source size, and the distinction
