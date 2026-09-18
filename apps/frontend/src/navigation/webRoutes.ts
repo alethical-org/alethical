@@ -125,10 +125,11 @@ function billsFilterParams(searchParams: URLSearchParams): Record<string, string
   return selectedSearchParams(searchParams, BILLS_FILTER_PARAMS);
 }
 
-// URL-addressable Search Legislators filters — same shape as Bills so a filtered
-// roster is shareable, reload-safe, and survives the browser Back button after
-// visiting a legislator profile.
-const LEGISLATORS_FILTER_PARAMS = ['q', 'chamber', 'party', 'session', 'page'] as const;
+// URL-addressable Search Legislators state. The usual filters keep a roster
+// shareable and reload-safe. `tab=money` marks the route from /money, so every
+// member link it draws opens Campaign money while the ordinary directory keeps
+// opening Overview.
+const LEGISLATORS_FILTER_PARAMS = ['tab', 'q', 'chamber', 'party', 'session', 'page'] as const;
 
 function legislatorsFilterParams(searchParams: URLSearchParams): Record<string, string> {
   return selectedSearchParams(searchParams, LEGISLATORS_FILTER_PARAMS);

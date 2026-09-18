@@ -633,32 +633,6 @@ export function LegislatorProfileMobileScreen() {
                 </View>
               ) : (
                 <>
-                  {/* CAMPAIGN MONEY POINTER — no figure on it, so this tab keeps one date */}
-                  <View style={styles.section}>
-                    <View style={styles.column}>
-                      <View style={styles.card}>
-                        <Text accessibilityRole="header" aria-level={2} style={styles.cardTitle}>
-                          Campaign money
-                        </Text>
-                        <Text style={styles.bodyText}>
-                          What this member’s campaign reported raising and paying out, who is named
-                          as giving it, and what outside groups spent about them, all come from the
-                          Minnesota Campaign Finance Board rather than the Legislature.{' '}
-                          <Text
-                            style={styles.moneyTabLink}
-                            {...linkProps(
-                              routePath.legislator(legislatorId, { tab: 'money' }),
-                              () => selectTab('money'),
-                            )}
-                          >
-                            Open the Campaign money tab
-                          </Text>
-                          .
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-
                   {/* BIOGRAPHY */}
                   {hasRealBio ? (
                     <View style={styles.section}>
@@ -1101,7 +1075,6 @@ const styles = StyleSheet.create({
     padding: 22,
     ...(t.shadows.card as object),
   },
-  moneyTabLink: { color: t.colors.text.primary, textDecorationLine: 'underline' },
   cardTitle: {
     fontFamily: t.typography.title,
     fontSize: t.fontSizes.h3,

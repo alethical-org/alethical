@@ -254,6 +254,15 @@ describe('the money landing makes the reporting periods and destinations explici
     expect(host.textContent).not.toContain('Spelling must match the filing');
   });
 
+  it('marks the Legislators path so its profile links open Campaign money', () => {
+    const { host, navigate } = mount();
+    const link = exactText(host, 'Legislators').closest('a')!;
+
+    expect(link.getAttribute('href')).toBe('/legislators?tab=money');
+    act(() => link.click());
+    expect(navigate).toHaveBeenCalledWith('Legislators', { tab: 'money' });
+  });
+
   it('uses Libre Franklin with tabular digits for counts and each kind of date', () => {
     const { host } = mount();
     for (const words of [
@@ -276,7 +285,7 @@ describe('the money landing makes the reporting periods and destinations explici
       viewport.width = width;
       const { host } = mount();
       for (const href of [
-        '/legislators',
+        '/legislators?tab=money',
         '/money/committees',
         '/money/search',
         '/money/races',

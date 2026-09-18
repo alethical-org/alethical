@@ -291,28 +291,6 @@ export function LegislatorProfileWebScreen() {
     <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
       {/* LEFT COLUMN — the record */}
       <View style={styles.leftColumn}>
-        {/* A pointer to the money, with no figure on it. A number here would drag a
-            second freshness date onto this tab, which is the problem the tab split
-            solved (#1329). */}
-        <View style={styles.card}>
-          <Text accessibilityRole="header" aria-level={2} style={[styles.h2, styles.h2Spaced]}>
-            Campaign money
-          </Text>
-          <Text style={styles.emptyNote}>
-            What this member’s campaign reported raising and paying out, and who is named as giving
-            it, comes from the Minnesota Campaign Finance Board rather than the Legislature.{' '}
-            <Text
-              style={styles.moneyTabLink}
-              {...linkProps(routePath.legislator(legislatorId, { tab: 'money' }), () =>
-                selectTab('money'),
-              )}
-            >
-              Open the Campaign money tab
-            </Text>
-            .
-          </Text>
-        </View>
-
         {bioText ? (
           <View style={styles.card}>
             <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
@@ -1175,7 +1153,6 @@ const styles = StyleSheet.create({
   },
   h2Spaced: { marginBottom: 20 },
   tabbed: { gap: 24 },
-  moneyTabLink: { color: t.colors.text.primary, textDecorationLine: 'underline' },
   h3: {
     fontFamily: t.typography.title,
     fontSize: 26,

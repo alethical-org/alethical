@@ -1031,7 +1031,7 @@ export function moneyLandingPageSnapshot(
       {
         label: MONEY_LANE_LEGISLATORS.title,
         detail: MONEY_LANE_LEGISLATORS.body,
-        href: '/legislators',
+        href: '/legislators?tab=money',
       },
       {
         label: MONEY_LANE_COMMITTEES.title,
