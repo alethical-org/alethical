@@ -36,7 +36,7 @@ Authorization: “build both here go” covers the lobbying and remaining money 
 - [x] Use shared count/matching/coverage wording across lobbying, search and payment records, including server-rendered previews and share descriptions.
 - [x] Add the dated, source-specific Carlson count review only for the affected contribution copy; keep all-year findings distinct from selected-year results.
 - [x] Preserve official totals, source dates, missing-versus-zero, and existing full-year checks; document accepted semantics.
-- [x] Run local checks, browser review on desktop/tablet/phone, and independent review. Frontend: 3,475 tests; focused backend: 32 tests; TypeScript, required Python lint/types and documentation checks pass. Release checks remain below.
-- [ ] Open a pull request, merge after checks, wait for release and inspect live behavior.
+- [x] Run local checks, browser review on desktop/tablet/phone, and independent review. Frontend: 3,475 tests; backend: 2,943 tests; TypeScript, required Python lint/types and documentation checks pass. Release checks remain below.
+- Publication and live-check evidence are recorded in [pull request 2326](https://github.com/alethical-org/alethical/pull/2326).
 
 Browser review also corrected the source filing-year label and scoped contribution thresholds away from spending-only name pages. The existing committee-payment loading flash is recorded under [issue 2024](https://github.com/alethical-org/alethical/issues/2024#issuecomment-5744253800), outside this wording build.
