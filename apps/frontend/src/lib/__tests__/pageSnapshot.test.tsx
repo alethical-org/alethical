@@ -1445,7 +1445,7 @@ describe('the outside-spending snapshot serves the browse page meaning', () => {
     expect(snapshot.subheading).toBe(OUTSIDE_BROWSE_INTRO);
     expect(text).toContain('2015 through 2026');
     expect(text).toContain(formatMoney(page.figures.amountTotal));
-    expect(text).toContain('41,130 payments');
+    expect(text).toContain('41,130 payment records');
     expect(text).toContain(OUTSIDE_BROWSE_SCOPE);
     expect(text).toContain(HOW_TO_READ_OUTSIDE);
     expect(text).toContain(OUTSIDE_LIMITS);
@@ -2451,6 +2451,7 @@ describe('the payments-under-a-name snapshot serves the rows the screen draws', 
     expect(text).toContain('Apr 20, 2026');
     expect(text).toContain(`${nystromFixture.data.payments.length} payment records`);
     expect(text).toContain(LIST_NOTE);
+    expect(text.indexOf(LIST_NOTE)).toBeLessThan(text.indexOf('Senate Victory Fund (SVF)'));
   });
 
   it('links a row only to a committee this release holds as a filer', () => {

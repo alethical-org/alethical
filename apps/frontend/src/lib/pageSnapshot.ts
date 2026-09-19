@@ -225,6 +225,7 @@ import {
   directionCountLine,
   directionNotRecordedLine,
   inKindCountLine,
+  paymentRecordCountLabel,
   OUTSIDE_SPENDING_HEADING,
   OUTSIDE_SPENDING_PATH,
   RECORD_UNAVAILABLE_TITLE,
@@ -1409,7 +1410,7 @@ export function outsideSpendingPageSnapshot(page: OutsideSpendingRecordPage): Pa
         OUTSIDE_BROWSE_SCOPE,
         total ?? 'Some payments have no amount recorded, so we cannot show a complete total',
         ...(total ? ['Total of the listed payments for this period'] : []),
-        `${figures.rowCount.toLocaleString('en-US')} ${figures.rowCount === 1 ? 'payment' : 'payments'}`,
+        paymentRecordCountLabel(figures.rowCount),
         'Payments supporting or opposing',
         directionCountLine(figures.supportingCount, 'supporting'),
         directionCountLine(figures.opposingCount, 'opposing'),
@@ -1585,7 +1586,10 @@ export function paymentsUnderNamePageSnapshot(
       ...(contributionDetails ? [contributionDetails] : []),
       {
         heading: listState[0],
-        body: listState.slice(1),
+        body: [
+          ...listState.slice(1),
+          ...(rows.length > 0 ? [paymentsUnderNameListNote(role)] : []),
+        ],
         bodyIsList: false,
         items: rows.map((row) => ({
           label: [
@@ -1604,11 +1608,6 @@ export function paymentsUnderNamePageSnapshot(
               ? `/money/committees/${encodeURIComponent(committeeSlug(row.linkName, row.linkNumber))}`
               : undefined,
         })),
-        ...(rows.length > 0
-          ? {
-              blocks: [{ kind: 'prose' as const, lines: [paymentsUnderNameListNote(role)] }],
-            }
-          : {}),
       },
       {
         heading: MONEY_LIST_COVERAGE_HEADING,

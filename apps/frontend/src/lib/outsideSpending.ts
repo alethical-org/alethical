@@ -353,10 +353,14 @@ export const WHAT_THE_RECORD_HOLDS = 'What the record holds';
 export const DIRECTION_AS_FILED = 'Payments by direction, as the filing states it';
 export const IN_KIND_LABEL = 'In kind';
 
+export function paymentRecordCountLabel(count: number): string {
+  return `${formatCount(count)} ${count === 1 ? 'payment record' : 'payment records'}`;
+}
+
 /** "across 41,130 payments, 2015 through 2026". Payments, not expenditures: the
  *  ruled count line for these rows uses that word (1 Sep 2026). */
 export function recordSpanLine(figures: OutsideSpendingRecordFigures): string {
-  const payments = `${formatCount(figures.rowCount)} ${figures.rowCount === 1 ? 'payment record' : 'payment records'}`;
+  const payments = paymentRecordCountLabel(figures.rowCount);
   if (figures.firstYear === null || figures.lastYear === null) return `across ${payments}`;
   if (figures.firstYear === figures.lastYear) return `across ${payments}, ${figures.firstYear}`;
   return `across ${payments}, ${figures.firstYear} through ${figures.lastYear}`;
@@ -364,11 +368,11 @@ export function recordSpanLine(figures: OutsideSpendingRecordFigures): string {
 
 /** "31,718 payments supporting", counted rows, for the whole record's direction line. */
 export function directionCountLine(count: number, direction: 'supporting' | 'opposing'): string {
-  return `${formatCount(count)} ${count === 1 ? 'payment record' : 'payment records'} ${direction}`;
+  return `${paymentRecordCountLabel(count)} ${direction}`;
 }
 
 export function inKindCountLine(count: number): string {
-  return `${formatCount(count)} ${count === 1 ? 'payment record' : 'payment records'} in goods or services`;
+  return `${paymentRecordCountLabel(count)} in goods or services`;
 }
 
 /** The sentence under the whole record's direction figures. Printed only while
@@ -379,7 +383,7 @@ export const EVERY_ROW_STATES_A_DIRECTION =
   'the supporting or opposing count. They are not additional records.';
 
 export function directionNotRecordedLine(count: number): string {
-  return `${formatCount(count)} ${count === 1 ? 'payment record' : 'payment records'} where the filing does not say which`;
+  return `${paymentRecordCountLabel(count)} where the filing does not say which`;
 }
 
 export const IN_KIND_COUNTED_INSIDE =
@@ -529,7 +533,7 @@ export function subjectCountLine(
   view: OutsideSpendingView,
   figures: OutsideSpendingRecordFigures,
 ): string {
-  const payments = `${formatCount(figures.rowCount)} ${figures.rowCount === 1 ? 'payment record' : 'payment records'}`;
+  const payments = paymentRecordCountLabel(figures.rowCount);
   if (view === 'about') {
     const groups = `${formatCount(figures.spenderCount)} ${figures.spenderCount === 1 ? 'group' : 'groups'}`;
     return `${payments} by ${groups}`;

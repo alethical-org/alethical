@@ -231,8 +231,8 @@ describe('outside spending browsing', () => {
     state.record!.figures!.amountTotal = null;
     await render();
     expect(host.textContent).not.toContain('$1,000');
-    expect(host.textContent).toContain('30 payments');
-    expect(host.textContent).toContain('1 payment with no direction stated');
+    expect(host.textContent).toContain('30 payment records');
+    expect(host.textContent).toContain('1 payment record with no direction stated');
     expect(host.textContent).toContain('Some payments have no amount recorded');
   });
   it('does not label previous-year figures with the newly requested year after a failure', async () => {
@@ -299,6 +299,6 @@ describe('outside spending browsing', () => {
     await render();
     expect(host.textContent).toContain('We could not load these records');
     expect(host.textContent).not.toContain('$0');
-    expect(host.textContent).not.toContain('0 payments');
+    expect(host.textContent).not.toContain('0 payment records');
   });
 });

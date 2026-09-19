@@ -24,9 +24,12 @@ import { centralDateLabel, formatCount } from '../../lib/moneyLanding';
 import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
 import { outsideBrowseShareContent } from '../../lib/moneyResultsShare';
 import {
+  directionCountLine,
+  inKindCountLine,
   OUTSIDE_SPENDING_HEADING,
   outsideSpendingPageNumber,
   outsideSpendingYear,
+  paymentRecordCountLabel,
   RECORD_UNAVAILABLE_TITLE,
   RECORD_UNAVAILABLE_WHY,
   type OutsideSpendingRecordPage,
@@ -623,9 +626,7 @@ function Overview({ record, wide }: { record: OutsideSpendingRecordPage; wide: b
               Some payments have no amount recorded, so we cannot show a complete total
             </Text>
           )}
-          <Text style={styles.paymentCount}>
-            {formatCount(count)} {count === 1 ? 'payment' : 'payments'}
-          </Text>
+          <Text style={styles.paymentCount}>{paymentRecordCountLabel(count)}</Text>
         </View>
         <View style={styles.figureColumn}>
           <Text style={styles.directionTitle}>Payments supporting or opposing</Text>
@@ -647,15 +648,12 @@ function Overview({ record, wide }: { record: OutsideSpendingRecordPage; wide: b
             <View style={styles.legend} key={d.label}>
               <View style={[styles.swatch, { backgroundColor: d.color }]} />
               <Text style={styles.legendText}>
-                {formatCount(d.count)} {d.count === 1 ? 'payment' : 'payments'} {d.label}
+                {paymentRecordCountLabel(d.count)} {d.label}
               </Text>
             </View>
           ))}
           <View style={styles.inKind}>
-            <Text style={styles.directionTitle}>
-              {formatCount(figures.inKindCount)}{' '}
-              {figures.inKindCount === 1 ? 'payment' : 'payments'} in goods or services
-            </Text>
+            <Text style={styles.directionTitle}>{inKindCountLine(figures.inKindCount)}</Text>
             <Text style={styles.figureNote}>
               Payments in goods or services are included in the counts above
             </Text>

@@ -122,7 +122,7 @@ describe('the words a checked zero and a direction chip print', () => {
     expect(outsideDirectionLabel('Against')).toBe('Opposing');
     expect(outsideDirectionLabel('not recorded')).toBe('Not stated');
     expect(outsideExpansionLabel(group('1', '900', 'Example Fund', 'For', '5', 2), false)).toBe(
-      'Show 2 payments from Example Fund, Supporting',
+      'Show 2 payment records from Example Fund, Supporting',
     );
   });
 });

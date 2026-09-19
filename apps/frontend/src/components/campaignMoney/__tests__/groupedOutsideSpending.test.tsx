@@ -157,7 +157,7 @@ async function render(selected = year, notOnTheBallot = false) {
 
 function expand(): HTMLElement {
   const button = mount.querySelector(
-    '[aria-label="Show 2 payments from Example Fund, Supporting"]',
+    '[aria-label="Show 2 payment records from Example Fund, Supporting"]',
   );
   expect(button).not.toBeNull();
   return button as HTMLElement;
@@ -237,7 +237,7 @@ describe('outside spender list on the campaign money tab', () => {
     band.isMobile = true;
     await render();
     const date = textLine('Payments made Jan 1, 2025 to Feb 1, 2025');
-    const meta = textLine('Registration 900 · 2 payments');
+    const meta = textLine('Registration 900 · 2 payment records');
     expect(date).toBeDefined();
     expect(meta.compareDocumentPosition(date) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(getComputedStyle(date).fontWeight).toBe('400');
@@ -263,7 +263,7 @@ describe('outside spender list on the campaign money tab', () => {
     expect(loadGroups).toHaveBeenCalledTimes(1);
     expect(loadPayments).not.toHaveBeenCalled();
     expect(mount.textContent).toContain('Spending by outside groups');
-    expect(mount.textContent).toContain('2 payments · 1 spender');
+    expect(mount.textContent).toContain('2 payment records · 1 spender');
     expect(mount.textContent).toContain('Not stated');
     expect(mount.textContent).not.toContain('Copied from the state');
     expect(
@@ -382,7 +382,7 @@ describe('outside spender list on the campaign money tab', () => {
     );
   });
 
-  it('prints $0 and 0 payments on a side no group filed, rather than a sentence', async () => {
+  it('prints $0 and 0 payment records on a side no group filed, rather than a sentence', async () => {
     loadGroups.mockResolvedValue({
       ...grouped,
       groups: grouped.groups.filter((group) => group.direction === 'For'),
@@ -394,7 +394,7 @@ describe('outside spender list on the campaign money tab', () => {
     // A checked zero reads as 0 (`.claude/rules/grounded-answers.md` rule 12), and
     // replacing one figure with a sentence breaks the pair a reader is comparing.
     expect(mount.textContent).toContain('$0');
-    expect(mount.textContent).toContain('0 payments');
+    expect(mount.textContent).toContain('0 payment records');
     expect(mount.textContent).not.toContain('No group reported spending to support them');
   });
 
@@ -409,7 +409,7 @@ describe('outside spender list on the campaign money tab', () => {
     const spoken = [...mount.querySelectorAll('[aria-label]')].map((node) =>
       node.getAttribute('aria-label'),
     );
-    expect(spoken).toContain('Show 2 payments from Example Fund, Supporting');
+    expect(spoken).toContain('Show 2 payment records from Example Fund, Supporting');
     expect(spoken.some((label) => label?.includes(', For'))).toBe(false);
   });
 

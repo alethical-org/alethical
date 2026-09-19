@@ -1659,7 +1659,8 @@ Across `/money/search` and `/money/payments`, names identify source spellings, n
 people or businesses. Counts use **payment records**, because received-payment rows can
 include loans and other receipt kinds as well as contributions. Non-contribution receipt
 kinds remain labelled. The name page explains the exact-name match, possible spelling
-variants, incomplete history, and why a registration-based count can differ. The supporting
+variants, incomplete history, and why a registration-based count can differ. The count and
+subtotal limitations appear above the first payment record. The supporting
 contribution explanation states the yearly donor-to-recipient naming threshold, missing
 registration numbers, and possible repeated or corrected records. It never applies a
 campaign donation threshold to vendor payments or lobbying spending.
