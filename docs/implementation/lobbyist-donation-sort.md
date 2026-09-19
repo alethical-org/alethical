@@ -262,18 +262,14 @@ the last row, so leaving the position alone dropped the reader at the foot of a 
 they had not seen. Browser Back is not a page change and keeps the place the browser
 restored; changing the name, year or order returns to page 1 without scrolling.
 
-### 3 values the bundle asked for that the built page does not carry
+### 1 value the bundle asked for that the built page does not carry
 
-- **Drawn choice panels.** The bundle reversed an earlier decision and specified a
-  button and a listbox of our own, with keyboard handling, first-letter type-ahead
-  and an accessibility tree we would own. Eugene kept the native menus.
-- **A wrapping choice value on the narrowest phones.** A native menu cannot wrap its
-  value, so at widths under 360 the value steps down to 13.5px instead, which is the
-  largest size at which `Recorded amount: highest first` reads whole inside a 288px
-  card. Measured: 200.3px of text in 204px of room at 320px, and no sideways scroll.
 - **A centred content column.** The column is 1000px wide and starts at the left
   edge the wordmark and every other money page start from. Centring it would indent
   the page from the header above it.
+
+The other 2 the first pass held back, drawn choice panels and a wrapping value on
+the narrowest phones, both shipped in the round below.
 
 ### What was measured in a browser
 
@@ -285,3 +281,54 @@ closes it, the row focus ring draws inset, and paging moved focus onto the resul
 card. Against the live API: year 2024 showed 131 supported amounts of 1,665, a
 2-result search read `1 of the 2 lobbyists`, and a 1-result search read
 `1 of the 1 lobbyist`.
+
+## The directory draws its own choice menus
+
+Eugene ruled on 19 September 2026 that the Year and Sort by controls at
+`/money/lobbying/lobbyists` use Design's own panels, drawn in
+`Alethical UX (27).zip`. He had asked Design for the opened menus and the first
+build pass overrode that. The browser's own list is gone from this page.
+
+`LobbyingChoiceMenu` ([LobbyingChoiceMenu.tsx](../../apps/frontend/src/components/lobbying/LobbyingChoiceMenu.tsx))
+holds the whole control. Every drawn value is the bundle's: a 48-high closed box
+with a 12 radius, the 15 chevron that turns over while the list is open, a panel 8
+below the box at the box's own width with a 14 radius and a 6 inset, options 44
+high with a 9 radius and a 15 tick column, and the chosen option's green wash,
+heavier weight and tick.
+
+**Scope.** The lobbyist's own record page keeps the browser's menu for its
+donation year. `LobbyingSelect` is unchanged and still serves that page;
+`LobbyingDrawnSelect` is new and serves only the directory's 2 controls.
+
+### 2 corrections to the handoff's own notes, with nothing drawn changed
+
+- **The attribute naming the active option moved onto the control.** The handoff
+  put `aria-activedescendant` on the list while focus stays on the box. That
+  attribute only reaches assistive technology from the element that holds focus, so
+  on the list it does nothing: a screen-reader reader would hear the box's value and
+  never hear the option they had arrowed to. It is on the box here, which carries
+  `role="combobox"` with it, following the select-only combobox pattern the rest of
+  the keyboard behaviour already describes.
+- **The results card can no longer hide its own overflow.** A card that clips its
+  overflow cuts the open list off at the card's edge. The card's `overflow: hidden`
+  existed to keep the bottom row's hover wash inside the card's rounded corner, so
+  the bottom row now rounds its own 2 corners instead and the card clips nothing.
+  The header stacks above its siblings so the list draws over the notes below it.
+
+### What was measured in a browser
+
+Keyboard: Enter opens on the option already chosen, the arrows move and stop at the
+ends, Home and End jump, a typed letter jumps to the first choice starting with it,
+Space chooses and the address updates, Escape closes with the value untouched and
+focus back on the box, and Tab closes it and carries focus onward. Mouse: the list
+opens, a choice re-sorts against real records, and a press outside closes it and
+leaves the value. Touch, on an emulated phone: a tap opens the list, every choice is
+a 44-pixel target, and a tap chooses. The purple ring appears when the box is
+reached by keyboard and never on a press.
+
+At 1440, 1100, 1024, 768, 767, 414, 390, 360 and 320 pixels the panel matches its
+box's width, sits fully on screen, is drawn over the card rather than clipped by it,
+and nothing scrolls sideways. In a 420-pixel-tall window with the box near the
+bottom, the panel flips above it and keeps the same 8-pixel gap. At 320 the value
+and the longest choice each wrap to 2 lines and their boxes grow to 58, which is the
+wrapping the first pass could not do with a browser menu.
