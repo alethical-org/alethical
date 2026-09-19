@@ -1008,7 +1008,11 @@ Campaign money, top to bottom:
    leaving the subtotal, the bar, the caption, the notes and every percentage untouched.
    Its spoken name counts what is inside, “Show the 7 states in Other states”, and reads
    “the state” where only 1 sits there. Minnesota and Unknown carry no button. Four notes
-   close the card, one line each and none ending in a dot. The card is absent for a
+   close the card, one line each and none ending in a dot. Below 768px the state name
+   takes a line of its own and its 3 figures sit beneath it, in whichever of 3 shapes the
+   card measures as fitting the room it has at the text size the browser is really
+   drawing; nothing is shortened, clipped or put behind a sideways scroll, and the card's
+   own pieces grow with enlarged text. The card is absent for a
    political fund or a party organisation, which this display does not cover; that
    absence is never a statement that they took no individual contributions.
 

@@ -2,7 +2,7 @@
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type {
   CampaignCommitteeMoney,
@@ -19,6 +19,13 @@ import source from './fixtures/committee-donation-cards-17868-2025.json';
 
 const responsive = vi.hoisted(() => ({ isMobile: false, isTablet: false }));
 vi.mock('../../../hooks/useResponsive', () => ({ useResponsive: () => responsive }));
+
+// A band set by one test used to leak into every test after it. That was invisible while
+// all 3 bands drew the same table and is not any more, because the phone draws its own.
+afterEach(() => {
+  responsive.isMobile = false;
+  responsive.isTablet = false;
+});
 
 type CardCommittee = Pick<
   CampaignCommitteeMoney,
@@ -108,6 +115,15 @@ function panel(container: HTMLElement) {
     (region) =>
       region.querySelector('h2')?.textContent === 'More on this year\u2019s contributions',
   )!;
+}
+
+/** The phone table: each row is its own `tbody`, its state in a row-group header and its
+ *  figures in the rows beneath, so a flat cell read finds nothing. */
+function stackedCells(table: HTMLTableElement) {
+  return [...table.querySelectorAll('tbody')].map((group) => [
+    group.querySelector('th[scope="rowgroup"]')!.textContent,
+    ...[...group.querySelectorAll('td')].map((cell) => cell.textContent),
+  ]);
 }
 
 function cells(table: HTMLTableElement) {
@@ -528,28 +544,28 @@ describe('several other states', () => {
     },
   };
 
+  const nestedFigures = [
+    ['Minnesota', '71', '$38,700', '93.3%'],
+    ['Other states', '8', '$1,520', '3.7%'],
+    ['California', '2', '$200', '0.5%'],
+    ['District of Columbia', '1', '$1,000', '2.4%'],
+    ['Massachusetts', '1', '$20', '<0.1%'],
+    ['Wisconsin', '3', '$300', '0.7%'],
+    ['Wyoming', '2', '$0', '0%'],
+    ['Unknown', '3', '$1,250', '3.0%'],
+  ];
+
   it.each([
     ['computer', false, false, 28],
     ['tablet', false, true, 26],
-    ['phone', true, false, 14],
   ])('nests every state under its subtotal on %s', (_band, mobile, tablet, indent) => {
     responsive.isMobile = mobile;
     responsive.isTablet = tablet;
     const place = locations(
       render({ committee: committee({ donorStates: several }), payments: [individualCash] }),
     )!;
-    // Full names, alphabetical, District of Columbia inline under D, and all 4 columns at
-    // every band so no name, amount or share is lost on a phone.
-    expect(cells(place.querySelector('table')!)).toEqual([
-      ['Minnesota', '71', '$38,700', '93.3%'],
-      ['Other states', '8', '$1,520', '3.7%'],
-      ['California', '2', '$200', '0.5%'],
-      ['District of Columbia', '1', '$1,000', '2.4%'],
-      ['Massachusetts', '1', '$20', '<0.1%'],
-      ['Wisconsin', '3', '$300', '0.7%'],
-      ['Wyoming', '2', '$0', '0%'],
-      ['Unknown', '3', '$1,250', '3.0%'],
-    ]);
+    // Full names, alphabetical, District of Columbia inline under D, and all 4 columns.
+    expect(cells(place.querySelector('table')!)).toEqual(nestedFigures);
     for (const row of place.querySelectorAll('th[scope="row"]')) {
       expect(row.getAttribute('colspan')).toBeNull();
     }
@@ -573,8 +589,32 @@ describe('several other states', () => {
     // Individual state names need not add to the subtotal's 8: one spelling can sit in 2
     // states. The dollars do add.
     expect(place.textContent).not.toContain('Total');
-    responsive.isMobile = false;
-    responsive.isTablet = false;
+  });
+
+  it('gives a phone the same 8 rows, with each state on its own line', () => {
+    responsive.isMobile = true;
+    const place = locations(
+      render({ committee: committee({ donorStates: several }), payments: [individualCash] }),
+    )!;
+    // Same states, same counts, same amounts, same shares. Only the shape changes.
+    expect(stackedCells(place.querySelector('table')!)).toEqual(nestedFigures);
+    const nested = [...place.querySelectorAll<HTMLElement>('th[scope="rowgroup"]')].filter((row) =>
+      ['California', 'District of Columbia', 'Massachusetts', 'Wisconsin', 'Wyoming'].includes(
+        row.textContent ?? '',
+      ),
+    );
+    expect(nested).toHaveLength(5);
+    for (const row of nested) {
+      // The name has the card's whole width, and still may not break mid-word.
+      expect(row.style.paddingLeft).toBe('14px');
+      expect(row.getAttribute('colspan')).toBe('3');
+      expect(row.style.overflowWrap).toBe('');
+      expect(row.style.wordBreak).toBe('');
+    }
+    expect(place.querySelector('caption')?.textContent).toBe(
+      'Itemized individual contributions by state, 2025',
+    );
+    expect(place.textContent).not.toContain('Total');
   });
 
   it('keeps a long state list whole, with no bucket, cut-off or Show more', () => {
@@ -1051,6 +1091,146 @@ describe('the Other states group opens and closes', () => {
     expect(button.querySelector<HTMLElement>('span:last-child')!.style.marginLeft).toBe('2px');
     responsive.isMobile = false;
     responsive.isTablet = false;
+  });
+});
+
+describe('the phone table puts each state on its own line', () => {
+  const five: CommitteeDonorStates = {
+    ...source.donor_states,
+    rows: [
+      source.donor_states.rows[0],
+      { state: 'WI', names: 3, cash_total: '300.0000' },
+      { state: 'DC', names: 1, cash_total: '1000.0000' },
+      { state: 'CA', names: 2, cash_total: '200.0000' },
+      { state: 'MA', names: 1, cash_total: '20.0000' },
+      { state: 'WY', names: 2, cash_total: '0' },
+      source.donor_states.rows[1],
+    ],
+    summary: {
+      ...source.donor_states.summary,
+      other_states: { names: 8, cash_total: '1520.0000' },
+    },
+  };
+  const onPhone = (donorStates: CommitteeDonorStates = five) => {
+    responsive.isMobile = true;
+    return locations(
+      render({ committee: committee({ donorStates }), payments: [individualCash] }),
+    )!;
+  };
+
+  /** `useId` puts a colon in every id, which no CSS selector accepts, and the card is
+   *  rendered into a detached node, so `getElementById` cannot see it either. */
+  const byId = (root: HTMLElement) =>
+    new Map([...root.querySelectorAll('[id]')].map((node) => [node.id, node.textContent]));
+
+  it('gives every state its own row group, with each figure naming its state', () => {
+    const place = onPhone();
+    const ids = byId(place);
+    const table = place.querySelector('table')!;
+    const groups = [...table.querySelectorAll('tbody')];
+    expect(groups).toHaveLength(8);
+    // Every figure is announced with its state and its column, because the 2 now sit on
+    // different rows and nothing may rely on them looking next to each other.
+    const cellsWithHeaders = [...table.querySelectorAll('td[headers]')];
+    expect(cellsWithHeaders).toHaveLength(24);
+    for (const cell of cellsWithHeaders) {
+      const named = cell
+        .getAttribute('headers')!
+        .split(' ')
+        .map((each) => ids.get(each));
+      expect(named).toHaveLength(2);
+      expect(named.some((text) => text === undefined)).toBe(false);
+    }
+    const first = groups[0];
+    expect(first.querySelector('th[scope="rowgroup"]')!.textContent).toBe('Minnesota');
+    expect(
+      first
+        .querySelectorAll('td')[1]
+        .getAttribute('headers')!
+        .split(' ')
+        .map((each) => ids.get(each)),
+    ).toEqual(['Minnesota', 'Amount']);
+  });
+
+  it('keeps the caption, the column headers and all 4 figures', () => {
+    const place = onPhone();
+    expect(place.querySelector('caption')!.textContent).toBe(
+      'Itemized individual contributions by state, 2025',
+    );
+    expect([...place.querySelectorAll('thead th')].map((cell) => cell.textContent)).toEqual([
+      'State',
+      'Names',
+      'Amount',
+      'Share of dollars',
+    ]);
+    // State spans the 3 figure columns; the figures keep their own headers beneath it.
+    expect(place.querySelector('thead th')!.getAttribute('colspan')).toBe('3');
+  });
+
+  it('measures every state, including the ones the control is hiding', () => {
+    const open = onPhone();
+    const measured = (place: HTMLElement) =>
+      [...place.querySelectorAll('[data-measure]')].map((span) => span.textContent);
+    const whileOpen = measured(open);
+    expect(whileOpen).toContain('$1,000');
+    expect(whileOpen).toContain('$20');
+    // Closing the group must not change what was measured, or a group that reopens could
+    // find the arrangement no longer fits.
+    const closed = locations(
+      render({ committee: committee({ donorStates: five }), payments: [individualCash] }),
+    )!;
+    const button = closed.querySelector<HTMLButtonElement>('th button')!;
+    expect(button.getAttribute('aria-label')).toBe('Hide the 5 states in Other states');
+    expect(measured(closed)).toEqual(whileOpen);
+  });
+
+  it('carries the measuring copy no accessible content of its own', () => {
+    const place = onPhone();
+    const frame = place.querySelector('[data-measure]')!.parentElement!;
+    expect(frame.getAttribute('aria-hidden')).toBe('true');
+    expect(frame.style.height).toBe('0px');
+    expect(frame.style.overflow).toBe('hidden');
+    // Measured in the table's own font, or the widths answer a question about a font the
+    // table does not use.
+    expect(frame.style.fontVariantNumeric).toBe('tabular-nums');
+  });
+
+  it('gives 2 committees on one page ids that cannot collide', () => {
+    responsive.isMobile = true;
+    const container = document.createElement('div');
+    container.innerHTML = renderToStaticMarkup(
+      <>
+        <CommitteeDonationCardsView
+          committee={committee({ donorStates: five })}
+          year={2025}
+          registerKind="candidate_committee"
+          payments={[individualCash]}
+        />
+        <CommitteeDonationCardsView
+          committee={committee({ registrationNumber: '18135', donorStates: five })}
+          year={2025}
+          registerKind="candidate_committee"
+          payments={[individualCash]}
+        />
+      </>,
+    );
+    const ids = [...container.querySelectorAll('[id]')].map((node) => node.id);
+    expect(ids.length).toBeGreaterThan(20);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('leaves tablet and computer on the 4 side-by-side columns', () => {
+    for (const tablet of [false, true]) {
+      responsive.isMobile = false;
+      responsive.isTablet = tablet;
+      const place = locations(
+        render({ committee: committee({ donorStates: five }), payments: [individualCash] }),
+      )!;
+      expect(place.querySelectorAll('tbody')).toHaveLength(1);
+      expect(place.querySelectorAll('th[scope="rowgroup"]')).toHaveLength(0);
+      expect(place.querySelectorAll('[data-measure]')).toHaveLength(0);
+      expect(place.querySelector('table')!.querySelectorAll('thead th')).toHaveLength(4);
+    }
   });
 });
 

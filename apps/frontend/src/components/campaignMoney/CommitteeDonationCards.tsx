@@ -1,4 +1,12 @@
-import React, { useId, useState, type CSSProperties, type ReactNode } from 'react';
+import React, {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 import { View } from 'react-native';
 import type {
   CampaignCommitteeMoney,
@@ -14,7 +22,11 @@ import { moneyUnits, sumMoneyAmounts } from '../../lib/campaignMoneyDetails';
 import {
   donationCardsCopy as copy,
   donorStateNames as stateNames,
+  figureArrangement,
+  phoneScale,
   shareOfDollars,
+  type FigureArrangement,
+  type PhoneScale,
 } from '../../lib/contributionFigures';
 import { formatMoney } from '../../lib/moneyFormat';
 import { theme as t } from '../../theme/tokens';
@@ -655,6 +667,91 @@ function FiledLines({
  *  label beside every swatch names its category. */
 export const LOCATION_COLORS = ['#0f7a45', '#2f6fb5', '#a8741a'] as const;
 
+/** The size the money section asks for on a phone, and the floor it keeps. */
+const PHONE_TEXT = 15;
+
+/** The gap between a figure and whatever sits to its left on a phone. */
+const PHONE_GAP = 14;
+
+/** How far a figure's own label is inset past its state's name. */
+const PHONE_LABEL_INSET = 14;
+
+/** How far a state inside Other states is indented from its subtotal, on a phone. */
+const PHONE_INDENT = 14;
+
+type FigureKey = 'names' | 'amount' | 'share';
+
+/** The row's own figure for one column, as it prints. */
+function figureOf(row: LocationTableRow, key: FigureKey) {
+  return key === 'names' ? row.names.toLocaleString('en-US') : row[key];
+}
+
+/**
+ * Correct the card before the browser paints it, so a reader whose text is enlarged
+ * never sees the unscaled card flash first. There is no layout to measure on the server,
+ * where this falls back to a no-op effect rather than warning.
+ */
+const useMeasured = typeof document === 'undefined' ? useEffect : useLayoutEffect;
+
+/**
+ * The size the browser is really drawing this card's text at.
+ *
+ * A reader can enlarge text without our asking, through a browser minimum font size or a
+ * text-only zoom, and then 15px draws as something larger. Reading it off a rendered
+ * probe is the only honest way to know: the size we asked for is not the size on screen.
+ * The probe is always set to the same 15, so the answer follows the browser rather than
+ * following the size we last chose, which would stick.
+ */
+function useDrawnTextSize(active: boolean) {
+  const probe = useRef<HTMLSpanElement | null>(null);
+  const [drawn, setDrawn] = useState(PHONE_TEXT);
+  useMeasured(() => {
+    if (!active) {
+      setDrawn((current) => (current === PHONE_TEXT ? current : PHONE_TEXT));
+      return;
+    }
+    let live = true;
+    const read = () => {
+      const node = probe.current;
+      if (!node || !live) return;
+      const size = Number.parseFloat(window.getComputedStyle(node).fontSize);
+      if (Number.isFinite(size) && size > 0) {
+        setDrawn((current) => (Math.abs(current - size) < 0.5 ? current : size));
+      }
+    };
+    read();
+    // A web font can be wider than the fallback it replaces, and a text-only zoom can
+    // change underneath us, so neither reading is taken once and trusted.
+    void document.fonts?.ready?.then(read);
+    window.addEventListener('resize', read);
+    return () => {
+      live = false;
+      window.removeEventListener('resize', read);
+    };
+  }, [active]);
+  return { probe, drawn };
+}
+
+/** A hidden copy of one string, laid out exactly as the table will draw it. */
+function MeasuredText({
+  group,
+  text,
+  style,
+}: {
+  group: string;
+  text: string;
+  style: CSSProperties;
+}) {
+  return (
+    <span
+      data-measure={group}
+      style={{ position: 'absolute', top: 0, left: 0, whiteSpace: 'pre', ...style }}
+    >
+      {text}
+    </span>
+  );
+}
+
 type LocationTableRow = {
   key: string;
   label: string;
@@ -697,6 +794,10 @@ function ContributorLocations({
   const type = useCampaignMoneyTypography();
   const headingId = useId();
   const [statesOpen, setStatesOpen] = useState(true);
+  // Only the phone grows with the reader's own text size. Tablet and computer have room
+  // for the 4 columns at any size the money section draws, and are untouched.
+  const { probe, drawn } = useDrawnTextSize(isMobile);
+  const scale = phoneScale(drawn);
   const block =
     committee.donorStates?.state === 'reported' && committee.donorStates.year === year
       ? committee.donorStates
@@ -712,12 +813,28 @@ function ContributorLocations({
         { gap: 0 },
       ]}
     >
+      {isMobile ? (
+        <span
+          aria-hidden="true"
+          ref={probe}
+          style={{
+            position: 'absolute',
+            visibility: 'hidden',
+            pointerEvents: 'none',
+            fontFamily: t.typography.body,
+            fontSize: PHONE_TEXT,
+            lineHeight: 1,
+          }}
+        >
+          0
+        </span>
+      ) : null}
       <h2
         id={`${headingId}-heading`}
         style={{
           margin: 0,
           fontFamily: t.typography.title,
-          fontSize: type.h3,
+          fontSize: isMobile ? scale.heading : type.h3,
           fontWeight: 800,
           letterSpacing: '-0.01em',
           color: c.text,
@@ -730,7 +847,7 @@ function ContributorLocations({
           margin: '10px 0 0',
           maxWidth: 680,
           fontFamily: t.typography.body,
-          fontSize: type.small,
+          fontSize: isMobile ? scale.body : type.small,
           lineHeight: 1.5,
           color: c.secondary,
           textWrap: 'pretty',
@@ -739,7 +856,7 @@ function ContributorLocations({
         {copy.locationsIntro}
       </p>
       {state === 'loading' ? (
-        <LocationsLoading barHeight={isMobile || isTablet ? 20 : 22} />
+        <LocationsLoading barHeight={isMobile ? scale.bar : isTablet ? 20 : 22} />
       ) : state === 'held' ? (
         <Paragraph>{copy.held[1](year)}</Paragraph>
       ) : state === 'failed' || block === null ? (
@@ -753,6 +870,7 @@ function ContributorLocations({
           hasIndividualDonations={hasIndividualDonations}
           statesOpen={statesOpen}
           onStatesOpenChange={setStatesOpen}
+          scale={scale}
         />
       )}
     </View>
@@ -789,12 +907,14 @@ function LocationFigures({
   hasIndividualDonations,
   statesOpen,
   onStatesOpenChange,
+  scale,
 }: {
   block: CommitteeDonorStates;
   year: number;
   hasIndividualDonations: boolean;
   statesOpen: boolean;
   onStatesOpenChange: (open: boolean) => void;
+  scale: PhoneScale;
 }) {
   const { isMobile, isTablet } = useResponsive();
   const type = useCampaignMoneyTypography();
@@ -889,37 +1009,23 @@ function LocationFigures({
       copy.locationsBarPart(row.label, formatMoney(row.cash)!, share(row.units!)!),
     ),
   );
-  const [names, amount, shareWidth, gap] = isMobile
-    ? [40, 80, 66, 6]
-    : isTablet
-      ? [94, 134, 134, 16]
-      : [108, 150, 150, 18];
+  const [names, amount, shareWidth, gap] = isTablet ? [94, 134, 134, 16] : [108, 150, 150, 18];
   const numeric = [
     { label: copy.names, width: names },
     { label: copy.amount, width: amount },
     { label: copy.share, width: shareWidth },
   ];
-  const indent = isMobile ? 14 : isTablet ? 26 : 28;
-  // The 44px target comes from a negative vertical margin rather than from padding, so
-  // the row that can be clicked stays exactly as tall as the 2 rows that cannot and the
-  // table keeps its rhythm. An inline-flex box counts its margin box in the line, so a
-  // negative margin really does pull the row back.
-  const toggleMargin = isMobile ? -12 : isTablet ? -11 : -10;
-  const swatch = (color: string, filled: boolean) => (
-    // Outlined where the bar has no segment: a filled swatch would promise a segment
-    // that is not there. Decorative either way -- the row label names the category.
-    <span
-      aria-hidden="true"
-      style={{
-        flex: 'none',
-        width: 14,
-        height: 14,
-        borderRadius: 3,
-        border: `2px solid ${color}`,
-        background: filled ? color : 'transparent',
-      }}
-    />
-  );
+  const indent = isTablet ? 26 : 28;
+  const caption = copy.locationsCaption(year);
+  // Every figure the table can hold, the rows the Other states control is hiding
+  // included. A group that is closed must not pick an arrangement that fails the moment
+  // a reader opens it.
+  const everyFigure = [...categories, ...states].map((row) => ({
+    names: row.names.toLocaleString('en-US'),
+    amount: formatMoney(row.cash)!,
+    share: share(row.units!)!,
+    child: !('color' in row),
+  }));
   return (
     <>
       {denominatorUnits > 0n ? (
@@ -929,7 +1035,7 @@ function LocationFigures({
           style={{
             display: 'flex',
             marginTop: 18,
-            height: isMobile || isTablet ? 20 : 22,
+            height: isMobile ? scale.bar : isTablet ? 20 : 22,
             borderRadius: 6,
             overflow: 'hidden',
             background: '#eef0f1',
@@ -957,148 +1063,94 @@ function LocationFigures({
       ) : (
         <Paragraph>{copy.locationsNoCash(year)}</Paragraph>
       )}
-      <table
-        style={{
-          ...tableBase,
-          tableLayout: 'auto',
-          marginTop: 16,
-          fontSize: type.body,
-        }}
-      >
-        <caption
+      {isMobile ? (
+        <PhoneLocationTable
+          rows={rows}
+          caption={caption}
+          figures={everyFigure}
+          states={states.length}
+          statesOpen={statesOpen}
+          onStatesOpenChange={onStatesOpenChange}
+          scale={scale}
+        />
+      ) : (
+        <table
           style={{
-            captionSide: 'top',
-            textAlign: 'left',
-            padding: '0 0 12px',
-            maxWidth: 680,
-            fontFamily: t.typography.body,
-            fontSize: type.small,
-            fontWeight: 400,
-            lineHeight: 1.5,
-            color: c.secondary,
-            textWrap: 'pretty',
+            ...tableBase,
+            tableLayout: 'auto',
+            marginTop: 16,
+            fontSize: type.body,
           }}
         >
-          {copy.locationsCaption(year)}
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col" style={{ ...head, textAlign: 'left' }}>
-              {copy.state}
-            </th>
-            {numeric.map((column) => (
-              <th
-                key={column.label}
-                scope="col"
-                style={{
-                  ...head,
-                  width: column.width,
-                  paddingLeft: gap,
-                  boxSizing: 'border-box',
-                }}
-              >
-                {column.label}
+          <caption style={{ ...captionStyle, fontSize: type.small }}>{caption}</caption>
+          <thead>
+            <tr>
+              <th scope="col" style={{ ...head, textAlign: 'left' }}>
+                {copy.state}
               </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={`${row.child ? 'state' : 'category'}-${row.key}`}>
-              <th
-                scope="row"
-                style={{
-                  ...locationCell,
-                  textAlign: 'left',
-                  paddingLeft: row.child ? indent : 0,
-                  fontWeight: row.child ? 500 : 800,
-                  borderBottom: row.rule,
-                }}
-              >
-                {row.toggle && row.color ? (
-                  /* The row label is the control. A native button, so Enter and Space
-                     already work, focus already stays put after a press and the site's
-                     own focus ring already draws. Nothing animates, so there is no
-                     motion for a reduced-motion preference to turn off. */
-                  <button
-                    type="button"
-                    aria-expanded={statesOpen}
-                    aria-label={copy.locationsToggle(statesOpen, states.length)}
-                    onClick={() => onStatesOpenChange(!statesOpen)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 9,
-                      minHeight: 44,
-                      marginTop: toggleMargin,
-                      marginBottom: toggleMargin,
-                      padding: 0,
-                      background: 'transparent',
-                      border: 0,
-                      borderRadius: 8,
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                      fontSize: type.body,
-                      fontWeight: 800,
-                      lineHeight: 1.35,
-                      textAlign: 'left',
-                      color: c.text,
-                    }}
-                  >
-                    {swatch(row.color, row.filled)}
-                    <span>{row.label}</span>
-                    <span
-                      aria-hidden="true"
-                      style={{ flex: 'none', display: 'inline-flex', marginLeft: 2 }}
-                    >
-                      <svg
-                        width={18}
-                        height={18}
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        style={{ transform: statesOpen ? 'rotate(180deg)' : undefined }}
-                      >
-                        <path
-                          d="M6 9 L12 15 L18 9"
-                          stroke={c.secondary}
-                          strokeWidth={2.2}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </span>
-                  </button>
-                ) : row.color ? (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
-                    {swatch(row.color, row.filled)}
-                    <span>{row.label}</span>
-                  </span>
-                ) : (
-                  row.label
-                )}
-              </th>
-              {[
-                { value: row.names.toLocaleString('en-US'), weight: row.child ? 500 : 800 },
-                { value: row.amount, weight: row.child ? 600 : 800 },
-                { value: row.share, weight: row.child ? 500 : 800 },
-              ].map((cellValue, column) => (
-                <td
-                  key={column}
+              {numeric.map((column) => (
+                <th
+                  key={column.label}
+                  scope="col"
+                  style={{
+                    ...head,
+                    width: column.width,
+                    paddingLeft: gap,
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  {column.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={`${row.child ? 'state' : 'category'}-${row.key}`}>
+                <th
+                  scope="row"
                   style={{
                     ...locationCell,
-                    paddingLeft: gap,
-                    fontWeight: cellValue.weight,
-                    color: column === 1 ? c.text : c.secondary,
+                    textAlign: 'left',
+                    paddingLeft: row.child ? indent : 0,
+                    fontWeight: row.child ? 500 : 800,
                     borderBottom: row.rule,
                   }}
                 >
-                  {cellValue.value}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                  <LocationRowName
+                    row={row}
+                    states={states.length}
+                    statesOpen={statesOpen}
+                    onStatesOpenChange={onStatesOpenChange}
+                    swatch={14}
+                    chevron={18}
+                    toggleMargin={isTablet ? -11 : -10}
+                    fontSize={type.body}
+                  />
+                </th>
+                {[
+                  { value: row.names.toLocaleString('en-US'), weight: row.child ? 500 : 800 },
+                  { value: row.amount, weight: row.child ? 600 : 800 },
+                  { value: row.share, weight: row.child ? 500 : 800 },
+                ].map((cellValue, column) => (
+                  <td
+                    key={column}
+                    style={{
+                      ...locationCell,
+                      paddingLeft: gap,
+                      fontWeight: cellValue.weight,
+                      color: column === 1 ? c.text : c.secondary,
+                      borderBottom: row.rule,
+                    }}
+                  >
+                    {cellValue.value}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
       <div style={{ marginTop: 14, display: 'grid', gap: 5 }}>
         {copy.locationNotes.map((note) => (
           <p
@@ -1107,7 +1159,7 @@ function LocationFigures({
               margin: 0,
               maxWidth: 680,
               fontFamily: t.typography.body,
-              fontSize: type.small,
+              fontSize: isMobile ? scale.body : type.small,
               lineHeight: 1.5,
               color: c.muted,
               textWrap: 'pretty',
@@ -1117,6 +1169,472 @@ function LocationFigures({
           </p>
         ))}
       </div>
+    </>
+  );
+}
+
+const captionStyle: CSSProperties = {
+  captionSide: 'top',
+  textAlign: 'left',
+  paddingTop: 0,
+  paddingRight: 0,
+  paddingBottom: 12,
+  paddingLeft: 0,
+  maxWidth: 680,
+  fontFamily: t.typography.body,
+  fontWeight: 400,
+  lineHeight: 1.5,
+  color: c.secondary,
+  textWrap: 'pretty',
+};
+
+/** Outlined where the bar has no segment: a filled swatch would promise a segment that
+ *  is not there. Decorative either way -- the row label names the category. */
+function LocationSwatch({ color, filled, size }: { color: string; filled: boolean; size: number }) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        flex: 'none',
+        width: size,
+        height: size,
+        borderRadius: 3,
+        border: `2px solid ${color}`,
+        background: filled ? color : 'transparent',
+      }}
+    />
+  );
+}
+
+/**
+ * What a row's name cell holds: a category with its swatch, the Other states control, or
+ * a plain state name.
+ *
+ * One component for all 4 table shapes, so the control behaves identically at every width
+ * and in every phone arrangement, and a reader who switches between them by turning a
+ * phone keeps the same button under their finger.
+ */
+function LocationRowName({
+  row,
+  states,
+  statesOpen,
+  onStatesOpenChange,
+  swatch,
+  chevron,
+  toggleMargin,
+  fontSize,
+  lineHeight = 1.35,
+}: {
+  row: LocationTableRow;
+  states: number;
+  statesOpen: boolean;
+  onStatesOpenChange: (open: boolean) => void;
+  swatch: number;
+  chevron: number;
+  toggleMargin: number;
+  fontSize: number;
+  lineHeight?: number;
+}) {
+  if (row.toggle && row.color) {
+    return (
+      /* The row label is the control. A native button, so Enter and Space already work,
+         focus already stays put after a press and the site's own focus ring already
+         draws. Nothing animates, so there is no motion for a reduced-motion preference
+         to turn off. The 44px target comes from a negative vertical margin rather than
+         from padding, so the row that can be pressed stays exactly as tall as the rows
+         that cannot; an inline-flex box counts its margin box in the line, so a negative
+         margin really does pull the row back. */
+      <button
+        type="button"
+        aria-expanded={statesOpen}
+        aria-label={copy.locationsToggle(statesOpen, states)}
+        onClick={() => onStatesOpenChange(!statesOpen)}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 9,
+          minHeight: 44,
+          marginTop: toggleMargin,
+          marginBottom: toggleMargin,
+          padding: 0,
+          background: 'transparent',
+          border: 0,
+          borderRadius: 8,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          fontSize,
+          fontWeight: 800,
+          lineHeight,
+          textAlign: 'left',
+          color: c.text,
+        }}
+      >
+        <LocationSwatch color={row.color} filled={row.filled} size={swatch} />
+        <span>{row.label}</span>
+        <span aria-hidden="true" style={{ flex: 'none', display: 'inline-flex', marginLeft: 2 }}>
+          <svg
+            width={chevron}
+            height={chevron}
+            viewBox="0 0 24 24"
+            fill="none"
+            style={{ transform: statesOpen ? 'rotate(180deg)' : undefined }}
+          >
+            <path
+              d="M6 9 L12 15 L18 9"
+              stroke={c.secondary}
+              strokeWidth={2.2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+      </button>
+    );
+  }
+  if (row.color) {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
+        <LocationSwatch color={row.color} filled={row.filled} size={swatch} />
+        <span>{row.label}</span>
+      </span>
+    );
+  }
+  return <>{row.label}</>;
+}
+
+/**
+ * The table below 768px, where 4 side-by-side columns cannot hold a state name, a name
+ * count, a full dollar amount and a percentage on one line.
+ *
+ * The state name takes a line of its own at the card's full width, and its 3 figures sit
+ * beneath it. Which of Design's 3 figure arrangements is used is decided by measuring the
+ * width the real strings need in the real font at the reader's own text size, against the
+ * width the card really has, rather than by a pixel breakpoint: one rule then answers a
+ * narrow screen and enlarged text together. Chosen once for the whole table, so a reader
+ * never meets 2 shapes in one list.
+ *
+ * Nothing is shortened, clipped or hidden behind a sideways scroll to make it fit. Height
+ * is the cheapest thing a phone has.
+ */
+function PhoneLocationTable({
+  rows,
+  caption,
+  figures,
+  states,
+  statesOpen,
+  onStatesOpenChange,
+  scale,
+}: {
+  rows: readonly LocationTableRow[];
+  caption: string;
+  figures: readonly { names: string; amount: string; share: string; child: boolean }[];
+  states: number;
+  statesOpen: boolean;
+  onStatesOpenChange: (open: boolean) => void;
+  scale: PhoneScale;
+}) {
+  const id = useId();
+  const frame = useRef<HTMLDivElement | null>(null);
+  const [arrangement, setArrangement] = useState<FigureArrangement>('columns');
+  const signature = `${scale.body}|${figures
+    .map((row) => `${row.names} ${row.amount} ${row.share} ${row.child}`)
+    .join('|')}`;
+  useMeasured(() => {
+    const node = frame.current;
+    if (!node) return;
+    let live = true;
+    const widest = (group: string) =>
+      [...node.querySelectorAll<HTMLElement>(`[data-measure~="${group}"]`)].reduce(
+        (most, span) => Math.max(most, span.getBoundingClientRect().width),
+        0,
+      );
+    const read = () => {
+      if (!live) return;
+      const available = node.clientWidth;
+      // 1px so a sub-pixel hair never decides it, in either direction.
+      const columns =
+        widest('col-names') +
+        PHONE_GAP +
+        widest('col-amount') +
+        PHONE_GAP +
+        widest('col-share') +
+        1;
+      // Label beside figure is 2 columns the whole table shares, so the widest label of
+      // any row sits over the widest figure of any other. Measuring each pair on its own
+      // would let a long label wrap while its figure floated at the top of the line,
+      // which is the shape Design moves the label above the figure to avoid.
+      const beside =
+        PHONE_INDENT +
+        PHONE_LABEL_INSET +
+        Math.max(widest('label-names'), widest('label-amount'), widest('label-share')) +
+        PHONE_GAP +
+        Math.max(widest('fig-names'), widest('fig-amount'), widest('fig-share')) +
+        1;
+      const next = figureArrangement({ available, columns, beside });
+      setArrangement((current) => (current === next ? current : next));
+    };
+    read();
+    // A web font arriving, a card changing width and a reader enlarging text all change
+    // the answer, and none of them announces itself as a data change.
+    void document.fonts?.ready?.then(read);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(read);
+    observer?.observe(node);
+    return () => {
+      live = false;
+      observer?.disconnect();
+    };
+  }, [signature]);
+
+  const columnHeader: CSSProperties = { ...head, fontSize: scale.columnHeader };
+  const stateId = `${id}-state`;
+  const columnId = { names: `${id}-names`, amount: `${id}-amount`, share: `${id}-share` };
+  const labels: readonly { key: FigureKey; text: string; weight: number }[] = [
+    { key: 'names', text: copy.names, weight: 500 },
+    { key: 'amount', text: copy.amount, weight: 600 },
+    { key: 'share', text: copy.share, weight: 500 },
+  ];
+  const valueStyle = (row: LocationTableRow, key: FigureKey): CSSProperties => ({
+    fontSize: scale.body,
+    fontWeight: row.child ? (key === 'amount' ? 600 : 500) : 800,
+    color: key === 'amount' ? c.text : c.secondary,
+    lineHeight: arrangement === 'above' ? 1.3 : 1.35,
+  });
+  const labelStyle: CSSProperties = {
+    textAlign: 'left',
+    verticalAlign: 'top',
+    fontSize: scale.body,
+    fontWeight: 400,
+    lineHeight: arrangement === 'above' ? 1.3 : 1.45,
+    color: c.secondary,
+  };
+  const span = arrangement === 'columns' ? 3 : arrangement === 'beside' ? 2 : 1;
+  return (
+    <>
+      {/* A hidden copy of every figure, every label and every column header, laid out in
+          the font and size the table will really use. Reading their widths once answers
+          which arrangement fits without drawing a table that does not and correcting it
+          afterwards, which a reader would see as a flicker. It carries no accessible
+          content of its own, and its own width is the width the table has to fit. */}
+      <div
+        aria-hidden="true"
+        ref={frame}
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: 0,
+          overflow: 'hidden',
+          // The table's own typography, or every width here is measured in a font the
+          // table does not use and the answer is wrong by the difference between them.
+          fontFamily: t.typography.body,
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {/* A column header wraps over its own column, as Design draws it: SHARE OF
+            DOLLARS sits on 3 lines above a 55px column. So what it costs the column is
+            its longest word, not the whole heading on one line. A figure has no space in
+            it and cannot wrap, so it costs its whole width. */}
+        {labels.flatMap((label) =>
+          label.text
+            .split(' ')
+            .map((word) => (
+              <MeasuredText
+                key={`${label.key}-${word}`}
+                group={`col-${label.key}`}
+                text={word}
+                style={columnHeader}
+              />
+            )),
+        )}
+        {/* A label beside its figure is drawn on one line, so it costs its whole width:
+            the moment it cannot share a line, the label moves above the figure instead. */}
+        {labels.map((label) => (
+          <MeasuredText
+            key={label.key}
+            group={`label-${label.key}`}
+            text={label.text}
+            style={labelStyle}
+          />
+        ))}
+        {figures.map((row, index) =>
+          labels.map((label) => (
+            <MeasuredText
+              key={`${index}-${label.key}`}
+              group={`col-${label.key} fig-${label.key}`}
+              text={row[label.key]}
+              style={{ fontSize: scale.body, fontWeight: row.child ? label.weight : 800 }}
+            />
+          )),
+        )}
+      </div>
+      <table style={{ ...tableBase, tableLayout: 'auto', marginTop: 16, fontSize: scale.body }}>
+        <caption style={{ ...captionStyle, fontSize: scale.body }}>{caption}</caption>
+        <thead>
+          <tr>
+            <th
+              scope="col"
+              colSpan={span}
+              id={stateId}
+              style={{
+                ...columnHeader,
+                textAlign: 'left',
+                paddingBottom: arrangement === 'columns' ? 7 : 8,
+                borderBottom: arrangement === 'columns' ? 'none' : head.borderBottom,
+              }}
+            >
+              {copy.state}
+            </th>
+          </tr>
+          {arrangement === 'columns' ? (
+            <tr>
+              {labels.map((label, index) => (
+                <th
+                  key={label.key}
+                  scope="col"
+                  id={columnId[label.key]}
+                  style={{ ...columnHeader, paddingLeft: index === 0 ? 0 : PHONE_GAP }}
+                >
+                  {label.text}
+                </th>
+              ))}
+            </tr>
+          ) : null}
+        </thead>
+        {rows.map((row, index) => {
+          const rowId = `${id}-row-${index}`;
+          const inset = row.child ? PHONE_INDENT : 0;
+          const labelInset = inset + PHONE_LABEL_INSET;
+          const labelId = (key: FigureKey) => `${rowId}-${key}`;
+          const last = (key: FigureKey) => key === 'share';
+          return (
+            <tbody key={`${row.child ? 'state' : 'category'}-${row.key}`}>
+              <tr>
+                <th
+                  scope="rowgroup"
+                  id={rowId}
+                  colSpan={span}
+                  style={{
+                    textAlign: 'left',
+                    paddingTop: scale.cellPadding,
+                    paddingRight: 0,
+                    paddingBottom: arrangement === 'columns' ? 0 : arrangement === 'beside' ? 2 : 6,
+                    paddingLeft: inset,
+                    fontSize: scale.body,
+                    fontWeight: row.child ? 500 : 800,
+                    lineHeight: arrangement === 'above' ? 1.3 : 1.35,
+                    color: c.text,
+                  }}
+                >
+                  <LocationRowName
+                    row={row}
+                    states={states}
+                    statesOpen={statesOpen}
+                    onStatesOpenChange={onStatesOpenChange}
+                    swatch={scale.swatch}
+                    chevron={scale.chevron}
+                    toggleMargin={scale.toggleMargin}
+                    fontSize={scale.body}
+                    lineHeight={arrangement === 'above' ? 1.3 : 1.35}
+                  />
+                </th>
+              </tr>
+              {arrangement === 'columns' ? (
+                <tr>
+                  {labels.map((label, column) => (
+                    <td
+                      key={label.key}
+                      headers={`${rowId} ${columnId[label.key]}`}
+                      style={{
+                        ...valueStyle(row, label.key),
+                        textAlign: 'right',
+                        paddingTop: 1,
+                        paddingRight: 0,
+                        paddingBottom: scale.cellPadding,
+                        paddingLeft: column === 0 ? 0 : PHONE_GAP,
+                        borderBottom: row.rule,
+                      }}
+                    >
+                      {figureOf(row, label.key)}
+                    </td>
+                  ))}
+                </tr>
+              ) : null}
+              {/* Each figure keeps its own label as a row header, so it is still announced
+                  with its state and with what it is, whether the label sits beside it or
+                  on the line above it. Neither arrangement leans on being next to it. */}
+              {arrangement === 'beside'
+                ? labels.map((label) => (
+                    <tr key={label.key}>
+                      <th
+                        scope="row"
+                        id={labelId(label.key)}
+                        style={{
+                          ...labelStyle,
+                          paddingTop: 2,
+                          paddingRight: 0,
+                          paddingBottom: last(label.key) ? scale.cellPadding : 2,
+                          paddingLeft: labelInset,
+                          borderBottom: last(label.key) ? row.rule : undefined,
+                        }}
+                      >
+                        {label.text}
+                      </th>
+                      <td
+                        headers={`${rowId} ${labelId(label.key)}`}
+                        style={{
+                          ...valueStyle(row, label.key),
+                          textAlign: 'right',
+                          verticalAlign: 'top',
+                          paddingTop: 2,
+                          paddingRight: 0,
+                          paddingBottom: last(label.key) ? scale.cellPadding : 2,
+                          paddingLeft: PHONE_GAP,
+                          borderBottom: last(label.key) ? row.rule : undefined,
+                        }}
+                      >
+                        {figureOf(row, label.key)}
+                      </td>
+                    </tr>
+                  ))
+                : null}
+              {arrangement === 'above'
+                ? labels.flatMap((label, pair) => [
+                    <tr key={`${label.key}-label`}>
+                      <th
+                        scope="row"
+                        id={labelId(label.key)}
+                        style={{
+                          ...labelStyle,
+                          paddingTop: pair === 0 ? 6 : 12,
+                          paddingRight: 0,
+                          paddingBottom: 0,
+                          paddingLeft: labelInset,
+                        }}
+                      >
+                        {label.text}
+                      </th>
+                    </tr>,
+                    <tr key={label.key}>
+                      <td
+                        headers={`${rowId} ${labelId(label.key)}`}
+                        style={{
+                          ...valueStyle(row, label.key),
+                          textAlign: 'left',
+                          paddingTop: 1,
+                          paddingRight: 0,
+                          paddingBottom: last(label.key) ? scale.cellPadding : 0,
+                          paddingLeft: labelInset,
+                          borderBottom: last(label.key) ? row.rule : undefined,
+                        }}
+                      >
+                        {figureOf(row, label.key)}
+                      </td>
+                    </tr>,
+                  ])
+                : null}
+            </tbody>
+          );
+        })}
+      </table>
     </>
   );
 }

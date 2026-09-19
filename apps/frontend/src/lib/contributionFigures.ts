@@ -165,6 +165,77 @@ export const donationCardsCopy = {
 };
 
 /**
+ * How big the location card's own pieces are on a phone, given the text size the browser
+ * is really rendering at.
+ *
+ * A reader can enlarge text below this card without our asking: a browser minimum font
+ * size, or a text-only zoom, raises what 15px actually draws as. Design's answer is that
+ * the card grows with it rather than keeping a 14px square and an 18px arrow beside a
+ * 30px word, where both read as stray marks. These are Design's own numbers from the
+ * 19 September 2026 drawing, which shows 15, 20 and 30px text.
+ *
+ * `size` is the size measured off the page, never a size we asked for. 15 is the floor
+ * the money section keeps on phones, so nothing here can shrink below today's card.
+ */
+export type PhoneScale = {
+  heading: number;
+  body: number;
+  columnHeader: number;
+  bar: number;
+  cellPadding: number;
+  swatch: number;
+  chevron: number;
+  /** Negative, so the 44px control keeps the row exactly as tall as the rows without one. */
+  toggleMargin: number;
+};
+
+export function phoneScale(size: number): PhoneScale {
+  const body = Math.max(15, Math.round(size));
+  return {
+    heading: Math.round(body * 1.33),
+    body,
+    columnHeader: body <= 15 ? 11 : Math.round(body * 0.7),
+    bar: body <= 15 ? 20 : Math.round(body * 1.2),
+    cellPadding: body <= 15 ? 9 : body < 30 ? 11 : 13,
+    swatch: body < 24 ? 14 : Math.round(body * 0.67),
+    chevron: body < 24 ? 18 : Math.round(body * 0.86),
+    toggleMargin: -Math.max(0, Math.round((44 - body * 1.35) / 2)),
+  };
+}
+
+/**
+ * Which of Design's 3 phone arrangements the table takes.
+ *
+ * `columns` puts the state name on its own line with its 3 figures aligned beneath it.
+ * `beside` gives each figure its own line, label left and figure right. `above` puts the
+ * label on the line over its figure, both left-aligned, and always fits, because a label
+ * and a figure never have to share a line.
+ *
+ * Chosen from measured width rather than from a pixel breakpoint, so one rule answers a
+ * narrow screen and enlarged text together, and chosen once for the whole table so a
+ * reader never meets 2 arrangements in one list. Every widths figure is measured with
+ * the real font at the real size, including the rows the Other states control is
+ * currently hiding: a group that reopens must not find the arrangement no longer fits.
+ */
+export type FigureArrangement = 'columns' | 'beside' | 'above';
+
+export function figureArrangement(width: {
+  /** The card's own inner width. 0 before anything has been measured. */
+  available: number;
+  /** The 3 shared figure columns, their gaps included. */
+  columns: number;
+  /** The shared label column, its gap, the shared figure column, and the deepest indent. */
+  beside: number;
+}): FigureArrangement {
+  // Nothing measured yet, so keep the arrangement the card is drawn in. It is the one
+  // that fits at the phone floor of 15px text, which is what almost every reader has.
+  if (!(width.available > 0)) return 'columns';
+  if (width.columns <= width.available) return 'columns';
+  if (width.beside <= width.available) return 'beside';
+  return 'above';
+}
+
+/**
  * One category's share of every itemized individual contribution dollar, as it prints.
  *
  * Both figures arrive as exact units from `moneyUnits` in `lib/campaignMoneyDetails.ts`,
