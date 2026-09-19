@@ -7,12 +7,13 @@ import {
   LOBBYING_DONATION_METHOD_NOTE,
 } from './lobbyingDonationDirectory';
 import type { PageSnapshot, SnapshotSection } from './pageSnapshot';
-import type {
-  LobbyingSummary,
-  LobbyingPrincipalsPage,
-  LobbyingLobbyistsPage,
-  LobbyingPrincipal,
-  LobbyingLobbyist,
+import {
+  LOBBYING_DEFAULT_DONATION_SORT,
+  type LobbyingSummary,
+  type LobbyingPrincipalsPage,
+  type LobbyingLobbyistsPage,
+  type LobbyingPrincipal,
+  type LobbyingLobbyist,
 } from './lobbyingTypes';
 import {
   LOBBYING_DIRECTORY_COPY as directory,
@@ -128,7 +129,8 @@ export function lobbyingDirectorySnapshot(
     if (data.q) params.set('q', data.q);
     if ('donations' in data && data.donations?.year)
       params.set('year', String(data.donations.year));
-    if ('sort' in data && data.sort && data.sort !== 'name') params.set('sort', data.sort);
+    if ('sort' in data && data.sort && data.sort !== LOBBYING_DEFAULT_DONATION_SORT)
+      params.set('sort', data.sort);
     if (target > 1) params.set('page', String(target));
     return params.size ? `${path}?${params}` : path;
   };

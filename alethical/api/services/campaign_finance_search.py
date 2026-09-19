@@ -356,7 +356,11 @@ def search(db: Session, release, *, query: str, limit: int) -> SearchAnswer:
     for kind, page, key in (
         (
             LOBBYISTS,
-            lobbying.lobbyists_page(db, pair, limit=limit, offset=0, query=typed),
+            # Name order, stated rather than inherited: this is the name lookup, and
+            # the directory address defaults to the dollar order.
+            lobbying.lobbyists_page(
+                db, pair, limit=limit, offset=0, query=typed, sort="name"
+            ),
             "lobbyists",
         ),
         (

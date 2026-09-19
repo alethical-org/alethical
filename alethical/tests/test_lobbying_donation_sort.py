@@ -223,6 +223,42 @@ def test_sort_orders_the_whole_matching_directory_before_pagination(client, db):
     assert not end["has_more"]
 
 
+def test_the_bare_directory_opens_on_the_dollar_order_and_name_stays_reachable(
+    client, db
+):
+    """The address with no sort is the dollar order, so the page and the API agree."""
+    _pair(db, extra=60)
+    published = _payments(db)
+    _gift(db, published, "900059", Decimal("9999"))
+    _support(db, published)
+    default = _get(client, "lobbyists?limit=1")
+    assert default["sort"] == "donations_desc"
+    assert default["lobbyists"][0]["registration_number"] == "900059"
+    named = _get(client, "lobbyists?limit=1&sort=name")
+    assert named["sort"] == "name"
+    assert named["lobbyists"][0]["registration_number"] != "900059"
+    assert named["total"] == default["total"]
+
+
+def test_the_name_lookup_stays_alphabetical_whatever_the_directory_defaults_to(
+    client, db
+):
+    """The search surface names people; only the directory address ranks money."""
+    _pair(db, extra=60)
+    published = _payments(db)
+    _gift(db, published, "900059", Decimal("9999"))
+    _support(db, published)
+    found = client.get(
+        "/api/v1/campaign-finance/search", params={"q": "Test", "limit": 5}
+    )
+    assert found.status_code == 200
+    group = next(
+        item for item in found.json()["data"]["groups"] if item["kind"] == "lobbyists"
+    )
+    names = [row["name"] for row in group["results"]]
+    assert names == sorted(names)
+
+
 def test_campaign_data_absent_or_partly_pruned_never_claims_no_gifts(client, db):
     _pair(db)
     absent = _get(client, "lobbyists?year=2025")

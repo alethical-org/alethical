@@ -81,7 +81,7 @@ const destinations: {
     path: '/money/lobbying/lobbyists',
     api: '/lobbying/lobbyists?limit=50&offset=50',
     data: live.lobbyists_page_2,
-    key: ['lobbying-lobbyists', '', 2, null, 'name'],
+    key: ['lobbying-lobbyists', '', 2, null, 'donations_desc'],
     title: 'Lobbyists — page 2 — Minnesota lobbying | Alethical',
     query: { page: '2' },
   },
@@ -120,7 +120,7 @@ describe('every lobbying address works before the app loads', () => {
     });
   });
 
-  it('serves a dollar-sorted year with matching seeds and preserved numbered links', async () => {
+  it('leaves the opening dollar order out of the request, the seed and the links', async () => {
     const data = {
       ...live.lobbyists_page_2,
       requested_year: 2025,
@@ -140,7 +140,9 @@ describe('every lobbying address works before the app loads', () => {
       sort: 'donations_desc',
     });
     expect(result.status).toBe(200);
-    expect(fetcher.mock.calls[0][0]).toContain('limit=50&offset=50&year=2025&sort=donations_desc');
+    // The opening order is the one value neither the request nor the address spells out.
+    expect(fetcher.mock.calls[0][0]).toContain('limit=50&offset=50&year=2025');
+    expect(fetcher.mock.calls[0][0]).not.toContain('sort=');
     expect(seeds(result.body)[0].key).toEqual([
       'lobbying-lobbyists',
       '',
@@ -150,8 +152,29 @@ describe('every lobbying address works before the app loads', () => {
     ]);
     expect(snapshot(result.body)).toContain('$1,200 recorded in 2025');
     expect(snapshot(result.body)).toContain('?year=2025');
-    expect(snapshot(result.body)).toContain('year=2025&amp;sort=donations_desc&amp;page=3');
+    expect(snapshot(result.body)).toContain('year=2025&amp;page=3');
+    expect(snapshot(result.body)).not.toContain('sort=donations_desc');
     expect(result.body).toContain('noindex');
+  });
+
+  it('spells out the name order, which is no longer the opening one', async () => {
+    const data = {
+      ...live.lobbyists_page_2,
+      requested_year: 2025,
+      sort: 'name',
+      donations: { year: 2025 },
+    };
+    const fetcher = answer(data);
+    const result = await serve({
+      path: '/money/lobbying/lobbyists',
+      page: '2',
+      year: '2025',
+      sort: 'name',
+    });
+    expect(result.status).toBe(200);
+    expect(fetcher.mock.calls[0][0]).toContain('sort=name');
+    expect(seeds(result.body)[0].key).toEqual(['lobbying-lobbyists', '', 2, 2025, 'name']);
+    expect(snapshot(result.body)).toContain('year=2025&amp;sort=name&amp;page=3');
   });
 
   it.each(destinations)(

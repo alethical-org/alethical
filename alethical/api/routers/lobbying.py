@@ -56,7 +56,9 @@ def lobbyists(
     offset: int = Query(default=0, ge=0),
     q: str = Query(default="", max_length=200),
     year: int | None = Query(default=None, ge=2015),
-    sort: Literal["name", "donations_desc", "donations_asc"] = "name",
+    # The directory opens on the dollar order, so the served default matches what a
+    # reader sees at the bare address and neither side has to spell it out.
+    sort: Literal["name", "donations_desc", "donations_asc"] = "donations_desc",
     db: Session = Depends(get_db),
 ):
     if year is not None and year > last_completed_year():

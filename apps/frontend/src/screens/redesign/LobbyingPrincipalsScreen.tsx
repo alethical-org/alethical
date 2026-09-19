@@ -25,7 +25,7 @@ import {
   lobbyingShowingLine,
   type LobbyingDirectoryKind,
 } from '../../lib/lobbyingDirectoryCopy';
-import type { LobbyingListPage } from '../../lib/lobbyingTypes';
+import { LOBBYING_DEFAULT_DONATION_SORT, type LobbyingListPage } from '../../lib/lobbyingTypes';
 import { lobbyingPageMetadata } from '../../lib/lobbyingMetadata';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { linkProps, routePath } from '../../navigation/links';
@@ -118,7 +118,7 @@ export function LobbyingDirectoryPage({
     lobbyingPageMetadata(address(page), words.title, {
       kind: 'directory',
       page,
-      noindex: Boolean(query.trim() || year || (sort && sort !== 'name')),
+      noindex: Boolean(query.trim() || year || (sort && sort !== LOBBYING_DEFAULT_DONATION_SORT)),
     }).title,
   );
   // A previous name/page's absence must never appear under the current name field.

@@ -102,9 +102,8 @@ describe('the lobbying source reads', () => {
       return null;
     });
     await settle();
-    expect(request.mock.calls[0][0]).toBe(
-      '/lobbying/lobbyists?limit=50&offset=50&q=Ann&year=2025&sort=donations_desc',
-    );
+    // The opening dollar order is the served default, so it is left out.
+    expect(request.mock.calls[0][0]).toBe('/lobbying/lobbyists?limit=50&offset=50&q=Ann&year=2025');
     request.mockImplementation(() => new Promise(() => {}));
     year = 2024;
     rerender();
