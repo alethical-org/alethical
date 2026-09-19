@@ -96,7 +96,7 @@ afterEach(() => {
 
 it('shows the real grouped years, exact employer text, registered anchors and every payment', () => {
   open();
-  expect(host.textContent).toContain('Money given under the name “Nystrom, Mary Ann”');
+  expect(host.textContent).toContain('Incoming payment records under the name “Nystrom, Mary Ann”');
   expect(host.textContent).not.toContain('GAVE');
   expect(getComputedStyle(host.querySelector('[aria-level="1"]')!).marginTop).toBe('22px');
   expect([...host.querySelectorAll('[aria-level="2"]')].map((e) => e.textContent)).toEqual([
@@ -112,7 +112,7 @@ it('shows the real grouped years, exact employer text, registered anchors and ev
     '2016',
   ]);
   expect(host.querySelectorAll('[role="listitem"]')).toHaveLength(29);
-  expect(host.textContent).toContain('7 payments to 5 committees');
+  expect(host.textContent).toContain('7 payment records to 5 committees');
   expect(host.textContent).toContain('Nystrom & Associates');
   const anchor = [...host.querySelectorAll('a')].find(
     (a) => a.textContent === 'Abeler, Jim Senate Committee',
@@ -122,10 +122,10 @@ it('shows the real grouped years, exact employer text, registered anchors and ev
 });
 
 it.each([
-  ['vendor', 'Money paid under the name “Nystrom, Mary Ann”', 'GOT PAID'],
+  ['vendor', 'Spending records paid under the name “Nystrom, Mary Ann”', 'GOT PAID'],
   [
     'independent_vendor',
-    'Independent spending paid under the name “Nystrom, Mary Ann”',
+    'Independent-spending records paid under the name “Nystrom, Mary Ann”',
     'PAID BY INDEPENDENT SPENDING',
   ],
 ] as const)(
@@ -135,6 +135,8 @@ it.each([
     draw(role);
     expect(host.textContent).toContain(heading);
     expect(host.textContent).not.toContain(label);
+    expect(host.textContent).not.toContain('when a donor gives $200 or less');
+    expect(host.textContent).not.toContain('For ballot-question committees and funds');
   },
 );
 
@@ -150,9 +152,9 @@ it('a single payment has no duplicated subtotal and a nonlinkable name is plain 
 it('merges an extra page into an existing year and filer while keeping duplicate gifts', () => {
   const one = { ...rows[0], year: 2025, paidOn: '2025-05-01', amount: '100.0000' };
   open({ data: { pages: [page([one])] }, hasNextPage: true });
-  expect(host.textContent).toContain('1 payment so far');
+  expect(host.textContent).toContain('1 payment record so far');
   expect(host.textContent).toContain(YEAR_MAY_CONTINUE);
-  expect(host.textContent).toContain('Showing the first 1 payment, newest first');
+  expect(host.textContent).toContain('Showing the first 1 payment record, newest first');
   expect(host.textContent).not.toContain('NEWEST FIRST');
   expect(host.textContent).toContain(CAP_NOTE);
   const more = [...host.querySelectorAll('[role="button"]')].find(
@@ -164,7 +166,7 @@ it('merges an extra page into an existing year and filer while keeping duplicate
   draw();
   expect(host.querySelectorAll('[role="listitem"]')).toHaveLength(2);
   expect(host.textContent).toContain('$200');
-  expect(host.textContent).toContain('2 payments to 1 committee');
+  expect(host.textContent).toContain('2 payment records to 1 committee');
   expect(host.textContent).not.toContain(YEAR_MAY_CONTINUE);
 });
 
@@ -190,7 +192,7 @@ it.each(['vendor', 'independent_vendor'])(
     expect(host.textContent).not.toContain('Must not print');
     expect(host.textContent).toContain('Party unit');
     expect(host.textContent).toContain(
-      role === 'vendor' ? '1 payment from 1 committee' : '1 payment from 1 spender',
+      role === 'vendor' ? '1 payment record from 1 committee' : '1 payment record from 1 spender',
     );
   },
 );
@@ -243,7 +245,7 @@ describe('existing whole-page states', () => {
   });
   it('keeps the exact-spelling empty explanation', () => {
     open({ data: { pages: [page([], { state: 'not_reported' })] } });
-    expect(host.textContent).toContain('No matching payments under “Nystrom, Mary Ann”');
+    expect(host.textContent).toContain('No matching payment records under “Nystrom, Mary Ann”');
     expect(host.textContent).toContain(NOTHING_FILED_WHY);
   });
   it('distinguishes unavailable records from an empty name', () => {
@@ -260,7 +262,7 @@ describe('existing whole-page states', () => {
 it('keeps a group count but withholds its subtotal when an amount is missing', () => {
   const one = { ...rows[0], year: 2025, amount: '10.0000' };
   open({ data: { pages: [page([one, { ...one, amount: null }])] } });
-  expect(host.textContent).toContain('2 payments');
+  expect(host.textContent).toContain('2 payment records');
   expect(host.textContent).toContain('Amount not given');
   expect(host.textContent?.match(/\$10/g)).toHaveLength(1);
 });
@@ -271,12 +273,12 @@ it.each(['contributor', 'vendor', 'independent_vendor'])(
     draw(role);
     expect(host.textContent).toContain(
       role === 'contributor'
-        ? 'received-payment records'
+        ? 'incoming payment records'
         : role === 'vendor'
           ? 'ordinary spending records'
           : 'independent-spending records',
     );
-    expect(host.textContent).toContain('No matching payments under “Nystrom, Mary Ann”');
+    expect(host.textContent).toContain('No matching payment records under “Nystrom, Mary Ann”');
   },
 );
 it('retains rows after a refresh failure and provides a retry', () => {
@@ -313,7 +315,7 @@ it('does not merge unidentified filers or claim how many committees they represe
   const unknown = { ...rows[0], filerRegistrationNumber: null, amount: '23.0000' };
   open({ data: { pages: [page([unknown, unknown])] } });
   expect(host.querySelectorAll('[aria-level="3"]')).toHaveLength(2);
-  expect(host.querySelector('[role="status"]')?.textContent).toBe('2 payments');
+  expect(host.querySelector('[role="status"]')?.textContent).toBe('2 payment records');
   expect(host.textContent).toContain('No registration number in the file');
   expect(host.textContent).not.toContain('$46');
 });

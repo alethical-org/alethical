@@ -41,6 +41,13 @@ import {
 } from './committeeMoneyShared';
 import { formatDay, formatMoney } from './moneyFormat';
 import { formatCount } from './moneyLanding';
+import { MONEY_LIST_COVERAGE } from './moneyListCopy';
+import {
+  CONTRIBUTION_RECORD_LIMIT,
+  FILE_COPY_MEANING,
+  MATCHED_NAME_LIMIT,
+  OFFICIAL_TOTAL_RECORD_LIMIT,
+} from './moneyRecordTrust';
 import type { PaymentNameRole } from './paymentNameRoute';
 export {
   PAYMENT_NAME_ROLES,
@@ -59,16 +66,17 @@ export {
  * match is exact, other spellings are elsewhere, and a name is all this is.
  */
 export function paymentsUnderNameStandfirst(role: PaymentNameRole): string {
-  const side = role === 'contributor' ? 'gave' : 'got paid';
   const what =
     role === 'independent_vendor'
-      ? 'Every independent-spending payment filed under this name'
-      : 'Every payment filed under this name';
-  return (
-    `${what}, exactly as it was spelled. Spellings vary between filings, so this may not be ` +
-    `everything — and a name is all this is: nothing here says who or what ${side}.`
-  );
+      ? 'Independent-spending payment records filed under this name'
+      : role === 'contributor'
+        ? 'Incoming payment records filed under this name'
+        : 'Ordinary spending records filed under this name';
+  return `${what}, exactly as it was spelled. ${MATCHED_NAME_LIMIT}`;
 }
+
+export const RECEIVED_PAYMENT_TYPES_NOTE =
+  'The incoming payment file includes contributions, loans, and other receipt types received by committees. Each row that is not a contribution is labelled with its filed receipt type. Contribution reporting limits apply only to contribution rows.';
 
 /**
  * The independent-spending page's extra sentence. The 2 vendor files overlap and
@@ -85,7 +93,9 @@ export const INDEPENDENT_IS_A_SEPARATE_FILING =
 export const ALL_YEARS_LABEL = 'All years we hold';
 
 export function filesLastCopiedLine(checkedOn: string | null): string {
-  return checkedOn ? `${ALL_YEARS_LABEL} · files last copied ${checkedOn}` : ALL_YEARS_LABEL;
+  return checkedOn
+    ? `${ALL_YEARS_LABEL} · files last copied ${checkedOn}. ${FILE_COPY_MEANING}`
+    : ALL_YEARS_LABEL;
 }
 
 /**
@@ -108,9 +118,9 @@ export function paymentsShowingLine(
   role: PaymentNameRole = 'vendor',
 ): string {
   if (hasMore) {
-    return `Showing the first ${formatCount(shown)} ${shown === 1 ? 'payment' : 'payments'}, newest first`;
+    return `Showing the first ${formatCount(shown)} payment ${shown === 1 ? 'record' : 'records'}, newest first`;
   }
-  const payments = `${formatCount(shown)} ${shown === 1 ? 'payment' : 'payments'}`;
+  const payments = `${formatCount(shown)} payment ${shown === 1 ? 'record' : 'records'}`;
   if (committees === null) return payments;
   const unit = role === 'independent_vendor' ? 'spender' : 'committee';
   const filers = `${formatCount(committees)} ${unit}${committees === 1 ? '' : 's'}`;
@@ -125,7 +135,7 @@ export const ORDERED_NEWEST_FIRST = 'NEWEST FIRST';
  *  those words — and never how many are left, which we are not told. */
 export const CAP_HEADING = 'THIS PAGE IS CAPPED';
 
-export const CAP_NOTE = 'We load up to 250 payments at a time. More records may remain.';
+export const CAP_NOTE = 'We load up to 250 payment records at a time. More records may remain.';
 
 export const CAP_NEXT_LABEL = 'Show more payments';
 
@@ -134,25 +144,40 @@ export const CAP_NEXT_LABEL = 'Show more payments';
  * guess, and the first of them is the acceptance criterion this whole page turns
  * on: there is no total, and the reason is the filing calendars.
  */
-export const LIST_NOTE =
-  'Payments are grouped by filing year and committee. Any subtotal covers only the payments ' +
+const LIST_NOTE_BASE =
+  'Payment records are grouped by filing year and committee. Any subtotal covers only the records ' +
   'shown for that committee in that filing year. Committees report on different schedules, ' +
-  'so we do not add amounts across committees or years. Similar name spellings are kept separate.';
+  'so we do not add amounts across committees or years.';
+
+export function paymentsUnderNameListNote(role: PaymentNameRole): string {
+  return role === 'contributor'
+    ? `${LIST_NOTE_BASE} ${CONTRIBUTION_RECORD_LIMIT} ${OFFICIAL_TOTAL_RECORD_LIMIT}`
+    : LIST_NOTE_BASE;
+}
+
+/** Compatibility for callers that explicitly read received payments. */
+export const LIST_NOTE = paymentsUnderNameListNote('contributor');
+
+export function paymentsUnderNameCoverage(role: PaymentNameRole): readonly string[] {
+  return role === 'contributor'
+    ? MONEY_LIST_COVERAGE
+    : [MONEY_LIST_COVERAGE[0], MONEY_LIST_COVERAGE[1]];
+}
 
 /** Nothing carries this spelling. A fact about the spelling and our records, and
  *  never about anybody's giving — which is why it names neither a person nor a
  *  reason. */
 export function nothingFiledTitle(name: string): string {
-  return `No matching payments under “${name}”`;
+  return `No matching payment records under “${name}”`;
 }
 
 export function nothingFiledWhy(role: PaymentNameRole): string {
   const records = {
-    contributor: 'received-payment',
+    contributor: 'incoming payment',
     vendor: 'ordinary spending',
     independent_vendor: 'independent-spending',
   }[role];
-  return `Our copy of the ${records} records contains no payments under this exact spelling. Other spellings are kept separate.`;
+  return `Our copy of the ${records} records contains no rows under this exact spelling. This does not mean there was no giving or spending.`;
 }
 
 /** Compatibility for callers that explicitly read received payments. */
@@ -295,7 +320,7 @@ export function filerRegistrationLabel(registration: string): string {
 }
 
 export function groupPaymentCount(count: number): string {
-  return `${formatCount(count)} ${count === 1 ? 'payment' : 'payments'}`;
+  return `${formatCount(count)} payment ${count === 1 ? 'record' : 'records'}`;
 }
 
 export function nonContributionReceiptLabel(receiptType: string | null): string | null {

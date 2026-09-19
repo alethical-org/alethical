@@ -573,15 +573,19 @@ describe('the payments view', () => {
     expect(paymentsTabFromParam(undefined)).toBe('gave');
     expect(paymentsTitle('gave')).toBe('Who gave to this committee');
     expect(paymentsTitle('spent')).toBe('Where this committee’s money went');
-    expect(paymentsEyebrow('gave')).toBe('Every donor named');
+    expect(paymentsEyebrow('gave')).toBe('Named payment records');
   });
 
   it('says how much of the population is showing, from a measured count', () => {
-    expect(showingLine(250, 1284, 2026)).toBe('Showing 250 of 1,284 payments for filing year 2026');
-    expect(showingLine(41, 41, 2026)).toBe('41 payments listed for filing year 2026');
-    expect(showingLine(1, 1, 2026)).toBe('1 payment listed for filing year 2026');
+    expect(showingLine(250, 1284, 2026)).toBe(
+      'Showing 250 of 1,284 payment records for filing year 2026',
+    );
+    expect(showingLine(41, 41, 2026)).toBe('41 payment records listed for filing year 2026');
+    expect(showingLine(1, 1, 2026)).toBe('1 payment record listed for filing year 2026');
     // No served count, no claim.
-    expect(showingLine(50, null, 2026, true)).toBe('Showing 50 payments for filing year 2026');
+    expect(showingLine(50, null, 2026, true)).toBe(
+      'Showing 50 payment records for filing year 2026',
+    );
   });
 
   it('owns its cap in plain words', () => {
@@ -675,17 +679,17 @@ describe('the record-coverage block', () => {
   // another's.
   it('states the threshold each filer kind actually carries, and never the other one', () => {
     const ordinary = recordCoverageLines(false);
-    expect(ordinary).toHaveLength(3);
+    expect(ordinary).toHaveLength(4);
     // No terminal full stop on any coverage line (#1924): each stands on its own line.
-    expect(ordinary[2]).toBe(
-      'Committees need not name contributors who gave $200 or less in total during the calendar year',
+    expect(ordinary[3]).toBe(
+      'Committees need not name contributors who gave $200 or less to that committee in total during the calendar year',
     );
     expect(ordinary.join(' ')).not.toContain('$500');
 
     const ballot = recordCoverageLines(true);
-    expect(ballot).toHaveLength(3);
-    expect(ballot[2]).toBe(
-      'Committees need not name contributors who gave $500 or less in total during the calendar year',
+    expect(ballot).toHaveLength(4);
+    expect(ballot[3]).toBe(
+      'Committees need not name contributors who gave $500 or less to that committee in total during the calendar year',
     );
     // The $200 line must not also appear here: 2 thresholds on one page is worse than
     // the silence this replaced.
@@ -696,10 +700,10 @@ describe('the record-coverage block', () => {
   // standalone lines takes no closing mark — a terminal full stop makes each read as
   // the opening of a paragraph that never arrives. This holds both threshold variants
   // as well as the 3 fixed lines.
-  it('ends no coverage line with a full stop, in either threshold variant', () => {
+  it('keeps standalone lines unpunctuated and the 2-sentence explanation punctuated', () => {
     for (const lines of [recordCoverageLines(false), recordCoverageLines(true)]) {
       for (const line of lines) {
-        expect(line.endsWith('.')).toBe(false);
+        expect(line.endsWith('.')).toBe(line.startsWith('Official report totals'));
       }
     }
   });
@@ -916,12 +920,12 @@ describe('the 2 outside-spending tabs', () => {
   });
 
   it('counts payments and the other side, singular where 1, capped while cut, never "named"', () => {
-    expect(outsideCountLine('by', 12, 12, 5)).toBe('12 payments about 5 committees');
-    expect(outsideCountLine('by', 1, 1, 1)).toBe('1 payment about 1 committee');
-    expect(outsideCountLine('about', 5, 5, 5)).toBe('5 payments by 5 groups');
-    expect(outsideCountLine('about', 1, 1, 1)).toBe('1 payment by 1 group');
-    expect(outsideCountLine('about', 6, 12, 5)).toBe('Showing 6 of 12 payments');
-    expect(outsideCountLine('by', 50, 1284, 40)).toBe('Showing 50 of 1,284 payments');
+    expect(outsideCountLine('by', 12, 12, 5)).toBe('12 payment records about 5 committees');
+    expect(outsideCountLine('by', 1, 1, 1)).toBe('1 payment record about 1 committee');
+    expect(outsideCountLine('about', 5, 5, 5)).toBe('5 payment records by 5 groups');
+    expect(outsideCountLine('about', 1, 1, 1)).toBe('1 payment record by 1 group');
+    expect(outsideCountLine('about', 6, 12, 5)).toBe('Showing 6 of 12 payment records');
+    expect(outsideCountLine('by', 50, 1284, 40)).toBe('Showing 50 of 1,284 payment records');
     expect(outsideCountLine('by', 0, null, null)).toBeNull();
     for (const line of [outsideCountLine('by', 12, 12, 5), outsideCountLine('about', 6, 12, 5)]) {
       expect(line).not.toContain('named');

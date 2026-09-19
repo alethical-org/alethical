@@ -19,6 +19,11 @@ import type { MoneyFilingRow, MoneyFilingsFeed } from '../data/types';
 import { formatDay } from './moneyFormat';
 import { UNION_FINANCES_NOTE } from './committeeMoneyShared';
 import { MONEY_SECTION_NAME } from './moneySectionName';
+import {
+  MATCHED_NAME_LIMIT,
+  OFFICIAL_TOTAL_RECORD_LIMIT,
+  SMALL_CONTRIBUTION_LIMIT,
+} from './moneyRecordTrust';
 
 export {
   campaignFinanceFilingsFromPayload,
@@ -51,8 +56,9 @@ export const MONEY_LANDING_COVERAGE_HEADING = 'Limits of the campaign records';
 
 export const MONEY_LANDING_RECORD_DOES_NOT_COVER = [
   'Payment records start in 2015',
-  'Donors who gave $200 or less in total for the year need not be named',
-  'There is no complete directory of payment recipients. Names are shown as filed, and different spellings may refer to the same person or business.',
+  SMALL_CONTRIBUTION_LIMIT,
+  OFFICIAL_TOTAL_RECORD_LIMIT,
+  `There is no complete directory of payment recipients. ${MATCHED_NAME_LIMIT}`,
   UNION_FINANCES_NOTE,
 ] as const;
 
@@ -85,7 +91,7 @@ export const LANE_COUNT_UNITS = {
   legislators: 'members',
   committees: 'registered filers',
   byRace: 'contests',
-  outsideSpending: 'payments',
+  outsideSpending: 'payment records',
 } as const;
 
 /**
@@ -209,13 +215,9 @@ export const MONEY_LANDING_HEADING = MONEY_SECTION_NAME;
  * The subtitle and stored lane bodies each contain 1 standalone sentence and end bare.
  * `legislatorsLaneBody` preserves the separator before a partial confirmation sentence.
  */
-/**
- * "donation and payment", not the filing system's "contribution and expenditure" (ruled
- * 2 Sep 2026, copy proposal 3): "expenditure" is the one word every other string in this
- * section avoids for money out, and this is the first sentence a reader meets.
- */
+/** The first sentence names the public records this section searches. */
 export const MONEY_LANDING_SUBTITLE =
-  'Search Minnesota’s published campaign donations, payments, and lobbying records';
+  'Search Minnesota’s published campaign money and lobbying records';
 
 /** Search guidance stays brief here. Spelling limits are explained with no-match results. */
 export const MONEY_LANDING_SEARCH_NOTE =
@@ -225,7 +227,7 @@ export const RECENT_FILINGS_HEADING = 'Recently filed reports';
 
 export const MONEY_LANE_LEGISLATORS = {
   title: 'Legislators',
-  body: 'See each legislator’s campaign donations and payments',
+  body: 'See official contribution totals and named payment records for each legislator’s confirmed committee',
 } as const;
 
 /**
@@ -249,7 +251,7 @@ export function legislatorsLaneBody(
 ): string {
   if (!confirmation || confirmation.total <= 0) return MONEY_LANE_LEGISLATORS.body;
   if (confirmation.confirmed === confirmation.total) {
-    return 'Each legislator’s campaign donations and payments, with their committee match confirmed';
+    return 'Official contribution totals and named payment records, with every legislator’s committee match confirmed';
   }
   return `${MONEY_LANE_LEGISLATORS.body}. ${legislatorsLaneSentence(confirmation)}`;
 }
@@ -278,7 +280,7 @@ export const MONEY_LANE_COMMITTEES = {
  */
 export const MONEY_LANE_WHO_GOT_PAID = {
   title: 'Who got paid',
-  body: 'Every payment filed under a name, as spelled on the filing',
+  body: 'Search payment records by the recipient name and spelling on the filing',
 } as const;
 
 /**

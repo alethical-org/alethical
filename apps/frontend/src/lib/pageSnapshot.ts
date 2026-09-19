@@ -1,17 +1,28 @@
 import {
   filesLastCopiedLine,
   INDEPENDENT_IS_A_SEPARATE_FILING,
-  LIST_NOTE,
   nothingFiledTitle,
   nothingFiledWhy,
   ORDERED_NEWEST_FIRST,
   paymentsShowingLine,
+  paymentsUnderNameCoverage,
+  paymentsUnderNameListNote,
   paymentsUnderNameHeading,
   paymentsUnderNameStandfirst,
+  RECEIVED_PAYMENT_TYPES_NOTE,
   RECORDS_UNAVAILABLE_TITLE,
   RECORDS_UNAVAILABLE_WHY,
   type PaymentUnderNameRow,
 } from './paymentsUnderName';
+import {
+  CONTRIBUTION_PERIOD_LIMIT,
+  CONTRIBUTION_REPORTING_LABEL,
+  CONTRIBUTION_REPORTING_URL,
+  FILE_COPY_MEANING,
+  NAME_REGISTRATION_DIFFERENCE,
+  REPEATED_RECORD_LIMIT,
+  SMALL_CONTRIBUTION_LIMIT,
+} from './moneyRecordTrust';
 import type { PaymentNameRole } from './paymentNameRoute';
 import { MONEY_LANE_LOBBYING, moneyLandingLobbyistCount } from './lobbyingDirectoryCopy';
 import {
@@ -1524,6 +1535,7 @@ export function paymentsUnderNamePageSnapshot(
   const copiedOn = page.fetchedAt ? centralDateLabel(page.fetchedAt) : null;
   const body = [
     paymentsUnderNameStandfirst(role),
+    ...(role === 'contributor' ? [RECEIVED_PAYMENT_TYPES_NOTE] : []),
     ...(role === 'independent_vendor' ? [INDEPENDENT_IS_A_SEPARATE_FILING] : []),
     filesLastCopiedLine(copiedOn),
   ];
@@ -1535,6 +1547,33 @@ export function paymentsUnderNamePageSnapshot(
         [paymentsShowingLine(rows.length, null, page.hasMore, role), ORDERED_NEWEST_FIRST]
       : [nothingFiledTitle(name), nothingFiledWhy(role)]
     : [RECORDS_UNAVAILABLE_TITLE, RECORDS_UNAVAILABLE_WHY];
+  const contributionDetails =
+    role === 'contributor'
+      ? {
+          heading: 'How these records are counted',
+          blocks: [
+            {
+              kind: 'prose' as const,
+              lines: [
+                NAME_REGISTRATION_DIFFERENCE,
+                SMALL_CONTRIBUTION_LIMIT,
+                REPEATED_RECORD_LIMIT,
+                CONTRIBUTION_PERIOD_LIMIT,
+                FILE_COPY_MEANING,
+              ],
+            },
+            {
+              kind: 'links' as const,
+              items: [
+                {
+                  label: CONTRIBUTION_REPORTING_LABEL,
+                  href: CONTRIBUTION_REPORTING_URL,
+                },
+              ],
+            },
+          ],
+        }
+      : null;
   return {
     heading: paymentsUnderNameHeading(name, role),
     subheading: '',
@@ -1543,6 +1582,7 @@ export function paymentsUnderNamePageSnapshot(
     bodyIsList: false,
     facts: [],
     sections: [
+      ...(contributionDetails ? [contributionDetails] : []),
       {
         heading: listState[0],
         body: listState.slice(1),
@@ -1564,11 +1604,15 @@ export function paymentsUnderNamePageSnapshot(
               ? `/money/committees/${encodeURIComponent(committeeSlug(row.linkName, row.linkNumber))}`
               : undefined,
         })),
-        ...(rows.length > 0 ? { blocks: [{ kind: 'prose' as const, lines: [LIST_NOTE] }] } : {}),
+        ...(rows.length > 0
+          ? {
+              blocks: [{ kind: 'prose' as const, lines: [paymentsUnderNameListNote(role)] }],
+            }
+          : {}),
       },
       {
         heading: MONEY_LIST_COVERAGE_HEADING,
-        body: [...MONEY_LIST_COVERAGE],
+        body: [...paymentsUnderNameCoverage(role)],
         bodyIsList: true,
       },
     ],

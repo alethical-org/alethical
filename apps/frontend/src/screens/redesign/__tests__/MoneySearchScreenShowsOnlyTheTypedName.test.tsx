@@ -157,6 +157,7 @@ describe('lobbying search groups keep their own counts and proven destinations',
     return {
       data: {
         ...lobbyingLive.kozak,
+        fetched_at: '2026-09-01T12:00:00Z',
         groups: lobbyingLive.kozak.groups.map((group) =>
           group.kind === 'principals'
             ? {
@@ -192,7 +193,7 @@ describe('lobbying search groups keep their own counts and proven destinations',
     expect(group.querySelector('a')?.getAttribute('href')).toBe(
       '/money/lobbying/lobbyists/kozak-andrew-141',
     );
-    const payments = section(page.host, 'NAMES THAT GAVE')!;
+    const payments = section(page.host, 'NAMES ON INCOMING PAYMENT RECORDS')!;
     expect(payments.textContent).toContain('2 MATCHES');
     expect(payments.textContent).toContain('Kozak, Andrew V');
     expect(payments.querySelector('a')?.getAttribute('href')).toContain('/money/payments?name=');
@@ -211,6 +212,10 @@ describe('lobbying search groups keep their own counts and proven destinations',
     );
     expect(group.textContent).toContain(
       'Entity 7325 · Latest spending year in these records: 2017',
+    );
+    expect(page.words()).toContain('Campaign payment files copied Sep 1, 2026');
+    expect(page.words()).toContain(
+      'The copy date is when Alethical obtained the source, not the end date of every filing.',
     );
     expect([...group.querySelectorAll('a')].map((link) => link.getAttribute('href'))).toEqual([
       '/money/lobbying/principals/actwireless-7325',

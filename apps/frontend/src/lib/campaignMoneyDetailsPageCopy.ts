@@ -31,9 +31,9 @@ export function namedMoneyDefinition(isBallot: boolean): DekSegment[] {
       text:
         ' are reported as a combined total without names. ' +
         (isBallot
-          ? 'Minnesota requires donors to be named when their total giving exceeds $500 in a year, ' +
+          ? 'Minnesota requires donors to be named when their total giving to this committee exceeds $500 in a year, ' +
             'the threshold for a ballot-question committee; committees may also name donors who give $500 or less.'
-          : 'Minnesota requires donors to be named when their total giving exceeds $200 in a year; ' +
+          : 'Minnesota requires donors to be named when their total giving to this committee exceeds $200 in a year; ' +
             'committees may also name donors who give $200 or less.'),
     },
   ];

@@ -1272,6 +1272,9 @@ export interface NameSearchAnswer {
   /** How many distinct names the server counts before it stops. */
   countedUpTo: number | null;
   groups: NameSearchGroup[];
+  /** When Alethical copied the exact campaign payment-file release searched by
+   *  the 3 payment-name groups. This is a copy date, never a coverage end. */
+  fetchedAt: string | null;
   reason: string | null;
 }
 

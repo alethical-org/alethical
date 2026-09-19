@@ -240,7 +240,7 @@ export const RACE_FIGURE_DEFINITIONS = [
   },
   {
     label: NAMED_FIGURE_LABEL,
-    text: 'Donations with named givers in our payment records',
+    text: 'Donations with named givers in our contribution records',
   },
 ] as const;
 export const RACE_REGISTRATION_NOTE = 'These records do not confirm who is on the ballot';

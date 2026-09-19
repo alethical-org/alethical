@@ -4552,7 +4552,8 @@ def campaign_finance_search(
       about a *spelling* that still reads as a page about a human being (§5).
     * ``committees`` -- the register. The one group whose rows carry an identifier that
       survives a name change, so these are the rows that open a page.
-    * ``gave`` -- distinct names in the contributions download. A private donor's name is
+    * ``gave`` -- distinct names in the received-payments download. That file includes
+      contributions, loans, and other receipt types. A private contributor's name is
       searchable and is deliberately not a profile.
     * ``got_paid`` and ``got_paid_independent`` -- distinct vendor names, from the
       expenditures download and the independent-expenditures download. **Two groups on
@@ -4570,8 +4571,8 @@ def campaign_finance_search(
     verbatim, so a caller opens that name's payments without translating anything.
     ``payment_count`` counts records in one download and is never an amount.
 
-    **The employer column is not searched and has no group.** It is free text a donor
-    filled in, and its 4 commonest values are "Not Employed" (67,342 rows), "Retired"
+    **The employer column is not searched and has no group.** It is free text on a
+    received-payment record, and its 4 commonest values are "Not Employed" (67,342 rows), "Retired"
     (36,517), "Self employed Retired" and "Lawyer" -- a result row for "retired" would
     present a status as something to open.
 
@@ -4587,7 +4588,7 @@ def campaign_finance_search(
     the page says "type at least 3 characters" instead of "nothing found", which would be
     a false claim about the records. The floor is the index's: a trigram index holds no
     whole trigram for a 2-character query, so it would fall back to reading all 583,152
-    contribution rows
+    received-payment rows
     ([#1486](https://github.com/alethical-org/alethical/issues/1486)).
 
     No 503 when nothing is published: the 3 name groups go ``unavailable`` with
@@ -4632,6 +4633,7 @@ def campaign_finance_search(
             "as_of": answer.as_of,
             "snapshot_id": str(answer.snapshot_id) if answer.snapshot_id else None,
             "release_id": str(answer.release_id) if answer.release_id else None,
+            "fetched_at": answer.fetched_at,
             "reason": answer.reason,
         }
     )

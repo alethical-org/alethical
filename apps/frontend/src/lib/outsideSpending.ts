@@ -356,7 +356,7 @@ export const IN_KIND_LABEL = 'In kind';
 /** "across 41,130 payments, 2015 through 2026". Payments, not expenditures: the
  *  ruled count line for these rows uses that word (1 Sep 2026). */
 export function recordSpanLine(figures: OutsideSpendingRecordFigures): string {
-  const payments = `${formatCount(figures.rowCount)} ${figures.rowCount === 1 ? 'payment' : 'payments'}`;
+  const payments = `${formatCount(figures.rowCount)} ${figures.rowCount === 1 ? 'payment record' : 'payment records'}`;
   if (figures.firstYear === null || figures.lastYear === null) return `across ${payments}`;
   if (figures.firstYear === figures.lastYear) return `across ${payments}, ${figures.firstYear}`;
   return `across ${payments}, ${figures.firstYear} through ${figures.lastYear}`;
@@ -364,22 +364,22 @@ export function recordSpanLine(figures: OutsideSpendingRecordFigures): string {
 
 /** "31,718 payments supporting", counted rows, for the whole record's direction line. */
 export function directionCountLine(count: number, direction: 'supporting' | 'opposing'): string {
-  return `${formatCount(count)} ${count === 1 ? 'payment' : 'payments'} ${direction}`;
+  return `${formatCount(count)} ${count === 1 ? 'payment record' : 'payment records'} ${direction}`;
 }
 
 export function inKindCountLine(count: number): string {
-  return `${formatCount(count)} ${count === 1 ? 'payment' : 'payments'} in goods or services`;
+  return `${formatCount(count)} ${count === 1 ? 'payment record' : 'payment records'} in goods or services`;
 }
 
 /** The sentence under the whole record's direction figures. Printed only while
  *  every row states a direction, which is what it claims; the moment a row does
  *  not, the third figure appears instead and this sentence goes. */
 export const EVERY_ROW_STATES_A_DIRECTION =
-  'Every payment states a direction. Payments in goods or services are already included in ' +
-  'the supporting or opposing count. They are not additional payments.';
+  'Every payment record states a direction. Records for goods or services are already included in ' +
+  'the supporting or opposing count. They are not additional records.';
 
 export function directionNotRecordedLine(count: number): string {
-  return `${formatCount(count)} ${count === 1 ? 'payment' : 'payments'} where the filing does not say which`;
+  return `${formatCount(count)} ${count === 1 ? 'payment record' : 'payment records'} where the filing does not say which`;
 }
 
 export const IN_KIND_COUNTED_INSIDE =
@@ -529,7 +529,7 @@ export function subjectCountLine(
   view: OutsideSpendingView,
   figures: OutsideSpendingRecordFigures,
 ): string {
-  const payments = `${formatCount(figures.rowCount)} ${figures.rowCount === 1 ? 'payment' : 'payments'}`;
+  const payments = `${formatCount(figures.rowCount)} ${figures.rowCount === 1 ? 'payment record' : 'payment records'}`;
   if (view === 'about') {
     const groups = `${formatCount(figures.spenderCount)} ${figures.spenderCount === 1 ? 'group' : 'groups'}`;
     return `${payments} by ${groups}`;
@@ -610,7 +610,7 @@ export function rowsCountLine(
 ): string | null {
   if (!page.figures || page.totalRows === null) return null;
   if (page.totalRows > page.pageSize) {
-    return `Showing ${formatCount(page.rows.length)} of ${formatCount(page.totalRows)} payments`;
+    return `Showing ${formatCount(page.rows.length)} of ${formatCount(page.totalRows)} payment records`;
   }
   return subjectCountLine(view, page.figures);
 }

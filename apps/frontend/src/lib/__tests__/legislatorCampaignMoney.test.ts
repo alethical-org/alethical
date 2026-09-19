@@ -309,11 +309,11 @@ describe('dates', () => {
 
 describe('paymentCountLabel', () => {
   it('counts one payment in the singular', () => {
-    expect(paymentCountLabel(1)).toBe('1 payment');
+    expect(paymentCountLabel(1)).toBe('1 payment record');
   });
 
   it('groups the digits of a large count', () => {
-    expect(paymentCountLabel(1488)).toBe('1,488 payments');
+    expect(paymentCountLabel(1488)).toBe('1,488 payment records');
   });
 
   it('says nothing rather than zero when there is no count', () => {

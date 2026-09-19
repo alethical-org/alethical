@@ -47,7 +47,7 @@ describe('lobbying before the app starts', () => {
     const data = live.kozak as LobbyingLobbyist;
     const page = lobbyingLobbyistSnapshot(data);
     const html = renderPageSnapshot(page);
-    expect(html).toContain('240 donations · showing 5');
+    expect(html).toContain('240 contribution records · showing 5');
     expect(html).toContain('Campaign contribution file copied Sep 1, 2026');
     expect(html).toContain('Filed as Kozak, Andrew V');
     expect(html).not.toContain('Employer as filed');
@@ -149,7 +149,28 @@ describe('lobbying before the app starts', () => {
     const data = live.absent as LobbyingLobbyist;
     const html = renderPageSnapshot(lobbyingLobbyistSnapshot(data));
     expect(html).toContain('not listed on the copy date');
-    expect(html).toContain('names no donation under this registration number');
+    expect(html).toContain('No contribution records match this registration number');
     expect(html).not.toContain('Total contributed');
   });
+});
+
+it('scopes the unresolved all-years notice to the affected registration and source copy', () => {
+  const data = structuredClone(live.kozak) as LobbyingLobbyist;
+  data.registration_number = '8692';
+  data.contributions.release_id = 'af236cca-a4f8-4efe-9a3a-025259ea380e';
+  let html = renderPageSnapshot(lobbyingLobbyistSnapshot(data));
+  expect(html).toContain('All-years count under review');
+  expect(html).toContain('1,194 records matched to registration 8692 across all years');
+  expect(html).toContain('contains 1,203');
+  // A selected year must not turn the all-years comparison into a year-specific claim.
+  html = renderPageSnapshot(lobbyingLobbyistSnapshot(data, 2025));
+  expect(html).toContain('All-years count under review');
+  data.contributions.release_id = 'another-source';
+  expect(renderPageSnapshot(lobbyingLobbyistSnapshot(data))).not.toContain('count under review');
+  data.contributions.release_id = 'af236cca-a4f8-4efe-9a3a-025259ea380e';
+  data.registration_number = '141';
+  expect(renderPageSnapshot(lobbyingLobbyistSnapshot(data))).not.toContain('count under review');
+  data.registration_number = '8692';
+  data.contributions.state = 'unavailable';
+  expect(renderPageSnapshot(lobbyingLobbyistSnapshot(data))).not.toContain('count under review');
 });

@@ -35,7 +35,7 @@ function Cards() {
       <FilingStamp
         line="Jan 1 to Jul 20, 2026"
         detail="The filing covers these dates."
-        notes={['134 payments in 2026']}
+        notes={['134 payment records in 2026']}
         covered
         boardRecordUrl="https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/18430/2026/"
         isMobile={false}
@@ -159,14 +159,14 @@ describe('profile styling for shared money cards', () => {
       '$1,000',
       'Through Jul 20, 2026',
       'Checked by Alethical on Aug 30, 2026',
-      'Public Subsidy · 2 payments',
+      'Public Subsidy · 2 payment records',
     ]) {
       const style = getComputedStyle(exact(profile, text));
       expect(style.fontFamily).toBe(fontFamily(t.typography.body));
       expect(style.fontWeight).toBe('800');
       expect(style.fontVariant).toBe('tabular-nums');
     }
-    const note = getComputedStyle(exact(profile, '134 payments in 2026'));
+    const note = getComputedStyle(exact(profile, '134 payment records in 2026'));
     expect(note.fontWeight).toBe('400');
     expect(note.fontVariant).toBe('tabular-nums');
     const period = getComputedStyle(exact(profile, 'Jan 1 to Jul 20, 2026'));

@@ -39,7 +39,7 @@ export const LOBBYING_DIRECTORY_COPY = {
     title: 'Lobbyists',
     lane: 'People registered to influence government decisions on behalf of others',
     intro:
-      'Lobbyists are people registered to attempt to influence government decisions. Browse the clients they represent in these records.',
+      'Lobbyists are people registered to attempt to influence government decisions. Open a lobbyist to see the clients listed in these records.',
     searchLabel: 'Search lobbyists by name',
     // The lobbyist directory carries its own field wording; the principals
     // directory keeps the shared `filter` and `filterNote` strings.

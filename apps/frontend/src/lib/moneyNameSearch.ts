@@ -28,6 +28,7 @@
  */
 
 import { formatCount } from './moneyLanding';
+import { FILE_COPY_MEANING, MATCHED_NAME_LIMIT } from './moneyRecordTrust';
 export { lobbyingNoSpendingRows as principalWithoutSpending } from './lobbyingDirectoryCopy';
 
 /** The server's own group names, in the order it always returns them. */
@@ -62,9 +63,9 @@ const GROUP_HEADINGS: Record<NameSearchGroupKind, string> = {
   principals: 'PRINCIPALS',
   people: 'PEOPLE',
   committees: 'COMMITTEES',
-  gave: 'NAMES THAT GAVE',
-  got_paid: 'NAMES THAT GOT PAID',
-  got_paid_independent: 'NAMES PAID BY INDEPENDENT SPENDING',
+  gave: 'NAMES ON INCOMING PAYMENT RECORDS',
+  got_paid: 'NAMES ON ORDINARY SPENDING RECORDS',
+  got_paid_independent: 'NAMES ON INDEPENDENT-SPENDING RECORDS',
 };
 
 export function groupHeading(kind: NameSearchGroupKind): string {
@@ -80,14 +81,14 @@ const GROUP_NOTES: Record<NameSearchGroupKind, string> = {
   lobbyists: 'People listed as lobbyists, with the clients in the copied records',
   principals: 'Organizations named in the Board’s lobbying registrations or spending reports',
   people:
-    'These results are sitting legislators with a profile on Alethical. A donor’s name alone does not create a profile.',
+    'These results are sitting legislators with a profile on Alethical. A name on a payment record alone does not create a profile.',
   committees:
     'Each row opens a registered committee. Committees remain separate even when their names include the same person.',
-  gave: 'Each row opens payments filed under that exact spelling. Similar names are not combined.',
+  gave: 'Each row opens incoming payment records filed under that exact spelling. The count is records, not separate gifts or people. A row may be a contribution, loan, or another receipt type.',
   got_paid:
-    'Each row opens payments filed under that exact spelling. The count is payment records, not dollars.',
+    'Each row opens ordinary spending records filed under that exact spelling. The count is records, not separate payments or people.',
   got_paid_independent:
-    'These records come from a separate file. Some may also appear in ordinary spending records, so the 2 files are not added together.',
+    'Each row opens independent-spending records filed under that exact spelling. Some may also appear in ordinary spending records, so the 2 files are not added together.',
 };
 
 export function groupNote(kind: NameSearchGroupKind): string {
@@ -111,10 +112,10 @@ export function countedUpToNote(countedUpTo: number | null): string | null {
   return `We stopped counting after ${formatCount(countedUpTo)} distinct names. More matches exist.`;
 }
 
-/** "9 payments filed under this name" — a count of records, never an amount. */
+/** "9 payment records filed under this name" — never a count of separate gifts or people. */
 export function paymentNameMeta(paymentCount: number | null): string {
-  if (paymentCount === null) return 'Payments filed under this name';
-  return `${formatCount(paymentCount)} ${paymentCount === 1 ? 'payment' : 'payments'} filed under this name`;
+  if (paymentCount === null) return 'Payment records filed under this name';
+  return `${formatCount(paymentCount)} payment ${paymentCount === 1 ? 'record' : 'records'} filed under this name`;
 }
 
 /** "Senate District 41 · DFL · sitting member" — what we hold about a person
@@ -159,15 +160,19 @@ export function nameSearchHeading(query: string): string {
 /** The list's footnote, printed under the groups as the drawing places it
  *  ("Money lists.dc.html", issue #1946) — so it says "above", never "below". */
 export const NAME_SEARCH_MATCHED_ON =
-  'Names are matched as filed, using the spelling you typed. Each group is counted separately. ' +
+  `${MATCHED_NAME_LIMIT} Each group is counted separately. ` +
   'The counts are not added because some records overlap.';
+
+export function campaignFilesCopiedLine(copiedOn: string | null): string | null {
+  return copiedOn ? `Campaign payment files copied ${copiedOn}. ${FILE_COPY_MEANING}` : null;
+}
 
 /** Nothing typed yet. Not an error and not "no matches" — the field simply has
  *  nothing to search on. */
 export const NAME_SEARCH_EMPTY_QUERY_TITLE = 'Type a name to search';
 
 export const NAME_SEARCH_EMPTY_QUERY_WHY =
-  'This searches campaign records by a legislator’s, committee’s, donor’s, or recipient’s filed name. ' +
+  'This searches campaign records by a legislator’s, committee’s, contributor’s, or payment recipient’s filed name. ' +
   'It also searches the Board’s copied lobbyist list and yearly principal spending file.';
 
 /** Below the index's floor. A served state, not an error: a trigram index holds
