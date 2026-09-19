@@ -45,7 +45,10 @@ function listPath(kind: 'principals' | 'lobbyists', options: LobbyingListOptions
     const year = lobbyingDonationYear(options.year);
     if (year) params.set('year', String(year));
     const sort = lobbyingDonationSort(options.sort);
-    if (sort !== 'name') params.set('sort', sort);
+    // Always stated, never inferred. The app and the API deploy separately, so a
+    // window where they disagree about the default would leave the directory
+    // loading forever against its own request-matching guard.
+    params.set('sort', sort);
   }
   return `/lobbying/${kind}?${params.toString()}`;
 }

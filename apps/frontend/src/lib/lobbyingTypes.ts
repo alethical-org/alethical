@@ -10,8 +10,17 @@ export interface LobbyingListOptions {
 
 export type LobbyingDonationSort = 'name' | 'donations_desc' | 'donations_asc';
 
+/**
+ * The order the lobbyist directory opens in, and the one value left out of both the
+ * address and the API request. One constant so the address, the first response and
+ * the served default cannot drift apart.
+ */
+export const LOBBYING_DEFAULT_DONATION_SORT: LobbyingDonationSort = 'donations_desc';
+
 export function lobbyingDonationSort(value: unknown): LobbyingDonationSort {
-  return value === 'donations_desc' || value === 'donations_asc' ? value : 'name';
+  return value === 'name' || value === 'donations_desc' || value === 'donations_asc'
+    ? value
+    : LOBBYING_DEFAULT_DONATION_SORT;
 }
 
 function lobbyingCalendarYear(): number {

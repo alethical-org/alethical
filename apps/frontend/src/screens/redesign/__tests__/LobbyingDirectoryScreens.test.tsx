@@ -281,11 +281,11 @@ describe('lobbying directories', () => {
       host.querySelector('a[aria-label="Next page"]')!.getAttribute('href')!,
       'https://test',
     );
+    // The opening dollar order is left out of the address; every other value stays.
     expect(Object.fromEntries(next.searchParams)).toEqual({
       q: 'Ann',
       page: '3',
       year: '2025',
-      sort: 'donations_desc',
     });
     const year = host.querySelector('select[aria-label="Year"]') as HTMLSelectElement;
     act(() => {
@@ -300,6 +300,15 @@ describe('lobbying directories', () => {
     });
     expect(navigation.setParams).toHaveBeenCalledWith({
       sort: 'donations_asc',
+      page: undefined,
+      year: '2025',
+    });
+    act(() => {
+      sort.value = 'donations_desc';
+      sort.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(navigation.setParams).toHaveBeenCalledWith({
+      sort: undefined,
       page: undefined,
       year: '2025',
     });
@@ -518,7 +527,7 @@ it('explains when no completed year supports an amount without printing a blank 
   state.lobbyists = success({
     ...fixture.lobbyists_page_2,
     requested_year: null,
-    sort: 'name',
+    sort: 'donations_desc',
     donations: { state: 'reported', year: null, available_years: [], eligible_count: 0 },
   });
   render(
@@ -535,7 +544,7 @@ it('uses singular wording for 1 supported donation amount', () => {
   state.lobbyists = success({
     ...fixture.lobbyists_page_2,
     requested_year: null,
-    sort: 'name',
+    sort: 'donations_desc',
     donations: { state: 'reported', year: 2025, available_years: [2025], eligible_count: 1 },
   });
   render(

@@ -116,9 +116,14 @@ record name comes from the spending file where that file holds the principal.
 
 ## Annual donation order in the lobbyist directory
 
-`/money/lobbying/lobbyists` adds Year and Sort by controls. Name A–Z remains the
-default. Recorded donations can be ordered highest or lowest first for a completed
-calendar year. The server orders the whole matching list before selecting 50 rows;
+`/money/lobbying/lobbyists` adds Year and Sort by controls. The page opens on
+`Donations: highest first` for the latest supported completed calendar year, so a
+reader who arrives at the bare address sees the largest recorded donations first.
+Name A–Z and `Donations: lowest first` are the other 2 choices. The opening order
+is the 1 value left out of both the address and the request to the API, so the
+bare address, the first response and the served default cannot drift apart; every
+other choice is spelled out, including `sort=name`. The lobbying name search is
+unaffected and stays alphabetical. The server orders the whole matching list before selecting 50 rows;
 missing amounts follow supported amounts in either direction, with name and
 registration number breaking ties. Search, year, sort and page stay in the address.
 Changing a control returns to page 1. Filtered addresses are not indexed.

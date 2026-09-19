@@ -1994,7 +1994,9 @@ year names the spending file's coverage. Lobbyist rows carry their registration
 number, filed and formatted names, and a count of distinct current principal IDs.
 
 The lobbyists route also accepts `year` (2015 through the last completed calendar
-year in America/Chicago) and `sort` (`name`, `donations_desc`, `donations_asc`).
+year in America/Chicago) and `sort` (`name`, `donations_desc`, `donations_asc`,
+defaulting to `donations_desc` so the route matches the directory's own opening
+order). The lobbying group of the campaign-finance name search asks for `name`.
 It echoes `requested_year` and `sort`. `donations` carries `state`, selected `year`,
 `available_years`, campaign `release_id`, `copied_at`, `source_url` and
 `eligible_count` for the whole current name search. Years offered have at least

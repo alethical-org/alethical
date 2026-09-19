@@ -187,3 +187,40 @@ pager's impossible page count and its 320-pixel wrap),
 first-name-first finds nobody), [issue 2303](https://github.com/alethical-org/alethical/issues/2303)
 (Back and keyboard paging) and [issue 2304](https://github.com/alethical-org/alethical/issues/2304)
 (4 wordings that can be misread).
+
+## The directory opens on the dollar order
+
+Eugene ruled on 18 September 2026 that `Sort by` reads `Donations: highest first`
+on first load of `/money/lobbying/lobbyists`, replacing `Name A–Z`.
+
+One constant carries it (`LOBBYING_DEFAULT_DONATION_SORT` in
+[lobbyingTypes.ts](../../apps/frontend/src/lib/lobbyingTypes.ts)), read by the
+address, the query cache key and the route's own default. The opening order is
+left out of the **address** only, so the bare path stays canonical; `sort=name`
+and `sort=donations_asc` are spelled out there.
+
+**Every request to the API states the order, including the default.** The app,
+the first-response function and the API deploy separately, so a window where any
+2 of them disagree about the default would leave the directory loading forever
+against its own request-matching guard: the response would echo `name` while the
+page asked for `donations_desc`, and no response would ever match. Measured on
+18 September 2026 against the live API, which still echoed `sort: "name"` for a
+bare request while the rebuilt page expected `donations_desc`. Stating the order
+removes the cross-service coupling, and the route's matching default then only
+serves a caller who asks for nothing.
+
+The campaign-finance name search asks for `name` explicitly. It lists people by
+name, so the directory's opening order must never reach it, and stating the
+argument at the call keeps a later change to the service default from silently
+reordering that surface. A test fails if it does.
+
+What this changes for a reader: the first 50 rows of the bare address are the 50
+largest recorded donations for the latest supported year, rather than the first 50
+surnames. 1,529 of the 1,665 registered lobbyists hold no supported amount for
+2025, so they now sit behind the dollar order rather than on page 1. `Name A–Z`
+remains 1 choice away and its address is `?sort=name`.
+
+Search engines see no new address: the bare path is still the canonical one and is
+still the only indexed form, because the opening order is omitted from it. An old
+`?sort=donations_desc` bookmark still works and stays unindexed, as every address
+carrying a parameter other than `page` does.

@@ -86,7 +86,9 @@ describe('the lobbying source reads', () => {
   it('requests numbered pages of 50 and preserves the typed filter', async () => {
     request.mockResolvedValueOnce({ data: live.lobbyists_page_2 });
     expect(await getLobbyingLobbyists({ page: 2 })).toEqual(live.lobbyists_page_2);
-    expect(request.mock.calls[0][0]).toBe('/lobbying/lobbyists?limit=50&offset=50');
+    expect(request.mock.calls[0][0]).toBe(
+      '/lobbying/lobbyists?limit=50&offset=50&sort=donations_desc',
+    );
     request.mockResolvedValueOnce({ data: live.principals_page_2 });
     await getLobbyingPrincipals({ page: 2, q: ' A & B ' });
     expect(request.mock.calls[1][0]).toBe('/lobbying/principals?limit=50&offset=50&q=A+%26+B');
@@ -102,6 +104,7 @@ describe('the lobbying source reads', () => {
       return null;
     });
     await settle();
+    // The order is always stated in the request, whatever the API's own default is.
     expect(request.mock.calls[0][0]).toBe(
       '/lobbying/lobbyists?limit=50&offset=50&q=Ann&year=2025&sort=donations_desc',
     );

@@ -1,5 +1,9 @@
 import { LobbyistDirectoryCard } from '../../components/lobbying/LobbyistDirectoryCard';
-import { lobbyingDonationYear, lobbyingDonationSort } from '../../lib/lobbyingTypes';
+import {
+  LOBBYING_DEFAULT_DONATION_SORT,
+  lobbyingDonationYear,
+  lobbyingDonationSort,
+} from '../../lib/lobbyingTypes';
 import { useLobbyingLobbyists } from '../../hooks/useLobbying';
 import { committeeSlug } from '../../lib/committeeMoneyShared';
 import { directoryPageNumber } from '../../lib/directoryPagination';
@@ -21,7 +25,7 @@ export function LobbyingLobbyistsScreen({
     result.data?.q === query.trim() &&
     result.data?.offset === (page - 1) * 50 &&
     (result.data?.requested_year ?? null) === (year ?? null) &&
-    (result.data?.sort ?? 'name') === sort;
+    (result.data?.sort ?? LOBBYING_DEFAULT_DONATION_SORT) === sort;
   const donations = responseMatches ? result.data?.donations : undefined;
   const donationYear = donations?.year ?? null;
   const navigationYear = donationYear != null ? String(donationYear) : undefined;
@@ -45,7 +49,7 @@ export function LobbyingLobbyistsScreen({
       rows={rows}
       year={year ? String(year) : undefined}
       navigationYear={navigationYear}
-      sort={sort === 'name' ? undefined : sort}
+      sort={sort === LOBBYING_DEFAULT_DONATION_SORT ? undefined : sort}
       responseMatches={responseMatches}
       renderResults={(state) => (
         <LobbyistDirectoryCard
@@ -69,7 +73,7 @@ export function LobbyingLobbyistsScreen({
           onYear={(value) => navigation.setParams({ year: value || undefined, page: undefined })}
           onSort={(value) =>
             navigation.setParams({
-              sort: value === 'name' ? undefined : value,
+              sort: value === LOBBYING_DEFAULT_DONATION_SORT ? undefined : value,
               page: undefined,
               ...(navigationYear ? { year: navigationYear } : {}),
             })
