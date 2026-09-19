@@ -5,11 +5,11 @@ import {
   getCampaignMoneyYearStates,
   getCompleteCampaignMoneyPayments,
 } from '../campaignMoneyDetails';
-import { publicApiRequest } from '../api';
+import { ApiError, publicApiRequest } from '../api';
 
-vi.mock('../api', () => ({
+vi.mock('../api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../api')>()),
   publicApiRequest: vi.fn(),
-  isNotFoundError: (error: unknown) => (error as { status?: number })?.status === 404,
 }));
 const request = vi.mocked(publicApiRequest);
 const row = {
@@ -272,7 +272,7 @@ describe('every year’s state in 1 request', () => {
   });
 
   it('falls back to the per-year reads while the service does not serve the route', async () => {
-    request.mockRejectedValueOnce(Object.assign(new Error('not found'), { status: 404 }));
+    request.mockRejectedValueOnce(new ApiError(404, 'not found'));
     request.mockResolvedValueOnce({
       data: { year: 2024, link_state: 'confirmed', committees: [] },
     });
@@ -286,7 +286,7 @@ describe('every year’s state in 1 request', () => {
   });
 
   it('passes any other failure through rather than hiding it behind 11 reads', async () => {
-    request.mockRejectedValueOnce(Object.assign(new Error('down'), { status: 503 }));
+    request.mockRejectedValueOnce(new ApiError(503, 'down'));
     await expect(getCampaignMoneyYearStates('member', [2024])).rejects.toThrow('down');
     expect(request).toHaveBeenCalledTimes(1);
   });

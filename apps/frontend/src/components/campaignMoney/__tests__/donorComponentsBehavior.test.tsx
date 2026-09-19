@@ -411,10 +411,42 @@ describe('the donor list preserves the complete filed record', () => {
     act(() => root!.unmount());
     mounted!.remove();
     // A record that carries no location column at all says nothing. "Not reported" is a
-    // claim about the filing, and nobody read one here.
+    // claim about the filing, and nobody read one here. A response cached before the
+    // field shipped is exactly this shape, and it is reusable for a day.
     const noColumn = mount(list({ groups: groupContributionPayments([gift()]) }));
     click(noColumn.querySelector('[aria-label="Show the 1 payment from Amy Example"]'));
     expect(noColumn.textContent).not.toContain('ZIP code as filed');
+  });
+
+  it('shapes a payment from a pre-release response without a location at all', () => {
+    // The 2 readers of these rows, given a copy taken before the columns existed. The
+    // keys must be ABSENT rather than null, or every payment on that copy would print
+    // "Not reported" over a ZIP the record holds.
+    const older = {
+      state: 'reported',
+      payments: [
+        {
+          contributor: 'Amy Example',
+          contributor_type: 'Individual',
+          amount: '100.00',
+          received_on: '2025-01-10',
+          receipt_type: 'Contribution',
+          in_kind: 'No',
+        },
+      ],
+      page: { limit: 250, offset: 0, has_more: false, total_payments: 1 },
+      linkable_registration_numbers: [],
+    };
+    const shaped = committeePaymentsReceivedFromPayload(older).payments[0];
+    expect('contributorZip' in shaped).toBe(false);
+    expect('contributorState' in shaped).toBe(false);
+    // And the same row once the columns are served, including a filing with no ZIP.
+    const current = committeePaymentsReceivedFromPayload({
+      ...older,
+      payments: [{ ...older.payments[0], contributor_zip: null, contributor_state: null }],
+    }).payments[0];
+    expect('contributorZip' in current).toBe(true);
+    expect(current.contributorZip).toBeNull();
   });
 
   it('adds no location line to an expenditure row', () => {

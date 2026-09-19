@@ -1375,7 +1375,10 @@ never padded to 5 digits, never trimmed, never repaired — so a reader can tell
 unmatched or ambiguous ZIP, which states what we cannot say rather than guessing a location.
 The normalization the lookup performs belongs to the lookup and never rewrites the printed ZIP.
 Neither field carries a city, a street address or any contact detail, and the reference's own
-ZIP table stays inside the service. The aggregate `donor_states` block on the `finance`
+ZIP table stays inside the service. **A client tells an absent key from a null one**, because
+these rows are served `max-age=300, stale-while-revalidate=86400` and a copy taken before the
+columns shipped stays reusable for a day: `contributor_zip: null` is a filing with no ZIP, and
+no key at all is a copy that can say nothing. The aggregate `donor_states` block on the `finance`
 endpoint reads the same reference and still carries no ZIP at all, because it speaks for a
 state rather than for a payment.
 
