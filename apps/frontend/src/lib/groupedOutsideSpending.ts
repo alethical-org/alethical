@@ -182,7 +182,7 @@ export function paymentsForOutsideSpender(
 }
 
 export function outsidePaymentCountLabel(count: number): string {
-  return `${count} ${count === 1 ? 'payment' : 'payments'}`;
+  return `${count} ${count === 1 ? 'payment record' : 'payment records'}`;
 }
 
 export function outsideSpenderCountLabel(count: number): string {

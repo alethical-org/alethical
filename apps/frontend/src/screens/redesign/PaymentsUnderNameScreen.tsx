@@ -412,6 +412,7 @@ export function PaymentRows({
           {paymentsShowingLine(rows.length, committeesInRows(rows), hasNextPage, role)}
         </Text>
       </View>
+      <Text style={styles.linkNote}>{paymentsUnderNameListNote(role)}</Text>
       {years.map((year, yearIndex) => (
         <View key={year.year ?? 'unknown'} style={styles.yearSection}>
           <View style={styles.yearHeadingRow}>
@@ -576,8 +577,6 @@ export function PaymentRows({
           </View>
         </View>
       ) : null}
-
-      <Text style={styles.linkNote}>{paymentsUnderNameListNote(role)}</Text>
     </View>
   );
 }

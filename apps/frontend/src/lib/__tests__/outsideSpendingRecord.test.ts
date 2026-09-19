@@ -24,6 +24,7 @@ import {
   outsideSpendingViewLabel,
   outsideSpendingYear,
   pageLine,
+  paymentRecordCountLabel,
   paidLine,
   periodNote,
   purposeText,
@@ -152,6 +153,11 @@ describe('which view an address asks for', () => {
 });
 
 describe('the whole record', () => {
+  it('labels source-row counts as payment records', () => {
+    expect(paymentRecordCountLabel(1)).toBe('1 payment record');
+    expect(paymentRecordCountLabel(4312)).toBe('4,312 payment records');
+  });
+
   it('spans the file in the ruled word for a row', () => {
     expect(recordSpanLine(FIGURES)).toBe('across 41,130 payment records, 2015 through 2026');
     expect(recordSpanLine({ ...FIGURES, rowCount: 1, firstYear: 2026, lastYear: 2026 })).toBe(

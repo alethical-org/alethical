@@ -119,6 +119,9 @@ it('shows the real grouped years, exact employer text, registered anchors and ev
   );
   expect(anchor?.getAttribute('href')).toBe('/money/committees/abeler-jim-senate-committee-17868');
   expect(host.textContent).toContain(LIST_NOTE);
+  expect(host.textContent!.indexOf(LIST_NOTE)).toBeLessThan(
+    host.textContent!.indexOf('Abeler, Jim Senate Committee'),
+  );
 });
 
 it.each([

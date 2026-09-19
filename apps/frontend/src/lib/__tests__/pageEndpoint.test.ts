@@ -1816,7 +1816,7 @@ describe('the records a money page hands to the app', () => {
     expect(body).toContain('<h1>Spending by groups that are not the campaign</h1>');
     // The app's own money formatter, so the served figure is the drawn figure.
     expect(body).toContain('$12,345,678');
-    expect(body).toContain('4,321 payments');
+    expect(body).toContain('4,321 payment records');
     expect(body).toContain('2015 through 2026');
     expect(body).toContain('href="/money/outside-spending?browse=groups"');
     expect(body).toContain('href="/money/outside-spending?browse=committees"');

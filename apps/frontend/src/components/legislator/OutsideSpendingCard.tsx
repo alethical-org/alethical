@@ -16,6 +16,7 @@ import {
   outsideSpendingFigures,
   outsideSpendingPaymentCount,
   outsideSpendingPeriod,
+  paymentRecordCountLabel,
   outsideSpendingSharedReason,
   outsideSpendingSourceUrl,
   outsideSpendingUnavailableReason,
@@ -160,9 +161,7 @@ function YearBlock({ year }: { year: OutsideSpendingYear }) {
                     figure — `outsideSpendingFigures` already substitutes 0 for an
                     absent amount, and a measured 0 has its own sentence above. */}
                 <Text style={styles.figureAmount}>{formatMoney(figure.amount)}</Text>
-                <Text style={styles.figureMeta}>
-                  {figure.payments === 1 ? '1 payment' : `${figure.payments} payments`}
-                </Text>
+                <Text style={styles.figureMeta}>{paymentRecordCountLabel(figure.payments)}</Text>
               </View>
             ))}
           </View>
