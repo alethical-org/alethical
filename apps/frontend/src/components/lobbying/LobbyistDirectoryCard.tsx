@@ -36,6 +36,8 @@ export function LobbyistDirectoryCard({
   total,
   pending,
   failed,
+  updating = false,
+  updateFailed = false,
   resultsRef,
   rows,
   emptyPage,
@@ -55,6 +57,8 @@ export function LobbyistDirectoryCard({
   total: number | null;
   pending: boolean;
   failed: boolean;
+  updating?: boolean;
+  updateFailed?: boolean;
   /** Previous and Next bring this card's top back into view and move focus here. */
   resultsRef?: Ref<View>;
   rows: LobbyistDirectoryCardRow[];
@@ -115,7 +119,9 @@ export function LobbyistDirectoryCard({
             </Text>
           ) : null}
           <LobbyingDonationSelects
-            donations={donations}
+            donations={
+              donations && requestedYear ? { ...donations, year: requestedYear } : donations
+            }
             sort={sort}
             requestedYear={requestedYear}
             loading={pending}
@@ -124,6 +130,36 @@ export function LobbyistDirectoryCard({
             onYear={onYear}
             onSort={onSort}
           />
+        </View>
+        <View
+          style={{
+            paddingHorizontal: inset,
+            minHeight: isMobile ? 69 : 44,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
+          <Text
+            role={updateFailed ? 'alert' : 'status'}
+            aria-live="polite"
+            style={[styles.emptyWhy, { marginTop: 0, flex: 1 }]}
+          >
+            {updateFailed
+              ? 'Couldn’t update results. Previous results are still shown.'
+              : updating
+                ? 'Updating results. Previous results are still shown.'
+                : ''}
+          </Text>
+          {updateFailed ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={onRetry}
+              style={[styles.retry, { marginTop: 0, flexShrink: 0 }]}
+            >
+              <Text style={styles.retryText}>{copy.retry}</Text>
+            </Pressable>
+          ) : null}
         </View>
         <View style={[styles.notes, notePad, { paddingHorizontal: inset }]}>
           <LobbyingDonationNotes

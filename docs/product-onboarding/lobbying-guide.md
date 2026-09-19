@@ -109,7 +109,7 @@ records: {year}.”
 
 The showing line uses the whole served count, for example
 "Showing 51–100 of 1,665 registered lobbyists". Page counts are never added across kinds.
-Changing the name does not draw the previous search's empty statement under the new name.
+Changing the name keeps any previous result explicitly marked as previous until the new response arrives.
 On the lobbyist directory only, Previous and Next bring the top of the results card back
 into view and move keyboard focus there, so a reader is never dropped at the foot of a page
 they have not seen. Browser Back is not a page change and keeps the place the browser
@@ -135,7 +135,24 @@ missing amounts follow supported amounts in either direction, with name and
 registration number breaking ties. Search, year, sort and page stay in the address.
 Changing a control returns to page 1. Filtered addresses are not indexed.
 
-Each row opens that lobbyist's record with the same donation year selected.
+The lobbyist directory retains its last successful response during name, year, order and
+page changes. Rows, result count, copy dates, amount year and record links stay together;
+the controls show the requested choices and a reserved status line says the previous
+results are still shown. Numbered-page controls keep their space and displayed page but
+are disabled until replacement. A failed update keeps the previous response with a retry;
+a first visit without any successful response uses the loading or failure state.
+Only a matching successful replacement can move pagination focus or establish an
+out-of-range address. An older response cannot replace a newer selection.
+
+Matching reads stay fresh for 5 minutes and remain in memory for 30 minutes. After a
+successful requested read, the browser prepares at most the next numbered page using
+the same freshness window. It does not prepare every year or order, or continue a chain
+of speculative pages. Data-saving and slow-connection preferences suppress this extra
+read. Unused in-flight preparation is cancelled when the selection changes. New data
+replaces its full source dates and release identifiers together after the freshness
+window or an explicit refresh; source checks on the server remain required.
+
+Each row opens that lobbyist's record with the donation year displayed beside its amount.
 The 2 copy dates stay apart, each against the records it dates: the registration
 list's date sits under the introduction, and the campaign file's date sits inside
 the results card as “Campaign contribution file copied {date}”, directly under the

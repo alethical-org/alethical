@@ -59,6 +59,7 @@ export function LobbyingDirectoryPage({
   navigationYear,
   sort,
   responseMatches = true,
+  retainResults = false,
   renderResults,
 }: {
   navigation: DirectoryNavigation;
@@ -77,6 +78,8 @@ export function LobbyingDirectoryPage({
   navigationYear?: string;
   sort?: string;
   responseMatches?: boolean;
+  /** Opt-in only for the lobbyist screen, which retains a whole successful response. */
+  retainResults?: boolean;
   /** The lobbyist directory draws its own results card; principals keep this one. */
   renderResults?: (state: {
     countLine: string | null;
@@ -102,7 +105,7 @@ export function LobbyingDirectoryPage({
     navigation.setParams({
       q: q || undefined,
       page: undefined,
-      ...(kind === 'lobbyists' && navigationYear ? { year: navigationYear } : {}),
+      ...(kind === 'lobbyists' && (year ?? navigationYear) ? { year: year ?? navigationYear } : {}),
     });
   useDebouncedSearchCommit(draft, query, applyQuery);
   const address = (target: number) =>
@@ -112,7 +115,7 @@ export function LobbyingDirectoryPage({
           page: target > 1 ? String(target) : undefined,
         })
       : routePath.lobbyingLobbyists({
-          year: navigationYear ?? year,
+          year: year ?? navigationYear,
           sort,
           q: query || undefined,
           page: target > 1 ? String(target) : undefined,
@@ -127,18 +130,21 @@ export function LobbyingDirectoryPage({
   );
   // A previous name/page's absence must never appear under the current name field.
   const data =
-    responseMatches &&
-    result.data?.q === query.trim() &&
-    result.data?.offset === (page - 1) * LOBBYING_DIRECTORY_PAGE_SIZE
+    retainResults ||
+    (responseMatches &&
+      result.data?.q === query.trim() &&
+      result.data?.offset === (page - 1) * LOBBYING_DIRECTORY_PAGE_SIZE)
       ? result.data
       : null;
-  const pending = result.isPending || (!data && !result.isError);
+  const displayedPage = data ? Math.floor(data.offset / LOBBYING_DIRECTORY_PAGE_SIZE) + 1 : page;
+  const replacing = retainResults && (!responseMatches || result.isPending || result.isError);
+  const pending = !retainResults && (result.isPending || (!data && !result.isError));
   const served = data?.state === 'reported' || data?.state === 'not_reported';
   const total = served ? data.total : null;
   const totalPages =
     total == null ? null : directoryTotalPages(total, LOBBYING_DIRECTORY_PAGE_SIZE);
   const outOfRange = loadedDirectoryPageIsOutOfRange({
-    isSuccess: result.isSuccess && served,
+    isSuccess: result.isSuccess && served && responseMatches,
     isDefaultDirectory: !query.trim(),
     page,
     total,
@@ -155,19 +161,37 @@ export function LobbyingDirectoryPage({
   // name, year or order does not scroll, because the reader is looking at the
   // control that did it.
   const resultsRef = useRef<View>(null);
-  const pagedFrom = useRef(false);
+  const selectionKey = JSON.stringify([query, page, year ?? navigationYear, sort]);
+  const pagedFrom = useRef<{ key: string; trigger: Element | null } | null>(null);
   useEffect(() => {
-    if (!lobbyists || !data || !pagedFrom.current) return;
-    pagedFrom.current = false;
+    const requested = pagedFrom.current;
+    if (!requested) return;
+    if (requested.key !== selectionKey) {
+      pagedFrom.current = null;
+      return;
+    }
+    if (!lobbyists || !data || !responseMatches || result.isError) return;
+    pagedFrom.current = null;
+    // A reader who moved to another control while waiting keeps their focus.
+    if (
+      typeof document !== 'undefined' &&
+      document.activeElement !== document.body &&
+      document.activeElement !== requested.trigger
+    )
+      return;
     const node = resultsRef.current as unknown as HTMLElement | null;
     node?.scrollIntoView?.({ block: 'start' });
     node?.focus?.({ preventScroll: true });
-  }, [data, lobbyists]);
+  }, [data, lobbyists, responseMatches, result.isError, selectionKey]);
   const goToPage = (target: number) => {
-    if (lobbyists) pagedFrom.current = true;
+    if (lobbyists)
+      pagedFrom.current = {
+        key: JSON.stringify([query, target, year ?? navigationYear, sort]),
+        trigger: typeof document !== 'undefined' ? document.activeElement : null,
+      };
     navigation.setParams({
       page: target > 1 ? String(target) : undefined,
-      ...(kind === 'lobbyists' && navigationYear ? { year: navigationYear } : {}),
+      ...(kind === 'lobbyists' && (year ?? navigationYear) ? { year: year ?? navigationYear } : {}),
     });
   };
   const introSize = lobbyists
@@ -290,11 +314,12 @@ export function LobbyingDirectoryPage({
               countLine: pending
                 ? words.loading
                 : total != null
-                  ? lobbyingShowingLine(kind, page, rows.length, total)
+                  ? lobbyingShowingLine(kind, displayedPage, rows.length, total)
                   : null,
               total,
               pending,
-              failed: !pending && (!served || (result.isError && rows.length === 0)),
+              failed:
+                !pending && (!served || (!retainResults && result.isError && rows.length === 0)),
               resultsRef,
               emptyPage: total != null && total > 0,
               firstPageHref: address(1),
@@ -304,10 +329,13 @@ export function LobbyingDirectoryPage({
                 served && !pending ? (
                   <Pagination
                     variant="lobbying"
-                    page={page}
+                    page={displayedPage}
+                    disabled={replacing}
                     totalPages={totalPages ?? undefined}
-                    hasPrev={page > 1}
-                    hasNext={totalPages != null ? page < totalPages : (data?.has_more ?? false)}
+                    hasPrev={displayedPage > 1}
+                    hasNext={
+                      totalPages != null ? displayedPage < totalPages : (data?.has_more ?? false)
+                    }
                     onPrev={() => goToPage(page - 1)}
                     onNext={() => goToPage(page + 1)}
                     prevHref={page > 1 ? address(page - 1) : undefined}
