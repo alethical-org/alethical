@@ -147,6 +147,7 @@ still describe today's service. Keep the evidence and its limits together.
 
 - [Campaign-finance calendars](evidence/campaign-finance-calendars.md) — official filing schedules supporting date rules
 - [Money speed measurements](validation/money-speed-execution-2026-09-07.md) — measured request costs and the scope of the speed work
+- [Lobbyist result update checks](validation/lobbyist-stable-results-2026-09-19.md) — browser checks for retained results, retry and prepared pagination
 - [Tracked bills on phones](verification/1007-tracked-bills-phone/README.md) — narrow-screen removal checks
 - [Track button checking state](verification/1013-track-button-forms/README.md) — button behavior while saved status loads
 - [Track button failure state](verification/1021-track-button-couldnt-check/README.md) — recovery when saved status cannot be read
