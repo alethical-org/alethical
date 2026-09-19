@@ -1,3 +1,4 @@
+import { OFFICIAL_TOTAL_RECORD_LIMIT } from './moneyRecordTrust';
 /**
  * What the committee money screen adds to the shared money presentation:
  * its register and ownership explanations, closed and empty-year states, Filings,
@@ -277,9 +278,9 @@ export function outsideCountLine(
   distinct: number | null,
 ): string | null {
   if (total === null) return null;
-  const payments = `${total.toLocaleString('en-US')} ${total === 1 ? 'payment' : 'payments'}`;
+  const payments = `${total.toLocaleString('en-US')} ${total === 1 ? 'payment record' : 'payment records'}`;
   if (shown < total) {
-    return `Showing ${shown.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} payments`;
+    return `Showing ${shown.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} payment records`;
   }
   if (distinct === null) return payments;
   if (tab === 'by') {
@@ -534,14 +535,15 @@ export function recordCoverageLines(isBallot: boolean): string[] {
   const lines = [
     'Campaign finance reports filed with the Minnesota Campaign Finance and Public Disclosure Board',
     'Campaign finance figures in our copy start in 2015',
+    OFFICIAL_TOTAL_RECORD_LIMIT,
   ];
   // Same shape as the $200 sentence, and it respects the same 2 rules: the test is on
   // the donor's total for the YEAR rather than on the size of a gift, and it is a floor
   // on who must be named rather than a bar on naming anyone smaller (#1755).
   lines.push(
     isBallot
-      ? 'Committees need not name contributors who gave $500 or less in total during the calendar year'
-      : 'Committees need not name contributors who gave $200 or less in total during the calendar year',
+      ? 'Committees need not name contributors who gave $500 or less to that committee in total during the calendar year'
+      : 'Committees need not name contributors who gave $200 or less to that committee in total during the calendar year',
   );
   return lines;
 }

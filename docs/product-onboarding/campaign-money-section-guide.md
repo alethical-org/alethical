@@ -102,7 +102,7 @@ Campaign money tabs keep their separate wording, as defined in
 Top to bottom:
 
 1. **Money in politics**, followed by “Search Minnesota’s published campaign
-   donations, payments, and lobbying records”.
+   money and lobbying records”.
 2. **A working search box.** Its placeholder is “Search a name”. Enter or Search opens
    `/money/search?q=…`; typing alone does not add browser-history entries. The note
    reads “Try all or part of a name: a person, committee, payee, or lobbyist”.
@@ -356,7 +356,7 @@ is all this is.
 **Years lead, newest first, then the filer that filed each payment.** The year comes
 from the filing's own year column, not from the payment date. Within a year, each
 registration number gets a group, ordered by its newest payment. The group heading
-uses the name on that newest row. Repeated rows remain separate payments.
+uses the name on that newest row. Repeated rows remain separate source records, not proven separate payments.
 
 **Only one filer and one year can have a subtotal.** A group with at least 2 payments
 shows their combined amount and the number of payments beneath it. A single payment
@@ -1651,3 +1651,29 @@ prior year. The first served HTML exposes the same year choices.
 The 17 September control, source-copy and punctuation changes are recorded in
 [committee-money-refinements-copy.md](https://github.com/alethical-org/alethical/blob/main/docs/design/committee-money-refinements-copy.md),
 including the complete old-to-new strings for future Design work.
+
+
+## Record counts and matching limits, September 19, 2026
+
+Across `/money/search` and `/money/payments`, names identify source spellings, not proven
+people or businesses. Counts use **payment records**, because received-payment rows can
+include loans and other receipt kinds as well as contributions. Non-contribution receipt
+kinds remain labelled. The name page explains the exact-name match, possible spelling
+variants, incomplete history, and why a registration-based count can differ. The supporting
+contribution explanation states the yearly donor-to-recipient naming threshold, missing
+registration numbers, and possible repeated or corrected records. It never applies a
+campaign donation threshold to vendor payments or lobbying spending.
+
+`/money/search` uses the contribution-file copy date from the exact release its name
+counts read. It does not substitute the committee register date or a separate current-source
+request. Missing source dates remain missing. Source refreshes replace date and results together.
+
+Official committee totals retain their existing reported labels and filing periods. They can
+include contributions without donor names, so named records may not add up to the official
+total. Committee payment lists and outside-spending counts identify payment **records**.
+The comparison protections on race and legislator pages remain: periods stay beside amounts,
+missing amounts do not become zero, and separate committees are not added together.
+
+The same meaning applies to initially served text and share descriptions. A general limitation
+cannot excuse an arithmetic error, a false identity match, or a known unresolved discrepancy.
+A known discrepancy must name its affected source, scope, and uncertainty beside that figure.

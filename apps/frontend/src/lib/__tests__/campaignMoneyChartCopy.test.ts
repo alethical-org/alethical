@@ -23,11 +23,11 @@ const NAMED_ONLY_SHARES =
 const DEFINITION =
   'Itemized contributions list donor names and amounts; non-itemized contributions ' +
   'are reported as a combined total without names. Minnesota requires donors to be named ' +
-  'when their total giving exceeds $200 in a year; committees may also name donors who give $200 or less.';
+  'when their total giving to this committee exceeds $200 in a year; committees may also name donors who give $200 or less.';
 const BALLOT_DEFINITION =
   'Itemized contributions list donor names and amounts; non-itemized contributions ' +
   'are reported as a combined total without names. Minnesota requires donors to be named ' +
-  'when their total giving exceeds $500 in a year, the threshold for a ballot-question committee; ' +
+  'when their total giving to this committee exceeds $500 in a year, the threshold for a ballot-question committee; ' +
   'committees may also name donors who give $500 or less.';
 
 describe('the heading over the donor chart', () => {
@@ -81,7 +81,7 @@ describe('the dek above the donor chart', () => {
     // $200, so a reader meeting a named $50 donation must not read our page as wrong.
     for (const isBallot of [false, true]) {
       const definition = dekText(namedMoneyDefinition(isBallot));
-      expect(definition).toContain('their total giving exceeds');
+      expect(definition).toContain('their total giving to this committee exceeds');
       expect(definition).toContain('in a year');
       expect(definition).toContain(
         `committees may also name donors who give $${isBallot ? 500 : 200} or less`,

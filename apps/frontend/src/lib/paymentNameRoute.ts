@@ -31,9 +31,9 @@ export function paymentNameRole(value: string | null | undefined): PaymentNameRo
  */
 export function paymentsUnderNameHeading(name: string, role: PaymentNameRole): string {
   const quoted = `“${name}”`;
-  if (role === 'contributor') return `Money given under the name ${quoted}`;
-  if (role === 'vendor') return `Money paid under the name ${quoted}`;
-  return `Independent spending paid under the name ${quoted}`;
+  if (role === 'contributor') return `Incoming payment records under the name ${quoted}`;
+  if (role === 'vendor') return `Spending records paid under the name ${quoted}`;
+  return `Independent-spending records paid under the name ${quoted}`;
 }
 
 /**

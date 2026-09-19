@@ -65,17 +65,17 @@ afterEach(() => {
 });
 
 describe('the registration context inside an open payment row', () => {
-  it('keeps Kozak’s real employer and 3 payments and reads the registration only after expansion', () => {
+  it('keeps Kozak’s real employer and 3 payment records and reads the registration only after expansion', () => {
     lookup.mockReturnValue(answer());
     // A lobbyist number that also occurs in the committee link list must not become a committee link.
     const group = groupContributionPayments(kozakPayments, ['141'])[0];
     const view = mount(list(group));
     expect(kozakPayments).toHaveLength(3);
-    expect(view.textContent).toContain('North State Advisors · 3 payments');
-    expect(view.textContent).toContain('1 name · 3 payments');
+    expect(view.textContent).toContain('North State Advisors · 3 payment records');
+    expect(view.textContent).toContain('1 name · 3 payment records');
     expect(view.querySelector('a')).toBeNull();
     expect(lookup).not.toHaveBeenCalled();
-    click(view.querySelector('[aria-label="Show the 3 payments from Kozak, Andrew"]'));
+    click(view.querySelector('[aria-label="Show the 3 payment records from Kozak, Andrew"]'));
     expect(lookup).toHaveBeenCalledWith('141');
     expect(view.textContent).toContain('Registration 141');
     expect(view.textContent).toContain('See who Kozak, Andrew represents');

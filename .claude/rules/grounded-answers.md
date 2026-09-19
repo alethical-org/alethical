@@ -131,3 +131,23 @@ This governs *display only* — the stored record and the text the `/ask` answer
     Containment is what keeps this exception from leaking into the record surfaces. Links run one way: a piece links to record pages, a record page never links back. A piece's claims and derived labels appear in no record-page text and in no social-share preview or metadata (share previews carry title and dates only). **A guide's search-result line describes what that guide covers, in the guide's own words, and states no amount (Eugene, 18 Sep 2026).** Describing the subject is not making the claim, and the bar above is what keeps it narrow: the line carries no figure and no finding, and the share preview stays on the dates-only wording this sentence already sets. A guide whose metadata said only "Written August 2026." told a searcher nothing about whether the page answers their question, which is the opposite of what a transparency product wants from the pages explaining how the records work (`searchDescription` on each entry, `apps/frontend/src/lib/researchIndex.ts`). A research piece keeps its 2 dates, beside a title that already names its subject. Ordinary snippets of a piece's body stay on: a snippet always links to the page holding the method, and suppressing body text on a transparency product reads as hiding the very thing it publishes. Site search presents our own writing as its own labeled group. Every piece opens with a masthead carrying its publication date and its records-through date. A piece is a snapshot of its records-through date: newer filings earn a dated newer-data notice, never a silent edit. **A corrected figure is replaced by the corrected one, and the wrong figure is not left on the page (Eugene, 25 Aug 2026).** No strike-through: a number a reader must not rely on has no business still being readable, and a struck-through figure prints the error next to the fix. What records the change is a dated correction note at the top of the piece saying what moved, so the update is never silent, and the team may direct that a particular correction carries no note (point 7a). Both the note and the corrected text stay out of metadata.
 
     Why the risk is accepted: `docs/philosophy.md` principle 2 — some truths in the record are visible only added up, and a named pattern with its arithmetic attached is more checkable, not less, than a page of raw rows.
+
+
+## Campaign record counts and matching claims
+
+- A count of imported rows is a count of records, not proof of that many distinct donations
+  or payments. Mixed received-payment sources must not be labelled contribution-only.
+- Name matching describes the exact source spelling, not an established identity. Registration
+  matching excludes rows without that number. Explain this distinction where the counts appear;
+  neither method establishes complete giving. Do not infer an identity link from similar names.
+- Keep essential scope beside a number, with supporting detail expandable. Source copy dates
+  belong to the same pinned source release as the number, not a separate latest-source fetch.
+  Copy dates and filing coverage dates are different facts.
+- Official report totals can include unnamed contributions; missing named rows do not by
+  themselves invalidate the official total. Retain existing comparison and withholding gates.
+- A specific known discrepancy needs a source-scoped notice. Generic limitations do not excuse
+  an incorrect sum, misleading count label, or unresolved known error. Do not claim complete
+  trust, a confidence percentage, or a distinct-donation count that the evidence cannot support.
+- Never drop records based only on identical names, dates and amounts. Corrected and repeated
+  filings require source evidence. Data replacement and calculation changes retain their own
+  authorization and verification requirements.

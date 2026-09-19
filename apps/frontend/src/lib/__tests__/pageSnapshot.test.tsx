@@ -20,6 +20,14 @@ import committeeEmptyYearFixture from './fixtures/committee-empty-year-snapshot.
 import committeePaymentsFixture from './fixtures/committee-payments-page-snapshot.json';
 import legislatorFixture from './fixtures/legislator-page-snapshot.json';
 import nystromFixture from './fixtures/payments-under-name-nystrom.json';
+import {
+  CONTRIBUTION_PERIOD_LIMIT,
+  CONTRIBUTION_REPORTING_LABEL,
+  CONTRIBUTION_REPORTING_URL,
+  NAME_REGISTRATION_DIFFERENCE,
+  REPEATED_RECORD_LIMIT,
+  SMALL_CONTRIBUTION_LIMIT,
+} from '../moneyRecordTrust';
 
 /**
  * The one property release 2 of #1325 lives or dies on: **the text served in the
@@ -1285,7 +1293,10 @@ describe('the money landing serves the section’s own words and a live count', 
       `Campaign payment files last copied: ${centralDateLabel('2026-08-12T02:54:22.402100Z')}`,
     );
     expect(text).toContain('Lobbying files last copied: Sep 13, 2026');
-    expect(text).toContain('Each report shows the dates its figures cover');
+    expect(text).toContain('The copy date is when Alethical obtained the source');
+    expect(text).toContain(
+      'Financial totals and individual payment records can have different coverage',
+    );
     expect(text).toContain('1,665 REGISTERED LOBBYISTS');
     expect(text).not.toContain('REGISTERED TODAY');
   });
@@ -2427,26 +2438,42 @@ describe('the payments-under-a-name snapshot serves the rows the screen draws', 
   const text = visibleText(html);
 
   it('heads the page with the screen’s own heading and standfirst', () => {
-    expect(snapshot.heading).toBe('Money given under the name “Nystrom, Mary Ann”');
+    expect(snapshot.heading).toBe('Incoming payment records under the name “Nystrom, Mary Ann”');
     expect(snapshot.body[0]).toBe(paymentsUnderNameStandfirst('contributor'));
     expect(text).toContain('files last copied');
   });
 
   it('prints every served row with its committee, date and amount, newest first', () => {
-    expect(snapshot.sections?.[0].items).toHaveLength(nystromFixture.data.payments.length);
+    const paymentRows = snapshot.sections?.find((section) => section.items)?.items;
+    expect(paymentRows).toHaveLength(nystromFixture.data.payments.length);
     expect(text).toContain('Senate Victory Fund (SVF)');
     expect(text).toContain('$25,000');
     expect(text).toContain('Apr 20, 2026');
-    expect(text).toContain(`${nystromFixture.data.payments.length} payments`);
+    expect(text).toContain(`${nystromFixture.data.payments.length} payment records`);
     expect(text).toContain(LIST_NOTE);
   });
 
   it('links a row only to a committee this release holds as a filer', () => {
-    const links = (snapshot.sections?.[0].items ?? []).map((item) => item.href);
+    const links = (snapshot.sections?.find((section) => section.items)?.items ?? []).map(
+      (item) => item.href,
+    );
     for (const [index, row] of rows.entries()) {
       expect(links[index] === undefined).toBe(row.linkNumber === null);
     }
     expect(html).toContain('href="/money/committees/senate-victory-fund-svf-20013"');
+  });
+
+  it('serves the full contribution-record explanation and its official source link', () => {
+    for (const line of [
+      NAME_REGISTRATION_DIFFERENCE,
+      SMALL_CONTRIBUTION_LIMIT,
+      REPEATED_RECORD_LIMIT,
+      CONTRIBUTION_PERIOD_LIMIT,
+    ]) {
+      expect(text).toContain(line);
+    }
+    expect(text).toContain(CONTRIBUTION_REPORTING_LABEL);
+    expect(html).toContain(`href="${CONTRIBUTION_REPORTING_URL}"`);
   });
 
   it('says nothing is filed under the spelling, and never that nobody gave', () => {
@@ -2457,9 +2484,12 @@ describe('the payments-under-a-name snapshot serves the rows the screen draws', 
         hasMore: false,
       }),
     );
-    expect(empty).toContain('No matching payments under “Nobody, Named”');
-    expect(empty).toContain('Other spellings are kept separate.');
+    expect(empty).toContain('No matching payment records under “Nobody, Named”');
+    expect(empty).toContain('This does not mean there was no giving or spending.');
     expect(empty).not.toContain('$0');
+    expect(empty).not.toContain(CONTRIBUTION_REPORTING_LABEL);
+    expect(empty).not.toContain('$200');
+    expect(empty).not.toContain('$500');
   });
 
   it('says our copy did not answer, never that nothing is filed, when the read is unavailable', () => {
@@ -2472,7 +2502,7 @@ describe('the payments-under-a-name snapshot serves the rows the screen draws', 
         }),
       ),
     );
-    expect(unavailable).not.toContain('No matching payments');
+    expect(unavailable).not.toContain('No matching payment records');
     expect(unavailable).toContain('records');
   });
 });

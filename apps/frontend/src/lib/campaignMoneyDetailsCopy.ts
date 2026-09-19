@@ -36,7 +36,7 @@ export const moneyDetailsCopy = {
   ],
   kindMissing: 'Kind not given',
   names: (count: number) => `${count} ${count === 1 ? 'name' : 'names'}`,
-  payments: (count: number) => `${count} ${count === 1 ? 'payment' : 'payments'}`,
+  payments: (count: number) => `${count} ${count === 1 ? 'payment record' : 'payment records'}`,
   /** The donut's own text alternative, one kind and its share per entry. The legend
    *  beside it is a list rather than a set of controls (#2182), so nothing in it carries
    *  a label of its own and this is what a screen reader is given for the picture. */
@@ -48,7 +48,7 @@ export const moneyDetailsCopy = {
   retry: 'Try again',
   search: 'Search names in this tab',
   counts: (names: number, payments: number) =>
-    `${names} ${names === 1 ? 'name' : 'names'} · ${payments} ${payments === 1 ? 'payment' : 'payments'}`,
+    `${names} ${names === 1 ? 'name' : 'names'} · ${payments} ${payments === 1 ? 'payment record' : 'payment records'}`,
   tabTotal: (expenditures: boolean) =>
     expenditures ? 'Total itemized expenditures' : 'Total itemized contributions',
   goodsShare: (amount: string | null) => `of which ${amount} goods and services`,
@@ -62,7 +62,7 @@ export const moneyDetailsCopy = {
     `Show the other ${count} ${expenditures ? (count === 1 ? 'payee' : 'payees') : count === 1 ? 'name' : 'names'}`,
   candidateCommittee: 'Candidate committee',
   expandPayments: (expanded: boolean, count: number, name: string) =>
-    `${expanded ? 'Hide' : 'Show'} the ${count} ${count === 1 ? 'payment' : 'payments'} from ${name}`,
+    `${expanded ? 'Hide' : 'Show'} the ${count} ${count === 1 ? 'payment record' : 'payment records'} from ${name}`,
   amountMissing: 'Amount not given',
   totalMissing: 'Unavailable because a payment amount is missing',
   dateMissing: 'Date not given in the public file',

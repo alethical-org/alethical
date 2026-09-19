@@ -56,7 +56,7 @@ describe('money results sharing', () => {
     expect(content.title.match(/Friends of Example/g)).toHaveLength(1);
     expect(content.resultsKind).toBe('payments');
     expect(content.description).toBe(
-      `${tab === 'gave' ? 'Payments received' : 'Payments made'} in filing year 2024, largest first`,
+      `${tab === 'gave' ? 'Incoming payment records' : 'Spending records'} in filing year 2024, largest first`,
     );
     expect(destination(content.url)).toMatchObject({
       name: 'CommitteePayments',

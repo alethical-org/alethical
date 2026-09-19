@@ -99,7 +99,7 @@ lobbying page's browser-tab title names the state (“Kozak, Andrew — Minnesot
 its description says what that kind of page shows and where the records come from
 (`apps/frontend/src/lib/lobbyingMetadata.ts`).
 
-The Lobbyists directory defines lobbyists, says it lists the clients they represent, and
+The Lobbyists directory defines lobbyists, invites readers to open a lobbyist to see listed clients, and
 dates the copied registration list as “Lobbyist registration list copied {date}”, directly
 under the introduction and above the name field. Its rows say “client listed” or “clients listed.” The
 Principals directory explains the Board’s word, says that it combines names from different
@@ -275,14 +275,13 @@ reveals 5 rows, then offers “Show 5 more clients” until all rows are visible
 no past clients. A registration missing from the copied list says “not listed on the copy
 date”; it can still have older donations.
 
-“Campaign donations filed under this registration number” is a separate card. It says that
+“Campaign contribution records matched by registration number” is a separate card. It says that
 campaign donations are separate from lobbying spending and the represented organisations.
 It finds Contribution rows of Lobbyist kind by registration number, never by name. Rows are
 grouped by year and receiving committee, with the committee's kind and a link only where
 records support one. It reveals 5 payment rows at first and 5 more per selection.
 Dates, amounts and donated-goods-or-services markers stay on the payment lines.
-A differently typed donor name remains visible as "Filed as {name}". Repeated rows remain
-separate payments. The Year control offers all years or a selected year and resets
+A differently typed donor name remains visible as "Filed as {name}". Repeated source rows remain separate records; they are not claimed as separate donations. The Filing year control offers all years or a selected source filing year and resets
 the visible payment count to 5 when changed. The card adds no per-committee,
 per-year or page total; the guarded directory amount above is the scoped exception.
 
@@ -331,3 +330,31 @@ The annual donation controls and source guard are tracked in
 [issue 2292](https://github.com/alethical-org/alethical/issues/2292). The scoped
 directory exception also appears in the campaign-finance architecture and grounded
 answer rules; other lobbying surfaces retain their separate-record limits.
+
+
+## Record counts, matching and uncertainty
+
+Contribution counts label matching **records**, not independently proven separate donations.
+The limit stays visible beside the count. The registration number and contribution-file copy
+date identify the method and source. An expandable “How these records are counted” explains
+missing registration numbers, unnamed contributions, different filing periods, and repeated
+or corrected source records. A copied date is not a claim that every filing runs through that date.
+Name-based counts can differ from registration-based counts because spellings vary and some
+rows lack registration numbers. Neither method establishes a complete giving history.
+
+The directory keeps campaign contributions versus client lobbying spending, incomplete giving,
+and no matching records versus no giving visible without expansion. Its expanded explanation
+also distinguishes listed clients on the copy date from the selected contribution year.
+The $200 yearly donor-to-recipient naming threshold, and $500 ballot-question exception,
+apply to campaign contributions, not a principal’s lobbying spending. Smaller gifts can be named.
+
+A specific known discrepancy is not replaced by a generic disclaimer. Registration 8692 on
+contribution release `af236cca-a4f8-4efe-9a3a-025259ea380e` carries “All-years count under review”
+beside its records. It identifies 1,194 matched records in the September 1 source and 1,203 in
+the September 19 download, corrected registration numbers, added records, and an unresolved
+separate-donation count. It remains expressly all-years when a year is selected. It does not
+appear for another registration, another release, or a failed source read.
+[The September 19 investigation](../research/carlson-contribution-record-review.md) records
+the evidence and remaining limits. A source refresh requires reviewing that notice.
+
+The lobbyist profile groups and filters by **filing year**, the source file’s year field. A payment date can be in another calendar year, especially across special-election reporting periods. The annual directory’s guarded completed-calendar-year amounts keep their existing full-year checks.

@@ -294,13 +294,13 @@ describe('lobbyist donations', () => {
     );
     const page = mountPage(render(2024));
     expect(page.textContent).toContain(
-      `${contributions.years.find((item) => item.year === 2024)!.payment_count} donations · showing 5`,
+      `${contributions.years.find((item) => item.year === 2024)!.payment_count} contribution records · showing 5`,
     );
-    clickButton(page, 'Show 5 more campaign donations');
+    clickButton(page, 'Show 5 more contribution records');
     expect(page.textContent).toContain('showing 10');
     act(() => root!.render(render(2023)));
     expect(page.textContent).toContain('showing 5');
-    const year = page.querySelector('select[aria-label="Donation year"]') as HTMLSelectElement;
+    const year = page.querySelector('select[aria-label="Filing year"]') as HTMLSelectElement;
     expect(year.value).toBe('2023');
     act(() => {
       year.value = '';
@@ -321,7 +321,9 @@ describe('lobbyist donations', () => {
         />,
       ),
     );
-    expect(page.textContent).toContain('for 2015. This does not mean no donation was made.');
+    expect(page.textContent).toContain(
+      'for filing year 2015. This does not mean no donation was made.',
+    );
     expect(page.textContent).not.toContain('$0');
   });
 
@@ -341,13 +343,13 @@ describe('lobbyist donations', () => {
         onOpenCommittee={() => undefined}
       />,
     );
-    expect(page.textContent).toContain('240 donations · showing 5');
-    expect(page.textContent).toContain('Show 5 more campaign donations');
+    expect(page.textContent).toContain('240 contribution records · showing 5');
+    expect(page.textContent).toContain('Show 5 more contribution records');
     expect(page.textContent).toContain('Campaign contribution file copied Sep 1, 2026');
     expect(page.textContent).toContain("View the Board's campaign contribution file");
     expect(page.textContent).toContain('Filed as Kozak, Andrew V');
     for (let shown = 10; shown <= 30; shown += 5)
-      clickButton(page, 'Show 5 more campaign donations');
+      clickButton(page, 'Show 5 more contribution records');
     const abelerLink = page.querySelector(
       'a[href="/money/committees/abeler-jim-senate-committee-17868"]',
     );
@@ -441,5 +443,38 @@ describe('record identity and exact names', () => {
         },
       ]),
     ).toEqual(['Registered as North Metro Builders Assn in the lobbyist list']);
+  });
+});
+
+describe('contribution record trust', () => {
+  it('keeps the record-count limit visible while supporting details expand accessibly', () => {
+    const page = mountPage(
+      <LobbyistDonationsCard
+        contributions={live.kozak.contributions as LobbyingContributions}
+        registrationNumber="141"
+        copiedDate={null}
+        registeredName="Kozak, Andrew"
+        onOpenCommittee={() => {}}
+      />,
+    );
+    expect(page.textContent).toContain('not a confirmed count of separate donations');
+    expect(page.textContent).toContain('Matched to registration number 141');
+    expect(page.textContent).not.toContain('The threshold is $500');
+    const button = [...page.querySelectorAll('[role="button"]')].find(
+      (x) => x.textContent === 'How these records are counted',
+    )!;
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    clickButton(page, 'How these records are counted');
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    const panel = document.getElementById(button.getAttribute('aria-controls')!)!;
+    expect(panel.textContent).toContain('Records without that number are excluded');
+    expect(panel.textContent).toContain('The threshold is $500');
+    expect(panel.textContent).toContain('may not cover a full year');
+    expect(panel.querySelector('a')?.getAttribute('href')).toBe(
+      'https://www.revisor.mn.gov/statutes/cite/10A.20#stat.10A.20.3',
+    );
+    clickButton(page, 'How these records are counted');
+    expect(page.textContent).toContain('not a confirmed count of separate donations');
+    expect(panel.textContent).toBe('');
   });
 });

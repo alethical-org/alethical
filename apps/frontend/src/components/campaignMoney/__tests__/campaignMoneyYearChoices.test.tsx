@@ -343,7 +343,7 @@ describe('reader choices across a campaign-money year change', () => {
       ),
     );
     expect(list().querySelectorAll('[aria-label^="Show the "]')).toHaveLength(12);
-    click(list().querySelector('[aria-label="Show the 1 payment from Group 17868 12"]'));
+    click(list().querySelector('[aria-label="Show the 1 payment record from Group 17868 12"]'));
     expect(list().querySelector('[aria-label^="Hide the "]')).not.toBeNull();
     click(list().querySelector('[aria-label^="Sort names, currently"]'));
     expect(list().querySelector('[role="menu"]')).not.toBeNull();

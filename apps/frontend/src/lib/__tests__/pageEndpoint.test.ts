@@ -1239,7 +1239,7 @@ describe('addresses that are not real pages', () => {
     expect(headers.get('Cache-Control')).toBe('no-store');
     expect(body).not.toContain('rel="canonical"');
     expect(body).toContain(
-      '<title>Money given under the name “Heat &amp; Frost Insulators Local #34” | Alethical</title>',
+      '<title>Incoming payment records under the name “Heat &amp; Frost Insulators Local #34” | Alethical</title>',
     );
     expect(body).toContain(
       '<div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',
@@ -1288,7 +1288,7 @@ describe('addresses that are not real pages', () => {
     expect(status).toBe(200);
     expect(headers.get('X-Robots-Tag')).toBe('noindex');
     expect(headers.get('Cache-Control')).not.toBe('no-store');
-    expect(body).toContain('<h1>Money given under the name “Larsen, Mary Lu”</h1>');
+    expect(body).toContain('<h1>Incoming payment records under the name “Larsen, Mary Lu”</h1>');
     expect(body).toContain('100 Percent Future Fund');
     expect(body).toContain('$250');
     expect(body).toContain('Mar 4, 2025');
@@ -2426,7 +2426,7 @@ describe('a committee payments address naming a direction is answered in that di
     });
 
     expect(body).toContain(escapeHtml('Where this committee’s money went'));
-    expect(body).toContain('Every payment named');
+    expect(body).toContain('Named payment records');
     expect(body).toContain('Square Space');
     // The exact confusion #2038 describes: a donation in, on a page a reader
     // asked to be about the money going out.

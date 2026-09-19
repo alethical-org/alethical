@@ -67,10 +67,12 @@ describe('all 5 groups are drawn, in the server’s own order', () => {
   // the 2 kinds its rows are: rows that looked alike would promise a profile of a
   // business, which nothing in these records can support.
   it('says a payment name opens its payments and not a page about anybody', () => {
-    expect(groupNote('got_paid')).toContain('payments filed under that exact spelling');
-    expect(groupNote('gave')).toContain('Similar names are not combined');
-    expect(groupNote('gave')).toContain('opens payments filed under that exact spelling');
-    expect(groupNote('people')).toContain('A donor’s name alone does not create a profile');
+    expect(groupNote('got_paid')).toContain('spending records filed under that exact spelling');
+    expect(groupNote('gave')).toContain('not separate gifts or people');
+    expect(groupNote('gave')).toContain('incoming payment records filed under that exact spelling');
+    expect(groupNote('people')).toContain(
+      'A name on a payment record alone does not create a profile',
+    );
     expect(groupNote('committees')).toContain('opens a registered committee');
   });
 });
@@ -106,9 +108,9 @@ describe('a group’s count', () => {
 
 describe('a row’s own line', () => {
   it('counts payment records under a spelling and never an amount', () => {
-    expect(paymentNameMeta(9)).toBe('9 payments filed under this name');
-    expect(paymentNameMeta(1)).toBe('1 payment filed under this name');
-    expect(paymentNameMeta(null)).toBe('Payments filed under this name');
+    expect(paymentNameMeta(9)).toBe('9 payment records filed under this name');
+    expect(paymentNameMeta(1)).toBe('1 payment record filed under this name');
+    expect(paymentNameMeta(null)).toBe('Payment records filed under this name');
   });
 
   it('says what we hold about a person beyond these filings', () => {

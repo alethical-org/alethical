@@ -153,9 +153,9 @@ describe('which view an address asks for', () => {
 
 describe('the whole record', () => {
   it('spans the file in the ruled word for a row', () => {
-    expect(recordSpanLine(FIGURES)).toBe('across 41,130 payments, 2015 through 2026');
+    expect(recordSpanLine(FIGURES)).toBe('across 41,130 payment records, 2015 through 2026');
     expect(recordSpanLine({ ...FIGURES, rowCount: 1, firstYear: 2026, lastYear: 2026 })).toBe(
-      'across 1 payment, 2026',
+      'across 1 payment record, 2026',
     );
   });
 
@@ -169,17 +169,17 @@ describe('the whole record', () => {
 
   it('claims every row states a direction in exactly those words', () => {
     expect(EVERY_ROW_STATES_A_DIRECTION).toBe(
-      'Every payment states a direction. Payments in goods or services are already included ' +
-        'in the supporting or opposing count. They are not additional payments.',
+      'Every payment record states a direction. Records for goods or services are already included ' +
+        'in the supporting or opposing count. They are not additional records.',
     );
   });
 
   it('labels the bar as payment counts and names each count', () => {
     expect(DIRECTION_AS_FILED).toBe('Payments by direction, as the filing states it');
-    expect(directionCountLine(1, 'supporting')).toBe('1 payment supporting');
-    expect(directionCountLine(31718, 'supporting')).toBe('31,718 payments supporting');
-    expect(inKindCountLine(1)).toBe('1 payment in goods or services');
-    expect(inKindCountLine(1065)).toBe('1,065 payments in goods or services');
+    expect(directionCountLine(1, 'supporting')).toBe('1 payment record supporting');
+    expect(directionCountLine(31718, 'supporting')).toBe('31,718 payment records supporting');
+    expect(inKindCountLine(1)).toBe('1 payment record in goods or services');
+    expect(inKindCountLine(1065)).toBe('1,065 payment records in goods or services');
   });
 
   it('makes the next actions and whole-file explanation explicit', () => {
@@ -192,28 +192,28 @@ describe('the whole record', () => {
 });
 
 describe('one subject', () => {
-  // Ruled 1 Sep 2026: "12 payments about 5 committees", singular "1 payment about
+  // Ruled 1 Sep 2026: "12 payment records about 5 committees", singular "1 payment record about
   // 1 committee", never "payments named".
   it('prints the ruled count line, singular and plural, on both views', () => {
     expect(subjectCountLine('spender', { ...FIGURES, rowCount: 12, committeeCount: 5 })).toBe(
-      '12 payments about 5 committees',
+      '12 payment records about 5 committees',
     );
     expect(subjectCountLine('spender', { ...FIGURES, rowCount: 1, committeeCount: 1 })).toBe(
-      '1 payment about 1 committee',
+      '1 payment record about 1 committee',
     );
     expect(subjectCountLine('about', { ...FIGURES, rowCount: 5, spenderCount: 5 })).toBe(
-      '5 payments by 5 groups',
+      '5 payment records by 5 groups',
     );
     expect(subjectCountLine('about', { ...FIGURES, rowCount: 1, spenderCount: 1 })).toBe(
-      '1 payment by 1 group',
+      '1 payment record by 1 group',
     );
   });
 
-  it('caps with "Showing 6 of 12 payments" and no closing dot', () => {
+  it('caps with "Showing 6 of 12 payment records" and no closing dot', () => {
     const capped = page({ totalRows: 1284, rows: Array(50).fill(ROW), pageNumber: 2 });
-    expect(rowsCountLine('record', capped)).toBe('Showing 50 of 1,284 payments');
+    expect(rowsCountLine('record', capped)).toBe('Showing 50 of 1,284 payment records');
     expect(pageLine(capped)).toBe('Page 2 of 26');
-    expect(rowsCountLine('spender', page())).toBe('1 payment about 1 committee');
+    expect(rowsCountLine('spender', page())).toBe('1 payment record about 1 committee');
     expect(pageLine(page())).toBeNull();
     expect(rowsCountLine('record', page({ figures: null, totalRows: null }))).toBeNull();
   });

@@ -1,3 +1,4 @@
+import { CONTRIBUTION_RECORD_LIMIT } from './moneyRecordTrust';
 import type {
   LobbyingContributionYear,
   LobbyingPrincipalLobbyist,
@@ -35,10 +36,14 @@ export const lobbyingLobbyistCopy = {
   principalsIntroduction:
     'The lobbyist list shows which organisations this lobbyist represented on the copy date. It does not show past clients.',
   noPrincipals: 'The lobbyist list names no organisation for this lobbyist on the copy date.',
-  donationsHeading: 'Campaign donations filed under this registration number',
+  donationsHeading: 'Campaign contribution records matched by registration number',
   donationsIntroduction:
-    "Campaign donations are separate from lobbying spending and from the organisations represented above. They are found by registration number, never by name. Each row is the receiving committee's own filing. Committees file on different calendars, so the available rows may not cover a full year.",
-  noDonations: "The state's contribution file names no donation under this registration number.",
+    'These records show campaign contributions, separate from lobbying spending. They are matched by registration number, not by name. ' +
+    CONTRIBUTION_RECORD_LIMIT,
+  filingYearNote:
+    'Years follow the state file’s filing year. A payment date can fall in a different calendar year.',
+  noDonations:
+    'No contribution records match this registration number in our source. This does not mean no giving.',
   sourceLabel: "View the Board's Lobbyist Search Tool",
 } as const;
 

@@ -98,8 +98,8 @@ export function LobbyingLobbyistScreen({ route, navigation }: RootScreenProps<'L
     }).socialTitle,
     description:
       lobbyist.state === 'not_registered_today'
-        ? `See campaign donations filed under registration ${lobbyist.registration_number} and whether the copied lobbyist list includes it.`
-        : `See the organisations ${displayName} represented on the copy date and, separately, campaign donations filed under registration ${lobbyist.registration_number}.`,
+        ? `See campaign contribution records matched to registration ${lobbyist.registration_number} and whether the copied lobbyist list includes it.`
+        : `See the organisations ${displayName} represented on the copy date and, separately, campaign contribution records matched to registration ${lobbyist.registration_number}.`,
     url: publicPageUrl(
       routePath.lobbyingLobbyist(finalSlug, selectedYear ? String(selectedYear) : undefined),
     ),
@@ -134,6 +134,7 @@ export function LobbyingLobbyistScreen({ route, navigation }: RootScreenProps<'L
       />
       <LobbyistDonationsCard
         contributions={lobbyist.contributions}
+        registrationNumber={lobbyist.registration_number}
         selectedYear={selectedYear}
         onYearChange={(value) => navigation.setParams({ year: value || undefined })}
         registeredName={lobbyist.name ?? displayName}

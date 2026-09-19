@@ -2945,6 +2945,7 @@ export interface ApiNameSearchPayload {
         reason?: string | null;
       }[]
     | null;
+  fetched_at?: string | null;
   reason?: string | null;
 }
 
@@ -2981,6 +2982,7 @@ export async function getCampaignFinanceNameSearchFromApi(
     minQueryLength: typeof payload.min_query_length === 'number' ? payload.min_query_length : null,
     countedUpTo: typeof payload.counted_up_to === 'number' ? payload.counted_up_to : null,
     groups: nameSearchGroups(payload.groups),
+    fetchedAt: payload.fetched_at ?? null,
     reason: payload.reason ?? null,
   };
 }

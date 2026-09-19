@@ -17,7 +17,7 @@ const DESCRIPTIONS = {
   principal:
     'Lobbying spending reported by year, and the lobbyists registered to represent this organisation, from Minnesota’s Campaign Finance and Public Disclosure Board.',
   lobbyist:
-    'The organisations this lobbyist is registered to represent, and any campaign donations filed under the same registration number, from Minnesota’s Campaign Finance and Public Disclosure Board.',
+    'The organisations this lobbyist is registered to represent, and any campaign contribution records matched to the same registration number, from Minnesota’s Campaign Finance and Public Disclosure Board.',
 } as const;
 
 export function lobbyingPageMetadata(
