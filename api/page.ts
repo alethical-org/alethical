@@ -8,7 +8,6 @@ import {
 import {
   lobbyingSummaryQueryKey,
   lobbyingDonationYear,
-  LOBBYING_DEFAULT_DONATION_SORT,
   lobbyingDonationSort,
   lobbyingRecordDonationYear,
   lobbyingPrincipalQueryKey,
@@ -1341,8 +1340,8 @@ async function lobbyingDirectoryContent(
     offset: String((page - 1) * 50),
   });
   if (year) apiParams.set("year", String(year));
-  if (kind === "lobbyists" && sort !== LOBBYING_DEFAULT_DONATION_SORT)
-    apiParams.set("sort", sort);
+  // Stated rather than inferred: this function and the API deploy separately.
+  if (kind === "lobbyists") apiParams.set("sort", sort);
   const payload = await getApiData<
     LobbyingPrincipalsPage | LobbyingLobbyistsPage
   >(`/lobbying/${kind}?${apiParams}`);

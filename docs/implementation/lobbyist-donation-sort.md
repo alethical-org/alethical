@@ -195,11 +195,19 @@ on first load of `/money/lobbying/lobbyists`, replacing `Name A–Z`.
 
 One constant carries it (`LOBBYING_DEFAULT_DONATION_SORT` in
 [lobbyingTypes.ts](../../apps/frontend/src/lib/lobbyingTypes.ts)), read by the
-address, the browser request, the first-response builder and the query cache key,
-with the route's own default matching it. The opening order is the 1 value left
-out of both the address and the request, so the bare address and the served
-default cannot disagree; `sort=name` and `sort=donations_asc` are always spelled
-out.
+address, the query cache key and the route's own default. The opening order is
+left out of the **address** only, so the bare path stays canonical; `sort=name`
+and `sort=donations_asc` are spelled out there.
+
+**Every request to the API states the order, including the default.** The app,
+the first-response function and the API deploy separately, so a window where any
+2 of them disagree about the default would leave the directory loading forever
+against its own request-matching guard: the response would echo `name` while the
+page asked for `donations_desc`, and no response would ever match. Measured on
+18 September 2026 against the live API, which still echoed `sort: "name"` for a
+bare request while the rebuilt page expected `donations_desc`. Stating the order
+removes the cross-service coupling, and the route's matching default then only
+serves a caller who asks for nothing.
 
 The campaign-finance name search asks for `name` explicitly. It lists people by
 name, so the directory's opening order must never reach it, and stating the

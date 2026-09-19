@@ -120,7 +120,7 @@ describe('every lobbying address works before the app loads', () => {
     });
   });
 
-  it('leaves the opening dollar order out of the request, the seed and the links', async () => {
+  it('states the order in the request and leaves the opening one out of the links', async () => {
     const data = {
       ...live.lobbyists_page_2,
       requested_year: 2025,
@@ -140,9 +140,8 @@ describe('every lobbying address works before the app loads', () => {
       sort: 'donations_desc',
     });
     expect(result.status).toBe(200);
-    // The opening order is the one value neither the request nor the address spells out.
-    expect(fetcher.mock.calls[0][0]).toContain('limit=50&offset=50&year=2025');
-    expect(fetcher.mock.calls[0][0]).not.toContain('sort=');
+    // The request always states the order; only the address leaves the default out.
+    expect(fetcher.mock.calls[0][0]).toContain('limit=50&offset=50&year=2025&sort=donations_desc');
     expect(seeds(result.body)[0].key).toEqual([
       'lobbying-lobbyists',
       '',

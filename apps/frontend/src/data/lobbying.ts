@@ -1,7 +1,6 @@
 import { publicApiRequest } from './api';
 import { LOBBYING_SEARCH_LIMIT } from '../lib/lobbyingSearch';
 import {
-  LOBBYING_DEFAULT_DONATION_SORT,
   LOBBYING_PAGE_SIZE,
   lobbyingListOptions,
   lobbyingDonationYear,
@@ -46,7 +45,10 @@ function listPath(kind: 'principals' | 'lobbyists', options: LobbyingListOptions
     const year = lobbyingDonationYear(options.year);
     if (year) params.set('year', String(year));
     const sort = lobbyingDonationSort(options.sort);
-    if (sort !== LOBBYING_DEFAULT_DONATION_SORT) params.set('sort', sort);
+    // Always stated, never inferred. The app and the API deploy separately, so a
+    // window where they disagree about the default would leave the directory
+    // loading forever against its own request-matching guard.
+    params.set('sort', sort);
   }
   return `/lobbying/${kind}?${params.toString()}`;
 }
