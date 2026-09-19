@@ -30,8 +30,9 @@ def upgrade() -> None:
         sa.Column("proof_version", sa.Integer(), nullable=False),
         sa.Column("content_hash", sa.String(64), nullable=False, unique=True),
         sa.Column("evidence", postgresql.JSONB(), nullable=False),
-        sa.Column("audit_object_key", sa.Text(), nullable=False),
-        sa.Column("audit_compressed_hash", sa.String(64), nullable=False),
+        sa.Column("object_key", sa.Text(), nullable=False),
+        sa.Column("compressed_hash", sa.String(64), nullable=False),
+        sa.Column("mirrored_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),

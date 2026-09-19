@@ -4293,8 +4293,9 @@ class LobbyistDonationEvidence(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     proof_version: Mapped[int] = mapped_column(Integer, nullable=False)
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     evidence: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    audit_object_key: Mapped[str] = mapped_column(Text, nullable=False)
-    audit_compressed_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    object_key: Mapped[str] = mapped_column(Text, nullable=False)
+    compressed_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    mirrored_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
 class LobbyistDonationEvidenceCurrent(TimestampMixin, Base):

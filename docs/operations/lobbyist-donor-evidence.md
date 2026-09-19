@@ -76,6 +76,9 @@ Refused PDFs use separate content-addressed objects under
 `campaign-finance/lobbyist-evidence/documents/`; a mismatched report never creates
 false committee identity metadata in the shared report-document table.
 The database contains a compact runtime proof and the audit object's hash and key.
+The standard object_key, compressed_hash and mirrored_at columns let the existing
+Cloudflare R2 backup job discover and record the audit copy automatically. Refused
+PDFs are also covered by that job's complete bucket walk.
 Recheck source release, filing snapshot, held row count and exact row fingerprints
 and previously known donor relationships before moving the single active-evidence pointer. An interrupted object upload cannot
 activate partial proof. An ordinary publication cannot silently replace a newer

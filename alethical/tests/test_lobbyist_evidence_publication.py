@@ -138,7 +138,7 @@ def test_same_reviewed_run_is_idempotent_and_keeps_complete_audit(db, tmp_path):
         == 1
     )
     saved = db.scalar(select(schema.LobbyistDonationEvidence))
-    assert json.loads(gzip.decompress(store.objects[saved.audit_object_key])) == run
+    assert json.loads(gzip.decompress(store.objects[saved.object_key])) == run
     assert "catalogues" not in saved.evidence["recipients"][0]
     assert len(store.uploads) == 1
 
@@ -167,6 +167,24 @@ def test_unreviewed_run_is_rejected_before_any_storage(db, tmp_path):
         publication.publish_run(db, store, tmp_path, run, reviewed_hash="0" * 64)
     assert store.uploads == []
     assert _active(db) is None
+
+
+def test_published_audit_is_discovered_and_verified_by_existing_backup(db, tmp_path):
+    from alethical.pipeline.raw_file_mirror import body_tables, mirror_raw_files
+    from alethical.tests.test_raw_file_mirror import MemoryStore as MirrorStore
+
+    run = _run(db)
+    store = MemoryStore()
+    _publish(db, store, tmp_path, run)
+    assert schema.LobbyistDonationEvidence in body_tables()
+    proof = db.scalar(select(schema.LobbyistDonationEvidence))
+    source = MirrorStore(store.objects)
+    backup = MirrorStore({})
+    report = mirror_raw_files(db, source, backup, str(tmp_path), log=lambda _: None)
+    assert not report.failures
+    db.refresh(proof)
+    assert proof.mirrored_at is not None
+    assert backup.objects[proof.object_key] == store.objects[proof.object_key]
 
 
 @pytest.mark.parametrize(
@@ -285,7 +303,7 @@ def test_failed_recipient_pdf_is_audited_without_asserting_shared_report_identit
     assert gzip.decompress(store.objects[isolated_key]) == body
     assert db.get(schema.CampaignFinanceReportDocument, digest) is None
     proof = db.scalar(select(schema.LobbyistDonationEvidence))
-    audit = json.loads(gzip.decompress(store.objects[proof.audit_object_key]))
+    audit = json.loads(gzip.decompress(store.objects[proof.object_key]))
     assert audit["failures"][0]["documents"][0]["document_hash"] == digest
     assert audit["failures"][0]["reason"] == "report_registration_mismatch"
     key = f"{recipient['registration_number']}:{recipient['year']}"
@@ -379,7 +397,7 @@ def test_selected_and_period_only_coverage_documents_are_each_stored_and_read_on
             assert store.uploads.count(saved.object_key) == 1
             assert store.reads.count(saved.object_key) == 1
         proof = db.scalar(select(schema.LobbyistDonationEvidence))
-        audit = json.loads(gzip.decompress(store.objects[proof.audit_object_key]))
+        audit = json.loads(gzip.decompress(store.objects[proof.object_key]))
         assert audit["recipients"][0]["coverage"]["documents"] == documents
         assert len(store.uploads) == 3  # 2 distinct PDFs and the complete audit.
     finally:

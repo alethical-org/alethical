@@ -304,8 +304,8 @@ def _donor_proof(db, published, donors, recipient="17868", withheld=None):
         source_row_count=published.contributions.row_count,
         proof_version=1,
         content_hash=uuid4().hex * 2,
-        audit_object_key="test/evidence.json.gz",
-        audit_compressed_hash="a" * 64,
+        object_key="test/evidence.json.gz",
+        compressed_hash="a" * 64,
         evidence={
             "recipients": [
                 {"registration_number": recipient, "year": 2025, "donors": donors}

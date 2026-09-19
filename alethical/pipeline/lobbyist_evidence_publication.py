@@ -387,8 +387,8 @@ def publish_run(
             proof_version=PROOF_VERSION,
             content_hash=digest,
             evidence=proposed,
-            audit_object_key=key,
-            audit_compressed_hash=compressed_hash,
+            object_key=key,
+            compressed_hash=compressed_hash,
         )
         db.add(existing)
         db.flush()
