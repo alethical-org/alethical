@@ -709,15 +709,34 @@ $97,703 reported, $67,100 itemized cash and $30,603 difference.
 directly above **More on this year’s contributions** with an 18px gap, and needs no click
 to read. Under the heading it says “Shares of dollars by state, excluding donated goods
 and services”, then draws one bar in a fixed order: Minnesota, Other states, Unknown, in
-3 shades of the same grey-green so no place can read as better or worse than another. A
+3 colours: a green (#0f7a45) for Minnesota, a blue (#2f6fb5) for Other states and an
+amber (#a8741a) for Unknown. Nothing on the card is carried by colour alone. The green
+and the blue sit at nearly equal brightness, so a reader who cannot tell them apart in
+greyscale or with red-green colour blindness loses nothing: every figure the bar draws is
+also printed in the table, and the row label beside each swatch names its category. A
 category with no money gets no piece of the bar, and a tiny one is never widened to be
 visible; its figures are in the table.
 
-The table under the bar has 4 columns: State, Names, Amount and Share of dollars. Its
+The table under the bar carries the visible caption “Itemized individual contributions
+by state, {year}” and 4 columns: State, Names, Amount and Share of dollars. Its
 rows are Minnesota, then Other states, then every state that appears in the records,
 listed alphabetically by its full name and indented under that subtotal, then Unknown.
 District of Columbia sits under D among the states. Nothing is hidden behind a
 **Show more** and there is no cut-off: a committee with donors in 43 states shows all 43.
+
+The **Other states** label is a button that folds its own state rows away and back. It
+arrives open on every visit, so the rows are always there to begin with, and the choice is
+never remembered: a new year, a new committee or a new visit opens the group again. Inside
+one committee and one year the reader's choice survives an ordinary redraw. Closing takes
+out the state rows and nothing else, so the subtotal keeps its figures and the bar, the
+caption, the notes and every percentage are unchanged; nothing is worked out again and no
+records are read again. The button says what it does out loud for a screen reader, with the
+count in it: “Hide the 7 states in Other states” when open, “Show the 7 states in Other
+states” when closed, and “the state” rather than a count where only 1 state sits inside.
+A state with names and $0 is still a state, so it still gets the button. Minnesota and
+Unknown have nothing under them and carry no button, so a chevron always means there are
+rows inside. Where no state is represented, the label is plain text. Two committees on one
+page get 2 buttons that move on their own.
 Every percentage is that row's share of **all** the itemized individual contribution
 dollars this committee took that year, Unknown included, and never a share of the Other
 states subtotal, so California's $275,989 of Tim Walz's 2025 money reads 11.3% rather
@@ -729,11 +748,11 @@ money that exists is never shown as nothing, and where there are no dollars at a
 share, every percentage reads **Not applicable**, because a share of nothing is not zero
 per cent. Amounts are whole dollars with the cents cut.
 
-Three notes close the card: states come from the ZIP codes in the state's file, Unknown
-means that file has no usable ZIP code for that donor, and a name count is distinct
-spellings within its own row, including donations of goods and services, so one spelling
-can appear in more than 1 state and the state counts need not add to the subtotal's. The
-dollars do add.
+Four notes close the card, one line each: states come from the ZIP codes in the state's
+file; Unknown means that file has no usable ZIP code for that donor; a name count is
+distinct spellings within its own row, including donations of goods and services; and the
+same name can appear in more than 1 state. So the state name counts need not add to the
+subtotal's. The dollars do add.
 
 A checked zero stays $0. No individual donation rows at all produces the selected year's
 empty sentence. Rows that exist but carry no cash get their own sentence, “No itemized
@@ -1455,10 +1474,12 @@ contributions in report**, **Itemized contributions in state’s list**, and
 screens. The calculated total gets a pale grey background, with the amount aligned to
 its column. Closing-candidate notes count payments, never infer a committee count.
 
-The locations card's 3 closing notes are “States are identified from ZIP codes in the
+The locations card's caption reads “Itemized individual contributions by state, {year}”
+and nothing more. Its 4 closing notes are “States are identified from ZIP codes in the
 state's file”, “Unknown means the state's file has no usable ZIP code to identify the
-donor's state”, and “Names count distinct spellings within each row, including
-contributions of goods and services. The same name can appear in more than 1 state.”
+donor's state”, “Names count distinct spellings within each row, including
+contributions of goods and services”, and “The same name can appear in more than 1
+state”. None of the 4 ends in a dot.
 The aggregate card itself prints no ZIP; ZIP codes appear only inside an opened
 contribution payment, where each payment carries “State: {state} · ZIP code as filed:
 {zip}”. That line is per payment rather than per grouped name, because payments filed

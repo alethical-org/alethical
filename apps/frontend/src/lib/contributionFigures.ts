@@ -98,19 +98,20 @@ export const donationCardsCopy = {
   amount: 'Amount',
   share: 'Share of dollars',
   locationsIntro: 'Shares of dollars by state, excluding donated goods and services',
-  /** The caption is the one place the subtotal relationship is stated in words, because
-   *  an indent is invisible to a screen reader. The clause is dropped when no state row
-   *  exists, because there is then nothing for it to describe. */
-  locationsCaption: (year: number, hasStates: boolean) =>
-    hasStates
-      ? `Itemized individual contributions by state, ${year}. States listed under Other ` +
-        'states are included in its subtotal.'
-      : `Itemized individual contributions by state, ${year}`,
+  /** One line, whatever the table holds. The clause naming the subtotal relationship is
+   *  gone: the indent, the lighter divider inside the group and `locationsToggle`, whose
+   *  accessible name counts the states inside Other states, each state it already. A
+   *  screen-reader user now gets it from the control. */
+  locationsCaption: (year: number) => `Itemized individual contributions by state, ${year}`,
+  /** The control's accessible name carries both the count and the relationship, because
+   *  an indent is invisible to a screen reader. */
+  locationsToggle: (open: boolean, states: number) =>
+    `${open ? 'Hide' : 'Show'} the ${states === 1 ? 'state' : `${states} states`} in Other states`,
   locationNotes: [
     'States are identified from ZIP codes in the state’s file',
     'Unknown means the state’s file has no usable ZIP code to identify the donor’s state',
-    'Names count distinct spellings within each row, including contributions of goods and ' +
-      'services. The same name can appear in more than 1 state.',
+    'Names count distinct spellings within each row, including contributions of goods and services',
+    'The same name can appear in more than 1 state',
   ],
   /** Rows exist and none of them carries cash, which is not the same as no rows at all:
    *  an unnamed donation of goods with an unusable ZIP produces exactly 0 names and $0. */

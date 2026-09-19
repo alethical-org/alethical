@@ -51,21 +51,29 @@ describe('a category share of itemized individual contribution dollars', () => {
 });
 
 describe('the contributor-location card names its own limits', () => {
-  it('states the subtotal relationship in words only where there are state rows', () => {
-    expect(donationCardsCopy.locationsCaption(2025, true)).toBe(
-      'Itemized individual contributions by state, 2025. States listed under Other states ' +
-        'are included in its subtotal.',
-    );
-    expect(donationCardsCopy.locationsCaption(2025, false)).toBe(
+  it('captions the table in one line, with no closing dot and no subtotal clause', () => {
+    expect(donationCardsCopy.locationsCaption(2025)).toBe(
       'Itemized individual contributions by state, 2025',
+    );
+    expect(donationCardsCopy.locationsCaption(2024)).toBe(
+      'Itemized individual contributions by state, 2024',
     );
   });
 
-  it('warns that a name count is spellings, and can repeat across states', () => {
-    expect(donationCardsCopy.locationNotes[2]).toBe(
-      'Names count distinct spellings within each row, including contributions of goods ' +
-        'and services. The same name can appear in more than 1 state.',
-    );
+  it('prints 4 notes, each one line and none closing on a dot', () => {
+    expect(donationCardsCopy.locationNotes).toEqual([
+      'States are identified from ZIP codes in the state’s file',
+      'Unknown means the state’s file has no usable ZIP code to identify the donor’s state',
+      'Names count distinct spellings within each row, including contributions of goods and services',
+      'The same name can appear in more than 1 state',
+    ]);
+  });
+
+  it('counts the hidden states in the control\u2019s name, singular and plural', () => {
+    expect(donationCardsCopy.locationsToggle(true, 7)).toBe('Hide the 7 states in Other states');
+    expect(donationCardsCopy.locationsToggle(false, 7)).toBe('Show the 7 states in Other states');
+    expect(donationCardsCopy.locationsToggle(true, 1)).toBe('Hide the state in Other states');
+    expect(donationCardsCopy.locationsToggle(false, 1)).toBe('Show the state in Other states');
   });
 
   it('prints a payment location from the record, inventing nothing', () => {
