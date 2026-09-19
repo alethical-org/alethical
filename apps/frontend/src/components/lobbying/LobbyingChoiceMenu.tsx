@@ -55,6 +55,7 @@ export function LobbyingChoiceMenu({
   width,
   fullWidth = false,
   valueSize = 16,
+  onOpenChange,
 }: {
   label: string;
   /** The persistent visible label beside or above the box names the control. */
@@ -66,6 +67,7 @@ export function LobbyingChoiceMenu({
   width?: number;
   fullWidth?: boolean;
   valueSize?: number;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(value);
@@ -83,6 +85,7 @@ export function LobbyingChoiceMenu({
   const selected = options.find((choice) => choice.value === value);
 
   useEffect(() => ensureChoiceMenuWebStyles(), []);
+  useEffect(() => onOpenChange?.(open), [open, onOpenChange]);
   useEffect(() => {
     if (!open) setActive(value);
   }, [open, value]);

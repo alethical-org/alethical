@@ -14,10 +14,11 @@ At widths 1440, 850 and 320:
 - A delayed year change retained the prior rows, count, campaign date and record links.
 - Rapid year/order changes ended with the newest selection; late responses did not replace it.
 - Failed updates retained rows and retry succeeded. The first row's content position changed
-  by no more than 1 pixel between the successful and failed states.
-- Prepared Next results appeared after 73, 108 and 92 milliseconds respectively, measured
+  by no more than 1 pixel between the pending and failed states after the requested control changed.
+- Prepared Next results appeared after 59, 84 and 83 milliseconds respectively, measured
   from the start of the browser click to the new count becoming available. These are local
   interaction measurements, not a production latency guarantee.
+- Both custom menus remained usable, including Year options overlapping the Sort field on phones.
 - No page JavaScript errors occurred.
 
 One uncached public API read took 0.808 seconds during this task. No server speedup is
@@ -25,7 +26,7 @@ claimed; the change removes repeat waits and the disappearing-result state in th
 
 ## Automated checks
 
-48 focused checks passed across the directory screens and source hooks, plus TypeScript
+52 focused checks passed across the directory screens and source hooks, plus TypeScript
 and formatting checks. New checks cover complete-response retention after errors, the
 requested year versus the displayed year, prepared-page reuse from the bare route,
 data-saving preferences, and superseding a pending pagination jump with a year change.
