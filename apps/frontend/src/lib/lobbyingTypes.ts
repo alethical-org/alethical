@@ -129,6 +129,7 @@ export interface LobbyingAssociation {
 }
 
 export interface LobbyingContributionPayment {
+  identity_basis?: 'official_report' | 'source_registration_number';
   record_number: number;
   contributor_name: string | null;
   employer: string | null;

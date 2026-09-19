@@ -290,3 +290,363 @@ def test_bad_sort_or_year_is_rejected(client, params):
 def test_incomplete_year_cannot_be_compared(client):
     year = last_completed_year() + 1
     assert client.get(f"/api/v1/lobbying/lobbyists?year={year}").status_code == 422
+
+
+def _donor_proof(db, published, donors, recipient="17868", withheld=None):
+    """Synthetic reviewed evidence, separate from source rows."""
+    from uuid import uuid4
+
+    run = schema.LobbyistDonationEvidence(
+        contributions_snapshot_id=published.contributions.id,
+        filings_snapshot_id=db.scalar(
+            select(schema.CampaignFinanceFilingCurrentSnapshot.snapshot_id)
+        ),
+        source_row_count=published.contributions.row_count,
+        proof_version=1,
+        content_hash=uuid4().hex * 2,
+        object_key="test/evidence.json.gz",
+        compressed_hash="a" * 64,
+        evidence={
+            "recipients": [
+                {"registration_number": recipient, "year": 2025, "donors": donors}
+            ],
+            "withheld_recipients": withheld or [],
+        },
+    )
+    db.add(run)
+    db.flush()
+    db.add(schema.LobbyistDonationEvidenceCurrent(id=True, evidence_id=run.id))
+    db.commit()
+    return run
+
+
+def test_donor_proof_recovers_amount_despite_unrelated_recipient_disagreement(
+    client, db
+):
+    _pair(db)
+    published = _payments(db)
+    _support(db, published)
+    db.execute(
+        text(
+            "UPDATE cf_stated_split SET status='disagrees' WHERE registration_number='17868'"
+        )
+    )
+    db.commit()
+    numbers = list(
+        db.scalars(
+            select(schema.CampaignFinanceContributionRow.row_number).where(
+                schema.CampaignFinanceContributionRow.year == 2025,
+                schema.CampaignFinanceContributionRow.recipient_reg_num == "17868",
+                schema.CampaignFinanceContributionRow.receipt_type == "Contribution",
+                schema.CampaignFinanceContributionRow.contrib_reg_num == "141",
+                schema.CampaignFinanceContributionRow.snapshot_id
+                == published.contributions.id,
+            )
+        )
+    )
+    _donor_proof(db, published, {"141": {"status": "agrees", "row_numbers": numbers}})
+    data = _get(client, "lobbyists?year=2025")
+    assert _person(data)["donation_amount"] == "1200.0000"
+    assert data["donations"]["evidence_id"]
+
+
+def test_report_backed_identity_uses_same_held_rows_on_profile_and_directory(
+    client, db
+):
+    _pair(db)
+    published = _payments(db)
+    _support(db, published)
+    _gift(
+        db,
+        published,
+        None,
+        Decimal("500"),
+        contrib_type="Individual",
+        contributor="Kozak, Andrew",
+    )
+    numbers = list(
+        db.scalars(
+            select(schema.CampaignFinanceContributionRow.row_number).where(
+                schema.CampaignFinanceContributionRow.year == 2025,
+                schema.CampaignFinanceContributionRow.recipient_reg_num == "17868",
+                schema.CampaignFinanceContributionRow.receipt_type == "Contribution",
+                schema.CampaignFinanceContributionRow.snapshot_id
+                == published.contributions.id,
+            )
+        )
+    )
+    _donor_proof(db, published, {"141": {"status": "agrees", "row_numbers": numbers}})
+    data = _get(client, "lobbyists?year=2025")
+    assert _person(data)["donation_amount"] == "1700.0000"
+    profile = _get(client, "lobbyists/141")["contributions"]
+    payments = [
+        p for y in profile["years"] for c in y["committees"] for p in c["payments"]
+    ]
+    assert sum(Decimal(p["amount"]) for p in payments) == Decimal("1700")
+    assert any(p["identity_basis"] == "official_report" for p in payments)
+
+
+def test_donor_disagreement_overrides_recipient_pass(client, db):
+    _pair(db)
+    published = _payments(db)
+    _support(db, published)
+    _donor_proof(db, published, {"141": {"status": "disagrees", "row_numbers": []}})
+    assert (
+        _person(_get(client, "lobbyists?year=2025"))["donation_state"] == "unavailable"
+    )
+
+
+def test_missing_known_report_donor_withholds_instead_of_claiming_no_records(
+    client, db
+):
+    _pair(db)
+    published = _payments(db)
+    _support(db, published)
+    _donor_proof(db, published, {"9865": {"status": "disagrees", "row_numbers": []}})
+    assert (
+        _person(_get(client, "lobbyists?year=2025"), "9865")["donation_state"]
+        == "unavailable"
+    )
+
+
+def test_superseded_recipient_pass_cannot_survive_failed_new_report_read(client, db):
+    _pair(db)
+    published = _payments(db)
+    _support(db, published)
+    _donor_proof(
+        db, published, {}, withheld=[{"registration_number": "17868", "year": 2025}]
+    )
+    assert (
+        _person(_get(client, "lobbyists?year=2025"))["donation_state"] == "unavailable"
+    )
+
+
+def test_pruned_source_withholds_profile_and_directory_proof(client, db):
+    _pair(db)
+    published = _payments(db)
+    _support(db, published)
+    _donor_proof(db, published, {"141": {"status": "agrees", "row_numbers": [367605]}})
+    db.execute(text("DELETE FROM cf_contribution_row WHERE row_number=367605"))
+    db.commit()
+    assert _get(client, "lobbyists?year=2025")["donations"]["state"] == "unavailable"
+    assert _get(client, "lobbyists/141")["contributions"]["state"] == "unavailable"
+
+
+def test_old_proof_version_is_not_applied(client, db):
+    _pair(db)
+    published = _payments(db)
+    _support(db, published)
+    run = _donor_proof(
+        db, published, {"141": {"status": "disagrees", "row_numbers": []}}
+    )
+    run.proof_version = 0
+    db.commit()
+    assert _person(_get(client, "lobbyists?year=2025"))["donation_state"] == "reported"
+
+
+@pytest.mark.parametrize("donor", ["141", "9865"])
+def test_failed_second_proof_run_cannot_forget_missing_id_only_recipient(
+    client, db, donor
+):
+    from alethical.pipeline.lobbyist_evidence_publication import (
+        inherited_unresolved_donors,
+    )
+
+    _pair(db)
+    published = _payments(db)
+    _gift(
+        db,
+        published,
+        None,
+        Decimal("500"),
+        recipient_reg_num="20006",
+        contrib_type="Individual",
+        contributor="Report proved donor",
+    )
+    _support(db, published)
+    number = db.scalar(
+        select(schema.CampaignFinanceContributionRow.row_number).where(
+            schema.CampaignFinanceContributionRow.contributor == "Report proved donor"
+        )
+    )
+    first = _donor_proof(
+        db,
+        published,
+        {donor: {"status": "agrees", "row_numbers": [number]}},
+        recipient="20006",
+    )
+    assert (
+        _person(_get(client, "lobbyists?year=2025"), donor)["donation_state"]
+        == "reported"
+    )
+    unresolved = inherited_unresolved_donors(
+        {
+            "recipients": [],
+            "failures": [{"registration_number": "20006", "year": 2025}],
+        },
+        first.evidence,
+        str(first.id),
+    )
+    db.execute(text("DELETE FROM lobbyist_donation_evidence_current"))
+    db.commit()
+    second = _donor_proof(db, published, {}, recipient="20006")
+    second.evidence = {**second.evidence, "unresolved_donors": unresolved}
+    db.commit()
+    person = _person(_get(client, "lobbyists?year=2025"), donor)
+    assert person["donation_state"] == "unavailable"
+    assert person["donation_amount"] is None
+    profile = _get(client, f"lobbyists/{donor}")["contributions"]
+    assert profile["state"] == "unavailable"
+    assert profile["payment_count"] is None
+    assert profile["years"] == []
+
+
+def _replace_filing_source(db):
+    now = datetime.now(UTC)
+    fresh = schema.CampaignFinanceFilingSnapshot(
+        fetch_started_at=now,
+        fetch_completed_at=now,
+        status=schema.CampaignFinanceSnapshotStatus.loaded,
+    )
+    db.add(fresh)
+    db.flush()
+    db.execute(text("UPDATE cf_filing_current SET snapshot_id=:id"), {"id": fresh.id})
+    db.commit()
+    return fresh
+
+
+@pytest.mark.parametrize("donor", ["141", "9865"])
+@pytest.mark.parametrize("missing_filings", [False, True])
+def test_filing_change_keeps_known_missing_id_donor_unavailable_until_new_proof(
+    client, db, donor, missing_filings
+):
+    from alethical.api.services.lobbyist_donation_evidence import (
+        active_evidence,
+        matched_row_numbers,
+    )
+
+    _pair(db)
+    published = _payments(db)
+    _gift(
+        db,
+        published,
+        None,
+        Decimal("500"),
+        recipient_reg_num="20006",
+        contrib_type="Individual",
+        contributor="Report proved donor",
+    )
+    _support(db, published)
+    number = db.scalar(
+        select(schema.CampaignFinanceContributionRow.row_number).where(
+            schema.CampaignFinanceContributionRow.contributor == "Report proved donor"
+        )
+    )
+    first = _donor_proof(
+        db,
+        published,
+        {donor: {"status": "agrees", "row_numbers": [number]}},
+        recipient="20006",
+    )
+    assert (
+        _person(_get(client, "lobbyists?year=2025"), donor)["donation_state"]
+        == "reported"
+    )
+    assert _get(client, f"lobbyists/{donor}")["contributions"]["state"] == "reported"
+    if missing_filings:
+        db.execute(text("UPDATE cf_filing_current SET snapshot_id=NULL"))
+        db.commit()
+    else:
+        _replace_filing_source(db)
+    stale = active_evidence(
+        db, published.contributions.id, published.contributions.row_count
+    )
+    assert stale["proof_state"] == "stale_filings"
+    assert stale["recipients"] == []
+    assert matched_row_numbers(stale) == {}
+    assert stale["unresolved_donors"] == [
+        {
+            "donor_registration_number": donor,
+            "recipient_registration_number": "20006",
+            "year": 2025,
+            "previous_evidence_id": str(first.id),
+        }
+    ]
+    person = _person(_get(client, "lobbyists?year=2025"), donor)
+    assert person["donation_state"] == "unavailable"
+    assert person["donation_amount"] is None
+    profile = _get(client, f"lobbyists/{donor}")["contributions"]
+    assert profile["state"] == "unavailable"
+    assert profile["payment_count"] is None
+    assert profile["years"] == []
+    if donor == "9865":
+        assert _get(client, "lobbyists/141")["contributions"]["state"] == "reported"
+    # Fresh proof restores positive row association. Existing source rows remain unchanged.
+    if missing_filings:
+        _replace_filing_source(db)
+    db.execute(text("DELETE FROM lobbyist_donation_evidence_current"))
+    db.commit()
+    _donor_proof(
+        db,
+        published,
+        {donor: {"status": "agrees", "row_numbers": [number]}},
+        recipient="20006",
+    )
+    fresh = active_evidence(
+        db, published.contributions.id, published.contributions.row_count
+    )
+    assert fresh["proof_state"] == "current"
+    assert matched_row_numbers(fresh) == {number: donor}
+    assert _get(client, f"lobbyists/{donor}")["contributions"]["state"] == "reported"
+
+
+def test_stale_filings_negative_evidence_keeps_source_count_and_version_gates(db):
+    from uuid import uuid4
+    from alethical.api.services.lobbyist_donation_evidence import active_evidence
+
+    _pair(db)
+    published = _payments(db)
+    run = _donor_proof(
+        db, published, {"9865": {"status": "disagrees", "row_numbers": []}}
+    )
+    _replace_filing_source(db)
+    assert active_evidence(db, uuid4(), published.contributions.row_count) is None
+    assert (
+        active_evidence(
+            db, published.contributions.id, published.contributions.row_count + 1
+        )
+        is None
+    )
+    run.proof_version = 0
+    db.commit()
+    assert (
+        active_evidence(
+            db, published.contributions.id, published.contributions.row_count
+        )
+        is None
+    )
+
+
+def test_stale_filings_retains_existing_unresolved_origin_without_positive_rows(db):
+    from alethical.api.services.lobbyist_donation_evidence import active_evidence
+
+    _pair(db)
+    published = _payments(db)
+    run = _donor_proof(
+        db, published, {"141": {"status": "agrees", "row_numbers": [367605]}}
+    )
+    inherited = {
+        "donor_registration_number": "9865",
+        "recipient_registration_number": "20006",
+        "year": 2024,
+        "previous_evidence_id": "original-proof-id",
+    }
+    run.evidence = {**run.evidence, "unresolved_donors": [inherited]}
+    db.commit()
+    _replace_filing_source(db)
+    evidence = active_evidence(
+        db, published.contributions.id, published.contributions.row_count
+    )
+    assert inherited in evidence["unresolved_donors"]
+    assert len(evidence["unresolved_donors"]) == 2
+    assert evidence["recipients"] == []

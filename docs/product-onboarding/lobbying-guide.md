@@ -20,7 +20,7 @@ The source and recovery process is described in
 | `/money/lobbying`                                 | Search, 2 directory links, source date, source link and coverage limits |
 | `/money/lobbying/lobbyists`                       | Registered lobbyists, with name search and annual donation order                     |
 | `/money/lobbying/principals`                      | Distinct organisation IDs from either lobbying file                     |
-| `/money/lobbying/lobbyists/<name>-<registration>` | Listed clients and separately filed donations under that registration   |
+| `/money/lobbying/lobbyists/<name>-<registration>` | Listed clients and campaign contribution records matched by source or report registration   |
 | `/money/lobbying/principals/<name>-<entity ID>`   | Official yearly spending and lobbyists listed for that organisation     |
 
 Only the final number identifies a record. The readable name in an address does not
@@ -211,15 +211,36 @@ failure keeps Sort by usable and keeps a year already chosen in the address
 selected. Browser Back restores the search, year, order, page and the place in
 the list.
 
-A sum requires an exact registration-number match, Lobbyist contributor kind and
-Contribution receipt kind. It uses the source year and preserves signed amounts,
-repeated rows and declared goods-or-services values. Every receiving committee's
-full-year itemized sum must agree within $0.01 with the same published contribution
-snapshot's filing comparison, tied to the current filings snapshot, with a passed
-self-test and a December 31 cutoff. A missing comparison, recipient, amount or
-out-of-period payment withholds the donor's entire annual amount. A partially
-pruned contribution snapshot withholds all amounts. State political contribution
-refunds are not returned gifts and are not subtracted.
+An amount uses unchanged Contribution rows for the selected source year. The original
+path requires exact registration number, Lobbyist contributor kind, and every recipient's
+full-year itemized comparison agreeing within $0.01 for the same published contribution
+snapshot and current filings snapshot, with a passed self-test and December 31 cutoff.
+
+A donor-specific path compares the complete known donor records with effective official
+reports by date, signed cash or in-kind amount and repeated-row count. It can support a
+donor despite another donor causing the committee-wide disagreement. An explicit
+registration in the official report may establish a held row's missing identity only
+when name, date, amount and contribution kind agree uniquely. Name alone is insufficient.
+The contribution download and its original rows never change.
+
+Regular and special-election report periods must fit without gaps or overlap. A late
+start requires the period headers of every effective report in the catalogue, not an
+assumption that earlier giving was zero. Earlier cumulative reports establish coverage
+only and their payments are not added again. Cross-year reports are checked in full,
+then their transactions are compared for the selected calendar year. A held source-year
+row dated outside that year cannot pass this donor-specific check; the date is not moved.
+
+Known missing or contradictory payments, identity ambiguity, unsupported recipients or
+missing amounts withhold the donor's entire annual amount. An unsuccessful new check
+cannot forget a previously established donor/recipient relationship and publish a smaller
+amount. New effective reports invalidate superseded comparisons even when their PDFs
+cannot be read. A partially pruned contribution snapshot withholds all amounts. State
+political contribution refunds are not returned gifts and are not subtracted.
+
+The source-bound proof and its official reports are retained separately. The directory
+and profile consume the same successful row associations. Collection, audit review,
+publication and rollback are described in
+[lobbyist-donor-evidence.md](../operations/lobbyist-donor-evidence.md).
 
 The year menu offers completed years with at least 1 supported amount; the latest
 such year is the default. An explicitly requested unsupported completed year is
@@ -275,12 +296,16 @@ reveals 5 rows, then offers “Show 5 more clients” until all rows are visible
 no past clients. A registration missing from the copied list says “not listed on the copy
 date”; it can still have older donations.
 
-“Campaign contribution records matched by registration number” is a separate card. It says that
+“Campaign contribution records matched to this lobbyist” is a separate card. It says that
 campaign donations are separate from lobbying spending and the represented organisations.
-It finds Contribution rows of Lobbyist kind by registration number, never by name. Rows are
+It finds Contribution rows of Lobbyist kind by registration number and adds held rows
+whose missing identity is established by official-report proof. Rows are
 grouped by year and receiving committee, with the committee's kind and a link only where
 records support one. It reveals 5 payment rows at first and 5 more per selection.
 Dates, amounts and donated-goods-or-services markers stay on the payment lines.
+An added missing-ID match says “Identity confirmed in an official report.” If a new filing
+snapshot or failed evidence refresh makes a previously known association unresolved, the
+profile shows its existing unavailable state rather than a smaller apparent record list.
 A differently typed donor name remains visible as "Filed as {name}". Repeated source rows remain separate records; they are not claimed as separate donations. The Filing year control offers all years or a selected source filing year and resets
 the visible payment count to 5 when changed. The card adds no per-committee,
 per-year or page total; the guarded directory amount above is the scoped exception.
@@ -350,9 +375,10 @@ apply to campaign contributions, not a principal’s lobbying spending. Smaller 
 
 A specific known discrepancy is not replaced by a generic disclaimer. Registration 8692 on
 contribution release `af236cca-a4f8-4efe-9a3a-025259ea380e` carries “All-years count under review”
-beside its records. It identifies 1,194 matched records in the September 1 source and 1,203 in
+beside its records. It identifies 1,194 records carrying registration 8692 in the September 1 source and 1,203 in
 the September 19 download, corrected registration numbers, added records, and an unresolved
-separate-donation count. It remains expressly all-years when a year is selected. It does not
+separate-donation count. Official-report matches can add profile records without changing
+those original source-file counts. It remains expressly all-years when a year is selected. It does not
 appear for another registration, another release, or a failed source read.
 [The September 19 investigation](../research/carlson-contribution-record-review.md) records
 the evidence and remaining limits. A source refresh requires reviewing that notice.

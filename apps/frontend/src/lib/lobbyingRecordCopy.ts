@@ -36,10 +36,11 @@ export const lobbyingLobbyistCopy = {
   principalsIntroduction:
     'The lobbyist list shows which organisations this lobbyist represented on the copy date. It does not show past clients.',
   noPrincipals: 'The lobbyist list names no organisation for this lobbyist on the copy date.',
-  donationsHeading: 'Campaign contribution records matched by registration number',
+  donationsHeading: 'Campaign contribution records matched to this lobbyist',
   donationsIntroduction:
-    'These records show campaign contributions, separate from lobbying spending. They are matched by registration number, not by name. ' +
+    'These records show campaign contributions, separate from lobbying spending. They are matched using registration numbers in the contribution file or confirmed in official reports. A name alone is not enough. ' +
     CONTRIBUTION_RECORD_LIMIT,
+  reportIdentityNote: 'Identity confirmed in an official report',
   filingYearNote:
     'Years follow the state file’s filing year. A payment date can fall in a different calendar year.',
   noDonations:

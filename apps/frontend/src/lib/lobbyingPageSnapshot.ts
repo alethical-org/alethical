@@ -395,6 +395,7 @@ export function lobbyingLobbyistSnapshot(
             payment.contributor_name && payment.contributor_name !== data.name
               ? `Filed as ${payment.contributor_name}`
               : null,
+            payment.identity_basis === 'official_report' ? lobbyistCopy.reportIdentityNote : null,
             payment.in_kind === 'Yes'
               ? ['DONATED GOODS OR SERVICES', payment.in_kind_description]
                   .filter(Boolean)

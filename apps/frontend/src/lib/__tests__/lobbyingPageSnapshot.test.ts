@@ -102,11 +102,11 @@ describe('lobbying before the app starts', () => {
     );
     const at = (text: string) => page.body.findIndex((line) => line.startsWith(text));
     expect(at('Lobbyist registration list copied')).toBeGreaterThan(-1);
-    expect(at('Each amount totals campaign contributions')).toBeGreaterThan(
+    expect(at('Each amount adds the campaign contribution records')).toBeGreaterThan(
       at('Showing 51–100 of 1,665 registered lobbyists'),
     );
     expect(at('Campaign contribution file copied Sep 1, 2026')).toBeGreaterThan(
-      at('Each amount totals campaign contributions'),
+      at('Each amount adds the campaign contribution records'),
     );
     expect(page.body).toContain(
       '2025 campaign contribution amounts are available for 136 of the 1,665 lobbyists in these results',
@@ -160,7 +160,7 @@ it('scopes the unresolved all-years notice to the affected registration and sour
   data.contributions.release_id = 'af236cca-a4f8-4efe-9a3a-025259ea380e';
   let html = renderPageSnapshot(lobbyingLobbyistSnapshot(data));
   expect(html).toContain('All-years count under review');
-  expect(html).toContain('1,194 records matched to registration 8692 across all years');
+  expect(html).toContain('1,194 records carrying registration 8692 across all years');
   expect(html).toContain('contains 1,203');
   // A selected year must not turn the all-years comparison into a year-specific claim.
   html = renderPageSnapshot(lobbyingLobbyistSnapshot(data, 2025));

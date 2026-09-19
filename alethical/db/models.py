@@ -4276,3 +4276,35 @@ def retrievable_chunk_count_stmt(
     if embedding_model is not None:
         stmt = stmt.where(RagChunkEmbedding.embedding_model == embedding_model)
     return stmt
+
+
+class LobbyistDonationEvidence(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """An immutable reviewed donor-proof run, separate from original payments."""
+
+    __tablename__ = "lobbyist_donation_evidence"
+
+    contributions_snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cf_snapshot.id", ondelete="CASCADE"), nullable=False
+    )
+    filings_snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cf_filing_snapshot.id", ondelete="CASCADE"), nullable=False
+    )
+    source_row_count: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    proof_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    evidence: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    object_key: Mapped[str] = mapped_column(Text, nullable=False)
+    compressed_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    mirrored_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class LobbyistDonationEvidenceCurrent(TimestampMixin, Base):
+    """Atomic activation; a source change makes the referenced proof inapplicable."""
+
+    __tablename__ = "lobbyist_donation_evidence_current"
+
+    id: Mapped[bool] = mapped_column(Boolean, primary_key=True, default=True)
+    evidence_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("lobbyist_donation_evidence.id", ondelete="CASCADE"), nullable=False
+    )
+    __table_args__ = (CheckConstraint("id = true", name="singleton"),)

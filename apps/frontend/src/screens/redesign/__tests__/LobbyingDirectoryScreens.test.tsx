@@ -907,7 +907,7 @@ describe('the lobbyist card’s two record dates and its page jump', () => {
     expect(page.indexOf('Lobbyist registration list copied Sep 13, 2026')).toBeLessThan(
       page.indexOf('Search lobbyists by name'),
     );
-    const paragraph = page.indexOf('Each amount totals campaign contributions');
+    const paragraph = page.indexOf('Each amount adds the campaign contribution records');
     const contributionDate = page.indexOf('Campaign contribution file copied Sep 1, 2026');
     const available = page.indexOf('campaign contribution amounts are available for');
     const control = page.indexOf('How these amounts are counted');
@@ -971,7 +971,7 @@ describe('the lobbyist card’s two record dates and its page jump', () => {
     render(screen({ q: 'zzzzqq' }));
     expect(words()).not.toContain('are available for 0 of the 0');
     expect(words()).not.toContain('Donation amounts are unavailable');
-    expect(words()).toContain('Each amount totals campaign contributions');
+    expect(words()).toContain('Each amount adds the campaign contribution records');
     expect(words()).toContain('No lobbyist is listed under that spelling in these records');
   });
 

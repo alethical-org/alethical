@@ -413,6 +413,7 @@ def test_every_table_holding_a_stored_body_is_found_by_the_schema_walk() -> None
     found = {model.__tablename__ for model in body_tables()}
 
     assert found == {
+        "lobbyist_donation_evidence",
         "cf_snapshot_body",
         "cf_filing_snapshot",
         "cf_report_document",

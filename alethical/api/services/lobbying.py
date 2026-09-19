@@ -12,7 +12,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import String, cast, func, or_, select, text, union_all
+from sqlalchemy import String, and_, cast, func, or_, select, text, union_all
 from sqlalchemy.orm import Session
 
 from alethical.api.services.campaign_finance_register import name_contains
@@ -593,13 +593,58 @@ def _contributions(db: Session, registration_number: str) -> dict:
             "copied_at": None,
             "source_url": None,
         }
+    from alethical.api.services.lobbyist_donation_evidence import (
+        active_evidence,
+        matched_row_numbers,
+    )
+
     row = schema.CampaignFinanceContributionRow
+    evidence = active_evidence(
+        db, release.contributions.snapshot_id, release.contributions.row_count
+    )
+    if (
+        evidence is not None
+        and db.scalar(
+            select(func.count())
+            .select_from(row)
+            .where(row.snapshot_id == release.contributions.snapshot_id)
+        )
+        != release.contributions.row_count
+    ):
+        return {
+            "state": UNAVAILABLE,
+            "years": [],
+            "payment_count": None,
+            "committee_count": None,
+            "release_id": str(release.id),
+            "copied_at": release.fetched_at,
+            "source_url": release.contributions.source_url,
+        }
+    if evidence is not None and any(
+        item["donor_registration_number"] == registration_number
+        for item in evidence.get("unresolved_donors", [])
+    ):
+        # Report-only matches were previously known. An unreadable or superseded
+        # proof must not make a smaller list look like all the records we found.
+        return {
+            "state": UNAVAILABLE,
+            "years": [],
+            "payment_count": None,
+            "committee_count": None,
+            "release_id": str(release.id),
+            "copied_at": release.fetched_at,
+            "source_url": release.contributions.source_url,
+            "evidence_id": evidence["id"],
+            "evidence_checked_at": evidence["checked_at"],
+        }
+    proof_numbers = matched_row_numbers(evidence, registration_number)
     columns = (
         "row_number",
         "recipient_reg_num",
         "recipient",
         "recipient_type",
         "contributor",
+        "contrib_reg_num",
         "contrib_employer_name",
         "amount",
         "receipt_date",
@@ -611,8 +656,13 @@ def _contributions(db: Session, registration_number: str) -> dict:
         select(*(getattr(row, column) for column in columns))
         .where(
             row.snapshot_id == release.contributions.snapshot_id,
-            row.contrib_reg_num == registration_number,
-            row.contrib_type == "Lobbyist",
+            or_(
+                and_(
+                    row.contrib_reg_num == registration_number,
+                    row.contrib_type == "Lobbyist",
+                ),
+                row.row_number.in_(proof_numbers),
+            ),
             row.receipt_type == "Contribution",
         )
         .order_by(
@@ -683,12 +733,17 @@ def _contributions(db: Session, registration_number: str) -> dict:
                 "received_on": item.receipt_date,
                 "in_kind": item.in_kind,
                 "in_kind_description": item.in_kind_descr,
+                "identity_basis": "official_report"
+                if item.row_number in proof_numbers and not item.contrib_reg_num
+                else "source_registration_number",
             }
         )
         group["payment_count"] += 1
         year["payment_count"] += 1
     return {
         "state": REPORTED if rows else NOT_REPORTED,
+        "evidence_id": evidence["id"] if evidence else None,
+        "evidence_checked_at": evidence["checked_at"] if evidence else None,
         "payment_count": len(rows),
         "committee_count": len(numbers),
         "release_id": str(release.id),
