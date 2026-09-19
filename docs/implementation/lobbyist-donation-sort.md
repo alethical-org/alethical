@@ -144,3 +144,46 @@ empty numbered page were driven against production data. Widths checked: 1440,
 and both missing-amount messages. Nothing clipped and nothing scrolled sideways.
 The gap from the last content block to the footer measures 72 on a computer, 56 on
 a tablet and 48 on a phone.
+
+### Release evidence for the refinement
+
+- Released on 18 September 2026 through [pull request 2299](https://github.com/alethical-org/alethical/pull/2299),
+  serving [commit 6170fb59](https://github.com/alethical-org/alethical/commit/6170fb593f5fa728bd58cdc6303f098aa7b84f86).
+  3,394 frontend tests, the type check and all 4 required checks passed.
+- Live reads on https://www.alethical.com/money/lobbying/lobbyists: the card header
+  prints the count as the results heading beside a 164-wide Year box and a 256-wide
+  Sort by box; rows begin at x=85, 586, 756 and 1008 at 1440 and hold those column
+  edges; no sideways scrolling at 1440 or 390; the stacked phone controls fill the
+  card at 316 wide.
+- Live behaviour: highest first leads with $14,600 for 2025 and $11,450 for 2024;
+  lowest first leads with $100; the supported-amount count moves from 136 to 131
+  with the year; a searched name reduces the count to 1 and the clear control
+  restores the full list and the field's focus; the explanation opens in place with
+  the Board's file link inside it; a row opens the record carrying the same year;
+  and browser Back returns the year, the order and a 1,000-pixel scroll position.
+- A lobbyist with no supported amount for the chosen year reads `Amount unavailable`
+  rather than $0, which is the distinction the guard exists to keep.
+
+### What an independent reader found afterwards
+
+A reviewer with no knowledge of the code drove the page at 10 widths. Its 2 most
+serious findings do not hold, and both were re-tested in a real browser rather than
+dismissed:
+
+- It reported that the explanation cannot be opened from the keyboard. Driven with
+  Playwright, Enter opens the panel, Space closes it and focus stays on the control.
+  The reviewer's tool delivered key events carrying an empty key name, which no
+  browser treats as a press.
+- It reported that browser Back loses the place in the list. Driven through the page
+  the way a reader uses it, the place is restored exactly. It fails only for an
+  address whose parameters were typed in an order the app does not produce, which is
+  [issue 2303](https://github.com/alethical-org/alethical/issues/2303).
+
+What it found that does hold is filed rather than fixed here:
+[issue 2300](https://github.com/alethical-org/alethical/issues/2300) (the principals
+field), [issue 2301](https://github.com/alethical-org/alethical/issues/2301) (the
+pager's impossible page count and its 320-pixel wrap),
+[issue 2302](https://github.com/alethical-org/alethical/issues/2302) (a name typed
+first-name-first finds nobody), [issue 2303](https://github.com/alethical-org/alethical/issues/2303)
+(Back and keyboard paging) and [issue 2304](https://github.com/alethical-org/alethical/issues/2304)
+(4 wordings that can be misread).
