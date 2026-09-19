@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, type ReactNode, type Ref } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
 
 import { GreenLinkArrow } from '../LinkArrow';
@@ -33,8 +33,10 @@ export interface LobbyistDirectoryCardRow {
  */
 export function LobbyistDirectoryCard({
   countLine,
+  total,
   pending,
   failed,
+  resultsRef,
   rows,
   emptyPage,
   firstPageHref,
@@ -49,8 +51,12 @@ export function LobbyistDirectoryCard({
   onSort,
 }: {
   countLine: string | null;
+  /** Every lobbyist the current name search matched, across all numbered pages. */
+  total: number | null;
   pending: boolean;
   failed: boolean;
+  /** Previous and Next bring this card's top back into view and move focus here. */
+  resultsRef?: Ref<View>;
   rows: LobbyistDirectoryCardRow[];
   /** True when this numbered page is empty but the whole result is not. */
   emptyPage: boolean;
@@ -65,7 +71,8 @@ export function LobbyistDirectoryCard({
   onYear: (year: string) => void;
   onSort: (sort: string) => void;
 }) {
-  const { isMobile, isTablet } = useResponsive();
+  const { width, isMobile, isTablet } = useResponsive();
+  const narrow = isMobile && width > 0 && width < 360;
   const settled = !pending && !failed;
   // One left inset for the header, the note and every row, so they share an edge.
   const inset = isMobile ? 16 : isTablet ? 24 : 28;
@@ -82,7 +89,11 @@ export function LobbyistDirectoryCard({
   useEffect(() => ensureDirectoryRowWebStyles(), []);
   return (
     <View>
-      <View style={[styles.card, { marginTop: isMobile ? 20 : isTablet ? 24 : 26 }]}>
+      <View
+        ref={resultsRef}
+        tabIndex={-1}
+        style={[styles.card, { marginTop: isMobile ? 20 : isTablet ? 24 : 26 }]}
+      >
         <View
           style={[
             styles.header,
@@ -110,7 +121,7 @@ export function LobbyistDirectoryCard({
             requestedYear={requestedYear}
             loading={pending}
             stacked={isMobile}
-            tablet={isTablet}
+            narrow={narrow}
             gap={isMobile ? 12 : isTablet ? 16 : 20}
             onYear={onYear}
             onSort={onSort}
@@ -120,8 +131,8 @@ export function LobbyistDirectoryCard({
           <LobbyingDonationNotes
             donations={donations}
             settled={settled}
-            stacked={isMobile}
-            measure={isMobile ? undefined : isTablet ? 640 : 680}
+            total={total}
+            measure={isMobile ? undefined : isTablet ? 640 : 720}
           />
         </View>
         {pending ? (

@@ -83,6 +83,36 @@ describe('lobbying before the app starts', () => {
     expect(page.sections?.[0].items).toHaveLength(50);
   });
 
+  it('gives the first response the card’s own reading order for the amounts', () => {
+    const page = lobbyingDirectorySnapshot(
+      {
+        ...(live.lobbyists_page_2 as LobbyingLobbyistsPage),
+        donations: {
+          state: 'reported',
+          year: 2025,
+          available_years: [2025, 2024],
+          eligible_count: 136,
+          copied_at: '2026-09-01T12:00:00Z',
+          release_id: 'cf-2026-09-01',
+          source_url: 'https://cfb.mn.gov/source.csv',
+        },
+      },
+      'lobbyists',
+      2,
+    );
+    const at = (text: string) => page.body.findIndex((line) => line.startsWith(text));
+    expect(at('Lobbyist registration list copied')).toBeGreaterThan(-1);
+    expect(at('Each amount totals campaign contributions')).toBeGreaterThan(
+      at('Showing 51–100 of 1,665 registered lobbyists'),
+    );
+    expect(at('Campaign contribution file copied Sep 1, 2026')).toBeGreaterThan(
+      at('Each amount totals campaign contributions'),
+    );
+    expect(page.body).toContain(
+      '2025 campaign contribution amounts are available for 136 of the 1,665 lobbyists in these results',
+    );
+  });
+
   it('keeps a real active-list-only principal plain, with no invented destination', () => {
     const data = live.principals_page_2 as LobbyingPrincipalsPage;
     const row = data.principals.find((candidate) => !candidate.linkable)!;
