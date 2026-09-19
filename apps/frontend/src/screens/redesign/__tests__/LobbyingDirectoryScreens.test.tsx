@@ -70,6 +70,7 @@ import { LobbyingLandingScreen } from '../LobbyingLandingScreen';
 import { LobbyingLobbyistsScreen } from '../LobbyingLobbyistsScreen';
 import { LobbyingPrincipalsScreen } from '../LobbyingPrincipalsScreen';
 import { LOBBYING_DIRECTORY_COPY as copy } from '../../../lib/lobbyingDirectoryCopy';
+import { directoryRowWebCss } from '../../../theme/directoryRows';
 import { lobbyingPageMetadata } from '../../../lib/lobbyingMetadata';
 import { useDocumentTitle } from '../../../navigation/documentTitle';
 import fixture from './fixtures/lobbying-directories-live.json';
@@ -317,7 +318,9 @@ describe('lobbying directories', () => {
     ) as HTMLElement;
     act(() => disclosure.click());
     expect(words()).toContain('Campaign contribution file copied Sep 1, 2026');
-    expect(words()).toContain('No matching records does not mean the lobbyist gave nothing.');
+    expect(words()).toContain(
+      'Finding no matching records does not mean the lobbyist gave nothing.',
+    );
   });
   it('hides a previous year’s amounts while the requested year loads', () => {
     state.lobbyists = success({ ...fixture.lobbyists_page_2, requested_year: 2025, sort: 'name' });
@@ -366,8 +369,8 @@ describe('lobbying directories', () => {
     expect(words()).toContain('Search lobbyists by name');
     expect(words()).not.toContain(copy.directoryLabel);
     expect(getComputedStyle(host.querySelector('[aria-level="1"]')!).marginTop).toBe('14px');
-    expect(words()).toContain('Enter all or part of a name');
-    expect(words()).toContain('Registrations shown as listed in records copied Sep 13, 2026');
+    expect(words()).toContain('You can enter a full or partial name');
+    expect(words()).toContain('Lobbyist registration list copied Sep 13, 2026');
     expect(host.querySelector('a[href="/money/lobbying/lobbyists?page=3"]')).not.toBeNull();
     expect(host.querySelector('a[aria-label="Previous page"]')?.getAttribute('href')).toBe(
       '/money/lobbying/lobbyists',
@@ -540,7 +543,7 @@ it('explains when no completed year supports an amount without printing a blank 
   expect(words()).not.toContain('amount available for .');
 });
 
-it('uses singular wording for 1 supported donation amount', () => {
+it('counts supported amounts against every match, not the visible page', () => {
   state.lobbyists = success({
     ...fixture.lobbyists_page_2,
     requested_year: null,
@@ -553,7 +556,10 @@ it('uses singular wording for 1 supported donation amount', () => {
       route={route('LobbyingLobbyists', { page: '2' })}
     />,
   );
-  expect(words()).toContain('1 lobbyist in these results has an amount available for 2025');
+  // 50 rows are on screen and the line still speaks for all 1,665 matches.
+  expect(words()).toContain(
+    '2025 campaign contribution amounts are available for 1 of the 1,665 lobbyists in these results',
+  );
 });
 
 describe('the lobbyist results card', () => {
@@ -678,5 +684,237 @@ describe('the lobbyist results card', () => {
     expect(words()).toContain(copy.order);
     expect(host.querySelector('select')).toBeNull();
     expect(host.querySelectorAll('[aria-level="2"]')).toHaveLength(0);
+  });
+});
+
+describe('the lobbyist card’s drawn controls', () => {
+  const served = (over: object = {}) =>
+    success({
+      ...fixture.lobbyists_page_2,
+      offset: 0,
+      requested_year: 2025,
+      sort: 'donations_desc',
+      donations: {
+        state: 'reported',
+        year: 2025,
+        available_years: [2025, 2024],
+        eligible_count: 2,
+        copied_at: '2026-09-01T12:00:00Z',
+        source_url: 'https://cfb.mn.gov/source.csv',
+      },
+      ...over,
+    });
+  const screen = () => (
+    <LobbyingLobbyistsScreen
+      navigation={navigation as never}
+      route={route('LobbyingLobbyists', { year: '2025' })}
+    />
+  );
+  const selects = () => [...host.querySelectorAll('select')];
+
+  it('strips the browser’s own box and draws the chevron itself', () => {
+    state.lobbyists = served();
+    render(screen());
+    for (const box of selects()) {
+      expect(box.style.appearance).toBe('none');
+      expect(box.style.fontWeight).toBe('700');
+      expect(box.style.cursor).toBe('pointer');
+      // The right pad is the drawn chevron's room.
+      expect(box.style.padding).toBe('0px 42px 0px 14px');
+      // react-native-svg is mocked away here, so assert the wrapper the drawn
+      // chevron is positioned against; the browser check covers the glyph itself.
+      expect(getComputedStyle(box.parentElement!).position).toBe('relative');
+    }
+  });
+
+  it('sizes each box to its own longest choice, widening only while disabled', () => {
+    state.lobbyists = served();
+    render(screen());
+    expect(selects()[0].style.width).toBe('104px');
+    expect(selects()[1].style.width).toBe('300px');
+    state.lobbyists = { isPending: true, isSuccess: false, isError: false, refetch: vi.fn() };
+    render(
+      <LobbyingLobbyistsScreen
+        navigation={navigation as never}
+        route={route('LobbyingLobbyists')}
+      />,
+    );
+    // `Loading years` is longer than any year, so the box grows while it shows it.
+    expect(selects()[0].textContent).toBe('Loading years');
+    expect(selects()[0].style.width).toBe('168px');
+  });
+
+  it('marks a dropdown it cannot offer, and dims its label with it', () => {
+    state.lobbyists = { isPending: false, isSuccess: false, isError: true, refetch: vi.fn() };
+    render(
+      <LobbyingLobbyistsScreen
+        navigation={navigation as never}
+        route={route('LobbyingLobbyists')}
+      />,
+    );
+    const year = selects()[0];
+    expect(year.disabled).toBe(true);
+    expect(year.style.cursor).toBe('not-allowed');
+    expect(year.style.color).toBe('rgb(138, 144, 138)');
+    const label = [...host.querySelectorAll('div')].find(
+      (item) => item.children.length === 0 && item.textContent === 'Year',
+    )!;
+    expect(getComputedStyle(label).color).toBe('rgb(138, 144, 138)');
+  });
+
+  it('draws a row’s keyboard ring inside the card rather than outside it', () => {
+    state.lobbyists = served();
+    render(screen());
+    const row = listRows()[0].querySelector('a')!;
+    expect(row.getAttribute('data-alethical-directory-row')).toBe('true');
+    // The sitewide ring sits 2px outside; a full-width row needs it inside.
+    expect(row.getAttribute('data-arrow-focus')).toBe('true');
+    expect(directoryRowWebCss).toContain('outline-offset:-2px');
+  });
+});
+
+describe('the lobbyist card’s two record dates and its page jump', () => {
+  const served = (over: object = {}) =>
+    success({
+      ...fixture.lobbyists_page_2,
+      offset: 0,
+      requested_year: 2025,
+      sort: 'donations_desc',
+      donations: {
+        state: 'reported',
+        year: 2025,
+        available_years: [2025, 2024],
+        eligible_count: 136,
+        copied_at: '2026-09-01T12:00:00Z',
+        source_url: 'https://cfb.mn.gov/source.csv',
+      },
+      ...over,
+    });
+  const screen = (params: object = {}) => (
+    <LobbyingLobbyistsScreen
+      navigation={navigation as never}
+      route={route('LobbyingLobbyists', { year: '2025', sort: 'donations_desc', ...params })}
+    />
+  );
+  // The search field's clear button also carries tabindex -1 and draws first.
+  const card = () => [...host.querySelectorAll('[tabindex="-1"]')].at(-1) as HTMLElement;
+
+  it('dates each record against the thing it dates, in the drawn reading order', () => {
+    state.lobbyists = served();
+    render(screen());
+    const page = words();
+    // The registration date sits above the search field; the contribution date
+    // sits inside the card, under the paragraph the dollars belong to.
+    expect(page.indexOf('Lobbyist registration list copied Sep 13, 2026')).toBeLessThan(
+      page.indexOf('Search lobbyists by name'),
+    );
+    const paragraph = page.indexOf('Each amount totals campaign contributions');
+    const contributionDate = page.indexOf('Campaign contribution file copied Sep 1, 2026');
+    const available = page.indexOf('campaign contribution amounts are available for');
+    const control = page.indexOf('How these amounts are counted');
+    expect(paragraph).toBeLessThan(contributionDate);
+    expect(contributionDate).toBeLessThan(available);
+    expect(available).toBeLessThan(control);
+    // Closed explanation, and the contribution date is still on screen.
+    expect(page).not.toContain('This list shows the lobbyists who were registered');
+  });
+
+  it('prints neither date when its own source date is missing', () => {
+    state.lobbyists = served({
+      copied_at: null,
+      donations: {
+        state: 'reported',
+        year: 2025,
+        available_years: [2025],
+        eligible_count: 136,
+        copied_at: null,
+      },
+    });
+    render(screen());
+    expect(words()).not.toContain('Lobbyist registration list copied');
+    expect(words()).not.toContain('Campaign contribution file copied');
+  });
+
+  it('keeps the availability count for a search that matched one lobbyist', () => {
+    state.lobbyists = served({
+      total: 1,
+      has_more: false,
+      lobbyists: fixture.lobbyists_page_2.lobbyists.slice(0, 1),
+      q: 'bakk',
+      donations: {
+        state: 'reported',
+        year: 2025,
+        available_years: [2025],
+        eligible_count: 0,
+        copied_at: '2026-09-01T12:00:00Z',
+      },
+    });
+    render(screen({ q: 'bakk' }));
+    expect(words()).toContain(
+      '2025 campaign contribution amounts are available for 0 of the 1 lobbyist in these results',
+    );
+  });
+
+  it('states no ratio when the name matched nothing, and keeps the explanation', () => {
+    state.lobbyists = served({
+      total: 0,
+      has_more: false,
+      lobbyists: [],
+      q: 'zzzzqq',
+      donations: {
+        state: 'reported',
+        year: 2025,
+        available_years: [2025],
+        eligible_count: 0,
+        copied_at: '2026-09-01T12:00:00Z',
+      },
+    });
+    render(screen({ q: 'zzzzqq' }));
+    expect(words()).not.toContain('are available for 0 of the 0');
+    expect(words()).not.toContain('Donation amounts are unavailable');
+    expect(words()).toContain('Each amount totals campaign contributions');
+    expect(words()).toContain('No lobbyist is listed under that spelling in these records');
+  });
+
+  it('brings the results back into view when the reader changes the numbered page', () => {
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus');
+    state.lobbyists = served();
+    render(screen());
+    const next = host.querySelector('a[aria-label="Next page"]') as HTMLElement;
+    act(() => next.click());
+    // A new page of rows arrives; only then is there something to scroll to.
+    state.lobbyists = served({ offset: 50 });
+    render(screen({ page: '2' }));
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start' });
+    // Focus follows the view, so a keyboard reader is not left on a control that
+    // has scrolled off the screen.
+    expect(focus.mock.contexts).toContain(card());
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    focus.mockRestore();
+    Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+  });
+
+  it('leaves the reader where they are when a control, not the page, changes', () => {
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    state.lobbyists = served();
+    render(screen());
+    const sort = host.querySelector('select[aria-label="Sort by"]') as HTMLSelectElement;
+    act(() => {
+      sort.value = 'name';
+      sort.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    state.lobbyists = served({ sort: 'name' });
+    render(screen({ sort: 'name' }));
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
   });
 });

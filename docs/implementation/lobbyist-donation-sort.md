@@ -87,8 +87,8 @@ Any amount remains a sum of held matching records, never proof of complete givin
 
 - Independent live reader review passed both amount orders, search, matching-year
   links and missing-amount labels. It found clipped sort-choice text at 320px.
-  The shortened choices, “Donations: highest first” and “Donations: lowest first”,
-  fit at 320px and 390px.
+  Shortening the 2 amount choices, which then read “Donations: highest first” and
+  “Donations: lowest first”, fitted them at 320px and 390px.
 - The fallback workflow was cancelled after its completed deployment reached the
   public addresses, stopping the redundant wait for Vercel’s stalled automatic
   domain assignment. The apex address still redirects to `www.alethical.com`.
@@ -190,8 +190,8 @@ first-name-first finds nobody), [issue 2303](https://github.com/alethical-org/al
 
 ## The directory opens on the dollar order
 
-Eugene ruled on 18 September 2026 that `Sort by` reads `Donations: highest first`
-on first load of `/money/lobbying/lobbyists`, replacing `Name A–Z`.
+Eugene ruled on 18 September 2026 that `Sort by` opens on the largest recorded
+amount at `/money/lobbying/lobbyists`, replacing `Name A–Z`.
 
 One constant carries it (`LOBBYING_DEFAULT_DONATION_SORT` in
 [lobbyingTypes.ts](../../apps/frontend/src/lib/lobbyingTypes.ts)), read by the
@@ -224,3 +224,64 @@ Search engines see no new address: the bare path is still the canonical one and 
 still the only indexed form, because the opening order is omitted from it. An old
 `?sort=donations_desc` bookmark still works and stays unindexed, as every address
 carrying a parameter other than `page` does.
+
+## Copy, the 2 record dates, and the jump back to the results
+
+Design drew the directory again in `Alethical UX (27).zip`. Eugene authorised the
+build on 19 September 2026 and overruled 2 of the bundle's instructions: the Year
+and Sort by menus stay native browser menus rather than becoming drawn panels, and
+the availability count is kept for a search that matched a single lobbyist. Nothing
+here changes what the page counts.
+
+**The 2 copy dates now sit apart, each against the records it dates.** The
+registration list's date reads `Lobbyist registration list copied {date}` under the
+introduction and above the name field. The campaign file's date reads
+`Campaign contribution file copied {date}` inside the results card, directly under
+the paragraph explaining the amounts, where it dates the dollars rather than the
+page. Beside the explanation control it read as metadata about the control. Both
+take the same quiet treatment, and each is hidden when its own source date is
+absent; neither ever stands in for the other.
+
+**The card's reading order is the count and both controls, the amounts paragraph,
+the campaign file date, the availability count, then the explanation control.** The
+first response carries the same order
+([lobbyingPageSnapshot.ts](../../apps/frontend/src/lib/lobbyingPageSnapshot.ts)), so
+a reader who arrives before the app starts reads the same sentences in the same
+sequence.
+
+**The availability count names its denominator**, because a bare count of supported
+amounts gave no sense of how much of the list carries one. It is withheld when a
+search matched nobody: `0 of the 0` states no ratio a reader can use, and the
+no-match message beside it already says what happened. It is kept when a search
+matched exactly 1, against the bundle's instruction to drop it, because a reader
+cannot otherwise tell a missing amount from one we chose not to show.
+
+**Previous and Next bring the top of the results card into view and move keyboard
+focus there**, on this directory only. The control that changes the page sits below
+the last row, so leaving the position alone dropped the reader at the foot of a page
+they had not seen. Browser Back is not a page change and keeps the place the browser
+restored; changing the name, year or order returns to page 1 without scrolling.
+
+### 3 values the bundle asked for that the built page does not carry
+
+- **Drawn choice panels.** The bundle reversed an earlier decision and specified a
+  button and a listbox of our own, with keyboard handling, first-letter type-ahead
+  and an accessibility tree we would own. Eugene kept the native menus.
+- **A wrapping choice value on the narrowest phones.** A native menu cannot wrap its
+  value, so at widths under 360 the value steps down to 13.5px instead, which is the
+  largest size at which `Recorded amount: highest first` reads whole inside a 288px
+  card. Measured: 200.3px of text in 204px of room at 320px, and no sideways scroll.
+- **A centred content column.** The column is 1000px wide and starts at the left
+  edge the wordmark and every other money page start from. Centring it would indent
+  the page from the header above it.
+
+### What was measured in a browser
+
+At 1440, 1200, 1100, 1024, 768, 767, 390, 360 and 320 pixels: no sideways scroll, no
+row past the viewport, and both menus wide enough for their own longest choice
+(6.6px to spare on `Sort by` at 16px, 3.7px at 320). The chevron's drawn arrow ends
+20px from the box's right border. Keyboard: Enter opens the explanation and Space
+closes it, the row focus ring draws inset, and paging moved focus onto the results
+card. Against the live API: year 2024 showed 131 supported amounts of 1,665, a
+2-result search read `1 of the 2 lobbyists`, and a 1-result search read
+`1 of the 1 lobbyist`.

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
@@ -80,8 +80,10 @@ export function LobbyingDirectoryPage({
   /** The lobbyist directory draws its own results card; principals keep this one. */
   renderResults?: (state: {
     countLine: string | null;
+    total: number | null;
     pending: boolean;
     failed: boolean;
+    resultsRef: RefObject<View | null>;
     emptyPage: boolean;
     firstPageHref: string;
     onFirstPage: () => void;
@@ -89,8 +91,10 @@ export function LobbyingDirectoryPage({
     pagination: ReactNode;
   }) => ReactNode;
 }) {
-  const { isMobile, isTablet } = useResponsive();
+  const { width, isMobile, isTablet } = useResponsive();
   const lobbyists = kind === 'lobbyists';
+  // The narrowest phones take a tighter gutter and a step down in display type.
+  const narrow = isMobile && width > 0 && width < 360;
   const words = copy[kind];
   const [draft, setDraft] = useState(query);
   useEffect(() => setDraft(query), [query]);
@@ -143,14 +147,56 @@ export function LobbyingDirectoryPage({
   useEffect(() => {
     if (outOfRange) navigation.replace('NotFound', { path: address(page) });
   }, [outOfRange, navigation, kind, page, query]);
-  const goToPage = (target: number) =>
+  // Previous and Next sit below the last row, so the reader lands at the foot of a
+  // page they have not seen. Bringing the card back means the count, the controls
+  // and the first row are all on screen again, and focus follows the view so a
+  // keyboard reader is not left on a control that scrolled away. Browser Back is
+  // not a page change and keeps the position the browser restored; changing the
+  // name, year or order does not scroll, because the reader is looking at the
+  // control that did it.
+  const resultsRef = useRef<View>(null);
+  const pagedFrom = useRef(false);
+  useEffect(() => {
+    if (!lobbyists || !data || !pagedFrom.current) return;
+    pagedFrom.current = false;
+    const node = resultsRef.current as unknown as HTMLElement | null;
+    node?.scrollIntoView?.({ block: 'start' });
+    node?.focus?.({ preventScroll: true });
+  }, [data, lobbyists]);
+  const goToPage = (target: number) => {
+    if (lobbyists) pagedFrom.current = true;
     navigation.setParams({
       page: target > 1 ? String(target) : undefined,
       ...(kind === 'lobbyists' && navigationYear ? { year: navigationYear } : {}),
     });
+  };
+  const introSize = lobbyists
+    ? isMobile
+      ? narrow
+        ? 16
+        : 17
+      : isTablet
+        ? 18
+        : 19
+    : isMobile || isTablet
+      ? 16
+      : 17;
   const bodySize = isMobile || isTablet ? 16 : 17;
   const body = { fontSize: bodySize, lineHeight: bodySize * 1.55 };
-  const titleSize = isMobile ? 30 : isTablet ? 38 : 46;
+  const intro = { fontSize: introSize, lineHeight: introSize * 1.55 };
+  const titleSize = lobbyists
+    ? isMobile
+      ? narrow
+        ? 28
+        : 30
+      : isTablet
+        ? 36
+        : 44
+    : isMobile
+      ? 30
+      : isTablet
+        ? 38
+        : 46;
   const directoryContext =
     kind === 'lobbyists'
       ? lobbyingLobbyistDirectoryDate(data?.copied_at, centralDateLabel)
@@ -174,7 +220,7 @@ export function LobbyingDirectoryPage({
         <Container
           style={[
             styles.main,
-            { paddingHorizontal: isMobile ? 20 : isTablet ? 32 : 56 },
+            { paddingHorizontal: isMobile ? (narrow && lobbyists ? 16 : 20) : isTablet ? 32 : 56 },
             lobbyists && styles.lobbyistColumn,
             lobbyists && { paddingBottom: isMobile ? 48 : isTablet ? 56 : 72 },
           ]}
@@ -202,12 +248,21 @@ export function LobbyingDirectoryPage({
           >
             {words.title}
           </Text>
-          <Text style={[styles.intro, body, lobbyists && styles.lobbyistIntro]}>{words.intro}</Text>
+          <Text
+            style={[
+              styles.intro,
+              lobbyists ? intro : body,
+              lobbyists && styles.lobbyistIntro,
+              lobbyists && !isMobile && { maxWidth: isTablet ? 640 : 720 },
+            ]}
+          >
+            {words.intro}
+          </Text>
           {kind === 'principals' ? (
             <Text style={[styles.education, body]}>{copy.principals.definition}</Text>
           ) : null}
           {directoryContext ? (
-            <Text style={[styles.directoryContext, body, lobbyists && styles.lobbyistContext]}>
+            <Text style={lobbyists ? styles.registrationDate : [styles.directoryContext, body]}>
               {directoryContext}
             </Text>
           ) : null}
@@ -218,13 +273,15 @@ export function LobbyingDirectoryPage({
               onSubmit={() => applyQuery(draft.trim())}
               label={words.searchLabel}
               labelStyle={styles.filterLabel}
-              placeholder={copy.filter}
-              maxWidth={lobbyists ? (isMobile ? 640 : isTablet ? 480 : 520) : 640}
+              placeholder={lobbyists ? copy.lobbyists.searchPlaceholder : copy.filter}
+              maxWidth={lobbyists ? (isMobile ? width || 640 : isTablet ? 480 : 520) : 640}
               fieldHeight={lobbyists ? (isMobile ? 52 : isTablet ? 56 : 60) : 52}
               fieldFontSize={bodySize}
               showClear={lobbyists}
             />
-            <Text style={styles.filterNote}>{copy.filterNote}</Text>
+            <Text style={styles.filterNote}>
+              {lobbyists ? copy.lobbyists.searchHelp : copy.filterNote}
+            </Text>
           </View>
           {renderResults ? (
             renderResults({
@@ -235,8 +292,10 @@ export function LobbyingDirectoryPage({
                 : total != null
                   ? lobbyingShowingLine(kind, page, rows.length, total)
                   : null,
+              total,
               pending,
               failed: !pending && (!served || (result.isError && rows.length === 0)),
+              resultsRef,
               emptyPage: total != null && total > 0,
               firstPageHref: address(1),
               onFirstPage: () => goToPage(1),
@@ -408,8 +467,21 @@ const styles = StyleSheet.create({
   // and every other money page start from rather than centred as the drawing's own
   // imitation header allowed.
   lobbyistColumn: { maxWidth: 1112 },
-  lobbyistIntro: { maxWidth: 720 },
-  lobbyistContext: { maxWidth: 720 },
+  // A 2-line paragraph risks a 1-word last line; the browser balances it instead.
+  lobbyistIntro: { ...({ textWrap: 'pretty' } as object) },
+  // Both record dates take the same quiet treatment, each standing against the
+  // records it dates. This one belongs to the list of registered lobbyists; the
+  // campaign file's own date sits inside the results card.
+  registrationDate: {
+    marginTop: 8,
+    maxWidth: 720,
+    fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
+    color: '#656c66',
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '700',
+  },
   back: {
     alignSelf: 'flex-start',
     minHeight: 44,
@@ -450,11 +522,11 @@ const styles = StyleSheet.create({
     textTransform: 'none',
     fontWeight: '800',
     color: '#2c322c',
-    marginBottom: 10,
+    marginBottom: 9,
   },
   filterNote: {
     marginTop: 9,
-    color: '#6b716b',
+    color: '#656c66',
     fontFamily: t.typography.body,
     fontSize: 15,
     lineHeight: 22,

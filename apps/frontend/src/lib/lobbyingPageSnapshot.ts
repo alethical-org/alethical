@@ -1,6 +1,7 @@
 import {
   lobbyingCampaignFileDate,
   lobbyingDonationAmountLabel,
+  lobbyingEligibleAmountLine,
   LOBBYING_DONATION_AMOUNT_NOTE,
   LOBBYING_DONATION_EXPLANATION_LABEL,
   LOBBYING_DONATION_SCOPE_NOTE,
@@ -122,13 +123,13 @@ export function lobbyingDirectorySnapshot(
 ): PageSnapshot {
   const rows = 'principals' in data ? data.principals : data.lobbyists;
   const total = data.total ?? 0;
+  const donations = 'donations' in data ? data.donations : undefined;
   const pages = directoryTotalPages(total, 50);
   const path = `/money/lobbying/${kind}` as const;
   const pagePath = (target: number) => {
     const params = new URLSearchParams();
     if (data.q) params.set('q', data.q);
-    if ('donations' in data && data.donations?.year)
-      params.set('year', String(data.donations.year));
+    if (donations?.year) params.set('year', String(donations.year));
     if ('sort' in data && data.sort && data.sort !== LOBBYING_DEFAULT_DONATION_SORT)
       params.set('sort', data.sort);
     if (target > 1) params.set('page', String(target));
@@ -148,8 +149,20 @@ export function lobbyingDirectorySnapshot(
               centralDateLabel,
             ),
           ]),
-      ...(kind === 'lobbyists' ? [LOBBYING_DONATION_AMOUNT_NOTE] : []),
+      // The first response carries the card's own reading order: the count, what
+      // the amounts are, the day that file was copied, then how many rows have one.
       lobbyingShowingLine(kind, page, rows.length, total),
+      ...(kind === 'lobbyists'
+        ? [
+            LOBBYING_DONATION_AMOUNT_NOTE,
+            donations?.copied_at
+              ? lobbyingCampaignFileDate(centralDateLabel(donations.copied_at))
+              : null,
+            total > 0 && donations?.eligible_count != null && donations.year != null
+              ? lobbyingEligibleAmountLine(donations.eligible_count, total, donations.year)
+              : null,
+          ]
+        : []),
       ...(rows.length ? [] : [directory[kind].empty, directory.noMatchWhy]),
     ].filter((line): line is string => Boolean(line)),
     sections: [
@@ -161,11 +174,11 @@ export function lobbyingDirectorySnapshot(
               label: row.name,
               detail: [
                 lobbyingPrincipalCount(row.principal_count),
-                lobbyingDonationAmountLabel(row, 'donations' in data ? data.donations?.year : null),
+                lobbyingDonationAmountLabel(row, donations?.year ?? null),
               ].join(' · '),
               href:
                 recordPath('lobbyists', row.name, row.registration_number) +
-                ('donations' in data && data.donations?.year ? `?year=${data.donations.year}` : ''),
+                (donations?.year ? `?year=${donations.year}` : ''),
             };
           return {
             label: row.name,

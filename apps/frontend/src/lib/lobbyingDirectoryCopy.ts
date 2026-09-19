@@ -39,8 +39,12 @@ export const LOBBYING_DIRECTORY_COPY = {
     title: 'Lobbyists',
     lane: 'People registered to influence government decisions on behalf of others',
     intro:
-      'Lobbyists are people registered to influence government decisions. Browse who they represent in these records.',
+      'Lobbyists are people registered to attempt to influence government decisions. Browse the clients they represent in these records.',
     searchLabel: 'Search lobbyists by name',
+    // The lobbyist directory carries its own field wording; the principals
+    // directory keeps the shared `filter` and `filterNote` strings.
+    searchPlaceholder: 'Enter a name',
+    searchHelp: 'You can enter a full or partial name',
     empty: 'No lobbyist is listed under that spelling in these records',
     loading: 'Loading registered lobbyists',
     unavailable:
@@ -101,7 +105,7 @@ export function lobbyingLobbyistDirectoryDate(
   copiedAt: string | null | undefined,
   dateLabel: (date: string) => string,
 ): string | null {
-  return copiedAt ? `Registrations shown as listed in records copied ${dateLabel(copiedAt)}` : null;
+  return copiedAt ? `Lobbyist registration list copied ${dateLabel(copiedAt)}` : null;
 }
 
 export function lobbyingPrincipalDirectoryScope(

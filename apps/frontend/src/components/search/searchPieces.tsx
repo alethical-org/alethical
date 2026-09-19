@@ -1254,9 +1254,17 @@ export function Pagination({
   nextHref?: string;
   variant?: 'lobbying';
 }) {
+  const { isMobile } = useResponsive();
   if (!hasPrev && !hasNext) return null;
+  const lobbying = variant === 'lobbying';
   return (
-    <View style={styles.pagination}>
+    <View
+      style={[
+        styles.pagination,
+        lobbying && styles.lobbyingPagination,
+        lobbying && isMobile && styles.lobbyingPaginationPhone,
+      ]}
+    >
       <PageButton
         direction="prev"
         variant={variant}
@@ -1270,7 +1278,11 @@ export function Pagination({
       {/* aria-live: announce the new page number to screen readers, since the
           results below swap silently. */}
       <Text
-        style={[styles.pageLabel, variant === 'lobbying' && styles.lobbyingPaginationText]}
+        style={[
+          styles.pageLabel,
+          variant === 'lobbying' && styles.lobbyingPaginationText,
+          lobbying && isMobile && styles.lobbyingPaginationPhoneText,
+        ]}
         accessibilityLiveRegion="polite"
       >
         Page <Text style={styles.pageLabelNum}>{page}</Text>
@@ -1303,8 +1315,15 @@ function PageButton({
   href?: string;
   variant?: 'lobbying';
 }) {
+  const { isMobile } = useResponsive();
   const [hovered, hover] = useHover();
-  const color = disabled ? t.colors.borders.strong : t.colors.text.primary;
+  const color = disabled
+    ? variant === 'lobbying'
+      ? '#b7bdb8'
+      : t.colors.borders.strong
+    : variant === 'lobbying' && hovered
+      ? t.colors.text.greenOnLight
+      : t.colors.text.primary;
   const Icon = direction === 'prev' ? ChevronLeft : ChevronRight;
   return (
     <Pressable
@@ -1327,6 +1346,7 @@ function PageButton({
           styles.pageBtnText,
           { color },
           variant === 'lobbying' && styles.lobbyingPaginationText,
+          variant === 'lobbying' && isMobile && styles.lobbyingPaginationPhoneText,
         ]}
       >
         {direction === 'prev' ? 'Previous' : 'Next'}
@@ -1980,6 +2000,10 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
   },
   lobbyingPaginationText: { fontSize: 15, fontVariant: ['tabular-nums'] },
+  lobbyingPagination: { marginTop: 22 },
+  // Both directions keep a 44px target at 320 rather than squeezing the label.
+  lobbyingPaginationPhone: { justifyContent: 'space-between', gap: 8, flexWrap: 'nowrap' },
+  lobbyingPaginationPhoneText: { fontSize: 14 },
   pageLabel: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.small,

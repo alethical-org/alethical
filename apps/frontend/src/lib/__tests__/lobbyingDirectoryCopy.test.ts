@@ -50,7 +50,7 @@ describe('lobbying directory wording', () => {
   it('dates the copied registration list and separates it from yearly spending', () => {
     const dateLabel = () => 'Sep 13, 2026';
     expect(lobbyingLobbyistDirectoryDate('2026-09-13T00:00:00Z', dateLabel)).toBe(
-      'Registrations shown as listed in records copied Sep 13, 2026',
+      'Lobbyist registration list copied Sep 13, 2026',
     );
     expect(lobbyingPrincipalDirectoryScope(2025, '2026-09-13T00:00:00Z', dateLabel)).toBe(
       'This directory includes organisations from different reporting years and the lobbyist list copied Sep 13, 2026. The Lobbying page’s spending count covers 2025 only.',
@@ -100,15 +100,15 @@ describe('lobbyist directory donation wording', () => {
     );
   });
 
-  it('counts supported amounts in singular and plural without a closing period', () => {
-    expect(lobbyingEligibleAmountLine(1, 2025)).toBe(
-      '1 lobbyist in these results has an amount available for 2025',
+  it('counts supported amounts against the whole match, singular and plural', () => {
+    expect(lobbyingEligibleAmountLine(1, 1, 2025)).toBe(
+      '2025 campaign contribution amounts are available for 1 of the 1 lobbyist in these results',
     );
-    expect(lobbyingEligibleAmountLine(1665, 2024)).toBe(
-      '1,665 lobbyists in these results have an amount available for 2024',
+    expect(lobbyingEligibleAmountLine(136, 1665, 2024)).toBe(
+      '2024 campaign contribution amounts are available for 136 of the 1,665 lobbyists in these results',
     );
-    expect(lobbyingEligibleAmountLine(0, 2025)).toBe(
-      '0 lobbyists in these results have an amount available for 2025',
+    expect(lobbyingEligibleAmountLine(0, 3, 2025)).toBe(
+      '2025 campaign contribution amounts are available for 0 of the 3 lobbyists in these results',
     );
   });
 

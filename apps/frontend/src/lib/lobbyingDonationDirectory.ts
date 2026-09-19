@@ -3,8 +3,8 @@ import type { LobbyingLobbyistListRow } from './lobbyingTypes';
 
 export const LOBBYING_DONATION_SORTS = [
   { value: 'name', label: 'Name A–Z' },
-  { value: 'donations_desc', label: 'Donations: highest first' },
-  { value: 'donations_asc', label: 'Donations: lowest first' },
+  { value: 'donations_desc', label: 'Recorded amount: highest first' },
+  { value: 'donations_asc', label: 'Recorded amount: lowest first' },
 ] as const;
 
 export type LobbyingDonationAmountParts =
@@ -40,20 +40,24 @@ export function lobbyingCampaignFileDate(date: string): string {
   return `Campaign contribution file copied ${date}`;
 }
 
-/** Counts the whole name search, not the visible page, so it follows both controls. */
-export function lobbyingEligibleAmountLine(count: number, year: number): string {
-  const subject = count === 1 ? 'lobbyist in these results has' : 'lobbyists in these results have';
-  return `${count.toLocaleString('en-US')} ${subject} an amount available for ${year}`;
+/**
+ * Counts the whole name search, not the visible numbered page, so it follows both
+ * controls. A search that matches one lobbyist still prints it, because the reader
+ * cannot otherwise tell a missing amount from one we chose not to show.
+ */
+export function lobbyingEligibleAmountLine(count: number, total: number, year: number): string {
+  const noun = total === 1 ? 'lobbyist' : 'lobbyists';
+  return `${year} campaign contribution amounts are available for ${count.toLocaleString('en-US')} of the ${total.toLocaleString('en-US')} ${noun} in these results`;
 }
 
 export const LOBBYING_DONATION_AMOUNTS_UNAVAILABLE =
   'Donation amounts are unavailable. You can still browse lobbyists by name.';
 export const LOBBYING_DONATION_AMOUNT_NOTE =
-  'Amounts add campaign donations filed under each lobbyist’s registration number for the selected year, including donated goods or services. They are not complete giving totals.';
+  'Each amount totals campaign contributions filed under the lobbyist’s registration number for the selected year, including donated goods or services. These are campaign contributions, not lobbying spending by their clients. They are not a complete record of the lobbyist’s giving.';
 export const LOBBYING_DONATION_SCOPE_NOTE =
-  'The list covers lobbyists registered on the lobbyist-list copy date. Amounts use matching campaign donation records, not lobbying spending by their clients. Only completed calendar years are offered.';
+  'This list shows the lobbyists who were registered when the lobbyist list was copied. Only completed calendar years are available.';
 export const LOBBYING_DONATION_METHOD_NOTE =
-  'An amount is shown only when every receiving committee’s matching records pass our full-year checks against its filings. Otherwise, the amount is unavailable. No matching records does not mean the lobbyist gave nothing. Missing amounts appear last in either dollar order.';
+  'We show an amount only when each receiving committee’s matching records pass our checks against that committee’s filings for the full year. Otherwise, the amount is unavailable. Finding no matching records does not mean the lobbyist gave nothing. Lobbyists with missing amounts appear last whether the list is sorted from highest to lowest or lowest to highest.';
 export const LOBBYING_DONATION_SOURCE_LABEL = 'View the Board’s campaign contribution file';
 export const LOBBYING_DONATION_EXPLANATION_LABEL = 'How these amounts are counted';
 export const LOBBYING_DONATION_EXPLANATION_HIDE_LABEL = 'Hide how these amounts are counted';

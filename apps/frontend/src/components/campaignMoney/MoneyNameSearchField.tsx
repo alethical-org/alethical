@@ -19,9 +19,9 @@ import { theme as t } from '../../theme/tokens';
  * a reader who found something in it has nothing to send anybody, and the same
  * matching is on a results page that does have an address.
  */
-function MagnifierGlyph({ color }: { color: string }) {
+function MagnifierGlyph({ color, size = 18 }: { color: string; size?: number }) {
   return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
       <Circle cx={11} cy={11} r={6.5} stroke={color} strokeWidth={2} />
       <Path d="M16 16 L21 21" stroke={color} strokeWidth={2} strokeLinecap="round" />
     </Svg>
@@ -77,6 +77,7 @@ export function MoneyNameSearchField({
   const { focused, focusProps } = useFieldFocus();
   const inputRef = useRef<TextInput>(null);
   const [hovered, setHovered] = useState(false);
+  const [clearHovered, setClearHovered] = useState(false);
 
   return (
     <View style={[styles.wrap, { maxWidth }]}>
@@ -107,15 +108,22 @@ export function MoneyNameSearchField({
               height: fieldHeight,
               minWidth: 0,
               paddingVertical: 0,
-              paddingHorizontal: 20,
+              paddingLeft: 19,
+              paddingRight: 8,
               borderRadius: 14,
+              borderColor: t.colors.alpha.ink16,
+              gap: 12,
+              boxShadow: '0 6px 18px rgba(17,21,15,0.05)',
             },
             stacked && styles.stackedBox,
             listAppearance && styles.listBox,
             ...fieldFocusRing(focused),
           ]}
         >
-          <MagnifierGlyph color={t.colors.text.faint} />
+          <MagnifierGlyph
+            color={fieldHeight != null ? '#6f756f' : t.colors.text.faint}
+            size={fieldHeight != null ? 21 : 18}
+          />
           <TextInput
             ref={(input) => {
               inputRef.current = input;
@@ -138,6 +146,9 @@ export function MoneyNameSearchField({
             placeholderTextColor={t.colors.text.faint}
             autoCorrect={false}
             autoCapitalize="none"
+            // The browser's own history list is the 1 dropdown here we cannot style,
+            // and it drops OS chrome directly under a designed field.
+            autoComplete="off"
             spellCheck={false}
             style={[
               styles.input,
@@ -154,8 +165,13 @@ export function MoneyNameSearchField({
                 onChangeText('');
                 inputRef.current?.focus();
               }}
-              style={styles.clearButton}
+              onHoverIn={() => setClearHovered(true)}
+              onHoverOut={() => setClearHovered(false)}
+              style={[styles.clearButton, showClear && styles.clearTarget]}
             >
+              {showClear ? (
+                <View style={[styles.clearCircle, clearHovered && styles.clearCircleHover]} />
+              ) : null}
               <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
                 <Path
                   d="M6 6 L18 18 M18 6 L6 18"
@@ -222,6 +238,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: -12,
   },
+  // A 44px target with a 30px circle inside it, so the hit area stays large while
+  // only the circle is ever drawn.
+  clearTarget: { marginRight: 0 },
+  clearCircle: {
+    position: 'absolute',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'transparent',
+  },
+  clearCircleHover: { backgroundColor: '#f1f1f4' },
   label: {
     marginBottom: 8,
     color: t.colors.text.secondary,

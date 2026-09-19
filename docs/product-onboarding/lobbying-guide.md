@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/screens/redesign/LobbyingLandingScreen.tsx, apps/frontend/src/screens/redesign/LobbyingPrincipalsScreen.tsx, apps/frontend/src/screens/redesign/LobbyingLobbyistsScreen.tsx, apps/frontend/src/screens/redesign/LobbyingPrincipalScreen.tsx, apps/frontend/src/screens/redesign/LobbyingLobbyistScreen.tsx, apps/frontend/src/lib/lobbyingDirectoryCopy.ts, apps/frontend/src/lib/lobbyingRecordCopy.ts, apps/frontend/src/lib/lobbyingTypes.ts, apps/frontend/src/data/lobbying.ts, apps/frontend/src/data/moneyNameSearch.ts, apps/frontend/src/hooks/useLobbying.ts, apps/frontend/src/hooks/useLobbyingNameSearch.ts, apps/frontend/src/components/lobbying/LobbyingPageFrame.tsx, apps/frontend/src/components/lobbying/LobbyingSearchResults.tsx, apps/frontend/src/lib/lobbyingSearch.ts, apps/frontend/src/lib/lobbyingPageSnapshot.ts, apps/frontend/src/lib/lobbyingMetadata.ts, apps/frontend/src/components/lobbying/LobbyingDonationContext.tsx, apps/frontend/src/components/lobbying/LobbyingDonationControls.tsx, apps/frontend/src/components/lobbying/LobbyistDirectoryCard.tsx, apps/frontend/src/lib/lobbyingDonationDirectory.ts, apps/frontend/src/lib/lobbyingPanelCopy.ts, apps/frontend/src/navigation/webRoutes.ts, api/page.ts, api/sitemap.ts -->
+<!-- describes: apps/frontend/src/screens/redesign/LobbyingLandingScreen.tsx, apps/frontend/src/screens/redesign/LobbyingPrincipalsScreen.tsx, apps/frontend/src/screens/redesign/LobbyingLobbyistsScreen.tsx, apps/frontend/src/screens/redesign/LobbyingPrincipalScreen.tsx, apps/frontend/src/screens/redesign/LobbyingLobbyistScreen.tsx, apps/frontend/src/lib/lobbyingDirectoryCopy.ts, apps/frontend/src/lib/lobbyingRecordCopy.ts, apps/frontend/src/lib/lobbyingTypes.ts, apps/frontend/src/data/lobbying.ts, apps/frontend/src/data/moneyNameSearch.ts, apps/frontend/src/hooks/useLobbying.ts, apps/frontend/src/hooks/useLobbyingNameSearch.ts, apps/frontend/src/components/lobbying/LobbyingPageFrame.tsx, apps/frontend/src/components/lobbying/LobbyingSearchResults.tsx, apps/frontend/src/lib/lobbyingSearch.ts, apps/frontend/src/lib/lobbyingPageSnapshot.ts, apps/frontend/src/lib/lobbyingMetadata.ts, apps/frontend/src/components/lobbying/LobbyingDonationContext.tsx, apps/frontend/src/components/lobbying/LobbyingDonationControls.tsx, apps/frontend/src/components/lobbying/LobbyistDirectoryCard.tsx, apps/frontend/src/theme/directoryRows.ts, apps/frontend/src/lib/lobbyingDonationDirectory.ts, apps/frontend/src/lib/lobbyingPanelCopy.ts, apps/frontend/src/navigation/webRoutes.ts, api/page.ts, api/sitemap.ts -->
 
 # How the lobbying pages work
 
@@ -85,7 +85,8 @@ remain ordinary links within list items.
 ## The 2 directories
 
 Both directories show 50 rows per numbered page. Each one labels its field for the kind of
-name it accepts, uses “Search by name” in the field, and says “Enter all or part of a name.”
+name it accepts. Principals says “Search by name” in the field and “Enter all or part of a
+name”; Lobbyists says “Enter a name” and “You can enter a full or partial name.”
 The typed name and page number stay in
 the address as `q` and `page`, including Back and Forward. The name box filters the filed
 name; it does not offer a guessed spelling. Ordinary Previous and Next links work before
@@ -98,8 +99,9 @@ lobbying page's browser-tab title names the state (“Kozak, Andrew — Minnesot
 its description says what that kind of page shows and where the records come from
 (`apps/frontend/src/lib/lobbyingMetadata.ts`).
 
-The Lobbyists directory defines lobbyists, says who they represent in these records, and
-dates the copied registration list. Its rows say “client listed” or “clients listed.” The
+The Lobbyists directory defines lobbyists, says it lists the clients they represent, and
+dates the copied registration list as “Lobbyist registration list copied {date}”, directly
+under the introduction and above the name field. Its rows say “client listed” or “clients listed.” The
 Principals directory explains the Board’s word, says that it combines names from different
 reporting years and the dated lobbyist list, and distinguishes its total from the Lobbying
 page’s named-year spending count. A row with spending says “Latest spending year in these
@@ -108,6 +110,11 @@ records: {year}.”
 The showing line uses the whole served count, for example
 "Showing 51–100 of 1,665 registered lobbyists". Page counts are never added across kinds.
 Changing the name does not draw the previous search's empty statement under the new name.
+On the lobbyist directory only, Previous and Next bring the top of the results card back
+into view and move keyboard focus there, so a reader is never dropped at the foot of a page
+they have not seen. Browser Back is not a page change and keeps the place the browser
+restored; changing the name, year or order returns to page 1 without scrolling, because the
+reader is already looking at the control that did it.
 
 Principals include IDs found only in the copied lobbyist list. Such a row is plain text, in both
 the directory and search, with "No spending rows in the Board's file through {latest year},
@@ -117,9 +124,9 @@ record name comes from the spending file where that file holds the principal.
 ## Annual donation order in the lobbyist directory
 
 `/money/lobbying/lobbyists` adds Year and Sort by controls. The page opens on
-`Donations: highest first` for the latest supported completed calendar year, so a
-reader who arrives at the bare address sees the largest recorded donations first.
-Name A–Z and `Donations: lowest first` are the other 2 choices. The opening order
+`Recorded amount: highest first` for the latest supported completed calendar year,
+so a reader who arrives at the bare address sees the largest recorded amounts
+first. Name A–Z and `Recorded amount: lowest first` are the other 2 choices. The opening order
 is the 1 value left out of both the address and the request to the API, so the
 bare address, the first response and the served default cannot drift apart; every
 other choice is spelled out, including `sort=name`. The lobbying name search is
@@ -129,26 +136,40 @@ registration number breaking ties. Search, year, sort and page stay in the addre
 Changing a control returns to page 1. Filtered addresses are not indexed.
 
 Each row opens that lobbyist's record with the same donation year selected.
-The directory prints the selected year, the campaign source copy date and source
-link separately from the lobbyist-list copy date. Its disclosure distinguishes
-campaign donations from client lobbying spending and warns that these are sums of
-held matching records, not complete giving totals. The supported-amount count
-covers the whole name search, not just the visible page.
+The 2 copy dates stay apart, each against the records it dates: the registration
+list's date sits under the introduction, and the campaign file's date sits inside
+the results card as “Campaign contribution file copied {date}”, directly under the
+paragraph that explains the amounts. Neither date ever stands in for the other, and
+a date whose own source date is missing is not printed. The always-visible paragraph
+says the amounts are campaign contributions rather than lobbying spending by the
+clients, and that they are not a complete record of the lobbyist's giving. The
+availability count reads “{year} campaign contribution amounts are available for
+{count} of the {total} lobbyists in these results”, and the total covers the whole
+name search rather than the visible page. It is kept for a search that matched a
+single lobbyist and withheld when a search matched nobody, because 0 of 0 states no
+ratio a reader can use.
 
 The name field sits above one results card. That card's header carries the result
 count, Year and Sort by together: side by side on a computer, the count above the
 2 controls on a tablet, and everything stacked on a phone. The count is the
 results heading and announces its own change politely. Under it, inside the same
-card, sit the amount limitation, the supported-amount count, the expandable
-explanation with its source link, and the campaign file's copy date. The rows
+card, in this order, sit the amount limitation, the campaign file's copy date, the
+availability count, and the expandable explanation with its source link. The rows
 follow, with name, client count, amount and arrow in aligned columns above the
 phone band and wrapped beneath the name on a phone. Nothing repeats the chosen
 order as a separate caption, because Sort by already names it.
 
+Both menus are native browser controls, so a phone opens its own picker and a
+keyboard reader keeps first-letter typing and screen-reader support. Only the
+closed box is ours: it drops the operating system's own styling and draws its own
+arrow, and each box is as wide as its own longest choice so no value is ever cut
+off and the box never resizes when the choice changes. A menu that cannot be
+offered is greyed out and its label greys with it.
+
 Loading, a failed read and both empty results keep that header and limitation,
 because they describe the list whatever it currently holds. A pending or failed
-read prints no count and no supported-amount sentence, since neither has been
-established; a completed search that matched nobody prints its real zero. A
+read prints no count and no availability sentence, since neither has been
+established. A
 failure keeps Sort by usable and keeps a year already chosen in the address
 selected. Browser Back restores the search, year, order, page and the place in
 the list.
