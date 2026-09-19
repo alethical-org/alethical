@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  lobbyingCampaignFileDate,
+  lobbyingDonationAmountLabel,
+  lobbyingDonationAmountParts,
+  lobbyingEligibleAmountLine,
+} from '../lobbyingDonationDirectory';
+import {
   LOBBYING_DIRECTORY_COPY as copy,
   MONEY_LANE_LOBBYING,
   lobbyistLaneCount,
@@ -44,7 +50,7 @@ describe('lobbying directory wording', () => {
   it('dates the copied registration list and separates it from yearly spending', () => {
     const dateLabel = () => 'Sep 13, 2026';
     expect(lobbyingLobbyistDirectoryDate('2026-09-13T00:00:00Z', dateLabel)).toBe(
-      'Registrations shown as listed in records copied Sep 13, 2026.',
+      'Registrations shown as listed in records copied Sep 13, 2026',
     );
     expect(lobbyingPrincipalDirectoryScope(2025, '2026-09-13T00:00:00Z', dateLabel)).toBe(
       'This directory includes organisations from different reporting years and the lobbyist list copied Sep 13, 2026. The Lobbying page’s spending count covers 2025 only.',
@@ -69,5 +75,46 @@ describe('lobbying directory wording', () => {
       'Who is registered to lobby, who they represent, and what is reported spent',
     );
     expect(MONEY_LANE_LOBBYING.body.endsWith('.')).toBe(false);
+  });
+});
+
+describe('lobbyist directory donation wording', () => {
+  const row = (state: string, amount: string | null) =>
+    ({ donation_state: state, donation_amount: amount }) as never;
+
+  it('splits a reported amount into a figure and a tail that rejoin with one space', () => {
+    const parts = lobbyingDonationAmountParts(row('reported', '2000.0000'), 2025);
+    expect(parts).toEqual({ figure: '$2,000', tail: 'recorded in 2025' });
+    expect(lobbyingDonationAmountLabel(row('reported', '2000.0000'), 2025)).toBe(
+      '$2,000 recorded in 2025',
+    );
+  });
+
+  it('keeps no matching records and an unavailable amount apart, and neither is $0', () => {
+    expect(lobbyingDonationAmountLabel(row('no_records', null), 2025)).toBe(
+      'No matching donation records',
+    );
+    expect(lobbyingDonationAmountLabel(row('unavailable', null), 2025)).toBe('Amount unavailable');
+    expect(lobbyingDonationAmountLabel(row('reported', '2000.0000'), null)).toBe(
+      'Amount unavailable',
+    );
+  });
+
+  it('counts supported amounts in singular and plural without a closing period', () => {
+    expect(lobbyingEligibleAmountLine(1, 2025)).toBe(
+      '1 lobbyist in these results has an amount available for 2025',
+    );
+    expect(lobbyingEligibleAmountLine(1665, 2024)).toBe(
+      '1,665 lobbyists in these results have an amount available for 2024',
+    );
+    expect(lobbyingEligibleAmountLine(0, 2025)).toBe(
+      '0 lobbyists in these results have an amount available for 2025',
+    );
+  });
+
+  it('dates the campaign file without a closing period', () => {
+    expect(lobbyingCampaignFileDate('Sep 1, 2026')).toBe(
+      'Campaign contribution file copied Sep 1, 2026',
+    );
   });
 });

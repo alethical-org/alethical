@@ -6,6 +6,7 @@ import { LinkArrowLabel } from '../../components/LinkArrow';
 import { PageContextLabel } from '../../components/PageContextLabel';
 import { Pagination } from '../../components/search/searchPieces';
 import { useDebouncedSearchCommit } from '../../hooks/useDebouncedSearchCommit';
+import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { useLobbyingPrincipals } from '../../hooks/useLobbying';
 import { useResponsive } from '../../hooks/useResponsive';
 import { committeeSlug } from '../../lib/committeeMoneyShared';
@@ -43,7 +44,6 @@ export interface LobbyingDirectoryRow {
   slug: string;
   linkable: boolean;
   meta: string | null;
-  donationLabel?: string;
   year?: string;
 }
 
@@ -55,12 +55,11 @@ export function LobbyingDirectoryPage({
   page,
   result,
   rows,
-  controls,
   year,
   navigationYear,
   sort,
   responseMatches = true,
-  orderLabel,
+  renderResults,
 }: {
   navigation: DirectoryNavigation;
   kind: LobbyingDirectoryKind;
@@ -74,14 +73,24 @@ export function LobbyingDirectoryPage({
     refetch: () => unknown;
   };
   rows: LobbyingDirectoryRow[];
-  controls?: ReactNode;
   year?: string;
   navigationYear?: string;
   sort?: string;
   responseMatches?: boolean;
-  orderLabel?: string;
+  /** The lobbyist directory draws its own results card; principals keep this one. */
+  renderResults?: (state: {
+    countLine: string | null;
+    pending: boolean;
+    failed: boolean;
+    emptyPage: boolean;
+    firstPageHref: string;
+    onFirstPage: () => void;
+    onRetry: () => void;
+    pagination: ReactNode;
+  }) => ReactNode;
 }) {
   const { isMobile, isTablet } = useResponsive();
+  const lobbyists = kind === 'lobbyists';
   const words = copy[kind];
   const [draft, setDraft] = useState(query);
   useEffect(() => setDraft(query), [query]);
@@ -150,6 +159,9 @@ export function LobbyingDirectoryPage({
           data?.copied_at,
           centralDateLabel,
         );
+  // Browser Back restores the four address values on its own; the shared
+  // hook supplies the place in the list, which a nested scroller loses.
+  const scrollRestoration = useHistoryScrollRestoration(!pending);
   const cardPadding = isMobile
     ? { paddingVertical: 20, paddingHorizontal: 18 }
     : isTablet
@@ -157,9 +169,16 @@ export function LobbyingDirectoryPage({
       : { paddingTop: 30, paddingHorizontal: 32, paddingBottom: 28 };
   return (
     <PageBackground>
-      <ScrollView contentContainerStyle={styles.page}>
+      <ScrollView {...(lobbyists ? scrollRestoration : {})} contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
-        <Container style={[styles.main, { paddingHorizontal: isMobile ? 20 : isTablet ? 32 : 56 }]}>
+        <Container
+          style={[
+            styles.main,
+            { paddingHorizontal: isMobile ? 20 : isTablet ? 32 : 56 },
+            lobbyists && styles.lobbyistColumn,
+            lobbyists && { paddingBottom: isMobile ? 48 : isTablet ? 56 : 72 },
+          ]}
+        >
           <Pressable
             {...linkProps(routePath.lobbying(), () => navigation.navigate('LobbyingLanding'))}
             style={styles.back}
@@ -183,12 +202,14 @@ export function LobbyingDirectoryPage({
           >
             {words.title}
           </Text>
-          <Text style={[styles.intro, body]}>{words.intro}</Text>
+          <Text style={[styles.intro, body, lobbyists && styles.lobbyistIntro]}>{words.intro}</Text>
           {kind === 'principals' ? (
             <Text style={[styles.education, body]}>{copy.principals.definition}</Text>
           ) : null}
           {directoryContext ? (
-            <Text style={[styles.directoryContext, body]}>{directoryContext}</Text>
+            <Text style={[styles.directoryContext, body, lobbyists && styles.lobbyistContext]}>
+              {directoryContext}
+            </Text>
           ) : null}
           <View style={styles.filter}>
             <MoneyNameSearchField
@@ -198,122 +219,151 @@ export function LobbyingDirectoryPage({
               label={words.searchLabel}
               labelStyle={styles.filterLabel}
               placeholder={copy.filter}
-              maxWidth={640}
-              fieldHeight={52}
+              maxWidth={lobbyists ? (isMobile ? 640 : isTablet ? 480 : 520) : 640}
+              fieldHeight={lobbyists ? (isMobile ? 52 : isTablet ? 56 : 60) : 52}
               fieldFontSize={bodySize}
+              showClear={lobbyists}
             />
             <Text style={styles.filterNote}>{copy.filterNote}</Text>
           </View>
-          {controls}
-          {pending ? (
-            <View role="status" aria-busy style={[styles.card, cardPadding]}>
-              <Text style={[styles.body, body]}>{words.loading}</Text>
-            </View>
-          ) : !served || (result.isError && rows.length === 0) ? (
-            <View style={[styles.card, cardPadding]}>
-              <Text accessibilityRole="alert" style={[styles.body, body]}>
-                {words.unavailable}
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => void result.refetch()}
-                style={styles.retry}
-              >
-                <Text style={styles.retryText}>{copy.retry}</Text>
-              </Pressable>
-            </View>
+          {renderResults ? (
+            renderResults({
+              // A failed read establishes no count, so the slot stays empty rather
+              // than printing a figure or a zero nobody measured.
+              countLine: pending
+                ? words.loading
+                : total != null
+                  ? lobbyingShowingLine(kind, page, rows.length, total)
+                  : null,
+              pending,
+              failed: !pending && (!served || (result.isError && rows.length === 0)),
+              emptyPage: total != null && total > 0,
+              firstPageHref: address(1),
+              onFirstPage: () => goToPage(1),
+              onRetry: () => void result.refetch(),
+              pagination:
+                served && !pending ? (
+                  <Pagination
+                    variant="lobbying"
+                    page={page}
+                    totalPages={totalPages ?? undefined}
+                    hasPrev={page > 1}
+                    hasNext={totalPages != null ? page < totalPages : (data?.has_more ?? false)}
+                    onPrev={() => goToPage(page - 1)}
+                    onNext={() => goToPage(page + 1)}
+                    prevHref={page > 1 ? address(page - 1) : undefined}
+                    nextHref={
+                      totalPages != null && page < totalPages ? address(page + 1) : undefined
+                    }
+                  />
+                ) : null,
+            })
           ) : (
-            <View>
-              <View style={styles.listHead}>
-                {total != null ? (
-                  <Text style={styles.count}>
-                    {lobbyingShowingLine(kind, page, rows.length, total)}
+            <>
+              {pending ? (
+                <View role="status" aria-busy style={[styles.card, cardPadding]}>
+                  <Text style={[styles.body, body]}>{words.loading}</Text>
+                </View>
+              ) : !served || (result.isError && rows.length === 0) ? (
+                <View style={[styles.card, cardPadding]}>
+                  <Text accessibilityRole="alert" style={[styles.body, body]}>
+                    {words.unavailable}
                   </Text>
-                ) : null}
-                {rows.length > 0 ? (
-                  <Text style={styles.order}>{orderLabel ?? copy.order}</Text>
-                ) : null}
-              </View>
-              {rows.length === 0 ? (
-                <View role="status" style={[styles.card, styles.emptyCard, cardPadding]}>
-                  <Text
-                    style={[styles.emptyTitle, { fontSize: isMobile ? 20 : isTablet ? 22 : 24 }]}
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => void result.refetch()}
+                    style={styles.retry}
                   >
-                    {total != null && total > 0 ? copy.emptyPage : words.empty}
-                  </Text>
-                  {total != null && total > 0 ? (
-                    <Pressable {...linkProps(address(1), () => goToPage(1))} style={styles.retry}>
-                      <Text style={styles.retryText}>{copy.firstPage}</Text>
-                    </Pressable>
-                  ) : (
-                    <Text style={[styles.explanation, body]}>{copy.noMatchWhy}</Text>
-                  )}
+                    <Text style={styles.retryText}>{copy.retry}</Text>
+                  </Pressable>
                 </View>
               ) : (
-                <View role="list" style={styles.list}>
-                  {rows.map((row) => {
-                    const contents = (
-                      <>
-                        <View style={styles.rowText}>
-                          {row.linkable ? (
-                            <LinkArrowLabel label={row.name} style={[styles.rowName, body]} />
-                          ) : (
-                            <Text style={[styles.rowName, body]}>{row.name}</Text>
-                          )}
-                          {row.meta ? <Text style={styles.rowMeta}>{row.meta}</Text> : null}
-                        </View>
-                        {row.donationLabel ? (
-                          <Text
-                            style={[styles.donationAmount, isMobile && styles.donationAmountMobile]}
-                          >
-                            {row.donationLabel}
-                          </Text>
-                        ) : null}
-                      </>
-                    );
-                    const href =
-                      kind === 'principals'
-                        ? routePath.lobbyingPrincipal(row.slug)
-                        : routePath.lobbyingLobbyist(row.slug, row.year);
-                    const open = () =>
-                      kind === 'principals'
-                        ? navigation.push('LobbyingPrincipal', { slug: row.slug })
-                        : navigation.push('LobbyingLobbyist', {
-                            slug: row.slug,
-                            ...(row.year ? { year: row.year } : {}),
-                          });
-                    return (
-                      <View role="listitem" key={row.id}>
-                        {row.linkable ? (
-                          <Pressable
-                            {...linkProps(href, open)}
-                            style={[
-                              styles.row,
-                              isMobile && row.donationLabel ? styles.donationRowMobile : null,
-                            ]}
-                          >
-                            {contents}
-                          </Pressable>
-                        ) : (
-                          <View style={styles.row}>{contents}</View>
-                        )}
-                      </View>
-                    );
-                  })}
+                <View>
+                  <View style={styles.listHead}>
+                    {total != null ? (
+                      <Text style={styles.count}>
+                        {lobbyingShowingLine(kind, page, rows.length, total)}
+                      </Text>
+                    ) : null}
+                    {rows.length > 0 ? <Text style={styles.order}>{copy.order}</Text> : null}
+                  </View>
+                  {rows.length === 0 ? (
+                    <View role="status" style={[styles.card, styles.emptyCard, cardPadding]}>
+                      <Text
+                        style={[
+                          styles.emptyTitle,
+                          { fontSize: isMobile ? 20 : isTablet ? 22 : 24 },
+                        ]}
+                      >
+                        {total != null && total > 0 ? copy.emptyPage : words.empty}
+                      </Text>
+                      {total != null && total > 0 ? (
+                        <Pressable
+                          {...linkProps(address(1), () => goToPage(1))}
+                          style={styles.retry}
+                        >
+                          <Text style={styles.retryText}>{copy.firstPage}</Text>
+                        </Pressable>
+                      ) : (
+                        <Text style={[styles.explanation, body]}>{copy.noMatchWhy}</Text>
+                      )}
+                    </View>
+                  ) : (
+                    <View role="list" style={styles.list}>
+                      {rows.map((row) => {
+                        const contents = (
+                          <>
+                            <View style={styles.rowText}>
+                              {row.linkable ? (
+                                <LinkArrowLabel label={row.name} style={[styles.rowName, body]} />
+                              ) : (
+                                <Text style={[styles.rowName, body]}>{row.name}</Text>
+                              )}
+                              {row.meta ? <Text style={styles.rowMeta}>{row.meta}</Text> : null}
+                            </View>
+                          </>
+                        );
+                        const href =
+                          kind === 'principals'
+                            ? routePath.lobbyingPrincipal(row.slug)
+                            : routePath.lobbyingLobbyist(row.slug, row.year);
+                        const open = () =>
+                          kind === 'principals'
+                            ? navigation.push('LobbyingPrincipal', { slug: row.slug })
+                            : navigation.push('LobbyingLobbyist', {
+                                slug: row.slug,
+                                ...(row.year ? { year: row.year } : {}),
+                              });
+                        return (
+                          <View role="listitem" key={row.id}>
+                            {row.linkable ? (
+                              <Pressable {...linkProps(href, open)} style={styles.row}>
+                                {contents}
+                              </Pressable>
+                            ) : (
+                              <View style={styles.row}>{contents}</View>
+                            )}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+                  <Pagination
+                    variant="lobbying"
+                    page={page}
+                    totalPages={totalPages ?? undefined}
+                    hasPrev={page > 1}
+                    hasNext={totalPages != null ? page < totalPages : data.has_more}
+                    onPrev={() => goToPage(page - 1)}
+                    onNext={() => goToPage(page + 1)}
+                    prevHref={page > 1 ? address(page - 1) : undefined}
+                    nextHref={
+                      totalPages != null && page < totalPages ? address(page + 1) : undefined
+                    }
+                  />
                 </View>
               )}
-              <Pagination
-                variant="lobbying"
-                page={page}
-                totalPages={totalPages ?? undefined}
-                hasPrev={page > 1}
-                hasNext={totalPages != null ? page < totalPages : data.has_more}
-                onPrev={() => goToPage(page - 1)}
-                onNext={() => goToPage(page + 1)}
-                prevHref={page > 1 ? address(page - 1) : undefined}
-                nextHref={totalPages != null && page < totalPages ? address(page + 1) : undefined}
-              />
-            </View>
+            </>
           )}
         </Container>
         <Footer />
@@ -354,6 +404,12 @@ export function LobbyingPrincipalsScreen({
 const styles = StyleSheet.create({
   page: { flexGrow: 1 },
   main: { paddingTop: 28, paddingBottom: 40, flexGrow: 1 },
+  // The drawn 1000-wide computer column, kept at the left edge the shared header
+  // and every other money page start from rather than centred as the drawing's own
+  // imitation header allowed.
+  lobbyistColumn: { maxWidth: 1112 },
+  lobbyistIntro: { maxWidth: 720 },
+  lobbyistContext: { maxWidth: 720 },
   back: {
     alignSelf: 'flex-start',
     minHeight: 44,
@@ -461,17 +517,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(17,21,15,0.08)',
   },
-  donationRowMobile: { flexDirection: 'column', alignItems: 'stretch', gap: 6 },
-  donationAmount: {
-    fontFamily: t.typography.body,
-    fontVariant: ['tabular-nums'],
-    fontSize: 15,
-    lineHeight: 22,
-    color: '#4f5651',
-    textAlign: 'right',
-    maxWidth: 260,
-  },
-  donationAmountMobile: { textAlign: 'left', maxWidth: '100%' },
   rowText: { minWidth: 0, flex: 1, gap: 3 },
   rowName: {
     color: '#11150f',

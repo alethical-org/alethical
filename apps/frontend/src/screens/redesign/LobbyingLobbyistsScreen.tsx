@@ -1,13 +1,10 @@
-import { LobbyingDonationControls } from '../../components/lobbying/LobbyingDonationControls';
-import {
-  lobbyingDonationAmountLabel,
-  LOBBYING_DONATION_SORTS,
-} from '../../lib/lobbyingDonationDirectory';
+import { LobbyistDirectoryCard } from '../../components/lobbying/LobbyistDirectoryCard';
 import { lobbyingDonationYear, lobbyingDonationSort } from '../../lib/lobbyingTypes';
 import { useLobbyingLobbyists } from '../../hooks/useLobbying';
 import { committeeSlug } from '../../lib/committeeMoneyShared';
 import { directoryPageNumber } from '../../lib/directoryPagination';
 import { lobbyingPrincipalCount } from '../../lib/lobbyingDirectoryCopy';
+import { routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
 import { LobbyingDirectoryPage } from './LobbyingPrincipalsScreen';
 
@@ -26,14 +23,17 @@ export function LobbyingLobbyistsScreen({
     (result.data?.requested_year ?? null) === (year ?? null) &&
     (result.data?.sort ?? 'name') === sort;
   const donations = responseMatches ? result.data?.donations : undefined;
-  const rows = (result.data?.lobbyists ?? []).map((row) => ({
+  const donationYear = donations?.year ?? null;
+  const navigationYear = donationYear != null ? String(donationYear) : undefined;
+  const served = responseMatches ? (result.data?.lobbyists ?? []) : [];
+  const rows = served.map((row) => ({
     id: row.registration_number,
     name: row.name,
     slug: committeeSlug(row.name, row.registration_number),
     linkable: true,
     meta: lobbyingPrincipalCount(row.principal_count),
-    donationLabel: lobbyingDonationAmountLabel(row, donations?.year),
-    year: donations?.year != null ? String(donations.year) : undefined,
+    year: navigationYear,
+    source: row,
   }));
   return (
     <LobbyingDirectoryPage
@@ -44,26 +44,38 @@ export function LobbyingLobbyistsScreen({
       result={result}
       rows={rows}
       year={year ? String(year) : undefined}
-      navigationYear={donations?.year != null ? String(donations.year) : undefined}
+      navigationYear={navigationYear}
       sort={sort === 'name' ? undefined : sort}
       responseMatches={responseMatches}
-      orderLabel={LOBBYING_DONATION_SORTS.find((item) => item.value === sort)?.label}
-      controls={
-        <LobbyingDonationControls
+      renderResults={(state) => (
+        <LobbyistDirectoryCard
+          {...state}
+          rows={rows.map((row) => ({
+            id: row.id,
+            name: row.name,
+            meta: row.meta,
+            amount: row.source,
+            href: routePath.lobbyingLobbyist(row.slug, row.year),
+            open: () =>
+              navigation.push('LobbyingLobbyist', {
+                slug: row.slug,
+                ...(row.year ? { year: row.year } : {}),
+              }),
+          }))}
           donations={donations}
+          donationYear={donationYear}
           sort={sort}
           requestedYear={year}
-          loading={result.isPending || (!responseMatches && !result.isError)}
           onYear={(value) => navigation.setParams({ year: value || undefined, page: undefined })}
           onSort={(value) =>
             navigation.setParams({
               sort: value === 'name' ? undefined : value,
               page: undefined,
-              ...(donations?.year != null ? { year: String(donations.year) } : {}),
+              ...(navigationYear ? { year: navigationYear } : {}),
             })
           }
         />
-      }
+      )}
     />
   );
 }

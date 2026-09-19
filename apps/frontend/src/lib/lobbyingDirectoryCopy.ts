@@ -18,7 +18,7 @@ export const LOBBYING_DIRECTORY_COPY = {
   searchButton: 'Search',
   searchNote: 'Find lobbyists or organisations using all or part of a name.',
   filter: 'Search by name',
-  filterNote: 'Enter all or part of a name.',
+  filterNote: 'Enter all or part of a name',
   order: 'A TO Z',
   copiedLabel: 'RECORDS LAST COPIED',
   copiedNote: 'These records come from the Minnesota Campaign Finance and Public Disclosure Board.',
@@ -34,7 +34,7 @@ export const LOBBYING_DIRECTORY_COPY = {
   emptyPage: 'No names on this page',
   firstPage: 'Go to the first page',
   noMatchWhy:
-    'Names are matched as filed, and spellings vary between filings — try a shorter part of the name',
+    'Names are matched as filed, and spellings vary between filings; try a shorter part of the name',
   lobbyists: {
     title: 'Lobbyists',
     lane: 'People registered to influence government decisions on behalf of others',
@@ -101,9 +101,7 @@ export function lobbyingLobbyistDirectoryDate(
   copiedAt: string | null | undefined,
   dateLabel: (date: string) => string,
 ): string | null {
-  return copiedAt
-    ? `Registrations shown as listed in records copied ${dateLabel(copiedAt)}.`
-    : null;
+  return copiedAt ? `Registrations shown as listed in records copied ${dateLabel(copiedAt)}` : null;
 }
 
 export function lobbyingPrincipalDirectoryScope(

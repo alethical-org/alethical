@@ -307,7 +307,7 @@ describe('lobbying directories', () => {
       (item) => item.textContent === 'How these amounts are counted',
     ) as HTMLElement;
     act(() => disclosure.click());
-    expect(words()).toContain('Campaign contribution file copied Sep 1, 2026.');
+    expect(words()).toContain('Campaign contribution file copied Sep 1, 2026');
     expect(words()).toContain('No matching records does not mean the lobbyist gave nothing.');
   });
   it('hides a previous year’s amounts while the requested year loads', () => {
@@ -357,13 +357,16 @@ describe('lobbying directories', () => {
     expect(words()).toContain('Search lobbyists by name');
     expect(words()).not.toContain(copy.directoryLabel);
     expect(getComputedStyle(host.querySelector('[aria-level="1"]')!).marginTop).toBe('14px');
-    expect(words()).toContain('Enter all or part of a name.');
-    expect(words()).toContain('Registrations shown as listed in records copied Sep 13, 2026.');
+    expect(words()).toContain('Enter all or part of a name');
+    expect(words()).toContain('Registrations shown as listed in records copied Sep 13, 2026');
     expect(host.querySelector('a[href="/money/lobbying/lobbyists?page=3"]')).not.toBeNull();
     expect(host.querySelector('a[aria-label="Previous page"]')?.getAttribute('href')).toBe(
       '/money/lobbying/lobbyists',
     );
-    const pageLabel = host.querySelector('[aria-live="polite"]')!;
+    // The results heading is polite too, so pick the pagination label by its words.
+    const pageLabel = [...host.querySelectorAll('[aria-live="polite"]')].find((item) =>
+      /^Page /.test(item.textContent ?? ''),
+    )!;
     expect(getComputedStyle(pageLabel).fontSize).toBe('15px');
     expect(renderedFontVariant(pageLabel)).toBe('tabular-nums');
     expect(
@@ -541,5 +544,130 @@ it('uses singular wording for 1 supported donation amount', () => {
       route={route('LobbyingLobbyists', { page: '2' })}
     />,
   );
-  expect(words()).toContain('1 lobbyist in these results has an amount available for 2025.');
+  expect(words()).toContain('1 lobbyist in these results has an amount available for 2025');
+});
+
+describe('the lobbyist results card', () => {
+  const lobbyists = (over: object = {}) =>
+    success({
+      ...fixture.lobbyists_page_2,
+      offset: 0,
+      requested_year: 2025,
+      sort: 'donations_desc',
+      donations: {
+        state: 'reported',
+        year: 2025,
+        available_years: [2025, 2024],
+        eligible_count: 2,
+        copied_at: '2026-09-01T12:00:00Z',
+        source_url: 'https://cfb.mn.gov/source.csv',
+      },
+      ...over,
+    });
+  const screen = (params: object = {}) => (
+    <LobbyingLobbyistsScreen
+      navigation={navigation as never}
+      route={route('LobbyingLobbyists', { year: '2025', sort: 'donations_desc', ...params })}
+    />
+  );
+
+  it('puts the count and both controls in one card header and drops the repeated caption', () => {
+    state.lobbyists = lobbyists();
+    render(screen());
+    const heading = [...host.querySelectorAll('[aria-level="2"]')][0];
+    expect(heading.textContent).toContain('registered lobbyists');
+    expect(heading.getAttribute('aria-live')).toBe('polite');
+    const header = heading.parentElement!;
+    expect(header.querySelector('select[aria-label="Year"]')).not.toBeNull();
+    expect(header.querySelector('select[aria-label="Sort by"]')).not.toBeNull();
+    // The Sort by control names the order, so nothing repeats it as a caption.
+    const captions = [...host.querySelectorAll('*')].filter(
+      (item) =>
+        item.children.length === 0 && item.tagName !== 'OPTION' && item.textContent === 'Name A–Z',
+    );
+    expect(captions).toHaveLength(0);
+    expect(words()).not.toContain(copy.order);
+  });
+
+  it('claims no count after a failed read and keeps the chosen order available', () => {
+    state.lobbyists = { isPending: false, isSuccess: false, isError: true, refetch: vi.fn() };
+    render(screen());
+    expect(words()).toContain(copy.lobbyists.unavailable);
+    expect(words()).not.toContain('registered lobbyists');
+    expect(words()).not.toContain('Donation amounts are unavailable');
+    expect(words()).not.toContain('amount available for');
+    const sort = host.querySelector('select[aria-label="Sort by"]') as HTMLSelectElement;
+    expect(sort.value).toBe('donations_desc');
+    expect(sort.disabled).toBe(false);
+    // A year the reader chose survives the failure; only a directory with no year
+    // at all falls back to the unavailable label.
+    const kept = host.querySelector('select[aria-label="Year"]') as HTMLSelectElement;
+    expect(kept.disabled).toBe(false);
+    expect(kept.value).toBe('2025');
+    render(
+      <LobbyingLobbyistsScreen
+        navigation={navigation as never}
+        route={route('LobbyingLobbyists')}
+      />,
+    );
+    const none = host.querySelector('select[aria-label="Year"]') as HTMLSelectElement;
+    expect(none.disabled).toBe(true);
+    expect(none.textContent).toBe('Unavailable');
+  });
+
+  it('names the loading list in the count slot and counts nothing while it waits', () => {
+    state.lobbyists = { isPending: true, isSuccess: false, isError: false, refetch: vi.fn() };
+    render(screen());
+    expect([...host.querySelectorAll('[aria-level="2"]')][0].textContent).toBe(
+      copy.lobbyists.loading,
+    );
+    expect(words()).not.toContain('amount available for');
+    expect(words()).not.toContain('Donation amounts are unavailable');
+    // A year already chosen in the address is never blanked while the list reloads.
+    const chosen = host.querySelector('select[aria-label="Year"]') as HTMLSelectElement;
+    expect(chosen.textContent).toBe('2025');
+    render(
+      <LobbyingLobbyistsScreen
+        navigation={navigation as never}
+        route={route('LobbyingLobbyists')}
+      />,
+    );
+    const empty = host.querySelector('select[aria-label="Year"]') as HTMLSelectElement;
+    expect(empty.textContent).toBe('Loading years');
+    expect(empty.disabled).toBe(true);
+  });
+
+  it('keeps a real space between the dollar figure and its year', () => {
+    state.lobbyists = lobbyists({
+      lobbyists: [
+        {
+          ...fixture.lobbyists_page_2.lobbyists[0],
+          donation_state: 'reported',
+          donation_amount: '14600',
+        },
+      ],
+    });
+    render(screen());
+    expect(listRows()[0].textContent).toContain('$14,600 recorded in 2025');
+  });
+
+  it('offers a clear control on the lobbyist field only once something is typed', () => {
+    state.lobbyists = lobbyists();
+    render(screen());
+    expect(host.querySelector('[aria-label="Clear the field"]')).toBeNull();
+    render(screen({ q: 'hynes' }));
+    expect(host.querySelector('[aria-label="Clear the field"]')).not.toBeNull();
+  });
+
+  it('leaves the principals directory with its own caption and no donation controls', () => {
+    render(
+      <LobbyingPrincipalsScreen
+        navigation={navigation as never}
+        route={route('LobbyingPrincipals', { page: '2' })}
+      />,
+    );
+    expect(words()).toContain(copy.order);
+    expect(host.querySelector('select')).toBeNull();
+    expect(host.querySelectorAll('[aria-level="2"]')).toHaveLength(0);
+  });
 });
