@@ -24,7 +24,6 @@ import { centralDateLabel, formatCount } from '../../lib/moneyLanding';
 import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
 import { outsideBrowseShareContent } from '../../lib/moneyResultsShare';
 import {
-  directionCountLine,
   inKindCountLine,
   OUTSIDE_SPENDING_HEADING,
   outsideSpendingPageNumber,
