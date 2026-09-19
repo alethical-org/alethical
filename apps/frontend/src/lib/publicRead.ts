@@ -50,8 +50,26 @@ async function fetchAttempt(input: RequestInfo | URL, init?: RequestInit): Promi
   }
 }
 
+function waitBeforeRetry(delayMs: number, signal?: AbortSignal | null): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const abort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', abort);
+      reject(signal?.reason);
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', abort);
+      resolve();
+    }, delayMs);
+    if (signal?.aborted) abort();
+    else signal?.addEventListener('abort', abort, { once: true });
+  });
+}
+
 /**
- * Public GETs get 1 immediate second chance for transport or server trouble.
+ * Public GETs get 1 second chance for transport or server trouble.
+ * A busy service can ask for a short pause before that retry. Longer pauses
+ * return the failure to the caller instead of extending the loading deadline.
  * A valid 4xx answer is final: retrying it would hide an honest missing record.
  */
 export async function publicReadResponse(
@@ -62,6 +80,14 @@ export async function publicReadResponse(
     try {
       const response = await fetchAttempt(input, init);
       if (response.status >= 500 && response.status <= 599 && attempt === 0) {
+        const retryAfter = response.status === 503 ? response.headers.get('Retry-After') : null;
+        if (retryAfter) {
+          const delayMs = /^\d+$/.test(retryAfter)
+            ? Number(retryAfter) * 1000
+            : Date.parse(retryAfter) - Date.now();
+          if (delayMs > 1000) return response;
+          if (delayMs > 0) await waitBeforeRetry(delayMs, init?.signal);
+        }
         continue;
       }
       return response;

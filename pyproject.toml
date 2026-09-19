@@ -21,6 +21,9 @@ dependencies = [
   # the checked-in map never depends on an unrelated package pulling it in.
   "pyproj>=3.7.2",
   "fastapi>=0.141.1",
+  # Admission regression tests constrain the worker pool FastAPI uses, so declare
+  # AnyIO directly instead of relying on a web-framework dependency to keep it.
+  "anyio>=4.14.2",
   # Imported directly by alethical/api/main.py for the exception handler, and
   # floored at 1.3.1 because that release fixes five advisories (#681). fastapi
   # allows starlette>=0.46.0 with no ceiling, so without this floor a future

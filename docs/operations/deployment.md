@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, api/page.ts, alethical/api/routers/me.py, alethical/api/services/ask_router.py, alethical/pipeline/rag_ingest.py, alethical/logging.py, alethical/monitoring.py, railway.json, vercel.json, apps/frontend/metro.config.js, patches/@expo__metro-config@57.0.7.patch, pnpm-workspace.yaml, pnpm-lock.yaml -->
+<!-- describes: apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, api/page.ts, alethical/api/routers/me.py, alethical/api/main.py, alethical/api/request_admission.py, alethical/api/services/ask_router.py, alethical/pipeline/rag_ingest.py, alethical/logging.py, alethical/monitoring.py, railway.json, vercel.json, apps/frontend/metro.config.js, patches/@expo__metro-config@57.0.7.patch, pnpm-workspace.yaml, pnpm-lock.yaml -->
 
 # Production setup and recovery
 
@@ -63,6 +63,29 @@ Adding an optional setting to production also requires adding its intended live 
 ## Backend on Railway
 
 Use the repository `railway.json` config from the repo root. It configures a service named `alethical-api` using the RAILPACK builder. Railway runs Alembic before starting the new API, then checks `/readyz`; that endpoint returns success only when the database is reachable and is at the migration version the code expects. A failed migration or readiness check leaves the previous API serving.
+
+### Preventing request pileups
+
+The API admits at most 12 database-bound requests per process, including `/readyz`.
+The request admission middleware holds each place until the response and dependency
+cleanup finish. Requests beyond that limit receive HTTP 503 with `Retry-After` and
+`Cache-Control: no-store`; CORS headers still let the website read the response.
+The basic `/healthz` check runs without a worker thread or database connection.
+
+The cap stays below the SQLAlchemy connection pool's 15-connection capacity and
+AnyIO's 40 worker threads. A synchronous route needs a worker again to validate
+its response before its request-scoped database session closes. Without admission,
+new requests waiting for a connection can occupy every worker and prevent completed
+requests from releasing their connections. Increasing the pool or restarting alone
+does not remove that cycle. The concurrent regression test uses a small real
+connection pool to keep this failure reproducible.
+
+When diagnosing a repeat, compare `/healthz`, `/readyz`, and an unknown route, then
+inspect Railway's connection-pool errors and read `pg_stat_activity` without changing
+the database. Connections idle inside transactions while requests time out point to
+unfinished application work; they do not prove that a database query is slow.
+[Issue 2309](https://github.com/alethical-org/alethical/issues/2309) records the
+19 September 2026 incident, temporary restart, and release evidence.
 
 `.railwayignore` excludes `apps/frontend`, `docs`, and other paths that are not part of
 the backend build when the hand-run fallback uploads a release.
@@ -223,7 +246,10 @@ the release page does no recovery work unless its main program file fails to loa
 - Public GET requests have a 5-second limit per attempt and get at most 2 attempts total.
   Only a network failure, timeout, or `5xx` server response gets the second attempt. A
   `4xx` response, including an honest missing record, is final and keeps its normal page
-  behavior.
+  behavior. For HTTP 503, the browser honors `Retry-After` up to 1 second before its
+  second attempt. A longer requested wait returns the failure without retrying early.
+  Cancellation stops the wait as well as an active request. Successful reads incur no
+  delay.
 - Restoring a saved sign-in has a 5-second limit. The public home renders while that check
   runs, and every success, service error, rejected request, or timeout ends the loading
   state.
