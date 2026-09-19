@@ -123,7 +123,7 @@ issues and pull requests establish what remains. Preserve explicit data-replacem
 a completed code release does not approve a held data run. Remove a finished plan once its
 lasting decisions and release evidence have their permanent homes.
 
-- [Lobbyist donation proof implementation](implementation/lobbyist-donation-proof.md) — evidence checks, coordinated work and release checkpoints
+- [Lobbyist donation proof release report](implementation/lobbyist-donation-proof.md) — live before/after coverage, source evidence, validation and remaining gaps
 - [Lobbyist donor evidence](operations/lobbyist-donor-evidence.md) — source matching, review, safe publication and rollback.
 - [Private account activation](implementation/admin-users-plan.md) — approved account access and the remaining administrator activation
 - [Campaign-finance history refresh](implementation/campaign-finance-history-refresh.md) — source-replacement boundaries, failed-source handling and saved recovery evidence
