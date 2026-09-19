@@ -358,6 +358,11 @@ function DonationYear({
                         {showFiledName ? (
                           <Text style={styles.paymentNote}>Filed as {filedName}</Text>
                         ) : null}
+                        {payment.identity_basis === 'official_report' ? (
+                          <Text style={styles.paymentNote}>
+                            {lobbyingLobbyistCopy.reportIdentityNote}
+                          </Text>
+                        ) : null}
                         {donatedGoods ? (
                           <Text style={styles.paymentMarker}>
                             DONATED GOODS OR SERVICES

@@ -4,7 +4,7 @@ export const CONTRIBUTION_RECORD_LIMIT =
 export const NAME_REGISTRATION_DIFFERENCE =
   'Name-based and registration-based counts can differ because names vary and some records lack registration numbers.';
 export const REGISTRATION_MATCH_LIMIT =
-  'Matching uses the lobbyist’s registration number. Records without that number are excluded, even when the donor’s name matches. Contributions reported without donor names cannot be matched. No matching records does not mean no giving.';
+  'Matching uses the lobbyist’s registration number in the contribution file or an official report. A missing number is confirmed only when the report’s registration number, donor name, payment date and amount establish a unique match. A name alone is not enough. Contributions reported without donor names cannot be matched. No matching records does not mean no giving.';
 export const SMALL_CONTRIBUTION_LIMIT =
   'Contributions totaling $200 or less from a donor to the same committee, party unit or fund in a calendar year may be reported without naming the donor. The threshold is $500 for ballot-question committees and funds. Smaller individual payments can still be named, including when the donor’s yearly total exceeds the threshold.';
 export const CONTRIBUTION_REPORTING_URL =
@@ -32,6 +32,6 @@ export function contributionRecordReview(registrationNumber: string, releaseId: 
     return null;
   return {
     title: 'All-years count under review',
-    body: 'The September 1, 2026 source contains 1,194 records matched to registration 8692 across all years. A download obtained September 19, 2026 contains 1,203. The difference includes corrected registration numbers and added records, including a suspected repeated donation. The number of separate donations remains unresolved.',
+    body: 'The September 1, 2026 source contains 1,194 records carrying registration 8692 across all years. A download obtained September 19, 2026 contains 1,203. The difference includes corrected registration numbers and added records, including a suspected repeated donation. Report-confirmed matches may add records to this profile without changing the source file. The number of separate donations remains unresolved.',
   };
 }

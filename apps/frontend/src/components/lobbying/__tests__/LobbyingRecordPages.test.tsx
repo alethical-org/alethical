@@ -447,6 +447,21 @@ describe('record identity and exact names', () => {
 });
 
 describe('contribution record trust', () => {
+  it('identifies a report-confirmed match without changing the filed name or amount', () => {
+    const contributions = structuredClone(live.kozak.contributions) as LobbyingContributions;
+    contributions.years[0].committees[0].payments[0].identity_basis = 'official_report';
+    const page = mountPage(
+      <LobbyistDonationsCard
+        contributions={contributions}
+        registrationNumber="141"
+        copiedDate={null}
+        registeredName="Kozak, Andrew"
+        onOpenCommittee={() => {}}
+      />,
+    );
+    expect(page.textContent).toContain('Identity confirmed in an official report');
+    expect(page.textContent).toContain('A name alone is not enough');
+  });
   it('keeps the record-count limit visible while supporting details expand accessibly', () => {
     const page = mountPage(
       <LobbyistDonationsCard
@@ -467,7 +482,7 @@ describe('contribution record trust', () => {
     clickButton(page, 'How these records are counted');
     expect(button.getAttribute('aria-expanded')).toBe('true');
     const panel = document.getElementById(button.getAttribute('aria-controls')!)!;
-    expect(panel.textContent).toContain('Records without that number are excluded');
+    expect(panel.textContent).toContain('A missing number is confirmed only when');
     expect(panel.textContent).toContain('The threshold is $500');
     expect(panel.textContent).toContain('may not cover a full year');
     expect(panel.querySelector('a')?.getAttribute('href')).toBe(

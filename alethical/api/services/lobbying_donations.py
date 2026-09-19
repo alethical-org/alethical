@@ -1,9 +1,7 @@
-"""Annual sums of held lobbyist gifts whose recipients' full-year records agree.
+"""Annual held contribution sums supported by recipient or donor-specific proof.
 
-This is deliberately not a complete-giving figure. A missing, unproved or
-disagreeing recipient withholds the donor's whole amount, not just those gifts.
-The source can retain both original and amended gifts, so duplicate-row guessing
-and an unguarded SUM are not acceptable substitutes for the filing comparison.
+A known unresolved donor record withholds the whole annual amount. Official
+report evidence can establish a held row's identity without changing its source.
 """
 
 from __future__ import annotations
@@ -18,6 +16,10 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from alethical.api.services.committee_finance import current_release
+from alethical.api.services.lobbyist_donation_evidence import (
+    active_evidence,
+    matched_row_numbers,
+)
 from alethical.db import models as schema
 from alethical.pipeline.campaign_finance_reader import ReleaseNoLongerHeld
 
@@ -87,10 +89,12 @@ def annual_donations(db: Session, lobbyist_snapshot_id: UUID) -> DonationYears:
         ),
         False,
     )
+    evidence = active_evidence(db, release.contributions.snapshot_id, held)
     rows = db.execute(
         select(
             gifts.contrib_reg_num,
             gifts.year,
+            gifts.recipient_reg_num,
             func.sum(gifts.amount).label("amount"),
             func.bool_and(supported).label("supported"),
         )
@@ -115,12 +119,87 @@ def annual_donations(db: Session, lobbyist_snapshot_id: UUID) -> DonationYears:
             gifts.receipt_type == "Contribution",
             gifts.year.between(2015, last_completed_year()),
         )
-        .group_by(gifts.contrib_reg_num, gifts.year)
+        .group_by(gifts.contrib_reg_num, gifts.year, gifts.recipient_reg_num)
     ).all()
-    amounts = {
-        (row.contrib_reg_num, row.year): row.amount if row.supported else None
+    groups = {
+        (row.contrib_reg_num, row.year, row.recipient_reg_num): row.amount
+        if row.supported
+        else None
         for row in rows
     }
+    if evidence is not None:
+        people_numbers = set(
+            db.scalars(
+                select(people.registration_number).where(
+                    people.snapshot_id == lobbyist_snapshot_id
+                )
+            )
+        )
+        # Sum unchanged held rows, not a total supplied by the evidence artifact.
+        numbers = matched_row_numbers(evidence)
+        values = (
+            {
+                row.row_number: row
+                for row in db.execute(
+                    select(
+                        gifts.row_number,
+                        gifts.amount,
+                        gifts.year,
+                        gifts.recipient_reg_num,
+                        gifts.receipt_type,
+                    ).where(
+                        gifts.snapshot_id == release.contributions.snapshot_id,
+                        gifts.row_number.in_(numbers),
+                    )
+                ).all()
+            }
+            if numbers
+            else {}
+        )
+        for recipient in evidence.get("withheld_recipients", []):
+            for key in list(groups):
+                if key[1:] == (recipient["year"], recipient["registration_number"]):
+                    groups[key] = None
+        for recipient in evidence["recipients"]:
+            year = recipient["year"]
+            if not 2015 <= year <= last_completed_year():
+                continue
+            for donor, proof in recipient["donors"].items():
+                if donor not in people_numbers:
+                    continue
+                row_numbers = proof["row_numbers"]
+                supported = (
+                    proof["status"] == "agrees"
+                    and bool(row_numbers)
+                    and all(
+                        number in values
+                        and values[number].amount is not None
+                        and values[number].year == year
+                        and values[number].recipient_reg_num
+                        == recipient["registration_number"]
+                        and values[number].receipt_type == "Contribution"
+                        for number in row_numbers
+                    )
+                )
+                groups[donor, year, recipient["registration_number"]] = (
+                    sum((values[number].amount for number in row_numbers), Decimal(0))
+                    if supported
+                    else None
+                )
+        # Previously proved missing-ID rows remain known even when a newer report
+        # cannot be read. Losing the proof must not publish a smaller partial amount.
+        for unresolved in evidence.get("unresolved_donors", []):
+            donor = unresolved["donor_registration_number"]
+            year = unresolved["year"]
+            if donor in people_numbers and 2015 <= year <= last_completed_year():
+                groups[donor, year, unresolved["recipient_registration_number"]] = None
+    amounts: dict[tuple[str, int], Decimal | None] = {}
+    for (donor, year, _), amount in groups.items():
+        key = (donor, year)
+        if amount is None or (key in amounts and amounts[key] is None):
+            amounts[key] = None
+        else:
+            amounts[key] = (amounts.get(key) or Decimal(0)) + amount
     return DonationYears(
         metadata={
             "state": "reported",
@@ -131,6 +210,8 @@ def annual_donations(db: Session, lobbyist_snapshot_id: UUID) -> DonationYears:
             "release_id": str(release.id),
             "copied_at": release.fetched_at,
             "source_url": release.contributions.source_url,
+            "evidence_id": evidence["id"] if evidence else None,
+            "evidence_checked_at": evidence["checked_at"] if evidence else None,
         },
         amounts=amounts,
     )

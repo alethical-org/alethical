@@ -1932,9 +1932,15 @@ it. These are the rules the redesign adds, each with the reason it exists.
 
 **Scoped exception adopted 18 September 2026:** `/money/lobbying/lobbyists` supports
 an optional order by a guarded annual sum of held campaign donation records matched
-by registration number. This is separate from the excluded name-based donor-overlap
-ranking. It withholds amounts whenever any recipient's full-year source comparison
-is unsupported, and never claims complete giving or influence. The exact guard,
+by registration number, including missing source numbers established through exact
+identity and transaction evidence in official reports. This is separate from the
+excluded name-based donor-overlap ranking. A complete donor-specific check can support
+an amount despite an unrelated committee-wide disagreement. Any known unresolved donor
+record withholds the entire annual amount. It never claims complete giving or influence.
+The 19 September 2026 proof addition keeps original rows unchanged and stores reviewed,
+source-bound donor evidence separately; collection, period coverage, immutable audit
+storage and rollback are owned by
+[lobbyist-donor-evidence.md](../operations/lobbyist-donor-evidence.md). The exact guard,
 coverage labels and supporting-row links are owned by
 [lobbying-guide.md, annual donation order](../product-onboarding/lobbying-guide.md#annual-donation-order-in-the-lobbyist-directory).
 
