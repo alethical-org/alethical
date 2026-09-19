@@ -89,8 +89,10 @@ export function LobbyingDirectoryPage({
     pagination: ReactNode;
   }) => ReactNode;
 }) {
-  const { isMobile, isTablet } = useResponsive();
+  const { width, isMobile, isTablet } = useResponsive();
   const lobbyists = kind === 'lobbyists';
+  // The narrowest phones take a tighter gutter and a step down in display type.
+  const narrow = isMobile && width > 0 && width < 360;
   const words = copy[kind];
   const [draft, setDraft] = useState(query);
   useEffect(() => setDraft(query), [query]);
@@ -148,9 +150,33 @@ export function LobbyingDirectoryPage({
       page: target > 1 ? String(target) : undefined,
       ...(kind === 'lobbyists' && navigationYear ? { year: navigationYear } : {}),
     });
+  const introSize = lobbyists
+    ? isMobile
+      ? narrow
+        ? 16
+        : 17
+      : isTablet
+        ? 18
+        : 19
+    : isMobile || isTablet
+      ? 16
+      : 17;
   const bodySize = isMobile || isTablet ? 16 : 17;
   const body = { fontSize: bodySize, lineHeight: bodySize * 1.55 };
-  const titleSize = isMobile ? 30 : isTablet ? 38 : 46;
+  const intro = { fontSize: introSize, lineHeight: introSize * 1.55 };
+  const titleSize = lobbyists
+    ? isMobile
+      ? narrow
+        ? 28
+        : 30
+      : isTablet
+        ? 36
+        : 44
+    : isMobile
+      ? 30
+      : isTablet
+        ? 38
+        : 46;
   const directoryContext =
     kind === 'lobbyists'
       ? lobbyingLobbyistDirectoryDate(data?.copied_at, centralDateLabel)
@@ -174,7 +200,7 @@ export function LobbyingDirectoryPage({
         <Container
           style={[
             styles.main,
-            { paddingHorizontal: isMobile ? 20 : isTablet ? 32 : 56 },
+            { paddingHorizontal: isMobile ? (narrow && lobbyists ? 16 : 20) : isTablet ? 32 : 56 },
             lobbyists && styles.lobbyistColumn,
             lobbyists && { paddingBottom: isMobile ? 48 : isTablet ? 56 : 72 },
           ]}
@@ -202,7 +228,16 @@ export function LobbyingDirectoryPage({
           >
             {words.title}
           </Text>
-          <Text style={[styles.intro, body, lobbyists && styles.lobbyistIntro]}>{words.intro}</Text>
+          <Text
+            style={[
+              styles.intro,
+              lobbyists ? intro : body,
+              lobbyists && styles.lobbyistIntro,
+              lobbyists && !isMobile && { maxWidth: isTablet ? 640 : 720 },
+            ]}
+          >
+            {words.intro}
+          </Text>
           {kind === 'principals' ? (
             <Text style={[styles.education, body]}>{copy.principals.definition}</Text>
           ) : null}
@@ -219,7 +254,7 @@ export function LobbyingDirectoryPage({
               label={words.searchLabel}
               labelStyle={styles.filterLabel}
               placeholder={copy.filter}
-              maxWidth={lobbyists ? (isMobile ? 640 : isTablet ? 480 : 520) : 640}
+              maxWidth={lobbyists ? (isMobile ? width || 640 : isTablet ? 480 : 520) : 640}
               fieldHeight={lobbyists ? (isMobile ? 52 : isTablet ? 56 : 60) : 52}
               fieldFontSize={bodySize}
               showClear={lobbyists}
@@ -408,7 +443,8 @@ const styles = StyleSheet.create({
   // and every other money page start from rather than centred as the drawing's own
   // imitation header allowed.
   lobbyistColumn: { maxWidth: 1112 },
-  lobbyistIntro: { maxWidth: 720 },
+  // A 2-line paragraph risks a 1-word last line; the browser balances it instead.
+  lobbyistIntro: { ...({ textWrap: 'pretty' } as object) },
   lobbyistContext: { maxWidth: 720 },
   back: {
     alignSelf: 'flex-start',
@@ -450,11 +486,11 @@ const styles = StyleSheet.create({
     textTransform: 'none',
     fontWeight: '800',
     color: '#2c322c',
-    marginBottom: 10,
+    marginBottom: 9,
   },
   filterNote: {
     marginTop: 9,
-    color: '#6b716b',
+    color: '#656c66',
     fontFamily: t.typography.body,
     fontSize: 15,
     lineHeight: 22,

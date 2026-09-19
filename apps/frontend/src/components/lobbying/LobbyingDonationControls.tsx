@@ -54,22 +54,50 @@ export function LobbyingSelect({
         fullWidth && styles.fieldStacked,
       ]}
     >
-      <Text style={[styles.label, labelBeside && styles.labelBeside]}>{label}</Text>
+      <Text
+        style={[
+          styles.label,
+          labelBeside && styles.labelBeside,
+          fullWidth && styles.labelAbove,
+          disabled && styles.labelDisabled,
+        ]}
+      >
+        {label}
+      </Text>
       {Platform.OS === 'web' ? (
-        <select
-          aria-label={label}
-          {...yearFilterSelectProps}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          disabled={disabled}
-          style={width != null ? { ...selectStyle, width, flexShrink: 0 } : selectStyle}
-        >
-          {options.map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </select>
+        // The closed box is ours; the open list stays the browser's, which is what
+        // gives a phone its own picker, first-letter typing and screen-reader support.
+        <View style={styles.selectBox}>
+          <select
+            aria-label={label}
+            {...yearFilterSelectProps}
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            disabled={disabled}
+            style={{
+              ...selectStyle,
+              ...(disabled ? disabledSelectStyle : null),
+              ...(width != null ? { width, flexShrink: 0 } : null),
+            }}
+          >
+            {options.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+          <View style={styles.chevron} pointerEvents="none">
+            <Svg width={15} height={15} viewBox="0 0 24 24" fill="none" aria-hidden>
+              <Path
+                d="M6 9 L12 15 L18 9"
+                stroke={disabled ? '#8a908a' : '#4f5651'}
+                strokeWidth={2.4}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
+          </View>
+        </View>
       ) : (
         <View>
           {options.map((item) => (
@@ -97,6 +125,8 @@ export function LobbyingDonationSelects({
   requestedYear,
   loading = false,
   stacked = false,
+  tablet = false,
+  gap = 20,
   onYear,
   onSort,
 }: {
@@ -105,6 +135,8 @@ export function LobbyingDonationSelects({
   requestedYear?: number;
   loading?: boolean;
   stacked?: boolean;
+  tablet?: boolean;
+  gap?: number;
   onYear: (year: string) => void;
   onSort: (sort: string) => void;
 }) {
@@ -115,15 +147,17 @@ export function LobbyingDonationSelects({
       ...(selectedYear != null ? [selectedYear] : []),
     ]),
   ].sort((a, b) => b - a);
+  // Each box is as wide as its own longest choice, so nothing clips and the box
+  // never resizes as the choice changes. Year widens only while it is showing a
+  // disabled stand-in, which a reader never sees mid-interaction.
+  const yearWidth = years.length ? (tablet ? 118 : 128) : loading ? 168 : 148;
   return (
-    <View style={[styles.controls, stacked && styles.controlsStacked]}>
+    <View style={[styles.controls, { gap }, stacked && styles.controlsStacked]}>
       <LobbyingSelect
         label="Year"
         labelBeside={!stacked}
         fullWidth={stacked}
-        // Sized to hold `Loading years`, its own longest choice, so no state clips
-        // the box and the box never changes width.
-        width={stacked ? undefined : 164}
+        width={stacked ? undefined : yearWidth}
         value={String(selectedYear ?? '')}
         onChange={onYear}
         disabled={!years.length}
@@ -137,7 +171,9 @@ export function LobbyingDonationSelects({
         label="Sort by"
         labelBeside={!stacked}
         fullWidth={stacked}
-        width={stacked ? undefined : 256}
+        // `Donations: highest first` measures 236 at this weight with nothing to
+        // spare, so 240 keeps the same small margin the Year widths carry.
+        width={stacked ? undefined : 240}
         value={sort}
         options={LOBBYING_DONATION_SORTS}
         onChange={onSort}
@@ -155,10 +191,13 @@ export function LobbyingDonationNotes({
   donations,
   settled,
   stacked = false,
+  measure,
 }: {
   donations?: LobbyingDirectoryDonations;
   settled: boolean;
   stacked?: boolean;
+  /** The note's own reading width at this band; the phone takes the full column. */
+  measure?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
   const panelId = useId();
@@ -169,9 +208,17 @@ export function LobbyingDonationNotes({
       : null;
   return (
     <View>
-      <Text style={styles.note}>{LOBBYING_DONATION_AMOUNT_NOTE}</Text>
+      <Text style={[styles.note, styles.pretty, measure != null && { maxWidth: measure }]}>
+        {LOBBYING_DONATION_AMOUNT_NOTE}
+      </Text>
       {settled ? (
-        <Text style={[styles.note, eligible ? styles.eligible : null]}>
+        <Text
+          style={[
+            styles.note,
+            measure != null && { maxWidth: measure },
+            eligible ? styles.eligible : null,
+          ]}
+        >
           {eligible ?? LOBBYING_DONATION_AMOUNTS_UNAVAILABLE}
         </Text>
       ) : null}
@@ -205,8 +252,12 @@ export function LobbyingDonationNotes({
       <View nativeID={panelId}>
         {expanded ? (
           <View style={styles.explanation}>
-            <Text style={styles.note}>{LOBBYING_DONATION_SCOPE_NOTE}</Text>
-            <Text style={styles.note}>{LOBBYING_DONATION_METHOD_NOTE}</Text>
+            <Text style={[styles.note, measure != null && { maxWidth: measure }]}>
+              {LOBBYING_DONATION_SCOPE_NOTE}
+            </Text>
+            <Text style={[styles.note, measure != null && { maxWidth: measure }]}>
+              {LOBBYING_DONATION_METHOD_NOTE}
+            </Text>
             {donations?.source_url ? (
               <Pressable {...externalLinkProps(donations.source_url)} style={styles.disclosure}>
                 <LinkArrowLabel
@@ -223,47 +274,69 @@ export function LobbyingDonationNotes({
 }
 
 const selectStyle: CSSProperties = {
-  minHeight: 48,
+  appearance: 'none',
+  WebkitAppearance: 'none',
+  height: 48,
   width: '100%',
   maxWidth: '100%',
+  // The right pad is the drawn chevron's room; a background-image arrow could not
+  // take the disabled colour without shipping a second asset.
   padding: '0 40px 0 14px',
   borderRadius: 12,
-  border: '1px solid #d4d7d4',
+  border: '1px solid rgba(17,21,15,0.18)',
   background: '#fff',
   color: '#11150f',
+  cursor: 'pointer',
   fontFamily: theme.typography.body,
   fontSize: 16,
+  fontWeight: 700,
   fontVariantNumeric: 'tabular-nums',
+};
+const disabledSelectStyle: CSSProperties = {
+  background: '#f4f5f4',
+  border: '1px solid rgba(17,21,15,0.1)',
+  color: '#8a908a',
+  cursor: 'not-allowed',
 };
 const styles = StyleSheet.create({
   field: { minWidth: 0, maxWidth: 370, gap: 8 },
-  fieldStacked: { maxWidth: undefined },
+  fieldStacked: { maxWidth: undefined, gap: 5 },
   fieldInRow: { flexGrow: 1, flexBasis: 180 },
   fieldBeside: {
     maxWidth: undefined,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
-  label: { fontFamily: theme.typography.body, color: '#2c322c', fontSize: 16, fontWeight: '700' },
+  label: {
+    fontFamily: theme.typography.body,
+    color: '#2c322c',
+    fontSize: 16,
+    fontWeight: '700',
+  },
   labelBeside: { fontSize: 15, fontWeight: '800', color: '#3f463f' },
-  controls: { flexDirection: 'row', flexWrap: 'wrap', gap: 20, alignItems: 'center' },
+  labelAbove: { fontSize: 14.5, fontWeight: '800', color: '#3f463f' },
+  labelDisabled: { color: '#8a908a' },
+  selectBox: { position: 'relative', minWidth: 0 },
+  chevron: {
+    position: 'absolute',
+    right: 14,
+    top: '50%',
+    transform: [{ translateY: -7.5 }],
+  },
+  controls: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   // A wrapping column would size both boxes to the widest choice rather than to the
   // card, so the stacked arrangement never wraps.
-  controlsStacked: {
-    flexDirection: 'column',
-    flexWrap: 'nowrap',
-    alignItems: 'stretch',
-    gap: 14,
-  },
+  controlsStacked: { flexDirection: 'column', flexWrap: 'nowrap', alignItems: 'stretch' },
   note: {
     marginTop: 10,
     fontFamily: theme.typography.body,
     color: '#4f5651',
     fontSize: 15,
     lineHeight: 23,
-    maxWidth: 680,
   },
+  // A 2-line paragraph risks a 1-word last line; the browser balances it instead.
+  pretty: { ...({ textWrap: 'pretty' } as object) },
   eligible: { color: '#11150f', fontWeight: '700' },
   discloseRow: {
     marginTop: 4,

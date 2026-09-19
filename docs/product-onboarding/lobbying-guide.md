@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/screens/redesign/LobbyingLandingScreen.tsx, apps/frontend/src/screens/redesign/LobbyingPrincipalsScreen.tsx, apps/frontend/src/screens/redesign/LobbyingLobbyistsScreen.tsx, apps/frontend/src/screens/redesign/LobbyingPrincipalScreen.tsx, apps/frontend/src/screens/redesign/LobbyingLobbyistScreen.tsx, apps/frontend/src/lib/lobbyingDirectoryCopy.ts, apps/frontend/src/lib/lobbyingRecordCopy.ts, apps/frontend/src/lib/lobbyingTypes.ts, apps/frontend/src/data/lobbying.ts, apps/frontend/src/data/moneyNameSearch.ts, apps/frontend/src/hooks/useLobbying.ts, apps/frontend/src/hooks/useLobbyingNameSearch.ts, apps/frontend/src/components/lobbying/LobbyingPageFrame.tsx, apps/frontend/src/components/lobbying/LobbyingSearchResults.tsx, apps/frontend/src/lib/lobbyingSearch.ts, apps/frontend/src/lib/lobbyingPageSnapshot.ts, apps/frontend/src/lib/lobbyingMetadata.ts, apps/frontend/src/components/lobbying/LobbyingDonationContext.tsx, apps/frontend/src/components/lobbying/LobbyingDonationControls.tsx, apps/frontend/src/components/lobbying/LobbyistDirectoryCard.tsx, apps/frontend/src/lib/lobbyingDonationDirectory.ts, apps/frontend/src/lib/lobbyingPanelCopy.ts, apps/frontend/src/navigation/webRoutes.ts, api/page.ts, api/sitemap.ts -->
+<!-- describes: apps/frontend/src/screens/redesign/LobbyingLandingScreen.tsx, apps/frontend/src/screens/redesign/LobbyingPrincipalsScreen.tsx, apps/frontend/src/screens/redesign/LobbyingLobbyistsScreen.tsx, apps/frontend/src/screens/redesign/LobbyingPrincipalScreen.tsx, apps/frontend/src/screens/redesign/LobbyingLobbyistScreen.tsx, apps/frontend/src/lib/lobbyingDirectoryCopy.ts, apps/frontend/src/lib/lobbyingRecordCopy.ts, apps/frontend/src/lib/lobbyingTypes.ts, apps/frontend/src/data/lobbying.ts, apps/frontend/src/data/moneyNameSearch.ts, apps/frontend/src/hooks/useLobbying.ts, apps/frontend/src/hooks/useLobbyingNameSearch.ts, apps/frontend/src/components/lobbying/LobbyingPageFrame.tsx, apps/frontend/src/components/lobbying/LobbyingSearchResults.tsx, apps/frontend/src/lib/lobbyingSearch.ts, apps/frontend/src/lib/lobbyingPageSnapshot.ts, apps/frontend/src/lib/lobbyingMetadata.ts, apps/frontend/src/components/lobbying/LobbyingDonationContext.tsx, apps/frontend/src/components/lobbying/LobbyingDonationControls.tsx, apps/frontend/src/components/lobbying/LobbyistDirectoryCard.tsx, apps/frontend/src/theme/directoryRows.ts, apps/frontend/src/lib/lobbyingDonationDirectory.ts, apps/frontend/src/lib/lobbyingPanelCopy.ts, apps/frontend/src/navigation/webRoutes.ts, api/page.ts, api/sitemap.ts -->
 
 # How the lobbying pages work
 
@@ -144,6 +144,13 @@ explanation with its source link, and the campaign file's copy date. The rows
 follow, with name, client count, amount and arrow in aligned columns above the
 phone band and wrapped beneath the name on a phone. Nothing repeats the chosen
 order as a separate caption, because Sort by already names it.
+
+Both menus are native browser controls, so a phone opens its own picker and a
+keyboard reader keeps first-letter typing and screen-reader support. Only the
+closed box is ours: it drops the operating system's own styling and draws its own
+arrow, and each box is as wide as its own longest choice so no value is ever cut
+off and the box never resizes when the choice changes. A menu that cannot be
+offered is greyed out and its label greys with it.
 
 Loading, a failed read and both empty results keep that header and limitation,
 because they describe the list whatever it currently holds. A pending or failed

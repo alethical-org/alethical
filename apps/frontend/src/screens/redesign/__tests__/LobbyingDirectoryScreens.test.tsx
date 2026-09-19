@@ -70,6 +70,7 @@ import { LobbyingLandingScreen } from '../LobbyingLandingScreen';
 import { LobbyingLobbyistsScreen } from '../LobbyingLobbyistsScreen';
 import { LobbyingPrincipalsScreen } from '../LobbyingPrincipalsScreen';
 import { LOBBYING_DIRECTORY_COPY as copy } from '../../../lib/lobbyingDirectoryCopy';
+import { directoryRowWebCss } from '../../../theme/directoryRows';
 import { lobbyingPageMetadata } from '../../../lib/lobbyingMetadata';
 import { useDocumentTitle } from '../../../navigation/documentTitle';
 import fixture from './fixtures/lobbying-directories-live.json';
@@ -678,5 +679,91 @@ describe('the lobbyist results card', () => {
     expect(words()).toContain(copy.order);
     expect(host.querySelector('select')).toBeNull();
     expect(host.querySelectorAll('[aria-level="2"]')).toHaveLength(0);
+  });
+});
+
+describe('the lobbyist card’s drawn controls', () => {
+  const served = (over: object = {}) =>
+    success({
+      ...fixture.lobbyists_page_2,
+      offset: 0,
+      requested_year: 2025,
+      sort: 'donations_desc',
+      donations: {
+        state: 'reported',
+        year: 2025,
+        available_years: [2025, 2024],
+        eligible_count: 2,
+        copied_at: '2026-09-01T12:00:00Z',
+        source_url: 'https://cfb.mn.gov/source.csv',
+      },
+      ...over,
+    });
+  const screen = () => (
+    <LobbyingLobbyistsScreen
+      navigation={navigation as never}
+      route={route('LobbyingLobbyists', { year: '2025' })}
+    />
+  );
+  const selects = () => [...host.querySelectorAll('select')];
+
+  it('strips the browser’s own box and draws the chevron itself', () => {
+    state.lobbyists = served();
+    render(screen());
+    for (const box of selects()) {
+      expect(box.style.appearance).toBe('none');
+      expect(box.style.fontWeight).toBe('700');
+      expect(box.style.cursor).toBe('pointer');
+      // The right pad is the drawn chevron's room.
+      expect(box.style.padding).toBe('0px 40px 0px 14px');
+      // react-native-svg is mocked away here, so assert the wrapper the drawn
+      // chevron is positioned against; the browser check covers the glyph itself.
+      expect(getComputedStyle(box.parentElement!).position).toBe('relative');
+    }
+  });
+
+  it('sizes each box to its own longest choice, widening only while disabled', () => {
+    state.lobbyists = served();
+    render(screen());
+    expect(selects()[0].style.width).toBe('128px');
+    expect(selects()[1].style.width).toBe('240px');
+    state.lobbyists = { isPending: true, isSuccess: false, isError: false, refetch: vi.fn() };
+    render(
+      <LobbyingLobbyistsScreen
+        navigation={navigation as never}
+        route={route('LobbyingLobbyists')}
+      />,
+    );
+    // `Loading years` is longer than any year, so the box grows while it shows it.
+    expect(selects()[0].textContent).toBe('Loading years');
+    expect(selects()[0].style.width).toBe('168px');
+  });
+
+  it('marks a dropdown it cannot offer, and dims its label with it', () => {
+    state.lobbyists = { isPending: false, isSuccess: false, isError: true, refetch: vi.fn() };
+    render(
+      <LobbyingLobbyistsScreen
+        navigation={navigation as never}
+        route={route('LobbyingLobbyists')}
+      />,
+    );
+    const year = selects()[0];
+    expect(year.disabled).toBe(true);
+    expect(year.style.cursor).toBe('not-allowed');
+    expect(year.style.color).toBe('rgb(138, 144, 138)');
+    const label = [...host.querySelectorAll('div')].find(
+      (item) => item.children.length === 0 && item.textContent === 'Year',
+    )!;
+    expect(getComputedStyle(label).color).toBe('rgb(138, 144, 138)');
+  });
+
+  it('draws a row’s keyboard ring inside the card rather than outside it', () => {
+    state.lobbyists = served();
+    render(screen());
+    const row = listRows()[0].querySelector('a')!;
+    expect(row.getAttribute('data-alethical-directory-row')).toBe('true');
+    // The sitewide ring sits 2px outside; a full-width row needs it inside.
+    expect(row.getAttribute('data-arrow-focus')).toBe('true');
+    expect(directoryRowWebCss).toContain('outline-offset:-2px');
   });
 });

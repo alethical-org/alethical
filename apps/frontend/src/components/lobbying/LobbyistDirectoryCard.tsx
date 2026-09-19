@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
 
 import { GreenLinkArrow } from '../LinkArrow';
@@ -12,6 +12,7 @@ import type {
   LobbyingLobbyistListRow,
 } from '../../lib/lobbyingTypes';
 import { useResponsive } from '../../hooks/useResponsive';
+import { ensureDirectoryRowWebStyles, DIRECTORY_ROW_DATA_SET } from '../../theme/directoryRows';
 import { linkProps } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
 
@@ -66,15 +67,27 @@ export function LobbyistDirectoryCard({
 }) {
   const { isMobile, isTablet } = useResponsive();
   const settled = !pending && !failed;
-  const rowPadding = isMobile ? 16 : isTablet ? 24 : 28;
-  const blockPadding = isMobile ? 16 : isTablet ? 24 : 28;
+  // One left inset for the header, the note and every row, so they share an edge.
+  const inset = isMobile ? 16 : isTablet ? 24 : 28;
+  const headerPad = isMobile
+    ? { paddingTop: 16, paddingBottom: 14 }
+    : isTablet
+      ? { paddingTop: 20, paddingBottom: 16 }
+      : { paddingTop: 22, paddingBottom: 18 };
+  const notePad = isMobile
+    ? { paddingTop: 14, paddingBottom: 16 }
+    : isTablet
+      ? { paddingTop: 16, paddingBottom: 18 }
+      : { paddingTop: 18, paddingBottom: 20 };
+  useEffect(() => ensureDirectoryRowWebStyles(), []);
   return (
     <View>
-      <View style={styles.card}>
+      <View style={[styles.card, { marginTop: isMobile ? 20 : isTablet ? 24 : 26 }]}>
         <View
           style={[
             styles.header,
-            { paddingHorizontal: blockPadding },
+            headerPad,
+            { paddingHorizontal: inset },
             isMobile ? styles.headerStacked : isTablet ? styles.headerTablet : null,
           ]}
         >
@@ -97,21 +110,28 @@ export function LobbyistDirectoryCard({
             requestedYear={requestedYear}
             loading={pending}
             stacked={isMobile}
+            tablet={isTablet}
+            gap={isMobile ? 12 : isTablet ? 16 : 20}
             onYear={onYear}
             onSort={onSort}
           />
         </View>
-        <View style={[styles.notes, { paddingHorizontal: blockPadding }]}>
-          <LobbyingDonationNotes donations={donations} settled={settled} stacked={isMobile} />
+        <View style={[styles.notes, notePad, { paddingHorizontal: inset }]}>
+          <LobbyingDonationNotes
+            donations={donations}
+            settled={settled}
+            stacked={isMobile}
+            measure={isMobile ? undefined : isTablet ? 640 : 680}
+          />
         </View>
         {pending ? (
-          <View aria-busy style={[styles.body, { paddingHorizontal: blockPadding }]}>
+          <View aria-busy style={[styles.body, { paddingHorizontal: inset }]}>
             {[0, 1, 2].map((slot) => (
               <View key={slot} aria-hidden style={styles.placeholder} />
             ))}
           </View>
         ) : failed ? (
-          <View style={[styles.body, { paddingHorizontal: blockPadding }]}>
+          <View style={[styles.body, { paddingHorizontal: inset }]}>
             <Text accessibilityRole="alert" style={styles.failure}>
               {copy.lobbyists.unavailable}
             </Text>
@@ -120,7 +140,7 @@ export function LobbyistDirectoryCard({
             </Pressable>
           </View>
         ) : rows.length === 0 ? (
-          <View style={[styles.body, { paddingHorizontal: blockPadding }]}>
+          <View style={[styles.body, { paddingHorizontal: inset }]}>
             <Text style={[styles.emptyTitle, isMobile && styles.emptyTitleMobile]}>
               {emptyPage ? copy.emptyPage : copy.lobbyists.empty}
             </Text>
@@ -140,7 +160,7 @@ export function LobbyistDirectoryCard({
                 row={row}
                 year={donationYear}
                 stacked={isMobile}
-                paddingHorizontal={rowPadding}
+                paddingHorizontal={inset}
                 metaWidth={isTablet ? 140 : 150}
                 amountWidth={isTablet ? 218 : 232}
               />
@@ -174,6 +194,7 @@ function DirectoryRow({
     <View role="listitem">
       <Pressable
         {...linkProps(row.href, row.open)}
+        {...{ dataSet: DIRECTORY_ROW_DATA_SET }}
         {...hover}
         style={[
           styles.row,
@@ -228,19 +249,18 @@ function Amount({
 }
 
 const divider = 'rgba(17,21,15,0.08)';
+const blockDivider = 'rgba(17,21,15,0.09)';
 const styles = StyleSheet.create({
   card: {
-    marginTop: 22,
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: divider,
+    borderColor: blockDivider,
     borderRadius: 16,
-    boxShadow: '0 6px 18px rgba(17,21,15,0.04)',
+    boxShadow: '0 1px 2px rgba(17,21,15,0.04), 0 12px 28px rgba(17,21,15,0.05)',
+    // Keeps the row wash inside the radius instead of squaring off the corner.
     overflow: 'hidden',
   },
   header: {
-    paddingTop: 22,
-    paddingBottom: 18,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -248,7 +268,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   headerTablet: { flexDirection: 'column', alignItems: 'flex-start', gap: 14 },
-  headerStacked: { flexDirection: 'column', alignItems: 'stretch', gap: 14, paddingTop: 16 },
+  headerStacked: { flexDirection: 'column', alignItems: 'stretch', gap: 14 },
   count: {
     color: '#11150f',
     fontFamily: t.typography.body,
@@ -260,12 +280,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   countMobile: { fontSize: 16, lineHeight: 24 },
-  notes: {
-    paddingBottom: 18,
-    borderTopWidth: 1,
-    borderTopColor: divider,
-    paddingTop: 6,
-  },
+  notes: { borderTopWidth: 1, borderTopColor: blockDivider },
   body: { paddingTop: 18, paddingBottom: 24, borderTopWidth: 1, borderTopColor: divider },
   placeholder: {
     height: 44,
@@ -344,12 +359,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     minWidth: 0,
     flexShrink: 1,
+    // One long unbroken name must break rather than push the fixed columns out of
+    // line down the whole page.
+    ...({ overflowWrap: 'anywhere' } as object),
   },
   meta: {
     color: '#4f5651',
     fontFamily: t.typography.body,
     fontVariant: ['tabular-nums'],
-    fontSize: 15,
+    fontSize: 15.5,
+    fontWeight: '500',
     lineHeight: 22,
   },
   metaColumn: { flexShrink: 0, textAlign: 'right' },
