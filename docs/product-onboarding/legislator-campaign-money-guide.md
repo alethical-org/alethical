@@ -801,13 +801,30 @@ real figures.
 The location card and the shared panel use the existing committee card's border, padding
 and shadow, and are cards of equal rank.
 Thin separators divide the row controls, and expanded content remains within its row.
-The filing table stacks each kind into 3 labelled figures below 768px; the location
-table keeps all 4 columns at every width, wrapping its column headings and any state
-name that has a space in it, and never breaking a single word such as Massachusetts.
-On a narrow phone those 4 columns do not fit the card: at 375px the table runs 16px into
-the card's right padding, and at 320px the share column is clipped off the screen and
-cannot be read. That is an open defect, not the intended layout, and the arrangement that
-replaces it is [issue 2317](https://github.com/alethical-org/alethical/issues/2317). The
+The filing table stacks each kind into 3 labelled figures below 768px. The location table
+keeps all 4 pieces of information at every width and changes only how they sit. At 768px
+and above they are 4 side-by-side columns. Below 768px the state name takes a line of its
+own at the card's full width, carrying its swatch, its indent and the Other states
+control, and its 3 figures sit on the line beneath it.
+
+Which of 3 shapes those figures take is decided by measuring, not by a screen width. The
+card measures how much room the real figures need in the real font at the size the browser
+is really drawing, against the room the card really has, and picks the first that fits:
+the 3 figures in shared columns; each figure on its own line with its label to the left;
+or the label on the line above its figure. It measures every state, including the ones the
+Other states control is hiding, so a group that is reopened never finds the shape no
+longer fits. It picks once for the whole table, so a reader never meets 2 shapes in one
+list, and it picks again when the card changes width, when a web font arrives or when the
+reader's text size changes. Nothing is ever shortened, clipped or put behind a sideways
+scroll to make it fit: a phone has height to spare, and the whole dollar amount is what a
+reader came for.
+
+A reader who enlarges text gets a card that grows with it, because a 14px square and an
+18px arrow beside a 30px word read as stray marks. At 15px text the heading is 20px, the
+bar 20px, the swatch 14px and the arrow 18px; at 20px they are 27, 24, 14 and 18; at 30px
+they are 40, 36, 20 and 26. The control's tap target stays at least 44px and grows with a
+label that wraps. Column headings wrap, and a state name wraps at its spaces only, so
+Massachusetts is never broken into 2 pieces. The
 name distribution and highest-name tables stack below
 768px. The size changes at 768px and 1100px follow the tab's existing text sizes,
 including 15px small text on a phone. The money section uses 32px side margins on
