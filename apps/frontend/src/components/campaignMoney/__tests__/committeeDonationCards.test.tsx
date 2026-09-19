@@ -191,7 +191,8 @@ describe('drawn donation cards from committee 17868 in 2025', () => {
       'Shares of dollars by state, excluding donated goods and services',
       'States are identified from ZIP codes in the state’s file',
       'Unknown means the state’s file has no usable ZIP code to identify the donor’s state',
-      'Names count distinct spellings within each row, including contributions of goods and services. The same name can appear in more than 1 state.',
+      'Names count distinct spellings within each row, including contributions of goods and services',
+      'The same name can appear in more than 1 state',
     ]);
 
     expect(connections.textContent).toContain('19 of 74 names');
@@ -564,10 +565,10 @@ describe('several other states', () => {
       expect(row.style.overflowWrap).toBe('');
       expect(row.style.wordBreak).toBe('');
     }
-    // The caption is the only place the subtotal relationship is stated in words.
+    // One line. The control's accessible name is where the subtotal relationship is now
+    // stated in words, so the caption no longer says it a second time.
     expect(place.querySelector('caption')?.textContent).toBe(
-      'Itemized individual contributions by state, 2025. States listed under Other states ' +
-        'are included in its subtotal.',
+      'Itemized individual contributions by state, 2025',
     );
     // Individual state names need not add to the subtotal's 8: one spelling can sit in 2
     // states. The dollars do add.
@@ -647,7 +648,10 @@ describe('several other states', () => {
     ]);
     expect(place.textContent).not.toContain('Show more');
     expect(place.textContent).not.toContain('All other states');
-    expect(place.querySelector('button')).toBeNull();
+    // One control, on Other states, and it arrives open with all 21 already listed.
+    const controls = [...place.querySelectorAll('button')];
+    expect(controls).toHaveLength(1);
+    expect(controls[0].getAttribute('aria-label')).toBe('Hide the 21 states in Other states');
     // The state counts add to 35 and the subtotal says 31. Neither figure is corrected
     // to match the other, and no total row is printed over them.
     expect(place.textContent).toContain('31');
@@ -696,7 +700,7 @@ describe('several other states', () => {
       '12500000',
     ]);
     expect(segments.every((segment) => segment.style.flexBasis === '0px')).toBe(true);
-    expect(LOCATION_COLORS).toEqual(['#2f3a31', '#6b736c', '#9aa39c']);
+    expect(LOCATION_COLORS).toEqual(['#0f7a45', '#2f6fb5', '#a8741a']);
   });
 
   it('shares divide by every itemized individual dollar, Unknown included', () => {
@@ -712,6 +716,341 @@ describe('several other states', () => {
     // Every share is rounded on its own and no row is adjusted to make them total 100%,
     // so the share column carries no total row at all.
     expect(place.querySelector('tfoot')).toBeNull();
+  });
+});
+
+describe('the Other states group opens and closes', () => {
+  const withStates = (
+    rows: { state: string; names: number; cash_total: string }[],
+    otherStates = { names: 8, cash_total: '1520.0000' },
+  ): CommitteeDonorStates => ({
+    ...source.donor_states,
+    rows: [source.donor_states.rows[0], ...rows, source.donor_states.rows[1]],
+    summary: { ...source.donor_states.summary, other_states: otherStates },
+  });
+  const five = withStates([
+    { state: 'WI', names: 3, cash_total: '300.0000' },
+    { state: 'DC', names: 1, cash_total: '1000.0000' },
+    { state: 'CA', names: 2, cash_total: '200.0000' },
+    { state: 'MA', names: 1, cash_total: '20.0000' },
+    { state: 'WY', names: 2, cash_total: '0' },
+  ]);
+
+  /** A real root, because the control only moves under a reader's press. */
+  function mountCards(props: Partial<React.ComponentProps<typeof CommitteeDonationCardsView>>) {
+    (
+      globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
+    const mount = document.createElement('div');
+    document.body.append(mount);
+    const root = createRoot(mount);
+    const draw = (extra: Partial<React.ComponentProps<typeof CommitteeDonationCardsView>> = {}) =>
+      act(() =>
+        root.render(
+          <CommitteeDonationCardsView
+            committee={committee({ donorStates: five })}
+            year={2025}
+            registerKind="candidate_committee"
+            payments={[individualCash]}
+            {...props}
+            {...extra}
+          />,
+        ),
+      );
+    draw();
+    return {
+      mount,
+      draw,
+      place: () => locations(mount)!,
+      control: () => locations(mount)!.querySelector<HTMLButtonElement>('th button')!,
+      stop: () => {
+        act(() => root.unmount());
+        mount.remove();
+      },
+    };
+  }
+
+  it('arrives open and hides only the state rows when pressed', () => {
+    const view = mountCards({});
+    try {
+      const button = view.control();
+      expect(button.tagName).toBe('BUTTON');
+      // A native button, so Enter and Space activate it without a key handler of ours.
+      expect(button.type).toBe('button');
+      expect(button.getAttribute('aria-expanded')).toBe('true');
+      expect(button.getAttribute('aria-label')).toBe('Hide the 5 states in Other states');
+      expect(button.querySelector('svg')!.style.transform).toBe('rotate(180deg)');
+      const open = cells(view.place().querySelector('table')!);
+      expect(open.map((row) => row[0])).toEqual([
+        'Minnesota',
+        'Other states',
+        'California',
+        'District of Columbia',
+        'Massachusetts',
+        'Wisconsin',
+        'Wyoming',
+        'Unknown',
+      ]);
+      const bar = () =>
+        [...view.place().querySelector<HTMLElement>('[role="img"]')!.children].map(
+          (segment) => (segment as HTMLElement).style.flexGrow,
+        );
+      const notes = () => [...view.place().querySelectorAll('p')].map((line) => line.textContent);
+      const drawnBar = bar();
+      const drawnNotes = notes();
+      const drawnLabel = view.place().querySelector('[role="img"]')!.getAttribute('aria-label');
+
+      act(() => button.click());
+
+      const closed = cells(view.place().querySelector('table')!);
+      expect(closed.map((row) => row[0])).toEqual(['Minnesota', 'Other states', 'Unknown']);
+      // The subtotal keeps every figure it had, and so do the other 2 categories.
+      expect(closed).toEqual([open[0], open[1], open[7]]);
+      // Nothing recalculates: the bar, its spoken label, the caption and the notes are
+      // exactly what they were.
+      expect(bar()).toEqual(drawnBar);
+      expect(view.place().querySelector('[role="img"]')!.getAttribute('aria-label')).toBe(
+        drawnLabel,
+      );
+      expect(view.place().querySelector('caption')!.textContent).toBe(
+        'Itemized individual contributions by state, 2025',
+      );
+      expect(notes()).toEqual(drawnNotes);
+
+      const after = view.control();
+      expect(after.getAttribute('aria-expanded')).toBe('false');
+      expect(after.getAttribute('aria-label')).toBe('Show the 5 states in Other states');
+      expect(after.querySelector('svg')!.style.transform).toBe('');
+      act(() => after.click());
+      expect(cells(view.place().querySelector('table')!)).toEqual(open);
+    } finally {
+      view.stop();
+    }
+  });
+
+  it('keeps focus on the control through a keyboard activation', () => {
+    const view = mountCards({});
+    try {
+      const button = view.control();
+      act(() => button.focus());
+      expect(document.activeElement).toBe(button);
+      // A native button turns Enter and Space into a click carrying detail 0.
+      act(() => button.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 })));
+      expect(view.control().getAttribute('aria-expanded')).toBe('false');
+      expect(document.activeElement).toBe(view.control());
+      act(() =>
+        view.control().dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 })),
+      );
+      expect(view.control().getAttribute('aria-expanded')).toBe('true');
+      expect(document.activeElement).toBe(view.control());
+    } finally {
+      view.stop();
+    }
+  });
+
+  it('opens again on a new year and on a new committee, and remembers nothing', () => {
+    const view = mountCards({});
+    try {
+      act(() => view.control().click());
+      expect(view.control().getAttribute('aria-expanded')).toBe('false');
+      view.draw({ year: 2024, committee: committee({ donorStates: { ...five, year: 2024 } }) });
+      expect(view.control().getAttribute('aria-expanded')).toBe('true');
+
+      act(() => view.control().click());
+      expect(view.control().getAttribute('aria-expanded')).toBe('false');
+      view.draw({
+        year: 2024,
+        committee: committee({ registrationNumber: '18135', donorStates: { ...five, year: 2024 } }),
+      });
+      expect(view.control().getAttribute('aria-expanded')).toBe('true');
+
+      // An ordinary re-render inside one committee and one year keeps the choice.
+      act(() => view.control().click());
+      view.draw({
+        year: 2024,
+        committee: committee({ registrationNumber: '18135', donorStates: { ...five, year: 2024 } }),
+      });
+      expect(view.control().getAttribute('aria-expanded')).toBe('false');
+    } finally {
+      view.stop();
+    }
+  });
+
+  it('gives 2 committees 2 controls that move on their own', () => {
+    (
+      globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
+    const mount = document.createElement('div');
+    document.body.append(mount);
+    const root = createRoot(mount);
+    try {
+      act(() =>
+        root.render(
+          <>
+            <CommitteeDonationCardsView
+              committee={committee({ donorStates: five })}
+              year={2025}
+              registerKind="candidate_committee"
+              payments={[individualCash]}
+            />
+            <CommitteeDonationCardsView
+              committee={committee({ registrationNumber: '18135', donorStates: five })}
+              year={2025}
+              registerKind="candidate_committee"
+              payments={[individualCash]}
+            />
+          </>,
+        ),
+      );
+      const controls = () => [...mount.querySelectorAll<HTMLButtonElement>('th button')];
+      expect(controls()).toHaveLength(2);
+      act(() => controls()[0].click());
+      expect(controls().map((button) => button.getAttribute('aria-expanded'))).toEqual([
+        'false',
+        'true',
+      ]);
+      const tables = [...mount.querySelectorAll('table')].filter((table) =>
+        table.querySelector('caption')?.textContent?.startsWith('Itemized'),
+      );
+      expect(cells(tables[0]).length).toBe(3);
+      expect(cells(tables[1]).length).toBe(8);
+    } finally {
+      act(() => root.unmount());
+      mount.remove();
+    }
+  });
+
+  it('says state rather than states where exactly 1 state is represented', () => {
+    const place = locations(
+      render({
+        committee: committee({
+          donorStates: withStates([{ state: 'WI', names: 3, cash_total: '300.0000' }], {
+            names: 3,
+            cash_total: '300.0000',
+          }),
+        }),
+        payments: [individualCash],
+      }),
+    )!;
+    expect(place.querySelector('th button')!.getAttribute('aria-label')).toBe(
+      'Hide the state in Other states',
+    );
+  });
+
+  it('keeps the control for a represented state whose cash is $0', () => {
+    const place = locations(
+      render({
+        committee: committee({
+          donorStates: withStates([{ state: 'WY', names: 2, cash_total: '0' }], {
+            names: 2,
+            cash_total: '0',
+          }),
+        }),
+        payments: [individualCash],
+      }),
+    )!;
+    // A row with names and no dollars is still a row, so it is still worth a control.
+    expect(place.querySelector('th button')!.getAttribute('aria-label')).toBe(
+      'Hide the state in Other states',
+    );
+    expect(cells(place.querySelector('table')!)).toContainEqual(['Wyoming', '2', '$0', '0%']);
+  });
+
+  it('prints a plain label with no control where no state is represented', () => {
+    const place = locations(render({ payments: [individualCash] }))!;
+    expect(cells(place.querySelector('table')!).map((row) => row[0])).toEqual([
+      'Minnesota',
+      'Other states',
+      'Unknown',
+    ]);
+    expect(place.querySelector('th button')).toBeNull();
+    expect(place.textContent).toContain('Other states');
+  });
+
+  it('carries one palette through the bar and both swatch forms', () => {
+    // The browser rewrites a hex into its own notation, so both sides go through it.
+    const probe = document.createElement('span');
+    const fill = (color: string) => {
+      probe.style.background = color;
+      return probe.style.background;
+    };
+    const [green, blue, amber] = LOCATION_COLORS;
+    const place = locations(
+      render({ committee: committee({ donorStates: five }), payments: [individualCash] }),
+    )!;
+    expect(
+      [...place.querySelector('[role="img"]')!.children].map(
+        (segment) => (segment as HTMLElement).style.background,
+      ),
+    ).toEqual([green, blue, amber].map(fill));
+    const swatches = [...place.querySelectorAll<HTMLElement>('th span[aria-hidden="true"]')].filter(
+      (span) => span.style.width === '14px',
+    );
+    expect(swatches).toHaveLength(3);
+    expect(swatches.map((swatch) => swatch.style.borderColor)).toEqual(
+      [green, blue, amber].map((color) => {
+        probe.style.borderColor = color;
+        return probe.style.borderColor;
+      }),
+    );
+    expect(swatches.map((swatch) => swatch.style.background)).toEqual(
+      [green, blue, amber].map(fill),
+    );
+    // The outlined form a zero category takes uses the same 3 values.
+    const zero = locations(
+      render({
+        committee: committee({
+          donorStates: {
+            ...source.donor_states,
+            rows: [source.donor_states.rows[1]],
+            summary: {
+              ...source.donor_states.summary,
+              minnesota: { names: 0, cash_total: '0' },
+              other_states: { names: 0, cash_total: '0' },
+            },
+          },
+        }),
+        payments: [individualCash],
+      }),
+    )!;
+    const outlined = [...zero.querySelectorAll<HTMLElement>('th span[aria-hidden="true"]')].filter(
+      (span) => span.style.width === '14px',
+    );
+    expect(outlined.map((swatch) => swatch.style.background)).toEqual(
+      ['transparent', 'transparent', amber].map(fill),
+    );
+    // A zero category keeps its own colour in the outline, so the 3 stay told apart.
+    expect(outlined.map((swatch) => swatch.style.borderColor)).toEqual(
+      [green, blue, amber].map((color) => {
+        probe.style.borderColor = color;
+        return probe.style.borderColor;
+      }),
+    );
+    expect(outlined.every((swatch) => swatch.style.borderWidth === '2px')).toBe(true);
+  });
+
+  it.each([
+    ['computer', false, false, '-10px'],
+    ['tablet', false, true, '-11px'],
+    ['phone', true, false, '-12px'],
+  ])('takes its 44px target from a negative margin on %s', (_band, mobile, tablet, margin) => {
+    responsive.isMobile = mobile;
+    responsive.isTablet = tablet;
+    const place = locations(
+      render({ committee: committee({ donorStates: five }), payments: [individualCash] }),
+    )!;
+    const button = place.querySelector<HTMLElement>('th button')!;
+    expect(button.style.minHeight).toBe('44px');
+    // Margin rather than padding, so the row that can be pressed is exactly as tall as
+    // the 2 rows that cannot.
+    expect(button.style.marginTop).toBe(margin);
+    expect(button.style.marginBottom).toBe(margin);
+    expect(button.style.paddingTop).toBe('0px');
+    expect(button.style.gap).toBe('9px');
+    // 9 from the swatch and 9 + 2 from the name, as drawn.
+    expect(button.querySelector<HTMLElement>('span:last-child')!.style.marginLeft).toBe('2px');
+    responsive.isMobile = false;
+    responsive.isTablet = false;
   });
 });
 

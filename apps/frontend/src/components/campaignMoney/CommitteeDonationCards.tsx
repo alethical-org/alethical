@@ -114,6 +114,12 @@ export function CommitteeDonationCardsView({
           what this display covers. */}
       {registerKind === 'candidate_committee' ? (
         <ContributorLocations
+          // Remounting on a new committee or a new year is what reopens the Other states
+          // group. Nothing is remembered: a reader who lands on a figure they were linked
+          // to sees the rows it is made of without first learning that a control exists.
+          // Inside one committee and one year the instance survives, so an ordinary
+          // re-render -- including the read finishing -- keeps their choice.
+          key={`${committee.registrationNumber}.${year}`}
           committee={committee}
           year={year}
           state={state}
@@ -638,9 +644,14 @@ function FiledLines({
   );
 }
 
-/** One neutral at 3 lightnesses, in the bar's fixed order. No hue, so no category can
- *  read as good or bad, and every figure the bar carries is also in the table below it. */
-export const LOCATION_COLORS = ['#2f3a31', '#6b736c', '#9aa39c'] as const;
+/** The bar's fixed order: Minnesota, Other states, Unknown. Three hues rather than one
+ *  neutral at 3 lightnesses, at Eugene's instruction of 19 Sep 2026, and each clears 3:1
+ *  against white, which the outlined zero swatch needs. They are NOT reliably told apart
+ *  in greyscale or under red-green colour blindness -- the green and the blue sit at
+ *  nearly equal lightness -- so nothing here may carry meaning by colour alone. Every
+ *  figure the bar draws is also printed in the table, and the row label beside every
+ *  swatch names its category. */
+export const LOCATION_COLORS = ['#0f7a45', '#2f6fb5', '#a8741a'] as const;
 
 type LocationTableRow = {
   key: string;
@@ -651,6 +662,9 @@ type LocationTableRow = {
   child: boolean;
   color: string | null;
   filled: boolean;
+  /** Other states, and only when state rows hang under it. A chevron therefore always
+   *  means there is something inside. */
+  toggle: boolean;
   rule: string | undefined;
 };
 
@@ -680,6 +694,7 @@ function ContributorLocations({
   const { isMobile, isTablet } = useResponsive();
   const type = useCampaignMoneyTypography();
   const headingId = useId();
+  const [statesOpen, setStatesOpen] = useState(true);
   const block =
     committee.donorStates?.state === 'reported' && committee.donorStates.year === year
       ? committee.donorStates
@@ -734,6 +749,8 @@ function ContributorLocations({
           block={block}
           year={year}
           hasIndividualDonations={hasIndividualDonations}
+          statesOpen={statesOpen}
+          onStatesOpenChange={setStatesOpen}
         />
       )}
     </View>
@@ -768,10 +785,14 @@ function LocationFigures({
   block,
   year,
   hasIndividualDonations,
+  statesOpen,
+  onStatesOpenChange,
 }: {
   block: CommitteeDonorStates;
   year: number;
   hasIndividualDonations: boolean;
+  statesOpen: boolean;
+  onStatesOpenChange: (open: boolean) => void;
 }) {
   const { isMobile, isTablet } = useResponsive();
   const type = useCampaignMoneyTypography();
@@ -837,6 +858,7 @@ function LocationFigures({
     color: string | null,
     child: boolean,
     divider: string | undefined,
+    toggle = false,
   ) =>
     rows.push({
       key: row.key,
@@ -847,11 +869,16 @@ function LocationFigures({
       child,
       color,
       filled: row.units! > 0n && denominatorUnits > 0n,
+      toggle,
       rule: divider,
     });
+  // Closing takes the state rows out of the table and does nothing else: the subtotal
+  // keeps its figures, the bar, the caption, the notes and every percentage are the
+  // same, and no figure is read again.
+  const shown = statesOpen ? states : [];
   push(categories[0], categories[0].color, false, rule);
-  push(categories[1], categories[1].color, false, states.length ? soft : rule);
-  states.forEach((row, index) => push(row, null, true, index === states.length - 1 ? rule : soft));
+  push(categories[1], categories[1].color, false, shown.length ? soft : rule, states.length > 0);
+  shown.forEach((row, index) => push(row, null, true, index === shown.length - 1 ? rule : soft));
   push(categories[2], categories[2].color, false, undefined);
 
   const segments = categories.filter((row) => row.units! > 0n);
@@ -871,6 +898,26 @@ function LocationFigures({
     { label: copy.share, width: shareWidth },
   ];
   const indent = isMobile ? 14 : isTablet ? 26 : 28;
+  // The 44px target comes from a negative vertical margin rather than from padding, so
+  // the row that can be clicked stays exactly as tall as the 2 rows that cannot and the
+  // table keeps its rhythm. An inline-flex box counts its margin box in the line, so a
+  // negative margin really does pull the row back.
+  const toggleMargin = isMobile ? -12 : isTablet ? -11 : -10;
+  const swatch = (color: string, filled: boolean) => (
+    // Outlined where the bar has no segment: a filled swatch would promise a segment
+    // that is not there. Decorative either way -- the row label names the category.
+    <span
+      aria-hidden="true"
+      style={{
+        flex: 'none',
+        width: 14,
+        height: 14,
+        borderRadius: 3,
+        border: `2px solid ${color}`,
+        background: filled ? color : 'transparent',
+      }}
+    />
+  );
   return (
     <>
       {denominatorUnits > 0n ? (
@@ -930,7 +977,7 @@ function LocationFigures({
             textWrap: 'pretty',
           }}
         >
-          {copy.locationsCaption(year, states.length > 0)}
+          {copy.locationsCaption(year)}
         </caption>
         <thead>
           <tr>
@@ -966,21 +1013,62 @@ function LocationFigures({
                   borderBottom: row.rule,
                 }}
               >
-                {row.color ? (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
-                    {/* Outlined where the bar has no segment: a filled swatch would
-                        promise a segment that is not there. */}
+                {row.toggle && row.color ? (
+                  /* The row label is the control. A native button, so Enter and Space
+                     already work, focus already stays put after a press and the site's
+                     own focus ring already draws. Nothing animates, so there is no
+                     motion for a reduced-motion preference to turn off. */
+                  <button
+                    type="button"
+                    aria-expanded={statesOpen}
+                    aria-label={copy.locationsToggle(statesOpen, states.length)}
+                    onClick={() => onStatesOpenChange(!statesOpen)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 9,
+                      minHeight: 44,
+                      marginTop: toggleMargin,
+                      marginBottom: toggleMargin,
+                      padding: 0,
+                      background: 'transparent',
+                      border: 0,
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      fontSize: type.body,
+                      fontWeight: 800,
+                      lineHeight: 1.35,
+                      textAlign: 'left',
+                      color: c.text,
+                    }}
+                  >
+                    {swatch(row.color, row.filled)}
+                    <span>{row.label}</span>
                     <span
                       aria-hidden="true"
-                      style={{
-                        flex: 'none',
-                        width: 14,
-                        height: 14,
-                        borderRadius: 3,
-                        border: `2px solid ${row.color}`,
-                        background: row.filled ? row.color : 'transparent',
-                      }}
-                    />
+                      style={{ flex: 'none', display: 'inline-flex', marginLeft: 2 }}
+                    >
+                      <svg
+                        width={18}
+                        height={18}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        style={{ transform: statesOpen ? 'rotate(180deg)' : undefined }}
+                      >
+                        <path
+                          d="M6 9 L12 15 L18 9"
+                          stroke={c.secondary}
+                          strokeWidth={2.2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
+                  </button>
+                ) : row.color ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
+                    {swatch(row.color, row.filled)}
                     <span>{row.label}</span>
                   </span>
                 ) : (

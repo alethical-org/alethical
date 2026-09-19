@@ -769,7 +769,12 @@ describe('one committee shares the donation browser', () => {
     expect(
       card.compareDocumentPosition(panelHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(card.querySelector('button')).toBeNull();
+    // The only control is the Other states group, and it arrives open, so every figure
+    // is already on screen without a press.
+    const controls = [...card.querySelectorAll('button')];
+    expect(controls).toHaveLength(1);
+    expect(controls[0].getAttribute('aria-expanded')).toBe('true');
+    expect(controls[0].getAttribute('aria-label')).toBe('Hide the state in Other states');
     expect(card.querySelector('table')).not.toBeNull();
     const figures = [...card.querySelectorAll<HTMLTableRowElement>('tbody tr')].map((row) =>
       [...row.cells].map((cell) => cell.textContent),

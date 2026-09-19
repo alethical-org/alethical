@@ -994,9 +994,21 @@ Campaign money, top to bottom:
 9. **Where itemized individual contributions came from**, after the **View receipts and
    expenditures** link. Its own card, with nothing to click to reach the figures. A bar
    shows Minnesota, other states and unknown as shares of every itemized individual
-   contribution dollar the committee took that year, and a table under it gives each
-   one's name count, amount and share, with every state that gave money listed
-   alphabetically by its full name under **Other states**. The card is absent for a
+   contribution dollar the committee took that year, in a green (#0f7a45), a blue
+   (#2f6fb5) and an amber (#a8741a). Nothing on the card is carried by colour alone:
+   every figure the bar draws is also printed in the table, and the row label beside each
+   swatch names its category, which is what a reader who cannot tell the green from the
+   blue relies on. The table under the bar is captioned “Itemized individual
+   contributions by state, {year}” and gives each category's name count, amount and
+   share, with every state that gave money listed alphabetically by its full name under
+   **Other states**. The **Other states** label is a button that folds those state rows
+   away and back. It arrives open every time and remembers nothing between years,
+   committees or visits, so nobody lands on a hidden list; inside one committee and year
+   the reader's choice survives an ordinary redraw. Closing removes only the state rows,
+   leaving the subtotal, the bar, the caption, the notes and every percentage untouched.
+   Its spoken name counts what is inside, “Show the 7 states in Other states”, and reads
+   “the state” where only 1 sits there. Minnesota and Unknown carry no button. Four notes
+   close the card, one line each and none ending in a dot. The card is absent for a
    political fund or a party organisation, which this display does not cover; that
    absence is never a statement that they took no individual contributions.
 
