@@ -510,17 +510,8 @@ function Hero({
         onPress={onAllLegislators}
         style={styles.backLink}
       />
-      {!servesNow(legislator.chamber) ? (
-        <PageContextLabel style={styles.eyebrow}>LEGISLATOR PROFILE</PageContextLabel>
-      ) : null}
-      <View
-        testID="profile-hero-row"
-        style={[
-          styles.heroRow,
-          servesNow(legislator.chamber) && styles.heroRowWithoutEyebrow,
-          !isDesktop && styles.heroRowMobile,
-        ]}
-      >
+      <PageContextLabel style={styles.eyebrow}>Legislator profile</PageContextLabel>
+      <View testID="profile-hero-row" style={[styles.heroRow, !isDesktop && styles.heroRowMobile]}>
         <View style={styles.identityRow}>
           <Portrait uri={legislator.photoUrl} name={displayName} />
           <View style={styles.identityText}>
@@ -1097,7 +1088,6 @@ const styles = StyleSheet.create({
     gap: 32,
     flexWrap: 'wrap',
   },
-  heroRowWithoutEyebrow: { marginTop: 4 },
   heroRowMobile: { alignItems: 'flex-start' },
   identityRow: { flexDirection: 'row', alignItems: 'center', gap: 24, flexShrink: 1 },
   identityText: { flexShrink: 1 },

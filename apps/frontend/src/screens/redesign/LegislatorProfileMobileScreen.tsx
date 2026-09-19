@@ -546,16 +546,8 @@ export function LegislatorProfileMobileScreen() {
               <View style={styles.heroOuter}>
                 <View style={styles.column}>
                   <GoBackLink href={routePath.legislators()} onPress={goToLegislatorList} mobile />
-                  {!servesNow(leg.chamber) ? (
-                    <PageContextLabel style={styles.eyebrow}>LEGISLATOR PROFILE</PageContextLabel>
-                  ) : null}
-                  <View
-                    testID="profile-hero-row"
-                    style={[
-                      styles.heroIdentity,
-                      servesNow(leg.chamber) && styles.heroIdentityWithoutEyebrow,
-                    ]}
-                  >
+                  <PageContextLabel style={styles.eyebrow}>Legislator profile</PageContextLabel>
+                  <View testID="profile-hero-row" style={styles.heroIdentity}>
                     <View style={styles.portrait}>
                       {leg.photoUrl ? (
                         <Image
@@ -1010,7 +1002,6 @@ const styles = StyleSheet.create({
     color: t.colors.brand.deep,
   },
   heroIdentity: { marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 16 },
-  heroIdentityWithoutEyebrow: { marginTop: 0 },
   portrait: {
     width: 88,
     height: 114,
