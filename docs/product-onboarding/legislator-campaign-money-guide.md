@@ -1466,7 +1466,9 @@ under one spelling can come from different places. The ZIP prints exactly as the
 file holds it, including a 4-digit or otherwise incomplete value, and is never padded,
 corrected, or turned into a city, street address or contact detail. A ZIP that names no
 state reads “State: Unknown”; a payment filed with no ZIP reads “ZIP code as filed: Not
-reported”. Payments out to suppliers carry no such line.
+reported”. A payment read from a copy of the records taken before Alethical held the
+location column at all carries no line, rather than reading “Not reported” over a ZIP the
+record does hold. Payments out to suppliers carry no such line.
 The shared-name caveat reads “Matched by exact spelling in the state's file. A match
 does not prove it is the same person; different spellings count separately.” Both
 numeric table headings name **Other candidate committees**; the name heading is

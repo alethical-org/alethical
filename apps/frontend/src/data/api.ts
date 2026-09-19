@@ -3461,6 +3461,28 @@ function committeePaymentsPage<Payment>(
 const asText = (value: unknown): string | null => (typeof value === 'string' ? value : null);
 
 /**
+ * A contribution row's filed location, carried only where the response actually has it.
+ *
+ * The distinction is the whole point. A row carrying `contributor_zip: null` was filed
+ * with no ZIP, and the payment says so. A row with no such key at all came from a copy
+ * taken before the columns shipped, and says nothing. Reading the second as the first
+ * prints "ZIP code as filed: Not reported" over a payment whose ZIP we hold, which is
+ * `.claude/rules/grounded-answers.md` rule 12's missing-versus-reported failure with the
+ * record's own value as the missing one.
+ *
+ * Not hypothetical: these rows are served `max-age=300, stale-while-revalidate=86400`, so
+ * a copy taken in the 5 minutes before a release stays reusable for a day after it. Found
+ * on the live site within an hour of the columns shipping, with every expanded payment on
+ * a legislator's money tab reading "Not reported" while the API served its real ZIP.
+ */
+export function filedLocation(row: Record<string, unknown>) {
+  return {
+    ...('contributor_zip' in row ? { contributorZip: asText(row.contributor_zip) } : {}),
+    ...('contributor_state' in row ? { contributorState: asText(row.contributor_state) } : {}),
+  };
+}
+
+/**
  * One page of the payments INTO a committee, shaped from the service's own JSON.
  * Pure, so a page the page function already read can be handed to the app in the
  * first response and shaped here rather than fetched again (issue 2024).
@@ -3477,8 +3499,7 @@ export function committeePaymentsReceivedFromPayload(
     receivedOn: asText(row.received_on),
     receiptType: asText(row.receipt_type),
     inKind: asText(row.in_kind),
-    contributorZip: asText(row.contributor_zip),
-    contributorState: asText(row.contributor_state),
+    ...filedLocation(row),
   }));
 }
 
