@@ -107,9 +107,16 @@ export function LobbyingDrawnSelect({
   fontSize?: number;
 }) {
   const labelId = useId();
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <View
-      style={[styles.field, labelBeside && styles.fieldBeside, fullWidth && styles.fieldStacked]}
+      style={[
+        styles.field,
+        labelBeside && styles.fieldBeside,
+        fullWidth && styles.fieldStacked,
+        // Raise the entire field, so its menu clears the next stacked control.
+        menuOpen && { zIndex: 1 },
+      ]}
     >
       <Text
         nativeID={labelId}
@@ -133,6 +140,7 @@ export function LobbyingDrawnSelect({
           width={width}
           fullWidth={fullWidth || width == null}
           valueSize={fontSize}
+          onOpenChange={setMenuOpen}
         />
       ) : (
         <Choices value={value} options={options} onChange={onChange} disabled={disabled} />

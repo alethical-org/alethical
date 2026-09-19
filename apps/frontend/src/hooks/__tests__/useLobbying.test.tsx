@@ -8,6 +8,8 @@ vi.hoisted(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 });
 const request = vi.hoisted(() => vi.fn());
+const saving = vi.hoisted(() => ({ value: true }));
+vi.mock('../../lib/dataSaving', () => ({ readerIsSavingData: () => saving.value }));
 vi.mock('../../data/api', () => ({ publicApiRequest: request }));
 
 import {
@@ -61,6 +63,7 @@ afterEach(() => {
   document.body.innerHTML = '';
   resetSeededPayloadsForTests();
   request.mockReset();
+  saving.value = true;
 });
 
 describe('the lobbying source reads', () => {
@@ -176,5 +179,68 @@ describe('the lobbying source reads', () => {
     rerender();
     await settle();
     expect(signal.aborted).toBe(true);
+  });
+});
+
+describe('next lobbyist page preparation', () => {
+  it('warms just one next page and reuses it without another requested read', async () => {
+    saving.value = false;
+    const first = { ...live.lobbyists_page_2, offset: 0, has_more: true };
+    const second = { ...live.lobbyists_page_2, has_more: false };
+    request.mockResolvedValueOnce({ data: first }).mockResolvedValueOnce({ data: second });
+    let page = 1;
+    let current: unknown;
+    const rerender = mount(() => {
+      current = useLobbyingLobbyists({ page }).data;
+      return null;
+    });
+    await settle();
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(request.mock.calls[1][0]).toContain('offset=50');
+    page = 2;
+    rerender();
+    expect(current).toEqual(second);
+    await settle();
+    expect(request).toHaveBeenCalledTimes(2);
+    page = 1;
+    rerender();
+    expect(current).toEqual(first);
+    await settle();
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+
+  it('prepares the explicit year used by Next from the bare address', async () => {
+    saving.value = false;
+    const first = {
+      ...live.lobbyists_page_2,
+      offset: 0,
+      has_more: true,
+      donations: { year: 2025 },
+    };
+    const second = { ...first, offset: 50, has_more: false, requested_year: 2025 };
+    request.mockResolvedValueOnce({ data: first }).mockResolvedValueOnce({ data: second });
+    let options: { page?: number; year?: number } = {};
+    let current: unknown;
+    const rerender = mount(() => {
+      current = useLobbyingLobbyists(options).data;
+      return null;
+    });
+    await settle();
+    expect(request.mock.calls[1][0]).toContain('offset=50&year=2025');
+    options = { page: 2, year: 2025 };
+    rerender();
+    expect(current).toEqual(second);
+    await settle();
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not prepare more pages for a reader saving data', async () => {
+    request.mockResolvedValue({ data: { ...live.lobbyists_page_2, has_more: true } });
+    mount(() => {
+      useLobbyingLobbyists();
+      return null;
+    });
+    await settle();
+    expect(request).toHaveBeenCalledTimes(1);
   });
 });

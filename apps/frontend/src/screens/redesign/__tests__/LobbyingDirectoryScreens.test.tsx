@@ -811,9 +811,9 @@ describe('the lobbyist card’s drawn controls', () => {
         route={route('LobbyingLobbyists')}
       />,
     );
-    // `Loading years` is longer than any year, so the box grows while it shows it.
-    expect(menus()[0].textContent).toBe('Loading years');
-    expect(wrapper(0).style.width).toBe('168px');
+    // A replacement retains available years and the box width.
+    expect(menus()[0].textContent).toBe('2025');
+    expect(wrapper(0).style.width).toBe('104px');
   });
 
   it('marks a dropdown it cannot offer, and dims its label with it', () => {
@@ -1000,6 +1000,24 @@ describe('the lobbyist card’s two record dates and its page jump', () => {
     Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
   });
 
+  it('does not complete an abandoned pagination jump after a year change', () => {
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    state.lobbyists = served();
+    render(screen());
+    act(() => (host.querySelector('a[aria-label="Next page"]') as HTMLElement).click());
+    state.lobbyists = { isPending: true, isSuccess: false, isError: false, refetch: vi.fn() };
+    render(screen({ page: '2' }));
+    render(screen({ year: '2024' }));
+    state.lobbyists = served({ requested_year: 2024 });
+    render(screen({ year: '2024' }));
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+  });
+
   it('leaves the reader where they are when a control, not the page, changes', () => {
     const scrollIntoView = vi.fn();
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
@@ -1015,5 +1033,65 @@ describe('the lobbyist card’s two record dates and its page jump', () => {
     // move is the reader's place in the results.
     expect(scrollIntoView.mock.contexts).not.toContain(card());
     Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+  });
+});
+
+describe('stable lobbyist result replacement', () => {
+  it('keeps rows, dates, count and links through a year change and failure, then replaces them together', () => {
+    const data = {
+      ...fixture.lobbyists_page_2,
+      offset: 0,
+      requested_year: 2025,
+      sort: 'donations_desc',
+      donations: {
+        state: 'reported',
+        year: 2025,
+        available_years: [2025, 2024],
+        eligible_count: 2,
+        copied_at: '2026-09-01T12:00:00Z',
+        source_url: 'https://cfb.mn.gov/source.csv',
+      },
+      lobbyists: [
+        {
+          ...fixture.lobbyists_page_2.lobbyists[0],
+          donation_state: 'reported',
+          donation_amount: '14600',
+        },
+      ],
+    };
+    const screen = (year: string) => (
+      <LobbyingLobbyistsScreen
+        navigation={navigation as never}
+        route={route('LobbyingLobbyists', { year })}
+      />
+    );
+    state.lobbyists = success(data);
+    render(screen('2025'));
+    const priorRow = listRows()[0].textContent;
+    const priorHref = listRows()[0].querySelector('a')!.getAttribute('href');
+    const priorCount = host.querySelector('[aria-level="2"]')!.textContent;
+    state.lobbyists = { isPending: true, isSuccess: false, isError: false, refetch: vi.fn() };
+    render(screen('2024'));
+    expect(listRows()[0]?.textContent).toBe(priorRow);
+    expect(listRows()[0]?.querySelector('a')?.getAttribute('href')).toBe(priorHref);
+    expect(host.querySelector('[aria-level="2"]')!.textContent).toBe(priorCount);
+    expect(words()).toContain('Updating results');
+    expect(words()).toContain('Campaign contribution file copied Sep 1, 2026');
+    expect(menus()[0].textContent).toBe('2024');
+    state.lobbyists = { isPending: false, isSuccess: false, isError: true, refetch: vi.fn() };
+    render(screen('2024'));
+    expect(listRows()[0]?.textContent).toBe(priorRow);
+    expect(words()).toContain('Couldn’t update results');
+    expect(words()).toContain('Try again');
+    state.lobbyists = success({
+      ...data,
+      requested_year: 2024,
+      donations: { ...data.donations, year: 2024 },
+      lobbyists: [{ ...data.lobbyists[0], donation_amount: '8000' }],
+    });
+    render(screen('2024'));
+    expect(words()).toContain('$8,000 recorded in 2024');
+    expect(words()).not.toContain('$14,600');
+    expect(words()).not.toContain('Updating results');
   });
 });

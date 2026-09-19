@@ -1240,6 +1240,7 @@ export function Pagination({
   prevHref,
   nextHref,
   variant,
+  disabled = false,
 }: {
   page: number;
   totalPages?: number;
@@ -1253,6 +1254,7 @@ export function Pagination({
   prevHref?: string;
   nextHref?: string;
   variant?: 'lobbying';
+  disabled?: boolean;
 }) {
   const { isMobile } = useResponsive();
   if (!hasPrev && !hasNext) return null;
@@ -1268,7 +1270,7 @@ export function Pagination({
       <PageButton
         direction="prev"
         variant={variant}
-        disabled={!hasPrev}
+        disabled={disabled || !hasPrev}
         href={prevHref}
         onPress={() => {
           onPrev();
@@ -1291,7 +1293,7 @@ export function Pagination({
       <PageButton
         direction="next"
         variant={variant}
-        disabled={!hasNext}
+        disabled={disabled || !hasNext}
         href={nextHref}
         onPress={() => {
           onNext();
