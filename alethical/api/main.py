@@ -32,6 +32,10 @@ from alethical.api.routers.public import public_cache_control_for_path
 from alethical.api.routers.public import router as public_router
 from alethical.api.routers.site_metrics import router as site_metrics_router
 from alethical.api.readiness import database_schema_is_ready
+from alethical.api.request_admission import (
+    MAX_IN_FLIGHT_REQUESTS,
+    RequestAdmissionMiddleware,
+)
 from alethical.api.services.contact import log_contact_delivery_readiness
 from alethical.logging import configure_logging
 
@@ -40,6 +44,9 @@ def create_app() -> FastAPI:
     configure_logging()
     log_contact_delivery_readiness()
     app = FastAPI(title="Alethical API", version="1.0.0")
+    # Added before CORS so overload responses retain the same cross-origin
+    # permissions as successful reads and browsers can see the 503 response.
+    app.add_middleware(RequestAdmissionMiddleware, max_in_flight=MAX_IN_FLIGHT_REQUESTS)
     cors_origins = os.environ.get(
         "ALETHICAL_CORS_ORIGINS",
         "http://localhost:19006,http://127.0.0.1:19006,http://localhost:8081,http://127.0.0.1:8081",
@@ -60,7 +67,9 @@ def create_app() -> FastAPI:
         # browser is refused the header and has to assume the worst the window
         # allows, which is safe and needlessly pessimistic
         # (`apps/frontend/src/lib/currentClaimFreshness.ts`, issue 2023).
-        expose_headers=["Age"],
+        # Retry-After lets a browser wait before its existing bounded retry when
+        # request admission reports that this service is temporarily full.
+        expose_headers=["Age", "Retry-After"],
     )
 
     @app.middleware("http")
@@ -156,7 +165,7 @@ def create_app() -> FastAPI:
     )
 
     @app.get("/healthz")
-    def healthz():
+    async def healthz():
         return {"status": "ok"}
 
     @app.get("/readyz", response_model=None)
