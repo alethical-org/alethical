@@ -3477,6 +3477,8 @@ export function committeePaymentsReceivedFromPayload(
     receivedOn: asText(row.received_on),
     receiptType: asText(row.receipt_type),
     inKind: asText(row.in_kind),
+    contributorZip: asText(row.contributor_zip),
+    contributorState: asText(row.contributor_state),
   }));
 }
 

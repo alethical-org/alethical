@@ -186,6 +186,7 @@ def _receipt(
     year=2025,
     on=None,
     name="Port, Lindsey Senate Committee",
+    contrib_zip=None,
 ) -> int:
     """One contribution row. Returns its record number so a test can name it."""
     row_number = _next_row(snapshot)
@@ -205,6 +206,7 @@ def _receipt(
             contrib_employer_name=employer,
             receipt_type=receipt_type,
             in_kind="No",
+            contrib_zip=contrib_zip,
         )
     )
     db.flush()
@@ -1238,3 +1240,120 @@ def test_a_stale_release_is_never_a_missing_committee(db, client):
 
     assert response.status_code == 200
     assert response.json()["data"]["state"] == "unavailable"
+
+
+# --- Where one contribution was filed from ------------------------------------
+
+
+def _with_reference(monkeypatch):
+    """A small, invented ZIP reference. Never evidence about a real donor."""
+    from alethical.api.services import campaign_finance_payments as module
+    from alethical.api.services.zip_state_reference import ZipStateReference
+
+    reference = ZipStateReference(
+        source_url="https://example.test/postal-reference",
+        as_of="2026-08-01",
+        copied_at="2026-09-13",
+        content_hash="test-reference-hash",
+        states={"55401": "MN", "20500": "DC", "44444": None},
+    )
+    monkeypatch.setattr(module, "load_zip_state_reference", lambda: reference)
+    return reference
+
+
+def test_a_contribution_carries_its_filed_zip_and_the_state_that_zip_resolves_to(
+    db, monkeypatch
+):
+    """Every reading of the ZIP column, and the one rule they share: print as filed.
+
+    The state is derived; the ZIP never is. A short value, a value the reference does not
+    hold and a value the reference maps to nothing all resolve to no state, which says
+    what we cannot read rather than guessing where somebody lives. None of them is padded
+    or repaired on the way out, because ``553`` is Minnesota's record and reprinting it as
+    ``55300`` would make it ours.
+    """
+    _with_reference(monkeypatch)
+    published = Published(db)
+    filed = [
+        ("55401", "MN"),
+        # ZIP+4, in both the forms the file uses. The lookup reads the first 5 and the
+        # printed value keeps all 9.
+        ("55401-0002", "MN"),
+        ("204209999", None),
+        ("20500-0003", "DC"),
+        # Too short to be a ZIP at all, so no state -- and never padded to 55300.
+        ("553", None),
+        # 5 digits the reference does not hold, and 5 digits it holds as no state.
+        ("99999", None),
+        ("44444", None),
+        # Filed blank.
+        (None, None),
+    ]
+    for index, (contrib_zip, _) in enumerate(filed):
+        _receipt(
+            db,
+            published.contributions,
+            contributor=f"Donor {index}",
+            contrib_zip=contrib_zip,
+        )
+    db.commit()
+
+    page = payments_received(db, _release(db), registration_number=CANDIDATE, year=2025)
+
+    assert {
+        (payment.contributor_zip, payment.contributor_state)
+        for payment in page.payments
+    } == set(filed)
+
+
+def test_an_unreadable_zip_reference_leaves_every_state_unsaid_and_the_zips_intact(
+    db, monkeypatch
+):
+    """A damaged or missing reference must not take a committee's payment list down.
+
+    It leaves the derived state unsaid, which reads as "we cannot say" wherever it is
+    printed, and never as a location.
+    """
+    from alethical.api.services import campaign_finance_payments as module
+
+    monkeypatch.setattr(module, "load_zip_state_reference", lambda: None)
+    published = Published(db)
+    _receipt(db, published.contributions, contrib_zip="55401")
+    db.commit()
+
+    page = payments_received(db, _release(db), registration_number=CANDIDATE, year=2025)
+
+    assert [
+        (payment.contributor_zip, payment.contributor_state)
+        for payment in page.payments
+    ] == [("55401", None)]
+
+
+def test_an_expenditure_row_carries_no_contributor_location(db):
+    """The location belongs to money coming IN. A supplier is not a donor."""
+    published = Published(db)
+    _payment(db, published.expenditures)
+    db.commit()
+
+    page = payments_made(db, _release(db), registration_number=CANDIDATE, year=2025)
+
+    assert not hasattr(page.payments[0], "contributor_zip")
+    assert not hasattr(page.payments[0], "contributor_state")
+
+
+def test_the_payments_route_serves_the_filed_zip_and_its_state(db, client, monkeypatch):
+    """Over HTTP, under the 2 names the frontend reads."""
+    _with_reference(monkeypatch)
+    published = Published(db)
+    _receipt(db, published.contributions, contrib_zip="20500-0003")
+    db.commit()
+
+    response = client.get(
+        f"/api/v1/committees/{CANDIDATE}/payments",
+        params={"direction": "received", "year": 2025},
+    )
+
+    assert response.status_code == 200
+    payment = response.json()["data"]["payments"][0]
+    assert payment["contributor_zip"] == "20500-0003"
+    assert payment["contributor_state"] == "DC"

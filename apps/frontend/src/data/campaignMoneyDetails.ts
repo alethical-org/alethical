@@ -39,6 +39,8 @@ function receivedRow(row: Record<string, unknown>): DetailedReceivedPayment {
     receiptType: asText(row.receipt_type),
     inKind: asText(row.in_kind),
     inKindDescription: asText(row.in_kind_description),
+    contributorZip: asText(row.contributor_zip),
+    contributorState: asText(row.contributor_state),
     recordNumber: typeof row.record_number === 'number' ? row.record_number : undefined,
   };
 }

@@ -111,9 +111,11 @@ unfinished clerical job of ours.
 
 **Everything about one committee stays together, and the block repeats for each one.**
 A committee's card comes first, including its chart, Money in and Money out summaries,
-and payment browser. Next is **More on this year’s contributions**, with independently
-opening rows for **What the committee’s own report says**, **Where itemized individual
-contributions came from**, and **Contributor names also listed for other candidates**. Then come that committee's **How the mix
+and payment browser. Next is **Where itemized individual contributions came from**, a
+card of its own that is open the moment the page loads. 18px below it is **More on this
+year’s contributions**, with independently opening rows for **What the committee’s own
+report says** and **Contributor names also listed for other candidates**. Then come that
+committee's **How the mix
 of itemized contributions changed by year** chart and its **Refunds Minnesota paid this
 committee's donors** card. The mix chart repeats the donor kinds from **Who gave**
 across years, using only itemized contributions. **Spending by outside groups**
@@ -703,16 +705,49 @@ rows through the filing's coverage end, including undated rows as the source
 comparison does. For 17868 in 2025, it is 1 payment of $500. The 5-line totals are
 $97,703 reported, $67,100 itemized cash and $30,603 difference.
 
-**Where itemized individual contributions came from** shows Minnesota, other states and
-unknown, with a name count and cash amount for each. Other-state rows expand into
-full state names. A checked zero stays $0. No individual donation rows produces the
-selected year's empty sentence. Cash with no printed name remains visible in its
-state bucket; a missing name never means that no donation exists. A postcode never reaches the rendered output,
-including hidden labels, attributes and tooltips. The entire card is absent for
-funds and party organisations, with no heading or reserved gap. For 17868 in 2025:
-Minnesota 71 names / $38,700; other states 0 / $0; unknown 3 / $1,250. A printed name
-can occur in more than 1 state, so the card does not invent a total count across
-state rows.
+**Where itemized individual contributions came from** is a card of its own, sitting
+directly above **More on this year’s contributions** with an 18px gap, and needs no click
+to read. Under the heading it says “Shares of dollars by state, excluding donated goods
+and services”, then draws one bar in a fixed order: Minnesota, Other states, Unknown, in
+3 shades of the same grey-green so no place can read as better or worse than another. A
+category with no money gets no piece of the bar, and a tiny one is never widened to be
+visible; its figures are in the table.
+
+The table under the bar has 4 columns: State, Names, Amount and Share of dollars. Its
+rows are Minnesota, then Other states, then every state that appears in the records,
+listed alphabetically by its full name and indented under that subtotal, then Unknown.
+District of Columbia sits under D among the states. Nothing is hidden behind a
+**Show more** and there is no cut-off: a committee with donors in 43 states shows all 43.
+Every percentage is that row's share of **all** the itemized individual contribution
+dollars this committee took that year, Unknown included, and never a share of the Other
+states subtotal, so California's $275,989 of Tim Walz's 2025 money reads 11.3% rather
+than 22.9%. The percentages are worked out from the full stored amounts before the cents
+are cut for display, each one is rounded on its own, and no row is nudged to make the
+column add to 100%; there is no total row for it. A row that really holds none of a
+positive total reads 0%, a positive share under a tenth of a per cent reads <0.1% so
+money that exists is never shown as nothing, and where there are no dollars at all to
+share, every percentage reads **Not applicable**, because a share of nothing is not zero
+per cent. Amounts are whole dollars with the cents cut.
+
+Three notes close the card: states come from the ZIP codes in the state's file, Unknown
+means that file has no usable ZIP code for that donor, and a name count is distinct
+spellings within its own row, including donations of goods and services, so one spelling
+can appear in more than 1 state and the state counts need not add to the subtotal's. The
+dollars do add.
+
+A checked zero stays $0. No individual donation rows at all produces the selected year's
+empty sentence. Rows that exist but carry no cash get their own sentence, “No itemized
+individual contribution dollars listed for {year}”, and keep the table with its real name
+counts. Cash with no printed name remains visible in its state row; a missing name never
+means that no donation exists. A year whose contributions have not passed the check
+against a filed report shows the heading and one held sentence, which says what Alethical
+can show rather than that the committee failed to file. A read that fails says so and
+never becomes $0 or an empty list. The entire card is absent for
+funds and party organisations, with no heading or reserved gap; that absence is a limit
+of what this display covers, never a claim that they took no individual contributions.
+For 17868 in 2025:
+Minnesota 71 names / $38,700 / 96.9%; other states 0 / $0 / 0%; unknown 3 / $1,250 /
+3.1%, over $39,950 of itemized individual contribution dollars.
 
 **Contributor names also listed for other candidates** prints the exact-spelling numerator and
 denominator beside its caveat that spelling is not identity. It draws a 22px bar
@@ -721,25 +756,34 @@ candidate committees, and up to 5 names with the highest positive counts. Names 
 19 of 74 names, and the distribution is 55 / 11 / 5 / 1 / 2. This is a same-year
 count, not a money total or a claim that spelling identifies a person.
 
-The rows retain the selected year's agreeing stated-split check. A missing
+The location card and the panel rows retain the selected year's agreeing stated-split
+check. A missing
 filing and a check without agreement use the same accepted held sentences, which
 describe what Alethical can show rather than claiming the committee failed to file.
 An explicitly withheld 5-line block keeps the report-comparison row held, even when
 the overall split agrees. It does not hide independently available geography or name
 results. The server supplies these report lines only for candidate committees, so
 party units and political committees or funds omit that comparison row. Noncandidate
-committees omit geography. Missing or failed data does not remove an eligible row. A failed read uses the card's load-failed sentence, never an empty state. Loading
-keeps each heading above a labelled placeholder, with its pulse suppressed when a
-reader requests reduced motion. Missing blocks in an older cached response never
+committees have no location card at all. Missing or failed data does not remove an
+eligible row. A failed read uses the card's load-failed sentence, never an empty state.
+Loading keeps each heading above a labelled placeholder. The panel's placeholders pulse,
+with the pulse suppressed when a reader requests reduced motion; the location card's rest
+still, because the word **Loading** already says a read is in flight. Missing blocks in an
+older cached response never
 become zeros. The filing card keeps its 5 rows when there are no itemized individual
-donations; the other 2 show their selected-year empty sentences. If donation rows
+donations; the location card and the names row show their selected-year empty sentences.
+If donation rows
 exist but none carries a usable name, the names card uses its load-failed words
-rather than saying there were no individual donations.
+rather than saying there were no individual donations, and the location card shows its
+real figures.
 
-The shared panel uses the existing committee card's border, padding and shadow.
+The location card and the shared panel use the existing committee card's border, padding
+and shadow, and are cards of equal rank.
 Thin separators divide the row controls, and expanded content remains within its row.
 The filing table stacks each kind into 3 labelled figures below 768px; the location
-table keeps 3 columns. The name distribution and highest-name tables stack below
+table keeps all 4 columns at every width, wrapping its column headings and any state
+name that has a space in it, and never breaking a single word such as Massachusetts. The
+name distribution and highest-name tables stack below
 768px. The size changes at 768px and 1100px follow the tab's existing text sizes,
 including 15px small text on a phone. The money section uses 32px side margins on
 tablets instead of the overview's 640px maximum column, so the fixed table columns
@@ -1411,8 +1455,18 @@ contributions in report**, **Itemized contributions in state’s list**, and
 screens. The calculated total gets a pale grey background, with the amount aligned to
 its column. Closing-candidate notes count payments, never infer a committee count.
 
-The locations card ends with “Unknown means the state's file has no usable ZIP code to
-identify the donor's state”. ZIP values never reach visible or hidden page content.
+The locations card's 3 closing notes are “States are identified from ZIP codes in the
+state's file”, “Unknown means the state's file has no usable ZIP code to identify the
+donor's state”, and “Names count distinct spellings within each row, including
+contributions of goods and services. The same name can appear in more than 1 state.”
+The aggregate card itself prints no ZIP; ZIP codes appear only inside an opened
+contribution payment, where each payment carries “State: {state} · ZIP code as filed:
+{zip}”. That line is per payment rather than per grouped name, because payments filed
+under one spelling can come from different places. The ZIP prints exactly as the state's
+file holds it, including a 4-digit or otherwise incomplete value, and is never padded,
+corrected, or turned into a city, street address or contact detail. A ZIP that names no
+state reads “State: Unknown”; a payment filed with no ZIP reads “ZIP code as filed: Not
+reported”. Payments out to suppliers carry no such line.
 The shared-name caveat reads “Matched by exact spelling in the state's file. A match
 does not prove it is the same person; different spellings count separately.” Both
 numeric table headings name **Other candidate committees**; the name heading is

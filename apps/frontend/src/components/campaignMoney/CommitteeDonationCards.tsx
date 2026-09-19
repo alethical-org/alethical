@@ -10,10 +10,11 @@ import type {
 import { useCampaignMoneyDetails } from '../../hooks/useCampaignMoneyDetails';
 import { useResponsive } from '../../hooks/useResponsive';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
-import { sumMoneyAmounts } from '../../lib/campaignMoneyDetails';
+import { moneyUnits, sumMoneyAmounts } from '../../lib/campaignMoneyDetails';
 import {
   donationCardsCopy as copy,
   donorStateNames as stateNames,
+  shareOfDollars,
 } from '../../lib/contributionFigures';
 import { formatMoney } from '../../lib/moneyFormat';
 import { theme as t } from '../../theme/tokens';
@@ -103,93 +104,94 @@ export function CommitteeDonationCardsView({
   const unsupportedComparison =
     registerKind === 'party_unit' || registerKind === 'political_committee_or_fund';
   return (
-    <View
-      role="region"
-      aria-labelledby={`${panelId}-heading`}
-      style={[
-        committeeCardStyles.card,
-        isTablet && committeeCardStyles.tablet,
-        isMobile && committeeCardStyles.mobile,
-        { gap: 0 },
-      ]}
-    >
-      <h2
-        id={`${panelId}-heading`}
-        style={{
-          margin: 0,
-          fontFamily: t.typography.title,
-          fontSize: type.h3,
-          fontWeight: 800,
-          letterSpacing: '-0.01em',
-          color: c.text,
-        }}
+    <View style={{ gap: 18 }}>
+      {/* Its own card, above the panel and open from load, because where a campaign's
+          money comes from is a finding rather than a footnote: behind an expander only
+          the reader who already suspected it would ever see it. The aggregate is
+          available for candidate committees alone, so a political fund or a party
+          organisation gets no card at all rather than an empty one -- which would read
+          as a claim that they have no individual contributions, and is only a limit of
+          what this display covers. */}
+      {registerKind === 'candidate_committee' ? (
+        <ContributorLocations
+          committee={committee}
+          year={year}
+          state={state}
+          hasIndividualDonations={hasIndividualDonations}
+        />
+      ) : null}
+      {/* The panel's 2 remaining rows are addressed 0 and 2, and the gap is deliberate.
+          A shared link carries the rows a reader opened as
+          `{registration}.{year}.{index}`, so renumbering the name matches from 2 to 1
+          when the location row left would have made every saved link to it open the
+          report comparison instead. The index names the row, not its position. */}
+      <View
+        role="region"
+        aria-labelledby={`${panelId}-heading`}
+        style={[
+          committeeCardStyles.card,
+          isTablet && committeeCardStyles.tablet,
+          isMobile && committeeCardStyles.mobile,
+          { gap: 0 },
+        ]}
       >
-        More on this year’s contributions
-      </h2>
-      <div style={{ marginTop: 14 }}>
-        {!unsupportedComparison ? (
-          <DonationCard
-            key={`${committee.registrationNumber}-${year}-0`}
-            {...disclosureProps(0)}
-            index={0}
-            registration={committee.registrationNumber}
-          >
-            {state !== 'drawn' ? (
-              <CardState state={state} index={0} year={year} />
-            ) : committee.statedByKind === null ||
-              committee.statedByKind?.state === 'sources_disagree' ? (
-              <CardState state="held" index={0} year={year} />
-            ) : committee.statedByKind?.state === 'reported' ? (
-              <FiledLines block={committee.statedByKind} payments={payments} />
-            ) : (
-              <CardState state="failed" index={0} year={year} />
-            )}
-          </DonationCard>
-        ) : null}
-        {registerKind === 'candidate_committee' ? (
-          <DonationCard
-            key={`${committee.registrationNumber}-${year}-1`}
-            {...disclosureProps(1)}
-            index={1}
-            registration={committee.registrationNumber}
-          >
-            {state !== 'drawn' ? (
-              <CardState state={state} index={1} year={year} />
-            ) : committee.donorStates?.state === 'reported' &&
-              committee.donorStates.year === year ? (
-              <DonorLocations
-                block={committee.donorStates}
-                year={year}
-                hasIndividualDonations={hasIndividualDonations}
-              />
-            ) : (
-              <CardState state="failed" index={1} year={year} />
-            )}
-          </DonationCard>
-        ) : null}
-        <DonationCard
-          key={`${committee.registrationNumber}-${year}-2`}
-          {...disclosureProps(2)}
-          index={2}
-          registration={committee.registrationNumber}
+        <h2
+          id={`${panelId}-heading`}
+          style={{
+            margin: 0,
+            fontFamily: t.typography.title,
+            fontSize: type.h3,
+            fontWeight: 800,
+            letterSpacing: '-0.01em',
+            color: c.text,
+          }}
         >
-          {state !== 'drawn' ? (
-            <CardState state={state} index={2} year={year} />
-          ) : committee.nameConnections?.year !== year ? (
-            <CardState state="failed" index={2} year={year} />
-          ) : committee.nameConnections.state === 'not_reported' ? (
-            hasIndividualDonations ? (
+          More on this year’s contributions
+        </h2>
+        <div style={{ marginTop: 14 }}>
+          {!unsupportedComparison ? (
+            <DonationCard
+              key={`${committee.registrationNumber}-${year}-0`}
+              {...disclosureProps(0)}
+              index={0}
+              registration={committee.registrationNumber}
+            >
+              {state !== 'drawn' ? (
+                <CardState state={state} index={0} year={year} />
+              ) : committee.statedByKind === null ||
+                committee.statedByKind?.state === 'sources_disagree' ? (
+                <CardState state="held" index={0} year={year} />
+              ) : committee.statedByKind?.state === 'reported' ? (
+                <FiledLines block={committee.statedByKind} payments={payments} />
+              ) : (
+                <CardState state="failed" index={0} year={year} />
+              )}
+            </DonationCard>
+          ) : null}
+          <DonationCard
+            key={`${committee.registrationNumber}-${year}-2`}
+            {...disclosureProps(2)}
+            index={2}
+            registration={committee.registrationNumber}
+          >
+            {state !== 'drawn' ? (
+              <CardState state={state} index={2} year={year} />
+            ) : committee.nameConnections?.year !== year ? (
               <CardState state="failed" index={2} year={year} />
+            ) : committee.nameConnections.state === 'not_reported' ? (
+              hasIndividualDonations ? (
+                <CardState state="failed" index={2} year={year} />
+              ) : (
+                <Paragraph>{copy.emptyConnections(year)}</Paragraph>
+              )
+            ) : committee.nameConnections.state === 'reported' ? (
+              <ConnectedNames block={committee.nameConnections} year={year} />
             ) : (
-              <Paragraph>{copy.emptyConnections(year)}</Paragraph>
-            )
-          ) : committee.nameConnections.state === 'reported' ? (
-            <ConnectedNames block={committee.nameConnections} year={year} />
-          ) : (
-            <CardState state="failed" index={2} year={year} />
-          )}
-        </DonationCard>
-      </div>
+              <CardState state="failed" index={2} year={year} />
+            )}
+          </DonationCard>
+        </div>
+      </View>
     </View>
   );
 }
@@ -252,6 +254,18 @@ const cell: CSSProperties = {
   padding: '6px 0',
   boxSizing: 'border-box',
   borderBottom: rule,
+};
+/** The location table's cell. Padding rather than a fixed height, so a row grows with a
+ *  state name that wraps onto 2 lines instead of clipping it. */
+const locationCell: CSSProperties = {
+  textAlign: 'right',
+  verticalAlign: 'middle',
+  lineHeight: 1.35,
+  paddingTop: 11,
+  paddingBottom: 11,
+  paddingRight: 0,
+  boxSizing: 'border-box',
+  color: c.text,
 };
 
 function DonationCard({
@@ -624,7 +638,133 @@ function FiledLines({
   );
 }
 
-function DonorLocations({
+/** One neutral at 3 lightnesses, in the bar's fixed order. No hue, so no category can
+ *  read as good or bad, and every figure the bar carries is also in the table below it. */
+export const LOCATION_COLORS = ['#2f3a31', '#6b736c', '#9aa39c'] as const;
+
+type LocationTableRow = {
+  key: string;
+  label: string;
+  names: number;
+  amount: string;
+  share: string;
+  child: boolean;
+  color: string | null;
+  filled: boolean;
+  rule: string | undefined;
+};
+
+/**
+ * Where one committee's itemized individual contributions came from, in one selected year.
+ *
+ * Its own card rather than a row inside `More on this year's contributions`, and open from
+ * load. One committee and one year: 2 committees get 2 cards and neither bar is a share of
+ * the other's dollars (#1663).
+ *
+ * The table **is** the bar's label set. Drawing the 3 categories' dollars and shares beside
+ * the bar as well as in the table's first rows would print the same 6 figures twice, about
+ * 120px apart, so the 3 category rows each carry a swatch in their segment's colour and the
+ * figures appear once.
+ */
+function ContributorLocations({
+  committee,
+  year,
+  state,
+  hasIndividualDonations,
+}: {
+  committee: Committee;
+  year: number;
+  state: 'held' | 'loading' | 'failed' | 'drawn';
+  hasIndividualDonations: boolean;
+}) {
+  const { isMobile, isTablet } = useResponsive();
+  const type = useCampaignMoneyTypography();
+  const headingId = useId();
+  const block =
+    committee.donorStates?.state === 'reported' && committee.donorStates.year === year
+      ? committee.donorStates
+      : null;
+  return (
+    <View
+      role="region"
+      aria-labelledby={`${headingId}-heading`}
+      style={[
+        committeeCardStyles.card,
+        isTablet && committeeCardStyles.tablet,
+        isMobile && committeeCardStyles.mobile,
+        { gap: 0 },
+      ]}
+    >
+      <h2
+        id={`${headingId}-heading`}
+        style={{
+          margin: 0,
+          fontFamily: t.typography.title,
+          fontSize: type.h3,
+          fontWeight: 800,
+          letterSpacing: '-0.01em',
+          color: c.text,
+        }}
+      >
+        {copy.headings[1]}
+      </h2>
+      <p
+        style={{
+          margin: '10px 0 0',
+          maxWidth: 680,
+          fontFamily: t.typography.body,
+          fontSize: type.small,
+          lineHeight: 1.5,
+          color: c.secondary,
+          textWrap: 'pretty',
+        }}
+      >
+        {copy.locationsIntro}
+      </p>
+      {state === 'loading' ? (
+        <LocationsLoading barHeight={isMobile || isTablet ? 20 : 22} />
+      ) : state === 'held' ? (
+        <Paragraph>{copy.held[1](year)}</Paragraph>
+      ) : state === 'failed' || block === null ? (
+        <Paragraph role="alert">
+          {copy.failed[1]} {copy.retry}
+        </Paragraph>
+      ) : (
+        <LocationFigures
+          block={block}
+          year={year}
+          hasIndividualDonations={hasIndividualDonations}
+        />
+      )}
+    </View>
+  );
+}
+
+/** Resting blocks in the shape of the bar and 2 rows. Static rather than pulsing: the
+ *  word `Loading` already says a read is in flight, and the pulse said it a second time
+ *  in motion. */
+function LocationsLoading({ barHeight }: { barHeight: number }) {
+  return (
+    <div role="status" aria-busy="true" style={{ marginTop: 18, display: 'grid', gap: 12 }}>
+      <span style={invisible}>{copy.loading}</span>
+      {[barHeight, 46, 46].map((height, index) => (
+        <span
+          key={index}
+          aria-hidden="true"
+          style={{
+            display: 'block',
+            height,
+            width: '100%',
+            borderRadius: index === 0 ? 6 : 8,
+            background: index === 0 ? '#eef0f1' : '#f3f5f6',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function LocationFigures({
   block,
   year,
   hasIndividualDonations,
@@ -635,114 +775,244 @@ function DonorLocations({
 }) {
   const { isMobile, isTablet } = useResponsive();
   const type = useCampaignMoneyTypography();
-  const rows = [block.summary.minnesota, block.summary.other_states, block.summary.unknown];
-  if (rows.every((row) => row.names === 0 && /^0(?:\.0+)?$/.test(row.cash_total)))
-    return hasIndividualDonations ? (
-      <CardState state="failed" index={1} year={year} />
-    ) : (
-      <Paragraph>{copy.emptyLocations(year)}</Paragraph>
-    );
-  const others = block.rows.filter((row) => row.state !== 'MN' && row.state !== 'unknown');
-  if (
-    rows.some((row) => formatMoney(row.cash_total) === null) ||
-    others.some((row) => !stateNames[row.state] || formatMoney(row.cash_total) === null)
-  ) {
-    return <CardState state="failed" index={1} year={year} />;
+  const refused = (
+    <Paragraph role="alert">
+      {copy.failed[1]} {copy.retry}
+    </Paragraph>
+  );
+  const categories = [
+    block.summary.minnesota,
+    block.summary.other_states,
+    block.summary.unknown,
+  ].map((amounts, index) => ({
+    key: copy.places[index],
+    label: copy.places[index],
+    names: amounts.names,
+    units: moneyUnits(amounts.cash_total),
+    cash: amounts.cash_total,
+    color: LOCATION_COLORS[index],
+  }));
+  // Full state names, alphabetical, District of Columbia inline under D. A state whose
+  // code this build does not know is a refusal rather than a row labelled with a code.
+  const states = block.rows
+    .filter((row) => row.state !== 'MN' && row.state !== 'unknown')
+    .map((row) => ({
+      key: row.state,
+      label: stateNames[row.state] ?? '',
+      names: row.names,
+      units: moneyUnits(row.cash_total),
+      cash: row.cash_total,
+    }))
+    .sort((left, right) => left.label.localeCompare(right.label, 'en'));
+
+  const denominatorUnits = categories.reduce<bigint | null>(
+    (sum, row) => (sum === null || row.units === null ? null : sum + row.units),
+    0n,
+  );
+  // Saying there are no rows is a claim about the whole year, so it needs the complete
+  // received-payment read to prove it. These figures cannot: 0 names and $0 is equally
+  // what an unnamed donation of goods with an unusable ZIP produces, and "nobody gave"
+  // and "nobody who gave is nameable in dollars" are different facts. Where the rows do
+  // exist and none of them carries cash, the zero-cash sentence below says so instead.
+  if (denominatorUnits === 0n && !hasIndividualDonations) {
+    return <Paragraph>{copy.emptyLocations(year)}</Paragraph>;
   }
-  const [count, amount, gap] = isMobile ? [104, 96, 6] : isTablet ? [216, 158, 18] : [236, 168, 18];
+  if (
+    denominatorUnits === null ||
+    denominatorUnits < 0n ||
+    [...categories, ...states].some(
+      (row) => row.units === null || row.units < 0n || !row.label || formatMoney(row.cash) === null,
+    )
+  ) {
+    return refused;
+  }
+  // A lighter divider inside the nested group than between categories, so the states
+  // read as one group hanging off Other states rather than as more categories.
+  const soft = '1px solid rgba(17,21,15,0.045)';
+  const share = (units: bigint) => shareOfDollars(units, denominatorUnits);
+  if ([...categories, ...states].some((row) => share(row.units!) === null)) return refused;
+  const rows: LocationTableRow[] = [];
+  const push = (
+    row: (typeof categories)[number] | (typeof states)[number],
+    color: string | null,
+    child: boolean,
+    divider: string | undefined,
+  ) =>
+    rows.push({
+      key: row.key,
+      label: row.label,
+      names: row.names,
+      amount: formatMoney(row.cash)!,
+      share: share(row.units!)!,
+      child,
+      color,
+      filled: row.units! > 0n && denominatorUnits > 0n,
+      rule: divider,
+    });
+  push(categories[0], categories[0].color, false, rule);
+  push(categories[1], categories[1].color, false, states.length ? soft : rule);
+  states.forEach((row, index) => push(row, null, true, index === states.length - 1 ? rule : soft));
+  push(categories[2], categories[2].color, false, undefined);
+
+  const segments = categories.filter((row) => row.units! > 0n);
+  const barAria = copy.locationsBar(
+    categories.map((row) =>
+      copy.locationsBarPart(row.label, formatMoney(row.cash)!, share(row.units!)!),
+    ),
+  );
+  const [names, amount, shareWidth, gap] = isMobile
+    ? [40, 80, 66, 6]
+    : isTablet
+      ? [94, 134, 134, 16]
+      : [108, 150, 150, 18];
+  const numeric = [
+    { label: copy.names, width: names },
+    { label: copy.amount, width: amount },
+    { label: copy.share, width: shareWidth },
+  ];
+  const indent = isMobile ? 14 : isTablet ? 26 : 28;
   return (
     <>
-      <table style={{ ...tableBase, marginTop: 18, fontSize: type.body }}>
-        <caption style={invisible}>{copy.headings[1]}</caption>
+      {denominatorUnits > 0n ? (
+        <div
+          role="img"
+          aria-label={barAria}
+          style={{
+            display: 'flex',
+            marginTop: 18,
+            height: isMobile || isTablet ? 20 : 22,
+            borderRadius: 6,
+            overflow: 'hidden',
+            background: '#eef0f1',
+          }}
+        >
+          {/* Proportions rather than computed widths: flex divides the track by each
+              segment's own dollars at full precision, so the last one lands exactly on
+              the edge. Rounded widths leave or overrun a sliver. A category with no
+              dollars gets no segment, and a tiny one is never widened to be visible --
+              its figures are in the table. */}
+          {segments.map((row, index) => (
+            <span
+              key={row.key}
+              style={{
+                flexGrow: Number(row.units!),
+                flexBasis: 0,
+                minWidth: 0,
+                height: '100%',
+                background: row.color,
+                boxShadow: index < segments.length - 1 ? 'inset -2px 0 0 #ffffff' : undefined,
+              }}
+            />
+          ))}
+        </div>
+      ) : (
+        <Paragraph>{copy.locationsNoCash(year)}</Paragraph>
+      )}
+      <table
+        style={{
+          ...tableBase,
+          tableLayout: 'auto',
+          marginTop: 16,
+          fontSize: type.body,
+        }}
+      >
+        <caption
+          style={{
+            captionSide: 'top',
+            textAlign: 'left',
+            padding: '0 0 12px',
+            maxWidth: 680,
+            fontFamily: t.typography.body,
+            fontSize: type.small,
+            fontWeight: 400,
+            lineHeight: 1.5,
+            color: c.secondary,
+            textWrap: 'pretty',
+          }}
+        >
+          {copy.locationsCaption(year, states.length > 0)}
+        </caption>
         <thead>
           <tr>
-            <th scope="col" aria-label={copy.state} style={{ ...head, textAlign: 'left' }} />
-            <th
-              scope="col"
-              style={{ ...head, width: count, paddingLeft: gap, boxSizing: 'border-box' }}
-            >
-              {copy.names}
+            <th scope="col" style={{ ...head, textAlign: 'left' }}>
+              {copy.state}
             </th>
-            <th
-              scope="col"
-              style={{ ...head, width: amount, paddingLeft: gap, boxSizing: 'border-box' }}
-            >
-              {copy.amount}
-            </th>
+            {numeric.map((column) => (
+              <th
+                key={column.label}
+                scope="col"
+                style={{
+                  ...head,
+                  width: column.width,
+                  paddingLeft: gap,
+                  boxSizing: 'border-box',
+                }}
+              >
+                {column.label}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, index) => (
-            <React.Fragment key={copy.places[index]}>
-              <tr>
-                <th scope="row" style={{ ...cell, textAlign: 'left' }}>
-                  {copy.places[index]}
-                </th>
-                <td style={cell}>{row.names.toLocaleString('en-US')}</td>
-                <td style={{ ...cell, fontWeight: 800 }}>{formatMoney(row.cash_total)}</td>
-              </tr>
-              {index === 1
-                ? others.map((other, i) => (
-                    <React.Fragment key={other.state}>
-                      {isMobile ? (
-                        <tr>
-                          <th
-                            scope="row"
-                            colSpan={3}
-                            style={{
-                              ...cell,
-                              borderBottom: 'none',
-                              textAlign: 'left',
-                              paddingLeft: 18,
-                              height: 'auto',
-                              paddingTop: 14,
-                            }}
-                          >
-                            {stateNames[other.state]}
-                          </th>
-                        </tr>
-                      ) : null}
-                      <tr
-                        style={{
-                          borderBottom:
-                            i === others.length - 1 ? rule : '1px dashed rgba(17,21,15,0.16)',
-                        }}
-                      >
-                        {isMobile ? (
-                          <th scope="row" style={{ ...cell, borderBottom: 'none' }}>
-                            <span style={invisible}>{stateNames[other.state]}</span>
-                          </th>
-                        ) : (
-                          <th
-                            scope="row"
-                            style={{
-                              ...cell,
-                              textAlign: 'left',
-                              paddingLeft: 18,
-                              borderBottom: 'none',
-                            }}
-                          >
-                            {stateNames[other.state]}
-                          </th>
-                        )}
-                        <td style={{ ...cell, borderBottom: 'none' }}>
-                          {other.names.toLocaleString('en-US')}
-                        </td>
-                        <td style={{ ...cell, borderBottom: 'none', fontWeight: 800 }}>
-                          {formatMoney(other.cash_total)}
-                        </td>
-                      </tr>
-                    </React.Fragment>
-                  ))
-                : null}
-            </React.Fragment>
+          {rows.map((row) => (
+            <tr key={`${row.child ? 'state' : 'category'}-${row.key}`}>
+              <th
+                scope="row"
+                style={{
+                  ...locationCell,
+                  textAlign: 'left',
+                  paddingLeft: row.child ? indent : 0,
+                  fontWeight: row.child ? 500 : 800,
+                  borderBottom: row.rule,
+                }}
+              >
+                {row.color ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
+                    {/* Outlined where the bar has no segment: a filled swatch would
+                        promise a segment that is not there. */}
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        flex: 'none',
+                        width: 14,
+                        height: 14,
+                        borderRadius: 3,
+                        border: `2px solid ${row.color}`,
+                        background: row.filled ? row.color : 'transparent',
+                      }}
+                    />
+                    <span>{row.label}</span>
+                  </span>
+                ) : (
+                  row.label
+                )}
+              </th>
+              {[
+                { value: row.names.toLocaleString('en-US'), weight: row.child ? 500 : 800 },
+                { value: row.amount, weight: row.child ? 600 : 800 },
+                { value: row.share, weight: row.child ? 500 : 800 },
+              ].map((cellValue, column) => (
+                <td
+                  key={column}
+                  style={{
+                    ...locationCell,
+                    paddingLeft: gap,
+                    fontWeight: cellValue.weight,
+                    color: column === 1 ? c.text : c.secondary,
+                    borderBottom: row.rule,
+                  }}
+                >
+                  {cellValue.value}
+                </td>
+              ))}
+            </tr>
           ))}
         </tbody>
       </table>
-      <div style={{ marginTop: 14, display: 'grid', gap: 6 }}>
-        {copy.locationNotes.map((text) => (
+      <div style={{ marginTop: 14, display: 'grid', gap: 5 }}>
+        {copy.locationNotes.map((note) => (
           <p
-            key={text}
+            key={note}
             style={{
               margin: 0,
               maxWidth: 680,
@@ -753,7 +1023,7 @@ function DonorLocations({
               textWrap: 'pretty',
             }}
           >
-            {text}
+            {note}
           </p>
         ))}
       </div>

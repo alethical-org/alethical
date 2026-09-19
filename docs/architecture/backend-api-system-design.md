@@ -1367,6 +1367,18 @@ number, while a payment carries its own date and reads honestly in a list spanni
 donor's payments are not confined to one year, which is the whole point of the reverse direction
 below.
 
+**A `received` row carries its own location: `contributor_zip` and `contributor_state`.**
+`contributor_zip` is the contributions download's own ZIP column printed exactly as filed —
+never padded to 5 digits, never trimmed, never repaired — so a reader can tell the record's
+`553` from our own error. `contributor_state` is the 2-letter state that ZIP resolves to through
+`alethical/api/services/zip_state_reference.py`, and is `null` for a missing, malformed,
+unmatched or ambiguous ZIP, which states what we cannot say rather than guessing a location.
+The normalization the lookup performs belongs to the lookup and never rewrites the printed ZIP.
+Neither field carries a city, a street address or any contact detail, and the reference's own
+ZIP table stays inside the service. The aggregate `donor_states` block on the `finance`
+endpoint reads the same reference and still carries no ZIP at all, because it speaks for a
+state rather than for a payment.
+
 `linkable_registration_numbers` lists the counterparty numbers on this page that this release
 also holds as a filer, and **only those may be rendered as links.** Contribution rows carry a
 number for a lobbyist as readily as for a party unit: all 912 distinct numbers arriving on rows
