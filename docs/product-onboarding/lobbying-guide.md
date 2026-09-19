@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/screens/redesign/LobbyingLandingScreen.tsx, apps/frontend/src/screens/redesign/LobbyingPrincipalsScreen.tsx, apps/frontend/src/screens/redesign/LobbyingLobbyistsScreen.tsx, apps/frontend/src/screens/redesign/LobbyingPrincipalScreen.tsx, apps/frontend/src/screens/redesign/LobbyingLobbyistScreen.tsx, apps/frontend/src/lib/lobbyingDirectoryCopy.ts, apps/frontend/src/lib/lobbyingRecordCopy.ts, apps/frontend/src/lib/lobbyingTypes.ts, apps/frontend/src/data/lobbying.ts, apps/frontend/src/data/moneyNameSearch.ts, apps/frontend/src/hooks/useLobbying.ts, apps/frontend/src/hooks/useLobbyingNameSearch.ts, apps/frontend/src/components/lobbying/LobbyingPageFrame.tsx, apps/frontend/src/components/lobbying/LobbyingSearchResults.tsx, apps/frontend/src/lib/lobbyingSearch.ts, apps/frontend/src/lib/lobbyingPageSnapshot.ts, apps/frontend/src/lib/lobbyingMetadata.ts, apps/frontend/src/components/lobbying/LobbyingDonationContext.tsx, apps/frontend/src/components/lobbying/LobbyingDonationControls.tsx, apps/frontend/src/components/lobbying/LobbyistDirectoryCard.tsx, apps/frontend/src/theme/directoryRows.ts, apps/frontend/src/lib/lobbyingDonationDirectory.ts, apps/frontend/src/lib/lobbyingPanelCopy.ts, apps/frontend/src/navigation/webRoutes.ts, api/page.ts, api/sitemap.ts -->
+<!-- describes: apps/frontend/src/screens/redesign/LobbyingLandingScreen.tsx, apps/frontend/src/screens/redesign/LobbyingPrincipalsScreen.tsx, apps/frontend/src/screens/redesign/LobbyingLobbyistsScreen.tsx, apps/frontend/src/screens/redesign/LobbyingPrincipalScreen.tsx, apps/frontend/src/screens/redesign/LobbyingLobbyistScreen.tsx, apps/frontend/src/lib/lobbyingDirectoryCopy.ts, apps/frontend/src/lib/lobbyingRecordCopy.ts, apps/frontend/src/lib/lobbyingTypes.ts, apps/frontend/src/data/lobbying.ts, apps/frontend/src/data/moneyNameSearch.ts, apps/frontend/src/hooks/useLobbying.ts, apps/frontend/src/hooks/useLobbyingNameSearch.ts, apps/frontend/src/components/lobbying/LobbyingPageFrame.tsx, apps/frontend/src/components/lobbying/LobbyingSearchResults.tsx, apps/frontend/src/lib/lobbyingSearch.ts, apps/frontend/src/lib/lobbyingPageSnapshot.ts, apps/frontend/src/lib/lobbyingMetadata.ts, apps/frontend/src/components/lobbying/LobbyingDonationContext.tsx, apps/frontend/src/components/lobbying/LobbyingDonationControls.tsx, apps/frontend/src/components/lobbying/LobbyingChoiceMenu.tsx, apps/frontend/src/components/lobbying/LobbyistDirectoryCard.tsx, apps/frontend/src/theme/directoryRows.ts, apps/frontend/src/lib/lobbyingDonationDirectory.ts, apps/frontend/src/lib/lobbyingPanelCopy.ts, apps/frontend/src/navigation/webRoutes.ts, api/page.ts, api/sitemap.ts -->
 
 # How the lobbying pages work
 
@@ -159,12 +159,32 @@ follow, with name, client count, amount and arrow in aligned columns above the
 phone band and wrapped beneath the name on a phone. Nothing repeats the chosen
 order as a separate caption, because Sort by already names it.
 
-Both menus are native browser controls, so a phone opens its own picker and a
-keyboard reader keeps first-letter typing and screen-reader support. Only the
-closed box is ours: it drops the operating system's own styling and draws its own
-arrow, and each box is as wide as its own longest choice so no value is ever cut
-off and the box never resizes when the choice changes. A menu that cannot be
-offered is greyed out and its label greys with it.
+Both menus are drawn by the page rather than handed to the browser: the closed
+box and the open list are ours, on a computer, a tablet and a phone alike. The
+open list sits 8 pixels below its box at the box's own width, with the chosen
+option carrying a green wash, a heavier weight and a tick, so its state never
+rests on colour alone. The list leaves the card rather than being cut off by it,
+and flips above the box when the window has no room below. Each box is as wide as
+its own longest choice, and it is the open list that sets that width. A menu that
+cannot be offered is greyed out and its label greys with it.
+
+Everything the browser's own list used to give is built here instead. A visible
+label beside or above the box names the control. Enter, Space or an arrow key
+opens the list on the option already chosen; the arrows move and stop at the ends
+rather than wrapping; Home and End jump to the first and last; Enter or Space
+chooses and returns focus to the box; Escape closes it with the value untouched
+and focus back on the box; Tab closes it and carries focus onward; a press
+anywhere else closes it and leaves the value alone. Typing a letter jumps to the
+first choice starting with it. Focus stays on the box the whole time, which is
+where the page names the option a reader is on, so a screen reader reads it. The
+purple ring is a keyboard reader's; a press never paints it. On a phone the same
+list opens under the box at the box's own width, and each choice is at least 44
+pixels tall. Where the longest choice cannot fit on one line, the value and the
+choice wrap to 2 lines and their boxes grow, rather than a value being cut in
+half.
+
+The lobbyist's own record page keeps the browser's menu for its donation year;
+this pair is the only drawn one.
 
 Loading, a failed read and both empty results keep that header and limitation,
 because they describe the list whatever it currently holds. A pending or failed

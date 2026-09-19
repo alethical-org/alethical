@@ -17,10 +17,14 @@ import { centralDateLabel } from '../../lib/moneyLanding';
 import type { LobbyingDirectoryDonations, LobbyingDonationSort } from '../../lib/lobbyingTypes';
 import { theme } from '../../theme/tokens';
 import { ensureYearFilterWebStyles, yearFilterSelectProps } from '../../theme/yearFilters';
+import { LobbyingChoiceMenu } from './LobbyingChoiceMenu';
 import { externalLinkProps } from '../../navigation/links';
 import { LinkArrowLabel } from '../LinkArrow';
 
-/** Native browser menus provide keyboard and phone behavior without a second popup system. */
+/**
+ * The lobbyist record page's donation-year control, unchanged: a browser menu in
+ * a box we style. The directory's own 2 controls use `LobbyingDrawnSelect` below.
+ */
 export function LobbyingSelect({
   label,
   value,
@@ -28,13 +32,6 @@ export function LobbyingSelect({
   onChange,
   disabled = false,
   inRow = false,
-  /** The directory header sets its label beside the box and sizes each box to its
-   *  own longest choice, so the selected label never clips. */
-  labelBeside = false,
-  fullWidth = false,
-  width,
-  fontSize = 16,
-  tightPad = false,
 }: {
   label: string;
   value: string;
@@ -42,36 +39,12 @@ export function LobbyingSelect({
   onChange: (value: string) => void;
   disabled?: boolean;
   inRow?: boolean;
-  labelBeside?: boolean;
-  fullWidth?: boolean;
-  width?: number;
-  /** A narrow phone steps the value down so the longest choice still reads whole. */
-  fontSize?: number;
-  tightPad?: boolean;
 }) {
   useEffect(() => ensureYearFilterWebStyles(), []);
   return (
-    <View
-      style={[
-        styles.field,
-        inRow && styles.fieldInRow,
-        labelBeside && styles.fieldBeside,
-        fullWidth && styles.fieldStacked,
-      ]}
-    >
-      <Text
-        style={[
-          styles.label,
-          labelBeside && styles.labelBeside,
-          fullWidth && styles.labelAbove,
-          disabled && styles.labelDisabled,
-        ]}
-      >
-        {label}
-      </Text>
+    <View style={[styles.field, inRow && styles.fieldInRow]}>
+      <Text style={[styles.label, disabled && styles.labelDisabled]}>{label}</Text>
       {Platform.OS === 'web' ? (
-        // The closed box is ours; the open list stays the browser's, which is what
-        // gives a phone its own picker, first-letter typing and screen-reader support.
         <View style={styles.selectBox}>
           <select
             aria-label={label}
@@ -79,13 +52,7 @@ export function LobbyingSelect({
             value={value}
             onChange={(event) => onChange(event.target.value)}
             disabled={disabled}
-            style={{
-              ...selectStyle,
-              fontSize,
-              ...(tightPad ? { padding: '0 38px 0 12px' } : null),
-              ...(disabled ? disabledSelectStyle : null),
-              ...(width != null ? { width, flexShrink: 0 } : null),
-            }}
+            style={{ ...selectStyle, ...(disabled ? disabledSelectStyle : null) }}
           >
             {options.map((item) => (
               <option key={item.value} value={item.value}>
@@ -93,7 +60,7 @@ export function LobbyingSelect({
               </option>
             ))}
           </select>
-          <View style={[styles.chevron, tightPad && styles.chevronTight]} pointerEvents="none">
+          <View style={styles.chevron} pointerEvents="none">
             <Svg width={15} height={15} viewBox="0 0 24 24" fill="none" aria-hidden>
               <Path
                 d="M6 9 L12 15 L18 9"
@@ -106,21 +73,100 @@ export function LobbyingSelect({
           </View>
         </View>
       ) : (
-        <View>
-          {options.map((item) => (
-            <Pressable
-              key={item.value}
-              disabled={disabled}
-              accessibilityRole="button"
-              aria-pressed={value === item.value}
-              onPress={() => onChange(item.value)}
-              style={styles.fallbackChoice}
-            >
-              <Text>{item.label}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <Choices value={value} options={options} onChange={onChange} disabled={disabled} />
       )}
+    </View>
+  );
+}
+
+/**
+ * The directory's own control: a closed box we draw and an open list we draw.
+ * The label sits beside the box on a computer and above it on a phone; either
+ * way it is on screen, so it can name the control for a screen reader.
+ */
+export function LobbyingDrawnSelect({
+  label,
+  value,
+  options,
+  onChange,
+  disabled = false,
+  labelBeside = false,
+  fullWidth = false,
+  width,
+  fontSize = 16,
+}: {
+  label: string;
+  value: string;
+  options: readonly { value: string; label: string }[];
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  labelBeside?: boolean;
+  fullWidth?: boolean;
+  width?: number;
+  /** The phone steps the value down; the box grows rather than cutting it off. */
+  fontSize?: number;
+}) {
+  const labelId = useId();
+  return (
+    <View
+      style={[styles.field, labelBeside && styles.fieldBeside, fullWidth && styles.fieldStacked]}
+    >
+      <Text
+        nativeID={labelId}
+        style={[
+          styles.label,
+          labelBeside && styles.labelBeside,
+          fullWidth && styles.labelAbove,
+          disabled && styles.labelDisabled,
+        ]}
+      >
+        {label}
+      </Text>
+      {Platform.OS === 'web' ? (
+        <LobbyingChoiceMenu
+          label={label}
+          labelId={labelId}
+          value={value}
+          options={options}
+          onChange={onChange}
+          disabled={disabled}
+          width={width}
+          fullWidth={fullWidth || width == null}
+          valueSize={fontSize}
+        />
+      ) : (
+        <Choices value={value} options={options} onChange={onChange} disabled={disabled} />
+      )}
+    </View>
+  );
+}
+
+/** Off the web there is no popup layer, so every choice is simply a button. */
+function Choices({
+  value,
+  options,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  options: readonly { value: string; label: string }[];
+  onChange: (value: string) => void;
+  disabled: boolean;
+}) {
+  return (
+    <View>
+      {options.map((item) => (
+        <Pressable
+          key={item.value}
+          disabled={disabled}
+          accessibilityRole="button"
+          aria-pressed={value === item.value}
+          onPress={() => onChange(item.value)}
+          style={styles.fallbackChoice}
+        >
+          <Text>{item.label}</Text>
+        </Pressable>
+      ))}
     </View>
   );
 }
@@ -132,7 +178,6 @@ export function LobbyingDonationSelects({
   requestedYear,
   loading = false,
   stacked = false,
-  narrow = false,
   gap = 20,
   onYear,
   onSort,
@@ -142,8 +187,6 @@ export function LobbyingDonationSelects({
   requestedYear?: number;
   loading?: boolean;
   stacked?: boolean;
-  /** Under 360 the card interior cannot hold the longest choice at 15. */
-  narrow?: boolean;
   gap?: number;
   onYear: (year: string) => void;
   onSort: (sort: string) => void;
@@ -159,16 +202,17 @@ export function LobbyingDonationSelects({
   // never resizes as the choice changes. Year widens only while it is showing a
   // disabled stand-in, which a reader never sees mid-interaction.
   const yearWidth = years.length ? 104 : loading ? 168 : 148;
-  const fontSize = stacked ? (narrow ? 13.5 : 15) : 16;
+  // The phone takes the card's full width, where a 2-line value is the right
+  // failure rather than a value cut in half.
+  const fontSize = stacked ? 15 : 16;
   return (
     <View style={[styles.controls, { gap }, stacked && styles.controlsStacked]}>
-      <LobbyingSelect
+      <LobbyingDrawnSelect
         label="Year"
         labelBeside={!stacked}
         fullWidth={stacked}
         width={stacked ? undefined : yearWidth}
         fontSize={fontSize}
-        tightPad={narrow}
         value={String(selectedYear ?? '')}
         onChange={onYear}
         disabled={!years.length}
@@ -178,15 +222,16 @@ export function LobbyingDonationSelects({
             : [{ value: '', label: loading ? 'Loading years' : 'Unavailable' }]
         }
       />
-      <LobbyingSelect
+      <LobbyingDrawnSelect
         label="Sort by"
         labelBeside={!stacked}
         fullWidth={stacked}
-        // `Recorded amount: highest first` measures 237.4 at 16 · 700, and the box
-        // adds 14 of left pad and 42 of chevron room, so 300 leaves 6 to spare.
-        width={stacked ? undefined : 300}
+        // It is the open list that sets this figure, not the closed box:
+        // `Recorded amount: highest first` measures 237.4 at 16 · 700, and an
+        // option adds a 15 tick, a 9 gap, 12 of its own padding each side and
+        // the panel's 6 each side.
+        width={stacked ? undefined : 304}
         fontSize={fontSize}
-        tightPad={narrow}
         value={sort}
         options={LOBBYING_DONATION_SORTS}
         onChange={onSort}
@@ -286,8 +331,6 @@ const selectStyle: CSSProperties = {
   height: 48,
   width: '100%',
   maxWidth: '100%',
-  // The right pad is the drawn chevron's room; a background-image arrow could not
-  // take the disabled colour without shipping a second asset.
   padding: '0 42px 0 14px',
   borderRadius: 12,
   border: '1px solid rgba(17,21,15,0.18)',
@@ -309,6 +352,10 @@ const styles = StyleSheet.create({
   field: { minWidth: 0, maxWidth: 370, gap: 8 },
   fieldStacked: { maxWidth: undefined, gap: 5 },
   fieldInRow: { flexGrow: 1, flexBasis: 180 },
+  selectBox: { position: 'relative', minWidth: 0 },
+  // The glyph carries 3.75 of slack inside its own 15 box, so a 16 offset puts
+  // the drawn arrow 20 from the border, which is what a reader sees.
+  chevron: { position: 'absolute', right: 16, top: '50%', transform: [{ translateY: -7.5 }] },
   fieldBeside: {
     maxWidth: undefined,
     flexDirection: 'row',
@@ -324,16 +371,6 @@ const styles = StyleSheet.create({
   labelBeside: { fontSize: 15, fontWeight: '800', color: '#3f463f' },
   labelAbove: { fontSize: 14.5, fontWeight: '800', color: '#3f463f' },
   labelDisabled: { color: '#8a908a' },
-  selectBox: { position: 'relative', minWidth: 0 },
-  // The glyph carries 3.75 of slack inside its own 15 box, so a 16 offset puts the
-  // drawn arrow 20 from the border, which is what a reader sees.
-  chevron: {
-    position: 'absolute',
-    right: 16,
-    top: '50%',
-    transform: [{ translateY: -7.5 }],
-  },
-  chevronTight: { right: 14 },
   controls: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   // A wrapping column would size both boxes to the widest choice rather than to the
   // card, so the stacked arrangement never wraps.

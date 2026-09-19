@@ -89,6 +89,20 @@ const route = (name: string, params: object = {}) => ({ key: name, name, params 
 const render = (element: ReactNode) => act(() => root.render(element));
 const words = () => host.textContent ?? '';
 const listRows = () => [...host.querySelectorAll('[role="listitem"]')];
+// The directory's 2 choice controls are drawn, so a test opens the list and
+// presses an option exactly as a reader does.
+const menus = () => [...host.querySelectorAll('[role="combobox"]')] as HTMLElement[];
+const openMenu = (which: number) => act(() => menus()[which].click());
+const listedOptions = () => [...host.querySelectorAll('[role="option"]')] as HTMLElement[];
+const pick = (which: number, text: string) => {
+  openMenu(which);
+  const choice = listedOptions().find((item) => item.textContent === text)!;
+  act(() => choice.click());
+};
+const press = (which: number, key: string) =>
+  act(() => {
+    menus()[which].dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+  });
 
 // jsdom does not compute the modern font-variant shorthand. Read the CSS rule
 // attached to the rendered element so the check still covers the shipped style.
@@ -288,26 +302,15 @@ describe('lobbying directories', () => {
       page: '3',
       year: '2025',
     });
-    const year = host.querySelector('select[aria-label="Year"]') as HTMLSelectElement;
-    act(() => {
-      year.value = '2024';
-      year.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    pick(0, '2024');
     expect(navigation.setParams).toHaveBeenCalledWith({ year: '2024', page: undefined });
-    const sort = host.querySelector('select[aria-label="Sort by"]') as HTMLSelectElement;
-    act(() => {
-      sort.value = 'donations_asc';
-      sort.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    pick(1, 'Recorded amount: lowest first');
     expect(navigation.setParams).toHaveBeenCalledWith({
       sort: 'donations_asc',
       page: undefined,
       year: '2025',
     });
-    act(() => {
-      sort.value = 'donations_desc';
-      sort.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    pick(1, 'Recorded amount: highest first');
     expect(navigation.setParams).toHaveBeenCalledWith({
       sort: undefined,
       page: undefined,
@@ -593,12 +596,12 @@ describe('the lobbyist results card', () => {
     expect(heading.textContent).toContain('registered lobbyists');
     expect(heading.getAttribute('aria-live')).toBe('polite');
     const header = heading.parentElement!;
-    expect(header.querySelector('select[aria-label="Year"]')).not.toBeNull();
-    expect(header.querySelector('select[aria-label="Sort by"]')).not.toBeNull();
+    const boxes = [...header.querySelectorAll('[role="combobox"]')];
+    expect(boxes).toHaveLength(2);
+    expect(boxes.map((box) => box.textContent)).toEqual(['2025', 'Recorded amount: highest first']);
     // The Sort by control names the order, so nothing repeats it as a caption.
     const captions = [...host.querySelectorAll('*')].filter(
-      (item) =>
-        item.children.length === 0 && item.tagName !== 'OPTION' && item.textContent === 'Name A–Z',
+      (item) => item.children.length === 0 && item.textContent === 'Name A–Z',
     );
     expect(captions).toHaveLength(0);
     expect(words()).not.toContain(copy.order);
@@ -611,23 +614,20 @@ describe('the lobbyist results card', () => {
     expect(words()).not.toContain('registered lobbyists');
     expect(words()).not.toContain('Donation amounts are unavailable');
     expect(words()).not.toContain('amount available for');
-    const sort = host.querySelector('select[aria-label="Sort by"]') as HTMLSelectElement;
-    expect(sort.value).toBe('donations_desc');
-    expect(sort.disabled).toBe(false);
+    expect(menus()[1].textContent).toBe('Recorded amount: highest first');
+    expect(menus()[1].getAttribute('aria-disabled')).toBeNull();
     // A year the reader chose survives the failure; only a directory with no year
     // at all falls back to the unavailable label.
-    const kept = host.querySelector('select[aria-label="Year"]') as HTMLSelectElement;
-    expect(kept.disabled).toBe(false);
-    expect(kept.value).toBe('2025');
+    expect(menus()[0].getAttribute('aria-disabled')).toBeNull();
+    expect(menus()[0].textContent).toBe('2025');
     render(
       <LobbyingLobbyistsScreen
         navigation={navigation as never}
         route={route('LobbyingLobbyists')}
       />,
     );
-    const none = host.querySelector('select[aria-label="Year"]') as HTMLSelectElement;
-    expect(none.disabled).toBe(true);
-    expect(none.textContent).toBe('Unavailable');
+    expect(menus()[0].getAttribute('aria-disabled')).toBe('true');
+    expect(menus()[0].textContent).toBe('Unavailable');
   });
 
   it('names the loading list in the count slot and counts nothing while it waits', () => {
@@ -639,17 +639,15 @@ describe('the lobbyist results card', () => {
     expect(words()).not.toContain('amount available for');
     expect(words()).not.toContain('Donation amounts are unavailable');
     // A year already chosen in the address is never blanked while the list reloads.
-    const chosen = host.querySelector('select[aria-label="Year"]') as HTMLSelectElement;
-    expect(chosen.textContent).toBe('2025');
+    expect(menus()[0].textContent).toBe('2025');
     render(
       <LobbyingLobbyistsScreen
         navigation={navigation as never}
         route={route('LobbyingLobbyists')}
       />,
     );
-    const empty = host.querySelector('select[aria-label="Year"]') as HTMLSelectElement;
-    expect(empty.textContent).toBe('Loading years');
-    expect(empty.disabled).toBe(true);
+    expect(menus()[0].textContent).toBe('Loading years');
+    expect(menus()[0].getAttribute('aria-disabled')).toBe('true');
   });
 
   it('keeps a real space between the dollar figure and its year', () => {
@@ -683,6 +681,7 @@ describe('the lobbyist results card', () => {
     );
     expect(words()).toContain(copy.order);
     expect(host.querySelector('select')).toBeNull();
+    expect(menus()).toHaveLength(0);
     expect(host.querySelectorAll('[aria-level="2"]')).toHaveLength(0);
   });
 });
@@ -710,28 +709,101 @@ describe('the lobbyist card’s drawn controls', () => {
       route={route('LobbyingLobbyists', { year: '2025' })}
     />
   );
-  const selects = () => [...host.querySelectorAll('select')];
-
-  it('strips the browser’s own box and draws the chevron itself', () => {
+  it('draws its own closed box, and its own open list rather than the browser’s', () => {
     state.lobbyists = served();
     render(screen());
-    for (const box of selects()) {
-      expect(box.style.appearance).toBe('none');
-      expect(box.style.fontWeight).toBe('700');
-      expect(box.style.cursor).toBe('pointer');
-      // The right pad is the drawn chevron's room.
-      expect(box.style.padding).toBe('0px 42px 0px 14px');
-      // react-native-svg is mocked away here, so assert the wrapper the drawn
-      // chevron is positioned against; the browser check covers the glyph itself.
-      expect(getComputedStyle(box.parentElement!).position).toBe('relative');
-    }
+    const sort = menus()[1];
+    expect(sort.tagName).toBe('BUTTON');
+    expect(sort.getAttribute('aria-haspopup')).toBe('listbox');
+    expect(sort.getAttribute('aria-expanded')).toBe('false');
+    expect(sort.style.fontWeight).toBe('700');
+    expect(sort.style.cursor).toBe('pointer');
+    expect(sort.style.borderRadius).toBe('12px');
+    expect(sort.style.padding).toBe('9px 16px 9px 14px');
+    // The visible label beside the box is what names the control, never a
+    // placeholder standing in for one.
+    const named = host.querySelector(`#${CSS.escape(sort.getAttribute('aria-labelledby')!)}`);
+    expect(named?.textContent).toBe('Sort by');
+    expect(listedOptions()).toHaveLength(0);
+
+    openMenu(1);
+    expect(menus()[1].getAttribute('aria-expanded')).toBe('true');
+    const panel = host.querySelector('[role="listbox"]') as HTMLElement;
+    expect(panel.getAttribute('aria-label')).toBe('Sort by');
+    expect(panel.style.borderRadius).toBe('14px');
+    expect(panel.style.padding).toBe('6px');
+    expect(panel.style.boxShadow).toBe('0 14px 34px rgba(17,21,15,0.14)');
+    const options = listedOptions();
+    expect(options.map((item) => item.textContent)).toEqual([
+      'Name A–Z',
+      'Recorded amount: highest first',
+      'Recorded amount: lowest first',
+    ]);
+    // The chosen option carries 3 marks, so its state never rests on colour alone.
+    const chosen = options[1];
+    expect(chosen.getAttribute('aria-selected')).toBe('true');
+    expect(chosen.style.fontWeight).toBe('700');
+    expect(chosen.style.background).toBe('rgb(242, 251, 246)');
+    expect(options[0].getAttribute('aria-selected')).toBe('false');
+    expect(options[0].style.fontWeight).toBe('500');
+    expect(options[0].style.minHeight).toBe('44px');
+  });
+
+  it('opens on the chosen option, moves without wrapping, and returns the choice', () => {
+    state.lobbyists = served();
+    render(screen());
+    press(1, 'Enter');
+    const sort = menus()[1];
+    // The control keeps focus and names the option a reader is on, which is the
+    // only place assistive technology reads that attribute.
+    expect(sort.getAttribute('aria-expanded')).toBe('true');
+    const onOpen = sort.getAttribute('aria-activedescendant')!;
+    expect(document.getElementById(onOpen)?.textContent).toBe('Recorded amount: highest first');
+    press(1, 'ArrowDown');
+    expect(
+      document.getElementById(menus()[1].getAttribute('aria-activedescendant')!)?.textContent,
+    ).toBe('Recorded amount: lowest first');
+    // Movement stops at the end rather than wrapping round to the top.
+    press(1, 'ArrowDown');
+    expect(
+      document.getElementById(menus()[1].getAttribute('aria-activedescendant')!)?.textContent,
+    ).toBe('Recorded amount: lowest first');
+    press(1, 'Home');
+    expect(
+      document.getElementById(menus()[1].getAttribute('aria-activedescendant')!)?.textContent,
+    ).toBe('Name A–Z');
+    press(1, 'Enter');
+    expect(navigation.setParams).toHaveBeenCalledWith({
+      sort: 'name',
+      page: undefined,
+      year: '2025',
+    });
+    expect(menus()[1].getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('leaves the value alone when a reader presses Escape', () => {
+    state.lobbyists = served();
+    render(screen());
+    press(1, 'ArrowDown');
+    press(1, 'ArrowDown');
+    press(1, 'Escape');
+    expect(menus()[1].getAttribute('aria-expanded')).toBe('false');
+    expect(menus()[1].textContent).toBe('Recorded amount: highest first');
+    expect(navigation.setParams).not.toHaveBeenCalled();
+    // Tab closes it the same way and lets focus carry on out of the control.
+    press(1, 'ArrowDown');
+    press(1, 'Tab');
+    expect(menus()[1].getAttribute('aria-expanded')).toBe('false');
+    expect(navigation.setParams).not.toHaveBeenCalled();
   });
 
   it('sizes each box to its own longest choice, widening only while disabled', () => {
     state.lobbyists = served();
     render(screen());
-    expect(selects()[0].style.width).toBe('104px');
-    expect(selects()[1].style.width).toBe('300px');
+    const wrapper = (which: number) => menus()[which].parentElement as HTMLElement;
+    expect(wrapper(0).style.width).toBe('104px');
+    // It is the open list that sets this figure, not the closed box.
+    expect(wrapper(1).style.width).toBe('304px');
     state.lobbyists = { isPending: true, isSuccess: false, isError: false, refetch: vi.fn() };
     render(
       <LobbyingLobbyistsScreen
@@ -740,8 +812,8 @@ describe('the lobbyist card’s drawn controls', () => {
       />,
     );
     // `Loading years` is longer than any year, so the box grows while it shows it.
-    expect(selects()[0].textContent).toBe('Loading years');
-    expect(selects()[0].style.width).toBe('168px');
+    expect(menus()[0].textContent).toBe('Loading years');
+    expect(wrapper(0).style.width).toBe('168px');
   });
 
   it('marks a dropdown it cannot offer, and dims its label with it', () => {
@@ -752,14 +824,43 @@ describe('the lobbyist card’s drawn controls', () => {
         route={route('LobbyingLobbyists')}
       />,
     );
-    const year = selects()[0];
-    expect(year.disabled).toBe(true);
+    const year = menus()[0];
+    expect(year.getAttribute('aria-disabled')).toBe('true');
     expect(year.style.cursor).toBe('not-allowed');
     expect(year.style.color).toBe('rgb(138, 144, 138)');
+    openMenu(0);
+    expect(listedOptions()).toHaveLength(0);
     const label = [...host.querySelectorAll('div')].find(
       (item) => item.children.length === 0 && item.textContent === 'Year',
     )!;
     expect(getComputedStyle(label).color).toBe('rgb(138, 144, 138)');
+  });
+
+  it('lets the open list leave the card, and keeps the last row inside its corner', () => {
+    state.lobbyists = served();
+    render(screen());
+    const card = [...host.querySelectorAll('[tabindex="-1"]')].at(-1) as HTMLElement;
+    // A card that hid its own overflow would cut the open list off.
+    expect(getComputedStyle(card).overflow).not.toBe('hidden');
+    const header = host.querySelector('[aria-level="2"]')!.parentElement!;
+    expect(Number(getComputedStyle(header).zIndex)).toBeGreaterThan(0);
+    // So the bottom row rounds its own corners instead, and no other row does.
+    const rows = listRows().map((row) => row.firstElementChild as HTMLElement);
+    expect(getComputedStyle(rows[rows.length - 1]).borderBottomLeftRadius).toBe('15px');
+    expect(parseFloat(getComputedStyle(rows[0]).borderBottomLeftRadius) || 0).toBe(0);
+  });
+
+  it('closes on a press outside and leaves the value untouched', () => {
+    state.lobbyists = served();
+    render(screen());
+    openMenu(1);
+    expect(menus()[1].getAttribute('aria-expanded')).toBe('true');
+    act(() => {
+      document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    });
+    expect(menus()[1].getAttribute('aria-expanded')).toBe('false');
+    expect(menus()[1].textContent).toBe('Recorded amount: highest first');
+    expect(navigation.setParams).not.toHaveBeenCalled();
   });
 
   it('draws a row’s keyboard ring inside the card rather than outside it', () => {
@@ -907,14 +1008,12 @@ describe('the lobbyist card’s two record dates and its page jump', () => {
     });
     state.lobbyists = served();
     render(screen());
-    const sort = host.querySelector('select[aria-label="Sort by"]') as HTMLSelectElement;
-    act(() => {
-      sort.value = 'name';
-      sort.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    pick(1, 'Name A–Z');
     state.lobbyists = served({ sort: 'name' });
     render(screen({ sort: 'name' }));
-    expect(scrollIntoView).not.toHaveBeenCalled();
+    // Opening the list scrolls its own active option into view; what must not
+    // move is the reader's place in the results.
+    expect(scrollIntoView.mock.contexts).not.toContain(card());
     Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
   });
 });

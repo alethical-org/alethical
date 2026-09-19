@@ -71,8 +71,7 @@ export function LobbyistDirectoryCard({
   onYear: (year: string) => void;
   onSort: (sort: string) => void;
 }) {
-  const { width, isMobile, isTablet } = useResponsive();
-  const narrow = isMobile && width > 0 && width < 360;
+  const { isMobile, isTablet } = useResponsive();
   const settled = !pending && !failed;
   // One left inset for the header, the note and every row, so they share an edge.
   const inset = isMobile ? 16 : isTablet ? 24 : 28;
@@ -121,7 +120,6 @@ export function LobbyistDirectoryCard({
             requestedYear={requestedYear}
             loading={pending}
             stacked={isMobile}
-            narrow={narrow}
             gap={isMobile ? 12 : isTablet ? 16 : 20}
             onYear={onYear}
             onSort={onSort}
@@ -171,6 +169,7 @@ export function LobbyistDirectoryCard({
                 row={row}
                 year={donationYear}
                 stacked={isMobile}
+                last={row.id === rows[rows.length - 1]?.id}
                 paddingHorizontal={inset}
                 metaWidth={isTablet ? 140 : 150}
                 amountWidth={isTablet ? 218 : 232}
@@ -189,6 +188,7 @@ function DirectoryRow({
   row,
   year,
   stacked,
+  last,
   paddingHorizontal,
   metaWidth,
   amountWidth,
@@ -196,6 +196,8 @@ function DirectoryRow({
   row: LobbyistDirectoryCardRow;
   year?: number | null;
   stacked: boolean;
+  /** The bottom row keeps its hover wash inside the card's own rounded corner. */
+  last: boolean;
   paddingHorizontal: number;
   metaWidth: number;
   amountWidth: number;
@@ -211,6 +213,7 @@ function DirectoryRow({
           styles.row,
           { paddingHorizontal },
           stacked && styles.rowStacked,
+          last && styles.rowLast,
           hovered && styles.rowHovered,
         ]}
       >
@@ -268,10 +271,12 @@ const styles = StyleSheet.create({
     borderColor: blockDivider,
     borderRadius: 16,
     boxShadow: '0 1px 2px rgba(17,21,15,0.04), 0 12px 28px rgba(17,21,15,0.05)',
-    // Keeps the row wash inside the radius instead of squaring off the corner.
-    overflow: 'hidden',
   },
+  // The choice list opens out of the header and over the notes below it, so the
+  // header stacks above its siblings. The card cannot clip its own overflow,
+  // which is why the last row rounds its own corners instead.
   header: {
+    zIndex: 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -351,6 +356,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: divider,
   },
+  rowLast: { borderBottomLeftRadius: 15, borderBottomRightRadius: 15 },
   rowHovered: { backgroundColor: '#f4f7f5' },
   rowStacked: { flexDirection: 'column', alignItems: 'stretch', gap: 4 },
   nameCell: {
