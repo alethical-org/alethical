@@ -211,6 +211,12 @@ async function settle() {
   }
 }
 
+function expectLegislatorProfileLabel(host: HTMLDivElement) {
+  const label = host.querySelector<HTMLElement>('[data-testid="page-context-label"]');
+  expect(label?.textContent).toBe('Legislator profile');
+  expect(getComputedStyle(label!).textTransform).toBe('uppercase');
+}
+
 afterEach(() => {
   document.body.innerHTML = '';
   document.title = '';
@@ -236,7 +242,7 @@ describe('the loaded profile of a member with no current service period', () => 
       expect(words).not.toContain('Democratic-Farmer-Labor');
       expect(words).not.toContain('Republican');
       expect(words).not.toContain('Independent');
-      expect(words).toContain('LEGISLATOR PROFILE');
+      expectLegislatorProfileLabel(page.host);
     },
   );
 
@@ -294,7 +300,7 @@ describe('the loaded profile of a member with no current service period', () => 
   });
 });
 
-describe('the loaded profile of a sitting member is unchanged', () => {
+describe('the loaded profile of a sitting member', () => {
   it.each(SCREENS)(
     'keeps Campaign money in the tab bar without repeating a Campaign money card on %s',
     async (layout, Screen) => {
@@ -308,7 +314,7 @@ describe('the loaded profile of a sitting member is unchanged', () => {
       expect(words).not.toContain('rather than the Legislature');
       expect(
         getComputedStyle(page.host.querySelector('[data-testid="profile-hero-row"]')!).marginTop,
-      ).toBe(layout === 'web' ? '4px' : '0px');
+      ).toBe('14px');
     },
   );
 
@@ -331,7 +337,7 @@ describe('the loaded profile of a sitting member is unchanged', () => {
       expect(words).toContain('PHONE');
       expect(words).toContain('651-296-9934');
       expect(words).toContain('Official House profile');
-      expect(words).not.toContain('LEGISLATOR PROFILE');
+      expectLegislatorProfileLabel(page.host);
       expect(document.title).toBe('Rep. Patty Acomb, Minnesota House District 45A | Alethical');
     },
   );
