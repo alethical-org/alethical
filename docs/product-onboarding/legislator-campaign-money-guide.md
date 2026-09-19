@@ -711,9 +711,11 @@ to read. Under the heading it says “Shares of dollars by state, excluding dona
 and services”, then draws one bar in a fixed order: Minnesota, Other states, Unknown, in
 3 colours: a green (#0f7a45) for Minnesota, a blue (#2f6fb5) for Other states and an
 amber (#a8741a) for Unknown. Nothing on the card is carried by colour alone. The green
-and the blue sit at nearly equal brightness, so a reader who cannot tell them apart in
-greyscale or with red-green colour blindness loses nothing: every figure the bar draws is
-also printed in the table, and the row label beside each swatch names its category. A
+and the blue are almost exactly as bright as each other, 1.04 to 1 by measured relative
+luminance, so in black and white they are all but the same; how the 3 read to people with
+the various kinds of colour blindness has not been measured and is not claimed. A reader
+who cannot tell 2 of them apart loses nothing, because every figure the bar draws is also
+printed in the table and the row label beside each swatch names its category. A
 category with no money gets no piece of the bar, and a tiny one is never widened to be
 visible; its figures are in the table.
 
@@ -801,7 +803,11 @@ and shadow, and are cards of equal rank.
 Thin separators divide the row controls, and expanded content remains within its row.
 The filing table stacks each kind into 3 labelled figures below 768px; the location
 table keeps all 4 columns at every width, wrapping its column headings and any state
-name that has a space in it, and never breaking a single word such as Massachusetts. The
+name that has a space in it, and never breaking a single word such as Massachusetts.
+On a narrow phone those 4 columns do not fit the card: at 375px the table runs 16px into
+the card's right padding, and at 320px the share column is clipped off the screen and
+cannot be read. That is an open defect, not the intended layout, and the arrangement that
+replaces it is [issue 2317](https://github.com/alethical-org/alethical/issues/2317). The
 name distribution and highest-name tables stack below
 768px. The size changes at 768px and 1100px follow the tab's existing text sizes,
 including 15px small text on a phone. The money section uses 32px side margins on

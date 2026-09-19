@@ -645,12 +645,14 @@ function FiledLines({
 }
 
 /** The bar's fixed order: Minnesota, Other states, Unknown. Three hues rather than one
- *  neutral at 3 lightnesses, at Eugene's instruction of 19 Sep 2026, and each clears 3:1
- *  against white, which the outlined zero swatch needs. They are NOT reliably told apart
- *  in greyscale or under red-green colour blindness -- the green and the blue sit at
- *  nearly equal lightness -- so nothing here may carry meaning by colour alone. Every
- *  figure the bar draws is also printed in the table, and the row label beside every
- *  swatch names its category. */
+ *  neutral at 3 lightnesses, at Eugene's instruction of 19 Sep 2026. Measured relative
+ *  luminance: each clears 3:1 against white (5.40, 5.17 and 4.06), which the outlined
+ *  zero swatch needs, but the green and the blue separate by only 1.04:1 from each
+ *  other, so in greyscale they are all but the same. How they read under the various
+ *  colour-vision deficiencies is not measured and is not claimed either way. None of
+ *  that matters to a reader here, and it is why: nothing on this card may carry meaning
+ *  by colour alone. Every figure the bar draws is also printed in the table, and the row
+ *  label beside every swatch names its category. */
 export const LOCATION_COLORS = ['#0f7a45', '#2f6fb5', '#a8741a'] as const;
 
 type LocationTableRow = {
