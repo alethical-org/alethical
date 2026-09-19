@@ -96,9 +96,37 @@ export const donationCardsCopy = {
   state: 'State',
   names: 'Names',
   amount: 'Amount',
+  share: 'Share of dollars',
+  locationsIntro: 'Shares of dollars by state, excluding donated goods and services',
+  /** The caption is the one place the subtotal relationship is stated in words, because
+   *  an indent is invisible to a screen reader. The clause is dropped when no state row
+   *  exists, because there is then nothing for it to describe. */
+  locationsCaption: (year: number, hasStates: boolean) =>
+    hasStates
+      ? `Itemized individual contributions by state, ${year}. States listed under Other ` +
+        'states are included in its subtotal.'
+      : `Itemized individual contributions by state, ${year}`,
   locationNotes: [
+    'States are identified from ZIP codes in the state’s file',
     'Unknown means the state’s file has no usable ZIP code to identify the donor’s state',
+    'Names count distinct spellings within each row, including contributions of goods and ' +
+      'services. The same name can appear in more than 1 state.',
   ],
+  /** Rows exist and none of them carries cash, which is not the same as no rows at all:
+   *  an unnamed donation of goods with an unusable ZIP produces exactly 0 names and $0. */
+  locationsNoCash: (year: number) =>
+    `No itemized individual contribution dollars listed for ${year}`,
+  /** The bar's own text alternative. Every figure it names is also in the table below
+   *  it, so colour and width carry nothing on their own. */
+  locationsBar: (parts: readonly string[]) =>
+    `Shares of itemized individual contribution dollars: ${parts.join('; ')}`,
+  locationsBarPart: (place: string, amount: string, share: string) =>
+    `${place} ${amount}, ${share}`,
+  /** One payment's own filed location. Per payment rather than per grouped spelling,
+   *  because payments filed under one name can carry different ZIPs. The ZIP prints as
+   *  the state's file holds it: a short value is the record, not our error. */
+  paymentLocation: (state: string | null, zip: string | null) =>
+    `State: ${state ?? 'Unknown'} · ZIP code as filed: ${zip === null || zip === '' ? 'Not reported' : zip}`,
   caveat:
     'Matched by exact spelling in the state’s file. A match does not prove it is the same person; different spellings count separately.',
   connectionsHeadline: (matched: number, names: number) =>
@@ -118,7 +146,7 @@ export const donationCardsCopy = {
     (year: number) =>
       `This card needs a filed report for ${year} and our own figures checked against it. We do not yet have both, so no figures are drawn here.`,
     (year: number) =>
-      `We draw this only from a year whose donations we have checked against a filed report. ${year} is not yet one of them, so there is nothing here.`,
+      `We cannot show this breakdown for ${year} because the contributions have not passed our check against a filed report`,
     (year: number) =>
       `No names are matched for ${year}. We match only from a year whose donations we have checked against a filed report, and that is not yet the case here.`,
   ],
@@ -134,6 +162,46 @@ export const donationCardsCopy = {
   retry: 'Please try again in a moment.',
   loading: 'Loading',
 };
+
+/**
+ * One category's share of every itemized individual contribution dollar, as it prints.
+ *
+ * Both figures arrive as exact units from `moneyUnits` in `lib/campaignMoneyDetails.ts`,
+ * so the division happens on the full stored amounts rather than on the whole dollars
+ * the table displays. Rounding a figure before dividing it is how a share comes out
+ * wrong on a committee whose filings carry cents.
+ *
+ * The denominator is always **all** itemized individual contribution cash for this
+ * committee and year, Unknown included, and never the Other states subtotal. So an
+ * individual state's percentage means its share of the whole, which is the only reading
+ * that stays true when a reader compares 2 states on different cards.
+ *
+ * Four printed forms, and the difference between the first 2 is the whole point:
+ *
+ * - `Not applicable` when there is no money to take a share of. A share of nothing is
+ *   not zero per cent, and printing `0%` there would state a measurement nobody made.
+ * - `0%` for a category that really holds none of a positive total. That is a measured
+ *   zero and `.claude/rules/grounded-answers.md` rule 12 requires it to read as one.
+ * - `<0.1%` for a positive share too small to print at 1 decimal place, so money that
+ *   exists is never shown as nothing.
+ * - 1 decimal place otherwise, rounded half up, **independently per row**. Printed
+ *   shares may therefore not add to exactly 100%, and no row is ever nudged to make
+ *   them: the rounding is honest and the adjustment would not be.
+ *
+ * A negative figure returns `null`, which the card treats as a refusal rather than
+ * drawing it. Nothing here clamps a malformed amount into a plausible percentage.
+ */
+export function shareOfDollars(numerator: bigint, denominator: bigint): string | null {
+  if (numerator < 0n || denominator < 0n) return null;
+  if (denominator === 0n) return 'Not applicable';
+  if (numerator === 0n) return '0%';
+  // Below a tenth of a per cent: numerator / denominator < 0.001.
+  if (numerator * 1000n < denominator) return '<0.1%';
+  // Tenths of a per cent, rounded half up, entirely in integers so no binary floating
+  // point can move the last digit: floor((2 * 1000 * numerator + denominator) / (2 * denominator)).
+  const tenths = (2000n * numerator + denominator) / (2n * denominator);
+  return `${tenths / 10n}.${tenths % 10n}%`;
+}
 
 // Only a 2-letter state value reaches this formatter; never an address or postcode.
 export const donorStateNames: Record<string, string> = {

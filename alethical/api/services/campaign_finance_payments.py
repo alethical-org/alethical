@@ -135,6 +135,7 @@ from sqlalchemy.orm import Session
 from alethical.api.services import committee_finance
 from alethical.api.services.committee_finance import NOT_REPORTED
 from alethical.api.services.independent_spending import REPORTED, UNAVAILABLE
+from alethical.api.services.zip_state_reference import load_zip_state_reference
 from alethical.db.schema import load_schema
 from alethical.pipeline import campaign_finance_reader as reader
 
@@ -177,6 +178,16 @@ class ContributionPayment:
     live release and is not a zero if it ever does. ``contributor_registration_number``
     is ``None`` both when the file states nothing and when it states
     ``UNIDENTIFIED_REGISTRATION_NUMBER``.
+
+    ``contributor_zip`` is the download's own ZIP column, **exactly as filed**: never
+    padded to 5 digits, never trimmed, never repaired. A surface prints it as the record
+    holds it, so a reader can see that ``553`` is Minnesota's file rather than our error.
+    ``contributor_state`` is the 2-letter state that ZIP resolves to through
+    ``zip_state_reference``, and is ``None`` for a missing, malformed, unmatched or
+    ambiguous ZIP -- which is a statement about the record, never a guess at a location.
+    The normalization the lookup does is its own and does not reach
+    ``contributor_zip``. Neither field carries a city, a street address or any contact
+    detail, and the reference's ZIP table itself never leaves the service.
     """
 
     recipient_registration_number: Optional[str]
@@ -192,6 +203,8 @@ class ContributionPayment:
     receipt_type: Optional[str]
     in_kind: Optional[str]
     in_kind_description: Optional[str]
+    contributor_zip: Optional[str]
+    contributor_state: Optional[str]
     record_number: int
 
 
@@ -523,6 +536,11 @@ def _count_rows(
 
 
 def _contribution_from_row(row) -> ContributionPayment:
+    # ``load_zip_state_reference`` is cached, so this is a dict lookup per row rather
+    # than a file read. A missing or damaged reference leaves every state ``None``,
+    # which reads as "we cannot say" and never as a wrong location.
+    reference = load_zip_state_reference()
+    contributor_zip = row[14]
     return ContributionPayment(
         recipient_registration_number=row[0],
         recipient_name=row[1],
@@ -537,6 +555,10 @@ def _contribution_from_row(row) -> ContributionPayment:
         receipt_type=row[10],
         in_kind=row[11],
         in_kind_description=row[12],
+        contributor_zip=contributor_zip,
+        contributor_state=(
+            reference.state_for(contributor_zip) if reference is not None else None
+        ),
         record_number=int(row[13]),
     )
 
@@ -604,7 +626,7 @@ _CONTRIBUTIONS = _Download(
     columns=(
         "recipient_reg_num, recipient, recipient_type, contributor, contrib_reg_num, "
         "contrib_type, contrib_employer_name, amount, receipt_date, year, receipt_type, "
-        "in_kind, in_kind_descr, row_number"
+        "in_kind, in_kind_descr, row_number, contrib_zip"
     ),
     date_column="receipt_date",
     build=_contribution_from_row,

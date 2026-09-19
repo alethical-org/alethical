@@ -9,7 +9,11 @@ import type {
   CommitteeDonorStates,
   CommitteeReceivedPayment,
 } from '../../../data/types';
-import { CommitteeDonationCardsView, CONNECTION_COLORS } from '../CommitteeDonationCards';
+import {
+  CommitteeDonationCardsView,
+  CONNECTION_COLORS,
+  LOCATION_COLORS,
+} from '../CommitteeDonationCards';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../../lib/campaignMoneyColors';
 import source from './fixtures/committee-donation-cards-17868-2025.json';
 
@@ -84,8 +88,26 @@ function render(
   return container;
 }
 
+/** The panel's own expandable rows. The location block left the panel and is found by
+ *  `locations` below. */
 function cards(container: HTMLElement) {
   return [...container.querySelectorAll<HTMLElement>('[data-testid*="-donation-card-"]')];
+}
+
+/** The contributor-location card: its own region, outside and above the panel. */
+function locations(container: HTMLElement) {
+  return [...container.querySelectorAll<HTMLElement>('[role="region"]')].find(
+    (region) =>
+      region.querySelector('h2')?.textContent ===
+      'Where itemized individual contributions came from',
+  );
+}
+
+function panel(container: HTMLElement) {
+  return [...container.querySelectorAll<HTMLElement>('[role="region"]')].find(
+    (region) =>
+      region.querySelector('h2')?.textContent === 'More on this year\u2019s contributions',
+  )!;
 }
 
 function cells(table: HTMLTableElement) {
@@ -102,6 +124,9 @@ function tableWithCaption(card: HTMLElement, caption: string) {
   return table!;
 }
 
+/** One individual contribution, which is what proves the rows exist at all. */
+const individualCash = payment('500.0000', { contributor: null, contributorType: 'Individual' });
+
 const singleClosingPayment = [
   payment('500.0000'),
   payment('9000', { inKind: 'Yes' }),
@@ -112,11 +137,10 @@ const singleClosingPayment = [
 describe('drawn donation cards from committee 17868 in 2025', () => {
   it('prints all approved figures, labels, notes and exact-spelling limits', () => {
     const page = render({ payments: singleClosingPayment });
-    const [filing, locations, connections] = cards(page);
-    expect(cards(page)).toHaveLength(3);
+    const [filing, connections] = cards(page);
+    expect(cards(page)).toHaveLength(2);
     expect(cards(page).map((card) => card.querySelector('h3')?.textContent)).toEqual([
       'What the committee’s own report says',
-      'Where itemized individual contributions came from',
       'Contributor names also listed for other candidates',
     ]);
 
@@ -145,18 +169,30 @@ describe('drawn donation cards from committee 17868 in 2025', () => {
     );
     expect(filing.textContent?.match(/Who gave/g)).toHaveLength(1);
 
-    expect(cells(locations.querySelector('table')!)).toEqual([
-      ['Minnesota', '71', '$38,700'],
-      ['Other states', '0', '$0'],
-      ['Unknown', '3', '$1,250'],
+    const place = locations(page)!;
+    expect(cells(place.querySelector('table')!)).toEqual([
+      ['Minnesota', '71', '$38,700', '96.9%'],
+      ['Other states', '0', '$0', '0%'],
+      ['Unknown', '3', '$1,250', '3.1%'],
     ]);
-    expect(
-      [...locations.querySelectorAll('thead th')].map((heading) => heading.textContent),
-    ).toEqual(['', 'Names', 'Amount']);
-    expect(locations.textContent).not.toContain('Counts individual donors only');
-    expect(locations.textContent).toContain(
-      'Unknown means the state’s file has no usable ZIP code to identify the donor’s state',
+    expect([...place.querySelectorAll('thead th')].map((heading) => heading.textContent)).toEqual([
+      'State',
+      'Names',
+      'Amount',
+      'Share of dollars',
+    ]);
+    expect(place.querySelector('caption')?.textContent).toBe(
+      'Itemized individual contributions by state, 2025',
     );
+    expect(place.textContent).toContain(
+      'Shares of dollars by state, excluding donated goods and services',
+    );
+    expect([...place.querySelectorAll('p')].map((line) => line.textContent)).toEqual([
+      'Shares of dollars by state, excluding donated goods and services',
+      'States are identified from ZIP codes in the state’s file',
+      'Unknown means the state’s file has no usable ZIP code to identify the donor’s state',
+      'Names count distinct spellings within each row, including contributions of goods and services. The same name can appear in more than 1 state.',
+    ]);
 
     expect(connections.textContent).toContain('19 of 74 names');
     expect(connections.textContent).toContain(
@@ -198,7 +234,7 @@ describe('drawn donation cards from committee 17868 in 2025', () => {
   });
 
   it('uses the neutral five-step ramp in both the bar and its square swatches', () => {
-    const connections = cards(render())[2];
+    const connections = cards(render())[1];
     expect(CONNECTION_COLORS).toEqual(['#8a918b', '#6b736c', '#4d574f', '#2f3a31', '#11150f']);
     const color = (value: string) => {
       const probe = document.createElement('div');
@@ -234,34 +270,50 @@ describe('all donation-card states', () => {
   it.each([
     ['a check that has not passed', 'not_checked', 2024],
     ['a year with no filed report', 'not_run', 2023],
-  ])('holds all 3 cards for %s and names the viewed year', (_case, state, year) => {
+  ])('holds all 3 blocks for %s and names the viewed year', (_case, state, year) => {
     const held = committee({ split: { ...realCommittee.split, statedSplitState: state } });
     const page = render({ committee: held, year });
     expect(cards(page).map((card) => card.textContent)).toEqual([
       `What the committee’s own report saysThis card needs a filed report for ${year} and our own figures checked against it. We do not yet have both, so no figures are drawn here.`,
-      `Where itemized individual contributions came fromWe draw this only from a year whose donations we have checked against a filed report. ${year} is not yet one of them, so there is nothing here.`,
       `Contributor names also listed for other candidatesNo names are matched for ${year}. We match only from a year whose donations we have checked against a filed report, and that is not yet the case here.`,
     ]);
+    const place = locations(page)!;
+    expect(place.textContent).toBe(
+      'Where itemized individual contributions came fromShares of dollars by state, excluding ' +
+        `donated goods and servicesWe cannot show this breakdown for ${year} because the ` +
+        'contributions have not passed our check against a filed report',
+    );
+    expect(place.querySelector('table')).toBeNull();
+    expect(place.querySelector('[role="img"]')).toBeNull();
   });
 
   it('keeps each heading visible while its figures load', () => {
     const page = render({ loading: true });
-    expect(cards(page)).toHaveLength(3);
+    expect(cards(page)).toHaveLength(2);
     expect(page.querySelectorAll('[role="status"][aria-busy="true"]')).toHaveLength(3);
     expect(
       [...page.querySelectorAll('[role="status"]')].map(
         (state) => state.querySelector('span')?.textContent,
       ),
     ).toEqual(['Loading', 'Loading', 'Loading']);
+    // The location card's placeholders rest: the word Loading already says a read is in
+    // flight, and a pulse says it a second time in motion.
+    const resting = [...locations(page)!.querySelectorAll<HTMLElement>('[aria-hidden="true"]')];
+    expect(resting).toHaveLength(3);
+    for (const block of resting) expect(block.className).toBe('');
+    expect(locations(page)!.querySelector('style')).toBeNull();
   });
 
   it('gives each failed card its own alert and one retry sentence', () => {
     const page = render({ failed: true });
     expect([...page.querySelectorAll('[role="alert"]')].map((alert) => alert.textContent)).toEqual([
-      'We couldn’t load this comparison right now. Please try again in a moment.',
       'We couldn’t load where these donations came from right now. Please try again in a moment.',
+      'We couldn’t load this comparison right now. Please try again in a moment.',
       'We couldn’t load these matches right now. Please try again in a moment.',
     ]);
+    // A failed read is never an empty list or a zero.
+    expect(locations(page)!.querySelector('table')).toBeNull();
+    expect(locations(page)!.textContent).not.toContain('$0');
   });
 
   it('uses the viewed year when checked data has no individual donations', () => {
@@ -289,10 +341,14 @@ describe('all donation-card states', () => {
       },
     });
     const page = render({ committee: empty, year });
-    expect(cards(page)[1].textContent).toBe(
-      'Where itemized individual contributions came fromThe state’s list names no individual contributions for this committee in 2022',
+    expect(locations(page)!.textContent).toBe(
+      'Where itemized individual contributions came fromShares of dollars by state, excluding ' +
+        'donated goods and servicesThe state’s list names no individual contributions for ' +
+        'this committee in 2022',
     );
-    expect(cards(page)[2].textContent).toBe(
+    expect(locations(page)!.querySelector('table')).toBeNull();
+    expect(locations(page)!.querySelector('[role="img"]')).toBeNull();
+    expect(cards(page)[1].textContent).toBe(
       'Contributor names also listed for other candidatesWith no itemized individual contributions in 2022, there is no name to match against other candidates',
     );
   });
@@ -331,12 +387,31 @@ describe('all donation-card states', () => {
         top_names: [],
       },
     });
-    const [, locations, connections] = cards(
-      render({ committee: noUsableNames, payments: [individualPayment] }),
-    );
-    expect(locations.textContent).not.toContain('list names no individual contributions');
-    if (cash === '0') expect(locations.querySelector('[role="alert"]')).not.toBeNull();
-    else expect(locations.textContent).toContain('$500');
+    const page = render({ committee: noUsableNames, payments: [individualPayment] });
+    const place = locations(page)!;
+    const connections = cards(page)[1];
+    expect(place.textContent).not.toContain('list names no individual contributions');
+    if (cash === '0') {
+      // Rows exist and none carries cash. Its own sentence, its own table of real zeros,
+      // and no bar -- never the no-rows sentence and never a failed read.
+      expect(place.textContent).toContain(
+        'No itemized individual contribution dollars listed for 2025',
+      );
+      expect(place.querySelector('[role="alert"]')).toBeNull();
+      expect(place.querySelector('[role="img"]')).toBeNull();
+      expect(cells(place.querySelector('table')!)).toEqual([
+        ['Minnesota', '0', '$0', 'Not applicable'],
+        ['Other states', '0', '$0', 'Not applicable'],
+        ['Unknown', '0', '$0', 'Not applicable'],
+      ]);
+    } else {
+      expect(place.textContent).toContain('$500');
+      expect(cells(place.querySelector('table')!)).toEqual([
+        ['Minnesota', '0', '$0', '0%'],
+        ['Other states', '0', '$0', '0%'],
+        ['Unknown', '0', '$500', '100.0%'],
+      ]);
+    }
 
     expect(connections.querySelector('[role="alert"]')?.textContent).toBe(
       'We couldn’t load these matches right now. Please try again in a moment.',
@@ -354,14 +429,16 @@ describe('all donation-card states', () => {
         unknown: { names: 0, cash_total: '500.0000' },
       },
     };
-    const locations = cards(render({ committee: committee({ donorStates }) }))[1];
-    expect(locations.textContent).not.toContain(
+    const place = locations(
+      render({ committee: committee({ donorStates }), payments: [individualCash] }),
+    )!;
+    expect(place.textContent).not.toContain(
       'The state’s list names no individual contributions for this committee in 2025',
     );
-    expect(cells(locations.querySelector('table')!)).toEqual([
-      ['Minnesota', '0', '$0'],
-      ['Other states', '0', '$0'],
-      ['Unknown', '0', '$500'],
+    expect(cells(place.querySelector('table')!)).toEqual([
+      ['Minnesota', '0', '$0', '0%'],
+      ['Other states', '0', '$0', '0%'],
+      ['Unknown', '0', '$500', '100.0%'],
     ]);
   });
 
@@ -375,6 +452,9 @@ describe('all donation-card states', () => {
           'Contributor names also listed for other candidates',
         );
         expect(page.textContent).not.toContain('What the committee’s own report says');
+        // Absent entirely: no heading, no empty table, no message. We say nothing rather
+        // than claiming a fund or a party organisation has no individual contributions.
+        expect(locations(page)).toBeUndefined();
         expect(page.textContent).not.toContain('Where itemized individual contributions came from');
       }
     },
@@ -391,16 +471,16 @@ describe('all donation-card states', () => {
             : state === 'disagreeing'
               ? { ...source.stated_by_kind, state: 'sources_disagree' }
               : { ...source.stated_by_kind, lines: [] };
-      const [filing, locations, connections] = cards(
-        render({ committee: committee({ statedByKind }) }),
-      );
+      const page = render({ committee: committee({ statedByKind }) });
+      const [filing, connections] = cards(page);
+      const place = locations(page)!;
       expect(filing.querySelector('table')).toBeNull();
-      expect(locations.textContent).toContain('Minnesota');
-      expect(locations.textContent).toContain('$38,700');
-      expect(locations.querySelectorAll('table')).toHaveLength(1);
+      expect(place.textContent).toContain('Minnesota');
+      expect(place.textContent).toContain('$38,700');
+      expect(place.querySelectorAll('table')).toHaveLength(1);
       expect(connections.textContent).toContain('19 of 74 names');
       expect(connections.querySelectorAll('table')).toHaveLength(2);
-      expect(locations.querySelector('[role="alert"]')).toBeNull();
+      expect(place.querySelector('[role="alert"]')).toBeNull();
       expect(connections.querySelector('[role="alert"]')).toBeNull();
     },
   );
@@ -428,35 +508,210 @@ describe('all donation-card states', () => {
 });
 
 describe('several other states', () => {
+  /** Deliberately out of alphabetical order in the source, and Wyoming carries names with
+   *  no cash: a state we hold a spelling for is never dropped for giving $0. */
+  const several: CommitteeDonorStates = {
+    ...source.donor_states,
+    rows: [
+      source.donor_states.rows[0],
+      { state: 'WI', names: 3, cash_total: '300.0000' },
+      { state: 'DC', names: 1, cash_total: '1000.0000' },
+      { state: 'CA', names: 2, cash_total: '200.0000' },
+      { state: 'MA', names: 1, cash_total: '20.0000' },
+      { state: 'WY', names: 2, cash_total: '0' },
+      source.donor_states.rows[1],
+    ],
+    summary: {
+      ...source.donor_states.summary,
+      other_states: { names: 8, cash_total: '1520.0000' },
+    },
+  };
+
   it.each([
-    ['computer', false, null],
-    ['phone', true, '3'],
-  ])('keeps each state named and its figures aligned on %s', (_band, mobile, colSpan) => {
+    ['computer', false, false, 28],
+    ['tablet', false, true, 26],
+    ['phone', true, false, 14],
+  ])('nests every state under its subtotal on %s', (_band, mobile, tablet, indent) => {
     responsive.isMobile = mobile;
+    responsive.isTablet = tablet;
+    const place = locations(
+      render({ committee: committee({ donorStates: several }), payments: [individualCash] }),
+    )!;
+    // Full names, alphabetical, District of Columbia inline under D, and all 4 columns at
+    // every band so no name, amount or share is lost on a phone.
+    expect(cells(place.querySelector('table')!)).toEqual([
+      ['Minnesota', '71', '$38,700', '93.3%'],
+      ['Other states', '8', '$1,520', '3.7%'],
+      ['California', '2', '$200', '0.5%'],
+      ['District of Columbia', '1', '$1,000', '2.4%'],
+      ['Massachusetts', '1', '$20', '<0.1%'],
+      ['Wisconsin', '3', '$300', '0.7%'],
+      ['Wyoming', '2', '$0', '0%'],
+      ['Unknown', '3', '$1,250', '3.0%'],
+    ]);
+    for (const row of place.querySelectorAll('th[scope="row"]')) {
+      expect(row.getAttribute('colspan')).toBeNull();
+    }
+    const nested = [...place.querySelectorAll<HTMLElement>('th[scope="row"]')].filter((row) =>
+      ['California', 'District of Columbia', 'Massachusetts', 'Wisconsin', 'Wyoming'].includes(
+        row.textContent ?? '',
+      ),
+    );
+    expect(nested).toHaveLength(5);
+    for (const row of nested) {
+      expect(row.style.paddingLeft).toBe(`${indent}px`);
+      // A word the browser may not break: Massachusetts must never read Massachuset / ts.
+      expect(row.style.overflowWrap).toBe('');
+      expect(row.style.wordBreak).toBe('');
+    }
+    // The caption is the only place the subtotal relationship is stated in words.
+    expect(place.querySelector('caption')?.textContent).toBe(
+      'Itemized individual contributions by state, 2025. States listed under Other states ' +
+        'are included in its subtotal.',
+    );
+    // Individual state names need not add to the subtotal's 8: one spelling can sit in 2
+    // states. The dollars do add.
+    expect(place.textContent).not.toContain('Total');
+    responsive.isMobile = false;
     responsive.isTablet = false;
+  });
+
+  it('keeps a long state list whole, with no bucket, cut-off or Show more', () => {
+    const many = [
+      ['AZ', 1, '500'],
+      ['CA', 4, '3250'],
+      ['CO', 2, '900'],
+      ['CT', 1, '250'],
+      ['DC', 3, '4500'],
+      ['FL', 2, '1200'],
+      ['GA', 1, '400'],
+      ['IL', 2, '1500'],
+      ['IA', 1, '300'],
+      ['MA', 2, '1750'],
+      ['MI', 1, '250'],
+      ['NH', 1, '150'],
+      ['NY', 3, '2600'],
+      ['NC', 1, '350'],
+      ['ND', 2, '2000'],
+      ['PA', 1, '600'],
+      ['SD', 1, '400'],
+      ['TX', 2, '2100'],
+      ['VA', 1, '500'],
+      ['WA', 1, '900'],
+      ['WI', 2, '2000'],
+    ] as const;
     const donorStates: CommitteeDonorStates = {
       ...source.donor_states,
       rows: [
-        source.donor_states.rows[0],
-        { state: 'CA', names: 2, cash_total: '200.0000' },
-        { state: 'WI', names: 3, cash_total: '300.0000' },
-        source.donor_states.rows[1],
+        { state: 'MN', names: 118, cash_total: '74250' },
+        ...many.map(([state, names, cash_total]) => ({ state, names, cash_total })),
+        { state: 'unknown', names: 9, cash_total: '4100' },
       ],
       summary: {
-        ...source.donor_states.summary,
-        other_states: { names: 5, cash_total: '500.0000' },
+        minnesota: { names: 118, cash_total: '74250' },
+        // 35 state-level names against a subtotal of 31: one spelling can sit in more
+        // than 1 state, so the state counts are not required to add to it. The dollars
+        // are, and $26,400 is what these 21 states hold.
+        other_states: { names: 31, cash_total: '26400' },
+        unknown: { names: 9, cash_total: '4100' },
       },
     };
-    const locations = cards(render({ committee: committee({ donorStates }) }))[1];
-    for (const state of ['California', 'Wisconsin']) {
-      const heading = [...locations.querySelectorAll('th[scope="row"]')].find(
-        (candidate) => candidate.textContent === state,
-      )!;
-      expect(heading).not.toBeUndefined();
-      expect(heading.getAttribute('colspan')).toBe(colSpan);
+    const place = locations(
+      render({ committee: committee({ donorStates }), payments: [individualCash] }),
+    )!;
+    const rows = cells(place.querySelector('table')!);
+    expect(rows).toHaveLength(24);
+    expect(many.reduce((sum, [, names]) => sum + names, 0)).toBe(35);
+    expect(rows.map((row) => row[0]).slice(2, -1)).toEqual([
+      'Arizona',
+      'California',
+      'Colorado',
+      'Connecticut',
+      'District of Columbia',
+      'Florida',
+      'Georgia',
+      'Illinois',
+      'Iowa',
+      'Massachusetts',
+      'Michigan',
+      'New Hampshire',
+      'New York',
+      'North Carolina',
+      'North Dakota',
+      'Pennsylvania',
+      'South Dakota',
+      'Texas',
+      'Virginia',
+      'Washington',
+      'Wisconsin',
+    ]);
+    expect(place.textContent).not.toContain('Show more');
+    expect(place.textContent).not.toContain('All other states');
+    expect(place.querySelector('button')).toBeNull();
+    // The state counts add to 35 and the subtotal says 31. Neither figure is corrected
+    // to match the other, and no total row is printed over them.
+    expect(place.textContent).toContain('31');
+    expect(rows.filter((row) => row[0] === 'Total')).toEqual([]);
+  });
+
+  it('announces each figure with its state and its column', () => {
+    const place = locations(
+      render({ committee: committee({ donorStates: several }), payments: [individualCash] }),
+    )!;
+    const table = place.querySelector('table')!;
+    expect(
+      [...table.querySelectorAll('thead th')].map((head) => head.getAttribute('scope')),
+    ).toEqual(['col', 'col', 'col', 'col']);
+    for (const row of table.querySelectorAll<HTMLTableRowElement>('tbody tr')) {
+      expect(row.querySelector('th')?.getAttribute('scope')).toBe('row');
+      expect(row.cells).toHaveLength(4);
     }
-    expect(locations.textContent).toContain('California2$200');
-    expect(locations.textContent).toContain('Wisconsin3$300');
+    // The caption is visible rather than hidden: it is the only place the subtotal
+    // relationship is stated in words.
+    expect(table.querySelector('caption')?.getAttribute('style')).not.toContain('clip:');
+    // Swatches carry nothing a reader needs; the row header already names the category.
+    for (const swatch of place.querySelectorAll('span[aria-hidden="true"]')) {
+      expect(swatch.textContent).toBe('');
+    }
+    expect(place.getAttribute('aria-labelledby')).toBe(place.querySelector('h2')!.id);
+  });
+
+  it('draws one segment per positive category, seamed only between them', () => {
+    const place = locations(
+      render({ committee: committee({ donorStates: several }), payments: [individualCash] }),
+    )!;
+    const bar = place.querySelector<HTMLElement>('[role="img"]')!;
+    const segments = [...bar.children] as HTMLElement[];
+    expect(segments).toHaveLength(3);
+    expect(segments.map((segment) => segment.style.boxShadow)).toEqual([
+      'inset -2px 0 0 #ffffff',
+      'inset -2px 0 0 #ffffff',
+      '',
+    ]);
+    // Proportions, so the last segment lands exactly on the edge rather than a rounded
+    // width leaving or overrunning a sliver.
+    expect(segments.map((segment) => segment.style.flexGrow)).toEqual([
+      '387000000',
+      '15200000',
+      '12500000',
+    ]);
+    expect(segments.every((segment) => segment.style.flexBasis === '0px')).toBe(true);
+    expect(LOCATION_COLORS).toEqual(['#2f3a31', '#6b736c', '#9aa39c']);
+  });
+
+  it('shares divide by every itemized individual dollar, Unknown included', () => {
+    const place = locations(
+      render({ committee: committee({ donorStates: several }), payments: [individualCash] }),
+    )!;
+    // California's $200 is 0.5% of the whole $41,470, never 13.2% of the $1,520 subtotal.
+    expect(place.textContent).toContain('0.5%');
+    expect(place.textContent).not.toContain('13.2%');
+    // Massachusetts gave $20, which is 0.048%. It prints as a positive share too small to
+    // show rather than as nothing.
+    expect(place.textContent).toContain('<0.1%');
+    // Every share is rounded on its own and no row is adjusted to make them total 100%,
+    // so the share column carries no total row at all.
+    expect(place.querySelector('tfoot')).toBeNull();
   });
 });
 
@@ -507,7 +762,7 @@ it('lists positive matches without padding and ends the shorter list without a r
       { name: 'Matched, C', other_committees: 1 },
     ],
   };
-  const connections = cards(render({ committee: committee({ nameConnections }) }))[2];
+  const connections = cards(render({ committee: committee({ nameConnections }) }))[1];
   const table = tableWithCaption(connections, 'Names with the most matches');
   expect(cells(table)).toEqual([
     ['Matched, A', '2'],
@@ -538,21 +793,30 @@ describe('shared contribution panel disclosures', () => {
             year={2025}
             registerKind="candidate_committee"
             payments={singleClosingPayment}
-            expandedRows={[0, 2]}
+            expandedRows={[2]}
             onExpandedRowsChange={onExpandedRowsChange}
           />,
         ),
       );
+      // Two rows, addressed 0 and 2. The location row left the panel and its index left
+      // with it, so a link somebody saved to row 2 still opens the name matches rather
+      // than the report comparison.
       const buttons = [...mount.querySelectorAll('button')];
+      expect(buttons).toHaveLength(2);
       expect(buttons.map((button) => button.getAttribute('aria-expanded'))).toEqual([
-        'true',
         'false',
         'true',
       ]);
-      act(() => buttons[1].click());
-      expect(onExpandedRowsChange).toHaveBeenLastCalledWith([0, 2, 1]);
+      expect(
+        [...mount.querySelectorAll('[data-testid]')].map((row) => row.getAttribute('data-testid')),
+      ).toEqual([
+        `committee-${realCommittee.registrationNumber}-donation-card-0`,
+        `committee-${realCommittee.registrationNumber}-donation-card-2`,
+      ]);
       act(() => buttons[0].click());
-      expect(onExpandedRowsChange).toHaveBeenLastCalledWith([2]);
+      expect(onExpandedRowsChange).toHaveBeenLastCalledWith([2, 0]);
+      act(() => buttons[1].click());
+      expect(onExpandedRowsChange).toHaveBeenLastCalledWith([]);
     } finally {
       act(() => root.unmount());
     }
@@ -579,9 +843,8 @@ describe('shared contribution panel disclosures', () => {
     try {
       draw(2025);
       const buttons = [...mount.querySelectorAll('button')];
-      expect(buttons).toHaveLength(3);
+      expect(buttons).toHaveLength(2);
       expect(buttons.map((button) => button.getAttribute('aria-expanded'))).toEqual([
-        'false',
         'false',
         'false',
       ]);
@@ -595,7 +858,6 @@ describe('shared contribution panel disclosures', () => {
       expect(buttons.map((button) => button.getAttribute('aria-expanded'))).toEqual([
         'true',
         'true',
-        'false',
       ]);
       expect(document.getElementById(buttons[0].getAttribute('aria-controls')!)!.hidden).toBe(
         false,

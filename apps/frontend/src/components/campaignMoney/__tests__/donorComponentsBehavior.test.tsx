@@ -374,6 +374,68 @@ describe('the donor list preserves the complete filed record', () => {
     );
   });
 
+  it('gives each opened payment its own filed state and ZIP, exactly as the file holds it', () => {
+    // One spelling, 3 payments, 3 different filed locations. A location on the grouped
+    // name would be wrong rather than merely rounded, which is why it sits on the row.
+    const groups = groupContributionPayments([
+      gift({ contributorState: 'MN', contributorZip: '55401' }),
+      gift({ contributorState: null, contributorZip: '553' }),
+      gift({ contributorState: 'DC', contributorZip: '20500-0003' }),
+    ]);
+    const view = mount(list({ groups }));
+    click(view.querySelector('[aria-label="Show the 3 payments from Amy Example"]'));
+    const lines = [...view.querySelectorAll('div')]
+      .map((node) => node.textContent ?? '')
+      .filter((text) => text.startsWith('State: ') && text.includes('ZIP code as filed'));
+    expect([...new Set(lines)]).toEqual([
+      'State: Minnesota \u00b7 ZIP code as filed: 55401',
+      // A 4-digit value prints as the record holds it: never padded to 55300, never
+      // repaired, and with no state guessed from it.
+      'State: Unknown \u00b7 ZIP code as filed: 553',
+      // ZIP+4 resolves and still prints whole.
+      'State: District of Columbia \u00b7 ZIP code as filed: 20500-0003',
+    ]);
+    expect(view.textContent).not.toContain('Minneapolis');
+  });
+
+  it('says a ZIP was not reported rather than inventing one, and stays silent without the field', () => {
+    const filedWithNoZip = mount(
+      list({
+        groups: groupContributionPayments([gift({ contributorState: null, contributorZip: null })]),
+      }),
+    );
+    click(filedWithNoZip.querySelector('[aria-label="Show the 1 payment from Amy Example"]'));
+    expect(filedWithNoZip.textContent).toContain(
+      'State: Unknown \u00b7 ZIP code as filed: Not reported',
+    );
+    act(() => root!.unmount());
+    mounted!.remove();
+    // A record that carries no location column at all says nothing. "Not reported" is a
+    // claim about the filing, and nobody read one here.
+    const noColumn = mount(list({ groups: groupContributionPayments([gift()]) }));
+    click(noColumn.querySelector('[aria-label="Show the 1 payment from Amy Example"]'));
+    expect(noColumn.textContent).not.toContain('ZIP code as filed');
+  });
+
+  it('adds no location line to an expenditure row', () => {
+    const payment = {
+      vendorName: 'Example Printer',
+      vendorCity: 'Anoka',
+      vendorState: 'MN',
+      affectedCommitteeName: null,
+      affectedCommitteeRegistrationNumber: null,
+      amount: '250.00',
+      paidOn: '2025-02-02',
+      expenditureType: 'Campaign Expenditure',
+      purpose: 'Print leaflets',
+      inKind: 'No',
+    };
+    const view = mount(list({ groups: groupExpenditurePayments([payment]), tab: 'expenditures' }));
+    click(view.querySelector('[aria-label="Show the 1 payment from Example Printer"]'));
+    expect(view.textContent).toContain('Anoka, MN');
+    expect(view.textContent).not.toContain('ZIP code as filed');
+  });
+
   it('preserves identical gifts and distinct spellings when opening a group', () => {
     const groups = groupContributionPayments([
       gift(),

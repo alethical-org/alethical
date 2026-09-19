@@ -38,8 +38,12 @@ export type DetailedMadePayment = CommitteeMadePayment & {
 };
 export type MoneyDetailsPayment = DetailedReceivedPayment | DetailedMadePayment;
 
-/** Source amounts have at most 4 decimal places. Never sum through floating point. */
-function moneyUnits(value: string | null): bigint | null {
+/** Source amounts have at most 4 decimal places. Never sum through floating point.
+ *
+ *  Exported so the contributor-location card's share arithmetic reads an amount the
+ *  same way this module's totals do. One parser, so a value that adds up here can
+ *  never divide differently there. */
+export function moneyUnits(value: string | null): bigint | null {
   if (value === null || !/^-?\d+(?:\.\d{1,4})?$/.test(value)) return null;
   const negative = value.startsWith('-');
   const [whole, fraction = ''] = (negative ? value.slice(1) : value).split('.');

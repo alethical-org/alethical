@@ -1032,6 +1032,15 @@ export interface CommitteeReceivedPayment {
   receivedOn: string | null;
   receiptType: string | null;
   inKind: string | null;
+  /** The ZIP the state's file holds for THIS payment, exactly as filed. Never padded,
+   *  trimmed or repaired, so a short value reads as the record rather than as our
+   *  error. Payments filed under one spelling can carry different ZIPs, which is why
+   *  it lives on the payment and never on the grouped name. */
+  contributorZip?: string | null;
+  /** The 2-letter state that ZIP resolves to on the server. Null for a missing,
+   *  malformed, unmatched or ambiguous ZIP, which is a statement about the record and
+   *  never a guess at where the donor lives. */
+  contributorState?: string | null;
 }
 
 /** One payment out of a committee. A `Contribution`-typed row names another

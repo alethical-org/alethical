@@ -20,6 +20,10 @@ import { formatDay, formatMoney, isAmountAboveZero } from '../../lib/legislatorC
 import { linkProps, routePath } from '../../navigation/links';
 import { numericText, useDetailsStyles } from './detailsStyles';
 import { moneyDetailsCopy as copy } from '../../lib/campaignMoneyDetailsCopy';
+import {
+  donationCardsCopy as locationCopy,
+  donorStateNames as stateNames,
+} from '../../lib/contributionFigures';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { contentTabStyle } from '../../theme/contentTabs';
 import { LobbyingDonationContext } from '../lobbying/LobbyingDonationContext';
@@ -340,54 +344,73 @@ function PaymentGroup({
                   payment.vendorState ||
                   payment.purpose ||
                   payment.expenditureType));
+            // Contributor payments only, and only where the record we hold actually
+            // carries the column: an absent field is not a filing with no ZIP, and
+            // printing "Not reported" for it would state something nobody read.
+            const location =
+              received && 'contributorZip' in payment
+                ? locationCopy.paymentLocation(
+                    payment.contributorState
+                      ? (stateNames[payment.contributorState] ?? null)
+                      : null,
+                    payment.contributorZip ?? null,
+                  )
+                : null;
             return (
-              <View key={index} style={[styles.payment, isMobile && styles.paymentMobile]}>
-                <Text style={[s.small, styles.paymentDate]}>
-                  {formatDay(date) ?? copy.dateMissing}
-                </Text>
-                {hasDetails ? (
-                  <View style={[styles.paymentDetails, isMobile && styles.paymentDetailsMobile]}>
-                    {!received ? (
-                      <>
-                        {[payment.vendorCity, payment.vendorState].filter(Boolean).length ? (
-                          <Text
-                            style={[
-                              s.small,
-                              numericText([payment.vendorCity, payment.vendorState].join(' ')),
-                              styles.paymentText,
-                            ]}
-                          >
-                            {[payment.vendorCity, payment.vendorState].filter(Boolean).join(', ')}
-                          </Text>
-                        ) : null}
-                        {payment.purpose ? (
-                          <Text style={[s.small, numericText(payment.purpose), styles.paymentText]}>
-                            {payment.purpose}
-                          </Text>
-                        ) : null}
-                        {payment.expenditureType ? (
-                          <Text
-                            style={[
-                              s.small,
-                              numericText(payment.expenditureType),
-                              styles.paymentText,
-                            ]}
-                          >
-                            {payment.expenditureType}
-                          </Text>
-                        ) : null}
-                      </>
-                    ) : null}
-                    {payment.inKind === 'Yes' ? (
-                      <Text style={[s.small, s.lettered]}>{copy.inKindMarker}</Text>
-                    ) : null}
-                  </View>
+              <View key={index} style={styles.payment}>
+                <View style={[styles.paymentRow, isMobile && styles.paymentMobile]}>
+                  <Text style={[s.small, styles.paymentDate]}>
+                    {formatDay(date) ?? copy.dateMissing}
+                  </Text>
+                  {hasDetails ? (
+                    <View style={[styles.paymentDetails, isMobile && styles.paymentDetailsMobile]}>
+                      {!received ? (
+                        <>
+                          {[payment.vendorCity, payment.vendorState].filter(Boolean).length ? (
+                            <Text
+                              style={[
+                                s.small,
+                                numericText([payment.vendorCity, payment.vendorState].join(' ')),
+                                styles.paymentText,
+                              ]}
+                            >
+                              {[payment.vendorCity, payment.vendorState].filter(Boolean).join(', ')}
+                            </Text>
+                          ) : null}
+                          {payment.purpose ? (
+                            <Text
+                              style={[s.small, numericText(payment.purpose), styles.paymentText]}
+                            >
+                              {payment.purpose}
+                            </Text>
+                          ) : null}
+                          {payment.expenditureType ? (
+                            <Text
+                              style={[
+                                s.small,
+                                numericText(payment.expenditureType),
+                                styles.paymentText,
+                              ]}
+                            >
+                              {payment.expenditureType}
+                            </Text>
+                          ) : null}
+                        </>
+                      ) : null}
+                      {payment.inKind === 'Yes' ? (
+                        <Text style={[s.small, s.lettered]}>{copy.inKindMarker}</Text>
+                      ) : null}
+                    </View>
+                  ) : null}
+                  <Text
+                    style={[s.small, styles.paymentAmount, isMobile && styles.paymentAmountMobile]}
+                  >
+                    {formatMoney(payment.amount) ?? copy.amountMissing}
+                  </Text>
+                </View>
+                {location ? (
+                  <Text style={[s.small, styles.paymentLocation]}>{location}</Text>
                 ) : null}
-                <Text
-                  style={[s.small, styles.paymentAmount, isMobile && styles.paymentAmountMobile]}
-                >
-                  {formatMoney(payment.amount) ?? copy.amountMissing}
-                </Text>
               </View>
             );
           })}
@@ -697,10 +720,12 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(17,21,15,0.12)',
     borderStyle: 'dashed',
     paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
   },
+  paymentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  /** A full-width line of its own under the payment, because it belongs to THIS payment:
+   *  2 payments filed under one spelling can carry 2 different ZIPs, and a location on
+   *  the grouped name would be wrong rather than merely rounded. */
+  paymentLocation: { marginTop: 8, color: c.muted, fontVariant: ['tabular-nums'] },
   paymentMobile: { flexWrap: 'wrap', rowGap: 6 },
   paymentDate: {
     width: 104,

@@ -731,6 +731,66 @@ describe('one committee shares the donation browser', () => {
     expect(host.textContent?.match(/Total itemized expenditures/g)).toHaveLength(1);
   });
 
+  it('puts contributor locations in their own card above the panel, open from load', async () => {
+    // The card draws only where the year's contributions agree with a filed report.
+    payload.split = { ...payload.split!, stated_split_state: 'agrees' };
+    (payload as unknown as Record<string, unknown>).donor_states = {
+      state: 'reported',
+      year: 2025,
+      rows: [
+        { state: 'MN', names: 71, cash_total: '38700.0000' },
+        { state: 'WI', names: 2, cash_total: '1200.0000' },
+        { state: 'unknown', names: 3, cash_total: '1250.0000' },
+      ],
+      summary: {
+        minnesota: { names: 71, cash_total: '38700.0000' },
+        other_states: { names: 2, cash_total: '1200.0000' },
+        unknown: { names: 3, cash_total: '1250.0000' },
+      },
+      reference: {
+        source_url: 'https://www.huduser.gov/portal/datasets/usps_crosswalk.html',
+        as_of: '2026-06-30',
+        copied_at: '2026-09-13T12:19:46.695703+00:00',
+        content_hash: 'f'.repeat(64),
+      },
+    };
+    shape();
+    await render();
+    const heading = 'Where itemized individual contributions came from';
+    const card = [...host.querySelectorAll<HTMLElement>('[role="region"]')].find(
+      (region) => region.querySelector('h2')?.textContent === heading,
+    )!;
+    expect(card).toBeTruthy();
+    // Outside the panel, not a row inside it, and nothing to click to reach the figures.
+    const panelHeading = [...host.querySelectorAll('h2')].find(
+      (node) => node.textContent === 'More on this year\u2019s contributions',
+    )!;
+    expect(card.contains(panelHeading)).toBe(false);
+    expect(
+      card.compareDocumentPosition(panelHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(card.querySelector('button')).toBeNull();
+    expect(card.querySelector('table')).not.toBeNull();
+    const figures = [...card.querySelectorAll<HTMLTableRowElement>('tbody tr')].map((row) =>
+      [...row.cells].map((cell) => cell.textContent),
+    );
+    expect(figures).toEqual([
+      ['Minnesota', '71', '$38,700', '94.0%'],
+      ['Other states', '2', '$1,200', '2.9%'],
+      ['Wisconsin', '2', '$1,200', '2.9%'],
+      ['Unknown', '3', '$1,250', '3.0%'],
+    ]);
+    // The panel keeps its 2 rows, in order, each still expandable.
+    expect(
+      [...host.querySelectorAll('[data-testid*="-donation-card-"]')].map(
+        (row) => row.querySelector('h3')?.textContent,
+      ),
+    ).toEqual([
+      'What the committee\u2019s own report says',
+      'Contributor names also listed for other candidates',
+    ]);
+  });
+
   it('shows an unconfirmed party unit with its unnamed slice, all payments, and authoritative outside zero', async () => {
     payload = structuredClone(partyFinance.data) as ApiCommitteeMoneyPayload;
     params.slug = 'mn-dfl-state-central-committee-20003';

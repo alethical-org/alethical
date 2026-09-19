@@ -635,15 +635,24 @@ Every page of received and made payments must load from one release before list 
 and counts appear. Showing 10 groups first is a display limit, not a partial-data total.
 The search works within the loaded tab. Sorts are largest, smallest, name A to Z, newest
 and oldest, with missing dates last. Search leaves whole-tab counts and totals unchanged.
-Opening a group shows all its payments. Repeated-looking payments are kept. A committee
+Opening a group shows all its payments. Repeated-looking payments are kept. Each opened
+payment carries its own line reading “State: {state} · ZIP code as filed: {zip}”, under
+the date, amount and employer text it already had. The state is worked out from that
+payment's own ZIP code, so 2 payments filed under one spelling can show 2 different
+places, and the ZIP prints exactly as the state's file holds it: a 4-digit or blank
+value is the record rather than our mistake, and nothing is padded, corrected, or turned
+into a city or street address. A payment whose ZIP cannot name a state reads “State:
+Unknown”, and one filed with no ZIP at all reads “ZIP code as filed: Not reported”.
+Payments out to suppliers carry no such line. A committee
 name with a known registration destination is a real link; private names stay plain
 text on this profile. The exact-name lookup on `/money/payments` groups payments by year
 and filing committee or spender. That lookup does not establish a donor's identity or
 show donor overlap.
 
-After each committee's payment browser, **More on this year’s contributions** groups
-its report comparison, individual geography and exact-name comparison into independently
-opening rows. History and refunds follow that panel for the same committee. The profile's
+After each committee's payment browser, **Where itemized individual contributions came
+from** is its own card, open the moment the page loads, and **More on this year’s
+contributions** follows 18px below it with the report comparison and the exact-name
+comparison in independently opening rows. History and refunds follow that panel for the same committee. The profile's
 **Committee details and filings** link opens that committee's `tab=filings` view while
 retaining the selected year for a return to Campaign money.
 
@@ -982,14 +991,24 @@ Campaign money, top to bottom:
    grouped outside spending. The separate `/payments?tab=gave|spent&year=…` addresses
    retain their complete received and outgoing lists.
 
-9. **More on this year’s contributions**, after the **View receipts and expenditures** link. This shared
-   panel contains **What the committee’s own report says**, **Where itemized individual
-   contributions came from**, and **Contributor names also listed for other candidates**,
-   in that order. Each row starts closed on a fresh address, and several can stay open.
-   Open rows are recorded in the address for the selected committee and year. The
+9. **Where itemized individual contributions came from**, after the **View receipts and
+   expenditures** link. Its own card, with nothing to click to reach the figures. A bar
+   shows Minnesota, other states and unknown as shares of every itemized individual
+   contribution dollar the committee took that year, and a table under it gives each
+   one's name count, amount and share, with every state that gave money listed
+   alphabetically by its full name under **Other states**. The card is absent for a
+   political fund or a party organisation, which this display does not cover; that
+   absence is never a statement that they took no individual contributions.
+
+10. **More on this year’s contributions**, 18px below the location card. This shared
+   panel contains **What the committee’s own report says** and **Contributor names also
+   listed for other candidates**, in that order. Each row starts closed on a fresh
+   address, and several can stay open. Open rows are recorded in the address for the
+   selected committee and year, as row 0 and row 2; row 1 belonged to the location block
+   and is not reused, so a link somebody saved still opens the row it named. The
    existing tables and qualifications appear under their row without a repeated title.
-   A party unit or political committee or fund omits the candidate-report comparison;
-   noncandidate committees omit individual geography. Missing or failed data for an
+   A party unit or political committee or fund omits the candidate-report comparison.
+   Missing or failed data for an
    eligible row stays visible as that row's own explanation. One unavailable comparison
    does not erase an independently available geography or names result. Opening a row
    reuses the selected-year records already requested, rather than making a new request.
@@ -997,7 +1016,7 @@ Campaign money, top to bottom:
    focus ring surrounds the arrow's rounded 44px area, with the arrow centred and
    no second keyboard stop.
 
-10. **Spending by outside groups**, after the shared contribution panel. It
+11. **Spending by outside groups**, after the shared contribution panel. It
     follows the selected year and groups spending about this registration number by
     spender, with supporting and opposing separate. Each spender's chip reads
     **Supporting**, **Opposing** or **Not stated**, in the same words the row gives a
@@ -1009,7 +1028,7 @@ Campaign money, top to bottom:
     A failed grouped read keeps any independently served figures and says the list
     failed; it never invents a count of spenders.
 
-11. **What this record covers** contains 3 standalone lines:
+12. **What this record covers** contains 3 standalone lines:
 
     - Campaign finance reports filed with the Minnesota Campaign Finance and Public Disclosure Board
     - Campaign finance figures in our copy start in 2015

@@ -121,14 +121,18 @@ const MIX = 'How the mix of itemized contributions changed by year';
 // Static markup escapes the apostrophe, so the heading is matched as it is served.
 const REFUNDS = 'Refunds Minnesota paid to this committee&#x27;s donors';
 const OUTSIDE = 'Spending by outside groups';
+const LOCATIONS = 'Where itemized individual contributions came from';
 
 describe('the order of the Campaign money tab', () => {
-  it('keeps one committee together: its card, 3 donation cards, its chart, then its refunds', () => {
+  it('keeps one committee together: card, locations, the panel, its chart, then refunds', () => {
     const html = render([committee('17868')]);
+    // The location card sits OUTSIDE the panel and above it, so it lands before the
+    // panel's own first row rather than between 2 of them.
     const order = [
       html.indexOf('Fixture Senate committee 17868'),
+      html.indexOf(LOCATIONS),
+      html.indexOf('More on this year'),
       html.indexOf('committee-17868-donation-card-0'),
-      html.indexOf('committee-17868-donation-card-1'),
       html.indexOf('committee-17868-donation-card-2'),
       html.indexOf(MIX),
       html.indexOf('committee-17868-refunds'),
@@ -137,6 +141,9 @@ describe('the order of the Campaign money tab', () => {
     expect(order.every((at) => at >= 0)).toBe(true);
     expect(order).toEqual([...order].sort((a, b) => a - b));
     expect(html).toContain(REFUNDS);
+    // The row the location block used to be is gone from the panel, and its address is
+    // not reused: a saved link to row 2 still opens the name matches.
+    expect(html).not.toContain('committee-17868-donation-card-1');
   });
 
   it('repeats the block per committee and still draws outside spending once, last', () => {
@@ -145,11 +152,16 @@ describe('the order of the Campaign money tab', () => {
     const second = at('Fixture Senate committee 15667');
     // The first committee's chart and refunds both land before the second one starts,
     // so no committee's block is split by another committee's.
-    for (const index of [0, 1, 2]) {
+    for (const index of [0, 2]) {
       expect(at(`committee-17868-donation-card-${index}`)).toBeLessThan(at(MIX));
       expect(at(`committee-15667-donation-card-${index}`)).toBeGreaterThan(second);
       expect(at(`committee-15667-donation-card-${index}`)).toBeLessThan(at(MIX, second));
     }
+    // Each committee gets its own location card, never one combined figure.
+    expect(html.split(LOCATIONS)).toHaveLength(3);
+    expect(at(LOCATIONS)).toBeLessThan(at('committee-17868-donation-card-0'));
+    expect(at(LOCATIONS, second)).toBeGreaterThan(second);
+    expect(at(LOCATIONS, second)).toBeLessThan(at('committee-15667-donation-card-0'));
     expect(at(MIX)).toBeLessThan(second);
     expect(at('committee-17868-refunds')).toBeLessThan(second);
     expect(at(MIX, second)).toBeGreaterThan(second);
