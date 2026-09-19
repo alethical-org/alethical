@@ -1,9 +1,9 @@
 """The money section's front door: one typed name, matched against 4 kinds of record.
 
 Net: a reader types a name and gets back what that name **is** in these records -- a
-sitting legislator, a registered committee, a name money was given under, or a name money
-was paid to. Grouped by that, because the 4 lead to 4 different places and only 2 of them
-have a page of their own.
+sitting legislator, a registered committee, a name on a received-payment record, or a
+name on a spending record. Grouped by that, because the results lead to different places
+and only identified records have a page of their own.
 
 **The match is exactly what was typed, and there is no did-you-mean here or anywhere
 downstream of here.** Case-insensitive containment of the reader's string, nothing else:
@@ -26,8 +26,9 @@ so a second copy cannot drift looser.
   (``docs/architecture/campaign-finance-system-design.md`` §5, and the campaign money IA).
 * ``committees`` -- the register, which is the one group whose rows carry an identifier
   that survives a name change: a registration number.
-* ``gave`` -- distinct names in the contributions download, with how many payments carry
-  each. A private donor's name is searchable and is deliberately **not** a profile.
+* ``gave`` -- distinct names in the received-payments download, with how many records
+  carry each. The file includes contributions, loans, and other receipt types. A private
+  contributor's name is searchable and is deliberately **not** a profile.
 * ``got_paid`` and ``got_paid_independent`` -- distinct vendor names, from the
   expenditures download and the independent-expenditures download. **Two groups, never
   one row with one count.** They are 2 separate filings, and 491 rows of the independent
@@ -39,7 +40,7 @@ Every group is returned on every answer, in a fixed order, even when it is empty
 caller can never read a missing group as "no matches" when it meant "we did not look".
 
 **The employer column is deliberately not searched, and there is no group for it.** It is
-free text a donor filled in, and its 4 commonest values in the live release are "Not
+free text on a received-payment record, and its 4 commonest values in the live release are "Not
 Employed" (67,342 rows), "Retired" (36,517), "Self employed Retired" (16,788) and
 "Lawyer" (9,276). A search for "retired" returning a result row would present a status as
 an entity somebody could open.
@@ -275,6 +276,7 @@ class SearchAnswer:
     as_of: Optional[date]
     snapshot_id: Optional[UUID]
     release_id: Optional[UUID]
+    fetched_at: Optional[datetime]
     reason: Optional[str]
     lobbying_release_id: Optional[UUID] = None
     lobbying_copied_at: Optional[datetime] = None
@@ -315,6 +317,7 @@ def _too_short(query: str) -> SearchAnswer:
         as_of=None,
         snapshot_id=None,
         release_id=None,
+        fetched_at=None,
         reason=QUERY_TOO_SHORT,
     )
 
@@ -408,6 +411,10 @@ def search(db: Session, release, *, query: str, limit: int) -> SearchAnswer:
         as_of=register.as_of,
         snapshot_id=register.snapshot_id,
         release_id=getattr(release, "id", None),
+        # This dates the exact release read by the 3 campaign payment-name groups.
+        # It must travel with this answer rather than come from a separate summary
+        # request, which could resolve a newer release between the 2 reads.
+        fetched_at=getattr(release, "fetched_at", None),
         reason=None,
     )
 

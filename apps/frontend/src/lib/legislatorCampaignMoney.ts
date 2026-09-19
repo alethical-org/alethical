@@ -79,7 +79,7 @@ export interface CommitteeOutsideThisYear {
 /** "1 payment" / "272 payments", with the count spelled out rather than bare. */
 export function paymentCountLabel(count: number | null | undefined): string | null {
   if (count === null || count === undefined || !Number.isFinite(count)) return null;
-  return `${count.toLocaleString('en-US')} ${count === 1 ? 'payment' : 'payments'}`;
+  return `${count.toLocaleString('en-US')} ${count === 1 ? 'payment record' : 'payment records'}`;
 }
 
 /**

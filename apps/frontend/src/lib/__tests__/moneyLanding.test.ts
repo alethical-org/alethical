@@ -67,7 +67,7 @@ describe('the landing’s own standalone lines end without a full stop', () => {
 
   it('the Who got paid card says only what the lane does', () => {
     expect(MONEY_LANE_WHO_GOT_PAID.body).toBe(
-      'Every payment filed under a name, as spelled on the filing',
+      'Search payment records by the recipient name and spelling on the filing',
     );
     expect(MONEY_LANE_WHO_GOT_PAID.body).not.toContain('no list of every payee');
   });
@@ -86,15 +86,13 @@ describe('the landing’s own standalone lines end without a full stop', () => {
   it('uses the compact confirmed wording only when every sitting member is confirmed', () => {
     const drawn = legislatorsLaneBody({ confirmed: 200, total: 200 });
     expect(drawn).toBe(
-      'Each legislator’s campaign donations and payments, with their committee match confirmed',
+      'Official contribution totals and named payment records, with every legislator’s committee match confirmed',
     );
   });
 
-  it('says donation and payment, never the filing system’s contribution and expenditure', () => {
-    // Ruled 2 Sep 2026 (copy proposal 3): "expenditure" is the word every other string in
-    // the section avoids for money out, and the subtitle is the first sentence a reader meets.
+  it('names campaign money broadly without calling every received-payment row a donation', () => {
     expect(MONEY_LANDING_SUBTITLE).toBe(
-      'Search Minnesota’s published campaign donations, payments, and lobbying records',
+      'Search Minnesota’s published campaign money and lobbying records',
     );
     expect(MONEY_LANDING_SUBTITLE).not.toContain('expenditure');
   });
@@ -159,19 +157,19 @@ describe('the does-not-cover block', () => {
     expect(MONEY_LANDING_COVERAGE_HEADING).toBe('Limits of the campaign records');
     expect(MONEY_LANDING_RECORD_DOES_NOT_COVER).toEqual([
       'Payment records start in 2015',
-      'Donors who gave $200 or less in total for the year need not be named',
-      'There is no complete directory of payment recipients. Names are shown as filed, and different spellings may refer to the same person or business.',
+      'Contributions totaling $200 or less from a donor to the same committee, party unit or fund in a calendar year may be reported without naming the donor. The threshold is $500 for ballot-question committees and funds. Smaller individual payments can still be named, including when the donor’s yearly total exceeds the threshold.',
+      'Official report totals can include contributions without donor names. Individual records shown here may not add up to those totals.',
+      'There is no complete directory of payment recipients. Records are grouped by the name recorded in the source. Different spellings appear separately, and a matching name alone does not establish identity.',
       'These files cover union political funds, not a union’s wider finances',
     ]);
     expect(RECORD_DOES_NOT_COVER).toHaveLength(3);
     expect(RECORD_DOES_NOT_COVER[0]).toBe('No campaign payments held before 2015');
   });
 
-  it('keeps periods in the multi-sentence limit and leaves single-sentence limits bare', () => {
+  it('keeps the shared multi-sentence limits intact', () => {
+    expect(MONEY_LANDING_RECORD_DOES_NOT_COVER[1].endsWith('.')).toBe(true);
     expect(MONEY_LANDING_RECORD_DOES_NOT_COVER[2].endsWith('.')).toBe(true);
-    for (const index of [0, 1, 3]) {
-      expect(MONEY_LANDING_RECORD_DOES_NOT_COVER[index].endsWith('.')).toBe(false);
-    }
+    expect(MONEY_LANDING_RECORD_DOES_NOT_COVER[3].endsWith('.')).toBe(true);
   });
 });
 
@@ -196,7 +194,7 @@ describe('lane counts', () => {
     expect(laneCountLine(200, LANE_COUNT_UNITS.legislators)).toBe('200 MEMBERS');
     expect(laneCountLine(1603, LANE_COUNT_UNITS.committees)).toBe('1,603 REGISTERED FILERS');
     expect(laneCountLine(222, LANE_COUNT_UNITS.byRace)).toBe('222 CONTESTS');
-    expect(laneCountLine(41130, LANE_COUNT_UNITS.outsideSpending)).toBe('41,130 PAYMENTS');
+    expect(laneCountLine(41130, LANE_COUNT_UNITS.outsideSpending)).toBe('41,130 PAYMENT RECORDS');
   });
 
   // The Who got paid card has no count, and its slot carries no label either: a grey
@@ -304,7 +302,7 @@ describe('confirmation progress', () => {
     );
     expect(legislatorsLaneSentence({ confirmed: 199, total: 200 })).not.toContain('every');
     expect(legislatorsLaneBody({ confirmed: 199, total: 200 })).toContain(
-      'payments. Campaign committee matches confirmed for 199 of',
+      'committee. Campaign committee matches confirmed for 199 of',
     );
   });
 
@@ -318,7 +316,7 @@ describe('confirmation progress', () => {
   it('ends the drawn Legislators body bare, with the internal stop kept', () => {
     const drawn = legislatorsLaneBody({ confirmed: 200, total: 201 });
     expect(drawn.endsWith('.')).toBe(false);
-    expect(drawn).toContain('payments. Campaign committee matches confirmed for 200 of Minnesota');
+    expect(drawn).toContain('committee. Campaign committee matches confirmed for 200 of Minnesota');
   });
 });
 

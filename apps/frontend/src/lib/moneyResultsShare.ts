@@ -39,7 +39,7 @@ export function paymentsUnderNameShareContent(
   return results(
     'payments',
     paymentsUnderNameHeading(name, role),
-    'Records filed under this exact spelling, across the years we hold, newest first',
+    'Payment records filed under this exact spelling, across the years we hold, newest first; a matching name alone does not establish identity',
     routePath.moneyPaymentsUnderName(name, role, query),
   );
 }
@@ -58,7 +58,7 @@ export function committeePaymentsShareContent({
   return results(
     'payments',
     name || `Committee ${registrationNumber}`,
-    `${tab === 'gave' ? 'Payments received' : 'Payments made'} in filing year ${year}, largest first`,
+    `${tab === 'gave' ? 'Incoming payment records' : 'Spending records'} in filing year ${year}, largest first`,
     routePath.moneyCommitteePayments(committeeSlug(name, registrationNumber), {
       year: String(year),
       tab,

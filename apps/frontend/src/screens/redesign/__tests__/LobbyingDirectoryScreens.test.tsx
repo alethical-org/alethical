@@ -321,9 +321,7 @@ describe('lobbying directories', () => {
     ) as HTMLElement;
     act(() => disclosure.click());
     expect(words()).toContain('Campaign contribution file copied Sep 1, 2026');
-    expect(words()).toContain(
-      'Finding no matching records does not mean the lobbyist gave nothing.',
-    );
+    expect(words()).toContain('No matching records does not mean no giving.');
   });
   it('hides a previous year’s amounts while the requested year loads', () => {
     state.lobbyists = success({ ...fixture.lobbyists_page_2, requested_year: 2025, sort: 'name' });

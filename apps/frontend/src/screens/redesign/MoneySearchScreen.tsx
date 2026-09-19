@@ -22,6 +22,7 @@ import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
 import { moneySearchShareContent } from '../../lib/moneyResultsShare';
 import {
   BROWSE_ALL_COMMITTEES,
+  campaignFilesCopiedLine,
   countedUpToNote,
   GROUP_EMPTY,
   GROUP_UNAVAILABLE,
@@ -51,6 +52,7 @@ import {
   tooShortWhy,
   type NameSearchGroupKind,
 } from '../../lib/moneyNameSearch';
+import { centralDateLabel } from '../../lib/moneyLanding';
 import { MONEY_LIST_COVERAGE, MONEY_LIST_COVERAGE_HEADING } from '../../lib/moneyListCopy';
 import { paymentNameRole } from '../../lib/paymentsUnderName';
 import { useDocumentTitle } from '../../navigation/documentTitle';
@@ -138,6 +140,9 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
   const groups = answer?.groups ?? [];
   const anyResult = hasAnyResult(groups);
   const everySearched = everyGroupWasSearched(groups);
+  const campaignFilesCopied = campaignFilesCopiedLine(
+    answer?.fetchedAt ? centralDateLabel(answer.fetchedAt) : null,
+  );
 
   useSearchMetric({
     event: 'money_search_with_results',
@@ -329,6 +334,9 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
                 <Text style={styles.matchedOn}>{NAME_SEARCH_MATCHED_ON}</Text>
               </View>
             )}
+            {campaignFilesCopied && !waitingForThisQuery && !tooShort ? (
+              <Text style={styles.matchedOn}>{campaignFilesCopied}</Text>
+            ) : null}
           </View>
         </Container>
         <Footer />

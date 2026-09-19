@@ -248,7 +248,7 @@ describe('the money landing makes the reporting periods and destinations explici
       'Try all or part of a name: a person, committee, payee, or lobbyist',
     );
     expect(host.textContent).toContain(
-      'Search Minnesota’s published campaign donations, payments, and lobbying records',
+      'Search Minnesota’s published campaign money and lobbying records',
     );
     expect(host.textContent).not.toContain('lobbying records by name');
     expect(host.textContent).not.toContain('Spelling must match the filing');
@@ -378,7 +378,7 @@ describe('the money landing makes the reporting periods and destinations explici
     }
     expect(host.textContent).toContain('Legislators, Candidate committees and Money by race');
     expect(host.textContent).toContain('Committees and Party units');
-    expect(host.textContent).toContain('Donations, Who got paid and Outside spending');
+    expect(host.textContent).toContain('Incoming payments, Who got paid and Outside spending');
     act(() => sourceToggle(host, 'Hide source links').click());
     expect(host.querySelector('a[href^="https://cfb.mn.gov/"]')).toBeNull();
     expect(host.textContent).not.toContain('Candidate reports');

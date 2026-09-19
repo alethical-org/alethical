@@ -12,13 +12,16 @@ import {
   filesLastCopiedLine,
   INDEPENDENT_IS_A_SEPARATE_FILING,
   LIST_NOTE,
+  RECEIVED_PAYMENT_TYPES_NOTE,
   nothingFiledTitle,
   ORDERED_NEWEST_FIRST,
   PAYMENT_NAME_ROLES,
   PAYMENTS_UNDER_NAME_PAGE_SIZE,
   paymentNameRole,
   paymentsShowingLine,
+  paymentsUnderNameCoverage,
   paymentsUnderNameHeading,
+  paymentsUnderNameListNote,
   paymentsUnderNameStandfirst,
   paymentUnderNameMeta,
   paymentUnderNameRow,
@@ -83,14 +86,14 @@ describe('the page is a spelling, never an organisation', () => {
     for (const role of PAYMENT_NAME_ROLES) {
       const standfirst = paymentsUnderNameStandfirst(role);
       expect(standfirst).toContain('exactly as it was spelled');
-      expect(standfirst).toContain('this may not be everything');
-      expect(standfirst).toContain('a name is all this is');
+      expect(standfirst).toContain('a matching name alone does not establish identity');
     }
   });
 
   it('names the side of the record each role reads', () => {
-    expect(paymentsUnderNameStandfirst('contributor')).toContain('who or what gave');
-    expect(paymentsUnderNameStandfirst('vendor')).toContain('who or what got paid');
+    expect(paymentsUnderNameStandfirst('contributor')).toContain('Incoming payment records');
+    expect(paymentsUnderNameStandfirst('vendor')).toContain('Ordinary spending records');
+    expect(RECEIVED_PAYMENT_TYPES_NOTE).toContain('contributions, loans, and other receipt types');
   });
 
   // 491 rows of the independent-spending file share a spender, name, amount and
@@ -104,7 +107,7 @@ describe('the page is a spelling, never an organisation', () => {
   it('says nothing about a person when a spelling matches nothing', () => {
     const title = nothingFiledTitle('Aguirre Printing');
     expect(title).toContain('“Aguirre Printing”');
-    expect(title).toContain('No matching payments under');
+    expect(title).toContain('No matching payment records under');
   });
 });
 
@@ -118,12 +121,23 @@ describe('no total across committees, in any form', () => {
     expect(LIST_NOTE).toContain('different schedules');
   });
 
+  it('keeps contribution-only limits off spending-record pages', () => {
+    expect(paymentsUnderNameListNote('contributor')).toContain(
+      'Official report totals can include contributions without donor names',
+    );
+    expect(paymentsUnderNameListNote('vendor')).not.toContain('Official report totals');
+    expect(paymentsUnderNameListNote('independent_vendor')).not.toContain('Official report totals');
+    expect(paymentsUnderNameCoverage('contributor').join(' ')).toContain('$200');
+    expect(paymentsUnderNameCoverage('vendor').join(' ')).not.toContain('$200');
+    expect(paymentsUnderNameCoverage('vendor').join(' ')).not.toContain('$500');
+  });
+
   // The one figure a reader could mistake for a claim about the world. It is a
   // count of rows and committees, never money.
   it('counts payments and committees, never amounts', () => {
-    expect(paymentsShowingLine(9, 7, false)).toBe('9 payments from 7 committees');
-    expect(paymentsShowingLine(1, 1, false)).toBe('1 payment from 1 committee');
-    expect(paymentsShowingLine(1284, 96, false)).toBe('1,284 payments from 96 committees');
+    expect(paymentsShowingLine(9, 7, false)).toBe('9 payment records from 7 committees');
+    expect(paymentsShowingLine(1, 1, false)).toBe('1 payment record from 1 committee');
+    expect(paymentsShowingLine(1284, 96, false)).toBe('1,284 payment records from 96 committees');
   });
 });
 
@@ -133,13 +147,13 @@ describe('a capped list says only what it is showing', () => {
   // how many committees filed (rule 11).
   it('never prints a total it was not served, and drops the committee count', () => {
     const line = paymentsShowingLine(250, 41, true);
-    expect(line).toBe('Showing the first 250 payments, newest first');
+    expect(line).toBe('Showing the first 250 payment records, newest first');
     expect(line).not.toContain(' of ');
     expect(line).not.toContain('committee');
   });
 
   it('says the cap is ours and matches the order the server actually serves', () => {
-    expect(CAP_NOTE).toContain('up to 250 payments at a time');
+    expect(CAP_NOTE).toContain('up to 250 payment records at a time');
     expect(CAP_NOTE).toContain('More records may remain');
     expect(ORDERED_NEWEST_FIRST).toBe('NEWEST FIRST');
     expect(PAYMENTS_UNDER_NAME_PAGE_SIZE).toBe(250);
@@ -151,7 +165,7 @@ describe('the freshness date', () => {
   // freshness date, and it is never the period the money covers.
   it('labels the copy date as a copy date, and says the years are every year we hold', () => {
     expect(filesLastCopiedLine('Aug 11, 2026')).toBe(
-      'All years we hold · files last copied Aug 11, 2026',
+      'All years we hold · files last copied Aug 11, 2026. The copy date is when Alethical obtained the source, not the end date of every filing.',
     );
     expect(filesLastCopiedLine(null)).toBe('All years we hold');
   });
@@ -234,10 +248,10 @@ describe('rows', () => {
 export type _Role = PaymentNameRole;
 
 it.each([
-  ['contributor', '2 payments to 1 committee'],
-  ['vendor', '2 payments from 1 committee'],
-  ['independent_vendor', '2 payments from 1 spender'],
+  ['contributor', '2 payment records to 1 committee'],
+  ['vendor', '2 payment records from 1 committee'],
+  ['independent_vendor', '2 payment records from 1 spender'],
 ] as const)('counts completed records in the right direction for %s', (role, expected) => {
   expect(paymentsShowingLine(2, 1, false, role)).toBe(expected);
-  expect(paymentsShowingLine(2, null, false, role)).toBe('2 payments');
+  expect(paymentsShowingLine(2, null, false, role)).toBe('2 payment records');
 });

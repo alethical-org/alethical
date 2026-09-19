@@ -107,7 +107,7 @@ describe('payments grouped by filing year and filer', () => {
     const first = [p({ year: 2026 }), p()];
     const before = paymentsUnderNameYears(first, true);
     expect(before.map((y) => y.mayContinue)).toEqual([false, true]);
-    expect(paymentsUnderNameYearCount(before[1], 'contributor')).toBe('1 payment so far');
+    expect(paymentsUnderNameYearCount(before[1], 'contributor')).toBe('1 payment record so far');
     const after = paymentsUnderNameYears(
       [...first, p({ paidOn: '2025-01-01' }), p({ year: 2024 })],
       true,
@@ -120,10 +120,12 @@ describe('payments grouped by filing year and filer', () => {
   });
   it('names direction and group counts for all 3 roles', () => {
     const year = paymentsUnderNameYears([p(), p({ filerRegistrationNumber: '123' })], false)[0];
-    expect(paymentsUnderNameYearCount(year, 'contributor')).toBe('2 payments to 2 committees');
-    expect(paymentsUnderNameYearCount(year, 'vendor')).toBe('2 payments from 2 committees');
+    expect(paymentsUnderNameYearCount(year, 'contributor')).toBe(
+      '2 payment records to 2 committees',
+    );
+    expect(paymentsUnderNameYearCount(year, 'vendor')).toBe('2 payment records from 2 committees');
     expect(paymentsUnderNameYearCount(year, 'independent_vendor')).toBe(
-      '2 payments from 2 spenders',
+      '2 payment records from 2 spenders',
     );
   });
   it('does not count unidentified rows as distinct filers', () => {
@@ -131,10 +133,12 @@ describe('payments grouped by filing year and filer', () => {
     const year = paymentsUnderNameYears(rows, false)[0];
     expect(year.groups).toHaveLength(3);
     for (const role of ['contributor', 'vendor', 'independent_vendor'] as const) {
-      expect(paymentsUnderNameYearCount(year, role)).toBe('3 payments');
+      expect(paymentsUnderNameYearCount(year, role)).toBe('3 payment records');
     }
     const partial = paymentsUnderNameYears(rows, true)[0];
-    expect(paymentsUnderNameYearCount(partial, 'independent_vendor')).toBe('3 payments so far');
+    expect(paymentsUnderNameYearCount(partial, 'independent_vendor')).toBe(
+      '3 payment records so far',
+    );
     expect(year.groups.slice(1).every((group) => group.subtotal === null)).toBe(true);
   });
   it('uses filed recipient type for donations and held register kinds for payees without guessing', () => {

@@ -1,4 +1,5 @@
 /** The standalone committee-payments view's words and rows, shared with its first served HTML. */
+import { OFFICIAL_TOTAL_RECORD_LIMIT } from './moneyRecordTrust';
 import { formatDay, formatMoney } from './moneyFormat';
 import {
   committeeSlug,
@@ -17,8 +18,8 @@ export function paymentsTitle(tab: PaymentsTab): string {
   return tab === 'gave' ? 'Who gave to this committee' : 'Where this committee’s money went';
 }
 
-export function paymentsEyebrow(tab: PaymentsTab): string {
-  return tab === 'gave' ? 'Every donor named' : 'Every payment named';
+export function paymentsEyebrow(_tab: PaymentsTab): string {
+  return 'Named payment records';
 }
 
 export const PAYMENTS_TAB_LABELS: Record<PaymentsTab, string> = {
@@ -43,10 +44,10 @@ export function showingLine(
   hasMore = total !== null && shown < total,
 ): string {
   const count = shown.toLocaleString('en-US');
-  const unit = shown === 1 ? 'payment' : 'payments';
+  const unit = shown === 1 ? 'payment record' : 'payment records';
   if (total === null) return `Showing ${count} ${unit} for filing year ${year}`;
   if (hasMore || shown < total)
-    return `Showing ${count} of ${total.toLocaleString('en-US')} ${total === 1 ? 'payment' : 'payments'} for filing year ${year}`;
+    return `Showing ${count} of ${total.toLocaleString('en-US')} ${total === 1 ? 'payment record' : 'payment records'} for filing year ${year}`;
   return `${count} ${unit} listed for filing year ${year}`;
 }
 
@@ -63,7 +64,7 @@ export const LIST_LINK_NOTE =
   'payments filed under that exact spelling. A name alone does not identify a person or business.';
 
 export function donorThresholdNote(isBallot: boolean): string {
-  return `Donors who gave ${isBallot ? '$500' : '$200'} or less in total for the calendar year need not be named. A committee may name a smaller donor but does not have to.`;
+  return `Incoming payment records can include contributions, loans and other receipts. Non-contribution rows show their filed type. Donors who gave ${isBallot ? '$500' : '$200'} or less to this committee in total for the calendar year need not be named. A committee may name a smaller donor but does not have to. ${OFFICIAL_TOTAL_RECORD_LIMIT}`;
 }
 
 export function listLinkNote(tab: PaymentsTab, isBallot: boolean): string {

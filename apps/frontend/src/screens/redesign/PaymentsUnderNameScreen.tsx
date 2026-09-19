@@ -12,6 +12,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { MoneyListRow, MoneyListRows } from '../../components/campaignMoney/MoneyListRows';
 import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
+import { ContributionRecordDetails } from '../../components/campaignMoney/ContributionRecordDetails';
 import { Skeleton } from '../../components/Skeleton';
 import { usePaymentsUnderName } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -19,7 +20,7 @@ import { paymentsUnderNamePageMetadata } from '../../lib/share';
 import { committeeSlug, IN_KIND_CHIP } from '../../lib/committeeMoneyShared';
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { paymentsUnderNameShareContent } from '../../lib/moneyResultsShare';
-import { MONEY_LIST_COVERAGE, MONEY_LIST_COVERAGE_HEADING } from '../../lib/moneyListCopy';
+import { MONEY_LIST_COVERAGE_HEADING } from '../../lib/moneyListCopy';
 import {
   BACK_TO_RESULTS,
   CAP_HEADING,
@@ -28,7 +29,6 @@ import {
   committeesInRows,
   filesLastCopiedLine,
   INDEPENDENT_IS_A_SEPARATE_FILING,
-  LIST_NOTE,
   LOAD_ERROR,
   nothingFiledWhy,
   LOAD_ERROR_WHY,
@@ -37,6 +37,8 @@ import {
   ORDERED_NEWEST_FIRST,
   paymentNameRole,
   paymentsShowingLine,
+  paymentsUnderNameCoverage,
+  paymentsUnderNameListNote,
   paymentsUnderNameHeading,
   paymentsUnderNameStandfirst,
   paymentUnderNameRow,
@@ -51,6 +53,7 @@ import {
   nothingFiledTitle,
   RECORDS_UNAVAILABLE_TITLE,
   RECORDS_UNAVAILABLE_WHY,
+  RECEIVED_PAYMENT_TYPES_NOTE,
   SEARCH_ANOTHER_NAME,
 } from '../../lib/paymentsUnderName';
 import { formatMoney } from '../../lib/moneyFormat';
@@ -207,6 +210,12 @@ export function PaymentsUnderNameScreen({
             </Text>
           </ResultsHeading>
           <Text style={styles.standfirst}>{paymentsUnderNameStandfirst(role)}</Text>
+          {role === 'contributor' ? (
+            <>
+              <Text style={styles.standfirst}>{RECEIVED_PAYMENT_TYPES_NOTE}</Text>
+              <ContributionRecordDetails matching="name" />
+            </>
+          ) : null}
           {role === 'independent_vendor' ? (
             <Text style={styles.standfirst}>{INDEPENDENT_IS_A_SEPARATE_FILING}</Text>
           ) : null}
@@ -302,7 +311,7 @@ export function PaymentsUnderNameScreen({
           <View style={styles.notCoveredBox}>
             <Text style={styles.notCoveredLabel}>{MONEY_LIST_COVERAGE_HEADING.toUpperCase()}</Text>
             <View style={styles.notCoveredList}>
-              {MONEY_LIST_COVERAGE.map((line) => (
+              {paymentsUnderNameCoverage(role).map((line) => (
                 <Text key={line} style={styles.notCoveredLine}>
                   {line}
                 </Text>
@@ -568,7 +577,7 @@ export function PaymentRows({
         </View>
       ) : null}
 
-      <Text style={styles.linkNote}>{LIST_NOTE}</Text>
+      <Text style={styles.linkNote}>{paymentsUnderNameListNote(role)}</Text>
     </View>
   );
 }

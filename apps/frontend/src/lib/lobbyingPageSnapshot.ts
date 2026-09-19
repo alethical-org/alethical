@@ -1,4 +1,15 @@
 import {
+  contributionRecordReview,
+  CONTRIBUTION_PERIOD_LIMIT,
+  REPEATED_RECORD_LIMIT,
+  REGISTRATION_MATCH_LIMIT,
+  NAME_REGISTRATION_DIFFERENCE,
+  SMALL_CONTRIBUTION_LIMIT,
+  FILE_COPY_MEANING,
+  CONTRIBUTION_REPORTING_LABEL,
+  CONTRIBUTION_REPORTING_URL,
+} from './moneyRecordTrust';
+import {
   lobbyingCampaignFileDate,
   lobbyingDonationAmountLabel,
   lobbyingEligibleAmountLine,
@@ -198,6 +209,10 @@ export function lobbyingDirectorySnapshot(
               body: [
                 LOBBYING_DONATION_SCOPE_NOTE,
                 LOBBYING_DONATION_METHOD_NOTE,
+                REGISTRATION_MATCH_LIMIT,
+                NAME_REGISTRATION_DIFFERENCE,
+                SMALL_CONTRIBUTION_LIMIT,
+                FILE_COPY_MEANING,
                 ...('donations' in data && data.donations?.copied_at
                   ? [lobbyingCampaignFileDate(centralDateLabel(data.donations.copied_at))]
                   : []),
@@ -347,8 +362,9 @@ export function lobbyingLobbyistSnapshot(
     data.contributions.copied_at,
     centralDateLabel,
   );
+  const review = contributionRecordReview(data.registration_number, data.contributions.release_id);
   const donations: SnapshotSection[] = visibleYears.map((year) => ({
-    heading: String(year.year ?? 'Not reported'),
+    heading: year.year != null ? `Filing year ${year.year}` : 'Filing year not reported',
     blocks: year.committees.flatMap((committee) => [
       {
         kind: 'links' as const,
@@ -432,15 +448,28 @@ export function lobbyingLobbyistSnapshot(
         heading: lobbyistCopy.donationsHeading,
         body: [
           lobbyistCopy.donationsIntroduction,
-          ...(selectedYear ? [`Donation year: ${selectedYear}`] : []),
+          lobbyistCopy.filingYearNote,
+          NAME_REGISTRATION_DIFFERENCE,
+          `Matched to registration number ${data.registration_number}`,
+          ...(review && data.contributions.state !== 'unavailable'
+            ? [review.title, review.body]
+            : []),
+          ...(selectedYear ? [`Filing year: ${selectedYear}`] : []),
           ...(selectedYear && paymentCount === 0 && data.contributions.state !== 'unavailable'
             ? [
-                `The state’s contribution file names no donation under this registration number for ${selectedYear}. This does not mean no donation was made.`,
+                `The state’s contribution file has no matching contribution records under this registration number for filing year ${selectedYear}. This does not mean no donation was made.`,
               ]
             : []),
           ...(donationDate ? [donationDate] : []),
           ...(data.contributions.state === 'reported' && data.contributions.payment_count != null
-            ? [recordCountLine(paymentCount ?? 0, shownPayments, 'donation', 'donations')]
+            ? [
+                recordCountLine(
+                  paymentCount ?? 0,
+                  shownPayments,
+                  'contribution record',
+                  'contribution records',
+                ),
+              ]
             : []),
           ...(data.contributions.state === 'not_reported'
             ? [lobbyistCopy.noDonations]
@@ -449,12 +478,23 @@ export function lobbyingLobbyistSnapshot(
               : []),
         ],
       },
+      {
+        heading: 'How these records are counted',
+        body: [
+          REGISTRATION_MATCH_LIMIT,
+          SMALL_CONTRIBUTION_LIMIT,
+          REPEATED_RECORD_LIMIT,
+          CONTRIBUTION_PERIOD_LIMIT,
+          FILE_COPY_MEANING,
+        ],
+      },
       ...donations,
     ],
     links: [
       ...(data.contributions.source_url
         ? [{ label: CAMPAIGN_CONTRIBUTION_SOURCE_LABEL, href: data.contributions.source_url }]
         : []),
+      { label: CONTRIBUTION_REPORTING_LABEL, href: CONTRIBUTION_REPORTING_URL },
       { label: lobbyistCopy.sourceLabel, href: LOBBYIST_SOURCE_URL },
       { label: directory.lobbyists.title, href: '/money/lobbying/lobbyists' },
     ],

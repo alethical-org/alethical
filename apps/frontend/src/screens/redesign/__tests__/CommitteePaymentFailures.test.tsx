@@ -255,7 +255,7 @@ describe('independent report and payments states', () => {
         isError: true,
       },
     );
-    expect(host.textContent).toContain('Showing 1 payment for filing year 2026');
+    expect(host.textContent).toContain('Showing 1 payment record for filing year 2026');
     expect(host.textContent).toContain(
       'We couldn’t load more payments. The payments already loaded are still shown.',
     );

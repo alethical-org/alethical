@@ -432,10 +432,10 @@ export function committeeMoneyPageMetadata(
   const base = `/money/committees/${encodeURIComponent(record?.canonicalSlug ?? slug)}`;
   if (view === 'payments') {
     return pageMetadata({
-      title: titleFor(`${label} — every payment named`),
+      title: titleFor(`${label} — named payment records`),
       socialTitle: label,
       description:
-        'Every named payment behind one committee’s figures, largest first, from Minnesota’s own campaign-finance filings.',
+        'Named payment records for one committee and filing year, from Minnesota’s campaign-finance filings. These records may not capture every payment.',
       canonicalPath: `${base}/payments`,
     });
   }
@@ -536,7 +536,7 @@ export function moneySearchPageMetadata(query?: string | null): PageMetadata {
     title: titleFor(label),
     socialTitle: label,
     description:
-      'Search Minnesota state campaign filings by the name each record was filed under: legislators, committees, donors, and the businesses that got paid.',
+      'Search Minnesota state campaign filings by the name each record was filed under: legislators, committees, contributor names, and payment-recipient names. A name match alone does not establish identity.',
     canonicalPath: '',
     noindex: true,
   });
@@ -565,8 +565,8 @@ export function paymentsUnderNamePageMetadata(name: string, role: string): PageM
     title: titleFor(label),
     socialTitle: label,
     description:
-      'Every payment Minnesota’s campaign filings record under one printed name, exactly as it ' +
-      'was spelled, each row opening the committee that filed it.',
+      'Payment records from Minnesota’s campaign filings under one printed name, exactly as it ' +
+      'was spelled. A name match alone does not establish identity or a complete payment history.',
     canonicalPath: '',
     noindex: true,
   });
@@ -604,7 +604,7 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
     title: titleFor(`${MONEY_SECTION_NAME} in Minnesota`),
     socialTitle: MONEY_SECTION_NAME,
     description:
-      'Contributions and spending for Minnesota state campaigns, as the state publishes them, searchable by the name each record was filed under.',
+      'Campaign money records for Minnesota state campaigns, as the state publishes them, searchable by the name each record was filed under.',
     canonicalPath: '/money',
   }),
   '/money/committees': committeeListPageMetadata(),

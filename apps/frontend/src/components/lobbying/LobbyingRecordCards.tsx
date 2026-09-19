@@ -33,6 +33,8 @@ import { externalLinkProps, linkProps, routePath } from '../../navigation/links'
 import { theme } from '../../theme/tokens';
 import { LobbyingCard } from './LobbyingPageFrame';
 import { LobbyingSelect } from './LobbyingDonationControls';
+import { contributionRecordReview, NAME_REGISTRATION_DIFFERENCE } from '../../lib/moneyRecordTrust';
+import { ContributionRecordDetails } from '../campaignMoney/ContributionRecordDetails';
 
 export function PrincipalLobbyistsCard({
   state,
@@ -174,6 +176,7 @@ export function LobbyistPrincipalsCard({
 
 export function LobbyistDonationsCard({
   contributions,
+  registrationNumber,
   registeredName,
   copiedDate,
   selectedYear,
@@ -183,6 +186,7 @@ export function LobbyistDonationsCard({
   selectedYear?: number;
   onYearChange?: (value: string) => void;
   contributions: LobbyingContributions;
+  registrationNumber?: string;
   registeredName: string;
   copiedDate: string | null;
   onOpenCommittee: (registrationNumber: string, name: string) => void;
@@ -204,6 +208,7 @@ export function LobbyistDonationsCard({
       ...(selectedYear ? [selectedYear] : []),
     ]),
   ].sort((a, b) => b - a);
+  const review = contributionRecordReview(registrationNumber ?? '', contributions.release_id);
   const visible = visibleLobbyingDonationYears(years, shown);
   const visibleCount = visible.reduce(
     (yearTotal, year) =>
@@ -217,14 +222,15 @@ export function LobbyistDonationsCard({
   return (
     <LobbyingCard
       scan
-      label="Campaign donations under this registration number"
+      label="Campaign contribution records"
       title={lobbyingLobbyistCopy.donationsHeading}
     >
       <Paragraph>{lobbyingLobbyistCopy.donationsIntroduction}</Paragraph>
+      <Paragraph>{NAME_REGISTRATION_DIFFERENCE}</Paragraph>
       {onYearChange ? (
         <View style={{ marginTop: 16 }}>
           <LobbyingSelect
-            label="Donation year"
+            label="Filing year"
             value={selectedYear ? String(selectedYear) : ''}
             onChange={onYearChange}
             options={[
@@ -234,23 +240,34 @@ export function LobbyistDonationsCard({
           />
         </View>
       ) : null}
+      <Paragraph>{lobbyingLobbyistCopy.filingYearNote}</Paragraph>
       <RecordStrip
         sourceUrl={contributions.source_url}
         sourceLabel={CAMPAIGN_CONTRIBUTION_SOURCE_LABEL}
       >
         {total !== null && total > 0 ? (
           <CountLine inline>
-            {recordCountLine(total, visibleCount, 'donation', 'donations')}
+            {recordCountLine(total, visibleCount, 'contribution record', 'contribution records')}
           </CountLine>
+        ) : null}
+        {registrationNumber ? (
+          <Text style={styles.fileDate}>Matched to registration number {registrationNumber}</Text>
         ) : null}
         {copiedDate ? <FileDate inline>{copiedDate}</FileDate> : null}
       </RecordStrip>
+      {review && contributions.state !== 'unavailable' ? (
+        <View style={{ marginTop: 16 }}>
+          <CountLine>{review.title}</CountLine>
+          <Paragraph fullWidth>{review.body}</Paragraph>
+        </View>
+      ) : null}
+      <ContributionRecordDetails matching="registration" />
       {contributions.state === 'unavailable' || total === null ? (
         <Unavailable>{LOBBYIST_DONATIONS_UNAVAILABLE}</Unavailable>
       ) : total === 0 || contributions.state === 'not_reported' ? (
         <Paragraph primary>
           {selectedYear
-            ? `The state’s contribution file names no donation under this registration number for ${selectedYear}. This does not mean no donation was made.`
+            ? `The state’s contribution file has no matching contribution records under this registration number for filing year ${selectedYear}. This does not mean no donation was made.`
             : lobbyingLobbyistCopy.noDonations}
         </Paragraph>
       ) : (
@@ -267,8 +284,8 @@ export function LobbyistDonationsCard({
             <RevealButton
               label={lobbyingRevealLabel(
                 total - visibleCount,
-                'campaign donation',
-                'campaign donations',
+                'contribution record',
+                'contribution records',
               )}
               onPress={() => setShown((value) => value + LOBBYING_RECORD_REVEAL_STEP)}
             />
@@ -294,7 +311,9 @@ function DonationYear({
   return (
     <View style={styles.donationYear}>
       <View style={styles.yearBand}>
-        <Text style={styles.yearLabel}>{year.year ?? 'YEAR NOT REPORTED'}</Text>
+        <Text style={styles.yearLabel}>
+          {year.year != null ? `Filing year ${year.year}` : 'FILING YEAR NOT REPORTED'}
+        </Text>
         <View style={styles.yearRule} />
       </View>
       <View role="list" style={styles.committeeList}>

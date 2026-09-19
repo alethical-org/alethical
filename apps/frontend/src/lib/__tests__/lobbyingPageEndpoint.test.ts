@@ -111,9 +111,9 @@ describe('every lobbying address works before the app loads', () => {
       year: '2024',
     });
     expect(result.status).toBe(200);
-    expect(snapshot(result.body)).toContain('Donation year: 2024');
-    expect(snapshot(result.body)).toContain('25 donations · showing 5');
-    expect(snapshot(result.body)).not.toContain('240 donations');
+    expect(snapshot(result.body)).toContain('Filing year: 2024');
+    expect(snapshot(result.body)).toContain('25 contribution records · showing 5');
+    expect(snapshot(result.body)).not.toContain('240 contribution records');
     expect(seeds(result.body)[0]).toEqual({
       key: ['lobbying-lobbyist', '141'],
       payload: { data: live.kozak },
@@ -217,7 +217,9 @@ describe('every lobbying address works before the app loads', () => {
     expect(result.headers.get('X-Robots-Tag')).toBe('noindex');
     expect(result.body).not.toContain('rel="canonical"');
     expect(snapshot(result.body)).toContain('not listed on the copy date');
-    expect(snapshot(result.body)).toContain('names no donation under this registration number');
+    expect(snapshot(result.body)).toContain(
+      'No contribution records match this registration number',
+    );
     expect(seeds(result.body)[0].payload).toEqual({ data: live.absent });
   });
 

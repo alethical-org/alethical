@@ -1053,6 +1053,7 @@ def test_the_search_pins_both_copies_of_the_data_it_read(client, db) -> None:
 
     assert data["snapshot_id"] == str(snapshot.id)
     assert data["release_id"] == str(published.release.id)
+    assert data["fetched_at"].startswith("2026-08-12T02:54")
     assert data["as_of"] == "2026-08-12"
 
 

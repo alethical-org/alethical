@@ -47,6 +47,7 @@ describe('lobbying rows in the one money search service', () => {
     answer({
       state: 'reported',
       q: 'test',
+      fetched_at: '2026-09-01T12:00:00Z',
       groups: [
         {
           kind: 'principals',
@@ -63,6 +64,7 @@ describe('lobbying rows in the one money search service', () => {
       ],
     });
     const result = await getCampaignFinanceNameSearchFromApi('test');
+    expect(result.fetchedAt).toBe('2026-09-01T12:00:00Z');
     expect(result.groups[0].results).toEqual([
       {
         kind: 'principal',

@@ -276,7 +276,7 @@ describe('the donor list preserves the complete filed record', () => {
       list({ groups: groupContributionPayments([gift({ employer: 'Twin Pines Insurance' })]) }),
     );
     const line = [...view.querySelectorAll('*')]
-      .filter((node) => node.textContent === 'Twin Pines Insurance · 1 payment')
+      .filter((node) => node.textContent === 'Twin Pines Insurance · 1 payment record')
       .at(-1)!;
     expect(getComputedStyle(line).fontWeight).toBe('400');
   });
@@ -314,7 +314,7 @@ describe('the donor list preserves the complete filed record', () => {
     );
     click(showRest);
     expect(view.querySelectorAll('[aria-label^="Show the "]')).toHaveLength(74);
-    expect(view.textContent).toContain('74 names · 82 payments');
+    expect(view.textContent).toContain('74 names · 82 payment records');
   });
 
   it('keeps duplicate payments out and shows their filed details on expansion', () => {
@@ -333,10 +333,10 @@ describe('the donor list preserves the complete filed record', () => {
     const view = mount(
       list({ groups: groupExpenditurePayments([payment, payment]), tab: 'expenditures' }),
     );
-    expect(view.textContent).toContain('2 payments');
-    expect(view.textContent).toContain('1 name · 2 payments');
+    expect(view.textContent).toContain('2 payment records');
+    expect(view.textContent).toContain('1 name · 2 payment records');
     expect(view.textContent).toContain('Total itemized expenditures');
-    click(view.querySelector('[aria-label="Show the 2 payments from Example Printer"]'));
+    click(view.querySelector('[aria-label="Show the 2 payment records from Example Printer"]'));
     expect(view.textContent?.match(/Date not given in the public file/g)).toHaveLength(2);
     expect(view.textContent?.match(/Print leaflets/g)).toHaveLength(2);
     expect(view.textContent?.match(/Anoka, MN/g)).toHaveLength(2);
@@ -346,7 +346,7 @@ describe('the donor list preserves the complete filed record', () => {
   it('labels real-sample printed names and payment rows separately', () => {
     const view = markup(list());
     expect(view.textContent).toContain('Individuals 74');
-    expect(view.textContent).toContain('74 names · 82 payments');
+    expect(view.textContent).toContain('74 names · 82 payment records');
     expect(view.textContent).toContain('Total itemized contributions');
   });
 
@@ -361,8 +361,8 @@ describe('the donor list preserves the complete filed record', () => {
   it('keeps private names plain and gives known committees ordinary links', () => {
     const privateView = markup(list({ groups: groupContributionPayments([gift()]) }));
     expect(privateView.textContent).toContain('Amy Example');
-    expect(privateView.textContent).toContain('1 name · 1 payment');
-    expect(privateView.textContent).not.toContain('1 payments');
+    expect(privateView.textContent).toContain('1 name · 1 payment record');
+    expect(privateView.textContent).not.toContain('1 payment records');
     expect(privateView.querySelector('a')).toBeNull();
     const publicView = markup(list({ tab: 'committees' }));
     const known = Array.from(publicView.querySelectorAll('a')).find(
@@ -375,7 +375,7 @@ describe('the donor list preserves the complete filed record', () => {
   });
 
   it('gives each opened payment its own filed state and ZIP, exactly as the file holds it', () => {
-    // One spelling, 3 payments, 3 different filed locations. A location on the grouped
+    // One spelling, 3 payment records, 3 different filed locations. A location on the grouped
     // name would be wrong rather than merely rounded, which is why it sits on the row.
     const groups = groupContributionPayments([
       gift({ contributorState: 'MN', contributorZip: '55401' }),
@@ -383,7 +383,7 @@ describe('the donor list preserves the complete filed record', () => {
       gift({ contributorState: 'DC', contributorZip: '20500-0003' }),
     ]);
     const view = mount(list({ groups }));
-    click(view.querySelector('[aria-label="Show the 3 payments from Amy Example"]'));
+    click(view.querySelector('[aria-label="Show the 3 payment records from Amy Example"]'));
     const lines = [...view.querySelectorAll('div')]
       .map((node) => node.textContent ?? '')
       .filter((text) => text.startsWith('State: ') && text.includes('ZIP code as filed'));
@@ -404,7 +404,9 @@ describe('the donor list preserves the complete filed record', () => {
         groups: groupContributionPayments([gift({ contributorState: null, contributorZip: null })]),
       }),
     );
-    click(filedWithNoZip.querySelector('[aria-label="Show the 1 payment from Amy Example"]'));
+    click(
+      filedWithNoZip.querySelector('[aria-label="Show the 1 payment record from Amy Example"]'),
+    );
     expect(filedWithNoZip.textContent).toContain(
       'State: Unknown \u00b7 ZIP code as filed: Not reported',
     );
@@ -414,7 +416,7 @@ describe('the donor list preserves the complete filed record', () => {
     // claim about the filing, and nobody read one here. A response cached before the
     // field shipped is exactly this shape, and it is reusable for a day.
     const noColumn = mount(list({ groups: groupContributionPayments([gift()]) }));
-    click(noColumn.querySelector('[aria-label="Show the 1 payment from Amy Example"]'));
+    click(noColumn.querySelector('[aria-label="Show the 1 payment record from Amy Example"]'));
     expect(noColumn.textContent).not.toContain('ZIP code as filed');
   });
 
@@ -463,7 +465,7 @@ describe('the donor list preserves the complete filed record', () => {
       inKind: 'No',
     };
     const view = mount(list({ groups: groupExpenditurePayments([payment]), tab: 'expenditures' }));
-    click(view.querySelector('[aria-label="Show the 1 payment from Example Printer"]'));
+    click(view.querySelector('[aria-label="Show the 1 payment record from Example Printer"]'));
     expect(view.textContent).toContain('Anoka, MN');
     expect(view.textContent).not.toContain('ZIP code as filed');
   });
@@ -475,8 +477,8 @@ describe('the donor list preserves the complete filed record', () => {
       gift({ contributor: 'Amy R Example' }),
     ]);
     const view = mount(list({ groups }));
-    expect(view.textContent).toContain('2 names · 3 payments');
-    click(view.querySelector('[aria-label="Show the 2 payments from Amy Example"]'));
+    expect(view.textContent).toContain('2 names · 3 payment records');
+    click(view.querySelector('[aria-label="Show the 2 payment records from Amy Example"]'));
     expect(view.textContent?.match(/Jan 10, 2025/g)).toHaveLength(2);
     expect(view.querySelector('[aria-expanded="true"]')).not.toBeNull();
   });
@@ -493,7 +495,7 @@ describe('the donor list preserves the complete filed record', () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'Amy');
       input.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    expect(view.textContent).toContain('2 names · 2 payments');
+    expect(view.textContent).toContain('2 names · 2 payment records');
     expect(view.textContent).toContain(before);
     expect(view.textContent).toContain('Amy Example');
     expect(view.textContent).not.toContain('Beth Example');
@@ -616,14 +618,14 @@ describe('the accepted names-section controls', () => {
       list({ groups: groupContributionPayments([gift({ employer: 'Self Employed' })]) }),
     );
     const details = Array.from(view.querySelectorAll('div')).find(
-      (element) => element.textContent === 'Self Employed · 1 payment',
+      (element) => element.textContent === 'Self Employed · 1 payment record',
     );
     expect(details).toBeDefined();
     expect(getComputedStyle(details!).fontSize).toBe('15px');
     expect(['400', 'normal']).toContain(getComputedStyle(details!).fontWeight);
     expect(getComputedStyle(details!).color).toBe('rgb(107, 113, 107)');
     const expand = view.querySelector<HTMLElement>(
-      '[aria-label="Show the 1 payment from Amy Example"]',
+      '[aria-label="Show the 1 payment record from Amy Example"]',
     )!;
     expect(expand.textContent).not.toMatch(/[+−]/);
     expect(expand.querySelector('svg')).not.toBeNull();

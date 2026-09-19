@@ -1,8 +1,10 @@
+import { FILE_COPY_MEANING, MONEY_SOURCE_COVERAGE } from './moneyRecordTrust';
+
 /** The landing's source disclosure, shared by the app and its first response. */
 export const MONEY_SOURCES_HEADING = 'Sources and copy dates';
 export const MONEY_SOURCES_ATTRIBUTION =
   'Records from the Minnesota Campaign Finance and Public Disclosure Board';
-export const MONEY_SOURCES_PERIOD_NOTE = 'Each report shows the dates its figures cover';
+export const MONEY_SOURCES_PERIOD_NOTE = `${FILE_COPY_MEANING} ${MONEY_SOURCE_COVERAGE}`;
 
 type SourcePart = { text: string; href?: string };
 export const MONEY_SOURCE_GROUPS: { title: string; paragraphs: SourcePart[][] }[] = [
@@ -44,14 +46,14 @@ export const MONEY_SOURCE_GROUPS: { title: string; paragraphs: SourcePart[][] }[
     ],
   },
   {
-    title: 'Donations, Who got paid and Outside spending',
+    title: 'Incoming payments, Who got paid and Outside spending',
     paragraphs: [
       [
         {
           text: 'Campaign finance downloads',
           href: 'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/',
         },
-        { text: ' provide the individual donation and payment records' },
+        { text: ' provide incoming payment, spending, and independent-spending records' },
       ],
     ],
   },

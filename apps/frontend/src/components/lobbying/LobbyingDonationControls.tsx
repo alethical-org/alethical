@@ -20,6 +20,14 @@ import { ensureYearFilterWebStyles, yearFilterSelectProps } from '../../theme/ye
 import { LobbyingChoiceMenu } from './LobbyingChoiceMenu';
 import { externalLinkProps } from '../../navigation/links';
 import { LinkArrowLabel } from '../LinkArrow';
+import {
+  REGISTRATION_MATCH_LIMIT,
+  NAME_REGISTRATION_DIFFERENCE,
+  SMALL_CONTRIBUTION_LIMIT,
+  FILE_COPY_MEANING,
+  CONTRIBUTION_REPORTING_URL,
+  CONTRIBUTION_REPORTING_LABEL,
+} from '../../lib/moneyRecordTrust';
 
 /**
  * The lobbyist record page's donation-year control, unchanged: a browser menu in
@@ -318,6 +326,13 @@ export function LobbyingDonationNotes({
           <View style={styles.explanation}>
             <Text style={[styles.note, width]}>{LOBBYING_DONATION_SCOPE_NOTE}</Text>
             <Text style={[styles.note, width]}>{LOBBYING_DONATION_METHOD_NOTE}</Text>
+            <Text style={[styles.note, width]}>{REGISTRATION_MATCH_LIMIT}</Text>
+            <Text style={[styles.note, width]}>{NAME_REGISTRATION_DIFFERENCE}</Text>
+            <Text style={[styles.note, width]}>{SMALL_CONTRIBUTION_LIMIT}</Text>
+            <Text style={[styles.note, width]}>{FILE_COPY_MEANING}</Text>
+            <Pressable {...externalLinkProps(CONTRIBUTION_REPORTING_URL)} style={styles.disclosure}>
+              <LinkArrowLabel label={CONTRIBUTION_REPORTING_LABEL} style={styles.sourceLinkText} />
+            </Pressable>
             {donations?.source_url ? (
               <Pressable {...externalLinkProps(donations.source_url)} style={styles.disclosure}>
                 <LinkArrowLabel
