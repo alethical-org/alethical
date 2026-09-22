@@ -169,6 +169,18 @@ export function campaignFilesCopiedLine(copiedOn: string | null): string | null 
 
 /** Nothing typed yet. Not an error and not "no matches" — the field simply has
  *  nothing to search on. */
+/**
+ * What the page says while it is searching for the name in its heading.
+ *
+ * Owned here because 2 surfaces print it: the screen, above its placeholder
+ * rows, and the served first response for an address that already carries a
+ * query (`moneySearchPageSnapshot`). Before that, the served page printed the
+ * empty-query card instead, so a reader following a shared search link was told
+ * to type a name they had already typed, for about 240 ms (measured live,
+ * 22 Sep 2026).
+ */
+export const NAME_SEARCH_WAITING = 'Searching these records';
+
 export const NAME_SEARCH_EMPTY_QUERY_TITLE = 'Type a name to search';
 
 export const NAME_SEARCH_EMPTY_QUERY_WHY =

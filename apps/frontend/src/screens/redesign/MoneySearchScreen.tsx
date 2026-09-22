@@ -35,6 +35,7 @@ import {
   groupNote,
   hasAnyResult,
   NAME_SEARCH_EMPTY_QUERY_TITLE,
+  NAME_SEARCH_WAITING,
   NAME_SEARCH_EMPTY_QUERY_WHY,
   NAME_SEARCH_GROUP_ORDER,
   NAME_SEARCH_MATCHED_ON,
@@ -233,7 +234,7 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
                 {!query.trim()
                   ? NAME_SEARCH_EMPTY_QUERY_TITLE
                   : waitingForThisQuery
-                    ? 'Searching these records'
+                    ? NAME_SEARCH_WAITING
                     : search.isError && !answer
                       ? 'We couldn’t search these records just now'
                       : tooShort
@@ -265,7 +266,7 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
               </View>
             ) : waitingForThisQuery ? (
               <View style={styles.groupsLoading}>
-                <Text style={styles.explain}>Searching these records</Text>
+                <Text style={styles.explain}>{NAME_SEARCH_WAITING}</Text>
                 <MoneyListRows isMobile={isMobile}>
                   {(['58%', '72%', '44%'] as const).map((width, index) => (
                     <MoneyListRow key={index} isMobile={isMobile} first={index === 0}>

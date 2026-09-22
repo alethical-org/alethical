@@ -107,6 +107,7 @@ const {
   legislatorDirectoryPageSnapshot,
   legislatorPageSnapshot,
   moneyLandingPageSnapshot,
+  moneySearchPageSnapshot,
   outsideSpendingPageSnapshot,
   paymentsUnderNamePageSnapshot,
   researchPageSnapshot,
@@ -115,6 +116,7 @@ const {
   SNAPSHOT_MARKER_END,
   SNAPSHOT_MARKER_START,
 } = await import('../pageSnapshot');
+const { NAME_SEARCH_EMPTY_QUERY_TITLE, NAME_SEARCH_WAITING } = await import('../moneyNameSearch');
 const {
   committeeSlug,
   MONEY_OUT_OFFICIAL_MISSING,
@@ -759,6 +761,40 @@ describe('directory rows never guess missing facts', () => {
       '/legislators?page=3&tab=money',
       '/bills',
     ]);
+  });
+});
+
+describe('the money search page says what the screen says', () => {
+  it("names the searched name and prints the screen's waiting sentence", () => {
+    const snapshot = moneySearchPageSnapshot('abeler');
+
+    expect(snapshot.heading).toBe('Results for \u201Cabeler\u201D');
+    expect(snapshot.body).toEqual([NAME_SEARCH_WAITING]);
+    // No heading over it, because the screen prints it as a plain line.
+    expect(snapshot.bodyHeading).toBe('');
+  });
+
+  it('keeps the empty-query card for an address with no name in it', () => {
+    for (const query of ['', '   ', undefined]) {
+      const snapshot = moneySearchPageSnapshot(query);
+
+      expect(snapshot.heading).toBe('Search these records by name');
+      expect(snapshot.bodyHeading).toBe(NAME_SEARCH_EMPTY_QUERY_TITLE);
+      expect(snapshot.body).toHaveLength(1);
+    }
+  });
+
+  // The drift alarm: the screen cannot be rendered here, so this is what stops
+  // it growing its own copy of the waiting sentence again.
+  it('the screen prints the same owned sentence', () => {
+    const source = readFileSync(
+      join(HERE, '../../..', 'src/screens/redesign/MoneySearchScreen.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('NAME_SEARCH_WAITING');
+    expect(source).not.toContain("'Searching these records'");
+    expect(source).not.toContain('>Searching these records<');
   });
 });
 

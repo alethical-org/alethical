@@ -924,6 +924,41 @@ answer different questions of different tables. What remains on the legislator r
 independent statements without waiting for each answer, which this driver's session
 does not do.
 
+## A filtered money view keeps its own reads, 22 September 2026
+
+**A filtered money address carries no records in its first response, and measuring what
+that costs a reader says: leave it alone.** `/money/committees` narrowed by kind or by
+name, and `/money/outside-spending` narrowed by year, spender or affected committee, are
+served as the page's own text with no records attached, while their unfiltered forms are
+served whole. The bytes differ a great deal: about 21,000 characters against 42,000 for
+the committee register and 55,000 for the outside-spending record.
+
+**The reader does not wait for it.** Timed on the live site with a cold browser, 3 runs
+each, from the moment the address was asked for to the moment the page's text stopped
+changing:
+
+| Address | Settled, median | Runs |
+|---|---:|---|
+| `/money/committees` | 355 ms | 305, 355, 609 |
+| `/money/committees?kind=candidate_committee` | 456 ms | 361, 456, 457 |
+| `/money/committees?q=abeler` | 355 ms | 354, 355, 611 |
+| `/money/outside-spending` | 408 ms | 359, 408, 408 |
+| `/money/outside-spending?year=2026` | 407 ms | 407, 407, 460 |
+
+Two of the 3 filtered views settle at the same moment as their unfiltered form, and the
+third is about 100 ms behind with runs that overlap. So seeding these would buy a reader
+nothing measurable, and it would cost a fresh read of the data service for every unique
+filter somebody types, where the unfiltered address is 1 answer everybody shares.
+
+**One address in that set was a real defect, and it was not about speed.**
+`/money/search?q=abeler` served the empty-query card, so a reader following a shared
+search link was told to type a name they had already typed, for about 240 ms before the
+app replaced it. The served page now prints that name in its heading and the screen's own
+waiting sentence under it, which is owned in one place
+(`NAME_SEARCH_WAITING` in `apps/frontend/src/lib/moneyNameSearch.ts`) so the 2 surfaces
+cannot drift. No new read: the results still belong to the app, and the address stays
+unlistable.
+
 ## Shared screen code stays with the screen, 13 September 2026
 
 [Issue 2012’s local result](https://github.com/alethical-org/alethical/issues/2012#issuecomment-5651104226)

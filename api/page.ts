@@ -1528,7 +1528,7 @@ async function contentFor(
       // and the sentence saying what these records do not cover.
       return {
         metadata: moneySearchPageMetadata(target.params.q),
-        snapshot: renderPageSnapshot(moneySearchPageSnapshot()),
+        snapshot: renderPageSnapshot(moneySearchPageSnapshot(target.params.q)),
       };
     // A filtered view of one free-text spelling, not a record, so `noindex` and no
     // canonical — see §22's table of which money addresses are which. A body is
