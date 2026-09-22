@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, api/page.ts, alethical/api/routers/me.py, alethical/api/main.py, alethical/api/request_admission.py, alethical/api/services/ask_router.py, alethical/pipeline/rag_ingest.py, alethical/logging.py, alethical/monitoring.py, railway.json, vercel.json, apps/frontend/metro.config.js, patches/@expo__metro-config@57.0.7.patch, pnpm-workspace.yaml, pnpm-lock.yaml -->
+<!-- describes: alethical/release.py, alethical/api/main.py, apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, api/page.ts, alethical/api/routers/me.py, alethical/api/main.py, alethical/api/request_admission.py, alethical/api/services/ask_router.py, alethical/pipeline/rag_ingest.py, alethical/logging.py, alethical/monitoring.py, railway.json, vercel.json, apps/frontend/metro.config.js, patches/@expo__metro-config@57.0.7.patch, pnpm-workspace.yaml, pnpm-lock.yaml -->
 
 # Production setup and recovery
 
@@ -21,7 +21,7 @@ own source:
 | Part                                   | Lives in                                                        | Public address                                                                                                   | Normal release                                          |
 | -------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
 | Web app                                | Vercel project `alethical-web`                                  | `https://www.alethical.com`                                                                                      | Vercel watches `main`                                   |
-| API                                    | Railway service `alethical-api`, `production` environment       | `https://api.alethical.com` through Cloudflare; Railway origin `https://alethical-api-production.up.railway.app` | Railway watches `main`                                  |
+| API                                    | Railway service `alethical-api`, `production` environment       | `https://api.alethical.com` through Cloudflare; Railway origin `https://alethical-api-production.up.railway.app` | Railway watches `main`, and sometimes misses a push      |
 | Database, sign-in, stored source files | Supabase project `naakzorbkqqgbsreulqi`                         | Supabase project URL                                                                                             | Settings and migrations, not a code release             |
 | Ingestion                              | GitHub's vote refresh plus commands run from a trusted computer | Writes to Supabase                                                                                               | Automatic vote refresh or deliberate production command |
 
@@ -316,6 +316,37 @@ owns the current provider, email, password, and confirmation settings.
   [issue 2291](https://github.com/alethical-org/alethical/issues/2291) saying
   neither had fired. The red run only stops the Actions tab from reporting the
   opposite of what happened.
+- **The API sometimes does not rebuild at all, and it is the one failure with no
+  red mark anywhere.** Railway redeploys `alethical-api` on every push to `main`,
+  normally starting within 2 seconds, and between 8 Aug 17:53Z and 22 Sep 22:00Z
+  2026 it did so for 697 of 701 pushes. The other 4 produced no deployment
+  record, no failed build and no alert: a merged change simply did not exist for
+  readers until a later push carried it in, 21 to 156 minutes afterwards. So a
+  green merge is not evidence the API shipped, and neither is a quiet Actions
+  tab.
+- **So ask the API which commit it is running, in 1 command:**
+  `curl -s https://api.alethical.com/version`. Every release carries its own
+  commit (`alethical/release.py`), which is the fastest honest answer to "is my
+  merge live" and the same reading the watch below uses. A `null` commit or a
+  missing route means the API cannot say, which is itself a fault on a deployed
+  release.
+- A merge that never reaches the API says so.
+  `.github/workflows/api-release-missing.yml` reads that commit after every push
+  to `main` and compares it with what `main` holds. It opens 1 issue when a
+  merged change to a path the API is built from has not reached the API 15
+  minutes after merging, comments on that same issue rather than opening
+  another, and closes it once the API is up to date. A merge that changes only
+  the website or documents correctly needs no API release and it says nothing:
+  3 of the 4 missed pushes above were exactly that, so a watch comparing against
+  `main`'s tip would have cried wolf 3 times before the one that mattered
+  arrived. The 15 minutes come from 246 measured releases, which reach a running
+  API in 56 to 296 seconds.
+- **Whether an API release that started actually finished is not readable from
+  GitHub.** Across those same 45 days, 23 more deployments went in progress and
+  never recorded a success in GitHub's copy of Railway's record, while none ever
+  recorded a failure. Railway's own dashboard is where that is answerable. This
+  is why the watch asks the running API rather than reading a deployment's
+  outcome: 1 request answers it whatever the deployment did.
 - The hand-run repair leaves no trace in GitHub's deployments list or commit
   statuses. `.github/workflows/vercel-deploy.yml` uploads a source archive instead
   of being driven by Vercel's Git connection, so after a repair GitHub still shows
@@ -367,8 +398,13 @@ owns the current provider, email, password, and confirmation settings.
 
 ```bash
 curl -fsS https://api.alethical.com/readyz
+curl -s https://api.alethical.com/version
 curl -fsS -o /dev/null -w '%{http_code}\n' https://www.alethical.com/
 ```
+
+The second command says which commit the API is running. Compare it with
+`git rev-parse origin/main`: a merge is only live when they match, or when
+nothing between them changes a path the API is built from.
 
 Then open 1 bill page, sign in when sign-in changed, and run the narrow ingestion dry
 run when ingestion changed. A `200` response proves the services answer; it does not

@@ -1,0 +1,230 @@
+name: API release missing
+
+# A merge that never rebuilds the API reaches no reader, and nothing anywhere
+# said so ([issue 2046](https://github.com/alethical-org/alethical/issues/2046)).
+#
+# WHAT HAPPENED, 8 Sep 2026. Commit `eb16615b` merged to `main` at 02:33:33Z and
+# Railway created no deployment for it at all. At 02:50Z the API still answered
+# with the pre-merge code, read straight at the origin host with the nearby cache
+# bypassed. There was no red check, no alert and no failed deployment record, and
+# it surfaced only because somebody read a live answer instead of trusting the
+# green merge.
+#
+# THE CAUSE, FROM THE RECORDS. The push happened: GitHub created a push-triggered
+# CI run for `eb16615b` at 02:33:35Z, and Vercel posted a successful build status
+# on the same commit at 02:33:44Z, 9 seconds later. Railway was idle, its previous
+# release having finished at 02:26:15Z. So GitHub dispatched the push, one
+# integration acted on it and the other did not: a dropped release rather than a
+# batched push, a busy build queue or a disconnected watcher. Railway's own
+# published status reports no incident and full uptime across the 90 days covering
+# it, so its public record does not explain it either. Why that one delivery went
+# nowhere is readable only inside Railway's dashboard, which is why the fix here
+# notices the silence instead of trying to prevent it.
+#
+# HOW OFTEN, COUNTED RATHER THAN DESCRIBED. Between 8 Aug 17:53Z and 22 Sep 22:00Z
+# 2026 there were 701 pushes to `main` and 697 of them produced a Railway
+# deployment, normally starting 2 seconds after the push. The 4 that produced none
+# were 19 Aug, 20 Aug twice, and 8 Sep. Every one was carried in later by a
+# following push, 21 to 156 minutes late, and only the 8 Sep one changed any API
+# code at all. So this fires about once a month and works the other 99.4% of the
+# time, which is precisely what makes it dangerous: a watcher that is plainly
+# broken gets checked, and one that almost always works does not.
+#
+# WHY IT ASKS THE API RATHER THAN READING A DEPLOYMENT'S OUTCOME. Over those same
+# 45 days, 23 more API deployments started and never recorded a success in
+# GitHub's copy of Railway's record, while none ever recorded a failure. Whether
+# those releases reached readers cannot be told from any record this repository
+# holds. Asking the running API which commit it is answers all of it in 1 request,
+# whatever the deployment did, exactly as its website sibling reads the served
+# page rather than a build's outcome.
+#
+# QUIET BY CONSTRUCTION. The rule is that the changes between the commit the API
+# was built from and `main`'s head must not touch a path the API is built from,
+# derived from `.railwayignore`. A merge that changes only the website or only
+# documents satisfies that with no release at all. That is not a nicety: 3 of the
+# 4 missed pushes above changed nothing but the website, so a check comparing
+# against `main`'s tip would have cried wolf 3 times out of 4 before the one that
+# mattered arrived.
+#
+# WHY THE GRACE IS 15 MINUTES. Measured across 246 API releases between 4 and
+# 22 Sep 2026, a push reaches a running API in 56 to 296 seconds, median 92. So
+# 15 minutes is about 3 times the slowest release ever seen here, and still
+# reports the 8 Sep skip sooner than the person who found it did.
+#
+# A GREEN RUN IS NOT A QUIET WATCH. The run goes red whenever it alarms on `main`,
+# for the reason its website sibling records: on 18 Sep 2026 both website watches
+# did their job and finished green, and a later reading of the Actions tab took
+# those green ticks for silence
+# ([issue 2291](https://github.com/alethical-org/alethical/issues/2291)). The issue
+# is the alarm; the red run only stops the Actions tab from reporting the opposite
+# of what happened.
+#
+# Costs nothing per run: 1 public request per attempt and the local git history.
+
+on:
+  push:
+    branches:
+      - main
+  # A run on a pull request proves the plumbing and nothing else: a pull request's
+  # own head is never what production runs, so the verdict is known before it
+  # starts. What it does check is that the checkout is deep enough, that a GitHub
+  # runner can reach the live API at all, and that the loop reads the check's
+  # answer correctly. The verdict itself is covered by
+  # `alethical/tests/test_check_production_release_reached_readers.py`, which
+  # replays the 8 Sep push against a real git history.
+  pull_request:
+    paths:
+      - ".github/workflows/api-release-missing.yml"
+      - "scripts/check_production_release_reached_readers.py"
+      - "alethical/release.py"
+      - "alethical/api/main.py"
+      - ".railwayignore"
+  workflow_dispatch:
+
+concurrency:
+  # Keyed on the ref, so every push to `main` shares 1 slot and the older wait is
+  # cancelled by the newer push, whose answer covers it. The check's clock runs
+  # from the OLDEST change still waiting, not the newest merge, so a run of merges
+  # cannot keep resetting the alarm.
+  group: api-release-missing-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    name: Say when a merge is not reaching the API
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          # The check diffs main's head against the commit the API was built
+          # from, which can be several commits back. A shallow clone has neither
+          # that commit nor the range, and the check would silently have no
+          # verdict to give.
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Ask the API what it is running, until it catches up or the grace runs out
+        id: check
+        run: |
+          # `set +e` on purpose. GitHub runs a `run:` block as `bash -e`, so the
+          # check's own non-zero answer would kill this step before it printed a
+          # word, and a watch that cannot report its own finding is no watch.
+          set +e -uo pipefail
+          # 25 minutes of attempts, 1 read a minute. The check turns waiting into
+          # an alarm on its own once the oldest waiting change passes its grace,
+          # so this deadline only bounds the case where the API cannot be reached
+          # at all, which would leave no verdict either way.
+          deadline=$(( $(date +%s) + 25 * 60 ))
+          # No grace on a pull request. Waiting 15 minutes for a state that cannot
+          # arrive would tell nobody anything; answering at once shows the words
+          # the alarm would carry.
+          grace=15
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then grace=0; fi
+          while : ; do
+            python scripts/check_production_release_reached_readers.py \
+              --service api --grace-minutes "$grace" > verdict.txt 2>&1
+            status=$?
+            cat verdict.txt
+            if [ "$status" != "2" ]; then break; fi
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "Gave up: 25 minutes of attempts and still no verdict."
+              break
+            fi
+            sleep 60
+          done
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+      # A branch run reports and writes nothing, so the whole job can be exercised
+      # against the live API without opening an issue on the board.
+      - name: Open or update the one issue when a merge is not reaching the API
+        if: steps.check.outputs.status == '1' && github.ref_name == 'main'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const title = "A merge is not reaching the API, because no release ran";
+            // Found by this marker rather than by its title, so the title can be
+            // edited and a person can adopt an issue they are already working as
+            // this watch's home by pasting the marker into it. Same rule as
+            // production-release-missing.yml.
+            const marker = "<!-- api-release-missing -->";
+            const body = [
+              marker,
+              fs.readFileSync('verdict.txt', 'utf8').trim(),
+              "",
+              "Opened automatically by `.github/workflows/api-release-missing.yml`.",
+              `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            ].join("\n");
+            const open = (await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner, repo: context.repo.repo, state: "open", per_page: 100,
+            })).find((issue) => (issue.body || "").includes(marker) || issue.title === title);
+            if (open) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo, issue_number: open.number, body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title: `🚨 ${title}`, body, labels: ["backend", "ci"],
+              });
+            }
+
+      # One alarm per outage, closed when it is over, so a run of these cannot
+      # fill the board. The repair is a redeploy that emits no event this job
+      # watches, so it closes on the next run that finds the API up to date, which
+      # is the next merge or a hand-run of this workflow.
+      - name: Close the issue once the API has what main has
+        if: steps.check.outputs.status == '0' && github.ref_name == 'main'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = "<!-- api-release-missing -->";
+            const open = (await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner, repo: context.repo.repo, state: "open", per_page: 100,
+            })).find((issue) => (issue.body || "").includes(marker));
+            if (!open) return;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: open.number,
+              body: `The API is up to date again. ${fs.readFileSync('verdict.txt', 'utf8').trim()}\n\nClosed automatically.`,
+            });
+            await github.rest.issues.update({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: open.number,
+              state: "closed", state_reason: "completed",
+            });
+
+      # The run's own colour, after the issue is written. A pull-request self-test
+      # is excluded by `github.ref_name`, because a pull request's head is never
+      # what production runs, so its verdict is always "not reached" and a red run
+      # there would say nothing and frighten everybody.
+      - name: Go red, and say in the run itself that the API is behind
+        if: steps.check.outputs.status == '1' && github.ref_name == 'main'
+        run: |
+          set -uo pipefail
+          {
+            echo "## 🚨 The API is not running what \`main\` has"
+            echo
+            cat verdict.txt
+            echo
+            echo "An issue carrying this verdict is open on the board. This run is red so"
+            echo "the Actions tab cannot read as quiet while that issue is open."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error title=The API is not running what main has::$(head -n 1 verdict.txt)"
+          exit 1
+
+      # A red run rather than an issue, deliberately. The only way to get here is
+      # 25 minutes in which the API could not be reached at all, which is an
+      # outage of its own and visible everywhere else. If it ever happens twice,
+      # it earns an issue.
+      - name: Fail the run when 25 minutes produced no verdict
+        if: steps.check.outputs.status == '2'
+        run: exit 1

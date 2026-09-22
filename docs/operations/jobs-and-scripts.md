@@ -2,7 +2,7 @@
 
 <!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py -->
 
-Net: The repository has 22 GitHub Actions workflows. 18 can start automatically
+Net: The repository has 23 GitHub Actions workflows. 19 can start automatically
 and 4 run only when a person starts them. Scheduled checks, releases, and local
 backups do not call paid AI services. Reader questions and deliberately started
 AI work do.
@@ -28,6 +28,7 @@ AI work do.
 | Public metric source health (`.github/workflows/site-metrics-health.yml`) | Daily at 13:43 UTC, and by hand | Reads 7 cached public measurement answers, checks freshness and counting contracts, and names failures in the run summary | No paid AI call; public reads on GitHub's standard free runner |
 | Failed release says so (`.github/workflows/production-release-failed.yml`) | After each production release, succeeded or failed | Opens 1 issue when the website's own release fails, so a merge that reaches nobody does not sit unnoticed; comments rather than opening a second while it keeps failing and says how many have failed in a row, and closes that issue when a release next succeeds. Ignores preview releases, which ship to nobody. Turns the run red as well, so the Actions tab cannot read as quiet while its issue is open | No paid AI call; reads 1 deployment event on GitHub's standard free runner |
 | Missing release says so (`.github/workflows/production-release-missing.yml`) | After each change reaches `main`, and by hand | Reads which commit the live site says built it and compares that with `main`. Opens 1 issue when a merged website change is not reaching readers after 10 minutes, comments rather than opening a second, and closes that issue once readers are up to date. Says nothing for a documents-only merge, which correctly needs no release. Turns the run red as well when it alarms on `main`, so the Actions tab cannot read as quiet while its issue is open | No paid AI call; 1 read a minute of our own live site on GitHub's standard free runner |
+| Missing API release says so (`.github/workflows/api-release-missing.yml`) | After each change reaches `main`, and by hand | Asks the live API which commit it is running and compares that with `main`. Opens 1 issue when a merged API change has not reached the API after 15 minutes, comments rather than opening a second, and closes that issue once the API is up to date. Says nothing for a merge that changes only the website or documents, which correctly needs no API release. Turns the run red as well when it alarms on `main`, so the Actions tab cannot read as quiet while its issue is open | No paid AI call; 1 read a minute of our own live API on GitHub's standard free runner |
 | Traffic access key (`.github/workflows/traffic-token-expiry.yml`) | Daily at 12:00 UTC | Opens 1 issue 60 days before the private Vercel Traffic key expires and adds 1 urgent note 14 days before | No paid AI call; reads 1 date stored in the repository |
 | Backend release (Railway Git connection) | A commit reaches `main` | Applies database changes, then releases the API if its readiness check passes | No paid AI call; build and hosting usage stays on the existing Railway account |
 | Website release (Vercel Git connection) | A relevant commit reaches `main` | Builds and releases the web app | No paid AI call; build and hosting usage stays on the existing Vercel account |
@@ -38,7 +39,7 @@ Time and Central Daylight Time, so their local hour changes by 1 during the year
 
 ## What GitHub runs only by hand
 
-These 4 workflows complete the total of 22:
+These 4 workflows complete the total of 23:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |

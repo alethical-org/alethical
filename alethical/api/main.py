@@ -38,6 +38,7 @@ from alethical.api.request_admission import (
 )
 from alethical.api.services.contact import log_contact_delivery_readiness
 from alethical.logging import configure_logging
+from alethical.release import release_commit
 
 
 def create_app() -> FastAPI:
@@ -167,6 +168,32 @@ def create_app() -> FastAPI:
     @app.get("/healthz")
     async def healthz():
         return {"status": "ok"}
+
+    # Read once, at start, because a running process cannot change which commit
+    # it was built from, and because this route must never need a worker thread:
+    # it is the one thing still answerable when everything else is saturated.
+    built_from = release_commit()
+
+    @app.get("/version", response_model=None)
+    async def version() -> JSONResponse:
+        """Which commit this API was built from, so anyone can ask.
+
+        A merge that never rebuilt the API left no red check, no alert and no
+        failed deployment record, and the only way to find it was to read a live
+        answer and recognise old behaviour
+        ([issue 2046](https://github.com/alethical-org/alethical/issues/2046)).
+        This turns that into one request.
+        `.github/workflows/api-release-missing.yml` reads it after every merge,
+        and by hand it is `curl -s https://api.alethical.com/version`.
+
+        `null` means this process cannot know, which is normal on a laptop and
+        is a fault on a deployed release. Never cached: a cached answer here
+        would report a version that is no longer running.
+        """
+        return JSONResponse(
+            content={"commit": built_from},
+            headers={"Cache-Control": "no-store"},
+        )
 
     @app.get("/readyz", response_model=None)
     def readyz() -> JSONResponse:
