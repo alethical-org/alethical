@@ -244,6 +244,7 @@ import {
 import {
   NAME_SEARCH_EMPTY_QUERY_TITLE,
   NAME_SEARCH_EMPTY_QUERY_WHY,
+  NAME_SEARCH_WAITING,
   nameSearchHeading,
   BROWSE_ALL_COMMITTEES,
 } from './moneyNameSearch';
@@ -1491,12 +1492,21 @@ export function outsideSpendingPageSnapshot(page: OutsideSpendingRecordPage): Pa
  * told nothing concludes that the person gave nothing rather than that we do not
  * hold the record.
  */
-export function moneySearchPageSnapshot(): PageSnapshot {
+export function moneySearchPageSnapshot(query = ''): PageSnapshot {
+  // An address carrying a name is a reader who has already searched, so the
+  // served page says what the screen says while it looks: that name in the
+  // heading, and the screen's own waiting sentence under it. Serving the
+  // empty-query card told them to type a name they had just typed
+  // (issue #2024).
+  const searching = query.trim().length > 0;
   return {
-    heading: nameSearchHeading(''),
+    heading: nameSearchHeading(query),
     subheading: '',
-    bodyHeading: NAME_SEARCH_EMPTY_QUERY_TITLE,
-    body: [NAME_SEARCH_EMPTY_QUERY_WHY],
+    // The screen prints the waiting sentence as a plain line above its
+    // placeholder rows, with no heading over it, so this carries no heading
+    // either.
+    bodyHeading: searching ? '' : NAME_SEARCH_EMPTY_QUERY_TITLE,
+    body: searching ? [NAME_SEARCH_WAITING] : [NAME_SEARCH_EMPTY_QUERY_WHY],
     bodyIsList: false,
     facts: [],
     sections: [

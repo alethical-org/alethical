@@ -1883,6 +1883,36 @@ describe('the records a money page hands to the app', () => {
     expect(servedData(body)).toEqual([]);
   });
 
+  it('answers a shared search link with that name, not with an invitation to type one', async () => {
+    // A reader following `/money/search?q=abeler` has already searched. Until
+    // this, the served page printed the empty-query card, so for about 240 ms it
+    // told them to type a name they had just typed (issue #2024, measured live
+    // 22 Sep 2026). It now says what the screen says while it looks.
+    stubNetwork(() => ({ status: 500 }));
+
+    const { body, headers, status } = await serve({ path: '/money/search', q: 'abeler' });
+
+    expect(status).toBe(200);
+    expect(body).toContain('<h1>Results for \u201Cabeler\u201D</h1>');
+    expect(body).toContain('Searching these records');
+    expect(body).not.toContain('Type a name to search');
+    // Everything else about the address is unchanged: the results still belong
+    // to the app, and whatever somebody typed stays unlistable.
+    expect(body).toContain('Limits of the campaign records');
+    expect(headers.get('X-Robots-Tag')).toBe('noindex');
+    expect(servedData(body)).toEqual([]);
+  });
+
+  it('keeps the invitation to type a name when the address carries none', async () => {
+    stubNetwork(() => ({ status: 500 }));
+
+    const { body } = await serve({ path: '/money/search', q: '   ' });
+
+    expect(body).toContain('<h1>Search these records by name</h1>');
+    expect(body).toContain('Type a name to search');
+    expect(body).not.toContain('Searching these records');
+  });
+
   it('serves a page whose shell has no slot for the block, as it did before', async () => {
     readPageShell.mockResolvedValue(SHELL.replace('<!--alethical:page-data-->', ''));
     stubNetwork(() => ({ status: 200, payload: { data: COMMITTEE_REGISTER } }));
