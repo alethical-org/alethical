@@ -291,14 +291,13 @@ export function CommitteePaymentsScreen({
                   aria-level={1}
                   style={[styles.h1, isTablet && styles.h1Tablet, isMobile && styles.h1Mobile]}
                 >
-                  {paymentsTitle(tab)}
+                  {paymentsTitle(tab, name)}
                 </Text>
               </ResultsHeading>
               <View style={styles.chipRow}>
                 {registrationNumber ? (
                   <Text style={styles.regChip}>REG {registrationNumber}</Text>
                 ) : null}
-                {name ? <Text style={styles.entName}>{name}</Text> : null}
               </View>
               <View style={styles.controls}>
                 <View style={styles.tabsRow} role="group" aria-label="Payment direction">
@@ -706,11 +705,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 11,
     overflow: 'hidden',
-  },
-  entName: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.bodyLg,
-    color: t.colors.text.secondary,
   },
   stampCard: {
     backgroundColor: t.colors.surfaces.base,

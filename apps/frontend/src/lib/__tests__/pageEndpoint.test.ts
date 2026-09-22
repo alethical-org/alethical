@@ -2530,12 +2530,13 @@ describe('a committee payments address naming a direction is answered in that di
       tab: 'spent',
     });
 
-    expect(body).toContain(escapeHtml('Where this committee’s money went'));
+    // The heading names the committee as well as the direction (§28.7).
+    expect(body).toContain(escapeHtml('Where Jane Fonda Climate PAC spent its money'));
     expect(body).toContain('Named payment records');
     expect(body).toContain('Square Space');
     // The exact confusion #2038 describes: a donation in, on a page a reader
     // asked to be about the money going out.
-    expect(body).not.toContain('Who gave to this committee');
+    expect(body).not.toContain('Who gave to');
     expect(body).not.toContain('Ulasich');
   });
 
@@ -2547,7 +2548,10 @@ describe('a committee payments address naming a direction is answered in that di
     expect(
       calls.some((url) => url.startsWith(PAYMENTS) && url.includes('direction=received')),
     ).toBe(true);
-    expect(body).toContain('Who gave to this committee');
+    expect(body).toContain('Who gave to Jane Fonda Climate PAC');
+    // The name is in the heading, so the badge under it carries the filed number
+    // alone rather than printing the same name again immediately below.
+    expect(body).not.toContain('<span class="ps-chip">Jane Fonda Climate PAC</span>');
     expect(body).toContain('Ulasich');
   });
 
@@ -2595,7 +2599,7 @@ describe('a committee payments address naming a direction is answered in that di
     expect(
       calls.some((url) => url.startsWith(PAYMENTS) && url.includes('direction=received')),
     ).toBe(true);
-    expect(body).toContain('Who gave to this committee');
+    expect(body).toContain('Who gave to Jane Fonda Climate PAC');
   });
 });
 

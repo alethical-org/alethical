@@ -2215,10 +2215,14 @@ describe('a committee’s full payments list in the first response', () => {
       'spent',
     );
 
-    expect(paidOut.heading).toBe(paymentsTitle('spent'));
+    // The heading names the committee as well as the direction (§28.7), and the
+    // badge under it drops the name it would otherwise repeat.
+    expect(paidOut.heading).toBe(paymentsTitle('spent', 'Jane Fonda Climate PAC'));
+    expect(paidOut.heading).toContain('Jane Fonda Climate PAC');
+    expect(paidOut.chips).toEqual(['REG 41326']);
     expect(paidOut.sections?.[1]?.heading).toBe(paymentsEyebrow('spent'));
     expect(visibleText(renderPageSnapshot(paidOut))).toContain('Square Space');
-    expect(paidOut.heading).not.toBe(paymentsTitle('gave'));
+    expect(paidOut.heading).not.toBe(paymentsTitle('gave', 'Jane Fonda Climate PAC'));
   });
 
   it('says no PAYMENTS are named for an empty payments-out year, not no donors', () => {

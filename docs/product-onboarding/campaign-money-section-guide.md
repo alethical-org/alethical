@@ -1174,6 +1174,12 @@ motion and announce themselves to screen readers.
 
 The full list behind a committee's figures — every named payment, largest first, with each
 payment's own date. The Who gave / Where it went choice and the year are in the address.
+
+The page's own heading names the committee and the direction together: "Who gave to
+Jane Fonda Climate PAC", or "Where Jane Fonda Climate PAC spent its money". The badge
+beneath it carries the filed registration number alone, because the name is already in
+the heading. Until the register answers with a name, the heading reads "Who gave to this
+committee" or "Where this committee's money went", which stays true without one.
 The first response reads the dated committee figures and the first 50 payments
 concurrently. It does not request whose committee it is: no current member claim
 is needed to read this registration’s own payments.
