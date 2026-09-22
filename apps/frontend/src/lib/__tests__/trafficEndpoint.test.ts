@@ -269,6 +269,11 @@ describe('public traffic totals', () => {
       windowEndedAt: '2026-08-14T20:00:00.000Z',
       countingStartedAt: '2026-08-03T00:00:00.000Z',
       teamExclusionConfigured: true,
+      // Page views come from Vercel with no bot filter asked for; page speed comes
+      // from Cloudflare with one. Naming both keeps the 2 counts from being read as
+      // the same population (issue 2337).
+      measurementSource: 'vercel-web-analytics',
+      botFilterRequested: false,
     });
     expect(JSON.stringify(body)).not.toContain('private-profile');
     expect(JSON.stringify(body)).not.toContain('requestPath');

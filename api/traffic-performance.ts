@@ -34,16 +34,32 @@ const DOCUMENT_NAVIGATION_TYPES = [
   "restore",
   "prerender",
 ];
-const QUERY = `query TrafficVitals($accountTag: string!, $host: string!, $start: Date!, $end: Date!) {
-  viewer {
-    accounts(filter: { accountTag: $accountTag }) {
-      vitals: rumWebVitalsEventsAdaptiveGroups(
-        limit: 1
-        filter: {
-          requestHost: $host, date_geq: $start, date_leq: $end, bot: 0,
-          navigationType_in: ${JSON.stringify(DOCUMENT_NAVIGATION_TYPES)}
-        }
-      ) {
+// Cloudflare's bot flag does not catch an automated client pool that runs the page
+// program and reports measurements, so bot: 0 alone published a figure describing a
+// scraper rather than a reader: over 15 to 21 Sep 2026 the same committee pages
+// measured 4,524 ms with the pool in and 644 ms with it out, on opposite sides of
+// the 2,500 ms limit. The pool reports itself as these browser-and-version pairs,
+// each about 2 years behind its browser's current version; on /money/payments the 10
+// browser-and-operating-system combinations they make up each carried 9.8% to 10.1%
+// of 22,680 measurements, which is a fixed pool drawn from evenly rather than a
+// population of people. Evidence and honest limits:
+// docs/research/real-visitor-page-speed-sources.md, issue 2337.
+const AUTOMATED_CLIENT_POOL: Array<[string, string[]]> = [
+  ["Chrome", ["118", "119", "120"]],
+  ["Firefox", ["120", "121"]],
+  ["Edge", ["119", "120"]],
+];
+// Cloudflare recorded no browser version for this account before 11 Sep 2026 and
+// recorded it for whole days from the 12th. A "not one of these versions" filter
+// keeps the pool on an earlier day instead of removing it, so the window starts here
+// at the earliest and the page prints the window it actually read.
+const SEPARATION_POSSIBLE_FROM = "2026-09-12";
+const READERS_ONLY = `AND: [${AUTOMATED_CLIENT_POOL.map(
+  ([browser, versions]) =>
+    `{ OR: [{ userAgentBrowser_neq: ${JSON.stringify(browser)} },` +
+    ` { browserVersion_notin: ${JSON.stringify(versions)} }] }`,
+).join(", ")}]`;
+const VITALS_FIELDS = `{
         quantiles {
           largestContentfulPaintP75
           interactionToNextPaintP75
@@ -57,7 +73,20 @@ const QUERY = `query TrafficVitals($accountTag: string!, $host: string!, $start:
           }
         }
         avg { sampleInterval }
-      }
+      }`;
+const BASE_FILTER = `requestHost: $host, date_geq: $start, date_leq: $end, bot: 0,
+          navigationType_in: ${JSON.stringify(DOCUMENT_NAVIGATION_TYPES)}`;
+const QUERY = `query TrafficVitals($accountTag: string!, $host: string!, $start: Date!, $end: Date!) {
+  viewer {
+    accounts(filter: { accountTag: $accountTag }) {
+      everyClient: rumWebVitalsEventsAdaptiveGroups(
+        limit: 1
+        filter: { ${BASE_FILTER} }
+      ) ${VITALS_FIELDS}
+      vitals: rumWebVitalsEventsAdaptiveGroups(
+        limit: 1
+        filter: { ${BASE_FILTER}, ${READERS_ONLY} }
+      ) ${VITALS_FIELDS}
     }
   }
 }`;
@@ -130,9 +159,22 @@ export default async function handler(
     `${fetchedAt.toISOString().slice(0, 10)}T00:00:00.000Z`,
   );
   const periodEndedOn = new Date(today - DAY_MS).toISOString().slice(0, 10);
-  const periodStartedOn = new Date(today - 30 * DAY_MS)
-    .toISOString()
-    .slice(0, 10);
+  const thirtyDaysAgo = new Date(today - 30 * DAY_MS).toISOString().slice(0, 10);
+  // Whichever is later. Reaching further back would publish a figure with the
+  // automated client pool still in it, which is the whole defect this separates.
+  const periodStartedOn =
+    thirtyDaysAgo > SEPARATION_POSSIBLE_FROM
+      ? thirtyDaysAgo
+      : SEPARATION_POSSIBLE_FROM;
+  if (periodStartedOn > periodEndedOn) {
+    sendJson(
+      response,
+      503,
+      { error: "Page speed data is temporarily unavailable." },
+      "no-store",
+    );
+    return;
+  }
   try {
     let result: Response;
     try {
@@ -161,7 +203,14 @@ export default async function handler(
       throw new PerformanceUnavailable(`Cloudflare returned ${result.status}`);
     }
     const payload = (await result.json()) as {
-      data?: { viewer?: { accounts?: Array<{ vitals?: VitalsGroup[] }> } };
+      data?: {
+        viewer?: {
+          accounts?: Array<{
+            vitals?: VitalsGroup[];
+            everyClient?: VitalsGroup[];
+          }>;
+        };
+      };
       errors?: unknown;
     };
     if (
@@ -169,7 +218,9 @@ export default async function handler(
       (!Array.isArray(payload.errors) || payload.errors.length > 0)
     )
       throw new PerformanceUnavailable("Cloudflare returned errors");
-    const group = payload.data?.viewer?.accounts?.[0]?.vitals?.[0];
+    const account = payload.data?.viewer?.accounts?.[0];
+    const group = account?.vitals?.[0];
+    const everyClient = account?.everyClient?.[0];
     const lcpSamples = sampleCount(
       group?.confidence?.sum?.lcpTotal?.sampleSize,
     );
@@ -179,7 +230,15 @@ export default async function handler(
     const clsSamples = sampleCount(
       group?.confidence?.sum?.clsTotal?.sampleSize,
     );
-    const sampleInterval = group?.avg?.sampleInterval;
+    const everyClientSamples = sampleCount(
+      everyClient?.confidence?.sum?.lcpTotal?.sampleSize,
+    );
+    if (everyClientSamples < lcpSamples) {
+      throw new PerformanceUnavailable("Cloudflare returned inconsistent counts");
+    }
+    // The interval describes the sampling, not the population, and the wider group
+    // always has rows to report it from.
+    const sampleInterval = everyClient?.avg?.sampleInterval;
     if (!finiteNonNegative(sampleInterval) || sampleInterval < 1) {
       throw new PerformanceUnavailable("Cloudflare returned incomplete data");
     }
@@ -207,9 +266,14 @@ export default async function handler(
         ),
         clsSamples,
         sampleInterval,
+        automatedSamples: everyClientSamples - lcpSamples,
+        automatedClientsSeparated: true,
         measurementScope: "document-loads",
         navigationTypes: DOCUMENT_NAVIGATION_TYPES,
         knownBotsExcluded: true,
+        // Named so this can never be read as the same population as api/traffic.ts,
+        // which counts page views at Vercel with no bot filter asked for.
+        measurementSource: "cloudflare-web-analytics",
         sampleCountSource: "cloudflare-confidence",
         minimumSamples: MIN_SAMPLES,
         periodStartedOn,

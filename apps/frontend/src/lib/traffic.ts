@@ -11,6 +11,10 @@ export type TrafficTotals = {
   windowEndedAt: string;
   countingStartedAt: string;
   teamExclusionConfigured: boolean;
+  /** Vercel counts these page views; Cloudflare measures page speed separately. */
+  measurementSource?: 'vercel-web-analytics';
+  /** This query asks Vercel for no bot filter, so these counts include programs. */
+  botFilterRequested?: false;
 };
 
 export type DifferentProfilesViewed = {
@@ -154,6 +158,10 @@ export type PerformanceTotals = {
   knownBotsExcluded?: true;
   sampleCountSource?: 'cloudflare-confidence';
   minimumSamples?: 50;
+  measurementSource?: 'cloudflare-web-analytics';
+  /** Measurements taken out because an automated client pool sent them, not a reader. */
+  automatedSamples?: number;
+  automatedClientsSeparated?: true;
 };
 export { redactTrafficUrl } from './trafficUrl';
 
@@ -372,24 +380,45 @@ function isSiteMetricReaders(value: unknown): value is SiteMetricReaders {
   );
 }
 
+// Naming the service and saying no bot filter was asked for only mean anything
+// together: either alone leaves the reader of the payload guessing at the other.
+function validTrafficPopulation(totals: Partial<TrafficTotals>) {
+  const named = Object.hasOwn(totals, 'measurementSource');
+  const filtered = Object.hasOwn(totals, 'botFilterRequested');
+  if (!named && !filtered) return true;
+  return (
+    named &&
+    filtered &&
+    totals.measurementSource === 'vercel-web-analytics' &&
+    totals.botFilterRequested === false
+  );
+}
+
 export function isTrafficTotals(value: unknown): value is TrafficTotals {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const totals = value as Partial<TrafficTotals>;
   return (
-    exactKeys(value, [
-      'pageViews24h',
-      'pageViews7d',
-      'pageViews30d',
-      'estimatedVisitors24h',
-      'estimatedVisitors7d',
-      'estimatedVisitors30d',
-      'trafficBreakdown7d',
-      'trafficBreakdown30d',
-      'fetchedAt',
-      'windowEndedAt',
-      'countingStartedAt',
-      'teamExclusionConfigured',
-    ]) &&
+    // The 2 population keys are optional so a payload cached before they shipped is
+    // still readable; an older page reading a newer payload keeps working too.
+    allowedKeys(
+      value,
+      [
+        'pageViews24h',
+        'pageViews7d',
+        'pageViews30d',
+        'estimatedVisitors24h',
+        'estimatedVisitors7d',
+        'estimatedVisitors30d',
+        'trafficBreakdown7d',
+        'trafficBreakdown30d',
+        'fetchedAt',
+        'windowEndedAt',
+        'countingStartedAt',
+        'teamExclusionConfigured',
+      ],
+      ['measurementSource', 'botFilterRequested'],
+    ) &&
+    validTrafficPopulation(totals) &&
     nonNegativeInteger(totals.pageViews24h) &&
     nonNegativeInteger(totals.pageViews7d) &&
     nonNegativeInteger(totals.pageViews30d) &&
@@ -612,9 +641,13 @@ export function isPerformanceTotals(value: unknown): value is PerformanceTotals 
         'knownBotsExcluded',
         'sampleCountSource',
         'minimumSamples',
+        'measurementSource',
+        'automatedSamples',
+        'automatedClientsSeparated',
       ],
     ) &&
     validPerformanceScope(totals) &&
+    validAutomatedSeparation(totals) &&
     nullableNonNegative(totals.lcpP75Ms) &&
     nonNegativeInteger(totals.lcpSamples) &&
     nullableNonNegative(totals.inpP75Ms) &&
@@ -627,6 +660,21 @@ export function isPerformanceTotals(value: unknown): value is PerformanceTotals 
     validCalendarDate(totals.periodStartedOn) &&
     validCalendarDate(totals.periodEndedOn) &&
     validDate(totals.fetchedAt)
+  );
+}
+
+// A count of what was separated out and the flag saying a separation happened only
+// mean anything together: a count with no flag cannot say whether 0 means "nothing
+// automated" or "nothing was looked for".
+function validAutomatedSeparation(totals: Partial<PerformanceTotals>) {
+  const counted = Object.hasOwn(totals, 'automatedSamples');
+  const flagged = Object.hasOwn(totals, 'automatedClientsSeparated');
+  if (!counted && !flagged) return true;
+  return (
+    counted &&
+    flagged &&
+    totals.automatedClientsSeparated === true &&
+    nonNegativeInteger(totals.automatedSamples)
   );
 }
 

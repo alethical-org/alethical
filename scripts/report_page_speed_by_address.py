@@ -19,6 +19,20 @@ scope. Clicks inside the site are reported separately, from the routing-apis and
 soft-navigation records, and never mixed into a document-load figure.
 https://developers.cloudflare.com/web-analytics/data-metrics/dimensions/
 
+Cloudflare's bot flag does not separate readers from an automated client pool that
+runs the page program and reports measurements. Every figure here is therefore read
+twice, once for every client and once with that pool separated out, the separated
+population is what a limit is read against, and the automated share is printed beside
+each address so no score can be taken for a reader score without it. The pool, its
+evidence and the decision to score against the separated population are in
+docs/research/real-visitor-page-speed-sources.md
+(https://github.com/alethical-org/alethical/issues/2337).
+
+The separation rests on browser and version, which Cloudflare began recording for
+this account on 11 Sep 2026 and recorded for whole days from 12 Sep 2026. A window
+reaching before that date cannot be separated at all, and says so rather than
+reporting an unseparated figure as a reader figure.
+
 Before Cloudflare completed its navigation-classification rollout on 4 Sep 2026,
 the navigate bucket could contain older soft-navigation events. A window reaching
 before that date cannot isolate document loads even with today's filter.
@@ -95,6 +109,25 @@ NAVIGATION_ROLLOUT_COMPLETED_ON = date(2026, 9, 4)
 #: published. A window starting on or before this day holds them.
 PHANTOM_CLICK_RECORDS_ENDED_ON = date(2026, 9, 22)
 
+#: The browser-and-version pairs an automated client pool reports itself as. It is
+#: not a guess from the shape of the counts: on /money/payments over 15 to 21 Sep
+#: 2026, 10 browser-and-operating-system combinations built from these 7 pairs each
+#: carried between 9.8% and 10.1% of 22,680 measurements, which is a fixed pool of
+#: user agents drawn from evenly rather than a population of people. Every pair is
+#: about 2 years behind its browser's current version. Cloudflare marks all of it
+#: bot: 0. Full evidence and the honest limits:
+#: docs/research/real-visitor-page-speed-sources.md.
+AUTOMATED_CLIENT_POOL: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("Chrome", ("118", "119", "120")),
+    ("Firefox", ("120", "121")),
+    ("Edge", ("119", "120")),
+)
+#: Cloudflare recorded no browser version for this account before 11 Sep 2026 and
+#: recorded it for whole days from the 12th. Read against an earlier day, a
+#: "not one of these versions" filter keeps the pool rather than removing it, so a
+#: window starting earlier is reported unseparated and labelled unseparated.
+BROWSER_VERSION_RECORDED_FROM = date(2026, 9, 12)
+
 
 @dataclass(frozen=True)
 class Address:
@@ -137,6 +170,15 @@ ADDRESSES: tuple[Address, ...] = (
         "/money/committees/<committee>/payments",
         'requestPath_like: "/money/committees/%/payments"',
     ),
+    # Every payment filed under one printed name, reached from /money/search. It
+    # carries more measurements than every other money address put together, and
+    # almost all of them are the automated client pool, so leaving it out left the
+    # busiest address on the site unreported.
+    Address(
+        "money_payments_under_a_name",
+        "/money/payments",
+        'requestPath: "/money/payments"',
+    ),
     Address("bills", "/bills", 'requestPath: "/bills"'),
     Address("home", "/", 'requestPath: "/"'),
     Address("sitewide", "every address", ""),
@@ -154,11 +196,69 @@ class Reading:
     layout_movement_measurements: int | None
 
 
+@dataclass(frozen=True)
+class AddressReadings:
+    """One address read twice: every client, and the same minus the pool.
+
+    ``separated`` is None for a window Cloudflare cannot separate, which is any
+    window starting before it recorded browser version. None is not zero: it means
+    the question cannot be answered from these records, and the report says so.
+    """
+
+    address: Address
+    every_client: Reading
+    separated: Reading | None
+
+    @property
+    def scored(self) -> Reading:
+        """The reading a limit is read against: readers where they can be told apart."""
+        return self.separated or self.every_client
+
+    @property
+    def automated_measurements(self) -> int | None:
+        every = self.every_client.main_content_measurements
+        if self.separated is None or every is None:
+            return None
+        readers = self.separated.main_content_measurements
+        return None if readers is None else every - readers
+
+
+def can_separate(started_on: date) -> bool:
+    """Whether Cloudflare recorded browser version for every day in the window."""
+    return started_on >= BROWSER_VERSION_RECORDED_FROM
+
+
+def without_automated_clients() -> str:
+    """A filter fragment keeping every client outside the pool.
+
+    Each browser is excluded only at the pool's own versions, so a reader still on
+    a current Chrome stays in and a reader on Chrome 119 is the one cost of this
+    cut. Measured over 15 to 21 Sep 2026, what this removes lands on 2 addresses
+    and never on the home page, and what it keeps is spread across the whole site.
+    """
+    clauses = []
+    for browser, versions in AUTOMATED_CLIENT_POOL:
+        listed = ", ".join(json.dumps(version) for version in versions)
+        clauses.append(
+            "{ OR: ["
+            f"{{ userAgentBrowser_neq: {json.dumps(browser)} }},"
+            f" {{ browserVersion_notin: [{listed}] }}"
+            "] }"
+        )
+    return "AND: [" + ", ".join(clauses) + "]"
+
+
+def separated_key(address: Address) -> str:
+    """The alias holding the same address read with the pool separated out."""
+    return f"{address.key}__readers"
+
+
 def build_query(
     addresses: tuple[Address, ...],
     *,
     what_moved: bool = False,
     navigation_types: tuple[str, ...] = DOCUMENT_NAVIGATION_TYPES,
+    separate_automated_clients: bool = True,
 ) -> str:
     """Get each address's percentile over all allowed document kinds together.
 
@@ -188,7 +288,13 @@ def build_query(
             else "quantiles { largestContentfulPaintP75 cumulativeLayoutShiftP75 }\n"
             "      confidence(level: 0.95) { sum { lcpTotal { sampleSize } clsTotal { sampleSize } } }"
         )
-        selections.append(f"""    {address.key}: rumWebVitalsEventsAdaptiveGroups(
+        populations = [(address.key, "")]
+        if separate_automated_clients:
+            populations.append(
+                (separated_key(address), f", {without_automated_clients()}")
+            )
+        for key, population in populations:
+            selections.append(f"""    {key}: rumWebVitalsEventsAdaptiveGroups(
       limit: {WHAT_MOVED_ROWS if what_moved else 1}
       {order}
       filter: {{
@@ -196,7 +302,7 @@ def build_query(
         date_geq: $start
         date_leq: $end
         bot: 0
-        navigationType_in: {json.dumps(list(navigation_types))}{extra}
+        navigationType_in: {json.dumps(list(navigation_types))}{extra}{population}
       }}
     ) {{
       {fields}
@@ -214,9 +320,15 @@ def build_query(
     )
 
 
-def build_what_moved_query(addresses: tuple[Address, ...]) -> str:
+def build_what_moved_query(
+    addresses: tuple[Address, ...], *, separate_automated_clients: bool = True
+) -> str:
     """Use exactly the same population and count source for the element report."""
-    return build_query(addresses, what_moved=True)
+    return build_query(
+        addresses,
+        what_moved=True,
+        separate_automated_clients=separate_automated_clients,
+    )
 
 
 def measurement(value: object) -> float | None:
@@ -331,6 +443,14 @@ def release_merged_at(commit: str) -> datetime:
     return datetime.fromisoformat(result.stdout.strip().splitlines()[-1])
 
 
+def pool_description() -> str:
+    """Name the separated browser-and-version pairs, so nothing is hidden."""
+    return "; ".join(
+        f"{browser} {', '.join(versions)}"
+        for browser, versions in AUTOMATED_CLIENT_POOL
+    )
+
+
 def population_note(started_on: date) -> str:
     note = (
         "Document navigation types: "
@@ -344,6 +464,21 @@ def population_note(started_on: date) -> str:
         note += (
             " Before 2026-09-04, Cloudflare's navigate bucket could include older"
             " soft-navigation records; this window cannot isolate them."
+        )
+    if can_separate(started_on):
+        note += (
+            " Scores describe the population left after separating out an automated"
+            " client pool Cloudflare does not flag, reporting itself as "
+            + pool_description()
+            + ". The automated column counts what was separated out."
+        )
+    else:
+        note += (
+            " Scores describe EVERY client, readers and automated alike, because"
+            " Cloudflare recorded no browser version before"
+            f" {BROWSER_VERSION_RECORDED_FROM} and the automated client pool cannot"
+            " be separated from a window starting earlier. Do not read these as"
+            " reader figures."
         )
     return note
 
@@ -403,8 +538,18 @@ def count_label(count: int | None) -> str:
     return str(count) if count is not None else "unavailable"
 
 
+def automated_label(readings: AddressReadings) -> str:
+    """How much of this address's traffic was separated out, and what share."""
+    separated = readings.automated_measurements
+    if separated is None:
+        return "not separable"
+    every = readings.every_client.main_content_measurements or 0
+    share = f"{round(100 * separated / every)}%" if every else "0%"
+    return f"{separated} of {every} ({share})"
+
+
 def format_table(
-    readings: list[Reading],
+    readings: list[AddressReadings],
     started_on: date,
     ended_on: date,
     min_measurements: int,
@@ -415,10 +560,12 @@ def format_table(
         "Main content",
         "Layout movement",
         "Measurements",
+        "Automated clients",
         "Over the limit",
     )
     rows = [header]
-    for reading in readings:
+    for entry in readings:
+        reading = entry.scored
         over = breaches(reading)
         incomplete = reading.main_content_ms is None or reading.layout_movement is None
         counts = count_label(reading.main_content_measurements)
@@ -441,6 +588,7 @@ def format_table(
                     "",
                 ),
                 counts,
+                automated_label(entry),
                 ", ".join(over) if over else ("not known yet" if incomplete else "no"),
             )
         )
@@ -458,12 +606,12 @@ def format_table(
 
 
 def format_report(
-    document_loads: list[Reading],
+    document_loads: list[AddressReadings],
     started_on: date,
     ended_on: date,
     min_measurements: int,
     bound: str | None = None,
-    clicks: list[Reading] | None = None,
+    clicks: list[AddressReadings] | None = None,
 ) -> str:
     withheld = clicks_withheld_reason(started_on)
     click_section = [
@@ -481,13 +629,15 @@ def format_report(
     ]
     return "\n".join(
         [
-            f"Real-visitor measurements for {HOST}, {started_on} to {ended_on}, 75th percentile.",
+            f"{'Reader measurements' if can_separate(started_on) else 'UNSEPARATED measurements (readers and automated clients together)'}"
+            f" for {HOST}, {started_on} to {ended_on}, 75th percentile.",
             f"Limits (https://github.com/alethical-org/alethical/issues/1966): main content {MAIN_CONTENT_LIMIT_MS} ms, layout movement {LAYOUT_MOVEMENT_LIMIT}. They are written for a document load; a click is reported beside them, not judged against them.",
             f"A figure resting on fewer than {max(MIN_MEASUREMENTS, min_measurements)} observations is withheld, not a pass.",
             *([bound] if bound else []),
             "Main content is the browser's largest-content measurement, not an app-ready timer. September 4 browser checks selected the server-written snapshot.",
             "Counts are actual observations from Cloudflare confidence sample sizes.",
             "Limits use unrounded scores; displayed figures are rounded.",
+            "Measurements counts the scored population only; Automated clients counts what was separated out of it.",
             "",
             format_table(
                 document_loads,
@@ -550,24 +700,27 @@ def format_what_moved(
     return "\n".join(lines)
 
 
-def reading_as_json(reading: Reading) -> dict:
+def reading_as_json(entry: AddressReadings) -> dict:
     return {
-        "address": reading.address.label,
-        "mainContentMs": reading.main_content_ms,
-        "mainContentMeasurements": reading.main_content_measurements,
-        "layoutMovement": reading.layout_movement,
-        "layoutMovementMeasurements": reading.layout_movement_measurements,
-        "overTheLimit": breaches(reading),
+        "address": entry.address.label,
+        "mainContentMs": entry.scored.main_content_ms,
+        "mainContentMeasurements": entry.scored.main_content_measurements,
+        "layoutMovement": entry.scored.layout_movement,
+        "layoutMovementMeasurements": entry.scored.layout_movement_measurements,
+        "overTheLimit": breaches(entry.scored),
+        "everyClientMainContentMs": entry.every_client.main_content_ms,
+        "everyClientMeasurements": entry.every_client.main_content_measurements,
+        "automatedMeasurements": entry.automated_measurements,
     }
 
 
 def as_json(
-    document_loads: list[Reading],
+    document_loads: list[AddressReadings],
     started_on: date,
     ended_on: date,
     min_measurements: int = MIN_MEASUREMENTS,
     bound: str | None = None,
-    clicks: list[Reading] | None = None,
+    clicks: list[AddressReadings] | None = None,
 ) -> str:
     withheld = clicks_withheld_reason(started_on)
     return json.dumps(
@@ -585,6 +738,13 @@ def as_json(
             "sampleCountSource": "cloudflare-confidence",
             "minimumSamples": max(MIN_MEASUREMENTS, min_measurements),
             "populationNote": population_note(started_on),
+            "scoredPopulation": "readers"
+            if can_separate(started_on)
+            else "every-client",
+            "automatedClientsSeparated": can_separate(started_on),
+            "automatedClientPool": {
+                browser: list(versions) for browser, versions in AUTOMATED_CLIENT_POOL
+            },
             "releaseBound": bound,
             "documentLoads": [reading_as_json(reading) for reading in document_loads],
             "clicksWithheldReason": withheld,
@@ -730,8 +890,32 @@ def main(argv: list[str] | None = None) -> int:
             return None
         return found[0]
 
+    separate = can_separate(started_on)
+
+    def read_addresses(account_data: dict) -> list[AddressReadings]:
+        return [
+            AddressReadings(
+                address=address,
+                every_client=read_group(
+                    address, account_data.get(address.key), args.min_measurements
+                ),
+                separated=(
+                    read_group(
+                        address,
+                        account_data.get(separated_key(address)),
+                        args.min_measurements,
+                    )
+                    if separate
+                    else None
+                ),
+            )
+            for address in ADDRESSES
+        ]
+
     query = (
-        build_what_moved_query(ADDRESSES) if args.what_moved else build_query(ADDRESSES)
+        build_what_moved_query(ADDRESSES, separate_automated_clients=separate)
+        if args.what_moved
+        else build_query(ADDRESSES, separate_automated_clients=separate)
     )
     account_data = read_population(query)
     if account_data is None:
@@ -743,7 +927,12 @@ def main(argv: list[str] | None = None) -> int:
                 address,
                 [
                     row
-                    for row in (accounts[0].get(address.key) or [])
+                    for row in (
+                        accounts[0].get(
+                            separated_key(address) if separate else address.key
+                        )
+                        or []
+                    )
                     if isinstance(row, dict)
                 ],
             )
@@ -751,23 +940,21 @@ def main(argv: list[str] | None = None) -> int:
         ]
         print(format_what_moved(blamed, started_on, ended_on, args.min_measurements))
         return 0
-    readings = [
-        read_group(address, accounts[0].get(address.key), args.min_measurements)
-        for address in ADDRESSES
-    ]
+    readings = read_addresses(accounts[0])
     # Asked for only when it can be answered, so a window full of the records on
     # issue 2336 spends nothing and prints the reason instead of a number.
-    clicks: list[Reading] | None = None
+    clicks: list[AddressReadings] | None = None
     if clicks_withheld_reason(started_on) is None:
         click_data = read_population(
-            build_query(ADDRESSES, navigation_types=CLICK_NAVIGATION_TYPES)
+            build_query(
+                ADDRESSES,
+                navigation_types=CLICK_NAVIGATION_TYPES,
+                separate_automated_clients=separate,
+            )
         )
         if click_data is None:
             return 2
-        clicks = [
-            read_group(address, click_data.get(address.key), args.min_measurements)
-            for address in ADDRESSES
-        ]
+        clicks = read_addresses(click_data)
     print(
         as_json(readings, started_on, ended_on, args.min_measurements, bound, clicks)
         if args.json
@@ -775,11 +962,22 @@ def main(argv: list[str] | None = None) -> int:
             readings, started_on, ended_on, args.min_measurements, bound, clicks
         )
     )
+    if args.fail_on_breach and not separate:
+        # Failing a release on a window that still holds the automated client pool
+        # is the harm this switch exists to prevent, not the check it exists to run.
+        print(
+            "\nNot judged: this window starts before"
+            f" {BROWSER_VERSION_RECORDED_FROM}, so the automated client pool cannot"
+            " be separated and no score here describes readers. Ask for a window"
+            f" starting on or after {BROWSER_VERSION_RECORDED_FROM}.",
+            file=sys.stderr,
+        )
+        return 2
     if args.fail_on_breach:
         over = [
-            reading.address.label
-            for reading in readings
-            if reading.address.key.startswith("money") and breaches(reading)
+            entry.address.label
+            for entry in readings
+            if entry.address.key.startswith("money") and breaches(entry.scored)
         ]
         if over:
             print("\nOver a money-page limit: " + ", ".join(over), file=sys.stderr)

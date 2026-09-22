@@ -965,6 +965,14 @@ export default async function handler(
         windowEndedAt: new Date(windowEndedAt).toISOString(),
         countingStartedAt: new Date(countingStartedAt).toISOString(),
         teamExclusionConfigured: hasTeamExclusion(),
+        // Page views come from Vercel and page speed comes from Cloudflare, so the
+        // 2 count different events over different populations and a count from one
+        // is never a count from the other. This query asks Vercel for no bot filter
+        // at all, and the automated client pool api/traffic-performance.ts separates
+        // out is not a known bot to either service, so neither of them removes it.
+        // Issue 2337; docs/product-onboarding/traffic-guide.md.
+        measurementSource: "vercel-web-analytics",
+        botFilterRequested: false,
       },
       OK_CACHE,
     );
