@@ -34,6 +34,14 @@ the loaded page overwrote an honest served page with 3 guesses about 6 real name
 
 ## Committees and bills
 
+A profile's search-result line names the member: "See Rep. Aaron Repinski's committee
+assignments, chief-authored bills, and contact information in the Minnesota Legislature."
+A member with no current seat gets a shorter sentence naming their record of service,
+because their page shows neither a committee list nor contact details. The preview shown
+when the link is pasted keeps the shorter general line, since the member's name sits
+directly above it.
+
+
 Current committee assignments show the committee name. A verified leadership role, such
 as Chair, Vice Chair, Co-Chair, or Ranking Minority Member, gets a separate leadership
 badge. A normal assignment gets no empty badge. A sitting member with no assignments on

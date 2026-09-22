@@ -140,7 +140,10 @@ import {
   publicPageUrl,
   type PageMetadata,
 } from "../apps/frontend/src/lib/share";
-import { injectPageHead } from "../apps/frontend/src/lib/pageHead";
+import {
+  injectPageHead,
+  legislatorSearchDescription,
+} from "../apps/frontend/src/lib/pageHead";
 import {
   publishedResearch,
   researchBySlug,
@@ -519,6 +522,18 @@ async function legislatorContent(
         chamber,
         district: legislator.current_service?.district?.code,
       }),
+      // This member's own search-result sentence, built here because the wording
+      // file it lives beside is one the browser does not download to draw a page.
+      searchDescription: legislatorSearchDescription(
+        legislatorDisplayName(
+          legislator.full_name || "Minnesota legislator",
+          chamber,
+        ),
+        currentDistrictLine({
+          chamber,
+          district: legislator.current_service?.district?.code,
+        }),
+      ),
       // The same gate the profile uses for the portrait: only a sitting member's
       // record carries a current photo worth asking for.
       photoUrl: chamber ? legislator.current_service?.photo_url : null,
