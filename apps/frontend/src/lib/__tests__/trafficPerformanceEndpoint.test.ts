@@ -39,10 +39,13 @@ function measuredGroup(sampleSize: unknown = 50) {
   };
 }
 
-function mockGroup(group: unknown, errors: unknown = null) {
+function mockGroup(group: unknown, errors: unknown = null, everyClient: unknown = group) {
   const fetchSpy = vi.fn().mockResolvedValue({
     ok: true,
-    json: async () => ({ data: { viewer: { accounts: [{ vitals: [group] }] } }, errors }),
+    json: async () => ({
+      data: { viewer: { accounts: [{ vitals: [group], everyClient: [everyClient] }] } },
+      errors,
+    }),
   });
   vi.stubGlobal('fetch', fetchSpy);
   return fetchSpy;
@@ -50,7 +53,7 @@ function mockGroup(group: unknown, errors: unknown = null) {
 
 beforeEach(() => {
   vi.useFakeTimers();
-  vi.setSystemTime(new Date('2026-08-15T12:00:00.000Z'));
+  vi.setSystemTime(new Date('2026-10-15T12:00:00.000Z'));
   vi.stubEnv('CLOUDFLARE_ANALYTICS_API_TOKEN', 'private-cloudflare-token');
   vi.stubEnv('CLOUDFLARE_ACCOUNT_ID', 'account-id');
 });
@@ -87,6 +90,23 @@ describe('Cloudflare document-load speed totals', () => {
                     avg: { sampleInterval: 1 },
                   },
                 ],
+                everyClient: [
+                  {
+                    quantiles: {
+                      largestContentfulPaintP75: 4_400_000,
+                      interactionToNextPaintP75: 123_456,
+                      cumulativeLayoutShiftP75: 1,
+                    },
+                    confidence: {
+                      sum: {
+                        lcpTotal: { sampleSize: 7495 },
+                        inpTotal: { sampleSize: 80 },
+                        clsTotal: { sampleSize: 110 },
+                      },
+                    },
+                    avg: { sampleInterval: 1 },
+                  },
+                ],
               },
             ],
           },
@@ -108,14 +128,17 @@ describe('Cloudflare document-load speed totals', () => {
       clsP75: 0.088,
       clsSamples: 110,
       sampleInterval: 1,
+      automatedSamples: 7375,
+      automatedClientsSeparated: true,
       measurementScope: 'document-loads',
       navigationTypes: ['navigate', 'reload', 'back-forward', 'restore', 'prerender'],
       knownBotsExcluded: true,
+      measurementSource: 'cloudflare-web-analytics',
       sampleCountSource: 'cloudflare-confidence',
       minimumSamples: 50,
-      periodStartedOn: '2026-07-16',
-      periodEndedOn: '2026-08-14',
-      fetchedAt: '2026-08-15T12:00:00.000Z',
+      periodStartedOn: '2026-09-15',
+      periodEndedOn: '2026-10-14',
+      fetchedAt: '2026-10-15T12:00:00.000Z',
     });
     const [url, init] = fetchSpy.mock.calls[0];
     expect(String(url)).toBe('https://api.cloudflare.com/client/v4/graphql');
@@ -124,10 +147,17 @@ describe('Cloudflare document-load speed totals', () => {
     expect(requestBody.variables).toEqual({
       accountTag: 'account-id',
       host: 'www.alethical.com',
-      start: '2026-07-16',
-      end: '2026-08-14',
+      start: '2026-09-15',
+      end: '2026-10-14',
     });
-    expect(requestBody.query).not.toMatch(/path|referrer|country|device|browser|element|resource/i);
+    expect(requestBody.query).not.toMatch(/path|referrer|country|device|element|resource/i);
+    // Browser and version separate the automated client pool and do nothing else:
+    // they appear only in not-equal and not-in clauses, never as something grouped
+    // by, so no reader is ever counted or published by what they browse with.
+    expect(requestBody.query).toContain('userAgentBrowser_neq:');
+    expect(requestBody.query).toContain('browserVersion_notin:');
+    expect(requestBody.query).not.toMatch(/browserVersion\s*}/);
+    expect(requestBody.query).not.toMatch(/userAgentBrowser\s*}/);
     expect(requestBody.query).toContain('bot: 0');
     expect(requestBody.query).toContain(
       'navigationType_in: ["navigate","reload","back-forward","restore","prerender"]',
@@ -137,44 +167,72 @@ describe('Cloudflare document-load speed totals', () => {
   });
 
   it('returns null for a score with fewer than 50 samples', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          data: {
-            viewer: {
-              accounts: [
-                {
-                  vitals: [
-                    {
-                      quantiles: {
-                        largestContentfulPaintP75: 1_000_000,
-                        interactionToNextPaintP75: 100_000,
-                        cumulativeLayoutShiftP75: 0.01,
-                      },
-                      confidence: {
-                        sum: {
-                          lcpTotal: { sampleSize: 49 },
-                          inpTotal: { sampleSize: 0 },
-                          clsTotal: { sampleSize: 10 },
-                        },
-                      },
-                      avg: { sampleInterval: 1 },
-                    },
-                  ],
-                },
-              ],
-            },
-          },
-        }),
-      }),
-    );
+    mockGroup({
+      quantiles: {
+        largestContentfulPaintP75: 1_000_000,
+        interactionToNextPaintP75: 100_000,
+        cumulativeLayoutShiftP75: 0.01,
+      },
+      confidence: {
+        sum: {
+          lcpTotal: { sampleSize: 49 },
+          inpTotal: { sampleSize: 0 },
+          clsTotal: { sampleSize: 10 },
+        },
+      },
+      avg: { sampleInterval: 1 },
+    });
     const recorder = responseRecorder();
 
     await handler({ method: 'GET' }, recorder.response);
 
     expect(recorder.read().body).toMatchObject({ lcpP75Ms: null, inpP75Ms: null, clsP75: null });
+  });
+
+  it('withholds a reader score once the automated pool leaves too few measurements', async () => {
+    // What this prevents: on 15 to 21 Sep 2026, /money/search drew 7,834 document
+    // loads and 7 of them were not the pool. Scoring 7 measurements would publish a
+    // reader figure resting on almost nothing; "Building sample" is the honest answer.
+    mockGroup(measuredGroup(7), null, measuredGroup(7834));
+    const recorder = responseRecorder();
+
+    await handler({ method: 'GET' }, recorder.response);
+
+    expect(recorder.read().body).toMatchObject({
+      lcpP75Ms: null,
+      lcpSamples: 7,
+      automatedSamples: 7827,
+      automatedClientsSeparated: true,
+    });
+  });
+
+  it('shortens the window to the first day the pool can be separated', async () => {
+    // Cloudflare recorded no browser version before 2026-09-12, so a longer window
+    // would publish a figure with the pool still in it. The page prints the window
+    // it actually read, so a shortened one is visible rather than silent.
+    vi.setSystemTime(new Date('2026-09-25T12:00:00.000Z'));
+    const fetchSpy = mockGroup(measuredGroup());
+    const recorder = responseRecorder();
+
+    await handler({ method: 'GET' }, recorder.response);
+
+    expect(recorder.read().body).toMatchObject({
+      periodStartedOn: '2026-09-12',
+      periodEndedOn: '2026-09-24',
+    });
+    expect(JSON.parse(String(fetchSpy.mock.calls[0][1].body)).variables).toMatchObject({
+      start: '2026-09-12',
+      end: '2026-09-24',
+    });
+  });
+
+  it('never reports more readers than clients', async () => {
+    mockGroup(measuredGroup(500), null, measuredGroup(400));
+    const recorder = responseRecorder();
+
+    await handler({ method: 'GET' }, recorder.response);
+
+    expect(recorder.read().status).toBe(503);
   });
 
   it('does not treat adaptive estimates as actual measurements or divide by an average', async () => {

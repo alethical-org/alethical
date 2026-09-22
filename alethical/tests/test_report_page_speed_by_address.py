@@ -46,6 +46,13 @@ def reading(*args, min_measurements=50):
     return report.read_group(ADDRESS, group(*args), min_measurements)
 
 
+def entry(result, separated=None):
+    """One address's pair of readings. None means the window cannot be separated."""
+    return report.AddressReadings(
+        address=ADDRESS, every_client=result, separated=separated
+    )
+
+
 def group_with_bands(*, needs_improvement, poor, total):
     """One element row carrying Cloudflare's movement bands as actual observations.
 
@@ -155,7 +162,7 @@ def test_limit_boundary_and_independent_breaches():
 
 def test_unknown_sibling_cannot_print_a_full_pass():
     table = report.format_table(
-        [reading(1_000_000, 50, 0.1, None)],
+        [entry(reading(1_000_000, 50, 0.1, None))],
         date(2026, 8, 8),
         date(2026, 9, 6),
         50,
@@ -168,7 +175,7 @@ def test_unknown_sibling_cannot_print_a_full_pass():
 
 def test_withheld_score_does_not_print_or_pass():
     table = report.format_table(
-        [reading(9_000_000, 3, 1, 3)],
+        [entry(reading(9_000_000, 3, 1, 3))],
         date(2026, 8, 8),
         date(2026, 9, 6),
         50,
@@ -180,12 +187,14 @@ def test_withheld_score_does_not_print_or_pass():
 
 
 @pytest.mark.parametrize("builder", [report.build_query, report.build_what_moved_query])
-def test_queries_match_public_document_population_and_actual_counts(builder):
-    query = builder(report.ADDRESSES)
+@pytest.mark.parametrize("separate", [False, True])
+def test_queries_match_public_document_population_and_actual_counts(builder, separate):
+    query = builder(report.ADDRESSES, separate_automated_clients=separate)
+    groups = len(report.ADDRESSES) * (2 if separate else 1)
     for navigation in report.DOCUMENT_NAVIGATION_TYPES:
         assert json.dumps(navigation) in query
-    assert query.count("navigationType_in:") == len(report.ADDRESSES)
-    assert query.count("bot: 0") == len(report.ADDRESSES)
+    assert query.count("navigationType_in:") == groups
+    assert query.count("bot: 0") == groups
     assert "confidence(level: 0.95)" in query
     assert "clsTotal { sampleSize }" in query
     assert "sampleInterval" not in query
@@ -196,12 +205,41 @@ def test_queries_match_public_document_population_and_actual_counts(builder):
     assert "routing-apis" not in query
     assert "soft-navigation" not in query
     assert "deliveryType" not in query
-    for word in ("country", "device", "browser", "resource", "referer", "referrer"):
+    for word in ("country", "device", "resource", "referer", "referrer"):
         assert word not in query.lower()
     for address in report.ADDRESSES:
         assert f"{address.key}: rumWebVitalsEventsAdaptiveGroups(" in query
+        assert (
+            f"{report.separated_key(address)}: rumWebVitalsEventsAdaptiveGroups("
+            in query
+        ) is separate
     assert 'requestPath_like: "/money/committees/%"' in query
-    assert query.count("requestHost: $host") == len(report.ADDRESSES)
+    assert query.count("requestHost: $host") == groups
+
+
+@pytest.mark.parametrize("builder", [report.build_query, report.build_what_moved_query])
+def test_browser_is_only_ever_a_filter_never_something_asked_about(builder):
+    """The 2 words naming a browser may separate the pool and nothing else.
+
+    Cloudflare would hand over a breakdown of readers by browser for the asking.
+    This report never asks: the only mentions are the not-equal and not-in clauses
+    that take the automated client pool out, so no reader is ever grouped, counted
+    or printed by what they browse with.
+    """
+    query = builder(report.ADDRESSES, separate_automated_clients=True)
+    mentions = query.lower().count("browser")
+    clauses = len(report.AUTOMATED_CLIENT_POOL) * 2 * len(report.ADDRESSES)
+    assert mentions == clauses
+    assert "userAgentBrowser_neq:" in query
+    assert "browserVersion_notin:" in query
+    assert "browserVersion }" not in query
+    assert "userAgentBrowser }" not in query
+    assert (
+        builder(report.ADDRESSES, separate_automated_clients=False)
+        .lower()
+        .count("browser")
+        == 0
+    )
 
 
 def test_main_query_never_requests_element_and_element_query_does():
@@ -263,7 +301,7 @@ def test_rollout_caveat_depends_on_start_not_current_date():
 
 
 def test_report_and_json_disclose_scope_and_actual_counts():
-    values = [reading()]
+    values = [entry(reading())]
     text = report.format_report(values, date(2026, 8, 8), date(2026, 9, 6), 50)
     assert "DOCUMENT LOADS" in text
     assert "2026-08-08 to 2026-09-06" in text
@@ -298,13 +336,21 @@ def test_a_click_figure_is_withheld_for_any_window_holding_the_phantom_records()
     ):
         assert report.clicks_withheld_reason(started_on) is not None
         text = report.format_report(
-            [reading()], started_on, date(2026, 9, 30), 50, clicks=[reading()]
+            [entry(reading())],
+            started_on,
+            date(2026, 9, 30),
+            50,
+            clicks=[entry(reading())],
         )
         assert "CLICKS INSIDE THE SITE" not in text
         assert "Clicks are withheld" in text
         payload = json.loads(
             report.as_json(
-                [reading()], started_on, date(2026, 9, 30), 50, clicks=[reading()]
+                [entry(reading())],
+                started_on,
+                date(2026, 9, 30),
+                50,
+                clicks=[entry(reading())],
             )
         )
         assert payload["clicks"] is None
@@ -315,7 +361,11 @@ def test_a_click_figure_is_withheld_for_any_window_holding_the_phantom_records()
 
 def test_a_click_figure_is_reported_beside_the_document_loads_once_it_can_be():
     text = report.format_report(
-        [reading()], AFTER_THE_PHANTOMS, date(2026, 10, 30), 50, clicks=[reading()]
+        [entry(reading(), reading())],
+        AFTER_THE_PHANTOMS,
+        date(2026, 10, 30),
+        50,
+        clicks=[entry(reading(), reading())],
     )
     assert "DOCUMENT LOADS" in text
     assert "CLICKS INSIDE THE SITE" in text
@@ -323,7 +373,11 @@ def test_a_click_figure_is_reported_beside_the_document_loads_once_it_can_be():
     assert "Clicks are withheld" not in text
     payload = json.loads(
         report.as_json(
-            [reading()], AFTER_THE_PHANTOMS, date(2026, 10, 30), 50, clicks=[reading()]
+            [entry(reading(), reading())],
+            AFTER_THE_PHANTOMS,
+            date(2026, 10, 30),
+            50,
+            clicks=[entry(reading(), reading())],
         )
     )
     assert payload["clicksWithheldReason"] is None
@@ -337,7 +391,11 @@ def test_a_thin_click_sample_is_withheld_by_the_same_floor_as_a_first_load():
     assert thin.main_content_ms is None
     assert thin.layout_movement is None
     text = report.format_report(
-        [reading()], AFTER_THE_PHANTOMS, date(2026, 10, 30), 50, clicks=[thin]
+        [entry(reading(), reading())],
+        AFTER_THE_PHANTOMS,
+        date(2026, 10, 30),
+        50,
+        clicks=[entry(thin, thin)],
     )
     assert "too few (49)" in text
 
@@ -350,9 +408,15 @@ def test_the_click_query_asks_for_moves_inside_the_page_and_nothing_else():
     assert '"navigate"' not in query and '"reload"' not in query
     assert "confidence(level: 0.95)" in query
     assert "bot: 0" in query
-    # Nothing about the reader, exactly as the document-load query promises.
-    for forbidden in ("countryName", "deviceType", "userAgentBrowser", "refererHost"):
+    # Nothing about the reader, exactly as the document-load query promises. Browser
+    # and version are the 1 exception and only as a filter, which its own test pins.
+    for forbidden in ("countryName", "deviceType", "refererHost"):
         assert forbidden not in query
+    assert "userAgentBrowser" not in report.build_query(
+        (ADDRESS,),
+        navigation_types=report.CLICK_NAVIGATION_TYPES,
+        separate_automated_clients=False,
+    )
 
 
 def test_cli_default_query_without_live_request(monkeypatch, capsys):
@@ -547,18 +611,20 @@ def test_the_release_boundary_reads_the_date_from_git_not_from_a_guess() -> None
 def test_the_report_and_json_print_the_release_bound() -> None:
     bound = "Bounded to after 7f3b84ec6850, which merged 2026-09-07 22:38 UTC."
     text = report.format_report(
-        [reading()], date(2026, 9, 8), date(2026, 9, 11), 50, bound
+        [entry(reading())], date(2026, 9, 8), date(2026, 9, 11), 50, bound
     )
     assert bound in text
     assert (
         json.loads(
-            report.as_json([reading()], date(2026, 9, 8), date(2026, 9, 11), 50, bound)
+            report.as_json(
+                [entry(reading())], date(2026, 9, 8), date(2026, 9, 11), 50, bound
+            )
         )["releaseBound"]
         == bound
     )
     # Without a bound the line is absent rather than empty or reading "None".
     assert "Bounded to" not in report.format_report(
-        [reading()], date(2026, 8, 8), date(2026, 9, 6), 50
+        [entry(reading())], date(2026, 8, 8), date(2026, 9, 6), 50
     )
 
 
@@ -610,8 +676,9 @@ def test_cli_modes_preserve_count_source_and_breach_exit(option, monkeypatch, ca
                 "viewer": {
                     "accounts": [
                         {
-                            address.key: group(9_000_000, 50, 1, 49)
+                            key: group(9_000_000, 50, 1, 49)
                             for address in report.ADDRESSES
+                            for key in (address.key, report.separated_key(address))
                         }
                     ]
                 }
@@ -619,7 +686,11 @@ def test_cli_modes_preserve_count_source_and_breach_exit(option, monkeypatch, ca
         }
 
     monkeypatch.setattr(report, "ask_cloudflare", fake_fetch)
-    assert report.main([option]) == (1 if option == "--fail-on-breach" else 0)
+    # Pinned past the day Cloudflare began recording browser version, so the run
+    # scores readers rather than refusing. The refusal has its own test below.
+    assert report.main([option, "--since", "2026-09-12"]) == (
+        1 if option == "--fail-on-breach" else 0
+    )
     output = capsys.readouterr()
     if option == "--what-moved":
         assert "too few (49)" in output.out
@@ -647,7 +718,9 @@ def test_layout_boundary_uses_unrounded_score_in_comparison_and_json(layout, ove
     result = reading(2_500_000, 50, layout, 50)
     assert report.breaches(result) == over
     assert result.layout_movement == layout
-    payload = json.loads(report.as_json([result], date(2026, 8, 8), date(2026, 9, 6)))
+    payload = json.loads(
+        report.as_json([entry(result)], date(2026, 8, 8), date(2026, 9, 6))
+    )
     assert payload["documentLoads"][0]["layoutMovement"] == layout
     assert payload["documentLoads"][0]["overTheLimit"] == over
 
@@ -660,14 +733,16 @@ def test_time_boundary_uses_unrounded_score_in_comparison_and_json(micros, over)
     result = reading(micros, 50, 0.1, 50)
     assert report.breaches(result) == over
     assert result.main_content_ms == micros / 1000
-    payload = json.loads(report.as_json([result], date(2026, 8, 8), date(2026, 9, 6)))
+    payload = json.loads(
+        report.as_json([entry(result)], date(2026, 8, 8), date(2026, 9, 6))
+    )
     assert payload["documentLoads"][0]["mainContentMs"] == micros / 1000
     assert payload["documentLoads"][0]["overTheLimit"] == over
 
 
 def test_only_rendered_cells_round_while_verdict_keeps_both_small_breaches():
     result = reading(2_500_040, 50, 0.1004, 50)
-    text = report.format_report([result], date(2026, 8, 8), date(2026, 9, 6), 50)
+    text = report.format_report([entry(result)], date(2026, 8, 8), date(2026, 9, 6), 50)
     assert "2500 ms" in text
     assert "main content, layout movement" in text
     assert "unrounded scores" in text
@@ -687,7 +762,103 @@ def test_cli_fail_on_breach_uses_raw_scores(monkeypatch, capsys):
                 "viewer": {
                     "accounts": [
                         {
-                            address.key: group(2_500_040, 50, 0.1004, 50)
+                            key: group(2_500_040, 50, 0.1004, 50)
+                            for address in report.ADDRESSES
+                            for key in (address.key, report.separated_key(address))
+                        }
+                    ]
+                }
+            }
+        },
+    )
+    assert report.main(["--json", "--fail-on-breach", "--since", "2026-09-12"]) == 1
+    captured = capsys.readouterr()
+    row = json.loads(captured.out)["documentLoads"][0]
+    assert row["mainContentMs"] == 2500.04
+    assert row["layoutMovement"] == 0.1004
+    assert row["overTheLimit"] == ["main content", "layout movement"]
+
+
+def test_the_separation_turns_on_by_window_start_not_by_today():
+    """Cloudflare recorded no browser version before 2026-09-12 for whole days.
+
+    Read against an earlier day a "not one of these versions" filter keeps the pool
+    instead of removing it, so the answer would be the unseparated figure wearing a
+    reader label. The date the window starts decides this, never the date it is run.
+    """
+    assert report.can_separate(date(2026, 9, 12))
+    assert not report.can_separate(date(2026, 9, 11))
+    assert report.BROWSER_VERSION_RECORDED_FROM == date(2026, 9, 12)
+
+
+def test_the_separation_keeps_a_current_browser_and_drops_only_the_pool():
+    """Each browser is excluded at the pool's own versions, never as a whole."""
+    fragment = report.without_automated_clients()
+    for browser, versions in report.AUTOMATED_CLIENT_POOL:
+        assert f'userAgentBrowser_neq: "{browser}"' in fragment
+        for version in versions:
+            assert f'"{version}"' in fragment
+    # A reader on a current Chrome stays in: the clause pairs the browser with its
+    # own version list, so no browser is removed by name alone.
+    assert "userAgentBrowser: " not in fragment
+    assert fragment.startswith("AND: [")
+
+
+def test_a_separable_window_scores_readers_and_prints_what_it_took_out():
+    readings = [
+        entry(reading(4_400_000, 7495), separated=reading(644_000, 121)),
+    ]
+    text = report.format_report(readings, date(2026, 9, 15), date(2026, 9, 21), 50)
+    assert text.startswith("Reader measurements")
+    assert "644 ms" in text
+    assert "4400 ms" not in text
+    assert "7374 of 7495 (98%)" in text
+    assert "Chrome 118, 119, 120" in text
+    payload = json.loads(report.as_json(readings, date(2026, 9, 15), date(2026, 9, 21)))
+    row = payload["documentLoads"][0]
+    assert payload["scoredPopulation"] == "readers"
+    assert payload["automatedClientsSeparated"] is True
+    assert row["mainContentMs"] == 644
+    assert row["mainContentMeasurements"] == 121
+    assert row["everyClientMainContentMs"] == 4400
+    assert row["everyClientMeasurements"] == 7495
+    assert row["automatedMeasurements"] == 7374
+    assert row["overTheLimit"] == []
+
+
+def test_an_unseparable_window_says_so_and_never_calls_itself_readers():
+    readings = [entry(reading(4_400_000, 7495))]
+    text = report.format_report(readings, date(2026, 8, 23), date(2026, 9, 21), 50)
+    assert text.startswith("UNSEPARATED measurements")
+    assert "Do not read these as reader figures." in text
+    assert "not separable" in text
+    assert "4400 ms" in text
+    payload = json.loads(report.as_json(readings, date(2026, 8, 23), date(2026, 9, 21)))
+    assert payload["scoredPopulation"] == "every-client"
+    assert payload["automatedClientsSeparated"] is False
+    assert payload["documentLoads"][0]["automatedMeasurements"] is None
+    assert payload["documentLoads"][0]["overTheLimit"] == ["main content"]
+
+
+def test_fail_on_breach_refuses_a_window_it_cannot_separate(monkeypatch, capsys):
+    """Exit 2 is "not judged", never exit 1's "over the limit" and never a pass.
+
+    Failing a release on a window that still holds the automated client pool is the
+    harm this switch exists to prevent. On 15 to 21 Sep 2026 the same committee
+    pages measured 4,524 ms with the pool in and 644 ms with it out, so an
+    unseparated window answers a different question from the one #1966 asks.
+    """
+    monkeypatch.setenv("CLOUDFLARE_ANALYTICS_API_TOKEN", "fake-token")
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "fake-account")
+    monkeypatch.setattr(
+        report,
+        "ask_cloudflare",
+        lambda *args: {
+            "data": {
+                "viewer": {
+                    "accounts": [
+                        {
+                            address.key: group(9_000_000, 5000, 1, 5000)
                             for address in report.ADDRESSES
                         }
                     ]
@@ -695,9 +866,16 @@ def test_cli_fail_on_breach_uses_raw_scores(monkeypatch, capsys):
             }
         },
     )
-    assert report.main(["--json", "--fail-on-breach"]) == 1
-    captured = capsys.readouterr()
-    row = json.loads(captured.out)["documentLoads"][0]
-    assert row["mainContentMs"] == 2500.04
-    assert row["layoutMovement"] == 0.1004
-    assert row["overTheLimit"] == ["main content", "layout movement"]
+    assert report.main(["--since", "2026-09-11", "--fail-on-breach"]) == 2
+    error = capsys.readouterr().err
+    assert "Not judged" in error
+    assert "Over a money-page limit" not in error
+
+
+def test_the_busiest_money_address_is_reported():
+    """/money/payments carries more measurements than every other money address.
+
+    Left out of this list it was the busiest address on the site and unreported,
+    which is how 22,685 measurements in one week went unexamined.
+    """
+    assert "/money/payments" in [address.label for address in report.ADDRESSES]

@@ -76,6 +76,20 @@ A page view is 1 page load. Opening several pages creates several views. Opening
 reloading `/site-metrics` creates a view too. Refreshing only the numbers does not.
 
 Vercel counts without an analytics cookie and removes traffic it identifies as automated.
+Page views and page speed come from 2 different services over 2 different populations, so a
+page-view count and a speed measurement count are never the same number and must never be
+compared without saying so. `/api/traffic` reads Vercel page views and asks for no bot filter
+of its own; `/api/traffic-performance` and `scripts/report_page_speed_by_address.py` read
+Cloudflare page speed and ask it for `bot: 0`. Each route names its own service in what it
+returns: `measurementSource` with `botFilterRequested` on the Vercel route, `measurementSource`
+with `knownBotsExcluded` on the Cloudflare one.
+
+Neither service's automated-traffic list catches a program that loads a page the way a browser
+does and reports speed the way a browser does. One such pool of clients reaches Alethical and
+Cloudflare marks every measurement of it as not a bot. The speed figures separate it out by the
+browser and version it claims to be, and say how much they separated; the page-view counts still
+include it. Evidence, the pairs separated, and the cost of the cut:
+[`docs/research/real-visitor-page-speed-sources.md`](../research/real-visitor-page-speed-sources.md).
 Destination percentages are shares of page views, not people. Every Vercel query explicitly
 selects the production environment. This prevents preview visits from entering the report;
 it is not evidence that earlier totals included preview visits. Destination totals come from
@@ -136,7 +150,10 @@ page-speed measurements, page paths without the question text after `?`, referre
 place and browser facts, and some element or resource details. Alethical publishes none of
 those details. It publishes only sitewide speed scores after at least 50 actual measurements
 for each score. These cover document loads, including reloads and restored pages, with known
-bots excluded. Account exclusions do not apply to Cloudflare; team visits may remain. This
+bots excluded and with the automated client pool above separated out; the page prints how many
+measurements that separation removed. Its window starts no earlier than the first day Cloudflare
+recorded browser version for this account, because a longer window cannot be separated. Account
+exclusions do not apply to Cloudflare; team visits may remain. This
 is not a claim that all automated visits can be identified.
 Cloudflare Web Analytics uses no cookies, local storage, or fingerprinting.
 
@@ -309,6 +326,19 @@ produced). Those records cannot be told from clicks afterwards, so the tool asks
 nothing for such a window. And a reader's last move is never measured at all: the beacon
 sends a record's figures when the next move begins, so a click figure describes visits that
 carried on rather than visits that ended.
+
+Every run reads each address twice, once for every client and once with the automated client
+pool separated out, and prints both the scored count and the count it separated. A window
+starting on or after September 12, 2026 scores the separated population, opens with
+`Reader measurements`, and sets `scoredPopulation` to `readers` in the JSON. An earlier window
+cannot be separated at all, because Cloudflare recorded no browser version before that day and
+a "not one of these versions" filter would keep the pool rather than remove it: such a run opens
+with `UNSEPARATED measurements`, prints `not separable` in the automated column, says not to read
+its figures as reader figures, and refuses `--fail-on-breach` with exit code 2 rather than
+passing or failing a release on a population nobody has identified. `--what-moved` reads the
+same population, and the click table is separated the same way as the document-load table.
+Browser and version reach Cloudflare only as that filter; the report asks for no country, device,
+element, resource or referrer, and never groups or prints a reader's browser.
 
 `--since-release <commit>` bounds a run to the days after a change went live and prints that
 bound above the table. The window starts on the first whole UTC day after the commit merged,

@@ -132,4 +132,92 @@ describe('traffic display formatting and address redaction', () => {
     expect(isPerformanceTotals(safe)).toBe(true);
     expect(isPerformanceTotals({ ...safe, referrers: ['/private'] })).toBe(false);
   });
+
+  it('takes a count of separated automated clients only with the flag that explains it', () => {
+    // A bare count cannot say whether 0 means nothing automated arrived or nothing
+    // was looked for, and those are opposite facts about the figure beside it.
+    const safe = {
+      lcpP75Ms: 644,
+      lcpSamples: 121,
+      inpP75Ms: 64,
+      inpSamples: 60,
+      clsP75: 0,
+      clsSamples: 116,
+      sampleInterval: 1,
+      periodStartedOn: '2026-09-15',
+      periodEndedOn: '2026-09-21',
+      fetchedAt: '2026-09-22T12:00:00.000Z',
+    };
+    expect(isPerformanceTotals(safe)).toBe(true);
+    expect(
+      isPerformanceTotals({
+        ...safe,
+        automatedSamples: 7374,
+        automatedClientsSeparated: true,
+      }),
+    ).toBe(true);
+    expect(isPerformanceTotals({ ...safe, automatedSamples: 7374 })).toBe(false);
+    expect(isPerformanceTotals({ ...safe, automatedClientsSeparated: true })).toBe(false);
+    expect(
+      isPerformanceTotals({ ...safe, automatedSamples: -1, automatedClientsSeparated: true }),
+    ).toBe(false);
+  });
+
+  it('takes the Vercel page-view source only with the bot-filter answer beside it', () => {
+    const profile = {
+      pageViews: 0,
+      differentProfilesViewed: { count: 0, capped: false, cap: 100 },
+    };
+    const breakdown = {
+      destinationPageViews: {
+        home: 118,
+        billSearch: 14,
+        billProfiles: 0,
+        legislatorSearch: 50,
+        legislatorProfiles: 0,
+        findMyLegislator: 4,
+        other: 0,
+      },
+      billProfiles: profile,
+      legislatorProfiles: profile,
+    };
+    const safe = {
+      pageViews24h: 240,
+      pageViews7d: 1680,
+      pageViews30d: 7200,
+      estimatedVisitors24h: 9,
+      estimatedVisitors7d: 19,
+      estimatedVisitors30d: 40,
+      trafficBreakdown7d: breakdown,
+      trafficBreakdown30d: breakdown,
+      fetchedAt: '2026-09-22T12:00:00.000Z',
+      windowEndedAt: '2026-09-22T12:00:00.000Z',
+      countingStartedAt: '2026-08-15T02:01:44.000Z',
+      teamExclusionConfigured: true,
+    };
+    // A payload cached before these keys shipped stays readable.
+    expect(isTrafficTotals(safe)).toBe(true);
+    expect(
+      isTrafficTotals({
+        ...safe,
+        measurementSource: 'vercel-web-analytics',
+        botFilterRequested: false,
+      }),
+    ).toBe(true);
+    expect(isTrafficTotals({ ...safe, measurementSource: 'vercel-web-analytics' })).toBe(false);
+    expect(
+      isTrafficTotals({
+        ...safe,
+        measurementSource: 'cloudflare-web-analytics',
+        botFilterRequested: false,
+      }),
+    ).toBe(false);
+    expect(
+      isTrafficTotals({
+        ...safe,
+        measurementSource: 'vercel-web-analytics',
+        botFilterRequested: true,
+      }),
+    ).toBe(false);
+  });
 });

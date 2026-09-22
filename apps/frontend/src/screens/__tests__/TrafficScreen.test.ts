@@ -346,6 +346,27 @@ describe('public Site metrics page', () => {
     );
   });
 
+  it('tells a reader which population each published number describes', () => {
+    // 2 different services count 2 different things over 2 different populations,
+    // and for a month the page let the 2 be read as one. Vercel counts page views
+    // with no bot filter asked for; Cloudflare measures speed with known bots out
+    // and, since issue 2337, with an automated client pool separated out as well.
+    const flat = SOURCE.replace(/\s+/g, ' ');
+    expect(flat).toContain(
+      'Page views count every visit, including ones from programs rather than people.',
+    );
+    expect(flat).toContain('a page-view count and a speed measurement count are never the same');
+    expect(flat).toContain('Cloudflare&rsquo;s list of known bots misses programs');
+    expect(SOURCE).toContain('totals.automatedClientsSeparated ?');
+    expect(SOURCE).toContain('formatNumber(totals.automatedSamples ?? 0)');
+    // The speed panel prints the count it took out, so nothing is quietly dropped.
+    const speed = SOURCE.slice(
+      SOURCE.indexOf('function PerformancePanel('),
+      SOURCE.indexOf('function CollectionDates('),
+    );
+    expect(speed).toContain('automatedSamples');
+  });
+
   it('shows only the 2 public availability checks selected by the accepted design', () => {
     expect(SOURCE).toContain('label="Homepage"');
     expect(SOURCE).toContain('label="Data service"');

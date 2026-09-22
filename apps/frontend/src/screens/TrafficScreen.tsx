@@ -707,6 +707,11 @@ function DestinationPanel({ breakdown }: { breakdown: TrafficBreakdown }) {
             Percentages show shares of page views, not visitors. Searches with results are counted
             separately.
           </Text>
+          <Text testID="site-metrics-visits-population" style={styles.panelNote}>
+            Page views count every visit, including ones from programs rather than people. The speed
+            figures further down come from a different service and leave those out, so a page-view
+            count and a speed measurement count are never the same number.
+          </Text>
           {breakdown.destinationPageViews.money !== undefined && !breakdown.committeeProfiles ? (
             <Text style={styles.panelNote}>
               Detailed money-page counts are unavailable. Money in politics includes the whole money
@@ -1322,6 +1327,14 @@ function PerformancePanel({ state, now }: { state: SourceState<PerformanceTotals
         <Text style={styles.panelNote}>
           Full page loads only. Known bots are excluded; team visits may be included. Response speed
           measures the browser reaction, not how long a search takes.
+        </Text>
+      ) : null}
+      {totals.automatedClientsSeparated ? (
+        <Text style={styles.panelNote}>
+          Cloudflare&rsquo;s list of known bots misses programs that load our pages the way a
+          browser does, so these scores also leave out a pool of them we can tell apart by the
+          browser it claims to be. It sent {formatNumber(totals.automatedSamples ?? 0)} of the page
+          loads in this range.
         </Text>
       ) : null}
       {totals.measurementScope &&

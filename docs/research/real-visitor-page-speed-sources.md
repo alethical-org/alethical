@@ -98,6 +98,124 @@ public Site metrics page. Nothing needed building to collect it. The only gap wa
 it one address at a time, which a limit written per page requires and a sitewide figure
 cannot supply.
 
+## Most of these measurements were not sent by readers, 22 September 2026
+
+**Read from Cloudflare's own records against the live account, not inferred from the shape
+of the counts.** Windows read: every one of the 30 complete days from 23 August to
+21 September 2026 sitewide, and 11 page addresses over the 7 days from 15 to 21 September,
+broken down 8 ways. Issue:
+[2337](https://github.com/alethical-org/alethical/issues/2337).
+
+**What it is.** A pool of automated clients that runs the page program and reports speed
+measurements exactly as a browser does. It is not a browser someone is sitting at. Six
+readings say so, and the third is the one that settles it:
+
+1. **It claims to be 10 browsers in near-equal thirds.** On `/money/payments` over those
+   7 days, 10 browser-and-operating-system combinations each carried between 9.8% and 10.1%
+   of 22,680 measurements: 2,297, 2,296, 2,291, 2,288, 2,279, 2,261, 2,253, 2,235, 2,235 and
+   2,218. A population of people does not distribute itself evenly across 10 browser and
+   operating-system pairings to within 3.5%. A program drawing at random from a fixed list of
+   10 user agents does exactly that.
+2. **Every one of the 10 is about 2 years out of date.** Chrome 118, 119 and 120, Firefox
+   120 and 121, Edge 119 and 120, when the current Chrome on this same site is 153. Current
+   versions appear on that address 27 times out of 22,680.
+3. **It visits 2 addresses and never the front door.** `/money/payments` (70.8%) and
+   `/money/search` (28.6%) are 99.4% of everything it sent. The home page does not appear in
+   its list at all, while the 2,013 measurements from everything else are spread across the
+   whole site, home page included. Nobody reads a site without arriving somewhere.
+4. **It does not sleep.** Runs start and stop on the hour: 4 measurements in the 03:00 hour
+   of 17 September and 1,062 in the 04:00 hour; 3,982 in the 13:00 hour of 19 September and
+   34 in the 14:00 hour. There is no daily rise and fall.
+5. **98.7% of it is a desktop computer**, and 74.5% of it is outside the United States, on a
+   site about one American state's legislature: Brazil 10.2%, France 7.5%, Singapore 7.2%,
+   Bangladesh 5.4%, Seychelles 2.3%, and a long tail of 50 more.
+6. **83% of it carries no referring page**, arriving straight at an address that only exists
+   with a name and a role in its query string, which is not an address a person types.
+
+**The same signature ran the earlier burst.** Over 1 to 6 September, on `/ask` rather than the
+money section, the browser families split 51.9% Chrome, 27.6% Firefox and 19.3% Edge, against
+51.2%, 28.2% and 19.1% over 15 to 21 September. Two bursts, 2 weeks apart, on unrelated parts
+of the site, agreeing to within 1 percentage point. Same actor, or the same kind of actor.
+
+**Who it is cannot be established, and the reason is structural rather than unchecked.**
+Naming it would need the network address, the network operator or the raw user-agent string,
+and Cloudflare holds none of them for Alethical. `alethical.com` uses Cloudflare only as its
+nameserver: requests go straight to Vercel, which answers them (`server: Vercel`, no
+`cf-ray` header), so no Cloudflare zone records exist. Asking the account for its zones
+returns an empty list. What reaches Cloudflare is the measurement beacon the page itself
+posts, and that beacon carries the browser the client claims to be and nothing that
+identifies it. So the honest statement is what the traffic is, not who sends it.
+
+**Cloudflare's bot flag marks all of it `bot: 0`.** That flag reads the user agent, and a
+program claiming to be Chrome 120 on Windows 11 passes it. Every reader-speed figure Alethical
+holds already filtered on that flag and let this straight through.
+
+**What it did to our figures, measured per address.** Over 15 to 21 September, document loads,
+Cloudflare confidence sample sizes:
+
+| Address | Measurements | Automated | Main content, everyone | Main content, readers |
+|---|---:|---:|---:|---:|
+| `/money/search` | 7,834 | 99.9% | 4,236 ms | 7 measurements, withheld |
+| `/money/payments` | 13,240 | 100.0% | 3,932 ms | 6 measurements, withheld |
+| `/money/committees/<committee>` | 7,495 | 98.4% | 4,484 ms | **644 ms** |
+| `/money/committees/<committee>/payments` | 3,404 | 99.9% | 4,472 ms | 3 measurements, withheld |
+| `/` | 72 | 0.0% | 545 ms | 545 ms |
+| every address | 33,419 | 98.3% | 4,176 ms | 829 ms |
+
+**The committee row is the whole finding in one line.** Same addresses, same 7 days: the pool
+measures 4,524 ms and everyone else measures 644 ms. Seven times apart, on opposite sides of
+issue 1966's 2,500 ms limit. The home page, which the pool never touches, is the control, and
+it passes on both readings.
+
+**So the money section's apparent speed failure is the pool's speed, not a reader's.** Nothing
+here says the money pages are fast for everyone: what it says is that 4,236 to 4,484 ms was
+never evidence about readers, and the only money address with 50 reader measurements to its
+name passes. Reader counts remain small enough that most money addresses cannot be scored at
+all, which is a coverage problem rather than a speed result.
+
+**Reach, asked as its own question.** The public Site metrics page (`/site-metrics`, in the
+sitemap) published a sitewide main-content figure of 4,272 ms over 4,323 measurements, under
+a sentence reading "Known bots are excluded", on 22 September 2026. That is a published number
+describing a scraper while telling the reader it describes visits. The private per-address
+report carried the same defect on every money address. No other surface publishes a speed
+figure: `/money`, the committee pages, the research pieces and the guides publish none.
+
+**How the separation is done, and what it costs.** Cloudflare will filter on browser family and
+version, so the pool is separated by excluding each browser at the pool's own versions and
+nothing else. A reader still on Chrome 119 is excluded with it, and that is the whole cost: over
+those 7 days, 182 of the 32,003 separated measurements were on an address other than the pool's
+2, and 190 measurements on `/money/search` were kept. Misclassification either way is under 1%.
+
+**Three honest limits, all of them structural.**
+
+- **Nothing before 12 September 2026 can be separated.** Cloudflare recorded no browser version
+  for this account before 11 September and recorded it for whole days from the 12th: 260
+  measurements on 8 September carry no version, 230 on the 12th all carry one. Read against an
+  earlier day a "not one of these versions" filter keeps the pool instead of removing it, so
+  a window reaching back that far is reported unseparated and labelled unseparated.
+- **The version list will go stale.** It describes what this pool claimed to be in September
+  2026. If it rotates its user agents, the separation silently stops working and the figures
+  drift back up. What protects against that is not the list: it is that every figure now prints
+  the automated share beside it, so a share that collapses to 0% while the counts stay in the
+  tens of thousands is the signal to look again.
+- **A count of what was separated is not a count of clients.** Cloudflare gives no visit or
+  client identity, so these are measurements, and one client may send many.
+
+**Decision, recorded here because it changes what we publish.** Speed figures are scored against
+the population left after the pool is separated out, on the private per-address report and on the
+public Site metrics page alike, and both print how much was separated. Nothing is hidden: the
+report's JSON carries both populations, and the page prints the count it left out. The public
+page's window now starts no earlier than 12 September 2026, because a longer one would publish a
+figure with the pool still in it, and the page already prints the window it read. The reason:
+a figure that mixes 98% scraper with 2% reader answers no question anyone is asking, and issue
+1966's limit is written about readers. Reversing this is one constant and one filter fragment.
+What is not decided here is the limit itself, which is the Alethical team's call
+([issue 1966](https://github.com/alethical-org/alethical/issues/1966)).
+
+**What is deliberately not done.** Nothing blocks this traffic, and nothing about it reaches a
+reader-facing surface beyond the sentence naming that a pool was separated. It costs us
+bandwidth and a warm cache, and it reads pages that are public on purpose.
+
 ## Why this question was asked
 
 [Issue 1966](https://github.com/alethical-org/alethical/issues/1966) sets a release limit
@@ -303,8 +421,10 @@ the per-address read is a command-line tool that prints to whoever ran it:
 [`scripts/report_page_speed_by_address.py`](../../scripts/report_page_speed_by_address.py),
 recorded in
 [`docs/product-onboarding/traffic-guide.md`](../product-onboarding/traffic-guide.md). It
-asks for 2 percentiles and 2 sample counts per address and for no country, device, browser,
-element, resource or referrer, and a test pins that.
+asks for 2 percentiles and 2 sample counts per address and for no country, device, element,
+resource or referrer, and a test pins that. Browser family and version enter the query as a
+filter only, to separate the automated client pool described above, and a second test pins
+that they are never grouped by or printed.
 
 ## How anything built here proves it does not delay content
 
