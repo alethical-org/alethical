@@ -436,6 +436,14 @@ describe('first-response page tags', () => {
     expect(body).toContain(
       '<title>Rep. Aisha Gomez, Minnesota House District 62A | Alethical</title>',
     );
+    // The served page names the member in its search line and keeps the card's
+    // own line generic, so no 2 of the 200 profiles read alike to a search engine.
+    expect(body).toContain(
+      '<meta name="description" content="See Rep. Aisha Gomez’s committee assignments, chief-authored bills, and contact information in the Minnesota Legislature." />',
+    );
+    expect(body).toContain(
+      '<meta property="og:description" content="Committee assignments, chief-authored bills, and contact information" />',
+    );
     expect(body).toContain(
       'rel="canonical" href="https://www.alethical.com/legislators/aisha-gomez"',
     );

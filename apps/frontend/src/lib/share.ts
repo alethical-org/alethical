@@ -334,6 +334,8 @@ export function legislatorPageMetadata(input: {
   districtLine: string;
   /** The portrait the profile draws in its first frame, so the head can ask for it early. */
   photoUrl?: string | null;
+  /** This member's own search-result sentence, from `legislatorSearchDescription`. */
+  searchDescription?: string;
 }): PageMetadata {
   const canonicalPath = `/legislators/${encodeURIComponent(input.slug)}`;
   const content = buildLegislatorShareContent({
@@ -344,7 +346,16 @@ export function legislatorPageMetadata(input: {
   return pageMetadata({
     title: titleFor(content.title),
     socialTitle: content.title,
-    description: content.description,
+    // A search result names the member; a share card does not, because its own
+    // title sits directly above the line and §26 keeps a record's name out of
+    // the line under it. All 200 profiles sent one identical sentence until
+    // this split, which is the state Google reads as pages repeating each other
+    // (decisions doc §3's table holds the wording). The caller builds the
+    // sentence, because this file loads with every page in the browser and only
+    // the server function ever renders a description
+    // (`legislatorSearchDescription`, `apps/frontend/src/lib/legislatorProfile.ts`).
+    description: clean(input.searchDescription ?? '') || content.description,
+    socialDescription: content.description,
     canonicalPath,
     ...(input.photoUrl ? { preloadImages: [input.photoUrl] } : {}),
   });

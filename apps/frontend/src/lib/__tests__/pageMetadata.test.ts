@@ -13,7 +13,13 @@ import {
   researchPageMetadata,
   STATIC_PAGE_METADATA,
 } from '../share';
-import { HEAD_MARKER_END, HEAD_MARKER_START, injectPageHead, renderPageHead } from '../pageHead';
+import {
+  HEAD_MARKER_END,
+  HEAD_MARKER_START,
+  injectPageHead,
+  legislatorSearchDescription,
+  renderPageHead,
+} from '../pageHead';
 import { publishedResearch } from '../research';
 
 // The head block is HTML, so Prettier reformats it in the template and not in the
@@ -80,6 +86,63 @@ describe('page metadata', () => {
     expect(billPageMetadata({ billId: '94-2025-SF1' }).description).toBe(
       'Bill text, legislative progress, and official sources',
     );
+  });
+
+  // All 200 profiles sent Google one identical sentence until 22 Sep 2026, which
+  // is the state it reads as pages repeating each other. The share card keeps the
+  // name out of its own line, because its title sits right above it (§26).
+  it('gives each member their own search sentence and keeps the card generic', () => {
+    const describe_ = (displayName: string, districtLine: string) =>
+      legislatorSearchDescription(displayName, districtLine);
+    const sitting = legislatorPageMetadata({
+      slug: 'aaron-repinski',
+      displayName: 'Rep. Aaron Repinski',
+      districtLine: 'House District 26A',
+      searchDescription: describe_('Rep. Aaron Repinski', 'House District 26A'),
+    });
+    expect(sitting.description).toBe(
+      'See Rep. Aaron Repinski’s committee assignments, chief-authored bills, and contact information in the Minnesota Legislature.',
+    );
+    expect(sitting.socialDescription).toBe(
+      'Committee assignments, chief-authored bills, and contact information',
+    );
+    // Two members differ, which is the whole point of the change.
+    expect(
+      legislatorPageMetadata({
+        slug: 'aisha-gomez',
+        displayName: 'Rep. Aisha Gomez',
+        districtLine: 'House District 62A',
+        searchDescription: describe_('Rep. Aisha Gomez', 'House District 62A'),
+      }).description,
+    ).not.toBe(sitting.description);
+    // No party anywhere, in the title or the line under it (§3).
+    for (const value of [sitting.title, sitting.description, sitting.socialDescription]) {
+      expect(value).not.toMatch(/DFL|Republican|Democrat/);
+    }
+
+    // A member with no current seat has no committee list and no contact block
+    // on their page, so the sentence promises neither.
+    const former = legislatorPageMetadata({
+      slug: 'melissa-hortman',
+      displayName: 'Melissa Hortman',
+      districtLine: '',
+      searchDescription: describe_('Melissa Hortman', ''),
+    });
+    expect(former.description).toBe(
+      'See Melissa Hortman’s record of service in the Minnesota Legislature.',
+    );
+    expect(former.description).not.toContain('contact information');
+    expect(former.description).not.toContain('committee');
+
+    // A caller with no sentence to give falls back to the shared line rather
+    // than to an empty description.
+    expect(
+      legislatorPageMetadata({
+        slug: 'aaron-repinski',
+        displayName: 'Rep. Aaron Repinski',
+        districtLine: 'House District 26A',
+      }).description,
+    ).toBe('Committee assignments, chief-authored bills, and contact information');
   });
 
   it('names the person in a legislator title, without their party', () => {

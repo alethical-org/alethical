@@ -15,11 +15,38 @@ import {
  * Only `api/page.ts` runs this: it rewrites the marked block of the built
  * `index.html` before the response is sent. It lives apart from the page wording
  * in `share.ts` because that file loads with every page in the browser, while
- * none of this does anything there. Measured 18 Sep 2026: moving it out dropped
+ * none of this does anything there, which is why a per-address description
+ * sentence belongs here too. Measured 18 Sep 2026: moving it out dropped
  * every reader's first download from 295,412 to 294,478 Brotli bytes, 934 bytes
  * a reader used to fetch to run nothing
  * (`apps/frontend/scripts/check-first-load-budget.mjs`).
  */
+
+/**
+ * What one member's search result says under their name.
+ *
+ * All 200 profiles sent Google one identical sentence until 22 Sep 2026, which is
+ * the state it reads as pages repeating each other. This names the member, in the
+ * wording `docs/architecture/page-metadata-for-search-and-sharing-decisions.md` §3
+ * ruled, and it names only sections the profile really draws: an empty district
+ * line is how every surface here knows the record holds no current seat, and such
+ * a page shows no committee list and no contact block, so the sentence promises
+ * neither (`.claude/rules/grounded-answers.md` rule 6). Party stays out, as it
+ * does in the title and for the same reason.
+ *
+ * It lives in this file for the reason the file itself exists: every other home
+ * for it, `share.ts` and `legislatorProfile.ts` alike, loads with every page in
+ * the browser, while only the server function ever renders a description. In
+ * `share.ts` it cost every reader 83 bytes of their first download
+ * (`apps/frontend/scripts/check-first-load-budget.mjs`).
+ */
+export function legislatorSearchDescription(displayName: string, districtLine: string): string {
+  const name = (displayName ?? '').replace(/\s+/g, ' ').trim();
+  if (!name) return '';
+  return (districtLine ?? '').trim()
+    ? `See ${name}’s committee assignments, chief-authored bills, and contact information in the Minnesota Legislature.`
+    : `See ${name}’s record of service in the Minnesota Legislature.`;
+}
 
 function clean(value: string): string {
   return value.replace(/\s+/g, ' ').trim();

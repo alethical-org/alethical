@@ -2006,6 +2006,21 @@ rule 13 sets. That rule's own text carries the ruling (Eugene, 18 Sep 2026); des
 subject is not making the claim, and a date tells a searcher nothing about whether the page
 answers their question.
 
+**4d. Every legislator page names its own member to a search engine (22 Sep 2026).** All 200
+profiles sent one identical line, "Committee assignments, chief-authored bills, and contact
+information", which is the state Google reads as pages repeating each other. The search line is
+now §3's table sentence, naming the member; the share card keeps the generic line, because its
+own title sits directly above it and §26 keeps a record's name out of the line under it. A member
+with no current seat gets a shorter sentence: their page draws no committee list and no contact
+block, so it promises neither. Party stays out of both lines, for §3's reason.
+
+The sentence lives in `apps/frontend/src/lib/pageHead.ts`, and §28's own size rule is why: both
+other homes for it, `share.ts` and `legislatorProfile.ts`, load with every page in the browser,
+while only the server function ever renders a description. Measured on the way in, it cost every
+reader 83 bytes of their first download from `share.ts`, against 464 bytes of hosted headroom at
+the time. `legislatorPageMetadata` takes the finished sentence and falls back to the shared line
+when a caller has none, which is what the browser's tab-title path passes.
+
 **5. Site-wide, 3 smaller things.** Every `/api/v1` response now carries `X-Robots-Tag: noindex`
 (`alethical/api/main.py`): Google's crawl statistics put JSON at 53% of its requests to us, and a
 JSON address in a result list hands a searcher a wall of braces; the header unlists the address
