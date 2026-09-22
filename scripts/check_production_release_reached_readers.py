@@ -70,6 +70,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 PAGE_URL = "https://www.alethical.com/"
 
+# The API's own answer to the same question, added because a merge that never
+# rebuilt the API left no record anywhere that anything had gone wrong
+# ([issue 2046](https://github.com/alethical-org/alethical/issues/2046)).
+API_VERSION_URL = "https://api.alethical.com/version"
+
 # The stamp's name, spelled once in apps/frontend/scripts/stamp-release-commit.mjs
 # and read back here. A test pins the 2 spellings together.
 RELEASE_COMMIT_META_NAME = "alethical-release-commit"
@@ -87,7 +92,14 @@ USER_AGENT = (
 # seconds, median 71. So 10 minutes is about 7 times the slowest release ever
 # observed here, and the 29-minute gap that produced this check would have been
 # reported at minute 10.
-GRACE_MINUTES = 10
+WEBSITE_GRACE_MINUTES = 10
+
+# The same question for the API, measured its own way: across 246 releases
+# between 4 and 22 Sep 2026 a push reaches a running API in 56 to 296 seconds,
+# median 92. So 15 minutes is about 3 times the slowest release seen here, and
+# still reports the 8 Sep 2026 skip sooner than the person who found it at
+# minute 17.
+API_GRACE_MINUTES = 15
 
 # Verdicts. Three, because the caller does 3 different things: stop quiet, open
 # the issue, or wait and ask again.
@@ -119,6 +131,64 @@ def website_paths() -> list[str]:
     return paths
 
 
+def api_paths() -> list[str]:
+    """The paths the API is built from, derived from ``.railwayignore``.
+
+    Written as "everything except what Railway is told to leave out", because
+    that file is the only declaration this repository has of what the backend
+    build contains, and a second hand-kept list here would slowly stop
+    describing it. A commit that changes only excluded paths cannot change a
+    single answer the API gives, so it needs no release and this check says
+    nothing about it.
+
+    That is not a detail. Of the 4 pushes to ``main`` that got no Railway
+    deployment between 8 Aug and 22 Sep 2026, 3 changed nothing but the website,
+    so a check comparing against ``main``'s tip would have cried wolf 3 times out
+    of 4 and been muted before the one that mattered arrived.
+    """
+    excluded = [
+        line.strip()
+        for line in (ROOT / ".railwayignore").read_text().splitlines()
+        if line.strip() and not line.startswith("#")
+    ]
+    if not excluded:
+        raise SystemExit(
+            ".railwayignore lists nothing, so this check cannot tell which changes need an "
+            "API release. Read the file and update api_paths() in "
+            "scripts/check_production_release_reached_readers.py."
+        )
+    return [".", *(f":(exclude){path}" for path in excluded)]
+
+
+def read_api_release_commit(
+    url: str, timeout: float = 20.0
+) -> tuple[str | None, str | None]:
+    """The commit the live API says it was built from, and why it could not be read.
+
+    Same 2-value shape as :func:`read_release_stamp`, and for the same reason: an
+    unreachable API is not evidence that a merge failed to ship.
+    """
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            answer = json.loads(response.read().decode("utf-8", "replace"))
+    except urllib.error.HTTPError as error:
+        # 404 is an answer, not a failure to get one: the API is up and has no
+        # `/version`, which means either the release carrying it has not shipped
+        # or a later release removed it. Both leave nobody able to tell whether
+        # merges are reaching the API, so both are reported rather than waited
+        # out. Every other code is a read that did not happen.
+        if error.code == 404:
+            return None, "no-stamp"
+        return None, f"{url} answered HTTP {error.code}"
+    except Exception as error:  # noqa: BLE001 - any read failure is the same answer
+        return None, f"{url} could not be read: {error}"
+    commit = answer.get("commit") if isinstance(answer, dict) else None
+    if not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit):
+        return None, "no-stamp"
+    return commit, None
+
+
 def read_release_stamp(
     url: str, timeout: float = 20.0
 ) -> tuple[str | None, str | None]:
@@ -143,6 +213,124 @@ def read_release_stamp(
     if not found:
         return None, "no-stamp"
     return found.group(1), None
+
+
+class Service:
+    """One deployed thing, and the few words that differ when it falls behind.
+
+    Everything hard here is shared: which commits are waiting, how long the
+    oldest has waited, whether the served commit is even in ``main``. Only the
+    address, the reader of the commit, the paths that matter and the repair
+    differ between the website and the API, so only those are per-service. Two
+    copies of the rest would drift, and the half that drifted would be the half
+    nobody was watching.
+    """
+
+    # A plain class rather than a dataclass on purpose: this file is also loaded
+    # by path from the test suite, where the module is not in `sys.modules`, and
+    # `dataclasses` resolves annotations through there and fails.
+
+    def __init__(
+        self,
+        key: str,
+        what: str,
+        url: str,
+        read,
+        paths,
+        grace_minutes: float,
+        no_commit: str,
+        no_stamp: str,
+        repair: str,
+    ) -> None:
+        self.key = key
+        self.what = what
+        self.url = url
+        self.read = read
+        self.paths = paths
+        self.grace_minutes = grace_minutes
+        self.no_commit = no_commit
+        self.no_stamp = no_stamp
+        self.repair = repair
+
+
+WEBSITE = Service(
+    key="website",
+    what="the website",
+    url=PAGE_URL,
+    read=read_release_stamp,
+    paths=website_paths,
+    grace_minutes=WEBSITE_GRACE_MINUTES,
+    no_commit=(
+        "the page at {url} does not say which commit built it, so nothing can "
+        "tell whether a merge is reaching readers."
+    ),
+    no_stamp=(
+        "Every deploying build writes that commit into the page "
+        "(`apps/frontend/scripts/stamp-release-commit.mjs`). A page without one means "
+        "either production is still serving a build from before stamping shipped, or a "
+        "deploying build has stopped setting `VERCEL_GIT_COMMIT_SHA`."
+    ),
+    repair=(
+        "### What to do\n\n"
+        "1. Run the **Deploy to Vercel (manual fallback)** workflow "
+        "(`.github/workflows/vercel-deploy.yml`) on `main`. That builds and releases "
+        "`main`'s head and is the whole repair.\n"
+        "2. Then re-run **Production release missing** "
+        "(`.github/workflows/production-release-missing.yml`) to close this issue, or leave "
+        "it and the next merge closes it.\n"
+        "3. Check the live page yourself: "
+        f"`curl -sL {PAGE_URL} | grep {RELEASE_COMMIT_META_NAME}` says which commit readers "
+        "have.\n\n"
+        "### The usual cause\n\n"
+        "`vercel.json`'s `ignoreCommand` compares a commit against its immediate parent, and "
+        "the merge queue can advance `main` by several commits in 1 push. Vercel builds the "
+        "push's head only, and when that head happens to touch none of those paths every "
+        "earlier commit in the same push goes unbuilt, however much website code it changed. "
+        "Documents, scripts and tests all do it "
+        "([issue 2075](https://github.com/alethical-org/alethical/issues/2075))."
+    ),
+)
+
+API = Service(
+    key="api",
+    what="the API",
+    url=API_VERSION_URL,
+    read=read_api_release_commit,
+    paths=api_paths,
+    grace_minutes=API_GRACE_MINUTES,
+    no_commit=(
+        "{url} does not say which commit the API was built from, so nothing can "
+        "tell whether a merge is reaching readers."
+    ),
+    no_stamp=(
+        "A deployed release reads its commit from Railway's own "
+        "`RAILWAY_GIT_COMMIT_SHA`, or for the hand-run repair from "
+        "`alethical/release_commit.txt` (`alethical/release.py`). A missing `/version`, "
+        "or a `null` commit in it, means either the API is still running a release from "
+        "before `/version` shipped, or a deploy path has stopped carrying the commit."
+    ),
+    repair=(
+        "### What to do\n\n"
+        "1. In Railway, choose **Deploy Latest Commit** for service `alethical-api` in "
+        "`production`. That is the whole repair, and it keeps Railway's own release "
+        "history readable.\n"
+        "2. If GitHub Actions is healthy, the hand-run **Deploy to Railway** workflow "
+        "(`.github/workflows/railway-deploy.yml`) on `main` is the second path.\n"
+        "3. Check the live API yourself: "
+        f"`curl -s {API_VERSION_URL}` says which commit it is running.\n"
+        "4. Then re-run **API release missing** "
+        "(`.github/workflows/api-release-missing.yml`) to close this issue, or leave it "
+        "and the next merge closes it.\n\n"
+        "### What this is, and what it is not\n\n"
+        "Railway redeploys `alethical-api` on every push to `main`, and between 8 Aug and "
+        "22 Sep 2026 it did so for 697 of 701 pushes, normally starting within 2 seconds. "
+        "So this is a dropped release rather than a disconnected watcher, which is what "
+        "makes it worth an alarm: it works often enough that nobody develops the habit of "
+        "checking ([issue 2046](https://github.com/alethical-org/alethical/issues/2046))."
+    ),
+)
+
+SERVICES = {service.key: service for service in (WEBSITE, API)}
 
 
 def git(repo: Path, *args: str) -> str:
@@ -212,11 +400,13 @@ def report(
     grace_minutes: float,
     now: dt.datetime,
     repo: Path = ROOT,
-    read_stamp=read_release_stamp,
+    read_stamp=None,
     paths: list[str] | None = None,
+    service: Service = WEBSITE,
 ) -> tuple[int, str]:
     """The verdict, and the words to put in front of a person."""
-    paths = paths if paths is not None else website_paths()
+    paths = paths if paths is not None else service.paths()
+    read_stamp = read_stamp if read_stamp is not None else service.read
     served, problem = read_stamp(url)
 
     if problem == "no-stamp":
@@ -230,16 +420,12 @@ def report(
         if waited < grace_minutes:
             return (
                 NO_VERDICT_YET,
-                f"{url} carries no release stamp yet, {waited:.0f} "
+                f"{url} does not say its commit yet, {waited:.0f} "
                 f"{plural(waited, 'minute', 'minutes')} after the merge.",
             )
         return NOT_REACHED, (
-            f"**Net:** the page at {url} does not say which commit built it, so nothing can "
-            f"tell whether a merge is reaching readers.\n\n"
-            f"Every deploying build writes that commit into the page "
-            f"(`apps/frontend/scripts/stamp-release-commit.mjs`). A page without one means "
-            f"either production is still serving a build from before stamping shipped, or a "
-            f"deploying build has stopped setting `VERCEL_GIT_COMMIT_SHA`. `main` is at "
+            f"**Net:** {service.no_commit.format(url=url)}\n\n"
+            f"{service.no_stamp} `main` is at "
             f"`{head[:8]}`, merged {waited:.0f} {plural(waited, 'minute', 'minutes')} ago."
         )
 
@@ -271,7 +457,7 @@ def report(
     if not waiting:
         return REACHED, (
             f"Readers have `{served[:8]}` and `main` is at `{head[:8]}`, and nothing between "
-            f"them changes what the website is built from. Correctly unbuilt."
+            f"them changes what {service.what} is built from. Correctly unbuilt."
         )
 
     oldest = waiting[0]
@@ -289,42 +475,47 @@ def report(
             f"{grace_minutes:.0f}-minute grace."
         )
     return NOT_REACHED, (
-        f"**Net:** {len(waiting)} merged {plural(len(waiting), 'change', 'changes')} to the "
-        f"website {plural(len(waiting), 'is', 'are')} not reaching readers. "
+        f"**Net:** {len(waiting)} merged {plural(len(waiting), 'change', 'changes')} to "
+        f"{service.what} {plural(len(waiting), 'is', 'are')} not reaching readers. "
         f"Production is built from `{served[:8]}` and the oldest waiting change, `{oldest[:8]}`, "
         f"merged {waited:.0f} {plural(waited, 'minute', 'minutes')} ago. Nothing failed: a "
         f"release for it never started.\n\n"
         f"`main` is at `{head[:8]}`. Merged and not live:\n\n{listed}\n\n"
-        f"### What to do\n\n"
-        f"1. Run the **Deploy to Vercel (manual fallback)** workflow "
-        f"(`.github/workflows/vercel-deploy.yml`) on `main`. That builds and releases "
-        f"`main`'s head and is the whole repair.\n"
-        f"2. Then re-run **Production release missing** "
-        f"(`.github/workflows/production-release-missing.yml`) to close this issue, or leave "
-        f"it and the next merge closes it.\n"
-        f"3. Check the live page yourself: "
-        f"`curl -sL {url} | grep {RELEASE_COMMIT_META_NAME}` says which commit readers have.\n\n"
-        f"### The usual cause\n\n"
-        f"`vercel.json`'s `ignoreCommand` compares a commit against its immediate parent, and "
-        f"the merge queue can advance `main` by several commits in 1 push. Vercel builds the "
-        f"push's head only, and when that head happens to touch none of those paths every "
-        f"earlier commit in the same push goes unbuilt, however much website code it changed. "
-        f"Documents, scripts and tests all do it "
-        f"([issue 2075](https://github.com/alethical-org/alethical/issues/2075))."
+        f"{service.repair}"
     )
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--page-url", default=PAGE_URL, help="the address to read")
+    parser.add_argument(
+        "--service",
+        default=WEBSITE.key,
+        choices=sorted(SERVICES),
+        help="which deployed thing to ask (default: website)",
+    )
+    parser.add_argument(
+        "--page-url",
+        default=None,
+        help="the address to read (default: the service's own)",
+    )
     parser.add_argument(
         "--head", default=None, help="the commit main is at (default: HEAD)"
     )
-    parser.add_argument("--grace-minutes", type=float, default=GRACE_MINUTES)
+    parser.add_argument("--grace-minutes", type=float, default=None)
     arguments = parser.parse_args()
+    service = SERVICES[arguments.service]
     head = arguments.head or git(ROOT, "rev-parse", "HEAD")
+    grace = (
+        arguments.grace_minutes
+        if arguments.grace_minutes is not None
+        else service.grace_minutes
+    )
     verdict, words = report(
-        head, arguments.page_url, arguments.grace_minutes, dt.datetime.now(dt.UTC)
+        head,
+        arguments.page_url or service.url,
+        grace,
+        dt.datetime.now(dt.UTC),
+        service=service,
     )
     print(words)
     return verdict

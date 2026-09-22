@@ -27,6 +27,22 @@ jobs:
       - name: Check Railway token
         run: ': "${RAILWAY_TOKEN:?Missing RAILWAY_TOKEN secret}"'
 
+      # What makes this path's release visible to
+      # `.github/workflows/api-release-missing.yml`. That watch reads the commit
+      # out of `GET /version`, and the API knows it because `alethical/release.py`
+      # reads either a Railway git variable or this file. Railway sets those
+      # variables only for a deploy that came from the GitHub connection, and this
+      # path uploads a source archive instead, so on this path the commit has to
+      # travel in the files. Without it, the repair for a missed release would put
+      # up an API that cannot say which commit it is and the watch would keep
+      # reporting an outage that was already over.
+      - name: Tell the upload which commit it is
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$GITHUB_SHA"
+          printf '%s\n' "$GITHUB_SHA" > alethical/release_commit.txt
+
       # Keep the deployment command fixed until a reviewed change moves it. An
       # unversioned npx command silently changed production tooling on every run.
       - name: Deploy production to Railway

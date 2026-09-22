@@ -150,6 +150,11 @@ Health and readiness:
 
 - `/healthz`
 - `/readyz`
+- `/version` — which commit this API was built from, or `null` when it cannot
+  know. A merge that never rebuilt the API left no red check, no alert and no
+  failed deployment record, so nothing could tell whether a merge had reached
+  readers ([issue 2046](https://github.com/alethical-org/alethical/issues/2046)).
+  Never cached, and it needs neither the database nor a worker thread.
 
 ## Resource Identity
 
