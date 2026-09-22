@@ -38,7 +38,7 @@ afterEach(() => {
 });
 
 describe('sitemap endpoint', () => {
-  it('lists exactly the six child sitemaps and makes no network call', async () => {
+  it('lists exactly the seven child sitemaps and makes no network call', async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
     const recorder = responseRecorder();
@@ -52,9 +52,10 @@ describe('sitemap endpoint', () => {
     expect(body).toContain('<loc>https://www.alethical.com/sitemaps/bills.xml</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/sitemaps/legislators.xml</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/sitemaps/committees.xml</loc>');
+    expect(body).toContain('<loc>https://www.alethical.com/sitemaps/races.xml</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/sitemaps/lobbying-principals.xml</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/sitemaps/lobbying-lobbyists.xml</loc>');
-    expect(body.match(/<sitemap>/g)).toHaveLength(6);
+    expect(body.match(/<sitemap>/g)).toHaveLength(7);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
@@ -358,6 +359,48 @@ describe('sitemap endpoint', () => {
     // No lastmod anywhere: we hold no date on which a committee's own record
     // changed, and Google trusts the field site-wide only when it is accurate.
     expect(body).not.toContain('<lastmod>');
+  });
+
+  it('lists every seat at its own address, dateless and without a year', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          contests: [
+            { anchor: 'house-1a' },
+            { anchor: 'district-court-4-12' },
+            // A contest the register answers without an identifier has no address,
+            // so it is left out rather than listed as a broken one.
+            { anchor: '' },
+          ],
+        },
+      }),
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const recorder = responseRecorder();
+
+    await handler({ query: { section: 'races' } }, recorder.response);
+
+    const { body, status } = recorder.read();
+    expect(status).toBe(200);
+    expect(body).toContain('<url><loc>https://www.alethical.com/money/races/house-1a</loc></url>');
+    expect(body).toContain(
+      '<url><loc>https://www.alethical.com/money/races/district-court-4-12</loc></url>',
+    );
+    expect(body.match(/<url>/g)).toHaveLength(2);
+    // The bare seat address only: a `?year=` view names the same record (§22).
+    expect(body).not.toContain('year=');
+    expect(body).not.toContain('<lastmod>');
+    expect(fetchSpy.mock.calls[0][0]).toContain('/api/v1/campaign-finance/races?year=');
+  });
+
+  it('responds 503 rather than an empty seat sitemap when the backend fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+    const recorder = responseRecorder();
+
+    await handler({ query: { section: 'races' } }, recorder.response);
+
+    expect(recorder.read().status).toBe(503);
   });
 
   it('responds 503 rather than an empty committee sitemap when the backend fails', async () => {

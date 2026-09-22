@@ -517,19 +517,29 @@ export function committeeListPageMetadata(
 export function moneyByRacePageMetadata(
   options: {
     noindex?: boolean;
-    /** The one contest a `?group=` address opens on, e.g. "House District 12A". */
+    /** The one contest this address opens on, e.g. "House District 12A". */
     selectedLabel?: string | null;
+    /** A seat's served identifier, e.g. "house-34a", when the address is its own. */
+    group?: string | null;
+    /** This seat's search-result sentence, from `raceGroupSearchDescription`. */
+    searchDescription?: string;
   } = {},
 ): PageMetadata {
   // "Race" alone reads 2 ways in a search result; the subject says which one.
   const subject = 'Money by race: Minnesota candidates by office and district';
   const selected = clean(options.selectedLabel ?? '');
+  const group = clean(options.group ?? '');
   return pageMetadata({
     title: titleFor(selected ? `${selected} — ${subject}` : subject),
     socialTitle: selected ? `${selected} — Money by race` : 'Money by race',
     description:
+      clean(options.searchDescription ?? '') ||
       'Every Minnesota candidate committee grouped by the office and district it is registered for, each with its own reported money in — ordered by district, then name, never by amount.',
-    canonicalPath: options.noindex ? '' : '/money/races',
+    canonicalPath: group
+      ? `/money/races/${encodeURIComponent(group)}`
+      : options.noindex
+        ? ''
+        : '/money/races',
     noindex: options.noindex,
   });
 }

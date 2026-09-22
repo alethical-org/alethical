@@ -92,9 +92,13 @@ describe('money results sharing', () => {
     expect(content.description).toContain('House District 12A');
     expect(content.description).toContain('figures shown separately');
     expect(new URL(content.url).hash).toBe('');
+    // A shared seat travels as the seat's own address. The office chip and the
+    // name box narrowed the directory a reader came through, and neither is part
+    // of the record they are sending (§28.6).
+    expect(new URL(content.url).pathname).toBe('/money/races/house-12a');
     expect(destination(content.url)).toMatchObject({
       name: 'MoneyByRace',
-      params: { office: 'House', year: '2026', group: 'house-12a' },
+      params: { group: 'house-12a' },
     });
     expect(new URL(moneyByRaceShareContent(races, 'access_token=private').url).hash).toBe('');
     expect(

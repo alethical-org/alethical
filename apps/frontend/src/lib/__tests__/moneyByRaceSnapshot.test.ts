@@ -60,10 +60,11 @@ describe('the first race response follows the directory or selected-group addres
     const text = renderPageSnapshot(snapshot);
     expect(snapshot.subheading).toBe('2 candidate committees');
     expect(snapshot.records).toHaveLength(2);
-    expect(snapshot.records?.[0].href).toBe('/money/races?office=House&year=2026&group=house-12a');
-    expect(snapshot.records?.[1].href).toBe(
-      '/money/races?office=Governor&year=2026&group=governor',
-    );
+    // A seat is a record, so its identifier is the path rather than a `?group=`
+    // the directory filters itself by (§28.6). The year only appears when it is
+    // not the year the page opens on, which follows the calendar.
+    expect(snapshot.records?.[0].href).toMatch(/^\/money\/races\/house-12a(\?year=2026)?$/);
+    expect(snapshot.records?.[1].href).toMatch(/^\/money\/races\/governor(\?year=2026)?$/);
     expect(text).not.toContain('Example House Committee');
     expect(text).not.toContain('$1,234');
     expect(text).not.toContain('Payment files copied');

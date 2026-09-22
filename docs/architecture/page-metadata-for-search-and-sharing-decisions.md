@@ -1423,8 +1423,10 @@ address is not a reason to show its reader nothing. Sorted for this section:
 | `/money/committees?q=…` or `?kind=…` | filtered view | head only, `noindex`, no canonical — unchanged |
 | `/money/committees/{slug}` and `?year=N` | **record** | the committee's own register facts and its money for the year the address asks for, defaulting to the current filing year; canonical on the bare address either way |
 | `/money/committees/{slug}/payments`, `?year=N` and `?tab=gave\|spent` | **record** | the same identity and period for that same year, plus the first 50 named payments in the direction the address asks for; canonical on the bare address in every case |
-| `/money/races` | record list | a compact directory of office, district and court-seat groups, with committee counts and ordinary links to each complete group |
-| `/money/races?office=…`, `?year=…`, `?group=…` and `?q=…` | filtered view | the matching directory or selected group, plus the all-office data for the selected year used by search; `noindex`, no canonical |
+| `/money/races` | record list | a compact directory of office, district and court-seat groups, with committee counts and ordinary links to each complete seat |
+| `/money/races/{seat}` and `?year=N` | **record** | one seat's candidate committees and their own figures for the year the address asks for; canonical on the bare seat address either way (§28.6) |
+| `/money/races?office=…`, `?year=…` and `?q=…` | filtered view | the matching directory, plus the all-office data for the selected year used by search; `noindex`, no canonical |
+| `/money/races?group=…` | retired | **301** to `/money/races/{seat}`, keeping the year and leaving the office chip and name box behind (§28.6) |
 | `/money/search` and `?q=…` | filtered view | `noindex` with no canonical, and a body carrying the page's own explanation and what these records do not cover — never a result for anything typed ([#1966](https://github.com/alethical-org/alethical/issues/1966)) |
 | `/money/payments?name=…&role=…` | **filtered view** | head only, `noindex`, no canonical — added by [#1780](https://github.com/alethical-org/alethical/issues/1780) |
 | `/money/outside-spending` | **record** | indexable, canonical on the bare address, with the whole file's own figures and the words introducing its group-and-committee directory as a body — the whole independent-expenditure file as one subject ([#1945](https://github.com/alethical-org/alethical/issues/1945), body added by [#1966](https://github.com/alethical-org/alethical/issues/1966)) |
@@ -2030,10 +2032,35 @@ Google's Organization guidance reads to tie a site and its profiles together. A 
 preview type is `article` with `article:published_time`, a date being the one thing rule 13 lets a
 piece's metadata carry beside its title.
 
+**6. Every Minnesota seat gets its own address (22 Sep 2026).** The register groups its candidate
+committees by the seat each one registered for, and the page for one seat lists that seat's
+candidates with each one's own reported figures. 222 seats for the 2026 filing year, covering 778
+committees: 134 House districts, 67 Senate districts, 18 court seats and the 4 statewide offices.
+
+Every one of them lived at `/money/races?group=house-34a`, which §22 classed with the office chip
+and the name box as a filtered view, so all 222 answered `noindex` and none of them was in a
+sitemap. All 222 also sent the directory's own title, "Money by race: Minnesota candidates by
+office and district", so not one of them named its seat. A reader searching for a district was
+searching for exactly the page we were telling Google to skip.
+
+The rule that produced it reads a query string as the tell, and that is one step short: a seat has
+its own name, its own candidates and its own filed figures, so it is a record and the office chip
+is not. Each seat now answers at `/money/races/{seat}`, listed, canonical on its own bare address,
+with the seat in its title and a sentence of its own naming the seat
+(`raceGroupSearchDescription`, `apps/frontend/src/lib/pageHead.ts`, for §28.4d's size reason).
+`/sitemaps/races.xml` lists all 222, dateless for §22's reason. The `?group=` form answers **301**
+to the seat, keeping the year and dropping the office chip and the name box, which the new path
+already says; a seat the register does not hold forwards nowhere, for §28.2's reason, and the seat
+address itself answers 404.
+
+The year follows §22's committee rule exactly: `?year=N` is the same record and the canonical
+address stays bare, and a link carries the year only when it is not the year the page opens on
+anyway, so a seat has 1 ordinary address wherever the link was built.
+
 **What was checked and left alone, with the ruling it rests on.** No structured data on money
 pages: §6 admits only what a shipped search feature consumes, and no listed feature reads a
-`Dataset` or `ItemList` for pages like these; `BreadcrumbList` stays out for §12's reason. Filtered
-money views stay `noindex` (§22). The bill description stays the one fixed sentence §26 rules, and
+`Dataset` or `ItemList` for pages like these; `BreadcrumbList` stays out for §12's reason. A
+narrowed money view stays `noindex` (§22), which a seat never was. The bill description stays the one fixed sentence §26 rules, and
 a guide's description stays its dates (rule 13); both are Eugene's rulings and both cost search
 visibility, so they are raised with him rather than changed here. Host, scheme and trailing-slash
 forwards, the 404 and 503 answers, `robots.txt`, `lang`, one `<h1>` per page, and the per-page

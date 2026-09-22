@@ -1,3 +1,4 @@
+import { campaignMoneyYear } from '../lib/campaignMoneyYears';
 import { registrationNumberFromSlug } from '../lib/committeeRoute';
 import { paymentNameRole } from '../lib/paymentNameRoute';
 import { pieceAddressFolder, pieceIndexBySlug } from '../lib/researchIndex';
@@ -47,6 +48,7 @@ type WebRouteTarget =
   | { kind: 'moneyCommitteePayments'; slug: string; tab?: string; year?: string }
   | { kind: 'moneyCommitteeList'; params: Record<string, string> }
   | { kind: 'moneyByRace'; params: Record<string, string> }
+  | { kind: 'moneyRaceGroup'; group: string; year?: string }
   | { kind: 'moneySearch'; params: Record<string, string> }
   | { kind: 'paymentsUnderName'; name: string; role: string; q?: string }
   | { kind: 'outsideSpending'; params: Record<string, string> }
@@ -403,8 +405,20 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
 
   // Money by race (issue #1954): every candidate committee grouped by the office
   // and district it registered for. The office chip rides in the query string.
-  if (segments.length === 2 && segments[0] === 'money' && segments[1] === 'races') {
-    return { kind: 'moneyByRace', params: moneyByRaceParams(searchParams) };
+  if (segments.length >= 2 && segments[0] === 'money' && segments[1] === 'races') {
+    if (segments.length === 2) {
+      return { kind: 'moneyByRace', params: moneyByRaceParams(searchParams) };
+    }
+    // One seat's own address, `/money/races/house-34a`. The served identifier is
+    // the seat, so this is a record rather than a filtered view of the directory:
+    // it is listed, it is its own canonical address, and the `?group=` form it
+    // replaces forwards here (§28.6).
+    if (segments.length === 3) {
+      const group = decodeURIComponent(segments[2]);
+      const year = searchParams.get('year');
+      return { kind: 'moneyRaceGroup', group, ...(year ? { year } : {}) };
+    }
+    return { kind: 'notFound', path: pathname };
   }
 
   // One committee's money page and its full-payments view (campaign money phase
@@ -668,6 +682,18 @@ export function pathForRoute(activeRoute: {
       return query ? `/money/committees?${query}` : '/money/committees';
     }
     case 'MoneyByRace': {
+      // A chosen seat has its own address; the office chip and the name box are
+      // ways of narrowing the directory, so they stay in the query string.
+      const group = activeRoute.params?.group;
+      if (group) {
+        const year = activeRoute.params?.year;
+        const seatPath = `/money/races/${encodeURIComponent(String(group))}`;
+        // The year rides along only when it is not the year the page opens on
+        // anyway, so a seat has 1 ordinary address wherever the link was built.
+        return year && Number(year) !== campaignMoneyYear(undefined)
+          ? `${seatPath}?year=${encodeURIComponent(String(year))}`
+          : seatPath;
+      }
       const params = new URLSearchParams();
       for (const key of MONEY_BY_RACE_PARAMS) {
         const value = activeRoute.params?.[key];
@@ -931,6 +957,17 @@ export function stateFromPathname(pathname: string): WebNavigationState {
     case 'moneyByRace':
       return {
         routes: [homeTabs, { name: 'MoneyByRace', params: target.params }],
+        index: 1,
+      };
+    case 'moneyRaceGroup':
+      return {
+        routes: [
+          homeTabs,
+          {
+            name: 'MoneyByRace',
+            params: { group: target.group, ...(target.year ? { year: target.year } : {}) },
+          },
+        ],
         index: 1,
       };
     case 'moneySearch':

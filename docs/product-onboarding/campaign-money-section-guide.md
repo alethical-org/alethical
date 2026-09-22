@@ -53,7 +53,7 @@ non-repeating prepared messages.
   supporting or opposing committees, or `/money/outside-spending?about=<registration
 number>` and `?spender=<registration number>` for one committee's or one group's view of it.
 - Open `/money/races` for the directory of offices, districts and court seats,
-  or `/money/races?office=House&year=2026&group=house-12a` for 1 complete group.
+  or `/money/races/house-12a` for 1 complete seat.
 - Open the **Money by race** or **Outside spending** card on `/money`, the 4th and 5th cards in
   the lane row, which lead to those 2 pages.
 - The retired address `/track/campaign-finance` (an old greyed "Campaign Finance" tracking
@@ -542,8 +542,14 @@ and “View committees” use the selected suggestion or the sole match; a broad
 no chosen result does not silently open its first match. Arrow keys move through results;
 Escape closes suggestions. Search remains available in the focused group.
 
-The selected address uses the served group identifier, for example
-`/money/races?office=House&year=2026&group=house-12a`. Legacy `#house-12a` links continue
+One seat has its own address, built from the served group identifier: for example
+`/money/races/house-12a`. A year other than the one the page opens on rides along as
+`?year=2024`. An older `/money/races?group=house-12a` link answers with a permanent
+forward to the seat's own address, keeping the year and leaving the office choice and
+the typed search behind, because the new address already names the seat. A seat the
+register does not hold is not forwarded: that address opens the directory with
+"We couldn't find this office, district or court seat", while the seat address itself
+reports that the page does not exist. Legacy `#house-12a` links continue
 to resolve. Directory search text uses `q`; opening a group clears that search in its new
 address, while Go back restores the earlier office, search and position. Browser Back
 and Forward restore the appropriate view. A fresh shared group's Go back action falls

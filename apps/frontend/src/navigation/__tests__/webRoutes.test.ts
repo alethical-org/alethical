@@ -473,11 +473,42 @@ describe('campaign money routes', () => {
   // Every filer past the first 50 was behind a "Show more" button, which Google
   // states it does not press, so the numbered address is what makes the other
   // 1,553 committee pages walkable (#1812).
-  it('round-trips a selected race and search without losing its office or year', () => {
-    const params = { office: 'House', year: '2026', group: 'house-12a', q: 'house 12a' };
-    const address = pathForRoute({ name: 'MoneyByRace', params });
-    expect(address).toBe('/money/races?office=House&year=2026&group=house-12a&q=house+12a');
-    expect(targetFromPathname(address)).toEqual({ kind: 'moneyByRace', params });
+  it('gives a chosen seat its own address and keeps the year a reader asked for', () => {
+    // The office chip and the name box narrow the directory, so they stay in the
+    // query string; the seat is the record, so it is the path (§28.6).
+    // Read off the calendar rather than written down: a pinned year would make
+    // this test start failing on 1 January for a reason that is not a defect.
+    const openingYear = String(new Date().getFullYear());
+    const address = pathForRoute({
+      name: 'MoneyByRace',
+      params: { office: 'House', year: openingYear, group: 'house-12a', q: 'house 12a' },
+    });
+    // The year the page opens on anyway, so the seat's plain address is enough.
+    expect(address).toBe('/money/races/house-12a');
+    const older = pathForRoute({
+      name: 'MoneyByRace',
+      params: { office: 'House', year: '2024', group: 'house-12a' },
+    });
+    expect(older).toBe('/money/races/house-12a?year=2024');
+    expect(targetFromPathname(older)).toEqual({
+      kind: 'moneyRaceGroup',
+      group: 'house-12a',
+      year: '2024',
+    });
+    expect(pathForRoute({ name: 'MoneyByRace', params: { group: 'house-12a' } })).toBe(
+      '/money/races/house-12a',
+    );
+    expect(targetFromPathname('/money/races/house-12a')).toEqual({
+      kind: 'moneyRaceGroup',
+      group: 'house-12a',
+    });
+  });
+
+  it('answers a made-up address under Money by race as a page that does not exist', () => {
+    expect(targetFromPathname('/money/races/house-12a/extra')).toEqual({
+      kind: 'notFound',
+      path: '/money/races/house-12a/extra',
+    });
   });
 
   it('opens Money by race at /money/races and round-trips its office chip', () => {
