@@ -55,6 +55,21 @@ name: Production release missing
 # seconds, so the 10-minute grace inside the check is about 7 times the slowest
 # release ever seen here.
 #
+# A GREEN RUN IS NOT A QUIET WATCH, AND SAYING SO IS PART OF THE ALARM. On
+# 18 Sep 2026 this workflow did exactly its job: 3 production builds failed, no
+# build at all was created for `main`'s head, and it opened
+# [issue 2288](https://github.com/alethical-org/alethical/issues/2288) at 17:28:40
+# and commented on it 4 more times until readers caught up at 21:14:36. Its
+# sibling opened [issue 2287](https://github.com/alethical-org/alethical/issues/2287)
+# at 17:26:49. Every one of those runs still finished GREEN, because opening the
+# issue was its success, and a later reading of the Actions tab took the green
+# ticks for silence and filed
+# [issue 2291](https://github.com/alethical-org/alethical/issues/2291) saying the
+# watches had stayed quiet through the whole outage. So the run now goes RED
+# whenever it alarms on `main`, and writes the verdict into the run summary. The
+# issue is still the alarm and still reaches the board; the red run only stops the
+# Actions tab from reporting the opposite of what happened.
+#
 # Costs nothing per run: 1 public page read per attempt and the local git history.
 
 on:
@@ -96,6 +111,68 @@ jobs:
     name: Say when a merge is not reaching readers
     runs-on: ubuntu-latest
     steps:
+      # TEMPORARY, removed before this pull request merges. It answers the last
+      # open question on
+      # [issue 2291](https://github.com/alethical-org/alethical/issues/2291): on
+      # 18 Sep 2026 commit `1f577dfa` was pushed to `main` and Vercel created no
+      # production deployment for it, no commit status, and not the "Canceled by
+      # Ignored Build Step" status a skip produces. GitHub's records cannot say
+      # why, so this reads Vercel's. Read-only: it lists deployments and reads the
+      # project's settings, and creates, promotes, cancels and deletes nothing. It
+      # lives here rather than in a workflow of its own because
+      # `docs/operations/jobs-and-scripts.md` states how many workflows this
+      # repository has and a throwaway file would have to move that number twice.
+      - name: Read what Vercel recorded on 18 September 2026
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          set -uo pipefail
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo "No Vercel token available to this run."
+            exit 0
+          fi
+          curl -sS -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&teamId=${VERCEL_ORG_ID}&since=1789747200000&until=1789776000000&limit=100" \
+            > deployments.json
+          curl -sS -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}?teamId=${VERCEL_ORG_ID}" \
+            > project.json
+          python3 - <<'READ'
+          import datetime as dt, json
+          data = json.load(open("deployments.json"))
+          rows = sorted(data.get("deployments", []), key=lambda d: d["created"])
+          if not rows:
+              print("Vercel returned no deployment list:", json.dumps(data)[:600])
+          print(f"{len(rows)} deployments between 18 Sep 16:00Z and 19 Sep 00:00Z")
+          for d in rows:
+              meta = d.get("meta") or {}
+              when = dt.datetime.fromtimestamp(d["created"] / 1000, dt.UTC)
+              print(
+                  f"{when:%H:%M:%S} target={str(d.get('target')):<12}"
+                  f" state={str(d.get('state')):<12} ready={str(d.get('readyState')):<12}"
+                  f" sha={(meta.get('githubCommitSha') or '')[:8]}"
+                  f" ref={meta.get('githubCommitRef')}"
+              )
+          project = json.load(open("project.json"))
+          print("\n--- project settings ---")
+          for key in (
+              "name", "paused", "live", "framework", "nodeVersion",
+              "commandForIgnoringBuildStep", "gitForkProtection", "gitComments",
+              "autoAssignCustomDomains", "resourceConfig",
+          ):
+              if key in project:
+                  print(f"{key}: {json.dumps(project[key])}")
+          link = project.get("link") or {}
+          for key in ("type", "repo", "org", "productionBranch", "deployHooks"):
+              if key in link:
+                  print(f"link.{key}: {json.dumps(link[key])}")
+          print("link.gitCredentialId:", "present" if link.get("gitCredentialId") else "absent")
+          READ
+
       - name: Check out repository
         uses: actions/checkout@v7
         with:
@@ -202,6 +279,25 @@ jobs:
               owner: context.repo.owner, repo: context.repo.repo, issue_number: open.number,
               state: "closed", state_reason: "completed",
             });
+
+      # The run's own colour, after the issue is written. A pull-request self-test
+      # is excluded by `github.ref_name`, because a pull request's head is never
+      # what production serves, so its verdict is always "not reached" and a red
+      # run there would say nothing and frighten everybody.
+      - name: Go red, and say in the run itself that readers are behind
+        if: steps.check.outputs.status == '1' && github.ref_name == 'main'
+        run: |
+          set -uo pipefail
+          {
+            echo "## 🚨 Readers are not getting what \`main\` has"
+            echo
+            cat verdict.txt
+            echo
+            echo "An issue carrying this verdict is open on the board. This run is red so"
+            echo "the Actions tab cannot read as quiet while that issue is open."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error title=Readers are not getting what main has::$(head -n 1 verdict.txt)"
+          exit 1
 
       # A red run rather than an issue, deliberately. The only way to get here is
       # 20 minutes in which the page could not be read at all, which has never

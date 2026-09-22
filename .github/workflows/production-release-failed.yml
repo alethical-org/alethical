@@ -14,9 +14,11 @@ name: Production release failed
 # commit, producing 542 more bytes. So the only place this is visible is after the
 # merge, which is exactly why it needs its own watch rather than another check.
 #
-# WHY THIS ISSUE-OPENING JOB AND NOT A RED WORKFLOW RUN. A red run in the Actions
-# tab is also something a person has to go and look at, and the whole defect here
-# was nobody looking. An issue reaches the board and the maintainer's notifications.
+# WHY AN ISSUE AND NOT ONLY A RED WORKFLOW RUN. A red run in the Actions tab is
+# something a person has to go and look at, and the whole defect here was nobody
+# looking. An issue reaches the board and the maintainer's notifications, so the
+# issue is the alarm. The run goes red as well, for the reason under
+# "A GREEN RUN IS NOT A QUIET WATCH" below.
 #
 # IT WATCHES A RED RELEASE, AND ITS SIBLING WATCHES AN ABSENT ONE. A production
 # release that never starts produces no deployment and no status, so nothing here
@@ -38,6 +40,26 @@ name: Production release failed
 #   - It closes its own issue when a production release next succeeds, so a resolved
 #     outage does not sit on the board. That is the half the 8 Sep write-up had to
 #     be told to do by hand.
+#
+# A GREEN RUN IS NOT A QUIET WATCH. On 18 Sep 2026 production builds failed 3
+# times in a row and this workflow did exactly its job: it opened
+# [issue 2287](https://github.com/alethical-org/alethical/issues/2287) at 17:26:49
+# on the first failure, commented on the second at 17:34:00 and the third at
+# 18:05:46, and closed itself at 21:11:00 when a release succeeded. Its sibling
+# opened [issue 2288](https://github.com/alethical-org/alethical/issues/2288) 2
+# minutes later. All 3 runs still finished GREEN, because writing the issue was
+# their success, and a later reading of the Actions tab took those green ticks for
+# silence and filed
+# [issue 2291](https://github.com/alethical-org/alethical/issues/2291) saying
+# neither watch had fired. So the run now goes RED after it writes the issue. The
+# issue is still the alarm; the red run only stops the Actions tab from reporting
+# the opposite of what happened.
+#
+# AND IT SAYS HOW MANY IN A ROW. "Still failing, now on `503914be`" reads the same
+# on the first repeat as on the tenth, and 3 in a row is a different thing from 1:
+# a flake retries away, a run means something in the change set only fails in the
+# hosted build, which here was the first-download size limit. The count comes from
+# the issue's own comments, so it needs no state anywhere else.
 #
 # Costs nothing per run: one event, a few API calls on a public repository.
 
@@ -80,6 +102,19 @@ jobs:
           case "$STATE" in
             failure|error)
               short="${SHA:0:8}"
+              # How many production releases have failed in a row, counted from
+              # the open issue: 1 for the issue itself, 1 per repeat comment
+              # already on it, and 1 for this failure.
+              in_a_row=1
+              if [ -n "$existing" ]; then
+                repeats=$(gh issue view "$existing" --repo "$GITHUB_REPOSITORY" \
+                  --json comments \
+                  --jq '[.comments[] | select(.body | startswith("Still failing"))] | length') || repeats=""
+                # A count nobody could read must not take the step down with it:
+                # the alarm matters more than the number on it.
+                case "$repeats" in ''|*[!0-9]*) repeats=0 ;; esac
+                in_a_row=$(( repeats + 2 ))
+              fi
               body=$(printf '%s\n' \
                 "**Net:** Commit \`$short\` merged and its production release failed, so what readers get is still the previous release. Every later merge is stranded behind it until this clears." \
                 "" \
@@ -98,12 +133,27 @@ jobs:
                 "" \
                 "This issue closes itself when a production release next succeeds.")
               if [ -n "$existing" ]; then
+                run_note=""
+                if [ "$in_a_row" -ge 3 ]; then
+                  run_note=$(printf '%s' " $in_a_row production releases in a row have now failed, which is a block rather than a flake: something in the merged changes fails only in the hosted build, and the first-download size limit in \`apps/frontend/scripts/check-first-load-budget.mjs\` is the one that has done this here before. Every merge since the last success is stranded behind it.")
+                fi
                 gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" \
-                  --body "Still failing, now on \`$short\`. Build log: $LOG_URL"
+                  --body "Still failing, now on \`$short\`, failure $in_a_row in a row.${run_note} Build log: $LOG_URL"
               else
                 gh issue create --repo "$GITHUB_REPOSITORY" \
                   --title "🚨 $TITLE" --label frontend --body "$body"
               fi
+              {
+                echo "## 🚨 The production release of \`$short\` failed"
+                echo
+                echo "Failure $in_a_row in a row. What readers get is still the previous release."
+                echo "Build log: $LOG_URL"
+                echo
+                echo "An issue carrying this is open on the board. This run is red so the Actions"
+                echo "tab cannot read as quiet while that issue is open."
+              } >> "$GITHUB_STEP_SUMMARY"
+              echo "::error title=The production release failed::Commit $short did not reach readers; failure $in_a_row in a row."
+              exit 1
               ;;
             success)
               if [ -n "$existing" ]; then

@@ -13,6 +13,17 @@ do not read commits out of this repository's own history: the ``backend`` job
 checks out shallow, so a test keyed on a real old commit would pass on a laptop
 and fail in CI.
 
+The second shape, 18 Sep 2026: 3 production builds failed in a row, then no build
+at all was created for ``main``'s head, and readers kept the 16:51 release for 76
+minutes. The check answered correctly every time and its workflow opened
+`issue 2288 <https://github.com/alethical-org/alethical/issues/2288>`_ at 17:28:40,
+4 minutes after the first failure, commenting on it until readers caught up. That
+run finished in 13 seconds because the oldest waiting change was already past its
+grace, which is the answer arriving rather than the grace being skipped, and
+``TestTheShapeOf18September2026`` pins it so a future edit cannot turn the clock
+back onto the newest merge and lose the alarm
+(`issue 2291 <https://github.com/alethical-org/alethical/issues/2291>`_).
+
 Nothing here touches the network. What production serves is handed in, because an
 alarm that depends on a live page is an alarm that changes its mind.
 """
@@ -245,3 +256,103 @@ class TestItWatchesWhatVercelActuallyBuildsFrom:
     def test_the_stamps_name_matches_the_script_that_writes_it(self):
         writer = (ROOT / "apps/frontend/scripts/stamp-release-commit.mjs").read_text()
         assert f"'{check.RELEASE_COMMIT_META_NAME}'" in writer
+
+
+class TestTheShapeOf18September2026:
+    """3 failed releases, then no release at all, replayed against real history.
+
+    The commits, times and served commit are 18 Sep 2026's own. Readers were on
+    `3108bde2` from 16:51. `3f383074` merged at 17:18:55 and its production build
+    failed; 2 more merges failed behind it; then `1f577dfa` merged at 18:25:54 and
+    Vercel created no production deployment for it at all. The alarm ran at
+    18:33:46 and had to name both website changes and neither of the 2 merges a
+    release would not have carried.
+    """
+
+    @pytest.fixture
+    def september_18(self, tmp_path: Path) -> dict[str, object]:
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        run(repo, "init", "-q", "-b", "main")
+        run(repo, "config", "user.email", "t@example.com")
+        run(repo, "config", "user.name", "t")
+        released = commit(
+            repo,
+            "apps/frontend/src/screens/Home.tsx",
+            "The release readers were still on at 16:51",
+            dt.datetime(2026, 9, 18, 16, 44, tzinfo=dt.UTC),
+        )
+        first_website = commit(
+            repo,
+            "apps/frontend/src/screens/BillSearchScreen.tsx",
+            "Give each bill its own search-result sentence (#2271)",
+            dt.datetime(2026, 9, 18, 17, 18, 55, tzinfo=dt.UTC),
+        )
+        backend_only = commit(
+            repo,
+            "alethical/api/routers/money.py",
+            "Answer a committee-year's money from the index (#2286)",
+            dt.datetime(2026, 9, 18, 17, 31, tzinfo=dt.UTC),
+        )
+        docs_only = commit(
+            repo,
+            "docs/operations/page-load-performance-decisions.md",
+            "Record what the new money index did on production (#2290)",
+            dt.datetime(2026, 9, 18, 18, 4, tzinfo=dt.UTC),
+        )
+        head = commit(
+            repo,
+            "apps/frontend/src/lib/head.ts",
+            "Take the head-building code out of the first download (#2289)",
+            dt.datetime(2026, 9, 18, 18, 25, 54, tzinfo=dt.UTC),
+        )
+        return {
+            "repo": repo,
+            "released": released,
+            "first_website": first_website,
+            "backend_only": backend_only,
+            "docs_only": docs_only,
+            "head": head,
+        }
+
+    def verdict_at_18_33(self, september_18):
+        return check.report(
+            head=september_18["head"],
+            url="https://www.alethical.com/",
+            grace_minutes=10,
+            now=dt.datetime(2026, 9, 18, 18, 33, 46, tzinfo=dt.UTC),
+            repo=september_18["repo"],
+            read_stamp=lambda _url: (september_18["released"], None),
+            paths=WEBSITE_PATHS,
+        )
+
+    def test_readers_stuck_behind_3_failed_releases_and_a_missing_one_is_reported(
+        self, september_18
+    ):
+        code, words = self.verdict_at_18_33(september_18)
+        assert code == check.NOT_REACHED
+        assert "not reaching readers" in words
+
+    def test_the_alarm_names_both_website_changes_and_neither_of_the_other_2(
+        self, september_18
+    ):
+        """A release carries the website changes, so those are what a person chases."""
+        _, words = self.verdict_at_18_33(september_18)
+        assert "2 merged changes" in words
+        assert september_18["first_website"][:8] in words
+        assert september_18["head"][:8] in words
+        assert september_18["backend_only"][:8] not in words
+        assert september_18["docs_only"][:8] not in words
+
+    def test_a_grace_already_spent_answers_at_once_rather_than_waiting_again(
+        self, september_18
+    ):
+        """The 13-second run was the answer arriving, not the grace being skipped.
+
+        The clock runs from `3f383074` at 17:18:55, so by 18:33:46 it is 75 minutes
+        spent and the alarm is due on the first read. A clock restarted by the
+        newest merge would have read 8 minutes, sat inside the 10-minute grace, and
+        said nothing at all while readers were 75 minutes behind.
+        """
+        _, words = self.verdict_at_18_33(september_18)
+        assert "75 minutes ago" in words
