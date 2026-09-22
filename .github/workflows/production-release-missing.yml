@@ -70,6 +70,19 @@ name: Production release missing
 # issue is still the alarm and still reaches the board; the red run only stops the
 # Actions tab from reporting the opposite of what happened.
 #
+# WHAT VERCEL'S OWN RECORDS SAID ABOUT 18 SEP, AND WHY ONLY THIS WATCH COULD SEE
+# IT. Commit `1f577dfa` was pushed to `main` at 18:33 and Vercel started no build
+# for that push at all: its deployment list holds the queue branch's preview at
+# 18:26 and then nothing on `main` until 19:29:27, and there is no "canceled by
+# ignored build step" record either, which a skip would have written. GitHub was
+# therefore never going to carry a signal: no deployment, no commit status, and so
+# nothing for `production-release-failed.yml` to watch. Reading the served page is
+# what caught it. Vercel published 2 incidents on its Builds component that day,
+# "Elevated Errors Triggering Deployments" from 20:32 to 21:22 and "Deployment
+# stuck in initializing state" from 21:36 to 22:31, both beginning about 2 hours
+# after this, so their published record does not cover it and it is not known
+# whether it was the same fault before they detected it.
+#
 # Costs nothing per run: 1 public page read per attempt and the local git history.
 
 on:
@@ -111,68 +124,6 @@ jobs:
     name: Say when a merge is not reaching readers
     runs-on: ubuntu-latest
     steps:
-      # TEMPORARY, removed before this pull request merges. It answers the last
-      # open question on
-      # [issue 2291](https://github.com/alethical-org/alethical/issues/2291): on
-      # 18 Sep 2026 commit `1f577dfa` was pushed to `main` and Vercel created no
-      # production deployment for it, no commit status, and not the "Canceled by
-      # Ignored Build Step" status a skip produces. GitHub's records cannot say
-      # why, so this reads Vercel's. Read-only: it lists deployments and reads the
-      # project's settings, and creates, promotes, cancels and deletes nothing. It
-      # lives here rather than in a workflow of its own because
-      # `docs/operations/jobs-and-scripts.md` states how many workflows this
-      # repository has and a throwaway file would have to move that number twice.
-      - name: Read what Vercel recorded on 18 September 2026
-        if: github.event_name == 'pull_request'
-        continue-on-error: true
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: |
-          set -uo pipefail
-          if [ -z "${VERCEL_TOKEN:-}" ]; then
-            echo "No Vercel token available to this run."
-            exit 0
-          fi
-          curl -sS -H "Authorization: Bearer $VERCEL_TOKEN" \
-            "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&teamId=${VERCEL_ORG_ID}&since=1789747200000&until=1789776000000&limit=100" \
-            > deployments.json
-          curl -sS -H "Authorization: Bearer $VERCEL_TOKEN" \
-            "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}?teamId=${VERCEL_ORG_ID}" \
-            > project.json
-          python3 - <<'READ'
-          import datetime as dt, json
-          data = json.load(open("deployments.json"))
-          rows = sorted(data.get("deployments", []), key=lambda d: d["created"])
-          if not rows:
-              print("Vercel returned no deployment list:", json.dumps(data)[:600])
-          print(f"{len(rows)} deployments between 18 Sep 16:00Z and 19 Sep 00:00Z")
-          for d in rows:
-              meta = d.get("meta") or {}
-              when = dt.datetime.fromtimestamp(d["created"] / 1000, dt.UTC)
-              print(
-                  f"{when:%H:%M:%S} target={str(d.get('target')):<12}"
-                  f" state={str(d.get('state')):<12} ready={str(d.get('readyState')):<12}"
-                  f" sha={(meta.get('githubCommitSha') or '')[:8]}"
-                  f" ref={meta.get('githubCommitRef')}"
-              )
-          project = json.load(open("project.json"))
-          print("\n--- project settings ---")
-          for key in (
-              "name", "paused", "live", "framework", "nodeVersion",
-              "commandForIgnoringBuildStep", "gitForkProtection", "gitComments",
-              "autoAssignCustomDomains", "resourceConfig",
-          ):
-              if key in project:
-                  print(f"{key}: {json.dumps(project[key])}")
-          link = project.get("link") or {}
-          for key in ("type", "repo", "org", "productionBranch", "deployHooks"):
-              if key in link:
-                  print(f"link.{key}: {json.dumps(link[key])}")
-          print("link.gitCredentialId:", "present" if link.get("gitCredentialId") else "absent")
-          READ
-
       - name: Check out repository
         uses: actions/checkout@v7
         with:

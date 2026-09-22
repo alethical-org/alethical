@@ -61,6 +61,12 @@ name: Production release failed
 # hosted build, which here was the first-download size limit. The count comes from
 # the issue's own comments, so it needs no state anywhere else.
 #
+# AND IT BELONGS HERE RATHER THAN IN A WORKFLOW OF ITS OWN. Counting a run of
+# failures needs 2 things this job already holds: every production deployment
+# event, and the 1 issue those failures share. A separate workflow would need its
+# own copy of both, and 2 jobs writing the same issue is the race the concurrency
+# group above exists to prevent.
+#
 # Costs nothing per run: one event, a few API calls on a public repository.
 
 on:

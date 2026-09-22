@@ -316,6 +316,16 @@ owns the current provider, email, password, and confirmation settings.
   [issue 2291](https://github.com/alethical-org/alethical/issues/2291) saying
   neither had fired. The red run only stops the Actions tab from reporting the
   opposite of what happened.
+- The hand-run repair leaves no trace in GitHub's deployments list or commit
+  statuses. `.github/workflows/vercel-deploy.yml` uploads a source archive instead
+  of being driven by Vercel's Git connection, so after a repair GitHub still shows
+  no production deployment for that commit and no `Vercel` status on it, while
+  readers have the release. Judge a repair by the live page, never by GitHub's
+  deployments list. On 18 Sep 2026 Vercel started no build at all for the push of
+  `1f577dfa` to `main`: its own deployment list goes from the queue branch's
+  preview at 18:26 straight to the hand-run production deploy at 19:29:27, with no
+  "canceled by ignored build step" record in between, which a skip would have
+  written.
 - Ask the live page which commit it is, in 1 command:
   `curl -sL https://www.alethical.com/ | grep alethical-release-commit`. Every
   deploying build writes that commit into the page
