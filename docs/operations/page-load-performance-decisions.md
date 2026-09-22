@@ -696,12 +696,24 @@ it had, and the screen went through the waiting marker anyway. Both now go throu
 `loadAndRemember`. A test in
 `apps/frontend/src/navigation/__tests__/screenPreload.test.ts` fails if either goes back.
 
-**What this does not settle.** Whether a click is slower than arriving fresh depends on
-which 2 moments are compared, and the honest reader-facing pair is the click against the
-server-written text a fresh arrival shows first. On production before this change that
-text arrived at 163 to 349 ms while a click took 310 to 350 ms, so a click was 147 to 157
-ms behind on 5 of the 6 journeys measured, and level on the sixth. The after figures for that pair can only be
-read on production, because a local build serves no such text.
+**On the live site after the release, a click beats arriving fresh on every journey.**
+The honest reader-facing pair is the click against the server-written text a fresh arrival
+shows first, because those are the 2 moments a reader waits for. Same probe, same window,
+3 clicks of each, production before and after.
+
+| Journey | Click before | Click after | Fresh text, after | Click beats text by |
+|---|---:|---:|---:|---:|
+| `/` to `/bills` | 350 ms | 112 ms | 195 ms | 83 ms |
+| `/money` to `/money/committees` | 310 ms | 50 ms | 143 ms | 93 ms |
+| `/money` to `/money/races` | 329 ms | 63 ms | 140 ms | 77 ms |
+| `/money` to `/money/outside-spending` | 344 ms | 55 ms | 362 ms | 307 ms |
+| `/money/committees` to a committee | 319 ms | 109 ms | 163 ms | 54 ms |
+| `/bills` to a bill | 322 ms | 66 ms | 150 ms | 84 ms |
+| `/` to `/legislators` | 340 ms | 92 ms | 130 ms | 38 ms |
+
+Before, a click was 121 to 157 ms behind that text on 6 of the 7 journeys and level on the
+seventh. The fresh-text column moves run to run with the connection, so read the click
+column as the finding and that one as its company.
 
 **The unit suite cannot pin the 300 ms**, and it is worth saying so rather than implying
 the tests cover it: React's throttle does not fire under jsdom, where a piece that resolves
