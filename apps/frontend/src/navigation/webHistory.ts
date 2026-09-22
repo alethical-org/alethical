@@ -74,6 +74,19 @@ function currentSessionId() {
   return cachedSessionId;
 }
 
+/**
+ * Give this history entry its identifier, if the page has not already done so.
+ *
+ * The page writes it first, from the `alethical-history-entry` program in
+ * public/index.html, and this then finds it and does nothing. That ordering is
+ * not a nicety: `replaceState` fires the browser's navigate event even when it
+ * carries no address, Cloudflare's speed beacon listens for that event, and a
+ * call made from here opened a "clicked inside the site" record nobody clicked
+ * while closing the page-load record early and taking the app's own largest
+ * paint off its figure (issue 2336). This stays as the fallback for any page
+ * that program did not reach, where the old behaviour is still better than no
+ * entry at all.
+ */
 export function initializeWebHistory() {
   const sessionId = currentSessionId();
   if (!historyEntryFromState(window.history.state, sessionId)) {

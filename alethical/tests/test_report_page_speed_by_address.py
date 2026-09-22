@@ -272,7 +272,7 @@ def test_report_and_json_disclose_scope_and_actual_counts():
     assert "not an app-ready timer" in text
     assert "cannot isolate" in text
     payload = json.loads(report.as_json(values, date(2026, 8, 8), date(2026, 9, 6)))
-    assert payload["measurementScope"] == "document-loads"
+    assert payload["measurementScope"] == "document-loads-and-clicks"
     assert payload["sampleCountSource"] == "cloudflare-confidence"
     assert payload["knownBotsExcluded"] is True
     assert payload["minimumSamples"] == 50
@@ -280,6 +280,79 @@ def test_report_and_json_disclose_scope_and_actual_counts():
     assert payload["documentLoads"][0]["mainContentMeasurements"] == 60
     assert "sampleInterval" not in payload["documentLoads"][0]
     assert "firstLoad" not in payload
+
+
+AFTER_THE_PHANTOMS = report.PHANTOM_CLICK_RECORDS_ENDED_ON + timedelta(days=1)
+
+
+def test_a_click_figure_is_withheld_for_any_window_holding_the_phantom_records():
+    """A window reaching back into them cannot tell our own start-up from a reader.
+
+    Withheld rather than printed with a caveat: the caveat is what got lost when
+    7,616 ms was published as the cost of clicking (issues 1988 and 2336).
+    """
+    for started_on in (
+        date(2026, 8, 8),
+        report.PHANTOM_CLICK_RECORDS_ENDED_ON - timedelta(days=1),
+        report.PHANTOM_CLICK_RECORDS_ENDED_ON,
+    ):
+        assert report.clicks_withheld_reason(started_on) is not None
+        text = report.format_report(
+            [reading()], started_on, date(2026, 9, 30), 50, clicks=[reading()]
+        )
+        assert "CLICKS INSIDE THE SITE" not in text
+        assert "Clicks are withheld" in text
+        payload = json.loads(
+            report.as_json(
+                [reading()], started_on, date(2026, 9, 30), 50, clicks=[reading()]
+            )
+        )
+        assert payload["clicks"] is None
+        assert "2336" in payload["clicksWithheldReason"]
+
+    assert report.clicks_withheld_reason(AFTER_THE_PHANTOMS) is None
+
+
+def test_a_click_figure_is_reported_beside_the_document_loads_once_it_can_be():
+    text = report.format_report(
+        [reading()], AFTER_THE_PHANTOMS, date(2026, 10, 30), 50, clicks=[reading()]
+    )
+    assert "DOCUMENT LOADS" in text
+    assert "CLICKS INSIDE THE SITE" in text
+    assert "last move is never reported" in text
+    assert "Clicks are withheld" not in text
+    payload = json.loads(
+        report.as_json(
+            [reading()], AFTER_THE_PHANTOMS, date(2026, 10, 30), 50, clicks=[reading()]
+        )
+    )
+    assert payload["clicksWithheldReason"] is None
+    assert payload["clicks"][0]["mainContentMeasurements"] == 60
+    assert payload["clickNavigationTypes"] == list(report.CLICK_NAVIGATION_TYPES)
+
+
+def test_a_thin_click_sample_is_withheld_by_the_same_floor_as_a_first_load():
+    """The floor is the whole point: 3 measurements are how this data misled us."""
+    thin = report.read_group(ADDRESS, group(main_count=49, layout_count=49))
+    assert thin.main_content_ms is None
+    assert thin.layout_movement is None
+    text = report.format_report(
+        [reading()], AFTER_THE_PHANTOMS, date(2026, 10, 30), 50, clicks=[thin]
+    )
+    assert "too few (49)" in text
+
+
+def test_the_click_query_asks_for_moves_inside_the_page_and_nothing_else():
+    query = report.build_query(
+        (ADDRESS,), navigation_types=report.CLICK_NAVIGATION_TYPES
+    )
+    assert '"routing-apis"' in query and '"soft-navigation"' in query
+    assert '"navigate"' not in query and '"reload"' not in query
+    assert "confidence(level: 0.95)" in query
+    assert "bot: 0" in query
+    # Nothing about the reader, exactly as the document-load query promises.
+    for forbidden in ("countryName", "deviceType", "userAgentBrowser", "refererHost"):
+        assert forbidden not in query
 
 
 def test_cli_default_query_without_live_request(monkeypatch, capsys):
@@ -310,6 +383,50 @@ def test_cli_default_query_without_live_request(monkeypatch, capsys):
     assert report.main(["--json"]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert len(payload["documentLoads"]) == len(report.ADDRESSES)
+    # A window holding the records on issue 2336 spends nothing asking about clicks.
+    assert payload["clicks"] is None
+
+
+def test_cli_asks_about_clicks_only_for_a_window_that_can_answer(monkeypatch, capsys):
+    monkeypatch.setenv("CLOUDFLARE_ANALYTICS_API_TOKEN", "fake-token")
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "fake-account")
+    real_window = report.complete_window
+    monkeypatch.setattr(
+        report,
+        "complete_window",
+        lambda days: real_window(days, now=datetime(2026, 10, 31, tzinfo=UTC)),
+    )
+    asked: list[tuple[str, ...]] = []
+
+    def fake_fetch(query, variables, token):
+        asked.append(
+            tuple(
+                kind
+                for kind in (*report.DOCUMENT_NAVIGATION_TYPES, "routing-apis")
+                if f'"{kind}"' in query
+            )
+        )
+        return {
+            "data": {
+                "viewer": {
+                    "accounts": [{address.key: group() for address in report.ADDRESSES}]
+                }
+            }
+        }
+
+    monkeypatch.setattr(report, "ask_cloudflare", fake_fetch)
+    assert report.main(["--json", "--since", AFTER_THE_PHANTOMS.isoformat()]) == 0
+    payload = json.loads(capsys.readouterr().out)
+
+    assert len(asked) == 2
+    assert asked[0] == report.DOCUMENT_NAVIGATION_TYPES
+    assert asked[1] == ("routing-apis",)
+    assert len(payload["clicks"]) == len(report.ADDRESSES)
+    # A click is reported, never judged against a limit written for a page load.
+    assert (
+        payload["clicks"][0]["overTheLimit"]
+        == payload["documentLoads"][0]["overTheLimit"]
+    )
 
 
 @pytest.mark.parametrize("args", [["--min-measurements", "49"], ["--days", "0"]])

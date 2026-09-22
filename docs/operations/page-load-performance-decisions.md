@@ -722,12 +722,62 @@ probe is what measures the wait. `apps/frontend/scripts/report-click-cost.mjs` r
 every figure above; it reads public pages and answers every beacon request locally, so no
 measurement of a robot enters our real-visitor records.
 
-**Cloudflare cannot check this on real visits**, and that is unchanged by this work. Its
-records for an address change are our own start-up rewriting the address it already has,
-and the record a real click opens carries no figure at all
-(`docs/research/real-visitor-page-speed-sources.md`). So the before and after here are lab
-figures on a stated build and connection, and the thing they share is everything except the
-change.
+**The before and after here are lab figures on a stated build and connection**, and the
+thing they share is everything except the change. Cloudflare could not check them on real
+visits on the day they were measured; the section directly below is what changed that, and
+a window after 22 September 2026 can be read against these.
+
+## Clicking is measurable on real visits, 22 September 2026
+
+**A click inside the site now reaches Cloudflare's records as a click, and a first load's
+figure stops being cut short.** Both came from one program moving: the page gives its history
+entry an identifier before Cloudflare's speed beacon is parsed instead of about 300 ms into
+the visit ([issue 2336](https://github.com/alethical-org/alethical/issues/2336)).
+
+**What the call was doing.** Every history entry carries an identifier that the Back button,
+the named return links that skip intermediate filters, and scroll restoration read
+(`apps/frontend/src/navigation/webHistory.ts`). Attaching it needs `history.replaceState`,
+and the call passes no address at all, so nothing about the address changes. The beacon still
+counted it. Read from the beacon's own program: its handler listens for the browser's navigate
+event, which `replaceState` fires whether or not the address moves, and on that branch it
+compares no addresses; only its fallback branch, for browsers with no Navigation API, compares
+them. So the call was indistinguishable from a reader clicking a link.
+
+**Two things that cost, not one.** The record it opened went into the same population as real
+clicks, carrying the app's paint timed from the page load, which is where the 7,616 ms on
+[issue 1988](https://github.com/alethical-org/alethical/issues/1988) came from. And opening a
+record **closes** the one before it, so the page-load record ended at that call and the app's
+own largest paint was booked to the phantom instead. Measured on a slow visit to `/money`, 400
+kbit and a processor 4 times slower: the page-load record read **724 ms** for a page whose app
+drew at 9,428 ms, and with the entry written early the same record read **9,520 ms**. On a fast
+visit to `/` the same pair read 156 to 216 ms against 260 to 304 ms. Which of the 2 a visit
+produced was a race between the app's paint and the call.
+
+**So the published sitewide main-content figure is expected to rise, and nothing about the
+site got slower.** Every figure before 23 September 2026 was capped at that call.
+
+**A real click does report a figure**, which an earlier reading denied. Cloudflare sends a
+record's figures when the reader's **next** move begins, so a probe that clicked once read
+nothing and concluded clicks were unmeasurable. Clicking twice against production on
+22 September 2026: `/` to `/bills` reported 103 ms and the click back reported 35 ms, from the
+beacon's own payloads. `apps/frontend/scripts/report-page-load-beacons.mjs` clicks twice for
+this reason and prints whether a record existed before anyone clicked.
+
+**Two limits stay, and both are printed rather than remembered.**
+`scripts/report_page_speed_by_address.py` reports clicks in their own table beside first loads,
+under the same 50-measurement floor, and asks Cloudflare nothing for a window starting on or
+before 22 September 2026, printing the reason instead: those windows hold records that cannot
+be told from clicks afterwards. And a reader's **last** move is never reported at all, because
+nothing after it closes the record, so a real-visitor click figure describes visits that
+carried on. `apps/frontend/scripts/report-click-cost.mjs` remains the way to measure a click on
+a build that has not shipped, and the only way to measure a last move.
+
+**What was checked before believing any of it.** The 8 journeys the identifier exists for, on
+the built site against production data: a cold arrival, 2 clicks in and the Back button out,
+scroll position restored on the way back, a reload mid-journey keeping its place, Back still
+working after that reload, a shared link opened cold with nothing behind it, and the named
+return link on a spender's page landing back on the filtered browse view. All 8 behave
+identically on the built site before and after.
 
 ## The deepest money pages draw from their first response, 17 September 2026
 

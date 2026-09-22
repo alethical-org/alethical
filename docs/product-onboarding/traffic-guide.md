@@ -267,6 +267,16 @@ page lists it before the app's own files, and without `async` a module script wa
 in that list. It still reports page speed, because it sends that report on the page's load
 event rather than on its own position.
 
+The same page carries a short program, `alethical-history-entry`, above that beacon tag. It
+gives the browser's current history entry the identifier the Back button, the named return
+links and scroll restoration read (`apps/frontend/src/navigation/webHistory.ts`). Its
+position is what matters: attaching the identifier needs `history.replaceState`, which fires
+the browser's navigate event even carrying no address, and the beacon counts that event as a
+reader clicking a link. Running before the beacon's own file is parsed keeps that call
+invisible to it, so a "clicked inside the site" record means a reader clicked and the
+page-load record keeps the app's own largest paint
+([issue 2336](https://github.com/alethical-org/alethical/issues/2336)).
+
 A sitewide score cannot prove that a particular page meets its own limit. It combines
 measurements from different pages; a percentile is not an average of their individual scores.
 [`scripts/report_page_speed_by_address.py`](../../scripts/report_page_speed_by_address.py)
@@ -282,6 +292,23 @@ or invalid sample counts stay unavailable. Weighted totals divided by an average
 interval are not exact sample counts and must not be substituted. Historical ranges starting
 before September 4, 2026 carry a warning that older document-load records may include soft
 navigation. The JSON result names this population `documentLoads`, not `firstLoad`.
+
+Clicks inside the site are reported in a second table beside that one, from Cloudflare's
+`routing-apis` and `soft-navigation` records, under the same 50-measurement floor and the
+same withholding. They are reported, never judged: the 2,500 ms and 0.1 limits on
+[issue 1966](https://github.com/alethical-org/alethical/issues/1966) are written for a page
+arriving from nothing, and `--fail-on-breach` reads document loads alone.
+
+Two limits belong beside every click figure, and the tool prints both. A window starting on
+or before 22 September 2026 has its click figures withheld with the reason, because until
+then each page load opened a click record nobody clicked: the page's own start-up called
+`history.replaceState` for its history entry, and Cloudflare's beacon counts that call as a
+reader moving ([issue 2336](https://github.com/alethical-org/alethical/issues/2336), and
+[issue 1988](https://github.com/alethical-org/alethical/issues/1988) for the 7,616 ms it
+produced). Those records cannot be told from clicks afterwards, so the tool asks Cloudflare
+nothing for such a window. And a reader's last move is never measured at all: the beacon
+sends a record's figures when the next move begins, so a click figure describes visits that
+carried on rather than visits that ended.
 
 `--since-release <commit>` bounds a run to the days after a change went live and prints that
 bound above the table. The window starts on the first whole UTC day after the commit merged,

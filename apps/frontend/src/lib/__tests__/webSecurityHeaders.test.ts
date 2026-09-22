@@ -69,6 +69,7 @@ describe('web security response headers', () => {
 
   it('trusts only reviewed inline programs by their exact contents', () => {
     const programs = [
+      inlineProgram('apps/frontend/public/index.html', 'alethical-history-entry'),
       inlineProgram('apps/frontend/public/index.html', 'alethical-release-recovery'),
       inlineProgram('api/page.ts', 'alethical-email-link-bootstrap'),
       inlineProgram('api/page.ts', 'alethical-forgot-password-bootstrap'),
