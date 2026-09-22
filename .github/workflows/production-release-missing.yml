@@ -55,6 +55,34 @@ name: Production release missing
 # seconds, so the 10-minute grace inside the check is about 7 times the slowest
 # release ever seen here.
 #
+# A GREEN RUN IS NOT A QUIET WATCH, AND SAYING SO IS PART OF THE ALARM. On
+# 18 Sep 2026 this workflow did exactly its job: 3 production builds failed, no
+# build at all was created for `main`'s head, and it opened
+# [issue 2288](https://github.com/alethical-org/alethical/issues/2288) at 17:28:40
+# and commented on it 4 more times until readers caught up at 21:14:36. Its
+# sibling opened [issue 2287](https://github.com/alethical-org/alethical/issues/2287)
+# at 17:26:49. Every one of those runs still finished GREEN, because opening the
+# issue was its success, and a later reading of the Actions tab took the green
+# ticks for silence and filed
+# [issue 2291](https://github.com/alethical-org/alethical/issues/2291) saying the
+# watches had stayed quiet through the whole outage. So the run now goes RED
+# whenever it alarms on `main`, and writes the verdict into the run summary. The
+# issue is still the alarm and still reaches the board; the red run only stops the
+# Actions tab from reporting the opposite of what happened.
+#
+# WHAT VERCEL'S OWN RECORDS SAID ABOUT 18 SEP, AND WHY ONLY THIS WATCH COULD SEE
+# IT. Commit `1f577dfa` was pushed to `main` at 18:33 and Vercel started no build
+# for that push at all: its deployment list holds the queue branch's preview at
+# 18:26 and then nothing on `main` until 19:29:27, and there is no "canceled by
+# ignored build step" record either, which a skip would have written. GitHub was
+# therefore never going to carry a signal: no deployment, no commit status, and so
+# nothing for `production-release-failed.yml` to watch. Reading the served page is
+# what caught it. Vercel published 2 incidents on its Builds component that day,
+# "Elevated Errors Triggering Deployments" from 20:32 to 21:22 and "Deployment
+# stuck in initializing state" from 21:36 to 22:31, both beginning about 2 hours
+# after this, so their published record does not cover it and it is not known
+# whether it was the same fault before they detected it.
+#
 # Costs nothing per run: 1 public page read per attempt and the local git history.
 
 on:
@@ -202,6 +230,25 @@ jobs:
               owner: context.repo.owner, repo: context.repo.repo, issue_number: open.number,
               state: "closed", state_reason: "completed",
             });
+
+      # The run's own colour, after the issue is written. A pull-request self-test
+      # is excluded by `github.ref_name`, because a pull request's head is never
+      # what production serves, so its verdict is always "not reached" and a red
+      # run there would say nothing and frighten everybody.
+      - name: Go red, and say in the run itself that readers are behind
+        if: steps.check.outputs.status == '1' && github.ref_name == 'main'
+        run: |
+          set -uo pipefail
+          {
+            echo "## 🚨 Readers are not getting what \`main\` has"
+            echo
+            cat verdict.txt
+            echo
+            echo "An issue carrying this verdict is open on the board. This run is red so"
+            echo "the Actions tab cannot read as quiet while that issue is open."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error title=Readers are not getting what main has::$(head -n 1 verdict.txt)"
+          exit 1
 
       # A red run rather than an issue, deliberately. The only way to get here is
       # 20 minutes in which the page could not be read at all, which has never
