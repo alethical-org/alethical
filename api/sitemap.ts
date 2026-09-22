@@ -91,6 +91,7 @@ function sitemapIndex(): string {
     "bills",
     "legislators",
     "committees",
+    "races",
     "lobbying-principals",
     "lobbying-lobbyists",
   ].map(
@@ -241,6 +242,44 @@ function legislatorsUrlset(legislators: SitemapPayload["legislators"]): string {
   );
 }
 
+/**
+ * One entry per Minnesota seat that has candidate committees registered for it:
+ * every House and Senate district, every court seat and every statewide office
+ * the register holds for the current filing year.
+ *
+ * The bare seat address only, never a year: a seat's own address is its record
+ * and a `?year=` view of it names that same record (§22). No `lastmod`, for the
+ * committee sitemap's reason directly above.
+ */
+function racesUrlset(contests: readonly { anchor: string }[]): string {
+  return urlset(
+    contests.map((contest) =>
+      urlEntry(
+        publicPageUrl(`/money/races/${encodeURIComponent(contest.anchor)}`),
+      ),
+    ),
+  );
+}
+
+async function fetchRaceAnchors(): Promise<{ anchor: string }[]> {
+  const year = new Date().getFullYear();
+  const response = await fetch(
+    `${API_ORIGIN}/api/v1/campaign-finance/races?year=${year}`,
+    {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(10000),
+    },
+  );
+  if (!response.ok) throw new Error(`API returned ${response.status}`);
+  const payload = (await response.json()) as {
+    data?: { contests?: Array<{ anchor?: string }> };
+  };
+  return (payload.data?.contests ?? [])
+    .map((contest) => contest.anchor)
+    .filter((anchor): anchor is string => Boolean(anchor))
+    .map((anchor) => ({ anchor }));
+}
+
 async function fetchSitemapData(): Promise<SitemapPayload> {
   const response = await fetch(`${API_ORIGIN}/api/v1/sitemap`, {
     headers: { Accept: "application/json" },
@@ -359,6 +398,18 @@ export default async function handler(
         ? billsUrlset(data.bills)
         : legislatorsUrlset(data.legislators),
     );
+    return;
+  }
+
+  if (section === "races") {
+    let contests: { anchor: string }[];
+    try {
+      contests = await fetchRaceAnchors();
+    } catch {
+      sendUnavailable(response);
+      return;
+    }
+    sendXml(response, racesUrlset(contests));
     return;
   }
 

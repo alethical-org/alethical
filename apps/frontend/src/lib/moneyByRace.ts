@@ -24,6 +24,7 @@
  * another on its own page.
  */
 
+import { campaignMoneyYear } from './campaignMoneyYears';
 import { coveredPeriodLine } from './committeeMoneyShared';
 import {
   formatDay,
@@ -97,17 +98,32 @@ export function contestSeatLabel(contest: { office: string; district: string | n
   return seat ? `${office} · District ${seat[1]} · Seat ${seat[2]}` : `${office} · ${district}`;
 }
 
-/** A group keeps the served identifier and year in a normal, shareable link. */
+/**
+ * One seat's own address, `/money/races/house-34a`.
+ *
+ * The year rides in the query string only when it is not the year the page would
+ * open on anyway, so the ordinary link a reader and a search engine follow is the
+ * seat's plain address: the address a crawler is sent to is the one that address
+ * names as its own (§28.6).
+ */
 export function raceGroupHref(
-  contest: Pick<RaceContest, 'office' | 'anchor'>,
+  contest: Pick<RaceContest, 'anchor'>,
   year: number,
+  today: Date = new Date(),
 ): string {
-  const params = new URLSearchParams({
-    office: contest.office,
-    year: String(year),
-    group: contest.anchor,
-  });
-  return `/money/races?${params}`;
+  const path = `/money/races/${encodeURIComponent(contest.anchor)}`;
+  return year === campaignMoneyYear(undefined, today) ? path : `${path}?year=${year}`;
+}
+
+/**
+ * The directory's own address. The year is left off when it is the year the page
+ * opens on anyway, because `/money/races` is the listed address and every form
+ * carrying a query string is a filtered view that is not (§22).
+ */
+export function racesDirectoryHref(year: number, today: Date = new Date()): string {
+  return year === campaignMoneyYear(undefined, today)
+    ? '/money/races'
+    : `/money/races?year=${year}`;
 }
 
 /** "3 candidate committees" — the count, and never a sum. */

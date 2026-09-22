@@ -121,6 +121,7 @@ import {
   officeFilterFromParam,
   noContestsTitle,
   raceGroupHref,
+  racesDirectoryHref,
 } from './moneyByRace';
 import type { MoneyByRacePage } from '../data/types';
 import {
@@ -1297,7 +1298,7 @@ export function moneyByRacePageSnapshot(
     bodyIsList: false,
     items: [],
   };
-  const directoryHref = `/money/races?${new URLSearchParams({ year: String(page.year) })}`;
+  const directoryHref = racesDirectoryHref(page.year);
   if (params.group && !selected) {
     return {
       heading: MONEY_BY_RACE_TITLE,

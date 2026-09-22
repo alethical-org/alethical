@@ -48,6 +48,28 @@ export function legislatorSearchDescription(displayName: string, districtLine: s
     : `See ${name}’s record of service in the Minnesota Legislature.`;
 }
 
+/**
+ * One seat's search-result sentence, e.g. "House District 34A".
+ *
+ * A seat's page is the candidate committees registered for that seat, so the
+ * sentence names the seat and says what a reader will find there. It carries no
+ * amount and no count: §3 rule 4 keeps a figure out of a description, and a count
+ * of committees moves every time a candidate registers, while nothing would fail
+ * to announce that the sentence had gone stale.
+ *
+ * It lives in this file for `legislatorSearchDescription`'s reason directly above:
+ * only the server function ever renders a description, and `share.ts` loads with
+ * every page in the browser.
+ */
+export function raceGroupSearchDescription(seatLabel: string): string {
+  const seat = (seatLabel ?? '').replace(/\s+/g, ' ').trim();
+  if (!seat) return '';
+  return (
+    `The candidate committees registered for ${seat} in Minnesota, ` +
+    'each with the money it reported raising and the dates that covers.'
+  );
+}
+
 function clean(value: string): string {
   return value.replace(/\s+/g, ' ').trim();
 }

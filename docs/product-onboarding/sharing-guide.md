@@ -129,7 +129,7 @@ Every address names itself in the very first response, before any of the app's o
 - **A brief outage does not unlist real pages.** If the data service cannot be reached, the page says "temporarily unavailable" instead of "gone".
 - **`robots.txt`** (`https://www.alethical.com/robots.txt`) blocks nothing from being read. It points at the sitemap, and turns away only the two crawlers that exist to collect writing for training future AI models. Every search crawler and every "someone asked a question about this page" crawler is welcome.
 - **A record reached under another spelling forwards to its own address.** A committee or lobbying address whose name part is old or mistyped, and a legislator's long-code address, answer with a permanent forward to the record's one real address, keeping any `?year=` or `?tab=` in the address, instead of serving a second copy.
-- **`sitemap.xml`** (`https://www.alethical.com/sitemap.xml`) lists every bill, every legislator, every campaign committee whose page holds a filed record, every lobbying principal with spending rows and every currently registered lobbyist (`/sitemaps/lobbying-principals.xml`, `/sitemaps/lobbying-lobbyists.xml`), and every real numbered Bills, Legislators and Committees directory page. Bills and legislators carry the date they really last changed; a committee carries none, because we hold no date on which one committee's own record changed and a wrong date on 1,603 entries would cost us Google's trust in the field across the whole site. It is built when asked for and then cached, so a newly ingested bill appears without waiting for a release.
+- **`sitemap.xml`** (`https://www.alethical.com/sitemap.xml`) lists every bill, every legislator, every campaign committee whose page holds a filed record, every lobbying principal with spending rows and every currently registered lobbyist (`/sitemaps/lobbying-principals.xml`, `/sitemaps/lobbying-lobbyists.xml`), every Minnesota seat that has candidate committees registered for it (`/sitemaps/races.xml`), and every real numbered Bills, Legislators and Committees directory page. Bills and legislators carry the date they really last changed; a committee and a seat carry none, because we hold no date on which one committee's own record changed and a wrong date on 1,603 entries would cost us Google's trust in the field across the whole site. It is built when asked for and then cached, so a newly ingested bill appears without waiting for a release.
 - **Answer pages are readable but unlisted.** An `/ask` page asks not to appear in results, in its own response. It is deliberately not blocked in `robots.txt`, because a crawler that is blocked from fetching a page can never read the instruction inside it.
 - **Each legislator's search result names that member.** A profile's search-result line reads "See Rep. Aaron Repinski's committee assignments, chief-authored bills, and contact information in the Minnesota Legislature", so no 2 of the 200 profiles read alike. The card someone sees when pasting the link keeps the shorter line in the table above, because the member's name already sits on the line above it. A member who holds no seat now gets a shorter sentence, because their page shows no committee list and no contact details.
 - **A guide tells a search engine what it explains.** Each guide at `/read/guides/...` carries its own sentence about what it covers, so somebody searching the question it answers can tell the page answers it. Its share card still carries only the title and the dates, and neither line states an amount or a finding.
@@ -212,13 +212,17 @@ committee counts and ordinary links to the complete groups. It includes the intr
 ballot warning, register-copy date and limits, without printing every committee or money
 amount. A selected group address arrives with that group's complete committee list, its
 2 labelled figures with separate dates, and the same explanations and limits as the app.
-Filtered and shared group addresses keep their instruction not to appear in search results
-but now receive their corresponding first-response content and the all-office data reused
-by the screen. Missing amounts never become $0.
+A narrowed directory address keeps its instruction not to appear in search results but
+still receives its corresponding first-response content and the all-office data reused by
+the screen. One seat is a record rather than a narrowed view, so its own address does
+appear in search results, carries the seat's name in its browser-tab title and its own
+sentence describing it, and is listed in `/sitemaps/races.xml`. Missing amounts never
+become $0.
 
-A selected group uses its existing server identifier in the address, such as
-`/money/races?office=House&year=2026&group=house-12a`. Legacy `#house-12a` targets still
-resolve. Directory search text is stored as `q`. Opening a group clears that search from
+A seat's address is built from its server identifier, such as `/money/races/house-12a`,
+with `?year=2024` only for a year other than the one the page opens on. An older
+`/money/races?group=house-12a` address answers with a permanent forward to it. Legacy
+`#house-12a` targets still resolve. Directory search text is stored as `q`. Opening a group clears that search from
 the new address; Back restores the previous directory search, office and position. Search
 can reach another office directly, shows the whole chosen group and moves focus to its
 heading. Browser Back and Forward restore the selected view. Committee links retain the

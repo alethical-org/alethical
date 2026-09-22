@@ -143,12 +143,14 @@ import {
 import {
   injectPageHead,
   legislatorSearchDescription,
+  raceGroupSearchDescription,
 } from "../apps/frontend/src/lib/pageHead";
 import {
   publishedResearch,
   researchBySlug,
 } from "../apps/frontend/src/lib/research";
 import {
+  contestSeatLabel,
   getCampaignFinanceRacesFromApiPayload,
   moneyByRaceQueryKey,
   type ApiMoneyByRacePayload,
@@ -424,6 +426,14 @@ type PageContent = {
    * them carried the link (decisions doc §28).
    */
   canonicalRecordPath?: string;
+  /**
+   * Query parameters to leave behind when forwarding to `canonicalRecordPath`,
+   * because the new address already says what they said. A seat reached as
+   * `/money/races?group=house-34a&office=House` forwards to `/money/races/house-34a`,
+   * and carrying `group` and `office` along would land a reader on the right page
+   * under an address that repeats itself.
+   */
+  canonicalRecordDropParams?: readonly string[];
 };
 
 function headOnly(metadata: PageMetadata): PageContent {
@@ -836,6 +846,7 @@ async function moneyLandingContent(): Promise<PageContent> {
 
 async function moneyByRaceContent(
   params: Record<string, string> = {},
+  seatFromPath?: string,
 ): Promise<PageContent> {
   // The same shaping the app applies to the same read, so the first response
   // carries the page a reader gets: counts, never sums; the served order; every
@@ -851,14 +862,55 @@ async function moneyByRaceContent(
   if (page.state !== "reported") {
     throw new DataUnavailable("races response has no contests to serve");
   }
+  // Search uses every office. Reuse this payload when the app starts instead of
+  // downloading the same complete response again (#1966).
+  const data = [{ key: moneyByRaceQueryKey({ year }), payload: payload.data }];
+  const requested = seatFromPath ?? params.group;
+  const contest = requested
+    ? page.contests.find((entry) => entry.anchor === requested)
+    : undefined;
+
+  // A seat reached at its own address. This is a record, not a filtered view of
+  // the directory: 222 seats each have their own name, their own candidates and
+  // their own filed figures, and a reader searching for one is searching for the
+  // seat (decisions doc §28.6).
+  if (seatFromPath) {
+    if (!contest) throw new RecordNotFound(`/money/races/${seatFromPath}`);
+    const seatLabel = contestSeatLabel(contest);
+    return {
+      metadata: moneyByRacePageMetadata({
+        selectedLabel: seatLabel,
+        group: contest.anchor,
+        searchDescription: raceGroupSearchDescription(seatLabel),
+      }),
+      snapshot: renderPageSnapshot(
+        moneyByRacePageSnapshot(page, { group: contest.anchor }),
+      ),
+      data,
+    };
+  }
+
+  // The `?group=` form the seat address replaces. It forwards, so the 2 addresses
+  // are consolidated outright rather than by a canonical link Google may set
+  // aside; `group` and `office` are left behind because the new path says both.
+  // A seat we cannot find in the register forwards nowhere: this response cannot
+  // vouch for a name it could not read (§28.2).
+  if (contest) {
+    return {
+      metadata: moneyByRacePageMetadata({ noindex: true }),
+      snapshot: renderPageSnapshot(moneyByRacePageSnapshot(page, params)),
+      canonicalRecordPath: `/money/races/${encodeURIComponent(contest.anchor)}`,
+      canonicalRecordDropParams: ["group", "office", "q"],
+      data,
+    };
+  }
+
   return {
     metadata: moneyByRacePageMetadata({
       noindex: Object.keys(params).length > 0,
     }),
     snapshot: renderPageSnapshot(moneyByRacePageSnapshot(page, params)),
-    // Search uses every office. Reuse this payload when the app starts instead of
-    // downloading the same complete response again (#1966).
-    data: [{ key: moneyByRaceQueryKey({ year }), payload: payload.data }],
+    data,
   };
 }
 
@@ -1519,6 +1571,11 @@ async function contentFor(
       // Filtered/shared views keep their noindex policy, but readers still receive
       // the selected content and the same unfiltered data the app uses for search.
       return moneyByRaceContent(target.params);
+    case "moneyRaceGroup":
+      return moneyByRaceContent(
+        target.year ? { year: target.year } : {},
+        target.group,
+      );
     case "moneySearch":
       // Still `noindex`: the address is whatever somebody typed, so it is a
       // filtered view rather than a record. A body is not an instruction to a
@@ -1659,9 +1716,10 @@ function canonicalRedirect(
     }
   };
   if (same(requestedPath, target)) return null;
+  const drop = new Set(content.canonicalRecordDropParams ?? []);
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
-    if (key === "path") continue;
+    if (key === "path" || drop.has(key)) continue;
     for (const item of Array.isArray(value) ? value : [value]) {
       if (item !== undefined) params.append(key, item);
     }

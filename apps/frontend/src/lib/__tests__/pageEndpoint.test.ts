@@ -1614,7 +1614,7 @@ describe('the records a money page hands to the app', () => {
     expect(served[0].payload).toEqual(races);
   });
 
-  it('serves a selected race with all-office seed data while keeping noindex', async () => {
+  it('serves one seat at its own address, listed, with its own sentence', async () => {
     const races = {
       state: 'reported',
       year: 2025,
@@ -1645,21 +1645,88 @@ describe('the records a money page hands to the app', () => {
       calls.push(address);
       return { status: 200, payload: { data: races } };
     });
-    const { body } = await serve({
+    const { body, headers } = await serve({
+      path: '/money/races/house-12a',
+      year: '2025',
+    });
+    expect(body).toContain('House District 12A');
+    expect(body).toContain('No usable official total in our records for 2025');
+    // A seat is a record, so it is listed and it is its own canonical address.
+    expect(headers.get('X-Robots-Tag')).toBeUndefined();
+    expect(body).not.toMatch(/noindex/);
+    expect(body).toContain(
+      '<link rel="canonical" href="https://www.alethical.com/money/races/house-12a" />',
+    );
+    expect(body).toContain('<title>House District 12A — Money by race');
+    expect(body).toContain('The candidate committees registered for House District 12A');
+    expect(servedData(body)[0].key).toEqual(['campaign-finance-races', 2025, 'all']);
+    expect(servedData(body)[0].payload).toEqual(races);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain('/campaign-finance/races?year=2025');
+    expect(calls[0]).not.toContain('office=');
+  });
+
+  it('forwards the old ?group= address to the seat and leaves the chips behind', async () => {
+    const races = {
+      state: 'reported',
+      year: 2025,
+      ordered_by: 'district_then_name',
+      committee_count: 1,
+      contest_count: 1,
+      as_of: '2026-08-12',
+      offices: [{ office: 'House', committee_count: 1 }],
+      contests: [
+        {
+          office: 'House',
+          district: '12A',
+          anchor: 'house-12a',
+          committee_count: 1,
+          committees: [],
+        },
+      ],
+    };
+    stubNetwork(() => ({ status: 200, payload: { data: races } }));
+    const { status, headers } = await serve({
       path: '/money/races',
       office: 'House',
       year: '2025',
       group: 'house-12a',
       q: 'house',
     });
-    expect(body).toContain('House District 12A');
-    expect(body).toContain('No usable official total in our records for 2025');
-    expect(body).toMatch(/noindex/);
-    expect(servedData(body)[0].key).toEqual(['campaign-finance-races', 2025, 'all']);
-    expect(servedData(body)[0].payload).toEqual(races);
-    expect(calls).toHaveLength(1);
-    expect(calls[0]).toContain('/campaign-finance/races?year=2025');
-    expect(calls[0]).not.toContain('office=');
+    expect(status).toBe(301);
+    expect(headers.get('Location')).toBe(
+      'https://www.alethical.com/money/races/house-12a?year=2025',
+    );
+  });
+
+  it('answers a seat the register does not hold as a page that does not exist', async () => {
+    const races = {
+      state: 'reported',
+      year: 2025,
+      ordered_by: 'district_then_name',
+      committee_count: 0,
+      contest_count: 0,
+      as_of: '2026-08-12',
+      offices: [],
+      contests: [
+        {
+          office: 'House',
+          district: '12A',
+          anchor: 'house-12a',
+          committee_count: 0,
+          committees: [],
+        },
+      ],
+    };
+    stubNetwork(() => ({ status: 200, payload: { data: races } }));
+    // The `?group=` form keeps showing the directory with its own explanation, so
+    // a stale shared link still lands somewhere useful; only the seat address,
+    // which claims to BE that seat, answers that the page does not exist.
+    const missing = await serve({ path: '/money/races/house-99z' });
+    expect(missing.status).toBe(404);
+    const stale = await serve({ path: '/money/races', group: 'house-99z' });
+    expect(stale.status).toBe(200);
+    expect(stale.body).toContain('We couldn’t find this office, district or court seat');
   });
 
   it('hands /money its 3 reads, started together, with lobbying in its own source envelope', async () => {

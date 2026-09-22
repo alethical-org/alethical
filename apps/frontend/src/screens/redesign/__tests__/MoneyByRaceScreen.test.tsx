@@ -306,10 +306,13 @@ describe('Money by race directory and focused group', () => {
     click(button('All offices32'));
     expect(groups()).toHaveLength(4);
   });
-  it('provides native group links carrying the served anchor, office and year', () => {
+  it('sends a seat link to the seat’s own address, keeping the year asked for', () => {
     render({ year: '2025', q: 'district' });
     const link = groupLink('District Court · District 4 · Seat 12');
-    expect(queryOf(link)).toEqual({ office: 'District Court', year: '2025', group: court.anchor });
+    // The seat is the record, so its identifier is the path; the office chip and
+    // the name box only narrowed the directory the reader came through (§28.6).
+    expect(new URL(link.href).pathname).toBe(`/money/races/${court.anchor}`);
+    expect(queryOf(link)).toEqual({ year: '2025' });
     click(link);
     expect(leaf('Money by race')).toBeTruthy();
     expect(params).toEqual({
@@ -321,6 +324,14 @@ describe('Money by race directory and focused group', () => {
     expect(host.querySelector('h1')?.textContent).toBe('District Court · District 4 · Seat 12');
     expect(committees().map((entry) => entry.textContent)).toEqual(['District Court Committee']);
   });
+  it('opens the seat when the address carries nothing but the seat', () => {
+    // How a reader arrives from a search result: `/money/races/house-1a` gives the
+    // screen the seat and no office chip, no year and no typed search (§28.6).
+    render({ group: house.anchor });
+    expect(host.querySelector('h1')?.textContent).toBe('House District 1A');
+    expect(committees()).toHaveLength(2);
+  });
+
   it('shows all 28 committees of a selected group, with no extra reveal step', () => {
     render();
     click(groupLink('Governor · Statewide'));
