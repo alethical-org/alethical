@@ -12,17 +12,24 @@ an average sampling interval cannot recover an exact count. Missing or malformed
 counts are unavailable, never zero. Scores require at least 50 observations.
 https://developers.cloudflare.com/analytics/graphql-api/features/confidence-intervals/
 
-The default is the last 30 complete UTC days, ending yesterday. The population
-matches api/traffic-performance.ts: navigate, reload, back-forward, restore and
+The default is the last 30 complete UTC days, ending yesterday. Document loads
+match api/traffic-performance.ts: navigate, reload, back-forward, restore and
 prerender, with known bots excluded. Cached and prefetched deliveries remain in
-scope. Native soft navigation and routing-apis events are excluded.
+scope. Clicks inside the site are reported separately, from the routing-apis and
+soft-navigation records, and never mixed into a document-load figure.
 https://developers.cloudflare.com/web-analytics/data-metrics/dimensions/
 
 Before Cloudflare completed its navigation-classification rollout on 4 Sep 2026,
 the navigate bucket could contain older soft-navigation events. A window reaching
 before that date cannot isolate document loads even with today's filter.
-Alethical found startup address rewrites producing routing-apis artifacts on
-4 Sep 2026 (https://github.com/alethical-org/alethical/issues/1988).
+
+Clicks were unreportable until 22 Sep 2026. Every page load opened a click record
+nobody clicked, because the page's own start-up called history.replaceState and
+Cloudflare's beacon counts that call (issue 2336, and 1988 for the 7,616 ms it
+published). A window reaching before that date has those records in it and cannot
+tell them from clicks, so its click figures are withheld rather than printed.
+A reader's last move is never reported at all: Cloudflare sends a record's figures
+when the next move begins, so click figures describe visits that carried on.
 
 The limits are 2500 ms for main content and 0.1 for unexpected layout movement
 (https://github.com/alethical-org/alethical/issues/1966). Main content is the
@@ -70,7 +77,23 @@ DOCUMENT_NAVIGATION_TYPES = (
     "restore",
     "prerender",
 )
+#: A move inside the page, however Cloudflare's beacon detected it. Our own account
+#: reports routing-apis; soft-navigation is the same event seen through the browser's
+#: own heuristic, and asking for both means a change of Cloudflare's classification
+#: empties this figure instead of quietly halving it.
+CLICK_NAVIGATION_TYPES = (
+    "routing-apis",
+    "soft-navigation",
+)
 NAVIGATION_ROLLOUT_COMPLETED_ON = date(2026, 9, 4)
+#: The day the page stopped opening a click record nobody clicked
+#: (https://github.com/alethical-org/alethical/issues/2336). Before it, each page
+#: load called history.replaceState for its own bookkeeping, Cloudflare's beacon
+#: counted the call as a reader moving, and the record it opened carried the app's
+#: paint timed from the page load. Those records outnumbered real clicks and were
+#: far larger, which is how a sitewide "click" figure of 7,616 ms came to be
+#: published. A window starting on or before this day holds them.
+PHANTOM_CLICK_RECORDS_ENDED_ON = date(2026, 9, 22)
 
 
 @dataclass(frozen=True)
@@ -131,7 +154,12 @@ class Reading:
     layout_movement_measurements: int | None
 
 
-def build_query(addresses: tuple[Address, ...], *, what_moved: bool = False) -> str:
+def build_query(
+    addresses: tuple[Address, ...],
+    *,
+    what_moved: bool = False,
+    navigation_types: tuple[str, ...] = DOCUMENT_NAVIGATION_TYPES,
+) -> str:
     """Get each address's percentile over all allowed document kinds together.
 
     Never recombine per-kind percentiles. Element rows are ordered by estimated
@@ -168,7 +196,7 @@ def build_query(addresses: tuple[Address, ...], *, what_moved: bool = False) -> 
         date_geq: $start
         date_leq: $end
         bot: 0
-        navigationType_in: {json.dumps(DOCUMENT_NAVIGATION_TYPES)}{extra}
+        navigationType_in: {json.dumps(list(navigation_types))}{extra}
       }}
     ) {{
       {fields}
@@ -308,7 +336,9 @@ def population_note(started_on: date) -> str:
         "Document navigation types: "
         + ", ".join(DOCUMENT_NAVIGATION_TYPES)
         + ". Known bots excluded; cached and prefetched deliveries included."
-        " Native soft navigation and routing-apis records are excluded."
+        " Clicks inside the site are counted separately, from "
+        + " and ".join(CLICK_NAVIGATION_TYPES)
+        + " records, and never added to a document-load figure."
     )
     if started_on < NAVIGATION_ROLLOUT_COMPLETED_ON:
         note += (
@@ -316,6 +346,24 @@ def population_note(started_on: date) -> str:
             " soft-navigation records; this window cannot isolate them."
         )
     return note
+
+
+def clicks_withheld_reason(started_on: date) -> str | None:
+    """Say why a window's click figures cannot be believed, or nothing if they can.
+
+    A figure is withheld rather than printed with a caveat, because the caveat is
+    what got lost the first time: the 7,616 ms on issue 1988 read as a defect for a
+    week before anyone read the payloads behind it.
+    """
+    if started_on <= PHANTOM_CLICK_RECORDS_ENDED_ON:
+        return (
+            f"Clicks are withheld: this window starts on {started_on}, on or before"
+            f" {PHANTOM_CLICK_RECORDS_ENDED_ON}, when every page load still opened a"
+            " click record nobody clicked, timed from the page load"
+            " (https://github.com/alethical-org/alethical/issues/2336). Those records"
+            " cannot be separated from real clicks after the fact."
+        )
+    return None
 
 
 def breaches(reading: Reading) -> list[str]:
@@ -415,11 +463,26 @@ def format_report(
     ended_on: date,
     min_measurements: int,
     bound: str | None = None,
+    clicks: list[Reading] | None = None,
 ) -> str:
+    withheld = clicks_withheld_reason(started_on)
+    click_section = [
+        (
+            withheld
+            if withheld or clicks is None
+            else format_table(
+                clicks,
+                started_on,
+                ended_on,
+                min_measurements,
+                "CLICKS INSIDE THE SITE (the reader's last move is never reported)",
+            )
+        ),
+    ]
     return "\n".join(
         [
             f"Real-visitor measurements for {HOST}, {started_on} to {ended_on}, 75th percentile.",
-            f"Limits (https://github.com/alethical-org/alethical/issues/1966): main content {MAIN_CONTENT_LIMIT_MS} ms, layout movement {LAYOUT_MOVEMENT_LIMIT}.",
+            f"Limits (https://github.com/alethical-org/alethical/issues/1966): main content {MAIN_CONTENT_LIMIT_MS} ms, layout movement {LAYOUT_MOVEMENT_LIMIT}. They are written for a document load; a click is reported beside them, not judged against them.",
             f"A figure resting on fewer than {max(MIN_MEASUREMENTS, min_measurements)} observations is withheld, not a pass.",
             *([bound] if bound else []),
             "Main content is the browser's largest-content measurement, not an app-ready timer. September 4 browser checks selected the server-written snapshot.",
@@ -433,6 +496,8 @@ def format_report(
                 min_measurements,
                 "DOCUMENT LOADS (including reloads and browser-history restores)",
             ),
+            "",
+            *click_section,
             "",
             population_note(started_on),
         ]
@@ -485,13 +550,26 @@ def format_what_moved(
     return "\n".join(lines)
 
 
+def reading_as_json(reading: Reading) -> dict:
+    return {
+        "address": reading.address.label,
+        "mainContentMs": reading.main_content_ms,
+        "mainContentMeasurements": reading.main_content_measurements,
+        "layoutMovement": reading.layout_movement,
+        "layoutMovementMeasurements": reading.layout_movement_measurements,
+        "overTheLimit": breaches(reading),
+    }
+
+
 def as_json(
     document_loads: list[Reading],
     started_on: date,
     ended_on: date,
     min_measurements: int = MIN_MEASUREMENTS,
     bound: str | None = None,
+    clicks: list[Reading] | None = None,
 ) -> str:
+    withheld = clicks_withheld_reason(started_on)
     return json.dumps(
         {
             "host": HOST,
@@ -500,24 +578,21 @@ def as_json(
             "percentile": 75,
             "mainContentLimitMs": MAIN_CONTENT_LIMIT_MS,
             "layoutMovementLimit": LAYOUT_MOVEMENT_LIMIT,
-            "measurementScope": "document-loads",
+            "measurementScope": "document-loads-and-clicks",
             "navigationTypes": DOCUMENT_NAVIGATION_TYPES,
+            "clickNavigationTypes": CLICK_NAVIGATION_TYPES,
             "knownBotsExcluded": True,
             "sampleCountSource": "cloudflare-confidence",
             "minimumSamples": max(MIN_MEASUREMENTS, min_measurements),
             "populationNote": population_note(started_on),
             "releaseBound": bound,
-            "documentLoads": [
-                {
-                    "address": reading.address.label,
-                    "mainContentMs": reading.main_content_ms,
-                    "mainContentMeasurements": reading.main_content_measurements,
-                    "layoutMovement": reading.layout_movement,
-                    "layoutMovementMeasurements": reading.layout_movement_measurements,
-                    "overTheLimit": breaches(reading),
-                }
-                for reading in document_loads
-            ],
+            "documentLoads": [reading_as_json(reading) for reading in document_loads],
+            "clicksWithheldReason": withheld,
+            "clicks": (
+                None
+                if withheld or clicks is None
+                else [reading_as_json(reading) for reading in clicks]
+            ),
         },
         indent=2,
     )
@@ -634,24 +709,34 @@ def main(argv: list[str] | None = None) -> int:
         "start": started_on.isoformat(),
         "end": ended_on.isoformat(),
     }
+
+    def read_population(query: str) -> dict | None:
+        try:
+            payload = ask_cloudflare(query, variables, token)
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
+            print("Cloudflare could not be read.", file=sys.stderr)
+            return None
+        if payload.get("errors"):
+            print("Cloudflare returned errors.", file=sys.stderr)
+            return None
+        found = (
+            ((payload.get("data") or {}).get("viewer") or {}).get("accounts")
+        ) or []
+        if not found:
+            print(
+                "Cloudflare returned no account. Check CLOUDFLARE_ACCOUNT_ID.",
+                file=sys.stderr,
+            )
+            return None
+        return found[0]
+
     query = (
         build_what_moved_query(ADDRESSES) if args.what_moved else build_query(ADDRESSES)
     )
-    try:
-        payload = ask_cloudflare(query, variables, token)
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
-        print("Cloudflare could not be read.", file=sys.stderr)
+    account_data = read_population(query)
+    if account_data is None:
         return 2
-    if payload.get("errors"):
-        print("Cloudflare returned errors.", file=sys.stderr)
-        return 2
-    accounts = (((payload.get("data") or {}).get("viewer") or {}).get("accounts")) or []
-    if not accounts:
-        print(
-            "Cloudflare returned no account. Check CLOUDFLARE_ACCOUNT_ID.",
-            file=sys.stderr,
-        )
-        return 2
+    accounts = [account_data]
     if args.what_moved:
         blamed = [
             (
@@ -670,10 +755,25 @@ def main(argv: list[str] | None = None) -> int:
         read_group(address, accounts[0].get(address.key), args.min_measurements)
         for address in ADDRESSES
     ]
+    # Asked for only when it can be answered, so a window full of the records on
+    # issue 2336 spends nothing and prints the reason instead of a number.
+    clicks: list[Reading] | None = None
+    if clicks_withheld_reason(started_on) is None:
+        click_data = read_population(
+            build_query(ADDRESSES, navigation_types=CLICK_NAVIGATION_TYPES)
+        )
+        if click_data is None:
+            return 2
+        clicks = [
+            read_group(address, click_data.get(address.key), args.min_measurements)
+            for address in ADDRESSES
+        ]
     print(
-        as_json(readings, started_on, ended_on, args.min_measurements, bound)
+        as_json(readings, started_on, ended_on, args.min_measurements, bound, clicks)
         if args.json
-        else format_report(readings, started_on, ended_on, args.min_measurements, bound)
+        else format_report(
+            readings, started_on, ended_on, args.min_measurements, bound, clicks
+        )
     )
     if args.fail_on_breach:
         over = [

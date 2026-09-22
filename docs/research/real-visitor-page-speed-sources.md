@@ -18,9 +18,10 @@ explanation, and it removes rather than confirms a defect. Cloudflare's clicked-
 records are not measurements of a click: read from the beacon's own payloads and reproduced 3
 times, the program rewrites the address to the address it is already on about 300 ms after a
 load, Cloudflare hooks address changes, so it opens a record nobody clicked for the address the
-reader already had, timed from the original page load, while the record a real click opens sends
-no figure at all. So the 7,616 ms was never comparable with the 4,764 ms. The tool no longer
-reports those numbers. The same reading settled a second open question: on a first load the
+reader already had, timed from the original page load. So the 7,616 ms was never comparable
+with the 4,764 ms. The tool no longer reports those numbers. (One clause of this reading was
+wrong and the fourth correction below carries it: a real click's record does send a figure,
+and the probe that read none was clicking once.) The same reading settled a second open question: on a first load the
 beacon's main-content element is the server-written snapshot's text, so these figures time the
 snapshot appearing rather than the app drawing, which is what the lab measurements time. The
 probe that reads this is
@@ -34,6 +35,40 @@ address, so the movement lands on the page-load record. On `/money`, 3 runs name
 `#root>div.page-snapshot` and its children at 10.8 to 11.0 seconds, with the rewrite at 11.3 to
 11.5. So the published layout figure is the app replacing the snapshot
 ([issue #1982](https://github.com/alethical-org/alethical/issues/1982)).
+
+**Fourth correction, 22 September 2026, and it changes 2 figures rather than 1.** Two things
+in the corrections above are wrong, and both were found by reading the beacon's own program
+(`static.cloudflareinsights.com/beacon.min.js`) rather than only its payloads.
+
+**The beacon counts the call, not an address change.** Its handler listens for the browser's
+navigate event, which `history.replaceState` fires whether or not the address moves, and on
+that branch it compares no addresses at all; only its fallback branch, used where the browser
+has no Navigation API, compares them. So the page's own start-up call, which passes no address
+and moves nothing, was indistinguishable from a reader clicking a link. The page now writes
+that history entry before the beacon's own file is parsed
+(`apps/frontend/public/index.html`, `alethical-history-entry`), so the beacon never sees it
+([issue 2336](https://github.com/alethical-org/alethical/issues/2336)).
+
+**A real click is measured, and the reading that said otherwise was the probe's own shape.**
+Cloudflare sends a record's figures when the reader's next move begins. A probe that clicked
+once and stopped therefore read nothing for that click and reported clicks as unmeasurable.
+Clicking twice, against production on 22 September 2026: `/` to `/bills` reported 103 ms and
+the click back reported 35 ms, from the beacon's own payloads. The probe now clicks twice. The
+honest limit that remains is different and smaller: a reader's **last** move is never reported,
+because nothing after it closes the record.
+
+**Removing the phantom also repairs the first-load figure, which is the bigger of the 2.** The
+beacon closes the open record when a navigation starts, so the start-up call was ending the
+page-load record early and booking the app's own largest paint to the phantom. On a slow visit
+to `/money`, 22 September 2026: the page-load record read **724 ms** for a page whose app drew
+at 9,428 ms, and with the entry written early the same record read **9,520 ms**. Which of the 2
+a visit got was a race between the app's paint and the start-up call, so the published figure
+was a mixture of both.
+
+**So the sitewide main-content figure is expected to rise after 22 September 2026, and that is
+the measurement getting honest rather than the site getting slower.** Every first-load figure in
+the tables below, and the sitewide figure on the public Site metrics page, was capped at the
+moment of that call. Nothing about the site's speed changed with it.
 
 **Third correction, and it replaces a lab reading with a field one.** Cloudflare records which
 element the browser blamed, which `--what-moved` now prints, and that answers the question on
@@ -201,22 +236,26 @@ lowered to 40, which is worth knowing and is not the same as being measured.
 content, and the whole site, on 9,276, takes 4,764 ms. Both are nearly twice the 2,500 ms
 limit issue 1966 sets for the money pages, on the strongest counts we have.
 
-**Clicking inside the site is not measured, and the numbers that looked like it are
-not what they appear.** Cloudflare's records for an address change carry a figure only when
-the change came from our own start-up rewriting the address it already has, timed from the
-original page load; the record a real click opens sends no main-content or layout figure at
-all. Reproduced 3 times from the beacon's own payloads with
-[`apps/frontend/scripts/report-page-load-beacons.mjs`](../../apps/frontend/scripts/report-page-load-beacons.mjs).
-So the sitewide 7,616 ms that first looked like a defect
+**Clicking inside the site is measured on real visits from 23 September 2026 onwards, and
+not before it.** Until 22 September 2026 the same population held a record per page load that
+nobody clicked, carrying the app's paint timed from the original page load, so the sitewide
+7,616 ms that first looked like a defect
 ([issue #1988](https://github.com/alethical-org/alethical/issues/1988)) was never comparable
-with the 4,764 ms first-load figure, and reporting it cost 1 wrongly-scoped issue before it
-was found.
+with the 4,764 ms first-load figure, and reporting it cost 1 wrongly-scoped issue before it was
+found. Those records cannot be separated from clicks afterwards, so
+[`scripts/report_page_speed_by_address.py`](../../scripts/report_page_speed_by_address.py)
+withholds a click figure for any window reaching back into them and prints the reason. For a
+window after them it prints clicks in their own table beside first loads, under the same
+50-measurement floor, and never judges them against a limit written for a page arriving from
+nothing. One limit is permanent: a reader's last move is never reported, because Cloudflare
+sends a record's figures when the next move begins.
 
-**What a click costs is measured directly instead**, by clicking a real link and watching
+**What a click costs is also measured directly**, by clicking a real link and watching
 for the destination's records, with
 [`apps/frontend/scripts/report-click-cost.mjs`](../../apps/frontend/scripts/report-click-cost.mjs).
-That is a lab figure on a stated connection rather than a figure from real visitors, which
-is the honest limit of it. The findings it produced are in
+That is a lab figure on a stated connection, which no real-visitor figure replaces: it can be
+run on any build at any moment, and it reports a reader's last move, which Cloudflare never
+does. The findings it produced are in
 [`docs/operations/page-load-performance-decisions.md`](../operations/page-load-performance-decisions.md)
 ("A click stopped waiting 300 ms for nothing").
 
@@ -239,16 +278,14 @@ addresses, on figures that were mixing in clicks inside the site. Where the move
 happening is therefore an open question, and the addresses with both a solid count and a
 failing figure are `/bills` and the site as a whole.
 
-**Lab measurements and real-visitor measurements time different moments, and this is
-now established rather than suspected.** On a first load the beacon's main-content element is
-the server-written snapshot's text (`#root>div.page-snapshot>div.ps-inner>p.ps-prose`), at 240
-to 264 ms across 3 runs against production. So a first-load figure here says when the snapshot
-appeared; the lab figures on issue 1966 say when the app drew. Two different moments on the
-same page, and a release limit has to name which one it means. It also means our first-load
-main-content figures are systematically kinder than the app feels: on a fast load the app's own
-larger paint is booked to the phantom record described above rather than to the page load, and
-on a slow load it arrives after main content has stopped updating. Layout movement is the
-opposite case and is described in the correction note at the top.
+**Every first-load figure in the tables above is capped at the moment of the start-up call
+the fourth correction describes, so it says when the server-written snapshot's text appeared
+rather than when the app drew.** The beacon's main-content element on those visits is
+`#root>div.page-snapshot>div.ps-inner>p.ps-prose`, at 240 to 264 ms across 3 runs against
+production, while the app's own larger paint went to the record that call opened. A window
+after 22 September 2026 measures the second moment, which is the moment issue 1966's lab
+figures measure and the moment a release limit means. Layout movement is the opposite case and
+is described in the correction note at the top.
 
 ## Why the per-address breakdown is not published on the Site metrics page
 

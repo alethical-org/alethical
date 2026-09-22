@@ -524,6 +524,75 @@
 
   <body>
     <!--
+      This page's own history entry, written before anything else on the page runs.
+
+      The app gives every history entry an identifier so the Back button, the named
+      return links that skip intermediate filters, and scroll restoration can tell
+      one entry from another (src/navigation/webHistory.ts, which owns the shape and
+      keeps initializeWebHistory as the fallback for any page this program did not
+      reach). Attaching it needs history.replaceState, and the address never changes:
+      the call passes no address at all.
+
+      It still has to happen here rather than in the app, because Cloudflare's speed
+      beacon counts the CALL. The beacon listens for the browser's navigate event
+      (static.cloudflareinsights.com/beacon.min.js, its Navigation API branch), which
+      replaceState fires whether or not the address moves, and unlike its fallback
+      branch for older browsers that one compares no addresses. So the same call made
+      from the app, about 300 ms in, opened a "clicked inside the site" record nobody
+      clicked and closed the page-load record early, which took the app's own largest
+      paint off the first-load figure and put it on the phantom timed from the page
+      load. Measured 22 September 2026 on a slow visit to /money: the page-load record
+      read 724 ms for a page that drew at 9,428 ms (issue 2336).
+
+      Running here it happens before the beacon's tag at the end of this body is even
+      parsed, so the beacon never sees it and no record opens. Nothing is added to the
+      page: the same call is made once either way, only earlier.
+    -->
+    <script id="alethical-history-entry">
+      (function () {
+        try {
+          var sessionKey = 'alethical:history-session';
+          var stateKey = '__alethical';
+          var newId = function () {
+            return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : Date.now() + '-' + Math.random().toString(36).slice(2);
+          };
+
+          var sessionId = window.sessionStorage.getItem(sessionKey);
+          if (!sessionId) {
+            sessionId = newId();
+            window.sessionStorage.setItem(sessionKey, sessionId);
+          }
+
+          var current = window.history.state;
+          var state =
+            current && typeof current === 'object' && !Array.isArray(current) ? current : {};
+          var entry = state[stateKey];
+
+          // A reload keeps the entry this tab already wrote, so its depth survives.
+          if (
+            !entry ||
+            entry.sessionId !== sessionId ||
+            typeof entry.depth !== 'number' ||
+            typeof entry.entryId !== 'string'
+          ) {
+            var next = {};
+            for (var key in state) {
+              if (Object.prototype.hasOwnProperty.call(state, key)) {
+                next[key] = state[key];
+              }
+            }
+            next[stateKey] = { sessionId: sessionId, depth: 0, entryId: newId() };
+            window.history.replaceState(next, '');
+          }
+        } catch (error) {
+          // Session storage can be unavailable. The app writes the entry itself then,
+          // exactly as it did before this program existed.
+        }
+      })();
+    </script>
+    <!--
       A release replaces every content-named file under /_expo/static/js/web/,
       so a tab left open across one can ask for a file that is no longer there.
       One reload puts the tab on the current release. Every file this page loads

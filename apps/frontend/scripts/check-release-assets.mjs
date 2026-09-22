@@ -36,8 +36,16 @@ for (const [, program] of inlinePrograms) {
   }
 }
 
-if (inlinePrograms.length !== 1) {
-  throw new Error(`Expected 1 built inline program, found ${inlinePrograms.length}.`);
+// The 2 the page ships: `alethical-history-entry`, which gives this history entry
+// its identifier before Cloudflare's speed beacon can mistake the call for a reader
+// clicking a link (issue 2336), and `alethical-release-recovery`, which reloads a tab
+// left open across a release. A third would be an unreviewed program on every page.
+const EXPECTED_INLINE_PROGRAMS = 2;
+
+if (inlinePrograms.length !== EXPECTED_INLINE_PROGRAMS) {
+  throw new Error(
+    `Expected ${EXPECTED_INLINE_PROGRAMS} built inline programs, found ${inlinePrograms.length}.`,
+  );
 }
 
 console.log(
