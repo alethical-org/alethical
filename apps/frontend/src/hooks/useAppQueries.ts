@@ -102,6 +102,7 @@ import {
   campaignFinanceSummaryQueryKey,
 } from '../lib/moneyLandingReads';
 import { readerIsSavingData } from '../lib/dataSaving';
+import { loadAndRemember } from '../lib/loadOnDemand';
 import { campaignMoneyYear, legislatorCampaignMoneyQueryKey } from '../lib/campaignMoneyYears';
 import { legislatorRecordQueryKey } from '../lib/legislatorProfile';
 import { seededQuery } from '../lib/pageData';
@@ -123,7 +124,7 @@ import {
 } from '../lib/paymentNameRoute';
 import { trackState, TrackState } from '../lib/trackedState';
 import { routePath } from '../navigation/links';
-import { screenLoaderForPath } from '../navigation/screenPreload';
+import { prefetchScreenForPath, screenLoaderForPath } from '../navigation/screenPreload';
 import { useAuth } from '../providers/AuthProvider';
 
 export function useCurrentUser() {
@@ -534,13 +535,18 @@ export function useWarmMoneyDestinations(ready: boolean) {
     // first and together: each is a few tens of kilobytes from Vercel's own
     // network (11.6 KB, 13.3 KB and 31.4 KB unpacked), so nothing waits on them,
     // and a click then has both the screen's code and its records already.
+    //
+    // Through `loadAndRemember`, never the loader alone: a loader called
+    // directly downloads the piece and leaves nothing behind, so the screen
+    // fetches it again and draws a frame late
+    // (`lib/loadOnDemand.tsx`).
     const destinations = ['/money/committees', '/money/races', '/money/outside-spending'];
     const warms: (() => Promise<unknown>)[] = [
       () =>
         Promise.all(
           destinations.map((path) => {
             const load = screenLoaderForPath(path);
-            return load ? load().catch(() => undefined) : undefined;
+            return load ? loadAndRemember(load).catch(() => undefined) : undefined;
           }),
         ),
       // CommitteeListScreen at /money/committees: no kind chip, no typed name,
@@ -870,7 +876,7 @@ export function usePrefetchCommitteeMoney() {
       queryFn: () => getCommitteeConfirmationFromApi(registrationNumber),
       retry: false,
     });
-    void screenLoaderForPath(routePath.moneyCommittee(slug, { year: String(year) }))?.();
+    prefetchScreenForPath(routePath.moneyCommittee(slug, { year: String(year) }));
   };
 }
 
