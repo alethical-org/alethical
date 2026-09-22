@@ -92,7 +92,14 @@ USER_AGENT = (
 # seconds, median 71. So 10 minutes is about 7 times the slowest release ever
 # observed here, and the 29-minute gap that produced this check would have been
 # reported at minute 10.
-GRACE_MINUTES = 10
+WEBSITE_GRACE_MINUTES = 10
+
+# The same question for the API, measured its own way: across 246 releases
+# between 4 and 22 Sep 2026 a push reaches a running API in 56 to 296 seconds,
+# median 92. So 15 minutes is about 3 times the slowest release seen here, and
+# still reports the 8 Sep 2026 skip sooner than the person who found it at
+# minute 17.
+API_GRACE_MINUTES = 15
 
 # Verdicts. Three, because the caller does 3 different things: stop quiet, open
 # the issue, or wait and ask again.
@@ -252,7 +259,7 @@ WEBSITE = Service(
     url=PAGE_URL,
     read=read_release_stamp,
     paths=website_paths,
-    grace_minutes=10,
+    grace_minutes=WEBSITE_GRACE_MINUTES,
     no_commit=(
         "the page at {url} does not say which commit built it, so nothing can "
         "tell whether a merge is reaching readers."
@@ -290,11 +297,7 @@ API = Service(
     url=API_VERSION_URL,
     read=read_api_release_commit,
     paths=api_paths,
-    # 15 minutes, from 246 API releases between 4 and 22 Sep 2026: a push reaches
-    # a running API in 56 to 296 seconds, median 92. So this is about 3 times the
-    # slowest release ever measured here, and still well inside the 17 minutes the
-    # 8 Sep 2026 skip ran before a person noticed it.
-    grace_minutes=15,
+    grace_minutes=API_GRACE_MINUTES,
     no_commit=(
         "{url} does not say which commit the API was built from, so nothing can "
         "tell whether a merge is reaching readers."
