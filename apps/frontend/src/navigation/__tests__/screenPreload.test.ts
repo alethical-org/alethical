@@ -72,17 +72,27 @@ describe('screenLoaderForPath', () => {
 });
 
 describe('fetching a screen ahead of time', () => {
-  const SOURCE = readFileSync(
-    join(dirname(fileURLToPath(import.meta.url)), '..', 'screenPreload.ts'),
-    'utf8',
-  );
+  const sourceOf = (...parts: string[]) =>
+    readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', ...parts), 'utf8');
 
-  // Calling a loader directly downloads the piece and still leaves the first
-  // draw waiting on it, which cost every page 300 ms
+  // Calling a loader directly downloads the piece and leaves nothing behind, so
+  // the screen asks for it again and draws a frame late
   // (https://github.com/alethical-org/alethical/issues/2222). Going through
   // `loadAndRemember` is what lets the screen draw straight away.
   it('goes through the loader that remembers what arrived', () => {
-    expect(SOURCE).toContain("import { loadAndRemember } from '../lib/loadOnDemand'");
-    expect(SOURCE).not.toMatch(/(?<!AndRemember\()\bload\(\)/);
+    const source = sourceOf('screenPreload.ts');
+    expect(source).toContain("import { loadAndRemember } from '../lib/loadOnDemand'");
+    expect(source).not.toMatch(/(?<!AndRemember\()\bload\(\)/);
+  });
+
+  // The warming written for the money pages called its loaders directly, so the
+  // 3 destinations it warms downloaded their screens and still drew a frame
+  // late. The same mistake is easy to make again in the same file
+  // (https://github.com/alethical-org/alethical/issues/1988).
+  it('warms a money destination through that same loader', () => {
+    const source = sourceOf('..', 'hooks', 'useAppQueries.ts');
+    expect(source).toContain("import { loadAndRemember } from '../lib/loadOnDemand'");
+    expect(source).not.toMatch(/(?<!AndRemember\()\bload\(\)/);
+    expect(source).not.toMatch(/screenLoaderForPath\([^\n]*\)\?\.\(\)/);
   });
 });

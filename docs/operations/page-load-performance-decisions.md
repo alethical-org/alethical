@@ -614,17 +614,108 @@ the first request to the data service, against the table above:
 All 8 live addresses draw the same words to the character as before, and so do `/about`,
 `/read`, `/find-my-legislator`, `/money/committees` and an unknown address.
 
-**What still goes through the old path, deliberately.** A piece nobody fetched ahead of
-time still draws an empty marker and still waits: the footer's social links, the sign-in
-machinery, and a screen reached by a click that no hover warmed. None of them hold up a
-record request, because the screen around them has already drawn and already asked.
+**No piece draws an empty marker any more, whether or not anything fetched it ahead of
+time.** Fetching ahead of time was the only escape from the 300 ms while the marker
+existed, so it reached a first load and missed every click; the marker itself is gone
+("A click stopped waiting 300 ms for nothing" below). A piece nobody fetched ahead of
+time now costs the frame it takes to arrive.
 
-**The same 300 ms returns the moment a piece is fetched by calling its loader directly**,
-because only `loadAndRemember` in `apps/frontend/src/lib/loadOnDemand.tsx` records what
-arrived. `apps/frontend/src/navigation/__tests__/screenPreload.test.ts` fails if the
-fetch-ahead path stops going through it, and
+**Fetching a piece ahead of time still goes through `loadAndRemember` in
+`apps/frontend/src/lib/loadOnDemand.tsx`**, which is what lets the piece draw in its very
+first frame rather than a frame or 2 later. `apps/frontend/src/navigation/__tests__/screenPreload.test.ts`
+fails if a fetch-ahead path stops going through it, and
 `apps/frontend/src/lib/__tests__/loadOnDemand.test.tsx` fails if a piece the browser
-already holds goes back to drawing an empty marker first.
+already holds stops drawing straight away.
+
+## A click stopped waiting 300 ms for nothing, 22 September 2026
+
+**Clicking a link inside the site took 307 to 356 ms to put the next page's records on
+screen, and most of that was the browser sitting there fetching nothing.** The wait is
+gone: on the same local build, 7 journeys, 5 clicks each, every journey lands 247 to 316
+ms sooner ([#1988](https://github.com/alethical-org/alethical/issues/1988)).
+
+The cause is the one named in "The 300 ms every page waited before asking for a record"
+above, in the one place that fix did not reach. A screen this tab has not drawn before was
+drawn through React's `lazy`, which can only read a downloaded piece through a promise, so
+the first draw put a waiting marker in the slot and React then refused to reveal what
+replaced it for 300 ms (`FALLBACK_THROTTLE_MS`). A first load escaped that by fetching the
+screen before React starts and remembering it; a click had no such escape, so every click
+to a screen the reader had not already opened paid the full 300 ms. **The screen's own
+record requests were held back with it**, because the screen is what asks for them and it
+could not mount until React revealed it.
+
+The fix is to stop putting a screen behind a waiting marker at all. `loadOnDemand` fetches
+the piece itself and draws it the moment it arrives, with an empty slot in between, which
+is what the slot held before anyway. `components/campaignMoney/MoneyDetailsOnDemand.tsx`
+already drew its chart this way for the same reason.
+
+**The evidence that the wait was a clock rather than work.** On `/money` the 3 money
+destinations already have both their screen file and their records fetched ahead of the
+click, so a click to `/money/committees` downloads nothing at all. It still took 308, 309,
+308, 307 and 309 ms. Meanwhile a second click to a screen this tab had already drawn once
+took 20 to 33 ms over the identical navigation, which also rules out the navigator's own
+work: that is the same for both.
+
+Measured against production on 22 September 2026, unthrottled, 1280x900, brand-new browser
+per run, 3 clicks of each. **Click** is from the click to the destination's records being on
+screen. **Last fetch done** is when the final thing the browser asked for before the gap
+finished arriving. **Then nothing** is the stretch between those 2 in which the browser
+asked for nothing and finished nothing.
+
+| Journey | Click | Last fetch done | Then nothing |
+|---|---:|---:|---:|
+| `/` to `/bills` | 350 ms | 48 ms | 263 ms |
+| `/money` to `/money/committees` | 310 ms | 19 ms | 291 ms |
+| `/money` to `/money/races` | 329 ms | 20 ms | 309 ms |
+| `/money` to `/money/outside-spending` | 344 ms | 22 ms | 284 ms |
+| `/money/committees` to a committee | 319 ms | 55 ms | 264 ms |
+| `/bills` to a bill | 322 ms | 39 ms | 283 ms |
+
+On the first, fourth and sixth the gap ends with the destination's own record request
+leaving, at 311, 306 and 311 ms, which is the screen finally mounting and asking.
+
+**Before and after, on the same local release build served beside a copy of the live data
+service**, 5 clicks of each journey at each build. A local build carries no server-written
+text, so only the click is comparable there.
+
+| Journey | Before | After | Sooner |
+|---|---:|---:|---:|
+| `/` to `/bills` | 415 ms | 130 ms | 285 ms |
+| `/money` to `/money/committees` | 308 ms | 36 ms | 272 ms |
+| `/money` to `/money/races` | 311 ms | 60 ms | 251 ms |
+| `/money` to `/money/outside-spending` | 365 ms | 49 ms | 316 ms |
+| `/money/committees` to a committee | 315 ms | 68 ms | 247 ms |
+| `/bills` to a bill | 332 ms | 77 ms | 255 ms |
+| `/` to `/legislators` | 404 ms | 141 ms | 263 ms |
+
+**The warming written for the money pages was defeating itself**, which is why 2 of those
+journeys downloaded nothing and still waited. `useWarmMoneyDestinations` and
+`usePrefetchCommitteeMoney` in `apps/frontend/src/hooks/useAppQueries.ts` fetched their
+screen files by calling the loader directly, so the file arrived and nothing recorded that
+it had, and the screen went through the waiting marker anyway. Both now go through
+`loadAndRemember`. A test in
+`apps/frontend/src/navigation/__tests__/screenPreload.test.ts` fails if either goes back.
+
+**What this does not settle.** Whether a click is slower than arriving fresh depends on
+which 2 moments are compared, and the honest reader-facing pair is the click against the
+server-written text a fresh arrival shows first. On production before this change that
+text arrived at 163 to 349 ms while a click took 310 to 350 ms, so a click was 147 to 157
+ms behind on 5 of the 6 journeys measured, and level on the sixth. The after figures for that pair can only be
+read on production, because a local build serves no such text.
+
+**The unit suite cannot pin the 300 ms**, and it is worth saying so rather than implying
+the tests cover it: React's throttle does not fire under jsdom, where a piece that resolves
+after 20 ms still draws within 60. What the suite pins is the behaviour around it, and the
+probe is what measures the wait. `apps/frontend/scripts/report-click-cost.mjs` reproduces
+every figure above; it reads public pages and answers every beacon request locally, so no
+measurement of a robot enters our real-visitor records.
+
+**Cloudflare cannot check this on real visits**, and that is unchanged by this work. Its
+records for an address change are our own start-up rewriting the address it already has,
+and the record a real click opens carries no figure at all
+(`docs/research/real-visitor-page-speed-sources.md`). So the before and after here are lab
+figures on a stated build and connection, and the thing they share is everything except the
+change.
 
 ## The deepest money pages draw from their first response, 17 September 2026
 

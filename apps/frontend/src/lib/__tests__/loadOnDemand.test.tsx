@@ -1,13 +1,24 @@
 // @vitest-environment jsdom
 
-import { act } from 'react';
+import { Component, act, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { loadAndRemember, loadOnDemand } from '../loadOnDemand';
 
 function Screen() {
   return <p>the screen</p>;
+}
+
+/** Stands in for the app's own error screen, so a thrown piece has somewhere to land. */
+class Caught extends Component<{ children: ReactNode }, { failed: Error | null }> {
+  state = { failed: null as Error | null };
+  static getDerivedStateFromError(failed: Error) {
+    return { failed };
+  }
+  render() {
+    return this.state.failed ? this.state.failed.message : this.props.children;
+  }
 }
 
 let container: HTMLDivElement | null = null;
@@ -42,6 +53,31 @@ describe('loadOnDemand', () => {
     const load = () => Promise.resolve({ default: Screen });
 
     expect(drawOnce(loadOnDemand(load))).toBe('');
+  });
+
+  // A piece that never arrives almost always means a release replaced it while
+  // this tab was open, and the app's error screen is what a reader sees. Drawing
+  // nothing for ever instead would leave a blank page with no way out.
+  it('hands a piece that never arrives to the app error screen', async () => {
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const load = () => Promise.reject(new Error('the piece is gone'));
+    const Part = loadOnDemand(load);
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        <Caught>
+          <Part />
+        </Caught>,
+      );
+    });
+    await act(async () => {
+      await new Promise((settle) => setTimeout(settle, 10));
+    });
+
+    expect(container.textContent).toBe('the piece is gone');
+    quiet.mockRestore();
   });
 
   it('remembers a piece per loader, not for every piece at once', async () => {

@@ -212,6 +212,14 @@ So the sitewide 7,616 ms that first looked like a defect
 with the 4,764 ms first-load figure, and reporting it cost 1 wrongly-scoped issue before it
 was found.
 
+**What a click costs is measured directly instead**, by clicking a real link and watching
+for the destination's records, with
+[`apps/frontend/scripts/report-click-cost.mjs`](../../apps/frontend/scripts/report-click-cost.mjs).
+That is a lab figure on a stated connection rather than a figure from real visitors, which
+is the honest limit of it. The findings it produced are in
+[`docs/operations/page-load-performance-decisions.md`](../operations/page-load-performance-decisions.md)
+("A click stopped waiting 300 ms for nothing").
+
 **One honest limit remains on the layout figures.** Unexpected layout movement appears to
 stop at 1. Across 130 address groups over 30 days, no value above 1 appeared at any
 percentile up to the slowest 1 in 1000. So read a printed 1 as "1 or worse", which is 10
