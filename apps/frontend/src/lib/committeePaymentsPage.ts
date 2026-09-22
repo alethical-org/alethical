@@ -14,8 +14,21 @@ export function paymentsDirection(tab: PaymentsTab): 'received' | 'made' {
   return tab === 'gave' ? 'received' : 'made';
 }
 
-export function paymentsTitle(tab: PaymentsTab): string {
-  return tab === 'gave' ? 'Who gave to this committee' : 'Where this committee’s money went';
+/**
+ * The page's own heading, naming the committee it is about.
+ *
+ * The heading is the strongest single statement a page makes about its subject,
+ * to a reader skimming and to a search engine reading it, and 1,556 payments
+ * pages all said "this committee" while the name sat in a badge underneath
+ * (decisions doc §28.7). A name we do not hold yet falls back to the sentence
+ * that is still true without one, rather than to a heading with a gap in it.
+ */
+export function paymentsTitle(tab: PaymentsTab, committeeName?: string | null): string {
+  const name = (committeeName ?? '').replace(/\s+/g, ' ').trim();
+  if (!name) {
+    return tab === 'gave' ? 'Who gave to this committee' : 'Where this committee’s money went';
+  }
+  return tab === 'gave' ? `Who gave to ${name}` : `Where ${name} spent its money`;
 }
 
 export function paymentsEyebrow(_tab: PaymentsTab): string {

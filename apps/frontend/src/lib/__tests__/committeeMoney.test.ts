@@ -571,9 +571,27 @@ describe('the payments view', () => {
   it('names its tabs and titles for what they list', () => {
     expect(paymentsTabFromParam('spent')).toBe('spent');
     expect(paymentsTabFromParam(undefined)).toBe('gave');
+    // With no name yet, the sentence that is still true without one.
     expect(paymentsTitle('gave')).toBe('Who gave to this committee');
     expect(paymentsTitle('spent')).toBe('Where this committee’s money went');
     expect(paymentsEyebrow('gave')).toBe('Named payment records');
+  });
+
+  it('names the committee in the heading once the register answers (§28.7)', () => {
+    expect(paymentsTitle('gave', 'Jane Fonda Climate PAC')).toBe(
+      'Who gave to Jane Fonda Climate PAC',
+    );
+    expect(paymentsTitle('spent', 'Jane Fonda Climate PAC')).toBe(
+      'Where Jane Fonda Climate PAC spent its money',
+    );
+    // A blank or whitespace-only name is a name we do not hold, so the heading
+    // falls back rather than trailing off after "Who gave to".
+    for (const blank of ['', '   ', null, undefined]) {
+      expect(paymentsTitle('gave', blank)).toBe('Who gave to this committee');
+    }
+    expect(paymentsTitle('gave', '  Friends  of   Example  ')).toBe(
+      'Who gave to Friends of Example',
+    );
   });
 
   it('says how much of the population is showing, from a measured count', () => {

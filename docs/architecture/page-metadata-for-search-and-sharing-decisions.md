@@ -2057,6 +2057,21 @@ The year follows §22's committee rule exactly: `?year=N` is the same record and
 address stays bare, and a link carries the year only when it is not the year the page opens on
 anyway, so a seat has 1 ordinary address wherever the link was built.
 
+**7. Every committee's payments page names that committee in its own heading (22 Sep 2026).**
+All 1,556 payments pages carried "Who gave to this committee" or "Where this committee's money
+went" as their one top-level heading, while the committee's name sat in a badge beneath it, in a
+back link above it and in the browser-tab title. A page's own heading is the strongest single
+statement it makes about its subject, to a reader skimming and to a search engine reading it, and
+1,556 pages spent it on the word "this".
+
+The heading now reads "Who gave to Jane Fonda Climate PAC" or "Where Jane Fonda Climate PAC spent
+its money" (`paymentsTitle`, `apps/frontend/src/lib/committeePaymentsPage.ts`, the 1 builder both
+the drawn screen and the served response read, so the 2 cannot drift). The badge underneath drops
+the name it would otherwise repeat 1 line below the heading and carries the filed registration
+number alone. A name the register has not answered with yet falls back to the old sentence, which
+is true without one, rather than to a heading that trails off; the served response always holds
+the name, because it seeds the same figures read the screen uses.
+
 **What was checked and left alone, with the ruling it rests on.** No structured data on money
 pages: §6 admits only what a shipped search feature consumes, and no listed feature reads a
 `Dataset` or `ItemList` for pages like these; `BreadcrumbList` stays out for §12's reason. A

@@ -2157,9 +2157,11 @@ export function committeePaymentsPageSnapshot(
       href: `/money/committees/${encodeURIComponent(identity.slug)}?tab=${tab}&year=${year}`,
     },
     eyebrow: (identity.eyebrow ?? 'Committee').toUpperCase(),
-    heading: paymentsTitle(tab),
-    subheading: [identity.name, `REG ${identity.registrationNumber}`].join(' · '),
-    chips: [identity.name, `REG ${identity.registrationNumber}`],
+    heading: paymentsTitle(tab, identity.name),
+    // The heading now carries the name, so the badge under it holds the filed
+    // number alone rather than printing the same name twice in a row.
+    subheading: `REG ${identity.registrationNumber}`,
+    chips: [`REG ${identity.registrationNumber}`],
     bodyHeading: '',
     body: [
       ...(showing ? [showing] : []),
