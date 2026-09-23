@@ -47,6 +47,8 @@ const PIECE_FIVE_PATH = '/read/guides/why-nobody-can-follow-a-dollar';
 
 export const MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY: ResearchPiece = {
   ...MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY_INDEX_ENTRY,
+  searchDescription:
+    'The money aimed at Minnesota government that never goes into a campaign’s own account, who spends it, and where it is reported instead.',
   set: { name: 'How the Money Works', position: 4 },
   // No standfirst: the manuscript's second line is the set's name, which is
   // stored as set membership above. Inventing a sentence to fill this slot

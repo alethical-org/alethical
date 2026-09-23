@@ -37,6 +37,8 @@ const PIECE_THREE_PATH = `/read/guides/${WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RI
 
 export const WHY_NOBODY_CAN_FOLLOW_A_DOLLAR: ResearchPiece = {
   ...WHY_NOBODY_CAN_FOLLOW_A_DOLLAR_INDEX_ENTRY,
+  searchDescription:
+    'Why Minnesota’s records can show what one political account paid another to the cent and still cannot say where any particular dollar ended up.',
   set: { name: 'How the Money Works', position: 5 },
   // No standfirst: the manuscript's second line is the set's name, which is
   // stored as set membership above. Inventing a sentence to fill this slot

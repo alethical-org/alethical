@@ -894,6 +894,8 @@ What left, and the small module that now carries what startup needed:
 | `lib/research.ts` and the 6 published pieces' text (about 100 KB) | each piece's address, title, dates and labels, for routing and page titles | `lib/researchIndex.ts`; each piece spreads its own index entry so nothing is written twice |
 | the 2 money formatters out of 6 screens' own downloads | `formatMoney`, `formatDay` | `lib/moneyFormat.ts` |
 | `lib/share.ts`'s head building: the tags, the machine-readable block and the shell surgery, which only the server function runs (added 18 September 2026, 934 bytes) | nothing; the browser never renders a head | `lib/pageHead.ts` |
+| `lib/share.ts`'s 6 builders for a committee, a member, payments under 1 name, outside spending, the name search and a member's share card (added 22 September 2026, part of 971 bytes) | the 7 title builders `navigation/documentTitle.ts` reads before a screen loads | `lib/screenPageMetadata.ts` |
+| the 5 guide search sentences on `PieceIndexEntry` (added 22 September 2026, part of 971 bytes) | each piece's address, title, dates and labels | each piece's own record in `lib/research.ts`, handed to `researchPageMetadata` by `api/page.ts` |
 
 Each original module re-exports what moved, so every screen keeps importing from
 where it always did, and every query key string is byte-identical
@@ -911,8 +913,10 @@ together. Re-measure a rejected move when the rule it was rejected under changes
 **What stays in startup, deliberately.** `data/api.ts` (141 KB), `hooks/useAppQueries.ts`
 (45 KB), `data/types.ts`, `navigation/webRoutes.ts`, `lib/share.ts` and `navigation/ia.ts`
 are startup by nature. `lib/share.ts` earns its place by the page titles and wording the
-browser really uses, so only that half stays: its head building left on 18 September 2026,
-and a startup file with a server-only half is worth re-reading for the same split. Taking `useAppQueries.ts` out through its one startup edge would
+browser really uses, so only that half stays: its head building left on 18 September 2026 and
+its 6 screen-only builders on 22 September 2026, and a startup file with a server-only half is
+worth re-reading for the same split. The question that decides a name's side is 1: does the
+tab-title path need it before a screen has loaded? Taking `useAppQueries.ts` out through its one startup edge would
 copy it, and everything it reaches, into every screen file, a bill reader's included.
 
 ## A member's money tab colours its year buttons from 1 request, 18 September 2026

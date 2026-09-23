@@ -57,11 +57,8 @@ import {
 import { SearchPageShell } from '../../components/search/searchPieces';
 import { useHover, isWeb } from '../../components/billDetail/interactions';
 import { SharePopover } from '../../components/billDetail/SharePopover';
-import {
-  buildLegislatorShareContent,
-  legislatorPageMetadata,
-  publicPageUrl,
-} from '../../lib/share';
+import { publicPageUrl } from '../../lib/share';
+import { buildLegislatorShareContent, legislatorPageMetadata } from '../../lib/screenPageMetadata';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';

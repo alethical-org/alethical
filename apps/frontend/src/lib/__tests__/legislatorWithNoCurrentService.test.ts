@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { mapLegislator } from '../../data/api';
 import { currentDistrictLine, legislatorDisplayName, servesNow } from '../legislatorProfile';
-import { legislatorPageMetadata } from '../share';
+import { legislatorPageMetadata } from '../screenPageMetadata';
 import { partyFull } from '../billDetail';
 
 /**

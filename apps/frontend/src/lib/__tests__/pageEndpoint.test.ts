@@ -856,9 +856,16 @@ describe('first-response page tags', () => {
     expect(body).toContain(
       '<link rel="canonical" href="https://www.alethical.com/read/guides/who-has-to-report-their-money" />',
     );
-    // Title and dates only in the tags: no figure and no claim.
+    // Title and dates only in the share card: no figure and no claim. The search
+    // line describes the guide's own subject, handed in by this response because
+    // the sentence lives on the full piece record rather than on the light index
+    // the browser loads (§28.8).
     const head = body.slice(0, body.indexOf('</head>'));
-    expect(head).toContain('Written August 2026.');
+    expect(head).toContain('<meta property="og:description" content="Written August 2026." />');
+    expect(head).toContain(
+      `<meta name="description" content="${escapeHtml(guide.searchDescription!)}" />`,
+    );
+    expect(guide.searchDescription).toContain('Minnesota');
     expect(head).not.toContain('$66,750');
   });
 

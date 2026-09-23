@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { outsideSpendingPageMetadata } from '../share';
+import { outsideSpendingPageMetadata } from '../screenPageMetadata';
 
 // The outside-spending record's head (#1945): the bare address is one record and
 // may be listed; every filtered view of the same rows is head only with noindex

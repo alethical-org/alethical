@@ -2072,6 +2072,25 @@ number alone. A name the register has not answered with yet falls back to the ol
 is true without one, rather than to a heading that trails off; the served response always holds
 the name, because it seeds the same figures read the screen uses.
 
+**8. The file every visitor downloads gets its room back (22 Sep 2026).** Adding §28.6's 222 seat
+pages left 181 bytes under the first-download limit, and a change that goes over does not fail
+quietly: the release stops and readers keep the previous version. Two moves, the same one §28.4b
+made and for the same measured reason, put 971 bytes back (295,695 to 294,724 locally).
+
+`lib/share.ts` is in that download because `navigation/documentTitle.ts` reads 7 of its title
+builders, and a module is in or out whole. The 6 builders only a lazy screen and `api/page.ts`
+call moved to `apps/frontend/src/lib/screenPageMetadata.ts`: a committee's page, a member's page,
+the payments filed under 1 printed name, the outside-spending record, the name search, and a
+member's share card. The rule deciding membership is 1 question: does the tab-title path need it
+before a screen has loaded? Every screen still reads its title from the builder the server reads,
+so §28.3's guarantee is unchanged.
+
+The 5 guide sentences §28.4c added sat on `PieceIndexEntry` in `lib/researchIndex.ts`, which the
+address table and the tab-title path both load, and which no browser ever renders a description
+from. Each now lives on its own piece's full record in `lib/research.ts`, beside the writing it
+describes, and `researchPageMetadata` takes it as an argument the way `legislatorPageMetadata`
+already takes its sentence (§28.4d).
+
 **What was checked and left alone, with the ruling it rests on.** No structured data on money
 pages: §6 admits only what a shipped search feature consumes, and no listed feature reads a
 `Dataset` or `ItemList` for pages like these; `BreadcrumbList` stays out for §12's reason. A

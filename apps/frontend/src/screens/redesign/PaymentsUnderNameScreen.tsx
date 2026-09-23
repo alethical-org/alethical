@@ -16,7 +16,7 @@ import { ContributionRecordDetails } from '../../components/campaignMoney/Contri
 import { Skeleton } from '../../components/Skeleton';
 import { usePaymentsUnderName } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
-import { paymentsUnderNamePageMetadata } from '../../lib/share';
+import { paymentsUnderNamePageMetadata } from '../../lib/screenPageMetadata';
 import { committeeSlug, IN_KIND_CHIP } from '../../lib/committeeMoneyShared';
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { paymentsUnderNameShareContent } from '../../lib/moneyResultsShare';

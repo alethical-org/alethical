@@ -9,10 +9,10 @@ import {
   billPageMetadata,
   homePageMetadata,
   legislatorListPageMetadata,
-  legislatorPageMetadata,
   researchPageMetadata,
   STATIC_PAGE_METADATA,
 } from '../share';
+import { legislatorPageMetadata } from '../screenPageMetadata';
 import {
   HEAD_MARKER_END,
   HEAD_MARKER_START,

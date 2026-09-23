@@ -17,7 +17,7 @@ import { Skeleton } from '../../components/Skeleton';
 import type { CommitteeMadePayment, CommitteeReceivedPayment } from '../../data/types';
 import { useCommitteeMoney, useCommitteePaymentsList } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
-import { committeeMoneyPageMetadata } from '../../lib/share';
+import { committeeMoneyPageMetadata } from '../../lib/screenPageMetadata';
 import {
   CAP_NOTE,
   capNextLabel,
