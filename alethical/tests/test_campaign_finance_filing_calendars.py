@@ -76,9 +76,51 @@ def test_every_calendar_records_where_it_was_read_from_and_when() -> None:
     assert calendars.TRANSCRIBED_ON == date(2026, 8, 12)
 
 
-def test_all_4_calendars_are_transcribed_for_2026() -> None:
+def test_all_5_calendars_are_transcribed_for_2026() -> None:
     for key in CalendarKey:
         assert calendars.CALENDARS.get((key, 2026)), key
+
+
+def test_the_local_party_unit_calendar_holds_its_4_printed_reports() -> None:
+    """Read off https://cfb.mn.gov/pdf/calendars/2026_local_party_units.pdf on
+    23 Sep 2026: 2 election reports and 2 year-end reports, no quarterly ones. Its face
+    excludes state central committees and the legislative caucuses, which is why it is
+    a separate key from ``state_party_or_legislative_caucus`` rather than a third name
+    for that tuple."""
+    entries = calendars.CALENDARS[(CalendarKey.local_party_unit, 2026)]
+    assert [
+        (one.report_name, one.period_start, one.period_end, one.due_date)
+        for one in entries
+    ] == [
+        (
+            "2025 year-end report of receipts and expenditures",
+            date(2025, 1, 1),
+            date(2025, 12, 31),
+            date(2026, 2, 2),
+        ),
+        (
+            "Pre-primary report of receipts and expenditures",
+            date(2026, 1, 1),
+            date(2026, 7, 20),
+            date(2026, 7, 27),
+        ),
+        (
+            "Pre-general report of receipts and expenditures",
+            date(2026, 1, 1),
+            date(2026, 10, 19),
+            date(2026, 10, 26),
+        ),
+        (
+            "2026 year-end report of receipts and expenditures",
+            date(2026, 1, 1),
+            date(2026, 12, 31),
+            date(2027, 2, 1),
+        ),
+    ]
+    assert all(one.condition is None for one in entries)
+    source = calendars.CALENDAR_SOURCES[(CalendarKey.local_party_unit, 2026)]
+    assert source["transcribed_on"] == date(2026, 9, 23)
+    assert source["sha256"] == calendars.LOCAL_PARTY_UNIT_2026_SHA256
 
 
 @pytest.mark.parametrize(

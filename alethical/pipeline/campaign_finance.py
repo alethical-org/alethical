@@ -84,10 +84,11 @@ import shutil
 import tempfile
 import time
 import uuid
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable, Optional, Sequence
 
 import requests
 from sqlalchemy import delete, func, inspect, select, text
@@ -390,6 +391,15 @@ class Check:
     # filer-year that fails this check does not publish its split, and picking that out
     # of a sentence is not something a page can do.
     filer_years: tuple[str, ...] = ()
+    # A table for a person to read when this check failed, and nothing more. The one
+    # check that carries one is ``no_published_year_lost_rows``: the 3-bin table of
+    # which vanished rows had identical copies that remain, which pair with an added
+    # row, and which match nothing (D2 on
+    # [#2344](https://github.com/alethical-org/alethical/issues/2344)). **It is never a
+    # reason to publish**: the check's status is decided before it is computed, and a
+    # table full of explained rows still leaves the check failed until an operator
+    # names the hash, having recorded the exception on the issue first.
+    investigation: Optional[str] = None
 
     @property
     def blocks_publication(self) -> bool:
@@ -403,6 +413,8 @@ class Check:
         }
         if self.filer_years:
             recorded["filer_years"] = list(self.filer_years)
+        if self.investigation:
+            recorded["investigation"] = self.investigation
         return recorded
 
 
@@ -619,6 +631,11 @@ class LoadReport:
                     "reported",
                 ):
                     lines.append(f"      {check.status}: {check.name} — {check.detail}")
+                    if check.investigation:
+                        lines.extend(
+                            f"        {line}"
+                            for line in check.investigation.splitlines()
+                        )
         if self.refusal:
             lines.append(f"  refused: {self.refusal}")
         elif self.dry_run:
@@ -1628,14 +1645,201 @@ def _baseline_repeat_fraction(baseline: Any) -> Optional[float]:
 
 
 def _years_that_lost_rows(measured: Measurements, baseline: Any) -> list[str]:
+    return [
+        f"{year} fell from {was:,} rows to {now:,}"
+        for year, was, now in lost_years(measured, baseline)
+    ]
+
+
+def lost_years(measured: Measurements, baseline: Any) -> list[tuple[str, int, int]]:
+    """Every published year that lost more rows than the check allows.
+
+    The rule is exactly as it stands: a year may lose the larger of 1% of its rows or
+    25 rows, and any more blocks publication. Nothing about *why* the rows went
+    changes this answer; the 3-bin table in ``row_loss_investigation`` explains a loss
+    to a person and never excuses one.
+    """
     published = baseline.rows_by_year or {}
-    lost: list[str] = []
+    lost: list[tuple[str, int, int]] = []
     for year, was in sorted(published.items()):
         now = measured.rows_by_year.get(year, 0)
         allowed = max(YEAR_ROW_LOSS_FLOOR, int(was * YEAR_ROW_LOSS_FRACTION))
         if was - now > allowed:
-            lost.append(f"{year} fell from {was:,} rows to {now:,}")
+            lost.append((year, was, now))
     return lost
+
+
+# --- The 3-bin table behind a failed row-loss check ---------------------------
+
+
+ROW_LOSS_BINS = ("fewer identical copies", "possible replacements", "unmatched")
+# How many committees the table prints per year. A person reads this to decide whether
+# to name a hash, and the Senate Victory Fund case that produced it was 1 committee
+# out of 38; the full per-committee count is in the totals line.
+ROW_LOSS_TABLE_COMMITTEES = 40
+
+
+def _comparable(value: Any) -> str:
+    """One field as text, so a stored row and a freshly parsed one compare exactly.
+
+    Text is compared untrimmed, because the rows are stored untrimmed. A money value
+    is compared as an exact decimal, so ``100`` and ``100.0000`` are one value and
+    ``100.01`` is another. A date is its ISO day. ``None`` and the empty string are
+    both a blank, because that is what the COPY file writes for one.
+    """
+    if value is None:
+        return ""
+    if isinstance(value, Decimal):
+        # ``format(..., "f")`` of the normalized value: 100, 100.0000 and 1E+2 all
+        # read "100", and 100.01 stays "100.01".
+        return format(value.normalize(), "f")
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    return str(value)
+
+
+def _comparable_from_copy(column: Column, text_value: str) -> str:
+    if text_value == "":
+        return ""
+    if column.kind == "money":
+        return _comparable(Decimal(text_value))
+    return text_value
+
+
+def row_loss_investigation(
+    db: Session,
+    spec: DatasetSpec,
+    baseline_snapshot_id: uuid.UUID,
+    copy_path: str,
+    years: Sequence[str],
+) -> str:
+    """The 3-bin table for every year the row-loss check failed on.
+
+    Every vanished row (in the published year, absent from the new file) is sorted
+    into exactly 1 bin, comparing **all stored fields** exactly:
+
+    * ``fewer identical copies``: an identical row is still in the new file, so this
+      copy was one of several and the file now carries fewer of them;
+    * ``possible replacements``: no identical row remains, but the new file gained a
+      row for the same committee, date and amount that pairs with nothing published,
+      so the row was probably relabelled (a vendor renamed, a type changed). Pairing
+      is one-to-one, so 2 vanished rows cannot claim 1 added row;
+    * ``unmatched``: neither, and its dollars are summed.
+
+    Per committee and in total, per year. **An investigation aid only**: it is
+    attached to the failed check for a person to read, stored with the quarantined
+    snapshot and, if an operator later publishes under a named exception, in the
+    release notes. It changes no check's status.
+
+    Measured 23 Sep 2026 on 2024 general spending (44,505 published rows against
+    43,524 downloaded): 777 fewer identical copies, 3,763 possible replacements, 281
+    unmatched worth $671,898.10, across 38 committees.
+    """
+    columns = spec.columns
+    filer_at = columns.index(
+        next(column for column in columns if column.attribute == spec.filer_attribute)
+    )
+    date_at = columns.index(next(column for column in columns if column.kind == "date"))
+    amount_at = columns.index(
+        next(column for column in columns if column.source == "Amount")
+    )
+    year_at = columns.index(next(column for column in columns if column.kind == "year"))
+    wanted = {str(year) for year in years}
+
+    published: dict[str, Counter] = {year: Counter() for year in wanted}
+    table = spec.table
+    ordered = [getattr(table, column.attribute) for column in columns]
+    stream = db.execute(
+        select(*ordered).where(
+            table.snapshot_id == baseline_snapshot_id,
+            table.year.in_([int(year) for year in wanted]),
+        )
+    )
+    for row in stream:
+        key = tuple(_comparable(value) for value in row)
+        published[key[year_at]][key] += 1
+
+    downloaded: dict[str, Counter] = {year: Counter() for year in wanted}
+    with open(copy_path, encoding="utf-8", newline="") as handle:
+        for record in csv.reader(handle):
+            fields = record[2:]  # the COPY file leads with snapshot id and row number
+            year = fields[year_at]
+            if year not in wanted:
+                continue
+            key = tuple(
+                _comparable_from_copy(column, value)
+                for column, value in zip(columns, fields)
+            )
+            downloaded[year][key] += 1
+
+    out: list[str] = []
+    for year in sorted(wanted):
+        was, now = published[year], downloaded[year]
+        vanished = was - now
+        added = now - was
+        pool: dict[tuple[str, str, str], int] = Counter()
+        for key, count in added.items():
+            pool[(key[filer_at], key[date_at], key[amount_at])] += count
+        per: dict[str, dict[str, Any]] = {}
+        for key, count in vanished.items():
+            bins = per.setdefault(
+                key[filer_at],
+                {name: 0 for name in ROW_LOSS_BINS}
+                | {"unmatched_amount": Decimal("0")},
+            )
+            for _ in range(count):
+                if now.get(key, 0) > 0:
+                    bins[ROW_LOSS_BINS[0]] += 1
+                    continue
+                pair = (key[filer_at], key[date_at], key[amount_at])
+                if pool.get(pair, 0) > 0:
+                    pool[pair] -= 1
+                    bins[ROW_LOSS_BINS[1]] += 1
+                    continue
+                bins[ROW_LOSS_BINS[2]] += 1
+                try:
+                    bins["unmatched_amount"] += Decimal(key[amount_at] or "0")
+                except InvalidOperation:  # pragma: no cover - the parser typed it
+                    pass
+        totals = {
+            name: sum(bins[name] for bins in per.values()) for name in ROW_LOSS_BINS
+        }
+        unmatched_amount = sum(
+            (bins["unmatched_amount"] for bins in per.values()), Decimal("0")
+        )
+        out.append(
+            f"{year}: {sum(was.values()):,} published rows, {sum(now.values()):,} "
+            f"downloaded; {sum(vanished.values()):,} vanished, {sum(added.values()):,} "
+            f"added. Vanished rows by bin: {totals[ROW_LOSS_BINS[0]]:,} "
+            f"{ROW_LOSS_BINS[0]}, {totals[ROW_LOSS_BINS[1]]:,} {ROW_LOSS_BINS[1]}, "
+            f"{totals[ROW_LOSS_BINS[2]]:,} {ROW_LOSS_BINS[2]} (${unmatched_amount:,.2f}) "
+            f"across {len(per)} committee(s). Investigation aid only; it never "
+            "publishes anything."
+        )
+        header = f"{'committee':>10} {'fewer identical copies':>22} {'possible replacements':>21} {'unmatched':>9} {'unmatched $':>14}"
+        out.append(header)
+        ranked = sorted(
+            per.items(),
+            key=lambda item: -(sum(item[1][name] for name in ROW_LOSS_BINS)),
+        )
+        for committee, bins in ranked[:ROW_LOSS_TABLE_COMMITTEES]:
+            out.append(
+                f"{committee:>10} {bins[ROW_LOSS_BINS[0]]:>22,} "
+                f"{bins[ROW_LOSS_BINS[1]]:>21,} {bins[ROW_LOSS_BINS[2]]:>9,} "
+                f"{bins['unmatched_amount']:>14,.2f}"
+            )
+        if len(ranked) > ROW_LOSS_TABLE_COMMITTEES:
+            out.append(
+                f"  … and {len(ranked) - ROW_LOSS_TABLE_COMMITTEES} more committee(s)"
+            )
+        unmatched_committees = sorted(
+            committee for committee, bins in per.items() if bins[ROW_LOSS_BINS[2]] > 0
+        )
+        out.append(
+            f"committees with unmatched rows ({len(unmatched_committees)}): "
+            + (", ".join(unmatched_committees) or "none")
+        )
+    return "\n".join(out)
 
 
 def _columns_that_gained_blanks(
@@ -2644,6 +2848,42 @@ def load_campaign_finance(
                 stated_split=stated_split_for(db, outcome),
             )
 
+        # The 3-bin table, for a person, on every file whose row-loss check did not
+        # pass. Computed after the checks have decided, so it can only ever explain a
+        # verdict and never change one.
+        for outcome in report.outcomes:
+            baseline = baselines.get(outcome.spec.dataset)
+            measured = outcome.measurements
+            check = next(
+                (
+                    one
+                    for one in outcome.checks
+                    if one.name == "no_published_year_lost_rows"
+                ),
+                None,
+            )
+            if (
+                check is None
+                or check.status not in ("failed", "overridden")
+                or baseline is None
+                or measured is None
+                or outcome.copy_path is None
+            ):
+                continue
+            years = [year for year, _, _ in lost_years(measured, baseline)]
+            if rows_present(db, outcome.spec, baseline.id) != (
+                baseline.row_count or -1
+            ):
+                check.investigation = (
+                    "the published snapshot's rows are not all present, so the 3-bin "
+                    "table cannot be computed against them"
+                )
+                continue
+            check.investigation = row_loss_investigation(
+                db, outcome.spec, baseline.id, outcome.copy_path, years
+            )
+            log(f"{outcome.spec.key}: row-loss table\n{check.investigation}")
+
         blocked = [outcome for outcome in report.outcomes if outcome.blocked]
         if blocked:
             if approved and len(approved) != 3:
@@ -2665,12 +2905,7 @@ def load_campaign_finance(
         if dry_run:
             return report
 
-        notes = (
-            "published by an operator naming the reviewed hashes: "
-            + ", ".join(sorted(approved))
-            if approved
-            else None
-        )
+        notes = release_notes(report.outcomes, approved)
         report.release_id = publish(
             db,
             report.outcomes,
@@ -2687,6 +2922,35 @@ def load_campaign_finance(
         report.pruned_snapshots, report.pruned_rows = prune(db)
         _finish_run(db, ingestion_run_id, report)
         return report
+
+
+def release_notes(
+    outcomes: Sequence[DatasetOutcome], approved: set[str]
+) -> Optional[str]:
+    """What an operator waived to publish this release, named check by check.
+
+    ``None`` when nothing was waived. Otherwise the hashes the operator named, then
+    every check that was overridden, with its detail, and any 3-bin table computed for
+    a failed row-loss check. Naming the checks is the point: a note carrying only the
+    hashes says an exception was taken and not what it was for.
+    """
+    if not approved:
+        return None
+    lines = [
+        "published by an operator naming the reviewed hashes: "
+        + ", ".join(sorted(approved))
+    ]
+    for outcome in outcomes:
+        for check in outcome.checks:
+            if check.status == "overridden":
+                lines.append(f"waived {outcome.spec.key}/{check.name}: {check.detail}")
+                if check.investigation:
+                    lines.append(
+                        f"{outcome.spec.key} row-loss table (investigation aid only, "
+                        "never a reason to publish):"
+                    )
+                    lines.append(check.investigation)
+    return "\n".join(lines)
 
 
 def _finish_run(db: Session, run_id: Optional[uuid.UUID], report: LoadReport) -> None:

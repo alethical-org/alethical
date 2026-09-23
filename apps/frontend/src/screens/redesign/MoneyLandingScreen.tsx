@@ -193,6 +193,7 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
     navigation.navigate('MoneySearch', q ? { q } : {});
   };
   const filesLastCopied = summary?.freshness.downloadsFetchedAt ?? null;
+  const registerLastCopied = summary?.freshness.registerFetchedAt ?? null;
   const lobbyingLastCopied = lobbyingQuery.data?.copied_at ?? null;
   const feed = filingsQuery.data;
   const filings = feed?.state === 'reported' ? feed.filings : [];
@@ -368,6 +369,16 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                   <Text style={styles.freshnessDate}>
                     {filesLastCopied
                       ? centralDateLabel(filesLastCopied)
+                      : summaryQuery.isLoading
+                        ? 'Loading…'
+                        : 'Copy date unavailable'}
+                  </Text>
+                </Text>
+                <Text style={styles.infoBody}>
+                  Committee register and report totals last copied:{' '}
+                  <Text style={styles.freshnessDate}>
+                    {registerLastCopied
+                      ? centralDateLabel(registerLastCopied)
                       : summaryQuery.isLoading
                         ? 'Loading…'
                         : 'Copy date unavailable'}

@@ -286,7 +286,9 @@ class CommitteeFinance:
     independent_spending: IndependentSpendingAbout
 
 
-def filings_copied_at(db: Session) -> datetime | None:
+def filings_copied_at(
+    db: Session, registration_number: str | None = None
+) -> datetime | None:
     """End of the published filing source's own fetch window, never its publish date.
 
     The same current-snapshot pointer selects the report totals. A newer unpublished
@@ -294,9 +296,22 @@ def filings_copied_at(db: Session) -> datetime | None:
     No current filing source means no date, even when payment files are available.
     Call inside the request's pinned database view so the figures and date agree.
     The same resolver every figure used, so inside a pinned request it costs no trip.
+
+    With a ``registration_number``, the date is that filer's own: a committee the
+    Board's register no longer lists is retained from an earlier copy (D1, #2344) and
+    its figures were read on that earlier day, so that is the day they carry. The same
+    register read the rest of the page makes (``filer_records``), so it costs no trip.
     """
     snapshot = filings.live_filings_snapshot(db)
-    return None if snapshot is None else snapshot.fetch_completed_at
+    if snapshot is None:
+        return None
+    if registration_number is not None:
+        filer = filings.filer_records(db, [registration_number]).get(
+            registration_number
+        )
+        if filer is not None and getattr(filer, "captured_at", None) is not None:
+            return filer.captured_at
+    return snapshot.fetch_completed_at
 
 
 def pin_to_one_view(db: Session) -> None:

@@ -2731,6 +2731,7 @@ export interface ApiCampaignFinanceSummaryPayload {
   } | null;
   freshness?: {
     downloads_fetched_at?: string | null;
+    register_fetched_at?: string | null;
   } | null;
 }
 
@@ -2776,6 +2777,7 @@ export function campaignFinanceSummaryFromPayload(
     },
     freshness: {
       downloadsFetchedAt: payload.freshness?.downloads_fetched_at ?? null,
+      registerFetchedAt: payload.freshness?.register_fetched_at ?? null,
     },
   };
 }
@@ -3255,6 +3257,8 @@ interface ApiCommitteeRegisterPayload {
   registration_date?: string | null;
   termination_date?: string | null;
   as_of?: string | null;
+  retained?: boolean | null;
+  copied_on?: string | null;
 }
 
 export interface ApiCommitteeMoneyPayload {
@@ -3352,6 +3356,8 @@ export function committeeFinanceFromPayload(payload: ApiCommitteeMoneyPayload): 
       registrationDate: register?.registration_date ?? null,
       terminationDate: register?.termination_date ?? null,
       asOf: register?.as_of ?? null,
+      retained: register?.retained === true,
+      copiedOn: register?.copied_on ?? null,
     },
     moneyIn: {
       state: committeeBlockState(payload.money_in?.state),

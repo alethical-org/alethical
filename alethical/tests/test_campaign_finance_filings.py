@@ -192,6 +192,16 @@ class FakeBoard:
     reported_through: dict[tuple[str, int], str] = field(default_factory=dict)
     pdfs_is_a_nonempty_list: set[str] = field(default_factory=set)
     requests_seen: list[tuple[str, dict[str, str]]] = field(default_factory=list)
+    # Registrations to leave out of the current register, which is what the Board does
+    # once a committee has terminated: it drops off the current list rather than being
+    # listed with a date (D1, #2344).
+    dropped_filers: set[str] = field(default_factory=set)
+    # Registrations to list with no TerminationDate, whatever the fixture row says.
+    undated_filers: set[str] = field(default_factory=set)
+    # What the 3 recent-terminations lists answer, per kind. Empty means the real
+    # route's `[]`. A status other than 200 makes that list unreadable.
+    terminations: dict[FilerKind, list[dict[str, Any]]] = field(default_factory=dict)
+    terminations_status: dict[FilerKind, int] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         # Serve the pinned canary figures the shipped code checks for, so the default
@@ -215,8 +225,14 @@ class FakeBoard:
     def directory_payload(self, kind: FilerKind) -> Any:
         if kind in self.directory_returns_false:
             return False
-        rows = DIRECTORY_ROWS[kind]
-        columns = list(rows[0])
+        rows = [
+            {**row, "TerminationDate": None}
+            if row["RegisteredEntityID"] in self.undated_filers
+            else row
+            for row in DIRECTORY_ROWS[kind]
+            if row["RegisteredEntityID"] not in self.dropped_filers
+        ]
+        columns = list(DIRECTORY_ROWS[kind][0])
         return {
             "cols": columns,
             # Keyed by registration with a *list* of rows per key, which is the shape
@@ -392,6 +408,39 @@ class _Handler(BaseHTTPRequestHandler):
                 None,
             )
             if kind is None:
+                ended_kind = next(
+                    (
+                        candidate
+                        for candidate, action in (
+                            filings.TERMINATIONS_ACTION_BY_KIND.items()
+                        )
+                        if action == form.get("data[action]")
+                    ),
+                    None,
+                )
+                if ended_kind is not None:
+                    status = board.terminations_status.get(ended_kind, 200)
+                    if status != 200:
+                        self._send(status, b"nope", "text/plain")
+                        return
+                    rows = board.terminations.get(ended_kind) or []
+                    if not rows:
+                        self._json(200, [])
+                        return
+                    columns = list(rows[0])
+                    self._json(
+                        200,
+                        {
+                            "cols": columns,
+                            "data": {
+                                row["RegisteredEntityID"]: [
+                                    [row[name] for name in columns]
+                                ]
+                                for row in rows
+                            },
+                        },
+                    )
+                    return
                 self._json(200, [])
                 return
             status = board.directory_status.get(kind, 200)
@@ -1709,3 +1758,212 @@ def test_a_registration_number_in_two_lists_is_an_error_not_a_coin_toss(
     assert any(
         "more than one registered filer list" in error for error in result.errors
     )
+
+
+# --- A committee that leaves the register is retained (D1, #2344) ----------------
+
+
+def refresh(db, board: FakeBoard, store: MemoryStore) -> filings.FilingsRun:
+    """One refresh, published. The fixture holds 6 filers, so dropping 1 is a 17% fall
+    that trips the count bands a 1,603-filer register never would; an operator names
+    the hash, exactly as for a first run. Whether the lost-figures check passed is
+    asserted on the first pass, where nothing is waived."""
+    first = run(db, board, store)
+    if not first.blocked:
+        return first
+    assert {check.name for check in first.blocked} <= {
+        "filer_count_within_band",
+        "filing_count_within_band",
+        "reported_contributions_within_band",
+    }, first.summary()
+    assert checks_of(first)["no_published_filer_year_lost_its_figures"].status == (
+        "passed"
+    ), first.summary()
+    published = run(db, board, store, publish_hash=first.record_set_hash)
+    assert not published.blocked, published.summary()
+    return published
+
+
+def _filer_row(db, snapshot_id, registration: str) -> models.CampaignFinanceFiler:
+    return db.scalars(
+        select(models.CampaignFinanceFiler).where(
+            models.CampaignFinanceFiler.snapshot_id == snapshot_id,
+            models.CampaignFinanceFiler.registration_number == registration,
+        )
+    ).one()
+
+
+def test_a_filer_dropped_from_the_register_is_retained_through_2_refreshes(
+    db, board, store
+) -> None:
+    """The Board drops a terminated committee off its current list. Its page, rows,
+    figures, report versions and copy date stay ours, dated to the day the Board
+    answered about it, through this refresh and the next."""
+    first = publish_first(db, board, store)
+    first_snapshot = db.get(models.CampaignFinanceFilingSnapshot, first.snapshot_id)
+    before = _filer_row(db, first.snapshot_id, "18999")
+    assert before.retained_from_snapshot_id is None
+    assert before.captured_at == first_snapshot.fetch_completed_at
+    reports_before = db.scalars(
+        select(models.CampaignFinanceFilingReport).where(
+            models.CampaignFinanceFilingReport.snapshot_id == first.snapshot_id,
+            models.CampaignFinanceFilingReport.registration_number == "18999",
+        )
+    ).all()
+    figures_before = figures_of(db, first.snapshot_id, "18999", 2025)
+    assert reports_before and figures_before
+
+    board.dropped_filers.add("18999")
+    board.amount_overrides[("11880", 2025)] = {"Individuals contributions": "$1.00"}
+    second = refresh(db, board, store)
+    assert second.published
+    # Not lost: the lost-figures check reads the dropped filer as retained.
+    assert checks_of(second)["no_published_filer_year_lost_its_figures"].status == (
+        "passed"
+    )
+    retained = checks_of(second)["former_filers_retained_with_their_own_copy_dates"]
+    assert retained.status == "passed"
+    assert "1 published filer(s) are no longer on the Board's register" in (
+        retained.detail
+    )
+    assert "1 with a termination date the Board supplies" in retained.detail
+    assert second.retained == ["18999"]
+    kept = _filer_row(db, second.snapshot_id, "18999")
+    assert kept.retained_from_snapshot_id == first.snapshot_id
+    assert kept.captured_at == first_snapshot.fetch_completed_at
+    assert kept.termination_date == date(2026, 7, 28)
+    assert figures_of(db, second.snapshot_id, "18999", 2025) == figures_before
+    assert len(
+        db.scalars(
+            select(models.CampaignFinanceFilingReport).where(
+                models.CampaignFinanceFilingReport.snapshot_id == second.snapshot_id,
+                models.CampaignFinanceFilingReport.registration_number == "18999",
+            )
+        ).all()
+    ) == len(reports_before)
+    # Fresh filers carry this run's own date and no retention marker.
+    fresh = _filer_row(db, second.snapshot_id, "11880")
+    assert fresh.retained_from_snapshot_id is None
+    assert (
+        fresh.captured_at
+        == db.get(
+            models.CampaignFinanceFilingSnapshot, second.snapshot_id
+        ).fetch_completed_at
+    )
+
+    board.amount_overrides[("11880", 2025)] = {"Individuals contributions": "$2.00"}
+    third = refresh(db, board, store)
+    again = _filer_row(db, third.snapshot_id, "18999")
+    # Still pointing at the run that captured it, still dated to that day.
+    assert again.retained_from_snapshot_id == first.snapshot_id
+    assert again.captured_at == first_snapshot.fetch_completed_at
+    assert figures_of(db, third.snapshot_id, "18999", 2025) == figures_before
+    # The snapshot's own filer count is what the register listed, not what it holds.
+    assert db.get(
+        models.CampaignFinanceFilingSnapshot, third.snapshot_id
+    ).filer_count == len(DIRECTORY_ROWS[FilerKind.candidate_committee]) - 1 + len(
+        DIRECTORY_ROWS[FilerKind.party_unit]
+    ) + len(DIRECTORY_ROWS[FilerKind.political_committee_or_fund])
+    assert (
+        db.get(models.CampaignFinanceFilingSnapshot, third.snapshot_id).measurements[
+            "retained_former_filers"
+        ]
+        == 1
+    )
+
+
+def test_a_retained_filer_takes_its_date_from_the_recent_terminations_list(
+    db, board, store
+) -> None:
+    """Action 4 Liberty PAC's shape: listed with no date, then gone, then named on the
+    Board's recent-terminations list. The list's date is the one the page gets."""
+    board.undated_filers.add("18999")
+    first = publish_first(db, board, store)
+    assert _filer_row(db, first.snapshot_id, "18999").termination_date is None
+
+    board.dropped_filers.add("18999")
+    board.terminations[FilerKind.candidate_committee] = [
+        {
+            "RegisteredEntityFullName": "Closed, Casey House Committee",
+            "RegisteredEntityID": "18999",
+            "Party": "DFL",
+            "District": "1A",
+            "RegistrationDate": "2022-01-01 00:00:00.000",
+            "TerminationDate": "2026-08-19 00:00:00.000",
+            "DistrictKey": "1A",
+            "CandidateFullName": "Closed, Casey",
+            "OfficeKey": "House",
+        }
+    ]
+    second = refresh(db, board, store)
+    assert second.recent_terminations == {"18999": date(2026, 8, 19)}
+    kept = _filer_row(db, second.snapshot_id, "18999")
+    assert kept.termination_date == date(2026, 8, 19)
+    assert kept.retained_from_snapshot_id == first.snapshot_id
+    assert "1 with a termination date the Board supplies" in (
+        checks_of(second)["former_filers_retained_with_their_own_copy_dates"].detail
+    )
+
+
+def test_a_retained_filer_nobody_dates_is_reported_as_no_longer_listed(
+    db, board, store
+) -> None:
+    board.undated_filers.add("18999")
+    first = publish_first(db, board, store)
+    board.dropped_filers.add("18999")
+    board.amount_overrides[("11880", 2025)] = {"Individuals contributions": "$1.00"}
+    second = refresh(db, board, store)
+    detail = checks_of(second)[
+        "former_filers_retained_with_their_own_copy_dates"
+    ].detail
+    assert "0 with a termination date the Board supplies" in detail
+    assert "1 no longer listed with no date (18999)" in detail
+    kept = _filer_row(db, second.snapshot_id, "18999")
+    assert kept.termination_date is None
+    assert kept.retained_from_snapshot_id == first.snapshot_id
+
+
+def test_an_unreadable_terminations_list_blocks_nothing_and_is_named(
+    db, board, store
+) -> None:
+    """The party-unit list errored on the Board's side on 23 Sep 2026. A retained
+    committee loses its date, never the run."""
+    board.undated_filers.add("18999")
+    publish_first(db, board, store)
+    board.terminations_status[FilerKind.party_unit] = 500
+    board.dropped_filers.add("18999")
+    board.amount_overrides[("11880", 2025)] = {"Individuals contributions": "$1.00"}
+    second = refresh(db, board, store)
+    assert second.termination_list_errors == [
+        "the recent-ptu-terminations list answered HTTP 500"
+    ]
+    assert "Termination lists not read" in (
+        checks_of(second)["former_filers_retained_with_their_own_copy_dates"].detail
+    )
+
+
+def test_the_recent_terminations_are_in_the_record_hash_and_the_archive(
+    db, board, store
+) -> None:
+    """A newly dated termination is a change worth publishing, so it is hashed; and a
+    stored set rebuilt from its archive reproduces that hash, terminations included."""
+    first = publish_first(db, board, store)
+    board.terminations[FilerKind.candidate_committee] = [
+        {
+            "RegisteredEntityFullName": "Gone, Committee",
+            "RegisteredEntityID": "40404",
+            "RegistrationDate": "2020-01-01 00:00:00.000",
+            "TerminationDate": "2026-09-01 00:00:00.000",
+        }
+    ]
+    second = run(db, board, store)
+    assert second.record_set_hash != first.record_set_hash
+    assert not second.unchanged
+    # The publish path rebuilds from the kept archive (the hash was on file after the
+    # quarantine-free first pass through record_filings_fetch), so getting here with
+    # the same hash proves the archive's terminations lines reproduce it.
+    assert second.published, second.summary()
+    republished = filings.publish_stored_filings(
+        db, second.record_set_hash, store=store, log=lambda message: None
+    )
+    assert republished.record_set_hash == second.record_set_hash

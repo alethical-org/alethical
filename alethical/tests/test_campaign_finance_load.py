@@ -1794,3 +1794,214 @@ def test_measurements_record_what_the_checks_compare(db, board, store) -> None:
     # re-parsing the fixture would only prove the parser agrees with itself.
     # 250 + 30 + 30 + 1234.5678 + 6.49 + 15 + 500 + 75 + 5000 - 40.
     assert snapshot.amount_sum == Decimal("7101.0578")
+
+
+# --- The 3-bin table behind a failed row-loss check (D2, #2344) ----------------
+#
+# Every case here loses more than the check allows and **every one must still block**.
+# The table sorts the vanished rows for a person to read; it changes no verdict.
+
+
+def _spending_row(
+    committee: str,
+    vendor: str,
+    amount: str,
+    day: str,
+    *,
+    kind: str = "Campaign Expenditure",
+) -> str:
+    return (
+        f'{committee},"Committee {committee}",PCC,,"{vendor}",Rochester,MN,55902,'
+        f'{amount},.0000,{day},"Printing",2024,"{kind}",,No,,'
+    )
+
+
+def _big_committee_2024(count: int = 40) -> list[str]:
+    return [
+        _spending_row(
+            "19004", f"Vendor {index:03d}", f"{100 + index}.0000", "2024-06-01"
+        )
+        for index in range(count)
+    ]
+
+
+def _small_committee_2024(count: int = 30) -> list[str]:
+    return [
+        _spending_row("20010", f"Shop {index:03d}", f"{50 + index}.0000", "2024-09-15")
+        for index in range(count)
+    ]
+
+
+def _row_loss_check(report: cf.LoadReport) -> cf.Check:
+    spending = next(
+        outcome
+        for outcome in report.outcomes
+        if outcome.spec.dataset is Dataset.expenditures
+    )
+    return next(
+        check
+        for check in spending.checks
+        if check.name == "no_published_year_lost_rows"
+    )
+
+
+def _publish_2024(db, board, store, rows: list[str]) -> cf.LoadReport:
+    board.set_rows(Dataset.expenditures, rows)
+    return publish_first(db, board, store)
+
+
+def test_a_truncated_export_with_repeated_rows_still_blocks_and_the_table_says_why(
+    db, board, store
+) -> None:
+    """30 exact copies vanish from a year of 60 rows: the loss is over the limit, so it
+    blocks, and every vanished row lands in "fewer identical copies"."""
+    distinct = _big_committee_2024(30)
+    _publish_2024(db, board, store, distinct * 2)
+
+    board.set_rows(Dataset.expenditures, distinct)
+    report = run(db, board, store)
+
+    assert report.refusal is not None and not report.published
+    check = _row_loss_check(report)
+    assert check.status == "failed"
+    assert "2024 fell from 60 rows to 30" in check.detail
+    assert check.investigation is not None
+    assert (
+        "30 fewer identical copies, 0 possible replacements, 0 unmatched ($0.00)"
+        in (check.investigation)
+    )
+    assert "Investigation aid only" in check.investigation
+    # Printed for the operator and stored with the quarantined snapshot.
+    assert "fewer identical copies" in report.summary()
+    quarantined = next(
+        outcome
+        for outcome in report.quarantined
+        if outcome.spec.dataset is Dataset.expenditures
+    )
+    snapshot = db.get(models.CampaignFinanceSnapshot, quarantined.snapshot_id)
+    assert snapshot.status == SnapshotStatus.quarantined
+    stored = next(
+        one
+        for one in snapshot.validation_json["checks"]
+        if one["name"] == "no_published_year_lost_rows"
+    )
+    assert "30 fewer identical copies" in stored["investigation"]
+
+
+def test_a_same_date_same_amount_collision_pairs_one_to_one_and_still_blocks(
+    db, board, store
+) -> None:
+    """30 pairs of published rows share a committee, day and amount, and 1 added row
+    could be claimed by either. Pairing is one-to-one, so each added row explains 1
+    vanished row and the other 30 stay unmatched. The year halves, so it blocks."""
+    pairs = []
+    for index in range(30):
+        pairs.append(
+            _spending_row(
+                "19004", f"Vendor A {index:03d}", f"{100 + index}.0000", "2024-06-01"
+            )
+        )
+        pairs.append(
+            _spending_row(
+                "19004", f"Vendor B {index:03d}", f"{100 + index}.0000", "2024-06-01"
+            )
+        )
+    _publish_2024(db, board, store, pairs)
+
+    merged = [
+        _spending_row(
+            "19004", f"Vendor C {index:03d}", f"{100 + index}.0000", "2024-06-01"
+        )
+        for index in range(30)
+    ]
+    board.set_rows(Dataset.expenditures, merged)
+    report = run(db, board, store)
+
+    assert report.refusal is not None and not report.published
+    check = _row_loss_check(report)
+    assert check.status == "failed"
+    assert "2024 fell from 60 rows to 30" in check.detail
+    assert "0 fewer identical copies, 30 possible replacements, 30 unmatched" in (
+        check.investigation or ""
+    )
+
+
+def test_a_changed_payment_type_is_a_changed_row_and_still_blocks(
+    db, board, store
+) -> None:
+    """All 18 fields count. 30 rows published twice come back once each with a changed
+    Type label: not one is an identical copy of what was published, so none reads as
+    "fewer identical copies". Each is a possible replacement, its twin is unmatched,
+    the year halves, and it blocks."""
+    distinct = _big_committee_2024(30)
+    _publish_2024(db, board, store, distinct * 2)
+
+    retyped = [
+        _spending_row(
+            "19004",
+            f"Vendor {index:03d}",
+            f"{100 + index}.0000",
+            "2024-06-01",
+            kind="General Expenditure",
+        )
+        for index in range(30)
+    ]
+    board.set_rows(Dataset.expenditures, retyped)
+    report = run(db, board, store)
+
+    assert report.refusal is not None and not report.published
+    check = _row_loss_check(report)
+    assert check.status == "failed"
+    assert "0 fewer identical copies, 30 possible replacements, 30 unmatched" in (
+        check.investigation or ""
+    )
+
+
+def test_a_loss_concentrated_in_one_small_committee_is_unmatched_and_still_blocks(
+    db, board, store
+) -> None:
+    """A small committee's 30 rows vanish with nothing in their place. They are
+    unmatched, their dollars are summed, the committee is named, and it blocks."""
+    big, small = _big_committee_2024(40), _small_committee_2024(30)
+    _publish_2024(db, board, store, big + small)
+
+    board.set_rows(Dataset.expenditures, big)
+    report = run(db, board, store)
+
+    assert report.refusal is not None and not report.published
+    check = _row_loss_check(report)
+    assert check.status == "failed"
+    table = check.investigation or ""
+    assert "0 fewer identical copies, 0 possible replacements, 30 unmatched" in table
+    # 50 + 51 + … + 79
+    assert "($1,935.00)" in table
+    assert "committees with unmatched rows (1): 20010" in table
+
+
+def test_publishing_over_a_row_loss_by_naming_the_hashes_records_what_was_waived(
+    db, board, store
+) -> None:
+    """The exception is named in the release notes: the hashes, then every waived check
+    with its detail, then the table marked as an aid and never a reason."""
+    big, small = _big_committee_2024(40), _small_committee_2024(30)
+    _publish_2024(db, board, store, big + small)
+    board.set_rows(Dataset.expenditures, big)
+    blocked = run(db, board, store)
+    assert blocked.refusal is not None
+
+    hashes = [
+        outcome.measurements.record_set_hash
+        for outcome in blocked.outcomes
+        if outcome.measurements
+    ]
+    published = run(db, board, store, publish_hashes=hashes)
+    assert published.published, published.summary()
+    release = db.get(models.CampaignFinanceRelease, published.release_id)
+    assert release.notes is not None
+    assert (
+        "waived expenditures/no_published_year_lost_rows: 2024 fell from 70 rows to 40"
+        in (release.notes)
+    )
+    assert "waived expenditures/row_count_within_band" in release.notes
+    assert "investigation aid only, never a reason to publish" in release.notes
+    assert "committees with unmatched rows (1): 20010" in release.notes

@@ -872,6 +872,21 @@ A snapshot must pass all of these:
   HTTP 200 to several kinds of failure. §9.3 lists them, and they stop a release rather than
   degrading it.
 
+**A published year that loses more than the larger of 1% or 25 rows blocks publication, and
+nothing about why the rows went changes that (Eugene, 23 Sep 2026, after Codex's review,
+[#2344](https://github.com/alethical-org/alethical/issues/2344)).** What the loader adds for a
+person is a 3-bin table, printed with the failed check and stored with the quarantined snapshot:
+every vanished row, compared on all of its stored fields with exact decimals and untrimmed
+text, is either one of **fewer identical copies** (an identical row remains), a **possible
+replacement** (an added row for the same committee, date and amount pairs with it, one to
+one), or **unmatched**, with the unmatched dollars summed and the committees named. Measured on
+2024 general spending on 23 Sep 2026: 44,505 published rows to 43,524, of which 777 fewer
+identical copies, 3,763 possible replacements and 281 unmatched worth $671,898.10. The table is
+an investigation aid and never a reason to publish. A blocked replacement publishes only through
+a named exception recorded on the issue first: the exact record hashes, the exact failed check,
+the affected committee-years, the evidence and the reader-facing treatment. The release notes
+then name every check the operator waived and carry the table.
+
 ### 4.4 What survives replacement
 
 Because the published set is rebuilt, nothing human may live on an imported row. Sort human
@@ -884,6 +899,26 @@ decisions into three kinds and never mix them:
   stays there. It must never silently reattach to a similar-looking row in the next download.
 - **A correction meant to apply every time** becomes a written, tested rule in the importer,
   never a hidden edit to an official row.
+
+**One imported thing does survive replacement, and it is the source's, not ours: a committee
+the Board's current register no longer lists (Eugene, 23 Sep 2026,
+[#2344](https://github.com/alethical-org/alethical/issues/2344)).** The register rebuilds from
+the Board's 3 current lists on every run, and a terminated committee drops off those lists
+rather than staying on them with a date: 15 published committees were absent from the lists on
+23 Sep 2026 against our 12 Aug copy. Such a committee is **retained**: `publish_filings` copies
+its register row, its catalogued reports, its figures and its report versions from the snapshot
+that was live into the new one, unchanged. Two columns on `cf_filer` carry the rule.
+`captured_at` is the day the Board answered about the filer, copied forward, so a retained
+figure never reads as copied today. `retained_from_snapshot_id` names the snapshot whose run
+captured it, copied forward, so `cf_filing.archive_line` still points into the archive holding
+the response; it is also the one fact that marks a row as retained. Its termination date is the
+one we held, else the Board's recent-terminations list (§9.7), else none, and a page with none
+says the committee is no longer on the register as of the register's copy date and nothing
+about why. The current-register count and the `/money/committees` list exclude retained
+filers; the committee's own page, search and every link to it keep working. Retention survives
+any number of refreshes, because the copy always carries the original date and source. A
+published filer-year whose filer left the register is therefore not "lost figures" to the
+check in §4.3; a filer still listed whose figures vanished still is.
 
 ### 4.5 Where the downloaded files live, and for how long
 
@@ -1237,10 +1272,11 @@ exists rather than what was intended. **The general lesson: a design document de
 safeguard reads as evidence the safeguard is armed, and this file loads into every session, so
 never describe a safeguard as running before it runs.**
 
-**Weekly rather than per-load, and that is a decision.** The Board republishes the contributions
-file on filing deadlines, so a daily run would fetch 83 MB from a government site 6 extra times
-a week to compare the same rows against the same rows. Weekly also makes the check's own result
-readable: a re-check against the *same* download a decision was made from can only catch an
+**Weekly rather than per-load, and that is a decision.** The contributions file changes daily
+(§8: 583,120 rows on 10 Aug 2026, 583,152 on 11 Aug; 599,496 on 23 Sep), so a weekly cadence saves
+no bandwidth against a daily one and is not chosen for that. It is chosen because a contradiction
+wants a person's eyes, and a weekly result is one a person reads. Weekly also makes the check's own
+result readable: a re-check against the *same* download a decision was made from can only catch an
 internal inconsistency, and the useful form is a re-check against a download the Board has since
 replaced. Measured on 31 Aug 2026, the first time anything looked: all 242 links agreed with both
 sources, against the download they were decided from.
@@ -2803,6 +2839,15 @@ data[params][0]=all
 `candidate-reports`, `ptu-reports` and `pcf-reports`. `action=grid_info` returns the column
 names and the viewer URL templates. **Omitting `data[params][0]=all` returns `false`, not an
 error** — another silent failure to check for.
+
+**Three more lists on the same route name recently terminated registrations**:
+`recent-candidate-terminations`, `recent-ptu-terminations` and `recent-pcf-terminations`, each
+carrying `RegisteredEntityID` and `TerminationDate`. The loader reads them on every run, best
+effort, because they are the only source of a date for a committee that has already left the
+current lists: Action 4 Liberty PAC (41173) was listed with no date on 12 Aug 2026, absent on
+23 Sep, and on the committee-and-fund list with 19 Aug 2026. The party-unit list errored on the
+Board's side on 23 Sep 2026; a list that cannot be read is named in the run's summary and costs
+a retained committee its date, never the run. What was read is part of the record hash.
 
 **A candidate row carries these 11 columns**, which is worth stating because two of them close
 questions elsewhere in this document: `RegisteredEntityFullName`, `RegisteredEntityID`, `Party`,

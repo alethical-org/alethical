@@ -173,6 +173,41 @@ export function closedPeriodDetail(
 }
 
 /**
+ * The chip beside a committee the Board's current register no longer lists and that
+ * we kept from an earlier copy (#2344). Only when the Board gives no termination
+ * date: with one, the CLOSED chip already says what the Board says.
+ */
+export function formerRegisterChipLabel(register: {
+  retained?: boolean;
+  terminationDate: string | null;
+}): string | null {
+  return register.retained && !register.terminationDate ? 'No longer on the register' : null;
+}
+
+/**
+ * The stamp note for that committee, on every year's view. It says what the
+ * register no longer says, as of the day we saw it, and dates the figures to the
+ * copy they came from. It never says why the committee left the register, because
+ * the Board did not.
+ */
+export function formerRegisterNote(register: {
+  retained?: boolean;
+  terminationDate: string | null;
+  asOf?: string | null;
+  copiedOn?: string | null;
+}): string | null {
+  if (!register.retained || register.terminationDate) return null;
+  const seen = formatDay(register.asOf);
+  const copied = formatDay(register.copiedOn);
+  return (
+    `The Board’s register${seen ? `, as we copied it on ${seen},` : ''} no longer lists this ` +
+    'committee, and the Board gives no termination date. ' +
+    `The figures here are from our earlier copy${copied ? `, taken ${copied},` : ''} and are ` +
+    'kept as they were.'
+  );
+}
+
+/**
  * Which display state a whole committee-year is in, decided once so the period
  * stamp, the 2 cards, the lists and the first server response cannot disagree
  * about it.

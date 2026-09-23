@@ -16,10 +16,10 @@ name: Re-check which committee belongs to which legislator
 # mistakes. What is independent of the reviewer is the sources, and this is what re-reads
 # them.
 #
-# Weekly, not daily, and that is a decision rather than a default. Minnesota republishes
-# the contributions file on filing deadlines, so a daily run would download 83 MB from a
-# government website 6 extra times a week to compare the same rows against the same
-# rows. The next reporting deadline is 26 Oct 2026.
+# Weekly, not daily, and that is a decision rather than a default. The contributions
+# file changes daily (campaign-finance-system-design.md §8), so weekly saves no
+# bandwidth; it is weekly because a contradiction wants a person's eyes and a weekly
+# result is one a person reads. The next reporting deadline is 26 Oct 2026.
 #
 # Free: 2 public downloads from cfb.mn.gov, one read-only query against production, no
 # paid API. Quiet: it opens an issue only when a link actually contradicts its sources,

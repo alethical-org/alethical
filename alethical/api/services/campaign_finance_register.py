@@ -466,9 +466,15 @@ def register_summary(db: Session) -> RegisterSummary:
             snapshot_id=None,
             reason=NO_FILINGS_SNAPSHOT,
         )
+    # The current register only: a filer retained from an earlier snapshot after the
+    # Board dropped it (D1, #2344) keeps its page and is not one of the "registered
+    # filers" this count and the list beneath it describe.
     counted = db.execute(
         select(schema.CampaignFinanceFiler.kind, func.count())
-        .where(schema.CampaignFinanceFiler.snapshot_id == snapshot.id)
+        .where(
+            schema.CampaignFinanceFiler.snapshot_id == snapshot.id,
+            schema.CampaignFinanceFiler.retained_from_snapshot_id.is_(None),
+        )
         .group_by(schema.CampaignFinanceFiler.kind)
     ).all()
     total = sum(count for _, count in counted)
@@ -691,8 +697,15 @@ class RegisterEntry:
 
     ``party``, ``office`` and ``district`` are legitimately empty for party units and
     committees-or-funds -- the Board's own lists carry them only for candidates -- so
-    their absence is never a gap to fill. ``termination_date`` empty means the Board
-    lists the committee as open.
+    their absence is never a gap to fill. ``termination_date`` empty on a listed filer
+    means the Board lists the committee as open.
+
+    ``retained`` is a filer the Board's current register no longer lists, kept from an
+    earlier copy (D1 on #2344). Its ``copied_on`` is the day that earlier copy was read,
+    and it is the date every figure on its page carries; ``as_of`` stays the current
+    register's date, which is the day the register was seen not to list it. With no
+    ``termination_date`` the page says the committee is no longer on the register as of
+    ``as_of``, and nothing about why.
     """
 
     state: str
@@ -705,6 +718,8 @@ class RegisterEntry:
     termination_date: Optional[date]
     as_of: Optional[date]
     reason: Optional[str]
+    retained: bool = False
+    copied_on: Optional[date] = None
 
 
 def register_entry(db: Session, registration_number: str) -> RegisterEntry:
@@ -781,7 +796,25 @@ def register_entry(db: Session, registration_number: str) -> RegisterEntry:
         termination_date=filer.termination_date,
         as_of=_register_date(snapshot),
         reason=None,
+        retained=filer.retained_from_snapshot_id is not None,
+        copied_on=filer_copied_on(snapshot, filer),
     )
+
+
+def filer_copied_at(snapshot, filer) -> Optional[datetime]:
+    """The instant the Board answered about this filer.
+
+    The filer's own ``captured_at`` when it carries one, else the snapshot's
+    fetch-completion time, which is what every row written before that column existed
+    means. For a retained filer this is the earlier copy's date, never today's.
+    """
+    captured = getattr(filer, "captured_at", None)
+    return _as_utc(captured if captured is not None else snapshot.fetch_completed_at)
+
+
+def filer_copied_on(snapshot, filer) -> Optional[date]:
+    copied = filer_copied_at(snapshot, filer)
+    return copied.date() if copied is not None else None
 
 
 def name_contains(column, typed: str):
@@ -1018,7 +1051,13 @@ def committees(
             reason=summary.reason,
         )
     filer = schema.CampaignFinanceFiler
-    filters = [filer.snapshot_id == snapshot.id]
+    # Same rule as the count above it: the list is the Board's register as we copied
+    # it, so a retained former filer is reachable by its own address and by search but
+    # is not listed here.
+    filters = [
+        filer.snapshot_id == snapshot.id,
+        filer.retained_from_snapshot_id.is_(None),
+    ]
     if kind is not None:
         filters.append(filer.kind == schema.CampaignFinanceFilerKind(kind))
     if query:

@@ -2519,11 +2519,18 @@ class CampaignFinanceFiler(Base):
     for two of the three kinds rather than missing, and nothing may read their absence
     as a gap to fill.
 
-    No timestamps, and nothing human may live here, for the same reason as the row
-    tables above: the set is rebuilt on every run, so anything stored here is
-    destroyed silently. A person's checked link to a legislator lives in
-    ``legislator_campaign_committee``, keyed on the registration number, which is
-    durable across every snapshot.
+    Nothing human may live here, for the same reason as the row tables above: the set
+    is rebuilt on every run, so anything stored here is destroyed silently. A person's
+    checked link to a legislator lives in ``legislator_campaign_committee``, keyed on
+    the registration number, which is durable across every snapshot.
+
+    The 2 timestamps that do live here are the source's, not a person's. A filer the
+    Board's current register no longer lists is **retained** from the previous snapshot
+    rather than dropped (D1 on
+    [#2344](https://github.com/alethical-org/alethical/issues/2344)), and its rows
+    carry the day the Board answered about it (``captured_at``) and the snapshot whose
+    run captured it (``retained_from_snapshot_id``), so a page never dates a retained
+    figure to today and every figure still traces to the archive holding its response.
     """
 
     __tablename__ = "cf_filer"
@@ -2549,6 +2556,17 @@ class CampaignFinanceFiler(Base):
     # live filer in their own seat -- so it is stored as the Board's claim and never
     # read as ours (§9.7).
     is_incumbent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # When the Board answered about this filer: the run's fetch-completion time for a
+    # filer read in this snapshot's own run, copied forward unchanged for a retained
+    # one. NULL only on rows written before the column existed, which read as their
+    # snapshot's fetch-completion time.
+    captured_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    # NULL for a filer the Board's register listed in this snapshot's own run. Set to
+    # the snapshot whose run captured the filer when it is retained from a previous
+    # snapshot, which is the one fact that says "no longer on the register".
+    retained_from_snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("cf_filing_snapshot.id", ondelete="SET NULL")
+    )
 
 
 class CampaignFinanceFilingReport(Base):

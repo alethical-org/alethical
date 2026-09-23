@@ -61,16 +61,16 @@ finance_filing_calendars.py`` pins the 3 of those that the candidate calendars s
   series whose period starts §9.9 (Checks this design asks for that were not run) records
   as confirmed on one filer-year, so they are
   reported unknown rather than placed on a calendar built for the regular series.
-* **Never a no-activity rule.** None of the 4 calendars says what a committee with no
+* **Never a no-activity rule.** None of the 5 calendars says what a committee with no
   activity owes; searched for "activit", "even if", "zero", "no receipts" and "nothing"
-  across all 4, with no match in any. If a surface ever needs that rule it has to come
+  across all 5, with no match in any. If a surface ever needs that rule it has to come
   from the statute or a Board instruction page and be cited there, not here.
 
 **What the calendars carry that this module deliberately leaves out**, so the boundary
 is a decision rather than a gap. Each calendar also prints election dates, late-fee
 start dates, the legislative-session contribution ban, public-subsidy milestones, a
 statement of economic interest (legislative candidates, due 16 Jun 2026) and, on 2 of
-the 4, a next-business-day notice for large contributions. The notices are the
+the 5, a next-business-day notice for large contributions. The notices are the
 interesting exclusion: they print a window in the date column and **no due date at
 all** ("by the end of the next business day after receipt"), so there is no due date to
 store for one without inventing it. Everything here is a periodic report of receipts
@@ -106,12 +106,14 @@ class CalendarKey(enum.Enum):
     )
     candidate_not_filing_for_office = "candidate_not_filing_for_office"
     state_party_or_legislative_caucus = "state_party_or_legislative_caucus"
+    local_party_unit = "local_party_unit"
     political_committee_or_fund = "political_committee_or_fund"
 
 
 # Where each calendar was read from. The Board links these from
 # https://cfb.mn.gov/reports-and-data/self-help/data-downloads/ under Disclosure
-# Publications -> Calendars. All 4 URLs verified resolving on 12 Aug 2026.
+# Publications -> Calendars. The first 4 URLs verified resolving on 12 Aug 2026; the
+# local-party-unit calendar on 23 Sep 2026.
 SOURCE_URLS: dict[CalendarKey, str] = {
     CalendarKey.constitutional_or_appellate_candidate_filing_for_office: (
         "https://cfb.mn.gov/pdf/calendars/2026_const_offices_appellate_court.pdf"
@@ -125,6 +127,9 @@ SOURCE_URLS: dict[CalendarKey, str] = {
     CalendarKey.state_party_or_legislative_caucus: (
         "https://cfb.mn.gov/pdf/calendars/2026_state_parties_leg_caucuses.pdf"
     ),
+    CalendarKey.local_party_unit: (
+        "https://cfb.mn.gov/pdf/calendars/2026_local_party_units.pdf"
+    ),
     CalendarKey.political_committee_or_fund: (
         "https://cfb.mn.gov/pdf/calendars/2026_PCF.pdf"
     ),
@@ -135,6 +140,14 @@ SOURCE_URLS: dict[CalendarKey, str] = {
 # our own reading date is the only provenance available. Their unprinted file metadata
 # says all 4 were produced from Word in July 2025.
 TRANSCRIBED_ON = date(2026, 8, 12)
+
+# The local-party-unit calendar was read later, on its own day, and its bytes were
+# hashed so a re-read can tell a changed document from a changed transcription. The
+# Board's server dated the file 18 Jul 2025 (its ``Last-Modified`` header).
+LOCAL_PARTY_UNIT_TRANSCRIBED_ON = date(2026, 9, 23)
+LOCAL_PARTY_UNIT_2026_SHA256 = (
+    "a9498d74a71d30586b645fc1d2432e3a95f7beca3b13f32986bc1be3f0b1fdc7"
+)
 
 # The printed scope sentence of the not-filing-for-office calendar, which is the primary
 # source for the whole classification below. Kept verbatim because it is the sentence
@@ -186,7 +199,7 @@ class CalendarEntry:
     """One report of receipts and expenditures a calendar names.
 
     ``period_start`` and ``period_end`` are read off the document. They are not Optional
-    because every periodic report on all 4 calendars prints both ends; an entry that
+    because every periodic report on all 5 calendars prints both ends; an entry that
     printed neither would be one of the excluded notices rather than a report.
 
     ``condition`` is a printed exemption, verbatim, on a report that is otherwise
@@ -254,7 +267,7 @@ class Determination:
 # Every date below is printed on the document named in SOURCE_URLS. None is derived
 # from another entry, and none is filled in from the pattern the others follow.
 #
-# The 2025 year-end report appears on all 4 of the 2026 calendars, because the Board
+# The 2025 year-end report appears on all 5 of the 2026 calendars, because the Board
 # prints the report that closes the previous year on the calendar for the year it is
 # due in. It is kept rather than dropped as belonging to 2025: on any date in January
 # 2026 it is genuinely the next report due.
@@ -354,6 +367,39 @@ _PARTY_AND_FUND_2026 = (
     ),
 )
 
+# The local-party-unit calendar prints 4 reports and no quarterly ones: a local party
+# unit owes the pre-primary and pre-general reports and the 2 year-end reports, where a
+# state party or caucus owes the 5 periodic reports above. Its face says it "does not
+# apply to state central committees of political parties or House and Senate
+# legislative caucuses", which is the sentence that separates it from
+# ``_PARTY_AND_FUND_2026``. Every date below is printed on the document.
+_LOCAL_PARTY_UNIT_2026 = (
+    CalendarEntry(
+        report_name="2025 year-end report of receipts and expenditures",
+        period_start=date(2025, 1, 1),
+        period_end=date(2025, 12, 31),
+        due_date=date(2026, 2, 2),
+    ),
+    CalendarEntry(
+        report_name="Pre-primary report of receipts and expenditures",
+        period_start=date(2026, 1, 1),
+        period_end=date(2026, 7, 20),
+        due_date=date(2026, 7, 27),
+    ),
+    CalendarEntry(
+        report_name="Pre-general report of receipts and expenditures",
+        period_start=date(2026, 1, 1),
+        period_end=date(2026, 10, 19),
+        due_date=date(2026, 10, 26),
+    ),
+    CalendarEntry(
+        report_name="2026 year-end report of receipts and expenditures",
+        period_start=date(2026, 1, 1),
+        period_end=date(2026, 12, 31),
+        due_date=date(2027, 2, 1),
+    ),
+)
+
 CALENDARS: dict[tuple[CalendarKey, int], tuple[CalendarEntry, ...]] = {
     (
         CalendarKey.legislative_candidate_filing_for_office,
@@ -361,6 +407,7 @@ CALENDARS: dict[tuple[CalendarKey, int], tuple[CalendarEntry, ...]] = {
     ): _LEGISLATIVE_FILING_2026,
     (CalendarKey.candidate_not_filing_for_office, 2026): _NOT_FILING_2026,
     (CalendarKey.state_party_or_legislative_caucus, 2026): _PARTY_AND_FUND_2026,
+    (CalendarKey.local_party_unit, 2026): _LOCAL_PARTY_UNIT_2026,
     (CalendarKey.political_committee_or_fund, 2026): _PARTY_AND_FUND_2026,
 }
 
@@ -370,6 +417,11 @@ CALENDARS: dict[tuple[CalendarKey, int], tuple[CalendarEntry, ...]] = {
 CALENDAR_SOURCES = {
     (key, 2026): {"url": url, "transcribed_on": TRANSCRIBED_ON}
     for key, url in SOURCE_URLS.items()
+}
+CALENDAR_SOURCES[(CalendarKey.local_party_unit, 2026)] = {
+    "url": SOURCE_URLS[CalendarKey.local_party_unit],
+    "transcribed_on": LOCAL_PARTY_UNIT_TRANSCRIBED_ON,
+    "sha256": LOCAL_PARTY_UNIT_2026_SHA256,
 }
 FILING_OFFICES_BY_YEAR = {
     (CalendarKey.legislative_candidate_filing_for_office, 2026): frozenset(

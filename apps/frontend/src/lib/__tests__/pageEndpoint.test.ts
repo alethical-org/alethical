@@ -1745,7 +1745,10 @@ describe('the records a money page hands to the app', () => {
         sitting_member_count: 201,
         newest_confirmation_at: null,
       },
-      freshness: { downloads_fetched_at: '2026-09-01T12:00:00Z' },
+      freshness: {
+        downloads_fetched_at: '2026-09-01T12:00:00Z',
+        register_fetched_at: '2026-08-12T12:00:00Z',
+      },
     };
     const filings = { state: 'reported', ordered_by: 'filed_date', filings: [] };
     const calls: string[] = [];
@@ -1791,6 +1794,7 @@ describe('the records a money page hands to the app', () => {
     ]);
     expect(body).toContain('1,665 REGISTERED LOBBYISTS');
     expect(body).toContain('Campaign payment files last copied: Sep 1, 2026');
+    expect(body).toContain('Committee register and report totals last copied: Aug 12, 2026');
     expect(body).toContain('Lobbying files last copied: Sep 13, 2026');
     expect(body).toContain('<details><summary>View source links</summary>');
   });

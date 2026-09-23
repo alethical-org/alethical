@@ -717,7 +717,10 @@ async function legislatorListContent(
 /** The 3 money payloads this file reads, each only as far as it prints. */
 type MoneySummaryPayload = {
   register?: { state?: string | null; filer_count?: number | null } | null;
-  freshness?: { downloads_fetched_at?: string | null } | null;
+  freshness?: {
+    downloads_fetched_at?: string | null;
+    register_fetched_at?: string | null;
+  } | null;
 };
 
 type CommitteeRegisterPayload = {
@@ -835,6 +838,7 @@ async function moneyLandingContent(): Promise<PageContent> {
             ? (summary.register.filer_count ?? null)
             : null,
         filesLastCopiedAt: summary?.freshness?.downloads_fetched_at ?? null,
+        registerLastCopiedAt: summary?.freshness?.register_fetched_at ?? null,
         lobbyingFilesLastCopiedAt:
           lobbying?.state === "reported" ? lobbying.copied_at : null,
         filings: filings ? campaignFinanceFilingsFromPayload(filings) : null,

@@ -811,9 +811,13 @@ export interface MoneyLandingSummary {
     rowCount: number | null;
   };
   freshness: {
-    /** ISO timestamp we last copied new filings from the Board — the page's one
-     *  freshness date. Printed in Central time. */
+    /** ISO timestamp we last copied the Board's 3 payment files. Printed in
+     *  Central time. */
     downloadsFetchedAt: string | null;
+    /** ISO timestamp we last copied the Board's register of filers, report
+     *  catalogue and official totals: a separate copy on its own day, so it gets
+     *  its own printed date beside the payments date (#2344). */
+    registerFetchedAt: string | null;
   };
 }
 
@@ -883,6 +887,15 @@ export interface CommitteeRegisterEntry {
   terminationDate: string | null;
   /** The day our copy of the register was taken (ISO date). */
   asOf: string | null;
+  /** True when the Board's current register no longer lists this committee and
+   *  we kept it from an earlier copy rather than dropping its page (#2344). With
+   *  no terminationDate the page says only that, as of asOf, and nothing about
+   *  why. */
+  retained: boolean;
+  /** The day the copy this committee's rows came from was taken (ISO date). Equal
+   *  to asOf for a listed filer; earlier for a retained one, and the date every
+   *  figure on its page carries. */
+  copiedOn: string | null;
 }
 
 /** One campaign committee a signed-in reader follows (GET /me/tracked-committees,
@@ -902,7 +915,8 @@ export interface TrackedCommittee {
   register: Pick<
     CommitteeRegisterEntry,
     'state' | 'kind' | 'name' | 'office' | 'district' | 'terminationDate'
-  >;
+  > &
+    Partial<Pick<CommitteeRegisterEntry, 'asOf' | 'retained' | 'copiedOn'>>;
 }
 
 /** One committee's money for one year (GET /committees/{n}/finance), keyed on the

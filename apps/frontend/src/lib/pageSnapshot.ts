@@ -142,6 +142,8 @@ import {
   registeredForLine,
   whoseCommitteeText,
   yearDisplayState,
+  formerRegisterChipLabel,
+  formerRegisterNote,
 } from './committeeMoney';
 import { dekText, namedMoneyDefinition } from './campaignMoneyDetailsCopy';
 import {
@@ -1084,6 +1086,9 @@ export interface MoneyLandingSnapshotSource {
   registerFilerCount: number | null;
   /** When we last copied the Board's files, as the served instant. */
   filesLastCopiedAt: string | null;
+  /** When we last copied the Board's register, report catalogue and official
+   *  totals: its own copy, its own date (#2344). */
+  registerLastCopiedAt?: string | null;
   lobbyingFilesLastCopiedAt?: string | null;
   filings?: MoneyFilingsFeed | null;
 }
@@ -1154,6 +1159,11 @@ export function moneyLandingPageSnapshot(
           MONEY_SOURCES_ATTRIBUTION,
           ...(source.filesLastCopiedAt
             ? [`Campaign payment files last copied: ${centralDateLabel(source.filesLastCopiedAt)}`]
+            : []),
+          ...(source.registerLastCopiedAt
+            ? [
+                `Committee register and report totals last copied: ${centralDateLabel(source.registerLastCopiedAt)}`,
+              ]
             : []),
           ...(source.lobbyingFilesLastCopiedAt
             ? [`Lobbying files last copied: ${centralDateLabel(source.lobbyingFilesLastCopiedAt)}`]
@@ -1650,6 +1660,9 @@ export interface CommitteeMoneySnapshotSource {
     district?: string | null;
     registration_date?: string | null;
     termination_date?: string | null;
+    as_of?: string | null;
+    retained?: boolean | null;
+    copied_on?: string | null;
   } | null;
   money_in?: {
     state?: string | null;
@@ -1698,6 +1711,8 @@ interface CommitteeIdentity {
   state: 'closed-empty' | 'empty-year' | 'figures';
   periodLine: string | null;
   periodDetail: string;
+  /** The note for a committee the register no longer lists (#2344), or null. */
+  formerRegisterNote: string | null;
 }
 
 /**
@@ -1716,6 +1731,7 @@ function subheadingFor(parts: {
   registeredFor: string | null;
   notInRegister: boolean;
   closed: string | null;
+  former?: string | null;
 }): string {
   const eyebrow = clean(parts.eyebrow).toLowerCase();
   const registeredFor = clean(parts.registeredFor);
@@ -1726,6 +1742,7 @@ function subheadingFor(parts: {
     repeatsTheKind ? '' : registeredFor,
     parts.notInRegister ? NOT_IN_REGISTER_LINE : '',
     parts.closed ?? '',
+    parts.former ?? '',
   ]
     .filter(Boolean)
     .join(' · ');
@@ -1748,6 +1765,12 @@ function committeeIdentity(
     register.state === 'reported'
       ? (register.kind ?? null)
       : registerKindFromEntityType(money.entity_type);
+  const registerView = {
+    terminationDate: register.termination_date ?? null,
+    asOf: register.as_of ?? null,
+    retained: register.retained === true,
+    copiedOn: register.copied_on ?? null,
+  };
   const state = yearDisplayState({
     register: { terminationDate: register.termination_date ?? null },
     split: { reportedTotal: split.reported_total ?? null },
@@ -1782,6 +1805,7 @@ function committeeIdentity(
       }),
       notInRegister: register.state === 'not_registered',
       closed: closedChipLabel(register.termination_date),
+      former: formerRegisterChipLabel(registerView),
     }),
     chips: [
       `REG ${registrationNumber}`,
@@ -1794,8 +1818,10 @@ function committeeIdentity(
       ),
       register.state === 'not_registered' ? NOT_IN_REGISTER_LINE : '',
       (closedChipLabel(register.termination_date) ?? '').toUpperCase(),
+      (formerRegisterChipLabel(registerView) ?? '').toUpperCase(),
     ].filter(Boolean),
     state,
+    formerRegisterNote: formerRegisterNote(registerView),
     checkedOn,
     filingsCopiedOn: money.filings_copied_at ? centralDateLabel(money.filings_copied_at) : null,
     periodLine:
@@ -2045,6 +2071,7 @@ export function committeePageSnapshot(
                 kind: 'prose',
                 lines: [
                   identity.periodDetail,
+                  ...(identity.formerRegisterNote ? [identity.formerRegisterNote] : []),
                   ...(identity.checkedOn
                     ? [paymentFilesDownloadedLine(identity.checkedOn, identity.filingsCopiedOn)]
                     : []),
