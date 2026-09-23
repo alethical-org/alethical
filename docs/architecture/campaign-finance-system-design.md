@@ -1237,10 +1237,11 @@ exists rather than what was intended. **The general lesson: a design document de
 safeguard reads as evidence the safeguard is armed, and this file loads into every session, so
 never describe a safeguard as running before it runs.**
 
-**Weekly rather than per-load, and that is a decision.** The Board republishes the contributions
-file on filing deadlines, so a daily run would fetch 83 MB from a government site 6 extra times
-a week to compare the same rows against the same rows. Weekly also makes the check's own result
-readable: a re-check against the *same* download a decision was made from can only catch an
+**Weekly rather than per-load, and that is a decision.** The contributions file changes daily
+(§8: 583,120 rows on 10 Aug 2026, 583,152 on 11 Aug; 599,496 on 23 Sep), so a weekly cadence saves
+no bandwidth against a daily one and is not chosen for that. It is chosen because a contradiction
+wants a person's eyes, and a weekly result is one a person reads. Weekly also makes the check's own
+result readable: a re-check against the *same* download a decision was made from can only catch an
 internal inconsistency, and the useful form is a re-check against a download the Board has since
 replaced. Measured on 31 Aug 2026, the first time anything looked: all 242 links agreed with both
 sources, against the download they were decided from.
