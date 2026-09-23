@@ -24,7 +24,7 @@ def upgrade() -> None:
             sa.UUID(),
             sa.ForeignKey(
                 "cf_filing_snapshot.id",
-                name="fk_cf_filer_retained_from_snapshot",
+                name="fk_cf_filer_retained_from_snapshot_id_cf_filing_snapshot",
                 ondelete="SET NULL",
             ),
             nullable=True,
