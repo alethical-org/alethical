@@ -823,6 +823,24 @@ whole files and replaces whole sets.
    estimate from it, on the reasoning that the 2 now do the same work over the same documents, and
    the next publish is what turns it into a measurement (§9.9).
 
+**The cycle runs daily, unattended (Eugene, 23 Sep 2026,
+[#2344](https://github.com/alethical-org/alethical/issues/2344), D3).**
+`.github/workflows/campaign-money-refresh.yml` runs `scripts/refresh_campaign_finance.py`
+at 15:30 UTC, after 8 a.m. Central, which is when Minnesota Statutes 10A.20 subd. 1b
+makes a report public the day after it is due. One run-wide lock in the database
+(`pg_try_advisory_lock`, key 610312263012) is taken by every route, scheduled, hand-started
+or laptop, above the 2 short publish locks, so 2 starts at once produce 1 run. The order:
+retry any money re-check left unfinished; read the 3 registered-filer lists and the 3
+current-report lists and hash their content with row order removed; on any change, or weekly
+regardless, refresh the totals for every supported year, because a totals publication
+replaces the whole set and a 2-year run would erase 2022 to 2023; download the 3 payment
+files, which serve no size, date or change marker, and publish when every check passes;
+after any publish clear the saved pages, run both re-checks and clear again once their
+verdicts are live. A list is recorded as handled (`cf_refresh_state`) only after the work
+succeeded. A quarantine keeps the previous set live, keeps the bytes and the printed
+reasons, exits non-zero and opens or updates a GitHub issue. Freshness, wherever stated:
+payments checked daily; totals refreshed on list change and weekly.
+
 **Related files release together.** Contributions, general expenditures, independent
 expenditures and the reports that cover the same period form one release. Files fetched on
 different days must never be shown together, or a committee's spending will be from a
