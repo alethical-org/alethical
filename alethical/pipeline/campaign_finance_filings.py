@@ -118,6 +118,18 @@ DIRECTORY_ACTION_BY_KIND = {
     FilerKind.party_unit: "all-registered-ptus",
     FilerKind.political_committee_or_fund: "all-registered-pcfs",
 }
+# The Board's lists of recently terminated registrations, same route and form as the
+# directory. They are how a committee that has already left the current register gets a
+# termination date it never carried while listed: Action 4 Liberty PAC (41173) left the
+# register between our 12 Aug and 23 Sep 2026 copies and appears here with 19 Aug 2026
+# (D1 on [#2344](https://github.com/alethical-org/alethical/issues/2344)). Reading them
+# is best effort: the party-unit list errored on the Board's side on 23 Sep 2026, and a
+# failed read costs a retained committee its date, never the run.
+TERMINATIONS_ACTION_BY_KIND = {
+    FilerKind.candidate_committee: "recent-candidate-terminations",
+    FilerKind.party_unit: "recent-ptu-terminations",
+    FilerKind.political_committee_or_fund: "recent-pcf-terminations",
+}
 
 TAG = re.compile(r"<[^>]+>")
 TABLE_ROW = re.compile(r"<tr\b[^>]*>(.*?)</tr>", re.S)
@@ -902,6 +914,76 @@ def fetch_directory(
     return response, filers, errors
 
 
+def terminations_form(kind: FilerKind) -> dict[str, str]:
+    return {
+        "action": "grid_data",
+        "data[action]": TERMINATIONS_ACTION_BY_KIND[kind],
+        "data[type]": "current-lists",
+        "data[params][0]": "all",
+    }
+
+
+def parse_terminations_payload(
+    payload: Any, kind: FilerKind
+) -> tuple[dict[str, date], list[str]]:
+    """Registration number to termination date, from one recent-terminations list.
+
+    The list is the directory's shape (``cols`` plus ``data`` grouped by registration)
+    and carries ``RegisteredEntityID`` and ``TerminationDate`` on every kind. An empty
+    list (``[]``, which the party-unit route served on 23 Sep 2026) is no terminations
+    rather than an error. A row without a date is skipped: a termination list entry
+    that names no termination date supplies nothing a page may print.
+    """
+    if payload == [] or payload is None:
+        return {}, []
+    if not isinstance(payload, dict) or "cols" not in payload or "data" not in payload:
+        return {}, [
+            f"the {TERMINATIONS_ACTION_BY_KIND[kind]} list is not a grid "
+            f"({type(payload).__name__})"
+        ]
+    columns = payload["cols"]
+    if "RegisteredEntityID" not in columns or "TerminationDate" not in columns:
+        return {}, [
+            f"the {TERMINATIONS_ACTION_BY_KIND[kind]} list does not carry "
+            "RegisteredEntityID and TerminationDate"
+        ]
+    groups = payload["data"]
+    rows = (
+        [row for group in groups.values() for row in group]
+        if isinstance(groups, dict)
+        else list(groups)
+    )
+    dated: dict[str, date] = {}
+    for row in rows:
+        record = dict(zip(columns, row))
+        registration = str(record.get("RegisteredEntityID") or "").strip()
+        ended = _timestamp_date(record.get("TerminationDate"))
+        if registration and ended is not None:
+            dated[registration] = ended
+    return dated, []
+
+
+def fetch_terminations(
+    http: requests.Session, kind: FilerKind, base_url: str = BOARD_BASE_URL
+) -> tuple[Response, dict[str, date], list[str]]:
+    response = post_form(http, directory_url(base_url), terminations_form(kind))
+    if response.status_code != 200:
+        return (
+            response,
+            {},
+            [
+                f"the {TERMINATIONS_ACTION_BY_KIND[kind]} list answered HTTP "
+                f"{response.status_code}"
+            ],
+        )
+    try:
+        payload = response.json()
+    except ValueError as error:
+        return response, {}, [f"the {TERMINATIONS_ACTION_BY_KIND[kind]} list: {error}"]
+    dated, errors = parse_terminations_payload(payload, kind)
+    return response, dated, errors
+
+
 def fetch_catalogue(
     http: requests.Session,
     kind: FilerKind,
@@ -1130,6 +1212,18 @@ class FilingsRun:
     requested_filers: int = 0
     # The directory may be reused while catalogues and figures are fetched anew.
     directory_fetch_completed_at: Optional[datetime] = None
+    # Registration number to termination date, from the Board's 3 recent-terminations
+    # lists. Read best effort: a list that could not be read is named in
+    # ``termination_list_errors`` and blocks nothing, because its only use is dating a
+    # committee that is no longer on the register (D1, #2344).
+    recent_terminations: dict[str, date] = field(default_factory=dict)
+    termination_list_errors: list[str] = field(default_factory=list)
+    # Filers the published snapshot carries and the Board's current register no longer
+    # lists, filled by ``validate_filings``: kept with their own capture dates rather
+    # than dropped. ``retained_dated`` are the ones a termination date is known for,
+    # from the row we hold or from the recent-terminations lists.
+    retained: list[str] = field(default_factory=list)
+    retained_dated: list[str] = field(default_factory=list)
     # Whether --only-filers narrowed this run. Such a run may never publish, and it also
     # cannot check the pinned canary figures for filers it did not ask about, so the two
     # facts have to be told apart from a full run that lost a filer.
@@ -1293,6 +1387,11 @@ class FilingsRun:
         # renders, and 2 runs disagreeing about it are not the same set.
         for registration, year in self.without_figures:
             lines.append(f"empty|{registration}|{year}")
+        # And the recent terminations, because they are the one source of a date for a
+        # committee that has left the register: 2 runs disagreeing about one are not the
+        # same set, and a run that could read them must publish what it read.
+        for registration, ended in self.recent_terminations.items():
+            lines.append(f"termination|{registration}|{ended.isoformat()}")
         digest = hashlib.sha256()
         for line in sorted(lines):
             digest.update(line.encode("utf-8"))
@@ -1311,8 +1410,17 @@ class FilingsRun:
             f"  reported contributions total {self.reported_contributions_sum}",
             f"  records {self.record_set_hash or '(unhashed)'}",
         ]
+        if self.recent_terminations or self.termination_list_errors:
+            parts.append(
+                f"  {len(self.recent_terminations):,} recent terminations read"
+                + (
+                    f"; not read: {'; '.join(self.termination_list_errors)}"
+                    if self.termination_list_errors
+                    else ""
+                )
+            )
         for check in self.checks:
-            if check.status != "passed":
+            if check.status != "passed" or check.name.startswith("former_filers"):
                 parts.append(f"      {check.status}: {check.name} — {check.detail}")
         return "\n".join(parts)
 
@@ -1434,6 +1542,7 @@ def validate_filings(
     baseline_filer_years: Optional[set[tuple[str, int]]],
     *,
     operator_approved: bool,
+    baseline_filers: Optional[dict[str, Optional[date]]] = None,
 ) -> list[Check]:
     """Compare a run against the published snapshot, and refuse what cannot be read.
 
@@ -1442,8 +1551,25 @@ def validate_filings(
     response that did not parse, a label nobody knows, a value that is not money, and
     a share of empty answers above the ceiling are not judgement calls, and no flag
     lets one through.
+
+    ``baseline_filers`` is every filer the published snapshot carries, with the
+    termination date it holds for each. A published filer the Board's current register
+    no longer lists is **retained, not lost** (D1 on #2344): its filer-years leave the
+    lost-figures check and it is named on ``run.retained`` for ``publish_filings`` to
+    copy forward with its own capture date.
     """
     checks: list[Check] = []
+    listed_now = {filer.registration_number for filer in run.filers}
+    former = (
+        sorted(set(baseline_filers) - listed_now) if baseline_filers is not None else []
+    )
+    run.retained = former
+    run.retained_dated = [
+        registration
+        for registration in former
+        if (baseline_filers or {}).get(registration) is not None
+        or registration in run.recent_terminations
+    ]
 
     def add(name: str, ok: bool, detail: str, *, comparison: bool = False) -> None:
         if ok:
@@ -1624,7 +1750,12 @@ def validate_filings(
         now = {
             (filing.registration_number, filing.filing_year) for filing in run.filings
         }
-        lost = sorted(baseline_filer_years - now)
+        retained_now = set(former)
+        lost = sorted(
+            (registration, year)
+            for registration, year in baseline_filer_years - now
+            if registration not in retained_now
+        )
         add(
             "no_published_filer_year_lost_its_figures",
             not lost,
@@ -1634,8 +1765,32 @@ def validate_filings(
             )
             if lost
             else f"all {len(baseline_filer_years):,} published filer-years still "
-            "carry figures",
+            "carry figures"
+            + (f" ({len(former)} belong to retained former filers)" if former else ""),
             comparison=True,
+        )
+    if baseline_filers is not None:
+        undated = [one for one in former if one not in set(run.retained_dated)]
+        checks.append(
+            Check(
+                "former_filers_retained_with_their_own_copy_dates",
+                "passed",
+                (
+                    f"{len(former)} published filer(s) are no longer on the Board's "
+                    f"register and are retained: {len(run.retained_dated)} with a "
+                    "termination date the Board supplies, "
+                    f"{len(undated)} no longer listed with no date"
+                    + (f" ({', '.join(undated[:10])})" if undated else "")
+                    + (
+                        ". Termination lists not read: "
+                        + "; ".join(run.termination_list_errors)
+                        if run.termination_list_errors
+                        else ""
+                    )
+                )
+                if former
+                else "every published filer is still on the Board's register",
+            )
         )
     return checks
 
@@ -1996,6 +2151,15 @@ class FilerRecord:
     office: Optional[str]
     registration_date: Optional[date]
     termination_date: Optional[date]
+    # When the Board answered about this filer, and which snapshot's run captured it
+    # when it is retained from an earlier copy (D1, #2344). ``None`` for both on a
+    # filer the current register lists, read in the live snapshot's own run.
+    captured_at: Optional[datetime] = None
+    retained_from_snapshot_id: Optional[uuid.UUID] = None
+
+    @property
+    def retained(self) -> bool:
+        return self.retained_from_snapshot_id is not None
 
 
 def filer_records(
@@ -2032,6 +2196,8 @@ def filer_records(
                 filer.office,
                 filer.registration_date,
                 filer.termination_date,
+                filer.captured_at,
+                filer.retained_from_snapshot_id,
             ).where(
                 filer.snapshot_id == snapshot.id,
                 filer.registration_number.in_(missing),
@@ -2039,8 +2205,10 @@ def filer_records(
         ).all()
         for number in missing:
             held[number] = None
-        for number, kind, office, registered, terminated in rows:
-            held[number] = FilerRecord(number, kind, office, registered, terminated)
+        for number, kind, office, registered, terminated, captured, source in rows:
+            held[number] = FilerRecord(
+                number, kind, office, registered, terminated, captured, source
+            )
     return {
         number: record for number in wanted if (record := held.get(number)) is not None
     }
@@ -2134,6 +2302,19 @@ def ensure_filings_pointer_row(db: Session) -> None:
         )
     )
     db.commit()
+
+
+def published_filers(db: Session, snapshot_id: uuid.UUID) -> dict[str, Optional[date]]:
+    """Every filer a snapshot carries, with the termination date held for each."""
+    return {
+        registration: ended
+        for registration, ended in db.execute(
+            select(
+                schema.CampaignFinanceFiler.registration_number,
+                schema.CampaignFinanceFiler.termination_date,
+            ).where(schema.CampaignFinanceFiler.snapshot_id == snapshot_id)
+        ).all()
+    }
 
 
 def published_filer_years(db: Session, snapshot_id: uuid.UUID) -> set[tuple[str, int]]:
@@ -2321,6 +2502,23 @@ def rebuild_run_from_retained_archive(
         errors.extend(problems)
     kind_by_registration = {filer.registration_number: filer.kind for filer in filers}
 
+    terminations: dict[str, date] = {}
+    termination_errors: list[str] = []
+    for record in records:
+        what = record.get("what") or ""
+        if not what.startswith("terminations:"):
+            continue
+        kind = FilerKind(what.split(":", 1)[1])
+        if int(record.get("status") or 0) != 200:
+            termination_errors.append(
+                f"the {TERMINATIONS_ACTION_BY_KIND[kind]} list answered HTTP "
+                f"{record.get('status')}"
+            )
+            continue
+        dated, problems = parse_terminations_payload(_payload_of(record), kind)
+        terminations.update(dated)
+        termination_errors.extend(problems)
+
     for record in records:
         what = record.get("what") or ""
         registration = record.get("registration") or record.get("form", {}).get(
@@ -2388,6 +2586,8 @@ def rebuild_run_from_retained_archive(
     run.reports = reports
     run.filings = rebuilt
     run.without_figures = empties
+    run.recent_terminations = terminations
+    run.termination_list_errors = termination_errors
     run.errors = errors
     run.compute_record_set_hash()
     if errors or run.record_set_hash != snapshot.record_set_hash:
@@ -2492,6 +2692,9 @@ def publish_filings(
         operator_approved=bool(
             run.record_set_hash and run.record_set_hash == (approved_hash or "")
         ),
+        baseline_filers=published_filers(db, current.id)
+        if current is not None
+        else None,
     )
     failed = [check for check in rechecked if check.blocks_publication]
     if failed:
@@ -2550,6 +2753,11 @@ def publish_filings(
                 registration_date=filer.registration_date,
                 termination_date=filer.termination_date,
                 is_incumbent=filer.is_incumbent,
+                # The snapshot's own fetch window, not this run's: a stored set is
+                # published by a later run whose clock says nothing about when the
+                # Board answered.
+                captured_at=snapshot.fetch_completed_at,
+                retained_from_snapshot_id=None,
             )
         )
     for row_number, report in enumerate(run.reports, start=1):
@@ -2598,9 +2806,26 @@ def publish_filings(
                 )
             )
 
+    retained = (
+        retain_former_filers(
+            db,
+            source=current,
+            target_snapshot_id=snapshot.id,
+            run=run,
+            next_report_row_number=len(run.reports) + 1,
+        )
+        if current is not None and current.id != snapshot.id
+        else 0
+    )
+
     snapshot.status = SnapshotStatus.loaded
     snapshot.validation_json = {"checks": [check.as_json() for check in run.checks]}
     snapshot.error_text = None
+    snapshot.measurements = {
+        **(snapshot.measurements or {}),
+        "retained_former_filers": retained,
+        "retained_former_filers_dated": len(run.retained_dated),
+    }
     if notes:
         snapshot.measurements = {**(snapshot.measurements or {}), "notes": notes}
     # The snapshot this one replaces keeps its `loaded` status and its rows until
@@ -2614,6 +2839,144 @@ def publish_filings(
     db.commit()
     run.published = True
     return snapshot.id
+
+
+def retain_former_filers(
+    db: Session,
+    *,
+    source: Any,
+    target_snapshot_id: uuid.UUID,
+    run: FilingsRun,
+    next_report_row_number: int,
+) -> int:
+    """Copy every published filer the Board's register no longer lists into the new
+    snapshot, with its rows, figures, report versions and its own capture date.
+
+    D1 on [#2344](https://github.com/alethical-org/alethical/issues/2344): a committee
+    that leaves the register keeps its page rather than vanishing from ours, and nothing
+    is invented about why it left. Three rules, each carried by a column:
+
+    * ``captured_at`` is the day the Board answered about this filer, copied forward
+      unchanged, so a retained figure never reads as copied today. A row from before
+      this column existed takes its snapshot's fetch-completion time, which is the date
+      every page printed for it then.
+    * ``retained_from_snapshot_id`` names the snapshot whose run captured the filer,
+      copied forward unchanged, so ``cf_filing.archive_line`` still points into the
+      archive that holds the response. It is the one fact that says a row is retained.
+    * ``termination_date`` is the date we held, else the Board's recent-terminations
+      list, else nothing. A retained filer with no date is one the register no longer
+      lists, and a page says exactly that.
+
+    The set to copy is decided against ``source``, the snapshot that is live inside the
+    publish lock, by the same rule ``validate_filings`` reported on: every filer it
+    carries that ``run.filers`` does not. Retention therefore survives any number of
+    refreshes: a filer retained in the source is copied again with its original date.
+    """
+    listed_now = {filer.registration_number for filer in run.filers}
+    filer_table = schema.CampaignFinanceFiler
+    former_rows = (
+        db.execute(
+            select(filer_table).where(
+                filer_table.snapshot_id == source.id,
+                filer_table.registration_number.not_in(listed_now)
+                if listed_now
+                else True,
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not former_rows:
+        return 0
+    former = {row.registration_number for row in former_rows}
+    for row in former_rows:
+        db.add(
+            schema.CampaignFinanceFiler(
+                snapshot_id=target_snapshot_id,
+                registration_number=row.registration_number,
+                kind=row.kind,
+                name=row.name,
+                candidate_name=row.candidate_name,
+                party=row.party,
+                office=row.office,
+                district=row.district,
+                registration_date=row.registration_date,
+                termination_date=(
+                    row.termination_date
+                    or run.recent_terminations.get(row.registration_number)
+                ),
+                is_incumbent=row.is_incumbent,
+                captured_at=row.captured_at or source.fetch_completed_at,
+                retained_from_snapshot_id=row.retained_from_snapshot_id or source.id,
+            )
+        )
+    report_table = schema.CampaignFinanceFilingReport
+    reports = (
+        db.execute(
+            select(report_table)
+            .where(
+                report_table.snapshot_id == source.id,
+                report_table.registration_number.in_(former),
+            )
+            .order_by(report_table.row_number)
+        )
+        .scalars()
+        .all()
+    )
+    row_number = next_report_row_number
+    for report in reports:
+        db.add(
+            schema.CampaignFinanceFilingReport(
+                snapshot_id=target_snapshot_id,
+                row_number=row_number,
+                registration_number=report.registration_number,
+                filing_year=report.filing_year,
+                report_type=report.report_type,
+                report_name=report.report_name,
+                cut_off_date=report.cut_off_date,
+                special_election=report.special_election,
+                effective_amendment_index=report.effective_amendment_index,
+                amendment_count=report.amendment_count,
+                filed_date=report.filed_date,
+            )
+        )
+        row_number += 1
+    filing_table = schema.CampaignFinanceFiling
+    filings = (
+        db.execute(
+            select(filing_table).where(
+                filing_table.snapshot_id == source.id,
+                filing_table.registration_number.in_(former),
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for filing in filings:
+        copy = schema.CampaignFinanceFiling(
+            snapshot_id=target_snapshot_id,
+            registration_number=filing.registration_number,
+            filer_kind=filing.filer_kind,
+            filing_year=filing.filing_year,
+            segment_start=filing.segment_start,
+            segment_end=filing.segment_end,
+            block_heading=filing.block_heading,
+            reported_through=filing.reported_through,
+            response_hash=filing.response_hash,
+            archive_line=filing.archive_line,
+        )
+        db.add(copy)
+        db.flush()
+        for figure in filing.figures:
+            db.add(
+                schema.CampaignFinanceFilingFigure(
+                    filing_id=copy.id,
+                    line_key=figure.line_key,
+                    label_as_served=figure.label_as_served,
+                    amount=figure.amount,
+                )
+            )
+    return len(former_rows)
 
 
 def prune_filings(db: Session) -> tuple[int, int]:
@@ -2804,6 +3167,19 @@ def load_campaign_finance_filings(
             if saved_directory is None:
                 time.sleep(spacing_seconds)
 
+        if saved_directory is None:
+            for kind in FilerKind:
+                response, dated, errors = fetch_terminations(http, kind, base_url)
+                archive.write(f"terminations:{kind.value}", response)
+                run.recent_terminations.update(dated)
+                run.termination_list_errors.extend(errors)
+                log(
+                    f"{TERMINATIONS_ACTION_BY_KIND[kind]}: {len(dated)} dated "
+                    "termination(s)"
+                    + (f", not read: {'; '.join(errors)}" if errors else "")
+                )
+                time.sleep(spacing_seconds)
+
         seen: set[str] = set()
         for filer in run.filers:
             if filer.registration_number in seen:
@@ -2934,6 +3310,7 @@ def load_campaign_finance_filings(
             operator_approved=bool(
                 run.record_set_hash and run.record_set_hash == (publish_hash or "")
             ),
+            baseline_filers=published_filers(db, live.id) if live is not None else None,
         )
         if run.blocked:
             if not dry_run:
@@ -2948,13 +3325,16 @@ def load_campaign_finance_filings(
             log("dry run: nothing was written")
             return run
 
+        waived = waived_checks_note(run)
+        if waived:
+            log(waived)
         publish_filings(
             db,
             run,
             ingestion_run_id=ingestion_run_id,
             notes=(
                 f"published by an operator naming the reviewed record hash "
-                f"{publish_hash}"
+                f"{publish_hash}" + (f"\n{waived}" if waived else "")
                 if publish_hash
                 else None
             ),
@@ -3028,11 +3408,16 @@ def publish_stored_filings(
             log("this snapshot is already the live one; nothing to do")
             run.unchanged = True
             return run
+        # Naming a stored hash waives the comparison checks, and only those. What was
+        # waived is printed here and written into the snapshot's notes, check by
+        # check, so the record of the publish says what the exception was for and not
+        # only that one was taken.
         run.checks = validate_filings(
             run,
             live,
             published_filer_years(db, live.id) if live is not None else None,
             operator_approved=True,
+            baseline_filers=published_filers(db, live.id) if live is not None else None,
         )
         if run.blocked:
             quarantine_filings(db, run)
@@ -3041,13 +3426,15 @@ def publish_stored_filings(
                 "still live."
             )
             return run
+        waived = waived_checks_note(run)
+        log(waived or "no comparison check needed waiving")
         publish_filings(
             db,
             run,
             ingestion_run_id=None,
             notes=(
                 "published from the stored archive by an operator naming the reviewed "
-                f"record hash {record_set_hash}"
+                f"record hash {record_set_hash}" + (f"\n{waived}" if waived else "")
             ),
             approved_hash=record_set_hash,
         )
@@ -3057,6 +3444,22 @@ def publish_stored_filings(
             f"{rows:,} rows from {snapshots} superseded snapshot(s)"
         )
         return run
+
+
+def waived_checks_note(run: FilingsRun) -> str:
+    """Every comparison check an operator's named hash waived, with its detail.
+
+    Empty when nothing was waived. This is the sentence a stored-hash publish must
+    carry: ``operator_approved=True`` on its own says an exception was taken and not
+    what for.
+    """
+    waived = [check for check in run.checks if check.status == "overridden"]
+    if not waived:
+        return ""
+    return "\n".join(
+        [f"waived {len(waived)} comparison check(s) by naming this record hash:"]
+        + [f"  {check.name}: {check.detail}" for check in waived]
+    )
 
 
 def _finish_filings_run(

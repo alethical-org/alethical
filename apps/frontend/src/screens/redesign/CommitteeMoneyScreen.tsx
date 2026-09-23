@@ -93,6 +93,8 @@ import {
   type CommitteeTab,
   type OutsideSpendingSort,
   type OutsideSpendingTab,
+  formerRegisterChipLabel,
+  formerRegisterNote,
 } from '../../lib/committeeMoney';
 import {
   closedChipLabel,
@@ -478,6 +480,7 @@ function CommitteeBody({
     district: money.register.district,
   });
   const closedChip = closedChipLabel(money.register.terminationDate);
+  const formerChip = formerRegisterChipLabel(money.register);
   const state = yearDisplayState(money);
   const checkedOn = money.fetchedAt ? centralDateLabel(money.fetchedAt) : null;
   const prefetchLegislator = usePrefetchLegislator();
@@ -560,6 +563,7 @@ function CommitteeBody({
             <Text style={styles.registeredFor}>{NOT_IN_REGISTER_LINE}</Text>
           ) : null}
           {closedChip ? <Text style={styles.closedChip}>{closedChip.toUpperCase()}</Text> : null}
+          {formerChip ? <Text style={styles.closedChip}>{formerChip.toUpperCase()}</Text> : null}
         </View>
 
         {ownershipText || nameableMember ? (
@@ -738,6 +742,7 @@ function PeriodStamp({
     });
   }
   const covered = state === 'figures' && line !== null;
+  const formerNote = formerRegisterNote(money.register);
   return (
     <View style={styles.stampWrap}>
       <FilingStamp
@@ -745,6 +750,7 @@ function PeriodStamp({
         line={line}
         detail={detail}
         notes={[
+          ...(formerNote ? [formerNote] : []),
           ...(emptyPaymentsAction ? [EMPTY_COMMITTEE_PAYMENTS] : []),
           ...(isHoldingStale ? [staleHoldNote(null)] : []),
         ]}

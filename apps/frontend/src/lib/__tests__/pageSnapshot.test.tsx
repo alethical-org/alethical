@@ -1265,6 +1265,7 @@ describe('the money landing serves the section’s own words and a live count', 
   const snapshot = moneyLandingPageSnapshot({
     registerFilerCount: 1603,
     filesLastCopiedAt: '2026-08-12T02:54:22.402100Z',
+    registerLastCopiedAt: '2026-08-11T22:10:00Z',
     lobbyingFilesLastCopiedAt: '2026-09-13T18:00:00Z',
     registeredLobbyists: 1665,
     filings: {
@@ -1327,6 +1328,9 @@ describe('the money landing serves the section’s own words and a live count', 
     expect(text).toContain('Sources and copy dates');
     expect(text).toContain(
       `Campaign payment files last copied: ${centralDateLabel('2026-08-12T02:54:22.402100Z')}`,
+    );
+    expect(text).toContain(
+      `Committee register and report totals last copied: ${centralDateLabel('2026-08-11T22:10:00Z')}`,
     );
     expect(text).toContain('Lobbying files last copied: Sep 13, 2026');
     expect(text).toContain('The copy date is when Alethical obtained the source');
@@ -1587,6 +1591,57 @@ describe('the register serves an ordinary link per filer, on numbered pages', ()
 
   it('states the register’s own size and its own date', () => {
     expect(snapshot.subheading).toBe(registerCountLine(1603, '2026-08-12'));
+  });
+});
+
+describe('a committee the register no longer lists, in the first response', () => {
+  // D1 on #2344: kept from the 12 Aug copy after the Board dropped it, with no
+  // termination date anywhere, so the page says only that, dated to both copies.
+  const retained = committeePageSnapshot(
+    {
+      ...committeeFixture,
+      register: {
+        ...committeeFixture.register,
+        termination_date: null,
+        as_of: '2026-09-23',
+        retained: true,
+        copied_on: '2026-08-12',
+      },
+    },
+    '41326',
+    { confirmedFor: null },
+  );
+  const text = visibleText(renderPageSnapshot(retained));
+
+  it('carries the chip and the note, and never a made-up closing date', () => {
+    expect(retained.subheading).toContain('No longer on the register');
+    expect(text).toContain(
+      'The Board’s register, as we copied it on Sep 23, 2026, no longer lists this committee, ' +
+        'and the Board gives no termination date. The figures here are from our earlier copy, ' +
+        'taken Aug 12, 2026, and are kept as they were.',
+    );
+    expect(text).not.toContain('CLOSED');
+    expect(text).not.toContain('terminated on');
+  });
+
+  it('shows the CLOSED chip instead once the Board supplies a date', () => {
+    const dated = committeePageSnapshot(
+      {
+        ...committeeFixture,
+        register: {
+          ...committeeFixture.register,
+          termination_date: '2026-08-19',
+          as_of: '2026-09-23',
+          retained: true,
+          copied_on: '2026-08-12',
+        },
+      },
+      '41326',
+      { confirmedFor: null },
+    );
+    expect(dated.subheading).toContain('Closed Aug 19, 2026');
+    expect(dated.subheading).not.toContain('No longer on the register');
+    expect(visibleText(renderPageSnapshot(dated))).not.toContain('gives no termination date');
   });
 });
 

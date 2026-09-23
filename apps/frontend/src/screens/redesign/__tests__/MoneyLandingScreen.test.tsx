@@ -64,7 +64,10 @@ const summary: MoneyLandingSummary = {
   },
   contests: { state: 'reported', contestCount: 222 },
   independentExpenditureRows: { state: 'reported', rowCount: 41130 },
-  freshness: { downloadsFetchedAt: '2026-09-01T18:00:00Z' },
+  freshness: {
+    downloadsFetchedAt: '2026-09-01T18:00:00Z',
+    registerFetchedAt: '2026-08-12T12:00:00Z',
+  },
 };
 
 const lobbying: LobbyingSummary = {
@@ -408,11 +411,22 @@ describe('the money landing makes the reporting periods and destinations explici
 
   it('uses each source’s own date instead of a hard-coded or shared date', () => {
     queries.summary.mockReturnValue({
-      data: { ...summary, freshness: { downloadsFetchedAt: '2026-09-09T02:00:00Z' } },
+      data: {
+        ...summary,
+        freshness: {
+          downloadsFetchedAt: '2026-09-09T02:00:00Z',
+          registerFetchedAt: '2026-09-23T20:00:00Z',
+        },
+      },
     });
     queries.lobbying.mockReturnValue({ data: { ...lobbying, copied_at: '2026-09-15T18:00:00Z' } });
     const { host } = mount();
     expect(host.textContent).toContain('Campaign payment files last copied: Sep 8, 2026');
+    // The register, report catalogue and official totals are a separate copy on a
+    // separate day, so they carry their own printed date (#2344).
+    expect(host.textContent).toContain(
+      'Committee register and report totals last copied: Sep 23, 2026',
+    );
     expect(host.textContent).toContain('Lobbying files last copied: Sep 15, 2026');
     expect(host.textContent).not.toContain('Sep 1, 2026');
     expect(host.textContent).not.toContain('Sep 13, 2026');

@@ -3394,7 +3394,9 @@ def committee_finance_for_year(
             "year": finance.year,
             "release_id": str(finance.release_id),
             "fetched_at": finance.fetched_at,
-            "filings_copied_at": filings_copied_at(db),
+            "filings_copied_at": filings_copied_at(
+                db, finance.committee.registration_number
+            ),
             "register": {
                 "state": register.state,
                 "kind": register.kind,
@@ -3406,6 +3408,11 @@ def committee_finance_for_year(
                 "termination_date": register.termination_date,
                 "as_of": register.as_of,
                 "reason": register.reason,
+                # A filer the Board's register no longer lists, kept from the copy
+                # dated ``copied_on`` (D1, #2344). Every figure on its page carries
+                # that date, and ``filings_copied_at`` above already does.
+                "retained": register.retained,
+                "copied_on": register.copied_on,
             },
             **confirmation,
             **({"stated_by_kind": asdict(by_kind)} if by_kind is not None else {}),

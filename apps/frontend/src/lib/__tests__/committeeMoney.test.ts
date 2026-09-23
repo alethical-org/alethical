@@ -52,6 +52,8 @@ import {
   NOT_IN_REGISTER_LINE,
   closedPeriodDetail,
   closedPeriodLine,
+  formerRegisterChipLabel,
+  formerRegisterNote,
   confirmedMemberLinkLabel,
   confirmedMemberMoneyPath,
   recordCoverageLines,
@@ -407,6 +409,29 @@ describe('the period stamp', () => {
     expect(uncoveredPeriodDetail(year, 'Aug 11, 2026')).toBe(
       'Figures from another year are not substituted. Files copied Aug 11, 2026.',
     );
+  });
+
+  it('a committee the register no longer lists gets a chip and a dated note, never a why', () => {
+    // D1 on #2344. The Board dropped the committee without a termination date, so
+    // the page says what the register no longer says and dates both copies.
+    const former = {
+      retained: true,
+      terminationDate: null,
+      asOf: '2026-09-23',
+      copiedOn: '2026-08-12',
+    };
+    expect(formerRegisterChipLabel(former)).toBe('No longer on the register');
+    expect(formerRegisterNote(former)).toBe(
+      'The Board’s register, as we copied it on Sep 23, 2026, no longer lists this committee, ' +
+        'and the Board gives no termination date. The figures here are from our earlier copy, ' +
+        'taken Aug 12, 2026, and are kept as they were.',
+    );
+    // With a Board-supplied date the CLOSED chip speaks and this one stays silent.
+    expect(formerRegisterChipLabel({ ...former, terminationDate: '2026-08-19' })).toBeNull();
+    expect(formerRegisterNote({ ...former, terminationDate: '2026-08-19' })).toBeNull();
+    // A listed committee never gets it.
+    expect(formerRegisterChipLabel({ retained: false, terminationDate: null })).toBeNull();
+    expect(formerRegisterNote({ retained: false, terminationDate: null })).toBeNull();
   });
 
   it('a closed committee’s stamp carries the termination date and the final report', () => {

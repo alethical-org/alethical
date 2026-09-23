@@ -166,10 +166,16 @@ including dates and counts; a drawing’s dotted or slashed zero never overrides
 ### Sources and copy dates
 
 The attribution reads “Records from the Minnesota Campaign Finance and Public
-Disclosure Board”. The campaign payment copy date and lobbying copy date each
-come from their own source. A missing date never borrows another source’s date or
-a reporting-period date. Timestamps print as their Minnesota (Central time) day.
-The note reads “Each report shows the dates its figures cover”.
+Disclosure Board”. Three copy dates follow, each from its own source, each on its own
+line: “Campaign payment files last copied:” (the Board's 3 payment downloads),
+“Committee register and report totals last copied:” (the register of filers, the
+report catalogue and the official totals, which are copied separately and on a
+different day), and “Lobbying files last copied:”. A missing date never borrows
+another source’s date or a reporting-period date; while loading it reads “Loading…”
+and when the source is not served it reads “Copy date unavailable”. Timestamps print
+as their Minnesota (Central time) day. The note beneath reads “The copy date is when
+Alethical obtained the source, not the end date of every filing.” followed by the
+coverage sentence.
 
 “View source links” opens the source list inside this box and changes to “Hide
 source links”. It starts closed on each visit. This supporting disclosure uses
@@ -714,8 +720,16 @@ Campaign money, top to bottom:
    Wherever the finer kind and the register's broad kind differ, the broad one follows it
    on the same line, so a reader sees both. A candidate committee shows the office and
    district it registered for; a closed committee carries a CLOSED chip with the register's
-   own termination date, on every year's view. Other kinds use “Registered as:” before
-   the register’s own category, without changing the category itself.
+   own termination date, on every year's view. A committee the Board's current register no
+   longer lists, kept from an earlier copy, carries a NO LONGER ON THE REGISTER chip instead
+   when the Board supplies no termination date, and its filing stamp adds: “The Board’s
+   register, as we copied it on {register copy day}, no longer lists this committee, and the
+   Board gives no termination date. The figures here are from our earlier copy, taken {copy
+   day}, and are kept as they were.” The page never says why it left. When the Board does
+   supply a date (a held one, or its recent-terminations list) the CLOSED chip speaks and this
+   one does not. Such a committee is reachable by its address and by search but is not
+   counted in, or listed on, the register at `/money/committees`. Other kinds use
+   “Registered as:” before the register’s own category, without changing the category itself.
 
    Beside the Share control, a signed-in reader sees **Track**: one button that adds this
    committee to their Tracked page and, pressed again, removes it. Once followed it reads
@@ -798,8 +812,10 @@ Campaign money, top to bottom:
    report totals copied Aug 11, 2026. These are copy dates, not reporting periods.” The payment
    date comes from the stored bulk-file download time (`fetched_at`); the report date
    comes from the published filing source's own stored fetch completion time
-   (`filings_copied_at`). Neither a report's receipt date nor a later publication
-   of stored records replaces that source date. Neither says when the register was copied.
+   (`filings_copied_at`), or, for a committee kept after it left the Board's register, the
+   earlier day that committee's own rows were read. Neither a report's receipt date nor a
+   later publication of stored records replaces that source date. Neither says when the
+   register was copied.
    Both dates print in Minnesota time. Without a report-copy date, it reads:
    “Minnesota’s payment files copied Sep 1, 2026. This is a copy date, not a reporting
    period. The report totals were copied separately.” The committee's footnote
