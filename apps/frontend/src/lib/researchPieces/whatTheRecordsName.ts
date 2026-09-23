@@ -61,6 +61,8 @@ const PIECE_ONE_PATH = `/read/guides/${WHO_HAS_TO_REPORT_THEIR_MONEY.slug}`;
 
 export const WHAT_THE_RECORDS_NAME: ResearchPiece = {
   ...WHAT_THE_RECORDS_NAME_INDEX_ENTRY,
+  searchDescription:
+    'Why a Minnesota campaign account’s published list of donors is real and is still not everyone who gave, and what decides who lands on it.',
   set: { name: 'How the Money Works', position: 2 },
   // Rule 13 point 7a: the corrected wording replaces the wrong wording and this dated
   // banner is its only trace. Eugene approved the cut on 27 Aug 2026.

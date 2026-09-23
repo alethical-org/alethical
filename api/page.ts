@@ -125,14 +125,9 @@ import {
   billPageMetadata,
   homePageMetadata,
   legislatorListPageMetadata,
-  legislatorPageMetadata,
   committeeListPageMetadata,
-  committeeMoneyPageMetadata,
   moneyByRacePageMetadata,
   researchPageMetadata,
-  moneySearchPageMetadata,
-  outsideSpendingPageMetadata,
-  paymentsUnderNamePageMetadata,
   NOT_FOUND_DESCRIPTION,
   NOT_FOUND_HEADING,
   notFoundPageMetadata,
@@ -140,6 +135,13 @@ import {
   publicPageUrl,
   type PageMetadata,
 } from "../apps/frontend/src/lib/share";
+import {
+  legislatorPageMetadata,
+  committeeMoneyPageMetadata,
+  moneySearchPageMetadata,
+  outsideSpendingPageMetadata,
+  paymentsUnderNamePageMetadata,
+} from "../apps/frontend/src/lib/screenPageMetadata";
 import {
   injectPageHead,
   legislatorSearchDescription,
@@ -1556,7 +1558,7 @@ async function contentFor(
       const piece = researchBySlug(target.slug);
       if (!piece) throw new UnknownAddress(`no piece ${target.slug}`);
       return {
-        metadata: researchPageMetadata(piece),
+        metadata: researchPageMetadata(piece, piece.searchDescription),
         snapshot: renderPageSnapshot(researchPageSnapshot(piece)),
       };
     }

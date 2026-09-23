@@ -125,7 +125,8 @@ import {
   formatMoney,
 } from '../../lib/legislatorCampaignMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
-import { publicPageUrl, type ShareContent, committeeMoneyPageMetadata } from '../../lib/share';
+import { publicPageUrl, type ShareContent } from '../../lib/share';
+import { committeeMoneyPageMetadata } from '../../lib/screenPageMetadata';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { screenLoaderForPath } from '../../navigation/screenPreload';

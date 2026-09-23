@@ -3,11 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   buildAnswerShareContent,
   buildBillShareContent,
-  buildLegislatorShareContent,
   publicPageUrl,
   shareDialogLabel,
   type ShareContent,
 } from '../share';
+import { buildLegislatorShareContent } from '../screenPageMetadata';
 import {
   buildShareIntents,
   BLUESKY_POST_LENGTH,

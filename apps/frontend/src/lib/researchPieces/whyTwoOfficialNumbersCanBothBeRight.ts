@@ -57,6 +57,8 @@ const PIECE_FOUR_PATH = '/read/guides/money-spent-without-a-campaigns-say';
 
 export const WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT: ResearchPiece = {
   ...WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT_INDEX_ENTRY,
+  searchDescription:
+    'Why a Minnesota filing reports the money that came in 2 ways, the payments it lists by name and all of it, and why neither figure is wrong.',
   set: { name: 'How the Money Works', position: 3 },
   // No standfirst: the manuscript's second line is the set's name, which is
   // stored as set membership above. Inventing a sentence to fill this slot

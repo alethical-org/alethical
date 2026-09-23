@@ -10,7 +10,7 @@ import { Skeleton } from '../../components/Skeleton';
 import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
 import { useOutsideSpendingRecord, usePrefetchCommitteeMoney } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
-import { outsideSpendingPageMetadata } from '../../lib/share';
+import { outsideSpendingPageMetadata } from '../../lib/screenPageMetadata';
 import { committeeSlug, registerKindLabel } from '../../lib/committeeMoneyShared';
 import { campaignMoneyYears, formatMoney } from '../../lib/legislatorCampaignMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';

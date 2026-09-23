@@ -2,7 +2,7 @@
 
 <!-- describes: apps/frontend/src/lib/shareIntents.ts, apps/frontend/src/components/share/SharePanelContent.tsx, apps/frontend/src/components/share/ShareDestinationIcon.tsx -->
 
-<!-- describes: apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/lib/committeeMoneyPreferences.ts, apps/frontend/src/lib/share.ts, apps/frontend/src/lib/pageSnapshot.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/lib/legislatorProfile.ts, apps/frontend/src/components/billDetail/SharePopover.tsx, apps/frontend/src/components/share/MobileShareSheet.tsx, apps/frontend/src/screens/redesign/BillDetailScreen.tsx, apps/frontend/src/screens/redesign/BillDetailWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/navigation/documentTitle.ts, apps/frontend/public/index.html, apps/frontend/public/robots.txt, apps/frontend/scripts/generate-brand-assets.mjs, api/page.ts, api/sitemap.ts, vercel.json -->
+<!-- describes: apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/lib/committeeMoneyPreferences.ts, apps/frontend/src/lib/share.ts, apps/frontend/src/lib/screenPageMetadata.ts, apps/frontend/src/lib/pageSnapshot.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/lib/legislatorProfile.ts, apps/frontend/src/components/billDetail/SharePopover.tsx, apps/frontend/src/components/share/MobileShareSheet.tsx, apps/frontend/src/screens/redesign/BillDetailScreen.tsx, apps/frontend/src/screens/redesign/BillDetailWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/navigation/documentTitle.ts, apps/frontend/public/index.html, apps/frontend/public/robots.txt, apps/frontend/scripts/generate-brand-assets.mjs, api/page.ts, api/sitemap.ts, vercel.json -->
 
 Share sends the page a reader chose, with enough plain-language context for another person to know why the link matters. Copy link remains the dependable choice when another app cannot accept prepared text.
 
@@ -42,7 +42,7 @@ Legislative Service, and Leadership. Until
 "recent votes" instead of contact details; votes appear solely inside the deliberately-unfinished
 "On the roadmap" area, so a reader following a shared link looking for votes found none. **When a
 section is added to or removed from the profile, this sentence changes with it**
-(`buildLegislatorShareContent` in `apps/frontend/src/lib/share.ts`, pinned by `share.test.ts`) —
+(`buildLegislatorShareContent` in `apps/frontend/src/lib/screenPageMetadata.ts`, pinned by `share.test.ts`) —
 otherwise we advertise a capability we do not ship
 (`.claude/rules/grounded-answers.md` rule 6).
 

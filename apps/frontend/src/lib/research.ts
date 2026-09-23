@@ -145,6 +145,21 @@ export interface PieceSet {
 }
 
 export interface ResearchPiece extends PieceIndexEntry {
+  /**
+   * What a search result says under the title: what this piece covers, in the
+   * piece's own words, carrying no figure and no finding (Eugene, 18 Sep 2026).
+   *
+   * A guide used to tell a search engine only its date, which says nothing about
+   * whether the page answers the question somebody typed. Rule 13's bar is
+   * unchanged and is what keeps this narrow: a piece's claims and derived labels
+   * stay out of metadata, and a share preview still carries title and dates only
+   * (`socialDescription` on the page's metadata). Describing the subject is not
+   * making the claim.
+   *
+   * Absent on a research piece, whose dates are the more useful line beside a
+   * title that already names its subject.
+   */
+  searchDescription?: string;
   /** The set this piece belongs to, where it belongs to one. */
   set?: PieceSet;
   /** Masthead and listing standfirst. Never appears in share previews (rule 13:

@@ -58,11 +58,8 @@ import {
   CARD_CONTROL_LAYER,
   CARD_LINK_LAYER,
 } from '../../lib/billCardControlLayers';
-import {
-  buildLegislatorShareContent,
-  legislatorPageMetadata,
-  publicPageUrl,
-} from '../../lib/share';
+import { publicPageUrl } from '../../lib/share';
+import { buildLegislatorShareContent, legislatorPageMetadata } from '../../lib/screenPageMetadata';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { useResponsive } from '../../hooks/useResponsive';
 

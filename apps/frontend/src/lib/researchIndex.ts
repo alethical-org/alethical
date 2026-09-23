@@ -53,21 +53,6 @@ export interface PieceIndexEntry {
    */
   indexed: boolean;
   title: string;
-  /**
-   * What a search result says under the title: what this piece covers, in the
-   * piece's own words, carrying no figure and no finding (Eugene, 18 Sep 2026).
-   *
-   * A guide used to tell a search engine only its date, which says nothing about
-   * whether the page answers the question somebody typed. Rule 13's bar is
-   * unchanged and is what keeps this narrow: a piece's claims and derived labels
-   * stay out of metadata, and a share preview still carries title and dates only
-   * (`socialDescription` on the page's metadata). Describing the subject is not
-   * making the claim.
-   *
-   * Absent on a research piece, whose dates are the more useful line beside a
-   * title that already names its subject.
-   */
-  searchDescription?: string;
   /** ISO date the piece was published, e.g. "2026-08-17". */
   publishedOn: string;
   /**
@@ -279,8 +264,6 @@ export const WHAT_THE_RECORDS_NAME_INDEX_ENTRY: PieceIndexEntry = {
   traits: { research: false, guide: true },
   indexed: true,
   title: 'What the records name, and what they leave out',
-  searchDescription:
-    'Why a Minnesota campaign account’s published list of donors is real and is still not everyone who gave, and what decides who lands on it.',
   publishedOn: '2026-08-27',
   recordsThrough: '2026-08-12',
 };
@@ -290,8 +273,6 @@ export const WHO_HAS_TO_REPORT_THEIR_MONEY_INDEX_ENTRY: PieceIndexEntry = {
   traits: { research: false, guide: true },
   indexed: true,
   title: 'Who has to report their money',
-  searchDescription:
-    'Why looking up a Minnesota politician’s money finds an account rather than a person, and which accounts have to report what they raise and spend.',
   publishedOn: '2026-08-27',
   recordsThrough: '2026-08-12',
 };
@@ -301,8 +282,6 @@ export const WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT_INDEX_ENTRY: PieceIndexE
   traits: { research: false, guide: true },
   indexed: true,
   title: 'Why 2 official numbers can both be right',
-  searchDescription:
-    'Why a Minnesota filing reports the money that came in 2 ways, the payments it lists by name and all of it, and why neither figure is wrong.',
   publishedOn: '2026-08-27',
   recordsThrough: '2026-08-27',
 };
@@ -312,8 +291,6 @@ export const MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY_INDEX_ENTRY: PieceIndexEntry = 
   traits: { research: false, guide: true },
   indexed: true,
   title: 'Money spent without a campaign’s say',
-  searchDescription:
-    'The money aimed at Minnesota government that never goes into a campaign’s own account, who spends it, and where it is reported instead.',
   publishedOn: '2026-08-27',
   recordsThrough: '2026-08-27',
 };
@@ -323,8 +300,6 @@ export const WHY_NOBODY_CAN_FOLLOW_A_DOLLAR_INDEX_ENTRY: PieceIndexEntry = {
   traits: { research: false, guide: true },
   indexed: true,
   title: 'Why nobody can follow a dollar',
-  searchDescription:
-    'Why Minnesota’s records can show what one political account paid another to the cent and still cannot say where any particular dollar ended up.',
   publishedOn: '2026-08-27',
   recordsThrough: '2026-08-27',
 };

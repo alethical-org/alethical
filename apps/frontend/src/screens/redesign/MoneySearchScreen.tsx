@@ -15,7 +15,7 @@ import { useCampaignFinanceNameSearch } from '../../hooks/useAppQueries';
 import { useDebouncedSearchCommit } from '../../hooks/useDebouncedSearchCommit';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useSearchMetric } from '../../hooks/useSearchMetric';
-import { moneySearchPageMetadata } from '../../lib/share';
+import { moneySearchPageMetadata } from '../../lib/screenPageMetadata';
 import { committeeRowMeta } from '../../lib/committeeList';
 import { closedChipLabel, committeeSlug } from '../../lib/committeeMoneyShared';
 import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';

@@ -42,6 +42,8 @@ import { WHO_HAS_TO_REPORT_THEIR_MONEY_INDEX_ENTRY } from '../researchIndex';
 
 export const WHO_HAS_TO_REPORT_THEIR_MONEY: ResearchPiece = {
   ...WHO_HAS_TO_REPORT_THEIR_MONEY_INDEX_ENTRY,
+  searchDescription:
+    'Why looking up a Minnesota politician’s money finds an account rather than a person, and which accounts have to report what they raise and spend.',
   set: { name: 'How the Money Works', position: 1 },
   // No standfirst: the draft's second line is the set's name, which is stored as
   // set membership above. Inventing a sentence to fill this slot would be writing

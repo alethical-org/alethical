@@ -224,10 +224,14 @@ describe('piece share previews', () => {
   // engine. A guide now describes its own subject there (Eugene, 18 Sep 2026),
   // while the share preview stays on rule 13's dates-only wording.
   it('gives every guide a search line about its subject, and keeps the card on dates', () => {
-    const guides = indexedResearch().filter((piece) => !piece.traits.research);
+    // The sentence lives on the full piece record, not on the light index the
+    // browser loads, and the server hands it in (§28.8).
+    const guides = publishedResearch().filter((piece) => !piece.traits.research);
     expect(guides.length).toBeGreaterThan(0);
     for (const guide of guides) {
-      const metadata = researchPageMetadata(guide);
+      expect(guide.searchDescription).toBeTruthy();
+      expect(researchPageMetadata(guide).description).toBe(pieceShareDescription(guide));
+      const metadata = researchPageMetadata(guide, guide.searchDescription);
       expect(metadata.description).toBe(guide.searchDescription);
       expect(metadata.description).not.toBe(metadata.socialDescription);
       expect(metadata.socialDescription).toBe(pieceShareDescription(guide));
@@ -1084,17 +1088,14 @@ describe('the light index agrees with the full registry', () => {
    */
   it('lists the same pieces in the same order, with the same address, kind, title and dates', () => {
     expect(
-      PUBLISHED_RESEARCH.map(
-        ({ slug, traits, indexed, title, searchDescription, publishedOn, recordsThrough }) => ({
-          slug,
-          traits,
-          indexed,
-          title,
-          ...(searchDescription === undefined ? {} : { searchDescription }),
-          publishedOn,
-          recordsThrough,
-        }),
-      ),
+      PUBLISHED_RESEARCH.map(({ slug, traits, indexed, title, publishedOn, recordsThrough }) => ({
+        slug,
+        traits,
+        indexed,
+        title,
+        publishedOn,
+        recordsThrough,
+      })),
     ).toEqual(PUBLISHED_PIECE_INDEX);
     for (const piece of PUBLISHED_RESEARCH) {
       expect(pieceIndexBySlug(piece.slug)).toEqual(
