@@ -49,6 +49,13 @@ The default does not erase the few paths that need a different tool:
   hand-built requests.
 - Anthropic's documented `max_tokens=0` cache warm may remain 1 named raw request
   only if the official library rejects 0 before sending the call.
+- The failed-collection reviewer (`alethical/pipeline/collection_failure_review.py`)
+  makes 1 hand-built request with Python's standard library. The feature it needs is
+  isolation rather than anything the library lacks: the GitHub job that holds the key
+  installs no third-party package, so no package can read the key. It makes 1 try, never
+  retries, and a test checks that its code imports only the standard library
+  ([Reviewing a failed campaign-money collection](collection-failure-review-decisions.md)
+  §3.3).
 
 Any new raw OpenAI or Anthropic product call must name the provider feature the
 official library cannot express and include a test for that claim.

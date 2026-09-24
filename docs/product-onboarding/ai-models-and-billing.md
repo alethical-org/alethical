@@ -58,6 +58,7 @@ topic tags at once), so they're funded together and can all use either billing r
 | **Display-time text cleaner** — interim masking of legalese in the app | (nothing — plain client code) | Not AI | ✅ N/A |
 | **Semantic search / retrieval** — finding the right bill for a typed question | Embedding vectors | **Embedding** | ❌ **No — API-only** |
 | **Corpus status freshness** — keeping each bill's current status up to date | Re-scraped status/actions | Not AI (web scraping) | ✅ N/A (free HTTP) |
+| **Failed-collection diagnosis** — reads a redacted record of a failed campaign-money collection run and writes a plain-language diagnosis on its GitHub issue | 1 structured diagnosis per new piece of evidence | Generation | ❌ **No — an unattended GitHub job cannot hold a person's login**; Anthropic API key only, switched off until its limits are approved ([decisions](../architecture/collection-failure-review-decisions.md) §4) |
 
 ### 3.1 The official provider library is plumbing, not a billing rail
 

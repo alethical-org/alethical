@@ -2,10 +2,11 @@
 
 <!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py -->
 
-Net: The repository has 25 GitHub Actions workflows. 21 can start automatically
+Net: The repository has 26 GitHub Actions workflows. 22 can start automatically
 and 4 run only when a person starts them. Scheduled checks, releases, and local
 backups do not call paid AI services. Reader questions and deliberately started
-AI work do.
+AI work do. The review of a failed campaign-money collection has a paid AI
+reviewer too, and its switch is off until its limits are approved.
 
 ## What starts automatically
 
@@ -24,13 +25,14 @@ AI work do.
 | Homepage fact check (`.github/workflows/home-hero-card-facts.yml`) | Daily at 12:00 UTC, and on relevant pull requests | Checks the homepage's 5 bill claims against Minnesota's published record | No paid AI call; reads public government pages |
 | Technology health (`.github/workflows/technology-health.yml`) | Security every Monday at 13:41 UTC; full review monthly at 13:17 UTC on day 1, and by hand | Checks known package vulnerabilities weekly; the monthly review also checks saved tool versions, support dates, and whether the 3-month major-release review is overdue | No paid AI call; reads public package lists on GitHub's standard computer |
 | Hosted service settings (`.github/workflows/hosted-service-settings.yml`) | Monthly at 09:30 UTC on day 1, on relevant pull requests, and after relevant changes reach `main` | Compares the intended GitHub, Vercel, Railway, and Supabase settings with their live read routes; keeps Supabase's rotating read grant as 2 encrypted 90-day artifacts; lists every setting it cannot safely read | No paid AI call; reads existing service APIs on GitHub's standard free runner |
-| Large-contribution notices and disclosure statements (`.github/workflows/campaign-money-notices.yml`) | Daily at 17:15 UTC from 20 Oct to 6 Nov, weekly on Wednesdays otherwise, and by hand | Copies the Campaign Finance Board's list of large-contribution notices, keeps each new notice PDF once, records which notice windows apply to which candidates from the Secretary of State's ballot files, reads committees' catalogues for disclosure statements on Wednesdays, and stores the reviewed statement readings. Opens or updates 1 issue on failure, and 1 review-point issue on or after 2 Feb 2027 | No paid AI call; reads 2 free public websites on GitHub's standard free runner |
+| Large-contribution notices and disclosure statements (`.github/workflows/campaign-money-notices.yml`) | Daily at 17:15 UTC from 20 Oct to 6 Nov, weekly on Wednesdays otherwise, and by hand | Copies the Campaign Finance Board's list of large-contribution notices, keeps each new notice PDF once, records which notice windows apply to which candidates from the Secretary of State's ballot files, reads committees' catalogues for disclosure statements on Wednesdays, and stores the reviewed statement readings. Records what each stage did for the failed-collection review below, which owns its failure issue; opens 1 review-point issue on or after 2 Feb 2027 | No paid AI call; reads 2 free public websites on GitHub's standard free runner |
+| Failed-collection review (`.github/workflows/collection-failure-review.yml`) | When the daily campaign-money refresh or the notices collection finishes on `main` from its schedule or by hand, and by hand for a named run | Keeps 1 issue per distinct collection failure (label `collection-incident`), removes secrets and personal details from the evidence first, adds 1 comment only when the evidence changes, and closes the issue only when a later run's own summary says every stage finished. Never re-runs a collection. Turns the run red while an issue is open, and files a plain alert if the review itself breaks. [Decisions](../architecture/collection-failure-review-decisions.md) | No paid AI call while its switch is off, which it is; a few GitHub reads per completion on a standard free runner. The paid reviewer's costs are under "What spends money" |
 | Money pages stay warm (`.github/workflows/warm-money-pages.yml`) | After each successful production release, and daily at 16:00 UTC | Reads the 5 money addresses and the 4 campaign-money data routes once, so the first real reader after a release is not the one who waits on a cold read. Prints nothing when every address answers; opens no issue | No paid AI call; a handful of reads of our own live site on GitHub's standard free runner |
 | Public metric source health (`.github/workflows/site-metrics-health.yml`) | Daily at 13:43 UTC, and by hand | Reads 7 cached public measurement answers, checks freshness and counting contracts, and names failures in the run summary | No paid AI call; public reads on GitHub's standard free runner |
 | Failed release says so (`.github/workflows/production-release-failed.yml`) | After each production release, succeeded or failed | Opens 1 issue when the website's own release fails, so a merge that reaches nobody does not sit unnoticed; comments rather than opening a second while it keeps failing and says how many have failed in a row, and closes that issue when a release next succeeds. Ignores preview releases, which ship to nobody. Turns the run red as well, so the Actions tab cannot read as quiet while its issue is open | No paid AI call; reads 1 deployment event on GitHub's standard free runner |
 | Missing release says so (`.github/workflows/production-release-missing.yml`) | After each change reaches `main`, and by hand | Reads which commit the live site says built it and compares that with `main`. Opens 1 issue when a merged website change is not reaching readers after 10 minutes, comments rather than opening a second, and closes that issue once readers are up to date. Says nothing for a documents-only merge, which correctly needs no release. Turns the run red as well when it alarms on `main`, so the Actions tab cannot read as quiet while its issue is open | No paid AI call; 1 read a minute of our own live site on GitHub's standard free runner |
 | Missing API release says so (`.github/workflows/api-release-missing.yml`) | After each change reaches `main`, and by hand | Asks the live API which commit it is running and compares that with `main`. Opens 1 issue when a merged API change has not reached the API after 15 minutes, comments rather than opening a second, and closes that issue once the API is up to date. Says nothing for a merge that changes only the website or documents, which correctly needs no API release. Turns the run red as well when it alarms on `main`, so the Actions tab cannot read as quiet while its issue is open | No paid AI call; 1 read a minute of our own live API on GitHub's standard free runner |
-| Campaign money refresh (`.github/workflows/campaign-money-refresh.yml`) | Daily at 15:30 UTC, and by hand | Under 1 run-wide lease shared with the hand-run loaders, reads the Board's 6 registered-filer and current-report lists, refreshes the official totals for every supported year when a list changed or weekly, downloads the 3 payment files daily and publishes what passes every check, then clears saved pages and re-checks the published figures; a run whose lists could not be read is reported as incomplete; the script itself opens or updates 1 issue quoting its own summary when a step does not finish, and the job keeps the printed report as an artifact | No paid AI call; public downloads from cfb.mn.gov and the existing database |
+| Campaign money refresh (`.github/workflows/campaign-money-refresh.yml`) | Daily at 15:30 UTC, and by hand | Under 1 run-wide lease shared with the hand-run loaders, reads the Board's 6 registered-filer and current-report lists, refreshes the official totals for every supported year when a list changed or weekly, downloads the 3 payment files daily and publishes what passes every check, then clears saved pages and re-checks the published figures; a run whose lists could not be read is reported as incomplete. Records what each stage did for the failed-collection review below, which owns its failure issue; the job keeps the printed report as an artifact when a step does not finish | No paid AI call; public downloads from cfb.mn.gov and the existing database |
 | Traffic access key (`.github/workflows/traffic-token-expiry.yml`) | Daily at 12:00 UTC | Opens 1 issue 60 days before the private Vercel Traffic key expires and adds 1 urgent note 14 days before | No paid AI call; reads 1 date stored in the repository |
 | Backend release (Railway Git connection) | A commit reaches `main` | Applies database changes, then releases the API if its readiness check passes | No paid AI call; build and hosting usage stays on the existing Railway account |
 | Website release (Vercel Git connection) | A relevant commit reaches `main` | Builds and releases the web app | No paid AI call; build and hosting usage stays on the existing Vercel account |
@@ -41,7 +43,7 @@ Time and Central Daylight Time, so their local hour changes by 1 during the year
 
 ## What GitHub runs only by hand
 
-These 4 workflows complete the total of 25:
+These 4 workflows complete the total of 26:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |
@@ -99,10 +101,11 @@ file hash. It neither downloads a file nor writes to a database, and has no sche
 
 ## What spends money
 
-Job-driven AI spending has 3 possible triggers: a reader submits an Ask question,
-a person starts AI work or an evaluation, or an accepted official bill-text
-change reaches a ready summary request while its separate spending gate is open.
-That last gate is off by default. No clock-based job above opens it.
+Job-driven AI spending has 4 possible triggers: a reader submits an Ask question,
+a person starts AI work or an evaluation, an accepted official bill-text change
+reaches a ready summary request while its separate spending gate is open, or a
+campaign-money collection fails while the failed-collection reviewer's switch is
+on. The last 2 are off by default. No clock-based job above opens either.
 
 | Work | What starts it | Paid service | Cost shape |
 | --- | --- | --- | --- |
@@ -112,6 +115,56 @@ That last gate is off by default. No clock-based job above opens it.
 | Write bill summaries, key points, questions, citations, and topic tags (`alethical/pipeline/anthropic_enrichment.py`, `ai_enrichment.py`, `bill_summary_requests.py`, `codex_enrichment.py`) | A person starts generation, or saved official text creates a ready request while all automatic-spending settings are open | Claude subscription, Anthropic API, OpenAI API, or Codex subscription, depending on the chosen path; the automatic request uses Anthropic API only | The older bulk run measured about $0.064 to $0.072 per bill, about $730 for 10,471 bills at list price or about $365 through the half-price batch path. Those figures do not approve the new automatic path; its per-bill and monthly limits must be measured and approved before its switch changes from `false` |
 | Build or replace a bill's search index (`alethical/pipeline/rag_ingest.py`, `scripts/backfill_rag_bulk.py`, or a queued RAG worker) | A person starts or queues an ingest or backfill that includes RAG | OpenAI embeddings | About $0.001 per bill in the measured run, or about $10 for 10,500 bills |
 | Run AI answer or retrieval evaluations (`scripts/answer_eval.py`, `scripts/retrieval_eval.py`, `scripts/try_queries.py`) | A person starts the command | OpenAI, Anthropic, or Voyage APIs, depending on the mode | Varies by mode; cached results avoid paying again for unchanged work |
+| Diagnose a failed campaign-money collection (`alethical/pipeline/collection_failure_review.py`) | A collection fails with new evidence while the switch below is on | Anthropic API, `claude-opus-5-5` | At most $0.44 a review and $8.80 a month; waiting for approval, below |
+
+### The failed-collection reviewer: installed, enabled, waiting for approval
+
+| Part | State |
+| --- | --- |
+| The review workflow, its issues, redaction, recovery and fallback alert | **Installed and on.** Runs on every completion of a watched collection |
+| The AI reviewer's code and its limits | **Installed, switched off.** No call can be made |
+| The limits, the key and the switch | **Waiting for Eugene's approval** |
+
+The worst case for 1 review is what its caps allow: 50,000 input tokens at $4 per
+million ($0.20) plus 12,000 output tokens at $20 per million ($0.24), which is
+**$0.44**. Prices are Claude Opus 5.5's, read from
+[Anthropic's pricing page](https://platform.claude.com/docs/en/about-claude/pricing)
+on 23 Sep 2026; thinking counts as output. A typical review should cost well under
+the worst case, but no real review has run, so the table uses the caps.
+
+| Distinct failures in a month | Reviews if each gets only its first | Worst case if each also changes twice | Worst-case cost |
+| --- | --- | --- | --- |
+| 2 | 2 ($0.88) | 6 | $2.64 |
+| 10 | 10 ($4.40) | 30, cut to 20 | $8.80 |
+| 30 | 30, cut to 20 | 90, cut to 20 | $8.80 |
+
+A failure past the monthly limit still gets its issue and plain facts; it goes
+without a diagnosis.
+
+**Proposed limits, waiting for approval:** 1 review per incident per new piece of
+evidence, 3 per incident, 20 a month, $0.44 at most a review, $8.80 at most a
+month, and a $10 monthly spending limit on the API key's workspace in Anthropic's
+console as the outer wall. All but the console limit are constants in
+`alethical/pipeline/collection_failure_review.py`, and each review is counted at its
+$0.44 worst case before it is bought, so a failed step can only overcount.
+
+**To switch it on, once the limits are approved** (Eugene only; this session cannot
+create an API key or a secret):
+
+1. In Anthropic's console, on the Alethical organisation's API account, create a
+   workspace for this reviewer, set its monthly spending limit to $10, and create an
+   API key in it.
+2. In GitHub, open Settings, Environments, and open `collection-ai-review` (the
+   workflow's first run creates it; create it if it is not there). Under deployment
+   branches, allow `main` only. Add the key there as the environment secret
+   `ANTHROPIC_API_KEY`, not as a repository secret, so a run on any other branch cannot
+   reach it. The repository has no such secret.
+3. In Settings, Secrets and variables, Actions, add the repository variable
+   `COLLECTION_AI_REVIEW` with the value `enabled`. Deleting the variable, or setting it
+   to anything else, switches the reviewer off at the next completion.
+
+A Claude subscription cannot pay for this: an unattended GitHub job cannot hold a
+person's login. The key's spend shows on the API account's usage page.
 
 The cost figures above are measurements and sizing rules, not provider price
 promises. [AI Models & Billing](../product-onboarding/ai-models-and-billing.md)

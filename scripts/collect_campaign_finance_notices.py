@@ -41,6 +41,10 @@ from alethical.db.session import (  # noqa: E402
 from alethical.pipeline import campaign_finance_filings as filings  # noqa: E402
 from alethical.pipeline import campaign_finance_notices as notices  # noqa: E402
 from alethical.pipeline.campaign_finance_reader import live_release  # noqa: E402
+from alethical.pipeline.collection_run_summary import (  # noqa: E402
+    record_stage,
+    run_script,
+)
 from alethical.pipeline.raw_file_store import raw_file_store_from_env  # noqa: E402
 
 
@@ -93,6 +97,7 @@ def main() -> int:
     now = datetime.now(UTC)
     http = filings.http_session()
     exit_code = 0
+    ballot_failures: list[str] = []
     with Session(engine) as db:
         if not db.execute(
             text("SELECT to_regclass('cf_contribution_notice')")
@@ -128,6 +133,7 @@ def main() -> int:
 
         if not args.skip_ballot and now.year in notices.NOTICE_WINDOWS:
             primary, general, failures = _ballot(http)
+            ballot_failures = failures
             for line in failures:
                 print(f"ballot file problem: {line}")
             if failures:
@@ -168,8 +174,30 @@ def main() -> int:
                 )
                 for (window, reason), count in sorted(counts.items()):
                     print(f"  {window}: {reason}: {count}")
+    # What this run did, for the failure review (#2350).
+    checks = [
+        name
+        for name, problems in (
+            ("notice page", report.page_errors),
+            ("notice PDF fetch", report.fetch_failures),
+            ("ballot files", ballot_failures),
+        )
+        if problems
+    ]
+    record_stage(
+        "notices",
+        "failed"
+        if exit_code
+        else "dry_run"
+        if args.dry_run
+        else "published"
+        if report.new
+        else "unchanged",
+        failed_checks=checks,
+        details=[*report.page_errors, *report.fetch_failures, *ballot_failures],
+    )
     return exit_code
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(run_script("notices", main))

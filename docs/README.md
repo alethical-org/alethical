@@ -92,6 +92,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [Ingestion layer 2 — RAG ingestion](architecture/layer-2-rag-ingestion-system-design.md) — canonical records → retrieval chunks: cleaning, chunking, and the retrieval index
 - [Canonical legislator membership spec](architecture/legislator-roster-canonical-membership-spec.md) — reconciling the roster PDF into current-member state
 - [Campaign finance system design](architecture/campaign-finance-system-design.md) — Minnesota campaign-finance sources, whole-set snapshot ingestion, amendments, identity, and the display rules
+- [Reviewing a failed campaign-money collection — decisions](architecture/collection-failure-review-decisions.md) — what happens when the daily refresh or the notices collection fails: 1 issue per problem, what the evidence packet removes, what each job may touch, the switched-off AI reviewer and its limits, and when an issue closes
 - [Research](research/) — retrieval-strategy and persona findings, what the retired Base44 campaign-finance build got wrong and why the replacement is designed differently, [what the 2 measurement services on every page already report](research/real-visitor-page-speed-sources.md) about how fast real visits are (dated 4 Sep 2026), and the [Google indexing findings and search repairs](research/seo-indexing-audit-2026-09-07.md) (dated 7 Sep 2026)
 
 ## Operations

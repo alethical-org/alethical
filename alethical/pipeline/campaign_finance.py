@@ -96,7 +96,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
-from alethical.pipeline.campaign_finance_filings import filings_context
+from alethical.pipeline.campaign_finance_filings import (
+    filings_context,
+    pause_before_retry,
+)
 from alethical.pipeline.campaign_finance_stated_split import stated_split_coverage
 from alethical.pipeline.http_text import response_text
 from alethical.pipeline.legislator_committee_match import (
@@ -785,7 +788,20 @@ def resolve_downloads(
     heading has to break the run: silently resolving a different file is the one
     failure this whole module is built to prevent.
     """
-    response = http.get(landing_page, timeout=LANDING_PAGE_TIMEOUT_SECONDS)
+    # Retried like every other request to the Board, so 1 blip on this page does not
+    # fail the whole payments stage (#2350).
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        try:
+            response = http.get(landing_page, timeout=LANDING_PAGE_TIMEOUT_SECONDS)
+        except requests.RequestException:
+            if attempt == MAX_ATTEMPTS:
+                raise
+            time.sleep(RETRY_PAUSE_SECONDS)
+            continue
+        pause = pause_before_retry(response, attempt)
+        if pause is None:
+            break
+        time.sleep(pause)
     response.raise_for_status()
     page = response_text(response)
 
@@ -849,11 +865,18 @@ def fetch_download(
     for attempt in range(1, MAX_ATTEMPTS + 1):
         started_at = datetime.now(UTC)
         path = os.path.join(directory, f"{spec.key}.csv")
+        # How long the Board asked us to wait, when it answered a server error or a
+        # rate limit; None with ``final`` set means it asked for longer than
+        # MAX_RETRY_AFTER_SECONDS, which ends the retries for this run (#2350).
+        wait: Optional[float] = None
+        final = False
         try:
             response = http.get(
                 resolved.url, timeout=DOWNLOAD_TIMEOUT_SECONDS, stream=True
             )
-            if response.status_code >= 500:
+            if response.status_code >= 500 or response.status_code == 429:
+                wait = pause_before_retry(response, attempt)
+                final = wait is None
                 response.close()
                 raise requests.HTTPError(
                     f"{resolved.url} answered HTTP {response.status_code}"
@@ -873,12 +896,12 @@ def fetch_download(
             response.close()
         except (requests.RequestException, OSError) as error:
             last_error = error
-            if attempt < MAX_ATTEMPTS:
-                time.sleep(RETRY_PAUSE_SECONDS)
+            if attempt < MAX_ATTEMPTS and not final:
+                time.sleep(wait if wait is not None else RETRY_PAUSE_SECONDS)
                 continue
             raise CampaignFinanceRefusal(
                 f"Could not download {spec.key} from {resolved.url} after "
-                f"{MAX_ATTEMPTS} attempts: {error}"
+                f"{attempt} attempt(s): {error}"
             ) from error
 
         fetched = FetchedFile(

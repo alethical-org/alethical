@@ -56,6 +56,11 @@ from alethical.pipeline.campaign_finance_refresh import (  # noqa: E402
     hold_full_run_lease,
     refresh_campaign_money,
 )
+from alethical.pipeline.collection_run_summary import (  # noqa: E402
+    record_refresh_report,
+    record_stage,
+    run_script,
+)
 
 
 def main() -> int:
@@ -119,6 +124,9 @@ def main() -> int:
                 "another campaign-money refresh holds the run-wide lease, so this one "
                 "does nothing; the running one covers today"
             )
+            record_stage(
+                "refresh", "skipped", details=["another refresh held the lease"]
+            )
             return 0
         if args.prove_alerting:
             summary = (
@@ -129,6 +137,7 @@ def main() -> int:
             log(summary)
             if args.alert_issue:
                 file_refresh_alert(summary, run_url, dry_run=args.dry_run)
+            record_stage("drill", "failed", drill=True, details=[summary])
             return 1
         with Session(engine) as session:
             report = refresh_campaign_money(
@@ -142,8 +151,10 @@ def main() -> int:
     print(summary, flush=True)
     if not report.ok and args.alert_issue:
         file_refresh_alert(summary, run_url, dry_run=args.dry_run)
+    # What each stage did, for .github/workflows/collection-failure-review.yml (#2350).
+    record_refresh_report(report)
     return 0 if report.ok else 1
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(run_script("refresh", main))

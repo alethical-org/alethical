@@ -23,9 +23,12 @@ name: Refresh campaign money from the Board
 #      clears again once their verdicts are live.
 # A quarantine leaves the previous set live, keeps the bytes and the printed reasons,
 # and exits non-zero. The script's own summary says which payments release and which
-# totals snapshot are live at the end and whether this run published each; with
-# --alert-issue the script quotes that summary into 1 GitHub issue, opened once and
-# commented on while the run keeps failing. Nothing in this file asserts what is live.
+# totals snapshot are live at the end and whether this run published each. Each stage
+# also writes 1 line into collection-run-summary.jsonl, uploaded on every run, and
+# .github/workflows/collection-failure-review.yml turns a failure into 1 GitHub issue,
+# updated while the run keeps failing and closed when a later run's summary says every
+# stage finished (#2350). This job files no issue itself, so it holds no issue access
+# and a failure never produces 2. Nothing in this file asserts what is live.
 #
 # Freshness, stated honestly: payments are checked daily; the totals are refreshed
 # when a list changes and weekly; a run whose lists could not be read is reported as
@@ -62,7 +65,6 @@ jobs:
     timeout-minutes: 300
     permissions:
       contents: read
-      issues: write
     env:
       ALETHICAL_DATABASE_TARGET: production
       SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
@@ -76,9 +78,10 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
       ALETHICAL_CLEAR_SAVED_ANSWERS: "on"
-      # For --alert-issue: the script files or updates the issue through gh itself, so
-      # a dry run can never file one and the body is the run's own summary.
-      GH_TOKEN: ${{ github.token }}
+      # Each stage appends what it did; see alethical/pipeline/collection_run_summary.py.
+      # .github/workflows/collection-failure-review.yml reads it and owns the failure
+      # issue, so this job files none of its own (#2350).
+      COLLECTION_RUN_SUMMARY: collection-run-summary.jsonl
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -117,7 +120,7 @@ jobs:
       - name: Refresh
         shell: bash
         run: |
-          flags=(--alert-issue)
+          flags=()
           if [ "${{ inputs.force_totals }}" = "true" ]; then flags+=(--force-totals); fi
           if [ "${{ inputs.prove_alerting }}" = "true" ]; then flags+=(--prove-alerting); fi
           PYTHONPATH=. uv run python scripts/refresh_campaign_finance.py \
@@ -129,5 +132,16 @@ jobs:
         with:
           name: refresh-report
           path: refresh-report.txt
+          if-no-files-found: ignore
+          retention-days: 30
+
+      # Read by .github/workflows/collection-failure-review.yml. Uploaded on success too:
+      # a green run closes an open issue only when this file says every stage finished.
+      - name: Save what each stage did, for the failure review
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: collection-run-summary
+          path: collection-run-summary.jsonl
           if-no-files-found: ignore
           retention-days: 30
