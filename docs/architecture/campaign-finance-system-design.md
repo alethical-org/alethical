@@ -903,7 +903,11 @@ identical copies, 3,763 possible replacements and 281 unmatched worth $671,898.1
 an investigation aid and never a reason to publish. A blocked replacement publishes only through
 a named exception recorded on the issue first: the exact record hashes, the exact failed check,
 the affected committee-years, the evidence and the reader-facing treatment. The release notes
-then name every check the operator waived and carry the table.
+then name every check the operator waived and carry the table. **Granting the exception is the
+operator's own call once the evidence explains every failed guard (Eugene, 23 Sep 2026)**: the
+swap is reversible, the previous set is kept and 1 command restores it, so an explained guard is
+a judgement to record and act on, never a question to hand up. A guard nobody can explain from
+evidence is the one that waits for a person who can.
 
 ### 4.4 What survives replacement
 
