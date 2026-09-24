@@ -3,12 +3,10 @@ export type SocialPlatform = 'linkedin' | 'facebook' | 'instagram' | 'x' | 'tikt
 export type SocialAccount = {
   label: string;
   platform: SocialPlatform;
-  url: string;
+  url: string | null;
 };
 
 // This order is shared by every place that shows Alethical's social accounts.
-// An account joins the list only once its page exists, so every mark is clickable.
-// Instagram is held out until its page is ready; its mark stays in SocialIconLink.tsx.
 export const SOCIAL_ACCOUNTS: readonly SocialAccount[] = [
   {
     label: 'LinkedIn',
@@ -19,6 +17,11 @@ export const SOCIAL_ACCOUNTS: readonly SocialAccount[] = [
     label: 'Facebook',
     platform: 'facebook',
     url: 'https://www.facebook.com/people/Alethical/61588261592240/',
+  },
+  {
+    label: 'Instagram',
+    platform: 'instagram',
+    url: 'https://www.instagram.com/alethicaltruth',
   },
   { label: 'X', platform: 'x', url: 'https://x.com/alethical' },
   {

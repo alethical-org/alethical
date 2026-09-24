@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { SOCIAL_ACCOUNTS } from '../socialLinks';
 
 describe('shared social links', () => {
-  it('lists only accounts with a working address, in one shared order', () => {
+  it('uses one ordered list for every confirmed account', () => {
     expect(SOCIAL_ACCOUNTS).toEqual([
       {
         label: 'LinkedIn',
@@ -14,6 +14,11 @@ describe('shared social links', () => {
         label: 'Facebook',
         platform: 'facebook',
         url: 'https://www.facebook.com/people/Alethical/61588261592240/',
+      },
+      {
+        label: 'Instagram',
+        platform: 'instagram',
+        url: 'https://www.instagram.com/alethicaltruth',
       },
       { label: 'X', platform: 'x', url: 'https://x.com/alethical' },
       {
