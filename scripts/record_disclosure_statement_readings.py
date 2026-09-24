@@ -59,6 +59,34 @@ def main() -> int:
 
     items = json.loads(Path(args.readings).read_text())["readings"]
     readings = [notices.reading_from_json(item, args.reviewer) for item in items]
+    # A repeat must name an original in the same file that states exactly what it
+    # states; anything else is 2 statements and both must show.
+    by_key = {
+        (
+            r.recipient_registration_number,
+            r.filing_year,
+            r.report_period,
+            r.statement_number,
+        ): r
+        for r in readings
+    }
+    for reading in readings:
+        if reading.repeat_of_number is None:
+            continue
+        original = by_key.get(
+            (
+                reading.recipient_registration_number,
+                reading.filing_year,
+                reading.repeat_of_period,
+                reading.repeat_of_number,
+            )
+        )
+        if original is None or not notices.repeats_match(original, reading):
+            print(
+                f"refused: {reading.label} is not an exact repeat of what it names",
+                file=sys.stderr,
+            )
+            return 1
     engine = create_engine(
         normalize_database_url(
             args.database_url or database_url_for_target(args.target)

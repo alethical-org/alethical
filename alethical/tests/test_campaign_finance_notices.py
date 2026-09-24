@@ -128,28 +128,42 @@ NOTICE_PAGE = """
 
 
 def _catalogue(registration: str = RESTORE_SANITY) -> dict:
-    def statement(number: int, report: str) -> dict:
+    """Restore Sanity's 2026 catalogue shape, measured 23 Sep 2026: 4 reports, each
+    listing its own statements numbered from 1, and every disclosure row saying
+    ``ReportType: D`` whatever report it sits under."""
+
+    def report(code: str, name: str, cut_off: str) -> dict:
+        return {
+            "RegisteredEntityID": registration,
+            "ReportType": code,
+            "FilingYear": "2026",
+            "ReportName": name,
+            "CutOffDate": f"{cut_off} 00:00:00",
+            "SpecialElectionindicator": "0",
+            "amendments": ["0"],
+        }
+
+    def statement(number: int, name: str) -> dict:
         return {
             "RegisteredEntityID": registration,
             "ReportType": "D",
             "FilingYear": "2026",
-            "ReportName": report,
+            "ReportName": name,
+            "CutOffDate": "2026-09-15 00:00:00",
+            "SpecialElectionindicator": "0",
             "fileName": f"{registration}_D{number}.pdf",
             "amendments": [str(number)],
         }
 
+    q1, june = "2026 1st Quarter Report", "2026 June Report"
+    pre, sept = "2026 Pre-Primary Report", "2026 September Report"
     return {
         "data": {
             "pdfs": {
-                "a": {
-                    "RegisteredEntityID": registration,
-                    "ReportType": "D",
-                    "FilingYear": "2026",
-                    "ReportName": "2026 September Report",
-                    "CutOffDate": "2026-09-15 00:00:00",
-                    "SpecialElectionindicator": "0",
-                    "amendments": ["0"],
-                },
+                "a": report("A", q1, "2026-03-31"),
+                "b": report("B", june, "2026-05-31"),
+                "c": report("C", pre, "2026-07-20"),
+                "d": report("D", sept, "2026-09-15"),
             },
             "notices": {
                 "n1": {
@@ -167,9 +181,12 @@ def _catalogue(registration: str = RESTORE_SANITY) -> dict:
                 },
             },
             "disclosure": {
-                "d1": statement(1, "2026 September Report"),
-                "d2": statement(2, "2026 September Report"),
-                "d1-again": statement(1, "2026 1st Quarter Report"),
+                "q1-1": statement(1, q1),
+                "q1-2": statement(2, q1),
+                "june-1": statement(1, june),
+                "sept-1": statement(1, sept),
+                "sept-4": statement(4, sept),
+                "orphan": statement(1, "2026 Report Nobody Catalogued"),
             },
         }
     }
@@ -259,28 +276,52 @@ def test_a_notice_missing_its_amount_is_an_error_and_never_served():
     assert "could not read the amount" in notice.errors
 
 
-def test_statements_fold_on_their_number_and_placeholders_are_skipped():
+def test_a_statement_is_its_report_and_number_and_takes_that_reports_period_code():
     statements, errors = notices.parse_catalogue_statements(
         _catalogue(), RESTORE_SANITY
     )
-    assert errors == []
-    assert [(s.filing_year, s.number) for s in statements] == [(2026, 1), (2026, 2)]
-    assert statements[0].report_name == "2026 September Report; 2026 1st Quarter Report"
+    assert [(s.report_period, s.number, s.report_name) for s in statements] == [
+        ("A", 1, "2026 1st Quarter Report"),
+        ("A", 2, "2026 1st Quarter Report"),
+        ("B", 1, "2026 June Report"),
+        ("D", 1, "2026 September Report"),
+        ("D", 4, "2026 September Report"),
+    ]
+    # Statement 1 of 3 different reports is 3 different documents, and the code comes
+    # from the matching report row, never from the disclosure row's own "D".
+    assert statements[0].report_cut_off == date(2026, 3, 31)
+    # A statement under a report the catalogue gives no period code is never guessed.
+    assert len(errors) == 1 and "no period code" in errors[0]
     marks = notices.parse_catalogue_notice_amendments(_catalogue(), RESTORE_SANITY)
     assert marks == {(2026, "260806_140546_N1"): 0}
+
+
+def test_2_reports_sharing_a_name_make_the_code_ambiguous():
+    catalogue = _catalogue()
+    catalogue["data"]["pdfs"]["dup"] = dict(
+        catalogue["data"]["pdfs"]["b"], ReportType="S", CutOffDate="2026-06-30 00:00:00"
+    )
+    statements, errors = notices.parse_catalogue_statements(catalogue, RESTORE_SANITY)
+    assert ("B", 1) not in {(s.report_period, s.number) for s in statements}
+    assert any("2 period codes" in error for error in errors)
 
 
 def test_filed_reports_never_list_a_statement_or_a_notice():
     """Q6: the Filed reports tab reads only ``data.pdfs``, so neither kind is a report."""
     reports, errors = filings.parse_catalogue_payload(_catalogue(), RESTORE_SANITY)
     assert errors == []
-    assert [r.report_name for r in reports] == ["2026 September Report"]
+    assert sorted(r.report_name for r in reports) == [
+        "2026 1st Quarter Report",
+        "2026 June Report",
+        "2026 Pre-Primary Report",
+        "2026 September Report",
+    ]
 
 
 def test_statement_pdf_address():
-    assert notices.statement_pdf_url(2026, RESTORE_SANITY, 4) == (
+    assert notices.statement_pdf_url(2026, RESTORE_SANITY, "A", 2) == (
         "https://cfb.mn.gov/rptViewer/Main.php?do=viewPDF&year=26&type=disclosure"
-        "&period=D&regnum=41412&disc=4"
+        "&period=A&regnum=41412&disc=2"
     )
 
 
@@ -526,9 +567,23 @@ def test_a_gift_after_the_latest_report_is_not_yet_on_a_report(db, monkeypatch, 
     body = client.get(f"/api/v1/committees/{RESTORE_SANITY}/notices?year=2026").json()[
         "data"
     ]
+    assert body["report_covered_through"] == "2026-07-20"
     rows = {n["contributor"]: n["status"] for n in body["windows"][0]["notices"]}
     assert rows["MADURO DISTRIBUTORS INC"] == "not_yet_on_a_report"
     assert rows["HEAD, MARTHA M"] == "matched"
+
+
+def test_without_a_known_report_end_no_notice_claims_to_follow_one(
+    db, monkeypatch, client
+):
+    _collect(db, monkeypatch, RESTORE_TEXTS)
+    _restore_sanity_money(db, september_report=False)
+    body = client.get(f"/api/v1/committees/{RESTORE_SANITY}/notices?year=2026").json()[
+        "data"
+    ]
+    assert body["report_covered_through"] is None
+    rows = {n["contributor"]: n["status"] for n in body["windows"][0]["notices"]}
+    assert rows["MADURO DISTRIBUTORS INC"] == "no_exact_match"
 
 
 def test_the_card_is_absent_for_a_party_unit_and_for_an_uncovered_year(
@@ -592,16 +647,28 @@ def test_no_route_adds_a_notice_amount_into_money_in(db, monkeypatch, client):
 # --- Statements --------------------------------------------------------------------
 
 
-def _statement(db, number, *, reading=None, held=True):
+REPORTS = {
+    "A": ("2026 1st Quarter Report", date(2026, 3, 31)),
+    "B": ("2026 June Report", date(2026, 5, 31)),
+    "C": ("2026 Pre-Primary Report", date(2026, 7, 20)),
+    "D": ("2026 September Report", date(2026, 9, 15)),
+}
+
+
+def _statement(db, number, *, reading=None, held=True, period="D"):
+    name, cut_off = REPORTS[period]
     row = models.CampaignFinanceDisclosureStatement(
         recipient_registration_number=RESTORE_SANITY,
         filing_year=2026,
+        report_period=period,
+        report_name=name,
+        report_cut_off=cut_off,
         statement_number=number,
-        listed_under_reports=["2026 September Report"],
+        listed_under_reports=[name],
         first_listed_at=datetime(2026, 9, 23, tzinfo=UTC),
         last_listed_at=datetime(2026, 9, 23, tzinfo=UTC),
         document_hash="a" * 64 if held else None,
-        object_key=f"campaign-finance/disclosure-statement/{number}.pdf.gz"
+        object_key=f"campaign-finance/disclosure-statement/{period}{number}.pdf.gz"
         if held
         else None,
         compressed_hash="b" * 64 if held else None,
@@ -615,10 +682,13 @@ def _statement(db, number, *, reading=None, held=True):
     return row
 
 
-def _read(donor, on, amount, *, state="read"):
+def _read(donor, on, amount, *, state="read", repeat_of=None):
     reading = models.CampaignFinanceDisclosureStatementReading(
         state=models.DisclosureStatementReadingState(state),
         donor_name=donor,
+        recipient_name="Restore Sanity",
+        repeat_of_period=repeat_of[0] if repeat_of else None,
+        repeat_of_number=repeat_of[1] if repeat_of else None,
         gift_date=on,
         gift_amount=Decimal(amount),
         reviewed_by="Alethical, LLC",
@@ -689,10 +759,25 @@ def test_a_statement_attaches_only_to_the_gift_it_names(db, client):
         ),
     )
     # Listed but read by nobody: attaches to nothing.
-    _statement(db, 9)
-    # A reading whose gift is dated a day off matches no row and prints nothing.
+    unread = _statement(db, 1, period="B")
+    # A reading whose gift is dated a day off matches no row.
+    off_by_a_day = _statement(
+        db,
+        1,
+        period="A",
+        reading=_read("Restoration of America PAC", date(2026, 3, 18), "1095000"),
+    )
+    # A repeat of an earlier document is kept and never shown, linked or not.
     _statement(
-        db, 5, reading=_read("Restoration of America PAC", date(2026, 3, 18), "1095000")
+        db,
+        2,
+        period="C",
+        reading=_read(
+            "Restoration of America PAC",
+            date(2026, 3, 18),
+            "1095000",
+            repeat_of=("A", 1),
+        ),
     )
     db.add(
         models.CampaignFinanceStatementScan(
@@ -711,7 +796,7 @@ def test_a_statement_attaches_only_to_the_gift_it_names(db, client):
     attached = {s["record_number"]: s for s in body["disclosure_statements"]}
     assert set(attached) == {named, rslc}
     assert attached[named]["state"] == "read"
-    assert attached[named]["pdf_url"].endswith("regnum=41412&disc=2")
+    assert attached[named]["pdf_url"].endswith("period=D&regnum=41412&disc=2")
     assert attached[rslc]["state"] == "gift_identified"
     assert body["statements_copied_on"] == "2026-09-23"
 
@@ -731,6 +816,73 @@ def test_a_statement_attaches_only_to_the_gift_it_names(db, client):
     ).json()["data"]
     assert held["state"] == "gift_identified"
     assert held["sources"] == [] and held["box"] is None
+
+    # The statements that match no row, known without the payment list.
+    listed = client.get(
+        f"/api/v1/committees/{RESTORE_SANITY}/disclosure-statements?year=2026"
+    ).json()["data"]
+    assert listed["state"] == "listed"
+    by_id = {item["id"]: item for item in listed["statements"]}
+    assert set(by_id) == {str(unread.id), str(off_by_a_day.id)}
+    assert by_id[str(unread.id)]["state"] == "not_read"
+    assert by_id[str(unread.id)]["donor_name"] is None
+    assert by_id[str(unread.id)]["gift_amount"] is None
+    assert by_id[str(unread.id)]["pdf_url"].endswith("period=B&regnum=41412&disc=1")
+    assert by_id[str(off_by_a_day.id)]["donor_name"] == "Restoration of America PAC"
+    # Earliest report first.
+    assert [item["report_period"] for item in listed["statements"]] == ["A", "B"]
+    assert listed["copied_on"] == "2026-09-23"
+
+
+def test_matching_reads_the_whole_year_not_the_page_a_reader_is_on(db, client):
+    published = Published(db)
+    kw = dict(
+        reg_num=RESTORE_SANITY,
+        year=2026,
+        name="Restore Sanity",
+        contributor_type="Other",
+    )
+    for day in range(1, 4):
+        _receipt(
+            db,
+            published.contributions,
+            contributor=f"Donor {day}",
+            amount="10",
+            on=date(2026, 1, day),
+            **kw,
+        )
+    late = _receipt(
+        db,
+        published.contributions,
+        contributor="SAM NUTRITION",
+        amount="5000",
+        on=date(2026, 4, 21),
+        **kw,
+    )
+    db.commit()
+    _statement(
+        db, 1, period="B", reading=_read("SAM Nutrition", date(2026, 4, 21), "5000")
+    )
+    first_page = client.get(
+        f"/api/v1/committees/{RESTORE_SANITY}/payments?direction=received&year=2026&limit=2&sort=amount"
+    ).json()["data"]
+    assert [s["record_number"] for s in first_page["disclosure_statements"]] == [late]
+    later = client.get(
+        f"/api/v1/committees/{RESTORE_SANITY}/payments?direction=received&year=2026&limit=2&offset=2&sort=amount"
+    ).json()["data"]
+    assert later["disclosure_statements"] == []
+    listed = client.get(
+        f"/api/v1/committees/{RESTORE_SANITY}/disclosure-statements?year=2026"
+    ).json()["data"]
+    assert listed["statements"] == [] and listed["copied_on"] is None
+
+
+def test_with_no_payment_rows_every_statement_stays_listed(db):
+    _statement(
+        db, 2, reading=_read("Restoration of America PAC", date(2026, 8, 27), "5000000")
+    )
+    links = service.statement_links(db, RESTORE_SANITY, 2026, None)
+    assert links.linked == {} and len(links.unlinked) == 1
 
 
 def test_made_payments_carry_no_statements(db, client):
@@ -754,6 +906,7 @@ def test_a_reading_is_refused_when_the_kept_images_differ(db):
         {
             "recipient_registration_number": RESTORE_SANITY,
             "filing_year": 2026,
+            "report_period": "D",
             "statement_number": 3,
             "image_fingerprint": "not-the-images",
             "state": "gift_identified",
@@ -796,6 +949,7 @@ def test_a_read_statement_must_name_its_box():
             {
                 "recipient_registration_number": RESTORE_SANITY,
                 "filing_year": 2026,
+                "report_period": "D",
                 "statement_number": 2,
                 "image_fingerprint": "x",
                 "state": "read",
@@ -818,18 +972,48 @@ def test_the_launch_readings_file_is_well_formed():
         / "disclosure_statement_readings.json"
     )
     items = json.loads(path.read_text())["readings"]
-    readings = [notices.reading_from_json(item, "Alethical, LLC") for item in items]
-    assert {(r.statement_number, r.state) for r in readings} == {
-        (1, "gift_identified"),
-        (2, "read"),
-        (3, "read"),
-        (4, "read"),
+    readings = {
+        (r.report_period, r.statement_number): r
+        for r in (notices.reading_from_json(item, "Alethical, LLC") for item in items)
     }
-    for reading in readings:
-        if reading.state == "read":
-            assert reading.box == 3
-            assert reading.sources == (
-                ("Uihlein, Richard E.", "Lake Bluff", "IL", reading.gift_amount),
-            )
-            assert reading.line_b is None and reading.line_c is None
-            assert reading.line_a == reading.gift_amount
+    assert set(readings) == {
+        ("A", 1),
+        ("A", 2),
+        ("B", 1),
+        ("B", 2),
+        ("C", 1),
+        ("C", 2),
+        ("C", 3),
+        ("D", 1),
+        ("D", 2),
+        ("D", 3),
+        ("D", 4),
+    }
+    # Restoration of America PAC's 5 gifts each carry 1 read statement, and every one
+    # prints its source exactly as the filing spells it.
+    roa = [r for r in readings.values() if r.donor_name == "Restoration of America PAC"]
+    assert sorted(r.gift_date for r in roa) == [
+        date(2026, 3, 17),
+        date(2026, 6, 17),
+        date(2026, 7, 21),
+        date(2026, 8, 27),
+        date(2026, 9, 15),
+    ]
+    for reading in roa:
+        assert reading.state == "read" and reading.box == 3
+        assert reading.sources == (
+            ("Uihlein, Richard, E.", "Lake Bluff", "IL", reading.gift_amount),
+        )
+        assert reading.line_a == reading.gift_amount
+        assert reading.line_b is None and reading.line_c is None
+    # The 2 copies of the North Metro statement are 1 statement, shown once.
+    repeat = readings[("C", 2)]
+    assert (repeat.repeat_of_period, repeat.repeat_of_number) == ("B", 2)
+    assert notices.repeats_match(readings[("B", 2)], repeat)
+    # Held, not read: the 2 Republican State Leadership Committee statements.
+    assert readings[("D", 1)].state == "gift_identified"
+    assert readings[("C", 1)].state == "gift_identified"
+    # No read statement guesses a date the form does not state.
+    assert (
+        readings[("B", 2)].signed_on is None and readings[("B", 2)].received_on is None
+    )

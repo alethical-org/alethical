@@ -179,10 +179,14 @@ def notice_pdf_url(
     )
 
 
-def statement_pdf_url(filing_year: int, registration_number: str, number: int) -> str:
+def statement_pdf_url(
+    filing_year: int, registration_number: str, report_period: str, number: int
+) -> str:
+    """The Board's PDF of one statement: the report's own period code and the number
+    the statement carries on that report."""
     return (
         f"{PDF_VIEWER_URL}?do=viewPDF&year={filing_year % 100:02d}&type=disclosure"
-        f"&period=D&regnum={registration_number}&disc={number}"
+        f"&period={report_period}&regnum={registration_number}&disc={number}"
     )
 
 
@@ -482,8 +486,10 @@ def _parse_personal_contribution_form(lines: list[str]) -> ParsedNotice:
 class CatalogueStatement:
     registration_number: str
     filing_year: int
-    number: int
+    report_period: str
     report_name: str
+    report_cut_off: Optional[date]
+    number: int
 
 
 _STATEMENT_FILE = re.compile(r"^(\d+)_D(\d+)\.pdf$")
@@ -502,18 +508,53 @@ def _catalogue_rows(payload: Any, key: str) -> list[dict]:
     return []
 
 
+def _report_periods(
+    payload: Any, registration_number: str
+) -> dict[tuple[int, str, bool], Optional[tuple[str, Optional[date]]]]:
+    """(year, report name, special election) to that report's period code and cut-off,
+    from the catalogue's ``pdfs`` rows. ``None`` where 2 reports share the key, which
+    makes the period code ambiguous and the statement unaddressable."""
+    periods: dict[tuple[int, str, bool], Optional[tuple[str, Optional[date]]]] = {}
+    for row in _catalogue_rows(payload, "pdfs"):
+        if (row.get("RegisteredEntityID") or "").strip() != registration_number:
+            continue
+        try:
+            year = int(row.get("FilingYear"))
+        except (TypeError, ValueError):
+            continue
+        name = (row.get("ReportName") or "").strip()
+        code = (row.get("ReportType") or "").strip()
+        if not name or not code:
+            continue
+        special = str(row.get("SpecialElectionindicator") or "0").strip() not in (
+            "0",
+            "",
+        )
+        key = (year, name, special)
+        cut_off = filings._timestamp_date(row.get("CutOffDate"))
+        if key in periods and periods[key] != (code, cut_off):
+            periods[key] = None
+        else:
+            periods[key] = (code, cut_off)
+    return periods
+
+
 def parse_catalogue_statements(
     payload: Any, registration_number: str
 ) -> tuple[list[CatalogueStatement], list[str]]:
-    """Every disclosure statement a catalogue lists, one per (year, number).
+    """Every disclosure statement a catalogue lists, one per report and number.
 
-    The catalogue repeats each statement under every report of its year (Restore
-    Sanity's 4 are listed 11 times across 4 reports), so rows are folded on the number.
-    A row whose filename is not ``<regnum>_D<n>.pdf`` is a placeholder or an unknown
-    shape and is skipped with a note rather than guessed at.
+    **The number restarts for every report.** Restore Sanity's 2026 catalogue lists
+    `41412_D1.pdf` under its 1st Quarter, June, Pre-Primary and September reports, and
+    those are 4 different documents: the PDF address takes the report's own period code
+    (`period=A` .. `period=D`), which only the catalogue's ``pdfs`` row for that report
+    carries. The ``disclosure`` rows themselves all say ``ReportType: D`` and the
+    September cut-off whatever report they sit under, so the code is never read from
+    them. A statement whose report has no ``pdfs`` row, or 2, is reported and skipped:
+    fetching it under a guessed code would keep a different document in its place.
     """
-    found: dict[tuple[int, int], CatalogueStatement] = {}
-    reports: dict[tuple[int, int], list[str]] = {}
+    periods = _report_periods(payload, registration_number)
+    found: dict[tuple[int, str, int], CatalogueStatement] = {}
     errors: list[str] = []
     for row in _catalogue_rows(payload, "disclosure"):
         if (row.get("RegisteredEntityID") or "").strip() != registration_number:
@@ -531,23 +572,32 @@ def parse_catalogue_statements(
         except (TypeError, ValueError):
             errors.append(f"a statement row for {registration_number} has no year")
             continue
-        number = int(match.group(2))
-        key = (year, number)
         report_name = (row.get("ReportName") or "").strip()
-        reports.setdefault(key, [])
-        if report_name and report_name not in reports[key]:
-            reports[key].append(report_name)
+        special = str(row.get("SpecialElectionindicator") or "0").strip() not in (
+            "0",
+            "",
+        )
+        period = periods.get((year, report_name, special))
+        if period is None:
+            errors.append(
+                f"{registration_number}'s {year} statement {match.group(2)} is listed "
+                f"under {report_name!r}, and the catalogue gives that report "
+                + (
+                    "2 period codes"
+                    if (year, report_name, special) in periods
+                    else "no period code"
+                )
+            )
+            continue
+        code, cut_off = period
+        number = int(match.group(2))
         found.setdefault(
-            key,
-            CatalogueStatement(registration_number, year, number, report_name),
+            (year, code, number),
+            CatalogueStatement(
+                registration_number, year, code, report_name, cut_off, number
+            ),
         )
-    statements = [
-        CatalogueStatement(
-            s.registration_number, s.filing_year, s.number, "; ".join(reports[key])
-        )
-        for key, s in sorted(found.items())
-    ]
-    return statements, errors
+    return [found[key] for key in sorted(found)], errors
 
 
 def parse_catalogue_notice_amendments(
@@ -1148,26 +1198,27 @@ def record_catalogue_statements(
     """
     now = now or datetime.now(UTC)
     statements, errors = parse_catalogue_statements(payload, registration_number)
+    model = schema.CampaignFinanceDisclosureStatement
     new = 0
     for statement in statements:
         row = db.scalar(
-            select(schema.CampaignFinanceDisclosureStatement).where(
-                schema.CampaignFinanceDisclosureStatement.recipient_registration_number
-                == registration_number,
-                schema.CampaignFinanceDisclosureStatement.filing_year
-                == statement.filing_year,
-                schema.CampaignFinanceDisclosureStatement.statement_number
-                == statement.number,
+            select(model).where(
+                model.recipient_registration_number == registration_number,
+                model.filing_year == statement.filing_year,
+                model.report_period == statement.report_period,
+                model.statement_number == statement.number,
             )
         )
-        reports = [name for name in statement.report_name.split("; ") if name]
         if row is None:
             db.add(
-                schema.CampaignFinanceDisclosureStatement(
+                model(
                     recipient_registration_number=registration_number,
                     filing_year=statement.filing_year,
+                    report_period=statement.report_period,
+                    report_name=statement.report_name,
+                    report_cut_off=statement.report_cut_off,
                     statement_number=statement.number,
-                    listed_under_reports=reports,
+                    listed_under_reports=[statement.report_name],
                     first_listed_at=now,
                     last_listed_at=now,
                 )
@@ -1175,11 +1226,19 @@ def record_catalogue_statements(
             new += 1
         else:
             row.last_listed_at = now
-            row.listed_under_reports = sorted(
-                set(row.listed_under_reports) | set(reports)
-            )
+            row.report_name = statement.report_name
+            row.report_cut_off = statement.report_cut_off
+            row.listed_under_reports = [statement.report_name]
     db.commit()
     return len(statements), new, errors
+
+
+#: Statement PDFs are kept from this filing year on. Minnesota is re-posting every report
+#: filed since 1 Jan 2022 with addresses blacked out, so from 2022 a copy taken now may be
+#: the only one of that version; before 2022 the Board serves almost nothing
+#: (`docs/architecture/campaign-finance-system-design.md` §9.4). Older statements are
+#: recorded as listed and link to the Board's own PDF.
+KEEP_STATEMENT_PDFS_FROM = 2022
 
 
 def fetch_missing_statement_pdfs(
@@ -1189,27 +1248,32 @@ def fetch_missing_statement_pdfs(
     *,
     cache: Optional[PdfCache] = None,
     now: Optional[datetime] = None,
+    from_year: int = KEEP_STATEMENT_PDFS_FROM,
 ) -> tuple[int, list[str]]:
     """Fetch and keep each listed statement's PDF that is not yet held, once."""
     cache = cache or PdfCache(None)
     now = now or datetime.now(UTC)
     fetched = 0
     failures: list[str] = []
+    model = schema.CampaignFinanceDisclosureStatement
     rows = db.scalars(
-        select(schema.CampaignFinanceDisclosureStatement).where(
-            schema.CampaignFinanceDisclosureStatement.document_hash.is_(None)
+        select(model).where(
+            model.document_hash.is_(None), model.filing_year >= from_year
         )
     ).all()
     for row in rows:
         url = statement_pdf_url(
-            row.filing_year, row.recipient_registration_number, row.statement_number
+            row.filing_year,
+            row.recipient_registration_number,
+            row.report_period,
+            row.statement_number,
         )
         body, failure = fetch_pdf(
             http,
             url,
             cache,
             f"statement-{row.recipient_registration_number}-{row.filing_year}-"
-            f"{row.statement_number}.pdf",
+            f"{row.report_period}{row.statement_number}.pdf",
         )
         if body is None:
             failures.append(f"{url}: {failure}")
@@ -1337,6 +1401,7 @@ def statement_image_fingerprint(body: bytes) -> str:
 class StatementReadingInput:
     recipient_registration_number: str
     filing_year: int
+    report_period: str
     statement_number: int
     image_fingerprint: str
     state: str
@@ -1345,6 +1410,7 @@ class StatementReadingInput:
     gift_amount: Decimal
     reviewed_by: str
     evidence: str
+    recipient_name: Optional[str] = None
     box: Optional[int] = None
     sources: tuple[
         tuple[str, Optional[str], Optional[str], Optional[Decimal]], ...
@@ -1354,6 +1420,15 @@ class StatementReadingInput:
     line_c: Optional[Decimal] = None
     signed_on: Optional[date] = None
     received_on: Optional[date] = None
+    repeat_of_period: Optional[str] = None
+    repeat_of_number: Optional[int] = None
+
+    @property
+    def label(self) -> str:
+        return (
+            f"{self.recipient_registration_number} {self.filing_year} statement "
+            f"{self.report_period}{self.statement_number}"
+        )
 
 
 def _optional_decimal(value: Any) -> Optional[Decimal]:
@@ -1365,16 +1440,21 @@ def _optional_date(value: Any) -> Optional[date]:
 
 
 def reading_from_json(item: dict, default_reviewer: str) -> StatementReadingInput:
+    """One reviewed reading. A read statement names its box; its received date is
+    optional, because a form carrying no received stamp states none."""
     state = item["state"]
     if state not in ("gift_identified", "read"):
         raise ValueError(f"unknown reading state {state!r}")
+    repeat = item.get("repeat_of")
     reading = StatementReadingInput(
         recipient_registration_number=str(item["recipient_registration_number"]),
         filing_year=int(item["filing_year"]),
+        report_period=str(item["report_period"]),
         statement_number=int(item["statement_number"]),
         image_fingerprint=item["image_fingerprint"],
         state=state,
         donor_name=item["donor_name"],
+        recipient_name=item.get("recipient_name"),
         gift_date=date.fromisoformat(item["gift_date"]),
         gift_amount=Decimal(str(item["gift_amount"])),
         reviewed_by=item.get("reviewed_by") or default_reviewer,
@@ -1394,17 +1474,30 @@ def reading_from_json(item: dict, default_reviewer: str) -> StatementReadingInpu
         line_c=_optional_decimal(item.get("line_c")),
         signed_on=_optional_date(item.get("signed_on")),
         received_on=_optional_date(item.get("received_on")),
+        repeat_of_period=str(repeat["report_period"]) if repeat else None,
+        repeat_of_number=int(repeat["statement_number"]) if repeat else None,
     )
-    if state == "read" and (
-        reading.box not in (1, 2, 3) or reading.received_on is None
-    ):
-        raise ValueError(
-            f"statement {reading.statement_number} of {reading.recipient_registration_number}"
-            " is marked read without its box and received date"
-        )
+    if state == "read" and reading.box not in (1, 2, 3):
+        raise ValueError(f"{reading.label} is marked read without its box")
     if state == "read" and reading.box != 3 and reading.sources:
-        raise ValueError("only a box-3 statement lists sources")
+        raise ValueError(f"{reading.label}: only a box-3 statement lists sources")
     return reading
+
+
+def repeats_match(
+    original: StatementReadingInput, repeat: StatementReadingInput
+) -> bool:
+    """A repeat must state exactly what its original states, or it is 2 statements."""
+    return (
+        original.donor_name == repeat.donor_name
+        and original.gift_date == repeat.gift_date
+        and original.gift_amount == repeat.gift_amount
+        and original.state == repeat.state
+        and original.box == repeat.box
+        and original.sources == repeat.sources
+        and (original.line_a, original.line_b, original.line_c)
+        == (repeat.line_a, repeat.line_b, repeat.line_c)
+    )
 
 
 def _same_reading(row: Any, reading: StatementReadingInput) -> bool:
@@ -1412,6 +1505,7 @@ def _same_reading(row: Any, reading: StatementReadingInput) -> bool:
     return (
         row.state.value == reading.state
         and row.donor_name == reading.donor_name
+        and row.recipient_name == reading.recipient_name
         and row.gift_date == reading.gift_date
         and Decimal(row.gift_amount) == reading.gift_amount
         and row.box == (reading.box if read else None)
@@ -1422,6 +1516,8 @@ def _same_reading(row: Any, reading: StatementReadingInput) -> bool:
         and row.received_on == (reading.received_on if read else None)
         and row.reviewed_by == reading.reviewed_by
         and row.evidence == reading.evidence
+        and row.repeat_of_period == reading.repeat_of_period
+        and row.repeat_of_number == reading.repeat_of_number
         and [(s.name, s.city, s.state, s.amount) for s in row.sources]
         == (list(reading.sources) if read else [])
     )
@@ -1435,20 +1531,17 @@ def record_statement_reading(
     Refuses when the statement is not listed, when its PDF is not held, or when the kept
     PDF's page images are not the images the reading names. Returns what it did.
     """
+    model = schema.CampaignFinanceDisclosureStatement
     statement = db.scalar(
-        select(schema.CampaignFinanceDisclosureStatement).where(
-            schema.CampaignFinanceDisclosureStatement.recipient_registration_number
+        select(model).where(
+            model.recipient_registration_number
             == reading.recipient_registration_number,
-            schema.CampaignFinanceDisclosureStatement.filing_year
-            == reading.filing_year,
-            schema.CampaignFinanceDisclosureStatement.statement_number
-            == reading.statement_number,
+            model.filing_year == reading.filing_year,
+            model.report_period == reading.report_period,
+            model.statement_number == reading.statement_number,
         )
     )
-    label = (
-        f"{reading.recipient_registration_number} {reading.filing_year} "
-        f"statement {reading.statement_number}"
-    )
+    label = reading.label
     if statement is None:
         return f"refused {label}: no catalogue lists it"
     if statement.object_key is None:
@@ -1474,23 +1567,27 @@ def record_statement_reading(
     if existing is not None:
         db.delete(existing)
         db.flush()
+    read = reading.state == "read"
     row = schema.CampaignFinanceDisclosureStatementReading(
         statement_id=statement.id,
         state=schema.DisclosureStatementReadingState(reading.state),
         donor_name=reading.donor_name,
+        recipient_name=reading.recipient_name,
         gift_date=reading.gift_date,
         gift_amount=reading.gift_amount,
-        box=reading.box if reading.state == "read" else None,
-        line_a=reading.line_a if reading.state == "read" else None,
-        line_b=reading.line_b if reading.state == "read" else None,
-        line_c=reading.line_c if reading.state == "read" else None,
-        signed_on=reading.signed_on if reading.state == "read" else None,
-        received_on=reading.received_on if reading.state == "read" else None,
+        box=reading.box if read else None,
+        line_a=reading.line_a if read else None,
+        line_b=reading.line_b if read else None,
+        line_c=reading.line_c if read else None,
+        signed_on=reading.signed_on if read else None,
+        received_on=reading.received_on if read else None,
         reviewed_by=reading.reviewed_by,
         evidence=reading.evidence,
         document_hash_read=statement.document_hash,
+        repeat_of_period=reading.repeat_of_period,
+        repeat_of_number=reading.repeat_of_number,
     )
-    if reading.state == "read":
+    if read:
         for position, (name, city, state, amount) in enumerate(
             reading.sources, start=1
         ):
