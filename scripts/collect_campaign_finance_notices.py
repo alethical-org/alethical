@@ -45,6 +45,10 @@ from alethical.pipeline.collection_run_summary import (  # noqa: E402
     record_stage,
     run_script,
 )
+from alethical.pipeline.cache_purge import (  # noqa: E402
+    clear_and_note,
+    when_notices_or_statements_are_stored,
+)
 from alethical.pipeline.raw_file_store import raw_file_store_from_env  # noqa: E402
 
 
@@ -174,6 +178,14 @@ def main() -> int:
                 )
                 for (window, reason), count in sorted(counts.items()):
                     print(f"  {window}: {reason}: {count}")
+    # A successful copy moves the copy date every card prints, so clear the saved
+    # answers even when no notice is new (#1979).
+    clearing_failed, clearing_note = clear_and_note(
+        when_notices_or_statements_are_stored(),
+        stored=not args.dry_run and report.ok,
+    )
+    if clearing_failed:
+        exit_code = 1
     # What this run did, for the failure review (#2350).
     checks = [
         name
@@ -181,6 +193,7 @@ def main() -> int:
             ("notice page", report.page_errors),
             ("notice PDF fetch", report.fetch_failures),
             ("ballot files", ballot_failures),
+            ("clearing saved answers", [clearing_note] if clearing_failed else []),
         )
         if problems
     ]
@@ -194,7 +207,12 @@ def main() -> int:
         if report.new
         else "unchanged",
         failed_checks=checks,
-        details=[*report.page_errors, *report.fetch_failures, *ballot_failures],
+        details=[
+            *report.page_errors,
+            *report.fetch_failures,
+            *ballot_failures,
+            clearing_note,
+        ],
         counts={"notices listed": report.listed, "notices kept": report.new},
     )
     return exit_code

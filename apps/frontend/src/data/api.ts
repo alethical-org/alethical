@@ -3478,8 +3478,9 @@ const asText = (value: unknown): string | null => (typeof value === 'string' ? v
  * `.claude/rules/grounded-answers.md` rule 12's missing-versus-reported failure with the
  * record's own value as the missing one.
  *
- * Not hypothetical: these rows are served `max-age=300, stale-while-revalidate=86400`, so
- * a copy taken in the 5 minutes before a release stays reusable for a day after it. Found
+ * Not hypothetical: Cloudflare holds these rows with `max-age=300,
+ * stale-while-revalidate=86400`, so until a publish clears its copies, one taken in the 5
+ * minutes before a release stays reusable for a day after it. Found
  * on the live site within an hour of the columns shipping, with every expanded payment on
  * a legislator's money tab reading "Not reported" while the API served its real ZIP.
  */

@@ -43,7 +43,7 @@ the records behind them change at genuinely different rates.
 | Layer | Header | Where it is set |
 |---|---|---|
 | Cloudflare, bill / vote / legislator reads | `public, max-age=60, stale-while-revalidate=300` | `PUBLIC_CACHE_CONTROL` in `alethical/api/routers/public.py` |
-| Cloudflare, the 6 named campaign-money record reads, explicit dated-only committee finance, and a committee's own payment pages | `public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800` | `MONEY_RECORDS_CACHE_CONTROL`, same file, granted to `MONEY_RECORD_PATHS` by `public_cache_control_for_path`, by the finance handler only after a successful anonymous `GET` with `include_confirmation=false`, and by the payments handler after an anonymous `GET` whose answer is `reported` or `not_reported` |
+| Cloudflare, the 6 named campaign-money record reads, explicit dated-only committee finance, and a committee's own payment, notice and statement pages | `Cloudflare-CDN-Cache-Control: public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800`, with `Cache-Control: public, max-age=0, must-revalidate` for the browser, which therefore keeps no copy of its own | `MONEY_RECORDS_EDGE_CACHE_CONTROL` and `MONEY_RECORDS_CACHE_CONTROL`, same file, the first added by the middleware in `alethical/api/main.py` to every response carrying the second; the second granted to `MONEY_RECORD_PATHS` by `public_cache_control_for_path`, by the finance handler only after a successful anonymous `GET` with `include_confirmation=false`, and by the payments handler after an anonymous `GET` whose answer is `reported` or `not_reported` |
 | Vercel, in front of the page HTML | `public, max-age=0, s-maxage=300, stale-while-revalidate=300, stale-if-error=300` | `OK_CACHE` in `api/page.ts` |
 
 **Bill, vote and legislator reads keep the short window. The 6 named
@@ -53,10 +53,12 @@ one.** The 2 differ because the records behind them change at genuinely differen
 UTC, so bill and vote records change daily; a long stale window there would hand a
 reader a week-old bill status, the harm
 [`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md)
-rule 7 names. A campaign-money load is human-triggered and on no schedule, and
-production's snapshot was dated 2026-08-12 when this was measured on 4 Sep 2026,
-23 days old. One window set from the money cadence and applied to both was wrong
-for bill reads.
+rule 7 names. The money window was first chosen when a campaign-money load was
+human-triggered and on no schedule (production's snapshot was 23 days old on
+4 Sep 2026); the daily refresh and the notices job now publish on a schedule and
+clear Cloudflare's copies once clearing is armed, and the browser holds no copy of a
+money record at all (`docs/operations/api-cdn-setup.md`). One window set from the
+money cadence and applied to both was wrong for bill reads.
 
 **The 6 paths are named one at a time, and the shape of an address grants nothing.**
 The finance path remains short by default for compatible mixed responses. Only its

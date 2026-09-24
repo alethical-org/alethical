@@ -2167,6 +2167,13 @@ only.
   whole body `Requested file not found.` (measured 24 Sep 2026: 20003 2022 E1, 30636 2022 YE1,
   30638 2022 D1, 41291 2025 E5). Such a statement stays listed with no kept PDF, is asked for again
   on each later run, and never fails the run; any other answer that is not a PDF still does.
+- **Clearing saved answers.** Each of the job's 3 steps (notices, statements, readings) clears
+  Cloudflare's saved copies of every `committees` and `campaign-finance/disclosure-statements`
+  answer once it has stored something or re-dated its copy, through
+  `alethical/pipeline/cache_purge.py`, and records in its stage summary whether clearing ran,
+  was not armed, or failed. A failed clearing fails the step. The browser keeps no copy of a
+  money record (`docs/operations/api-cdn-setup.md`), so once clearing is armed the next reader
+  after a publish is served the new answer.
 - **Attachment.** A statement attaches to exactly the payment row whose donor, date and amount the
   reading names, matched on the server against every Contribution row the committee has for that
   year, never against a filtered part of the list. Each row takes at most 1 statement, the earliest

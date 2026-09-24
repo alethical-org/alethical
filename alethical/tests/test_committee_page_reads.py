@@ -714,6 +714,10 @@ def test_dated_finance_omits_current_claims_and_never_reads_them(
     assert "confirmed_for" not in response.text
     assert "current_claim_validated_at" not in response.text
     assert response.headers["cache-control"] == public.MONEY_RECORDS_CACHE_CONTROL
+    assert (
+        response.headers["cloudflare-cdn-cache-control"]
+        == public.MONEY_RECORDS_EDGE_CACHE_CONTROL
+    )
     assert legacy.headers["cache-control"] == public.PUBLIC_CACHE_CONTROL
 
 
@@ -783,6 +787,10 @@ def test_a_committee_payments_page_gets_the_dated_money_window(db, client, direc
     assert response.status_code == 200, response.text
     assert response.json()["data"]["state"] == "reported"
     assert response.headers["cache-control"] == public.MONEY_RECORDS_CACHE_CONTROL
+    assert (
+        response.headers["cloudflare-cdn-cache-control"]
+        == public.MONEY_RECORDS_EDGE_CACHE_CONTROL
+    )
 
 
 def test_a_year_with_no_payments_is_also_a_dated_fact_and_keeps_the_money_window(
@@ -801,6 +809,10 @@ def test_a_year_with_no_payments_is_also_a_dated_fact_and_keeps_the_money_window
     assert response.status_code == 200, response.text
     assert response.json()["data"]["state"] == "not_reported"
     assert response.headers["cache-control"] == public.MONEY_RECORDS_CACHE_CONTROL
+    assert (
+        response.headers["cloudflare-cdn-cache-control"]
+        == public.MONEY_RECORDS_EDGE_CACHE_CONTROL
+    )
 
 
 def test_a_year_our_copy_does_not_reach_keeps_the_short_window(db, client):

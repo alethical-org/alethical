@@ -1011,8 +1011,10 @@ so older clients keep the complete mixed answer and its short cache window. The
 frontend requests `?year=2025&include_confirmation=false`: that answer omits
 `confirmed_for` and `current_claim_validated_at` and performs no confirmation lookup.
 Only a successful anonymous `GET` of this explicit variant receives
-`MONEY_RECORDS_CACHE_CONTROL` (`public, max-age=300, stale-while-revalidate=86400,
-stale-if-error=604800`). An authorization header or a failed read cannot receive
+the money window: `Cloudflare-CDN-Cache-Control: public, max-age=300,
+stale-while-revalidate=86400, stale-if-error=604800` for Cloudflare, and
+`Cache-Control: public, max-age=0, must-revalidate` (`MONEY_RECORDS_CACHE_CONTROL`) for
+the browser, which keeps no copy of its own. An authorization header or a failed read cannot receive
 that longer window. The path alone stays off `MONEY_RECORD_PATHS` because it also
 serves the compatible mixed answer.
 
@@ -1382,8 +1384,8 @@ unmatched or ambiguous ZIP, which states what we cannot say rather than guessing
 The normalization the lookup performs belongs to the lookup and never rewrites the printed ZIP.
 Neither field carries a city, a street address or any contact detail, and the reference's own
 ZIP table stays inside the service. **A client tells an absent key from a null one**, because
-these rows are served `max-age=300, stale-while-revalidate=86400` and a copy taken before the
-columns shipped stays reusable for a day: `contributor_zip: null` is a filing with no ZIP, and
+Cloudflare holds these rows with `max-age=300, stale-while-revalidate=86400`, and until a
+publish clears its copies, one taken before the columns shipped stays reusable for a day: `contributor_zip: null` is a filing with no ZIP, and
 no key at all is a copy that can say nothing. The aggregate `donor_states` block on the `finance`
 endpoint reads the same reference and still carries no ZIP at all, because it speaks for a
 state rather than for a payment.

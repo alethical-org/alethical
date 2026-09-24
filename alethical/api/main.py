@@ -28,7 +28,11 @@ from alethical.api.routers.internal import router as internal_router
 from alethical.api.routers.me import router as me_router
 from alethical.api.routers.lobbying import router as lobbying_router
 from alethical.api.routers.pending_actions import router as pending_actions_router
-from alethical.api.routers.public import public_cache_control_for_path
+from alethical.api.routers.public import (
+    MONEY_RECORDS_CACHE_CONTROL,
+    MONEY_RECORDS_EDGE_CACHE_CONTROL,
+    public_cache_control_for_path,
+)
 from alethical.api.routers.public import router as public_router
 from alethical.api.routers.site_metrics import router as site_metrics_router
 from alethical.api.readiness import database_schema_is_ready
@@ -137,6 +141,12 @@ def create_app() -> FastAPI:
         ):
             response.headers["Cache-Control"] = public_cache_control_for_path(
                 request.url.path
+            )
+        if response.headers.get("cache-control") == MONEY_RECORDS_CACHE_CONTROL:
+            # Cloudflare's own window for a money record; the browser keeps none
+            # (the 2 headers are explained in alethical/api/routers/public.py).
+            response.headers["Cloudflare-CDN-Cache-Control"] = (
+                MONEY_RECORDS_EDGE_CACHE_CONTROL
             )
         return response
 
