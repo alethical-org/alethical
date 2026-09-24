@@ -959,7 +959,14 @@ and totals snapshot compared against, every waiver key, the decision text, every
 with its detail and affected committee-years, and the table. The same shape governs the totals
 loader (`--publish-hash`, `--publish-stored-hash`, `--waive check[:registration/year]`,
 `--decision`), where a lost filer-year is waived by its exact pair and, once waived, is retained
-rather than dropped (§4.4). **Granting the exception is the operator's own call once the evidence explains every failed guard (Eugene, 23 Sep 2026)**: the swap is reversible, the previous set is kept and 1 command restores it, so an explained guard is a judgement to record and act on, never a question to hand up. A guard nobody can explain from evidence is the one that waits for a person who can.
+rather than dropped (§4.4). **Granting the exception is the operator's own call once the evidence explains every failed guard (Eugene, 23 Sep 2026)**: the swap is reversible, the previous set is kept and 1 command restores it, so an explained guard is a judgement to record and act on, never a question to hand up. A guard nobody can explain from evidence is the one that waits for a person who can. **A committee-year a person
+has waived on the published release, its split already withheld, is carried forward by the next
+comparison rather than failed again**: the daily job's first run (24 Sep 2026) quarantined every
+payments file on exactly the 6 committee-years waived the night before, and would have every day
+until the Board's own figures moved. The check reads the published snapshot's recorded
+committee-years, reports the carried ones without blocking, keeps them recorded so their split
+stays withheld, and fails only a committee-year that list does not carry. A scheduled run still
+invents no exception; it inherits the one a person recorded, by exact committee-year.
 
 ### 4.4 What survives replacement
 

@@ -2321,3 +2321,69 @@ def test_the_callers_last_word_before_publish_can_refuse_and_nothing_goes_live(
     )
     assert published.published, published.summary()
     assert cf.live_release(db).id == published.release_id
+
+
+def test_a_reconcile_committee_year_waived_on_the_published_release_is_carried_not_failed(
+    db, board, store
+) -> None:
+    """The daily job's first run quarantined on the 6 committee-years a person had
+    waived the night before. A pair already waived on the live release, split already
+    withheld, is carried forward; only a new pair fails and needs its own waiver."""
+    seed_filings_snapshot(db, reported={("19200", 2025): "1500.00"})
+    published = publish_first(
+        db, board, store, waive=["contributions/reported_totals_reconcile:19200/2025"]
+    )
+    assert contributions_checks(published)["reported_totals_reconcile"].status == (
+        "overridden"
+    )
+
+    # The same disagreement on the next download: carried, reported, not blocking,
+    # and still recorded so the split stays withheld.
+    rows = list(CONTRIBUTION_ROWS)
+    # One employer field changes, so the records hash differently and the row count,
+    # amount sum and repeat share all stay inside their bands.
+    rows[0] = rows[0].replace("Retired", "Teacher")
+    board.set_rows(Dataset.contributions, rows)
+    again = run(db, board, store)
+    check = contributions_checks(again)["reported_totals_reconcile"]
+    assert check.status == "reported", check.detail
+    assert check.filer_years == ("19200:2025",)
+    assert "already waived on the published release" in check.detail
+    assert not check.blocks_publication
+    assert again.published, again.summary()
+    release = db.get(models.CampaignFinanceRelease, again.release_id)
+    snapshot = snapshot_of(db, release, Dataset.contributions)
+    recorded = {c["name"]: c for c in snapshot.validation_json["checks"]}
+    assert recorded["reported_totals_reconcile"]["filer_years"] == ["19200:2025"]
+
+    # A NEW committee-year over its reported figure still fails, naming only the new
+    # one as needing a waiver; waiving that one publishes and records both.
+    seed_filings_snapshot(
+        db, reported={("19200", 2025): "1500.00", ("40858", 2025): "100.00"}
+    )
+    rows[0] = rows[0].replace("Teacher", "Nurse")  # a changed file, not a no-op run
+    board.set_rows(Dataset.contributions, rows)
+    blocked = run(db, board, store)
+    check = contributions_checks(blocked)["reported_totals_reconcile"]
+    assert check.status == "failed"
+    assert check.filer_years == ("40858:2025",)
+    assert "1 were already waived on the published release" in check.detail
+    assert "1 are new and need a named waiver: 40858:2025" in check.detail
+    hashes = [
+        o.measurements.record_set_hash for o in blocked.outcomes if o.measurements
+    ]
+    waived = run(
+        db,
+        board,
+        store,
+        publish_hashes=hashes,
+        waive=[
+            *[k for k in failed_comparison_waivers(blocked) if "reconcile" not in k],
+            "contributions/reported_totals_reconcile:40858/2025",
+        ],
+        decision="test",
+    )
+    assert waived.published, waived.summary()
+    check = contributions_checks(waived)["reported_totals_reconcile"]
+    assert check.status == "overridden"
+    assert set(check.filer_years) == {"40858:2025", "19200:2025"}
