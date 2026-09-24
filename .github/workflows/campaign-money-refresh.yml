@@ -1,0 +1,133 @@
+name: Refresh campaign money from the Board
+
+# Keeps Alethical's campaign-money pages within a day of Minnesota's Campaign Finance
+# Board. Before this existed nothing refreshed them on a schedule, and they sat 3 to 6
+# weeks behind (https://github.com/alethical-org/alethical/issues/2344, D3).
+#
+# Each run, in this order:
+#   1. takes 1 run-wide lease in the database (a row in cf_refresh_state with a 4-hour
+#      expiry), shared with hand-started and laptop runs, so 2 starts at the same
+#      minute produce 1 run; a run whose lease is taken by another before it publishes
+#      does not publish;
+#   2. retries any saved-page clearing, then any money re-check, left unfinished last
+#      time (at most 1 re-check attempt per run);
+#   3. reads the Board's 6 small lists (3 registered-filer lists, 3 current-report
+#      lists) and, on any change of content, or weekly regardless, refreshes the
+#      official totals for EVERY supported year (a totals publication replaces the
+#      whole set, so a 2-year run would erase 2022 to 2023); a list that could not be
+#      read makes the run incomplete and is never recorded as handled;
+#   4. downloads the 3 payment files (about 162 MB; they serve no size, date or change
+#      marker, so a download is the only change detector) and publishes when every
+#      check passes;
+#   5. after any publish, clears the saved pages, runs both money re-checks, and
+#      clears again once their verdicts are live.
+# A quarantine leaves the previous set live, keeps the bytes and the printed reasons,
+# and exits non-zero. The script's own summary says which payments release and which
+# totals snapshot are live at the end and whether this run published each; with
+# --alert-issue the script quotes that summary into 1 GitHub issue, opened once and
+# commented on while the run keeps failing. Nothing in this file asserts what is live.
+#
+# Freshness, stated honestly: payments are checked daily; the totals are refreshed
+# when a list changes and weekly; a run whose lists could not be read is reported as
+# incomplete.
+#
+# 15:30 UTC is 10:30 a.m. Central in summer and 9:30 in winter: after 8 a.m. Central,
+# which is when Minnesota Statutes 10A.20 subd. 1b makes a report public the day
+# after it is due. Every other daily slot in this repo (09:00, 11:00, 12:00, 13:00,
+# 14:00, 16:00) and the Monday 15:00 link re-check are left alone.
+#
+# Free: public downloads from cfb.mn.gov, one database, no paid API.
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_totals:
+        description: "Refresh the official totals today even if no list changed"
+        type: boolean
+        default: false
+      prove_alerting:
+        description: "Exit 1 on purpose to prove the alert issue, reading and publishing nothing"
+        type: boolean
+        default: false
+  schedule:
+    - cron: "30 15 * * *"
+
+concurrency:
+  group: campaign-money-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    permissions:
+      contents: read
+      issues: write
+    env:
+      ALETHICAL_DATABASE_TARGET: production
+      SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_STORAGE_S3_ENDPOINT: ${{ secrets.SUPABASE_STORAGE_S3_ENDPOINT }}
+      SUPABASE_STORAGE_S3_REGION: ${{ secrets.SUPABASE_STORAGE_S3_REGION }}
+      SUPABASE_STORAGE_S3_ACCESS_KEY_ID: ${{ secrets.SUPABASE_STORAGE_S3_ACCESS_KEY_ID }}
+      SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY: ${{ secrets.SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY }}
+      # Clearing saved pages (#1979) is armed only when all 3 are set. Unset, the run
+      # prints NOT ARMED and what it would have cleared, and still succeeds.
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+      ALETHICAL_CLEAR_SAVED_ANSWERS: "on"
+      # For --alert-issue: the script files or updates the issue through gh itself, so
+      # a dry run can never file one and the body is the run's own summary.
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          version: 0.12.5
+          enable-cache: true
+          prune-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Check the secrets are set
+        shell: bash
+        run: |
+          missing=()
+          for name in SUPABASE_PROJECT_URL SUPABASE_DB_PASSWORD \
+                      SUPABASE_STORAGE_S3_ENDPOINT SUPABASE_STORAGE_S3_REGION \
+                      SUPABASE_STORAGE_S3_ACCESS_KEY_ID SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf 'Not set as repository secrets: %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      # shell: bash so the pipe fails when the script does (GitHub's default has no
+      # pipefail); PYTHONPATH=. so `import alethical` resolves from scripts/.
+      - name: Refresh
+        shell: bash
+        run: |
+          flags=(--alert-issue)
+          if [ "${{ inputs.force_totals }}" = "true" ]; then flags+=(--force-totals); fi
+          if [ "${{ inputs.prove_alerting }}" = "true" ]; then flags+=(--prove-alerting); fi
+          PYTHONPATH=. uv run python scripts/refresh_campaign_finance.py \
+            --target production "${flags[@]}" 2>&1 | tee refresh-report.txt
+
+      - name: Keep the printed report when the refresh did not finish
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: refresh-report
+          path: refresh-report.txt
+          if-no-files-found: ignore
+          retention-days: 30

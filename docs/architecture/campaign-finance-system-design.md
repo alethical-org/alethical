@@ -823,6 +823,44 @@ whole files and replaces whole sets.
    estimate from it, on the reasoning that the 2 now do the same work over the same documents, and
    the next publish is what turns it into a measurement (§9.9).
 
+**The cycle runs daily, unattended (Eugene, 23 Sep 2026,
+[#2344](https://github.com/alethical-org/alethical/issues/2344), D3).**
+`.github/workflows/campaign-money-refresh.yml` runs `scripts/refresh_campaign_finance.py`
+at 15:30 UTC, after 8 a.m. Central, which is when Minnesota Statutes 10A.20 subd. 1b
+makes a report public the day after it is due. One run-wide lease in the database is taken
+by every publication route, scheduled, hand-started or laptop, including both hand-run
+loader scripts, above the 2 short publish locks, so 2 starts at once produce 1 run. The
+lease is a row in `cf_refresh_state` (key `full_run_lease`: owner token, purpose,
+`acquired_at`, `expires_at`), taken or renewed in 1 `INSERT ... ON CONFLICT DO UPDATE`
+statement that succeeds only when the existing lease has expired or is already this
+owner's, released only by its owner, and expiring after 4 hours so a run that dies frees it
+without a person. A row rather than `pg_try_advisory_lock` because production connects
+through Supabase's pooler in transaction mode, where a session-level lock can be released
+by, or left held on, a backend the run never sees again
+([Supabase, transaction-mode limitations](https://supabase.com/docs/guides/database/connecting-to-postgres#transaction-mode-limitations)).
+Right before each publish the run renews its lease; a lease taken by another owner
+quarantines the set instead of publishing it. The order: retry any saved-page clearing,
+then any money re-check, left unfinished last time, at most 1 re-check attempt per run and
+only for a generation of data that is still live or has been replaced by a newer one; read
+the 3 registered-filer lists and the 3 current-report lists and hash their content with row
+order removed; on any change, or weekly regardless, refresh the totals for every supported
+year, because a totals publication replaces the whole set and a 2-year run would erase 2022
+to 2023; download the 3 payment files, which serve no size, date or change marker, and
+publish when every check passes; after any publish clear the saved pages, run both
+re-checks and clear again once their verdicts are live, each unfinished step leaving its
+own marker (`clearing_pending`, `recheck_pending`) that only its success removes. A list is
+recorded as handled (`cf_refresh_state`) only after the work succeeded, and a list that
+could not be read, or came back in the wrong shape, is never recorded: the run reports it
+as incomplete while the payments half still runs. The first scheduled run finds no marker
+from the one-off hand runs and is handed none: it fetches the totals once under the weekly
+rule (about 54 minutes, 6,444 requests), records the 6 hashes only after that succeeds, and
+every later run compares. A quarantine keeps the previous set live, keeps the bytes and
+the printed reasons, and exits non-zero; the printed summary says which payments release
+and which totals snapshot are live at the end and whether this run published each, and the
+GitHub issue the run files quotes that summary rather than asserting anything itself.
+Freshness, wherever stated: payments checked daily; totals refreshed on list change and
+weekly; a run whose lists could not be read is reported as incomplete.
+
 **Related files release together.** Contributions, general expenditures, independent
 expenditures and the reports that cover the same period form one release. Files fetched on
 different days must never be shown together, or a committee's spending will be from a
@@ -921,7 +959,7 @@ and totals snapshot compared against, every waiver key, the decision text, every
 with its detail and affected committee-years, and the table. The same shape governs the totals
 loader (`--publish-hash`, `--publish-stored-hash`, `--waive check[:registration/year]`,
 `--decision`), where a lost filer-year is waived by its exact pair and, once waived, is retained
-rather than dropped (§4.4).
+rather than dropped (§4.4). **Granting the exception is the operator's own call once the evidence explains every failed guard (Eugene, 23 Sep 2026)**: the swap is reversible, the previous set is kept and 1 command restores it, so an explained guard is a judgement to record and act on, never a question to hand up. A guard nobody can explain from evidence is the one that waits for a person who can.
 
 ### 4.4 What survives replacement
 

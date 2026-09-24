@@ -529,14 +529,35 @@ class FakeRecheckReport:
         return "  (a re-check)"
 
 
-def call_loader(monkeypatch, load_report, *, argv=None, recheck_report=None):
+def call_loader(
+    monkeypatch,
+    load_report,
+    *,
+    argv=None,
+    recheck_report=None,
+    lease_held=True,
+    events=None,
+):
     """Run the publishing command's ``main`` with the load and re-check both faked.
 
     Everything below the command's own decisions is replaced, because what is under test
     is exactly those decisions: whether a re-check happens, for which years, and what the
-    command exits with.
+    command exits with. The run-wide lease (D3, #2344) is faked the same way, answering
+    ``lease_held``; ``events`` collects, in order, the lease request and the load, so a
+    test can prove which came first.
     """
     calls: list[dict] = []
+    events = [] if events is None else events
+
+    def fake_hold(engine, *, purpose, **kwargs):
+        events.append(f"lease: {purpose}")
+        return lease_held
+
+    def fake_load(*args, **kwargs):
+        events.append("load")
+        return load_report
+
+    monkeypatch.setattr(loader_script, "hold_full_run_lease_until_exit", fake_hold)
 
     class FakeSession:
         def __enter__(self):
@@ -557,12 +578,41 @@ def call_loader(monkeypatch, load_report, *, argv=None, recheck_report=None):
     monkeypatch.setattr(
         loader_script, "database_url_for_target", lambda target: "postgresql://fake"
     )
-    monkeypatch.setattr(
-        loader_script, "load_campaign_finance", lambda *a, **k: load_report
-    )
+    monkeypatch.setattr(loader_script, "load_campaign_finance", fake_load)
     monkeypatch.setattr(loader_script, "recheck_stated_figures", fake_recheck)
     monkeypatch.setattr("sys.argv", ["load_campaign_finance.py", *(argv or [])])
     return loader_script.main(), calls
+
+
+def test_a_hand_run_load_takes_the_run_wide_lease_first_and_refuses_when_it_is_held(
+    monkeypatch,
+) -> None:
+    """(c) The same exclusion the daily refresh takes, before any network or database work."""
+    events: list[str] = []
+    code, calls = call_loader(
+        monkeypatch, FakeLoadReport(published=True), lease_held=False, events=events
+    )
+    assert code == 1
+    # Refused before the load ran, so nothing was fetched or written.
+    assert events == ["lease: a hand-run campaign-money payments load"]
+    assert calls == []
+
+    events.clear()
+    code, _ = call_loader(monkeypatch, FakeLoadReport(published=True), events=events)
+    assert code == 0
+    assert events == ["lease: a hand-run campaign-money payments load", "load"]
+
+    # A dry run writes nothing, the lease included.
+    events.clear()
+    code, _ = call_loader(
+        monkeypatch,
+        FakeLoadReport(),
+        argv=["--dry-run"],
+        lease_held=False,
+        events=events,
+    )
+    assert code == 0
+    assert events == ["load"]
 
 
 def test_publishing_re_checks_and_exits_zero(monkeypatch) -> None:
