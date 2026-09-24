@@ -105,7 +105,7 @@ export function SocialIconLink({
   return (
     <Pressable
       accessibilityLabel={`Alethical on ${social.label} (opens in a new tab)`}
-      {...externalLinkProps(url, () => void Linking.openURL(url))}
+      {...(url ? externalLinkProps(url, () => void Linking.openURL(url)) : {})}
       {...hoverProps}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
