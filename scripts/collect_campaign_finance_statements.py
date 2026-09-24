@@ -138,6 +138,13 @@ def main() -> int:
         failed_checks=["catalogue read"] if failed else [],
         details=list(report.failures)
         + [f"not served: {line}" for line in report.not_served],
+        counts={
+            "catalogues read": report.catalogues_read,
+            "statements listed": report.listed,
+            "statements new": report.new,
+            "PDFs kept": report.pdfs_fetched,
+            "PDFs not served": len(report.not_served),
+        },
     )
     return 1 if failed else 0
 
