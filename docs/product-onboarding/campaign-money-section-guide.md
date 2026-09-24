@@ -996,7 +996,15 @@ Campaign money, top to bottom:
 
    Every page must arrive from the same release before counts, sums, grouping or sorting
    claim a complete list. Failed reads keep the load-failed words and withhold those
-   figures, never the sentence saying the file names no payments. Each exact printed name
+   figures, never the sentence saying the file names no payments. When every read
+   succeeded but the lists and the totals above them came from 2 different copies of the
+   records, which happens in the minutes after a new copy is published, the list says
+   “Our totals and this payment list were copied from Minnesota’s records at different
+   times, so the list is held back until they match. Try again in a few minutes.” and the
+   chart says “Our totals and the donation list were copied at different times, so the
+   chart is held back until they match”, each with **Try again**, and neither says a load
+   failed. Lists already on screen that matched the totals stay on screen when a later
+   read brings the newer copy, because those rows and the totals still come from 1 copy. Each exact printed name
    groups only this committee's payments in this year and category. Different spellings
    stay separate, and repeated-looking rows are kept. Counts say names and payments,
    never donors. A light band uses the chosen donor kind's colour at 12% opacity and

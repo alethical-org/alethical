@@ -45,6 +45,7 @@ export function DonorBreakdown({
   year,
   complete,
   failed,
+  mixedCopies = false,
   isBallot = false,
   headingLevel = 3,
 }: {
@@ -54,6 +55,8 @@ export function DonorBreakdown({
   year: number;
   complete: boolean;
   failed: boolean;
+  /** Every read succeeded, but from 2 different copies of the records (#2363). */
+  mixedCopies?: boolean;
   isBallot?: boolean;
 }) {
   const { isMobile, isTablet } = useResponsive();
@@ -79,7 +82,9 @@ export function DonorBreakdown({
       </Text>
       {!complete ? (
         <>
-          <Text style={s.body}>{failed ? copy.chartFailed : copy.chartLoading}</Text>
+          <Text style={s.body}>
+            {mixedCopies ? copy.chartMixedCopies : failed ? copy.chartFailed : copy.chartLoading}
+          </Text>
           <Dek segments={definition} />
         </>
       ) : chart?.state === 'withheld' ? (
