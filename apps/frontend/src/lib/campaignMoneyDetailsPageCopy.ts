@@ -42,6 +42,10 @@ export function namedMoneyDefinition(isBallot: boolean): DekSegment[] {
 /** Small labels needed before the donation browser's code arrives. */
 export const moneyDetailsPageCopy = {
   chartFailed: 'We could not load the complete donation list, so the chart is withheld',
+  /** Every read succeeded, but the totals and the lists came from copies of the Board's
+   *  records taken at different times, so they are not shown together (#2363). */
+  chartMixedCopies:
+    'Our totals and the donation list were copied at different times, so the chart is held back until they match',
   outsideFailed:
     'We could not load this right now. This is a problem on our side and says nothing about what was spent.',
   chartLoading: 'Loading the contribution breakdown…',

@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useRef, type ReactNode } from 'react';
 import { View } from 'react-native';
 
 import type { CampaignCommitteeMoney } from '../../data/types';
@@ -56,35 +56,58 @@ export function CommitteeDonations({
   const summaryMismatch = Boolean(
     releaseId && details.received.data && details.received.data.releaseId !== releaseId,
   );
+  // Every read succeeded, but the totals above and the lists came from 2 copies of the
+  // Board's records taken at different times, which happens in the minutes after a
+  // publish. Not a load failure, so it gets its own sentence (#2363).
+  const mixedCopies = summaryMismatch || details.releaseMismatch;
   const failed =
-    summaryMismatch ||
-    details.releaseMismatch ||
+    mixedCopies ||
     details.received.isError ||
     details.made.isError ||
     details.received.data?.state === 'unavailable' ||
     details.made.data?.state === 'unavailable';
+  // The last lists that matched the totals stay on screen when a later read brings a
+  // newer copy the totals have not caught up with: those rows and the totals still
+  // belong to the same copy, so nothing is mixed and nothing blanks.
+  const lastMatched = useRef<{
+    key: string;
+    groups: typeof groups;
+    payments: NonNullable<typeof details.received.data>['payments'];
+  } | null>(null);
+  const key = `${committee.registrationNumber}:${year}:${releaseId ?? ''}`;
+  const complete = details.selectedComplete && !failed;
+  if (complete && details.received.data) {
+    lastMatched.current = { key, groups, payments: details.received.data.payments };
+  }
+  const kept =
+    !complete && mixedCopies && lastMatched.current?.key === key ? lastMatched.current : null;
+  const shownGroups = kept ? kept.groups : groups;
+  const shownPayments = kept ? kept.payments : (details.received.data?.payments ?? []);
+  const shownComplete = complete || Boolean(kept);
   return (
     <View style={s.section}>
       <DonorBreakdown
         headingLevel={headingLevel}
-        payments={details.received.data?.payments ?? []}
+        payments={shownPayments}
         split={committee.split}
         year={year}
-        complete={details.selectedComplete && !failed}
+        complete={shownComplete}
         failed={failed}
+        mixedCopies={mixedCopies}
         isBallot={isBallot}
       />
       {children}
       <DonorPaymentList
-        groups={groups}
+        groups={shownGroups}
         year={year}
         tab={preferences.tab}
         onSelectTab={(tab) => onPreferences({ ...preferences, tab })}
         showStatements={showStatements}
         selectedSort={preferences.sort}
         onSelectSort={(sort) => onPreferences({ ...preferences, sort })}
-        ready={details.selectedComplete && !failed}
+        ready={shownComplete}
         failed={failed}
+        mixedCopies={mixedCopies}
         onRetry={() => {
           onRefresh();
           void details.received.refetch();

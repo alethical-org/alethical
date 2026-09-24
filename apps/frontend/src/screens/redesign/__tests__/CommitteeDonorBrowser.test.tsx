@@ -376,10 +376,56 @@ describe('one committee shares the donation browser', () => {
       expect(host.textContent).not.toContain(
         'No itemized receipts or expenditures in our copy for this year',
       );
-      expect(host.textContent).toContain('We could not load the complete payment list');
+      expect(host.textContent).toContain(
+        options.mismatch
+          ? 'Our totals and this payment list were copied from Minnesota’s records at different times'
+          : 'We could not load the complete payment list',
+      );
+      if (options.mismatch) {
+        // Every read succeeded, so nothing on the page may call it a failed load (#2363).
+        expect(host.textContent).not.toContain('We could not load');
+      }
       expect(button('Try again')).toBeTruthy();
     },
   );
+
+  it('keeps rows that matched the totals when a later read brings a newer copy', async () => {
+    missingReports();
+    let newer = false;
+    request.mockImplementation(async (path) => {
+      if (path.includes('outside-spending')) return structuredClone(candidateGroups) as never;
+      const received = path.includes('direction=received');
+      return {
+        data: {
+          registration_number: '19193',
+          year: 2025,
+          state: received ? 'reported' : 'not_reported',
+          payments: received ? [candidateReceived[0].data.payments[0]] : [],
+          page: { offset: 0, limit: 250, has_more: false, total_payments: received ? 1 : 0 },
+          release_id: newer ? 'a-newer-release' : payload.release_id,
+        },
+      } as never;
+    });
+    await render();
+    // The tab counts draw only once the list is ready.
+    expect(host.textContent).toContain('Committees & Funds 1');
+    newer = true;
+    await act(async () => {
+      await client.refetchQueries({ queryKey: ['campaign-money-details'] });
+    });
+    await vi.waitFor(async () => {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(client.isFetching()).toBe(0);
+    });
+    // The totals still come from the first copy, so the rows from that copy stay, and
+    // nothing is blanked or relabelled as belonging to the newer one (#2363).
+    expect(host.textContent).toContain('Committees & Funds 1');
+    expect(host.textContent).toContain('$250');
+    expect(host.textContent).not.toContain('copied from Minnesota’s records at different times');
+    expect(host.textContent).not.toContain('We could not load');
+  });
 
   it('preserves an official zero when itemized lists are empty', async () => {
     missingReports();

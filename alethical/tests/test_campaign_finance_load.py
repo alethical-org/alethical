@@ -2112,6 +2112,34 @@ def test_publishing_over_a_row_loss_by_naming_the_hashes_records_what_was_waived
     assert "committees with unmatched rows (1): 20010" in release.notes
 
 
+def test_an_automatic_publish_records_who_published_it_and_a_true_pass_sentence(
+    db, board, store
+) -> None:
+    """A release published with no hash named still says who published it and what it
+    was compared against, and a passed comparison never carries a failure sentence
+    (#2363)."""
+    first = publish_first(db, board, store)
+    rows = list(CONTRIBUTION_ROWS)
+    rows[0] = rows[0].replace("Retired", "Teacher")
+    board.set_rows(Dataset.contributions, rows)
+    second = run(db, board, store)
+    assert second.published
+    release = db.get(models.CampaignFinanceRelease, second.release_id)
+    assert release.notes is not None
+    assert release.notes.startswith("published with no hash named")
+    assert f"compared against release {first.release_id}" in release.notes
+    assert "candidate contributions: records " in release.notes
+    assert "waivers named" not in release.notes
+    for outcome in second.outcomes:
+        previous = next(
+            check
+            for check in outcome.checks
+            if check.name == "previous_release_to_compare_against"
+        )
+        assert previous.status == "passed"
+        assert "nothing to compare against" not in previous.detail
+
+
 def test_a_loss_under_the_threshold_publishes_and_the_table_is_not_computed(
     db, board, store
 ) -> None:

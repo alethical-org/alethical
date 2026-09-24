@@ -43,6 +43,7 @@ export function DonorPaymentList({
   onSelectTab,
   ready,
   failed,
+  mixedCopies = false,
   onRetry,
   selectedSort,
   onSelectSort,
@@ -54,6 +55,8 @@ export function DonorPaymentList({
   onSelectTab: (tab: MoneyDetailsTab) => void;
   ready: boolean;
   failed: boolean;
+  /** Every read succeeded, but from 2 different copies of the records (#2363). */
+  mixedCopies?: boolean;
   onRetry: () => void;
   selectedSort?: MoneyDetailsSort;
   onSelectSort?: (sort: MoneyDetailsSort) => void;
@@ -192,7 +195,7 @@ export function DonorPaymentList({
         {!ready ? (
           <View style={s.section}>
             <Text accessibilityRole={failed ? 'alert' : undefined} style={s.body}>
-              {failed ? copy.listFailed : copy.listLoading}
+              {mixedCopies ? copy.listMixedCopies : failed ? copy.listFailed : copy.listLoading}
             </Text>
             {failed ? (
               <Pressable

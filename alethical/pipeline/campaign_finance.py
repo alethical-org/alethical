@@ -1325,9 +1325,12 @@ def validate(
         *,
         comparison: bool = False,
         qualifiers: Iterable[str] = (),
+        passed_detail: Optional[str] = None,
     ) -> None:
+        # ``detail`` is shared by both outcomes unless it only describes a failure;
+        # then ``passed_detail`` says what is true when the check passes (#2363).
         if ok:
-            checks.append(Check(name, "passed", detail))
+            checks.append(Check(name, "passed", passed_detail or detail))
             return
         if comparison and operator_approved:
             missing = waivers.uncovered(spec.key, name, qualifiers)
@@ -1371,6 +1374,8 @@ def validate(
         "compare against. Review the measurements and publish by naming the 3 "
         "hashes",
         comparison=True,
+        passed_detail="a published release holds this dataset, so this file is "
+        "compared against it",
     )
 
     if baseline is not None:
@@ -3239,9 +3244,12 @@ def release_notes(
     baseline_release: Any = None,
     filings: Any = None,
 ) -> Optional[str]:
-    """The record of the exception this release published under.
+    """The record of who published this release, and of any exception it took.
 
-    ``None`` when nothing was waived. Otherwise: the candidate record hashes per file,
+    A release published with no hash named (the daily comparison, #2363) gets a short
+    note saying so: its candidate record hashes, the release it was compared against,
+    and every committee-year whose reconcile disagreement was carried from that release
+    unchanged. Otherwise: the candidate record hashes per file,
     the release the checks compared against and its 3 snapshots, the totals snapshot
     the reconciliation read, every waiver key the operator named, the operator's
     decision text, then every check that was overridden with its detail and affected
@@ -3249,12 +3257,17 @@ def release_notes(
     the checks is the point: a note carrying only the hashes says an exception was
     taken and not what it was for.
     """
-    if not approved:
-        return None
-    lines = [
-        "published by an operator naming the reviewed hashes: "
-        + ", ".join(sorted(approved))
-    ]
+    lines = (
+        [
+            "published by an operator naming the reviewed hashes: "
+            + ", ".join(sorted(approved))
+        ]
+        if approved
+        else [
+            "published with no hash named: every check that blocks a release passed, "
+            "so the comparison published it on its own"
+        ]
+    )
     for outcome in outcomes:
         measured = outcome.measurements
         if measured is not None:
@@ -3270,6 +3283,18 @@ def release_notes(
         )
     if filings is not None and getattr(filings, "snapshot_id", None) is not None:
         lines.append(f"reconciled against filings snapshot {filings.snapshot_id}")
+    if not approved:
+        for outcome in outcomes:
+            for check in outcome.checks:
+                if (
+                    check.name == "reported_totals_reconcile"
+                    and check.status == "reported"
+                ):
+                    lines.append(
+                        f"carried reconcile committee-years ({outcome.spec.key}): "
+                        + (", ".join(check.filer_years) or "none")
+                    )
+        return "\n".join(lines)
     lines.append(
         "waivers named: "
         + (", ".join(sorted(waivers.keys)) if waivers.keys else "none")

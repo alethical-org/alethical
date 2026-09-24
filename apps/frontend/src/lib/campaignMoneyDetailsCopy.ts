@@ -45,6 +45,8 @@ export const moneyDetailsCopy = {
   listLoading: 'Loading the complete payment list…',
   listFailed:
     'We could not load the complete payment list. Totals and name counts are withheld until every page loads.',
+  listMixedCopies:
+    'Our totals and this payment list were copied from Minnesota’s records at different times, so the list is held back until they match. Try again in a few minutes.',
   retry: 'Try again',
   search: 'Search names in this tab',
   counts: (names: number, payments: number) =>

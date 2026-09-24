@@ -956,7 +956,12 @@ inside the publish lock, where the live release is also checked to be the one th
 made against; a changed candidate hash never matches; structural checks stay unwaivable; a
 scheduled run passes no waiver at all. The release notes record the candidate hashes, the release
 and totals snapshot compared against, every waiver key, the decision text, every waived check
-with its detail and affected committee-years, and the table. The same shape governs the totals
+with its detail and affected committee-years, and the table. A release published with no hash
+named, which is what the daily comparison does when every blocking check passes, carries a note
+too: that it was published with no hash named, the candidate hashes, the release and totals
+snapshot compared against, and every committee-year whose reconcile disagreement was carried
+unchanged from that release. A passed check records a sentence that is true of a pass, never
+the sentence written for its failure. The same shape governs the totals
 loader (`--publish-hash`, `--publish-stored-hash`, `--waive check[:registration/year]`,
 `--decision`), where a lost filer-year is waived by its exact pair and, once waived, is retained
 rather than dropped (§4.4). **Granting the exception is the operator's own call once the evidence explains every failed guard (Eugene, 23 Sep 2026)**: the swap is reversible, the previous set is kept and 1 command restores it, so an explained guard is a judgement to record and act on, never a question to hand up. A guard nobody can explain from evidence is the one that waits for a person who can. **A committee-year a person
