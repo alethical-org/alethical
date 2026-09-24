@@ -122,6 +122,8 @@ def main() -> int:
     )
     for line in report.failures:
         print(f"problem: {line}")
+    for line in report.not_served:
+        print(f"not served, asked again next run: {line}")
     failed = bool(report.failures or report.catalogues_read < len(wanted))
     # What this run did, for the failure review (#2350).
     record_stage(
@@ -134,7 +136,8 @@ def main() -> int:
         if report.new
         else "unchanged",
         failed_checks=["catalogue read"] if failed else [],
-        details=list(report.failures),
+        details=list(report.failures)
+        + [f"not served: {line}" for line in report.not_served],
     )
     return 1 if failed else 0
 
