@@ -82,6 +82,7 @@ from alethical.api.services.committee_notices import (
     attached_statements,
     committee_notices,
     statement_detail,
+    statement_links,
     statements_copied_on,
 )
 from alethical.api.services.committee_donor_states import donor_states
@@ -3731,9 +3732,16 @@ def committee_payments(
     # Which of these rows carry a disclosure statement (#2347), known with the list so a
     # failed detail read can never make a statement gift look statement-free. Only
     # received payments can: a statement names a gift to this committee.
+    # Matched against the committee's whole year of rows on the server, so a row's
+    # statement never depends on which page of the list it arrived on.
     statements = (
-        attached_statements(db, registration_number, page.payments)
-        if direction == "received" and page.state == "reported"
+        attached_statements(
+            statement_links(
+                db, registration_number, year, release.contributions.snapshot_id
+            ),
+            page.payments,
+        )
+        if direction == "received" and page.state == "reported" and year is not None
         else []
     )
     return DetailResponse(
@@ -3794,6 +3802,46 @@ def committee_notices_for_year(
     if request.method == "GET" and "authorization" not in request.headers:
         response.headers["Cache-Control"] = MONEY_RECORDS_CACHE_CONTROL
     return DetailResponse(data=asdict(answer))
+
+
+@router.get(
+    "/committees/{registration_number}/disclosure-statements",
+    response_model=DetailResponse,
+)
+def committee_unlinked_statements(
+    registration_number: str,
+    request: Request,
+    response: Response,
+    year: int = Query(ge=2015, le=2100),
+    db: Session = Depends(get_db),
+):
+    """This committee's disclosure statements for one year that match no payment row.
+
+    Known on its own, independent of the payment list's pages, search, tabs and
+    failures, so a statement can never vanish because the list did. Each carries its
+    report, its number and its PDF, and ``state``: ``not_read`` when nobody has read it
+    (donor, recipient, date and amount are then all ``null`` and print as not yet read),
+    ``gift_identified`` or ``read``. No amount here is added to anything.
+
+    ``state: "listed"`` with an empty ``statements`` is a complete answer: every
+    statement this committee has for the year is linked to its payment, or it has none.
+    """
+    release = _resolve_campaign_finance_release(db)
+    _refuse_a_committee_we_hold_no_record_of(db, release, registration_number)
+    links = statement_links(
+        db, registration_number, year, release.contributions.snapshot_id
+    )
+    if request.method == "GET" and "authorization" not in request.headers:
+        response.headers["Cache-Control"] = MONEY_RECORDS_CACHE_CONTROL
+    return DetailResponse(
+        data={
+            "state": "listed",
+            "registration_number": registration_number,
+            "year": year,
+            "statements": [asdict(item) for item in links.unlinked],
+            "copied_on": statements_copied_on(db) if links.unlinked else None,
+        }
+    )
 
 
 @router.get(

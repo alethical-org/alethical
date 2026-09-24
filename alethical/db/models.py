@@ -4564,6 +4564,13 @@ class CampaignFinanceDisclosureStatement(UUIDPrimaryKeyMixin, TimestampMixin, Ba
     )
     filing_year: Mapped[int] = mapped_column(Integer, nullable=False)
     statement_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    # The report this statement is listed under, by the period code its `pdfs` row
+    # carries (`A` 1st Quarter .. `E` Pre-General for a committee in 2026). The Board
+    # numbers statements afresh for every report, so the number alone names up to 4
+    # different documents, and the PDF address takes this code.
+    report_period: Mapped[str] = mapped_column(String(8), nullable=False)
+    report_name: Mapped[Optional[str]] = mapped_column(Text)
+    report_cut_off: Mapped[Optional[date]] = mapped_column(Date)
     listed_under_reports: Mapped[list] = mapped_column(JSONB, nullable=False)
     first_listed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
@@ -4583,8 +4590,9 @@ class CampaignFinanceDisclosureStatement(UUIDPrimaryKeyMixin, TimestampMixin, Ba
         UniqueConstraint(
             "recipient_registration_number",
             "filing_year",
+            "report_period",
             "statement_number",
-            name="uq_cf_disclosure_statement_number",
+            name="uq_cf_disclosure_statement_period_number",
         ),
     )
 
@@ -4632,6 +4640,8 @@ class CampaignFinanceDisclosureStatementReading(
         nullable=False,
     )
     donor_name: Mapped[str] = mapped_column(Text, nullable=False)
+    # The recipient as the statement names it.
+    recipient_name: Mapped[Optional[str]] = mapped_column(Text)
     gift_date: Mapped[date] = mapped_column(Date, nullable=False)
     gift_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
     box: Mapped[Optional[int]] = mapped_column(SmallInteger)
@@ -4646,6 +4656,11 @@ class CampaignFinanceDisclosureStatementReading(
     )
     evidence: Mapped[str] = mapped_column(Text, nullable=False)
     document_hash_read: Mapped[str] = mapped_column(String(64), nullable=False)
+    # Set when this document states exactly what an earlier one of the same recipient
+    # and year states (donor, date, amount, box, sources and lines): the page shows the
+    # statement once, from the earlier document, and this one is kept but not printed.
+    repeat_of_period: Mapped[Optional[str]] = mapped_column(String(8))
+    repeat_of_number: Mapped[Optional[int]] = mapped_column(Integer)
 
     sources: Mapped[list["CampaignFinanceDisclosureStatementSource"]] = relationship(
         order_by="CampaignFinanceDisclosureStatementSource.position",
@@ -4655,7 +4670,7 @@ class CampaignFinanceDisclosureStatementReading(
     __table_args__ = (
         CheckConstraint("box IS NULL OR box IN (1, 2, 3)", name="box_is_a_form_box"),
         CheckConstraint(
-            "state <> 'read' OR (box IS NOT NULL AND received_on IS NOT NULL)",
+            "state <> 'read' OR box IS NOT NULL",
             name="a_read_statement_has_its_box",
         ),
     )

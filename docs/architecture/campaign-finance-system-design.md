@@ -2131,28 +2131,41 @@ only.
   open or not yet open is judged against the reader's today; the notices listed are as of the copy
   date the card's foot prints.
 - **Match status, per notice.** `matched` when a payment row names the same contributor, date and
-  amount, ignoring only letter case and surrounding spaces. `not_yet_on_a_report` when the gift is
-  dated after the end of the latest report this filer has filed in our copy of the catalogue.
-  `no_exact_match` otherwise, which says spellings vary and never says the gift is missing.
+  amount, ignoring only letter case and surrounding spaces. `not_yet_on_a_report` only when the end
+  of the latest report this filer has filed in our copy of the catalogue is known and the gift is
+  dated after it; the page then prints that date. `no_exact_match` for every other notice, which
+  names no cause and never says the gift is missing.
 - **Amendments.** The catalogue's amendment marker for a notice file above 0 marks it amended; the
   row shows the latest filing with its earlier value kept readable on the record.
 - **A disclosure statement** is filed by an unregistered association giving to an
   independent-expenditure committee or fund, naming where the money for that gift came from. The
-  recipient's catalogue lists each only as a numbered file and never says which gift it names. The
-  PDFs are scanned images with no text layer, so everything past a statement's existence is entered
-  by a person in `alethical/pipeline/data/disclosure_statement_readings.json`, signed with a
-  reviewer of record, and stored only when the kept PDF's page images match the reading's
-  fingerprint.
+  recipient's catalogue lists statements under each report as numbered files, and **the number
+  restarts for every report**: a statement is (recipient, year, report period code, number), and its
+  PDF address takes that period code (`period=A` for a committee's 1st Quarter report through `E` for
+  its Pre-General). The code is read from the catalogue's `pdfs` row for the same report, never from
+  the `disclosure` row, which says `D` whatever report it sits under. Measured on Restore Sanity,
+  23 Sep 2026: 11 different documents across 4 reports. The catalogue never says which gift a
+  statement names, and the PDFs are scanned images with no text layer, so everything past a
+  statement's existence is entered by a person in
+  `alethical/pipeline/data/disclosure_statement_readings.json`, signed with a reviewer of record, and
+  stored only when the kept PDF's page images match the reading's fingerprint. PDFs are kept from
+  filing year 2022 on; older statements are listed and link to the Board's own PDF.
 - **Attachment.** A statement attaches to exactly the payment row whose donor, date and amount the
-  reading names, by the same exact rule. A statement no one has linked to a gift, or whose gift
-  matches no row, attaches to nothing and prints nothing; the first such statement is the trigger
-  to revisit this. **No gift ever prints a line saying it has no statement**, because matching is
-  exact and a statement filed under a slightly different date would make that line false.
-- **What a statement prints.** Box 3: the sources' names, cities and states, never a ZIP or street,
-  and Lines A to C, where a blank line prints "Not reported", never $0. Boxes 1 and 2 list no
-  sources. A statement whose gift is known and whose sources are not yet read shows as held, not
-  read, beside the Board's PDF. The officer who signed a statement is never printed, and nothing
-  implies a source controls the committee, caused its spending, or gave any other gift.
+  reading names, matched on the server against every Contribution row the committee has for that
+  year, never against a filtered part of the list. Each row takes at most 1 statement, the earliest
+  report's first. A reading may mark its document a repeat of an earlier one that states exactly the
+  same donor, date, amount, box, sources and lines; the repeat is kept and never shown.
+- **Statements not linked to a payment.** Every other statement for the year, including one nobody
+  has read, is listed on its own card after the notices card, served independently of the payment
+  list so no search, tab or list failure can hide one. An unread statement prints its fields as not
+  yet read, never a guessed donor, date or amount. **No gift ever prints a line saying it has no
+  statement.**
+- **What a statement prints.** Box 3: the sources' names, cities and states exactly as the filing
+  spells them, never a ZIP or street, and Lines A to C, where a blank line prints "Not reported",
+  never $0. Boxes 1 and 2 list no sources. A statement whose gift is known and whose sources are not
+  yet read shows as held, not read, beside the Board's PDF. The officer who signed a statement is
+  never printed, and nothing implies a source controls the committee, caused its spending, or gave
+  any other gift.
 - **Filed reports is unchanged.** It reads only the catalogue's reports, so neither kind is listed
   there or counted as a report.
 

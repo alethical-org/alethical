@@ -10,10 +10,9 @@ records (`.claude/rules/grounded-answers.md` rules 3 and 12).
 
 * ``matched`` -- a payment row names the same contributor, date and amount, ignoring
   only letter case and surrounding spaces. The same gift, drawn twice on purpose.
-* ``not_yet_on_a_report`` -- the gift is dated after the end of the latest report the
-  committee has filed in our copy of the Board's catalogue, so no report could list it.
-* ``no_exact_match`` -- a filed report covers the date and no row matches exactly.
-  Spellings vary between filings, so this never says the gift is missing.
+* ``not_yet_on_a_report`` -- the end of the latest report this committee has filed in our
+  copy is known, and the gift is dated after it.
+* ``no_exact_match`` -- every other notice with no confirmed payment. It names no cause.
 
 **Statements.** Attached to the one payment whose donor, date and amount the person who
 read the statement recorded, by the same exact rule. A statement no one has linked to a
@@ -132,6 +131,9 @@ class CommitteeNotices:
     copied_on: Optional[date] = None
     source_url: str = notices_pipeline.NOTICE_LIST_URL
     any_amended: bool = False
+    #: The end of the latest report this filer has filed for the year in our copy, which
+    #: N5 prints. ``None`` when unknown, and then no notice says it follows that report.
+    report_covered_through: Optional[date] = None
 
 
 def latest_notice_copy(db: Session) -> Optional[schema.CampaignFinanceNoticeListCopy]:
@@ -198,7 +200,7 @@ def notice_status(
             and _same_amount(payment.amount, notice.amount)
         ):
             return "matched", payment
-    if report_end is None or notice.contribution_date > report_end:
+    if report_end is not None and notice.contribution_date > report_end:
         return "not_yet_on_a_report", None
     return "no_exact_match", None
 
@@ -320,6 +322,7 @@ def committee_notices(
         windows=tuple(windows),
         copied_on=minnesota_date(copy.fetched_at),
         any_amended=any_amended,
+        report_covered_through=report_end,
     )
 
 
@@ -334,60 +337,135 @@ class AttachedStatement:
     pdf_url: str
 
 
-def _readings_for(db: Session, registration_number: str):
-    statement = schema.CampaignFinanceDisclosureStatement
-    reading = schema.CampaignFinanceDisclosureStatementReading
-    return db.execute(
-        select(statement, reading)
-        .join(reading, reading.statement_id == statement.id)
-        .where(statement.recipient_registration_number == registration_number)
+@dataclass(frozen=True)
+class ListedStatement:
+    """A statement on the committee's page that matches no payment row.
+
+    ``state`` is ``not_read`` when nobody has read it: the catalogue gives only its
+    report and number, so donor, recipient, date and amount are all unknown and print
+    as not yet read. ``gift_identified`` and ``read`` carry what the reading holds.
+    """
+
+    id: str
+    state: str
+    report_name: Optional[str]
+    report_period: str
+    statement_number: int
+    donor_name: Optional[str]
+    recipient_name: Optional[str]
+    gift_date: Optional[date]
+    gift_amount: Optional[Decimal]
+    pdf_url: str
+
+
+@dataclass(frozen=True)
+class StatementLinks:
+    linked: dict[int, AttachedStatement]
+    unlinked: tuple[ListedStatement, ...]
+
+
+def _pdf_url(statement) -> str:
+    return notices_pipeline.statement_pdf_url(
+        statement.filing_year,
+        statement.recipient_registration_number,
+        statement.report_period,
+        statement.statement_number,
+    )
+
+
+def statement_links(
+    db: Session,
+    registration_number: str,
+    year: int,
+    contributions_snapshot_id: Optional[uuid.UUID],
+) -> StatementLinks:
+    """Which of the year's statements name a payment row exactly, and which name none.
+
+    Matched on the server against every Contribution row this committee has for the
+    year, never against whatever part of the list a reader has filtered to: exact donor
+    name ignoring letter case and surrounding spaces, the same date and the same amount.
+    Each row takes at most 1 statement, the earliest report's first. A statement whose
+    reading declares it a repeat of another is kept and never shown. When the payment
+    rows cannot be read, nothing is linked and every statement stays on the list.
+    """
+    statement_model = schema.CampaignFinanceDisclosureStatement
+    reading_model = schema.CampaignFinanceDisclosureStatementReading
+    pairs = db.execute(
+        select(statement_model, reading_model)
+        .outerjoin(reading_model, reading_model.statement_id == statement_model.id)
+        .where(
+            statement_model.recipient_registration_number == registration_number,
+            statement_model.filing_year == year,
+        )
     ).all()
+    if not pairs:
+        return StatementLinks({}, ())
+    payments = (
+        sorted(
+            _contribution_rows(
+                db, contributions_snapshot_id, registration_number, year
+            ),
+            key=lambda p: p.record_number,
+        )
+        if contributions_snapshot_id is not None
+        else []
+    )
+    order = sorted(
+        pairs,
+        key=lambda pair: (
+            pair[0].report_cut_off or date.max,
+            pair[0].report_period,
+            pair[0].statement_number,
+        ),
+    )
+    linked: dict[int, AttachedStatement] = {}
+    unlinked: list[ListedStatement] = []
+    for statement, reading in order:
+        if reading is not None and reading.repeat_of_number is not None:
+            continue
+        match = None
+        if reading is not None:
+            for payment in payments:
+                if payment.record_number in linked:
+                    continue
+                if (
+                    same_name(payment.contributor, reading.donor_name)
+                    and payment.received_on == reading.gift_date
+                    and _same_amount(payment.amount, reading.gift_amount)
+                ):
+                    match = payment
+                    break
+        if match is not None:
+            linked[match.record_number] = AttachedStatement(
+                record_number=match.record_number,
+                statement_id=str(statement.id),
+                state=reading.state.value,
+                pdf_url=_pdf_url(statement),
+            )
+            continue
+        unlinked.append(
+            ListedStatement(
+                id=str(statement.id),
+                state=reading.state.value if reading is not None else "not_read",
+                report_name=statement.report_name,
+                report_period=statement.report_period,
+                statement_number=statement.statement_number,
+                donor_name=reading.donor_name if reading is not None else None,
+                recipient_name=reading.recipient_name if reading is not None else None,
+                gift_date=reading.gift_date if reading is not None else None,
+                gift_amount=reading.gift_amount if reading is not None else None,
+                pdf_url=_pdf_url(statement),
+            )
+        )
+    return StatementLinks(linked, tuple(unlinked))
 
 
 def attached_statements(
-    db: Session, registration_number: str, payments: Iterable
+    links: StatementLinks, payments: Iterable
 ) -> list[AttachedStatement]:
-    """For payment rows already read, the statements that name exactly those gifts.
-
-    ``payments`` are ``ContributionPayment`` rows of one committee. Each statement
-    attaches to at most one row: the first, by record number, among rows naming the same
-    donor, date and amount.
-    """
-    readings = _readings_for(db, registration_number)
-    if not readings:
-        return []
-    candidates = sorted(
-        (p for p in payments if getattr(p, "receipt_type", None) == "Contribution"),
-        key=lambda p: p.record_number,
-    )
-    attached: list[AttachedStatement] = []
-    used: set[int] = set()
-    for statement, reading in sorted(
-        readings, key=lambda pair: pair[0].statement_number
-    ):
-        for payment in candidates:
-            if payment.record_number in used:
-                continue
-            if (
-                same_name(payment.contributor, reading.donor_name)
-                and payment.received_on == reading.gift_date
-                and _same_amount(payment.amount, reading.gift_amount)
-            ):
-                used.add(payment.record_number)
-                attached.append(
-                    AttachedStatement(
-                        record_number=payment.record_number,
-                        statement_id=str(statement.id),
-                        state=reading.state.value,
-                        pdf_url=notices_pipeline.statement_pdf_url(
-                            statement.filing_year,
-                            statement.recipient_registration_number,
-                            statement.statement_number,
-                        ),
-                    )
-                )
-                break
-    return attached
+    """The linked statements for the rows on one page of the payment list."""
+    numbers = {getattr(p, "record_number", None) for p in payments}
+    return [item for number, item in sorted(links.linked.items()) if number in numbers]
 
 
 def statements_copied_on(db: Session) -> Optional[date]:
@@ -411,6 +489,7 @@ class StatementDetail:
     recipient_registration_number: str
     state: str
     donor_name: str
+    recipient_name: Optional[str]
     gift_date: date
     gift_amount: Decimal
     pdf_url: str
@@ -439,32 +518,27 @@ def statement_detail(db: Session, statement_id: uuid.UUID) -> Optional[Statement
         recipient_registration_number=statement.recipient_registration_number,
         state=reading.state.value,
         donor_name=reading.donor_name,
+        recipient_name=reading.recipient_name,
         gift_date=reading.gift_date,
         gift_amount=reading.gift_amount,
-        pdf_url=notices_pipeline.statement_pdf_url(
-            statement.filing_year,
-            statement.recipient_registration_number,
-            statement.statement_number,
-        ),
+        pdf_url=_pdf_url(statement),
     )
     if reading.state != schema.DisclosureStatementReadingState.read:
         return StatementDetail(**base)
-    # Sources print only for box 3, the one box whose statement lists them.
-    sources = (
-        tuple(
-            StatementSource(source.name, source.city, source.state, source.amount)
-            for source in reading.sources
-        )
-        if reading.box == 3
-        else ()
-    )
+    # Sources and lines print only for box 3, the one box whose statement lists them.
+    box3 = reading.box == 3
     return StatementDetail(
         **base,
         box=reading.box,
-        sources=sources,
-        line_a=reading.line_a if reading.box == 3 else None,
-        line_b=reading.line_b if reading.box == 3 else None,
-        line_c=reading.line_c if reading.box == 3 else None,
+        sources=tuple(
+            StatementSource(source.name, source.city, source.state, source.amount)
+            for source in reading.sources
+        )
+        if box3
+        else (),
+        line_a=reading.line_a if box3 else None,
+        line_b=reading.line_b if box3 else None,
+        line_c=reading.line_c if box3 else None,
         signed_on=reading.signed_on,
         received_on=reading.received_on,
     )
