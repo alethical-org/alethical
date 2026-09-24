@@ -8,11 +8,13 @@ to a loader, and what the summary says is live.
 
 from __future__ import annotations
 
+import importlib.util
 import inspect
 import json
 import subprocess
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any, Optional
 
 import pytest
@@ -946,3 +948,82 @@ def test_the_summary_states_what_is_live_and_whether_this_run_published_it(
     report, calls = _run(db, totals=FakeTotals(), payments=FakePayments(no_change=True))
     assert "payments release: nothing is live" in report.summary()
     assert "totals and register snapshot: nothing is live" in report.summary()
+
+
+# --- The hand-run totals command -------------------------------------------------
+# Its sibling, scripts/load_campaign_finance.py, is driven the same way in
+# test_campaign_finance_recheck.py, which already owned a harness for it.
+
+
+@dataclass
+class FakeFilingsRun:
+    published: bool = False
+    blocked: list = field(default_factory=list)
+
+    def summary(self) -> str:
+        return "  (a totals run)"
+
+
+class FakeSession:
+    def __enter__(self):
+        return "session"
+
+    def __exit__(self, *args):
+        return False
+
+
+def test_the_hand_run_totals_load_takes_the_lease_first_and_refuses_when_it_is_held(
+    monkeypatch,
+) -> None:
+    """(c) scripts/load_campaign_finance_filings.py, before any network or database work."""
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "scripts"
+        / "load_campaign_finance_filings.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "load_campaign_finance_filings_script", path
+    )
+    assert spec is not None and spec.loader is not None
+    script = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(script)
+
+    events: list[str] = []
+    held = {"value": False}
+
+    def fake_hold(engine, *, purpose, **kwargs):
+        events.append(f"lease: {purpose}")
+        return held["value"]
+
+    def fake_load(*args, **kwargs):
+        events.append("load")
+        return FakeFilingsRun()
+
+    monkeypatch.setattr(script, "create_engine", lambda *a, **k: "engine")
+    monkeypatch.setattr(script, "Session", lambda engine: FakeSession())
+    monkeypatch.setattr(
+        script, "normalize_database_url", lambda url: "postgresql://fake"
+    )
+    monkeypatch.setattr(
+        script, "database_url_for_target", lambda target: "postgresql://fake"
+    )
+    monkeypatch.setattr(script, "load_campaign_finance_filings", fake_load)
+    monkeypatch.setattr(script, "clear_after_publish", lambda *a, **k: False)
+    monkeypatch.setattr(script, "hold_full_run_lease_until_exit", fake_hold)
+
+    monkeypatch.setattr("sys.argv", ["load_campaign_finance_filings.py"])
+    assert script.main() == 1
+    # Refused before the load ran, so nothing was fetched or written.
+    assert events == ["lease: a hand-run campaign-money totals load"]
+
+    held["value"] = True
+    events.clear()
+    assert script.main() == 0
+    assert events == ["lease: a hand-run campaign-money totals load", "load"]
+
+    # A dry run writes nothing, the lease included.
+    events.clear()
+    held["value"] = False
+    monkeypatch.setattr("sys.argv", ["load_campaign_finance_filings.py", "--dry-run"])
+    assert script.main() == 0
+    assert events == ["load"]
