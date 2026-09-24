@@ -99,9 +99,13 @@ REQUEST_TIMEOUT_SECONDS = 60
 # roughly 1,200 requests in 2 hours. That is an observation about one day, not a rate
 # limit the Board has told us, so it stays conservative rather than being tuned down.
 REQUEST_SPACING_SECONDS = 0.25
-# A server error: the Board answered, so 3 tries 5 seconds apart and then stop.
+# A server error or a rate limit: the Board answered, so 3 tries and then stop. The
+# pause is 5 seconds, or what the Board's own Retry-After header asks for when it sends
+# one, up to 2 minutes. An answer asking for longer than that is final for this run:
+# honouring it means not asking again sooner, and the next day's run tries again (#2350).
 MAX_ATTEMPTS = 3
 RETRY_PAUSE_SECONDS = 5
+MAX_RETRY_AFTER_SECONDS = 120
 # A request that never left the machine: retried much longer, because a 48-minute run
 # has to survive one network blip to be worth starting, and re-asking cannot duplicate
 # anything. The pauses sum to about 2 minutes.
@@ -790,6 +794,48 @@ def http_session() -> requests.Session:
     return session
 
 
+def retry_after_seconds(
+    value: Optional[str], *, now: Optional[datetime] = None
+) -> Optional[float]:
+    """A Retry-After header in seconds, from either of its 2 forms, or None."""
+    if not value:
+        return None
+    value = value.strip()
+    if value.isdigit():
+        return float(value)
+    try:
+        from email.utils import parsedate_to_datetime
+
+        when = parsedate_to_datetime(value)
+    except (TypeError, ValueError, IndexError):
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=UTC)
+    return max(0.0, (when - (now or datetime.now(UTC))).total_seconds())
+
+
+def pause_before_retry(response: Any, attempt: int) -> Optional[float]:
+    """How long to wait before asking the Board again, or None when this answer is final.
+
+    Shared by every request to the Board: the filings route (:func:`post_form`), the
+    notices downloads (``campaign_finance_notices.get_bytes``), the payments landing
+    page (``campaign_finance.resolve_downloads``) and the payment files
+    (``campaign_finance.fetch_download``), so all of them retry the same way. Only a server error or a rate limit is retried, 3
+    attempts in all. The Board's own Retry-After wins over the fixed pause, and an
+    answer asking for more than :data:`MAX_RETRY_AFTER_SECONDS` stops the retries: a
+    passing outage clears within the pause, and a long one belongs to tomorrow's run.
+    """
+    status = response.status_code
+    if attempt >= MAX_ATTEMPTS or not (status == 429 or status >= 500):
+        return None
+    asked = retry_after_seconds((response.headers or {}).get("Retry-After"))
+    if asked is None:
+        return float(RETRY_PAUSE_SECONDS)
+    if asked > MAX_RETRY_AFTER_SECONDS:
+        return None
+    return asked
+
+
 def post_form(http: requests.Session, url: str, form: dict[str, str]) -> Response:
     """One form POST, retried on a server error, with its bytes kept.
 
@@ -808,8 +854,9 @@ def post_form(http: requests.Session, url: str, form: dict[str, str]) -> Respons
     backoff below tolerates about 2 minutes, which covers an ordinary blip.
 
     A connection error is always safe to retry, however many times: the request never
-    reached the Board, so nothing can be duplicated by asking again. A 5xx is different
-    and stays at 3 attempts, because the server did answer and hammering it is rude.
+    reached the Board, so nothing can be duplicated by asking again. A 5xx or a 429 is
+    different and stays at 3 attempts, because the server did answer and hammering it is
+    rude; :func:`pause_before_retry` says how long to wait and when to stop.
     """
     started_at = datetime.now(UTC)
     last_error: Optional[Exception] = None
@@ -822,8 +869,9 @@ def post_form(http: requests.Session, url: str, form: dict[str, str]) -> Respons
                 raise
             time.sleep(CONNECTION_RETRY_PAUSES[attempt - 1])
             continue
-        if response.status_code >= 500 and attempt < MAX_ATTEMPTS:
-            time.sleep(RETRY_PAUSE_SECONDS)
+        pause = pause_before_retry(response, attempt)
+        if pause is not None:
+            time.sleep(pause)
             continue
         body = response.content
         return Response(

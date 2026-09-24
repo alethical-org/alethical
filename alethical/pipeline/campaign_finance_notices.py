@@ -696,8 +696,9 @@ def get_bytes(http: requests.Session, url: str) -> tuple[int, bytes]:
                 raise
             time.sleep(pause)
             continue
-        if response.status_code >= 500 and attempt < filings.MAX_ATTEMPTS:
-            time.sleep(filings.RETRY_PAUSE_SECONDS)
+        pause = filings.pause_before_retry(response, attempt)
+        if pause is not None:
+            time.sleep(pause)
             continue
         return response.status_code, response.content
     raise last_error or RuntimeError(f"{url} could not be reached")  # pragma: no cover

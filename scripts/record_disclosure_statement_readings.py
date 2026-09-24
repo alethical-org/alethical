@@ -32,6 +32,10 @@ from alethical.db.session import (  # noqa: E402
     normalize_database_url,
 )
 from alethical.pipeline import campaign_finance_notices as notices  # noqa: E402
+from alethical.pipeline.collection_run_summary import (  # noqa: E402
+    record_stage,
+    run_script,
+)
 from alethical.pipeline.raw_file_store import raw_file_store_from_env  # noqa: E402
 
 REVIEWER_OF_RECORD = "Alethical, LLC"
@@ -79,8 +83,14 @@ def main() -> int:
             print(outcome)
             if outcome.startswith("refused"):
                 refused += 1
+    # What this run did, for the failure review (#2350).
+    record_stage(
+        "statement readings",
+        "failed" if refused else "dry_run" if args.dry_run else "unchanged",
+        failed_checks=["reading refused"] if refused else [],
+    )
     return 1 if refused else 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(run_script("statement readings", main))

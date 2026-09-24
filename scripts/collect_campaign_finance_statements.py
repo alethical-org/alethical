@@ -42,6 +42,10 @@ from alethical.db.session import (  # noqa: E402
 )
 from alethical.pipeline import campaign_finance_filings as filings  # noqa: E402
 from alethical.pipeline import campaign_finance_notices as notices  # noqa: E402
+from alethical.pipeline.collection_run_summary import (  # noqa: E402
+    record_stage,
+    run_script,
+)
 from alethical.pipeline.raw_file_store import raw_file_store_from_env  # noqa: E402
 
 KINDS = {
@@ -118,8 +122,22 @@ def main() -> int:
     )
     for line in report.failures:
         print(f"problem: {line}")
-    return 1 if report.failures or report.catalogues_read < len(wanted) else 0
+    failed = bool(report.failures or report.catalogues_read < len(wanted))
+    # What this run did, for the failure review (#2350).
+    record_stage(
+        "statements",
+        "failed"
+        if failed
+        else "dry_run"
+        if args.dry_run
+        else "published"
+        if report.new
+        else "unchanged",
+        failed_checks=["catalogue read"] if failed else [],
+        details=list(report.failures),
+    )
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(run_script("statements", main))

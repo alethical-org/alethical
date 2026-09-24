@@ -1,0 +1,327 @@
+name: Review a failed campaign-money collection
+
+# When the daily campaign-money refresh or the notices collection fails and stays
+# failed, nothing used to say so until someone opened a coding session
+# (https://github.com/alethical-org/alethical/issues/2350). This workflow is the safety
+# net around both.
+#
+# It runs when either named collection workflow finishes on `main`, from its schedule
+# or by hand. It never runs from an issue, a pull request or a push, so nothing can
+# start it by writing text somewhere. It keeps 1 issue per distinct problem (label
+# `collection-incident`), adds 1 comment only when the evidence changes, and closes the
+# issue only when a later run's own summary says every step finished. Like
+# `.github/workflows/production-release-failed.yml`, the run goes red after writing an
+# open incident, so the Actions tab never reads as quiet while one is open.
+#
+# 4 jobs, each holding only what its step needs:
+#   packet  reads the run, its logs and its summary; removes secrets; no issue access
+#   record  writes the incident (the alert) and reserves any review at its worst-case
+#           cost before anything is bought; holds no secret
+#   review  holds the AI key and nothing else; writes nothing to GitHub
+#   post    prints the saved review on the incident; holds no secret
+# and a 5th, `fallback`, that files a plain alert with no Python at all if the first
+# 2 fail, so the safety net does not depend on its own code working.
+#
+# THE PAID PART IS OFF. The reviewer calls Anthropic's API only when the repository
+# variable COLLECTION_AI_REVIEW is `enabled` and the ANTHROPIC_API_KEY secret exists.
+# Neither is set. Every limit (1 call per incident per new piece of evidence, 3 per
+# incident, 20 a month, the input and output caps, the timeout) is a constant in
+# `alethical/pipeline/collection_failure_review.py`; the cost table waiting for
+# approval is in docs/operations/jobs-and-scripts.md.
+#
+# By hand: give a finished collection run's id. `dry_run` (the default) reads the real
+# run and the real issues, uses a canned reviewer reply instead of any AI call, and
+# prints what it would write instead of writing it.
+#
+# Free without the AI part: a few GitHub API reads per completion on a standard runner.
+
+on:
+  workflow_run:
+    # Every name here is copied from a workflow on `main`, and a test fails if a listed
+    # name has no workflow file, or a watched workflow on `main` is missing here.
+    workflows:
+      - "Refresh campaign money from the Board"
+      - "Collect large-contribution notices and disclosure statements"
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      workflow:
+        description: "Which collection workflow the run belongs to"
+        type: choice
+        required: true
+        options:
+          - "Refresh campaign money from the Board"
+          - "Collect large-contribution notices and disclosure statements"
+      run_id:
+        description: "The id of a finished run of that workflow"
+        required: true
+      dry_run:
+        description: "Print what would be written and use a canned reviewer reply"
+        type: boolean
+        default: true
+
+concurrency:
+  # One review at a time per collection workflow, hand-started or not, so 2 completions
+  # of the same workflow never write or spend at the same time. GitHub lets at most 1
+  # run wait behind the one running; a third arrival replaces the waiting one. The
+  # collections run daily or weekly and a review takes about a minute, so that needs 3
+  # completions of 1 workflow inside a minute.
+  group: collection-failure-review-${{ github.event.workflow_run.name || inputs.workflow }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  packet:
+    name: Read the finished run
+    # Scheduled or hand-started runs of our own main branch only. A hand start of this
+    # workflow needs write access to the repository, so it is trusted too.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      (github.event.workflow_run.event == 'schedule' ||
+      github.event.workflow_run.event == 'workflow_dispatch'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    outputs:
+      kind: ${{ steps.packet.outputs.kind }}
+    steps:
+      - name: Check out this repository's own code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      # Standard library only: nothing is installed in any of these jobs.
+      - name: Build the redacted evidence packet
+        id: packet
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name || inputs.workflow }}
+        run: >-
+          python -m alethical.pipeline.collection_failure_review packet
+          --run-id "$RUN_ID" --workflow "$WORKFLOW_NAME" --out packet.json
+
+      - name: Keep the packet for the next jobs
+        uses: actions/upload-artifact@v7
+        with:
+          name: incident-packet
+          path: packet.json
+          retention-days: 30
+
+  record:
+    name: Write the incident, and reserve any review
+    needs: packet
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # This is the alert, and it needs nothing from the reviewer. A review is bought
+    # only after its worst-case cost is saved in the incident here.
+    permissions:
+      contents: read
+      issues: write
+    outputs:
+      handled: ${{ steps.record.outputs.handled }}
+      review: ${{ steps.record.outputs.review }}
+      issue: ${{ steps.record.outputs.issue }}
+    steps:
+      - name: Check out this repository's own code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - name: Fetch the packet
+        uses: actions/download-artifact@v8
+        with:
+          name: incident-packet
+
+      - name: Write it
+        id: record
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          COLLECTION_AI_REVIEW: ${{ vars.COLLECTION_AI_REVIEW }}
+          DRY_RUN: ${{ inputs.dry_run == true }}
+        run: >-
+          python -m alethical.pipeline.collection_failure_review record
+          --packet packet.json --out decision.json
+
+      - name: Keep the decision for the next jobs
+        uses: actions/upload-artifact@v7
+        with:
+          name: incident-decision
+          path: decision.json
+          retention-days: 30
+
+      - name: Turn the run red while an incident is open
+        if: steps.record.outputs.red == 'true' && inputs.dry_run != true
+        env:
+          INCIDENT: ${{ steps.record.outputs.issue }}
+        run: |
+          echo "::error title=A campaign-money collection failed::Incident issue #${INCIDENT} is open. This run is red so the Actions tab cannot read as quiet while it is."
+          exit 1
+
+  review:
+    name: Ask the restricted reviewer, at most once
+    needs: [packet, record]
+    # The record job ends red while an incident is open, so its success is not required.
+    if: ${{ !cancelled() && needs.record.outputs.review == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The key lives in this environment, which only the main branch may use, so a
+    # hand start on another branch, running edited code, cannot reach it.
+    environment: collection-ai-review
+    # Reads this repository's code and nothing else. Writes nothing to GitHub: its only
+    # output is a saved file the next job prints.
+    permissions:
+      contents: read
+    steps:
+      - name: Check out this repository's own code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - name: Fetch the packet
+        uses: actions/download-artifact@v8
+        with:
+          name: incident-packet
+
+      - name: Fetch the decision
+        uses: actions/download-artifact@v8
+        with:
+          name: incident-decision
+
+      # A dry run never receives the key, and uses a canned reply in code as well.
+      - name: Review
+        env:
+          ANTHROPIC_API_KEY: ${{ inputs.dry_run != true && secrets.ANTHROPIC_API_KEY || '' }}
+          DRY_RUN: ${{ inputs.dry_run == true }}
+        run: >-
+          python -m alethical.pipeline.collection_failure_review review
+          --packet packet.json --decision decision.json --out review.json
+
+      - name: Keep the review for the next job
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: incident-review
+          path: review.json
+          retention-days: 30
+
+  post:
+    name: Print the review on the incident
+    needs: [record, review]
+    if: ${{ !cancelled() && needs.record.outputs.review == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Check out this repository's own code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - name: Fetch the decision
+        uses: actions/download-artifact@v8
+        with:
+          name: incident-decision
+
+      # Missing when the review job died; the comment then says so.
+      - name: Fetch the review, if there was one
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: incident-review
+
+      - name: Print it
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run == true }}
+        run: >-
+          python -m alethical.pipeline.collection_failure_review post
+          --decision decision.json --review review.json
+
+      # The incident already says a diagnosis follows, so a failure here must say it
+      # will not. Plain gh, no review code.
+      - name: Say so on the incident if the review could not be printed
+        if: failure() && inputs.dry_run != true && needs.record.outputs.issue != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INCIDENT: ${{ needs.record.outputs.issue }}
+          REVIEW_RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: >-
+          gh issue comment "$INCIDENT" --repo "$GITHUB_REPOSITORY"
+          --body "The automatic diagnosis could not be printed here, so none follows for this failure. The details above stand on their own; the failed step is at $REVIEW_RUN."
+
+  fallback:
+    name: Say so when the review itself could not finish
+    needs: [packet, record]
+    if: >-
+      ${{ !cancelled() && needs.packet.result != 'skipped' &&
+      needs.record.outputs.handled != 'true' && inputs.dry_run != true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      WORKFLOW_NAME: ${{ github.event.workflow_run.name || inputs.workflow }}
+      COLLECTION_RUN: ${{ github.event.workflow_run.html_url || inputs.run_id }}
+      COLLECTION_CONCLUSION: ${{ github.event.workflow_run.conclusion || 'unknown' }}
+      REVIEW_RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: File or update a plain alert
+        run: |
+          set -euo pipefail
+          title="🚨 The failure review could not finish for ${WORKFLOW_NAME}"
+          gh label create collection-incident --repo "$GITHUB_REPOSITORY" --color b60205 \
+            --description "A campaign-money collection run failed; opened by the failure review" \
+            2>/dev/null || true
+          body=$(printf '%s\n' \
+            "**Net:** the automatic review of a campaign-money collection run did not finish, so nobody was told what that run did. The collection run itself ended \`${COLLECTION_CONCLUSION}\`; read it directly. @euglopi" \
+            "" \
+            "- Collection run: ${COLLECTION_RUN}" \
+            "- Failed review run: ${REVIEW_RUN}" \
+            "" \
+            "Filed by the last-resort step of \`.github/workflows/collection-failure-review.yml\`, which uses no Python so it still works when the review code does not (#2350). It does not close itself: a person reads the failed review run and fixes it.")
+          # Matched on the exact title from a plain listing, not a search, because
+          # GitHub's search index can lag by minutes.
+          export ALERT_TITLE="$title"
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label collection-incident \
+            --limit 200 --json number,title \
+            --jq 'map(select(.title == env.ALERT_TITLE)) | .[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" \
+              --body "Still not finishing: collection run ${COLLECTION_RUN}, review run ${REVIEW_RUN}."
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
+              --label collection-incident --body "$body"
+          fi
+          echo "::error title=The failure review could not finish::See ${REVIEW_RUN}"
+          exit 1

@@ -15,7 +15,11 @@ name: Collect large-contribution notices and disclosure statements
 # whether this cadence is still worth running.
 #
 # Free: GitHub Actions minutes and a few requests to 2 public websites. A failure keeps
-# every record already held, exits non-zero, and opens or updates one issue.
+# every record already held and exits non-zero. Each script writes 1 line saying what
+# its stage did into collection-run-summary.jsonl, uploaded on every run, and
+# .github/workflows/collection-failure-review.yml reads it to open, update or close the
+# one issue for the problem (#2350). This workflow opens no failure issue of its own,
+# so a failure never produces 2.
 #
 # Design: docs/architecture/campaign-finance-system-design.md §7 (the notices and
 # statements display rules). Guide: docs/product-onboarding/campaign-money-section-guide.md.
@@ -59,6 +63,8 @@ jobs:
       SUPABASE_STORAGE_S3_ACCESS_KEY_ID: ${{ secrets.SUPABASE_STORAGE_S3_ACCESS_KEY_ID }}
       SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY: ${{ secrets.SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY }}
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '--dry-run' || '' }}
+      # Each script appends what its stage did; see alethical/pipeline/collection_run_summary.py.
+      COLLECTION_RUN_SUMMARY: collection-run-summary.jsonl
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -131,18 +137,14 @@ jobs:
             fi
           fi
 
-      - name: Open an alert issue if collection failed
-        if: failure()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          title="Large-contribution notices or disclosure statements are not being collected"
-          report=$(cat notices-report.txt 2>/dev/null || echo "(the job produced no output: it may have failed before reaching any source)")
-          body=$(printf '**Net:** the job that copies the Campaign Finance Board'"'"'s large-contribution notices, or reads committees'"'"' disclosure statements, did not finish. Every record already held is kept, so committee pages keep showing the last good copy with its own copy date. The report below names what failed.\n\n```\n%s\n```\n\n**Run it by hand** from a fresh worktree off `origin/main`, dry run first:\n\n```\nPYTHONPATH=. uv run python scripts/collect_campaign_finance_notices.py --target production --dry-run\n```\n\nBackground: #2347. Run: %s. Auto-filed by `.github/workflows/campaign-money-notices.yml`.' "$report" "$RUN_URL")
-          existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
-          if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body "Still failing as of this run: $RUN_URL"$'\n\n```\n'"$report"$'\n```'
-          else
-            gh issue create --title "🚨 $title" --label backend --body "$body"
-          fi
+      # Read by .github/workflows/collection-failure-review.yml, which owns the failure
+      # issue. Uploaded on success too: a green run closes an open issue only when this
+      # file says every stage finished.
+      - name: Save what each stage did, for the failure review
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: collection-run-summary
+          path: collection-run-summary.jsonl
+          if-no-files-found: ignore
+          retention-days: 30
