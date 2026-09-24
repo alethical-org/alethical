@@ -93,7 +93,7 @@ def main() -> int:
         ),
         connect_args=NO_PREPARED_STATEMENTS,
     )
-    refused = 0
+    refused = recorded = unchanged = 0
     with Session(engine) as db:
         if not db.execute(
             text("SELECT to_regclass('cf_disclosure_statement_reading')")
@@ -111,11 +111,26 @@ def main() -> int:
             print(outcome)
             if outcome.startswith("refused"):
                 refused += 1
+            elif outcome.startswith("recorded"):
+                recorded += 1
+            elif outcome.startswith("unchanged"):
+                unchanged += 1
     # What this run did, for the failure review (#2350).
     record_stage(
         "statement readings",
-        "failed" if refused else "dry_run" if args.dry_run else "unchanged",
+        "failed"
+        if refused
+        else "dry_run"
+        if args.dry_run
+        else "published"
+        if recorded
+        else "unchanged",
         failed_checks=["reading refused"] if refused else [],
+        counts={
+            "readings stored": recorded,
+            "readings already held": unchanged,
+            "readings refused": refused,
+        },
     )
     return 1 if refused else 0
 

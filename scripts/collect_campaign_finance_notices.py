@@ -195,6 +195,7 @@ def main() -> int:
         else "unchanged",
         failed_checks=checks,
         details=[*report.page_errors, *report.fetch_failures, *ballot_failures],
+        counts={"notices listed": report.listed, "notices kept": report.new},
     )
     return exit_code
 
