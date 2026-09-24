@@ -77,6 +77,12 @@ What each completion does:
   diagnosis.
 - **A different stage or a different failed check:** a different problem, so a separate
   issue.
+- **The same stage, once without the run's own summary and once with it:** 1 problem. A
+  run that dies before writing its summary is keyed on the step that failed, and the next
+  run describes the same failure by stage, so its key and shape differ. When either side
+  lacks a summary and both name the same stage, the failure joins the open issue, and the
+  issue takes the summary's shape from then on. The 24 Sep 2026 notices failure opened 2
+  issues this way before the rule existed.
 - **A later success:** closes an open issue only when that run's own summary says the
   stages that failed have finished, and the run started after the failure (section 5).
 
