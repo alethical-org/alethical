@@ -403,6 +403,13 @@ class Check:
     # table full of explained rows still leaves the check failed until an operator
     # names the hash, having recorded the exception on the issue first.
     investigation: Optional[str] = None
+    # For ``reported_totals_reconcile`` only: per failing committee-year, the 2 figures
+    # that were compared, to the cent, as ``{"ours": "46126.81", "reported":
+    # "6753.43"}``. A person's waiver is a ruling on THESE 2 numbers, so the next
+    # comparison carries the committee-year only while both are unchanged; if either
+    # moved, the disagreement is a new one and needs its own named waiver (Codex,
+    # 24 Sep 2026, on [#2358](https://github.com/alethical-org/alethical/pull/2358)).
+    figures: Optional[dict[str, dict[str, str]]] = None
 
     @property
     def blocks_publication(self) -> bool:
@@ -418,6 +425,8 @@ class Check:
             recorded["filer_years"] = list(self.filer_years)
         if self.investigation:
             recorded["investigation"] = self.investigation
+        if self.figures:
+            recorded["figures"] = dict(self.figures)
         return recorded
 
 
@@ -1592,28 +1601,56 @@ def _checks_against_the_board(
             Check("registration_numbers_resolve_to_a_known_filer", "not_run", reason),
         ]
     reconcile = _reported_totals_reconcile(spec, measured, filings)
+    kept: list[str] = []
     if reconcile.status == "failed":
+        # A committee-year is carried only while BOTH figures the person ruled on are
+        # unchanged to the cent. A pair recorded without figures (a release published
+        # before figures were recorded) is not carried either: nothing says what was
+        # waived, so it is treated as new and blocks for a named waiver.
         carried = _carried_reconcile_filer_years(baseline)
-        new = [fy for fy in reconcile.filer_years if fy not in carried]
-        kept = [fy for fy in reconcile.filer_years if fy in carried]
+        current = reconcile.figures or {}
+        kept = [
+            fy
+            for fy in reconcile.filer_years
+            if carried.get(fy) is not None and carried[fy] == current.get(fy)
+        ]
+        new = [fy for fy in reconcile.filer_years if fy not in kept]
+        moved = [fy for fy in new if fy in carried]
         if not new:
             reconcile = Check(
                 reconcile.name,
                 "reported",
                 f"{len(kept)} committee-year(s) still hold more itemized money than "
                 "the filer reported, all of them already waived on the published "
-                f"release with their split withheld ({', '.join(kept)}); no new "
-                "disagreement, so nothing here blocks",
+                f"release with the same 2 figures and their split withheld "
+                f"({', '.join(kept)}); no new disagreement, so nothing here blocks",
                 reconcile.filer_years,
+                figures=current,
             )
-        elif kept:
+        elif kept or moved:
+            moved_note = (
+                f" {len(moved)} of the new ones were waived on the published release "
+                "against different figures, so the waiver no longer covers them: "
+                + ", ".join(
+                    f"{fy} (then {carried[fy]['ours']} against {carried[fy]['reported']},"
+                    f" now {current[fy]['ours']} against {current[fy]['reported']})"
+                    if carried.get(fy) and current.get(fy)
+                    else f"{fy} (waived with no figures recorded)"
+                    for fy in moved
+                )
+                + "."
+                if moved
+                else ""
+            )
             reconcile = Check(
                 reconcile.name,
                 "failed",
                 f"{reconcile.detail}. Of these, {len(kept)} were already waived on "
-                f"the published release and are carried ({', '.join(kept)}); "
-                f"{len(new)} are new and need a named waiver: {', '.join(new)}",
+                f"the published release with the same figures and are carried "
+                f"({', '.join(kept) or 'none'}); {len(new)} are new and need a named "
+                f"waiver: {', '.join(new)}.{moved_note}",
                 tuple(new),
+                figures=current,
             )
     # Waivable by an operator who has named the exact hashes, like every other
     # comparison here — and unlike a structural check, which no flag lets through.
@@ -1636,13 +1673,10 @@ def _checks_against_the_board(
         ]
         missing = waivers.uncovered(spec.key, reconcile.name, qualifiers)
         if missing is None:
-            # The recorded set carries the newly waived pairs AND the ones already
-            # carried, so the next release inherits all of them.
-            all_pairs = tuple(
-                dict.fromkeys(
-                    [*reconcile.filer_years, *_carried_reconcile_filer_years(baseline)]
-                )
-            )
+            # The recorded set carries the newly waived pairs AND the ones still
+            # carried, each with the 2 figures compared today, so the next release
+            # inherits all of them. A pair that reconciled is not carried on.
+            all_pairs = tuple(dict.fromkeys([*reconcile.filer_years, *kept]))
             reconcile = Check(
                 reconcile.name,
                 "overridden",
@@ -1650,6 +1684,7 @@ def _checks_against_the_board(
                 f"{len(qualifiers)} committee-year(s). The filer-years above must not "
                 "publish a split until they reconcile",
                 all_pairs,
+                figures=reconcile.figures,
             )
         else:
             reconcile = Check(
@@ -1661,15 +1696,22 @@ def _checks_against_the_board(
     return [reconcile, _registrations_resolve(spec, measured, filings)]
 
 
-def _carried_reconcile_filer_years(baseline: Optional[Any]) -> tuple[str, ...]:
+def _carried_reconcile_filer_years(
+    baseline: Optional[Any],
+) -> dict[str, Optional[dict[str, str]]]:
     """The committee-years the published snapshot's reconcile check recorded, as
-    ``registration:year``, whatever status that check ended with (waived by a person,
-    or carried from an earlier release). Empty without a baseline."""
+    ``registration:year``, each with the 2 figures it recorded (``None`` when that
+    release recorded none), whatever status that check ended with (waived by a
+    person, or carried from an earlier release). Empty without a baseline."""
     recorded = getattr(baseline, "validation_json", None) or {}
     for check in recorded.get("checks") or []:
         if check.get("name") == "reported_totals_reconcile":
-            return tuple(str(entry) for entry in check.get("filer_years") or [])
-    return ()
+            figures = check.get("figures") or {}
+            return {
+                str(entry): figures.get(str(entry))
+                for entry in check.get("filer_years") or []
+            }
+    return {}
 
 
 def _reported_totals_reconcile(
@@ -1743,6 +1785,7 @@ def _reported_totals_reconcile(
     no_rows_at_all: list[tuple[str, int]] = []
     rows_only_outside_the_period: list[tuple[str, int]] = []
     failed_filer_years: list[str] = []
+    figures: dict[str, dict[str, str]] = {}
     for filer_year, official in sorted(comparable.items()):
         ours = measured.contribution_cash_through_cutoff.get(filer_year)
         if ours is None:
@@ -1763,6 +1806,10 @@ def _reported_totals_reconcile(
                 f"{official}, over by {ours - official}"
             )
             failed_filer_years.append(f"{registration}:{year}")
+            figures[f"{registration}:{year}"] = {
+                "ours": f"{ours:.2f}",
+                "reported": f"{official:.2f}",
+            }
     detail = (
         f"{compared:,} of {len(comparable):,} comparable filer-years compared against "
         f"the Board's own figures; {len(no_rows_at_all):,} hold no itemized row of ours "
@@ -1780,6 +1827,7 @@ def _reported_totals_reconcile(
             + "; ".join(exceeded[:MAX_REPORTED_ROW_ERRORS])
             + f". {detail}",
             tuple(failed_filer_years),
+            figures=figures,
         )
     return Check(name, "passed", detail)
 

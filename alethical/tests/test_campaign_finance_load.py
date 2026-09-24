@@ -2355,6 +2355,53 @@ def test_a_reconcile_committee_year_waived_on_the_published_release_is_carried_n
     snapshot = snapshot_of(db, release, Dataset.contributions)
     recorded = {c["name"]: c for c in snapshot.validation_json["checks"]}
     assert recorded["reported_totals_reconcile"]["filer_years"] == ["19200:2025"]
+    # The 2 figures the person ruled on ride with the pair, to the cent.
+    figures = recorded["reported_totals_reconcile"]["figures"]
+    assert figures["19200:2025"]["reported"] == "1500.00"
+    ours_then = figures["19200:2025"]["ours"]
+    assert Decimal(ours_then) > Decimal("1500.00")
+
+    # The filer's own figure moves (a new report) while our rows still exceed it: the
+    # same committee-year is a NEW disagreement, not a carried one, and blocks.
+    seed_filings_snapshot(db, reported={("19200", 2025): "1400.00"})
+    rows.append(
+        '40858,"Libertarian Party of Minnesota",PTU,,20.0000,2025-04-06,2025,'
+        '"Roe, Jane",,Individual,Contribution,No,,55102,'
+    )
+    board.set_rows(Dataset.contributions, rows)
+    moved = run(db, board, store)
+    check = contributions_checks(moved)["reported_totals_reconcile"]
+    assert check.status == "failed", check.detail
+    assert check.filer_years == ("19200:2025",)
+    assert "waived on the published release against different figures" in check.detail
+    assert f"then {ours_then} against 1500.00" in check.detail
+    assert f"now {ours_then} against 1400.00" in check.detail
+    assert not moved.published
+    seed_filings_snapshot(db, reported={("19200", 2025): "1500.00"})
+
+    # A release that recorded the pair without its figures says nothing about what was
+    # waived, so the pair is treated as new and blocks until a person names it again.
+    checks = list(snapshot.validation_json["checks"])
+    for entry in checks:
+        if entry["name"] == "reported_totals_reconcile":
+            entry.pop("figures")
+    snapshot.validation_json = {"checks": checks}
+    db.commit()
+    rows.append(
+        '40858,"Libertarian Party of Minnesota",PTU,,30.0000,2025-04-07,2025,'
+        '"Poe, Jane",,Individual,Contribution,No,,55102,'
+    )
+    board.set_rows(Dataset.contributions, rows)
+    unrecorded = run(db, board, store)
+    check = contributions_checks(unrecorded)["reported_totals_reconcile"]
+    assert check.status == "failed", check.detail
+    assert "waived with no figures recorded" in check.detail
+    assert not unrecorded.published
+    for entry in checks:
+        if entry["name"] == "reported_totals_reconcile":
+            entry["figures"] = figures
+    snapshot.validation_json = {"checks": checks}
+    db.commit()
 
     # A NEW committee-year over its reported figure still fails, naming only the new
     # one as needing a waiver; waiving that one publishes and records both.

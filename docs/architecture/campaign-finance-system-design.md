@@ -965,8 +965,14 @@ comparison rather than failed again**: the daily job's first run (24 Sep 2026) q
 payments file on exactly the 6 committee-years waived the night before, and would have every day
 until the Board's own figures moved. The check reads the published snapshot's recorded
 committee-years, reports the carried ones without blocking, keeps them recorded so their split
-stays withheld, and fails only a committee-year that list does not carry. A scheduled run still
-invents no exception; it inherits the one a person recorded, by exact committee-year.
+stays withheld, and fails only a committee-year that list does not carry. **The waiver is a
+ruling on 2 figures, not on a committee-year (Codex, 24 Sep 2026)**: the check records, per
+committee-year, our itemized total and the filer's reported figure to the cent, and carries the
+committee-year only while both are unchanged; if either moved, the disagreement is a new one and
+blocks for its own named waiver exactly as a new committee-year does, with the old and new figures
+printed side by side. A committee-year recorded without its figures is not carried either. A
+scheduled run still invents no exception; it inherits the one a person recorded, by exact
+committee-year and exact figures.
 
 ### 4.4 What survives replacement
 
