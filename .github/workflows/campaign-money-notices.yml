@@ -1,0 +1,148 @@
+name: Collect large-contribution notices and disclosure statements
+
+# Money a committee receives in the last 2 weeks before an election appears on no
+# periodic report until the year-end report the following February. The only public
+# record of it meanwhile is the committee's large-contribution notice, which the
+# Minnesota Campaign Finance Board posts on one page (#2347). This job copies that page,
+# keeps each new notice PDF once, and records which notice windows apply to which
+# candidates from the Secretary of State's ballot files. Once a week it also reads
+# committees' catalogues for disclosure statements and stores the reviewed readings in
+# alethical/pipeline/data/disclosure_statement_readings.json.
+#
+# Cadence: daily from 20 Oct to 6 Nov 2026 (the general-election notice window plus the
+# Board's posting days after it), weekly otherwise. On and after 2 Feb 2027, the day after
+# the year-end report that covers the October gifts is due, the job opens one issue asking
+# whether this cadence is still worth running.
+#
+# Free: GitHub Actions minutes and a few requests to 2 public websites. A failure keeps
+# every record already held, exits non-zero, and opens or updates one issue.
+#
+# Design: docs/architecture/campaign-finance-system-design.md §7 (the notices and
+# statements display rules). Guide: docs/product-onboarding/campaign-money-section-guide.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Read the sources and write nothing anywhere"
+        type: boolean
+        default: false
+      statements:
+        description: "Which catalogues to read for statements this run"
+        type: choice
+        options: ["weekly default", "none", "committees", "all"]
+        default: "weekly default"
+  schedule:
+    # 17:15 UTC (about noon in Minnesota). The Board posts a notice by the end of the
+    # business day after it is filed, so a midday read picks up the previous day's.
+    # A slot no other scheduled job uses.
+    - cron: "15 17 20-31 10 *"
+    - cron: "15 17 1-6 11 *"
+    - cron: "15 17 * * 3"
+
+concurrency:
+  group: production-campaign-money-notices
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      ALETHICAL_DATABASE_TARGET: production
+      SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_STORAGE_S3_ENDPOINT: ${{ secrets.SUPABASE_STORAGE_S3_ENDPOINT }}
+      SUPABASE_STORAGE_S3_REGION: ${{ secrets.SUPABASE_STORAGE_S3_REGION }}
+      SUPABASE_STORAGE_S3_ACCESS_KEY_ID: ${{ secrets.SUPABASE_STORAGE_S3_ACCESS_KEY_ID }}
+      SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY: ${{ secrets.SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '--dry-run' || '' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          version: 0.12.5
+          enable-cache: true
+          prune-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Check the secrets are set
+        shell: bash
+        run: |
+          missing=()
+          for name in SUPABASE_PROJECT_URL SUPABASE_DB_PASSWORD \
+                      SUPABASE_STORAGE_S3_ENDPOINT SUPABASE_STORAGE_S3_REGION \
+                      SUPABASE_STORAGE_S3_ACCESS_KEY_ID SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf 'Not set as repository secrets: %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      # shell: bash is `bash -eo pipefail`, so the `| tee` cannot swallow a failure.
+      - name: Copy the notice list and keep each new notice
+        shell: bash
+        run: |
+          PYTHONPATH=. uv run python scripts/collect_campaign_finance_notices.py \
+            --target production $DRY_RUN | tee -a notices-report.txt
+
+      - name: Read committees' catalogues for disclosure statements
+        shell: bash
+        run: |
+          scope="${{ inputs.statements }}"
+          if [ -z "$scope" ] || [ "$scope" = "weekly default" ]; then
+            if [ "$(date -u +%u)" = "3" ]; then scope=committees; else scope=none; fi
+          fi
+          echo "statement scope: $scope" | tee -a notices-report.txt
+          if [ "$scope" != "none" ]; then
+            PYTHONPATH=. uv run python scripts/collect_campaign_finance_statements.py \
+              --target production --kinds "$scope" $DRY_RUN | tee -a notices-report.txt
+          fi
+
+      - name: Store the reviewed statement readings
+        shell: bash
+        run: |
+          PYTHONPATH=. uv run python scripts/record_disclosure_statement_readings.py \
+            --target production $DRY_RUN | tee -a notices-report.txt
+
+      - name: Open the review-point issue on or after 2 Feb 2027
+        if: success() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$(date -u +%Y%m%d)" -ge 20270202 ]; then
+            title="Review the large-contribution notice collector's cadence"
+            existing=$(gh issue list --state all --search "$title in:title" --json number --jq '.[0].number // empty')
+            if [ -z "$existing" ]; then
+              gh issue create --title "$title" --label backend --body "$(printf '**Net:** the year-end report covering October 2026 gifts was due 1 Feb 2027, so every 2026 notice should now match a filed payment row. Decide whether the weekly run in `.github/workflows/campaign-money-notices.yml` is still worth running before the 2028 windows, and update NOTICE_WINDOWS in `alethical/pipeline/campaign_finance_notices.py` for the next election year. Background: #2347.')"
+            fi
+          fi
+
+      - name: Open an alert issue if collection failed
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Large-contribution notices or disclosure statements are not being collected"
+          report=$(cat notices-report.txt 2>/dev/null || echo "(the job produced no output: it may have failed before reaching any source)")
+          body=$(printf '**Net:** the job that copies the Campaign Finance Board'"'"'s large-contribution notices, or reads committees'"'"' disclosure statements, did not finish. Every record already held is kept, so committee pages keep showing the last good copy with its own copy date. The report below names what failed.\n\n```\n%s\n```\n\n**Run it by hand** from a fresh worktree off `origin/main`, dry run first:\n\n```\nPYTHONPATH=. uv run python scripts/collect_campaign_finance_notices.py --target production --dry-run\n```\n\nBackground: #2347. Run: %s. Auto-filed by `.github/workflows/campaign-money-notices.yml`.' "$report" "$RUN_URL")
+          existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Still failing as of this run: $RUN_URL"$'\n\n```\n'"$report"$'\n```'
+          else
+            gh issue create --title "🚨 $title" --label backend --body "$body"
+          fi

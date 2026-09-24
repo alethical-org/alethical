@@ -4326,3 +4326,328 @@ class LobbyistDonationEvidenceCurrent(TimestampMixin, Base):
         ForeignKey("lobbyist_donation_evidence.id", ondelete="CASCADE"), nullable=False
     )
     __table_args__ = (CheckConstraint("id = true", name="singleton"),)
+
+
+# --- Large-contribution notices and disclosure statements (#2347) -----------------
+#
+# Two record kinds the Board publishes beside a committee's reports, neither of which is
+# a report and neither of which may be added into any total, share, count or chart
+# (`.claude/rules/grounded-answers.md` rules 3 and 12). Keyed on the Board's own
+# identifiers rather than on a filings snapshot, because the notice list and a committee's
+# catalogue are read on their own schedules and a notice's PDF is fetched once and kept.
+
+
+class CampaignFinanceNoticeListCopy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """One successful read of the Board's large-contribution notices page.
+
+    The page lists the current election year only, so ``covered_years`` is what the
+    notices card is allowed to speak for: a year outside every successful copy draws no
+    card at all, never an empty one. A failed read writes no row, so the newest row is
+    always a copy that completed.
+    """
+
+    __tablename__ = "cf_notice_list_copy"
+
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    page_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    notice_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    covered_years: Mapped[list] = mapped_column(JSONB, nullable=False)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class CampaignFinanceContributionNotice(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """One large-contribution notice, as its own 1-page PDF states it.
+
+    A notice is a committee telling the Board, by the end of the next business day,
+    about money from one source received in the days before an election (Minnesota
+    Statutes 10A.20 subd. 5). The same money appears again as an ordinary payment row
+    once the committee files its next report, so a notice is never a second gift and its
+    amount is never added to anything.
+
+    ``board_notice_id`` is the Board's own identifier from the page's link, such as
+    ``260806_140546_N1``; with the registration number, year, period and special-election
+    flag it names one PDF. The PDF is fetched once and its bytes kept, content-addressed,
+    in the raw-source-files bucket under ``campaign-finance/notice/``.
+
+    ``treasurer_name`` is stored because the notice states it, and is never served:
+    an officer's name is not what the record is about.
+    """
+
+    __tablename__ = "cf_contribution_notice"
+
+    registration_number: Mapped[str] = mapped_column(String(20), nullable=False)
+    filer_kind: Mapped[CampaignFinanceFilerKind] = mapped_column(
+        SQLEnum(CampaignFinanceFilerKind, name="cf_filer_kind"),
+        nullable=False,
+    )
+    filing_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    notice_period: Mapped[str] = mapped_column(String(20), nullable=False)
+    special_election: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
+    board_notice_id: Mapped[str] = mapped_column(String(40), nullable=False)
+    committee_name_as_listed: Mapped[Optional[str]] = mapped_column(Text)
+    listed_on: Mapped[Optional[date]] = mapped_column(Date)
+    first_listed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    last_listed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    # What the PDF states. All nullable: a PDF that fails to parse is still recorded,
+    # with ``parse_error`` set, and is never served.
+    committee_name_as_filed: Mapped[Optional[str]] = mapped_column(Text)
+    treasurer_name: Mapped[Optional[str]] = mapped_column(Text)
+    period_start: Mapped[Optional[date]] = mapped_column(Date)
+    period_end: Mapped[Optional[date]] = mapped_column(Date)
+    submitted_on: Mapped[Optional[date]] = mapped_column(Date)
+    received_on: Mapped[Optional[date]] = mapped_column(Date)
+    contributor_name: Mapped[Optional[str]] = mapped_column(Text)
+    contributor_registration_number: Mapped[Optional[str]] = mapped_column(String(20))
+    employer: Mapped[Optional[str]] = mapped_column(Text)
+    city: Mapped[Optional[str]] = mapped_column(Text)
+    state: Mapped[Optional[str]] = mapped_column(Text)
+    zip_code: Mapped[Optional[str]] = mapped_column(Text)
+    contribution_date: Mapped[Optional[date]] = mapped_column(Date)
+    amount: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 2))
+    in_kind: Mapped[Optional[bool]] = mapped_column(Boolean)
+    in_kind_description: Mapped[Optional[str]] = mapped_column(Text)
+    loan: Mapped[Optional[bool]] = mapped_column(Boolean)
+    parse_error: Mapped[Optional[str]] = mapped_column(Text)
+
+    # Amendment. ``amendment_index`` is the catalogue's own marker for this notice file
+    # (``amendments: ['0']`` on every notice read so far); above 0 means the committee
+    # filed a revised version. The ``earlier_*`` columns keep the values we held before a
+    # revised version replaced them, so the page can state the amendment on the record.
+    amendment_index: Mapped[Optional[int]] = mapped_column(Integer)
+    earlier_contributor_name: Mapped[Optional[str]] = mapped_column(Text)
+    earlier_contribution_date: Mapped[Optional[date]] = mapped_column(Date)
+    earlier_amount: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 2))
+
+    # The kept PDF.
+    document_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    object_key: Mapped[Optional[str]] = mapped_column(Text)
+    compressed_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    byte_size: Mapped[Optional[int]] = mapped_column(BigInteger)
+    fetched_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    # Set by `alethical/pipeline/raw_file_mirror.py` once the second copy is proven.
+    mirrored_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        UniqueConstraint(
+            "registration_number",
+            "filing_year",
+            "notice_period",
+            "special_election",
+            "board_notice_id",
+            name="uq_cf_contribution_notice_board_id",
+        ),
+        Index(
+            "ix_cf_contribution_notice_filer_year",
+            "registration_number",
+            "filing_year",
+        ),
+    )
+
+
+class CampaignFinanceNoticeWindowExclusion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A notice window that does not apply to one filer, and the record that says so.
+
+    Minnesota Statutes 10A.20 subd. 5(d): no primary notice for a candidate unopposed in
+    the primary or for a ballot-question committee or fund, and no general-election
+    notice for a candidate whose name is not on the general-election ballot. The last is
+    read from the Secretary of State's own ballot files. A window with no row here is
+    drawn; a row here removes it, and ``source_url`` names what decided it.
+    """
+
+    __tablename__ = "cf_notice_window_exclusion"
+
+    registration_number: Mapped[str] = mapped_column(String(20), nullable=False)
+    election_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    window: Mapped[str] = mapped_column(String(20), nullable=False)
+    reason: Mapped[str] = mapped_column(String(40), nullable=False)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    determined_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "registration_number",
+            "election_year",
+            "window",
+            name="uq_cf_notice_window_exclusion_filer_window",
+        ),
+    )
+
+
+class CampaignFinanceStatementScan(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """One completed read of committees' catalogues for their disclosure statements.
+
+    Its ``completed_at`` is the date the Campaign money tab prints as "Minnesota’s report
+    catalogue copied {date}" whenever it shows a statement, because it is the copy the
+    statements came from. A scan that did not complete writes no row.
+    """
+
+    __tablename__ = "cf_statement_scan"
+
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    completed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    catalogues_read: Mapped[int] = mapped_column(Integer, nullable=False)
+    statements_listed: Mapped[int] = mapped_column(Integer, nullable=False)
+    scope: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class CampaignFinanceDisclosureStatement(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """One disclosure statement listed in a recipient committee's catalogue.
+
+    An unregistered association giving to an independent-expenditure committee or fund
+    files a statement naming where the money for that gift came from. The catalogue lists
+    each one only as a numbered file (``41412_D1.pdf``) and repeats the same numbers under
+    several reports, so a statement is (recipient, year, number). **The catalogue does
+    not say which gift a statement names**; that, and everything else the scanned form
+    says, is entered by a person who read the PDF (``cf_disclosure_statement_reading``).
+    A statement with no reading attaches to no payment and prints nothing.
+    """
+
+    __tablename__ = "cf_disclosure_statement"
+
+    recipient_registration_number: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )
+    filing_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    statement_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    listed_under_reports: Mapped[list] = mapped_column(JSONB, nullable=False)
+    first_listed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    last_listed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    document_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    object_key: Mapped[Optional[str]] = mapped_column(Text)
+    compressed_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    byte_size: Mapped[Optional[int]] = mapped_column(BigInteger)
+    fetched_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    # Set by `alethical/pipeline/raw_file_mirror.py` once the second copy is proven.
+    mirrored_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        UniqueConstraint(
+            "recipient_registration_number",
+            "filing_year",
+            "statement_number",
+            name="uq_cf_disclosure_statement_number",
+        ),
+    )
+
+
+class DisclosureStatementReadingState(enum.Enum):
+    """How much of a statement a person has read.
+
+    ``gift_identified``: the gift it names (donor, date, amount) is recorded, so it
+    attaches to that payment and shows as held but not read. ``read``: the box, the
+    Schedule A1 sources, Lines A to C and the 2 dates are recorded too.
+    """
+
+    gift_identified = "gift_identified"
+    read = "read"
+
+
+class CampaignFinanceDisclosureStatementReading(
+    UUIDPrimaryKeyMixin, TimestampMixin, Base
+):
+    """What a person read off one statement's scanned PDF, signed by who recorded it.
+
+    The PDFs are scanned images with no text layer, so nothing here is machine-read.
+    ``reviewed_by`` has no database default for the same reason
+    ``legislator_campaign_committee.reviewed_by`` has none: a reading nobody put a name
+    to must fail to store. ``document_hash_read`` is the sha256 of the bytes the reading
+    was taken from.
+
+    A blank line on the form is ``NULL`` and prints "Not reported", never $0.
+    """
+
+    __tablename__ = "cf_disclosure_statement_reading"
+
+    statement_id: Mapped[uuid.UUID] = mapped_column(
+        # Named explicitly: the convention would generate a 70-character identifier.
+        ForeignKey(
+            "cf_disclosure_statement.id",
+            ondelete="CASCADE",
+            name="fk_cf_statement_reading_statement",
+        ),
+        nullable=False,
+        unique=True,
+    )
+    state: Mapped[DisclosureStatementReadingState] = mapped_column(
+        SQLEnum(DisclosureStatementReadingState, name="cf_statement_reading_state"),
+        nullable=False,
+    )
+    donor_name: Mapped[str] = mapped_column(Text, nullable=False)
+    gift_date: Mapped[date] = mapped_column(Date, nullable=False)
+    gift_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    box: Mapped[Optional[int]] = mapped_column(SmallInteger)
+    line_a: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 2))
+    line_b: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 2))
+    line_c: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 2))
+    signed_on: Mapped[Optional[date]] = mapped_column(Date)
+    received_on: Mapped[Optional[date]] = mapped_column(Date)
+    reviewed_by: Mapped[str] = mapped_column(String(120), nullable=False)
+    reviewed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    evidence: Mapped[str] = mapped_column(Text, nullable=False)
+    document_hash_read: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    sources: Mapped[list["CampaignFinanceDisclosureStatementSource"]] = relationship(
+        order_by="CampaignFinanceDisclosureStatementSource.position",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        CheckConstraint("box IS NULL OR box IN (1, 2, 3)", name="box_is_a_form_box"),
+        CheckConstraint(
+            "state <> 'read' OR (box IS NOT NULL AND received_on IS NOT NULL)",
+            name="a_read_statement_has_its_box",
+        ),
+    )
+
+
+class CampaignFinanceDisclosureStatementSource(
+    UUIDPrimaryKeyMixin, TimestampMixin, Base
+):
+    """One Schedule A1 source on a read statement: name, city, state and amount.
+
+    No ZIP and no street: the page prints a source's name, city and state only, so
+    nothing more is stored.
+    """
+
+    __tablename__ = "cf_disclosure_statement_source"
+
+    reading_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(
+            "cf_disclosure_statement_reading.id",
+            ondelete="CASCADE",
+            name="fk_cf_statement_source_reading",
+        ),
+        nullable=False,
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    city: Mapped[Optional[str]] = mapped_column(Text)
+    state: Mapped[Optional[str]] = mapped_column(String(2))
+    amount: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 2))
+
+    __table_args__ = (
+        UniqueConstraint(
+            "reading_id", "position", name="uq_cf_disclosure_statement_source_position"
+        ),
+    )

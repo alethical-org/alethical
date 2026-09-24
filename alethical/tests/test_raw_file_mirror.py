@@ -418,6 +418,11 @@ def test_every_table_holding_a_stored_body_is_found_by_the_schema_walk() -> None
         "cf_filing_snapshot",
         "cf_report_document",
         "published_source_copy",
+        # Large-contribution notices and disclosure statements (#2347): each PDF is
+        # fetched once from a route the Board's robots.txt disallows, so its kept copy
+        # is the only one we will ever have.
+        "cf_contribution_notice",
+        "cf_disclosure_statement",
         "lobbying_expenditure_snapshot",
         "cf_refund_summary",
     }
