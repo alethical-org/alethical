@@ -123,6 +123,7 @@ const {
   MONEY_OUT_ZERO_NOTE,
   coveredPeriodLine,
   MONEY_IN_REPORTED_LABEL,
+  MONEY_IN_UNNAMED_LABEL,
   MONEY_OUT_REPORTED_LABEL,
   NAMED_DONATIONS_LINK_LABEL,
   uncoveredPeriodLine,
@@ -132,7 +133,8 @@ const {
 const { EMPTY_YEAR_VALUE, whoseCommitteeText } = await import('../committeeMoney');
 const { listLinkNote, receivedPaymentRow, showingLine } = await import('../committeePaymentsPage');
 const { registerCountLine } = await import('../committeeList');
-const { formatDay, formatMoney } = await import('../legislatorCampaignMoney');
+const { formatDay, formatMoney, splitExplanation, statedSplitNote } =
+  await import('../legislatorCampaignMoney');
 const {
   centralDateLabel,
   MONEY_LANDING_HEADING,
@@ -2094,6 +2096,36 @@ describe('a filed zero is a number, not a gap', () => {
     expect(missingText).not.toContain('Total of named payments');
     expect(missingText).toContain(MONEY_OUT_OFFICIAL_MISSING);
     expect(missingText).not.toContain(MONEY_OUT_REPORTED_LABEL);
+  });
+});
+
+describe('copies of the totals and the payments taken on different days (#2344)', () => {
+  // The server withholds the worked-out remainder when the live totals copy is not the
+  // one the payment files were checked against, and serves both source figures with
+  // their own dates. The first response must draw exactly that: both figures, the one
+  // sentence saying why the comparison waits, and no non-itemized figure, no
+  // percentage and no "not yet compared" note that only belongs under a drawn figure.
+  const waiting = {
+    ...committeeFixture,
+    split: { ...committeeFixture.split, state: 'generations_differ', unnamed_total: null },
+  };
+  const text = visibleText(renderPageSnapshot(committeePageSnapshot(waiting, '41326')));
+  const split = committeeFixture.split;
+
+  it('serves the waiting sentence, word for word, once', () => {
+    const sentence = splitExplanation('generations_differ') ?? '';
+    expect(sentence).not.toBe('');
+    expect(text).toContain(sentence);
+    expect(text.split(sentence).length - 1).toBe(1);
+  });
+
+  it('keeps both source figures and withholds only the worked-out one', () => {
+    expect(text).toContain(`${MONEY_IN_REPORTED_LABEL}: ${formatMoney(split.reported_total)}`);
+    expect(text).toContain(formatMoney(split.named_total));
+    expect(text).not.toContain(MONEY_IN_UNNAMED_LABEL);
+    expect(text).not.toContain(formatMoney(split.unnamed_total));
+    expect(text).not.toContain(statedSplitNote('not_checked') ?? '');
+    expect(text).not.toMatch(/\d%/);
   });
 });
 

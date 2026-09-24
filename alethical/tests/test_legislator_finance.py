@@ -51,6 +51,7 @@ from alethical.api.services.legislator_finance import (
     LINK_UNCONFIRMED,
     is_for_a_legislative_office,
     SPLIT_FIGURES_DO_NOT_LINE_UP,
+    SPLIT_GENERATIONS_DIFFER,
     SPLIT_NAMED_PAYMENTS_NOT_IN_OUR_COPY,
     SPLIT_NO_NAMED_PAYMENTS,
     SPLIT_NO_REPORTED_TOTAL,
@@ -118,6 +119,7 @@ def _split(
     cash: str | None = "__same__",
     stated: str = STATED_SPLIT_NOT_CHECKED,
     corrections: int | None = None,
+    generations_differ: bool = False,
 ):
     """``cash`` defaults to "all of it was cash", which is 400 committee-years short of
     the truth and the right default for a test about something else."""
@@ -133,6 +135,7 @@ def _split(
         withheld_filer_years=frozenset(withheld),
         stated_split_state=stated,
         report_corrections=corrections,
+        generations_differ=generations_differ,
     )
 
 
@@ -609,6 +612,83 @@ def test_a_checked_split_is_told_apart_from_an_unchecked_one():
     assert unchecked.stated_split_state == STATED_SPLIT_NOT_CHECKED
     assert AGREES == STATED_SPLIT_AGREES
     assert NOT_RUN != STATED_SPLIT_AGREES
+
+
+def test_copies_taken_on_different_days_are_never_subtracted():
+    """Rule 12: missing or unprocessed named donations are never presented as
+    non-itemized donations.
+
+    Restore Sanity (41412), 23 Sep 2026: the totals snapshot refreshed to a
+    $14,111,000 figure through 15 Sep while the payments release was still the 1 Sep
+    file holding $1,226,000 of named rows, and the live page printed the $12,885,000
+    difference as money with no donor named. The rest is named in the newer payments
+    file, which had not published yet. So when the live filings snapshot is not the
+    one the release was checked against, the remainder is withheld in its own state
+    and both source figures still travel with their own dates (issue 2344).
+    """
+    finance = _finance(
+        registration_number="41412",
+        year=2026,
+        named_total="1226000.00",
+        reported_total="14111000.00",
+        reported_through=date(2026, 9, 15),
+    )
+    split = _split(finance, last_payment_on=date(2026, 8, 20), generations_differ=True)
+
+    assert split.state == SPLIT_GENERATIONS_DIFFER
+    assert split.unnamed_total is None
+    assert split.reported_total == Decimal("14111000.00")
+    assert split.reported_through == date(2026, 9, 15)
+    assert split.named_total == Decimal("1226000.00")
+    assert split.last_payment_on == date(2026, 8, 20)
+    # The same inputs from a checked pair subtract as they always have.
+    assert _split(finance, last_payment_on=date(2026, 8, 20)).state == SPLIT_SHOWN
+
+
+def test_a_verdict_against_a_newer_totals_copy_is_not_a_disagreement():
+    """The stored comparison against the live filings snapshot compared the newer
+    filing with the older rows, which is the very mismatch the pairing guards against,
+    so it may not be printed as Minnesota's 2 publications disagreeing. Nor as our copy
+    missing named payments, where the rows are simply from before the report."""
+    disagreeing = _split(
+        _finance(), last_payment_on=date(2025, 11, 12), stated=DISAGREES
+    )
+    assert disagreeing.state == SPLIT_SOURCES_DISAGREE
+    assert (
+        _split(
+            _finance(),
+            last_payment_on=date(2025, 11, 12),
+            stated=DISAGREES,
+            generations_differ=True,
+        ).state
+        == SPLIT_GENERATIONS_DIFFER
+    )
+    assert (
+        _split(
+            _finance(
+                money_in_state=NOT_REPORTED, named_total=None, named_payments=None
+            ),
+            last_payment_on=None,
+            cash=None,
+            stated=DISAGREES,
+            generations_differ=True,
+        ).state
+        == SPLIT_GENERATIONS_DIFFER
+    )
+
+
+def test_a_year_with_no_official_total_is_a_fact_about_one_copy():
+    """No reported total and no verdict means there is nothing of the filings side to
+    compare, whichever day either copy was taken. That is a fact about one source, and
+    the page keeps saying so rather than promising a comparison that will never run."""
+    split = _split(
+        _finance(reported_total=None, reported_through=None),
+        last_payment_on=date(2025, 11, 12),
+        generations_differ=True,
+    )
+
+    assert split.state == SPLIT_NO_REPORTED_TOTAL
+    assert split.named_total == Decimal("10730.30")
 
 
 # --- Which of a member's committees belong on a legislative profile ----------

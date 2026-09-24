@@ -828,6 +828,28 @@ expenditures and the reports that cover the same period form one release. Files 
 different days must never be shown together, or a committee's spending will be from a
 different day than its income.
 
+**The derived comparison is drawn only from a checked pair of generations.** The filed
+totals (`cf_filing_snapshot`, pointed to by `cf_filing_current`) and the payment files
+(`cf_release`, pointed to by `cf_current_release`) are 2 pipelines with 2 refresh days, and a
+committee page's non-itemized figure is the one minus the other. A release records which
+filings snapshot its rows were reconciled against when it published
+(`cf_release.filing_snapshot_id`), and the API withholds the subtraction, in its own split
+state `generations_differ`, whenever the live filings snapshot is a different one
+(`generations_differ` in `alethical/api/services/committee_finance.py`, asked before every
+other comparison in `split_from_money_in`). Each source figure still travels with its own
+date; only the remainder waits, and a release published before the figures existed carries
+no pairing and keeps the split's other rules. Why: on 23 September 2026 the totals snapshot
+refreshed while the payments release was still the 1 September one, and Restore Sanity's
+2026 page derived $12,885,000 of "money with no donor named" from a $14,111,000 total through
+15 September minus $1,226,000 of payments from a file that predates that report. The missing
+donations are named in the newer payments file, which had not published yet, and rule 12
+never presents unprocessed named donations as non-itemized ones
+([issue 2344](https://github.com/alethical-org/alethical/issues/2344)). The payments
+pipeline's own publish step refuses to publish rows whose filings snapshot stopped being the
+live one while they were downloading (`alethical/pipeline/campaign_finance.py`); that catches a
+filings run landing *during* a download, and this catches the ordinary case of one landing
+*between* downloads, which a refusal cannot, because nothing is running.
+
 ### 4.2 Why replace rather than merge
 
 The state publishes no transaction identifier, and two payments can legitimately be identical

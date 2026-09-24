@@ -168,6 +168,14 @@ class Release:
     contributions: SourceFile
     expenditures: SourceFile
     independent_expenditures: SourceFile
+    # Which filings snapshot these rows were reconciled against when they published
+    # (``cf_release.filing_snapshot_id``). A page that subtracts the rows from the
+    # filings' reported total is showing a pair, and this is what says whether the
+    # pair on screen is the one the release checked: when the live filings snapshot is
+    # a different one, the 2 copies were taken on different days and their difference
+    # is not a fact about donors (issue 2344). ``None`` on a release published before
+    # the figures existed, which says nothing either way.
+    filing_snapshot_id: Optional[uuid.UUID] = None
 
     def file_for(self, dataset: Dataset) -> SourceFile:
         return {
@@ -183,7 +191,8 @@ _LIVE_RELEASE_SQL = text(
            r.fetch_completed_at,
            c.id, c.source_url, c.row_count, c.status,
            e.id, e.source_url, e.row_count, e.status,
-           i.id, i.source_url, i.row_count, i.status
+           i.id, i.source_url, i.row_count, i.status,
+           r.filing_snapshot_id
       FROM cf_current_release p
       JOIN cf_release r ON r.id = p.release_id
       JOIN cf_snapshot c ON c.id = r.contributions_snapshot_id
@@ -212,9 +221,9 @@ def live_release(db: Session) -> Optional[Release]:
 
 
 def release_from_row(row) -> Release:
-    """Build a ``Release`` from the 14 columns ``_LIVE_RELEASE_SQL`` selects, in order.
+    """Build a ``Release`` from the 15 columns ``_LIVE_RELEASE_SQL`` selects, in order.
 
-    Shared with the API's pinned read, which selects the same 14 columns through the
+    Shared with the API's pinned read, which selects the same 15 columns through the
     same joins and rides 2 more answers on the statement (``committee_finance.
     current_release``), so both paths refuse a pruned snapshot by the same test.
     """
@@ -233,6 +242,7 @@ def release_from_row(row) -> Release:
         independent_url,
         independent_rows,
         independent_status,
+        filing_snapshot_id,
     ) = row
     statuses = (contributions_status, expenditures_status, independent_status)
     loaded = schema.CampaignFinanceSnapshotStatus.loaded
@@ -264,6 +274,7 @@ def release_from_row(row) -> Release:
             independent_url,
             independent_rows or 0,
         ),
+        filing_snapshot_id=filing_snapshot_id,
     )
 
 

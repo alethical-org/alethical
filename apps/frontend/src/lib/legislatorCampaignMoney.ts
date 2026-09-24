@@ -56,7 +56,8 @@ export type SplitState =
   | 'no_named_payments'
   | 'named_payments_not_in_our_copy'
   | 'reported_total_predates_a_correction'
-  | 'figures_do_not_line_up';
+  | 'figures_do_not_line_up'
+  | 'generations_differ';
 
 /** Whether anyone has confirmed which committees belong to this legislator. */
 export type LinkState = 'unconfirmed' | 'reviewed_none_confirmed' | 'confirmed';
@@ -279,6 +280,20 @@ export function splitExplanation(state: SplitState): string | null {
         'These two figures will not line up, and we cannot tell why. We show both and ' +
         'work out neither, rather than print a number that would read as a fact about ' +
         'donors.'
+      );
+    case 'generations_differ':
+      // The official totals and the payment files refresh on different days, and the
+      // server knows which totals copy the payment files were checked against when
+      // they published. When the live totals copy is a newer one, the difference
+      // between the 2 figures is a fact about 2 copy dates and not about donors: on
+      // 23 Sep 2026 Restore Sanity's page derived $12,885,000 of "money with no donor
+      // named" from a total through 15 Sep minus payments from a 1 Sep file that
+      // predates the report naming the rest (issue 2344). Both figures still draw with
+      // their own dates; only the worked-out remainder waits.
+      return (
+        'Our copies of the official totals and of the payment files were taken on ' +
+        'different days, so the comparison between them waits until both are refreshed ' +
+        'together.'
       );
     default:
       return null;

@@ -1136,6 +1136,7 @@ says why.
 
 | What the reader sees                                                                                                                                               | When                                                                                                                   | How common                                                                    |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| "Our copies of the official totals and of the payment files were taken on different days, so the comparison between them waits until both are refreshed together." | The live copy of the official totals is not the one the payment files were checked against when they published, which is asked before every other comparison | Every committee-year with a reported total, for the days between a totals refresh and the next payments release |
 | "These two figures cover different stretches of time."                                                                                                             | The committee's own report stops earlier than the donation spreadsheet does                                            | 16 committee-years                                                            |
 | "Minnesota publishes these two figures separately, and for this committee and year they do not agree."                                                             | The comparison against the committee's own filed report found the two official figures differ, in **either** direction | 62 committee-years, and **42** once the part-year correction below is applied |
 | "The state's separate list of donations holds none of them for this year — so the names are missing from what we can show you, not from what the committee filed." | The filing names donors and our copy of the donation spreadsheet carries no row at all for that committee-year         | 14 committee-years                                                            |
@@ -1149,6 +1150,20 @@ the release covers rather than candidate committees alone. They are evidence, no
 requirement. In that release, 7,442 committee-years lacked an official total we could
 stand behind; that does not establish whether a committee filed. Another 3,062
 committee-years showed a full split.
+
+**The first row is asked before every other one.** The official totals and the payment
+files are copied on different days, and each payments release records which copy of the
+totals its rows were checked against. When the live totals copy is a newer one, the server
+serves the split as `generations_differ` and the tab prints the first row's sentence; the
+reported total and the itemized figure still draw with their own dates, and only the
+non-itemized figure, with any percentage built from it, waits. It is asked first because
+every other row compares the 2 copies, and a stored comparison run against the newer totals
+would otherwise read as the 2 sources disagreeing when they were only copied on different
+days. A year with no official total keeps the "we do not hold an official contribution
+total" row instead, because there is nothing of the totals side to compare. Origin: on
+23 September 2026 Restore Sanity's committee page derived $12,885,000 of money with no donor
+named from a total through 15 September minus payments from a 1 September file that predates
+the report naming the rest ([issue 2344](https://github.com/alethical-org/alethical/issues/2344)).
 
 **And 20 of those 62 were never a disagreement, which is the correction of 28 August 2026.**
 Minnesota names only the donors who had passed $200 by a report's own cut-off date. Its

@@ -903,7 +903,8 @@ Campaign money, top to bottom:
    On phones, the committee's money summaries leave 20px between their main
    elements. The non-itemized figure and its explanation stay together with an
    8px gap when that explanation is shown.
-   In each case where a split would state something false — the two figures cover
+   In each case where a split would state something false — our copies of the official
+   totals and of the payment files were taken on different days, the two figures cover
    different periods, the sources disagree, our copy of the donation list is missing
    named money the filing carries, the committee corrected its report after we copied the
    official total, the two figures simply will not line up, there are no named payments,
@@ -911,6 +912,22 @@ Campaign money, top to bottom:
    saying why it will not divide them, never saying which figure is larger. A committee
    whose own report says zero shows $0 with a sentence saying that is the filing's
    zero, not our gap.
+
+   **The copies-taken-on-different-days case is asked first, before any other
+   comparison.** The official totals and the payment files refresh on different days, and
+   each payment release records which totals copy its rows were checked against when it
+   published. When the live totals copy is a newer one, the server serves the split in
+   its own state (`generations_differ`) and the page prints "Our copies of the official
+   totals and of the payment files were taken on different days, so the comparison between
+   them waits until both are refreshed together." The reported total and the itemized
+   figure still draw, each with its own date; only the non-itemized figure, and any
+   percentage or chart built from it, waits. Without this, a totals refresh landing before
+   the next payments release derived a false non-itemized figure: on 23 September 2026
+   Restore Sanity's page showed $12,885,000 as money with no donor named, from a total
+   through 15 September minus payments from a 1 September file that predates the report
+   naming the rest ([issue 2344](https://github.com/alethical-org/alethical/issues/2344)).
+   A year with no official total keeps its own "we do not hold an official contribution
+   total" sentence, because there is nothing of the totals side to compare.
 
    **Only one of those sentences says Minnesota's two publications disagree, and until
    19 August 2026 three of them did.** A committee-year where the donation list holds no

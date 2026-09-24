@@ -403,6 +403,7 @@ def current_release(db: Session) -> Release | None:
             independent.source_url,
             independent.row_count,
             independent.status,
+            release_model.filing_snapshot_id,
             contributions.validation_json,
             filing_snapshot,
         )
@@ -442,6 +443,33 @@ def withheld_filer_years(db: Session, release: Release) -> frozenset[tuple[str, 
     if memo is not None:
         memo["withheld_filer_years"] = withheld
     return withheld
+
+
+def generations_differ(db: Session, release: Release) -> bool:
+    """Whether the live filings snapshot is not the one this release was checked against.
+
+    The reported total comes from the filings snapshot and the itemized rows from the
+    payments release, and the 2 refresh on different days. A release records which
+    filings snapshot its rows were reconciled against when it published
+    (``Release.filing_snapshot_id``), so a page subtracting one from the other can ask
+    whether the pair on screen is the pair that was checked. When it is not, the
+    difference between them is a fact about 2 copy dates and never about donors: on
+    23 Sep 2026 a totals refresh landed while the payments release was still the
+    1 Sep one, and Restore Sanity's 2026 page derived $12,885,000 of "money with no
+    donor named" from a $14,111,000 total through 15 Sep minus $1,226,000 of payments
+    from a file that predates that report. The missing donations are named in the
+    newer payments file, which had not published yet (issue 2344).
+
+    ``False`` on a release that recorded no pairing, which is every release published
+    before the figures existed; that says nothing either way, so the split keeps its
+    other rules. ``False`` too with no live filings snapshot, where there is no reported
+    total to subtract from in the first place. Inside a pinned request the snapshot is
+    already in the memo, so this costs no statement.
+    """
+    if release.filing_snapshot_id is None:
+        return False
+    live = filings.live_filings_snapshot(db)
+    return live is not None and live.id != release.filing_snapshot_id
 
 
 def money_rows(

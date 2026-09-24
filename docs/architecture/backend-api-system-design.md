@@ -936,6 +936,7 @@ committee-years it covers:
 | `named_payments_not_in_our_copy` | The filing names donors and our copy of the download holds no row at all for the committee-year | 14 |
 | `reported_total_predates_a_correction` | The subtraction refuses to run and the Board's catalogue records the committee refiling the year's report | 1 |
 | `figures_do_not_line_up` | The subtraction refuses to run and nothing we hold says why | 0 |
+| `generations_differ` | The live filings snapshot is not the one the payments release was checked against when it published (`cf_release.filing_snapshot_id`), so the 2 figures are copies taken on different days; asked before every other state, and both figures still travel with their own dates ([issue 2344](https://github.com/alethical-org/alethical/issues/2344)) | Every committee-year with a reported total, between a totals refresh and the next payments release |
 
 **Only `sources_disagree` may say Minnesota's 2 publications contradict each other, and until
 Aug 19 2026 three states shared it.** An empty download and a negative subtraction both landed

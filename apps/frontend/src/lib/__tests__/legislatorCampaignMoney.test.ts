@@ -228,6 +228,18 @@ describe('splitExplanation', () => {
     expect(text).not.toMatch(/do not agree|disagree/);
   });
 
+  it('says copies taken on different days wait, and blames neither source', () => {
+    // The fixed sentence for #2344: the totals copy and the payments copy refresh on
+    // different days, and the remainder is withheld until they are a checked pair.
+    // Layout-owned words, so a change here is a product change and not a rephrasing.
+    expect(splitExplanation('generations_differ')).toBe(
+      'Our copies of the official totals and of the payment files were taken on ' +
+        'different days, so the comparison between them waits until both are refreshed ' +
+        'together.',
+    );
+    expect(splitExplanation('generations_differ')).not.toMatch(/disagree|missing|larger/);
+  });
+
   it('gives every state a sentence, so none renders as a bare figure', () => {
     // A state the backend serves and this function does not know falls through to
     // `null`, which draws a withheld figure with nothing saying why. Adding a state to
@@ -240,6 +252,7 @@ describe('splitExplanation', () => {
       'named_payments_not_in_our_copy',
       'reported_total_predates_a_correction',
       'figures_do_not_line_up',
+      'generations_differ',
     ] as const) {
       expect(splitExplanation(state)).not.toBeNull();
     }
@@ -256,6 +269,7 @@ describe('splitExplanation', () => {
       'named_payments_not_in_our_copy',
       'reported_total_predates_a_correction',
       'figures_do_not_line_up',
+      'generations_differ',
     ] as const) {
       expect(splitExplanation(state)).not.toMatch(/hid|conceal|refus|failed to (report|file)/i);
     }
