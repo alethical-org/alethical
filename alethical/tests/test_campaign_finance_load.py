@@ -28,6 +28,8 @@ Needs the local Postgres on port 54329.
 
 from __future__ import annotations
 
+import re
+
 import hashlib
 import threading
 import uuid
@@ -36,7 +38,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Iterable, Iterator, Optional
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -348,12 +350,16 @@ def run(db, board: FakeBoard, store: MemoryStore, **kwargs) -> cf.LoadReport:
     )
 
 
-def publish_first(db, board: FakeBoard, store: MemoryStore) -> cf.LoadReport:
+def publish_first(
+    db, board: FakeBoard, store: MemoryStore, waive: Iterable[str] = ()
+) -> cf.LoadReport:
     """Get a first set live.
 
     There is deliberately no first-load exception: a first import has nothing to
     compare against, so it quarantines like any other and an operator publishes it
-    by naming the exact 3 hashes they reviewed. This helper is that operator.
+    by naming the exact 3 hashes they reviewed and the exact checks they reviewed.
+    This helper is that operator; ``waive`` adds any check beyond the first-import
+    ones a test's fixture makes fail.
     """
     first = run(db, board, store)
     assert first.refusal is not None
@@ -362,9 +368,42 @@ def publish_first(db, board: FakeBoard, store: MemoryStore) -> cf.LoadReport:
         for outcome in first.outcomes
         if outcome.measurements
     ]
-    published = run(db, board, store, publish_hashes=hashes)
+    published = run(
+        db,
+        board,
+        store,
+        publish_hashes=hashes,
+        waive=[*FIRST_IMPORT_WAIVERS, *waive],
+        decision="test: first import",
+    )
     assert published.published, published.summary()
     return published
+
+
+def failed_comparison_waivers(report: cf.LoadReport) -> list[str]:
+    """Every failed comparison check of a quarantined run, as the waiver keys an
+    operator would name after reviewing them, qualifiers included."""
+    keys: list[str] = []
+    for outcome in report.outcomes:
+        for check in outcome.blocked:
+            if check.name == "no_published_year_lost_rows":
+                for year in re.findall(r"(\d{4}) fell from", check.detail):
+                    keys.append(f"{outcome.spec.key}/{check.name}:{year}")
+            elif check.filer_years:
+                keys.extend(
+                    f"{outcome.spec.key}/{check.name}:{fy.replace(':', '/')}"
+                    for fy in check.filer_years
+                )
+            else:
+                keys.append(f"{outcome.spec.key}/{check.name}")
+    return keys
+
+
+# What a first import has to waive: each file has no published release to compare
+# against, and that is a comparison check like any other.
+FIRST_IMPORT_WAIVERS = [
+    f"{spec.key}/previous_release_to_compare_against" for spec in cf.DATASETS
+]
 
 
 def contribution_rows(db, snapshot_id) -> list[models.CampaignFinanceContributionRow]:
@@ -916,7 +955,14 @@ def test_naming_the_hashes_never_waives_a_structural_check(db, board, store) -> 
         outcome.measurements.record_set_hash if outcome.measurements else ""
         for outcome in first.outcomes
     ]
-    second = run(db, board, store, publish_hashes=hashes)
+    second = run(
+        db,
+        board,
+        store,
+        publish_hashes=hashes,
+        waive=FIRST_IMPORT_WAIVERS,
+        decision="test",
+    )
     assert not second.published
     assert "parses_completely" in {
         check.name for outcome in second.quarantined for check in outcome.blocked
@@ -1348,7 +1394,9 @@ def test_naming_the_hashes_waives_the_reconciliation_but_still_names_the_filers(
     filer-years failed, so those and only those withhold their split.
     """
     seed_filings_snapshot(db, reported={("19200", 2025): "1500.00"})
-    published = publish_first(db, board, store)
+    published = publish_first(
+        db, board, store, waive=["contributions/reported_totals_reconcile:19200/2025"]
+    )
     check = contributions_checks(published)["reported_totals_reconcile"]
     assert check.status == "overridden"
     assert check.filer_years == ("19200:2025",)
@@ -1377,7 +1425,14 @@ def test_a_structural_check_is_still_never_waived_by_naming_hashes(
         for outcome in first.outcomes
         if outcome.measurements
     ]
-    waived = run(db, board, store, publish_hashes=hashes)
+    waived = run(
+        db,
+        board,
+        store,
+        publish_hashes=hashes,
+        waive=FIRST_IMPORT_WAIVERS,
+        decision="test",
+    )
     assert waived.refusal is not None
     assert not waived.published
 
@@ -1627,6 +1682,8 @@ def test_a_run_refuses_when_the_reported_figures_moved_while_it_downloaded(
                 landing_page=board.landing_page,
                 log=lambda message: None,
                 publish_hashes=hashes,
+                waive=FIRST_IMPORT_WAIVERS,
+                decision="test",
             )
     finally:
         cf.filings_context = original
@@ -1828,8 +1885,13 @@ def test_measurements_record_what_the_checks_compare(db, board, store) -> None:
 
 # --- The 3-bin table behind a failed row-loss check (D2, #2344) ----------------
 #
-# Every case here loses more than the check allows and **every one must still block**.
-# The table sorts the vanished rows for a person to read; it changes no verdict.
+# The repeated-row truncation, same-date/amount collision, changed payment type, and
+# concentrated small-committee loss tests demonstrate that the diagnostic categories
+# do not prove safety. Cases exceeding the existing net year-loss threshold remain
+# blocked unless covered by an exact reviewed exception. Separate cases below document
+# below-threshold and offsetting-loss limits without claiming the unchanged safeguard
+# catches them. The table sorts the vanished rows for a person to read; it changes no
+# verdict.
 
 
 def _spending_row(
@@ -2024,10 +2086,23 @@ def test_publishing_over_a_row_loss_by_naming_the_hashes_records_what_was_waived
         for outcome in blocked.outcomes
         if outcome.measurements
     ]
-    published = run(db, board, store, publish_hashes=hashes)
+    waivers = failed_comparison_waivers(blocked)
+    assert "expenditures/no_published_year_lost_rows:2024" in waivers
+    published = run(
+        db,
+        board,
+        store,
+        publish_hashes=hashes,
+        waive=waivers,
+        decision="test: https://github.com/alethical-org/alethical/issues/2344#example",
+    )
     assert published.published, published.summary()
     release = db.get(models.CampaignFinanceRelease, published.release_id)
     assert release.notes is not None
+    assert "waivers named: " in release.notes
+    assert "operator's decision: test: https://github.com" in release.notes
+    assert "compared against release " in release.notes
+    assert "candidate expenditures: records " in release.notes
     assert (
         "waived expenditures/no_published_year_lost_rows: 2024 fell from 70 rows to 40"
         in (release.notes)
@@ -2035,3 +2110,157 @@ def test_publishing_over_a_row_loss_by_naming_the_hashes_records_what_was_waived
     assert "waived expenditures/row_count_within_band" in release.notes
     assert "investigation aid only, never a reason to publish" in release.notes
     assert "committees with unmatched rows (1): 20010" in release.notes
+
+
+def test_a_loss_under_the_threshold_publishes_and_the_table_is_not_computed(
+    db, board, store
+) -> None:
+    """A documented limit, not a safeguard: 20 rows vanishing from a year of 60 is
+    under the larger of 25 rows or 1%, so nothing blocks and no table is drawn. The
+    rows are unexplained all the same."""
+    rows = _big_committee_2024(60)
+    _publish_2024(db, board, store, rows)
+    board.set_rows(Dataset.expenditures, rows[20:])
+    report = run(db, board, store)
+    check = _row_loss_check(report)
+    assert check.status == "passed"
+    assert check.investigation is None
+
+
+def test_an_offsetting_loss_keeps_the_count_and_passes_the_year_check(
+    db, board, store
+) -> None:
+    """A documented limit: 30 rows vanish and 30 unrelated rows arrive, so the year's
+    count is unchanged and the year check cannot see the swap. Only the whole-file
+    bands (amount, repeat share) can, and only when the swap moves them."""
+    rows = _big_committee_2024(60)
+    _publish_2024(db, board, store, rows)
+    swapped = [
+        _spending_row(
+            "19004", f"Other {index:03d}", f"{100 + index}.0000", "2024-06-02"
+        )
+        for index in range(30)
+    ]
+    board.set_rows(Dataset.expenditures, swapped + rows[30:])
+    report = run(db, board, store)
+    assert _row_loss_check(report).status == "passed"
+
+
+# --- Named waivers: exact check, exact year, exact committee-year -----------------
+
+
+def test_a_waiver_for_the_wrong_year_does_not_waive_a_row_loss(
+    db, board, store
+) -> None:
+    """Naming the hashes says which files were reviewed; the waiver says which
+    failure. A 2024 loss waived as 2025 still blocks, and the detail says what is
+    not waived, so the operator sees exactly what to review."""
+    big, small = _big_committee_2024(40), _small_committee_2024(30)
+    _publish_2024(db, board, store, big + small)
+    board.set_rows(Dataset.expenditures, big)
+    blocked = run(db, board, store)
+    hashes = [
+        o.measurements.record_set_hash for o in blocked.outcomes if o.measurements
+    ]
+    waivers = [
+        key.replace(":2024", ":2025") if key.endswith(":2024") else key
+        for key in failed_comparison_waivers(blocked)
+    ]
+    still = run(db, board, store, publish_hashes=hashes, waive=waivers, decision="t")
+    assert not still.published
+    check = _row_loss_check(still)
+    assert check.status == "failed"
+    assert "Not waived: expenditures/no_published_year_lost_rows:2024" in check.detail
+
+
+def test_a_waiver_never_covers_a_check_it_does_not_name(db, board, store) -> None:
+    """Waiving the row loss alone leaves the row-count band failed, so the set stays
+    quarantined: nothing outside the named list is ever waived."""
+    big, small = _big_committee_2024(40), _small_committee_2024(30)
+    _publish_2024(db, board, store, big + small)
+    board.set_rows(Dataset.expenditures, big)
+    blocked = run(db, board, store)
+    hashes = [
+        o.measurements.record_set_hash for o in blocked.outcomes if o.measurements
+    ]
+    only_loss = run(
+        db,
+        board,
+        store,
+        publish_hashes=hashes,
+        waive=["expenditures/no_published_year_lost_rows:2024"],
+        decision="t",
+    )
+    assert not only_loss.published
+    names = {check.name for o in only_loss.quarantined for check in o.blocked}
+    assert "row_count_within_band" in names
+    assert "no_published_year_lost_rows" not in names
+
+
+def test_a_reconciliation_waiver_names_every_committee_year_or_none_are_waived(
+    db, board, store
+) -> None:
+    seed_filings_snapshot(db, reported={("19200", 2025): "1500.00"})
+    first = run(db, board, store)
+    hashes = [o.measurements.record_set_hash for o in first.outcomes if o.measurements]
+    wrong = run(
+        db,
+        board,
+        store,
+        publish_hashes=hashes,
+        waive=[
+            *FIRST_IMPORT_WAIVERS,
+            "contributions/reported_totals_reconcile:19200/2024",
+        ],
+        decision="t",
+    )
+    assert not wrong.published
+    check = contributions_checks(wrong)["reported_totals_reconcile"]
+    assert check.status == "failed"
+    assert (
+        "Not waived: contributions/reported_totals_reconcile:19200/2025" in check.detail
+    )
+
+
+def test_naming_hashes_without_a_decision_is_refused_before_any_download(
+    db, board, store
+) -> None:
+    with pytest.raises(cf.CampaignFinanceRefusal, match="--decision"):
+        cf.load_campaign_finance(
+            db,
+            store=store,
+            landing_page=board.landing_page,
+            log=lambda message: None,
+            publish_hashes=["a", "b", "c"],
+        )
+    assert board.requests_seen == [] if hasattr(board, "requests_seen") else True
+
+
+def test_a_malformed_waiver_key_is_refused() -> None:
+    with pytest.raises(cf.CampaignFinanceRefusal, match="not dataset/check"):
+        cf.parse_waivers(["no_published_year_lost_rows"])
+    assert cf.parse_waivers(["expenditures/no_published_year_lost_rows:2024", " "]) == {
+        "expenditures/no_published_year_lost_rows:2024"
+    }
+
+
+def test_waivers_cover_only_when_every_qualifier_is_named() -> None:
+    waivers = cf.Waivers(
+        keys=frozenset({"expenditures/no_published_year_lost_rows:2024"})
+    )
+    assert (
+        waivers.uncovered("expenditures", "no_published_year_lost_rows", ["2024"])
+        is None
+    )
+    assert waivers.uncovered(
+        "expenditures", "no_published_year_lost_rows", ["2024", "2025"]
+    ) == ["expenditures/no_published_year_lost_rows:2025"]
+    assert waivers.uncovered("expenditures", "row_count_within_band") == [
+        "expenditures/row_count_within_band"
+    ]
+    assert (
+        cf.Waivers(keys=frozenset({"expenditures/row_count_within_band"})).uncovered(
+            "expenditures", "row_count_within_band"
+        )
+        is None
+    )

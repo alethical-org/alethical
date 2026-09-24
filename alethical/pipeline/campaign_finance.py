@@ -418,6 +418,85 @@ class Check:
         return recorded
 
 
+# --- Named waivers ---------------------------------------------------------------
+#
+# A quarantined set publishes only through an exception an operator names check by
+# check. Naming the 3 record hashes says WHICH files were reviewed; the waivers say
+# WHAT was reviewed about them, and nothing outside that list is ever waived. A
+# failure the list does not cover blocks, at the first validation and again inside the
+# publish lock, so a failure that appears between the two, or a second year, or a
+# second committee, stops publication and needs renewed review (Codex, 23 Sep 2026, on
+# [#2344](https://github.com/alethical-org/alethical/issues/2344)). A scheduled run
+# passes no waivers at all.
+
+
+WAIVER_KEY = re.compile(r"^[a-z_]+/[a-z_]+(:[A-Za-z0-9_./-]+)?$")
+
+
+def parse_waivers(values: Iterable[str]) -> frozenset[str]:
+    """``dataset/check`` or ``dataset/check:qualifier`` keys, checked for shape.
+
+    The qualifier is the affected year for the row-loss check
+    (``expenditures/no_published_year_lost_rows:2024``) and the affected
+    committee-year for the reconciliation
+    (``contributions/reported_totals_reconcile:30277/2022``). A key that does not
+    name a dataset and a check is refused rather than silently matching nothing.
+    """
+    keys = set()
+    for value in values:
+        key = value.strip()
+        if not key:
+            continue
+        if not WAIVER_KEY.match(key):
+            raise CampaignFinanceRefusal(
+                f"--waive {value!r} is not dataset/check or dataset/check:qualifier"
+            )
+        keys.add(key)
+    return frozenset(keys)
+
+
+@dataclass(frozen=True)
+class Waivers:
+    """What an operator reviewed and chose to publish over, and where they said so."""
+
+    keys: frozenset[str] = frozenset()
+    # The operator's own words, or the address of the issue comment that carries the
+    # evidence, the reader-facing effect and the recovery path.
+    decision: str = ""
+
+    def keys_for(self, dataset_key: str, check: str) -> list[str]:
+        prefix = f"{dataset_key}/{check}"
+        return sorted(
+            key for key in self.keys if key == prefix or key.startswith(prefix + ":")
+        )
+
+    def uncovered(
+        self, dataset_key: str, check: str, qualifiers: Iterable[str] = ()
+    ) -> Optional[list[str]]:
+        """``None`` when the failure is fully waived, else what is not.
+
+        A check with qualifiers is waived only when EVERY qualifier is named: waiving
+        2024 does not waive a 2025 loss that appears later, and waiving 5 committee-years
+        does not waive a 6th. A check without qualifiers is waived by its bare key.
+        """
+        wanted = list(qualifiers)
+        if wanted:
+            missing = [
+                f"{dataset_key}/{check}:{qualifier}"
+                for qualifier in wanted
+                if f"{dataset_key}/{check}:{qualifier}" not in self.keys
+            ]
+            return None if not missing else missing
+        return (
+            None
+            if f"{dataset_key}/{check}" in self.keys
+            else [f"{dataset_key}/{check}"]
+        )
+
+
+NO_WAIVERS = Waivers()
+
+
 @dataclass
 class Measurements:
     row_count: int = 0
@@ -1175,6 +1254,7 @@ def validate(
     baseline: Optional[Any],
     *,
     operator_approved: bool,
+    waivers: Waivers = NO_WAIVERS,
     filings: Optional[Any] = None,
     stated_split: Optional[Any] = None,
 ) -> list[Check]:
@@ -1195,27 +1275,45 @@ def validate(
     against their own filings. Without it that check reports itself not run, with the
     command that fixes that.
 
-    ``operator_approved`` waives the comparison checks only, for an operator who
-    has named the exact hashes they reviewed. It never waives a structural check:
-    a header that does not match, a record with the wrong number of fields, a date
-    that is not a date and an amount that would have to be rounded are not
-    judgement calls, and there is no flag that lets one through.
+    ``operator_approved`` says this file's exact record hash was named by an
+    operator; ``waivers`` says which failed comparison checks, and for which years or
+    committee-years, that operator reviewed. A failed comparison is overridden only
+    when both hold and the waiver covers every affected qualifier; otherwise it fails.
+    Neither ever waives a structural check: a header that does not match, a record
+    with the wrong number of fields, a date that is not a date and an amount that
+    would have to be rounded are not judgement calls, and there is no flag that lets
+    one through.
     """
     checks: list[Check] = []
 
-    def add(name: str, ok: bool, detail: str, *, comparison: bool = False) -> None:
+    def add(
+        name: str,
+        ok: bool,
+        detail: str,
+        *,
+        comparison: bool = False,
+        qualifiers: Iterable[str] = (),
+    ) -> None:
         if ok:
             checks.append(Check(name, "passed", detail))
-        elif comparison and operator_approved:
-            checks.append(
-                Check(
-                    name,
-                    "overridden",
-                    f"{detail} — waived by an operator who named this hash",
+            return
+        if comparison and operator_approved:
+            missing = waivers.uncovered(spec.key, name, qualifiers)
+            if missing is None:
+                checks.append(
+                    Check(
+                        name,
+                        "overridden",
+                        f"{detail} — waived by an operator who named this hash and "
+                        + ", ".join(waivers.keys_for(spec.key, name)),
+                    )
                 )
+                return
+            checks.append(
+                Check(name, "failed", f"{detail}. Not waived: {', '.join(missing)}")
             )
-        else:
-            checks.append(Check(name, "failed", detail))
+            return
+        checks.append(Check(name, "failed", detail))
 
     add(
         "download_is_the_expected_file",
@@ -1282,6 +1380,7 @@ def validate(
             not lost,
             "; ".join(lost) if lost else f"{len(measured.rows_by_year)} years checked",
             comparison=True,
+            qualifiers=[year for year, _, _ in lost_years(measured, baseline)],
         )
         gained = _columns_that_gained_blanks(spec, measured, baseline)
         add(
@@ -1299,7 +1398,11 @@ def validate(
     # committees' amounts swapped would slip past.
     checks.extend(
         _checks_against_the_board(
-            spec, measured, filings, operator_approved=operator_approved
+            spec,
+            measured,
+            filings,
+            operator_approved=operator_approved,
+            waivers=waivers,
         )
     )
     # And the half that catches our rows being SHORT, which is the direction nothing
@@ -1436,6 +1539,7 @@ def _checks_against_the_board(
     filings: Optional[Any],
     *,
     operator_approved: bool = False,
+    waivers: Waivers = NO_WAIVERS,
 ) -> list[Check]:
     """§4.3's 2 checks that need the Board's own figures and filer directory (#1408).
 
@@ -1467,13 +1571,29 @@ def _checks_against_the_board(
     # what §7 asks for: "until a filer-year passes this check, its split is not
     # published".
     if reconcile.status == "failed" and operator_approved:
-        reconcile = Check(
-            reconcile.name,
-            "overridden",
-            f"{reconcile.detail} — waived by an operator who named this hash. The "
-            "filer-years above must not publish a split until they reconcile",
-            reconcile.filer_years,
-        )
+        # Waived committee-year by committee-year, never as a whole: a 7th
+        # committee-year appearing at the final validation is not covered by the 6
+        # that were reviewed.
+        qualifiers = [
+            filer_year.replace(":", "/") for filer_year in reconcile.filer_years
+        ]
+        missing = waivers.uncovered(spec.key, reconcile.name, qualifiers)
+        if missing is None:
+            reconcile = Check(
+                reconcile.name,
+                "overridden",
+                f"{reconcile.detail} — waived by an operator who named this hash and "
+                f"{len(qualifiers)} committee-year(s). The filer-years above must not "
+                "publish a split until they reconcile",
+                reconcile.filer_years,
+            )
+        else:
+            reconcile = Check(
+                reconcile.name,
+                "failed",
+                f"{reconcile.detail}. Not waived: {', '.join(missing)}",
+                reconcile.filer_years,
+            )
     return [reconcile, _registrations_resolve(spec, measured, filings)]
 
 
@@ -2210,11 +2330,18 @@ def publish(
     ingestion_run_id: Optional[uuid.UUID],
     notes: Optional[str],
     approved_hashes: Optional[set[str]] = None,
+    waivers: Waivers = NO_WAIVERS,
+    expected_baseline_release_id: Optional[uuid.UUID] = None,
     store: Any = None,
     directory: Optional[str] = None,
     filings: Optional[Any] = None,
 ) -> uuid.UUID:
     """Load the rows and move the live pointer, in one transaction.
+
+    ``expected_baseline_release_id`` is the release the checks were run against
+    before the lock; a different live release inside the lock means the comparison
+    baseline moved, and the waivers were reviewed against something else, so it
+    refuses rather than re-waiving.
 
     The pointer row is taken with ``FOR UPDATE`` and the live release re-read
     inside the lock, then a candidate whose fetch window opened before the live
@@ -2246,6 +2373,15 @@ def publish(
         if current_release_id
         else None
     )
+    if expected_baseline_release_id is not None and (
+        (current.id if current is not None else None) != expected_baseline_release_id
+    ):
+        raise CampaignFinanceRefusal(
+            "Refusing to publish: the checks and the operator's waivers were made "
+            f"against release {expected_baseline_release_id}, and release "
+            f"{current.id if current is not None else 'none'} is live now. Re-run to "
+            "compare against what is actually published."
+        )
     if current is not None and current.fetch_started_at > fetch_started_at:
         raise CampaignFinanceRefusal(
             "Refusing to publish: the live release was fetched starting "
@@ -2300,6 +2436,7 @@ def publish(
                 measured is not None
                 and measured.record_set_hash in (approved_hashes or set())
             ),
+            waivers=waivers,
             filings=filings,
             stated_split=stated_split_for(db, outcome),
         )
@@ -2683,6 +2820,8 @@ def load_campaign_finance(
     store: Any = None,
     dry_run: bool = False,
     publish_hashes: Optional[Iterable[str]] = None,
+    waive: Optional[Iterable[str]] = None,
+    decision: str = "",
     landing_page: str = LANDING_PAGE,
     log=print,
 ) -> LoadReport:
@@ -2709,6 +2848,13 @@ def load_campaign_finance(
     """
     http = http or _http_session()
     approved = {value.strip().lower() for value in (publish_hashes or []) if value}
+    waivers = Waivers(keys=parse_waivers(waive or ()), decision=decision.strip())
+    if approved and not waivers.decision:
+        raise CampaignFinanceRefusal(
+            "Refusing to run: --publish-hashes needs --decision, the operator's own "
+            "words or the address of the issue comment recording the exception, so "
+            "the release notes say why and not only that."
+        )
     report = LoadReport(dry_run=dry_run)
 
     with tempfile.TemporaryDirectory(prefix="alethical-cf-") as directory:
@@ -2852,6 +2998,7 @@ def load_campaign_finance(
                 operator_approved=bool(
                     measured is not None and measured.record_set_hash in approved
                 ),
+                waivers=waivers,
                 filings=filings,
                 stated_split=stated_split_for(db, outcome),
             )
@@ -2913,7 +3060,14 @@ def load_campaign_finance(
         if dry_run:
             return report
 
-        notes = release_notes(report.outcomes, approved)
+        baseline_release = live_release(db)
+        notes = release_notes(
+            report.outcomes,
+            approved,
+            waivers=waivers,
+            baseline_release=baseline_release,
+            filings=filings,
+        )
         report.release_id = publish(
             db,
             report.outcomes,
@@ -2922,6 +3076,10 @@ def load_campaign_finance(
             ingestion_run_id=ingestion_run_id,
             notes=notes,
             approved_hashes=approved,
+            waivers=waivers,
+            expected_baseline_release_id=(
+                baseline_release.id if baseline_release is not None else None
+            ),
             store=store,
             directory=directory,
             filings=filings,
@@ -2933,14 +3091,22 @@ def load_campaign_finance(
 
 
 def release_notes(
-    outcomes: Sequence[DatasetOutcome], approved: set[str]
+    outcomes: Sequence[DatasetOutcome],
+    approved: set[str],
+    *,
+    waivers: Waivers = NO_WAIVERS,
+    baseline_release: Any = None,
+    filings: Any = None,
 ) -> Optional[str]:
-    """What an operator waived to publish this release, named check by check.
+    """The record of the exception this release published under.
 
-    ``None`` when nothing was waived. Otherwise the hashes the operator named, then
-    every check that was overridden, with its detail, and any 3-bin table computed for
-    a failed row-loss check. Naming the checks is the point: a note carrying only the
-    hashes says an exception was taken and not what it was for.
+    ``None`` when nothing was waived. Otherwise: the candidate record hashes per file,
+    the release the checks compared against and its 3 snapshots, the totals snapshot
+    the reconciliation read, every waiver key the operator named, the operator's
+    decision text, then every check that was overridden with its detail and affected
+    committee-years, and any 3-bin table computed for a failed row-loss check. Naming
+    the checks is the point: a note carrying only the hashes says an exception was
+    taken and not what it was for.
     """
     if not approved:
         return None
@@ -2949,9 +3115,34 @@ def release_notes(
         + ", ".join(sorted(approved))
     ]
     for outcome in outcomes:
+        measured = outcome.measurements
+        if measured is not None:
+            lines.append(
+                f"candidate {outcome.spec.key}: records {measured.record_set_hash}"
+            )
+    if baseline_release is not None:
+        lines.append(
+            f"compared against release {baseline_release.id} (contributions snapshot "
+            f"{baseline_release.contributions_snapshot_id}, expenditures snapshot "
+            f"{baseline_release.expenditures_snapshot_id}, independent spending "
+            f"snapshot {baseline_release.independent_expenditures_snapshot_id})"
+        )
+    if filings is not None and getattr(filings, "snapshot_id", None) is not None:
+        lines.append(f"reconciled against filings snapshot {filings.snapshot_id}")
+    lines.append(
+        "waivers named: "
+        + (", ".join(sorted(waivers.keys)) if waivers.keys else "none")
+    )
+    if waivers.decision:
+        lines.append(f"operator's decision: {waivers.decision}")
+    for outcome in outcomes:
         for check in outcome.checks:
             if check.status == "overridden":
                 lines.append(f"waived {outcome.spec.key}/{check.name}: {check.detail}")
+                if check.filer_years:
+                    lines.append(
+                        f"  affected committee-years: {', '.join(check.filer_years)}"
+                    )
                 if check.investigation:
                     lines.append(
                         f"{outcome.spec.key} row-loss table (investigation aid only, "
