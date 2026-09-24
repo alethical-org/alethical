@@ -4,8 +4,8 @@ termination date came from."""
 from alembic import op
 import sqlalchemy as sa
 
-revision = "0059_cf_filing_provenance"
-down_revision = "0058_cf_filer_retention"
+revision = "0061_cf_filing_provenance"
+down_revision = "0060_cf_notices_and_statements"
 branch_labels = None
 depends_on = None
 
