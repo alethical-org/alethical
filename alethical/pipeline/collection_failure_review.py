@@ -81,6 +81,9 @@ class WatchedWorkflow:
     # Which summary stages each workflow step runs, so an incident that failed before
     # its run could write a summary still knows what a later run must finish.
     step_stages: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    # What readers go without when 1 stage fails, so an incident names only what its
+    # failed stage affects. ``readers_missing`` stays for a stage not listed here.
+    stage_readers_missing: tuple[tuple[str, str], ...] = ()
 
 
 WATCHED: dict[str, WatchedWorkflow] = {
@@ -104,6 +107,33 @@ WATCHED: dict[str, WatchedWorkflow] = {
             ),
             self_explanatory_steps=("Check the secrets are set",),
             step_stages=(("Refresh", ("lists", "payments")),),
+            stage_readers_missing=(
+                (
+                    "lists",
+                    "The Board's filer and report lists could not all be read, so a "
+                    "change in who filed may not be picked up yet.",
+                ),
+                (
+                    "totals",
+                    "Official report totals stay at the last snapshot that passed every "
+                    "check, so reports filed since then are not counted yet.",
+                ),
+                (
+                    "payments",
+                    "Committee pages keep showing the last set of payments that passed "
+                    "every check, so payments filed since then are missing.",
+                ),
+                (
+                    "rechecks",
+                    "The comparison of our figures with the Board's filed totals did not "
+                    "finish, so that comparison may be out of date.",
+                ),
+                (
+                    "clearing saved pages",
+                    "Some pages may keep showing their previous copy until the saved "
+                    "copies are cleared.",
+                ),
+            ),
         ),
         WatchedWorkflow(
             name="Collect large-contribution notices and disclosure statements",
@@ -129,6 +159,23 @@ WATCHED: dict[str, WatchedWorkflow] = {
                     ("statements",),
                 ),
                 ("Store the reviewed statement readings", ("statement readings",)),
+            ),
+            stage_readers_missing=(
+                (
+                    "notices",
+                    "A large-contribution notice filed since the last complete copy may "
+                    "be missing from committee pages.",
+                ),
+                (
+                    "statements",
+                    "Disclosure statements the Board posted since the last complete copy "
+                    "may be missing; every statement already copied stays listed.",
+                ),
+                (
+                    "statement readings",
+                    "A newly reviewed statement reading is not shown yet; readings "
+                    "already stored stay as they are.",
+                ),
             ),
         ),
     )
@@ -734,6 +781,17 @@ def parse_summary(raw: bytes) -> Optional[list[dict[str, Any]]]:
                     str(c)[:40] for c in (record.get("affected_committees") or [])[:200]
                 ],
                 "drill": bool(record.get("drill", False)),
+                # How many things the stage stored or handled, by name. An entry that
+                # is not a whole number is dropped rather than failing the summary.
+                "counts": {
+                    str(name)[:60]: int(value)
+                    for name, value in list((record.get("counts") or {}).items())[:20]
+                    if isinstance(value, int)
+                    and not isinstance(value, bool)
+                    and value >= 0
+                }
+                if isinstance(record.get("counts"), dict)
+                else {},
             }
         )
         if len(records) > MAX_SUMMARY_RECORDS:
@@ -771,17 +829,43 @@ class Outcome:
     failures: tuple[str, ...] = ()
     affected_years: tuple[int, ...] = ()
     affected_committees: tuple[str, ...] = ()
+    # (stage, status, ((count name, value), ...)) for every recorded stage, in order.
+    stages: tuple[tuple[str, str, tuple[tuple[str, int], ...]], ...] = ()
+
+    @property
+    def stored_before_failing(self) -> tuple[str, ...]:
+        """Failed stages whose own counts show they stored something first."""
+        return tuple(
+            stage
+            for stage, status, counts in self.stages
+            if status == "failed" and any(value > 0 for _name, value in counts)
+        )
+
+    @property
+    def failed_without_counts(self) -> tuple[str, ...]:
+        return tuple(
+            stage
+            for stage, status, counts in self.stages
+            if status == "failed" and not counts
+        )
 
     @property
     def publication(self) -> str:
+        """published, unchanged, partial, unclear, none, or unknown.
+
+        A failed stage can have stored records before it failed, so "nothing was
+        published" is only said when every failed stage's own counts are zero.
+        """
         if not self.found:
             return "unknown"
-        if self.published and self.failed:
+        if self.failed and (self.published or self.stored_before_failing):
             return "partial"
-        if self.published:
-            return "published"
+        if self.failed and self.failed_without_counts:
+            return "unclear"
         if self.failed:
             return "none"
+        if self.published:
+            return "published"
         return "unchanged"
 
 
@@ -810,6 +894,10 @@ def outcome_from(records: Optional[list[dict[str, Any]]]) -> Outcome:
         affected_committees=tuple(
             sorted({c for r in records for c in r["affected_committees"]})
         )[:100],
+        stages=tuple(
+            (r["stage"], r["status"], tuple(sorted((r.get("counts") or {}).items())))
+            for r in records
+        ),
     )
 
 
@@ -917,6 +1005,13 @@ def _failed_steps(job: dict[str, Any]) -> list[str]:
         for step in job.get("steps") or []
         if step.get("conclusion") in ("failure", "timed_out", "cancelled")
     ]
+
+
+def _readers_missing(watched: WatchedWorkflow, failed_stages: list[str]) -> str:
+    """What readers go without, for the stages that failed, or the workflow's own line."""
+    known = dict(watched.stage_readers_missing)
+    lines = [known[stage] for stage in failed_stages if stage in known]
+    return " ".join(lines) if lines else watched.readers_missing
 
 
 def build_packet(reader: RunReader, run_id: int, workflow_name: str) -> dict[str, Any]:
@@ -1051,7 +1146,12 @@ def build_packet(reader: RunReader, run_id: int, workflow_name: str) -> dict[str
         ],
         "logs": logs,
         "last_success": last,
-        "readers_missing": watched.readers_missing,
+        "readers_missing": _readers_missing(watched, list(outcome.failed)),
+        "stage_records": [
+            {"stage": stage, "status": status, "counts": dict(counts)}
+            for stage, status, counts in outcome.stages
+        ],
+        "stored_before_failing": list(outcome.stored_before_failing),
         "code_paths": list(watched.code_paths),
         "self_explanatory": self_explanatory,
         "incident_key": key,
@@ -1726,19 +1826,53 @@ def _fence(text: str) -> str:
     return f"```\n{text}\n```"
 
 
-def render_facts(packet: dict[str, Any]) -> str:
-    """The plain, non-AI description of the failure: always posted, AI or not."""
-    run = packet["run"]
-    publication = packet["publication"]
-    published = ", ".join(packet["published_stages"]) or "nothing"
-    not_published = ", ".join(packet["failed_stages"]) or "nothing recorded"
-    publication_line = {
-        "partial": f"**Partly published.** This run published {published} before {not_published} failed. Readers now see the new {published} beside the older {not_published}.",
-        "none": "Nothing from this run was published; the previous set stays live.",
+STAGE_STATUS_WORDS = {
+    "published": "published new records",
+    "unchanged": "finished, with nothing new",
+    "skipped": "skipped, not due this run",
+    "dry_run": "dry run, wrote nothing",
+}
+
+
+def _counted(counts: dict[str, int]) -> str:
+    return ", ".join(f"{value:,} {name}" for name, value in counts.items())
+
+
+def _stage_line(record: dict[str, Any]) -> str:
+    """1 stage in plain words, from its own record and nothing else."""
+    counts = record.get("counts") or {}
+    if record["status"] == "failed":
+        if not counts:
+            return f"{record['stage']}: failed, and did not record what, if anything, it stored first"
+        if any(value > 0 for value in counts.values()):
+            return f"{record['stage']}: failed after storing {_counted(counts)}"
+        return f"{record['stage']}: failed before storing anything ({_counted(counts)})"
+    line = f"{record['stage']}: {STAGE_STATUS_WORDS.get(record['status'], record['status'])}"
+    return f"{line} ({_counted(counts)})" if counts else line
+
+
+def _publication_line(packet: dict[str, Any]) -> str:
+    failed = ", ".join(packet["failed_stages"]) or "a stage"
+    wrote = [
+        *packet.get("published_stages", []),
+        *packet.get("stored_before_failing", []),
+    ]
+    return {
+        "partial": f"**Partly published.** Before {failed} stopped, this run stored work in "
+        f"{', '.join(dict.fromkeys(wrote))}, which readers can already see beside the older copy of the rest.",
+        "unclear": f"No stage says it published, but {failed} did not record what it stored before "
+        "failing, so readers may already see some of this run's records; check the log.",
+        "none": "Nothing from this run was written; the previous copy stays live.",
         "published": "The run's own summary says it published, yet the run failed after that.",
         "unchanged": "Nothing needed publishing, and the run still failed.",
         "unknown": "The run wrote no readable summary of itself, so what it published is not known; check the log.",
-    }[publication]
+    }[packet["publication"]]
+
+
+def render_facts(packet: dict[str, Any]) -> str:
+    """The plain, non-AI description of the failure: always posted, AI or not."""
+    run = packet["run"]
+    publication_line = _publication_line(packet)
     last = packet.get("last_success")
     last_line = (
         f"Last successful run: {last['url']} (finished {last['finished_at']})."
@@ -1750,6 +1884,13 @@ def render_facts(packet: dict[str, Any]) -> str:
         f"**What readers are missing:** {packet['readers_missing']}",
         f"**What was published:** {publication_line}",
         last_line,
+    ]
+    if packet.get("stage_records"):
+        lines += ["", "**What each stage did** (from the run's own record)"]
+        lines += [
+            f"- {neutralise(_stage_line(record))}" for record in packet["stage_records"]
+        ]
+    lines += [
         "",
         "**Failed checks**",
         _bullets(packet["failed_checks"], "none recorded"),
@@ -1807,12 +1948,18 @@ def issue_body(packet: dict[str, Any], state: dict[str, Any]) -> str:
         )
     else:
         partial = (
-            " It published part of its work first, so readers see a mix of new and old records."
+            " It stored part of its work first, so readers see a mix of new and old records."
             if packet["publication"] == "partial"
             else ""
         )
+        where = (
+            f"at its {', '.join(packet['failed_stages'])} "
+            + ("stage" if len(packet["failed_stages"]) == 1 else "stages")
+            if packet.get("failed_stages")
+            else f"at the step {packet['stage']}"
+        )
         net = (
-            f"**Net:** the job that {workflow['purpose']} stopped before finishing.{partial} "
+            f"**Net:** the job that {workflow['purpose']} stopped {neutralise(where)}.{partial} "
             f"{packet['readers_missing']} A person decides what to do; nothing here changes data. "
             f"@{MAINTAINER}"
         )
@@ -2159,11 +2306,11 @@ class DryRunIssues:
         return 0
 
     def edit_issue(self, number: int, **fields: Any) -> None:
-        shown = {
-            k: (v if k != "body" else f"({len(v)} characters)")
-            for k, v in fields.items()
-        }
-        self.writes.append(f"### Would edit issue #{number}: {json.dumps(shown)}")
+        shown = {k: v for k, v in fields.items() if k != "body"}
+        text = f"### Would edit issue #{number}: {json.dumps(shown) if shown else 'its body'}"
+        if "body" in fields:
+            text += "\n\n" + fields["body"]
+        self.writes.append(text)
 
     def comment(self, number: int, body: str) -> None:
         self.writes.append(f"### Would comment on issue #{number}\n\n{body}")
