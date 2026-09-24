@@ -939,7 +939,7 @@ and totals snapshot compared against, every waiver key, the decision text, every
 with its detail and affected committee-years, and the table. The same shape governs the totals
 loader (`--publish-hash`, `--publish-stored-hash`, `--waive check[:registration/year]`,
 `--decision`), where a lost filer-year is waived by its exact pair and, once waived, is retained
-rather than dropped (§4.4).
+rather than dropped (§4.4). **Granting the exception is the operator's own call once the evidence explains every failed guard (Eugene, 23 Sep 2026)**: the swap is reversible, the previous set is kept and 1 command restores it, so an explained guard is a judgement to record and act on, never a question to hand up. A guard nobody can explain from evidence is the one that waits for a person who can.
 
 ### 4.4 What survives replacement
 
