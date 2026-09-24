@@ -755,3 +755,24 @@ def test_the_stage_note_says_whether_clearing_ran():
         clearing, stored=True, log=logged.append, env=ARMED, post=refusing
     )
     assert failed is True and note.startswith("saved answers: clearing FAILED")
+
+
+def test_a_pasted_trailing_newline_is_dropped_and_a_2_line_token_is_named():
+    """A secret saved with a trailing newline still works; one saved as 2 lines is
+    reported by name instead of failing inside the HTTP library (24 Sep 2026)."""
+    sent: list[dict] = []
+    trailing = {**ARMED, TOKEN_SETTING: "a-token\n", ZONE_SETTING: " zone-1234\n"}
+    result = clear(
+        when_a_money_download_release_lands(), env=trailing, post=accepting(sent)
+    )
+    assert result.ok is True
+    assert sent[0]["headers"]["Authorization"] == "Bearer a-token"
+    assert sent[0]["url"].endswith("/zones/zone-1234/purge_cache")
+
+    sent.clear()
+    two_lines = {**ARMED, TOKEN_SETTING: "a-token\nsomething-else"}
+    result = clear(
+        when_a_money_download_release_lands(), env=two_lines, post=accepting(sent)
+    )
+    assert result.failed is True and sent == []
+    assert TOKEN_SETTING in result.detail and "1 line" in result.detail
