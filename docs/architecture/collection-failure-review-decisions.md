@@ -262,6 +262,17 @@ as the secrets check, needs no stage: any later run that did real work passed it
 A green tick alone never closes an issue, because a run can succeed at the job level and
 still have skipped the step that publishes.
 
+**The issue says what each stage did, from the run's own record.** It prints 1 line per
+stage: published, finished with nothing new, skipped, or failed. A stage can record how
+many things it stored or handled (`counts`), and it records them on failure too. A failed
+stage can store records before it stops, and readers can already see those, so "nothing
+from this run was written" is printed only when every failed stage's own counts are 0. A
+failed stage that recorded no counts reads as "did not record what it stored", never as
+nothing. The `Net:` line names the failed stage and says only what that stage's readers go
+without. The notices incident of 24 Sep 2026 had said nothing was published and that a
+notice was missing, when the statements stage had stored 1,307 entries and 738 PDFs and the
+notices stage had finished.
+
 ## 6. Retries belong to the collection, not the review
 
 A passing outage should never become an issue, so the collections retry their own

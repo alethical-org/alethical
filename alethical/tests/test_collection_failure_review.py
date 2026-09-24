@@ -1971,3 +1971,113 @@ def test_a_crash_before_the_summary_joins_the_open_issue_for_that_stage():
         NoticesReader(jobs=jobs, records=None, run_id=1101), issues
     )
     assert decision["issue"] == issues.open_numbers()[0]
+
+
+# --- The incident describes each stage from the run's own record ----------------------------
+
+
+def _open_body(records: list[dict[str, Any]], run_id: int = 1200) -> str:
+    issues = FakeIssues()
+    cfr.record(
+        *_plan(NoticesReader(records=records, run_id=run_id), issues, switch=None),
+        issues,
+        now=NOW,
+    )
+    return issues.issues[issues.open_numbers()[0]]["body"]
+
+
+def test_a_statements_failure_after_storing_work_is_described_stage_by_stage():
+    """Run 35999976450: notices finished, statements stored 1,307 entries and 738 PDFs, then failed."""
+    body = _open_body(
+        [
+            stage(
+                "notices",
+                "unchanged",
+                counts={"notices listed": 320, "notices kept": 0},
+            ),
+            stage(
+                "statements",
+                "failed",
+                failed_checks=["catalogue read"],
+                details=["4 PDFs refused"],
+                counts={"statements listed": 1307, "PDFs kept": 738},
+            ),
+            stage("statement readings", "unchanged"),
+        ]
+    )
+    net = body.splitlines()[0]
+    assert "at its statements stage" in net
+    assert "notice filed since" not in net, "only statements failed"
+    assert "Disclosure statements the Board posted" in net
+    assert "readers see a mix of new and old records" in net
+    assert "Nothing from this run" not in body
+    assert "**Partly published.**" in body
+    assert (
+        "- statements: failed after storing 738 PDFs kept, 1,307 statements listed"
+        in body
+    )
+    assert (
+        "- notices: finished, with nothing new (0 notices kept, 320 notices listed)"
+        in body
+    )
+    assert "- statement readings: finished, with nothing new" in body
+
+
+def test_a_failed_stage_that_recorded_no_counts_is_unclear_never_nothing():
+    body = _open_body([stage("notices", "unchanged"), stage("statements", "failed")])
+    assert "Nothing from this run" not in body
+    assert "did not record what it stored before failing" in body
+    assert (
+        "statements: failed, and did not record what, if anything, it stored first"
+        in body
+    )
+
+
+def test_a_failed_stage_whose_counts_are_zero_wrote_nothing():
+    body = _open_body(
+        [stage("statements", "failed", counts={"statements listed": 0, "PDFs kept": 0})]
+    )
+    assert "Nothing from this run was written" in body
+    assert "statements: failed before storing anything" in body
+
+
+def test_counts_that_are_not_whole_numbers_are_dropped_not_fatal():
+    raw = json.dumps(
+        {
+            "stage": "statements",
+            "status": "failed",
+            "counts": {"ok": 3, "bad": "x", "neg": -1, "flag": True},
+        }
+    ).encode()
+    records = cfr.parse_summary(raw + b"\n")
+    assert records is not None and records[0]["counts"] == {"ok": 3}
+
+
+def test_record_stage_writes_its_counts(tmp_path):
+    target = tmp_path / "summary.jsonl"
+    crs.record_stage(
+        "statements", "failed", counts={"statements listed": 1307}, path=str(target)
+    )
+    assert cfr.parse_summary(target.read_bytes())[0]["counts"] == {
+        "statements listed": 1307
+    }
+
+
+def test_a_dry_run_edit_prints_the_body_it_would_write():
+    issues = FakeIssues()
+    records = [stage("statements", "failed", counts={"statements listed": 5})]
+    cfr.record(
+        *_plan(NoticesReader(records=records, run_id=1300), issues, switch=None),
+        issues,
+        now=NOW,
+    )
+    dry = cfr.DryRunIssues(issues)
+    cfr.record(
+        *_plan(NoticesReader(records=records, run_id=1301), issues, switch=None),
+        dry,
+        now=NOW,
+    )
+    assert any(
+        "statements: failed after storing 5 statements listed" in w for w in dry.writes
+    )
+    assert issues.writes.count(("create", issues.open_numbers()[0])) == 1

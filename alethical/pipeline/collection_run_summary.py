@@ -39,9 +39,16 @@ def record_stage(
     affected_years: Iterable[int] = (),
     affected_committees: Iterable[str] = (),
     drill: bool = False,
+    counts: Optional[Mapping[str, int]] = None,
     path: Optional[str] = None,
 ) -> None:
-    """Append 1 stage record. Does nothing when no summary file is named."""
+    """Append 1 stage record. Does nothing when no summary file is named.
+
+    ``counts`` names how many things the stage stored or handled, such as
+    ``{"statements listed": 1307, "PDFs kept": 738}``. Record it on failure too: it is
+    how the incident says what a failed stage stored before it stopped, instead of
+    guessing that nothing was published.
+    """
     target = path or os.environ.get(ENV)
     if not target:
         return
@@ -57,6 +64,7 @@ def record_stage(
         "affected_years": sorted({int(year) for year in affected_years}),
         "affected_committees": sorted({str(c) for c in affected_committees}),
         "drill": bool(drill),
+        "counts": {str(name): int(value) for name, value in (counts or {}).items()},
         "recorded_at": datetime.now(UTC).isoformat(),
     }
     try:
