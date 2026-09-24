@@ -287,7 +287,7 @@ class CommitteeFinance:
 
 
 def filings_copied_at(
-    db: Session, registration_number: str | None = None
+    db: Session, registration_number: str | None = None, year: int | None = None
 ) -> datetime | None:
     """End of the published filing source's own fetch window, never its publish date.
 
@@ -301,10 +301,26 @@ def filings_copied_at(
     Board's register no longer lists is retained from an earlier copy (D1, #2344) and
     its figures were read on that earlier day, so that is the day they carry. The same
     register read the rest of the page makes (``filer_records``), so it costs no trip.
+
+    With a ``year`` as well, the date is that committee-year's own: one committee can
+    carry a 2026 figure the Board stopped serving, kept from a 12 Aug read, beside 2024
+    and 2025 figures read on 23 Sep, and a committee-wide date would misdate one of
+    them. The filing row's own ``captured_at`` wins when it carries one.
     """
     snapshot = filings.live_filings_snapshot(db)
     if snapshot is None:
         return None
+    if registration_number is not None and year is not None:
+        filing = filings.schema.CampaignFinanceFiling
+        captured = db.execute(
+            select(filing.captured_at).where(
+                filing.snapshot_id == snapshot.id,
+                filing.registration_number == registration_number,
+                filing.filing_year == year,
+            )
+        ).scalar_one_or_none()
+        if captured is not None:
+            return captured
     if registration_number is not None:
         filer = filings.filer_records(db, [registration_number]).get(
             registration_number

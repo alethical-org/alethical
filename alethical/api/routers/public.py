@@ -3402,7 +3402,7 @@ def committee_finance_for_year(
             "release_id": str(finance.release_id),
             "fetched_at": finance.fetched_at,
             "filings_copied_at": filings_copied_at(
-                db, finance.committee.registration_number
+                db, finance.committee.registration_number, finance.year
             ),
             "register": {
                 "state": register.state,

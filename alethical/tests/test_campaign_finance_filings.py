@@ -27,7 +27,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 import requests
-from sqlalchemy import func, select, text
+from sqlalchemy import delete, func, select, text
 
 from alethical.db import models
 from alethical.db.session import get_session_factory
@@ -575,9 +575,28 @@ def publish_first(
     """
     first = run(db, board, store, **kwargs)
     assert first.blocked, first.summary()
-    published = run(db, board, store, publish_hash=first.record_set_hash, **kwargs)
+    waive = ["previous_snapshot_to_compare_against", *kwargs.pop("waive", [])]
+    published = run(
+        db,
+        board,
+        store,
+        publish_hash=first.record_set_hash,
+        waive=waive,
+        decision="test: first run",
+        **kwargs,
+    )
     assert not published.blocked, published.summary()
     return published
+
+
+# The 3 whole-run bands a 6-filer fixture trips whenever 1 filer moves, which a
+# 1,611-filer register never would. Tests that drop or blank a filer waive exactly these.
+BAND_WAIVERS = [
+    "filer_count_within_band",
+    "filing_count_within_band",
+    "reported_contributions_within_band",
+    "filer_years_without_figures_share_steady",
+]
 
 
 def figures_of(db, snapshot_id, registration: str, year: int) -> dict[str, Decimal]:
@@ -1075,7 +1094,12 @@ def test_saved_directory_keeps_scope_but_fetches_every_catalogue_and_segment(
 
     # It remains the ordinary full replacement and can publish after its checks.
     published = filings.publish_stored_filings(
-        db, first.record_set_hash, store=store, log=lambda _: None
+        db,
+        first.record_set_hash,
+        store=store,
+        waive=["previous_snapshot_to_compare_against"],
+        decision="test",
+        log=lambda _: None,
     )
     assert published.published
     assert published.directory_fetch_completed_at == captured
@@ -1174,7 +1198,14 @@ def test_a_second_run_publishing_the_same_figures_cites_the_archive_that_was_kep
     kept = set(store.objects)
     assert len(kept) == 1
 
-    published = run(db, board, store, publish_hash=first.record_set_hash)
+    published = run(
+        db,
+        board,
+        store,
+        publish_hash=first.record_set_hash,
+        waive=["previous_snapshot_to_compare_against"],
+        decision="test",
+    )
     assert not published.blocked, published.summary()
     # No second object: one archive per distinct set of figures.
     assert set(store.objects) == kept
@@ -1220,7 +1251,12 @@ def test_a_stored_set_publishes_from_its_kept_bytes_without_fetching_again(
     requests_before = len(board.requests_seen)
 
     published = filings.publish_stored_filings(
-        db, first.record_set_hash, store=store, log=lambda message: None
+        db,
+        first.record_set_hash,
+        store=store,
+        waive=["previous_snapshot_to_compare_against"],
+        decision="test",
+        log=lambda message: None,
     )
     assert not published.blocked, published.summary()
     # Not one request was made.
@@ -1265,7 +1301,12 @@ def test_publishing_a_stored_set_still_runs_the_structural_checks(
     first = run(db, board, store)
     assert first.blocked
     published = filings.publish_stored_filings(
-        db, first.record_set_hash, store=store, log=lambda message: None
+        db,
+        first.record_set_hash,
+        store=store,
+        waive=["previous_snapshot_to_compare_against"],
+        decision="test",
+        log=lambda message: None,
     )
     assert published.blocked
     assert (
@@ -1312,7 +1353,14 @@ def test_an_archive_that_no_longer_reproduces_its_figures_stops_the_run(
     with pytest.raises(
         filings.CampaignFinanceFilingsRefusal, match="not the ones we vouched for"
     ) as raised:
-        run(db, board, store, publish_hash=first.record_set_hash)
+        run(
+            db,
+            board,
+            store,
+            publish_hash=first.record_set_hash,
+            waive=["previous_snapshot_to_compare_against"],
+            decision="test",
+        )
     # Named, so an operator knows which object to look at rather than reading a stack
     # trace out of gzip. Caught by the object's own fingerprint, which fires before
     # anything tries to decompress it.
@@ -1365,7 +1413,14 @@ def test_an_archived_response_that_does_not_match_its_own_fingerprint_stops_the_
     with pytest.raises(
         filings.CampaignFinanceFilingsRefusal, match="no longer reproduces"
     ) as raised:
-        run(db, board, store, publish_hash=first.record_set_hash)
+        run(
+            db,
+            board,
+            store,
+            publish_hash=first.record_set_hash,
+            waive=["previous_snapshot_to_compare_against"],
+            decision="test",
+        )
     assert "does not hash to the fingerprint recorded on it" in str(raised.value)
 
 
@@ -1403,7 +1458,14 @@ def test_a_first_run_quarantines_and_publishes_only_when_its_hash_is_named(
     assert checks_of(first)["previous_snapshot_to_compare_against"].status == "failed"
     assert db.scalars(select(models.CampaignFinanceFiling)).all() == []
 
-    published = run(db, board, store, publish_hash=first.record_set_hash)
+    published = run(
+        db,
+        board,
+        store,
+        publish_hash=first.record_set_hash,
+        waive=["previous_snapshot_to_compare_against"],
+        decision="test",
+    )
     assert not published.blocked
     assert figures_of(db, published.snapshot_id, "11880", 2025)["total_receipts"] == (
         Decimal("13900.48")
@@ -1514,7 +1576,7 @@ def test_a_directory_list_answering_the_literal_false_stops_the_run(
     db, board, store
 ) -> None:
     board.directory_returns_false.add(FilerKind.party_unit)
-    result = run(db, board, store, publish_hash="anything")
+    result = run(db, board, store, publish_hash="anything", decision="test")
     assert result.blocked
     assert checks_of(result)["every_registered_filer_list_was_read"].status == "failed"
     assert checks_of(result)["every_response_was_read"].status == "failed"
@@ -1539,7 +1601,14 @@ def test_a_whole_filer_kind_coming_back_empty_stops_even_with_a_named_hash(
     check = checks_of(result)["no_filer_kind_came_back_mostly_empty"]
     assert check.status == "failed"
     assert "candidate_committee" in check.detail
-    waived = run(db, board, store, publish_hash=result.record_set_hash)
+    waived = run(
+        db,
+        board,
+        store,
+        publish_hash=result.record_set_hash,
+        waive=["previous_snapshot_to_compare_against"],
+        decision="test",
+    )
     assert checks_of(waived)["no_filer_kind_came_back_mostly_empty"].status == "failed"
     assert waived.blocked
 
@@ -1557,7 +1626,14 @@ def test_one_filer_of_a_kind_coming_back_empty_is_ordinary(db, board, store) -> 
 def test_naming_a_hash_never_waives_a_structural_check(db, board, store) -> None:
     board.extra_label = "Cryptocurrency contributions"
     result = run(db, board, store)
-    waived = run(db, board, store, publish_hash=result.record_set_hash)
+    waived = run(
+        db,
+        board,
+        store,
+        publish_hash=result.record_set_hash,
+        waive=["previous_snapshot_to_compare_against"],
+        decision="test",
+    )
     assert checks_of(waived)["every_response_was_read"].status == "failed"
     assert waived.blocked
 
@@ -1648,7 +1724,14 @@ def test_a_narrowed_run_cannot_publish_at_all(db, board, store) -> None:
     assert store.objects == {}
     # And a named hash cannot buy its way past it either.
     with pytest.raises(filings.CampaignFinanceFilingsRefusal, match="only-filers"):
-        run(db, board, store, only_filers=["11880"], publish_hash="anything")
+        run(
+            db,
+            board,
+            store,
+            only_filers=["11880"],
+            publish_hash="anything",
+            decision="test",
+        )
     # A narrowed dry run is exactly what the flag is for, and still works.
     checked = run(db, board, store, dry_run=True, only_filers=["11880"])
     assert {filing.registration_number for filing in checked.filings} == {"11880"}
@@ -1771,15 +1854,18 @@ def refresh(db, board: FakeBoard, store: MemoryStore) -> filings.FilingsRun:
     first = run(db, board, store)
     if not first.blocked:
         return first
-    assert {check.name for check in first.blocked} <= {
-        "filer_count_within_band",
-        "filing_count_within_band",
-        "reported_contributions_within_band",
-    }, first.summary()
+    assert {check.name for check in first.blocked} <= set(BAND_WAIVERS), first.summary()
     assert checks_of(first)["no_published_filer_year_lost_its_figures"].status == (
         "passed"
     ), first.summary()
-    published = run(db, board, store, publish_hash=first.record_set_hash)
+    published = run(
+        db,
+        board,
+        store,
+        publish_hash=first.record_set_hash,
+        waive=BAND_WAIVERS,
+        decision="test: refresh",
+    )
     assert not published.blocked, published.summary()
     return published
 
@@ -1964,6 +2050,342 @@ def test_the_recent_terminations_are_in_the_record_hash_and_the_archive(
     # the same hash proves the archive's terminations lines reproduce it.
     assert second.published, second.summary()
     republished = filings.publish_stored_filings(
-        db, second.record_set_hash, store=store, log=lambda message: None
+        db,
+        second.record_set_hash,
+        store=store,
+        waive=["previous_snapshot_to_compare_against"],
+        decision="test",
+        log=lambda message: None,
     )
     assert republished.record_set_hash == second.record_set_hash
+
+
+# --- Named waivers, and a lost filer-year keeps its figures (Codex on #2344) --------
+
+
+def test_a_lost_filer_year_blocks_until_its_exact_pair_is_waived_then_is_retained(
+    db, board, store
+) -> None:
+    """Harding, Zac Gov Committee's shape: still listed, reports still catalogued, and
+    the Board's figures route answers "Data not available". Unwaived it blocks; waived
+    as the wrong pair it blocks; waived as the exact pair it publishes and the last
+    figures stay, dated to when they were read and pointing at the snapshot that read
+    them, beside the other years read today."""
+    first = publish_first(db, board, store)
+    first_snapshot = db.get(models.CampaignFinanceFilingSnapshot, first.snapshot_id)
+    before = figures_of(db, first.snapshot_id, "18999", 2025)
+    assert before
+
+    board.empty_filers.add("18999")
+    board.amount_overrides[("11880", 2025)] = {"Individuals contributions": "$1.00"}
+    blocked = run(db, board, store)
+    check = checks_of(blocked)["no_published_filer_year_lost_its_figures"]
+    assert check.status == "failed"
+    assert "18999 2024" in check.detail and "18999 2025" in check.detail
+
+    wrong = run(
+        db,
+        board,
+        store,
+        publish_hash=blocked.record_set_hash,
+        waive=[*BAND_WAIVERS, "no_published_filer_year_lost_its_figures:18999/2025"],
+        decision="test",
+    )
+    assert wrong.blocked
+    assert "Not waived: no_published_filer_year_lost_its_figures:18999/2024" in (
+        checks_of(wrong)["no_published_filer_year_lost_its_figures"].detail
+    )
+
+    published = run(
+        db,
+        board,
+        store,
+        publish_hash=blocked.record_set_hash,
+        waive=[
+            *BAND_WAIVERS,
+            "no_published_filer_year_lost_its_figures:18999/2024",
+            "no_published_filer_year_lost_its_figures:18999/2025",
+        ],
+        decision="test: https://github.com/alethical-org/alethical/issues/2344#example",
+    )
+    assert published.published, published.summary()
+    assert published.retained_filer_years == [("18999", 2024), ("18999", 2025)]
+    assert figures_of(db, published.snapshot_id, "18999", 2025) == before
+    kept = db.scalars(
+        select(models.CampaignFinanceFiling).where(
+            models.CampaignFinanceFiling.snapshot_id == published.snapshot_id,
+            models.CampaignFinanceFiling.registration_number == "18999",
+            models.CampaignFinanceFiling.filing_year == 2025,
+        )
+    ).one()
+    assert kept.retained_from_snapshot_id == first.snapshot_id
+    assert kept.captured_at == first_snapshot.fetch_completed_at
+    fresh = db.scalars(
+        select(models.CampaignFinanceFiling).where(
+            models.CampaignFinanceFiling.snapshot_id == published.snapshot_id,
+            models.CampaignFinanceFiling.registration_number == "11880",
+            models.CampaignFinanceFiling.filing_year == 2025,
+        )
+    ).one()
+    assert fresh.retained_from_snapshot_id is None
+    assert fresh.captured_at == (
+        db.get(
+            models.CampaignFinanceFilingSnapshot, published.snapshot_id
+        ).fetch_completed_at
+    )
+    snapshot = db.get(models.CampaignFinanceFilingSnapshot, published.snapshot_id)
+    assert snapshot.measurements["retained_filer_years"] == ["18999/2024", "18999/2025"]
+    assert "waivers named: " in snapshot.measurements["notes"]
+    assert (
+        "operator's decision: test: https://github.com"
+        in snapshot.measurements["notes"]
+    )
+    assert "compared against filings snapshot " in snapshot.measurements["notes"]
+
+    # Carried forward on the next 2 refreshes without a new waiver: still empty at the
+    # Board, still dated to the first read, and no longer "lost".
+    for amount in ("$2.00", "$3.00"):
+        board.amount_overrides[("11880", 2025)] = {"Individuals contributions": amount}
+        again = run(db, board, store)
+        lost_again = checks_of(again)["no_published_filer_year_lost_its_figures"]
+        assert lost_again.status == "passed", again.summary()
+        assert "2 retained filer-year(s)" in lost_again.detail
+        if again.blocked:
+            again = run(
+                db,
+                board,
+                store,
+                publish_hash=again.record_set_hash,
+                waive=BAND_WAIVERS,
+                decision="test",
+            )
+        assert again.published, again.summary()
+        carried = db.scalars(
+            select(models.CampaignFinanceFiling).where(
+                models.CampaignFinanceFiling.snapshot_id == again.snapshot_id,
+                models.CampaignFinanceFiling.registration_number == "18999",
+                models.CampaignFinanceFiling.filing_year == 2025,
+            )
+        ).one()
+        assert carried.retained_from_snapshot_id == first.snapshot_id
+        assert carried.captured_at == first_snapshot.fetch_completed_at
+        assert figures_of(db, again.snapshot_id, "18999", 2025) == before
+
+    # And the moment the Board serves figures again, the fresh ones replace the copy.
+    board.empty_filers.discard("18999")
+    board.amount_overrides[("18999", 2025)] = {"Individuals contributions": "$9.00"}
+    back = run(db, board, store)
+    if back.blocked:
+        back = run(
+            db,
+            board,
+            store,
+            publish_hash=back.record_set_hash,
+            waive=BAND_WAIVERS,
+            decision="test",
+        )
+    assert back.published, back.summary()
+    replaced = db.scalars(
+        select(models.CampaignFinanceFiling).where(
+            models.CampaignFinanceFiling.snapshot_id == back.snapshot_id,
+            models.CampaignFinanceFiling.registration_number == "18999",
+            models.CampaignFinanceFiling.filing_year == 2025,
+        )
+    ).one()
+    assert replaced.retained_from_snapshot_id is None
+    assert figures_of(db, back.snapshot_id, "18999", 2025)[
+        "individuals_contributions"
+    ] == (Decimal("9.00"))
+
+
+def test_restoring_a_dropped_filer_year_copies_the_newest_held_figures_with_their_date(
+    db, board, store
+) -> None:
+    """The one-time forward correction for a filer-year dropped before retention
+    existed: put back into the published snapshot, dated to the read that produced
+    it, refusing a pair already present, and reversible by deleting the copied rows."""
+    first = publish_first(db, board, store)
+    first_snapshot = db.get(models.CampaignFinanceFilingSnapshot, first.snapshot_id)
+    before = figures_of(db, first.snapshot_id, "18999", 2025)
+
+    # The dropped pair: published without 18999's figures under an explicit waiver of
+    # the old kind (simulated by deleting the retained copy after publishing).
+    board.empty_filers.add("18999")
+    board.amount_overrides[("11880", 2025)] = {"Individuals contributions": "$1.00"}
+    blocked = run(db, board, store)
+    published = run(
+        db,
+        board,
+        store,
+        publish_hash=blocked.record_set_hash,
+        waive=[
+            *BAND_WAIVERS,
+            "no_published_filer_year_lost_its_figures:18999/2024",
+            "no_published_filer_year_lost_its_figures:18999/2025",
+        ],
+        decision="test",
+    )
+    assert published.published
+    db.execute(
+        delete(models.CampaignFinanceFiling).where(
+            models.CampaignFinanceFiling.snapshot_id == published.snapshot_id,
+            models.CampaignFinanceFiling.registration_number == "18999",
+        )
+    )
+    db.commit()
+    assert (
+        db.scalars(
+            select(models.CampaignFinanceFiling).where(
+                models.CampaignFinanceFiling.snapshot_id == published.snapshot_id,
+                models.CampaignFinanceFiling.registration_number == "18999",
+            )
+        ).first()
+        is None
+    )
+
+    with pytest.raises(filings.CampaignFinanceFilingsRefusal, match="--decision"):
+        filings.restore_lost_filer_years(db, [("18999", 2025)], decision="")
+    with pytest.raises(filings.CampaignFinanceFilingsRefusal, match="already carries"):
+        filings.restore_lost_filer_years(db, [("11880", 2025)], decision="t")
+
+    restored = filings.restore_lost_filer_years(
+        db,
+        [("18999", 2025), ("40404", 2025)],
+        decision="test: put back",
+        log=lambda m: None,
+    )
+    assert restored == 1  # 40404 is held nowhere, so there was nothing to restore
+    assert figures_of(db, published.snapshot_id, "18999", 2025) == before
+    row = db.scalars(
+        select(models.CampaignFinanceFiling).where(
+            models.CampaignFinanceFiling.snapshot_id == published.snapshot_id,
+            models.CampaignFinanceFiling.registration_number == "18999",
+        )
+    ).one()
+    assert row.retained_from_snapshot_id == first.snapshot_id
+    assert row.captured_at == first_snapshot.fetch_completed_at
+    live = db.get(models.CampaignFinanceFilingSnapshot, published.snapshot_id)
+    assert live.measurements["restored_filer_years"] == ["18999/2025", "40404/2025"]
+    assert "test: put back" in live.measurements["notes"]
+
+
+def test_a_termination_date_names_its_source(db, board, store) -> None:
+    """A date the current list carried says so; a date read from the recent-terminations
+    list names the snapshot whose archive holds that list, so it never appears
+    supported by the older register row alone."""
+    first = publish_first(db, board, store)
+    listed = _filer_row(db, first.snapshot_id, "18999")
+    assert listed.termination_date == date(2026, 7, 28)
+    assert listed.termination_source == "register"
+    assert _filer_row(db, first.snapshot_id, "11880").termination_source is None
+
+    board.undated_filers.add("18999")
+    second = refresh(db, board, store)
+    assert _filer_row(db, second.snapshot_id, "18999").termination_source is None
+
+    board.dropped_filers.add("18999")
+    board.terminations[FilerKind.candidate_committee] = [
+        {
+            "RegisteredEntityFullName": "Closed, Casey House Committee",
+            "RegisteredEntityID": "18999",
+            "Party": "DFL",
+            "District": "1A",
+            "RegistrationDate": "2022-01-01 00:00:00.000",
+            "TerminationDate": "2026-08-19 00:00:00.000",
+            "DistrictKey": "1A",
+            "CandidateFullName": "Closed, Casey",
+            "OfficeKey": "House",
+        }
+    ]
+    third = refresh(db, board, store)
+    kept = _filer_row(db, third.snapshot_id, "18999")
+    assert kept.termination_date == date(2026, 8, 19)
+    assert kept.termination_source == f"recent-terminations-list:{third.snapshot_id}"
+    # Carried unchanged on the next refresh, still naming the list's snapshot.
+    board.amount_overrides[("11880", 2025)] = {"Individuals contributions": "$7.00"}
+    fourth = refresh(db, board, store)
+    assert _filer_row(db, fourth.snapshot_id, "18999").termination_source == (
+        f"recent-terminations-list:{third.snapshot_id}"
+    )
+
+
+def test_publishing_a_stored_hash_needs_a_decision_and_waives_only_named_checks(
+    db, board, store
+) -> None:
+    first = run(db, board, store)
+    assert first.blocked
+    with pytest.raises(filings.CampaignFinanceFilingsRefusal, match="--decision"):
+        filings.publish_stored_filings(
+            db, first.record_set_hash, store=store, log=lambda message: None
+        )
+    unnamed = filings.publish_stored_filings(
+        db, first.record_set_hash, store=store, decision="t", log=lambda message: None
+    )
+    assert unnamed.blocked
+    assert "Not waived: previous_snapshot_to_compare_against" in (
+        checks_of(unnamed)["previous_snapshot_to_compare_against"].detail
+    )
+    named = filings.publish_stored_filings(
+        db,
+        first.record_set_hash,
+        store=store,
+        waive=["previous_snapshot_to_compare_against"],
+        decision="t",
+        log=lambda message: None,
+    )
+    assert named.published
+
+
+def test_a_report_documents_filed_date_survives_the_next_refresh_unless_its_version_changed(
+    db, board, store
+) -> None:
+    """The filing date is read off the report document by a separate pass and is a
+    fact about that document, so the next snapshot keeps it for the same document
+    version and starts blank for a new version. 3,735 dates were lost on 23 Sep 2026
+    before this."""
+    first = publish_first(db, board, store)
+    reports = db.scalars(
+        select(models.CampaignFinanceFilingReport).where(
+            models.CampaignFinanceFilingReport.snapshot_id == first.snapshot_id,
+            models.CampaignFinanceFilingReport.registration_number == "11880",
+        )
+    ).all()
+    assert len(reports) >= 2
+    reports[0].filed_date = date(2026, 7, 24)
+    reports[1].filed_date = date(2026, 4, 14)
+    db.commit()
+    kept_key = (reports[0].filing_year, reports[0].report_type)
+    changed_key = (reports[1].filing_year, reports[1].report_type)
+
+    board.amount_overrides[("11880", 2025)] = {"Individuals contributions": "$1.00"}
+    board.amended_reports = getattr(board, "amended_reports", set())
+    second = refresh(db, board, store)
+    after = {
+        (row.filing_year, row.report_type): row
+        for row in db.scalars(
+            select(models.CampaignFinanceFilingReport).where(
+                models.CampaignFinanceFilingReport.snapshot_id == second.snapshot_id,
+                models.CampaignFinanceFilingReport.registration_number == "11880",
+            )
+        ).all()
+    }
+    assert after[kept_key].filed_date == date(2026, 7, 24)
+    assert after[changed_key].filed_date == date(2026, 4, 14)
+    # A different effective version of the same report is a different document.
+    after[changed_key].effective_amendment_index = (
+        after[changed_key].effective_amendment_index or 0
+    ) + 1
+    db.commit()
+    board.amount_overrides[("11880", 2025)] = {"Individuals contributions": "$2.00"}
+    third = refresh(db, board, store)
+    again = {
+        (row.filing_year, row.report_type): row
+        for row in db.scalars(
+            select(models.CampaignFinanceFilingReport).where(
+                models.CampaignFinanceFilingReport.snapshot_id == third.snapshot_id,
+                models.CampaignFinanceFilingReport.registration_number == "11880",
+            )
+        ).all()
+    }
+    assert again[kept_key].filed_date == date(2026, 7, 24)
+    assert again[changed_key].filed_date is None
