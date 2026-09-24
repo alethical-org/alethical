@@ -27,7 +27,7 @@ export const SITE_NAME = 'Alethical';
 // "Alethical" because the title already ends with it.
 const TITLE_SUFFIX = ` | ${SITE_NAME}`;
 
-export const HOME_PAGE_TITLE = 'Alethical: Minnesota’s legislative record in plain language';
+export const HOME_PAGE_TITLE = 'Alethical: Minnesota political intelligence & campaign strategy';
 export const HOME_PAGE_DESCRIPTION =
   'Minnesota’s legislative record, in plain language, with links to official sources.';
 const BILL_LIST_SUBJECT = 'Search Minnesota bills';

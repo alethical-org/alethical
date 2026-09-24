@@ -105,7 +105,7 @@ Rules that generate every page, not examples. They carry over to campaign financ
 | Bill, no summary yet | `{HF\|SF} {number} ({year}) \| Alethical` | `See what {HF\|SF} {number} would do and where it stands in the Minnesota Legislature.` |
 | Bill list | `Search Minnesota bills \| Alethical` | `Search bills in the Minnesota Legislature by topic, chamber, and status.` |
 | Legislator list | `Minnesota House and Senate members \| Alethical` | `Find a Minnesota legislator by name, chamber, or party.` |
-| Home | `Alethical: Minnesota's legislative record in plain language` | Current wording is correct; keep it. |
+| Home | `Alethical: Minnesota political intelligence & campaign strategy` | Eugene approved this new direction on 24 Sep 2026. Keep political intelligence first, followed by campaign strategy. |
 | Campaign finance (Sept 2026) | `{Name}: campaign finance, Minnesota {chamber} District {code} \| Alethical` | `See who contributed to {Name}'s campaign, from official Minnesota filings.` |
 | Committee | `{Filed name} — Minnesota campaign money \| Alethical` | `Money in and money out for the {kind} registered for {seat}, from Minnesota’s own campaign-finance filings.` — the register's kind and seat; for a filer with no seat, `…for a Minnesota {kind}, from the state’s own campaign-finance filings.`; never the name (§26) and never a figure |
 | Money section pages | `{Page name} — Minnesota campaign money \| Alethical`, or the page's own subject with the state in it (`Money in politics in Minnesota`, `Outside spending in Minnesota campaigns`, `Money by race: Minnesota candidates by office and district`) | Each page's existing sentence |

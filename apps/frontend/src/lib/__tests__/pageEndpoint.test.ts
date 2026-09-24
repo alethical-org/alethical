@@ -1373,13 +1373,19 @@ describe('addresses that are not real pages', () => {
   );
 
   it.each([
-    ['/chat', '<title>Alethical: Minnesota’s legislative record in plain language</title>'],
-    ['/chat/new', '<title>Alethical: Minnesota’s legislative record in plain language</title>'],
+    ['/chat', '<title>Alethical: Minnesota political intelligence &amp; campaign strategy</title>'],
+    [
+      '/chat/new',
+      '<title>Alethical: Minnesota political intelligence &amp; campaign strategy</title>',
+    ],
     [
       '/chat/sessions/abc-123',
-      '<title>Alethical: Minnesota’s legislative record in plain language</title>',
+      '<title>Alethical: Minnesota political intelligence &amp; campaign strategy</title>',
     ],
-    ['/account', '<title>Alethical: Minnesota’s legislative record in plain language</title>'],
+    [
+      '/account',
+      '<title>Alethical: Minnesota political intelligence &amp; campaign strategy</title>',
+    ],
   ])('keeps the retired address %s working', async (path, title) => {
     stubNetwork(() => ({ status: 500 }));
     const { status, body } = await serve({ path });
