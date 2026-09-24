@@ -2567,6 +2567,11 @@ class CampaignFinanceFiler(Base):
     retained_from_snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("cf_filing_snapshot.id", ondelete="SET NULL")
     )
+    # Where the termination date came from: ``register`` for a date the Board's
+    # current list carried, ``recent-terminations-list:<snapshot id>`` for one read
+    # from the Board's recent-terminations list in the run whose archive holds that
+    # list. A retained row keeps the source it had. NULL when there is no date.
+    termination_source: Mapped[Optional[str]] = mapped_column(String(80))
 
 
 class CampaignFinanceFilingReport(Base):
@@ -2680,6 +2685,16 @@ class CampaignFinanceFiling(UUIDPrimaryKeyMixin, Base):
     # to the bytes behind it.
     response_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     archive_line: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Per filer-year provenance (#2344): when the Board answered these figures, and
+    # the snapshot whose run read them when they were retained from an earlier copy
+    # (the Board's route answered "Data not available" for a filer-year it had served
+    # before, or the filer left the register). ``archive_line`` points into THAT
+    # snapshot's archive. NULL on rows written before the columns existed, which read
+    # as their own snapshot's fetch-completion time and as fresh.
+    captured_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    retained_from_snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("cf_filing_snapshot.id", ondelete="SET NULL")
+    )
 
     figures: Mapped[list["CampaignFinanceFilingFigure"]] = relationship(
         cascade="all, delete-orphan"

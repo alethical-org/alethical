@@ -906,8 +906,22 @@ one), or **unmatched**, with the unmatched dollars summed and the committees nam
 identical copies, 3,763 possible replacements and 281 unmatched worth $671,898.10. The table is
 an investigation aid and never a reason to publish. A blocked replacement publishes only through
 a named exception recorded on the issue first: the exact record hashes, the exact failed check,
-the affected committee-years, the evidence and the reader-facing treatment. The release notes
-then name every check the operator waived and carry the table.
+the affected committee-years, the evidence and the reader-facing treatment. **The exception is
+narrower than the failure, and the code enforces the narrowing (Codex, 23 Sep 2026).** Naming the
+3 record hashes (`--publish-hashes`) says which files were reviewed; each `--waive` names what was
+reviewed about them as `dataset/check`, with the affected year for the row-loss check
+(`expenditures/no_published_year_lost_rows:2024`) and the affected committee-year for the
+reconciliation (`contributions/reported_totals_reconcile:30277/2022`), and `--decision` carries the
+operator's words or the issue comment's address. A failed comparison the list does not cover, or a
+second year or committee-year the list does not name, fails at the first validation and again
+inside the publish lock, where the live release is also checked to be the one the waivers were
+made against; a changed candidate hash never matches; structural checks stay unwaivable; a
+scheduled run passes no waiver at all. The release notes record the candidate hashes, the release
+and totals snapshot compared against, every waiver key, the decision text, every waived check
+with its detail and affected committee-years, and the table. The same shape governs the totals
+loader (`--publish-hash`, `--publish-stored-hash`, `--waive check[:registration/year]`,
+`--decision`), where a lost filer-year is waived by its exact pair and, once waived, is retained
+rather than dropped (§4.4).
 
 ### 4.4 What survives replacement
 
@@ -941,6 +955,37 @@ filers; the committee's own page, search and every link to it keep working. Rete
 any number of refreshes, because the copy always carries the original date and source. A
 published filer-year whose filer left the register is therefore not "lost figures" to the
 check in §4.3; a filer still listed whose figures vanished still is.
+
+**A listed filer's committee-year the Board stops serving is kept too, by its exact pair, with
+its own date (Codex, 23 Sep 2026).** Harding, Zac Gov Committee (19448) stayed registered with
+its 2026 reports catalogued while the Board's figures route went from $400.00 of receipts through
+31 Mar to "Data not available for 2026" between 12 Aug and 23 Sep 2026; the 23 Sep snapshot
+published without it, and 54 committee-years in that snapshot carry a catalogued 2026 report and
+no figures. §7's rule is that when the totals route fails we keep the last accepted figures and
+their existing date. So the lost-figures check names each lost pair, an operator waives exactly
+those pairs (`no_published_filer_year_lost_its_figures:19448/2026`), and `publish_filings` copies
+the newest figures we hold for each waived pair into the new snapshot with `cf_filing.captured_at`
+(the day they were read) and `cf_filing.retained_from_snapshot_id` (the snapshot whose archive
+holds the response, which is where `archive_line` points). Provenance is per committee-year,
+because one committee can carry a 2026 figure read on 12 Aug beside 2024 and 2025 figures read on
+23 Sep, and a committee-wide date would misdate one of them; `filings_copied_at(db, registration,
+year)` prints the row's own date. A retained pair the Board still serves nothing for is carried
+forward on later refreshes without a new waiver and is never "lost" again; the moment the Board
+serves figures, the fresh ones replace the copy. `--restore-filer-years 19448/2026 --decision ...`
+is the one-time forward correction for a pair dropped before this existed: it copies the newest
+held figures into the published snapshot under the publish lock, additive and reversible.
+
+**A termination date names its source** (`cf_filer.termination_source`): `register` for a date
+the Board's current list carried, `recent-terminations-list:<snapshot id>` for one read from the
+recent-terminations list in the run whose archive holds that list (§9.7), so a date learned after
+a committee left the register never appears supported by the older register row alone.
+
+**A report document's filing date survives replacement.** `cf_filing_report.filed_date` is read
+off the document by `scripts/backfill_campaign_finance_filed_dates.py` (#1670) and is a fact
+about that document, so `publish_filings` carries it forward whenever the new catalogue lists
+the same document (filer, year, type, name, period end and effective version); a changed
+effective version is a different document and starts blank. Before this, 3,735 of 36,655 report
+rows carried a date on 12 Aug 2026 and 37 of 37,214 after the 23 Sep refresh.
 
 ### 4.5 Where the downloaded files live, and for how long
 

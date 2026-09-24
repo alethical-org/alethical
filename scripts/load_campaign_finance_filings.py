@@ -82,6 +82,7 @@ from alethical.pipeline.campaign_finance_filings import (  # noqa: E402
     CampaignFinanceFilingsRefusal,
     load_campaign_finance_filings,
     publish_stored_filings,
+    restore_lost_filer_years,
 )
 from alethical.pipeline.cache_purge import (  # noqa: E402
     clear_after_publish,
@@ -145,6 +146,37 @@ def main() -> int:
         "--publish-stored-hash, which skips the 48-minute fetch entirely.",
     )
     parser.add_argument(
+        "--waive",
+        action="append",
+        default=[],
+        metavar="CHECK[:REGNUM/YEAR]",
+        help="A failed comparison check the operator reviewed and publishes over, "
+        "with --publish-hash or --publish-stored-hash. One per flag. For "
+        "no_published_filer_year_lost_its_figures the affected committee-year is "
+        "required (no_published_filer_year_lost_its_figures:19448/2026), and "
+        "publishing then keeps that committee-year's last figures with their own "
+        "date. Every affected pair must be named or the check still blocks, at the "
+        "first validation and again inside the publish lock. A first run waives "
+        "previous_snapshot_to_compare_against. Structural checks cannot be waived.",
+    )
+    parser.add_argument(
+        "--decision",
+        default="",
+        help="Required with --publish-hash, --publish-stored-hash and "
+        "--restore-filer-years: the operator's own words, or the address of the "
+        "issue comment recording the exception's evidence, reader-facing effect and "
+        "recovery path. Written into the snapshot's notes.",
+    )
+    parser.add_argument(
+        "--restore-filer-years",
+        nargs="+",
+        default=None,
+        metavar="REGNUM/YEAR",
+        help="Put back, into the published snapshot, figures for these committee-years "
+        "that it lacks but an earlier snapshot still holds, dated to when they were "
+        "read. Additive and reversible. Fetches nothing. Needs --decision.",
+    )
+    parser.add_argument(
         "--publish-stored-hash",
         default=None,
         metavar="SHA256",
@@ -171,6 +203,16 @@ def main() -> int:
             "that stored run covered."
         )
 
+    if (args.publish_hash or args.publish_stored_hash) and not args.decision.strip():
+        parser.error(
+            "--publish-hash and --publish-stored-hash need --decision: say, or point "
+            "at the issue comment that says, what was reviewed and why it publishes."
+        )
+    if args.waive and not (args.publish_hash or args.publish_stored_hash):
+        parser.error(
+            "--waive only means something with --publish-hash or --publish-stored-hash"
+        )
+
     database_url = normalize_database_url(
         args.database_url or database_url_for_target(args.target)
     )
@@ -179,10 +221,31 @@ def main() -> int:
     )
     with Session(engine) as session:
         try:
+            if args.restore_filer_years:
+                pairs = []
+                for value in args.restore_filer_years:
+                    registration, _, year = value.partition("/")
+                    if not registration or not year.isdigit():
+                        parser.error(
+                            f"--restore-filer-years takes REGNUM/YEAR, not {value!r}"
+                        )
+                    pairs.append((registration, int(year)))
+                restored = restore_lost_filer_years(
+                    session,
+                    pairs,
+                    decision=args.decision,
+                    log=lambda message: print(message, file=sys.stderr),
+                )
+                failed = clear_after_publish(
+                    when_a_filings_release_lands(), published=restored > 0
+                )
+                return 1 if failed else 0
             if args.publish_stored_hash:
                 run = publish_stored_filings(
                     session,
                     args.publish_stored_hash,
+                    waive=args.waive,
+                    decision=args.decision,
                     log=lambda message: print(message, file=sys.stderr),
                 )
                 print(run.summary())
@@ -197,6 +260,8 @@ def main() -> int:
                 only_filers=args.only_filers,
                 directory_archive=args.directory_archive,
                 publish_hash=args.publish_hash,
+                waive=args.waive,
+                decision=args.decision,
                 log=lambda message: print(message, file=sys.stderr),
             )
         except CampaignFinanceFilingsRefusal as refusal:

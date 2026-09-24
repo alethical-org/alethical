@@ -269,6 +269,29 @@ def main() -> int:
         "the intended path for a first import. Structural checks are never waived.",
     )
     parser.add_argument(
+        "--waive",
+        action="append",
+        default=[],
+        metavar="DATASET/CHECK[:QUALIFIER]",
+        help="A failed comparison check the operator reviewed and publishes over, "
+        "with --publish-hashes. One per flag. The qualifier is required where the "
+        "check has one: the affected year for no_published_year_lost_rows "
+        "(expenditures/no_published_year_lost_rows:2024) and the affected "
+        "committee-year for reported_totals_reconcile "
+        "(contributions/reported_totals_reconcile:30277/2022). Every affected year "
+        "or committee-year must be named or the check still blocks, at the first "
+        "validation and again inside the publish lock. A first import waives "
+        "<dataset>/previous_release_to_compare_against for each of the 3 files. "
+        "Structural checks cannot be waived.",
+    )
+    parser.add_argument(
+        "--decision",
+        default="",
+        help="Required with --publish-hashes: the operator's own words, or the "
+        "address of the issue comment recording the exception's evidence, its "
+        "reader-facing effect and its recovery path. Written into the release notes.",
+    )
+    parser.add_argument(
         "--recheck-years",
         nargs="+",
         type=int,
@@ -287,6 +310,13 @@ def main() -> int:
             "--publish-hashes takes all 3 record hashes, one per file, so a set "
             f"cannot be waved through by accident. Got {len(args.publish_hashes)}."
         )
+    if args.publish_hashes is not None and not args.decision.strip():
+        parser.error(
+            "--publish-hashes needs --decision: say, or point at the issue comment "
+            "that says, what was reviewed and why it publishes."
+        )
+    if (args.waive or args.decision) and args.publish_hashes is None:
+        parser.error("--waive and --decision only mean something with --publish-hashes")
 
     database_url = normalize_database_url(
         args.database_url or database_url_for_target(args.target)
@@ -306,6 +336,8 @@ def main() -> int:
                 session,
                 dry_run=args.dry_run,
                 publish_hashes=args.publish_hashes,
+                waive=args.waive,
+                decision=args.decision,
                 log=log,
             )
         except CampaignFinanceRefusal as refusal:

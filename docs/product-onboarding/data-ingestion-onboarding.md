@@ -441,6 +441,15 @@ fingerprint). Full reasoning:
 [`campaign-finance-system-design.md`](../architecture/campaign-finance-system-design.md)
 §4 (Ingestion: snapshot and replace).
 
+**Publishing over a failed comparison names exactly what was reviewed.** Both loaders quarantine a
+set that trips a comparison guard, and both publish it only when the operator names the exact
+record hash(es) AND each failed check as a `--waive` (`dataset/check[:qualifier]` for the payment
+files, `check[:registration/year]` for the totals), with `--decision` pointing at the issue comment
+that records the evidence. Anything not named still blocks, at the first check and again inside
+the publish lock. A lost committee-year waived by its exact pair is kept with its own date rather
+than dropped; `--restore-filer-years REGNUM/YEAR --decision ...` puts back a pair dropped earlier.
+A scheduled run never waives anything.
+
 **What to run.** `just load-campaign-finance` is a dry run: it fetches, parses,
 checks and reports, writing nothing and needing no credentials. `just
 load-campaign-finance local false` publishes locally and `just
