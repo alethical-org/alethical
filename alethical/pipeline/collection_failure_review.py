@@ -1253,7 +1253,18 @@ def decide(
 
     exact = [p for p in incidents if packet["incident_key"] in (p[1].get("keys") or [])]
     same_shape = [p for p in incidents if p[1].get("shape") == packet["failure_shape"]]
-    match = (exact or same_shape or [None])[0]
+    # A run that died before writing its summary is keyed on the step that failed, and
+    # the next run that fails the same way describes itself by stage. Both name the
+    # same stages, so the one that lacks a summary joins the other rather than
+    # opening a second issue for 1 problem.
+    stages = set(required_stages(packet))
+    same_stage = [
+        p
+        for p in incidents
+        if (not packet.get("summary_found") or not p[1].get("from_summary", False))
+        and stages & set(p[1].get("required_stages") or [])
+    ]
+    match = (exact or same_shape or same_stage or [None])[0]
     if match is None:
         decision["action"] = "open"
         reviews_so_far = 0
@@ -1841,6 +1852,7 @@ def new_state(packet: dict[str, Any]) -> dict[str, Any]:
         "keys": [packet["incident_key"]],
         "evidence": [packet["evidence_hash"]],
         "required_stages": required_stages(packet),
+        "from_summary": bool(packet.get("summary_found")),
         "last_failed_run_id": int(packet["run"].get("id") or 0),
         "last_failed_attempt": int(packet["run"].get("attempt") or 1),
         "reviews": 0,
@@ -1952,6 +1964,10 @@ def record(
         )
         if packet["incident_key"] not in state.setdefault("keys", []):
             state["keys"].append(packet["incident_key"])
+        if packet.get("summary_found") and not state.get("from_summary", False):
+            # The run now describes itself, so later failures match on its shape.
+            state["shape"] = packet["failure_shape"]
+            state["from_summary"] = True
         state["required_stages"] = sorted(
             set(state.get("required_stages") or []) | set(required_stages(packet))
         )

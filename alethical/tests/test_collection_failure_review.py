@@ -1901,3 +1901,73 @@ def test_the_payments_landing_page_is_retried(monkeypatch):
     with pytest.raises(cf.CampaignFinanceRefusal):
         cf.resolve_downloads(session, "https://cfb.example/landing")
     assert session.calls == 2 and sleeps == [4]
+
+
+def test_a_failure_recorded_before_the_run_described_itself_and_after_is_1_issue():
+    """Live, 24 Sep 2026: issue 2357 (step-level, no summary) and issue 2360 (by stage)."""
+    issues = FakeIssues()
+    jobs = [
+        {
+            "id": 1,
+            "name": "collect",
+            "conclusion": "failure",
+            "started_at": "x",
+            "steps": [
+                {
+                    "name": "Read committees' catalogues for disclosure statements",
+                    "conclusion": "failure",
+                }
+            ],
+        }
+    ]
+    cfr.record(
+        *_plan(NoticesReader(jobs=jobs, records=None, run_id=1000), issues),
+        issues,
+        now=NOW,
+    )
+    later = [
+        stage("notices", "unchanged"),
+        stage(
+            "statements",
+            "failed",
+            failed_checks=["catalogue read"],
+            details=["4 PDFs refused"],
+        ),
+    ]
+    packet, decision = _plan(NoticesReader(records=later, run_id=1001), issues)
+    assert decision["action"] == "changed"
+    cfr.record(packet, decision, issues, now=NOW)
+    assert len(issues.open_numbers()) == 1
+    state = cfr.read_state(issues.issues[issues.open_numbers()[0]]["body"])
+    assert state["from_summary"] is True and state["shape"] == packet["failure_shape"]
+    again, decision = _plan(NoticesReader(records=later, run_id=1002), issues)
+    assert decision["action"] == "repeat"
+
+
+def test_a_crash_before_the_summary_joins_the_open_issue_for_that_stage():
+    issues = FakeIssues()
+    failed = [
+        stage("notices", "unchanged"),
+        stage("statements", "failed", failed_checks=["catalogue read"]),
+    ]
+    cfr.record(
+        *_plan(NoticesReader(records=failed, run_id=1100), issues), issues, now=NOW
+    )
+    jobs = [
+        {
+            "id": 1,
+            "name": "collect",
+            "conclusion": "failure",
+            "started_at": "x",
+            "steps": [
+                {
+                    "name": "Read committees' catalogues for disclosure statements",
+                    "conclusion": "failure",
+                }
+            ],
+        }
+    ]
+    packet, decision = _plan(
+        NoticesReader(jobs=jobs, records=None, run_id=1101), issues
+    )
+    assert decision["issue"] == issues.open_numbers()[0]
