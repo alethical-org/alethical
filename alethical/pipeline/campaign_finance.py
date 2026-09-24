@@ -1426,6 +1426,7 @@ def validate(
             filings,
             operator_approved=operator_approved,
             waivers=waivers,
+            baseline=baseline,
         )
     )
     # And the half that catches our rows being SHORT, which is the direction nothing
@@ -1563,8 +1564,18 @@ def _checks_against_the_board(
     *,
     operator_approved: bool = False,
     waivers: Waivers = NO_WAIVERS,
+    baseline: Optional[Any] = None,
 ) -> list[Check]:
     """§4.3's 2 checks that need the Board's own figures and filer directory (#1408).
+
+    ``baseline`` is the published snapshot for this dataset. A committee-year the
+    reconciliation failed on that a person already waived on THAT release, with its
+    split already withheld, is a known disagreement carried forward rather than a new
+    failure: the daily job's first run (24 Sep 2026) quarantined every payments file on
+    exactly the 6 committee-years waived the night before, and would have done so every
+    day until the Board's own figures moved. A scheduled run still invents no exception:
+    it inherits the one a person recorded, by exact committee-year, and blocks on any
+    committee-year that list does not carry.
 
     Both report ``not_run`` when no filings snapshot is published, because that is the
     truth and it names the command that fixes it. Once one is published they pass or
@@ -1581,6 +1592,29 @@ def _checks_against_the_board(
             Check("registration_numbers_resolve_to_a_known_filer", "not_run", reason),
         ]
     reconcile = _reported_totals_reconcile(spec, measured, filings)
+    if reconcile.status == "failed":
+        carried = _carried_reconcile_filer_years(baseline)
+        new = [fy for fy in reconcile.filer_years if fy not in carried]
+        kept = [fy for fy in reconcile.filer_years if fy in carried]
+        if not new:
+            reconcile = Check(
+                reconcile.name,
+                "reported",
+                f"{len(kept)} committee-year(s) still hold more itemized money than "
+                "the filer reported, all of them already waived on the published "
+                f"release with their split withheld ({', '.join(kept)}); no new "
+                "disagreement, so nothing here blocks",
+                reconcile.filer_years,
+            )
+        elif kept:
+            reconcile = Check(
+                reconcile.name,
+                "failed",
+                f"{reconcile.detail}. Of these, {len(kept)} were already waived on "
+                f"the published release and are carried ({', '.join(kept)}); "
+                f"{len(new)} are new and need a named waiver: {', '.join(new)}",
+                tuple(new),
+            )
     # Waivable by an operator who has named the exact hashes, like every other
     # comparison here — and unlike a structural check, which no flag lets through.
     #
@@ -1602,13 +1636,20 @@ def _checks_against_the_board(
         ]
         missing = waivers.uncovered(spec.key, reconcile.name, qualifiers)
         if missing is None:
+            # The recorded set carries the newly waived pairs AND the ones already
+            # carried, so the next release inherits all of them.
+            all_pairs = tuple(
+                dict.fromkeys(
+                    [*reconcile.filer_years, *_carried_reconcile_filer_years(baseline)]
+                )
+            )
             reconcile = Check(
                 reconcile.name,
                 "overridden",
                 f"{reconcile.detail} — waived by an operator who named this hash and "
                 f"{len(qualifiers)} committee-year(s). The filer-years above must not "
                 "publish a split until they reconcile",
-                reconcile.filer_years,
+                all_pairs,
             )
         else:
             reconcile = Check(
@@ -1618,6 +1659,17 @@ def _checks_against_the_board(
                 reconcile.filer_years,
             )
     return [reconcile, _registrations_resolve(spec, measured, filings)]
+
+
+def _carried_reconcile_filer_years(baseline: Optional[Any]) -> tuple[str, ...]:
+    """The committee-years the published snapshot's reconcile check recorded, as
+    ``registration:year``, whatever status that check ended with (waived by a person,
+    or carried from an earlier release). Empty without a baseline."""
+    recorded = getattr(baseline, "validation_json", None) or {}
+    for check in recorded.get("checks") or []:
+        if check.get("name") == "reported_totals_reconcile":
+            return tuple(str(entry) for entry in check.get("filer_years") or [])
+    return ()
 
 
 def _reported_totals_reconcile(
