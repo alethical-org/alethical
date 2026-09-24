@@ -1502,6 +1502,36 @@ def test_almost_every_registration_number_being_unknown_stops_the_run(
     assert report.refusal is not None
 
 
+def test_the_unknown_filer_check_reads_only_the_2_newest_published_years() -> None:
+    """The register lists current filers, so the share of unknown numbers is a function
+    of a year's age: 0.8% for 2026 and 31.7% for 2022 on 23 Sep 2026. Asked over 5
+    years the check failed a publish for nothing but reach; asked over the newest 2 it
+    still reads a shifted column as almost every number unknown."""
+    measured = cf.Measurements()
+    measured.filer_numbers_by_year = {
+        2022: {"10601", "11763", "14863", "15501"},
+        2023: {"10601", "11763"},
+        2025: {"19200", "40858"},
+        2026: {"19200", "40858", "41412"},
+    }
+
+    class Filings:
+        years = (2022, 2023, 2024, 2025, 2026)
+        known_registrations = frozenset({"19200", "40858", "41412"})
+
+    spec = cf.DATASETS[0]
+    check = cf._registrations_resolve(spec, measured, Filings())
+    assert check.status == "passed", check.detail
+    assert "0 of 3 filer registration numbers in 2025, 2026" in check.detail
+
+    # A shifted column in the newest years still fails.
+    measured.filer_numbers_by_year[2026] = {"Individual", "Retired", "Teacher"}
+    measured.filer_numbers_by_year[2025] = {"Individual"}
+    check = cf._registrations_resolve(spec, measured, Filings())
+    assert check.status == "failed", check.detail
+    assert "ceiling" in check.detail
+
+
 def test_the_contributor_side_of_a_row_is_counted_and_never_checked(
     db, board, store
 ) -> None:
