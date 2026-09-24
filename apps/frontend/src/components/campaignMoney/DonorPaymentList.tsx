@@ -27,6 +27,9 @@ import {
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { contentTabStyle } from '../../theme/contentTabs';
 import { LobbyingDonationContext } from '../lobbying/LobbyingDonationContext';
+import { statementCountFragment } from '../../lib/disclosureStatementCopy';
+import { onPaymentFocusRequest, paymentElementId } from '../../lib/paymentFocusRequest';
+import { DisclosureStatementPanel } from './DisclosureStatementPanel';
 
 function wash(hex: string): string {
   const value = Number.parseInt(hex.slice(1), 16);
@@ -43,6 +46,7 @@ export function DonorPaymentList({
   onRetry,
   selectedSort,
   onSelectSort,
+  showStatements = false,
 }: {
   groups: MoneyDetailsGroup[];
   year: number;
@@ -53,6 +57,9 @@ export function DonorPaymentList({
   onRetry: () => void;
   selectedSort?: MoneyDetailsSort;
   onSelectSort?: (sort: MoneyDetailsSort) => void;
+  /** The committee page draws each payment's disclosure statement; other pages do not
+   *  (#2347). */
+  showStatements?: boolean;
 }) {
   const s = useDetailsStyles();
   const { isMobile } = useResponsive();
@@ -94,8 +101,46 @@ export function DonorPaymentList({
     setShowAll(false);
     setOpen(new Set());
   }, [year, tab]);
+  // A matched notice asks for its payment (#2347): select that tab, open that donor's
+  // row, and move focus to the payment itself. Declared after the reset above, so a tab
+  // change's reset runs first and the requested row stays open.
+  const pending = useRef<{ tab: string; groupKey: string; recordNumber: number } | null>(null);
+  const [requestTick, setRequestTick] = useState(0);
+  const [focusTarget, setFocusTarget] = useState<number | null>(null);
+  useEffect(
+    () =>
+      onPaymentFocusRequest((request) => {
+        pending.current = request;
+        if (request.tab !== tab) onSelectTab(request.tab as MoneyDetailsTab);
+        setRequestTick((tick) => tick + 1);
+      }),
+    [tab, onSelectTab],
+  );
   const data = tabDetails(groups, tab);
   const shown = sortMoneyGroups(data.groups, sort, query);
+  useEffect(() => {
+    const request = pending.current;
+    if (!request || request.tab !== tab || !ready) return;
+    pending.current = null;
+    setQuery('');
+    const index = sortMoneyGroups(tabDetails(groups, tab).groups, sort, '').findIndex(
+      (group) => group.key === request.groupKey,
+    );
+    if (index >= 10) setShowAll(true);
+    setOpen((previous) => new Set(previous).add(request.groupKey));
+    setFocusTarget(request.recordNumber);
+  }, [requestTick, tab, ready, groups, sort]);
+  useEffect(() => {
+    if (focusTarget === null) return;
+    const element = (globalThis.document?.getElementById?.(paymentElementId(focusTarget)) ??
+      null) as HTMLElement | null;
+    if (!element) return;
+    // Instant under reduced motion (build-facts §2, N4).
+    const reduced = Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+    element.scrollIntoView?.({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+    element.focus?.({ preventScroll: true });
+    setFocusTarget(null);
+  }, [focusTarget, open, showAll]);
   const visible = showAll ? shown : shown.slice(0, 10);
   const current = MONEY_DETAILS_TABS.find((item) => item.id === tab)!;
   const isExpenditures = tab === 'expenditures';
@@ -125,6 +170,7 @@ export function DonorPaymentList({
                   style={[
                     s.controlText,
                     styles.tabLabel,
+                    tab === item.id && styles.selectedTab,
                     tab !== item.id &&
                       !(state as { hovered?: boolean }).hovered &&
                       styles.inactiveTab,
@@ -222,6 +268,7 @@ export function DonorPaymentList({
                     group={group}
                     first={index === 0}
                     year={year}
+                    showStatements={showStatements}
                     expanded={open.has(group.key)}
                     onToggle={() =>
                       setOpen((previous) => {
@@ -268,12 +315,14 @@ function PaymentGroup({
   year,
   expanded,
   onToggle,
+  showStatements,
 }: {
   group: MoneyDetailsGroup;
   first: boolean;
   year: number;
   expanded: boolean;
   onToggle: () => void;
+  showStatements: boolean;
 }) {
   const s = useDetailsStyles();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -285,11 +334,18 @@ function PaymentGroup({
   const href = slug ? routePath.moneyCommittee(slug, { year: String(year) }) : null;
   const count = group.payments.length;
   const [hovered, setHovered] = useState(false);
+  // S1: how many of these payments carry a statement, so the row's total never reads as
+  // attributed as a whole. Printed only where at least 1 does.
+  const withStatement = showStatements
+    ? group.payments.filter((payment) => 'receivedOn' in payment && payment.disclosureStatement)
+        .length
+    : 0;
   const details = [
     ...group.employers,
     ...(group.types.includes('Candidate Committee') ? [copy.candidateCommittee] : []),
     ...(group.tab === 'other' ? group.types.filter(Boolean) : []),
     copy.payments(count),
+    ...(withStatement ? [statementCountFragment(withStatement, count)!] : []),
   ].join(' · ');
   return (
     <View style={!first && styles.group}>
@@ -356,8 +412,19 @@ function PaymentGroup({
                     payment.contributorZip ?? null,
                   )
                 : null;
+            const statement =
+              showStatements && received ? (payment.disclosureStatement ?? null) : null;
             return (
-              <View key={index} style={styles.payment}>
+              <View
+                key={index}
+                style={styles.payment}
+                nativeID={
+                  payment.recordNumber !== undefined
+                    ? paymentElementId(payment.recordNumber)
+                    : undefined
+                }
+                {...(payment.recordNumber !== undefined ? { tabIndex: -1 as const } : {})}
+              >
                 <View style={[styles.paymentRow, isMobile && styles.paymentMobile]}>
                   <Text style={[s.small, styles.paymentDate]}>
                     {formatDay(date) ?? copy.dateMissing}
@@ -410,6 +477,13 @@ function PaymentGroup({
                 </View>
                 {location ? (
                   <Text style={[s.small, styles.paymentLocation]}>{location}</Text>
+                ) : null}
+                {statement ? (
+                  <DisclosureStatementPanel
+                    statement={statement}
+                    donor={group.printedName}
+                    giftDate={date}
+                  />
                 ) : null}
               </View>
             );
@@ -574,6 +648,7 @@ const styles = StyleSheet.create({
   tabLabel: { fontSize: 17, fontWeight: '700', ...({ whiteSpace: 'nowrap' } as object) },
   tabCount: { fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] },
   inactiveTab: { color: c.muted },
+  selectedTab: { color: c.link },
   panel: { gap: 14, minWidth: 0 },
   toolbar: { zIndex: 2, alignItems: 'stretch', justifyContent: 'flex-end' },
   search: {

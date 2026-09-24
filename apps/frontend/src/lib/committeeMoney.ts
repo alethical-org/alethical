@@ -566,9 +566,14 @@ export const RECORD_COVERS_HEADING = 'What this record covers';
 /** Each coverage entry is a standalone text unit, even when it wraps on a phone.
  * Single-sentence units omit the final period; real multi-sentence paragraphs,
  * legal text and serious warnings retain their punctuation. */
-export function recordCoverageLines(isBallot: boolean): string[] {
+export function recordCoverageLines(isBallot: boolean, isPartyUnit = false): string[] {
   const lines = [
-    'Campaign finance reports filed with the Minnesota Campaign Finance and Public Disclosure Board',
+    // A party unit files neither large-contribution notices nor receives disclosure
+    // statements, so its record is reports alone; every other filer's page can show all
+    // 3 kinds (#2347, copy proposal P1).
+    isPartyUnit
+      ? 'Campaign finance reports filed with the Minnesota Campaign Finance and Public Disclosure Board'
+      : 'Campaign finance reports, large-contribution notices and disclosure statements filed with the Minnesota Campaign Finance and Public Disclosure Board',
     'Campaign finance figures in our copy start in 2015',
     OFFICIAL_TOTAL_RECORD_LIMIT,
   ];

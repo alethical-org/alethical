@@ -586,6 +586,13 @@ def test_without_a_known_report_end_no_notice_claims_to_follow_one(
     assert rows["MADURO DISTRIBUTORS INC"] == "no_exact_match"
 
 
+def test_no_copy_yet_is_never_held_for_a_day(db, client):
+    _restore_sanity_money(db)
+    answer = client.get(f"/api/v1/committees/{RESTORE_SANITY}/notices?year=2026")
+    assert answer.json()["data"]["state"] == "unavailable"
+    assert "stale-while-revalidate=86400" not in answer.headers.get("cache-control", "")
+
+
 def test_the_card_is_absent_for_a_party_unit_and_for_an_uncovered_year(
     db, monkeypatch, client
 ):

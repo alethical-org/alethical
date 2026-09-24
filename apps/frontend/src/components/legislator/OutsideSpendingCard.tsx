@@ -99,8 +99,8 @@ export function OutsideSpendingCard({
         // A failed request is our problem, and saying nothing at all would leave the
         // reader thinking the figures were 0.
         <Text style={styles.note}>
-          We could not load this right now. This is a problem at our end and says nothing about what
-          was spent.
+          We could not load this right now. This is a problem on our side and says nothing about
+          what was spent.
         </Text>
       ) : sharedReason ? (
         <Text style={[styles.note, styles.sharedReason]}>{sharedReason}</Text>

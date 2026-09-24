@@ -23,9 +23,12 @@ export function CommitteeDonations({
   onPreferences,
   headingLevel,
   isBallot = false,
+  showStatements = false,
 }: {
   committee: Pick<CampaignCommitteeMoney, 'registrationNumber' | 'split'>;
   headingLevel?: 2 | 3;
+  /** Only the committee page draws disclosure statements inside payment rows (#2347). */
+  showStatements?: boolean;
   /** A ballot-question filer's naming line is $500 rather than $200, so the dek above
    *  the chart has to know which kind of filer this page is about. */
   isBallot?: boolean;
@@ -77,6 +80,7 @@ export function CommitteeDonations({
         year={year}
         tab={preferences.tab}
         onSelectTab={(tab) => onPreferences({ ...preferences, tab })}
+        showStatements={showStatements}
         selectedSort={preferences.sort}
         onSelectSort={(sort) => onPreferences({ ...preferences, sort })}
         ready={details.selectedComplete && !failed}

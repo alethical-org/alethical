@@ -69,6 +69,8 @@ import {
   type PageDataEntry,
 } from "../apps/frontend/src/lib/pageData";
 import { servedClaimAgeMs } from "../apps/frontend/src/lib/currentClaimFreshness";
+import { committeeNoticesFromPayload } from "../apps/frontend/src/lib/committeeNotices";
+import { unlinkedStatementsFromPayload } from "../apps/frontend/src/lib/disclosureStatementCopy";
 import {
   committeeConfirmationFromPayload,
   committeeConfirmationQueryKey,
@@ -88,7 +90,9 @@ import {
 import {
   FIRST_PAYMENTS_LIMIT,
   committeeMoneyQueryKey,
+  committeeNoticesQueryKey,
   committeePaymentsListQueryKey,
+  unlinkedStatementsQueryKey,
   paymentsTabFromParam,
   registrationNumberFromSlug,
   committeeSlug,
@@ -1036,6 +1040,41 @@ async function committeeConfirmation(registrationNumber: string) {
   }
 }
 
+/** One committee's large-contribution notices for one year, or `null` on any failure,
+ *  including an answer the card could not read: that is never seeded or served. */
+async function committeeNotices(registrationNumber: string, year: number): Promise<unknown> {
+  try {
+    const payload = await getApiData<unknown>(
+      `/committees/${encodeURIComponent(registrationNumber)}/notices?year=${year}`,
+    );
+    const notices = committeeNoticesFromPayload(payload);
+    return notices && notices.registrationNumber === registrationNumber && notices.year === year
+      ? payload
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** One committee-year's statements linked to no payment, or `null` on any failure or
+ *  unreadable answer: a failed read is never served as an empty list. */
+async function committeeUnlinkedStatements(
+  registrationNumber: string,
+  year: number,
+): Promise<unknown> {
+  try {
+    const payload = await getApiData<unknown>(
+      `/committees/${encodeURIComponent(registrationNumber)}/disclosure-statements?year=${year}`,
+    );
+    const listed = unlinkedStatementsFromPayload(payload);
+    return listed && listed.registrationNumber === registrationNumber && listed.year === year
+      ? payload
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The caller handles report and payment failures separately, retaining either
  * successful answer and declaring a missing committee only after both return 404. */
 async function committeePayments(
@@ -1062,9 +1101,15 @@ async function committeeContent(
   const { registrationNumber, year } = committeeRead(slug, requestedYear);
   // Neither read needs the other's answer. Payment lists use their own complete
   // selected-year reads in the app, so a short payment seed would not be consumed.
-  const [money, confirmationRead] = await Promise.all([
+  // The notices card's read rides beside the money (#2347). It is optional: a failed
+  // or missing answer serves no notices section and the app loads the card itself.
+  // Filed reports and Independent spending cover all years and draw no notices card.
+  const withNotices = view.tab !== 'filings' && view.tab !== 'by';
+  const [money, confirmationRead, notices, unlinkedStatements] = await Promise.all([
     committeeFinance(registrationNumber, year),
     committeeConfirmation(registrationNumber),
+    withNotices ? committeeNotices(registrationNumber, year) : Promise.resolve(null),
+    withNotices ? committeeUnlinkedStatements(registrationNumber, year) : Promise.resolve(null),
   ]);
   const data: PageDataEntry[] = [
     {
@@ -1072,6 +1117,15 @@ async function committeeContent(
       payload: money,
     },
   ];
+  if (notices !== null) {
+    data.push({ key: committeeNoticesQueryKey(registrationNumber, year), payload: notices });
+  }
+  if (unlinkedStatements !== null) {
+    data.push({
+      key: unlinkedStatementsQueryKey(registrationNumber, year),
+      payload: unlinkedStatements,
+    });
+  }
   if (confirmationRead) {
     data.push({
       key: committeeConfirmationQueryKey(registrationNumber),
@@ -1082,6 +1136,8 @@ async function committeeContent(
   const snapshot = committeePageSnapshot(money, registrationNumber, {
     ...view,
     confirmedFor: confirmationRead?.confirmation.confirmedFor,
+    ...(notices !== null ? { notices } : {}),
+    ...(unlinkedStatements !== null ? { unlinkedStatements } : {}),
   });
   return {
     noStore: confirmationRead === null,

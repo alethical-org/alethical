@@ -1,6 +1,6 @@
 <!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneyByRaceScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/screens/redesign/PaymentsUnderNameScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/components/campaignMoney/TrackCommitteeButton.tsx, apps/frontend/src/lib/trackCommitteeButton.ts, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts, apps/frontend/src/components/read/SetBox.tsx, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyByRace.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/lib/paymentsUnderName.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/screens/redesign/OutsideSpendingScreen.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/outside_spending.py, apps/frontend/src/lib/pageData.ts, apps/frontend/src/components/campaignMoney/CommitteeDonations.tsx, apps/frontend/src/components/campaignMoney/DonorBreakdown.tsx, apps/frontend/src/components/campaignMoney/DonorPaymentList.tsx, apps/frontend/src/components/campaignMoney/GroupedOutsideSpending.tsx, apps/frontend/src/lib/committeeConfirmation.ts, apps/frontend/src/lib/committeePaymentsPage.ts, apps/frontend/src/lib/committeeMoneyShared.ts -->
 
-<!-- describes: apps/frontend/src/components/campaignMoney/MoneyDetailsBundle.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsOnDemand.tsx, apps/frontend/src/hooks/useCampaignMoneyYearStates.ts, apps/frontend/src/lib/committeeMoneyPreferences.ts, apps/frontend/src/lib/campaignMoneyDetailsPageCopy.ts, apps/frontend/src/lib/campaignMoneyPreferences.ts, apps/frontend/src/lib/groupedOutsideSpendingCopy.ts, apps/frontend/src/lib/committeeOutsideSpending.ts -->
+<!-- describes: apps/frontend/src/components/campaignMoney/MoneyDetailsBundle.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsOnDemand.tsx, apps/frontend/src/hooks/useCampaignMoneyYearStates.ts, apps/frontend/src/lib/committeeMoneyPreferences.ts, apps/frontend/src/lib/campaignMoneyDetailsPageCopy.ts, apps/frontend/src/lib/campaignMoneyPreferences.ts, apps/frontend/src/lib/groupedOutsideSpendingCopy.ts, apps/frontend/src/lib/committeeOutsideSpending.ts, apps/frontend/src/components/campaignMoney/CommitteeNoticesCard.tsx, apps/frontend/src/components/campaignMoney/DisclosureStatementPanel.tsx, apps/frontend/src/lib/committeeNotices.ts, apps/frontend/src/lib/disclosureStatementCopy.ts, apps/frontend/src/components/campaignMoney/UnlinkedStatementsCard.tsx, alethical/api/services/committee_notices.py -->
 
 # How the Money in politics section works
 
@@ -1028,6 +1028,57 @@ Campaign money, top to bottom:
    choice on an older address. The first HTML response keeps them on its Year and Filed reports
    links too; the separate every-payment addresses retain their own existing parameters.
 
+   **Disclosure statements inside their payments** ([issue 2347](https://github.com/alethical-org/alethical/issues/2347)).
+   An unregistered association giving to an independent-expenditure committee or fund
+   files a disclosure statement naming where the money for that contribution came from.
+   On this page only, each statement linked to a payment sits inside the one payment whose
+   donor, date and amount the statement names, open whenever that row is open. The link is
+   made on the server against the committee's whole year of payments, ignoring only letter
+   case and surrounding spaces, so no search, tab or page of the list changes it. Whether a
+   payment carries one is known when the list loads; a read statement's details load when
+   the row opens.
+   - A collapsed row holding at least 1 adds, after its payment count, **3 with a
+     disclosure statement**, **all 5 with a disclosure statement**, or, on a single
+     payment, **with a disclosure statement**, so the row's total never reads as
+     attributed as a whole. A payment with no statement prints nothing new, and no gift
+     ever says it has no statement.
+   - The panel is labelled **DISCLOSURE STATEMENT** and is a group named
+     “Disclosure statement”. A statement whose donor ticked box 3 prints “This statement
+     names the sources below for this contribution”, then **Schedule A1** (Name · City,
+     state · Amount; a table on wider screens, one labelled cell per value on a phone),
+     then **Line A · Total of itemized sources**, **Line B · Amount from sources not
+     required to be itemized** and **Line C · Amount from business revenue**. A line the
+     filer left blank prints **Not reported**, never $0. Each source's name prints exactly
+     as its filing spells it.
+   - Box 1 prints “The donor reports using only business revenue for this contribution”.
+     Box 2 prints “The donor reports giving $5,000 or less in total to Minnesota
+     independent-expenditure committees and funds this year, so this statement lists no
+     sources”.
+   - A read statement ends with **Signed: {date} · Received by the Board: {date}**, each
+     half only where the form states it, and **View statement PDF**, whose spoken name adds
+     the donor and the contribution date: “View statement PDF, North Metro Harness
+     Initiative, LLC, Jun 9, 2026”.
+   - A statement we hold whose details nobody has read yet prints “We have this statement,
+     but have not yet read its details” beside the PDF.
+   - Loading prints “Loading statement details…” as a spoken status. A failed first read
+     prints “We couldn’t load this statement’s details. You can still open its PDF.”,
+     **Try again**, and the PDF. A failed refresh keeps the details loaded earlier under
+     “We couldn’t refresh this statement’s details. The details below were loaded
+     earlier.” and **Try again**. Each statement loads and fails on its own.
+   - Sources print a name, a city and a state, never a ZIP or a street, and the officer
+     who signed is never printed. No statement amount is added to anything, and nothing
+     implies a source controls the committee, caused its spending or gave another gift.
+   - The statements' PDFs are scanned images, so a person reads each one and records it
+     in `alethical/pipeline/data/disclosure_statement_readings.json`. The Board numbers a
+     committee's statements afresh for every report, so a statement is its report and its
+     number; a second copy of a statement filed under a later report is kept and shown
+     once.
+   - When the tab shows a statement, linked or not, **Minnesota’s report catalogue copied
+     {date}** prints under the payment-file freshness line, 16px in, dating the catalogue
+     copy the statements came from. Filed reports lists neither statements nor notices.
+   - The selected donor-kind tab, like the selected section tab above it, prints its
+     label in green (`#0f7a45`, weight 700) over the green underline (`#2ed47e`).
+
    The section selector uses unboxed 17px labels above a shared thin line. A dark
    3px underline marks the selected section. Controls keep at least a 44px target
    and wrap when needed. The saved `gave`, `filings` and `by` values remain valid.
@@ -1035,8 +1086,86 @@ Campaign money, top to bottom:
    grouped outside spending. The separate `/payments?tab=gave|spent&year=…` addresses
    retain their complete received and outgoing lists.
 
-9. **Where itemized individual contributions came from**, after the **View receipts and
-   expenditures** link. Its own card, with nothing to click to reach the figures. A bar
+9. **Large-contribution notices**, directly after the **View receipts and expenditures**
+   link and before the location card ([issue 2347](https://github.com/alethical-org/alethical/issues/2347)).
+   When both payment lists are empty it draws straight after the filing stamp. A notice
+   is how a committee tells the Minnesota Campaign Finance Board, by the end of the next
+   business day, about money from one source received in the days before an election
+   ([Minnesota Statutes 10A.20, subdivision 5](https://www.revisor.mn.gov/statutes/cite/10A.20#stat.10A.20.5)).
+   - The card is a region named by its heading, **Large-contribution notices**, then a
+     3-sentence lead: “A committee must tell the Minnesota Campaign Finance Board by the
+     end of the next business day when money from one source adding up to {threshold}
+     arrives in the days just before an election. The same money appears again as an
+     ordinary payment once the committee files its next report, so a notice is never a
+     second gift. No notice amount is added to any total on this page.” The threshold is
+     “more than $1,000” for a committee or fund, “more than $2,000” for an appellate court
+     candidate, “more than $400” for a district court candidate, and “more than half of
+     what one source may give it in the election cycle” for a legislative or
+     constitutional candidate.
+   - Notices are grouped by window, each a group labelled by its name and its dates:
+     **Before the primary · Jul 21 – Aug 10, 2026** and **Before the general election ·
+     Oct 20 – Nov 2, 2026**. A window not open yet on the reader's Minnesota today
+     carries the chip **Not open yet** and nothing under it; an open one carries **Open
+     now, so more may arrive**. An open or past window with no notice from this committee
+     prints “The Board’s list held no notice from this committee for these dates when we
+     last copied it”.
+   - Only windows that apply draw. A ballot-question committee or fund, and a candidate
+     unopposed in the primary, has no primary window; a candidate not on the
+     general-election ballot has no October window. Candidates are matched to the
+     Secretary of State's primary and general candidate files by office, district and
+     surname; one found in neither, and every judicial candidate, keeps both windows.
+   - Each notice, newest contribution first: the contributor as filed and the amount (the
+     amount moves under the name on a phone); the bold contribution date, **Received by
+     the Board: {date}** where the notice states it (one of the 2 notice layouts prints
+     none), the employer as filed, **DONATED GOODS OR SERVICES** with the filed
+     description, and **LOAN**; then its status and **View notice PDF**, whose spoken name
+     adds the contributor and the date: “View notice PDF, HEAD, MARTHA M, Aug 6, 2026”.
+   - The status is one of 3. A payment row with the same contributor, date and amount,
+     ignoring only letter case and surrounding spaces, gives the link “Also a payment in
+     the list above, under {tab}”, which selects that tab, opens the row and moves focus
+     to the payment (instantly under reduced motion). A gift dated after the end of the
+     latest report in our copy, where that date is known, prints “Our latest copied report
+     covers dates through {date}”. Every other notice prints “We have not linked this
+     notice to a payment in our copied records”, which names no cause.
+   - An amended notice shows its latest filing marked **AMENDED**, with “As first filed:
+     {value}” beneath it, and “Amended means the committee filed a revised version” under
+     the windows.
+   - The foot is **Minnesota’s list of large-contribution notices** (a link to the Board's
+     page) followed by “copied {date}”.
+   - Loading prints “Loading the large-contribution notices…” as a spoken status with 3
+     placeholder rows. A failure prints “We couldn’t load these notices. This is a problem
+     on our side and says nothing about the committee.” and **Try again**, with no
+     windows and no zero.
+   - The card is absent for a party unit, for a year no copy of the Board's list covers
+     (the list carries the current election year only), and for a filer every window is
+     ruled out for. Absent by scope, never drawn empty.
+   - The text served before the app loads repeats the lead, each window with its chip,
+     every notice line with its status, each PDF link and the foot.
+   - Collection: `.github/workflows/campaign-money-notices.yml` copies the Board's list
+     daily from 20 Oct to 6 Nov 2026 and weekly otherwise, keeping each notice PDF once.
+
+   **Statements not linked to a payment** follows the notices card, on every filer's page
+   including a party unit's. It lists the year's disclosure statements that name no
+   payment row exactly, read on their own so the payment list's search, donor-kind tabs
+   and failures can never hide one.
+   - The card is a region named by its heading, **Statements not linked to a payment**,
+     then “We have these statements, but have not linked them to individual payments in
+     our copied records”.
+   - Each statement is the panel above, with its own 4 fields first, labelled at every
+     width: **Donor**, **Recipient**, **Contribution date** and **Contribution amount**, as
+     stated in the filing. A statement nobody has read prints **Not yet read** for all 4,
+     never a guessed donor, date or amount, and never $0.
+   - Loading prints “Loading these statements…” as a spoken status. A failure prints “We
+     couldn’t load these statements. This is a problem on our side and says nothing about
+     the committee.” and **Try again**; a failed refresh keeps the list under “We couldn’t
+     refresh these statements. The statements below were loaded earlier.”
+   - The card is absent only once a successful answer says every statement for the year is
+     linked. A failed or unfinished read is never an empty list, and a slower answer for a
+     year no longer selected never replaces the one on screen.
+   - The text served before the app loads repeats the heading, the sentence, each
+     statement's 4 fields and its PDF link.
+
+10. **Where itemized individual contributions came from**, after the statements card. Its own card, with nothing to click to reach the figures. A bar
    shows Minnesota, other states and unknown as shares of every itemized individual
    contribution dollar the committee took that year, in a green (#0f7a45), a blue
    (#2f6fb5) and an amber (#a8741a). Nothing on the card is carried by colour alone:
@@ -1060,7 +1189,7 @@ Campaign money, top to bottom:
    political fund or a party organisation, which this display does not cover; that
    absence is never a statement that they took no individual contributions.
 
-10. **More on this year’s contributions**, 18px below the location card. This shared
+11. **More on this year’s contributions**, 18px below the location card. This shared
    panel contains **What the committee’s own report says** and **Contributor names also
    listed for other candidates**, in that order. Each row starts closed on a fresh
    address, and several can stay open. Open rows are recorded in the address for the
@@ -1076,7 +1205,7 @@ Campaign money, top to bottom:
    focus ring surrounds the arrow's rounded 44px area, with the arrow centred and
    no second keyboard stop.
 
-11. **Spending by outside groups**, after the shared contribution panel. It
+12. **Spending by outside groups**, after the shared contribution panel. It
     follows the selected year and groups spending about this registration number by
     spender, with supporting and opposing separate. Each spender's chip reads
     **Supporting**, **Opposing** or **Not stated**, in the same words the row gives a
@@ -1086,13 +1215,23 @@ Campaign money, top to bottom:
     complete payments from the same source copy. The chart and source dates for the
     committee's own money do not establish the outside file's date or completeness.
     A failed grouped read keeps any independently served figures and says the list
-    failed; it never invents a count of spenders.
+    failed; it never invents a count of spenders. When the piece that draws these
+    details cannot load, the card says “We could not load this right now. This is a
+    problem on our side and says nothing about what was spent.” with **Try again**. Every
+    retry control on the Campaign money tab reads **Try again**, and every failure of
+    ours says it is a problem **on our side** (copy proposals P2 and P3,
+    [issue 2347](https://github.com/alethical-org/alethical/issues/2347)).
 
-12. **What this record covers** contains 3 standalone lines:
+13. **What this record covers** contains 4 standalone lines:
 
-    - Campaign finance reports filed with the Minnesota Campaign Finance and Public Disclosure Board
+    - Campaign finance reports, large-contribution notices and disclosure statements filed with the Minnesota Campaign Finance and Public Disclosure Board
     - Campaign finance figures in our copy start in 2015
-    - Committees need not name contributors who gave $200 or less in total during the calendar year
+    - Official report totals can include contributions without donor names. Individual records shown here may not add up to those totals.
+    - Committees need not name contributors who gave $200 or less to that committee in total during the calendar year
+
+    A party unit's page, which can show neither notices nor statements, prints the first
+    line as “Campaign finance reports filed with the Minnesota Campaign Finance and Public
+    Disclosure Board”.
 
     A ballot-question committee uses the same last line with **$500** instead of
     **$200**. Each page states only its own figure, because

@@ -128,7 +128,7 @@ describe('outsideSpendingLoadFailure', () => {
     // Two different facts. Telling a reader the state filings are out of date because
     // our network dropped is a claim we cannot support.
     const reason = outsideSpendingUnavailableReason(outsideSpendingLoadFailure(2026));
-    expect(reason).toContain('problem at our end');
+    expect(reason).toContain('problem on our side');
     expect(reason).not.toMatch(/out of date|cannot add up|committee/i);
     expect(reason).not.toMatch(/\$0|\bzero\b/i);
   });

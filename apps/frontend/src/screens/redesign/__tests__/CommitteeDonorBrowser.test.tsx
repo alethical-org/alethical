@@ -701,7 +701,12 @@ describe('one committee shares the donation browser', () => {
     expect(host.textContent).toContain('DFL House Caucus');
     expect(host.textContent).not.toContain("this legislator's campaign");
     expect(host.textContent).not.toContain('Covers the one committee somebody has confirmed');
-    expect(request.mock.calls.map(([path]) => path)).toHaveLength(3);
+    // Payments, outside spending, and the year's notices and statements (#2347).
+    expect(request.mock.calls.map(([path]) => path)).toHaveLength(5);
+    expect(request.mock.calls.filter(([path]) => path.includes('/notices?'))).toHaveLength(1);
+    expect(
+      request.mock.calls.filter(([path]) => path.includes('/disclosure-statements?')),
+    ).toHaveLength(1);
     expect(request.mock.calls.every(([path]) => path.includes('year=2025'))).toBe(true);
     expect(request.mock.calls.filter(([path]) => path.includes('group_by=spender'))).toHaveLength(
       1,
@@ -810,8 +815,15 @@ describe('one committee shares the donation browser', () => {
       'No outside group reported spending to support or oppose this committee in 2025',
     );
     expect(host.textContent).toContain('Independent spending');
-    expect(request.mock.calls).toHaveLength(9);
-    expect(request.mock.calls.every(([path]) => path.includes('/20003/payments'))).toBe(true);
+    // A party unit reads no notices, and does read its statements (#2347).
+    expect(request.mock.calls).toHaveLength(10);
+    expect(
+      request.mock.calls.every(
+        ([path]) =>
+          path.includes('/20003/payments') || path.includes('/20003/disclosure-statements?'),
+      ),
+    ).toBe(true);
+    expect(request.mock.calls.some(([path]) => path.includes('/notices?'))).toBe(false);
     click(tab('Expenditures'));
     expect(host.textContent).toContain('Total itemized expenditures$5,150,294');
     expect(vi.mocked(useOutsideSpending)).toHaveBeenCalledWith({ spender: '20003' }, 'newest');

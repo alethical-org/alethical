@@ -50,6 +50,33 @@ import {
 import { citationSectionHref } from './billText';
 import type { CommitteeConfirmation, MoneyFilingsFeed } from '../data/types';
 import { CONFIRMATION_UNAVAILABLE_LINE } from './committeeConfirmation';
+import {
+  committeeNoticesFromPayload,
+  minnesotaToday,
+  noticeDetailParts,
+  noticeFirstFiledLine,
+  noticePdfAccessibleName,
+  noticesCardDraws,
+  noticesCopiedLine,
+  noticesLead,
+  noticeStatusText,
+  noticeWindowDates,
+  NOTICE_AMENDED_NOTE,
+  NOTICE_WINDOW_NONE,
+  NOTICE_WINDOW_NOT_OPEN,
+  NOTICE_WINDOW_OPEN,
+  NOTICES_HEADING,
+  windowOpenState,
+} from './committeeNotices';
+import {
+  STATEMENT_NOT_READ,
+  STATEMENT_NOT_YET_READ,
+  statementPdfAccessibleName,
+  UNLINKED_FIELD_LABELS,
+  UNLINKED_HEADING,
+  UNLINKED_LEAD,
+  unlinkedStatementsFromPayload,
+} from './disclosureStatementCopy';
 import { BOARD_RECORD_LINK_LABEL, boardRecordUrl } from './boardRecordLink';
 import {
   committeeMoneyPreferences,
@@ -125,6 +152,7 @@ import {
 } from './moneyByRace';
 import type { MoneyByRacePage } from '../data/types';
 import {
+  AMENDED_CHIP,
   CLOSED_EMPTY_VALUE,
   CLOSED_MONEY_IN_WHY,
   closedPeriodDetail,
@@ -145,7 +173,9 @@ import {
   formerRegisterChipLabel,
   formerRegisterNote,
 } from './committeeMoney';
-import { dekText, namedMoneyDefinition } from './campaignMoneyDetailsCopy';
+import { dekText, moneyDetailsCopy, namedMoneyDefinition } from './campaignMoneyDetailsCopy';
+import { contributionTab, MONEY_DETAILS_TABS } from './campaignMoneyDetails';
+import { formatDay as formatNoticeDay } from './moneyFormat';
 import {
   inKindDonationsNote,
   NOT_A_DONATION_HEADING,
@@ -1888,6 +1918,103 @@ export function committeeSnapshotName(
   return committeeIdentity(money, fallbackRegistrationNumber).name;
 }
 
+/**
+ * The large-contribution notices card as plain text (#2347): the same words the card
+ * draws, in its order, so a reader of the served page gets every notice, its status,
+ * its window's chip and the list's copy date before the app loads. `null` wherever the
+ * card itself draws nothing.
+ */
+function committeeNoticesSection(
+  payload: unknown,
+  today: string,
+): { heading: string; blocks: SnapshotBlock[] } | null {
+  const notices = committeeNoticesFromPayload(payload);
+  if (!notices || !noticesCardDraws(notices)) return null;
+  const blocks: SnapshotBlock[] = [{ kind: 'prose', lines: [noticesLead(notices.threshold)] }];
+  for (const window of notices.windows) {
+    const state = windowOpenState(window, today);
+    const chip =
+      state === 'open' ? NOTICE_WINDOW_OPEN : state === 'not_open' ? NOTICE_WINDOW_NOT_OPEN : null;
+    blocks.push({
+      kind: 'prose',
+      lines: [[window.label, noticeWindowDates(window), chip].filter(Boolean).join(' · ')],
+    });
+    if (state === 'not_open') continue;
+    if (!window.notices.length) {
+      blocks.push({ kind: 'prose', lines: [NOTICE_WINDOW_NONE] });
+      continue;
+    }
+    blocks.push({
+      kind: 'bullets',
+      items: window.notices.map((notice) => {
+        const tab = notice.matchedPayment
+          ? (MONEY_DETAILS_TABS.find(
+              (item) => item.id === contributionTab(notice.matchedPayment!.contributorType),
+            )?.label ?? null)
+          : null;
+        return [
+          notice.amended ? `${notice.contributor} ${AMENDED_CHIP}` : notice.contributor,
+          formatMoney(notice.amount) ?? '',
+          ...noticeDetailParts(notice, moneyDetailsCopy.inKindMarker),
+          ...(notice.amended ? [noticeFirstFiledLine(notice) ?? ''] : []),
+          noticeStatusText(notice, tab, notices.reportCoveredThrough),
+        ]
+          .filter(Boolean)
+          .join(' · ');
+      }),
+    });
+    blocks.push({
+      kind: 'links',
+      items: window.notices.map((notice) => ({
+        label: noticePdfAccessibleName(notice),
+        href: notice.pdfUrl,
+      })),
+    });
+  }
+  if (notices.anyAmended) blocks.push({ kind: 'prose', lines: [NOTICE_AMENDED_NOTE] });
+  blocks.push({
+    kind: 'links',
+    items: [{ label: noticesCopiedLine(notices.copiedOn), href: notices.sourceUrl }],
+  });
+  return { heading: NOTICES_HEADING, blocks };
+}
+
+/** The unlinked-statements card as plain text (#2347): its heading, its sentence, and
+ *  each statement's 4 labelled fields and PDF. The details a read statement loads on
+ *  demand are the app's; every field shown here is one the card also draws. */
+function unlinkedStatementsSection(
+  payload: unknown,
+): { heading: string; blocks: SnapshotBlock[] } | null {
+  const listed = unlinkedStatementsFromPayload(payload);
+  if (!listed || listed.statements.length === 0) return null;
+  const value = (text: string | null) => text ?? STATEMENT_NOT_YET_READ;
+  return {
+    heading: UNLINKED_HEADING,
+    blocks: [
+      { kind: 'prose', lines: [UNLINKED_LEAD] },
+      {
+        kind: 'bullets',
+        items: listed.statements.map((statement) =>
+          [
+            `${UNLINKED_FIELD_LABELS.donor}: ${value(statement.donorName)}`,
+            `${UNLINKED_FIELD_LABELS.recipient}: ${value(statement.recipientName)}`,
+            `${UNLINKED_FIELD_LABELS.date}: ${value(formatNoticeDay(statement.giftDate))}`,
+            `${UNLINKED_FIELD_LABELS.amount}: ${value(formatMoney(statement.giftAmount))}`,
+            ...(statement.state === 'read' ? [] : [STATEMENT_NOT_READ]),
+          ].join(' · '),
+        ),
+      },
+      {
+        kind: 'links',
+        items: listed.statements.map((statement) => ({
+          label: statementPdfAccessibleName(statement.donorName, statement.giftDate),
+          href: statement.pdfUrl,
+        })),
+      },
+    ],
+  };
+}
+
 export function committeePageSnapshot(
   money: CommitteeMoneySnapshotSource,
   fallbackRegistrationNumber: string,
@@ -1896,6 +2023,12 @@ export function committeePageSnapshot(
     category?: string;
     sort?: string;
     confirmedFor?: CommitteeConfirmation['confirmedFor'];
+    /** The notices answer the page function read beside the money, when it succeeded. */
+    notices?: unknown;
+    /** Minnesota's today, for the window chips. */
+    today?: string;
+    /** The unlinked-statements answer the page function read, when it succeeded. */
+    unlinkedStatements?: unknown;
   } = {},
 ): PageSnapshot {
   const identity = committeeIdentity(money, fallbackRegistrationNumber);
@@ -1919,6 +2052,14 @@ export function committeePageSnapshot(
 
   const moneyInBlocks: SnapshotBlock[] = [];
   const moneyOutBlocks: SnapshotBlock[] = [];
+  const noticesSection =
+    !allYears && !identity.isPartyUnit && view.notices !== undefined
+      ? committeeNoticesSection(view.notices, view.today ?? minnesotaToday())
+      : null;
+  const unlinkedSection =
+    !allYears && view.unlinkedStatements !== undefined
+      ? unlinkedStatementsSection(view.unlinkedStatements)
+      : null;
 
   if (identity.state !== 'figures') {
     // A missing year says which of the 2 reasons it is, and never prints a 0.
@@ -2081,9 +2222,11 @@ export function committeePageSnapshot(
           },
           { heading: 'Money in', blocks: moneyInBlocks },
           { heading: 'Money out', blocks: moneyOutBlocks },
+          ...(noticesSection ? [noticesSection] : []),
+          ...(unlinkedSection ? [unlinkedSection] : []),
           {
             heading: RECORD_COVERS_HEADING,
-            body: recordCoverageLines(identity.isBallot),
+            body: recordCoverageLines(identity.isBallot, identity.isPartyUnit),
             bodyIsList: true,
           },
         ],

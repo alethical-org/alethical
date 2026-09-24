@@ -144,7 +144,7 @@ export function outsideSpendingUnavailableReason(year: OutsideSpendingYear): str
   if (year.state === 'reported') return null;
   if (year.state === 'load_failed') {
     return (
-      'We could not load this year. That is a problem at our end and says nothing ' +
+      'We could not load this year. That is a problem on our side and says nothing ' +
       'about what was spent.'
     );
   }
@@ -762,7 +762,7 @@ export function figuresAsAcceptedNote(takenOn: string | null): string {
 
 export const SERVICE_NOT_ANSWERING_TITLE = 'We could not reach our own data service';
 export const SERVICE_NOT_ANSWERING_WHY =
-  'Nothing loaded, so there is nothing to show. That is a problem at our end and says nothing ' +
+  'Nothing loaded, so there is nothing to show. That is a problem on our side and says nothing ' +
   'about what was spent.';
 
 export const SUBJECT_NOT_FOUND_TITLE = 'We hold nothing under this registration number';
