@@ -422,9 +422,26 @@ def clear(
         )
 
     send = requests.post if post is None else post
-    url = PURGE_URL.format(zone_id=values[ZONE_SETTING])
+    # A pasted secret can carry a trailing newline, which is dropped. A value that
+    # still holds a line break or a space is not 1 token or 1 zone id (measured
+    # 24 Sep 2026: the token was saved as 2 lines and every request was refused
+    # before it left the process), so it is named here rather than sent.
+    token = values[TOKEN_SETTING].strip()
+    zone = values[ZONE_SETTING].strip()
+    for name, value in ((TOKEN_SETTING, token), (ZONE_SETTING, zone)):
+        if any(character.isspace() for character in value):
+            return ClearingResult(
+                clearing=clearing,
+                armed=True,
+                ok=False,
+                detail=(
+                    f"{name} holds more than 1 line or a space; save it again as the "
+                    "value alone, on 1 line"
+                ),
+            )
+    url = PURGE_URL.format(zone_id=zone)
     headers = {
-        "Authorization": f"Bearer {values[TOKEN_SETTING]}",
+        "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
     }
     calls = clearing.requests()
