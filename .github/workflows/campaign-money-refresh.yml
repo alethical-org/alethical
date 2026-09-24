@@ -5,23 +5,31 @@ name: Refresh campaign money from the Board
 # weeks behind (https://github.com/alethical-org/alethical/issues/2344, D3).
 #
 # Each run, in this order:
-#   1. takes 1 run-wide lock in the database, shared with hand-started and laptop
-#      runs, so 2 starts at the same minute produce 1 run;
-#   2. re-runs any money re-check left unfinished last time;
+#   1. takes 1 run-wide lease in the database (a row in cf_refresh_state with a 4-hour
+#      expiry), shared with hand-started and laptop runs, so 2 starts at the same
+#      minute produce 1 run; a run whose lease is taken by another before it publishes
+#      does not publish;
+#   2. retries any saved-page clearing, then any money re-check, left unfinished last
+#      time (at most 1 re-check attempt per run);
 #   3. reads the Board's 6 small lists (3 registered-filer lists, 3 current-report
 #      lists) and, on any change of content, or weekly regardless, refreshes the
 #      official totals for EVERY supported year (a totals publication replaces the
-#      whole set, so a 2-year run would erase 2022 to 2023);
+#      whole set, so a 2-year run would erase 2022 to 2023); a list that could not be
+#      read makes the run incomplete and is never recorded as handled;
 #   4. downloads the 3 payment files (about 162 MB; they serve no size, date or change
 #      marker, so a download is the only change detector) and publishes when every
 #      check passes;
 #   5. after any publish, clears the saved pages, runs both money re-checks, and
 #      clears again once their verdicts are live.
 # A quarantine leaves the previous set live, keeps the bytes and the printed reasons,
-# exits non-zero, and the last step opens or updates an issue.
+# and exits non-zero. The script's own summary says which payments release and which
+# totals snapshot are live at the end and whether this run published each; with
+# --alert-issue the script quotes that summary into 1 GitHub issue, opened once and
+# commented on while the run keeps failing. Nothing in this file asserts what is live.
 #
 # Freshness, stated honestly: payments are checked daily; the totals are refreshed
-# when a list changes and weekly.
+# when a list changes and weekly; a run whose lists could not be read is reported as
+# incomplete.
 #
 # 15:30 UTC is 10:30 a.m. Central in summer and 9:30 in winter: after 8 a.m. Central,
 # which is when Minnesota Statutes 10A.20 subd. 1b makes a report public the day
@@ -38,7 +46,7 @@ on:
         type: boolean
         default: false
       prove_alerting:
-        description: "Exit 1 on purpose to prove the issue-filing step, touching nothing"
+        description: "Exit 1 on purpose to prove the alert issue, reading and publishing nothing"
         type: boolean
         default: false
   schedule:
@@ -68,6 +76,9 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
       ALETHICAL_CLEAR_SAVED_ANSWERS: "on"
+      # For --alert-issue: the script files or updates the issue through gh itself, so
+      # a dry run can never file one and the body is the run's own summary.
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -106,24 +117,17 @@ jobs:
       - name: Refresh
         shell: bash
         run: |
-          flags=()
+          flags=(--alert-issue)
           if [ "${{ inputs.force_totals }}" = "true" ]; then flags+=(--force-totals); fi
           if [ "${{ inputs.prove_alerting }}" = "true" ]; then flags+=(--prove-alerting); fi
           PYTHONPATH=. uv run python scripts/refresh_campaign_finance.py \
             --target production "${flags[@]}" 2>&1 | tee refresh-report.txt
 
-      - name: Open or update an issue when the refresh did not finish
+      - name: Keep the printed report when the refresh did not finish
         if: failure()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          title="The daily campaign-money refresh did not finish"
-          report=$(tail -c 60000 refresh-report.txt 2>/dev/null || echo "(no report was written)")
-          body=$(printf 'Net: today'"'"'s refresh of Alethical'"'"'s campaign-money records from Minnesota'"'"'s Campaign Finance Board stopped before every step finished. The previous set is still live and nothing wrong was published; what did not land is named below, and a person decides whether it is a bad download, a known source disagreement, or a real change to publish under a named exception (see issue 2344, D2).\n\n```\n%s\n```\n\nRun: %s. Auto-filed by `.github/workflows/campaign-money-refresh.yml`; the next scheduled run retries on its own.' "$report" "$RUN_URL")
-          existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
-          if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body "Still not finishing as of this run — $RUN_URL"$'\n\n```\n'"$(tail -c 20000 refresh-report.txt)"$'\n```'
-          else
-            gh issue create --title "🚨 $title" --label backend --body "$body"
-          fi
+        uses: actions/upload-artifact@v7
+        with:
+          name: refresh-report
+          path: refresh-report.txt
+          if-no-files-found: ignore
+          retention-days: 30

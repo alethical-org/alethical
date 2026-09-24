@@ -2735,10 +2735,15 @@ class CampaignFinanceRefreshState(Base):
 
     A few keyed values rather than columns: the content hash of each of the Board's 6
     lists as of the last refresh that succeeded (``list:<action>``), when the last full
-    totals refresh ran (``totals_last_full_refresh_at``), and whether a money re-check
-    is still owed after a publish (``recheck_pending``). A value is written only after
-    the work it describes succeeded, so a quarantined day is retried rather than
-    forgotten. Nothing here is a fact about Minnesota; it is our own bookkeeping.
+    totals refresh ran (``totals_last_full_refresh_at``), whether a money re-check is
+    still owed after a publish and for which live release and snapshot
+    (``recheck_pending``), which saved-page clearings are still owed
+    (``clearing_pending``), and the run-wide lease every publication route takes
+    (``full_run_lease``: owner token, purpose, ``acquired_at``, ``expires_at``; a row
+    rather than an advisory lock because production's pooler runs in transaction mode).
+    A value is written only after the work it describes succeeded, so a quarantined day
+    is retried rather than forgotten. Nothing here is a fact about Minnesota; it is our
+    own bookkeeping.
     """
 
     __tablename__ = "cf_refresh_state"

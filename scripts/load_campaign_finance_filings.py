@@ -88,6 +88,9 @@ from alethical.pipeline.cache_purge import (  # noqa: E402
     clear_after_publish,
     when_a_filings_release_lands,
 )
+from alethical.pipeline.campaign_finance_refresh import (  # noqa: E402
+    hold_full_run_lease_until_exit,
+)
 
 
 def main() -> int:
@@ -219,6 +222,14 @@ def main() -> int:
     engine = create_engine(
         database_url, echo=False, connect_args=NO_PREPARED_STATEMENTS
     )
+    # Every publication route takes the run-wide lease the daily refresh takes (#2344,
+    # D3), before any network or database work, so a laptop publish cannot overlap a
+    # scheduled run. A dry run writes nothing, the lease included. Held until this
+    # process exits; a run that dies frees it after 4 hours.
+    if not args.dry_run and not hold_full_run_lease_until_exit(
+        engine, purpose="a hand-run campaign-money totals load"
+    ):
+        return 1
     with Session(engine) as session:
         try:
             if args.restore_filer_years:

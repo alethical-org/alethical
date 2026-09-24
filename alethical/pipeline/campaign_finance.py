@@ -88,7 +88,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any, Iterable, Optional, Sequence
+from typing import Any, Callable, Iterable, Optional, Sequence
 
 import requests
 from sqlalchemy import delete, func, inspect, select, text
@@ -2823,9 +2823,15 @@ def load_campaign_finance(
     waive: Optional[Iterable[str]] = None,
     decision: str = "",
     landing_page: str = LANDING_PAGE,
+    before_publish: Optional[Callable[[], Optional[str]]] = None,
     log=print,
 ) -> LoadReport:
     """Run the whole cycle once and report what happened.
+
+    ``before_publish`` is the caller's last word before the pointer moves: called once,
+    right before ``publish``, and a sentence back means "do not". The daily refresh uses
+    it to prove it still holds the run-wide lease (D3, #2344); a set refused this way is
+    quarantined with that sentence, and the previous set stays live.
 
     ``publish_hashes`` is how an operator publishes a set the comparison checks
     quarantined, including the very first import, which has nothing to compare
@@ -3058,6 +3064,18 @@ def load_campaign_finance(
             return report
 
         if dry_run:
+            return report
+
+        refused = before_publish() if before_publish is not None else None
+        if refused:
+            for outcome in report.outcomes:
+                outcome.checks.append(Check("caller_allows_publish", "failed", refused))
+                quarantine(db, outcome)
+            report.refusal = (
+                f"not published: {refused}. Nothing was published and the previous set "
+                "is still live."
+            )
+            _finish_run(db, ingestion_run_id, report)
             return report
 
         baseline_release = live_release(db)

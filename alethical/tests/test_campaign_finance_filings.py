@@ -2389,3 +2389,51 @@ def test_a_report_documents_filed_date_survives_the_next_refresh_unless_its_vers
     }
     assert again[kept_key].filed_date == date(2026, 7, 24)
     assert again[changed_key].filed_date is None
+
+
+def test_the_callers_last_word_before_publish_can_refuse_and_nothing_goes_live(
+    db, board, store
+) -> None:
+    """The daily refresh's fail-closed lease gate (D3, #2344), at the loader.
+
+    Asked right before the pointer moves, after every check has passed and the
+    comparison checks have been waived by the operator's hash, so nothing earlier can
+    have stopped the run. A sentence back quarantines the run with that sentence;
+    ``None`` back publishes it.
+    """
+    first = run(db, board, store)
+    assert first.blocked, first.summary()
+    asked: list[int] = []
+
+    def refuse() -> str:
+        asked.append(1)
+        return "the run-wide lease is held by another run, not by this run"
+
+    refused = run(
+        db,
+        board,
+        store,
+        publish_hash=first.record_set_hash,
+        waive=["previous_snapshot_to_compare_against"],
+        decision="test",
+        before_publish=refuse,
+    )
+    assert asked == [1]
+    assert not refused.published
+    assert [check.name for check in refused.blocked] == ["caller_allows_publish"]
+    assert filings.live_filings_snapshot(db) is None
+    snapshot = db.get(models.CampaignFinanceFilingSnapshot, refused.snapshot_id)
+    assert snapshot.status == models.CampaignFinanceSnapshotStatus.quarantined
+    assert "not by this run" in snapshot.error_text
+
+    published = run(
+        db,
+        board,
+        store,
+        publish_hash=first.record_set_hash,
+        waive=["previous_snapshot_to_compare_against"],
+        decision="test",
+        before_publish=lambda: None,
+    )
+    assert published.published, published.summary()
+    assert filings.live_filings_snapshot(db).id == published.snapshot_id
