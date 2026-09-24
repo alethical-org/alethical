@@ -41,7 +41,7 @@ import { formatDay, formatMoney } from '../../lib/moneyFormat';
 import { requestPaymentFocus } from '../../lib/paymentFocusRequest';
 import { externalLinkProps } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
-import { GreenLinkArrow } from '../LinkArrow';
+import { LinkArrowLabel } from '../LinkArrow';
 import { Skeleton } from '../Skeleton';
 import { BoardPdfLink, OutwardArrow } from './DisclosureStatementPanel';
 
@@ -316,8 +316,7 @@ function NoticeRow({
               Boolean('focused' in state && state.focused) && styles.focus,
             ]}
           >
-            <Text style={styles.matchedText}>{status}</Text>
-            <GreenLinkArrow />
+            <LinkArrowLabel label={status} style={styles.matchedText} />
           </Pressable>
         ) : (
           <Text style={[styles.statusText, notice.status !== 'matched' && styles.statusBlock]}>
@@ -501,9 +500,8 @@ const styles = StyleSheet.create({
   statusRowStacked: { flexDirection: 'column', alignItems: 'flex-start' },
   matched: {
     minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    flexShrink: 1,
+    justifyContent: 'center',
     borderRadius: 6,
     ...({ outlineStyle: 'none' } as object),
   },
