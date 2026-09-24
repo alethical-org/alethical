@@ -1425,6 +1425,9 @@ RECONCILE_TOLERANCE = Decimal("0.01")
 # recent year, which still leaves it far below the near-100% a shifted column would
 # produce.
 UNKNOWN_FILER_SHARE_CEILING = 0.25
+# How many of the published filings' years the unknown-filer check reads: the newest
+# 2, one election segment, where the current register still describes the filers.
+NEWEST_YEARS_CHECKED = 2
 
 
 def _checks_against_the_board(
@@ -1591,12 +1594,17 @@ def _registrations_resolve(
 ) -> Check:
     """Does every registration number in the years we show name a filer Minnesota lists?
 
-    Asked only of the years the published filings cover, because the directory lists
-    *current* registrants and a filer who deregistered in 2016 is legitimately absent
-    from it. An unknown number is reported rather than treated as fatal, which is what
-    §4.3 asks for — a filer registering between our directory snapshot and this
-    download is ordinary. What the ceiling catches is the systematic break: a shifted
-    column would make almost every number unknown at once.
+    Asked only of the **2 newest years** the published filings cover, because the
+    directory lists *current* registrants and a filer who deregistered is legitimately
+    absent from it, more so the older the year. Measured on 23 Sep 2026 against the
+    1,626-row register: 0.8% of 2026's contribution filers and 1.9% of 2026's spending
+    filers are unknown, against 31.7% and 39.0% for 2022. When the totals first covered
+    2022 to 2026 the check read 26.16% and 34.10% over all 5 years and failed a publish
+    on nothing but how far back the totals reach. An unknown number is reported rather
+    than treated as fatal, which is what §4.3 asks for — a filer registering between our
+    directory snapshot and this download is ordinary. What the ceiling catches is the
+    systematic break: a shifted column would make almost every number unknown at once,
+    in the newest years as much as in any other.
 
     The **contributor** side of a row is deliberately not checked, only counted. A
     contributor can be any person or a committee registered somewhere else entirely,
@@ -1604,7 +1612,7 @@ def _registrations_resolve(
     including them would make the number unreadable.
     """
     name = "registration_numbers_resolve_to_a_known_filer"
-    years = [int(year) for year in filings.years]
+    years = sorted(int(year) for year in filings.years)[-NEWEST_YEARS_CHECKED:]
     numbers: set[str] = set()
     for year in years:
         numbers |= measured.filer_numbers_by_year.get(year, set())
@@ -1614,7 +1622,7 @@ def _registrations_resolve(
             "not_run",
             "this file holds no rows in "
             + (", ".join(str(year) for year in years) or "the published years")
-            + ", which are the years the published filings cover",
+            + ", which are the newest years the published filings cover",
         )
     unknown = sorted(numbers - filings.known_registrations)
     share = len(unknown) / len(numbers)
