@@ -712,6 +712,33 @@ def _read(donor, on, amount, *, state="read", repeat_of=None):
     return reading
 
 
+def test_a_statement_the_board_does_not_hold_is_kept_listed_and_fails_nothing(
+    db, monkeypatch
+):
+    served, missing, broken = (_statement(db, n, held=False) for n in (1, 2, 3))
+    answers = {
+        1: b"%PDF-1.4 scanned statement",
+        2: b"Requested file not found.",
+        3: b"<html>maintenance</html>",
+    }
+    monkeypatch.setattr(notices, "PDF_SPACING_SECONDS", 0)
+    monkeypatch.setattr(
+        notices,
+        "get_bytes",
+        lambda http, url: (200, answers[int(url.rsplit("disc=", 1)[1])]),
+    )
+    fetched, failures, not_served = notices.fetch_missing_statement_pdfs(
+        db, None, MemoryStore()
+    )
+    assert fetched == 1
+    assert len(not_served) == 1 and "disc=2" in not_served[0]
+    assert len(failures) == 1 and "disc=3" in failures[0]
+    for row in (served, missing, broken):
+        db.refresh(row)
+    assert served.document_hash is not None
+    assert missing.document_hash is None and broken.document_hash is None
+
+
 def test_a_statement_attaches_only_to_the_gift_it_names(db, client):
     published = Published(db)
     kw = dict(

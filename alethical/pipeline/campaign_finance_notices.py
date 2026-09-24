@@ -820,6 +820,14 @@ class PdfCache:
                 handle.write(body)
 
 
+# The Board's whole answer, with HTTP 200, for a document its catalogue lists but its
+# viewer does not hold (4 disclosure statements, measured 24 Sep 2026). A statement it
+# does not serve stays recorded with no PDF and is asked for again on the next run; it
+# never fails the run, and any other answer that is not a PDF still does.
+BOARD_FILE_NOT_FOUND = b"Requested file not found."
+NOT_SERVED = "the Board says it does not hold this file"
+
+
 def fetch_pdf(
     http: requests.Session, url: str, cache: PdfCache, cache_name: str
 ) -> tuple[Optional[bytes], Optional[str]]:
@@ -831,6 +839,8 @@ def fetch_pdf(
     time.sleep(PDF_SPACING_SECONDS)
     if status != 200:
         return None, f"HTTP {status}"
+    if body.strip() == BOARD_FILE_NOT_FOUND:
+        return None, NOT_SERVED
     if not body.startswith(b"%PDF"):
         return None, "the Board answered with something that is not a PDF"
     cache.put(cache_name, body)
@@ -1181,6 +1191,7 @@ class StatementRunReport:
     pdfs_fetched: int = 0
     notice_amendments: int = 0
     failures: list[str] = field(default_factory=list)
+    not_served: list[str] = field(default_factory=list)
 
 
 def record_catalogue_statements(
@@ -1249,12 +1260,17 @@ def fetch_missing_statement_pdfs(
     cache: Optional[PdfCache] = None,
     now: Optional[datetime] = None,
     from_year: int = KEEP_STATEMENT_PDFS_FROM,
-) -> tuple[int, list[str]]:
-    """Fetch and keep each listed statement's PDF that is not yet held, once."""
+) -> tuple[int, list[str], list[str]]:
+    """Fetch and keep each listed statement's PDF that is not yet held, once.
+
+    Returns (fetched, failures, not served): a statement the Board says it does not hold
+    is not a failure, and stays without a PDF until a later run finds it served.
+    """
     cache = cache or PdfCache(None)
     now = now or datetime.now(UTC)
     fetched = 0
     failures: list[str] = []
+    not_served: list[str] = []
     model = schema.CampaignFinanceDisclosureStatement
     rows = db.scalars(
         select(model).where(
@@ -1276,7 +1292,9 @@ def fetch_missing_statement_pdfs(
             f"{row.report_period}{row.statement_number}.pdf",
         )
         if body is None:
-            failures.append(f"{url}: {failure}")
+            (not_served if failure == NOT_SERVED else failures).append(
+                f"{url}: {failure}"
+            )
             continue
         kept = keep_pdf(store, STATEMENT_OBJECT_PREFIX, body)
         row.document_hash = kept.document_hash
@@ -1286,7 +1304,7 @@ def fetch_missing_statement_pdfs(
         row.fetched_at = now
         db.commit()
         fetched += 1
-    return fetched, failures
+    return fetched, failures, not_served
 
 
 def scan_catalogues_for_statements(
@@ -1349,9 +1367,12 @@ def scan_catalogues_for_statements(
                 ):
                     report.notice_amendments += 1
     if not dry_run:
-        fetched, failures = fetch_missing_statement_pdfs(db, http, store, cache=cache)
+        fetched, failures, not_served = fetch_missing_statement_pdfs(
+            db, http, store, cache=cache
+        )
         report.pdfs_fetched = fetched
         report.failures.extend(failures)
+        report.not_served.extend(not_served)
         if report.catalogues_read == len(filers):
             db.add(
                 schema.CampaignFinanceStatementScan(
