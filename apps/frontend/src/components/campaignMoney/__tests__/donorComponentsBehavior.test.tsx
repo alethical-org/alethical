@@ -204,6 +204,7 @@ describe('the donor chart explains what its cash shares represent', () => {
     'named_payments_not_in_our_copy',
     'reported_total_predates_a_correction',
     'figures_do_not_line_up',
+    'generations_differ',
   ])('retains the evidence-specific explanation for %s', (state) => {
     for (const payments of [realPayments, []]) {
       const view = markup(breakdown({ payments, split: { ...namedSplit, state } }));

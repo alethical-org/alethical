@@ -3235,7 +3235,7 @@ def committee_finance_for_year(
     reported figure ([#1408](https://github.com/alethical-org/alethical/issues/1408))
     with the date it runs to, and ``split`` says whether the two may be divided into
     named and unnamed money -- read ``split.state`` before drawing any composition,
-    because the 7 withheld states are each a way a subtraction would state something
+    because the 8 withheld states are each a way a subtraction would state something
     false, and only 1 of them may say Minnesota's 2 publications disagree
     (``.claude/rules/grounded-answers.md`` rule 12,
     ``docs/architecture/campaign-finance-system-design.md`` §7). The full list is on
@@ -4884,6 +4884,14 @@ def legislator_campaign_finance(
       says why. Weaker than ``sources_disagree`` on purpose: it establishes that these 2
       numbers cannot be subtracted and nothing about whether the 2 publications
       disagree. 0 committee-years today.
+    * ``generations_differ`` -- our copy of the official totals and our copy of the
+      payment files were taken on different days: the live filings snapshot is not the
+      one the payments release was checked against when it published
+      (``cf_release.filing_snapshot_id``). Asked before every other comparison, because
+      each of the states above compares the 2 sources and none may be reached from an
+      unchecked pair. Both figures still arrive with their own dates; ``unnamed_total``
+      is withheld until a release publishes against the live totals
+      ([issue 2344](https://github.com/alethical-org/alethical/issues/2344)).
 
     Every committee also carries a ``filing_schedule``, which is why a year with no
     figures has nothing to show. It is 1 of 6 states, and the split down the middle is

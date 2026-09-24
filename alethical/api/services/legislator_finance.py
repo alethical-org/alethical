@@ -116,6 +116,9 @@ from alethical.api.services.committee_finance import (
     money_rows,
 )
 from alethical.api.services.committee_finance import (
+    generations_differ as generations_differ_for,
+)
+from alethical.api.services.committee_finance import (
     withheld_filer_years as withheld_filer_years_for,
 )
 from alethical.api.services.committee_stated_split import (
@@ -188,6 +191,15 @@ SPLIT_REPORTED_TOTAL_PREDATES_A_CORRECTION = "reported_total_predates_a_correcti
 #: subtraction that will not run, which is a weaker thing to know and the only thing
 #: known here.
 SPLIT_FIGURES_DO_NOT_LINE_UP = "figures_do_not_line_up"
+#: Our copy of the official totals and our copy of the payment files were taken on
+#: different days: the live filings snapshot is not the one the payments release was
+#: checked against when it published. The reported total and the itemized rows each
+#: keep their own truthful date; only the difference between them is withheld, because
+#: that difference is a fact about 2 copy dates and never about donors. Restore
+#: Sanity's 2026 page is the measured case: $12,885,000 "unnamed" derived on 23 Sep 2026
+#: from a total through 15 Sep minus payments from a 1 Sep file that predates the
+#: report naming them (issue 2344).
+SPLIT_GENERATIONS_DIFFER = "generations_differ"
 
 #: The committee's own filed report states the same itemized figure we hold, so the
 #: split has been checked against the filing rather than only derived from it.
@@ -644,6 +656,7 @@ def named_money_split(
     withheld_filer_years: frozenset[tuple[str, int]],
     stated_split_state: str,
     report_corrections: int | None = None,
+    generations_differ: bool = False,
 ) -> NamedMoneySplit:
     """Whether this committee-year's split may be drawn, and what it is.
 
@@ -662,6 +675,7 @@ def named_money_split(
         withheld_filer_years=withheld_filer_years,
         stated_split_state=stated_split_state,
         report_corrections=report_corrections,
+        generations_differ=generations_differ,
     )
 
 
@@ -676,10 +690,15 @@ def split_from_money_in(
     withheld_filer_years: frozenset[tuple[str, int]],
     stated_split_state: str,
     report_corrections: int | None = None,
+    generations_differ: bool = False,
 ) -> NamedMoneySplit:
     """Whether this committee-year's split may be drawn, and what it is.
 
-    The order of the checks is load-bearing and is the reason each one is named. A
+    The order of the checks is load-bearing and is the reason each one is named. The
+    first question is whether the 2 figures are even a checked pair: ``generations_differ``
+    says the live filings snapshot is not the one the payments release was reconciled
+    against, and every state below it compares the 2 sources, so none of them may be
+    reached from copies taken on different days (issue 2344). Then a
     period mismatch is asked **before** the two totals are compared, because comparing
     figures that cover different periods produces a disagreement that is not one: the
     House Republican Campaign Committee's 2026 rows exceed its own reported total by
@@ -755,6 +774,19 @@ def split_from_money_in(
         if report_corrections is not None and report_corrections > 0:
             return outcome(SPLIT_REPORTED_TOTAL_PREDATES_A_CORRECTION)
         return outcome(SPLIT_FIGURES_DO_NOT_LINE_UP)
+
+    if generations_differ and (
+        reported_total is not None or stated_split_state == DISAGREES
+    ):
+        # The reported total and the itemized rows are copies taken on different days,
+        # so nothing below may compare them: not the subtraction, and not the stored
+        # verdict either, because a verdict against the live filings snapshot compared
+        # the newer filing with the older rows and lands on exactly the false
+        # disagreement this guard exists for. Both figures still travel with their own
+        # dates; only the derived remainder is withheld. A year with no reported total
+        # and no verdict has nothing of the filings side to compare, which is a fact
+        # about one source and keeps its own state below.
+        return outcome(SPLIT_GENERATIONS_DIFFER)
 
     if stated_split_state == DISAGREES:
         # The committee's own filed report states a different itemized figure from the
@@ -894,6 +926,10 @@ def split_for_committee(
         # consulted where a subtraction has already refused to run.
         report_corrections=report_corrections(db, registration_number, year),
         stated_split_state=_stated_split_state(stated.status),
+        # Whether the live filings snapshot is the one this release was checked
+        # against. Read once per pinned request off the release row and the memoized
+        # snapshot, so it costs no statement here (issue 2344).
+        generations_differ=generations_differ_for(db, release),
     )
 
 
@@ -1208,6 +1244,7 @@ def legislator_year_states(
     if numbers:
         held = _committees_held_by_release(db, release, numbers)
         withheld = withheld_filer_years_for(db, release)
+        differ = generations_differ_for(db, release)
         reported = filings.reported_totals_for(db, numbers, years=years)
         corrections = _report_corrections_for(db, numbers, years)
         covered: set[int] | None = None
@@ -1281,6 +1318,7 @@ def legislator_year_states(
                     withheld_filer_years=withheld,
                     stated_split_state=_stated_split_state(verdicts.get(year)),
                     report_corrections=corrections.get((number, year)),
+                    generations_differ=differ,
                 )
                 splits[(number, year)] = CommitteeYearState(
                     number, split.state, split.reported_total

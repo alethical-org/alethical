@@ -121,7 +121,14 @@ describe('the rule deciding whether a non-itemized figure draws at all', () => {
 
   it('never turns a withheld or absent remainder into a figure', () => {
     expect(unnamedFigureDraws({ ...split, unnamedTotal: null })).toBe(false);
-    for (const state of ['no_reported_total', 'sources_disagree', 'periods_differ']) {
+    for (const state of [
+      'no_reported_total',
+      'sources_disagree',
+      'periods_differ',
+      // Copies of the totals and of the payment files taken on different days (#2344):
+      // the remainder is withheld even though the server sent both figures.
+      'generations_differ',
+    ]) {
       expect(unnamedFigureDraws({ ...split, state })).toBe(false);
     }
   });

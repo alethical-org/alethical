@@ -38,9 +38,32 @@ def clear_filings_snapshots(session) -> None:
     ``cf_stated_spending`` row once turned a ``not_run`` case green.
     """
     session.execute(text("UPDATE cf_filing_current SET snapshot_id = NULL"))
+    # A payments release records which filings snapshot it was checked against
+    # (``cf_release.filing_snapshot_id``), and the foreign key would otherwise keep
+    # the snapshot alive past this reset.
+    session.execute(text("UPDATE cf_release SET filing_snapshot_id = NULL"))
     session.execute(text("DELETE FROM cf_filing_report"))
     session.execute(text("DELETE FROM cf_filer"))
     session.execute(text("DELETE FROM cf_filing_snapshot"))
+
+
+def pair_release_with_filings(session, *, release_id: uuid.UUID, snapshot_id) -> None:
+    """Record that a published payments release was checked against this filings snapshot.
+
+    What the pipeline writes as ``cf_release.filing_snapshot_id`` when it publishes
+    (``alethical/pipeline/campaign_finance.py``). A split is derived only from a
+    checked pair, so a test wanting the ordinary ``shown`` state under a release that
+    carries a pairing says which snapshot it was paired with, and a test about a totals
+    refresh landing before the next payments release pairs the release with the older
+    snapshot and then publishes a newer one (issue 2344).
+    """
+    session.execute(
+        text(
+            "UPDATE cf_release SET filing_snapshot_id = :snapshot WHERE id = :release"
+        ),
+        {"snapshot": snapshot_id, "release": release_id},
+    )
+    session.commit()
 
 
 def publish_filings_snapshot(

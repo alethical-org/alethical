@@ -32,6 +32,7 @@ from alethical.db import models
 from alethical.db.session import get_session_factory
 from alethical.tests.filed_figures import (
     clear_filings_snapshots,
+    pair_release_with_filings,
     publish_filings_snapshot,
 )
 
@@ -417,3 +418,133 @@ def test_a_span_is_inclusive_ordered_and_bounded(client, member):
         ).status_code
         == 404
     )
+
+
+def _split_states(client, member: str, year: int) -> dict[str, str]:
+    """``split.state`` per committee, from the per-year route and the span route, after
+    asserting the 2 agree -- which is the property the suite above exists for."""
+    single = client.get(
+        f"/api/v1/legislators/{member}/campaign-finance", params={"year": year}
+    )
+    assert single.status_code == 200, single.text
+    span = client.get(
+        f"/api/v1/legislators/{member}/campaign-finance/years",
+        params={"from": year, "to": year},
+    )
+    assert span.status_code == 200, span.text
+    single_states = _year_states(single.json()["data"])[1]
+    span_states = _year_states(
+        {**span.json()["data"]["years"][0], "link_state": "confirmed"}
+    )[1]
+    assert span_states == single_states
+    return {number: state for number, (state, _) in single_states.items()}
+
+
+def test_a_totals_refresh_before_the_next_payments_release_withholds_every_split(
+    client, db, member
+):
+    """Rule 12: missing or unprocessed named donations are never presented as
+    non-itemized donations, on the money tab as on the committee page.
+
+    The fixture's release is first paired with the live filings snapshot, which is what
+    the pipeline records when it publishes, and every state reads as before. Then a
+    newer filings snapshot lands while the release still names the older one -- the
+    23 Sep 2026 window in which Restore Sanity's page derived $12,885,000 of "unnamed"
+    money from a total the payments file predates (issue 2344). Every committee-year
+    with a reported total, and every one carrying a stored verdict against the new
+    snapshot, now withholds its remainder in the one state that says why, on both the
+    per-year route and the year-button route; a year with no official total keeps
+    saying that, because there is nothing of the filings side to compare.
+    """
+    release_id = db.execute(
+        text("SELECT release_id FROM cf_current_release WHERE id = true")
+    ).scalar_one()
+    older = db.execute(
+        text("SELECT snapshot_id FROM cf_filing_current WHERE id = true")
+    ).scalar_one()
+    pair_release_with_filings(db, release_id=release_id, snapshot_id=older)
+
+    assert _split_states(client, member, 2024)[SENATE] == "shown"
+    assert _split_states(client, member, 2025)[HOUSE] == "no_named_payments"
+    assert _split_states(client, member, 2026) == {
+        SENATE: "periods_differ",
+        HOUSE: "named_payments_not_in_our_copy",
+        UNHELD: "no_reported_total",
+    }
+
+    newer = publish_filings_snapshot(
+        db,
+        filings=[
+            (
+                SENATE,
+                2024,
+                "individuals_contributions",
+                Decimal("8600.00"),
+                date(2024, 12, 31),
+            ),
+            (
+                SENATE,
+                2025,
+                "individuals_contributions",
+                Decimal("900.00"),
+                date(2026, 1, 31),
+            ),
+            (
+                SENATE,
+                2026,
+                "individuals_contributions",
+                Decimal("8600.00"),
+                date(2026, 7, 20),
+            ),
+            (
+                HOUSE,
+                2025,
+                "individuals_contributions",
+                Decimal("1500.00"),
+                date(2025, 12, 31),
+            ),
+        ],
+    )
+    # The comparison re-run against the new totals copy with the old rows, which is what
+    # a re-run does to the one verdict row a committee-year has: the newer filing names
+    # money the older file predates, which reads as a disagreement and is not one.
+    db.execute(
+        text(
+            "UPDATE cf_stated_split SET filings_snapshot_id = :newer, checked_at = :at "
+            "WHERE registration_number = :number AND filing_year = 2026"
+        ),
+        {
+            "newer": newer,
+            "at": datetime(2026, 9, 23, 12, 0, tzinfo=UTC),
+            "number": HOUSE,
+        },
+    )
+    db.commit()
+
+    assert _split_states(client, member, 2024) == {
+        SENATE: "generations_differ",
+        UNHELD: "no_reported_total",
+    }
+    assert _split_states(client, member, 2025) == {
+        # Its filing's coverage ends in 2026, so there was never a total to compare.
+        SENATE: "no_reported_total",
+        HOUSE: "generations_differ",
+        UNHELD: "no_reported_total",
+    }
+    assert _split_states(client, member, 2026) == {
+        SENATE: "generations_differ",
+        HOUSE: "generations_differ",
+        UNHELD: "no_reported_total",
+    }
+    # Each source figure still travels with its own date; only the remainder is gone.
+    senate_2024 = next(
+        committee
+        for committee in client.get(
+            f"/api/v1/legislators/{member}/campaign-finance", params={"year": 2024}
+        ).json()["data"]["committees"]
+        if committee["registration_number"] == SENATE
+    )["split"]
+    assert senate_2024["reported_total"] == "8600.0000"
+    assert senate_2024["reported_through"] == "2024-12-31"
+    assert senate_2024["named_total"] == "250.0000"
+    assert senate_2024["unnamed_total"] is None

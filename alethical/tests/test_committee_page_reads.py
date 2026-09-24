@@ -29,6 +29,7 @@ from alethical.db import models
 from alethical.db.session import get_session_factory
 from alethical.tests.filed_figures import (
     clear_filings_snapshots,
+    pair_release_with_filings,
     publish_filings_snapshot,
 )
 
@@ -930,6 +931,126 @@ def test_a_total_covering_another_year_withholds_the_split(db, client):
     assert split["reported_total"] is None
     assert split["reported_through"] is None
     assert split["named_total"] == "100.0000"
+
+
+#: The 2026 filing Restore Sanity's page derived a false unnamed figure from on
+#: 23 Sep 2026: a $14,111,000 total through 15 Sep beside $1,226,000 of payments from a
+#: 1 Sep file that predates the report naming the rest (issue 2344, reviewer point 2).
+_RESTORE_SANITY_FILING = (
+    CANDIDATE,
+    2026,
+    "individuals_contributions",
+    Decimal("14111000.00"),
+    date(2026, 9, 15),
+)
+
+
+def _september_rows(db, published) -> None:
+    _receipt(
+        db,
+        published.contributions,
+        reg_num=CANDIDATE,
+        amount="1226000.00",
+        year=2026,
+        on=date(2026, 8, 20),
+    )
+    db.commit()
+
+
+def _split_for_2026(client) -> dict:
+    response = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2026}
+    )
+    assert response.status_code == 200, response.text
+    return response.json()["data"]["split"]
+
+
+def test_a_release_checked_against_the_live_totals_draws_the_split(db, client):
+    """The ordinary case once a release records its pairing: the live filings snapshot
+    is the one the rows were reconciled against, so the subtraction runs as before."""
+    published = Published(db)
+    _september_rows(db, published)
+    filings_id = publish_filings_snapshot(db, filings=[_RESTORE_SANITY_FILING])
+    pair_release_with_filings(
+        db, release_id=published.release.id, snapshot_id=filings_id
+    )
+
+    split = _split_for_2026(client)
+    assert split["state"] == "shown"
+    assert Decimal(split["unnamed_total"]) == Decimal("12885000.00")
+
+
+def test_a_newer_totals_copy_than_the_rows_were_checked_against_withholds_it(
+    db, client
+):
+    """Rule 12: missing or unprocessed named donations are never presented as
+    non-itemized donations.
+
+    The totals snapshot refreshed on 23 Sep 2026 while the payments release was still
+    the 1 Sep one, and the live page subtracted payments from a file that predates the
+    September report from that report's total. The $12,885,000 it printed as money
+    with no donor named is named in the newer payments file, which had not published.
+    So a release paired with an older filings snapshot than the live one withholds the
+    derived figure, in its own state, while each source figure keeps its own date.
+    """
+    published = Published(db)
+    _september_rows(db, published)
+    older = publish_filings_snapshot(
+        db,
+        filings=[
+            (
+                CANDIDATE,
+                2026,
+                "individuals_contributions",
+                Decimal("1300000.00"),
+                date(2026, 7, 20),
+            )
+        ],
+    )
+    pair_release_with_filings(db, release_id=published.release.id, snapshot_id=older)
+    # The totals refresh lands; the payments release still names the July snapshot.
+    publish_filings_snapshot(db, filings=[_RESTORE_SANITY_FILING])
+
+    split = _split_for_2026(client)
+    assert split["state"] == "generations_differ"
+    assert split["unnamed_total"] is None
+    # Both source figures still travel, each with its own truthful date.
+    assert split["reported_total"] == "14111000.0000"
+    assert split["reported_through"] == "2026-09-15"
+    assert split["named_total"] == "1226000.0000"
+    assert split["last_payment_on"] == "2026-08-20"
+
+
+def test_a_release_that_recorded_no_pairing_keeps_the_split_as_before(db, client):
+    """Every release published before the figures existed has ``NULL`` for the
+    pairing, and that says nothing either way: a totals refresh under such a release
+    changes none of the split's other rules."""
+    published = Published(db)
+    _september_rows(db, published)
+    publish_filings_snapshot(
+        db,
+        filings=[
+            (
+                CANDIDATE,
+                2026,
+                "individuals_contributions",
+                Decimal("1300000.00"),
+                date(2026, 7, 20),
+            )
+        ],
+    )
+    publish_filings_snapshot(db, filings=[_RESTORE_SANITY_FILING])
+    assert (
+        db.execute(
+            text("SELECT filing_snapshot_id FROM cf_release WHERE id = :rid"),
+            {"rid": published.release.id},
+        ).scalar_one()
+        is None
+    )
+
+    split = _split_for_2026(client)
+    assert split["state"] == "shown"
+    assert Decimal(split["unnamed_total"]) == Decimal("12885000.00")
 
 
 def test_an_all_in_kind_year_serves_no_total_and_a_measured_cash_zero(db, client):
