@@ -69,7 +69,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any, Iterable, Optional, Sequence
+from typing import Any, Callable, Iterable, Optional, Sequence
 
 import requests
 from sqlalchemy import delete, select, text
@@ -3082,9 +3082,15 @@ def load_campaign_finance_filings(
     base_url: str = BOARD_BASE_URL,
     spacing_seconds: float = REQUEST_SPACING_SECONDS,
     today: Optional[date] = None,
+    before_publish: Optional[Callable[[], Optional[str]]] = None,
     log=print,
 ) -> FilingsRun:
     """Run the whole cycle once and report what happened.
+
+    ``before_publish`` is the caller's last word before the pointer moves: called once,
+    right before ``publish_filings``, and a sentence back means "do not". The daily
+    refresh uses it to prove it still holds the run-wide lease (D3, #2344); a run refused
+    this way is quarantined with that sentence, and the previous snapshot stays live.
 
     ``publish_hash`` is how an operator publishes a run the comparison checks
     quarantined, including the very first one, which has nothing to compare against.
@@ -3323,6 +3329,14 @@ def load_campaign_finance_filings(
             return run
         if dry_run:
             log("dry run: nothing was written")
+            return run
+
+        refused = before_publish() if before_publish is not None else None
+        if refused:
+            run.checks.append(Check("caller_allows_publish", "failed", refused))
+            quarantine_filings(db, run)
+            _finish_filings_run(db, ingestion_run_id, run, dry_run)
+            log(f"not published: {refused}. The previous snapshot is still live.")
             return run
 
         waived = waived_checks_note(run)

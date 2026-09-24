@@ -178,7 +178,9 @@ Alethical obtained the source, not the end date of every filing.” followed by 
 coverage sentence. Behind the dates: the payment files are checked daily and the
 register and report totals are refreshed when one of the Board's lists changes and
 weekly regardless, by the daily job described in
-[data-ingestion-onboarding.md §H](data-ingestion-onboarding.md).
+[data-ingestion-onboarding.md §H](data-ingestion-onboarding.md); a run whose lists
+could not be read is reported as incomplete, and the dates stay those of the last set
+that published.
 
 “View source links” opens the source list inside this box and changes to “Hide
 source links”. It starts closed on each visit. This supporting disclosure uses

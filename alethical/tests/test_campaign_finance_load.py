@@ -2005,3 +2005,46 @@ def test_publishing_over_a_row_loss_by_naming_the_hashes_records_what_was_waived
     assert "waived expenditures/row_count_within_band" in release.notes
     assert "investigation aid only, never a reason to publish" in release.notes
     assert "committees with unmatched rows (1): 20010" in release.notes
+
+
+def test_the_callers_last_word_before_publish_can_refuse_and_nothing_goes_live(
+    db, board, store
+) -> None:
+    """The daily refresh's fail-closed lease gate (D3, #2344), at the loader.
+
+    Asked right before the pointer moves, after every check has passed and the
+    comparison checks have been waived by the operator's hashes, so nothing earlier
+    can have stopped the run. A sentence back quarantines the set with that sentence;
+    ``None`` back publishes it.
+    """
+    first = run(db, board, store)
+    assert first.refusal is not None
+    hashes = [
+        outcome.measurements.record_set_hash
+        for outcome in first.outcomes
+        if outcome.measurements
+    ]
+    asked: list[int] = []
+
+    def refuse() -> str:
+        asked.append(1)
+        return "the run-wide lease is held by another run, not by this run"
+
+    refused = run(db, board, store, publish_hashes=hashes, before_publish=refuse)
+    assert asked == [1]
+    assert not refused.published
+    assert refused.refusal is not None and refused.refusal.startswith(
+        "not published: the run-wide lease is held by another run"
+    )
+    assert cf.live_release(db) is None
+    for outcome in refused.outcomes:
+        assert [check.name for check in outcome.blocked] == ["caller_allows_publish"]
+        snapshot = db.get(models.CampaignFinanceSnapshot, outcome.snapshot_id)
+        assert snapshot.status == models.CampaignFinanceSnapshotStatus.quarantined
+        assert "not by this run" in snapshot.error_text
+
+    published = run(
+        db, board, store, publish_hashes=hashes, before_publish=lambda: None
+    )
+    assert published.published, published.summary()
+    assert cf.live_release(db).id == published.release_id

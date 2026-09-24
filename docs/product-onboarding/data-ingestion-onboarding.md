@@ -443,16 +443,25 @@ fingerprint). Full reasoning:
 
 **It runs every day without anyone.** `.github/workflows/campaign-money-refresh.yml`
 runs `scripts/refresh_campaign_finance.py` at 15:30 UTC daily and on a button press.
-It takes 1 run-wide lock in the database (shared with a hand-started run, so 2 starts
-produce 1 run), retries any money re-check left unfinished, reads the Board's 6 small
-lists (3 registered-filer lists, 3 current-report lists) and hashes their content with
-row order removed, refreshes the official totals for every supported year (2022 to this
+It takes 1 run-wide lease in the database (a row with a 4-hour expiry, shared with a
+hand-started run and with both hand-run loader commands below, so 2 starts produce 1
+run and a run whose lease another has taken does not publish), retries any saved-page
+clearing and then any money re-check left unfinished, reads the Board's 6 small lists
+(3 registered-filer lists, 3 current-report lists) and hashes their content with row
+order removed, refreshes the official totals for every supported year (2022 to this
 year) when any list changed or weekly regardless, downloads the 3 payment files and
 publishes when every check passes, then clears the saved pages and re-runs both money
 checks after any publish. A list counts as handled only after the work it triggered
-succeeded. A quarantine leaves the previous set live, keeps the bytes and the reasons,
-exits non-zero and opens or updates a GitHub issue. Stated honestly: payments are
-checked daily; totals are refreshed on list change and weekly.
+succeeded; a list that could not be read is never recorded and makes the run report
+itself incomplete while the payments half still runs. The first scheduled run has no
+marker from the one-off hand runs and gets none: it fetches the totals once and records
+the 6 hashes only after that succeeds. A quarantine leaves the previous set live, keeps
+the bytes and the reasons, exits non-zero, prints which payments release and which
+totals snapshot are live and whether this run published each, and opens or updates a
+GitHub issue quoting that summary. A dry run writes nothing anywhere: no lease, no
+database or file-store write, no issue. Stated honestly: payments are checked daily;
+totals are refreshed on list change and weekly; a run whose lists could not be read is
+reported as incomplete.
 
 **What to run by hand.** `just load-campaign-finance` is a dry run: it fetches, parses,
 checks and reports, writing nothing and needing no credentials. `just
