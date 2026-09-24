@@ -6613,7 +6613,10 @@ def test_sitemap_bill_lastmod_is_the_newest_reader_visible_date(client):
 
 
 SHORT_WINDOW = "public, max-age=60, stale-while-revalidate=300"
+# A money record's window lives at Cloudflare only (``Cloudflare-CDN-Cache-Control``);
+# the browser is told to ask Cloudflare every time and keep no copy of its own.
 LONG_WINDOW = "public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800"
+MONEY_BROWSER = "public, max-age=0, must-revalidate"
 
 
 CURRENT_CLAIM_KEYS = frozenset(
@@ -6666,7 +6669,8 @@ def test_a_read_of_only_dated_money_records_gets_the_long_window(client):
     ]:
         response = client.get(path)
         assert response.status_code == 200, path
-        assert response.headers["Cache-Control"] == LONG_WINDOW, path
+        assert response.headers["Cache-Control"] == MONEY_BROWSER, path
+        assert response.headers["Cloudflare-CDN-Cache-Control"] == LONG_WINDOW, path
 
         data = response.json()["data"]
         assert "as_of" in data, path
@@ -6888,8 +6892,10 @@ def test_a_signed_in_read_is_never_given_a_shared_window(client, auth_headers):
         signed_in = client.get(path, headers=auth_headers)
         assert signed_in.headers.get("Cache-Control") not in (
             LONG_WINDOW,
+            MONEY_BROWSER,
             SHORT_WINDOW,
         ), path
+        assert "Cloudflare-CDN-Cache-Control" not in signed_in.headers, path
 
 
 def test_only_the_6_named_money_record_reads_get_the_long_window(client):
@@ -6928,7 +6934,7 @@ def test_only_the_6_named_money_record_reads_get_the_long_window(client):
     long_windowed = {
         path
         for path in served
-        if public_cache_control_for_path(concrete(path)) == LONG_WINDOW
+        if public_cache_control_for_path(concrete(path)) == MONEY_BROWSER
     }
     assert long_windowed == {
         "/api/v1/campaign-finance/committees",
@@ -6960,13 +6966,30 @@ def test_an_unclassified_route_gets_the_short_window_whatever_its_address(client
 
 
 def test_the_2_windows_stay_the_lengths_their_reasoning_names():
-    """The money window's stale allowance is capped at a day, not a week, because
-    nothing yet clears these copies when a load lands (#1979). The short window is
-    5 minutes."""
+    """The money window's stale allowance at Cloudflare is capped at a day, not a
+    week, because a publish clears those copies only once clearing is armed (#1979).
+    The short window is 5 minutes."""
     assert "stale-while-revalidate=86400" in LONG_WINDOW
     assert "stale-while-revalidate=604800" not in LONG_WINDOW
     assert "stale-while-revalidate=604800" not in SHORT_WINDOW
     assert (
-        public_cache_control_for_path("/api/v1/campaign-finance/races") == LONG_WINDOW
+        public_cache_control_for_path("/api/v1/campaign-finance/races") == MONEY_BROWSER
     )
     assert public_cache_control_for_path("/api/v1/bills") == SHORT_WINDOW
+
+
+def test_a_browser_never_shows_its_own_old_copy_of_a_money_record(client):
+    """The browser half of a money record's header allows no saved copy to be shown
+    first, not even while it refreshes (#1979). ``max-age=0`` alone would not do it,
+    because a browser honours ``stale-while-revalidate`` and would draw a day-old
+    answer first. The day of grace lives in the Cloudflare-only header, which
+    Cloudflare does not pass on to the browser, and a short-window read never gets it.
+    """
+    assert "max-age=0" in MONEY_BROWSER and "must-revalidate" in MONEY_BROWSER
+    assert "stale" not in MONEY_BROWSER
+    money = client.get("/api/v1/campaign-finance/races?year=2026")
+    assert money.headers["Cache-Control"] == MONEY_BROWSER
+    assert money.headers["Cloudflare-CDN-Cache-Control"] == LONG_WINDOW
+    bills = client.get("/api/v1/bills")
+    assert bills.headers["Cache-Control"] == SHORT_WINDOW
+    assert "Cloudflare-CDN-Cache-Control" not in bills.headers

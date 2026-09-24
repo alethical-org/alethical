@@ -46,6 +46,10 @@ from alethical.pipeline.collection_run_summary import (  # noqa: E402
     record_stage,
     run_script,
 )
+from alethical.pipeline.cache_purge import (  # noqa: E402
+    clear_and_note,
+    when_notices_or_statements_are_stored,
+)
 from alethical.pipeline.raw_file_store import raw_file_store_from_env  # noqa: E402
 
 KINDS = {
@@ -124,7 +128,14 @@ def main() -> int:
         print(f"problem: {line}")
     for line in report.not_served:
         print(f"not served, asked again next run: {line}")
-    failed = bool(report.failures or report.catalogues_read < len(wanted))
+    catalogue_failed = bool(report.failures or report.catalogues_read < len(wanted))
+    # A full scan records a new copy date, which the statement cards print (#1979).
+    clearing_failed, clearing_note = clear_and_note(
+        when_notices_or_statements_are_stored(),
+        stored=not args.dry_run
+        and (report.new > 0 or report.catalogues_read == len(wanted)),
+    )
+    failed = catalogue_failed or clearing_failed
     # What this run did, for the failure review (#2350).
     record_stage(
         "statements",
@@ -135,9 +146,11 @@ def main() -> int:
         else "published"
         if report.new
         else "unchanged",
-        failed_checks=["catalogue read"] if failed else [],
+        failed_checks=(["catalogue read"] if catalogue_failed else [])
+        + (["clearing saved answers"] if clearing_failed else []),
         details=list(report.failures)
-        + [f"not served: {line}" for line in report.not_served],
+        + [f"not served: {line}" for line in report.not_served]
+        + [clearing_note],
         counts={
             "catalogues read": report.catalogues_read,
             "statements listed": report.listed,

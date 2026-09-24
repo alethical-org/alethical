@@ -36,6 +36,10 @@ from alethical.pipeline.collection_run_summary import (  # noqa: E402
     record_stage,
     run_script,
 )
+from alethical.pipeline.cache_purge import (  # noqa: E402
+    clear_and_note,
+    when_notices_or_statements_are_stored,
+)
 from alethical.pipeline.raw_file_store import raw_file_store_from_env  # noqa: E402
 
 REVIEWER_OF_RECORD = "Alethical, LLC"
@@ -115,24 +119,29 @@ def main() -> int:
                 recorded += 1
             elif outcome.startswith("unchanged"):
                 unchanged += 1
+    clearing_failed, clearing_note = clear_and_note(
+        when_notices_or_statements_are_stored(), stored=recorded > 0
+    )
     # What this run did, for the failure review (#2350).
     record_stage(
         "statement readings",
         "failed"
-        if refused
+        if refused or clearing_failed
         else "dry_run"
         if args.dry_run
         else "published"
         if recorded
         else "unchanged",
-        failed_checks=["reading refused"] if refused else [],
+        failed_checks=(["reading refused"] if refused else [])
+        + (["clearing saved answers"] if clearing_failed else []),
+        details=[clearing_note],
         counts={
             "readings stored": recorded,
             "readings already held": unchanged,
             "readings refused": refused,
         },
     )
-    return 1 if refused else 0
+    return 1 if refused or clearing_failed else 0
 
 
 if __name__ == "__main__":

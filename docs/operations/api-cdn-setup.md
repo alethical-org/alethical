@@ -55,7 +55,8 @@ The response headers that drive the cache are **already live** (PR #363):
 
 ```
 Cache-Control: public, max-age=60, stale-while-revalidate=300                             # anonymous bill / vote / legislator reads
-Cache-Control: public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800   # the 6 named record paths and explicit dated-only committee finance
+Cache-Control: public, max-age=0, must-revalidate                                         # money records, for the browser: ask Cloudflare every visit
+Cloudflare-CDN-Cache-Control: public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800   # money records, Cloudflare only: the 6 named record paths, explicit dated-only committee finance, and a committee's own payment, notice and statement pages
 Cache-Control: private, no-store                                                          # signed-in / tracking reads
 ```
 
@@ -79,8 +80,25 @@ answer remains compatible with older clients and keeps the short window, as does
 saved answers; this change adds no custom cache key or clearing mechanism
 ([issue 2126](https://github.com/alethical-org/alethical/issues/2126)).
 
-The original longer-window choice followed the money load cadence: a load
-is human-triggered and on no schedule: production's snapshot was dated 2026-08-12
+**A money record's window lives at Cloudflare, never in the browser (#1979).** The
+browser is told `max-age=0, must-revalidate`, so it asks Cloudflare on every visit and
+never draws its own saved copy first. A plain `max-age=0` is not enough, because a
+browser honours `stale-while-revalidate` and would show a day-old copy while it
+refreshed; measured 24 Sep 2026, a browser that had seen Restore Sanity's page before
+the statement readings landed drew the old answer from its own cache. The window
+itself travels in `Cloudflare-CDN-Cache-Control`, which Cloudflare reads ahead of
+`Cache-Control` and does not pass on to the browser
+([Cloudflare](https://developers.cloudflare.com/cache/concepts/cdn-cache-control/)).
+`s-maxage` was not used instead, because Cloudflare reads it as also implying
+`proxy-revalidate`, which can switch stale-while-revalidate off
+([Cloudflare](https://developers.cloudflare.com/cache/concepts/cache-control/)). The
+money records now change on a schedule: the daily refresh
+(`.github/workflows/campaign-money-refresh.yml`) and the notices job
+(`.github/workflows/campaign-money-notices.yml`) each clear Cloudflare's copies after
+they publish, once clearing is armed.
+
+The original longer-window choice followed the money load cadence of the time, when a
+load was human-triggered and on no schedule: production's snapshot was dated 2026-08-12
 when this was measured on 4 Sep 2026, 23 days old. Against that, the old 60 s
 plus 5 minutes was minutes, so any gap over 5 minutes between readers sent the
 next one to the origin, measured at 2975 ms on
@@ -96,13 +114,14 @@ Only `stale-while-revalidate` was lengthened, because it is the directive that
 costs nothing: inside it the edge never makes a reader wait. `max-age`, which
 does delay an update, moved from 60 s to 5 minutes and no further.
 
-**The money window is capped at a day rather than a week because nothing yet
-clears these copies when a load lands.** 4 events can move a money answer: a new
-campaign-money download release, a new filed-totals or registered-filer release,
-a committee-to-legislator link being confirmed, and one being withdrawn. None of
-them purges the edge today. So the cap is what we are willing to be wrong by
-with no clearing at all, and lengthening it is gated on proving automatic
-clearing for all 4, not on judgement. Tracked on
+**The money window is capped at a day rather than a week because clearing is not
+armed yet.** 5 events can move a money answer: a new campaign-money download
+release, a new filed-totals or registered-filer release, a committee-to-legislator
+link being confirmed or withdrawn, and a notices, statements or readings run storing
+something. Every one of them calls `alethical/pipeline/cache_purge.py`, and none can
+purge until `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ZONE_ID` exist. So the cap is what
+we are willing to be wrong by with no clearing at all, and lengthening it is gated on
+proving automatic clearing live, not on judgement. Tracked on
 [#1979](https://github.com/alethical-org/alethical/issues/1979).
 
 `stale-if-error` applies only when the origin is failing, where the last good

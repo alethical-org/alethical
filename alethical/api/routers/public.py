@@ -180,35 +180,42 @@ router = APIRouter()
 # status-stale answer misframes enacted law as a pending proposal."
 PUBLIC_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=300"
 
-# CAMPAIGN MONEY gets the longer window, because a campaign-finance load is
-# human-triggered and on no schedule
-# (`docs/architecture/campaign-finance-system-design.md` §9.6). Measured 4 Sep
-# 2026: production's snapshot was dated 2026-08-12, 23 days old. Against that,
-# the 60s/300s window was minutes, so any gap over 5 minutes between readers sent
-# the next one to a 2975 ms origin read (#1966, acceptance criterion 4). That same
-# read answers in 0.46 s now (measured at the direct origin, 7 Sep 2026), so the
-# window is worth about a tenth of what it was worth when it was chosen — still
-# worth having, and no longer the difference between a page and a wait.
+# CAMPAIGN MONEY gets a longer window at Cloudflare and none in the browser
+# (#1979). The money records change on a schedule now: the daily refresh
+# (.github/workflows/campaign-money-refresh.yml, pull request 2354) publishes about
+# 15:30 UTC, and the notices job (.github/workflows/campaign-money-notices.yml)
+# stores notices, statements and readings. Each of those publishes clears
+# Cloudflare's saved copies (alethical/pipeline/cache_purge.py) once its 2 secrets
+# are set, so the only copy worth holding is the one a publish can clear.
 #
-# The long value is `stale-while-revalidate`, not `max-age`, and that difference
-# is the design. Inside `max-age` the edge answers without asking the origin, so
-# lengthening it genuinely delays an update. Inside `stale-while-revalidate` the
-# edge answers instantly from the copy it holds and refreshes behind the reader,
-# so it removes waiting at the cost of one reader seeing one generation of data
-# while that refresh runs.
+# So the 2 caches get 2 headers, and that split is the design:
 #
-# WHY 24 HOURS AND NOT LONGER: nothing yet clears these copies when a load lands.
-# Four events can move a money answer -- a new campaign-money download release, a
-# new filed-totals or registered-filer release, a committee-to-legislator link
-# being confirmed, and one being withdrawn -- and none of them purges the edge
-# today. So the window is capped at what we are willing to be wrong by with no
-# clearing at all: after a load, a rarely-visited money page may show the previous
-# release for up to a day, carrying that release's own date. Lengthening this is
-# gated on proving automatic clearing for all 4 events (#1979), not on taste.
+# * `Cache-Control`, which the browser reads, says `max-age=0, must-revalidate`:
+#   the browser asks Cloudflare on every visit and never shows its own old copy.
+#   A plain `max-age=0` is not enough, because a browser honours
+#   `stale-while-revalidate` too and would show a day-old copy while it refreshed
+#   behind the reader. Measured 24 Sep 2026: a browser that had seen Restore
+#   Sanity's page before the statement readings landed drew the old answer from
+#   its own cache (transfer size 0) and refreshed it only in the background.
+# * `Cloudflare-CDN-Cache-Control`, which only Cloudflare reads and which it
+#   never passes on to a browser, keeps the window this constant used to carry:
+#   5 minutes fresh, then up to a day of serving the saved copy while it refreshes
+#   behind the reader, and a week of the last good copy when the origin is failing.
+#   A shared `s-maxage` in `Cache-Control` was not used instead, because
+#   Cloudflare reads `s-maxage` as also implying `proxy-revalidate`, which can
+#   switch its stale-while-revalidate off
+#   (https://developers.cloudflare.com/cache/concepts/cache-control/), and
+#   `Cloudflare-CDN-Cache-Control` takes precedence over `Cache-Control` at
+#   Cloudflare (https://developers.cloudflare.com/cache/concepts/cdn-cache-control/).
 #
-# `stale-if-error` stays long deliberately. It applies only when the origin is
-# failing, where the last good copy beats an error page.
-MONEY_RECORDS_CACHE_CONTROL = (
+# The day of grace is the cost while clearing is not armed: after a publish, a
+# rarely visited money page can still be answered from Cloudflare's previous copy
+# for up to a day. Once CLOUDFLARE_API_TOKEN and CLOUDFLARE_ZONE_ID exist, every
+# publish discards those copies and the next reader gets the new answer. The
+# middleware in alethical/api/main.py adds the Cloudflare header to every response
+# that carries this `Cache-Control`, so the 2 always travel together.
+MONEY_RECORDS_CACHE_CONTROL = "public, max-age=0, must-revalidate"
+MONEY_RECORDS_EDGE_CACHE_CONTROL = (
     "public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800"
 )
 

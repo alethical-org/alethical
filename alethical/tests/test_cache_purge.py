@@ -61,10 +61,12 @@ from alethical.pipeline.cache_purge import (
     arming,
     clear,
     clear_after_publish,
+    clear_and_note,
     link_prefixes,
     when_a_filings_release_lands,
     when_a_money_download_release_lands,
     when_link_decisions_are_written,
+    when_notices_or_statements_are_stored,
     when_the_money_checks_finish,
 )
 from alethical.pipeline.cache_purge import ClearingResult
@@ -711,3 +713,45 @@ def test_a_writing_command_that_wrote_nothing_keeps_its_own_exit_code(db, monkey
 
     assert review_script.write_then_clear(db, lambda: 1) == 1
     assert sent == []
+
+
+# --- the notices and statements job (#2347) ----------------------------------------
+
+
+def test_a_notices_run_clears_every_read_that_prints_a_notice_or_a_statement():
+    """The notices card, the not-linked statements card and the payments that carry a
+    statement all sit under ``committees``; a statement's own detail sits under
+    ``campaign-finance/disclosure-statements``."""
+    assert when_notices_or_statements_are_stored().prefixes == (
+        f"{CACHED_API_HOST}/api/v1/committees",
+        f"{CACHED_API_HOST}/api/v1/campaign-finance/disclosure-statements",
+    )
+
+
+def test_the_stage_note_says_whether_clearing_ran():
+    clearing = when_notices_or_statements_are_stored()
+    logged: list[str] = []
+
+    failed, note = clear_and_note(clearing, stored=False, log=logged.append, env=ARMED)
+    assert (failed, logged) == (False, [])
+    assert note == "saved answers: nothing stored, so nothing cleared"
+
+    failed, note = clear_and_note(clearing, stored=True, log=logged.append, env={})
+    assert failed is False and note.startswith("saved answers: NOT ARMED")
+    assert "NOT ARMED" in logged[-1]
+
+    sent: list[dict] = []
+    failed, note = clear_and_note(
+        clearing, stored=True, log=logged.append, env=ARMED, post=accepting(sent)
+    )
+    assert (
+        failed is False and note.startswith("saved answers: cleared") and len(sent) == 1
+    )
+
+    def refusing(url, headers=None, json=None, timeout=None):
+        return FakeResponse(500, {"success": False})
+
+    failed, note = clear_and_note(
+        clearing, stored=True, log=logged.append, env=ARMED, post=refusing
+    )
+    assert failed is True and note.startswith("saved answers: clearing FAILED")

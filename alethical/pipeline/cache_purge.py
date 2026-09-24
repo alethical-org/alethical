@@ -79,6 +79,9 @@ A_MONEY_DOWNLOAD_RELEASE = "a new campaign-money download release"
 A_FILINGS_RELEASE = "a new filed-totals or registered-filer release"
 A_MONEY_CHECK_VERDICT_SET = "the 2 money checks finished against the new release"
 LINK_DECISIONS_WRITTEN = "committee-to-legislator link decisions written"
+NOTICES_OR_STATEMENTS_STORED = (
+    "large-contribution notices, disclosure statements or their readings stored"
+)
 
 #: A path segment that cannot break out of the prefix it sits in. Registration numbers
 #: are digits and sometimes a leading minus (the Board's own export carries
@@ -217,6 +220,26 @@ def when_the_money_checks_finish() -> Clearing:
     return Clearing(
         event=A_MONEY_CHECK_VERDICT_SET,
         prefixes=tuple(_path_prefix(path) for path in _RELEASE_PREFIX_PATHS),
+    )
+
+
+#: Every read a notices, statements or readings run changes (#2347). The notices card
+#: (``/committees/{n}/notices``), the not-linked statements card
+#: (``/committees/{n}/disclosure-statements``) and the statements attached to payments
+#: (``/committees/{n}/payments``) all sit under ``committees``; a statement's own detail
+#: sits under ``campaign-finance/disclosure-statements``. Every one of them also prints
+#: the copy date, which moves on every successful copy even when no record changed.
+_NOTICES_PREFIX_PATHS = (
+    "api/v1/committees",
+    "api/v1/campaign-finance/disclosure-statements",
+)
+
+
+def when_notices_or_statements_are_stored() -> Clearing:
+    """A notices, statements or readings run stored something, or re-dated its copy."""
+    return Clearing(
+        event=NOTICES_OR_STATEMENTS_STORED,
+        prefixes=tuple(_path_prefix(path) for path in _NOTICES_PREFIX_PATHS),
     )
 
 
@@ -460,6 +483,30 @@ def clear_after_publish(
     result = clear(clearing, env=env, post=post)
     log(result.report())
     return result.failed
+
+
+def clear_and_note(
+    clearing: Clearing,
+    *,
+    stored: bool,
+    log=print,
+    env: Optional[Mapping[str, str]] = None,
+    post=None,
+) -> tuple[bool, str]:
+    """``clear_after_publish``, plus 1 plain line for a run's stage record.
+
+    Returns (failed, note). The note says whether clearing ran, so the failure review
+    can tell "cleared", "not armed" and "failed" apart without reading the log.
+    """
+    if not stored:
+        return False, "saved answers: nothing stored, so nothing cleared"
+    result = clear(clearing, env=env, post=post)
+    log(result.report())
+    if not result.armed:
+        return False, f"saved answers: NOT ARMED, nothing cleared ({result.detail})"
+    if result.ok:
+        return False, f"saved answers: cleared ({result.detail})"
+    return True, f"saved answers: clearing FAILED ({result.detail})"
 
 
 def _failure(response) -> Optional[str]:

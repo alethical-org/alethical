@@ -185,7 +185,10 @@ def test_route_returns_names_and_source_copy_without_money_figures(client, db):
     assert result["source_url"].startswith("https://cfb.mn.gov/")
     assert result["fetched_at"] is not None
     assert "figures" not in result
-    assert response.headers["cache-control"].startswith("public, max-age=300")
+    assert response.headers["cache-control"] == "public, max-age=0, must-revalidate"
+    assert response.headers["cloudflare-cdn-cache-control"].startswith(
+        "public, max-age=300"
+    )
 
 
 @pytest.mark.parametrize(
