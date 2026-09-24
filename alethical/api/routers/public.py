@@ -78,6 +78,12 @@ from alethical.api.services.campaign_finance_search import (
     search as search_campaign_finance_names,
 )
 from alethical.api.services.committee_stated_by_kind import stated_by_kind
+from alethical.api.services.committee_notices import (
+    attached_statements,
+    committee_notices,
+    statement_detail,
+    statements_copied_on,
+)
 from alethical.api.services.committee_donor_states import donor_states
 from alethical.api.services.committee_name_connections import name_connections
 from alethical.api.services.committee_finance import (
@@ -125,6 +131,7 @@ from alethical.pipeline.ai_enrichment import (
     CitedSectionCandidate,
     resolve_cited_section,
 )
+from alethical.pipeline import campaign_finance_filings as filings
 from alethical.pipeline.policy_area_counts import compute_policy_area_counts
 
 schema = load_schema()
@@ -3721,14 +3728,102 @@ def committee_payments(
         and page.state in ("reported", "not_reported")
     ):
         response.headers["Cache-Control"] = MONEY_RECORDS_CACHE_CONTROL
+    # Which of these rows carry a disclosure statement (#2347), known with the list so a
+    # failed detail read can never make a statement gift look statement-free. Only
+    # received payments can: a statement names a gift to this committee.
+    statements = (
+        attached_statements(db, registration_number, page.payments)
+        if direction == "received" and page.state == "reported"
+        else []
+    )
     return DetailResponse(
         data={
             "registration_number": registration_number,
             "direction": direction,
             "year": year,
             **_payment_page_payload(page),
+            "disclosure_statements": [asdict(item) for item in statements],
+            # The day the catalogue the statements came from was copied, printed as
+            # "Minnesota’s report catalogue copied {date}" whenever one shows.
+            "statements_copied_on": (statements_copied_on(db) if statements else None),
         }
     )
+
+
+@router.get(
+    "/committees/{registration_number}/notices",
+    response_model=DetailResponse,
+)
+def committee_notices_for_year(
+    registration_number: str,
+    request: Request,
+    response: Response,
+    year: int = Query(ge=2015, le=2100),
+    db: Session = Depends(get_db),
+):
+    """One committee's large-contribution notices for one year, grouped by window.
+
+    A notice is how a committee tells the Board, by the end of the next business day,
+    about money from one source received in the days before an election (Minnesota
+    Statutes 10A.20 subd. 5). **This route returns no total of any kind**: every notice
+    carries its own amount, and none is ever added to a payment figure.
+
+    ``state`` decides whether anything draws. Only ``listed`` does. ``not_covered``
+    means no copy of the Board's notice list we hold speaks for this year, ``no_windows``
+    means no notice window applies to this filer (a party unit, or every window ruled
+    out by the statute), and ``unavailable`` means we hold no completed copy of the list.
+    None of the 3 is a claim that the committee received no large gift.
+
+    Each window carries its dates; whether it is open is the reader's today, computed by
+    the page, while the notices it lists are as of ``copied_on``. Each notice carries
+    ``status``: ``matched`` (a payment row names the same contributor, date and amount,
+    ignoring only letter case and surrounding spaces), ``not_yet_on_a_report`` or
+    ``no_exact_match``.
+    """
+    release = _resolve_campaign_finance_release(db)
+    _refuse_a_committee_we_hold_no_record_of(db, release, registration_number)
+    record = filings.filer_records(db, [registration_number]).get(registration_number)
+    answer = committee_notices(
+        db,
+        registration_number=registration_number,
+        year=year,
+        contributions_snapshot_id=release.contributions.snapshot_id,
+        kind=record.kind if record is not None else None,
+        office=record.office if record is not None else None,
+    )
+    if request.method == "GET" and "authorization" not in request.headers:
+        response.headers["Cache-Control"] = MONEY_RECORDS_CACHE_CONTROL
+    return DetailResponse(data=asdict(answer))
+
+
+@router.get(
+    "/campaign-finance/disclosure-statements/{statement_id}",
+    response_model=DetailResponse,
+)
+def disclosure_statement(
+    statement_id: UUID,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """What a person read off one disclosure statement's scanned PDF.
+
+    ``state`` ``read`` carries the box ticked, the Schedule A1 sources (name, city and
+    state only, never a ZIP or street), Lines A to C (``null`` where the form was left
+    blank, which is never $0) and the signed and received dates. ``gift_identified``
+    carries only the gift it names and the PDF: we hold the statement and have not read
+    its sources. The officer who signed it is never served.
+
+    404 means no reading of this statement exists, which is a fact about our records.
+    """
+    detail = statement_detail(db, statement_id)
+    if detail is None:
+        raise HTTPException(
+            status_code=404, detail="no reading of this statement is held"
+        )
+    if request.method == "GET" and "authorization" not in request.headers:
+        response.headers["Cache-Control"] = MONEY_RECORDS_CACHE_CONTROL
+    return DetailResponse(data=asdict(detail))
 
 
 @router.get("/campaign-finance/outside-spending/names", response_model=DetailResponse)

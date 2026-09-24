@@ -1,0 +1,76 @@
+{
+  "about": "Readings of disclosure statements' scanned PDFs, entered by a person who read each one (#2347). The PDFs have no text layer, so nothing here is machine-read. image_fingerprint is the sha256 over each PDF's page images; scripts/record_disclosure_statement_readings.py refuses a reading whose kept PDF shows different images. A blank line on the form is null and prints 'Not reported'. Sources carry name, city and state only. The officer who signed a statement is never recorded.",
+  "readings": [
+    {
+      "recipient_registration_number": "41412",
+      "filing_year": 2026,
+      "statement_number": 1,
+      "image_fingerprint": "85ce2579c32765464f77f84f5affb9066e0811efc843d7ab7d40f47e0e676881",
+      "state": "gift_identified",
+      "donor_name": "Republican State Leadership Committee",
+      "gift_date": "2026-08-28",
+      "gift_amount": "50000.00",
+      "evidence": "Gift identified from the statement's own 'Information on contribution' box (8/28/26, 50,000.00, recipient Restore Sanity 41412), read by the Claude coding agent from the Board's PDF on 23 Sep 2026. Its sources are deliberately left unread for the launch, so the page shows it as held, not read."
+    },
+    {
+      "recipient_registration_number": "41412",
+      "filing_year": 2026,
+      "statement_number": 2,
+      "image_fingerprint": "1645a0b1c35f5cb62ab42482692c34b1fa9aa09779c03b0742b726f59cdc5cfd",
+      "state": "read",
+      "donor_name": "Restoration of America PAC",
+      "gift_date": "2026-08-27",
+      "gift_amount": "5000000.00",
+      "box": 3,
+      "sources": [
+        {"name": "Uihlein, Richard E.", "city": "Lake Bluff", "state": "IL", "amount": "5000000.00"}
+      ],
+      "line_a": "5000000.00",
+      "line_b": null,
+      "line_c": null,
+      "signed_on": "2026-09-20",
+      "received_on": "2026-09-21",
+      "evidence": "Read by the Claude coding agent from the Board's scanned PDF on 23 Sep 2026: box 3 ticked; Schedule A1 names 1 source, Uihlein, Richard E., Lake Bluff, IL, $5,000,000; Line A $5,000,000; Lines B and C blank; signed 9/20/2026; stamped received Sep 21 2026."
+    },
+    {
+      "recipient_registration_number": "41412",
+      "filing_year": 2026,
+      "statement_number": 3,
+      "image_fingerprint": "4fefee9d71b160be7f37fb41e1186731f2c4a955c4c514f3f97d22b52c4ec933",
+      "state": "read",
+      "donor_name": "Restoration of America PAC",
+      "gift_date": "2026-09-15",
+      "gift_amount": "5000000.00",
+      "box": 3,
+      "sources": [
+        {"name": "Uihlein, Richard E.", "city": "Lake Bluff", "state": "IL", "amount": "5000000.00"}
+      ],
+      "line_a": "5000000.00",
+      "line_b": null,
+      "line_c": null,
+      "signed_on": "2026-09-20",
+      "received_on": "2026-09-21",
+      "evidence": "Read by the Claude coding agent from the Board's scanned PDF on 23 Sep 2026: box 3 ticked; Schedule A1 names 1 source, Uihlein, Richard E., Lake Bluff, IL, $5,000,000; Line A $5,000,000; Lines B and C blank; signed 9/20/2026; stamped received Sep 21 2026."
+    },
+    {
+      "recipient_registration_number": "41412",
+      "filing_year": 2026,
+      "statement_number": 4,
+      "image_fingerprint": "5332558140625edf5419b792800514aa14a7ef13fcfc7be8a437b0dbb0f9d3f4",
+      "state": "read",
+      "donor_name": "Restoration of America PAC",
+      "gift_date": "2026-07-21",
+      "gift_amount": "1000000.00",
+      "box": 3,
+      "sources": [
+        {"name": "Uihlein, Richard E.", "city": "Lake Bluff", "state": "IL", "amount": "1000000.00"}
+      ],
+      "line_a": "1000000.00",
+      "line_b": null,
+      "line_c": null,
+      "signed_on": "2026-07-22",
+      "received_on": "2026-09-21",
+      "evidence": "Read by the Claude coding agent from the Board's scanned PDF on 23 Sep 2026: box 3 ticked; Schedule A1 names 1 source, Uihlein, Richard E., Lake Bluff, IL, $1,000,000; Line A $1,000,000; Lines B and C blank; signed 7/22/2026; stamped received Sep 21 2026."
+    }
+  ]
+}

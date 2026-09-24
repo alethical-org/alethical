@@ -1993,6 +1993,64 @@ above); official totals for 2015 to 2021, which the Board's report documents can
 donor kind from the filing's 5 lines, whose party-unit line names half of what it holds (§9.1,
 [#2144](https://github.com/alethical-org/alethical/issues/2144)).
 
+**Large-contribution notices and disclosure statements (#2347, 23 Sep 2026).** Two record
+kinds the Minnesota Campaign Finance Board publishes beside a committee's reports. Neither is a
+report, neither is ever called one, and **no amount of either kind enters any total, share, count
+or chart.** Collected by `alethical/pipeline/campaign_finance_notices.py`; served by
+`alethical/api/services/committee_notices.py`; drawn on the committee page's Campaign money tab
+only.
+
+- **A notice** is a committee telling the Board, by the end of the next business day, about money
+  from one source received in the days before an election ([Minnesota Statutes 10A.20,
+  subdivision 5](https://www.revisor.mn.gov/statutes/cite/10A.20#stat.10A.20.5)). The threshold
+  depends on the filer: more than $1,000 for a committee or fund, more than $2,000 for an
+  appellate court candidate, more than $400 for a district court candidate, and more than half the
+  election-segment limit for a legislative or constitutional candidate. The same money appears
+  again as an ordinary payment row once the committee files its next report, so a matched notice
+  and its row are one gift drawn twice.
+- **Source and cadence.** One page, the Board's list of large-contribution notices, which lists the
+  current election year only. Each notice is a 1-page PDF, fetched once and kept content-addressed
+  under `campaign-finance/notice/` in the raw-source-files bucket. Two PDF layouts are in use, and
+  the second prints no date received by the Board, so that date is printed only where the notice
+  states it. `.github/workflows/campaign-money-notices.yml` reads the page daily from 20 Oct to
+  6 Nov 2026 and weekly otherwise, with 2 Feb 2027 as a review point.
+- **Covered years.** The card draws only for a year some completed copy of the list covers. A year
+  outside every copy, a party unit, and a filer with no window draw no card at all, never an empty
+  one.
+- **Windows.** Only windows that apply to this filer draw. 10A.20 subd. 5(d) removes the primary
+  window for a ballot-question committee or fund and for a candidate unopposed in the primary, and
+  the general-election window for a candidate not on the general-election ballot. The ballot facts
+  come from the Secretary of State's primary and general candidate files, matched on office,
+  district and surname; a candidate found in neither keeps both windows, and so does every
+  judicial candidate, because the Board's register carries no seat number. A window whose chip says
+  open or not yet open is judged against the reader's today; the notices listed are as of the copy
+  date the card's foot prints.
+- **Match status, per notice.** `matched` when a payment row names the same contributor, date and
+  amount, ignoring only letter case and surrounding spaces. `not_yet_on_a_report` when the gift is
+  dated after the end of the latest report this filer has filed in our copy of the catalogue.
+  `no_exact_match` otherwise, which says spellings vary and never says the gift is missing.
+- **Amendments.** The catalogue's amendment marker for a notice file above 0 marks it amended; the
+  row shows the latest filing with its earlier value kept readable on the record.
+- **A disclosure statement** is filed by an unregistered association giving to an
+  independent-expenditure committee or fund, naming where the money for that gift came from. The
+  recipient's catalogue lists each only as a numbered file and never says which gift it names. The
+  PDFs are scanned images with no text layer, so everything past a statement's existence is entered
+  by a person in `alethical/pipeline/data/disclosure_statement_readings.json`, signed with a
+  reviewer of record, and stored only when the kept PDF's page images match the reading's
+  fingerprint.
+- **Attachment.** A statement attaches to exactly the payment row whose donor, date and amount the
+  reading names, by the same exact rule. A statement no one has linked to a gift, or whose gift
+  matches no row, attaches to nothing and prints nothing; the first such statement is the trigger
+  to revisit this. **No gift ever prints a line saying it has no statement**, because matching is
+  exact and a statement filed under a slightly different date would make that line false.
+- **What a statement prints.** Box 3: the sources' names, cities and states, never a ZIP or street,
+  and Lines A to C, where a blank line prints "Not reported", never $0. Boxes 1 and 2 list no
+  sources. A statement whose gift is known and whose sources are not yet read shows as held, not
+  read, beside the Board's PDF. The officer who signed a statement is never printed, and nothing
+  implies a source controls the committee, caused its spending, or gave any other gift.
+- **Filed reports is unchanged.** It reads only the catalogue's reports, so neither kind is listed
+  there or counted as a report.
+
 ### 7.1 What a signed report page must do
 
 Everything above governs a **record** surface. A signed research report is the one surface
