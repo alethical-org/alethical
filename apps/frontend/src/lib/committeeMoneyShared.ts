@@ -9,9 +9,11 @@ import {
 export { registrationNumberFromSlug } from './committeeRoute';
 export {
   committeeMoneyQueryKey,
+  committeeNoticesQueryKey,
   committeePaymentsListQueryKey,
   FIRST_PAYMENTS_LIMIT,
   PAGE_CAP,
+  unlinkedStatementsQueryKey,
 } from './committeeMoneyQueryKeys';
 
 /** The two Board sub-type codes that mark a ballot-question filer on its own money

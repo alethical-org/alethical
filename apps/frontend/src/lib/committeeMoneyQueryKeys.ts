@@ -36,3 +36,24 @@ export function committeePaymentsListQueryKey(options: {
 /** The first page of a payments list, and the most one later page may hold. */
 export const FIRST_PAYMENTS_LIMIT = 50;
 export const PAGE_CAP = 250;
+
+/** One committee's large-contribution notices for one year (#2347). */
+export function committeeNoticesQueryKey(
+  registrationNumber: string | null,
+  year: number,
+): readonly unknown[] {
+  return ['committee-notices', registrationNumber, year];
+}
+
+/** One disclosure statement's reading, loaded when its payment row opens (#2347). */
+export function disclosureStatementQueryKey(statementId: string): readonly unknown[] {
+  return ['disclosure-statement', statementId];
+}
+
+/** One committee's disclosure statements for one year that match no payment (#2347). */
+export function unlinkedStatementsQueryKey(
+  registrationNumber: string | null,
+  year: number,
+): readonly unknown[] {
+  return ['unlinked-statements', registrationNumber, year];
+}

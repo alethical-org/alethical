@@ -38,6 +38,10 @@ import { CommitteeDonationCards } from '../../components/campaignMoney/Committee
 import { TrackCommitteeButton } from '../../components/campaignMoney/TrackCommitteeButton';
 import { BOARD_RECORD_LINK_LABEL, boardRecordUrl } from '../../lib/boardRecordLink';
 import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
+import { CommitteeNoticesCard } from '../../components/campaignMoney/CommitteeNoticesCard';
+import { UnlinkedStatementsCard } from '../../components/campaignMoney/UnlinkedStatementsCard';
+import { useUnlinkedStatements } from '../../hooks/useDisclosureStatement';
+import { catalogueCopiedLine } from '../../lib/disclosureStatementCopy';
 import type { CommitteeConfirmation, CommitteeMoney } from '../../data/types';
 import {
   useCommitteeFilingsList,
@@ -665,7 +669,7 @@ function CommitteeBody({
                   ]}
                 >
                   <Text style={styles.coverageHead}>{RECORD_COVERS_HEADING.toUpperCase()}</Text>
-                  {recordCoverageLines(isBallot).map((line) => (
+                  {recordCoverageLines(isBallot, isPartyUnit).map((line) => (
                     <Text key={line} style={styles.coverageLine}>
                       {line}
                     </Text>
@@ -912,6 +916,39 @@ function PaymentsSection({
   });
   // An absent report does not establish empty payment lists. Wait for complete,
   // successful reads of both directions from the summary's exact data release.
+  // The reused Filed reports foot line, printed on Campaign money whenever it shows a
+  // disclosure statement, dating the catalogue copy the statements came from (#2347).
+  const unlinked = useUnlinkedStatements(registrationNumber, year, section === 'gave');
+  const linkedCopied = details.received.data?.payments.some(
+    (payment) => 'disclosureStatement' in payment && payment.disclosureStatement,
+  )
+    ? (details.received.data.statementsCopiedOn ?? null)
+    : null;
+  const unlinkedCopied = unlinked.data?.statements.length ? unlinked.data.copiedOn : null;
+  const statementsCopied =
+    section === 'gave' ? catalogueCopiedLine(linkedCopied ?? unlinkedCopied) : null;
+  // Committees and funds share one notice threshold; a candidate's depends on office,
+  // so its lead waits for the answer.
+  const kind =
+    money.register.state === 'reported'
+      ? money.register.kind
+      : registerKindFromEntityType(money.entityType);
+  const noticesThreshold =
+    kind === 'political_committee_or_fund' ? ('more_than_1000' as const) : null;
+  // A party unit files no notices, so its page never asks for them. Statements not
+  // linked to a payment follow the notices card on every filer's page.
+  const notices = (
+    <>
+      {kind === 'party_unit' ? null : (
+        <CommitteeNoticesCard
+          registrationNumber={registrationNumber}
+          year={year}
+          thresholdHint={noticesThreshold}
+        />
+      )}
+      <UnlinkedStatementsCard registrationNumber={registrationNumber} year={year} />
+    </>
+  );
   const emptyPayments =
     yearDisplayState(money) !== 'figures' &&
     Number(money.split.namedTotal ?? 0) === 0 &&
@@ -972,6 +1009,7 @@ function PaymentsSection({
                 >
                   <CommitteeDonations
                     headingLevel={2}
+                    showStatements
                     isBallot={isBallotQuestionFiler(money.entitySubType)}
                     committee={money}
                     year={year}
@@ -1002,6 +1040,7 @@ function PaymentsSection({
                     </Pressable>
                   </View>
                 </View>
+                {notices}
                 <CommitteeDonationCards
                   expandedRows={contributionDetailRows(
                     contributionDetails,
@@ -1028,7 +1067,9 @@ function PaymentsSection({
                   releaseId={money.releaseId}
                 />
               </>
-            ) : null}
+            ) : (
+              notices
+            )}
             <GroupedOutsideSpending
               surface="committee"
               year={committeeOutsideSpending(money)}
@@ -1036,6 +1077,9 @@ function PaymentsSection({
               onOpenSource={(url) => void Linking.openURL(url)}
             />
             {moneyFooter}
+            {statementsCopied ? (
+              <Text style={styles.catalogueCopied}>{statementsCopied}</Text>
+            ) : null}
           </>
         )}
       </View>
@@ -1585,7 +1629,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: c.secondary,
   },
-  sectionTabLabelActive: { fontWeight: '700', color: c.text },
+  // The product's selected-tab treatment: green label over the green underline (#2347).
+  sectionTabLabelActive: { fontWeight: '700', color: c.link },
   listHead: {
     marginTop: 20,
     flexDirection: 'row',
@@ -1845,6 +1890,16 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.body,
     lineHeight: 23,
     color: c.secondary,
+  },
+  catalogueCopied: {
+    marginTop: 6,
+    paddingLeft: 16,
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    lineHeight: 22.5,
+    fontWeight: '400',
+    color: c.secondary,
+    fontVariant: ['tabular-nums'],
   },
   freshness: {
     marginTop: 16,

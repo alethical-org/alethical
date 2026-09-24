@@ -3799,7 +3799,13 @@ def committee_notices_for_year(
         kind=record.kind if record is not None else None,
         office=record.office if record is not None else None,
     )
-    if request.method == "GET" and "authorization" not in request.headers:
+    # "We hold no copy of the list yet" is a fact about us that the next collection run
+    # changes, so it keeps the short window rather than being held for a day.
+    if (
+        request.method == "GET"
+        and "authorization" not in request.headers
+        and answer.state != "unavailable"
+    ):
         response.headers["Cache-Control"] = MONEY_RECORDS_CACHE_CONTROL
     return DetailResponse(data=asdict(answer))
 

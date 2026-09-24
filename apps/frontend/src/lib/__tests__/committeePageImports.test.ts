@@ -9,6 +9,8 @@ const CHUNKS = resolve(ROOT, 'navigation/screenChunks.ts');
 const ROUTE_TEXT = new Map([
   ['lib/committeeMoney.ts', 'screens/redesign/CommitteeMoneyScreen.tsx'],
   ['lib/committeePaymentsPage.ts', 'screens/redesign/CommitteePaymentsScreen.tsx'],
+  // The notices card's words (#2347) download with the committee page alone.
+  ['lib/committeeNotices.ts', 'screens/redesign/CommitteeMoneyScreen.tsx'],
 ]);
 
 // Two lazy screens sharing a module put that module in Expo's common download.

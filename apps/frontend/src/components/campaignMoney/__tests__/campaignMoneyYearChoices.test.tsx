@@ -414,7 +414,7 @@ describe('independent outside-money confirmation and shared download dates', () 
     expect(container.textContent).not.toContain('Copied from the state on');
     click(
       Array.from(container.querySelectorAll('[role="button"]')).find(
-        (button) => button.textContent === 'Check these records again',
+        (button) => button.textContent === 'Try again',
       ),
     );
     expect(refetchMoney).toHaveBeenCalledTimes(1);
@@ -433,7 +433,7 @@ describe('independent outside-money confirmation and shared download dates', () 
     expect(container.textContent).toContain('Sep 12,\u00a02026');
     expect(container.textContent).not.toContain('Sep 12, 2026');
     expect(container.textContent).not.toContain(moneyDetailsCopy.freshnessMismatch);
-    expect(container.textContent).not.toContain('Check these records again');
+    expect(container.textContent).not.toContain('Try again');
     expect(container.textContent).not.toContain('Copied from the state on');
   });
 });

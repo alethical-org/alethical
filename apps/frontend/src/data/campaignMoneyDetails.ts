@@ -22,6 +22,9 @@ export interface CompleteCampaignMoneyPayments<Payment = MoneyDetailsPayment> {
   sourceUrl: string | null;
   fetchedAt: string | null;
   totalPayments: number | null;
+  /** The day the catalogue the list's disclosure statements came from was copied, set
+   *  only when at least 1 payment carries a statement (#2347). */
+  statementsCopiedOn?: string | null;
 }
 
 type Payload = ApiCommitteePaymentsPayload & {
@@ -29,7 +32,35 @@ type Payload = ApiCommitteePaymentsPayload & {
   registration_number?: string;
   year?: number;
   direction?: string;
+  disclosure_statements?: {
+    record_number?: unknown;
+    statement_id?: unknown;
+    state?: unknown;
+    pdf_url?: unknown;
+  }[];
+  statements_copied_on?: string | null;
 };
+
+/** Record number to the statement naming that gift, as one page serves it. */
+function statementsByRecord(data: Payload): Map<number, AttachedStatement> {
+  const found = new Map<number, AttachedStatement>();
+  for (const item of data.disclosure_statements ?? []) {
+    if (
+      typeof item.record_number === 'number' &&
+      typeof item.statement_id === 'string' &&
+      typeof item.pdf_url === 'string' &&
+      (item.state === 'read' || item.state === 'gift_identified')
+    ) {
+      found.set(item.record_number, {
+        id: item.statement_id,
+        state: item.state,
+        pdfUrl: item.pdf_url,
+      });
+    }
+  }
+  return found;
+}
+import type { AttachedStatement } from '../lib/disclosureStatementCopy';
 import { MoneyDetailsReadError } from './moneyDetailsReadError';
 export { MoneyDetailsReadError } from './moneyDetailsReadError';
 const asText = (value: unknown) => (typeof value === 'string' ? value : null);
@@ -173,9 +204,21 @@ export async function getCompleteCampaignMoneyPayments(
 
   const payments: MoneyDetailsPayment[] = [];
   const linkable = new Set<string>();
-  const shape = (row: Record<string, unknown>) =>
-    direction === 'received' ? receivedRow(row) : madeRow(row);
-  payments.push(...firstRows.map(shape));
+  let statementsCopiedOn: string | null = null;
+  const shaper = (data: Payload) => {
+    const statements = direction === 'received' ? statementsByRecord(data) : new Map();
+    if (statements.size && data.statements_copied_on) {
+      statementsCopiedOn = data.statements_copied_on;
+    }
+    return (row: Record<string, unknown>): MoneyDetailsPayment => {
+      if (direction !== 'received') return madeRow(row);
+      const payment = receivedRow(row);
+      const statement =
+        payment.recordNumber === undefined ? undefined : statements.get(payment.recordNumber);
+      return statement ? { ...payment, disclosureStatement: statement } : payment;
+    };
+  };
+  payments.push(...firstRows.map(shaper(first)));
   for (const number of first.linkable_registration_numbers ?? []) linkable.add(number);
   for (const [index, data] of later.entries()) {
     const offset = offsets[index];
@@ -190,7 +233,7 @@ export async function getCompleteCampaignMoneyPayments(
       throw new MoneyDetailsReadError('count_mismatch');
     }
     if (Boolean(data.page!.has_more) !== !isLast) throw new MoneyDetailsReadError('count_mismatch');
-    payments.push(...rows.map(shape));
+    payments.push(...rows.map(shaper(data)));
     for (const number of data.linkable_registration_numbers ?? []) linkable.add(number);
   }
   if (payments.length !== expectedCount) throw new MoneyDetailsReadError('incomplete_list');
@@ -205,6 +248,7 @@ export async function getCompleteCampaignMoneyPayments(
     sourceUrl,
     fetchedAt,
     totalPayments: expectedCount,
+    statementsCopiedOn,
   };
 }
 

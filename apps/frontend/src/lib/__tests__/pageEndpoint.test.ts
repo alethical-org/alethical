@@ -2793,7 +2793,8 @@ describe('a committee page hands its records to the app', () => {
 
     await serve({ path: `/money/committees/${SLUG}`, year: '2026' });
 
-    expect(state.mostAtOnce).toBe(2);
+    // The figures, the ownership check, the year's notices and its statements (#2347).
+    expect(state.mostAtOnce).toBe(4);
   });
 
   it('uses the existing age fallback only for the separate ownership answer', async () => {
@@ -2950,6 +2951,13 @@ describe('a committee page hands its records to the app', () => {
       expect(calls.map((url) => new URL(url).pathname + new URL(url).search)).toEqual([
         '/api/v1/committees/41326/finance?year=2026&include_confirmation=false',
         '/api/v1/committees/41326/confirmation',
+        // Only Campaign money draws the notices and unlinked-statements cards (#2347).
+        ...(tab === 'filings' || tab === 'by'
+          ? []
+          : [
+              '/api/v1/committees/41326/notices?year=2026',
+              '/api/v1/committees/41326/disclosure-statements?year=2026',
+            ]),
       ]);
       expect(status).toBe(200);
       expect(body).toContain('Jane Fonda Climate PAC');

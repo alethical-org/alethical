@@ -43,13 +43,13 @@ export function namedMoneyDefinition(isBallot: boolean): DekSegment[] {
 export const moneyDetailsPageCopy = {
   chartFailed: 'We could not load the complete donation list, so the chart is withheld',
   outsideFailed:
-    'We could not load this right now. This is a problem at our end and says nothing about what was spent.',
+    'We could not load this right now. This is a problem on our side and says nothing about what was spent.',
   chartLoading: 'Loading the contribution breakdown…',
   outsideLoading: 'Loading the list of outside spenders…',
   fullRecord: 'Committee details and filings',
   freshnessMismatch:
     'We cannot give these money records one shared download date. Their recorded dates differ or a date is missing.',
-  refreshRecords: 'Check these records again',
+  refreshRecords: 'Try again',
 } as const;
 
 /**

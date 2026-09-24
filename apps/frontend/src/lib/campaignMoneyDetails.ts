@@ -1,3 +1,4 @@
+import type { AttachedStatement } from './disclosureStatementCopy';
 import type { CommitteeMadePayment, CommitteeReceivedPayment } from '../data/types';
 
 import type { MoneyDetailsTab, MoneyDetailsSort } from './campaignMoneyPreferences';
@@ -30,6 +31,9 @@ export const MONEY_DETAILS_SORTS: readonly { id: MoneyDetailsSort; label: string
 export type DetailedReceivedPayment = CommitteeReceivedPayment & {
   recordNumber?: number;
   inKindDescription?: string | null;
+  /** The disclosure statement that names exactly this gift, when one is held (#2347).
+   *  Known when the list loads, so a failed detail read never hides it. */
+  disclosureStatement?: AttachedStatement | null;
 };
 export type DetailedMadePayment = CommitteeMadePayment & {
   recordNumber?: number;
@@ -77,6 +81,12 @@ export function contributionTab(kind: string | null): MoneyDetailsTab {
   return 'other';
 }
 
+/** The one key a donor's row goes by in the payment list: its tab and its printed name.
+ *  Exported so a matched notice can ask the list for exactly that row (#2347). */
+export function paymentGroupKey(tab: MoneyDetailsTab, printedName: string | null): string {
+  return JSON.stringify([tab, printedName]);
+}
+
 export interface MoneyDetailsGroup {
   key: string;
   name: string;
@@ -109,7 +119,7 @@ function groupPayments(
     const sourceName = received ? payment.contributor : payment.vendorName;
     const printedName = sourceName === '' ? null : sourceName;
     const tab = received ? contributionTab(payment.contributorType) : 'expenditures';
-    const key = JSON.stringify([tab, printedName]);
+    const key = paymentGroupKey(tab, printedName);
     let group = groups.get(key);
     if (!group) {
       group = {
