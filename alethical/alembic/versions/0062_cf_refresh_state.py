@@ -4,8 +4,8 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = "0059_cf_refresh_state"
-down_revision = "0058_cf_filer_retention"
+revision = "0062_cf_refresh_state"
+down_revision = "0061_cf_filing_provenance"
 branch_labels = None
 depends_on = None
 
