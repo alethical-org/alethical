@@ -16,7 +16,7 @@ Print these words verbatim. Copy improvements can be proposed separately with a 
 - Descriptor: **Minnesota campaign money and lobbying research**
 - Body: **We’ll email you about new research. Every piece is free to read on Alethical.**
 - Invitation: **Get Unconcealed by email**
-- Signed-out helper: **Create a free account or sign in**
+- Signed-out helper: **Create an account or sign in**
 - Subscribed: **You’re subscribed to Unconcealed** followed by **Email preferences**, 20px below.
 - Sign-in helper from this invitation: **Sign in or create an account to get Unconcealed by email**
 - Create helper from this invitation: **Create your free account, then subscribe to Unconcealed**
@@ -45,7 +45,7 @@ Invalid links: **We couldn’t open your unsubscribe request**. An uncertain sub
 
 ## Interaction
 
-Apply the v9 hover treatments only to pointer hover; busy/disabled buttons cannot suggest availability. Purple #7c5cff 2px focus ring remains independent. Touch does not retain hover. Preserve shared account/sign-in hover scope. Research card gains border/shadow, no lift; record cards retain 3px lift except with reduced motion. Match all v9 colours and padding; no new aesthetic choices.
+Apply the v9 hover treatments only to pointer hover; busy/disabled buttons cannot suggest availability. Purple #7c5cff 2px focus ring remains independent. Touch does not retain hover. Preserve shared account/sign-in hover scope. The September 25 research-card revision (`Alethical UX (17).zip`) replaces the research card’s green fill with white, a 1px rgba(17,21,15,0.12) border, and neutral shadows: desktop 0 10px 30px rgba(17,21,15,0.08), tablet 0 8px 24px rgba(17,21,15,0.07), phone 0 6px 18px rgba(17,21,15,0.06). Its white Read the research control uses a 1px rgba(17,21,15,0.16) border. On desktop and tablet with a fine hover pointer, the research card uses the record-card green border rgba(45,212,126,0.85), shadow 0 22px 46px rgba(17,21,15,0.14), and 3px lift, with 0.16s ease transitions. Reduced motion removes the lift and transitions. Phone and touch have no hover treatment. Preserve the existing research copy, type, padding, radius, and link. This leaves the dark Unconcealed invitation as the section’s only coloured surface. Other v9 treatments remain unchanged.
 
 Close, Escape and outside press dismiss confirmation, with focus returned to invitation or heading after Google. Status messages are polite; errors are alerts. Touch targets are at least 44px; sheet buttons 54px. Long addresses wrap. Loading/ready/saving should hold space; uncertain-result text may add space.
 

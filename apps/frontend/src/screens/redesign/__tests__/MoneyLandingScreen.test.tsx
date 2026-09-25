@@ -477,11 +477,11 @@ describe('the money landing makes the reporting periods and destinations explici
     expect(sourceToggle(host)).toBeDefined();
   });
 
-  it('keeps the empty research message in the green card without a made-up count', () => {
+  it('keeps the empty research message in the white card without a made-up count', () => {
     queries.research.mockReturnValue([]);
     const { host } = mount();
     let card: HTMLElement | null = exactText(host, 'Nothing is published yet');
-    while (card && getComputedStyle(card).backgroundColor !== 'rgb(234, 246, 239)') {
+    while (card && getComputedStyle(card).backgroundColor !== 'rgb(255, 255, 255)') {
       card = card.parentElement;
     }
     expect(card).not.toBeNull();

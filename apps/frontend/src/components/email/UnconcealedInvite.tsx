@@ -186,9 +186,7 @@ export function UnconcealedInvite({
                 minHeight={isMobile ? 54 : 52}
                 testID="unconcealed-invite"
               />
-              {!isSignedIn ? (
-                <Text style={styles.helper}>Create a free account or sign in</Text>
-              ) : null}
+              {!isSignedIn ? <Text style={styles.helper}>Create an account or sign in</Text> : null}
               {error ? (
                 <>
                   <EmailNotice kind="error">We couldn’t open email signup. Try again.</EmailNotice>

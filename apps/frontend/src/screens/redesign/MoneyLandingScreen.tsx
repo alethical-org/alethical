@@ -173,6 +173,7 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
   const laneLayout = { stacked: isMobile, tablet: isTablet, wide, cardWidth };
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [researchHovered, setResearchHovered] = useState(false);
+  const reduceMotion = useReducedMotion();
   const [sourceControlFocused, setSourceControlFocused] = useState(false);
   const sourceGroupsId = useId();
   useFocusEffect(
@@ -356,13 +357,21 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                   navigation.navigate('Research', { slug: newestPiece.slug }),
                 )}
                 onHoverIn={() => {
-                  if (hasHoverPointer()) setResearchHovered(true);
+                  if (!isMobile && hasHoverPointer()) setResearchHovered(true);
                 }}
                 onHoverOut={() => setResearchHovered(false)}
                 style={[
                   styles.researchRow,
+                  laneCardShadow,
+                  isTablet && styles.researchRowTablet,
                   isMobile && styles.researchRowMobile,
-                  researchHovered && hasHoverPointer() && styles.researchRowHover,
+                  !reduceMotion && styles.researchTransition,
+                  researchHovered && !isMobile && hasHoverPointer() && styles.laneCardHover,
+                  researchHovered &&
+                    !isMobile &&
+                    hasHoverPointer() &&
+                    !reduceMotion &&
+                    styles.laneCardLift,
                 ]}
               >
                 <View style={[styles.researchText, isMobile && styles.stackedCard]}>
@@ -379,7 +388,14 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                 </View>
               </Pressable>
             ) : (
-              <View style={[styles.researchRow, isMobile && styles.researchRowMobile]}>
+              <View
+                style={[
+                  styles.researchRow,
+                  laneCardShadow,
+                  isTablet && styles.researchRowTablet,
+                  isMobile && styles.researchRowMobile,
+                ]}
+              >
                 <Text style={styles.researchEmpty}>{RESEARCH_ROW_EMPTY}</Text>
               </View>
             )}
@@ -855,15 +871,23 @@ const styles = StyleSheet.create({
     gap: 32,
     padding: 28,
     borderWidth: 1,
-    borderColor: '#bfe3ce',
+    borderColor: 'rgba(17,21,15,0.12)',
     borderRadius: 18,
-    backgroundColor: '#eaf6ef',
+    backgroundColor: '#ffffff',
   },
-  researchRowHover: {
-    borderColor: '#8fd3ae',
-    ...(Platform.OS === 'web' ? { boxShadow: '0 16px 36px rgba(15,122,69,0.16)' } : null),
+  researchTransition:
+    Platform.OS === 'web'
+      ? ({
+          transitionProperty: 'border-color, box-shadow, transform',
+          transitionDuration: '0.16s',
+          transitionTimingFunction: 'ease',
+        } as object)
+      : {},
+  researchRowTablet: {
+    ...(Platform.OS === 'web' ? { boxShadow: '0 8px 24px rgba(17,21,15,0.07)' } : null),
   },
   researchRowMobile: {
+    ...(Platform.OS === 'web' ? { boxShadow: '0 6px 18px rgba(17,21,15,0.06)' } : null),
     flexDirection: 'column',
     alignItems: 'stretch',
     gap: 14,
@@ -905,7 +929,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: '#bfe3ce',
+    borderColor: 'rgba(17,21,15,0.16)',
     borderRadius: 12,
     backgroundColor: '#ffffff',
   },
