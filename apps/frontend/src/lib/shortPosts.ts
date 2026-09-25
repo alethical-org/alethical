@@ -1,5 +1,5 @@
 import type { ResearchBlock, ResearchInline, ResearchPiece } from './research';
-import { TOPICS } from './researchIndex';
+import { SHORT_POST_PRESENTATION_READY, TOPICS } from './researchIndex';
 import {
   calculateChart,
   chartDescription,
@@ -375,7 +375,10 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
 }
 
 /** Called by the live writing registry, so an unready Short post fails before it can post. */
-export function assertPublishedShortPosts<T extends ResearchPiece>(pieces: T[]): T[] {
+export function assertPublishedShortPosts<T extends ResearchPiece>(
+  pieces: T[],
+  presentationReady = SHORT_POST_PRESENTATION_READY,
+): T[] {
   const identities = new Set<string>();
   const slugs = new Set<string>();
   for (const piece of pieces) {
@@ -389,6 +392,7 @@ export function assertPublishedShortPosts<T extends ResearchPiece>(pieces: T[]):
       throw new Error(`Cannot publish ${piece.slug}: Short post format is missing`);
     }
     if (piece.format !== 'short-post') continue;
+    if (!presentationReady) throw new Error('Short post public presentation is not ready');
     const errors = shortPostPublicationErrors(piece);
     if (errors.length) throw new Error(`Cannot publish ${piece.slug}: ${errors.join('; ')}`);
   }

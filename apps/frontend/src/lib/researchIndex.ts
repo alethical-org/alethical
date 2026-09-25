@@ -42,6 +42,9 @@ export const TOPICS = [
 
 export type TopicSlug = (typeof TOPICS)[number]['slug'];
 
+/** The public Short post layout must show its evidence and disclosures before any can post. */
+export const SHORT_POST_PRESENTATION_READY = false;
+
 export function topicFromSlug(value: string): TopicSlug | undefined {
   return TOPICS.find((topic) => topic.slug === value)?.slug;
 }
@@ -361,10 +364,14 @@ export const PUBLISHED_PIECE_INDEX: PieceIndexEntry[] = assertPublishedPieceInde
 ]);
 
 /** The first-load address table cannot contain an incomplete Short post entry. */
-export function assertPublishedPieceIndex<T extends PieceIndexEntry>(pieces: T[]): T[] {
+export function assertPublishedPieceIndex<T extends PieceIndexEntry>(
+  pieces: T[],
+  presentationReady = SHORT_POST_PRESENTATION_READY,
+): T[] {
   const identities = new Set<string>();
   for (const piece of pieces) {
     if (piece.format !== 'short-post') continue;
+    if (!presentationReady) throw new Error('Short post public presentation is not ready');
     if (!piece.articleId?.trim() || identities.has(piece.articleId)) {
       throw new Error(`Short post ${piece.slug} needs a unique stable identity`);
     }

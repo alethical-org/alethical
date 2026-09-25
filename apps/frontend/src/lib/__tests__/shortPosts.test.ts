@@ -121,8 +121,14 @@ describe('social-derived Short post publication gate', () => {
   it('accepts complete checked material without changing older published pieces', () => {
     const piece = readyPiece();
     expect(shortPostPublicationErrors(piece)).toEqual([]);
-    expect(assertPublishedShortPosts([...PUBLISHED_RESEARCH, piece])).toContain(piece);
+    expect(assertPublishedShortPosts([...PUBLISHED_RESEARCH, piece], true)).toContain(piece);
     expect(assertPublishedShortPosts(PUBLISHED_RESEARCH)).toBe(PUBLISHED_RESEARCH);
+  });
+
+  it('keeps even a checked Short post private until its public layout is ready', () => {
+    const piece = readyPiece();
+    expect(() => assertPublishedShortPosts([piece])).toThrow('public presentation is not ready');
+    expect(() => assertPublishedPieceIndex([piece])).toThrow('public presentation is not ready');
   });
 
   it('blocks missing coverage, evidence, method, source checks, and approvals', () => {
@@ -137,7 +143,7 @@ describe('social-derived Short post publication gate', () => {
     expect(shortPostPublicationErrors(piece).join(' ')).toContain('method');
     expect(shortPostPublicationErrors(piece).join(' ')).toContain('unresolved');
     expect(shortPostPublicationErrors(piece).join(' ')).toContain('editorial approval');
-    expect(() => assertPublishedShortPosts([piece])).toThrow('Cannot publish');
+    expect(() => assertPublishedShortPosts([piece], true)).toThrow('Cannot publish');
   });
 
   it('requires chart text and diagram geometry to share the checked inputs', () => {
@@ -200,7 +206,7 @@ describe('social-derived Short post publication gate', () => {
   it('keeps an unregistered draft out of the public address, search index, and sitemap source', () => {
     const draft = readyPiece();
     draft.shortPost!.claims[0].status = 'unresolved';
-    expect(() => assertPublishedShortPosts([draft])).toThrow();
+    expect(() => assertPublishedShortPosts([draft], true)).toThrow();
     expect(PUBLISHED_RESEARCH).not.toContain(draft);
     expect(pieceIndexBySlug(draft.slug)).toBeUndefined();
     expect(targetFromPathname(piecePath(draft))).toEqual({
@@ -212,10 +218,10 @@ describe('social-derived Short post publication gate', () => {
 
   it('refuses a light address-table entry with no stable identity or publication time', () => {
     const piece = readyPiece();
-    expect(() => assertPublishedPieceIndex([{ ...piece, articleId: undefined }])).toThrow(
+    expect(() => assertPublishedPieceIndex([{ ...piece, articleId: undefined }], true)).toThrow(
       'identity',
     );
-    expect(() => assertPublishedPieceIndex([{ ...piece, publishedAt: undefined }])).toThrow(
+    expect(() => assertPublishedPieceIndex([{ ...piece, publishedAt: undefined }], true)).toThrow(
       'timestamp',
     );
   });

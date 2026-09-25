@@ -4,7 +4,7 @@
 
 ## Boundaries
 
-- Build only nonvisual foundations. Keep new public routes, `/read` layout changes, article and chart layouts, comments, and real articles out of this change.
+- Build only nonvisual foundations. Keep new public routes, `/read` layout changes, article and chart layouts, comments, and real articles out of this change. Both published-writing registries reject Short posts until the public layout can show their evidence and disclosures.
 - Keep provisional claims and source copies private. Never commit the 2 supplied posters or a draft needing privacy to the public repository.
 - Preserve existing published articles and the publication/indexing distinction that currently governs them.
 
