@@ -16,9 +16,9 @@ Source: [Unconcealed email requirements](../product-onboarding/unconcealed-email
 
 - Reviewed v9 with v6 behavior and settled corrections; sent user the complete Design update prompt while building.
 - Own clean branch started from current main. No competing subscription PR found. Existing account-menu focus PR may overlap; preserve its behavior.
-- Database/API and manual email implementation complete. 32 focused server tests pass, including real PostgreSQL concurrency and migration round trip. Full server suite initially passed 3,367 tests; 3 inventory checks failed and were repaired. All 16 inventory checks now pass; the full release checks run again before upload.
+- Database/API and manual email implementation complete. 32 focused server tests pass, including real PostgreSQL concurrency and migration round trip. Full server suite passes all 3,373 tests on the exact uploaded commit.
 - Browser acceptance corrections applied: web fonts, checkbox state and Space key, phone save width, heading focus, hover, private headers and analytics exclusion.
-- Signed-out reader flows pass at 320/390/1440 widths. Real local API subscribe, separate feature consent, saved reload, read-only stop-link opening and research/all stop pass. Intent outage fallback reaches account settings. All 3,576 frontend tests and release build pass; final focus regression check follows the last correction.
+- Signed-out reader flows pass at 320/390/1440 widths. Real local API subscribe, separate feature consent, saved reload, read-only stop-link opening and research/all stop pass. Intent outage fallback reaches account settings. All 3,577 frontend tests, TypeScript, formatting and release build pass. Final browser check confirms heading focus and return to the invitation on close. Release checks and deployment remain.
 - Shared naming correction merged in https://github.com/euglopi/tool-settings/pull/38. Exact task title restored: Money email signup & newsletter.
 - Real production read-only confirmed-email case mismatch count is 0. No subscription or send writes in production.
 
