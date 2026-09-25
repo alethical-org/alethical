@@ -86,7 +86,7 @@ describe('the landing’s own standalone lines end without a full stop', () => {
   it('uses the compact confirmed wording only when every sitting member is confirmed', () => {
     const drawn = legislatorsLaneBody({ confirmed: 200, total: 200 });
     expect(drawn).toBe(
-      'Official contribution totals and named payment records, with every legislator’s committee match confirmed',
+      'Official contribution totals and named payment records, with every legislator’s committee match',
     );
   });
 
