@@ -58,6 +58,7 @@ import { WHAT_THE_RECORDS_NAME } from './researchPieces/whatTheRecordsName';
 import { WHO_HAS_TO_REPORT_THEIR_MONEY } from './researchPieces/whoHasToReportTheirMoney';
 import { WHY_NOBODY_CAN_FOLLOW_A_DOLLAR } from './researchPieces/whyNobodyCanFollowADollar';
 import { WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT } from './researchPieces/whyTwoOfficialNumbersCanBothBeRight';
+import { assertPublishedShortPosts, type ShortPostEditorial } from './shortPosts';
 
 /**
  * One run of piece prose.
@@ -74,6 +75,26 @@ export type ResearchInline =
   | { kind: 'text'; text: string }
   | { kind: 'bold'; text: string }
   | { kind: 'italic'; text: string }
+  | {
+      kind: 'calculated';
+      text: string;
+      chartId: string;
+      metric:
+        | 'total'
+        | 'part-value'
+        | 'part-percent'
+        | 'remainder-value'
+        | 'remainder-percent'
+        | 'difference'
+        | 'percent-change'
+        | 'left-only'
+        | 'right-only'
+        | 'both'
+        | 'union'
+        | 'neither';
+      partLabel?: string;
+      display: 'integer' | 'decimal' | 'usd' | 'percent';
+    }
   | { kind: 'externalLink'; text: string; href: string }
   | { kind: 'internalLink'; text: string; href: string };
 
@@ -145,6 +166,8 @@ export interface PieceSet {
 }
 
 export interface ResearchPiece extends PieceIndexEntry {
+  /** Scoped checks and approvals for a social-derived Short post. */
+  shortPost?: ShortPostEditorial;
   /**
    * What a search result says under the title: what this piece covers, in the
    * piece's own words, carrying no figure and no finding (Eugene, 18 Sep 2026).
@@ -278,14 +301,14 @@ export function researchSourceText(source: ResearchSource): string {
  * page loads. Each piece spreads its own index entry, so the 2 lists cannot
  * disagree about a slug, a title or a date; research.test.ts pins the order.
  */
-export const PUBLISHED_RESEARCH: ResearchPiece[] = [
+export const PUBLISHED_RESEARCH: ResearchPiece[] = assertPublishedShortPosts([
   WHAT_THE_RECORDS_NAME,
   WHO_HAS_TO_REPORT_THEIR_MONEY,
   WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT,
   MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY,
   WHY_NOBODY_CAN_FOLLOW_A_DOLLAR,
   MONEY_ONLY_GOES_ONE_WAY,
-];
+]);
 
 /** Every posted piece, of either kind: the /read page reads this. */
 export function publishedResearch(): ResearchPiece[] {
@@ -294,12 +317,16 @@ export function publishedResearch(): ResearchPiece[] {
 
 /** Posted pieces the page labels Research, newest first. */
 export function piecesLabelledResearch(): ResearchPiece[] {
-  return PUBLISHED_RESEARCH.filter((piece) => pieceKindLabel(piece) === 'Research');
+  return PUBLISHED_RESEARCH.filter(
+    (piece) => piece.format !== 'short-post' && pieceKindLabel(piece) === 'Research',
+  );
 }
 
 /** Posted pieces the page labels Guide, newest first. */
 export function piecesLabelledGuide(): ResearchPiece[] {
-  return PUBLISHED_RESEARCH.filter((piece) => pieceKindLabel(piece) === 'Guide');
+  return PUBLISHED_RESEARCH.filter(
+    (piece) => piece.format !== 'short-post' && pieceKindLabel(piece) === 'Guide',
+  );
 }
 
 /**

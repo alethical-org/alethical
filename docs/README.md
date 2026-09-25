@@ -84,7 +84,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [AI platform position](architecture/ai-platform-position.md) — what we buy direct, what we build ourselves, what we skip, and the trigger that would reverse each call
 - [How Alethical calls OpenAI and Anthropic, and when it retries](architecture/ai-provider-calls-and-retries.md): the accepted official-library plan, current failure risks, retry and deadline rules, honest reader states, work order, effort, and open questions
 - [Page metadata for search and sharing — decisions](architecture/page-metadata-for-search-and-sharing-decisions.md) — how public pages receive their own titles, descriptions and readable first responses; search access, page addresses, and the measured reasons for those choices
-- [Published writing — decisions](architecture/published-writing-decisions.md) — what Alethical publishes in its own name and every settled call governing it: the words Research and Guide, a piece that carries both traits, nested addresses and what flat lost on twice, a standalone guide, an emptied set, who authors a term link, the order the rename runs in, and the 4 fields no piece carries yet
+- [Published writing — decisions](architecture/published-writing-decisions.md) — Alethical's Research, Guides, and Short posts: their stable addresses, source checks, topics, dates, and publication boundaries
 - [Backend API system design](architecture/backend-api-system-design.md) — REST conventions, namespace layout, and the endpoint inventory
 - [Database schema system design](architecture/db-schema-system-design.md) — table groups, modeling decisions, and the query rubric
 - [Frontend screen system design](architecture/frontend-screen-system-design.md) — the original 16-screen plan; content rules and empty/error states still apply
@@ -100,6 +100,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [Branching, drawn](operations/git-branching-guide.html) — visual companion to `CONTRIBUTING.md` "Branch & PR workflow", for onboarding: 2 commit graphs, one measuring this repo's real branch shape and one showing the dev/staging/production reference flow, plus the habits and commands behind each
 - [Database and source-file recovery](operations/recovery.md) — current backup checks, private isolated restore procedure, and measured recovery limits
 - [Production setup and recovery](operations/deployment.md) — rebuild order, setting owners, Railway and Vercel releases, and Supabase callbacks
+- [Short posts foundation delivery plan](operations/short-posts-foundation-plan.md) — nonvisual build sequence, checks, and the drawing and publication boundaries for issue 2377
 - [How a legislator is matched to their campaign account](operations/how-a-legislator-is-matched-to-their-campaign-account.md) — the public audit record of the one decision no machine may make: what we claim, the 3 pieces of evidence a person reads, who signs, how a wrong match surfaces, how to challenge one, and where all 200 sitting members stand today
 - [What runs, when, and what it costs](operations/jobs-and-scripts.md) — every GitHub workflow, command-line tool, and job-driven AI cost
 - [Copying the Board's lobbying files](operations/lobbying-source-import.md) — the paired import, contact-field exclusion, link checks and rollback

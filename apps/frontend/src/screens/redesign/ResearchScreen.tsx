@@ -195,6 +195,7 @@ function InlineRuns({ runs }: { runs: ResearchInline[] }) {
       {runs.map((run, index) => {
         switch (run.kind) {
           case 'text':
+          case 'calculated':
             return <Text key={index}>{run.text}</Text>;
           case 'bold':
             return (
