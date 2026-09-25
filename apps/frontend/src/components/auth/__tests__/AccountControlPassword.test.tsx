@@ -161,9 +161,14 @@ describe('signed-in set or change password', () => {
       SOURCE.indexOf('function AccountSurfaceContent'),
       SOURCE.indexOf('/** Desktop top nav'),
     );
+    const desktopMenu = SOURCE.slice(
+      SOURCE.indexOf('function DesktopAccountMenu'),
+      SOURCE.indexOf('function DesktopSignOut'),
+    );
 
     expect(sharedSurface.match(/emailPasswordEnabled \?/g)).toHaveLength(2);
-    expect(sharedSurface).toContain('<DesktopSignOut flow={signOutFlow} />');
+    expect(sharedSurface).toContain('<DesktopAccountMenu flow={signOutFlow}>');
+    expect(desktopMenu).toContain('<DesktopSignOut flow={flow} />');
     expect(sharedSurface).toContain('<PhoneSignOut flow={signOutFlow} />');
   });
 

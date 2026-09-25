@@ -46,12 +46,14 @@ describe('corner close-control spacing', () => {
   });
 
   it('keeps the phone account close box 22px from both sheet edges and below its handle', () => {
-    expect(account).toMatch(/sheet: \{[\s\S]*?paddingTop: 0,[\s\S]*?paddingHorizontal: 22/);
+    const sheet = account.slice(account.indexOf('  sheet: {'), account.indexOf('  sheetScroll: {'));
+    expect(sheet).not.toContain('paddingHorizontal');
+    expect(account).toContain('sheetScrollContent: { paddingHorizontal: 22, paddingBottom: 26 }');
     expect(account).toMatch(
       /sheetHeader: \{[\s\S]*?height: 66,[\s\S]*?justifyContent: 'flex-start',[\s\S]*?paddingTop: 12/,
     );
     expect(account).toMatch(
-      /sheetClose: \{[\s\S]*?top: 22,[\s\S]*?right: 0,[\s\S]*?width: 44,[\s\S]*?height: 44/,
+      /sheetClose: \{[\s\S]*?top: 22,[\s\S]*?right: 22,[\s\S]*?width: 44,[\s\S]*?height: 44/,
     );
     expect(account.indexOf('<View style={styles.sheetHeader}>')).toBeLessThan(
       account.indexOf(

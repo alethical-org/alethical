@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/theme/primitives.tsx, apps/frontend/src/components/auth/AccountControl.tsx -->
+<!-- describes: apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/theme/primitives.tsx, apps/frontend/src/components/auth/AccountControl.tsx, apps/frontend/src/components/auth/AccountMenuIcon.tsx -->
 
 # How the top bar works (plain English)
 
@@ -22,8 +22,10 @@ addresses are resolved by one router (`apps/frontend/src/navigation/webRoutes.ts
 - **The account control replaces Sign in once you are in**: an avatar with your first name on a
   desktop-width browser, an avatar that opens a sheet on a phone. It holds a **Tracked**
   row, with the combined count of bills and committees you follow, leading to `/tracked`,
-  then **Add a password** or **Change password**, and **Sign out**.
-  Approved administrators see an **Admin** group between the password row and Sign out,
+  then **Add a password** or **Change password**, **Email preferences** leading to
+  `/email-preferences`, and **Sign out**. Password actions appear when email/password
+  sign-in is enabled; an account whose sign-in methods are not yet known says **Password**.
+  Approved administrators see an **Admin** group between Email preferences and Sign out,
   with **Users**, leading to `/admin/users`, followed by **Metrics**, leading to
   `/admin/metrics`. The `/admin/metrics` page title remains **Admin metrics**.
   Desktop and phone use this same order. The signed-in profile supplies
@@ -33,6 +35,40 @@ addresses are resolved by one router (`apps/frontend/src/navigation/webRoutes.ts
   excluded from traffic counts does not grant administrator access. See
   [How private account visibility works](admin-users-guide.md) and
   [How Site Metrics works](traffic-guide.md).
+
+## Inside the account menu
+
+The account menu uses matching outline pictures for Tracked, password, email, and sign out.
+Every action label has the same bold weight. Phone labels and touch targets are larger.
+The count uses Libre Franklin with equal-width digits, and expands to fit the full number.
+It appears only after both the bill and committee lists have loaded and the total is positive.
+The password dialog keeps its own larger lock and success check mark.
+
+Hovering over a row gives it a light grey background. Keyboard focus has a purple outline
+inside the row so the menu cannot crop it. The separate sign-out button has room for its
+outline outside its border. A mouse click or touch does not add a keyboard-only outline.
+Phone password and Email preferences rows keep their right-pointing arrows.
+
+While signing out, the button says **Signing out…**, keeps its picture and size, and accepts
+no second request. Its text and picture become muted, and screen readers hear the busy state.
+If signing out fails, plain red text appears above the same button, now labelled
+**Try again**: “We couldn’t sign you out. Check your connection and try again.”
+The message remains visible while retrying. Each failed attempt is announced again without
+moving keyboard focus or briefly hiding the message. Closing and reopening clears the old
+failure. A successful sign-out removes the signed-in controls.
+
+On desktop and tablet, the menu measures its actual resting contents, including loaded counts
+and password labels. The footer containing Sign out stays in place when an error appears;
+the rows above it give up the needed room and scroll to their end. A small shade at the top
+shows when rows have scrolled. No empty error space is held at rest. Rows keep at least 44px
+of visible space; enlarged text can grow the menu rather than be clipped. If the screen cannot
+fit that larger menu, the menu itself scrolls. Changing screen size recalculates the available room.
+
+On phones, the bottom-anchored sheet grows upward for the message. On short screens, Close
+stays visible while the account actions scroll by the added height before the browser paints.
+The scroll area owns the 22px side padding so the sign-out outline is not cropped. Its button
+reserves space for the longest state label even when text wraps. Close uses the matching sign-in
+panel's pointer-hover treatment and a keyboard-only focus outline.
 
 ## The name of `/money`
 
