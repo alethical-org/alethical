@@ -91,4 +91,4 @@ testpaths = ["alethical/tests"]
 pythonpath = ["."]
 
 [dependency-groups]
-dev = ["ruff==0.15.0"]
+dev = ["ruff==0.16.8"]
