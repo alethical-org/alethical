@@ -251,7 +251,7 @@ export function legislatorsLaneBody(
 ): string {
   if (!confirmation || confirmation.total <= 0) return MONEY_LANE_LEGISLATORS.body;
   if (confirmation.confirmed === confirmation.total) {
-    return 'Official contribution totals and named payment records, with every legislator’s committee match confirmed';
+    return 'Official contribution totals and named payment records, with every legislator’s committee match';
   }
   return `${MONEY_LANE_LEGISLATORS.body}. ${legislatorsLaneSentence(confirmation)}`;
 }

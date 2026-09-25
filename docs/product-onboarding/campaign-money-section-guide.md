@@ -133,8 +133,8 @@ Recently filed reports. The boxes explain the records, not the Research feature.
 
 The card descriptions are:
 
-- **Legislators:** “Each legislator’s campaign donations and payments, with their
-  committee match confirmed” when all sitting members have current confirmation.
+- **Legislators:** “Official contribution totals and named payment records, with every
+  legislator’s committee match” when all sitting members have current confirmation.
   Partial confirmation retains the served counts and explains that unconfirmed
   profiles show no figures. Unavailable or expired confirmation makes no claim.
   The card’s count is sitting members.
