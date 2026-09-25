@@ -42,6 +42,20 @@ function assertPackageVersion(packageRequire, packageName, expectedVersion) {
   );
 }
 
+// Metro uses both byte buffers and file paths. image-size 2.x accepts buffers
+// only, so exercise the real Metro calls after applying its file-reading bridge.
+const metroRequire = createRequire(require.resolve('metro/package.json'));
+assertPackageVersion(metroRequire, 'image-size', '2.0.3');
+const metroAssets = require('metro/private/Assets');
+const iconPath = join(frontendDirectory, 'public/icon-192.png');
+assert.deepEqual(metroAssets.getAssetSize('png', readFileSync(iconPath), iconPath), {
+  width: 192,
+  height: 192,
+});
+const iconData = await metroAssets.getAssetData(iconPath, 'icon-192.png', [], null, '/assets');
+assert.equal(iconData.width, 192, 'Metro must read image dimensions from a file');
+assert.equal(iconData.height, 192);
+
 assertPackageVersion(easRequire, 'ts-deepmerge', '8.0.0');
 assertPackageVersion(easRequire, 'diff', '8.0.3');
 
