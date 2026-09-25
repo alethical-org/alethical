@@ -66,6 +66,10 @@ export type ChartResult =
       kind: 'overlap';
       unit: string;
       period: ReportingPeriod;
+      leftLabel: string;
+      rightLabel: string;
+      leftTotal: number;
+      rightTotal: number;
       leftOnly: number;
       rightOnly: number;
       both: number;
@@ -212,6 +216,10 @@ export function calculateChart(input: ChartInput): ChartResult {
     kind: 'overlap',
     unit: input.left.unit,
     period: input.left.period,
+    leftLabel: input.leftLabel,
+    rightLabel: input.rightLabel,
+    leftTotal: input.left.value,
+    rightTotal: input.right.value,
     leftOnly: input.left.value - input.both.value,
     rightOnly: input.right.value - input.both.value,
     both: input.both.value,
@@ -237,5 +245,5 @@ export function chartDescription(input: ChartInput): string {
     return `${result.baselineLabel}: ${result.baseline.value} ${result.baseline.unit}, ${result.baseline.period.label} (${result.baseline.period.from} through ${result.baseline.period.through}). ${result.comparedLabel}: ${result.compared.value} ${result.compared.unit}, ${result.compared.period.label} (${result.compared.period.from} through ${result.compared.period.through}). Difference: ${result.difference} ${result.baseline.unit}${result.percentChange === undefined ? '' : ` (${result.percentChange}%)`}.`;
   }
   const { unit, period } = result;
-  return `Overlap in ${period.label} (${period.from} through ${period.through}): left only ${result.leftOnly} ${unit}; right only ${result.rightOnly} ${unit}; both ${result.both} ${unit}; union ${result.union} ${unit}${result.neither === undefined ? '' : `; neither ${result.neither} ${unit} of ${result.universe} ${unit} in the stated universe`}.`;
+  return `Overlap in ${period.label} (${period.from} through ${period.through}): ${result.leftLabel} contains ${result.leftTotal} ${unit}; ${result.rightLabel} contains ${result.rightTotal} ${unit}; ${result.leftLabel} only: ${result.leftOnly} ${unit}; ${result.rightLabel} only: ${result.rightOnly} ${unit}; both groups: ${result.both} ${unit}; union: ${result.union} ${unit}${result.neither === undefined ? '' : `; neither group: ${result.neither} ${unit} of ${result.universe} ${unit} in the stated universe`}.${result.proportional ? '' : ' Diagram shows overlap, not relative group sizes.'}`;
 }

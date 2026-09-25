@@ -74,6 +74,7 @@ function readyPiece(): ResearchPiece {
     ],
     shortPost: {
       origin: 'social-adaptation',
+      coverageBasis: 'official-only',
       evidence: [
         {
           id: 'filing',
@@ -101,7 +102,7 @@ function readyPiece(): ResearchPiece {
       ],
       graphics: [graphic],
       limitations: 'Only the example 2025 file is covered.',
-      coverageNote: 'Records through 2025-12-31; extracted later.',
+      coverageNote: 'Official source records through 2025-12-31; extracted later.',
       disclosures: [SHORT_POST_AI_NOTE, CONTRIBUTION_NOTE],
       history: [],
       review: {
@@ -133,7 +134,7 @@ describe('social-derived Short post publication gate', () => {
 
   it('blocks missing coverage, evidence, method, source checks, and approvals', () => {
     const piece = readyPiece();
-    piece.shortPost!.evidence[0].period = { ...piece.shortPost!.evidence[0].period, through: '' };
+    piece.shortPost!.evidence[0].period = { ...period, through: '' };
     piece.shortPost!.evidence[0].method = '';
     piece.shortPost!.claims[0].status = 'unresolved';
     piece.shortPost!.review.editorialApprovedBy = '';
@@ -178,6 +179,151 @@ describe('social-derived Short post publication gate', () => {
     expect(shortPostPublicationErrors(piece)).toContain(
       'article-specific publication instruction is missing',
     );
+  });
+
+  it('allows a newly reviewed correction without moving the original publication date', () => {
+    const piece = readyPiece();
+    const originalTime = piece.publishedAt;
+    piece.title = 'Corrected example title';
+    piece.checkedOn = '2026-09-26';
+    piece.shortPost!.claims[0].checkedAt = '2026-09-26T12:00:00Z';
+    piece.shortPost!.history = [
+      { kind: 'our-correction', datedOn: '2026-09-26', explanation: 'Corrected the title.' },
+    ];
+    expect(shortPostPublicationErrors(piece)).toContain(
+      'article or graphic inputs changed after Eugene review',
+    );
+    piece.shortPost!.review.revision = {
+      editorialApprovedBy: 'Editor',
+      editorialApprovedAt: '2026-09-26T13:00:00Z',
+      eugeneApprovedFingerprint: shortPostFingerprint(piece),
+      eugeneReviewedAt: '2026-09-26T14:00:00Z',
+      releaseInstructionAt: '2026-09-26T15:00:00Z',
+    };
+    expect(shortPostPublicationErrors(piece)).toEqual([]);
+    expect(piece.publishedAt).toBe(originalTime);
+    piece.dek = 'Changed again without review.';
+    expect(shortPostPublicationErrors(piece)).toContain(
+      'revised article or graphic needs Eugene review of its current contents',
+    );
+  });
+
+  it('matches the publication day to Minnesota time across offsets and daylight saving', () => {
+    const piece = readyPiece();
+    piece.publishedAt = '2026-09-25T01:00:00Z';
+    piece.publishedOn = '2026-09-24';
+    piece.shortPost!.review.eugeneApprovedFingerprint = shortPostFingerprint(piece);
+    expect(shortPostPublicationErrors(piece)).toEqual([]);
+    piece.publishedAt = '2026-01-02T04:30:00+02:00';
+    piece.publishedOn = '2026-01-01';
+    piece.shortPost!.claims[0].checkedAt = '2026-01-01T12:00:00Z';
+    piece.shortPost!.review.editorialApprovedAt = '2026-01-01T13:00:00Z';
+    piece.shortPost!.review.eugeneReviewedAt = '2026-01-01T14:00:00Z';
+    piece.shortPost!.review.publicationInstructionAt = '2026-01-01T15:00:00Z';
+    piece.shortPost!.review.eugeneApprovedFingerprint = shortPostFingerprint(piece);
+    expect(shortPostPublicationErrors(piece)).toEqual([]);
+  });
+
+  it('checks a number display against its metric and unit', () => {
+    const graphic = readyPiece().shortPost!.graphics[0];
+    expect(calculatedRun(graphic, 'part-percent', 'percent', 'Example recipients').text).toBe(
+      '40%',
+    );
+    expect(calculatedRun(graphic, 'part-percent', 'integer', 'Example recipients').text).toBe('40');
+    expect(calculatedRun(graphic, 'part-value', 'usd', 'Example recipients').text).toBe('$40.00');
+    expect(() => calculatedRun(graphic, 'part-percent', 'usd', 'Example recipients')).toThrow(
+      'dollar display',
+    );
+    expect(() => calculatedRun(graphic, 'part-value', 'percent', 'Example recipients')).toThrow(
+      'percent display',
+    );
+    const countGraphic = {
+      ...graphic,
+      input: {
+        kind: 'overlap' as const,
+        left: { value: 8, unit: 'people', period },
+        right: { value: 7, unit: 'people', period },
+        both: { value: 3, unit: 'people', period },
+        leftLabel: 'Example A',
+        rightLabel: 'Example B',
+        proportional: false,
+      },
+    };
+    expect(calculatedRun(countGraphic, 'union', 'integer').text).toBe('12');
+    expect(() => calculatedRun(countGraphic, 'union', 'usd')).toThrow('dollar display');
+    expect(() => calculatedRun(countGraphic, 'union', 'percent')).toThrow('percent display');
+    const piece = readyPiece();
+    const paragraph = piece.shortVersion[0];
+    if (paragraph.kind !== 'paragraph') throw new Error('fixture changed');
+    const number = paragraph.runs[1];
+    if (number.kind !== 'calculated') throw new Error('fixture changed');
+    number.display = 'usd';
+    number.text = '$40.00';
+    expect(shortPostPublicationErrors(piece).join(' ')).toContain('dollar display');
+  });
+
+  it('uses the newest held-record period, while keeping official-only and explanatory guides distinct', () => {
+    const officialOnly = readyPiece();
+    officialOnly.shortPost!.coverageNote = 'Records through 2025-12-31.';
+    expect(shortPostPublicationErrors(officialOnly)).toContain(
+      'official-only coverage must be named to the reader',
+    );
+    const piece = readyPiece();
+    piece.shortPost!.coverageBasis = 'held-records';
+    piece.shortPost!.evidence[0].kind = 'held-records';
+    piece.shortPost!.evidence = [
+      ...piece.shortPost!.evidence,
+      {
+        ...piece.shortPost!.evidence[0],
+        id: 'newer-held',
+        url: 'https://example.gov/newer',
+        period: { from: '2026-01-01', through: '2026-06-30', label: '2026 filings' },
+      },
+    ];
+    piece.sourceRuns!.push([
+      { kind: 'externalLink', text: 'Newer source', href: 'https://example.gov/newer' },
+    ]);
+    piece.shortPost!.coverageNote = 'The cited files end 2025-12-31 and 2026-06-30.';
+    expect(shortPostPublicationErrors(piece)).toContain(
+      'records-through must name the newest covered reporting-period end',
+    );
+    piece.recordsThrough = '2026-06-30';
+    piece.shortPost!.evidence = [
+      ...piece.shortPost!.evidence,
+      {
+        ...piece.shortPost!.evidence[0],
+        id: 'later-official',
+        kind: 'official-source',
+        url: 'https://example.gov/later',
+        period: { from: '2027-01-01', through: '2027-12-31', label: '2027 notice' },
+      },
+    ];
+    piece.sourceRuns!.push([
+      { kind: 'externalLink', text: 'Later notice', href: 'https://example.gov/later' },
+    ]);
+    piece.shortPost!.coverageNote += ' An official source ends 2027-12-31.';
+    expect(shortPostPublicationErrors(piece)).not.toContain(
+      'records-through must name the newest covered reporting-period end',
+    );
+    const guide = readyPiece();
+    guide.traits = { research: false, guide: true };
+    guide.shortPost!.coverageBasis = 'explanatory-guide';
+    guide.shortPost!.graphics = [];
+    guide.shortVersion = [{ kind: 'paragraph', runs: [{ kind: 'text', text: 'An explanation.' }] }];
+    guide.shortPost!.evidence[0].period = undefined;
+    guide.shortPost!.evidence[0].sourceDatedOn = '2025-12-31';
+    guide.shortPost!.coverageNote = 'The explanatory source is dated 2025-12-31.';
+    guide.shortPost!.review.eugeneApprovedFingerprint = shortPostFingerprint(guide);
+    expect(shortPostPublicationErrors(guide)).toEqual([]);
+    guide.shortPost!.evidence[0].sourceDatedOn = undefined;
+    guide.recordsThrough = guide.publishedOn;
+    guide.shortPost!.coverageNote = 'The explanatory source has no publication date.';
+    guide.shortPost!.review.eugeneApprovedFingerprint = shortPostFingerprint(guide);
+    expect(shortPostPublicationErrors(guide)).toEqual([]);
+    guide.shortPost!.evidence[0].version = '';
+    guide.shortPost!.claims[0].checkedAt = '';
+    expect(shortPostPublicationErrors(guide).join(' ')).toContain('method, limits, and version');
+    expect(shortPostPublicationErrors(guide).join(' ')).toContain('check and reviewer');
   });
 
   it('keeps publication timing and search visibility honest', () => {

@@ -88,7 +88,9 @@ export interface PieceIndexEntry {
    * point 8). A guide's masthead prints 1 date and no second one, so on a guide
    * this is the record of which release its figures were computed from rather
    * than a line a reader sees; the guide's own prose states that date beside the
-   * figure.
+   * figure. A purely explanatory Short Guide with no dated source uses its
+   * publication date as this required legacy field's internal placeholder. It
+   * never prints that placeholder as a source or reporting-period date.
    */
   recordsThrough: string;
   /**

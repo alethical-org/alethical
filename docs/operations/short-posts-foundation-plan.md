@@ -16,7 +16,7 @@
 4. Add controlled topics, stable newest-first selection, deduplication, related reading, and pagination. Test title changes, timestamp ties, and corrections. **Done; focused tests pass.**
 5. Connect the gate to published-registry entry and check public article, metadata, search, and sitemap paths exclude drafts. Preserve existing output. **Done; current public routes, full frontend tests, lint, and production build pass.**
 6. Investigate the 2 supplied graphics privately, record what held and official sources establish, and keep uncertainty explicit. **Initial investigation done in a private local inventory; unresolved source-version and party-mapping claims remain held.**
-7. Run focused and repository checks, send the coordinating task the review package, apply its findings, then merge, deploy, and check live regressions. **Checks done; review package and release pending.**
+7. Run focused and repository checks, send the coordinating task the review package, apply its findings, then merge, deploy, and check live regressions. **Full checks done; pull request 2380 is under coordinating review, with its findings corrected locally. Merge and live check remain held for acceptance.**
 
 ## Next decision boundary
 

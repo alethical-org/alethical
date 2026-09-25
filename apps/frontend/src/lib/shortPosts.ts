@@ -19,8 +19,10 @@ export interface ShortPostEvidence {
   title: string;
   url: string;
   kind: 'held-records' | 'official-source';
-  /** End of the source's covered reporting period, not extraction day. */
-  period: ReportingPeriod;
+  /** End of a quantitative source's covered reporting period, not extraction day. */
+  period?: ReportingPeriod;
+  /** The real date of a source used by a purely explanatory Guide, when known. */
+  sourceDatedOn?: string;
   method: string;
   limitations: string;
   /** A durable source copy or release identifier, without a temporary poster path. */
@@ -55,6 +57,8 @@ export interface ShortPostHistory {
 
 export interface ShortPostEditorial {
   origin: 'social-adaptation';
+  /** Which source family controls the article's records-through date. */
+  coverageBasis: 'held-records' | 'official-only' | 'explanatory-guide';
   evidence: readonly ShortPostEvidence[];
   claims: readonly ShortPostClaimCheck[];
   graphics: readonly ShortPostGraphic[];
@@ -70,6 +74,14 @@ export interface ShortPostEditorial {
     eugeneReviewedAt: string;
     /** Each article needs its own explicit instruction, after the complete review. */
     publicationInstructionAt: string;
+    /** A later correction keeps the original publication time and has its own release check. */
+    revision?: {
+      editorialApprovedBy: string;
+      editorialApprovedAt: string;
+      eugeneApprovedFingerprint: string;
+      eugeneReviewedAt: string;
+      releaseInstructionAt: string;
+    };
   };
 }
 
@@ -119,6 +131,20 @@ export function calculatedRun(
     text: '',
   };
   const value = graphicNumber(result, run);
+  const percentageMetric =
+    metric === 'part-percent' || metric === 'remainder-percent' || metric === 'percent-change';
+  const unit =
+    result.kind === 'parts'
+      ? result.total.unit
+      : result.kind === 'comparison'
+        ? result.baseline.unit
+        : result.unit;
+  if (display === 'percent' && !percentageMetric) {
+    throw new Error('percent display needs a percentage metric');
+  }
+  if (display === 'usd' && (percentageMetric || unit !== 'USD')) {
+    throw new Error('dollar display needs a USD value metric');
+  }
   const options: Intl.NumberFormatOptions =
     display === 'usd'
       ? { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }
@@ -166,6 +192,18 @@ const validInstant = (value: string): boolean =>
   validDate(value.slice(0, 10)) &&
   !Number.isNaN(Date.parse(value));
 
+/** Article dates follow Minnesota's calendar, including daylight saving time. */
+function minnesotaDate(instant: string): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(instant));
+  const value = (part: string) => parts.find((entry) => entry.type === part)?.value;
+  return `${value('year')}-${value('month')}-${value('day')}`;
+}
+
 /** Only social-derived Short posts receive this new gate. Older signed pieces keep their policy. */
 export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
   if (piece.format !== 'short-post') return [];
@@ -182,7 +220,7 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
   if (!piece.indexed) errors.push('Short posts must be visible to search on publication');
   if (!validDate(piece.publishedOn) || !validInstant(piece.publishedAt ?? '')) {
     errors.push('publication date and full timestamp are required');
-  } else if (piece.publishedAt!.slice(0, 10) !== piece.publishedOn) {
+  } else if (minnesotaDate(piece.publishedAt!) !== piece.publishedOn) {
     errors.push('publication date differs from its timestamp');
   }
   if (
@@ -202,6 +240,12 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
   if (!nonempty(editorial.limitations) || !nonempty(editorial.coverageNote)) {
     errors.push('limitations and source coverage are required');
   }
+  if (
+    editorial.coverageBasis === 'official-only' &&
+    !/\bofficial\b/i.test(editorial.coverageNote)
+  ) {
+    errors.push('official-only coverage must be named to the reader');
+  }
   if (!editorial.disclosures.includes(SHORT_POST_AI_NOTE))
     errors.push('checked AI note is missing');
   if (
@@ -217,6 +261,16 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
     ),
   );
   if (!sourceUrls.size) errors.push('linked article sources are missing');
+  if (
+    (editorial.coverageBasis === 'held-records' &&
+      !editorial.evidence.some((evidence) => evidence.kind === 'held-records')) ||
+    (editorial.coverageBasis === 'official-only' &&
+      editorial.evidence.some((evidence) => evidence.kind === 'held-records')) ||
+    (editorial.coverageBasis === 'explanatory-guide' &&
+      (piece.traits.research || !piece.traits.guide || editorial.graphics.length > 0))
+  ) {
+    errors.push('source coverage basis does not match the article');
+  }
   for (const evidence of editorial.evidence) {
     if (!nonempty(evidence.id) || evidenceIds.has(evidence.id))
       errors.push('evidence IDs must be distinct');
@@ -228,13 +282,19 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
     ) {
       errors.push(`evidence ${evidence.id} needs a linked official or held source`);
     }
-    if (
-      !validDate(evidence.period.from) ||
-      !validDate(evidence.period.through) ||
-      evidence.period.from > evidence.period.through ||
-      !nonempty(evidence.period.label)
+    if (editorial.coverageBasis !== 'explanatory-guide' && !evidence.period) {
+      errors.push(`evidence ${evidence.id} needs its covered reporting period`);
+    } else if (
+      evidence.period &&
+      (!validDate(evidence.period.from) ||
+        !validDate(evidence.period.through) ||
+        evidence.period.from > evidence.period.through ||
+        !nonempty(evidence.period.label))
     ) {
       errors.push(`evidence ${evidence.id} needs its covered reporting period`);
+    }
+    if (evidence.sourceDatedOn && !validDate(evidence.sourceDatedOn)) {
+      errors.push(`evidence ${evidence.id} has an invalid source date`);
     }
     if (
       !nonempty(evidence.method) ||
@@ -244,13 +304,27 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
       errors.push(`evidence ${evidence.id} needs method, limits, and version`);
     }
   }
-  if (
-    !validDate(piece.recordsThrough) ||
-    !editorial.evidence.some((evidence) => evidence.period.through === piece.recordsThrough)
-  ) {
-    errors.push('records-through must name a covered reporting-period end');
+  const governingDates = editorial.evidence
+    .filter(
+      (evidence) => editorial.coverageBasis !== 'held-records' || evidence.kind === 'held-records',
+    )
+    .map((evidence) => evidence.period?.through)
+    .filter((date): date is string => Boolean(date));
+  const latestGoverningDate = governingDates.sort().at(-1);
+  if (editorial.coverageBasis === 'explanatory-guide' && !validDate(piece.recordsThrough)) {
+    errors.push('guide internal date must be a valid date');
   }
-  const coverageEnds = new Set(editorial.evidence.map((evidence) => evidence.period.through));
+  if (
+    editorial.coverageBasis !== 'explanatory-guide' &&
+    (!validDate(piece.recordsThrough) || piece.recordsThrough !== latestGoverningDate)
+  ) {
+    errors.push('records-through must name the newest covered reporting-period end');
+  }
+  const coverageEnds = new Set(
+    editorial.evidence
+      .map((evidence) => evidence.period?.through)
+      .filter((date): date is string => Boolean(date)),
+  );
   if (
     coverageEnds.size > 1 &&
     [...coverageEnds].some((end) => !editorial.coverageNote.includes(end))
@@ -307,7 +381,9 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
         (period) =>
           !linkedEvidence.some(
             (evidence) =>
-              evidence.period.from <= period.from && evidence.period.through >= period.through,
+              evidence.period &&
+              evidence.period.from <= period.from &&
+              evidence.period.through >= period.through,
           ),
       )
     ) {
@@ -350,18 +426,16 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
   if (
     !nonempty(review.editorialApprovedBy) ||
     !validInstant(review.editorialApprovedAt) ||
-    Date.parse(review.editorialApprovedAt) < latestCheck
+    (!review.revision && Date.parse(review.editorialApprovedAt) < latestCheck)
   ) {
     errors.push('editorial approval after completed checks is missing');
   }
   if (
+    !nonempty(review.eugeneApprovedFingerprint) ||
     !validInstant(review.eugeneReviewedAt) ||
     Date.parse(review.eugeneReviewedAt) < Date.parse(review.editorialApprovedAt)
   ) {
     errors.push('Eugene review after editorial approval is missing');
-  }
-  if (review.eugeneApprovedFingerprint !== shortPostFingerprint(piece)) {
-    errors.push('article or graphic inputs changed after Eugene review');
   }
   if (
     !validInstant(review.publicationInstructionAt) ||
@@ -370,6 +444,34 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
       Date.parse(review.publicationInstructionAt) > Date.parse(piece.publishedAt!))
   ) {
     errors.push('article-specific publication instruction is missing');
+  }
+  const currentFingerprint = shortPostFingerprint(piece);
+  if (review.revision) {
+    const revision = review.revision;
+    if (
+      !editorial.history.length ||
+      !nonempty(revision.editorialApprovedBy) ||
+      !validInstant(revision.editorialApprovedAt) ||
+      Date.parse(revision.editorialApprovedAt) < latestCheck ||
+      Date.parse(revision.editorialApprovedAt) <= Date.parse(piece.publishedAt ?? '')
+    ) {
+      errors.push('revised article needs a later editorial approval and dated history');
+    }
+    if (
+      !validInstant(revision.eugeneReviewedAt) ||
+      Date.parse(revision.eugeneReviewedAt) < Date.parse(revision.editorialApprovedAt) ||
+      revision.eugeneApprovedFingerprint !== currentFingerprint
+    ) {
+      errors.push('revised article or graphic needs Eugene review of its current contents');
+    }
+    if (
+      !validInstant(revision.releaseInstructionAt) ||
+      Date.parse(revision.releaseInstructionAt) < Date.parse(revision.eugeneReviewedAt)
+    ) {
+      errors.push('revised article needs its own release instruction');
+    }
+  } else if (review.eugeneApprovedFingerprint !== currentFingerprint) {
+    errors.push('article or graphic inputs changed after Eugene review');
   }
   return errors;
 }
