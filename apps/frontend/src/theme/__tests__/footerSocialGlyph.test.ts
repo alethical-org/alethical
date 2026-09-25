@@ -34,8 +34,9 @@ describe('shared footer social marks', () => {
     expect(LINK_SOURCE).toContain('facebook: 23');
     expect(LINK_SOURCE).toContain('instagram: 22');
     expect(LINK_SOURCE).toContain('x: 20');
-    expect(LINK_SOURCE).toContain('tiktok: 21');
+    expect(LINK_SOURCE).toContain('tiktok: 20');
     expect(LINK_SOURCE).toContain('youtube: 23');
+    expect(LINK_SOURCE).toContain('tiktok: 21,\n    youtube: 24,');
     expect(LINK_SOURCE).toContain('width: 42');
     expect(LINK_SOURCE).toContain('width: 44');
     expect(LINK_SOURCE).toContain("backgroundColor: 'rgba(255,255,255,0.07)'");

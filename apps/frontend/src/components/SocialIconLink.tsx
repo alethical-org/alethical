@@ -15,7 +15,7 @@ const GLYPH_SIZES: Record<SocialSurface, Record<SocialPlatform, number>> = {
     facebook: 23,
     instagram: 22,
     x: 20,
-    tiktok: 21,
+    tiktok: 20,
     youtube: 23,
   },
   contact: {
@@ -23,7 +23,7 @@ const GLYPH_SIZES: Record<SocialSurface, Record<SocialPlatform, number>> = {
     facebook: 24,
     instagram: 23,
     x: 21,
-    tiktok: 22,
+    tiktok: 21,
     youtube: 24,
   },
 };
