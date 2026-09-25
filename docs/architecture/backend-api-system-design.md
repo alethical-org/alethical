@@ -2807,3 +2807,14 @@ Implement the FastAPI skeleton with:
 6. OpenAPI generation and contract tests
 
 That is enough to turn this design into an executable API surface without prematurely building every internal endpoint.
+
+## Unconcealed email choices (25 September 2026)
+
+The account-only `/api/v1/me/email-preferences` endpoints keep separate research
+and feature choices. Saves bind the displayed account, email and version, serialize
+with email-link stops, and return current truth for an applied retry. Browser-bound
+signup intent opens confirmation without subscribing. Public token inspection is
+read-only; explicit stop and RFC8058 one-click POSTs stop emails without closing an
+account. All subscription responses, including errors, are private and uncached.
+[Unconcealed email signup](../product-onboarding/unconcealed-email-spec.md) owns
+copy, consent rules, data retention fields, delivery gates and completion checks.

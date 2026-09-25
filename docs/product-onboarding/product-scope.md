@@ -522,14 +522,16 @@ Native iOS and Android apps are not built yet ([#91](https://github.com/alethica
 
 - Account creation and sign-in
 - Basic profile
+- Unconcealed research signup through full accounts, separate optional feature emails, and public unsubscribe. [Unconcealed email signup](unconcealed-email-spec.md) owns behavior; real research delivery stays disabled pending sender setup.
 - Track and untrack bills
 - Email notifications for meaningful bill status updates
 - Saved chat history for signed-in users if implementation is straightforward
 
 ### Not built yet — accounts and notifications
 
-None of these is refused; none is built. **Nothing is delivered to anyone today, by any
-channel.** Email-first is the chosen *direction*, not a shipped default. The
+The bill-change notifications below remain unbuilt. Unconcealed research email
+choices are separate and do not enable bill alerts. Email-first is the chosen
+*direction* for bill alerts, not a shipped default. The
 `NotificationEvent` model and its writer exist, but **the writer has never recorded
 anything and cannot**: nothing calls it, and it compares a bill column that is empty on
 every bill we hold, so it returns nothing on every call (production: 0 event rows). The

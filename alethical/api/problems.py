@@ -147,8 +147,11 @@ async def unexpected_exception_handler(request: Request, exc: Exception):
             "Cache-Control": "private, no-store",
             "Vary": "Authorization",
             "X-Robots-Tag": "noindex, nofollow",
+            "Referrer-Policy": "no-referrer",
         }
-        if request.url.path.startswith("/api/v1/admin/")
+        if request.url.path.startswith(
+            ("/api/v1/admin/", "/api/v1/email-subscriptions/", "/api/v1/me/email-")
+        )
         else None
     )
     return JSONResponse(status_code=500, content=payload, headers=headers)

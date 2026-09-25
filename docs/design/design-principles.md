@@ -547,3 +547,13 @@ _§3's interaction/accessibility rules are adapted from Vercel's
 [Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines) (MIT License),
 reduced to the platform-agnostic subset and reconciled to Alethical's React Native / Expo, web-first
 stack._
+
+### Unconcealed email controls
+
+The approved Unconcealed invitation, confirmation, email preferences and public
+unsubscribe screens use the existing loaded Libre Franklin web family and weights,
+not native-only font names. Pointer hover follows the reviewed v9 treatments;
+keyboard focus remains independent. A selected checkbox exposes its checked state
+to screen readers. Phone save buttons fill the available content width, and long
+account addresses wrap. [Unconcealed email signup](../product-onboarding/unconcealed-email-spec.md)
+records the exact approved wording, breakpoints and feedback states.

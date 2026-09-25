@@ -16,6 +16,7 @@ DEFAULT_LOG_FILE = "alethical-backend.log"
 DEFAULT_LOG_LEVEL = "INFO"
 EMAIL_PATTERN = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE)
 QUERY_PATTERN = re.compile(r"((?:https?://|/)[^\s?\"']+\?)[^\s\"']+")
+UNSUBSCRIBE_TOKEN_PATTERN = re.compile(r"(/email-subscriptions/one-click/)[^\s?\"'/]+")
 
 
 class PrivacySafeFormatter(logging.Formatter):
@@ -24,6 +25,7 @@ class PrivacySafeFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         rendered = super().format(record)
         rendered = EMAIL_PATTERN.sub("[redacted-email]", rendered)
+        rendered = UNSUBSCRIBE_TOKEN_PATTERN.sub(r"\1[redacted-token]", rendered)
         return QUERY_PATTERN.sub(r"\1[redacted-query]", rendered)
 
 
