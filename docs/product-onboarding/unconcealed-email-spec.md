@@ -16,7 +16,7 @@ Print these words verbatim. Copy improvements can be proposed separately with a 
 - Descriptor: **Minnesota campaign money and lobbying research**
 - Body: **We’ll email you about new research. Every piece is free to read on Alethical.**
 - Invitation: **Get Unconcealed by email**
-- Signed-out helper: **Create a free account or sign in**
+- Signed-out helper: **Create an account or sign in**
 - Subscribed: **You’re subscribed to Unconcealed** followed by **Email preferences**, 20px below.
 - Sign-in helper from this invitation: **Sign in or create an account to get Unconcealed by email**
 - Create helper from this invitation: **Create your free account, then subscribe to Unconcealed**
