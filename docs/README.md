@@ -171,3 +171,4 @@ still describe today's service. Keep the evidence and its limits together.
 
 - [Unconcealed email signup](product-onboarding/unconcealed-email-spec.md) — explicit research consent, preferences, unsubscribe and manual delivery.
 - [Unconcealed delivery plan](implementation/unconcealed-plan.md) — implementation ownership, API contract and release checks.
+- [Unconcealed keyboard design prompt](design/unconcealed-keyboard-design-prompt.md) — approved interaction corrections and the bounded Design update.

@@ -64,7 +64,7 @@ export const SIGN_IN_INTENTS: Record<SignInIntent, IntentConfig> = {
   newsletter: {
     icon: 'brand',
     headline: GENERIC_HEADLINE,
-    subcopy: () => 'Sign in or create an account to get Unconcealed by email',
+    subcopy: () => 'Sign in or create an account to get Unconcealed research by email',
   },
 };
 

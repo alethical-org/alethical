@@ -1,4 +1,10 @@
-import { useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from 'react';
 import { theme as t } from '../../theme/tokens';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -19,6 +25,20 @@ function pointerCanHover() {
   );
 }
 
+function useAnnouncedDisabled(disabled: boolean) {
+  const ref = useRef<View>(null);
+  // Like auth/LoadingButton, keep the control focusable while announcing its
+  // unavailable state. RN-Web Pressable overwrites a supplied aria-disabled;
+  // its real disabled prop would remove focus from a busy native button.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !ref.current) return;
+    const node = ref.current as unknown as HTMLElement;
+    if (disabled) node.setAttribute('aria-disabled', 'true');
+    else node.removeAttribute('aria-disabled');
+  }, [disabled]);
+  return ref;
+}
+
 export function EmailButton({
   label,
   onPress,
@@ -27,6 +47,7 @@ export function EmailButton({
   kind = 'green',
   fullWidth = false,
   minHeight = 52,
+  reserveLabel,
   testID,
 }: {
   label: string;
@@ -36,16 +57,20 @@ export function EmailButton({
   kind?: 'green' | 'outline' | 'darkOutline';
   fullWidth?: boolean;
   minHeight?: number;
+  reserveLabel?: string;
   testID?: string;
 }) {
   const [hovered, setHovered] = useState(false);
-  const [focused, setFocused] = useState(false);
   const inactive = busy || locked;
+  const controlRef = useAnnouncedDisabled(inactive);
   return (
     <Pressable
+      ref={controlRef}
       testID={testID}
       accessibilityRole="button"
+      accessibilityLabel={label}
       accessibilityState={{ disabled: inactive, busy }}
+      aria-busy={busy || undefined}
       aria-disabled={inactive}
       onPress={() => {
         if (!inactive) onPress();
@@ -54,8 +79,6 @@ export function EmailButton({
         if (pointerCanHover()) setHovered(true);
       }}
       onHoverOut={() => setHovered(false)}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
       style={[
         styles.button,
         { minHeight },
@@ -73,12 +96,24 @@ export function EmailButton({
               ? styles.darkOutlineHover
               : styles.outlineHover),
         inactive && styles.inactive,
-        focused && styles.focus,
       ]}
     >
-      <Text style={[styles.buttonText, kind === 'darkOutline' ? styles.whiteText : styles.inkText]}>
-        {label}
-      </Text>
+      <View style={styles.buttonLabels}>
+        {reserveLabel ? (
+          <Text aria-hidden style={[styles.buttonText, styles.reservedLabel]}>
+            {reserveLabel}
+          </Text>
+        ) : null}
+        <Text
+          style={[
+            styles.buttonText,
+            styles.visibleLabel,
+            kind === 'darkOutline' ? styles.whiteText : styles.inkText,
+          ]}
+        >
+          {label}
+        </Text>
+      </View>
     </Pressable>
   );
 }
@@ -98,9 +133,10 @@ export function EmailCheckbox({
   locked?: boolean;
   mark?: 'Not saved yet' | 'Not confirmed';
 }) {
-  const [focused, setFocused] = useState(false);
+  const controlRef = useAnnouncedDisabled(locked);
   return (
     <Pressable
+      ref={controlRef}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: value, disabled: locked }}
       aria-checked={value}
@@ -123,9 +159,9 @@ export function EmailCheckbox({
             },
           }
         : {})}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      style={[styles.choice, focused && styles.focus]}
+      // App.tsx provides :focus-visible. Unconditional onFocus styling also
+      // paints mouse/touch focus and duplicates that keyboard-only treatment.
+      style={styles.choice}
     >
       <View style={[styles.box, value && styles.boxChecked]}>
         {value ? <Text style={styles.check}>✓</Text> : null}
@@ -182,15 +218,17 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.5)',
   },
   inactive: { opacity: 0.62 },
-  focus: Platform.select({
-    web: {
-      outlineColor: emailColors.focus,
-      outlineStyle: 'solid',
-      outlineWidth: 2,
-      outlineOffset: 2,
-    },
-    default: {},
-  }) as object,
+  buttonLabels: {
+    maxWidth: '100%',
+    ...(Platform.OS === 'web' ? ({ display: 'grid' } as object) : {}),
+  },
+  // Both labels contribute to the same grid cell, including when text wraps.
+  // The hidden normal label holds the button's space during shorter states.
+  reservedLabel: {
+    opacity: 0,
+    ...(Platform.OS === 'web' ? ({ gridArea: '1 / 1' } as object) : { display: 'none' }),
+  },
+  visibleLabel: Platform.OS === 'web' ? ({ gridArea: '1 / 1' } as object) : {},
   buttonText: {
     fontFamily: t.typography.body,
     fontWeight: t.fontWeights.bold,
@@ -204,6 +242,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 64,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    marginHorizontal: -12,
     paddingVertical: 12,
     gap: 14,
   },
