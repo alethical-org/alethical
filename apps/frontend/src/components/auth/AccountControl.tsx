@@ -1,10 +1,10 @@
 import { useNavigation } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -31,6 +31,7 @@ import { browserFillTextInputProps } from '../../theme/browserFill';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { theme as t } from '../../theme/tokens';
 import { useAuth } from '../../providers/AuthProvider';
+import { AccountMenuIcon } from './AccountMenuIcon';
 import { FormError } from './FormError';
 import { LoadingButton } from './LoadingButton';
 import { PasswordField } from './PasswordField';
@@ -44,6 +45,7 @@ import { SignInContainer } from './SignInContainer';
 
 const isWeb = Platform.OS === 'web';
 const emailPasswordEnabled = process.env.EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED === 'true';
+const menuRowDataSet = { accountMenuRow: 'true', arrowFocus: 'true' } as const;
 const SIGN_OUT_FAILURE = 'We couldn’t sign you out. Check your connection and try again.';
 
 function useFineHover() {
@@ -66,27 +68,6 @@ function displayName(name: string | undefined, email: string | undefined) {
 
 function initialOf(label: string) {
   return label.trim().charAt(0).toUpperCase() || '?';
-}
-
-function SignOutIcon({ color, size = 17 }: { color: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M13 4 H7 a2 2 0 0 0-2 2 v12 a2 2 0 0 0 2 2 h6"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path
-        d="M15 12 H21 M18.5 8.5 L21 12 L18.5 15.5"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
 }
 
 function PasswordIcon({
@@ -478,20 +459,6 @@ function ChevronIcon() {
   );
 }
 
-/** The watchlist row's glyph, drawn like the Track button's bookmark. */
-function BookmarkIcon({ size }: { size: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <Path
-        d="M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1Z"
-        stroke={t.colors.brand.graphics}
-        strokeWidth={2}
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
-
 /**
  * How many bills this reader tracks, or `null` when there is no number we may
  * print. TWO cases return null and the row renders identically for both — the
@@ -545,6 +512,7 @@ function TrackedRow({
   };
   return (
     <Pressable
+      {...({ dataSet: menuRowDataSet } as object)}
       {...linkProps(routePath.tracked(), press)}
       // The number is part of the spoken name, so a screen reader hears "Tracked,
       // 12". With no number the visible text is the name -- an aria-label
@@ -560,7 +528,7 @@ function TrackedRow({
       ]}
     >
       <View style={phone ? styles.sheetIconBox : styles.menuIconBox}>
-        <BookmarkIcon size={phone ? 22 : 20} />
+        <AccountMenuIcon name="bookmark" />
       </View>
       <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Tracked</Text>
       {count === null ? null : (
@@ -581,9 +549,9 @@ function ChevronRightIcon() {
       aria-hidden
     >
       <Path
-        d="M9 5 L16 12 L9 19"
-        stroke={t.colors.text.faint}
-        strokeWidth={2}
+        d="M9 6 L15 12 L9 18"
+        stroke="#6f756f"
+        strokeWidth={1.8}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -603,6 +571,7 @@ function EmailPreferencesRow({
   const hover = useFineHover();
   return (
     <Pressable
+      {...({ dataSet: menuRowDataSet } as object)}
       {...linkProps(routePath.emailPreferences(), () => {
         onNavigate();
         navigation.navigate('EmailPreferences');
@@ -617,22 +586,11 @@ function EmailPreferencesRow({
       ]}
     >
       <View style={phone ? styles.sheetIconBox : styles.menuIconBox}>
-        <Svg
-          width={phone ? 22 : 20}
-          height={phone ? 22 : 20}
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden
-        >
-          <Path
-            d="M3 6h18v12H3zM3.5 7l8.5 6 8.5-6"
-            stroke="#4f5651"
-            strokeWidth={2}
-            strokeLinejoin="round"
-          />
-        </Svg>
+        <AccountMenuIcon name="email" />
       </View>
-      <Text style={phone ? styles.sheetButtonText : styles.menuItemText}>Email preferences</Text>
+      <Text style={[phone ? styles.sheetButtonText : styles.menuItemText, { flex: 1 }]}>
+        Email preferences
+      </Text>
       {phone ? <ChevronRightIcon /> : null}
     </Pressable>
   );
@@ -657,6 +615,7 @@ function AdminGroup({
         Admin
       </Text>
       <Pressable
+        {...({ dataSet: menuRowDataSet } as object)}
         {...linkProps(routePath.adminUsers(), () => {
           onNavigate();
           navigation.navigate('AdminUsers');
@@ -676,6 +635,7 @@ function AdminGroup({
         <ChevronRightIcon />
       </Pressable>
       <Pressable
+        {...({ dataSet: menuRowDataSet } as object)}
         {...linkProps(routePath.adminSiteMetrics(), () => {
           onNavigate();
           navigation.navigate('AdminSiteMetrics');
@@ -764,9 +724,22 @@ function useAccountSignOut(onSuccess?: () => void) {
   };
 }
 
+// Keep the busy button in the keyboard order. RN-Web drops aria-disabled
+// unless native disabled is set, which would remove focus during the request.
+function useSignOutButtonRef(busy: boolean) {
+  const ref = useRef<View>(null);
+  useEffect(() => {
+    if (!isWeb || !ref.current) return;
+    const button = ref.current as unknown as HTMLElement;
+    if (busy) button.setAttribute('aria-disabled', 'true');
+    else button.removeAttribute('aria-disabled');
+  }, [busy]);
+  return ref;
+}
+
 function DesktopSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }) {
-  const reduceMotion = useReducedMotion();
   const hover = useFineHover();
+  const buttonRef = useSignOutButtonRef(flow.state === 'busy');
   return (
     <>
       {flow.state === 'failed' ? (
@@ -775,6 +748,8 @@ function DesktopSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }
         </View>
       ) : null}
       <Pressable
+        ref={buttonRef}
+        {...({ dataSet: { accountMenuSignOut: 'true' } } as object)}
         accessibilityRole="button"
         accessibilityState={{ busy: flow.state === 'busy', disabled: flow.state === 'busy' }}
         aria-busy={flow.state === 'busy' || undefined}
@@ -785,18 +760,19 @@ function DesktopSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }
         style={({ pressed }) => [
           styles.menuItem,
           styles.menuSignOutOutline,
+          flow.state === 'busy' && styles.signOutBusy,
           hover.hovered && flow.state !== 'busy' && styles.menuOutlineHover,
-          pressed && styles.menuItemPressed,
+          pressed && flow.state !== 'busy' && styles.menuItemPressed,
         ]}
       >
         <View style={styles.menuIconBox}>
-          {flow.state === 'busy' && !reduceMotion ? (
-            <ActivityIndicator size="small" color={t.colors.brand.forest} />
-          ) : (
-            <SignOutIcon color={t.colors.text.faint} />
-          )}
+          <AccountMenuIcon name="sign-out" busy={flow.state === 'busy'} />
         </View>
-        <Text numberOfLines={1} style={styles.menuItemText}>
+        <Text
+          accessibilityLiveRegion="polite"
+          numberOfLines={1}
+          style={[styles.menuItemText, flow.state === 'busy' && styles.signOutBusyText]}
+        >
           {flow.label}
         </Text>
       </Pressable>
@@ -805,9 +781,8 @@ function DesktopSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }
 }
 
 function PhoneSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }) {
-  const reduceMotion = useReducedMotion();
   const hover = useFineHover();
-  const showSpinner = flow.state === 'busy' && !reduceMotion;
+  const buttonRef = useSignOutButtonRef(flow.state === 'busy');
   return (
     <>
       {flow.state === 'failed' ? (
@@ -816,6 +791,8 @@ function PhoneSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }) 
         </View>
       ) : null}
       <Pressable
+        ref={buttonRef}
+        {...({ dataSet: { accountMenuSignOut: 'true' } } as object)}
         accessibilityRole="button"
         accessibilityState={{ busy: flow.state === 'busy', disabled: flow.state === 'busy' }}
         aria-busy={flow.state === 'busy' || undefined}
@@ -826,18 +803,18 @@ function PhoneSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }) 
         style={({ pressed }) => [
           styles.sheetButton,
           hover.hovered && flow.state !== 'busy' && styles.menuOutlineHover,
-          showSpinner && styles.sheetButtonBusy,
-          pressed && styles.sheetButtonPressed,
+          flow.state === 'busy' && styles.signOutBusy,
+          pressed && flow.state !== 'busy' && styles.sheetButtonPressed,
         ]}
       >
         <View style={styles.phoneSignOutIcon}>
-          {showSpinner ? (
-            <ActivityIndicator size="small" color={t.colors.brand.forest} />
-          ) : (
-            <SignOutIcon color={t.colors.text.primary} size={18} />
-          )}
+          <AccountMenuIcon name="sign-out" busy={flow.state === 'busy'} />
         </View>
-        <Text numberOfLines={1} style={styles.sheetButtonText}>
+        <Text
+          accessibilityLiveRegion="polite"
+          numberOfLines={1}
+          style={[styles.sheetButtonText, flow.state === 'busy' && styles.signOutBusyText]}
+        >
           {flow.label}
         </Text>
       </Pressable>
@@ -865,6 +842,15 @@ function AccountSurfaceContent({
 }) {
   const passwordCopy = passwordMethodCopy(signInMethods, email || 'your email');
   const passwordHover = useFineHover();
+  useEffect(() => {
+    if (!isWeb || document.getElementById('alethical-account-menu-focus')) return;
+    const style = document.createElement('style');
+    style.id = 'alethical-account-menu-focus';
+    style.textContent =
+      '[data-account-menu-row]:focus{outline:none;}' +
+      '[data-account-menu-row]:focus-visible{outline:2px solid #7c5cff !important;outline-offset:-2px !important;}';
+    document.head.appendChild(style);
+  }, []);
 
   if (variant === 'desktop') {
     return (
@@ -878,6 +864,7 @@ function AccountSurfaceContent({
         <TrackedRow variant="desktop" onNavigate={onLeave} />
         {emailPasswordEnabled ? (
           <Pressable
+            {...({ dataSet: menuRowDataSet } as object)}
             accessibilityRole="button"
             onHoverIn={passwordHover.onHoverIn}
             onHoverOut={passwordHover.onHoverOut}
@@ -890,7 +877,7 @@ function AccountSurfaceContent({
             ]}
           >
             <View style={styles.menuIconBox}>
-              <PasswordIcon color={t.colors.text.faint} />
+              <AccountMenuIcon name="password" />
             </View>
             <Text style={styles.menuItemText}>{passwordCopy.rowLabel}</Text>
           </Pressable>
@@ -910,6 +897,7 @@ function AccountSurfaceContent({
         <TrackedRow variant="phone" onNavigate={onLeave} />
         {emailPasswordEnabled ? (
           <Pressable
+            {...({ dataSet: menuRowDataSet } as object)}
             accessibilityRole="button"
             onHoverIn={passwordHover.onHoverIn}
             onHoverOut={passwordHover.onHoverOut}
@@ -921,7 +909,7 @@ function AccountSurfaceContent({
             ]}
           >
             <View style={styles.sheetIconBox}>
-              <PasswordIcon color={t.colors.text.primary} />
+              <AccountMenuIcon name="password" />
             </View>
             <Text style={[styles.sheetButtonText, styles.sheetPasswordText]}>
               {passwordCopy.rowLabel}
@@ -1028,6 +1016,7 @@ function PhoneAccountControl({ trigger }: { trigger: 'avatar' | 'drawer' }) {
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [closeFocused, setCloseFocused] = useState(false);
   const avatarRef = useRef<View>(null);
+  const sheetScrollRef = useRef<ScrollView>(null);
   const name = displayName(user?.name, user?.email);
   const signOutFlow = useAccountSignOut();
   const avatarHover = useFineHover();
@@ -1114,18 +1103,29 @@ function PhoneAccountControl({ trigger }: { trigger: 'avatar' | 'drawer' }) {
                 <CloseIcon />
               </Pressable>
             </View>
-            <AccountSurfaceContent
-              variant="phone"
-              name={name}
-              email={user?.email ?? ''}
-              signInMethods={user?.signInMethods ?? null}
-              signOutFlow={signOutFlow}
-              onLeave={() => setOpen(false)}
-              onPasswordPress={() => {
-                setOpen(false);
-                setPasswordOpen(true);
+            <ScrollView
+              ref={sheetScrollRef}
+              style={styles.sheetScroll}
+              contentContainerStyle={styles.sheetScrollContent}
+              onContentSizeChange={() => {
+                if (signOutFlow.state !== 'idle') {
+                  sheetScrollRef.current?.scrollToEnd({ animated: false });
+                }
               }}
-            />
+            >
+              <AccountSurfaceContent
+                variant="phone"
+                name={name}
+                email={user?.email ?? ''}
+                signInMethods={user?.signInMethods ?? null}
+                signOutFlow={signOutFlow}
+                onLeave={() => setOpen(false)}
+                onPasswordPress={() => {
+                  setOpen(false);
+                  setPasswordOpen(true);
+                }}
+              />
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1237,14 +1237,20 @@ const styles = StyleSheet.create({
   },
   menuItemPressed: { backgroundColor: t.colors.surfaces.s300 },
   menuSignOutOutline: {
-    justifyContent: 'center',
-    marginHorizontal: 10,
+    marginHorizontal: 12,
     marginTop: 12,
-    marginBottom: 10,
+    marginBottom: 12,
+    paddingLeft: 16,
+    paddingRight: 16,
     borderWidth: 1,
     borderColor: 'rgba(17,21,15,0.18)',
     borderRadius: 12,
   },
+  signOutBusy: {
+    borderColor: 'rgba(17,21,15,0.12)',
+    ...(isWeb ? ({ cursor: 'progress' } as object) : {}),
+  },
+  signOutBusyText: { color: '#4f5651' },
   menuRowHover: { backgroundColor: '#f5f6f7', borderRadius: 11 },
   menuOutlineHover: {
     backgroundColor: '#f7f8fa',
@@ -1285,25 +1291,26 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.lg,
+    fontSize: 16,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
   menuTrackedCount: {
-    width: 18,
+    minWidth: 18,
     flexShrink: 0,
     textAlign: 'center',
-    fontFamily: t.typography.mono,
+    fontFamily: t.typography.ui,
     fontSize: t.fontSizes.small,
-    fontWeight: t.fontWeights.bold,
+    fontVariant: ['tabular-nums'],
+    fontWeight: t.fontWeights.heavy,
     color: t.colors.text.secondary,
   },
   menuItemText: {
     flex: 1,
     minWidth: 0,
     fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.small,
-    fontWeight: t.fontWeights.semibold,
+    fontSize: 16,
+    fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
   menuPasswordRow: {
@@ -1314,7 +1321,7 @@ const styles = StyleSheet.create({
   },
   menuAdminGroup: { borderTopWidth: 1, borderColor: t.colors.alpha.ink08 },
   sheetAdminGroup: { borderTopWidth: 1, borderColor: t.colors.alpha.ink10 },
-  adminLabel: { fontFamily: t.typography.ui, color: '#5f6763' },
+  adminLabel: { fontFamily: t.typography.ui, color: '#6f756f' },
   menuAdminLabel: {
     fontSize: 12.5,
     paddingTop: 8,
@@ -1414,13 +1421,16 @@ const styles = StyleSheet.create({
   drawerAccountButtonPressed: { backgroundColor: t.colors.surfaces.s300 },
   sheetScrim: { flex: 1, backgroundColor: 'rgba(10,14,12,0.5)', justifyContent: 'flex-end' },
   sheet: {
+    maxHeight: '100%',
     backgroundColor: t.colors.surfaces.base,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 0,
     paddingHorizontal: 22,
-    paddingBottom: 26,
   },
+  sheetScroll: { flexGrow: 0, flexShrink: 1, marginHorizontal: -4 },
+  // Room outside the actions keeps keyboard focus outlines inside the scroll area.
+  sheetScrollContent: { paddingHorizontal: 4, paddingBottom: 26 },
   grabHandle: {
     width: 40,
     height: 5,
@@ -1429,6 +1439,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   sheetHeader: {
+    flexShrink: 0,
     height: 66,
     marginBottom: 10,
     alignItems: 'center',
@@ -1452,16 +1463,17 @@ const styles = StyleSheet.create({
     minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 9,
+    justifyContent: 'flex-start',
+    gap: 13,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink18,
     borderRadius: 13,
     padding: 16,
   },
-  sheetButtonBusy: { gap: 10 },
   phoneSignOutIcon: {
+    width: 22,
+    height: 22,
     flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1483,16 +1495,17 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.subheadLg,
+    fontSize: 18,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
   sheetTrackedCount: {
-    width: 18,
+    minWidth: 18,
     flexShrink: 0,
     textAlign: 'center',
-    fontFamily: t.typography.mono,
+    fontFamily: t.typography.ui,
     fontSize: t.fontSizes.body,
+    fontVariant: ['tabular-nums'],
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.secondary,
   },
@@ -1513,8 +1526,8 @@ const styles = StyleSheet.create({
   sheetButtonText: {
     minWidth: 0,
     fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.lg,
-    fontWeight: t.fontWeights.semibold,
+    fontSize: 18,
+    fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
   phoneSignOutError: { marginTop: 16 },

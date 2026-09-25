@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/theme/primitives.tsx, apps/frontend/src/components/auth/AccountControl.tsx -->
+<!-- describes: apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/theme/primitives.tsx, apps/frontend/src/components/auth/AccountControl.tsx, apps/frontend/src/components/auth/AccountMenuIcon.tsx -->
 
 # How the top bar works (plain English)
 
@@ -22,8 +22,10 @@ addresses are resolved by one router (`apps/frontend/src/navigation/webRoutes.ts
 - **The account control replaces Sign in once you are in**: an avatar with your first name on a
   desktop-width browser, an avatar that opens a sheet on a phone. It holds a **Tracked**
   row, with the combined count of bills and committees you follow, leading to `/tracked`,
-  then **Add a password** or **Change password**, and **Sign out**.
-  Approved administrators see an **Admin** group between the password row and Sign out,
+  then **Add a password** or **Change password**, **Email preferences** leading to
+  `/email-preferences`, and **Sign out**. Password actions appear when email/password
+  sign-in is enabled; an account whose sign-in methods are not yet known says **Password**.
+  Approved administrators see an **Admin** group between Email preferences and Sign out,
   with **Users**, leading to `/admin/users`, followed by **Metrics**, leading to
   `/admin/metrics`. The `/admin/metrics` page title remains **Admin metrics**.
   Desktop and phone use this same order. The signed-in profile supplies
@@ -33,6 +35,27 @@ addresses are resolved by one router (`apps/frontend/src/navigation/webRoutes.ts
   excluded from traffic counts does not grant administrator access. See
   [How private account visibility works](admin-users-guide.md) and
   [How Site Metrics works](traffic-guide.md).
+
+## Inside the account menu
+
+The account menu uses matching outline pictures for Tracked, password, email, and sign out.
+Every action label has the same bold weight. Phone labels and touch targets are larger.
+The count uses Libre Franklin with equal-width digits, and expands to fit the full number.
+It appears only after both the bill and committee lists have loaded and the total is positive.
+The password dialog keeps its own larger lock and success check mark.
+
+Hovering over a row gives it a light grey background. Keyboard focus has a purple outline
+inside the row so the menu cannot crop it. The separate sign-out button has room for its
+outline outside its border. A mouse click or touch does not add a keyboard-only outline.
+Phone password and Email preferences rows keep their right-pointing arrows.
+
+While signing out, the button says **Signing out…**, keeps its picture and size, and accepts
+no second request. Its text and picture become muted, and screen readers hear the busy state.
+If signing out fails, the existing red message stays above the same button, now labelled
+**Try again**: “We couldn’t sign you out. Check your connection and try again.”
+The message can grow to fit wrapped text. A successful sign-out removes the signed-in controls.
+On short phone screens, Close stays visible while the account actions scroll. A sign-out
+error keeps the retry button in view, with room for its keyboard outline.
 
 ## The name of `/money`
 
