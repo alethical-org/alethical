@@ -24,6 +24,7 @@ vi.mock('react-native-svg', () => ({
   default: ({ children }: { children?: ReactNode }) => <svg>{children}</svg>,
   Circle: () => <circle />,
   Path: () => <path />,
+  Rect: () => <rect />,
 }));
 
 // The Tracked row reads the watchlist and the navigator, and the admin group
