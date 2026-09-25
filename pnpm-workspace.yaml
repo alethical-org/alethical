@@ -20,18 +20,17 @@ overrides:
   #
   # These are overrides rather than direct bumps because every one is a
   # transitive dependency we do not declare, and upstream has not moved:
-  # their parents still pin older releases. Each override stays inside the
-  # parent's existing major version. Remove any of them once its parent ships
-  # the fix. The decoder also needs the query-string import bridge below.
+  # their parents still pin older releases. Cross-major replacements have
+  # explicit compatibility checks and the small bridges below where needed.
+  # Remove an override once its parent ships the fix.
   #
   # Keep every override behind the 7-day minimumReleaseAge above. If a new fix
   # is still too young, pin the highest safe version the gate allows instead of
   # weakening the gate.
   #
-  # Still open and browser-unreachable: image-size has no patched release.
-  # Metro reads only image files from the project checkout while building; the
-  # package is absent from the finished website. The exact exception and its
-  # upstream status live in docs/verification/1493-build-tool-security/README.md.
+  # Metro still pins the vulnerable 1.x image reader. The buffer-only 2.x API
+  # needs the small Metro file-reading bridge below.
+  "metro@0.84.4>image-size": 2.0.3
   "@babel/core": 7.29.6 # 85 Babel plugins — arbitrary file read via sourceMappingURL
   ajv: 8.18.0 # eas-cli — ReDoS via the $data option
   brace-expansion: 5.0.9 # via minimatch — DoS via unbounded expansion
@@ -62,3 +61,4 @@ patchedDependencies:
   query-string@7.1.3: patches/query-string@7.1.3.patch
   "@expo/metro-config@57.0.7": patches/@expo__metro-config@57.0.7.patch
   ts-deepmerge@8.0.0: patches/ts-deepmerge@8.0.0.patch
+  metro@0.84.4: patches/metro@0.84.4.patch

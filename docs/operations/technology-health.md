@@ -1,4 +1,4 @@
-<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py -->
+<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py apps/frontend/scripts/check-build-tool-security.mjs patches/metro@0.84.4.patch pnpm-lock.yaml -->
 <!-- last-major-tool-review: 2026-08-15 -->
 
 # Keeping every tool supported and useful
@@ -69,14 +69,19 @@ to test and release a replacement before support ends.
 
 ## Recorded security exceptions
 
-JavaScript has 2 high-severity warnings in `image-size` with no fixed release
-(`GHSA-w3rx-r6r6-pgpr`, `GHSA-5p2g-fcmc-qvqq`). Expo's build tool reads only
-project image files; this package is absent from the finished website. The exception
-applies only to `image-size` 1.2.1 through Expo's Metro image loader, and only while
-the advisory reports no patched release. A different version or dependency path,
-an available fix, or the review deadline of 2026-10-18 makes these warnings block
-release too. Every other warning blocks release at every severity. The evidence lives in
+The image-size exception ended on 25 September 2026 when the security feed
+reported a fixed release. Metro now uses image-size 2.0.3, published on
+14 September, beyond the required 7-day wait. A small Metro patch reads each
+image file into a buffer because version 2 no longer accepts filenames. The
+build-tool checks exercise both Metro image-reading paths against a real PNG.
+
+The retired exception covered version 1.2.1 only while no fix existed, through
+Expo's build tooling only. It never covered the finished website. The automatic
+check still rejects that old version when a patched release is reported.
+The original evidence remains in
 [`docs/verification/1493-build-tool-security/README.md`](../verification/1493-build-tool-security/README.md).
+The fixes address [the JXL/HEIF parser advisory](https://github.com/advisories/GHSA-5p2g-fcmc-qvqq)
+and [the ICNS parser advisory](https://github.com/advisories/GHSA-w3rx-r6r6-pgpr).
 
 Run `python scripts/check_technology_health.py --security-only` for the same release
 check locally. Run `python scripts/check_technology_health.py --online` for the
