@@ -37,3 +37,14 @@ Public `POST /api/v1/email-subscriptions/unsubscribe/inspect`: token -> valid tr
 - One-click unsubscribe runs its potentially waiting database write off the event loop; all 21 subscription tests pass after this last correction. All required current-head and merge-queue checks passed before release.
 
 - Final live review caught missing hover feedback on the shared sign-in Close button. The follow-up applies the v9 pale background and dark icon to all shared Close variants, preserving focus/press behavior and suppressing hover on touch devices. Browser checks cover desktop, narrow screens, leaving hover, keyboard dismissal and touch dismissal.
+
+
+## Next build list, requested 25 September 2026
+
+Status: recorded for the next build; these changes are not implemented. Eugene asked to add them to the build list after the released white research-card update.
+
+- [ ] Change the sign-in helper from the Unconcealed invitation to **Sign in or create an account to get Unconcealed research by email**. Carry the exact wording into the owning requirements and relevant checks when building. This changes the helper sentence, not the title or button labels.
+- [ ] Remove the purple focus outline caused by mouse clicks or touch taps on Unconcealed email choices and action buttons. Keep a visible, fully contained keyboard-focus indicator. The supplied screenshot shows the optional features checkbox row with only its top and bottom purple outline visible; correct the clipping as well as when the outline appears. Current `EmailControls.tsx` applies `styles.focus` on every focus event, including pointer focus. Inspect the matching controls in email preferences when implementing the shared correction.
+- [ ] Reproduce and fix the reported brief purple-outlined element after pressing **Subscribe to Unconcealed**, through saving and the success screen. The screenshot cannot establish which element flashes. Inspect the actual transition before choosing the fix; keep the saving words, success announcement, and appropriate keyboard/screen-reader focus. Test locally with mocked responses or isolated test data, never by subscribing a real reader or sending email.
+
+Acceptance: the approved helper reads exactly as specified; clicking or tapping does not add a purple outline or cause a purple flash during the saving/success transition; Tab navigation still shows an unclipped focus indicator; Space/Enter, success announcements, failure/retry and dismissal still work at phone and desktop widths. Preserve the approved colours, spacing and other screen content.
