@@ -841,7 +841,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   sourceControlFocus: Platform.select({
-    web: { outlineStyle: 'solid', outlineWidth: 2, outlineColor: '#7c5cff', outlineOffset: 2 },
+    web: {},
     default: { borderWidth: 2, borderColor: '#7c5cff' },
   }) as object,
   sourceControlText: {
