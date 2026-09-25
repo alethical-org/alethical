@@ -1,0 +1,11 @@
+{
+  "name": "alethical-native-release-tools",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "check": "node scripts/check-tool-security.mjs"
+  },
+  "devDependencies": {
+    "eas-cli": "21.6.0"
+  }
+}

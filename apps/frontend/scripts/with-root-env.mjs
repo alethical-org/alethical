@@ -53,13 +53,26 @@ if (!command) {
 const binPath = resolve(repoRoot, 'node_modules/.bin');
 process.env.PATH = `${binPath}${delimiter}${process.env.PATH ?? ''}`;
 
-const resolvedCommand = command === 'expo' ? process.execPath : command;
-const resolvedArgs =
-  command === 'expo' ? [resolve(repoRoot, 'node_modules/expo/bin/cli'), ...args] : args;
+const nativeEasEntry = resolve(repoRoot, 'tools/native-release/node_modules/eas-cli/bin/run');
+if (command === 'eas' && !existsSync(nativeEasEntry)) {
+  console.error(
+    'Install the optional phone release tools: pnpm --dir tools/native-release install --frozen-lockfile',
+  );
+  process.exit(1);
+}
+
+const localEntry =
+  command === 'expo'
+    ? resolve(repoRoot, 'node_modules/expo/bin/cli')
+    : command === 'eas'
+      ? nativeEasEntry
+      : null;
+const resolvedCommand = localEntry ? process.execPath : command;
+const resolvedArgs = localEntry ? [localEntry, ...args] : args;
 
 const child = spawn(resolvedCommand, resolvedArgs, {
   env: process.env,
-  shell: command !== 'expo' && process.platform === 'win32',
+  shell: !localEntry && process.platform === 'win32',
   stdio: 'inherit',
 });
 

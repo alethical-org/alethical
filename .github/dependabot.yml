@@ -151,6 +151,29 @@ updates:
     labels:
       - frontend
 
+  # Phone publishing tools have their own lockfile, outside the web workspace.
+  # Watch it without adding those packages to ordinary website installs.
+  - package-ecosystem: npm
+    directory: "/tools/native-release"
+    schedule:
+      interval: monthly
+    groups:
+      native-release-tools:
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "*"
+      native-release-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: chore
+    labels:
+      - frontend
+
   # Container images sit outside Python and JavaScript package files. Without
   # these 2 entries, their security and support updates stay invisible.
   - package-ecosystem: docker
