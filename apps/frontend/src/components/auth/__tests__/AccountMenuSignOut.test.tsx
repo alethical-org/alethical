@@ -73,6 +73,24 @@ function signOutButton() {
   return result!;
 }
 
+function visibleSignOutLabel(action: HTMLElement) {
+  const label = action.querySelector<HTMLElement>('[data-account-menu-sign-out-label="true"]');
+  expect(label).not.toBeNull();
+  expect(label!.closest('[aria-hidden="true"]')).toBeNull();
+
+  // A second copy may reserve room for the longest label. It must not be
+  // spoken as part of the button's name by a screen reader.
+  const textNodes = document.createTreeWalker(action, NodeFilter.SHOW_TEXT);
+  while (textNodes.nextNode()) {
+    const node = textNodes.currentNode;
+    if (!node.textContent?.trim()) continue;
+    const parent = node.parentElement;
+    if (parent?.closest('[data-account-menu-sign-out-label="true"]')) continue;
+    expect(parent?.closest('[aria-hidden="true"]')).not.toBeNull();
+  }
+  return label!.textContent;
+}
+
 function click(element: HTMLElement) {
   act(() => element.dispatchEvent(new MouseEvent('click', { bubbles: true })));
 }
@@ -107,7 +125,7 @@ describe.each([
     click(button(openerLabel));
 
     const action = signOutButton();
-    expect(action.textContent).toBe('Sign out');
+    expect(visibleSignOutLabel(action)).toBe('Sign out');
     const icon = action.querySelector('svg')?.innerHTML;
     expect(icon).toBeTruthy();
     act(() => action.focus());
@@ -115,7 +133,7 @@ describe.each([
 
     expect(auth.signOut).toHaveBeenCalledTimes(1);
     expect(signOutButton()).toBe(action);
-    expect(action.textContent).toBe('Signing out…');
+    expect(visibleSignOutLabel(action)).toBe('Signing out…');
     expect(action.querySelector('svg')?.innerHTML).toBe(icon);
     expect(action.getAttribute('aria-busy')).toBe('true');
     expect(action.getAttribute('aria-disabled')).toBe('true');
@@ -127,7 +145,7 @@ describe.each([
     await act(async () => first.resolve({ ok: false }));
 
     expect(signOutButton()).toBe(action);
-    expect(action.textContent).toBe('Try again');
+    expect(visibleSignOutLabel(action)).toBe('Try again');
     expect(action.getAttribute('aria-busy')).toBeNull();
     expect(action.getAttribute('aria-disabled')).toBeNull();
     const alert = document.querySelector<HTMLElement>('[role="alert"]');
@@ -139,9 +157,54 @@ describe.each([
 
     click(action);
     expect(auth.signOut).toHaveBeenCalledTimes(2);
-    expect(action.textContent).toBe('Signing out…');
-    expect(document.querySelector('[role="alert"]')).toBeNull();
+    expect(visibleSignOutLabel(action)).toBe('Signing out…');
+    expect(document.querySelector('[role="alert"]')).toBe(alert);
+    expect(alert?.textContent).toBe(
+      'We couldn’t sign you out. Check your connection and try again.',
+    );
     await act(async () => second.resolve({ ok: false }));
+    const repeatedAlert = document.querySelector<HTMLElement>('[role="alert"]');
+    expect(repeatedAlert?.textContent).toBe(
+      'We couldn’t sign you out. Check your connection and try again.',
+    );
+    expect(repeatedAlert).not.toBe(alert);
+    expect(visibleSignOutLabel(action)).toBe('Try again');
+    expect(document.activeElement).toBe(action);
+  });
+
+  it('starts with a clean sign-out action when the account surface reopens', async () => {
+    auth.signOut.mockResolvedValue({ ok: false });
+    act(() => root.render(control));
+    click(button(openerLabel));
+    click(signOutButton());
+    await act(async () => {});
+    expect(document.querySelector('[role="alert"]')).not.toBeNull();
+
+    if (openerLabel === 'Account menu') click(button('Close'));
+    else click(button(openerLabel));
+    expect(document.querySelector('[role="alert"]')).toBeNull();
+
+    click(button(openerLabel));
+    expect(visibleSignOutLabel(signOutButton())).toBe('Sign out');
+    expect(document.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it('does not start another sign-out request while the account surface is closing', async () => {
+    const request = deferred();
+    auth.signOut.mockReturnValue(request.promise);
+    act(() => root.render(control));
+    click(button(openerLabel));
+    click(signOutButton());
+
+    if (openerLabel === 'Account menu') click(button('Close'));
+    else click(button(openerLabel));
+    if (!document.querySelector('[data-account-menu-sign-out="true"]')) {
+      click(button(openerLabel));
+    }
+    click(signOutButton());
+    expect(auth.signOut).toHaveBeenCalledTimes(1);
+
+    await act(async () => request.resolve({ ok: false }));
   });
 
   it('clears saved sign-in drafts only after sign out succeeds', async () => {

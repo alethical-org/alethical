@@ -1,5 +1,13 @@
 import { useNavigation } from '@react-navigation/native';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import {
   Modal,
   Platform,
@@ -432,12 +440,12 @@ export function SetPasswordDialog({
   );
 }
 
-function CloseIcon() {
+function CloseIcon({ hovered = false }: { hovered?: boolean }) {
   return (
     <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
       <Path
         d="M6 6 L18 18 M18 6 L6 18"
-        stroke={t.colors.text.faint}
+        stroke={hovered ? t.colors.text.primary : t.colors.text.faint}
         strokeWidth={2.2}
         strokeLinecap="round"
       />
@@ -694,9 +702,16 @@ function Identity({ name, email, avatar }: { name: string; email: string; avatar
 
 type AccountSignOutState = 'idle' | 'busy' | 'failed';
 
-function useAccountSignOut(onSuccess?: () => void) {
+function useAccountSignOut(open: boolean, onSuccess?: () => void) {
   const { signOut } = useAuth();
   const [state, setState] = useState<AccountSignOutState>('idle');
+  const [failures, setFailures] = useState(0);
+  useEffect(() => {
+    if (!open && state !== 'busy') {
+      setState('idle');
+      setFailures(0);
+    }
+  }, [open, state]);
   const locked = useRef(false);
 
   const press = async () => {
@@ -714,11 +729,13 @@ function useAccountSignOut(onSuccess?: () => void) {
       // The one public failure below covers both provider and connection errors.
     }
     locked.current = false;
+    setFailures((count) => count + 1);
     setState('failed');
   };
 
   return {
     state,
+    failures,
     label: state === 'busy' ? 'Signing out…' : state === 'failed' ? 'Try again' : 'Sign out',
     press,
   };
@@ -737,16 +754,150 @@ function useSignOutButtonRef(busy: boolean) {
   return ref;
 }
 
+// The invisible longest label reserves the same box even when text is enlarged.
+// It is excluded from the accessible name, which contains only the current label.
+function SignOutLabel({
+  flow,
+  phone = false,
+}: {
+  flow: ReturnType<typeof useAccountSignOut>;
+  phone?: boolean;
+}) {
+  const textStyle = phone ? styles.sheetButtonText : styles.menuItemText;
+  return (
+    <View style={styles.signOutLabelBox}>
+      {isWeb ? (
+        <Text aria-hidden accessible={false} style={[textStyle, styles.signOutLabelSpace]}>
+          Signing out…
+        </Text>
+      ) : null}
+      <Text
+        {...({ dataSet: { accountMenuSignOutLabel: 'true' } } as object)}
+        accessibilityLiveRegion="polite"
+        style={[textStyle, styles.signOutLabel, flow.state === 'busy' && styles.signOutBusyText]}
+      >
+        {flow.label}
+      </Text>
+    </View>
+  );
+}
+
+function SignOutError({
+  flow,
+  phone = false,
+}: {
+  flow: ReturnType<typeof useAccountSignOut>;
+  phone?: boolean;
+}) {
+  if (!flow.failures) return null;
+  return (
+    <Text
+      key={flow.failures}
+      accessibilityRole="alert"
+      style={[styles.signOutError, phone ? styles.phoneSignOutError : styles.desktopSignOutError]}
+    >
+      {SIGN_OUT_FAILURE}
+    </Text>
+  );
+}
+
+// The footer takes space from the scrolling rows, rather than moving Sign out.
+// Only the web desktop menu needs measured geometry; native uses its normal flow.
+function DesktopAccountMenu({
+  flow,
+  children,
+}: {
+  flow: ReturnType<typeof useAccountSignOut>;
+  children: ReactNode;
+}) {
+  const panelRef = useRef<View>(null);
+  const rowsRef = useRef<View>(null);
+  const contentRef = useRef<View>(null);
+  const footerRef = useRef<View>(null);
+  const shadeRef = useRef<View>(null);
+  const restingHeight = useRef(0);
+  const hadError = useRef(false);
+  const hasError = flow.failures > 0;
+  useLayoutEffect(() => {
+    if (!isWeb) return;
+    const panel = panelRef.current as unknown as HTMLElement;
+    const rows = rowsRef.current as unknown as HTMLElement;
+    const content = contentRef.current as unknown as HTMLElement;
+    const footer = footerRef.current as unknown as HTMLElement;
+    const shade = shadeRef.current as unknown as HTMLElement;
+    const updateShade = () => {
+      shade.style.opacity = rows.scrollTop > 0 ? '1' : '0';
+    };
+    const measure = (resized = false) => {
+      const button = footer.querySelector<HTMLElement>('[data-account-menu-sign-out]');
+      if (!button) return;
+      const footerHeight = footer.getBoundingClientRect().height;
+      // 1px divider, 12px padding on each side, plus the actual button height.
+      if (!restingHeight.current || (!hasError && flow.state === 'idle') || resized) {
+        restingHeight.current =
+          content.getBoundingClientRect().height + button.getBoundingClientRect().height + 25 + 2;
+      }
+      const viewportBottom = window.visualViewport
+        ? window.visualViewport.height + window.visualViewport.offsetTop
+        : window.innerHeight;
+      const available = Math.max(44, viewportBottom - panel.getBoundingClientRect().top - 8);
+      const height = Math.min(available, Math.max(restingHeight.current, footerHeight + 44 + 2));
+      const atEnd = rows.scrollHeight - rows.clientHeight - rows.scrollTop < 2;
+      panel.style.maxHeight = `${available}px`;
+      rows.style.height = `${Math.max(44, height - footerHeight - 2)}px`;
+      if (hasError && (!hadError.current || atEnd)) rows.scrollTop = rows.scrollHeight;
+      if (hasError && !hadError.current && footerHeight + 46 > available)
+        panel.scrollTop = panel.scrollHeight;
+      hadError.current = hasError;
+      updateShade();
+    };
+    measure();
+    const observer =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => measure());
+    observer?.observe(content);
+    observer?.observe(footer);
+    const resize = () => measure(true);
+    window.addEventListener('resize', resize);
+    window.visualViewport?.addEventListener('resize', resize);
+    rows.addEventListener('scroll', updateShade);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', resize);
+      window.visualViewport?.removeEventListener('resize', resize);
+      rows.removeEventListener('scroll', updateShade);
+    };
+  }, [hasError, flow.state]);
+  return (
+    <View
+      ref={panelRef}
+      {...({ role: 'region', 'aria-label': 'Account' } as object)}
+      style={styles.menuPanel}
+    >
+      <View style={styles.menuRowsFrame}>
+        <View
+          ref={rowsRef}
+          {...({ dataSet: { accountMenuRows: 'true' } } as object)}
+          style={styles.menuRowsScroll}
+        >
+          <View ref={contentRef} style={styles.menuRowsContent}>
+            {children}
+          </View>
+        </View>
+        <View ref={shadeRef} pointerEvents="none" aria-hidden style={styles.menuScrollShade} />
+      </View>
+      <View ref={footerRef} style={styles.menuFooter}>
+        <DesktopSignOut flow={flow} />
+      </View>
+    </View>
+  );
+}
+
 function DesktopSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }) {
   const hover = useFineHover();
   const buttonRef = useSignOutButtonRef(flow.state === 'busy');
   return (
     <>
-      {flow.state === 'failed' ? (
-        <View style={styles.desktopSignOutError}>
-          <FormError variant="banner" message={SIGN_OUT_FAILURE} />
-        </View>
-      ) : null}
+      <SignOutError flow={flow} />
       <Pressable
         ref={buttonRef}
         {...({ dataSet: { accountMenuSignOut: 'true' } } as object)}
@@ -768,13 +919,7 @@ function DesktopSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }
         <View style={styles.menuIconBox}>
           <AccountMenuIcon name="sign-out" busy={flow.state === 'busy'} />
         </View>
-        <Text
-          accessibilityLiveRegion="polite"
-          numberOfLines={1}
-          style={[styles.menuItemText, flow.state === 'busy' && styles.signOutBusyText]}
-        >
-          {flow.label}
-        </Text>
+        <SignOutLabel flow={flow} />
       </Pressable>
     </>
   );
@@ -785,11 +930,7 @@ function PhoneSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }) 
   const buttonRef = useSignOutButtonRef(flow.state === 'busy');
   return (
     <>
-      {flow.state === 'failed' ? (
-        <View style={styles.phoneSignOutError}>
-          <FormError variant="banner" message={SIGN_OUT_FAILURE} />
-        </View>
-      ) : null}
+      <SignOutError flow={flow} phone />
       <Pressable
         ref={buttonRef}
         {...({ dataSet: { accountMenuSignOut: 'true' } } as object)}
@@ -810,13 +951,7 @@ function PhoneSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }) 
         <View style={styles.phoneSignOutIcon}>
           <AccountMenuIcon name="sign-out" busy={flow.state === 'busy'} />
         </View>
-        <Text
-          accessibilityLiveRegion="polite"
-          numberOfLines={1}
-          style={[styles.sheetButtonText, flow.state === 'busy' && styles.signOutBusyText]}
-        >
-          {flow.label}
-        </Text>
+        <SignOutLabel flow={flow} phone />
       </Pressable>
     </>
   );
@@ -854,7 +989,7 @@ function AccountSurfaceContent({
 
   if (variant === 'desktop') {
     return (
-      <>
+      <DesktopAccountMenu flow={signOutFlow}>
         <View style={styles.menuHeader}>
           <Identity name={name} email={email} avatar={38} />
         </View>
@@ -884,9 +1019,7 @@ function AccountSurfaceContent({
         ) : null}
         <EmailPreferencesRow variant="desktop" onNavigate={onLeave} />
         <AdminGroup variant="desktop" onNavigate={onLeave} />
-        <View style={styles.menuDivider} />
-        <DesktopSignOut flow={signOutFlow} />
-      </>
+      </DesktopAccountMenu>
     );
   }
 
@@ -920,7 +1053,9 @@ function AccountSurfaceContent({
         <EmailPreferencesRow variant="phone" onNavigate={onLeave} />
         <AdminGroup variant="phone" onNavigate={onLeave} />
       </View>
-      <PhoneSignOut flow={signOutFlow} />
+      <View style={styles.sheetSignOut}>
+        <PhoneSignOut flow={signOutFlow} />
+      </View>
     </>
   );
 }
@@ -931,7 +1066,7 @@ export function AccountNavButton() {
   const [open, setOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const wrapRef = useRef<View>(null);
-  const signOutFlow = useAccountSignOut();
+  const signOutFlow = useAccountSignOut(open);
   const avatarHover = useFineHover();
 
   // Any click outside the button + panel closes the menu, matching how the nav's
@@ -968,7 +1103,9 @@ export function AccountNavButton() {
           aria-expanded={open}
           onHoverIn={avatarHover.onHoverIn}
           onHoverOut={avatarHover.onHoverOut}
-          onPress={() => setOpen((value) => !value)}
+          onPress={() => {
+            if (signOutFlow.state !== 'busy') setOpen((value) => !value);
+          }}
           style={({ pressed }) => [styles.navPill, pressed && styles.navPillPressed]}
         >
           <Avatar label={name} size={30} hovered={avatarHover.hovered} />
@@ -978,23 +1115,18 @@ export function AccountNavButton() {
           <ChevronIcon />
         </Pressable>
         {open ? (
-          <View
-            {...({ role: 'region', 'aria-label': 'Account' } as object)}
-            style={styles.menuPanel}
-          >
-            <AccountSurfaceContent
-              variant="desktop"
-              name={name}
-              email={user?.email ?? ''}
-              signInMethods={user?.signInMethods ?? null}
-              signOutFlow={signOutFlow}
-              onLeave={() => setOpen(false)}
-              onPasswordPress={() => {
-                setOpen(false);
-                setPasswordOpen(true);
-              }}
-            />
-          </View>
+          <AccountSurfaceContent
+            variant="desktop"
+            name={name}
+            email={user?.email ?? ''}
+            signInMethods={user?.signInMethods ?? null}
+            signOutFlow={signOutFlow}
+            onLeave={() => setOpen(false)}
+            onPasswordPress={() => {
+              setOpen(false);
+              setPasswordOpen(true);
+            }}
+          />
         ) : null}
       </View>
       <SetPasswordDialog
@@ -1014,12 +1146,19 @@ function PhoneAccountControl({ trigger }: { trigger: 'avatar' | 'drawer' }) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
-  const [closeFocused, setCloseFocused] = useState(false);
+  const closeHover = useFineHover();
   const avatarRef = useRef<View>(null);
   const sheetScrollRef = useRef<ScrollView>(null);
   const name = displayName(user?.name, user?.email);
-  const signOutFlow = useAccountSignOut();
+  const signOutFlow = useAccountSignOut(open);
   const avatarHover = useFineHover();
+
+  useLayoutEffect(() => {
+    if (!isWeb || !open || !signOutFlow.failures) return;
+    // Compensate before paint, including Safari where scroll anchoring is absent.
+    const node = sheetScrollRef.current?.getScrollableNode?.() as HTMLElement | undefined;
+    if (node) node.scrollTop = node.scrollHeight;
+  }, [open, signOutFlow.failures]);
 
   // The sheet always closes three ways — the Close button, the scrim, Escape —
   // and focus returns to the control that opened it (rev 15/17, #1533).
@@ -1091,16 +1230,16 @@ function PhoneAccountControl({ trigger }: { trigger: 'avatar' | 'drawer' }) {
                 accessibilityRole="button"
                 accessibilityLabel="Close"
                 disabled={signOutFlow.state === 'busy'}
-                onBlur={() => setCloseFocused(false)}
-                onFocus={() => setCloseFocused(true)}
+                onHoverIn={closeHover.onHoverIn}
+                onHoverOut={closeHover.onHoverOut}
                 onPress={closeSheet}
                 style={({ pressed }) => [
                   styles.sheetClose,
-                  closeFocused && focusRingWeb,
+                  closeHover.hovered && signOutFlow.state !== 'busy' && styles.sheetCloseHovered,
                   pressed && styles.sheetButtonPressed,
                 ]}
               >
-                <CloseIcon />
+                <CloseIcon hovered={closeHover.hovered && signOutFlow.state !== 'busy'} />
               </Pressable>
             </View>
             <ScrollView
@@ -1220,11 +1359,40 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: t.colors.alpha.ink10,
     borderRadius: 12,
-    overflow: 'hidden',
+    ...(isWeb ? ({ overflowY: 'auto', overscrollBehavior: 'contain' } as object) : {}),
     ...(t.shadows.panel as object),
   },
   menuHeader: { paddingVertical: 14, paddingHorizontal: 15 },
-  menuDivider: { height: 1, backgroundColor: t.colors.alpha.ink08 },
+  menuRowsFrame: {
+    flexShrink: 0,
+    overflow: 'hidden',
+    borderTopLeftRadius: 11,
+    borderTopRightRadius: 11,
+  },
+  menuRowsScroll: {
+    ...(isWeb
+      ? ({ overflowY: 'auto', overscrollBehavior: 'contain', overflowAnchor: 'none' } as object)
+      : {}),
+  },
+  menuRowsContent: { paddingBottom: 4 },
+  menuScrollShade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 14,
+    opacity: 0,
+    ...(isWeb
+      ? ({ backgroundImage: 'linear-gradient(rgba(17,21,15,0.10), rgba(17,21,15,0))' } as object)
+      : {}),
+  },
+  menuFooter: {
+    flexShrink: 0,
+    borderTopWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    padding: 12,
+    gap: 10,
+  },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1237,9 +1405,8 @@ const styles = StyleSheet.create({
   },
   menuItemPressed: { backgroundColor: t.colors.surfaces.s300 },
   menuSignOutOutline: {
-    marginHorizontal: 12,
-    marginTop: 12,
-    marginBottom: 12,
+    minHeight: 48,
+    paddingVertical: 13,
     paddingLeft: 16,
     paddingRight: 16,
     borderWidth: 1,
@@ -1331,7 +1498,11 @@ const styles = StyleSheet.create({
   },
   sheetAdminLabel: { fontSize: 14, paddingTop: 14, paddingBottom: 6, paddingHorizontal: 2 },
   adminRow: { borderTopWidth: 0 },
-  desktopSignOutError: { marginTop: 12, marginHorizontal: 15 },
+  signOutError: { fontFamily: t.typography.body, color: '#c0392b' },
+  desktopSignOutError: { fontSize: 14, lineHeight: 20, marginHorizontal: 12 },
+  signOutLabelBox: { flex: 1, minWidth: 0, ...(isWeb ? ({ display: 'grid' } as object) : {}) },
+  signOutLabel: { ...(isWeb ? ({ gridArea: '1 / 1' } as object) : {}) },
+  signOutLabelSpace: { ...(isWeb ? ({ gridArea: '1 / 1', visibility: 'hidden' } as object) : {}) },
   passwordTile: {
     width: 52,
     height: 52,
@@ -1426,11 +1597,14 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 0,
-    paddingHorizontal: 22,
   },
-  sheetScroll: { flexGrow: 0, flexShrink: 1, marginHorizontal: -4 },
+  sheetScroll: {
+    flexGrow: 0,
+    flexShrink: 1,
+    ...(isWeb ? ({ overflowAnchor: 'none' } as object) : {}),
+  },
   // Room outside the actions keeps keyboard focus outlines inside the scroll area.
-  sheetScrollContent: { paddingHorizontal: 4, paddingBottom: 26 },
+  sheetScrollContent: { paddingHorizontal: 22, paddingBottom: 26 },
   grabHandle: {
     width: 40,
     height: 5,
@@ -1449,7 +1623,7 @@ const styles = StyleSheet.create({
   sheetClose: {
     position: 'absolute',
     top: 22,
-    right: 0,
+    right: 22,
     width: 44,
     height: 44,
     alignItems: 'center',
@@ -1457,8 +1631,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: t.colors.surfaces.s300,
   },
+  sheetCloseHovered: { backgroundColor: t.colors.surfaces.s400 },
+  sheetSignOut: { marginTop: 16, gap: 12 },
   sheetButton: {
-    marginTop: 16,
     width: '100%',
     minHeight: 56,
     flexDirection: 'row',
@@ -1530,5 +1705,5 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
-  phoneSignOutError: { marginTop: 16 },
+  phoneSignOutError: { fontSize: 15, lineHeight: 21, marginHorizontal: 14 },
 });

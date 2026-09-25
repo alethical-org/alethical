@@ -51,11 +51,24 @@ Phone password and Email preferences rows keep their right-pointing arrows.
 
 While signing out, the button says **Signing out…**, keeps its picture and size, and accepts
 no second request. Its text and picture become muted, and screen readers hear the busy state.
-If signing out fails, the existing red message stays above the same button, now labelled
+If signing out fails, plain red text appears above the same button, now labelled
 **Try again**: “We couldn’t sign you out. Check your connection and try again.”
-The message can grow to fit wrapped text. A successful sign-out removes the signed-in controls.
-On short phone screens, Close stays visible while the account actions scroll. A sign-out
-error keeps the retry button in view, with room for its keyboard outline.
+The message remains visible while retrying. Each failed attempt is announced again without
+moving keyboard focus or briefly hiding the message. Closing and reopening clears the old
+failure. A successful sign-out removes the signed-in controls.
+
+On desktop and tablet, the menu measures its actual resting contents, including loaded counts
+and password labels. The footer containing Sign out stays in place when an error appears;
+the rows above it give up the needed room and scroll to their end. A small shade at the top
+shows when rows have scrolled. No empty error space is held at rest. Rows keep at least 44px
+of visible space; enlarged text can grow the menu rather than be clipped. If the screen cannot
+fit that larger menu, the menu itself scrolls. Changing screen size recalculates the available room.
+
+On phones, the bottom-anchored sheet grows upward for the message. On short screens, Close
+stays visible while the account actions scroll by the added height before the browser paints.
+The scroll area owns the 22px side padding so the sign-out outline is not cropped. Its button
+reserves space for the longest state label even when text wraps. Close uses the matching sign-in
+panel's pointer-hover treatment and a keyboard-only focus outline.
 
 ## The name of `/money`
 
