@@ -20,6 +20,7 @@ import { ensureYearFilterWebStyles, yearFilterSelectProps } from '../../theme/ye
 import { LobbyingChoiceMenu } from './LobbyingChoiceMenu';
 import { externalLinkProps } from '../../navigation/links';
 import { LinkArrowLabel } from '../LinkArrow';
+import { finePointerHovered } from '../campaignMoney/finePointerHover';
 import {
   REGISTRATION_MATCH_LIMIT,
   NAME_REGISTRATION_DIFFERENCE,
@@ -304,22 +305,26 @@ export function LobbyingDonationNotes({
         onPress={() => setExpanded(!expanded)}
         style={[styles.disclosure, styles.disclosureRow]}
       >
-        <Text style={styles.disclosureText}>
-          {expanded
-            ? LOBBYING_DONATION_EXPLANATION_HIDE_LABEL
-            : LOBBYING_DONATION_EXPLANATION_LABEL}
-        </Text>
-        {/* A reveal control keeps the site's ink text and flipping chevron; the
-            green arrow stays reserved for a link that changes the address. */}
-        <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
-          <Path
-            d={expanded ? 'M6 15 L12 9 L18 15' : 'M6 9 L12 15 L18 9'}
-            stroke={theme.colors.text.primary}
-            strokeWidth={2.2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </Svg>
+        {(state) => (
+          <>
+            <Text style={[styles.disclosureText, finePointerHovered(state) && styles.actionHover]}>
+              {expanded
+                ? LOBBYING_DONATION_EXPLANATION_HIDE_LABEL
+                : LOBBYING_DONATION_EXPLANATION_LABEL}
+            </Text>
+            {/* A reveal control keeps the site's ink text and flipping chevron; the
+                green arrow stays reserved for a link that changes the address. */}
+            <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
+              <Path
+                d={expanded ? 'M6 15 L12 9 L18 15' : 'M6 9 L12 15 L18 9'}
+                stroke={theme.colors.text.primary}
+                strokeWidth={2.2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
+          </>
+        )}
       </Pressable>
       <View nativeID={panelId}>
         {expanded ? (
@@ -331,14 +336,21 @@ export function LobbyingDonationNotes({
             <Text style={[styles.note, width]}>{SMALL_CONTRIBUTION_LIMIT}</Text>
             <Text style={[styles.note, width]}>{FILE_COPY_MEANING}</Text>
             <Pressable {...externalLinkProps(CONTRIBUTION_REPORTING_URL)} style={styles.disclosure}>
-              <LinkArrowLabel label={CONTRIBUTION_REPORTING_LABEL} style={styles.sourceLinkText} />
+              {(state) => (
+                <LinkArrowLabel
+                  label={CONTRIBUTION_REPORTING_LABEL}
+                  style={[styles.sourceLinkText, finePointerHovered(state) && styles.sourceHover]}
+                />
+              )}
             </Pressable>
             {donations?.source_url ? (
               <Pressable {...externalLinkProps(donations.source_url)} style={styles.disclosure}>
-                <LinkArrowLabel
-                  label={LOBBYING_DONATION_SOURCE_LABEL}
-                  style={styles.sourceLinkText}
-                />
+                {(state) => (
+                  <LinkArrowLabel
+                    label={LOBBYING_DONATION_SOURCE_LABEL}
+                    style={[styles.sourceLinkText, finePointerHovered(state) && styles.sourceHover]}
+                  />
+                )}
               </Pressable>
             ) : null}
           </View>
@@ -423,12 +435,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
+  actionHover: { textDecorationLine: 'underline' },
   sourceLinkText: {
     fontFamily: theme.typography.body,
     color: theme.colors.text.greenOnLight,
     fontSize: 15,
     fontWeight: '700',
   },
+  sourceHover: { color: '#11832b', textDecorationLine: 'underline' },
   fileDate: {
     marginTop: 10,
     fontFamily: theme.typography.body,

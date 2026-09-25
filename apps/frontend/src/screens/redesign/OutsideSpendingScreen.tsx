@@ -6,6 +6,10 @@ import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-na
 import Svg, { Path } from 'react-native-svg';
 
 import { LinkArrowLabel, linkArrowRow } from '../../components/LinkArrow';
+import {
+  finePointerHovered,
+  useFinePointerHover,
+} from '../../components/campaignMoney/finePointerHover';
 import { Skeleton } from '../../components/Skeleton';
 import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
 import { useOutsideSpendingRecord, usePrefetchCommitteeMoney } from '../../hooks/useAppQueries';
@@ -301,6 +305,8 @@ function SubjectView({
   goTo: (change: Partial<Address>) => void;
 }) {
   const returnLink = useOutsideSpendingReturn(address, navigation);
+  const allYearsHover = useFinePointerHover();
+  const ownMoneyHover = useFinePointerHover();
   const subject = view === 'spender' ? page.spender : page.about;
   const figures = page.figures;
   const kind = registerKindLabel(subject?.kind);
@@ -342,7 +348,14 @@ function SubjectView({
               {SPENDER_INTRO}{' '}
               {ownMoneyHref ? (
                 <>
-                  <Text {...linkProps(ownMoneyHref, openOwnMoney)} style={styles.inlineLink}>
+                  <Text
+                    {...linkProps(ownMoneyHref, openOwnMoney)}
+                    {...({
+                      onMouseEnter: ownMoneyHover.onHoverIn,
+                      onMouseLeave: ownMoneyHover.onHoverOut,
+                    } as object)}
+                    style={[styles.inlineLink, ownMoneyHover.hovered && styles.destinationHover]}
+                  >
                     {SPENDER_OWN_MONEY_LINK}
                   </Text>
                   {SPENDER_OWN_MONEY_TAIL}
@@ -385,9 +398,19 @@ function SubjectView({
           {year !== null ? (
             <Pressable
               {...linkProps(hrefFor({ year: undefined }), () => goTo({ year: undefined }))}
+              onHoverIn={allYearsHover.onHoverIn}
+              onHoverOut={allYearsHover.onHoverOut}
               style={[styles.seeAll, styles.allYearsAction]}
             >
-              <Text style={[styles.seeAllLabel, styles.actionLabel]}>{SEE_ALL_YEARS}</Text>
+              <Text
+                style={[
+                  styles.seeAllLabel,
+                  styles.actionLabel,
+                  allYearsHover.hovered && styles.plainActionHover,
+                ]}
+              >
+                {SEE_ALL_YEARS}
+              </Text>
               <AllYearsArrow />
             </Pressable>
           ) : ownMoneyHref ? (
@@ -608,7 +631,11 @@ function RowsBlock({
                 key={option}
                 {...linkProps(hrefFor(change), () => goTo(change))}
                 aria-pressed={active}
-                style={[styles.sortButton, active && styles.sortButtonActive]}
+                style={(state) => [
+                  styles.sortButton,
+                  !active && finePointerHovered(state) && styles.sortButtonHover,
+                  active && styles.sortButtonActive,
+                ]}
               >
                 <Text style={[styles.sortLabel, active && styles.sortLabelActive]}>
                   {SORT_LABELS[option]}
@@ -672,7 +699,10 @@ function PagerButton({
   onPress: () => void;
 }) {
   return (
-    <Pressable {...linkProps(href, onPress)} style={styles.pagerButton}>
+    <Pressable
+      {...linkProps(href, onPress)}
+      style={(state) => [styles.pagerButton, finePointerHovered(state) && styles.outlinedHover]}
+    >
       <Text style={styles.pagerButtonLabel}>{label}</Text>
     </Pressable>
   );
@@ -1119,6 +1149,8 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   allYearsAction: { gap: 8 },
+  plainActionHover: { textDecorationLine: 'underline' },
+  destinationHover: { color: '#11832b', textDecorationLine: 'underline' },
   actionLabel: { color: t.colors.text.primary },
   seeAllLabel: {
     fontFamily: t.typography.body,
@@ -1168,6 +1200,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   sortButtonActive: { borderColor: t.colors.alpha.ink16, backgroundColor: t.colors.surfaces.base },
+  sortButtonHover: { backgroundColor: '#f1f3f2', borderColor: 'rgba(17,21,15,0.3)' },
   sortLabel: mono(11, t.colors.text.muted, 0.9),
   sortLabelActive: { color: t.colors.text.primary },
 
@@ -1298,6 +1331,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
   },
+  outlinedHover: { backgroundColor: '#f7f8fa', borderColor: 'rgba(17,21,15,0.3)' },
   pagerButtonLabel: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,

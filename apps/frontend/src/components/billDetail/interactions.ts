@@ -17,6 +17,24 @@ export function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () =>
   return [hovered, { onHoverIn: () => setHovered(true), onHoverOut: () => setHovered(false) }];
 }
 
+// New sitewide hover treatments apply only where a mouse or trackpad can hover.
+// Keep the phone layout and touch taps free of a stuck hover appearance.
+export function useFineHover(): [boolean, { onHoverIn: () => void; onHoverOut: () => void }] {
+  const [hovered, setHovered] = useState(false);
+  return [
+    hovered,
+    {
+      onHoverIn: () =>
+        setHovered(
+          isWeb &&
+            typeof matchMedia !== 'undefined' &&
+            matchMedia('(hover: hover) and (pointer: fine) and (min-width: 768px)').matches,
+        ),
+      onHoverOut: () => setHovered(false),
+    },
+  ];
+}
+
 // Mark a control as unavailable (and optionally busy) so assistive technology and the
 // keyboard both agree with what the reader can see.
 //

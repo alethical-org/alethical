@@ -10,6 +10,7 @@ import { externalLinkProps } from '../../navigation/links';
 import { GreenLinkArrow, linkArrowRow } from '../LinkArrow';
 import { theme as t } from '../../theme/tokens';
 import { committeeCardStyles, detailsStyles, useCampaignMoneyTypography } from './detailsStyles';
+import { useFinePointerHover } from './finePointerHover';
 
 type Props = { refunds: CommitteeRefunds | undefined; registrationNumber: string };
 
@@ -17,6 +18,7 @@ type Props = { refunds: CommitteeRefunds | undefined; registrationNumber: string
 export function CommitteeRefundCard({ refunds, registrationNumber }: Props) {
   const { isMobile, isTablet } = useResponsive();
   const type = useCampaignMoneyTypography();
+  const sourceHover = useFinePointerHover();
   if (!refunds) return null; // An older cached response does not establish an empty history.
   const rows = visibleRefundYears(refunds);
   const reported = rows.filter((row) => row.state === 'reported');
@@ -245,12 +247,20 @@ export function CommitteeRefundCard({ refunds, registrationNumber }: Props) {
       {refunds.sourceUrl ? (
         <Pressable
           {...externalLinkProps(refunds.sourceUrl, () => void Linking.openURL(refunds.sourceUrl!))}
+          onHoverIn={sourceHover.onHoverIn}
+          onHoverOut={sourceHover.onHoverOut}
           style={(state) => [
             styles.sourceLink,
             Boolean('focused' in state && state.focused) && detailsStyles.focus,
           ]}
         >
-          <Text style={[styles.sourceText, { fontSize: type.small, lineHeight: type.small * 1.5 }]}>
+          <Text
+            style={[
+              styles.sourceText,
+              { fontSize: type.small, lineHeight: type.small * 1.5 },
+              sourceHover.hovered && styles.sourceTextHover,
+            ]}
+          >
             {copy.summaries}
           </Text>
           <GreenLinkArrow />
@@ -288,4 +298,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: c.link,
   },
+  sourceTextHover: { color: '#11832b', textDecorationLine: 'underline' },
 });

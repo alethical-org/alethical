@@ -12,6 +12,9 @@ export const contentTabUnderline = {
     borderBottomWidth: 3,
     borderBottomColor: 'transparent',
   } satisfies ViewStyle,
+  hover: {
+    borderBottomColor: 'rgba(17,21,15,0.2)',
+  } satisfies ViewStyle,
   selected: {
     borderBottomColor: t.colors.brand.base,
     ...({ outlineStyle: 'none' } as object),
@@ -27,11 +30,14 @@ export function contentTabStyle(
   base: StyleProp<ViewStyle>,
   selected: boolean,
   selectedStyle?: StyleProp<ViewStyle>,
+  hovered = false,
 ): StyleProp<ViewStyle> {
-  return [
+  const style: StyleProp<ViewStyle>[] = [
     base,
     contentTabUnderline.base,
     selected && selectedStyle,
     selected && contentTabUnderline.selected,
   ];
+  if (hovered && !selected) style.push(contentTabUnderline.hover);
+  return style;
 }

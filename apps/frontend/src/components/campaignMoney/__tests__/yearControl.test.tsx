@@ -9,6 +9,7 @@ import { YearControl } from '../YearControl';
 let mount: HTMLDivElement;
 let root: Root;
 beforeEach(() => {
+  vi.stubGlobal('matchMedia', () => ({ matches: true }));
   (
     globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;
@@ -19,6 +20,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   mount.remove();
+  vi.unstubAllGlobals();
 });
 
 function color(value: string) {

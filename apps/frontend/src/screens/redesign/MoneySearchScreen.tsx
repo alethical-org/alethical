@@ -7,6 +7,10 @@ import {
   RowArrow,
 } from '../../components/campaignMoney/MoneyListRows';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
+import {
+  finePointerHovered,
+  useFinePointerHover,
+} from '../../components/campaignMoney/finePointerHover';
 import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
 import { ChevronLeft } from '../../components/icons';
 import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
@@ -352,7 +356,10 @@ function RetrySearch({ onRetry, busy }: { onRetry: () => void; busy: boolean }) 
       accessibilityRole="button"
       disabled={busy}
       onPress={onRetry}
-      style={styles.primaryButton}
+      style={(state) => [
+        styles.primaryButton,
+        !busy && finePointerHovered(state) && styles.primaryButtonHover,
+      ]}
     >
       <Text style={styles.primaryButtonLabel}>{busy ? 'Trying again…' : 'Try again'}</Text>
     </Pressable>
@@ -367,7 +374,10 @@ function BrowseAllCommittees({
   return (
     <Pressable
       {...linkProps(routePath.moneyCommittees(), () => navigation.navigate('CommitteeList'))}
-      style={styles.primaryButton}
+      style={(state) => [
+        styles.primaryButton,
+        finePointerHovered(state) && styles.primaryButtonHover,
+      ]}
     >
       <Text style={styles.primaryButtonLabel}>{BROWSE_ALL_COMMITTEES}</Text>
     </Pressable>
@@ -395,6 +405,7 @@ function ResultGroup({
   isMobile: boolean;
   navigation: RootScreenProps<'MoneySearch'>['navigation'];
 }) {
+  const moreHover = useFinePointerHover();
   const heading = groupHeading(kind);
   const count = group.state === 'unavailable' ? null : groupCountLabel(group.total, group.atLeast);
   const capNote = group.atLeast !== null ? countedUpToNote(countedUpTo) : null;
@@ -460,8 +471,15 @@ function ResultGroup({
         </>
       ) : null}
       {seeAll && group.state !== 'unavailable' ? (
-        <Pressable {...linkProps(moreHref, openMore)} style={styles.seeAll}>
-          <Text style={styles.seeAllLabel}>{seeAll}</Text>
+        <Pressable
+          {...linkProps(moreHref, openMore)}
+          onHoverIn={moreHover.onHoverIn}
+          onHoverOut={moreHover.onHoverOut}
+          style={styles.seeAll}
+        >
+          <Text style={[styles.seeAllLabel, moreHover.hovered && styles.destinationHover]}>
+            {seeAll}
+          </Text>
         </Pressable>
       ) : null}
     </View>
@@ -775,6 +793,7 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.greenOnLight,
   },
+  destinationHover: { color: '#11832b', textDecorationLine: 'underline' },
   card: {
     marginTop: 26,
     maxWidth: 780,
@@ -808,6 +827,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     paddingHorizontal: 19,
   },
+  primaryButtonHover: { backgroundColor: '#000000' },
   primaryButtonLabel: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,

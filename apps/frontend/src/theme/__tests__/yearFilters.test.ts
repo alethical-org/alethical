@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { FocusEvent, KeyboardEvent, PointerEvent } from 'react';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   YEAR_FILTER_SELECT_ATTRIBUTE,
@@ -27,12 +27,14 @@ const YEAR_FILTER_OWNERS = [
 ] as const;
 
 describe('the sitewide year-filter treatment', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it('gives compact year menus the same pointer and keyboard states', () => {
     expect(YEAR_FILTER_SELECT_ATTRIBUTE).toBe('data-alethical-year-filter');
     expect(YEAR_FILTER_POINTER_FOCUS_ATTRIBUTE).toBe('data-alethical-pointer-focus');
     expect(yearFilterWebCss).toContain('select[data-alethical-year-filter]{outline:none;}');
     expect(yearFilterWebCss).toContain(
-      'select[data-alethical-year-filter]:hover{border-color:#2ed47e !important;}',
+      '@media (hover: hover) and (pointer: fine){select[data-alethical-year-filter]:hover{border-color:#2ed47e !important;}}',
     );
     expect(yearFilterWebCss).toContain(
       'select[data-alethical-year-filter]:focus-visible{outline:2px solid #7c5cff !important;outline-offset:2px !important;}',
@@ -89,6 +91,7 @@ describe('the sitewide year-filter treatment', () => {
   });
 
   it('keeps the black selected block above the green hover boundary', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
     const base = { minHeight: 44 } as const;
     expect(yearFilterButtonStyle(base, false, { pressed: false, hovered: true })).toEqual([
       base,
@@ -103,6 +106,16 @@ describe('the sitewide year-filter treatment', () => {
     expect(yearFilterLabelStyle({ fontSize: 15 }, true)).toEqual([
       { fontSize: 15 },
       yearFilterStates.selectedLabel,
+    ]);
+  });
+
+  it('does not leave the year hover border after a touch', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    const base = { minHeight: 44 } as const;
+    expect(yearFilterButtonStyle(base, false, { pressed: false, hovered: true })).toEqual([
+      base,
+      false,
+      false,
     ]);
   });
 

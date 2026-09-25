@@ -80,6 +80,7 @@ import { NormalizedMotion, normalizeMemberName, normalizeMotion } from '../../li
 import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import { GoBackLink } from '../../components/GoBackLink';
 import { LinkArrowLabel } from '../../components/LinkArrow';
+import { useFineHover } from '../../components/billDetail/interactions';
 import { FullTextTab } from '../../components/billDetail/FullTextTab';
 import { SuggestedQuestionChip } from '../../components/billDetail/CitationCard';
 import { BillDetailWebScreen } from './BillDetailWebScreen';
@@ -332,6 +333,32 @@ function Section({
 
 // --- screen -----------------------------------------------------------------
 
+function CitedSectionChip({
+  href,
+  label,
+  onPress,
+}: {
+  href: string;
+  label: string;
+  onPress: () => void;
+}) {
+  const [hovered, hover] = useFineHover();
+  return (
+    <Pressable
+      {...linkProps(href, onPress)}
+      accessibilityLabel={`Jump to ${label} in Bill Text`}
+      {...hover}
+      style={({ pressed }) => [
+        styles.citedChip,
+        hovered && styles.citedChipHover,
+        pressed && styles.citedChipPressed,
+      ]}
+    >
+      <Text style={styles.citedChipText}>{label}</Text>
+    </Pressable>
+  );
+}
+
 // Responsive dispatcher: the desktop/web design is a tabbed two-column layout
 // (design_handoff_bill_profile_web); the narrow design is this single-scrolling
 // page (design_handoff_bill_profile_mobile). Same pattern as HomeSignedOut.
@@ -346,6 +373,7 @@ function BillDetailMobileScreen() {
   const { isSignedIn } = useAuth();
   const { isMobile } = useResponsive();
   const oneScreenTall = useOneScreenTall();
+  const [noVotesAskHovered, noVotesAskHover] = useFineHover();
 
   const params: Record<string, unknown> = route.params ?? {};
   const billId = typeof params.billId === 'string' ? params.billId : '';
@@ -883,20 +911,15 @@ function BillDetailMobileScreen() {
                           );
                         }
                         return (
-                          <Pressable
+                          <CitedSectionChip
                             key={`${c.id}-${i}`}
-                            {...linkProps(href, () => {
+                            href={href}
+                            label={label}
+                            onPress={() => {
                               setFtAnchor(citationSectionAnchor(c));
                               jumpTo('fulltext');
-                            })}
-                            accessibilityLabel={`Jump to ${label} in Bill Text`}
-                            style={({ pressed }) => [
-                              styles.citedChip,
-                              pressed && styles.citedChipPressed,
-                            ]}
-                          >
-                            <Text style={styles.citedChipText}>{label}</Text>
-                          </Pressable>
+                            }}
+                          />
                         );
                       })}
                     </View>
@@ -1116,7 +1139,8 @@ function BillDetailMobileScreen() {
                     <Pressable
                       accessibilityRole="button"
                       onPress={() => goAsk()}
-                      style={styles.noVotesAsk}
+                      {...noVotesAskHover}
+                      style={[styles.noVotesAsk, noVotesAskHovered && styles.noVotesAskHover]}
                     >
                       <Text style={styles.noVotesAskText}>Ask about this bill</Text>
                       <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
@@ -1516,6 +1540,7 @@ function ActionAuthorTitle({
   onToggle: () => void;
   onOpenLegislator: (legislatorId: string) => void;
 }) {
+  const [moreHovered, moreHover] = useFineHover();
   const isGroup = names.length > 1;
   const hidden = isGroup ? Math.max(0, names.length - NAME_CAP) : 0;
   const shown = !isGroup || expanded ? names : names.slice(0, NAME_CAP);
@@ -1541,7 +1566,11 @@ function ActionAuthorTitle({
         </Text>
       ))}
       {hidden > 0 ? (
-        <Text onPress={onToggle} style={styles.actionMoreLink}>
+        <Text
+          onPress={onToggle}
+          {...({ onMouseEnter: moreHover.onHoverIn, onMouseLeave: moreHover.onHoverOut } as object)}
+          style={[styles.actionMoreLink, moreHovered && styles.actionMoreLinkHover]}
+        >
           {expanded ? '  show less' : `  +${hidden} more`}
         </Text>
       ) : null}
@@ -1572,6 +1601,7 @@ function MobileVotesSection({
   // roll open so the member grid is discoverable without a tap.
   const [openRoll, setOpenRoll] = useState<number>(0);
   const [howToOpen, setHowToOpen] = useState(false);
+  const [howToHovered, howToHover] = useFineHover();
 
   const hasMemberData = rolls.some((r) => r.vote.votes.length > 0);
   const partyKnown = !!chiefParty && chiefParty.trim() !== '';
@@ -1590,9 +1620,12 @@ function MobileVotesSection({
             accessibilityRole="button"
             aria-expanded={howToOpen}
             onPress={() => setHowToOpen((v) => !v)}
+            {...howToHover}
             style={styles.howToHead}
           >
-            <Text style={styles.howToTitle}>How to read a roll call</Text>
+            <Text style={[styles.howToTitle, howToHovered && styles.plainActionHover]}>
+              How to read a roll call
+            </Text>
             <Chevron up={howToOpen} color={t.colors.text.muted} />
           </Pressable>
           {howToOpen ? (
@@ -1646,6 +1679,7 @@ function MobileRollCard({
 }) {
   const [filter, setFilter] = useState<RollFilter>('all');
   const [search, setSearch] = useState('');
+  const [rollHovered, rollHover] = useFineHover();
   const { focused, focusProps } = useFieldFocus();
 
   const passed = norm.passed;
@@ -1681,7 +1715,13 @@ function MobileRollCard({
   const matchQ = (m: MemberVote) => !q || m.name.toLowerCase().includes(q);
 
   return (
-    <View style={styles.rollCard}>
+    <View
+      style={[
+        styles.rollCard,
+        hasMembers && rollHovered && styles.rollCardHover,
+        hasMembers && rollHovered && !prefersReducedMotion() && styles.rollCardLift,
+      ]}
+    >
       <Pressable
         accessibilityRole={hasMembers ? 'button' : undefined}
         aria-expanded={hasMembers ? open : undefined}
@@ -1692,6 +1732,7 @@ function MobileRollCard({
         }
         onPress={hasMembers ? onToggle : undefined}
         disabled={!hasMembers}
+        {...rollHover}
       >
         <View style={styles.rollHeaderRow}>
           <View style={styles.rollHeaderLeft}>
@@ -1856,13 +1897,16 @@ function PartyBlockView({
 function MemberChip({ member, onPress }: { member: MemberVote; onPress: () => void }) {
   const yea = member.vote === 'YES';
   const nay = member.vote === 'NO';
+  const [hovered, hover] = useFineHover();
   return (
     <Pressable
       accessibilityLabel={`${member.name}, voted ${member.vote.toLowerCase()}${member.crossover ? ', crossed party lines' : ''}`}
       {...linkProps(routePath.legislator(member.slug ?? member.legislatorId), onPress)}
+      {...hover}
       style={({ pressed }) => [
         styles.chip,
         yea ? styles.chipYes : nay ? styles.chipNo : styles.chipAbs,
+        hovered && (yea ? styles.chipYesHover : nay ? styles.chipNoHover : styles.chipAbsHover),
         pressed && styles.chipPressed,
       ]}
     >
@@ -1896,14 +1940,17 @@ function FilterSeg({
   active: boolean;
   onPress: () => void;
 }) {
+  const [hovered, hover] = useFineHover();
   return (
     <Pressable
       accessibilityRole="button"
       aria-pressed={active}
       onPress={onPress}
+      {...hover}
       style={({ pressed }) => [
         styles.seg,
         active && styles.segActive,
+        hovered && !active && styles.segHover,
         pressed && !active && styles.segPressed,
       ]}
     >
@@ -1913,12 +1960,17 @@ function FilterSeg({
 }
 
 function RecordLink({ url, onOpen }: { url: string; onOpen: (url: string) => void }) {
+  const [hovered, hover] = useFineHover();
   return (
-    <Pressable {...externalLinkProps(url, () => onOpen(url))}>
+    <Pressable {...externalLinkProps(url, () => onOpen(url))} {...hover}>
       {({ pressed }) => (
         <LinkArrowLabel
           label="Official record"
-          style={[styles.recordLink, pressed && styles.recordLinkPressed]}
+          style={[
+            styles.recordLink,
+            hovered && styles.recordLinkHover,
+            pressed && styles.recordLinkPressed,
+          ]}
         />
       )}
     </Pressable>
@@ -2333,6 +2385,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   citedChipPressed: { opacity: 0.6 },
+  citedChipHover: { backgroundColor: '#f1f3f2', borderColor: 'rgba(17,21,15,0.3)' },
   citedChipText: {
     fontFamily: t.typography.mono,
     fontSize: t.fontSizes.meta,
@@ -2572,6 +2625,7 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
+  actionMoreLinkHover: { textDecorationLine: 'underline' },
   // A linked bill code inside a "See also" title. Green like every other in-product
   // link, inheriting the title's size and weight so the row's rhythm is unchanged.
   // Underlined, because mid-sentence there is no position to mark it as a link and
@@ -2647,7 +2701,18 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 18,
     ...(t.shadows.card as object),
+    ...(isWeb
+      ? ({
+          transitionProperty: 'border-color, box-shadow, transform',
+          transitionDuration: '0.16s',
+        } as object)
+      : null),
   },
+  rollCardHover: {
+    borderColor: 'rgba(45,212,126,0.85)',
+    ...(isWeb ? ({ boxShadow: '0 22px 46px rgba(17,21,15,0.14)' } as object) : null),
+  },
+  rollCardLift: { transform: [{ translateY: -3 }] },
   rollHeaderRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -2715,6 +2780,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.green,
   },
   recordLinkPressed: { color: t.colors.brand.forest, textDecorationLine: 'underline' },
+  recordLinkHover: { color: '#11832b', textDecorationLine: 'underline' },
   passedPill: {
     paddingVertical: 5,
     paddingHorizontal: 10,
@@ -2781,6 +2847,7 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.secondary,
   },
+  plainActionHover: { textDecorationLine: 'underline' },
   howToBody: {
     paddingHorizontal: 14,
     paddingBottom: 14,
@@ -2823,6 +2890,10 @@ const styles = StyleSheet.create({
   seg: { borderRadius: 7, paddingVertical: 7, paddingHorizontal: 12 },
   segActive: { backgroundColor: t.colors.text.primary },
   segPressed: { backgroundColor: t.colors.alpha.ink08 },
+  segHover: {
+    backgroundColor: '#f1f3f2',
+    ...(isWeb ? ({ boxShadow: 'inset 0 0 0 1px rgba(17,21,15,0.3)' } as object) : null),
+  },
   segText: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.meta,
@@ -2900,6 +2971,9 @@ const styles = StyleSheet.create({
   chipYes: { backgroundColor: '#e9faf1', borderColor: t.colors.tint.border },
   chipNo: { backgroundColor: '#fdecec', borderColor: '#f5c6c4' },
   chipAbs: { backgroundColor: '#f4f5f4', borderColor: t.colors.alpha.ink08 },
+  chipYesHover: { backgroundColor: '#dff6ea', borderColor: t.colors.brand.base },
+  chipNoHover: { backgroundColor: '#fbe0e0', borderColor: t.colors.status.vetoedStep },
+  chipAbsHover: { borderColor: t.colors.alpha.ink20 },
   chipMark: { fontSize: t.fontSizes.meta, fontWeight: t.fontWeights.heavy },
   chipName: {
     fontFamily: t.typography.body,
@@ -2966,6 +3040,7 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.white,
   },
+  noVotesAskHover: { backgroundColor: '#4a26b0' },
 
   // versions
   versionList: { marginTop: 16, gap: 11 },

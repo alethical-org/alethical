@@ -95,6 +95,7 @@ import {
 import { externalLinkProps } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
 import { useCampaignMoneyTypography } from './detailsStyles';
+import { hasFineHoverPointer, useFinePointerHover } from './finePointerHover';
 import { useResponsive } from '../../hooks/useResponsive';
 
 export type MoneyCardSurface = 'committee' | 'profile';
@@ -507,6 +508,7 @@ export function CheckedByBlock({
   const [locallyExpanded, setExpanded] = useState(false);
   const expanded = evidenceOpen ?? locallyExpanded;
   const [focused, setFocused] = useState(false);
+  const [evidenceHovered, setEvidenceHovered] = useState(false);
   const evidenceId = useId();
   const sentences = matchCheckSentences(checked);
   if (!sentences.length) return children ?? null;
@@ -541,6 +543,8 @@ export function CheckedByBlock({
             }}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
+            onMouseEnter={() => setEvidenceHovered(hasFineHoverPointer())}
+            onMouseLeave={() => setEvidenceHovered(false)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -559,7 +563,9 @@ export function CheckedByBlock({
               outline: 'none',
             }}
           >
-            How Alethical confirmed this
+            <span style={{ textDecoration: evidenceHovered ? 'underline' : 'none' }}>
+              How Alethical confirmed this
+            </span>
             <span
               aria-hidden="true"
               style={{
@@ -693,10 +699,17 @@ function Row({ label, value, note }: { label: string; value: string; note?: stri
 function SourceLink({ label, url }: { label: string; url: string }) {
   const styles = useCardStyles();
   const [focused, setFocused] = useState(false);
+  const hover = useFinePointerHover();
   return (
     <CardText
-      style={[styles.source, focused && styles.sourceFocused]}
+      style={[
+        styles.source,
+        hover.hovered && styles.destinationLinkHover,
+        focused && styles.sourceFocused,
+      ]}
       {...externalLinkProps(url, () => void Linking.openURL(url))}
+      onMouseEnter={hover.onHoverIn}
+      onMouseLeave={hover.onHoverOut}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
     >
@@ -797,6 +810,7 @@ const defaultStyles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   sourceFocused: {},
+  destinationLinkHover: { color: '#11832b', textDecorationLine: 'underline' },
   stamp: {
     backgroundColor: t.colors.surfaces.s100,
     borderWidth: 1,
@@ -902,6 +916,7 @@ const profileStyles = StyleSheet.create({
     outlineStyle: 'solid',
     outlineOffset: 2,
   },
+  destinationLinkHover: { color: '#11832b', textDecorationLine: 'underline' },
   stamp: { ...defaultStyles.stamp, backgroundColor: c.tile, borderColor: c.border },
   stampPeriod: {
     ...defaultStyles.stampPeriod,

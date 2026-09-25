@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 
+import { finePointerHovered } from '../components/campaignMoney/finePointerHover';
 import {
   getAccountSignupTotalsFromApi,
   getSiteMetricRecordTotalsFromApi,
@@ -1522,10 +1523,14 @@ export function TrafficScreen() {
                         accessibilityRole="button"
                         aria-pressed={selected}
                         onPress={() => selectRange(value as ActivityRange)}
-                        style={[
+                        style={(state) => [
                           styles.rangeButton,
                           isMobile && styles.rangeButtonMobile,
                           selected && styles.rangeButtonSelected,
+                          !selected &&
+                            !isMobile &&
+                            finePointerHovered(state) &&
+                            styles.rangeButtonHover,
                         ]}
                       >
                         <Text
@@ -1847,6 +1852,10 @@ const styles = StyleSheet.create({
   },
   rangeButtonMobile: { minHeight: 44, flex: 1 },
   rangeButtonSelected: { backgroundColor: '#ffffff' },
+  rangeButtonHover: {
+    backgroundColor: '#f1f3f2',
+    boxShadow: 'inset 0 0 0 1px rgba(17,21,15,0.3)',
+  },
   rangeButtonText: {
     color: theme.colors.text.secondary,
     fontFamily: theme.typography.ui,

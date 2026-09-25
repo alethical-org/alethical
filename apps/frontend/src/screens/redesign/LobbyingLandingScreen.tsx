@@ -7,10 +7,12 @@ import {
   Text,
   View,
   type TextInput,
+  type ViewStyle,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
+import { finePointerHovered } from '../../components/campaignMoney/finePointerHover';
 import { LinkArrow, LinkArrowLabel, linkArrowRow } from '../../components/LinkArrow';
 import { LobbyingSearchResults } from '../../components/lobbying/LobbyingSearchResults';
 import { useLobbyingNameSearch } from '../../hooks/useLobbyingNameSearch';
@@ -148,7 +150,11 @@ export function LobbyingLandingScreen({ navigation, route }: RootScreenProps<'Lo
                 <Pressable
                   accessibilityRole="button"
                   onPress={clearSearch}
-                  style={[styles.clear, isMobile && styles.clearMobile]}
+                  style={(state) => [
+                    styles.clear,
+                    isMobile && styles.clearMobile,
+                    finePointerHovered(state) && styles.outlinedHover,
+                  ]}
                 >
                   <Text style={styles.clearText}>{LOBBYING_SEARCH_COPY.clear}</Text>
                 </Pressable>
@@ -184,7 +190,14 @@ export function LobbyingLandingScreen({ navigation, route }: RootScreenProps<'Lo
               <Pressable
                 key={lane.title}
                 {...linkProps(lane.href, lane.open)}
-                style={[styles.lane, hasSearch && styles.compactLane, isMobile && styles.stacked]}
+                style={(state) => [
+                  styles.lane,
+                  hasSearch && styles.compactLane,
+                  isMobile && styles.stacked,
+                  prefersReducedMotion() && styles.noMotion,
+                  finePointerHovered(state) && styles.laneHover,
+                  finePointerHovered(state) && !prefersReducedMotion() && styles.laneLift,
+                ]}
               >
                 <View style={styles.laneTitleRow}>
                   <Text
@@ -215,7 +228,11 @@ export function LobbyingLandingScreen({ navigation, route }: RootScreenProps<'Lo
                 onPress={() => void summary.refetch()}
                 style={styles.retry}
               >
-                <Text style={styles.retryText}>{copy.retry}</Text>
+                {(state) => (
+                  <Text style={[styles.retryText, finePointerHovered(state) && styles.actionHover]}>
+                    {copy.retry}
+                  </Text>
+                )}
               </Pressable>
             </View>
           ) : null}
@@ -232,7 +249,12 @@ export function LobbyingLandingScreen({ navigation, route }: RootScreenProps<'Lo
                   )}
                   style={styles.sourceLink}
                 >
-                  <LinkArrowLabel label={copy.sourceLabel} style={styles.sourceText} />
+                  {(state) => (
+                    <LinkArrowLabel
+                      label={copy.sourceLabel}
+                      style={[styles.sourceText, finePointerHovered(state) && styles.sourceHover]}
+                    />
+                  )}
                 </Pressable>
               </View>
             ) : null}
@@ -253,6 +275,13 @@ export function LobbyingLandingScreen({ navigation, route }: RootScreenProps<'Lo
         <Footer />
       </ScrollView>
     </PageBackground>
+  );
+}
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
   );
 }
 
@@ -304,6 +333,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   clearMobile: { width: '100%' },
+  outlinedHover: { backgroundColor: '#f7f8fa', borderColor: 'rgba(17,21,15,0.3)' },
   clearText: { fontFamily: t.typography.body, fontWeight: '700', fontSize: 15, color: '#11150f' },
   compactLanes: { maxWidth: 900, marginTop: 28 },
   compactLane: { paddingVertical: 18, paddingHorizontal: 20, boxShadow: undefined },
@@ -329,7 +359,14 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: '#fff',
     boxShadow: '0 10px 30px rgba(17,21,15,0.08)',
+    ...({ transition: 'transform 0.16s, border-color 0.16s, box-shadow 0.16s' } as ViewStyle),
   },
+  laneHover: {
+    borderColor: 'rgba(45,212,126,0.85)',
+    boxShadow: '0 22px 46px rgba(17,21,15,0.14)',
+  },
+  laneLift: { transform: [{ translateY: -3 }] },
+  noMotion: { ...({ transition: 'none' } as ViewStyle) },
   laneTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -395,6 +432,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
   },
+  sourceHover: { color: '#11832b', textDecorationLine: 'underline' },
   sourceLink: {
     ...linkArrowRow,
     alignSelf: 'flex-start',
@@ -424,4 +462,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+  actionHover: { textDecorationLine: 'underline' },
 });

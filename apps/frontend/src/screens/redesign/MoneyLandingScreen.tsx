@@ -6,6 +6,7 @@ import Svg, { Path } from 'react-native-svg';
 import { Skeleton } from '../../components/Skeleton';
 import { LinkArrow, LinkArrowLabel, linkArrowRow } from '../../components/LinkArrow';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
+import { useFinePointerHover } from '../../components/campaignMoney/finePointerHover';
 import { useLobbyingSummary } from '../../hooks/useLobbying';
 import { MONEY_LANE_LOBBYING, moneyLandingLobbyistCount } from '../../lib/lobbyingDirectoryCopy';
 import { loadOnDemand } from '../../lib/loadOnDemand';
@@ -162,6 +163,31 @@ function LaneCard({
   );
 }
 
+function SourceParagraphLink({
+  href,
+  label,
+  isMobile,
+}: {
+  href: string;
+  label: string;
+  isMobile: boolean;
+}) {
+  const hover = useFinePointerHover();
+  return (
+    <Text
+      {...externalLinkProps(href, () => void Linking.openURL(href))}
+      {...({ onMouseEnter: hover.onHoverIn, onMouseLeave: hover.onHoverOut } as object)}
+      style={[
+        styles.sourceLink,
+        isMobile && styles.sourceLinkMobile,
+        hover.hovered && styles.sourceLinkHover,
+      ]}
+    >
+      {label}
+    </Text>
+  );
+}
+
 export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding'>) {
   const { isMobile, isTablet, width } = useResponsive();
   const narrow = isMobile || isTablet;
@@ -175,6 +201,7 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
   const [researchHovered, setResearchHovered] = useState(false);
   const reduceMotion = useReducedMotion();
   const [sourceControlFocused, setSourceControlFocused] = useState(false);
+  const sourceControlHover = useFinePointerHover();
   const sourceGroupsId = useId();
   useFocusEffect(
     useCallback(() => {
@@ -459,9 +486,16 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                 onPress={() => setSourcesOpen((open) => !open)}
                 onFocus={() => setSourceControlFocused(true)}
                 onBlur={() => setSourceControlFocused(false)}
+                onHoverIn={sourceControlHover.onHoverIn}
+                onHoverOut={sourceControlHover.onHoverOut}
                 style={[styles.sourceControl, sourceControlFocused && styles.sourceControlFocus]}
               >
-                <Text style={styles.sourceControlText}>
+                <Text
+                  style={[
+                    styles.sourceControlText,
+                    sourceControlHover.hovered && styles.sourceControlTextHover,
+                  ]}
+                >
                   {sourcesOpen ? 'Hide source links' : 'View source links'}
                 </Text>
                 <Svg
@@ -499,16 +533,12 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                         >
                           {paragraph.map((part, partIndex) =>
                             part.href ? (
-                              <Text
+                              <SourceParagraphLink
                                 key={partIndex}
-                                {...externalLinkProps(
-                                  part.href,
-                                  () => void Linking.openURL(part.href!),
-                                )}
-                                style={[styles.sourceLink, isMobile && styles.sourceLinkMobile]}
-                              >
-                                {part.text}
-                              </Text>
+                                href={part.href}
+                                label={part.text}
+                                isMobile={isMobile}
+                              />
                             ) : (
                               part.text
                             ),
@@ -785,6 +815,7 @@ const styles = StyleSheet.create({
       : {}),
   },
   sourceLinkMobile: { paddingVertical: 5 },
+  sourceLinkHover: { color: '#11832b' },
   freshnessDate: {
     color: t.colors.text.primary,
     fontFamily: t.typography.body,
@@ -821,6 +852,10 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     ...(Platform.OS === 'web' ? ({ textUnderlineOffset: 3 } as object) : {}),
   },
+  sourceControlTextHover: Platform.select({
+    web: { textDecorationThickness: '3px' },
+    default: {},
+  }) as object,
   sourceGroup: {
     borderTopWidth: 1,
     borderTopColor: t.colors.alpha.ink10,

@@ -26,6 +26,12 @@ import { ShareDestinationIcon } from './ShareDestinationIcon';
 
 export type SharePanelVariant = 'desktop' | 'tablet' | 'phone';
 const isWeb = Platform.OS === 'web';
+const finePointerHover = (state: { hovered?: boolean }, phone: boolean) =>
+  !phone &&
+  Boolean(state.hovered) &&
+  isWeb &&
+  typeof window !== 'undefined' &&
+  window.matchMedia?.('(hover: hover) and (pointer: fine)').matches === true;
 const DESTINATIONS = [
   ['email', 'Email', 'Share by email'],
   ['whatsapp', 'WhatsApp', 'Share on WhatsApp'],
@@ -183,11 +189,15 @@ export function SharePanelContent({
     <Pressable
       accessibilityRole="button"
       onPress={() => void copyLink()}
-      style={[
+      style={(state) => [
         styles.copyButton,
         { minHeight: band.buttonHeight },
         phone && styles.stackedCopy,
         copied && styles.copiedButton,
+        !copied &&
+          !copying.current &&
+          finePointerHover(state as { hovered?: boolean }, phone) &&
+          styles.copyButtonHover,
       ]}
     >
       {copied ? (
@@ -233,7 +243,10 @@ export function SharePanelContent({
           accessibilityRole="button"
           accessibilityLabel="Close"
           onPress={onClose}
-          style={styles.close}
+          style={(state) => [
+            styles.close,
+            finePointerHover(state as { hovered?: boolean }, phone) && styles.closeHover,
+          ]}
         >
           <Svg
             width={desktop ? 18 : 20}
@@ -321,9 +334,10 @@ export function SharePanelContent({
             <Pressable
               accessibilityRole="button"
               onPress={() => void openDeviceShare()}
-              style={[
+              style={(state) => [
                 styles.deviceButton,
                 { minHeight: desktop ? 46 : 52, marginTop: desktop ? 14 : phone ? 16 : 18 },
+                finePointerHover(state as { hovered?: boolean }, phone) && styles.deviceButtonHover,
               ]}
             >
               <Svg
@@ -405,6 +419,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 10,
   },
+  closeHover: { backgroundColor: '#f1f3f2' },
   scroll: {
     flexShrink: 1,
     marginTop: 16,
@@ -467,6 +482,7 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.brand.base,
     borderRadius: 8,
   },
+  copyButtonHover: { backgroundColor: '#28bf71' },
   copiedButton: { paddingLeft: 15 },
   stackedCopy: { marginTop: 10, borderRadius: 12 },
   copyText: { fontFamily: t.typography.ui, fontWeight: '700', color: t.colors.text.onGreen },
@@ -513,6 +529,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: t.colors.alpha.ink16,
     borderRadius: 12,
+  },
+  deviceButtonHover: {
+    backgroundColor: '#f7f8fa',
+    borderColor: 'rgba(17,21,15,0.3)',
   },
   deviceText: {
     flexShrink: 1,

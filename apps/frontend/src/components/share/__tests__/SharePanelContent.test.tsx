@@ -81,10 +81,43 @@ afterEach(() => {
   act(() => root.unmount());
   mount.remove();
   setDeviceShare();
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
 describe('shared panel content', () => {
+  it('adds only missing button hovers for a fine pointer', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    const share = vi.fn().mockResolvedValue(undefined);
+    setDeviceShare(share);
+    render();
+    const copy = copyButton();
+    const close = control('Close');
+    const device = control('Share using another app');
+    act(() => {
+      copy.dispatchEvent(new Event('pointerenter'));
+      close.dispatchEvent(new Event('pointerenter'));
+      device.dispatchEvent(new Event('pointerenter'));
+    });
+    expect(getComputedStyle(copy).backgroundColor).toBe('rgb(40, 191, 113)');
+    expect(getComputedStyle(close).backgroundColor).toBe('rgb(241, 243, 242)');
+    expect(getComputedStyle(device).backgroundColor).toBe('rgb(247, 248, 250)');
+    expect(getComputedStyle(device).borderColor).toBe('rgba(17, 21, 15, 0.3)');
+  });
+
+  it('does not add a hover appearance to the phone sharing controls', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    render('phone');
+    const copy = copyButton();
+    const close = control('Close');
+    act(() => {
+      copy.dispatchEvent(new Event('pointerenter'));
+      close.dispatchEvent(new Event('pointerenter'));
+    });
+    expect(getComputedStyle(copy).backgroundColor).not.toBe('rgb(40, 191, 113)');
+    expect(getComputedStyle(close).backgroundColor).not.toBe('rgb(241, 243, 242)');
+  });
+
   it.each(['desktop', 'tablet', 'phone'] as const)(
     'keeps all 6 visible destinations in the approved order on %s',
     (variant) => {

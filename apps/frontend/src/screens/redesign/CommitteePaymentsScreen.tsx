@@ -11,6 +11,10 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { YearControl } from '../../components/campaignMoney/YearControl';
+import {
+  finePointerHovered,
+  useFinePointerHover,
+} from '../../components/campaignMoney/finePointerHover';
 import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
 import { PageContextLabel } from '../../components/PageContextLabel';
 import { Skeleton } from '../../components/Skeleton';
@@ -265,6 +269,7 @@ export function CommitteePaymentsScreen({
                   navigation.navigate('CommitteeList'),
                 )}
                 style={styles.primaryButton}
+                hoverStyle={styles.primaryButtonHovered}
               >
                 <Text style={styles.primaryButtonLabel}>Browse all committees</Text>
               </FocusPressable>
@@ -302,17 +307,13 @@ export function CommitteePaymentsScreen({
               <View style={styles.controls}>
                 <View style={styles.tabsRow} role="group" aria-label="Payment direction">
                   {(Object.keys(PAYMENTS_TAB_LABELS) as PaymentsTab[]).map((key) => (
-                    <Pressable
+                    <PaymentContentTab
                       key={key}
                       onPress={() => navigation.setParams({ tab: key })}
-                      accessibilityRole="button"
-                      aria-pressed={key === tab}
-                      style={contentTabStyle(styles.tab, key === tab, styles.tabActive)}
+                      selected={key === tab}
                     >
-                      <Text style={[styles.tabLabel, key === tab && styles.tabLabelActive]}>
-                        {PAYMENTS_TAB_LABELS[key]}
-                      </Text>
-                    </Pressable>
+                      {PAYMENTS_TAB_LABELS[key]}
+                    </PaymentContentTab>
                   ))}
                 </View>
                 <YearControl
@@ -375,6 +376,7 @@ export function CommitteePaymentsScreen({
                             }),
                         )}
                         style={styles.primaryButton}
+                        hoverStyle={styles.primaryButtonHovered}
                       >
                         <Text style={styles.primaryButtonLabel}>{VIEW_FILED_REPORTS}</Text>
                       </FocusPressable>
@@ -409,8 +411,12 @@ export function CommitteePaymentsScreen({
 
 function FocusPressable({
   style,
+  hoverStyle,
   ...props
-}: Omit<ComponentProps<typeof Pressable>, 'style'> & { style?: StyleProp<ViewStyle> }) {
+}: Omit<ComponentProps<typeof Pressable>, 'style'> & {
+  style?: StyleProp<ViewStyle>;
+  hoverStyle?: StyleProp<ViewStyle>;
+}) {
   const [focused, setFocused] = useState(false);
   return (
     <Pressable
@@ -423,8 +429,39 @@ function FocusPressable({
         setFocused(false);
         props.onBlur?.(event);
       }}
-      style={[style, focused && styles.focused]}
+      style={(state) => [style, finePointerHovered(state) && hoverStyle, focused && styles.focused]}
     />
+  );
+}
+function PaymentContentTab({
+  children,
+  selected,
+  onPress,
+}: {
+  children: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const hover = useFinePointerHover();
+  return (
+    <Pressable
+      onPress={onPress}
+      onHoverIn={hover.onHoverIn}
+      onHoverOut={hover.onHoverOut}
+      accessibilityRole="button"
+      aria-pressed={selected}
+      style={contentTabStyle(styles.tab, selected, styles.tabActive, hover.hovered)}
+    >
+      <Text
+        style={[
+          styles.tabLabel,
+          selected && styles.tabLabelActive,
+          !selected && hover.hovered && styles.tabLabelHovered,
+        ]}
+      >
+        {children}
+      </Text>
+    </Pressable>
   );
 }
 function RetryButton({ onPress, busy }: { onPress: () => void; busy: boolean }) {
@@ -435,21 +472,57 @@ function RetryButton({ onPress, busy }: { onPress: () => void; busy: boolean }) 
       disabled={busy}
       aria-busy={busy}
       style={styles.primaryButton}
+      hoverStyle={!busy ? styles.primaryButtonHovered : undefined}
     >
       <Text style={styles.primaryButtonLabel}>{busy ? 'Loading…' : 'Try again'}</Text>
     </FocusPressable>
   );
 }
 function BoardLink({ url }: { url: string }) {
+  const hover = useFinePointerHover();
   return (
     <FocusPressable
       {...externalLinkProps(url, () => void Linking.openURL(url))}
+      onHoverIn={hover.onHoverIn}
+      onHoverOut={hover.onHoverOut}
       style={styles.sourceLink}
     >
-      <Text style={styles.source}>
+      <Text style={[styles.source, hover.hovered && styles.destinationHover]}>
         {url === BOARD_VIEWER_INDEX
           ? 'Find this committee in the Board’s records'
           : BOARD_RECORD_LINK_LABEL}
+      </Text>
+    </FocusPressable>
+  );
+}
+function PaymentNameLink({
+  href,
+  onPress,
+  name,
+  isMobile,
+}: {
+  href: string;
+  onPress: () => void;
+  name: string;
+  isMobile: boolean;
+}) {
+  const hover = useFinePointerHover();
+  return (
+    <FocusPressable
+      {...linkProps(href, onPress)}
+      onHoverIn={hover.onHoverIn}
+      onHoverOut={hover.onHoverOut}
+      style={styles.nameLink}
+    >
+      <Text
+        style={[
+          styles.listName,
+          styles.linkedName,
+          isMobile && styles.listNameMobile,
+          hover.hovered && styles.destinationHover,
+        ]}
+      >
+        {name}
       </Text>
     </FocusPressable>
   );
@@ -518,17 +591,12 @@ function PaymentRows({
             >
               <View style={styles.listRowText}>
                 {link ? (
-                  <FocusPressable {...linkProps(link.href, link.onPress)} style={styles.nameLink}>
-                    <Text
-                      style={[
-                        styles.listName,
-                        styles.linkedName,
-                        isMobile && styles.listNameMobile,
-                      ]}
-                    >
-                      {row.name}
-                    </Text>
-                  </FocusPressable>
+                  <PaymentNameLink
+                    href={link.href}
+                    onPress={link.onPress}
+                    name={row.name}
+                    isMobile={isMobile}
+                  />
                 ) : (
                   <Text style={[styles.listName, isMobile && styles.listNameMobile]}>
                     {row.name}
@@ -563,6 +631,7 @@ function PaymentRows({
               disabled={isFetchingNextPage}
               aria-busy={isFetchingNextPage}
               style={styles.primaryButton}
+              hoverStyle={!isFetchingNextPage ? styles.primaryButtonHovered : undefined}
             >
               <Text style={styles.primaryButtonLabel}>
                 {isFetchingNextPage
@@ -640,6 +709,7 @@ const styles = StyleSheet.create({
   paymentDivider: { borderTopWidth: 1, borderTopColor: t.colors.alpha.ink08 },
   nameLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', maxWidth: '100%' },
   linkedName: { color: t.colors.text.greenOnLight },
+  destinationHover: { color: '#11832b', textDecorationLine: 'underline' },
   listNameMobile: { fontSize: 16 },
   sourceLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
   backLabel: {
@@ -758,6 +828,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
   },
   tabLabelActive: { color: t.colors.text.primary, fontWeight: t.fontWeights.bold },
+  tabLabelHovered: { color: '#11150f' },
   listHead: {
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -893,6 +964,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     paddingHorizontal: 19,
   },
+  primaryButtonHovered: { backgroundColor: '#000000' },
   primaryButtonLabel: {
     fontVariant: ['tabular-nums'],
     fontFamily: t.typography.body,

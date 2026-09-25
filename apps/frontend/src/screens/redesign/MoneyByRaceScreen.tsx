@@ -7,6 +7,7 @@ import { PageContextLabel } from '../../components/PageContextLabel';
 import { ChevronLeft } from '../../components/icons';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { RaceFinder } from '../../components/campaignMoney/RaceFinder';
+import { finePointerHovered } from '../../components/campaignMoney/finePointerHover';
 import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
 import { Skeleton } from '../../components/Skeleton';
 import { useCampaignFinanceRaces, usePrefetchCommitteeMoney } from '../../hooks/useAppQueries';
@@ -459,7 +460,11 @@ function OfficeChip({
       onPress={onPress}
       accessibilityRole="button"
       aria-pressed={active}
-      style={[styles.chip, active && styles.chipActive]}
+      style={(state) => [
+        styles.chip,
+        !active && finePointerHovered(state) && styles.chipHover,
+        active && styles.chipActive,
+      ]}
     >
       {active ? (
         <Svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden>
@@ -749,6 +754,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
   },
   chipActive: { backgroundColor: t.colors.text.primary, borderColor: t.colors.text.primary },
+  chipHover: { backgroundColor: '#f1f3f2', borderColor: 'rgba(17,21,15,0.3)' },
   chipLabel: {
     fontFamily: t.typography.body,
     fontSize: 14,

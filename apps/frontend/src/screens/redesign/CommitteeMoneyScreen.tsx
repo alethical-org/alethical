@@ -10,6 +10,10 @@ import Svg, { Path } from 'react-native-svg';
 import { contributionDetailRows, withContributionDetailRows } from '../../lib/contributionDetails';
 import { SharePopover } from '../../components/billDetail/SharePopover';
 import { LinkArrowLabel, linkArrowRow } from '../../components/LinkArrow';
+import {
+  finePointerHovered,
+  useFinePointerHover,
+} from '../../components/campaignMoney/finePointerHover';
 import { PageContextLabel } from '../../components/PageContextLabel';
 import {
   CommitteeDonations,
@@ -403,6 +407,7 @@ function NotFoundState({
   registrationNumber: string;
   onMoney: () => void;
 }) {
+  const boardHover = useFinePointerHover();
   return (
     <View style={styles.notFoundWrap}>
       <PageContextLabel style={styles.eyebrow}>Committees</PageContextLabel>
@@ -411,12 +416,22 @@ function NotFoundState({
       </Text>
       <Text style={styles.body}>{notFoundBody(registrationNumber)}</Text>
       <View style={styles.buttonRow}>
-        <Pressable {...linkProps(routePath.money(), onMoney)} style={styles.primaryButton}>
+        <Pressable
+          {...linkProps(routePath.money(), onMoney)}
+          style={(state) => [
+            styles.primaryButton,
+            finePointerHovered(state) && styles.primaryButtonHover,
+          ]}
+        >
           <Text style={styles.primaryButtonLabel}>{MONEY_SECTION_NAME}</Text>
         </Pressable>
         <Text
-          style={styles.secondaryButton}
+          style={[styles.secondaryButton, boardHover.hovered && styles.destinationLinkHover]}
           {...externalLinkProps(BOARD_REGISTER, () => void Linking.openURL(BOARD_REGISTER))}
+          {...({
+            onMouseEnter: boardHover.onHoverIn,
+            onMouseLeave: boardHover.onHoverOut,
+          } as object)}
         >
           Check the Board’s register
         </Text>
@@ -514,14 +529,21 @@ function CommitteeBody({
       ? CONFIRMED_MEMBER_WITHHELD_LINE
       : whoseCommitteeText(registerKind, money.entitySubType, nameableMember);
 
+  const filedReportsHover = useFinePointerHover();
+  const memberLinkHover = useFinePointerHover();
   const filedReportsLink = (
     <Pressable
       style={styles.seeAll}
+      onHoverIn={filedReportsHover.onHoverIn}
+      onHoverOut={filedReportsHover.onHoverOut}
       {...linkProps(routePath.moneyCommittee(slug, { tab: 'filings', year: String(year) }), () =>
         onSelectTab('filings'),
       )}
     >
-      <LinkArrowLabel label={VIEW_FILED_REPORTS} style={styles.seeAllLabel} />
+      <LinkArrowLabel
+        label={VIEW_FILED_REPORTS}
+        style={[styles.seeAllLabel, filedReportsHover.hovered && styles.destinationLinkHover]}
+      />
     </Pressable>
   );
 
@@ -607,12 +629,20 @@ function CommitteeBody({
                       }),
                   )}
                   onPressIn={warmConfirmedFor}
-                  onHoverIn={warmConfirmedFor}
+                  onHoverIn={() => {
+                    warmConfirmedFor();
+                    memberLinkHover.onHoverIn();
+                  }}
+                  onHoverOut={memberLinkHover.onHoverOut}
                   style={[styles.seeAll, styles.confirmedLink]}
                 >
                   <LinkArrowLabel
                     label={confirmedMemberLinkLabel(nameableMember.fullName)}
-                    style={[styles.seeAllLabel, styles.confirmedLinkLabel]}
+                    style={[
+                      styles.seeAllLabel,
+                      styles.confirmedLinkLabel,
+                      memberLinkHover.hovered && styles.destinationLinkHover,
+                    ]}
                   />
                 </Pressable>
               ) : null}
@@ -864,6 +894,45 @@ function MoneyOutCard({ money, isMobile }: { money: CommitteeMoney; isMobile: bo
   );
 }
 
+function CommitteeContentTab({
+  label,
+  selected,
+  labelOnlyHover,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  labelOnlyHover?: boolean;
+  onPress: () => void;
+}) {
+  const hover = useFinePointerHover();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      aria-pressed={selected}
+      onPress={onPress}
+      onHoverIn={hover.onHoverIn}
+      onHoverOut={hover.onHoverOut}
+      style={contentTabStyle(
+        styles.sectionTab,
+        selected,
+        undefined,
+        hover.hovered && !labelOnlyHover,
+      )}
+    >
+      <Text
+        style={[
+          styles.sectionTabLabel,
+          hover.hovered && !selected && styles.sectionTabLabelHover,
+          selected && styles.sectionTabLabelActive,
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 function PaymentsSection({
   money,
   year,
@@ -900,6 +969,7 @@ function PaymentsSection({
   onPreferences: (preferences: MoneyDetailsPreferences) => void;
 }) {
   const { isMobile, isTablet } = useResponsive();
+  const paymentsLinkHover = useFinePointerHover();
   const sort: OutsideSpendingSort = spendingSort === 'largest' ? 'largest' : 'newest';
   const setSort = (next: OutsideSpendingSort) =>
     navigation.setParams({ spendingSort: next === 'largest' ? next : undefined });
@@ -963,21 +1033,17 @@ function PaymentsSection({
       <View style={detailsStyles.section}>
         <View role="group" aria-label="Committee record" style={styles.sectionTabs}>
           {sections.map((key) => (
-            <Pressable
+            <CommitteeContentTab
               key={key}
-              accessibilityRole="button"
-              aria-pressed={section === key}
-              onPress={() => onSelectTab(key as CommitteeTab)}
-              style={contentTabStyle(styles.sectionTab, section === key)}
-            >
-              <Text
-                style={[styles.sectionTabLabel, section === key && styles.sectionTabLabelActive]}
-              >
-                {key === 'gave'
+              label={
+                key === 'gave'
                   ? COMMITTEE_MONEY_SECTION_LABEL
-                  : COMMITTEE_TAB_LABELS[key as CommitteeTab]}
-              </Text>
-            </Pressable>
+                  : COMMITTEE_TAB_LABELS[key as CommitteeTab]
+              }
+              selected={section === key}
+              labelOnlyHover={key === 'filings'}
+              onPress={() => onSelectTab(key as CommitteeTab)}
+            />
           ))}
         </View>
         {section === 'filings' ? (
@@ -1023,6 +1089,8 @@ function PaymentsSection({
                   <View style={detailsStyles.horizontal}>
                     <Pressable
                       style={styles.seeAll}
+                      onHoverIn={paymentsLinkHover.onHoverIn}
+                      onHoverOut={paymentsLinkHover.onHoverOut}
                       {...linkProps(
                         routePath.moneyCommitteePayments(slug, { tab: 'gave', year: String(year) }),
                         () =>
@@ -1035,7 +1103,10 @@ function PaymentsSection({
                     >
                       <LinkArrowLabel
                         label={COMMITTEE_PAYMENTS_LINK_LABEL}
-                        style={styles.seeAllLabel}
+                        style={[
+                          styles.seeAllLabel,
+                          paymentsLinkHover.hovered && styles.destinationLinkHover,
+                        ]}
                       />
                     </Pressable>
                   </View>
@@ -1105,6 +1176,19 @@ function PaymentsSection({
  * spendingSort separately from donor sorting. Pages of 50 accumulate under
  * "Show more payments".
  */
+function FiledSourceLink({ url, label }: { url: string; label: string }) {
+  const hover = useFinePointerHover();
+  return (
+    <Text
+      style={[styles.source, styles.filingsSource, hover.hovered && styles.destinationLinkHover]}
+      {...externalLinkProps(url, () => void Linking.openURL(url))}
+      {...({ onMouseEnter: hover.onHoverIn, onMouseLeave: hover.onHoverOut } as object)}
+    >
+      {label}
+    </Text>
+  );
+}
+
 function OutsideSpendingPanel({
   tab,
   query,
@@ -1124,6 +1208,7 @@ function OutsideSpendingPanel({
   const first = pages[0];
   const rows = pages.flatMap((page) => page?.rows ?? []);
   const prefetchCommitteeMoney = usePrefetchCommitteeMoney();
+  const showMoreHover = useFinePointerHover();
 
   if (query.isPending) {
     return (
@@ -1277,19 +1362,27 @@ function OutsideSpendingPanel({
         <Pressable
           onPress={() => void query.fetchNextPage()}
           accessibilityRole="button"
+          onHoverIn={showMoreHover.onHoverIn}
+          onHoverOut={showMoreHover.onHoverOut}
           style={[styles.seeAll, styles.actionRow]}
         >
-          <Text style={[styles.seeAllLabel, styles.actionLabel]}>Show more payments</Text>
+          <Text
+            style={[
+              styles.seeAllLabel,
+              styles.actionLabel,
+              showMoreHover.hovered && !query.isFetchingNextPage && styles.plainActionHover,
+            ]}
+          >
+            Show more payments
+          </Text>
           <ActionArrow />
         </Pressable>
       ) : null}
       {first.sourceUrl ? (
-        <Text
-          style={[styles.source, styles.filingsSource]}
-          {...externalLinkProps(first.sourceUrl, () => void Linking.openURL(first.sourceUrl!))}
-        >
-          Minnesota’s list of independent expenditures
-        </Text>
+        <FiledSourceLink
+          url={first.sourceUrl}
+          label="Minnesota’s list of independent expenditures"
+        />
       ) : null}
     </>
   );
@@ -1306,6 +1399,7 @@ export function FilingsList({
 }) {
   const query = useCommitteeFilingsList(registrationNumber);
   const { isMobile } = useResponsive();
+  const actionHover = useFinePointerHover();
   const pages = query.data?.pages ?? [];
   const firstPage = pages[0];
   const reported = firstPage?.state === 'reported';
@@ -1326,12 +1420,7 @@ export function FilingsList({
         </Text>
         <Text style={styles.explain}>All years in our copy</Text>
         {countLine ? <Text style={styles.listCount}>{countLine}</Text> : null}
-        <Text
-          style={[styles.source, styles.filingsSource]}
-          {...externalLinkProps(boardUrl, () => void Linking.openURL(boardUrl))}
-        >
-          {BOARD_RECORD_LINK_LABEL}
-        </Text>
+        <FiledSourceLink url={boardUrl} label={BOARD_RECORD_LINK_LABEL} />
       </View>
       {ordering && rows.length ? <Text style={styles.linkNote}>{ordering}</Text> : null}
       {query.isPending ? (
@@ -1351,12 +1440,22 @@ export function FilingsList({
             disabled={query.isFetching}
             aria-busy={query.isFetching}
             onPress={() => retry()}
+            onHoverIn={actionHover.onHoverIn}
+            onHoverOut={actionHover.onHoverOut}
             style={(state) => [
               styles.seeAll,
               Boolean('focused' in state && state.focused) && detailsStyles.focus,
             ]}
           >
-            <Text style={[styles.seeAllLabel, styles.actionLabel]}>Try again</Text>
+            <Text
+              style={[
+                styles.seeAllLabel,
+                styles.actionLabel,
+                actionHover.hovered && !query.isFetching && styles.plainActionHover,
+              ]}
+            >
+              Try again
+            </Text>
           </Pressable>
         </View>
       ) : rows.length === 0 ? (
@@ -1403,12 +1502,22 @@ export function FilingsList({
             disabled={query.isFetching}
             aria-busy={query.isFetching}
             onPress={() => retry(true)}
+            onHoverIn={actionHover.onHoverIn}
+            onHoverOut={actionHover.onHoverOut}
             style={(state) => [
               styles.seeAll,
               Boolean('focused' in state && state.focused) && detailsStyles.focus,
             ]}
           >
-            <Text style={[styles.seeAllLabel, styles.actionLabel]}>Try again</Text>
+            <Text
+              style={[
+                styles.seeAllLabel,
+                styles.actionLabel,
+                actionHover.hovered && !query.isFetching && styles.plainActionHover,
+              ]}
+            >
+              Try again
+            </Text>
           </Pressable>
         </View>
       ) : reported && query.hasNextPage ? (
@@ -1417,12 +1526,20 @@ export function FilingsList({
           disabled={query.isFetching}
           aria-busy={query.isFetchingNextPage}
           onPress={() => retry(true)}
+          onHoverIn={actionHover.onHoverIn}
+          onHoverOut={actionHover.onHoverOut}
           style={(state) => [
             styles.seeAll,
             Boolean('focused' in state && state.focused) && detailsStyles.focus,
           ]}
         >
-          <Text style={[styles.seeAllLabel, styles.actionLabel]}>
+          <Text
+            style={[
+              styles.seeAllLabel,
+              styles.actionLabel,
+              actionHover.hovered && !query.isFetching && styles.plainActionHover,
+            ]}
+          >
             {query.isFetchingNextPage ? 'Loading more reports' : 'Show more reports'}
           </Text>
         </Pressable>
@@ -1608,6 +1725,7 @@ const styles = StyleSheet.create({
   inlineLinks: { gap: 12 },
   actionRow: { gap: 8 },
   actionLabel: { color: c.text },
+  plainActionHover: { textDecorationLine: 'underline' },
   sectionTabs: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1631,6 +1749,7 @@ const styles = StyleSheet.create({
   },
   // The product's selected-tab treatment: green label over the green underline (#2347).
   sectionTabLabelActive: { fontWeight: '700', color: c.link },
+  sectionTabLabelHover: { color: '#11150f' },
   listHead: {
     marginTop: 20,
     flexDirection: 'row',
@@ -1922,6 +2041,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     paddingHorizontal: 19,
   },
+  primaryButtonHover: { backgroundColor: '#000000' },
   primaryButtonLabel: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
@@ -1935,6 +2055,7 @@ const styles = StyleSheet.create({
     color: c.link,
     textDecorationLine: 'underline',
   },
+  destinationLinkHover: { color: '#11832b', textDecorationLine: 'underline' },
   notFoundWrap: { marginTop: 22, maxWidth: 760 },
   loadingWrap: { marginTop: 22 },
   loadingCards: { marginTop: 24, flexDirection: 'row', gap: 22 },

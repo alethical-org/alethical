@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { finePointerHovered } from './finePointerHover';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import type { RaceContest } from '../../data/types';
@@ -145,7 +146,7 @@ export function RaceFinder({
                   setOpen(false);
                   input.current?.focus();
                 }}
-                style={styles.clear}
+                style={(state) => [styles.clear, finePointerHovered(state) && styles.clearHover]}
               >
                 <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
                   <Path
@@ -220,6 +221,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: -12,
   },
+  clearHover: { backgroundColor: '#f1f3f2' },
   label: {
     fontFamily: t.typography.body,
     fontWeight: '700',

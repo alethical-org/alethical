@@ -20,6 +20,7 @@ import { contentTabStyle } from '../../theme/contentTabs';
 import { theme as t } from '../../theme/tokens';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 import { prefetchCampaignMoneyTab } from './CampaignMoneyTabOnDemand';
+import { finePointerHovered } from './finePointerHover';
 
 export type ProfileTab = 'overview' | 'money';
 
@@ -62,17 +63,22 @@ export function LegislatorProfileTabs({
             // there, so its pieces start downloading before the click lands.
             onHoverIn={tab.key === 'money' ? prefetchMoney : undefined}
             onFocus={tab.key === 'money' ? prefetchMoney : undefined}
-            style={contentTabStyle(styles.tab, isActive)}
+            style={(state) =>
+              contentTabStyle(styles.tab, isActive, undefined, finePointerHovered(state))
+            }
           >
-            <Text
-              style={[
-                styles.label,
-                isActive && styles.labelActive,
-                active === 'money' && !isActive && { color: c.muted },
-              ]}
-            >
-              {tab.label}
-            </Text>
+            {(state) => (
+              <Text
+                style={[
+                  styles.label,
+                  isActive && styles.labelActive,
+                  active === 'money' && !isActive && { color: c.muted },
+                  !isActive && finePointerHovered(state) && styles.labelHover,
+                ]}
+              >
+                {tab.label}
+              </Text>
+            )}
           </Pressable>
         );
       })}
@@ -97,4 +103,5 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
   },
   labelActive: { color: t.colors.text.primary },
+  labelHover: { color: '#11150f' },
 });
