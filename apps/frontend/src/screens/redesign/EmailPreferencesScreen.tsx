@@ -34,6 +34,7 @@ export function EmailPreferencesScreen({ navigation }: RootScreenProps<'EmailPre
   const [research, setResearch] = useState(false);
   const [features, setFeatures] = useState(false);
   const [retry, setRetry] = useState<EmailPreferenceSave | null>(null);
+  const [reserveFailure, setReserveFailure] = useState(false);
   const onceSignIn = useRef(false);
   const generation = useRef(0);
   const saving = useRef<number | null>(null);
@@ -49,6 +50,7 @@ export function EmailPreferencesScreen({ navigation }: RootScreenProps<'EmailPre
 
   const load = useCallback(async (token: string, id: string, current: number) => {
     setPhase('loading');
+    setReserveFailure(false);
     try {
       const next = await readEmailPreferences(token);
       if (generation.current !== current || next.account_id !== id) return;
@@ -109,6 +111,7 @@ export function EmailPreferencesScreen({ navigation }: RootScreenProps<'EmailPre
         return;
       }
       setRetry(body);
+      setReserveFailure(true);
       setPhase('uncertain');
     } finally {
       if (saving.current === current) saving.current = null;
@@ -223,8 +226,12 @@ export function EmailPreferencesScreen({ navigation }: RootScreenProps<'EmailPre
                         }
                       />
                     </View>
-                    {phase === 'uncertain' ? (
-                      <View style={styles.message}>
+                    {reserveFailure ? (
+                      <View
+                        aria-hidden={phase !== 'uncertain'}
+                        pointerEvents={phase === 'uncertain' ? 'auto' : 'none'}
+                        style={[styles.message, phase !== 'uncertain' && styles.reservedStatus]}
+                      >
                         <EmailNotice kind="uncertain">
                           We couldn’t confirm your email preferences were saved. Try again.
                         </EmailNotice>

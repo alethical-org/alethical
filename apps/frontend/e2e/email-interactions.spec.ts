@@ -200,6 +200,7 @@ for (const size of sizes) {
     expect(retryBox?.height).toBe(ready?.height);
     await retry.click();
     await expect.poll(() => mock.writes.length).toBe(2);
+    expect(await saving.boundingBox()).toEqual(retryBox);
     expect(mock.writes[1].body).toEqual(mock.writes[0].body);
     await mock.finish(1);
     await expect(
@@ -209,7 +210,7 @@ for (const size of sizes) {
     ).toBeVisible();
     await expect(save).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath('saved-position.png'), fullPage: true });
-    expect(await save.boundingBox()).toEqual(ready);
+    expect(await save.boundingBox()).toEqual(retryBox);
     await page.screenshot({ path: testInfo.outputPath('saved.png'), fullPage: true });
   });
 }
