@@ -12,7 +12,7 @@ const pointerFocusedYearFilter = `${yearFilterSelect}[${YEAR_FILTER_POINTER_FOCU
 
 export const yearFilterWebCss =
   `${yearFilterSelect}{outline:none;}` +
-  `${yearFilterSelect}:hover{border-color:${t.colors.brand.base} !important;}` +
+  `@media (hover: hover) and (pointer: fine){${yearFilterSelect}:hover{border-color:${t.colors.brand.base} !important;}}` +
   `${yearFilterSelect}:focus-visible{outline:2px solid #7c5cff !important;outline-offset:2px !important;}` +
   `${pointerFocusedYearFilter}:focus-visible{outline:none !important;}`;
 
@@ -43,6 +43,13 @@ type YearFilterInteractionState = PressableStateCallbackType & {
   hovered?: boolean;
 };
 
+function finePointerCanHover(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(hover: hover) and (pointer: fine)').matches === true
+  );
+}
+
 /**
  * Every year filter keeps the same state meanings while retaining the shape and
  * spacing owned by its surface. Pointer hover uses the brand-green boundary.
@@ -71,7 +78,7 @@ export function yearFilterButtonStyle(
   selected: boolean,
   state: YearFilterInteractionState,
 ): StyleProp<ViewStyle> {
-  const hovered = Boolean('hovered' in state && state.hovered);
+  const hovered = finePointerCanHover() && Boolean('hovered' in state && state.hovered);
   return [
     base,
     !selected && hovered && yearFilterStates.hover,

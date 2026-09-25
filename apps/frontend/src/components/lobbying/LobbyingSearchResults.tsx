@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import { LinkArrowLabel, linkArrowRow } from '../LinkArrow';
+import { finePointerHovered } from '../campaignMoney/finePointerHover';
 import type { useLobbyingNameSearch } from '../../hooks/useLobbyingNameSearch';
 import { committeeSlug } from '../../lib/committeeMoneyShared';
 import { lobbyingNoSpendingRows } from '../../lib/lobbyingDirectoryCopy';
@@ -257,7 +258,11 @@ function SearchLink({
 
 export function Retry({ onPress }: { onPress: () => void }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.retry}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={(state) => [styles.retry, finePointerHovered(state) && styles.retryHover]}
+    >
       <Text style={[styles.linkText, styles.retryText]}>Try again</Text>
     </Pressable>
   );
@@ -338,5 +343,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#fff',
   },
+  retryHover: { backgroundColor: '#f7f8fa', borderColor: 'rgba(17,21,15,0.3)' },
   hidden: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 },
 });

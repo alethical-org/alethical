@@ -49,6 +49,10 @@ import {
 } from '../../lib/outsideSpendingBrowse';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
+import {
+  finePointerHovered,
+  useFinePointerHover,
+} from '../../components/campaignMoney/finePointerHover';
 import type { RootScreenProps } from '../../navigation/types';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
@@ -90,9 +94,34 @@ function Action({
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={[styles.action, style]}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={(state) => [styles.action, style, finePointerHovered(state) && styles.outlinedHover]}
+    >
       <Text style={styles.actionLabel}>{label}</Text>
     </Pressable>
+  );
+}
+
+function NameDestinationLink({
+  href,
+  onPress,
+  name,
+}: {
+  href: string;
+  onPress: () => void;
+  name: string;
+}) {
+  const hover = useFinePointerHover();
+  return (
+    <Text
+      {...linkProps(href, onPress)}
+      {...({ onMouseEnter: hover.onHoverIn, onMouseLeave: hover.onHoverOut } as object)}
+      style={[styles.name, styles.nameLink, hover.hovered && styles.destinationHover]}
+    >
+      {name}
+    </Text>
   );
 }
 
@@ -111,6 +140,7 @@ export function OutsideSpendingBrowseScreen({
   route,
 }: RootScreenProps<'OutsideSpending'>) {
   const { isMobile, isDesktop } = useResponsive();
+  const sourceHover = useFinePointerHover();
   const address = route.params ?? {};
   const mode = outsideBrowseMode(address.browse);
   const year = outsideSpendingYear(address.year);
@@ -209,7 +239,11 @@ export function OutsideSpendingBrowseScreen({
               setInput('');
               apply({ browse: choice, q: undefined });
             }}
-            style={[styles.choice, choice === mode && styles.choiceActive]}
+            style={(state) => [
+              styles.choice,
+              choice !== mode && finePointerHovered(state) && styles.choiceHover,
+              choice === mode && styles.choiceActive,
+            ]}
           >
             <View style={[styles.radio, choice === mode && styles.radioActive]}>
               {choice === mode ? <View style={styles.radioDot} /> : null}
@@ -337,8 +371,9 @@ export function OutsideSpendingBrowseScreen({
               return (
                 <View style={styles.nameRow} key={`${id ? 'id' : 'name'}:${id ?? name.name}`}>
                   {id ? (
-                    <Text
-                      {...linkProps(href, () =>
+                    <NameDestinationLink
+                      href={href}
+                      onPress={() =>
                         navigation.push('OutsideSpending', {
                           ...target,
                           returnTo: routePath.moneyOutsideSpending(address),
@@ -346,12 +381,10 @@ export function OutsideSpendingBrowseScreen({
                             routePath.moneyOutsideSpending(address),
                             target,
                           ),
-                        }),
-                      )}
-                      style={[styles.name, styles.nameLink]}
-                    >
-                      {name.name}
-                    </Text>
+                        })
+                      }
+                      name={name.name}
+                    />
                   ) : (
                     <Text style={styles.name}>{name.name}</Text>
                   )}
@@ -377,10 +410,11 @@ export function OutsideSpendingBrowseScreen({
                 : { accessibilityRole: 'button' as const })}
               disabled={data.page.number <= 1}
               accessibilityState={{ disabled: data.page.number <= 1 }}
-              style={[
+              style={(state) => [
                 styles.pageButton,
                 isMobile && styles.pageButtonMobile,
                 data.page.number <= 1 && styles.disabledButton,
+                data.page.number > 1 && finePointerHovered(state) && styles.outlinedHover,
               ]}
             >
               <Chevron color={data.page.number <= 1 ? '#9aa09a' : '#2c322c'} />
@@ -404,10 +438,11 @@ export function OutsideSpendingBrowseScreen({
                 : { accessibilityRole: 'button' as const })}
               disabled={!data.page.has_more}
               accessibilityState={{ disabled: !data.page.has_more }}
-              style={[
+              style={(state) => [
                 styles.pageButton,
                 isMobile && styles.pageButtonMobile,
                 !data.page.has_more && styles.disabledButton,
+                data.page.has_more && finePointerHovered(state) && styles.outlinedHover,
               ]}
             >
               <Text
@@ -573,7 +608,14 @@ export function OutsideSpendingBrowseScreen({
             <Text style={styles.sourceLabel}>
               Source: Minnesota Campaign Finance and Public Disclosure Board
             </Text>
-            <Text {...externalLinkProps(OUTSIDE_DOWNLOADS)} style={styles.sourceLink}>
+            <Text
+              {...externalLinkProps(OUTSIDE_DOWNLOADS)}
+              {...({
+                onMouseEnter: sourceHover.onHoverIn,
+                onMouseLeave: sourceHover.onHoverOut,
+              } as object)}
+              style={[styles.sourceLink, sourceHover.hovered && styles.destinationHover]}
+            >
               Minnesota’s campaign-finance downloads
             </Text>
             <Text style={styles.sourceBody}>
@@ -750,6 +792,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   choiceActive: { borderColor: '#11150f' },
+  choiceHover: { backgroundColor: '#f1f3f2', borderColor: 'rgba(17,21,15,0.3)' },
   choiceWords: { flex: 1, minWidth: 0 },
   choiceTitle: {
     fontFamily: t.typography.body,
@@ -858,6 +901,7 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     ...(Platform.OS === 'web' ? ({ overflowWrap: 'anywhere' } as object) : {}),
   },
+  destinationHover: { color: '#11832b', textDecorationLine: 'underline' },
   nameNote: {
     fontFamily: t.typography.body,
     fontSize: 14,
@@ -897,6 +941,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(17,21,15,0.16)',
     backgroundColor: '#fff',
   },
+  outlinedHover: { backgroundColor: '#f7f8fa', borderColor: 'rgba(17,21,15,0.3)' },
   pageButtonText: {
     fontFamily: t.typography.body,
     fontSize: 15.5,

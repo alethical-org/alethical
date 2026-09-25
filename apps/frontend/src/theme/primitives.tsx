@@ -455,6 +455,10 @@ function pointerCanHover() {
   return window.matchMedia('(hover: hover)').matches;
 }
 
+function finePointerCanHover() {
+  return pointerCanHover() && window.matchMedia('(pointer: fine)').matches;
+}
+
 /** react-native-web forwards DOM mouse events on a View, but the React Native
  *  prop types don't declare them — cast once, here. Enter/leave count the
  *  absolutely-positioned panel too, since it's a DOM child of the trigger wrap. */
@@ -656,7 +660,7 @@ export function TopNav({
   onNavigate?: (item: IaItem) => void;
   onHome?: () => void;
 }) {
-  const { isDesktop } = useResponsive();
+  const { isDesktop, isMobile } = useResponsive();
   const navigation = useNavigation<any>();
   // Sign-in is opened from here rather than handed down from every screen: the
   // nav is the same on all of them, and a per-screen callback was how the button
@@ -795,7 +799,13 @@ export function TopNav({
               accessibilityRole="button"
               accessibilityLabel={drawerOpen ? 'Close menu' : 'Open menu'}
               onPress={() => setDrawerOpen((v) => !v)}
-              style={styles.hamburger}
+              style={(state) => [
+                styles.hamburger,
+                !isMobile &&
+                  finePointerCanHover() &&
+                  Boolean((state as { hovered?: boolean }).hovered) &&
+                  styles.hamburgerHover,
+              ]}
             >
               {drawerOpen ? (
                 <X size={22} color={t.colors.ink} />
@@ -829,7 +839,13 @@ export function TopNav({
                 accessibilityRole="button"
                 accessibilityLabel="Close menu"
                 onPress={() => setDrawerOpen(false)}
-                style={styles.hamburger}
+                style={(state) => [
+                  styles.hamburger,
+                  !isMobile &&
+                    finePointerCanHover() &&
+                    Boolean((state as { hovered?: boolean }).hovered) &&
+                    styles.hamburgerHover,
+                ]}
               >
                 <X size={22} color={t.colors.ink} />
               </Pressable>
@@ -1379,6 +1395,10 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.borders.base,
+  },
+  hamburgerHover: {
+    backgroundColor: '#f1f3f2',
+    borderColor: 'rgba(17,21,15,0.3)',
   },
   // Right-side drawer: page stays dimmed on the left, sheet covers ~84% of the width.
   menuScrim: {

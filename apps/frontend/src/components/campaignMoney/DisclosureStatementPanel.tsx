@@ -29,6 +29,7 @@ import { formatDay, formatMoney } from '../../lib/moneyFormat';
 import { externalLinkProps } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
 import { useCampaignMoneyTypography } from './detailsStyles';
+import { finePointerHovered, useFinePointerHover } from './finePointerHover';
 
 /** The outward arrow beside a link to the Board's own PDF. Drawn rather than typed,
  *  because Libre Franklin carries no arrow characters. */
@@ -57,11 +58,17 @@ export function BoardPdfLink({
   accessibleName: string;
 }) {
   const type = useCampaignMoneyTypography();
+  const hover = useFinePointerHover();
   return (
     <Text
       {...externalLinkProps(url, () => void Linking.openURL(url))}
       accessibilityLabel={accessibleName}
-      style={[styles.pdfLink, { fontSize: type.small }]}
+      style={[
+        styles.pdfLink,
+        { fontSize: type.small },
+        hover.hovered && styles.destinationLinkHover,
+      ]}
+      {...({ onMouseEnter: hover.onHoverIn, onMouseLeave: hover.onHoverOut } as object)}
     >
       {label}
       <Text style={styles.pdfArrow}>
@@ -115,6 +122,7 @@ export function DisclosureStatementPanel({
       onPress={() => void query.refetch()}
       style={(state) => [
         styles.retry,
+        finePointerHovered(state) && styles.retryHover,
         Boolean('focused' in state && state.focused) && styles.focus,
       ]}
     >
@@ -390,6 +398,8 @@ const styles = StyleSheet.create({
     color: c.link,
     textDecorationLine: 'underline',
   },
+  destinationLinkHover: { color: '#11832b', textDecorationLine: 'underline' },
+  retryHover: { backgroundColor: '#000000' },
   pdfArrow: {
     marginLeft: 4,
     ...({ display: 'inline-flex', verticalAlign: 'middle' } as object),

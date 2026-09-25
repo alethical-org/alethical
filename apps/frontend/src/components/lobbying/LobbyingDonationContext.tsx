@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 
 import { LinkArrowLabel, linkArrowRow } from '../LinkArrow';
+import { finePointerHovered } from '../campaignMoney/finePointerHover';
 import { useLobbyingLobbyist } from '../../hooks/useLobbying';
 import type { MoneyDetailsGroup } from '../../lib/campaignMoneyDetails';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
@@ -72,10 +73,12 @@ function LobbyistContext({ number, filedName }: { number: string; filedName: str
           )}
           style={(state) => [styles.link, Boolean('focused' in state && state.focused) && s.focus]}
         >
-          <LinkArrowLabel
-            label={copy.representsLink(registeredName)}
-            style={[s.small, styles.linkText]}
-          />
+          {(state) => (
+            <LinkArrowLabel
+              label={copy.representsLink(registeredName)}
+              style={[s.small, styles.linkText, finePointerHovered(state) && styles.linkHover]}
+            />
+          )}
         </Pressable>
       ) : failed ? (
         <View style={styles.recovery}>
@@ -123,7 +126,12 @@ function CommitteeContext({
           )}
           style={(state) => [styles.link, Boolean('focused' in state && state.focused) && s.focus]}
         >
-          <LinkArrowLabel label={copy.committeeLink} style={[s.small, styles.linkText]} />
+          {(state) => (
+            <LinkArrowLabel
+              label={copy.committeeLink}
+              style={[s.small, styles.linkText, finePointerHovered(state) && styles.linkHover]}
+            />
+          )}
         </Pressable>
       ) : null}
     </View>
@@ -146,5 +154,6 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   linkText: { color: c.link, fontWeight: '700', flexShrink: 1 },
+  linkHover: { color: '#11832b', textDecorationLine: 'underline' },
   recovery: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12 },
 });

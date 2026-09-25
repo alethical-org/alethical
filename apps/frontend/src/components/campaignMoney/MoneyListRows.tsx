@@ -3,7 +3,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { linkProps } from '../../navigation/links';
-import { theme as t } from '../../theme/tokens';
+import { theme as t, prefersReducedMotion } from '../../theme/tokens';
+import { finePointerHovered } from './finePointerHover';
 
 /**
  * The shared shape for the money register, search and committee payment lists
@@ -54,7 +55,11 @@ export function MoneyListRow({
         {...linkProps(link.href, link.onPress)}
         onPressIn={link.onWarm}
         onHoverIn={link.onWarm}
-        style={style}
+        style={(state) => [
+          style,
+          !isMobile && finePointerHovered(state) && styles.rowCardHover,
+          !isMobile && finePointerHovered(state) && !prefersReducedMotion() && styles.rowCardLift,
+        ]}
       >
         {children}
       </Pressable>
@@ -102,7 +107,15 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 18,
     ...(t.shadows.card as object),
+    ...({
+      transition: 'transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease',
+    } as object),
   },
+  rowCardHover: {
+    borderColor: 'rgba(45,212,126,0.85)',
+    ...({ boxShadow: '0 22px 46px rgba(17,21,15,0.14)' } as object),
+  },
+  rowCardLift: { transform: [{ translateY: -3 }] },
   rowMobile: { paddingVertical: 14, minHeight: 60, justifyContent: 'center' },
   rowMobileDivided: { borderTopWidth: 1, borderTopColor: t.colors.alpha.ink08 },
   arrow: { flexShrink: 0 },

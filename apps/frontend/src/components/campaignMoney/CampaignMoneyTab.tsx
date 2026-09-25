@@ -1,6 +1,7 @@
 import { contributionDetailRows, withContributionDetailRows } from '../../lib/contributionDetails';
 import { CommitteeDonationCards } from './CommitteeDonationCards';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
+import { useFinePointerHover } from './finePointerHover';
 /**
  * The Campaign money tab on a legislator's profile (#1329).
  *
@@ -460,6 +461,7 @@ function CommitteeRecordLink({
   year: CampaignMoneyYear;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const hover = useFinePointerHover();
   const type = useCampaignMoneyTypography();
   const recordParams = {
     slug: committeeSlug(name, registrationNumber),
@@ -468,6 +470,8 @@ function CommitteeRecordLink({
   };
   return (
     <Pressable
+      onHoverIn={hover.onHoverIn}
+      onHoverOut={hover.onHoverOut}
       style={(state) => [
         styles.recordLink,
         Boolean('focused' in state && state.focused) && detailsStyles.focus,
@@ -482,7 +486,11 @@ function CommitteeRecordLink({
     >
       <LinkArrowLabel
         label={copy.fullRecord}
-        style={[styles.recordLinkLabel, { fontSize: type.small }]}
+        style={[
+          styles.recordLinkLabel,
+          { fontSize: type.small },
+          hover.hovered && styles.destinationLinkHover,
+        ]}
       />
     </Pressable>
   );
@@ -666,12 +674,19 @@ function FilingScheduleNote({
 
 function SourceLink({ label, url }: { label: string; url: string }) {
   const [focused, setFocused] = React.useState(false);
+  const hover = useFinePointerHover();
   const type = useCampaignMoneyTypography();
   return (
     <Text
-      style={[styles.source, { fontSize: type.body }, focused && detailsStyles.focus]}
+      style={[
+        styles.source,
+        { fontSize: type.body },
+        hover.hovered && styles.destinationLinkHover,
+        focused && detailsStyles.focus,
+      ]}
       {...{ onFocus: () => setFocused(true), onBlur: () => setFocused(false) }}
       {...externalLinkProps(url, () => void Linking.openURL(url))}
+      {...({ onMouseEnter: hover.onHoverIn, onMouseLeave: hover.onHoverOut } as object)}
     >
       {label}
     </Text>
@@ -826,6 +841,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingVertical: 12,
   },
+  destinationLinkHover: { color: '#11832b', textDecorationLine: 'underline' },
   // A row link, not a link inside a sentence: its position and its trailing arrow
   // say where it goes, so it carries no underline. The 44px target lives on the
   // pressable around it.

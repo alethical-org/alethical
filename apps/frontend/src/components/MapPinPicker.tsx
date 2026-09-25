@@ -235,6 +235,8 @@ export function MapPinPicker({
   const [size, setSize] = useState<Size>({ width: 0, height: 0 });
   const [center, setCenter] = useState<RepresentativeLookupCoordinates>(initialViewport.center);
   const [zoom, setZoom] = useState(initialViewport.zoom);
+  const [zoomInHovered, setZoomInHovered] = useState(false);
+  const [zoomOutHovered, setZoomOutHovered] = useState(false);
   const [tileState, setTileState] = useState({ requestKey: '', loaded: false, failed: 0 });
   const [displayCoordinate, setDisplayCoordinate] = useState(coordinate);
   const [dragPin, setDragPin] = useState<{ x: number; y: number } | null>(null);
@@ -618,7 +620,16 @@ export function MapPinPicker({
           accessibilityRole="button"
           accessibilityLabel="Zoom in"
           onPress={() => setZoom((value) => Math.min(MAX_ZOOM, value + 1))}
-          style={styles.zoomButton}
+          onHoverIn={() =>
+            setZoomInHovered(
+              !mobile &&
+                isWeb &&
+                typeof matchMedia !== 'undefined' &&
+                matchMedia('(hover: hover) and (pointer: fine)').matches,
+            )
+          }
+          onHoverOut={() => setZoomInHovered(false)}
+          style={[styles.zoomButton, zoom < MAX_ZOOM && zoomInHovered && styles.zoomButtonHover]}
         >
           <Text style={styles.zoomText}>+</Text>
         </Pressable>
@@ -626,7 +637,16 @@ export function MapPinPicker({
           accessibilityRole="button"
           accessibilityLabel="Zoom out"
           onPress={() => setZoom((value) => Math.max(MIN_ZOOM, value - 1))}
-          style={styles.zoomButton}
+          onHoverIn={() =>
+            setZoomOutHovered(
+              !mobile &&
+                isWeb &&
+                typeof matchMedia !== 'undefined' &&
+                matchMedia('(hover: hover) and (pointer: fine)').matches,
+            )
+          }
+          onHoverOut={() => setZoomOutHovered(false)}
+          style={[styles.zoomButton, zoom > MIN_ZOOM && zoomOutHovered && styles.zoomButtonHover]}
         >
           <Text style={styles.zoomText}>−</Text>
         </Pressable>
@@ -709,6 +729,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: t.colors.alpha.ink14,
   },
+  zoomButtonHover: { backgroundColor: '#f1f3f2', borderColor: 'rgba(17,21,15,0.3)' },
   zoomText: { fontFamily: t.typography.ui, fontSize: 24, color: t.colors.ink },
   credits: {
     alignSelf: 'stretch',

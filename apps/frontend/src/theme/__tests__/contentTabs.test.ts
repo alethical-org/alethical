@@ -44,6 +44,24 @@ describe('the sitewide selected content-tab treatment', () => {
     ]);
   });
 
+  it('adds a line inside only an inactive tab when it is hovered', () => {
+    const base = { paddingBottom: 12 } as const;
+    expect(contentTabStyle(base, false, undefined, true)).toEqual([
+      base,
+      contentTabUnderline.base,
+      false,
+      false,
+      contentTabUnderline.hover,
+    ]);
+    expect(contentTabStyle(base, true, undefined, true)).toEqual([
+      base,
+      contentTabUnderline.base,
+      undefined,
+      contentTabUnderline.selected,
+    ]);
+    expect(contentTabUnderline.hover).toEqual({ borderBottomColor: 'rgba(17,21,15,0.2)' });
+  });
+
   it.each(TAB_OWNERS)('%s uses the shared selected-state helper', (relativePath) => {
     const source = readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), 'utf8');
     expect(source).toContain("import { contentTabStyle } from '");

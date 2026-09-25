@@ -61,10 +61,57 @@ import { AskAnswerBill, AskAnswerLegislator } from '../../data/types';
 
 const t = theme;
 
-function GreenArrowLink({ label }: { label: string }) {
-  return <LinkArrowLabel label={label} style={styles.viewBillLink} />;
-}
 const isWeb = Platform.OS === 'web';
+const hasFineHover = () =>
+  isWeb &&
+  typeof matchMedia !== 'undefined' &&
+  matchMedia('(hover: hover) and (pointer: fine) and (min-width: 768px)').matches;
+
+function AnswerDestinationLink({
+  label,
+  href,
+  onPress,
+  accessibilityLabel,
+  style,
+}: {
+  label: string;
+  href: string;
+  onPress: () => void;
+  accessibilityLabel?: string;
+  style?: object;
+}) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <Pressable
+      {...linkProps(href, onPress)}
+      accessibilityLabel={accessibilityLabel}
+      onHoverIn={() => setHovered(hasFineHover())}
+      onHoverOut={() => setHovered(false)}
+      style={style}
+    >
+      <LinkArrowLabel
+        label={label}
+        style={[styles.viewBillLink, hovered && styles.viewBillLinkHover]}
+      />
+    </Pressable>
+  );
+}
+
+function TryAgainAction({ onPress }: { onPress: () => void }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      onHoverIn={() => setHovered(hasFineHover())}
+      onHoverOut={() => setHovered(false)}
+    >
+      <Text style={[styles.viewBillLink, { color: t.colors.text.primary }]}>
+        <Text style={hovered && styles.plainActionHover}>Try again</Text> →
+      </Text>
+    </Pressable>
+  );
+}
 
 // The chip-reached Ask answer page. Spec of record:
 // docs/product-onboarding/grounded-ask-spec.md §9.5 (The chip-reached answer page —
@@ -201,12 +248,12 @@ function AnswerBillCard({
         {bill.shortTitle ?? bill.title}
       </Text>
       {bill.summary ? <Text style={styles.billSummary}>{bill.summary}</Text> : null}
-      <Pressable
-        {...linkProps(routePath.bill(bill.id), onOpen)}
+      <AnswerDestinationLink
+        href={routePath.bill(bill.id)}
+        onPress={onOpen}
         accessibilityLabel={`View bill ${bill.identifier}`}
-      >
-        <GreenArrowLink label="View bill" />
-      </Pressable>
+        label="View bill"
+      />
     </View>
   );
 }
@@ -221,6 +268,7 @@ function AnswerLegislatorRow({
   onOpenBill: (billId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [recordHovered, setRecordHovered] = useState(false);
   const partyDistrict = [
     legislator.party,
     legislator.district ? `District ${legislator.district}` : null,
@@ -240,12 +288,12 @@ function AnswerLegislatorRow({
           <Text style={styles.legName}>{legislator.fullName}</Text>
           {partyDistrict ? <Text style={styles.legMeta}>{partyDistrict}</Text> : null}
         </View>
-        <Pressable
-          {...linkProps(routePath.legislator(legislator.slug ?? legislator.id), onOpenProfile)}
+        <AnswerDestinationLink
+          href={routePath.legislator(legislator.slug ?? legislator.id)}
+          onPress={onOpenProfile}
           accessibilityLabel={`View profile for ${legislator.fullName}`}
-        >
-          <GreenArrowLink label="View profile" />
-        </Pressable>
+          label="View profile"
+        />
       </View>
       <Text style={styles.legCounts}>{counts.join(' · ')}</Text>
       {/* The underlying bills are the citation for the authorship claim. */}
@@ -253,9 +301,14 @@ function AnswerLegislatorRow({
         accessibilityRole="button"
         accessibilityLabel={`${expanded ? 'Hide' : 'Show'} the ${billCount} ${billCount === 1 ? 'bill' : 'bills'} ${legislator.fullName} is on the record for`}
         onPress={() => setExpanded((value) => !value)}
+        onHoverIn={() => setRecordHovered(hasFineHover())}
+        onHoverOut={() => setRecordHovered(false)}
       >
         <Text style={styles.onRecordToggle}>
-          On the record: {billCount} {billCount === 1 ? 'bill' : 'bills'} {expanded ? '▾' : '▸'}
+          <Text style={recordHovered && styles.plainActionHover}>
+            On the record: {billCount} {billCount === 1 ? 'bill' : 'bills'}
+          </Text>{' '}
+          {expanded ? '▾' : '▸'}
         </Text>
       </Pressable>
       {expanded ? (
@@ -614,9 +667,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
     return shell(
       <View style={styles.stateBox}>
         <Text style={styles.stateText}>Something went wrong answering this question.</Text>
-        <Pressable accessibilityRole="button" onPress={() => askQuery.refetch()}>
-          <Text style={[styles.viewBillLink, { color: t.colors.text.primary }]}>Try again →</Text>
-        </Pressable>
+        <TryAgainAction onPress={() => askQuery.refetch()} />
       </View>,
     );
   }
@@ -630,9 +681,11 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
           This page shows the answer to a question asked from a bill. Pick a bill and ask one of its
           suggested questions.
         </Text>
-        <Pressable {...linkProps(routePath.bills(), () => navigation.navigate('Bills'))}>
-          <GreenArrowLink label="Browse Minnesota bills in Search" />
-        </Pressable>
+        <AnswerDestinationLink
+          href={routePath.bills()}
+          onPress={() => navigation.navigate('Bills')}
+          label="Browse Minnesota bills in Search"
+        />
       </View>,
     );
   }
@@ -643,9 +696,11 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
     return shell(
       <View style={styles.narrowColumn}>
         <Text style={styles.bodyText}>{pending.body}</Text>
-        <Pressable {...linkProps(routePath.bills(), () => navigation.navigate('Bills'))}>
-          <GreenArrowLink label={pending.cta} />
-        </Pressable>
+        <AnswerDestinationLink
+          href={routePath.bills()}
+          onPress={() => navigation.navigate('Bills')}
+          label={pending.cta}
+        />
       </View>,
     );
   }
@@ -668,14 +723,12 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               tracked={isTracked(resolvedBill.id)}
               onToggleTrack={() => toggleTrack(resolvedBill.id)}
             />
-            <Pressable
-              {...linkProps(routePath.bill(resolvedBill.id, { tab: 'votes' }), () =>
-                openVotes(resolvedBill.id),
-              )}
+            <AnswerDestinationLink
+              href={routePath.bill(resolvedBill.id, { tab: 'votes' })}
+              onPress={() => openVotes(resolvedBill.id)}
               accessibilityLabel={`See all votes on ${resolvedBill.identifier}`}
-            >
-              <GreenArrowLink label={`See all votes on ${resolvedBill.identifier}`} />
-            </Pressable>
+              label={`See all votes on ${resolvedBill.identifier}`}
+            />
           </View>
         ) : compactBills.length > 0 ? (
           <>
@@ -699,9 +752,11 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
             </View>
           </>
         ) : (
-          <Pressable {...linkProps(routePath.bills(), () => navigation.navigate('Bills'))}>
-            <GreenArrowLink label="Browse bills to see their votes" />
-          </Pressable>
+          <AnswerDestinationLink
+            href={routePath.bills()}
+            onPress={() => navigation.navigate('Bills')}
+            label="Browse bills to see their votes"
+          />
         )}
       </View>,
     );
@@ -904,18 +959,18 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
           )}
           . Try another issue, or browse everything in Search.
         </Text>
-        <Pressable
-          {...linkProps(
-            routePath.bills(answer?.topic ? { issue: answer.topic, sort: 'progress' } : undefined),
-            () =>
-              navigation.navigate(
-                'Bills',
-                answer?.topic ? { issue: answer.topic, sort: 'progress' } : undefined,
-              ),
+        <AnswerDestinationLink
+          href={routePath.bills(
+            answer?.topic ? { issue: answer.topic, sort: 'progress' } : undefined,
           )}
-        >
-          <GreenArrowLink label="Search all bills" />
-        </Pressable>
+          onPress={() =>
+            navigation.navigate(
+              'Bills',
+              answer?.topic ? { issue: answer.topic, sort: 'progress' } : undefined,
+            )
+          }
+          label="Search all bills"
+        />
       </View>,
     );
   }
@@ -955,20 +1010,18 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
           </View>
         ))}
         {answer.totalBills && answer.totalBills > 0 ? (
-          <Pressable
-            {...linkProps(
-              routePath.bills(answer.topic ? { issue: answer.topic, sort: 'progress' } : undefined),
-              () =>
-                navigation.navigate(
-                  'Bills',
-                  answer.topic ? { issue: answer.topic, sort: 'progress' } : undefined,
-                ),
+          <AnswerDestinationLink
+            href={routePath.bills(
+              answer.topic ? { issue: answer.topic, sort: 'progress' } : undefined,
             )}
-          >
-            {/* Search defaults to the whole Legislature and receives the same
-                Issue filter as Ask, so the total and bill set stay identical. */}
-            <GreenArrowLink label={`See all ${answer.topic} bills in Search`} />
-          </Pressable>
+            onPress={() =>
+              navigation.navigate(
+                'Bills',
+                answer.topic ? { issue: answer.topic, sort: 'progress' } : undefined,
+              )
+            }
+            label={`See all ${answer.topic} bills in Search`}
+          />
         ) : null}
         <FollowUpChips chips={followUpChips} onAsk={askFollowUp} />
       </View>,
@@ -1047,17 +1100,14 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
         )}
         {!answer.ambiguousReference &&
         issueAnswerHasMore(answer.totalMatches, shownIssueBills.length) ? (
-          <Pressable
-            {...linkProps(routePath.bills(browseParams), () =>
-              navigation.navigate('Bills', browseParams),
-            )}
+          /* The total belongs in the header once. This link is the disclosure that
+             the five-card window leaves more matches to browse. */
+          <AnswerDestinationLink
+            href={routePath.bills(browseParams)}
+            onPress={() => navigation.navigate('Bills', browseParams)}
             style={styles.issueSeeAllLink}
-          >
-            {/* The total belongs in the header once. This link is the disclosure that
-                the five-card window leaves more matches to browse, so it only renders
-                when `issueAnswerHasMore` proves that a remainder exists. */}
-            <GreenArrowLink label={`See all ${issueTopic} bills in Search`} />
-          </Pressable>
+            label={`See all ${issueTopic} bills in Search`}
+          />
         ) : null}
         <FollowUpChips chips={followUpChips} onAsk={askFollowUp} />
         {/* The corpus date appears once, in the Search-style count row above. */}
@@ -1511,4 +1561,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: t.colors.text.green,
   },
+  viewBillLinkHover: { color: '#11832b', textDecorationLine: 'underline' },
+  plainActionHover: { textDecorationLine: 'underline' },
 });

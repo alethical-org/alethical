@@ -13,7 +13,7 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
-import { theme as t } from '../../theme/tokens';
+import { theme as t, prefersReducedMotion } from '../../theme/tokens';
 import { profilePartyBadgeAppearance } from '../../theme/legislatorBadgeAppearance';
 import { Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
@@ -21,6 +21,7 @@ import { GoBackLink } from '../../components/GoBackLink';
 import { LinkArrowLabel } from '../../components/LinkArrow';
 import { PageContextLabel } from '../../components/PageContextLabel';
 import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';
+import { useFineHover } from '../../components/billDetail/interactions';
 import { coAuthorCount, formatMonoDate, partyFull, plainBillSummary } from '../../lib/billDetail';
 import {
   buildAskChips,
@@ -230,6 +231,7 @@ function BillCardView({
   tracked: boolean;
   onToggleTrack: () => void;
 }) {
+  const [hovered, hover] = useFineHover();
   const filled = statusSegments(bill.status);
   const tags = bill.aiAnalysis?.policyAreas ?? [];
   const summary =
@@ -244,10 +246,17 @@ function BillCardView({
   );
   const movedDate = formatMonoDate(bill.updatedAt);
   return (
-    <View style={styles.billCard}>
+    <View
+      style={[
+        styles.billCard,
+        hovered && styles.billCardHover,
+        hovered && !prefersReducedMotion() && styles.billCardLift,
+      ]}
+    >
       <Pressable
         {...linkProps(routePath.bill(bill.id), onOpen)}
         accessibilityLabel={`Open ${bill.identifier}`}
+        {...hover}
         style={styles.billCardOverlay}
       />
       <View style={styles.billCardContent}>
@@ -351,17 +360,24 @@ function AskCard({ chips, onAsk }: { chips: string[]; onAsk: (q: string) => void
       </Text>
       <View style={styles.askChips}>
         {chips.map((chip) => (
-          <Pressable
-            key={chip}
-            accessibilityRole="button"
-            onPress={() => onAsk(chip)}
-            style={styles.askChip}
-          >
-            <Text style={styles.askChipText}>{chip}</Text>
-          </Pressable>
+          <AskQuestionChip key={chip} label={chip} onPress={() => onAsk(chip)} />
         ))}
       </View>
     </View>
+  );
+}
+
+function AskQuestionChip({ label, onPress }: { label: string; onPress: () => void }) {
+  const [hovered, hover] = useFineHover();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      {...hover}
+      style={[styles.askChip, hovered && styles.askChipHover]}
+    >
+      <Text style={[styles.askChipText, hovered && styles.askChipTextHover]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -406,6 +422,9 @@ export function LegislatorProfileMobileScreen() {
   const [shareOpen, setShareOpen] = useState(false);
   const [sessionOpen, setSessionOpen] = useState(false);
   const [showAllBills, setShowAllBills] = useState(false);
+  const [shareHovered, shareHover] = useFineHover();
+  const [sessionHovered, sessionHover] = useFineHover();
+  const [seeMoreHovered, seeMoreHover] = useFineHover();
 
   const leg = legQuery.data;
   // Same shared builder api/page.ts used for the first response (#1325).
@@ -584,7 +603,8 @@ export function LegislatorProfileMobileScreen() {
                       accessibilityRole="button"
                       accessibilityLabel="Share this legislator"
                       onPress={() => setShareOpen(true)}
-                      style={styles.shareBtn}
+                      {...shareHover}
+                      style={[styles.shareBtn, shareHovered && styles.outlinedHover]}
                     >
                       <ShareIcon />
                       <Text style={styles.shareBtnText}>Share</Text>
@@ -739,7 +759,8 @@ export function LegislatorProfileMobileScreen() {
                         <Pressable
                           accessibilityRole="button"
                           onPress={() => setSessionOpen((v) => !v)}
-                          style={styles.sessionBtn}
+                          {...sessionHover}
+                          style={[styles.sessionBtn, sessionHovered && styles.outlinedHover]}
                         >
                           <Text style={styles.sessionBtnText}>
                             {currentSession
@@ -842,7 +863,8 @@ export function LegislatorProfileMobileScreen() {
                             <Pressable
                               accessibilityRole="button"
                               onPress={() => setShowAllBills(true)}
-                              style={styles.seeMore}
+                              {...seeMoreHover}
+                              style={[styles.seeMore, seeMoreHovered && styles.outlinedHover]}
                             >
                               <Text style={styles.seeMoreText}>See more →</Text>
                             </Pressable>
@@ -1054,6 +1076,7 @@ const styles = StyleSheet.create({
     paddingLeft: 11,
     paddingRight: 14,
   },
+  outlinedHover: { backgroundColor: '#f7f8fa', borderColor: 'rgba(17,21,15,0.3)' },
   shareBtnText: {
     fontFamily: t.typography.ui,
     fontSize: 15,
@@ -1256,7 +1279,18 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 20,
     ...(t.shadows.card as object),
+    ...(isWeb
+      ? ({
+          transitionProperty: 'border-color, box-shadow, transform',
+          transitionDuration: '0.16s',
+        } as object)
+      : null),
   },
+  billCardHover: {
+    borderColor: 'rgba(45,212,126,0.85)',
+    ...(isWeb ? ({ boxShadow: '0 22px 46px rgba(17,21,15,0.14)' } as object) : null),
+  },
+  billCardLift: { transform: [{ translateY: -3 }] },
   billCardOverlay: {
     ...CARD_LINK_LAYER,
     top: 0,
@@ -1526,4 +1560,6 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.medium,
     color: t.colors.text.secondary,
   },
+  askChipHover: { borderColor: t.colors.purple.base },
+  askChipTextHover: { color: t.colors.purple.base },
 });

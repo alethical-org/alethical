@@ -187,6 +187,32 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   that decoration across its final-word group, including when an enclosing text link owns the
   style. The arrow and its 6px gap remain undecorated. Check single-word and wrapping labels as
   well as complete lines; never copy a partial underline from a Design drawing.
+- **Add pointer hover only where the live control lacks it (Eugene, 25 Sep 2026).** Preserve an
+  existing hover even when it differs from this table. Use these treatments only for a mouse or
+  trackpad on computer and tablet widths, never for a touch tap, and keep busy or disabled
+  controls from suggesting an available action. Keyboard focus keeps its independent purple
+  2px ring. Hover does not resize a control or move surrounding content.
+
+  | Live control | Hover when missing |
+  | --- | --- |
+  | Green filled button | Fill and border `#28bf71`. |
+  | White outlined button, including pagination | Background `#f7f8fa`; border `rgba(17,21,15,0.3)`. |
+  | Dark filled button | Fill and border `#000000`. |
+  | White clickable card | Border `rgba(45,212,126,0.85)`, shadow `0 22px 46px rgba(17,21,15,0.14)`, and a 3px lift over 0.16s; reduced motion removes the lift. |
+  | Green-wash clickable card | Border `#8fd3ae` and shadow `0 16px 36px rgba(15,122,69,0.16)`; no lift. |
+  | Unselected chip or segment | Background `#f1f3f2`; border `rgba(17,21,15,0.3)`. |
+  | Icon button | Background `#f1f3f2`; strengthen an existing border to `rgba(17,21,15,0.3)` without adding one. |
+  | Text link in the dark footer | White words with underline; social-icon background `rgba(255,255,255,0.08)`. |
+  | Existing red removal or report control | Background `#fdecec`; border `#c0392b`; text unchanged. |
+
+  Inactive content tabs gain a near-black 3px line inside their existing box and near-black
+  words; the selected tab stays unchanged. An unselected year gains the green `#2ed47e`
+  border; the selected year stays unchanged. A plain-text action with no resting underline
+  underlines only its words. One already underlined at rest thickens its underline to 3px;
+  arrows and gaps stay undecorated. A plain destination link on a light surface turns
+  `#0f7a45` to `#11832b` and underlines every word, without underlining its arrow. If the
+  live control fits none of these kinds or another approved treatment, leave its appearance
+  unchanged and ask Design for the visual choice.
 - **The rule standardizes arrows that already exist; it does not add them.** A green link whose
   accepted surface has no trailing arrow keeps no arrow. Back arrows, disclosure chevrons, and
   arrows used as data or diagrams are outside this rule.

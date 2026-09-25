@@ -11,6 +11,10 @@ import {
 import Svg, { Path } from 'react-native-svg';
 
 import { MoneyListRow, MoneyListRows } from '../../components/campaignMoney/MoneyListRows';
+import {
+  finePointerHovered,
+  useFinePointerHover,
+} from '../../components/campaignMoney/finePointerHover';
 import { ResultsHeading } from '../../components/campaignMoney/ResultsHeading';
 import { ContributionRecordDetails } from '../../components/campaignMoney/ContributionRecordDetails';
 import { Skeleton } from '../../components/Skeleton';
@@ -338,6 +342,7 @@ function SearchAnotherName({
     <FocusPressable
       {...linkProps(href, () => navigation.navigate('MoneySearch', { q: query }))}
       style={styles.primaryButton}
+      hoverStyle={styles.primaryButtonHovered}
     >
       <Text style={styles.primaryButtonLabel}>{SEARCH_ANOTHER_NAME}</Text>
     </FocusPressable>
@@ -346,8 +351,12 @@ function SearchAnotherName({
 
 function FocusPressable({
   style,
+  hoverStyle,
   ...props
-}: Omit<ComponentProps<typeof Pressable>, 'style'> & { style?: StyleProp<ViewStyle> }) {
+}: Omit<ComponentProps<typeof Pressable>, 'style'> & {
+  style?: StyleProp<ViewStyle>;
+  hoverStyle?: StyleProp<ViewStyle>;
+}) {
   const [focused, setFocused] = useState(false);
   return (
     <Pressable
@@ -360,7 +369,7 @@ function FocusPressable({
         setFocused(false);
         props.onBlur?.(event);
       }}
-      style={[style, focused && styles.focused]}
+      style={(state) => [style, finePointerHovered(state) && hoverStyle, focused && styles.focused]}
     />
   );
 }
@@ -373,6 +382,7 @@ function RetryButton({ onPress, busy }: { onPress: () => void; busy: boolean }) 
       disabled={busy}
       aria-busy={busy}
       style={styles.primaryButton}
+      hoverStyle={!busy ? styles.primaryButtonHovered : undefined}
     >
       <Text style={styles.primaryButtonLabel}>{busy ? 'Loading…' : 'Try again'}</Text>
     </FocusPressable>
@@ -569,6 +579,7 @@ export function PaymentRows({
               disabled={isFetchingNextPage}
               aria-busy={isFetchingNextPage}
               style={styles.capButton}
+              hoverStyle={!isFetchingNextPage ? styles.capButtonHovered : undefined}
             >
               <Text style={styles.capButtonLabel}>
                 {isFetchingNextPage ? 'Loading…' : loadMoreError ? 'Try again' : CAP_NEXT_LABEL}
@@ -593,9 +604,12 @@ function FilerLink({
   size: number;
 }) {
   const [focused, setFocused] = useState(false);
+  const hover = useFinePointerHover();
   return (
     <Pressable
       {...linkProps(href, onPress)}
+      onHoverIn={hover.onHoverIn}
+      onHoverOut={hover.onHoverOut}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
       style={[styles.filerLink, focused && styles.focused]}
@@ -603,7 +617,12 @@ function FilerLink({
       <Text
         accessibilityRole="header"
         aria-level={3}
-        style={[styles.filerName, styles.filerNameLink, { fontSize: size }]}
+        style={[
+          styles.filerName,
+          styles.filerNameLink,
+          { fontSize: size },
+          hover.hovered && styles.filerNameLinkHovered,
+        ]}
       >
         {name}
       </Text>
@@ -927,6 +946,12 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     paddingHorizontal: 19,
   },
+  primaryButtonHovered: { backgroundColor: '#000000' },
+  capButtonHovered: {
+    backgroundColor: '#f7f8fa',
+    borderColor: 'rgba(17,21,15,0.3)',
+  },
+  filerNameLinkHovered: { color: '#11832b', textDecorationLine: 'underline' },
   primaryButtonLabel: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,

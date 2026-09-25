@@ -7,6 +7,7 @@ import {
   RowArrow,
 } from '../../components/campaignMoney/MoneyListRows';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
+import { finePointerHovered } from '../../components/campaignMoney/finePointerHover';
 import { ChevronLeft } from '../../components/icons';
 import { PageContextLabel } from '../../components/PageContextLabel';
 import { Pagination } from '../../components/search/searchPieces';
@@ -219,7 +220,12 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
                   onPress={() => onSelectKind(option)}
                   accessibilityRole="button"
                   aria-pressed={active}
-                  style={[styles.chip, isMobile && styles.chipMobile, active && styles.chipActive]}
+                  style={(state) => [
+                    styles.chip,
+                    isMobile && styles.chipMobile,
+                    !active && finePointerHovered(state) && styles.chipHover,
+                    active && styles.chipActive,
+                  ]}
                 >
                   <Text
                     style={[
@@ -281,7 +287,10 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
                 <Pressable
                   onPress={() => onSelectKind('all')}
                   accessibilityRole="button"
-                  style={styles.primaryButton}
+                  style={(state) => [
+                    styles.primaryButton,
+                    finePointerHovered(state) && styles.primaryButtonHover,
+                  ]}
                 >
                   <Text style={styles.primaryButtonLabel}>Show all kinds</Text>
                 </Pressable>
@@ -404,7 +413,10 @@ function RetryRegister({ onRetry, busy }: { onRetry: () => void; busy: boolean }
       accessibilityRole="button"
       disabled={busy}
       onPress={onRetry}
-      style={styles.primaryButton}
+      style={(state) => [
+        styles.primaryButton,
+        !busy && finePointerHovered(state) && styles.primaryButtonHover,
+      ]}
     >
       <Text style={styles.primaryButtonLabel}>{busy ? 'Trying again…' : 'Try again'}</Text>
     </Pressable>
@@ -488,6 +500,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
   },
   chipMobile: { flexGrow: 1, flexBasis: '45%', justifyContent: 'center', paddingHorizontal: 9 },
+  chipHover: { backgroundColor: '#f1f3f2', borderColor: 'rgba(17,21,15,0.3)' },
   chipLabelMobile: { fontSize: 13, flexShrink: 1 },
   chipActive: {
     backgroundColor: t.colors.text.primary,
@@ -645,6 +658,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     paddingHorizontal: 19,
   },
+  primaryButtonHover: { backgroundColor: '#000000' },
   primaryButtonLabel: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
