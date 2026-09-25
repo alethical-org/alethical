@@ -244,6 +244,7 @@ export function UnconcealedConfirmation({
         ) : (
           <View style={styles.actions}>
             <EmailButton
+              reserveLabel="Subscribe to Unconcealed"
               label={
                 phase === 'saving'
                   ? 'Saving…'

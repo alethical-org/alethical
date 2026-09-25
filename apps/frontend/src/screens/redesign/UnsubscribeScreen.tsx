@@ -116,6 +116,7 @@ export function UnsubscribeScreen({ navigation }: RootScreenProps<'Unsubscribe'>
                 </Text>
                 <View style={styles.actions}>
                   <EmailButton
+                    reserveLabel="Unsubscribe from Unconcealed"
                     label={
                       phase === 'busy' && action === 'research'
                         ? 'Unsubscribing…'
@@ -127,6 +128,7 @@ export function UnsubscribeScreen({ navigation }: RootScreenProps<'Unsubscribe'>
                     minHeight={isMobile ? 54 : 52}
                   />
                   <EmailButton
+                    reserveLabel="Stop all research and feature emails"
                     label={
                       phase === 'busy' && action === 'all'
                         ? 'Unsubscribing…'

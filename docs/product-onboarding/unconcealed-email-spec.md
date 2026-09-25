@@ -18,7 +18,7 @@ Print these words verbatim. Copy improvements can be proposed separately with a 
 - Invitation: **Get Unconcealed by email**
 - Signed-out helper: **Create an account or sign in**
 - Subscribed: **You’re subscribed to Unconcealed** followed by **Email preferences**, 20px below.
-- Sign-in helper from this invitation: **Sign in or create an account to get Unconcealed by email**
+- Sign-in helper from this invitation: **Sign in or create an account to get Unconcealed research by email**
 - Create helper from this invitation: **Create your free account, then subscribe to Unconcealed**
 
 The existing sign-in controls and heading opening focus remain. The green review highlight around helper text is not product styling. The return from Google is fixed to `/money`; no caller-supplied return URL. A browser-bound, server-held intent lasts 30 minutes and survives account creation. It only opens confirmation and cannot grant consent.
@@ -48,6 +48,10 @@ Invalid links: **We couldn’t open your unsubscribe request**. An uncertain sub
 Apply the v9 hover treatments only to pointer hover; busy/disabled buttons cannot suggest availability. Purple #7c5cff 2px focus ring remains independent. Touch does not retain hover. Preserve shared account/sign-in hover scope. The September 25 research-card revision (`Alethical UX (17).zip`) replaces the research card’s green fill with white, a 1px rgba(17,21,15,0.12) border, and neutral shadows: desktop 0 10px 30px rgba(17,21,15,0.08), tablet 0 8px 24px rgba(17,21,15,0.07), phone 0 6px 18px rgba(17,21,15,0.06). Its white Read the research control uses a 1px rgba(17,21,15,0.16) border. On desktop and tablet with a fine hover pointer, the research card uses the record-card green border rgba(45,212,126,0.85), shadow 0 22px 46px rgba(17,21,15,0.14), and 3px lift, with 0.16s ease transitions. Reduced motion removes the lift and transitions. Phone and touch have no hover treatment. Preserve the existing research copy, type, padding, radius, and link. This leaves the dark Unconcealed invitation as the section’s only coloured surface. Other v9 treatments remain unchanged.
 
 Close, Escape and outside press dismiss confirmation, with focus returned to invitation or heading after Google. Status messages are polite; errors are alerts. Touch targets are at least 44px; sheet buttons 54px. Long addresses wrap. Loading/ready/saving should hold space; uncertain-result text may add space.
+
+September 25 follow-up: email buttons and checkbox rows use input-aware keyboard focus, not an outline on every focus event. Clicking or tapping changes the control without adding the keyboard-only ring; Tab and keyboard activation retain a visible marker. Keep the current keyboard appearance while Design draws the distinct focus states for review. The explicitly approved campaign-money contribution arrow's purple pointer outline is a separate treatment and stays unchanged. Text-entry fields retain their typing focus feedback.
+
+Keep each email action button's responsive width, height and position through ready, saving and retry labels, including wrapped labels on narrow screens. Reserve the normal label's space rather than assigning a fixed desktop width. Reserve space for **✓ Your email preferences are saved** beside the save button where it fits and below on narrow screens. Reveal and politely announce it only after a confirmed save, without shifting surrounding content. Errors and enlarged text may grow; do not clip them or add artificial delays or width animations. Test fast, delayed and failed saves, retries, repeated edits, mouse/touch and keyboard use. A reported transient outline during subscribe/success needs browser evidence before attributing a cause; preserve success-heading focus and announcements.
 
 ## Research email and administration
 

@@ -179,6 +179,7 @@ export function UnconcealedInvite({
           ) : (
             <>
               <EmailButton
+                reserveLabel="Get Unconcealed by email"
                 label={starting ? 'Opening…' : 'Get Unconcealed by email'}
                 onPress={() => void start()}
                 busy={starting}

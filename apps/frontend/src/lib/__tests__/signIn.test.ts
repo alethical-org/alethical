@@ -65,7 +65,7 @@ describe('intent → copy', () => {
 
   it('explains the requested research emails only on the newsletter path', () => {
     expect(signInCopy('newsletter').subcopy).toBe(
-      'Sign in or create an account to get Unconcealed by email',
+      'Sign in or create an account to get Unconcealed research by email',
     );
   });
 

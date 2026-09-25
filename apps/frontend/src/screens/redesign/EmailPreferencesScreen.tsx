@@ -37,6 +37,8 @@ export function EmailPreferencesScreen({ navigation }: RootScreenProps<'EmailPre
   const onceSignIn = useRef(false);
   const generation = useRef(0);
   const saving = useRef<number | null>(null);
+  const choiceCardLayout = useRef({ width: 0, height: 0 });
+  const [choiceCardMinHeight, setChoiceCardMinHeight] = useState<number>();
   const identity = user?.id ?? null;
 
   useEffect(() => {
@@ -79,6 +81,9 @@ export function EmailPreferencesScreen({ navigation }: RootScreenProps<'EmailPre
     const current = generation.current;
     if (saving.current === current) return;
     saving.current = current;
+    // Removing a wrapped "Not saved yet" badge can shorten the card on phones.
+    // Hold its pre-save height as well as the button and success message space.
+    setChoiceCardMinHeight(choiceCardLayout.current.height);
     setPhase('saving');
     try {
       const next = await saveEmailPreferences(token, body);
@@ -173,7 +178,14 @@ export function EmailPreferencesScreen({ navigation }: RootScreenProps<'EmailPre
                 ) : null}
                 {record && !['loading', 'load-error'].includes(phase) ? (
                   <>
-                    <View style={styles.choiceCard}>
+                    <View
+                      style={[styles.choiceCard, { minHeight: choiceCardMinHeight }]}
+                      onLayout={({ nativeEvent: { layout } }) => {
+                        if (choiceCardLayout.current.width !== layout.width)
+                          setChoiceCardMinHeight(undefined);
+                        choiceCardLayout.current = layout;
+                      }}
+                    >
                       <EmailCheckbox
                         label="Unconcealed research"
                         help="About Minnesota campaign money and lobbying"
@@ -251,6 +263,7 @@ export function EmailPreferencesScreen({ navigation }: RootScreenProps<'EmailPre
                     ) : null}
                     <View style={[styles.saveRow, isMobile && styles.saveRowMobile]}>
                       <EmailButton
+                        reserveLabel="Save email preferences"
                         label={
                           phase === 'saving'
                             ? 'Saving…'
@@ -267,11 +280,16 @@ export function EmailPreferencesScreen({ navigation }: RootScreenProps<'EmailPre
                           else save();
                         }}
                       />
-                      {phase === 'saved' ? (
-                        <Text aria-live="polite" style={styles.saved}>
+                      <View style={styles.savedSlot}>
+                        <Text aria-hidden style={[styles.saved, styles.reservedStatus]}>
                           ✓ Your email preferences are saved
                         </Text>
-                      ) : null}
+                        <View aria-live="polite" style={StyleSheet.absoluteFill}>
+                          {phase === 'saved' ? (
+                            <Text style={styles.saved}>✓ Your email preferences are saved</Text>
+                          ) : null}
+                        </View>
+                      </View>
                     </View>
                   </>
                 ) : null}
@@ -342,11 +360,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#dfe3e6',
     borderRadius: 16,
+    // Removing a wrapped dirty badge must not make the browser scroll to keep
+    // that changing text anchored, even when the card's outer height is held.
+    ...(Platform.OS === 'web' ? ({ overflowAnchor: 'none' } as object) : {}),
   },
   divider: { height: 1, backgroundColor: '#e8ebe9' },
   message: { marginTop: 18, gap: 12 },
   saveRow: { marginTop: 22, flexDirection: 'row', alignItems: 'center', gap: 18, flexWrap: 'wrap' },
   saveRowMobile: { flexDirection: 'column', alignItems: 'stretch' },
+  savedSlot: { maxWidth: '100%', minWidth: 0, flexShrink: 1 },
+  reservedStatus: { opacity: 0 },
   saved: {
     fontFamily: t.typography.body,
     fontWeight: t.fontWeights.semibold,
