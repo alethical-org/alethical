@@ -37,12 +37,12 @@ function focusableChildren(node: HTMLElement | null): HTMLElement[] {
   );
 }
 
-function CloseIcon() {
+function CloseIcon({ hovered = false }: { hovered?: boolean }) {
   return (
     <Svg width={19} height={19} viewBox="0 0 24 24" fill="none" aria-hidden>
       <Path
         d="M6 6 L18 18 M18 6 L6 18"
-        stroke={t.colors.text.faint}
+        stroke={hovered ? t.colors.text.primary : t.colors.text.faint}
         strokeWidth={2.2}
         strokeLinecap="round"
       />
@@ -107,6 +107,15 @@ export function SignInContainer({
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   const [closeFocused, setCloseFocused] = useState(false);
+  const [closeHovered, setCloseHovered] = useState(false);
+  const closeHoverProps = {
+    onHoverIn: () => {
+      if (isWeb && window.matchMedia?.('(hover: hover) and (pointer: fine)').matches) {
+        setCloseHovered(true);
+      }
+    },
+    onHoverOut: () => setCloseHovered(false),
+  };
   const [backFocused, setBackFocused] = useState(false);
   const [titleBottom, setTitleBottom] = useState(0);
   const [showHeaderTitle, setShowHeaderTitle] = useState(false);
@@ -463,6 +472,7 @@ export function SignInContainer({
       {onClose ? (
         <Pressable
           ref={closeRef}
+          {...closeHoverProps}
           accessibilityRole="button"
           accessibilityLabel="Close"
           onBlur={() => setCloseFocused(false)}
@@ -472,10 +482,11 @@ export function SignInContainer({
             styles.accountClose,
             asSheet ? styles.accountControlSheet : styles.accountControlCard,
             closeFocused && focusRingWeb,
+            closeHovered && styles.closePressed,
             pressed && styles.headerControlPressed,
           ]}
         >
-          <CloseIcon />
+          <CloseIcon hovered={closeHovered} />
         </Pressable>
       ) : null}
     </View>
@@ -526,6 +537,7 @@ export function SignInContainer({
               {onClose ? (
                 <Pressable
                   ref={closeRef}
+                  {...closeHoverProps}
                   accessibilityRole="button"
                   accessibilityLabel="Close"
                   onBlur={() => setCloseFocused(false)}
@@ -534,16 +546,18 @@ export function SignInContainer({
                   style={({ pressed }) => [
                     styles.close,
                     closeFocused && focusRingWeb,
+                    closeHovered && styles.closePressed,
                     pressed && styles.closePressed,
                   ]}
                 >
-                  <CloseIcon />
+                  <CloseIcon hovered={closeHovered} />
                 </Pressable>
               ) : null}
             </View>
           ) : !useAccountPanel && onClose ? (
             <Pressable
               ref={closeRef}
+              {...closeHoverProps}
               accessibilityRole="button"
               accessibilityLabel="Close"
               onBlur={() => setCloseFocused(false)}
@@ -553,10 +567,11 @@ export function SignInContainer({
                 styles.close,
                 styles.closeCard,
                 closeFocused && focusRingWeb,
+                closeHovered && styles.closePressed,
                 pressed && styles.closePressed,
               ]}
             >
-              <CloseIcon />
+              <CloseIcon hovered={closeHovered} />
             </Pressable>
           ) : null}
           <ScrollView

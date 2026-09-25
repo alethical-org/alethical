@@ -16,9 +16,9 @@ Source: [Unconcealed email requirements](../product-onboarding/unconcealed-email
 
 - Reviewed v9 with v6 behavior and settled corrections; sent user the complete Design update prompt while building.
 - Own clean branch started from current main. No competing subscription PR found. Existing account-menu focus PR may overlap; preserve its behavior.
-- Database/API and manual email implementation complete. 33 focused server tests pass, including real PostgreSQL concurrency and migration round trip. Full server suite passes all 3,373 tests on the exact uploaded commit.
+- Database/API and manual email implementation complete. 33 focused server tests pass, including real PostgreSQL concurrency and migration round trip. Full server suite passes all 3,374 tests on the released commit.
 - Browser acceptance corrections applied: web fonts, checkbox state and Space key, phone save width, heading focus, hover, private headers and analytics exclusion.
-- Signed-out reader flows pass at 320/390/1440 widths. Real local API subscribe, separate feature consent, saved reload, read-only stop-link opening and research/all stop pass. Intent outage fallback reaches account settings. All 3,577 frontend tests, TypeScript, formatting and release build pass. Final browser check confirms heading focus and return to the invitation on close. Release checks and deployment remain.
+- Signed-out reader flows pass at 320/390/1440 widths. Real local API subscribe, separate feature consent, saved reload, read-only stop-link opening and research/all stop pass. Intent outage fallback reaches account settings. All 3,577 frontend tests, TypeScript, formatting and release build pass. Final browser check confirms heading focus and return to the invitation on close. Release checks and deployment passed; live acceptance is recorded below.
 - Shared naming correction merged in https://github.com/euglopi/tool-settings/pull/38. Exact task title restored: Money email signup & newsletter.
 - Real production read-only confirmed-email case mismatch count is 0. No subscription or send writes in production.
 
@@ -32,6 +32,8 @@ Public `POST /api/v1/email-subscriptions/unsubscribe/inspect`: token -> valid tr
 
 ## Release checkpoint
 
-- Signup [pull request 2376](https://github.com/alethical-org/alethical/pull/2376) is awaiting release.
-- A newly available image-size fix ended the old build-only exception. [Pull request 2378](https://github.com/alethical-org/alethical/pull/2378) upgrades Metro’s image reader and preserves file input with a tested buffer bridge. It merges first; the signup branch includes the identical repair. Both release builds pass.
-- One-click unsubscribe runs its potentially waiting database write off the event loop; all 21 subscription tests pass after this last correction. Required full checks run on the final head before merge.
+- Signup [pull request 2376](https://github.com/alethical-org/alethical/pull/2376) is live. Website and API both reported merged commit `b3f01642`; readiness and private endpoint checks passed. Independent signed-out desktop/phone review passed the signup, account creation, preferences dismissal and unsubscribe recovery flows. Public research remains readable.
+- A newly available image-size fix ended the old build-only exception. [Pull request 2378](https://github.com/alethical-org/alethical/pull/2378) upgrades Metro’s image reader and preserves file input with a tested buffer bridge. It merged first; the signup release includes the identical repair. Both release builds pass.
+- One-click unsubscribe runs its potentially waiting database write off the event loop; all 21 subscription tests pass after this last correction. All required current-head and merge-queue checks passed before release.
+
+- Final live review caught missing hover feedback on the shared sign-in Close button. The follow-up applies the v9 pale background and dark icon to all shared Close variants, preserving focus/press behavior and suppressing hover on touch devices. Browser checks cover desktop, narrow screens, leaving hover, keyboard dismissal and touch dismissal.
