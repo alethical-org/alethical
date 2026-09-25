@@ -2,7 +2,7 @@
 
 <!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py -->
 
-Net: The repository has 26 GitHub Actions workflows. 22 can start automatically
+Net: The repository has 27 GitHub Actions workflows. 23 can start automatically
 and 4 run only when a person starts them. Scheduled checks, releases, and local
 backups do not call paid AI services. Reader questions and deliberately started
 AI work do. The review of a failed campaign-money collection has a paid AI
@@ -13,6 +13,7 @@ reviewer too, and its switch is off until its limits are approved.
 | Work | Starts when | What it does | Usage-based cost |
 | --- | --- | --- | --- |
 | Project checks (`.github/workflows/ci.yml`) | Pull request code events, merge-queue checks, and pushes to `main` | Runs the code, formatting, security, and document checks | No paid AI call; [standard GitHub-hosted runners are free for public repositories](https://docs.github.com/en/actions/concepts/billing-and-usage) |
+| Phone release tool checks (`.github/workflows/native-release-tools.yml`) | Pull requests that change phone release tools or settings, and by hand | Installs the optional phone publishing tools and checks their commands and security fixes | No paid AI call; standard GitHub-hosted runner for relevant changes only |
 | Latest change explanation (`.github/workflows/pr-description.yml`) | Pull request opens, code updates, reopens, ready-for-review events, description edits, and merge-queue checks | Reads the latest `Docs check:` explanation against the current code; does not rerun app or server tests or replace their results | No paid AI call; read-only GitHub requests on a standard free runner |
 | New votes (`.github/workflows/vote-backfill.yml`) | Daily at 09:00 UTC | Adds newly published House and Senate roll-call votes | No paid AI call; reads free government sources |
 | Missing bill sections (`.github/workflows/bill-section-gaps.yml`) | Daily at 11:00 UTC | Opens or updates an issue when stored bill text is incomplete | No paid AI call; reads the database |
@@ -43,7 +44,7 @@ Time and Central Daylight Time, so their local hour changes by 1 during the year
 
 ## What GitHub runs only by hand
 
-These 4 workflows complete the total of 26:
+These 4 workflows complete the total of 27:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |

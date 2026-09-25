@@ -1,4 +1,4 @@
-<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py apps/frontend/scripts/check-build-tool-security.mjs patches/metro@0.84.4.patch pnpm-lock.yaml -->
+<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/native-release-tools.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py apps/frontend/scripts/check-build-tool-security.mjs tools/native-release/** patches/metro@0.84.4.patch pnpm-lock.yaml -->
 <!-- last-major-tool-review: 2026-08-15 -->
 
 # Keeping every tool supported and useful
@@ -15,10 +15,14 @@ the newest major release is never automatic.
 - Known security problems trigger GitHub's update helper immediately rather than
   waiting for the monthly date.
 - The required `changes` check (`.github/workflows/ci.yml`) checks every locked
-  Python and JavaScript package, including development tools, before a pull request
+  Python and website JavaScript package, including development tools, before a pull request
   or merge-queue commit can pass. Every severity blocks release unless the exact
   finding meets the recorded exception below. Missing packages, unreadable reports,
   scanner errors, and timeouts fail the check rather than reporting a clean result.
+- Phone publishing packages have a separate lockfile (`tools/native-release/pnpm-lock.yaml`).
+  Changes to those tools run their command and security checks in
+  `.github/workflows/native-release-tools.yml`; GitHub's update helper also watches
+  that lockfile for security fixes.
 - The same security check runs every Monday at 13:41 UTC through
   `.github/workflows/technology-health.yml`, so new warnings are found between releases.
 - The monthly technology check (`.github/workflows/technology-health.yml`) also finds

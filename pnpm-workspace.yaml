@@ -32,13 +32,7 @@ overrides:
   # needs the small Metro file-reading bridge below.
   "metro@0.84.4>image-size": 2.0.3
   "@babel/core": 7.29.6 # 85 Babel plugins — arbitrary file read via sourceMappingURL
-  ajv: 8.18.0 # eas-cli — ReDoS via the $data option
   brace-expansion: 5.0.9 # via minimatch — DoS via unbounded expansion
-  "eas-cli@21.6.0>diff": 8.0.3 # eas-cli uses the compatible diffLines export
-  "eas-cli@21.6.0>ts-deepmerge": 8.0.0 # patched below to retain eas-cli's default import
-  fast-uri: 3.1.6 # eas-cli via ajv: reject ambiguous hosts and encoded schemes
-  form-data: 4.0.6 # eas-cli — CRLF injection in multipart field names
-  joi: 17.13.6 # eas-cli: prevent prototype changes through custom messages/renames
   "js-yaml@3": 3.15.2 # @oclif/core, istanbul: bound empty YAML merge sources
   "js-yaml@4": 4.3.2 # @expo/xcpretty: bound empty YAML merge sources
   "@xmldom/xmldom@0.8": 0.8.15 # @expo/plist: XML injection and resource limits
@@ -46,19 +40,14 @@ overrides:
   # React Navigation's query parser needs a callable CommonJS import. The
   # 1-line query-string patch reads the fixed decoder's default export.
   "query-string@7.1.3>decode-uri-component": 0.5.0
-  "minimatch@5": 5.1.8 # eas-cli, filelist — three ReDoS advisories
   "minimatch@3.1.5>brace-expansion": 2.1.4 # the 2.x line of the same DoS
   nanoid: 3.3.18 # React Navigation and build tools — infinite loop when a generator size is 0 (GHSA-2v37-7h3g-55p8)
-  node-forge: 1.4.0 # eas-cli held 1.3.1; dedupes onto the copy already present
   postcss: 8.5.23 # @expo/metro-config — source-map arbitrary file read
   shell-quote: 1.9.0 # react-devtools-core — the CVE-2026-9277 critical
-  tar: 7.5.22 # eas-cli — crafted archive stack-overflow DoS
   "ws@7": 7.5.11 # metro, react-native dev server
   "ws@8": 8.21.0 # @expo/cli and @supabase/realtime-js (which never imports it)
-  uuid: 11.1.1 # eas-cli, Expo telemetry, and xcode use compatible v1/v4/validate APIs
-  yaml: 2.8.4 # eas-cli held 2.6.0; dedupes onto metro-config's copy
+  uuid: 11.1.1 # Expo telemetry uses compatible v1/v4/validate APIs
 patchedDependencies:
   query-string@7.1.3: patches/query-string@7.1.3.patch
   "@expo/metro-config@57.0.7": patches/@expo__metro-config@57.0.7.patch
-  ts-deepmerge@8.0.0: patches/ts-deepmerge@8.0.0.patch
   metro@0.84.4: patches/metro@0.84.4.patch

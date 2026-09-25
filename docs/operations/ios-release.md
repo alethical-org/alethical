@@ -5,6 +5,8 @@
 
 The frontend is an Expo React Native app in `apps/frontend`. iOS builds should stay Expo-managed unless a future native customization requires committing an `ios/` directory.
 
+Phone publishing tools have their own optional install in `tools/native-release`. Ordinary website setup does not install them. The separate [native release tools check](../../.github/workflows/native-release-tools.yml) runs when those tools or the phone build settings change.
+
 Android can be shared as APKs, but iOS does not have an equivalent general-purpose sideloading path. The normal sharing path is TestFlight through App Store Connect. Until Apple Developer Program access is available, use an iOS Simulator build for local QA.
 
 ## One-time local setup
@@ -23,18 +25,19 @@ Install JavaScript dependencies from the repo root:
 corepack enable
 corepack prepare pnpm@10.33.0 --activate
 pnpm install --frozen-lockfile
+pnpm --dir tools/native-release install --frozen-lockfile
 ```
 
 Log in to Expo before the first EAS build:
 
 ```bash
-pnpm --dir apps/frontend exec eas login
+pnpm --dir apps/frontend run eas:login
 ```
 
 If this Expo project has not been linked to EAS yet, initialize it once:
 
 ```bash
-pnpm --dir apps/frontend exec eas init
+pnpm --dir apps/frontend run eas:init
 ```
 
 That command may add an Expo project id to `apps/frontend/app.json`. Commit that id after verifying it belongs to the correct Expo account.

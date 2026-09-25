@@ -1,0 +1,34 @@
+name: Native release tools
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/native-release-tools.yml
+      - apps/frontend/app.json
+      - apps/frontend/eas.json
+      - apps/frontend/scripts/with-root-env.mjs
+      - tools/native-release/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-tools:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: tools/native-release/pnpm-lock.yaml
+      - name: Install optional phone release tools
+        run: pnpm --dir tools/native-release install --frozen-lockfile
+      - name: Check phone release commands and security fixes
+        run: pnpm --dir tools/native-release run check
+      - name: Check phone release dependencies for security problems
+        run: pnpm --dir tools/native-release audit --audit-level moderate
