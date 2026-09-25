@@ -69,6 +69,14 @@ export const screenChunks = {
     import('../screens/redesign/MoneyLandingScreen').then((m) => ({
       default: m.MoneyLandingScreen,
     })),
+  EmailPreferences: () =>
+    import('../screens/redesign/EmailPreferencesScreen').then((m) => ({
+      default: m.EmailPreferencesScreen,
+    })),
+  Unsubscribe: () =>
+    import('../screens/redesign/UnsubscribeScreen').then((m) => ({
+      default: m.UnsubscribeScreen,
+    })),
   Read: () => import('../screens/redesign/ReadScreen').then((m) => ({ default: m.ReadScreen })),
   Research: () =>
     import('../screens/redesign/ResearchScreen').then((m) => ({ default: m.ResearchScreen })),

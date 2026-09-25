@@ -288,3 +288,13 @@ explicitly unchecked because Supabase's read-only settings response does not exp
 The visible resend wait comes from `EXPO_PUBLIC_AUTH_RESEND_WAIT_SECONDS` and must match Supabase.
 The email and password controls remain hidden in a new environment until its sender and every
 account-code path pass a live throwaway-account test.
+
+### Unconcealed signup continuation
+
+The invitation on `/money` reuses account creation and sign-in. Its helper says
+“Sign in or create an account to get Unconcealed by email”; account creation says
+“Create your free account, then subscribe to Unconcealed”. Completing sign-in opens
+an explicit subscription confirmation, including the account email and a separate
+optional feature-email choice. Signing in alone never subscribes. If the invitation
+cannot be saved, sign-in can instead return to `/email-preferences` for an explicit
+choice. [Unconcealed email signup](unconcealed-email-spec.md) owns the complete flow.

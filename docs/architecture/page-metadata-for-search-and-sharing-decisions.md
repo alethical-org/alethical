@@ -2109,3 +2109,13 @@ Plain numbered directory pages remain indexable.
 
 A lobbyist record's `year` filters its served donation rows and survives a stale-name
 forward and sharing. Its canonical address remains the unfiltered record address.
+
+### Private email-choice pages (25 September 2026)
+
+`/email-preferences` and `/unsubscribe` have their own titles and descriptions,
+`noindex` metadata, private uncached responses and a no-referrer policy. Neither
+page contributes to a sitemap. Unsubscribe credentials live in a fragment named
+`unsubscribe`, which the client removes after capture; they never enter rendered
+metadata or public snapshots. Research articles remain publicly indexable.
+[Unconcealed email signup](../product-onboarding/unconcealed-email-spec.md) owns
+the account and email behavior.

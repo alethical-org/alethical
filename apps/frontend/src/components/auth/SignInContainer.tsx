@@ -75,6 +75,7 @@ export function SignInContainer({
   headerIcon,
   backAction,
   contentGap,
+  focusTitleOnKeyChange = false,
   children,
   onClose,
 }: {
@@ -88,6 +89,7 @@ export function SignInContainer({
   headerIcon?: ReactNode;
   backAction?: { label: string; onPress: () => void; disabled?: boolean };
   contentGap?: number;
+  focusTitleOnKeyChange?: boolean;
   children: ReactNode;
   onClose?: () => void;
 }) {
@@ -222,6 +224,11 @@ export function SignInContainer({
   }, [displayedFrameKey, isPage, open, useAccountPanel]);
 
   useEffect(() => {
+    if (!open || !focusTitleOnKeyChange || !isWeb) return;
+    (titleRef.current as unknown as HTMLElement | null)?.focus();
+  }, [focusTitleOnKeyChange, frameKey, open]);
+
+  useEffect(() => {
     if (!useAccountPanel) return;
     setShowHeaderTitle(false);
     scrollRef.current?.scrollTo({ y: 0, animated: false });
@@ -255,8 +262,8 @@ export function SignInContainer({
     if (!isWeb || !open || isPage || typeof document === 'undefined') return;
     const card = cardRef.current as unknown as HTMLElement | null;
     const close = closeRef.current as unknown as HTMLElement | null;
-    if (!useAccountPanel) close?.focus();
-    if (!useAccountPanel && !close && card) {
+    if (!useAccountPanel && !focusTitleOnKeyChange) close?.focus();
+    if (!useAccountPanel && !focusTitleOnKeyChange && !close && card) {
       card.setAttribute('tabindex', '-1');
       card.focus();
       card.removeAttribute('tabindex');
@@ -293,7 +300,7 @@ export function SignInContainer({
     return () => {
       document.removeEventListener('keydown', onKeyDown, true);
     };
-  }, [displayedFrameKey, isPage, open, useAccountPanel]);
+  }, [displayedFrameKey, focusTitleOnKeyChange, isPage, open, useAccountPanel]);
 
   if (!open) return null;
 

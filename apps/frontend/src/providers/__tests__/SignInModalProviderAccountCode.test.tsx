@@ -7,6 +7,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SignInMachinery } from '../SignInMachinery';
 import { SignInModalProvider } from '../SignInModalProvider';
 import { useSignInModal } from '../signInModalContext';
+import {
+  readEmailSubscriptionIntent,
+  saveEmailSubscriptionIntent,
+} from '../../lib/emailSubscriptionIntent';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -29,6 +33,7 @@ const testState = vi.hoisted(() => ({
   pendingReplies: [] as Array<Promise<any>>,
   completionReplies: [] as Array<Promise<any>>,
   completionCalls: [] as Array<any[]>,
+  accountPasswordResult: null as any,
   isLoading: false,
   isSignedIn: false,
   accessToken: null as string | null,
@@ -95,7 +100,7 @@ vi.mock('../../lib/auth/accountCodeFlow', () => ({
     dispose = vi.fn(async () => undefined);
     verify = vi.fn();
     finishCreateIfSameAccountOpen = vi.fn(async () => ({ ok: true, data: false }));
-    savePassword = vi.fn();
+    savePassword = vi.fn(() => testState.accountPasswordResult);
     retryFinish = vi.fn();
     keepCurrentAccount = vi.fn(async () => undefined);
     switchAccount = vi.fn();
@@ -178,6 +183,7 @@ describe('account-code dialog lifetime', () => {
     testState.pendingReplies = [];
     testState.completionReplies = [];
     testState.completionCalls = [];
+    testState.accountPasswordResult = null;
     testState.isLoading = false;
     testState.isSignedIn = false;
     testState.accessToken = null;
@@ -201,6 +207,35 @@ describe('account-code dialog lifetime', () => {
   afterEach(() => {
     act(() => root.unmount());
     mount.remove();
+  });
+
+  it('opens newsletter confirmation only after account creation finishes with a password', async () => {
+    saveEmailSubscriptionIntent({
+      reference: 'reference-444444444444444444444444444444',
+      browserKey: 'browser-key-44444444444444444444444444444444',
+      authReady: false,
+    });
+    testState.requestReplies.push(Promise.resolve({ ok: true }));
+    testState.accountPasswordResult = {
+      ok: true,
+      data: {
+        relationship: 'same',
+        requiresAccountChoice: false,
+        passwordStatus: 'saved',
+      },
+    };
+    act(() => testState.openSignIn({ intent: 'newsletter', returnTo: '/money' }));
+    await act(async () => {
+      await testState.dialogProps.onRequestAccountCode('reader@example.com', 'create');
+    });
+    expect(testState.dialogProps.open).toBe(true);
+    expect(readEmailSubscriptionIntent()?.authReady).toBe(false);
+
+    await act(async () => {
+      await testState.dialogProps.onSaveAccountCodePassword('long-valid-password');
+    });
+    expect(testState.dialogProps.open).toBe(false);
+    expect(readEmailSubscriptionIntent()?.authReady).toBe(true);
   });
 
   it.each([

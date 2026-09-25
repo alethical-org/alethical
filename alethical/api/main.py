@@ -24,6 +24,9 @@ from alethical.api.rate_limit import (
 from alethical.api.routers.admin import router as admin_router
 from alethical.api.routers.ask import router as ask_router
 from alethical.api.routers.contact import router as contact_router
+from alethical.api.routers.email_subscriptions import (
+    router as email_subscriptions_router,
+)
 from alethical.api.routers.internal import router as internal_router
 from alethical.api.routers.me import router as me_router
 from alethical.api.routers.lobbying import router as lobbying_router
@@ -118,12 +121,15 @@ def create_app() -> FastAPI:
         about who holds office right now all live in
         alethical/api/routers/public.py."""
         response = await call_next(request)
-        if request.url.path.startswith("/api/v1/admin/"):
+        if request.url.path.startswith(
+            ("/api/v1/admin/", "/api/v1/email-subscriptions/", "/api/v1/me/email-")
+        ):
             response.headers["Cache-Control"] = "private, no-store"
             response.headers["Vary"] = ", ".join(
                 filter(None, [response.headers.get("Vary"), "Authorization"])
             )
             response.headers["X-Robots-Tag"] = "noindex, nofollow"
+            response.headers["Referrer-Policy"] = "no-referrer"
             return response
         if request.url.path.startswith("/api/v1/"):
             # The JSON is a resource the site's pages read, never a page of its
@@ -217,6 +223,9 @@ def create_app() -> FastAPI:
     app.include_router(site_metrics_router, prefix="/api/v1", tags=["site-metrics"])
     app.include_router(ask_router, prefix="/api/v1", tags=["ask"])
     app.include_router(contact_router, prefix="/api/v1", tags=["contact"])
+    app.include_router(
+        email_subscriptions_router, prefix="/api/v1", tags=["email-subscriptions"]
+    )
     app.include_router(me_router, prefix="/api/v1", tags=["me"])
     app.include_router(
         pending_actions_router, prefix="/api/v1", tags=["pending-actions"]

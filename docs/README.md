@@ -167,3 +167,6 @@ still describe today's service. Keep the evidence and its limits together.
 - **How these are kept current** — see "Keeping docs current" in [`CONTRIBUTING.md`](../CONTRIBUTING.md). Short version: a doc that describes behaviour names the code it describes in a `<!-- describes: -->` comment, and CI then fails any PR that changes that code without one `Docs check:` line saying what the author concluded. Selected guides also opt into a free check that exact quoted labels, colours, and settings still appear in that code. If you write a doc that describes how something behaves, give it that comment. The folder check requires every retained Markdown document to be reachable from this index and rejects committed design exports anywhere in the repository.
 
 - [Carlson contribution-record review](research/carlson-contribution-record-review.md) records the dated evidence for the open source-count comparison.
+
+- [Unconcealed email signup](product-onboarding/unconcealed-email-spec.md) — explicit research consent, preferences, unsubscribe and manual delivery.
+- [Unconcealed delivery plan](implementation/unconcealed-plan.md) — implementation ownership, API contract and release checks.

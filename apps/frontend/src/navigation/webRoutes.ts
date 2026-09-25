@@ -27,6 +27,8 @@ type WebRouteTarget =
   | { kind: 'legislators'; params: Record<string, string> }
   | { kind: 'findMyLegislator'; address?: string }
   | { kind: 'moneyLanding' }
+  | { kind: 'emailPreferences' }
+  | { kind: 'unsubscribe' }
   | { kind: 'lobbyingLanding'; params?: { q: string } }
   | { kind: 'lobbyingPrincipals' | 'lobbyingLobbyists'; params: Record<string, string> }
   | { kind: 'lobbyingPrincipal' | 'lobbyingLobbyist'; slug: string; year?: string }
@@ -196,6 +198,8 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   }
 
   if (segments.length === 1) {
+    if (segments[0] === 'email-preferences') return { kind: 'emailPreferences' };
+    if (segments[0] === 'unsubscribe') return { kind: 'unsubscribe' };
     if (segments[0] === 'bills') {
       return { kind: 'bills', params: billsFilterParams(searchParams) };
     }
@@ -638,6 +642,10 @@ export function pathForRoute(activeRoute: {
     }
     case 'MoneyLanding':
       return '/money';
+    case 'EmailPreferences':
+      return '/email-preferences';
+    case 'Unsubscribe':
+      return '/unsubscribe';
     case 'LobbyingLanding': {
       const q = activeRoute.params?.q;
       return q ? `/money/lobbying?${new URLSearchParams({ q: String(q) })}` : '/money/lobbying';
@@ -920,6 +928,10 @@ export function stateFromPathname(pathname: string): WebNavigationState {
         routes: [homeTabs, { name: 'MoneyLanding' }],
         index: 1,
       };
+    case 'emailPreferences':
+      return { routes: [homeTabs, { name: 'EmailPreferences' }], index: 1 };
+    case 'unsubscribe':
+      return { routes: [homeTabs, { name: 'Unsubscribe' }], index: 1 };
     case 'read':
       return {
         routes: [homeTabs, { name: 'Read' }],

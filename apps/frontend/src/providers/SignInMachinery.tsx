@@ -54,6 +54,10 @@ import type {
   OpenAccountSummary,
 } from '../components/auth/SignInDialog';
 import { signInHeldConnecting } from '../lib/devSignInHold';
+import {
+  clearEmailSubscriptionIntent,
+  markEmailSubscriptionIntentAuthReady,
+} from '../lib/emailSubscriptionIntent';
 import { useAuth } from './AuthProvider';
 import {
   clearOrdinarySessionIfUnchanged,
@@ -254,31 +258,36 @@ export function SignInMachinery({
     [isSignedIn],
   );
 
-  const close = useCallback(() => {
-    requestedAccountScreenOpen.current = false;
-    operationGeneration.current += 1;
-    accountCodeStarting.current = null;
-    ordinarySignInStarting.current = null;
-    ordinaryCompletionRequested.current = false;
-    ordinaryCompletionFromRetry.current = false;
-    accountChoiceRunning.current = false;
-    const codeAccess = accountCodeAccess.current;
-    accountCodeAccess.current = null;
-    if (codeAccess) {
-      accountCodeCleanup.current = codeAccess.dispose().catch(() => undefined);
-    }
-    const passwordAccess = passwordSignInAccess.current;
-    passwordSignInAccess.current = null;
-    if (passwordAccess) {
-      passwordSignInCleanup.current = passwordAccess.dispose().catch(() => undefined);
-    }
-    dismissAuthError();
-    signInAttemptGate.reset();
-    pendingRequest.current = null;
-    clearPendingSignIn();
-    dispatch({ type: 'close' });
-    setBusyAction(null);
-  }, [dismissAuthError, signInAttemptGate]);
+  const close = useCallback(
+    (completed = false) => {
+      const newsletterCompleted = completed && pendingRequest.current?.intent === 'newsletter';
+      requestedAccountScreenOpen.current = false;
+      operationGeneration.current += 1;
+      accountCodeStarting.current = null;
+      ordinarySignInStarting.current = null;
+      ordinaryCompletionRequested.current = false;
+      ordinaryCompletionFromRetry.current = false;
+      accountChoiceRunning.current = false;
+      const codeAccess = accountCodeAccess.current;
+      accountCodeAccess.current = null;
+      if (codeAccess) {
+        accountCodeCleanup.current = codeAccess.dispose().catch(() => undefined);
+      }
+      const passwordAccess = passwordSignInAccess.current;
+      passwordSignInAccess.current = null;
+      if (passwordAccess) {
+        passwordSignInCleanup.current = passwordAccess.dispose().catch(() => undefined);
+      }
+      dismissAuthError();
+      signInAttemptGate.reset();
+      pendingRequest.current = null;
+      clearPendingSignIn();
+      dispatch({ type: 'close' });
+      setBusyAction(null);
+      if (newsletterCompleted) markEmailSubscriptionIntentAuthReady();
+    },
+    [dismissAuthError, signInAttemptGate],
+  );
 
   const ensurePendingReference = useCallback(async (completion: 'ordinary' | 'email-link') => {
     const existing = pendingRequest.current;
@@ -646,7 +655,7 @@ export function SignInMachinery({
         }
         if (!alreadyOpen.ok) return alreadyOpen;
         if (alreadyOpen.data) {
-          close();
+          close(true);
           return {
             ok: true as const,
             data: {
@@ -718,7 +727,7 @@ export function SignInMachinery({
         !finalResult.data.requiresAccountChoice &&
         finalResult.data.passwordStatus !== 'unknown'
       ) {
-        close();
+        close(true);
       }
       return presented;
     },
@@ -812,7 +821,7 @@ export function SignInMachinery({
     await controller.keepCurrentAccount();
     if (!isCurrentAccountCodeOperation(generation, controller)) return;
     accountCodeAccess.current = null;
-    close();
+    close(true);
   }, [close, isCurrentAccountCodeOperation]);
 
   const onSwitchAccount = useCallback(async (): Promise<SignInDialogActionResult> => {
@@ -849,7 +858,7 @@ export function SignInMachinery({
     }
     if (result.ok) {
       accountCodeAccess.current = null;
-      close();
+      close(true);
       return { ok: true };
     }
     accountChoiceRunning.current = false;
@@ -923,6 +932,7 @@ export function SignInMachinery({
       clearPendingSignIn();
       const stopRestoringScroll = restoreScrollPosition(request?.scrollY);
       dispatch({ type: 'close' });
+      if (request?.intent === 'newsletter') markEmailSubscriptionIntentAuthReady();
       return stopRestoringScroll;
     };
     if (request?.pendingCompletion === 'email-link') {
@@ -1078,7 +1088,10 @@ export function SignInMachinery({
         state.pendingCompletion === 'ordinary' &&
         Boolean(state.pendingReference)
       }
-      onClose={close}
+      onClose={() => {
+        if (pendingRequest.current?.intent === 'newsletter') clearEmailSubscriptionIntent();
+        close();
+      }}
       onGoogle={onContinue}
       onPasswordSignIn={onPasswordSignIn}
       onRequestAccountCode={onRequestAccountCode}

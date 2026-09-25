@@ -35,6 +35,11 @@ vi.mock('../../../hooks/useResponsive', () => ({
     isDesktop: viewport.width >= 1100,
   }),
 }));
+vi.mock('../../../hooks/useReducedMotion', () => ({ useReducedMotion: () => false }));
+vi.mock('../../../components/email/UnconcealedInvite', async () => {
+  const { Text } = await import('react-native');
+  return { UnconcealedInvite: () => <Text>Unconcealed invitation</Text> };
+});
 vi.mock('../../../theme/primitives', async () => {
   const { View } = await import('react-native');
   return {
@@ -344,6 +349,8 @@ describe('the money landing makes the reporting periods and destinations explici
     const sections = [
       '1,665 REGISTERED LOBBYISTS',
       'RESEARCH',
+      'Unconcealed invitation',
+      'Example research',
       'SOURCES AND COPY DATES',
       'LIMITS OF THE CAMPAIGN RECORDS',
       'RECENTLY FILED REPORTS',

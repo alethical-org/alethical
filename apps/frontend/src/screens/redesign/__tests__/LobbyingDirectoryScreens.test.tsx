@@ -41,6 +41,7 @@ vi.mock('../../../hooks/useResponsive', () => ({
     isDesktop: state.width >= 1100,
   }),
 }));
+vi.mock('../../../hooks/useReducedMotion', () => ({ useReducedMotion: () => false }));
 vi.mock('../../../navigation/documentTitle', () => ({ useDocumentTitle: vi.fn() }));
 vi.mock('../../../theme/primitives', async () => {
   const { View } = await import('react-native');

@@ -22,7 +22,8 @@ export function pendingSignInRequest(raw: string | null): SignInRequest | null {
   if (!raw) return null;
   try {
     const value = JSON.parse(raw) as Partial<SignInRequest>;
-    if (value.intent !== 'nav' && value.intent !== 'track') return null;
+    if (value.intent !== 'nav' && value.intent !== 'track' && value.intent !== 'newsletter')
+      return null;
     if (
       value.returnTo &&
       (!value.returnTo.startsWith('/') ||
@@ -32,6 +33,7 @@ export function pendingSignInRequest(raw: string | null): SignInRequest | null {
       return null;
     }
     if (value.intent === 'track' && !value.billId) return null;
+    if (value.intent === 'newsletter' && value.returnTo !== '/money') return null;
     if (value.scrollY !== undefined && (!Number.isFinite(value.scrollY) || value.scrollY < 0)) {
       return null;
     }

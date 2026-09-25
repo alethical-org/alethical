@@ -40,8 +40,8 @@ function openedOn(intent: SignInIntent, billCode?: string) {
 }
 
 describe('intent → copy', () => {
-  it('has exactly the two reasons sign-in can open', () => {
-    expect(ALL_INTENTS.sort()).toEqual(['nav', 'track']);
+  it('has the navigation, tracked-bill, and research-email entry points', () => {
+    expect(ALL_INTENTS.sort()).toEqual(['nav', 'newsletter', 'track']);
   });
 
   it('uses the Alethical mark for plain sign-in and a bell for Track', () => {
@@ -61,6 +61,12 @@ describe('intent → copy', () => {
 
   it('uses the same Track-intent copy when only the id is known', () => {
     expect(signInCopy('track').subcopy).toBe(signInCopy('track', 'HF 4138').subcopy);
+  });
+
+  it('explains the requested research emails only on the newsletter path', () => {
+    expect(signInCopy('newsletter').subcopy).toBe(
+      'Sign in or create an account to get Unconcealed by email',
+    );
   });
 
   it('gives every intent a headline and a subcopy', () => {
@@ -112,9 +118,9 @@ describe('no sign-in copy promises a notification', () => {
     }
   });
 
-  it('says nothing about email or alerts in any intent or button label', () => {
+  it('keeps generic sign-in and Track free of email promises', () => {
     const strings = [
-      ...ALL_INTENTS.flatMap((intent) => {
+      ...(['nav', 'track'] as const).flatMap((intent) => {
         const { headline, subcopy } = signInCopy(intent, 'HF 4138');
         return [headline, subcopy];
       }),

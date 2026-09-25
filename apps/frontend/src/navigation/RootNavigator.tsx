@@ -72,6 +72,8 @@ const LobbyingLobbyistsScreen = loadOnDemand(screenChunks.LobbyingLobbyists);
 const LobbyingPrincipalScreen = loadOnDemand(screenChunks.LobbyingPrincipal);
 const LobbyingLobbyistScreen = loadOnDemand(screenChunks.LobbyingLobbyist);
 const MoneyLandingScreen = loadOnDemand(screenChunks.MoneyLanding);
+const EmailPreferencesScreen = loadOnDemand(screenChunks.EmailPreferences);
+const UnsubscribeScreen = loadOnDemand(screenChunks.Unsubscribe);
 const OutsideSpendingScreen = loadOnDemand(screenChunks.OutsideSpending);
 const MoneyByRaceScreen = loadOnDemand(screenChunks.MoneyByRace);
 const ResearchScreen = loadOnDemand(screenChunks.Research);
@@ -728,6 +730,16 @@ export function RootNavigator() {
               name="MoneyLanding"
               component={MoneyLandingScreen}
               options={{ headerShown: false, title: MONEY_SECTION_NAME }}
+            />
+            <Stack.Screen
+              name="EmailPreferences"
+              component={EmailPreferencesScreen}
+              options={{ headerShown: false, title: 'Email preferences' }}
+            />
+            <Stack.Screen
+              name="Unsubscribe"
+              component={UnsubscribeScreen}
+              options={{ headerShown: false, title: 'Unsubscribe' }}
             />
             <Stack.Screen
               name="Read"

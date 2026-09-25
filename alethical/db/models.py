@@ -1021,6 +1021,75 @@ class UserAccount(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     chat_sessions: Mapped[list["ChatSession"]] = relationship(back_populates="user")
 
 
+class EmailSubscription(Base):
+    """Optional emails, independent of sign-in and tracked-bill notifications."""
+
+    __tablename__ = "email_subscription"
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), primary_key=True
+    )
+    research: Mapped[Optional[bool]] = mapped_column(Boolean)
+    features: Mapped[Optional[bool]] = mapped_column(Boolean)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    research_changed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+    features_changed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+    research_source: Mapped[Optional[str]] = mapped_column(String(24))
+    features_source: Mapped[Optional[str]] = mapped_column(String(24))
+
+
+class EmailPreferenceMutation(Base):
+    __tablename__ = "email_preference_mutation"
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), primary_key=True
+    )
+    request_key: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class EmailSubscriptionIntent(Base):
+    __tablename__ = "email_subscription_intent"
+    reference_digest: Mapped[str] = mapped_column(String(64), primary_key=True)
+    browser_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    completed_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE")
+    )
+
+
+class EmailUnsubscribeToken(Base):
+    __tablename__ = "email_unsubscribe_token"
+    token_digest: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class UnconcealedDelivery(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "unconcealed_delivery"
+    campaign_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), nullable=False
+    )
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    state: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    provider_id: Mapped[Optional[str]] = mapped_column(String(200))
+    attempted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (UniqueConstraint("campaign_key", "user_id"),)
+
+
 class AuthIdentity(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "auth_identity"
 

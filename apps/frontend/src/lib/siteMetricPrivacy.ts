@@ -4,7 +4,12 @@ export function isPrivateMetricUrl(value: string): boolean {
     const path = decodeURIComponent(new URL(value, 'https://metrics.invalid').pathname)
       .replace(/\/+/g, '/')
       .toLowerCase();
-    return path === '/admin' || path.startsWith('/admin/');
+    return (
+      path === '/admin' ||
+      path.startsWith('/admin/') ||
+      path === '/email-preferences' ||
+      path === '/unsubscribe'
+    );
   } catch {
     // A malformed URL cannot be safely classified for collection.
     return true;
