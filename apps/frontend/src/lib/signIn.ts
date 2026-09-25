@@ -6,13 +6,13 @@ import { REV9_AUTH_MESSAGES } from './auth/rev9Auth';
 // different things.
 //
 // Honesty rules this file carries (.claude/rules/grounded-answers.md):
-//  - rule 6: no copy may promise an email or a push alert. Sending is not built
-//    (#36) — the server records that an alert is due and sends nothing. The track
-//    payoff we state is the saved list, which is real.
+//  - rule 6: Track copy does not promise an email or a push alert. The Track
+//    payoff we state is the saved list. The separate Unconcealed path offers
+//    research email after an explicit subscription choice.
 //  - rule 2: bill tracking is the only gated product action. Public vote records
 //    stay public, so there is no votes sign-in intent.
 
-export type SignInIntent = 'nav' | 'track';
+export type SignInIntent = 'nav' | 'track' | 'newsletter';
 
 /** Where the dialog is in its one flow: waiting, redirecting, or explaining a failure. */
 export type SignInStatus = 'idle' | 'connecting' | 'error';
@@ -45,8 +45,8 @@ interface IntentConfig {
   subcopy: (billCode?: string) => string;
 }
 
-// The generic copy is shared by every plain Sign in button. Only a Track action
-// gets a different reason and glyph (docs/product-onboarding/sign-in-guide.md).
+// Generic sign-in keeps its saved-list reason. Track and Unconcealed use their
+// own reason only when opened from those actions.
 const GENERIC_HEADLINE = 'Sign in to Alethical';
 const GENERIC_SUBCOPY = 'Bills you track are saved to your account';
 
@@ -60,6 +60,11 @@ export const SIGN_IN_INTENTS: Record<SignInIntent, IntentConfig> = {
     icon: 'bell',
     headline: GENERIC_HEADLINE,
     subcopy: () => 'This bill goes to your tracked list',
+  },
+  newsletter: {
+    icon: 'brand',
+    headline: GENERIC_HEADLINE,
+    subcopy: () => 'Sign in or create an account to get Unconcealed by email',
   },
 };
 

@@ -81,7 +81,7 @@ export type AccountCodePasswordActionResult =
 
 export interface SignInDialogProps {
   open: boolean;
-  intent: 'nav' | 'track';
+  intent: 'nav' | 'track' | 'newsletter';
   billCode?: string;
   initialScreen?: SignInDialogScreen;
   initialEmail?: string;
@@ -230,12 +230,18 @@ function TextAction({
   inline?: boolean;
 }) {
   const [focused, setFocused] = useState(false);
+  const [hovered, setHovered] = useState(false);
   return (
     <Pressable
       accessibilityRole="button"
       disabled={disabled}
       onBlur={() => setFocused(false)}
       onFocus={() => setFocused(true)}
+      onHoverIn={() => {
+        if (isWeb && window.matchMedia?.('(hover: hover) and (pointer: fine)').matches)
+          setHovered(true);
+      }}
+      onHoverOut={() => setHovered(false)}
       onPress={onPress}
       style={({ pressed }) => [
         styles.textAction,
@@ -245,13 +251,16 @@ function TextAction({
         disabled && styles.textActionDisabled,
       ]}
     >
-      <Text style={styles.textActionText}>{label}</Text>
+      <Text style={[styles.textActionText, hovered && !disabled && styles.textActionHoverText]}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
 function EmailChoiceButton({ disabled, onPress }: { disabled: boolean; onPress: () => void }) {
   const [focused, setFocused] = useState(false);
+  const [hovered, setHovered] = useState(false);
   return (
     <Pressable
       accessibilityRole="button"
@@ -259,9 +268,15 @@ function EmailChoiceButton({ disabled, onPress }: { disabled: boolean; onPress: 
       disabled={disabled}
       onBlur={() => setFocused(false)}
       onFocus={() => setFocused(true)}
+      onHoverIn={() => {
+        if (isWeb && window.matchMedia?.('(hover: hover) and (pointer: fine)').matches)
+          setHovered(true);
+      }}
+      onHoverOut={() => setHovered(false)}
       onPress={onPress}
       style={({ pressed }) => [
         styles.emailChoice,
+        hovered && !disabled && styles.emailChoiceHover,
         focused && focusRingWeb,
         pressed && styles.emailChoicePressed,
         disabled && styles.emailChoiceDisabled,
@@ -748,11 +763,13 @@ export function SignInDialog({
     title =
       intent === 'track' ? 'Create an account to track this bill' : 'Create your Alethical account';
     description =
-      intent === 'track'
-        ? accountOrigin === 'direct'
-          ? signInIntent.subcopy
-          : trackDescription
-        : 'Bills you track are saved to your account';
+      intent === 'newsletter'
+        ? 'Create your free account, then subscribe to Unconcealed'
+        : intent === 'track'
+          ? accountOrigin === 'direct'
+            ? signInIntent.subcopy
+            : trackDescription
+          : 'Bills you track are saved to your account';
   } else if (screen === 'recover') {
     title = 'Recover your account';
     description =
@@ -1288,8 +1305,11 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 18,
     borderRadius: 12,
-    backgroundColor: t.colors.surfaces.s300,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.18)',
   },
+  emailChoiceHover: { backgroundColor: '#f7f8fa', borderColor: 'rgba(17,21,15,0.3)' },
   emailChoicePressed: { backgroundColor: t.colors.surfaces.s400 },
   emailChoiceDisabled: { opacity: 0.5 },
   emailChoiceText: {
@@ -1364,8 +1384,9 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     lineHeight: 20,
     fontWeight: t.fontWeights.semibold,
-    color: t.colors.text.primary,
+    color: t.colors.text.green,
   },
+  textActionHoverText: { color: '#11832b', textDecorationLine: 'underline' },
   switchRow: {
     minHeight: 44,
     marginTop: 8,

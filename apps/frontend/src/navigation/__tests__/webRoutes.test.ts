@@ -72,6 +72,17 @@ describe('private admin addresses', () => {
   });
 });
 
+describe('email choice addresses', () => {
+  it('opens saved preferences at a stable, private page address', () => {
+    expect(targetFromPathname('/email-preferences')).toEqual({ kind: 'emailPreferences' });
+    expect(pathForRoute({ name: 'EmailPreferences' })).toBe('/email-preferences');
+  });
+  it('opens the public unsubscribe page without putting its token in route state', () => {
+    expect(targetFromPathname('/unsubscribe')).toEqual({ kind: 'unsubscribe' });
+    expect(pathForRoute({ name: 'Unsubscribe' })).toBe('/unsubscribe');
+  });
+});
+
 describe('the shared address reader stays safe for the server build', () => {
   it('does not import the browser navigation package', () => {
     expect(routeSource).not.toMatch(/from ['"]@react-navigation\//);

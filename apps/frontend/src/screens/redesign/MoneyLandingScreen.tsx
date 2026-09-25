@@ -8,7 +8,9 @@ import { LinkArrow, LinkArrowLabel, linkArrowRow } from '../../components/LinkAr
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
 import { useLobbyingSummary } from '../../hooks/useLobbying';
 import { MONEY_LANE_LOBBYING, moneyLandingLobbyistCount } from '../../lib/lobbyingDirectoryCopy';
+import { loadOnDemand } from '../../lib/loadOnDemand';
 import { useResponsive } from '../../hooks/useResponsive';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import {
   useCampaignFinanceFilings,
   useCampaignFinanceSummary,
@@ -52,6 +54,12 @@ import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
 
+const UnconcealedInvite = loadOnDemand(() =>
+  import('../../components/email/UnconcealedInvite').then((piece) => ({
+    default: piece.UnconcealedInvite,
+  })),
+);
+
 /**
  * The campaign money landing at /money — public, no sign-in gate ("Campaign
  * money IA.dc.html" §01, plus Eugene's 18 Aug 2026 decision that every lane card
@@ -80,6 +88,14 @@ const laneCardShadow = Platform.select({
   },
 }) as object;
 
+function hasHoverPointer() {
+  return (
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(hover: hover) and (pointer: fine)').matches
+  );
+}
+
 function LaneCard({
   title,
   body,
@@ -105,15 +121,23 @@ function LaneCard({
   wide: boolean;
   cardWidth: number;
 }) {
+  const [hovered, setHovered] = useState(false);
+  const reduceMotion = useReducedMotion();
   return (
     <Pressable
       {...linkProps(href, onOpen)}
+      onHoverIn={() => {
+        if (hasHoverPointer()) setHovered(true);
+      }}
+      onHoverOut={() => setHovered(false)}
       style={[
         styles.laneCard,
         laneCardShadow,
         { width: cardWidth },
         tablet && styles.laneCardTablet,
         stacked && styles.laneCardMobile,
+        hovered && hasHoverPointer() && styles.laneCardHover,
+        hovered && hasHoverPointer() && !reduceMotion && styles.laneCardLift,
       ]}
     >
       <View
@@ -148,6 +172,7 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
   const cardWidth = (width - 2 * gutter - gap * (columns - 1)) / columns;
   const laneLayout = { stacked: isMobile, tablet: isTablet, wide, cardWidth };
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [researchHovered, setResearchHovered] = useState(false);
   const [sourceControlFocused, setSourceControlFocused] = useState(false);
   const sourceGroupsId = useId();
   useFocusEffect(
@@ -318,12 +343,27 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
             <Text accessibilityRole="header" aria-level={2} style={styles.infoLabel}>
               {RESEARCH_ROW_LABEL}
             </Text>
+            <View style={[styles.invitation, isMobile && styles.invitationMobile]}>
+              <UnconcealedInvite
+                isMobile={isMobile}
+                isTablet={isTablet}
+                onPreferences={() => navigation.navigate('EmailPreferences')}
+              />
+            </View>
             {newestPiece ? (
               <Pressable
                 {...linkProps(routePath.research(newestPiece.slug), () =>
                   navigation.navigate('Research', { slug: newestPiece.slug }),
                 )}
-                style={[styles.researchRow, isMobile && styles.researchRowMobile]}
+                onHoverIn={() => {
+                  if (hasHoverPointer()) setResearchHovered(true);
+                }}
+                onHoverOut={() => setResearchHovered(false)}
+                style={[
+                  styles.researchRow,
+                  isMobile && styles.researchRowMobile,
+                  researchHovered && hasHoverPointer() && styles.researchRowHover,
+                ]}
               >
                 <View style={[styles.researchText, isMobile && styles.stackedCard]}>
                   <Text style={[styles.researchTitle, isMobile && styles.researchTitleMobile]}>
@@ -627,6 +667,14 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     paddingHorizontal: 22,
   },
+  laneCardHover: {
+    borderColor: 'rgba(45,212,126,0.85)',
+    ...(Platform.OS === 'web' ? { boxShadow: '0 22px 46px rgba(17,21,15,0.14)' } : null),
+  },
+  laneCardLift:
+    Platform.OS === 'web'
+      ? ({ transform: [{ translateY: -3 }], transitionDuration: '0.16s' } as object)
+      : {},
   laneCardTablet: { paddingVertical: 22, paddingHorizontal: 20 },
   laneCardMobile: { padding: 18, paddingHorizontal: 18, paddingVertical: 18, borderRadius: 16 },
   laneTitleTablet: { fontSize: 21, lineHeight: 26 },
@@ -797,8 +845,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(17,21,15,0.12)',
   },
+  invitation: { marginTop: 14, marginBottom: 28 },
+  invitationMobile: { marginBottom: 24 },
   researchRow: {
-    marginTop: 14,
+    marginTop: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -808,6 +858,10 @@ const styles = StyleSheet.create({
     borderColor: '#bfe3ce',
     borderRadius: 18,
     backgroundColor: '#eaf6ef',
+  },
+  researchRowHover: {
+    borderColor: '#8fd3ae',
+    ...(Platform.OS === 'web' ? { boxShadow: '0 16px 36px rgba(15,122,69,0.16)' } : null),
   },
   researchRowMobile: {
     flexDirection: 'column',

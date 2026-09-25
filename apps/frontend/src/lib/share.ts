@@ -446,6 +446,20 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
     description: READ_PAGE_INTRO,
     canonicalPath: '/read',
   }),
+  '/email-preferences': pageMetadata({
+    title: titleFor('Email preferences'),
+    socialTitle: 'Email preferences',
+    description: 'Choose which research and feature emails reach your account address.',
+    canonicalPath: '/email-preferences',
+    noindex: true,
+  }),
+  '/unsubscribe': pageMetadata({
+    title: titleFor('Unsubscribe'),
+    socialTitle: 'Unsubscribe',
+    description: 'Choose which research and feature emails to stop.',
+    canonicalPath: '/unsubscribe',
+    noindex: true,
+  }),
   '/confirm': pageMetadata({
     title: titleFor('Confirm email'),
     socialTitle: 'Confirm email',

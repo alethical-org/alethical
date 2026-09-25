@@ -1007,7 +1007,7 @@ export function GoogleButton({
         styles.googleBtn,
         size === 'lg' && styles.googleBtnLg,
         size === 'compact' && styles.googleBtnCompact,
-        hovered && !unavailable && { borderColor: t.colors.borders.strong },
+        hovered && pointerCanHover() && !unavailable && styles.googleBtnHover,
         unavailable && styles.googleBtnBusy,
       ]}
     >
@@ -1435,6 +1435,7 @@ const styles = StyleSheet.create({
   },
   googleBtnLg: { paddingVertical: 17, minHeight: 56 },
   googleBtnCompact: { minHeight: 54, paddingVertical: 14 },
+  googleBtnHover: { backgroundColor: '#f7f8fa', borderColor: 'rgba(17,21,15,0.3)' },
   googleBtnBusy: { opacity: 0.75, borderColor: t.colors.alpha.ink14 },
   googleBtnText: {
     fontFamily: t.typography.ui,

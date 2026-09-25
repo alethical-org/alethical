@@ -51,6 +51,8 @@ export const routePath = {
     pathForRoute({ name: 'VoteDetail', params: { billId, voteEventId } }),
   findMyLegislator: () => pathForRoute({ name: 'FindMyLegislator' }),
   money: () => pathForRoute({ name: 'MoneyLanding' }),
+  emailPreferences: () => pathForRoute({ name: 'EmailPreferences' }),
+  unsubscribe: () => pathForRoute({ name: 'Unsubscribe' }),
   lobbying: (params?: RootStackParamList['LobbyingLanding']) =>
     pathForRoute({ name: 'LobbyingLanding', params }),
   lobbyingPrincipals: (params?: RootStackParamList['LobbyingPrincipals']) =>

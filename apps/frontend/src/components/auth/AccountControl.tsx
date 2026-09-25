@@ -46,6 +46,18 @@ const isWeb = Platform.OS === 'web';
 const emailPasswordEnabled = process.env.EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED === 'true';
 const SIGN_OUT_FAILURE = 'We couldn’t sign you out. Check your connection and try again.';
 
+function useFineHover() {
+  const [hovered, setHovered] = useState(false);
+  return {
+    hovered,
+    onHoverIn: () => {
+      if (isWeb && window.matchMedia?.('(hover: hover) and (pointer: fine)').matches)
+        setHovered(true);
+    },
+    onHoverOut: () => setHovered(false),
+  };
+}
+
 function displayName(name: string | undefined, email: string | undefined) {
   const trimmed = (name ?? '').trim();
   if (trimmed) return trimmed;
@@ -524,6 +536,7 @@ function TrackedRow({
   const navigation = useNavigation<never>();
   const count = useTrackedCount();
   const phone = variant === 'phone';
+  const hover = useFineHover();
   const press = () => {
     onNavigate();
     // Tracked is a tab nested inside the root Tabs screen, so it goes through the
@@ -537,9 +550,12 @@ function TrackedRow({
       // 12". With no number the visible text is the name -- an aria-label
       // REPLACES that text, so setting one here would be strictly worse.
       accessibilityLabel={count === null ? undefined : `Tracked, ${count}`}
+      onHoverIn={hover.onHoverIn}
+      onHoverOut={hover.onHoverOut}
       style={({ pressed }) => [
         phone ? styles.sheetTrackedRow : styles.menuTrackedRow,
         phone ? styles.sheetIconRow : styles.menuIconRow,
+        hover.hovered && styles.menuRowHover,
         pressed && (phone ? styles.sheetButtonPressed : styles.menuItemPressed),
       ]}
     >
@@ -575,6 +591,53 @@ function ChevronRightIcon() {
   );
 }
 
+function EmailPreferencesRow({
+  variant,
+  onNavigate,
+}: {
+  variant: 'desktop' | 'phone';
+  onNavigate: () => void;
+}) {
+  const navigation = useNavigation<any>();
+  const phone = variant === 'phone';
+  const hover = useFineHover();
+  return (
+    <Pressable
+      {...linkProps(routePath.emailPreferences(), () => {
+        onNavigate();
+        navigation.navigate('EmailPreferences');
+      })}
+      onHoverIn={hover.onHoverIn}
+      onHoverOut={hover.onHoverOut}
+      style={({ pressed }) => [
+        phone ? styles.sheetPasswordButton : styles.menuItem,
+        styles.menuPasswordRow,
+        hover.hovered && styles.menuRowHover,
+        pressed && (phone ? styles.sheetButtonPressed : styles.menuItemPressed),
+      ]}
+    >
+      <View style={phone ? styles.sheetIconBox : styles.menuIconBox}>
+        <Svg
+          width={phone ? 22 : 20}
+          height={phone ? 22 : 20}
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden
+        >
+          <Path
+            d="M3 6h18v12H3zM3.5 7l8.5 6 8.5-6"
+            stroke="#4f5651"
+            strokeWidth={2}
+            strokeLinejoin="round"
+          />
+        </Svg>
+      </View>
+      <Text style={phone ? styles.sheetButtonText : styles.menuItemText}>Email preferences</Text>
+      {phone ? <ChevronRightIcon /> : null}
+    </Pressable>
+  );
+}
+
 function AdminGroup({
   variant,
   onNavigate,
@@ -585,6 +648,8 @@ function AdminGroup({
   const navigation = useNavigation<any>();
   const access = useAdminAccess();
   const phone = variant === 'phone';
+  const usersHover = useFineHover();
+  const metricsHover = useFineHover();
   if (access.state !== 'allowed') return null;
   return (
     <View style={phone ? styles.sheetAdminGroup : styles.menuAdminGroup}>
@@ -596,10 +661,13 @@ function AdminGroup({
           onNavigate();
           navigation.navigate('AdminUsers');
         })}
+        onHoverIn={usersHover.onHoverIn}
+        onHoverOut={usersHover.onHoverOut}
         style={({ pressed }) => [
           phone ? styles.sheetTrackedRow : styles.menuTrackedRow,
           phone ? styles.sheetIconRow : styles.menuIconRow,
           styles.adminRow,
+          usersHover.hovered && styles.menuRowHover,
           pressed && (phone ? styles.sheetButtonPressed : styles.menuItemPressed),
         ]}
       >
@@ -612,10 +680,13 @@ function AdminGroup({
           onNavigate();
           navigation.navigate('AdminSiteMetrics');
         })}
+        onHoverIn={metricsHover.onHoverIn}
+        onHoverOut={metricsHover.onHoverOut}
         style={({ pressed }) => [
           phone ? styles.sheetTrackedRow : styles.menuTrackedRow,
           phone ? styles.sheetIconRow : styles.menuIconRow,
           styles.adminRow,
+          metricsHover.hovered && styles.menuRowHover,
           pressed && (phone ? styles.sheetButtonPressed : styles.menuItemPressed),
         ]}
       >
@@ -627,9 +698,17 @@ function AdminGroup({
   );
 }
 
-function Avatar({ label, size }: { label: string; size: number }) {
+function Avatar({
+  label,
+  size,
+  hovered = false,
+}: {
+  label: string;
+  size: number;
+  hovered?: boolean;
+}) {
   return (
-    <View style={[styles.avatar, { width: size, height: size }]}>
+    <View style={[styles.avatar, hovered && styles.avatarHovered, { width: size, height: size }]}>
       <Text style={[styles.avatarText, { fontSize: Math.round(size * 0.45) }]}>
         {initialOf(label)}
       </Text>
@@ -687,6 +766,7 @@ function useAccountSignOut(onSuccess?: () => void) {
 
 function DesktopSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }) {
   const reduceMotion = useReducedMotion();
+  const hover = useFineHover();
   return (
     <>
       {flow.state === 'failed' ? (
@@ -699,8 +779,15 @@ function DesktopSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }
         accessibilityState={{ busy: flow.state === 'busy', disabled: flow.state === 'busy' }}
         aria-busy={flow.state === 'busy' || undefined}
         aria-disabled={flow.state === 'busy' || undefined}
+        onHoverIn={hover.onHoverIn}
+        onHoverOut={hover.onHoverOut}
         onPress={() => void flow.press()}
-        style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+        style={({ pressed }) => [
+          styles.menuItem,
+          styles.menuSignOutOutline,
+          hover.hovered && flow.state !== 'busy' && styles.menuOutlineHover,
+          pressed && styles.menuItemPressed,
+        ]}
       >
         <View style={styles.menuIconBox}>
           {flow.state === 'busy' && !reduceMotion ? (
@@ -719,6 +806,7 @@ function DesktopSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }
 
 function PhoneSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }) {
   const reduceMotion = useReducedMotion();
+  const hover = useFineHover();
   const showSpinner = flow.state === 'busy' && !reduceMotion;
   return (
     <>
@@ -732,9 +820,12 @@ function PhoneSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }) 
         accessibilityState={{ busy: flow.state === 'busy', disabled: flow.state === 'busy' }}
         aria-busy={flow.state === 'busy' || undefined}
         aria-disabled={flow.state === 'busy' || undefined}
+        onHoverIn={hover.onHoverIn}
+        onHoverOut={hover.onHoverOut}
         onPress={() => void flow.press()}
         style={({ pressed }) => [
           styles.sheetButton,
+          hover.hovered && flow.state !== 'busy' && styles.menuOutlineHover,
           showSpinner && styles.sheetButtonBusy,
           pressed && styles.sheetButtonPressed,
         ]}
@@ -773,6 +864,7 @@ function AccountSurfaceContent({
   onLeave: () => void;
 }) {
   const passwordCopy = passwordMethodCopy(signInMethods, email || 'your email');
+  const passwordHover = useFineHover();
 
   if (variant === 'desktop') {
     return (
@@ -787,10 +879,13 @@ function AccountSurfaceContent({
         {emailPasswordEnabled ? (
           <Pressable
             accessibilityRole="button"
+            onHoverIn={passwordHover.onHoverIn}
+            onHoverOut={passwordHover.onHoverOut}
             onPress={onPasswordPress}
             style={({ pressed }) => [
               styles.menuItem,
               styles.menuPasswordRow,
+              passwordHover.hovered && styles.menuRowHover,
               pressed && styles.menuItemPressed,
             ]}
           >
@@ -800,6 +895,7 @@ function AccountSurfaceContent({
             <Text style={styles.menuItemText}>{passwordCopy.rowLabel}</Text>
           </Pressable>
         ) : null}
+        <EmailPreferencesRow variant="desktop" onNavigate={onLeave} />
         <AdminGroup variant="desktop" onNavigate={onLeave} />
         <View style={styles.menuDivider} />
         <DesktopSignOut flow={signOutFlow} />
@@ -815,9 +911,12 @@ function AccountSurfaceContent({
         {emailPasswordEnabled ? (
           <Pressable
             accessibilityRole="button"
+            onHoverIn={passwordHover.onHoverIn}
+            onHoverOut={passwordHover.onHoverOut}
             onPress={onPasswordPress}
             style={({ pressed }) => [
               styles.sheetPasswordButton,
+              passwordHover.hovered && styles.menuRowHover,
               pressed && styles.sheetButtonPressed,
             ]}
           >
@@ -830,6 +929,7 @@ function AccountSurfaceContent({
             <ChevronRightIcon />
           </Pressable>
         ) : null}
+        <EmailPreferencesRow variant="phone" onNavigate={onLeave} />
         <AdminGroup variant="phone" onNavigate={onLeave} />
       </View>
       <PhoneSignOut flow={signOutFlow} />
@@ -844,6 +944,7 @@ export function AccountNavButton() {
   const [passwordOpen, setPasswordOpen] = useState(false);
   const wrapRef = useRef<View>(null);
   const signOutFlow = useAccountSignOut();
+  const avatarHover = useFineHover();
 
   // Any click outside the button + panel closes the menu, matching how the nav's
   // own dropdowns behave (a full-screen overlay would swallow the panel's rows).
@@ -877,10 +978,12 @@ export function AccountNavButton() {
           accessibilityRole="button"
           accessibilityLabel={`Account panel for ${name}`}
           aria-expanded={open}
+          onHoverIn={avatarHover.onHoverIn}
+          onHoverOut={avatarHover.onHoverOut}
           onPress={() => setOpen((value) => !value)}
           style={({ pressed }) => [styles.navPill, pressed && styles.navPillPressed]}
         >
-          <Avatar label={name} size={30} />
+          <Avatar label={name} size={30} hovered={avatarHover.hovered} />
           <Text numberOfLines={1} style={styles.navPillName}>
             {firstName}
           </Text>
@@ -927,6 +1030,7 @@ function PhoneAccountControl({ trigger }: { trigger: 'avatar' | 'drawer' }) {
   const avatarRef = useRef<View>(null);
   const name = displayName(user?.name, user?.email);
   const signOutFlow = useAccountSignOut();
+  const avatarHover = useFineHover();
 
   // The sheet always closes three ways — the Close button, the scrim, Escape —
   // and focus returns to the control that opened it (rev 15/17, #1533).
@@ -957,6 +1061,8 @@ function PhoneAccountControl({ trigger }: { trigger: 'avatar' | 'drawer' }) {
         accessibilityLabel={trigger === 'avatar' ? 'Account menu' : `Account for ${name}`}
         aria-haspopup="dialog"
         aria-expanded={open}
+        onHoverIn={avatarHover.onHoverIn}
+        onHoverOut={avatarHover.onHoverOut}
         onPress={() => setOpen(true)}
         style={({ pressed }) => [
           trigger === 'avatar' ? styles.avatarButton : styles.drawerAccountButton,
@@ -964,7 +1070,7 @@ function PhoneAccountControl({ trigger }: { trigger: 'avatar' | 'drawer' }) {
         ]}
       >
         {trigger === 'avatar' ? (
-          <Avatar label={name} size={34} />
+          <Avatar label={name} size={34} hovered={avatarHover.hovered} />
         ) : (
           <Identity name={name} email={user?.email ?? ''} avatar={44} />
         )}
@@ -1063,6 +1169,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarHovered: { backgroundColor: '#d6f3e3', borderColor: '#8fd3ae' },
   avatarText: {
     fontFamily: t.typography.ui,
     fontWeight: t.fontWeights.bold,
@@ -1129,6 +1236,20 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
   },
   menuItemPressed: { backgroundColor: t.colors.surfaces.s300 },
+  menuSignOutOutline: {
+    justifyContent: 'center',
+    marginHorizontal: 10,
+    marginTop: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.18)',
+    borderRadius: 12,
+  },
+  menuRowHover: { backgroundColor: '#f5f6f7', borderRadius: 11 },
+  menuOutlineHover: {
+    backgroundColor: '#f7f8fa',
+    borderColor: 'rgba(17,21,15,0.3)',
+  },
   // Empty icon boxes reserve the same label column for the administrator links.
   menuIconRow: { gap: 12 },
   sheetIconRow: { gap: 13 },
@@ -1193,7 +1314,7 @@ const styles = StyleSheet.create({
   },
   menuAdminGroup: { borderTopWidth: 1, borderColor: t.colors.alpha.ink08 },
   sheetAdminGroup: { borderTopWidth: 1, borderColor: t.colors.alpha.ink10 },
-  adminLabel: { fontFamily: t.typography.ui, color: '#787f79' },
+  adminLabel: { fontFamily: t.typography.ui, color: '#5f6763' },
   menuAdminLabel: {
     fontSize: 12.5,
     paddingTop: 8,

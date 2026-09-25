@@ -1585,6 +1585,10 @@ async function contentFor(
       };
     case "moneyLanding":
       return moneyLandingContent();
+    case "emailPreferences":
+      return headOnly(STATIC_PAGE_METADATA["/email-preferences"]);
+    case "unsubscribe":
+      return headOnly(STATIC_PAGE_METADATA["/unsubscribe"]);
     case "lobbyingLanding":
       return lobbyingLandingContent();
     case "lobbyingPrincipals":
@@ -1799,6 +1803,8 @@ export default async function handler(
   const isEmailLinkPage =
     requestedPath === "/confirm" || requestedPath === "/reset";
   const isForgotPasswordBridge = requestedPath === "/forgot-password";
+  const isPrivateEmailPage =
+    requestedPath === "/email-preferences" || requestedPath === "/unsubscribe";
   const isAdminPage = ["adminUsers", "adminSiteMetrics"].includes(
     targetFromPathname(requestedPath).kind,
   );
@@ -1820,6 +1826,7 @@ export default async function handler(
       // A brief outage must never tell a search engine our pages are gone.
       response.setHeader("Content-Type", "text/plain; charset=utf-8");
       response.setHeader("Cache-Control", "no-store");
+      if (isPrivateEmailPage) response.setHeader("Referrer-Policy", "no-referrer");
       response.setHeader("Retry-After", "120");
       response.status(503).send("This page is temporarily unavailable.");
       return;
@@ -1838,7 +1845,7 @@ export default async function handler(
   let html: string;
   try {
     html = injectPageHead(await pageShell(), content.metadata);
-    if (isAdminPage) {
+    if (isAdminPage || isPrivateEmailPage) {
       html = html.replace(
         /<script\b[^>]*src=["']https:\/\/static\.cloudflareinsights\.com\/beacon\.min\.js["'][^>]*>[\s\S]*?<\/script>/gi,
         "",
@@ -1852,6 +1859,7 @@ export default async function handler(
   } catch {
     response.setHeader("Content-Type", "text/plain; charset=utf-8");
     response.setHeader("Cache-Control", "no-store");
+    if (isPrivateEmailPage) response.setHeader("Referrer-Policy", "no-referrer");
     response.setHeader("Retry-After", "120");
     response.status(503).send("This page is temporarily unavailable.");
     return;
@@ -1881,10 +1889,10 @@ export default async function handler(
   }
 
   response.setHeader("Content-Type", "text/html; charset=utf-8");
-  if (isEmailLinkPage || isForgotPasswordBridge || isAdminPage) {
+  if (isEmailLinkPage || isForgotPasswordBridge || isAdminPage || isPrivateEmailPage) {
     response.setHeader(
       "Cache-Control",
-      isAdminPage ? "private, no-store" : "no-store",
+      isAdminPage || isPrivateEmailPage ? "private, no-store" : "no-store",
     );
     response.setHeader("Referrer-Policy", "no-referrer");
     response.setHeader("X-Robots-Tag", "noindex, nofollow");

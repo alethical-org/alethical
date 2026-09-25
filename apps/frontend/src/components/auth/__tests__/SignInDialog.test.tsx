@@ -126,7 +126,10 @@ describe('rev 9 sign-in dialog', () => {
     expect(html).toContain('Sign in with email');
     expect(html).toContain('Forgot password?');
     expect(html).toContain('Create an account');
-    expect(SOURCE).toMatch(/textActionText: \{[^}]*color: t\.colors\.text\.primary,/);
+    expect(SOURCE).toMatch(/textActionText: \{[^}]*color: t\.colors\.text\.green,/);
+    expect(SOURCE).toContain(
+      "textActionHoverText: { color: '#11832b', textDecorationLine: 'underline' }",
+    );
     expect(html).toContain('Terms of Use');
     expect(html).toContain('Privacy Policy');
     expect(html).toContain('data-content-gap="18"');
