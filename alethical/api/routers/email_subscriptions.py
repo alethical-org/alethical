@@ -9,6 +9,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from alethical.api.auth import get_current_user
 from alethical.api.rate_limit import rate_limit, trusted_client_ip
@@ -172,5 +173,7 @@ async def one_click(token: str, request: Request, db: Session = Depends(get_db))
         valid = False
     if len(token) < 32 or len(token) > 128 or not valid:
         raise HTTPException(400, "Invalid unsubscribe request")
-    service.unsubscribe(db, token, "research")
+    # The account lock can wait for an in-flight delivery. Keep that database
+    # wait off the event loop so other readers' API requests can still run.
+    await run_in_threadpool(service.unsubscribe, db, token, "research")
     return {"data": {"unsubscribed": True, "action": "research"}}

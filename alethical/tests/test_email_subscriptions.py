@@ -1,6 +1,7 @@
 """Consent, account isolation, retries and conflicting requests against PostgreSQL."""
 
 from concurrent.futures import ThreadPoolExecutor
+import asyncio
 from datetime import datetime, timedelta, timezone
 import logging
 import uuid
@@ -25,6 +26,25 @@ HEADERS = {"Authorization": "Bearer test-supabase-token"}
 OTHER = {"Authorization": "Bearer test-supabase-token-grace"}
 PREFS = "/api/v1/me/email-preferences"
 PUBLIC = "/api/v1/email-subscriptions"
+
+
+def test_one_click_database_wait_does_not_occupy_the_event_loop(client, monkeypatch):
+    called = []
+
+    def waiting_database_write(db, token, action):
+        # A synchronous database write may wait on another transaction's lock.
+        # It must run where no event loop is responsible for other API requests.
+        with pytest.raises(RuntimeError, match="no running event loop"):
+            asyncio.get_running_loop()
+        called.append(action)
+
+    monkeypatch.setattr(service, "unsubscribe", waiting_database_write)
+    response = client.post(
+        f"{PUBLIC}/one-click/{'x' * 32}",
+        data={"List-Unsubscribe": "One-Click"},
+    )
+    assert response.status_code == 200
+    assert called == ["research"]
 
 
 @pytest.fixture(autouse=True)
