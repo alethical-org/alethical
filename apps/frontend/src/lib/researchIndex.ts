@@ -356,14 +356,14 @@ export const MONEY_ONLY_GOES_ONE_WAY_INDEX_ENTRY: PieceIndexEntry = {
  * Every posted piece, newest first, in the order `PUBLISHED_RESEARCH` lists the
  * full pieces (`lib/research.ts`).
  */
-export const PUBLISHED_PIECE_INDEX: PieceIndexEntry[] = assertPublishedPieceIndex([
+export const PUBLISHED_PIECE_INDEX: PieceIndexEntry[] = [
   WHAT_THE_RECORDS_NAME_INDEX_ENTRY,
   WHO_HAS_TO_REPORT_THEIR_MONEY_INDEX_ENTRY,
   WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT_INDEX_ENTRY,
   MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY_INDEX_ENTRY,
   WHY_NOBODY_CAN_FOLLOW_A_DOLLAR_INDEX_ENTRY,
   MONEY_ONLY_GOES_ONE_WAY_INDEX_ENTRY,
-]);
+];
 
 /** The first-load address table cannot contain an incomplete Short post entry. */
 export function assertPublishedPieceIndex<T extends PieceIndexEntry>(
@@ -398,6 +398,9 @@ export function assertPublishedPieceIndex<T extends PieceIndexEntry>(
   }
   return pieces;
 }
+
+// Keep the published array literal readable by the existing email publication check.
+assertPublishedPieceIndex(PUBLISHED_PIECE_INDEX);
 
 export function pieceIndexBySlug(slug: string): PieceIndexEntry | undefined {
   return PUBLISHED_PIECE_INDEX.find((piece) => piece.slug === slug);
