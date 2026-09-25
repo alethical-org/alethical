@@ -1087,16 +1087,12 @@ describe('the light index agrees with the full registry', () => {
    * one and not the other cannot post at an address the router does not know.
    */
   it('lists the same pieces in the same order, with the same address, kind, title and dates', () => {
-    expect(
-      PUBLISHED_RESEARCH.map(({ slug, traits, indexed, title, publishedOn, recordsThrough }) => ({
-        slug,
-        traits,
-        indexed,
-        title,
-        publishedOn,
-        recordsThrough,
-      })),
-    ).toEqual(PUBLISHED_PIECE_INDEX);
+    expect(PUBLISHED_RESEARCH.map((piece) => piece.slug)).toEqual(
+      PUBLISHED_PIECE_INDEX.map((piece) => piece.slug),
+    );
+    PUBLISHED_RESEARCH.forEach((piece, index) => {
+      expect(piece).toMatchObject(PUBLISHED_PIECE_INDEX[index]);
+    });
     for (const piece of PUBLISHED_RESEARCH) {
       expect(pieceIndexBySlug(piece.slug)).toEqual(
         expect.objectContaining({ slug: piece.slug, title: piece.title }),

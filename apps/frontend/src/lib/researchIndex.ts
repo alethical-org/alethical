@@ -34,8 +34,32 @@ export interface PieceTraits {
   guide: boolean;
 }
 
+export const TOPICS = [
+  { slug: 'campaign-finance', label: 'Campaign finance' },
+  { slug: 'lobbying', label: 'Lobbying' },
+  { slug: 'elections', label: 'Elections' },
+] as const;
+
+export type TopicSlug = (typeof TOPICS)[number]['slug'];
+
+export function topicFromSlug(value: string): TopicSlug | undefined {
+  return TOPICS.find((topic) => topic.slug === value)?.slug;
+}
+
+export function topicPath(topic: TopicSlug): string {
+  return `/read/topics/${topic}`;
+}
+
 /** What every surface that loads before a screen may know about a piece. */
 export interface PieceIndexEntry {
+  /** Stable identity for later article features. A Short post must set this. */
+  articleId?: string;
+  /** Short posts are a format, independent of the Research and Guide traits. */
+  format?: 'short-post';
+  /** Controlled subject names, independent of kind and format. */
+  topics?: readonly TopicSlug[];
+  /** Full ISO publication instant for Short post ordering. Never changed by checks. */
+  publishedAt?: string;
   /**
    * URL slug under the piece's own folder: /read/research/ for a piece
    * carrying the research trait, /read/guides/ for one carrying only the
@@ -261,6 +285,7 @@ export function pieceShareDescription(
 
 export const WHAT_THE_RECORDS_NAME_INDEX_ENTRY: PieceIndexEntry = {
   slug: 'what-the-records-name',
+  topics: ['campaign-finance'],
   traits: { research: false, guide: true },
   indexed: true,
   title: 'What the records name, and what they leave out',
@@ -270,6 +295,7 @@ export const WHAT_THE_RECORDS_NAME_INDEX_ENTRY: PieceIndexEntry = {
 
 export const WHO_HAS_TO_REPORT_THEIR_MONEY_INDEX_ENTRY: PieceIndexEntry = {
   slug: 'who-has-to-report-their-money',
+  topics: ['campaign-finance'],
   traits: { research: false, guide: true },
   indexed: true,
   title: 'Who has to report their money',
@@ -279,6 +305,7 @@ export const WHO_HAS_TO_REPORT_THEIR_MONEY_INDEX_ENTRY: PieceIndexEntry = {
 
 export const WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT_INDEX_ENTRY: PieceIndexEntry = {
   slug: 'why-2-official-numbers-can-both-be-right',
+  topics: ['campaign-finance'],
   traits: { research: false, guide: true },
   indexed: true,
   title: 'Why 2 official numbers can both be right',
@@ -288,6 +315,7 @@ export const WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT_INDEX_ENTRY: PieceIndexE
 
 export const MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY_INDEX_ENTRY: PieceIndexEntry = {
   slug: 'money-spent-without-a-campaigns-say',
+  topics: ['campaign-finance', 'elections'],
   traits: { research: false, guide: true },
   indexed: true,
   title: 'Money spent without a campaign’s say',
@@ -297,6 +325,7 @@ export const MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY_INDEX_ENTRY: PieceIndexEntry = 
 
 export const WHY_NOBODY_CAN_FOLLOW_A_DOLLAR_INDEX_ENTRY: PieceIndexEntry = {
   slug: 'why-nobody-can-follow-a-dollar',
+  topics: ['campaign-finance'],
   traits: { research: false, guide: true },
   indexed: true,
   title: 'Why nobody can follow a dollar',
@@ -306,6 +335,7 @@ export const WHY_NOBODY_CAN_FOLLOW_A_DOLLAR_INDEX_ENTRY: PieceIndexEntry = {
 
 export const MONEY_ONLY_GOES_ONE_WAY_INDEX_ENTRY: PieceIndexEntry = {
   slug: 'the-money-only-goes-one-way',
+  topics: ['campaign-finance', 'lobbying'],
   // Research only: it concludes, and it adds figures up across members, which is
   // rule 13's exception. It teaches nothing as its purpose, so it carries no guide
   // trait, and the label a reader sees derives from that
@@ -321,14 +351,44 @@ export const MONEY_ONLY_GOES_ONE_WAY_INDEX_ENTRY: PieceIndexEntry = {
  * Every posted piece, newest first, in the order `PUBLISHED_RESEARCH` lists the
  * full pieces (`lib/research.ts`).
  */
-export const PUBLISHED_PIECE_INDEX: PieceIndexEntry[] = [
+export const PUBLISHED_PIECE_INDEX: PieceIndexEntry[] = assertPublishedPieceIndex([
   WHAT_THE_RECORDS_NAME_INDEX_ENTRY,
   WHO_HAS_TO_REPORT_THEIR_MONEY_INDEX_ENTRY,
   WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT_INDEX_ENTRY,
   MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY_INDEX_ENTRY,
   WHY_NOBODY_CAN_FOLLOW_A_DOLLAR_INDEX_ENTRY,
   MONEY_ONLY_GOES_ONE_WAY_INDEX_ENTRY,
-];
+]);
+
+/** The first-load address table cannot contain an incomplete Short post entry. */
+export function assertPublishedPieceIndex<T extends PieceIndexEntry>(pieces: T[]): T[] {
+  const identities = new Set<string>();
+  for (const piece of pieces) {
+    if (piece.format !== 'short-post') continue;
+    if (!piece.articleId?.trim() || identities.has(piece.articleId)) {
+      throw new Error(`Short post ${piece.slug} needs a unique stable identity`);
+    }
+    identities.add(piece.articleId);
+    if (!piece.traits.research && !piece.traits.guide) {
+      throw new Error(`Short post ${piece.slug} needs Research or Guide`);
+    }
+    if (
+      !piece.publishedAt ||
+      !/^\d{4}-\d{2}-\d{2}T.+(?:Z|[+-]\d{2}:\d{2})$/.test(piece.publishedAt) ||
+      Number.isNaN(Date.parse(piece.publishedAt)) ||
+      !piece.topics?.length
+    ) {
+      throw new Error(`Short post ${piece.slug} needs a publication timestamp and topics`);
+    }
+    if (
+      new Set(piece.topics).size !== piece.topics.length ||
+      piece.topics.some((topic) => !topicFromSlug(topic))
+    ) {
+      throw new Error(`Short post ${piece.slug} has an unknown topic`);
+    }
+  }
+  return pieces;
+}
 
 export function pieceIndexBySlug(slug: string): PieceIndexEntry | undefined {
   return PUBLISHED_PIECE_INDEX.find((piece) => piece.slug === slug);

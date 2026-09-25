@@ -339,6 +339,10 @@ page to find it.
 **What it costs to wait.** If the answer turns out to be subject grouping, the page is restructured
 after readers have learned the current shape, and any inbound link to a heading anchor breaks.
 
+**Updated 25 Sep 2026.** §7 adds controlled subjects to every currently published piece and
+settles topic destinations. The existing Research and Guides groups remain until the new drawings
+are reviewed and their build is authorized.
+
 ### 2.12 A piece's number in its set never reaches a reader
 
 Ratified by Eugene 27 Aug 2026. No reader-facing surface prints a piece's position in its set. Not
@@ -551,3 +555,19 @@ are not a plan we can run and are not adopted as one. What we can measure withou
 - Whether any published piece ever needs its address moved because its traits changed. §2.8 makes
   the both-traits case detectable at authoring time, so a move after publication is the signal
   that §2.1 chose wrong.
+
+## 7. Short posts from checked social material
+
+Eugene approved this format on 25 Sep 2026. [Issue 2377](https://github.com/alethical-org/alethical/issues/2377) owns its nonvisual foundation. Short posts are focused writing, not a word limit. They use the same piece identity and the same Research and Guide traits as longer writing. A piece may carry both traits, and Research still determines its one permanent `/read/research/<slug>` address; a Guide without Research uses `/read/guides/<slug>`. Editing its title does not change its slug or address.
+
+Angel finishes the social copy and image and provides available sources. Eugene gives those materials to the coding agent. The agent checks the claims against Alethical's held records before publication, resolves supported corrections, explains useful context, assigns topics, and recreates useful graphics. Eugene reviews the complete article and graphics. Each article needs its own publication instruction. The earlier plan to publish Angel's copy unchanged first is withdrawn for these adaptations.
+
+The new prepublication checks apply to social-derived Short posts, not retroactively to signed Research and Guides already live. Arithmetic only checks arithmetic. A factual claim needs a recorded source, period, method, coverage, checked scope, and human review. A missing Alethical record is a coverage gap, not proof a source claim is false. Official sources may fill a genuine gap when their own period and method are stated. Known errors block publication; generic disclaimers cannot excuse them.
+
+One controlled topic vocabulary describes subject independently of format and traits. It begins with Campaign finance, Lobbying, and Elections. The `/read` page will group Research, then Short posts, then Guides; show the newest 3 Short posts with an All short posts link; hide that group until a Short post is published; and keep each Short post out of the long-form groups and reading sets in the first release. `/read/short-posts` will use newest-first publication timestamps, 6 pieces per numbered page, and a stable tie-breaker. Checks and corrections never reset publication time or ordering. `/read/topics/<topic>` will gather published pieces across traits and format. No topic directory, new search box, or combined filters are part of this decision. The public screens await Design.
+
+Related reading names a few relevant pieces already published, never the current piece or an invented destination. Reader-facing article text and quantitative graphics draw from the same approved numeric inputs, including units, periods, denominators, and any remainder category. A dated newer-record notice points to newer activity without silently recalculating a dated article. An amended source earns a dated explanation and revised finding; Alethical's own error is corrected in text and chart with a dated correction, leaving no wrong figure readable with a line through it. Records-through means the end of the covered reporting period, not extraction day. Different sources' coverage stays explicit.
+
+Only after the checks are complete, a social-derived Short post carries this note: “AI helped prepare this article. Alethical checked its claims against the cited records before publication, but errors may remain. The records may be incomplete or later corrected.” Campaign-finance pieces also carry: “A contribution alone does not establish why someone gave, whether it influenced a decision, or whether wrongdoing occurred.” Each known gap belongs beside the affected claim. No complete-accuracy guarantee is made.
+
+The original social poster is temporary working material and never appears in the article. After publication, its temporary processing copy may be removed; the extracted claims, evidence and source copies, calculations, finished charts, and correction history remain. Eugene's original Downloads files remain untouched. Quantitative charts are built from checked values, never generated artwork. Comments may later attach to each stable article identity, including a Short post carrying Research, but remain off until individually enabled through the separate comments work. Existing Research and Guides stay off unless separately enabled.
