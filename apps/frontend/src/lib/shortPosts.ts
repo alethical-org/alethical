@@ -31,6 +31,8 @@ export interface ShortPostEvidence {
   sourceDatedOn?: string;
   /** A selected download is evidence, not a claim about its overall reporting coverage. */
   downloadSnapshot?: { copiedOn: string; selectedRecords: string };
+  /** A retained notice or identity response whose reporting coverage is not defined. */
+  sourceSnapshot?: { copiedOn: string; selectedRecords: string };
   method: string;
   limitations: string;
   /** A durable source copy or release identifier, without a temporary poster path. */
@@ -69,6 +71,8 @@ export type ShortPostDisplayBlock =
 export interface ShortPostChartDisplay {
   graphicId: string;
   title: string;
+  /** The title or labelled values already identify the measure. */
+  omitRepeatedUnit?: boolean;
   /** Reviewed answer, shown separately from the evidence limitations. */
   conclusion?: string;
   /** Keep citations together in the article sources when the chart needs no extra link. */
@@ -97,6 +101,10 @@ export interface ShortPostEditorial {
   graphics: readonly ShortPostGraphic[];
   limitations: string;
   coverageNote: string;
+  /** Keep the reviewed coverage line beside article metadata instead of repeating it in sources. */
+  coveragePlacement?: 'metadata';
+  /** The article already explains its limits in its reviewed body. */
+  limitationsPlacement?: 'body';
   /** Scope the date to cited filings instead of suggesting whole-download coverage. */
   recordsScope?: 'cited-filings';
   aiAssisted?: boolean;
@@ -236,8 +244,10 @@ export function shortPostArticleSnapshotBlocks(
     }),
   );
   (piece.sourceRuns ?? []).forEach((runs) => blocks.push(snapshotRuns(runs)));
-  blocks.push({ kind: 'paragraph', text: editorial.coverageNote });
-  blocks.push({ kind: 'paragraph', text: editorial.limitations });
+  if (editorial.coveragePlacement !== 'metadata')
+    blocks.push({ kind: 'paragraph', text: editorial.coverageNote });
+  if (editorial.limitationsPlacement !== 'body')
+    blocks.push({ kind: 'paragraph', text: editorial.limitations });
   editorial.disclosures.forEach((text) =>
     blocks.push(snapshotRuns(articleDisclosureRuns(text, piece.articleId ?? piece.slug))),
   );
@@ -316,12 +326,12 @@ export function calculatedRun(
   }
   const options: Intl.NumberFormatOptions =
     display === 'usd'
-      ? { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 2 }
+      ? { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }
       : { maximumFractionDigits: display === 'integer' ? 0 : 4 };
   if (display === 'integer' && !Number.isInteger(value)) {
     throw new Error('integer display would hide a fractional value');
   }
-  run.text = `${new Intl.NumberFormat('en-US', options).format(value)}${display === 'percent' ? '%' : ''}`;
+  run.text = `${new Intl.NumberFormat('en-US', options).format(display === 'usd' ? Math.trunc(value) : value)}${display === 'percent' ? '%' : ''}`;
   return run;
 }
 
@@ -377,6 +387,7 @@ export function shortPostFingerprint(piece: ResearchPiece): string {
 }
 
 export function shortPostRecordsLine(piece: ResearchPiece): string {
+  if (piece.shortPost?.coveragePlacement === 'metadata') return piece.shortPost.coverageNote;
   return piece.shortPost?.recordsScope === 'cited-filings'
     ? `Records in cited filings through ${new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${piece.recordsThrough}T12:00:00Z`))}`
     : `RECORDS THROUGH ${isoDateCapsLabel(piece.recordsThrough)}`;
@@ -442,6 +453,15 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
     errors.push('limitations and source coverage are required');
   }
   if (
+    editorial.limitationsPlacement === 'body' &&
+    !contentRuns(piece)
+      .map((run) => run.text)
+      .join('')
+      .includes(editorial.limitations)
+  ) {
+    errors.push('body limitations must appear in the reviewed article text');
+  }
+  if (
     editorial.coverageBasis === 'official-only' &&
     !/\bofficial\b/i.test(editorial.coverageNote)
   ) {
@@ -486,7 +506,8 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
     if (
       editorial.coverageBasis !== 'explanatory-guide' &&
       !evidence.period &&
-      !evidence.downloadSnapshot
+      !evidence.downloadSnapshot &&
+      !evidence.sourceSnapshot
     ) {
       errors.push(`evidence ${evidence.id} needs its covered reporting period`);
     } else if (
@@ -498,12 +519,14 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
     ) {
       errors.push(`evidence ${evidence.id} needs its covered reporting period`);
     }
+    const retainedSnapshot = evidence.downloadSnapshot ?? evidence.sourceSnapshot;
     if (
-      evidence.downloadSnapshot &&
+      retainedSnapshot &&
       (evidence.period ||
+        (evidence.downloadSnapshot && evidence.sourceSnapshot) ||
         evidence.kind !== 'held-records' ||
-        !validDate(evidence.downloadSnapshot.copiedOn) ||
-        !nonempty(evidence.downloadSnapshot.selectedRecords))
+        !validDate(retainedSnapshot.copiedOn) ||
+        !nonempty(retainedSnapshot.selectedRecords))
     ) {
       errors.push(
         `evidence ${evidence.id} needs a dated, scoped held download without invented coverage`,
@@ -693,7 +716,9 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
       errors.push(`related piece ${slug} must be published and share a topic`);
     }
   }
-  const usedGraphics = new Set<string>();
+  const usedGraphics = new Set(
+    (editorial.body ?? []).flatMap((block) => (block.kind === 'chart' ? [block.graphicId] : [])),
+  );
   for (const run of contentRuns(piece)) {
     if (run.kind !== 'calculated') continue;
     const graphic = editorial.graphics.find((entry) => entry.id === run.chartId);

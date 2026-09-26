@@ -26,6 +26,9 @@ Two traits, not 2 mutually exclusive kinds. §2.7 is why that distinction matter
   exception that permits this and the only place in the product where it is permitted. The
   long-form Research piece is *The Money Only Goes One Way*. The published Short post
   *2 records do not always mean 2 donations* also carries Research and Guide traits.
+  *Political donors appearing in both parties’ Minnesota caucus records* and
+  *What Minnesota’s records show about lobbyist contributions, 2015–2026* are
+  Short posts carrying the Research trait.
 - **A guide.** One term explained in plain language. A guide concludes nothing, adds nothing up
   across members, and defines no classifications, so it sits under rules 1 to 12 like every other
   surface and needs no part of rule 13's exception. 5 long-form Guides are live, all posted 27 Aug

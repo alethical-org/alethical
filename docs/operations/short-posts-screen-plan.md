@@ -144,6 +144,29 @@ survive transcript removal; it is retained in the shared chart's legend.
 Source copies, original private draft and calculation inputs remain retained.
 Final article review and publication are the next checkpoint.
 
+### Shared comments integration copy, received 26 September 2026
+
+The owning task “blog comments” (`01a0d4e4-f4d1-7b03-95d7-853fcaa37b48`)
+reported Eugene's approved shared-comments corrections. Carry these into the next
+authorized Short post comments integration; this message does not authorize a
+new build or Design request, and the private first-post review remains unchanged.
+
+Standalone 1-sentence UI instructions, explanations and notices omit their final
+period, including when wrapping. Messages with 2 or more sentences keep punctuation.
+Exact shared copy:
+
+- “This name appears on your comments and replies”
+- “Names are chosen by readers and are not verified”
+- “Email me about all new or edited comments and replies on this article”
+
+“All” does not change behavior: the reader's own contributions stay excluded.
+The owner is updating Comments.dc.html and shared punctuation guidance while
+leaving Short post.dc.html untouched. Its flagged names notice, 2 “Comments could
+not be loaded” messages and “No published comments yet” need the same punctuation
+when integrated. Its old paused/closed/review workflow is obsolete; do not restore
+those controls while correcting copy. Use the complete shared comments flow
+accepted by the owning task, subject to the existing integration holds.
+
 The first-post review also removed the chart's source-list jump and repeated inline
 source links. All 3 official source links remain together under “Where these numbers
 come from”. The chart retains its filing period and necessary limits. Direct
@@ -222,6 +245,21 @@ The shared article helper supplies the same text and link to rendering and searc
 snapshots. Existing published articles are not retroactively edited. First-post
 publication and other task reviews remain held.
 
+### Separate publication-preparation task launched (26 September 2026)
+
+Eugene approved a separate task so this parent can stay available for discussion.
+“Prepare first short post for publication” (01a0de8f-369c-7f30-a8c5-c59768f40b31)
+is active in /Users/eug/.codex/worktrees/fbd0/Alethical, using the configured
+GPT-6 Astra model with high effort. Its first turn began source/rule and branch
+inspection; no setup-only wait remains. Parent “social posts seo”
+(01a0d4e8-7a6a-7941-8124-12207773d4e2) owns user decisions and acceptance review.
+The child owns integrating parent commits through 48b927db, article correction-link
+prefilling, evidence and browser checks, and a draft PR. It must preserve the
+original private preview and coordinate any update with the parent. The full
+handoff retains the final publication hold, no real email sends, and no comments,
+new Design work or original-graphic reinvestigation. Parent must inspect the returned
+result before reporting it accepted. Final article publication remains a separate
+explicit approval; launch approval was not recorded as that approval.
 ### First-post release preparation, publication held
 
 The approved presentation and closing note are integrated into the preparation
@@ -243,3 +281,36 @@ archive, Campaign finance and Lobbying topics, sitemap, and the approved default
 comments list. Other private drafts retain their individual publication holds.
 [First Short post preparation](../operations/first-short-post-preparation.md)
 records approval times and the release checks.
+
+
+## September 26: publish the 2 reviewed original-topic posts
+
+Eugene authorized the organizations article at 2026-09-26T20:39:49.138Z:
+“when done updating drafts and rules publish the 2nd short post”. He authorized
+the lobbyist article at 2026-09-26T20:45:24.598Z: “publish the 3rd short post when ready”.
+These instructions supersede the private-only holds for these 2 articles.
+The first article remains owned by the separate task “Prepare first short post for publication”.
+
+Release sequence owned here:
+1. Preserve the reviewed manuscripts, tables, source links and scope limitations in
+   article modules. Keep the current private addresses on port 8768 stable.
+2. Register both articles, including their comment identities and correction links.
+   Store coverage in the reviewed metadata position and limits where the body explains them.
+3. Run source-backed publication checks, compare final rendered copy with the reviewed
+   previews, test phone and desktop layouts, and open the correction form without sending.
+4. Wait for the first article’s release, integrate current main, open the follow-on pull
+   request, clear checks, merge, deploy and inspect both live addresses.
+
+Editorial copy acceptance was recorded at 2026-09-26T16:47:25.940Z. The publication
+instructions also approve the displayed content with Eugene’s requested formatting
+corrections. Exact source values and historic peer acceptances remain in retained research
+packages; formatting never changes the calculations. Approval fingerprints are frozen only
+after comparing the integrated article with those approved previews.
+
+Release preparation: both actual article renders match the reviewed manuscripts.
+All 3,726 frontend tests and TypeScript checks pass. The local release build passes
+at 295,981 bytes against the unchanged 296,022-byte first-load limit. Address-table
+validation now runs before every build rather than increasing every reader’s initial
+download. Production must pass its own measured size. The existing private URLs
+render the actual release modules; both correction links prefill title, public URL
+and introduction in the built application. No contact message was sent.

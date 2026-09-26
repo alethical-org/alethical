@@ -4,7 +4,7 @@
 
 # How the Money in politics section works
 
-<!-- describes: apps/frontend/src/lib/moneyLandingSources.ts, apps/frontend/src/screens/redesign/ShortPostsScreen.tsx, apps/frontend/src/components/read/TopicPieceCard.tsx, apps/frontend/src/components/shortPosts/ShortPostArticle.tsx, apps/frontend/src/components/shortPosts/ShortPostChart.tsx, apps/frontend/src/lib/shortPostSelection.ts, apps/frontend/src/lib/shortPosts.ts, apps/frontend/src/lib/researchIndex.ts -->
+<!-- describes: apps/frontend/src/lib/moneyLandingSources.ts, apps/frontend/src/screens/redesign/ShortPostsScreen.tsx, apps/frontend/src/components/read/TopicPieceCard.tsx, apps/frontend/src/components/shortPosts/ShortPostArticle.tsx, apps/frontend/src/components/shortPosts/ShortPostChart.tsx, apps/frontend/src/lib/shortPostSelection.ts, apps/frontend/src/lib/shortPosts.ts, apps/frontend/src/lib/researchIndex.ts, apps/frontend/src/lib/researchIndexValidation.ts, apps/frontend/scripts/generate-editorial-articles.mjs, apps/frontend/src/lib/researchPieces/organizationsBothParties.ts, apps/frontend/src/lib/researchPieces/lobbyistGiving.ts -->
 
 **Net.** `/money` is the public front door to Minnesota's campaign-money and lobbying records, open to
 everyone with no sign-in. Typing a name in the box on it now works, the register of
@@ -13,9 +13,12 @@ than only by pasting an address, and a name that got paid opens every payment fi
 that exact spelling
 ([#1780](https://github.com/alethical-org/alethical/issues/1780)). Our own signed research
 lives one level up, on the `/read` page, which the money landing points at. The `/read`
-page lists 6 long-form pieces (1 Research piece and 5 Guides) and the Short post
+page lists 6 long-form pieces (1 Research piece and 5 Guides) and 3 Short posts:
 “2 records do not always mean 2 donations” at
-`/read/research/2-records-not-always-2-donations`.
+`/read/research/2-records-not-always-2-donations`, “Political donors appearing in both
+parties’ Minnesota caucus records” at `/read/research/organizations-both-parties`,
+and “What Minnesota’s records show about lobbyist contributions, 2015–2026” at
+`/read/research/lobbyist-giving`.
 
 Lobbying is available at `/money/lobbying`, with the copied lobbyist list, represented
 organisations and yearly spending. The earlier lobbying-under-development strip is removed
@@ -1988,3 +1991,16 @@ missing amounts do not become zero, and separate committees are not added togeth
 The same meaning applies to initially served text and share descriptions. A general limitation
 cannot excuse an arithmetic error, a false identity match, or a known unresolved discrepancy.
 A known discrepancy must name its affected source, scope, and uncertainty beside that figure.
+
+### Reviewed original-topic Short posts (26 September 2026)
+
+The organizations and lobbyist articles preserve the approved source scope and
+limitations in their body rather than repeating them below sources. Their metadata
+uses the reviewed coverage text. Dated retained notices and identity responses carry
+a source-copy date without an invented reporting period. Dollar displays drop cents
+without rounding, after calculations on exact inputs.
+
+Every release checks the public address table and generated article identities before
+building. These checks run during the build and tests rather than in every reader’s
+first download. Full article publication checks still validate evidence, recorded
+approvals and frozen content fingerprints.

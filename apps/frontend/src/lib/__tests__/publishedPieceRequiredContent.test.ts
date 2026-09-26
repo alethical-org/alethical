@@ -36,6 +36,8 @@ import { PUBLISHED_RESEARCH, piecePath, researchBySlug } from '../research';
  * checks underneath without somebody deciding what it must carry.
  */
 const PUBLISHED_ADDRESSES = [
+  '/read/research/organizations-both-parties',
+  '/read/research/lobbyist-giving',
   '/read/research/2-records-not-always-2-donations',
   '/read/research/the-money-only-goes-one-way',
   '/read/guides/who-has-to-report-their-money',
@@ -276,5 +278,40 @@ describe('the repeated-records Short post preserves its narrow finding and metho
     ])
       expect(html).toContain(text);
     expect(html).toContain('/about/contact?article=short-records-not-donations-2023');
+  });
+});
+
+describe('the 2 original-topic short posts preserve their evidence boundaries', () => {
+  it('keeps registration scope and payment limits beside the organizations findings', () => {
+    const html = servedPage('organizations-both-parties');
+    for (const required of [
+      '188 donor registrations',
+      '181 appear on both sides within at least 1 calendar year',
+      '7 appear on the 2 sides in different years',
+      'which do not establish the companies or parent organizations behind them',
+      'do not subtract returned contributions',
+      '$26,837,090',
+      '$13,904,932',
+      '$40,742,023',
+      '185 extra entries',
+      '$420,800',
+      '9,882 entries',
+    ])
+      expect(html).toContain(required);
+  });
+  it('keeps the lobbyist annual example separate from unresolved full-period totals', () => {
+    const html = servedPage('lobbyist-giving');
+    for (const required of [
+      'These labels do not establish',
+      'This annual example does not establish total giving across 2015–2026.',
+      'We cannot establish the full-period lobbyist giving total',
+      'some older filings needed to resolve these questions are unavailable',
+      '$3,000',
+      '$4,100',
+      '$4,000',
+      'Anne Neu',
+      'Karl Procaccini',
+    ])
+      expect(html.toLowerCase()).toContain(required.toLowerCase());
   });
 });
