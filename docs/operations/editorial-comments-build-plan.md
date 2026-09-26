@@ -64,19 +64,20 @@ eug@alethical.com. ask@alethical.com has no confirmed account yet. Eugene has be
 asked to create and confirm it; its later activation is the only user-owned step.
 All admin email alerts still go to ask@alethical.com.
 
-Acceptance evidence: 3,436 backend tests passed; 3 inventory tests failed because
-the new local helper was missing from the script inventory. The inventory is now
-updated and all 55 email/inventory tests pass. All 3,662 frontend tests passed;
-afterward 27 focused tests covered the final malformed-link correction. The
-independent security review reproduced and accepted fixes for concurrent follower
-posts and an erased reply-target name in prepared email. The 22 comment tests pass.
+Acceptance evidence: the full pre-push suites pass on the initial feature commit,
+with 3,441 backend tests and 3,670 frontend tests. The independent security review
+reproduced and accepted fixes for concurrent follower posts and an erased
+reply-target name in prepared email. The 22 comment database tests pass.
 The independent reader review passed desktop, tablet, 320-wide phones, keyboard,
 long text, nested replies and actual Chrome 200%/400% zoom. Root's 4 browser stories passed in Chromium, Firefox and WebKit against disposable
 PostgreSQL with external requests disabled. The private stop screen was exercised
 through both independent choices with a fictional local account. The release build
 passes the unchanged startup limit at 295,841 compressed bytes.
 
-Remaining: final hidden-screen focus check, required checks on final head,
+The final browser run passes all 12 checks, including cross-article drafts and
+returning focus only to the visible discussion.
+
+Remaining: required checks on final head,
 PR/queue/release, exact deployed table privacy checks,
 email gate activation, safe live reads, and ask@ account activation when available.
 Production has an enabled ensure_rls CREATE TABLE trigger; inspect the 6 resulting

@@ -7,6 +7,11 @@ your account control once you are signed in. The bar is drawn from one typed lis
 (`apps/frontend/src/navigation/ia.ts`), so a page is in the bar because that list says so, and
 addresses are resolved by one router (`apps/frontend/src/navigation/webRoutes.ts`).
 
+The private `/comment-emails` screen is an exception: it carries only the linked
+wordmark and the reader's email stop choices, without the normal bar or footer.
+Readers reach it through a private email link, not the account menu. See
+[editorial-comments-guide.md](editorial-comments-guide.md#stopping-emails).
+
 ## What is in the bar
 
 - **Search ▾** opens a dropdown of 4 live rows, each with a one-line description: **Bills**
