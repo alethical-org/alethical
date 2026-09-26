@@ -631,3 +631,16 @@ resolves the published title and permanent Alethical address, retains the
 reader's edits during in-app navigation and retries, and sends only after
 “Send message.” [contact-us-guide.md](../product-onboarding/contact-us-guide.md)
 owns the form's precise behavior. The source archive remains internal under §2.14.
+
+### 26 September 2026: browser previews are the review deliverable
+
+Eugene directed that post-review preparation always produce private browser
+previews using the approved article design, including useful recreated graphics
+or tables, rather than stopping at manuscript links. This applies to all post
+types, including `verify post` / `vp`, unless he requests text only. Reusing the
+existing design for a private preview is authorized; publication, a new visual
+direction and new Design requests retain their separate approval requirements.
+[ui-copy-guide.md, Prepare post reviews in the browser](../design/ui-copy-guide.md#prepare-post-reviews-in-the-browser)
+owns the delivery and review checks. Each post gets its own browser tab and direct
+preview link; existing review addresses and another task's publishing preview
+remain intact.

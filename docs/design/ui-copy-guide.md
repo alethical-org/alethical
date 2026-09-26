@@ -218,6 +218,32 @@ and enforce the actual private state separately. Minimal wording does not enable
 sharing, public navigation, indexing or publication. Do not display a completed
 review claim while that review is still pending.
 
+### Prepare post reviews in the browser
+
+“Prep review” and equivalent post-review requests deliver a working private browser
+preview in the approved article design, not just a manuscript or Markdown link.
+Apply this to every post type unless Eugene explicitly asks for text only. Reuse
+the real article and chart components with the reviewed text, useful recreated
+graphics or tables, topics, sources, conclusion and current closing note. The
+original social poster is source material, never the finished visual.
+
+Check phone and desktop layouts, numeric wrapping, source links and expandable
+methods before handing the preview over. Open each post in its own browser tab and
+provide its direct link. Preserve an existing review address and leave another
+task's publishing preview untouched. Keep the preview private, excluded from
+search and without an invented publication date; the yellow banner says only
+“PRIVATE DRAFT”, and public sharing stays disabled.
+
+This authorizes private rendering with the existing approved design. It does not
+authorize publication, a new visual direction or a new Design request. Identify
+any necessary unresolved visual choice and follow the existing Design approval
+process. Retain manuscripts, checked graphic inputs and evidence as supporting
+material. Review preparation is complete when Eugene can inspect the working
+preview, not when those supporting files exist.
+
+Approved by Eugene on 26 September 2026 after the organizations and lobbyist
+manuscripts had to be separately requested as browser previews.
+
 ### Review the whole draft before presenting it
 
 Read the title, opening, chart, conclusion, method, sources and disclosures as one
