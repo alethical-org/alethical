@@ -575,14 +575,34 @@ Only after the checks are complete, a social-derived Short post carries this not
 The original social poster is temporary working material and never appears in the article. After publication, its temporary processing copy may be removed; the extracted claims, evidence and source copies, calculations, finished charts, and correction history remain. Eugene's original Downloads files remain untouched. Quantitative charts are built from checked values, never generated artwork. Comments may later attach to each stable article identity, including a Short post carrying Research, but remain off until individually enabled through the separate comments work. Existing Research and Guides stay off unless separately enabled.
 
 
+Branding clarification approved by Eugene on 26 Sep 2026: posts and recreated graphics
+viewed within Alethical use the approved symbol without the “ALETHICAL” wordmark,
+placed to fit the approved composition. Standalone PDF reports retain both. This
+does not change the shared website header. The visual rule is owned by
+[design-principles.md §2](../design/design-principles.md#2-the-green-visual-system);
+private implementation was authorized on 26 Sep 2026, as recorded in
+[short-posts-screen-plan.md](../operations/short-posts-screen-plan.md#september-26-follow-up-private-build-approved-publication-held).
+
 ### 7.1 Screen and publication checks
 
 The Short post article uses an ordered body. Every quantitative graphic has exactly 1 position in that body and 1 display record naming its title, checked evidence and limitation. Every amended-source history record appears exactly once beside the relevant content. Missing notices and missing graphics block publication. Related reading is up to 3 editor-selected, already published pieces sharing a topic; the selection helper offers candidates and never automatically publishes them.
 
-The initial HTML includes the same ordered text, chart descriptions, methods, evidence links, limitations and disclosures as the article. Search descriptions follow the existing trait rule: Research uses publication and records-through dates; Guide may describe its subject. External sharing keeps the existing dates-only rule for each trait. Guide reading time is computed from its current text.
+The initial HTML includes the same ordered text, chart labels and values, necessary descriptions, methods, evidence links, limitations and disclosures as the article. A chart's text labels and values can supply its factual description; no second visible transcript is required. Nearby supporting text adds meaning or necessary context rather than repeating labels, values and shared dates. Screen readers must receive the chart's information without duplicate announcements. Eugene approved this clarification on 26 Sep 2026; [ui-copy-guide.md](../design/ui-copy-guide.md#avoid-redundant-nearby-text) owns the wording rule. Search descriptions follow the existing trait rule: Research uses publication and records-through dates; Guide may describe its subject. External sharing keeps the existing dates-only rule for each trait. Guide reading time is computed from its current text.
 
 The approved comparison bars share one zero and one scale, and accept nonnegative measured values. The percentage bar represents 1 named share plus an explicit remainder; multiple named shares use the approved data table. Overlap diagrams are nonproportional and carry the exact explanatory sentence in §7. Unsupported proportional inputs cannot pass publication checks. These display limits do not alter the underlying calculation helpers.
 
 The published registry is local to each website release. Numbered-page selections therefore replace immediately without a network wait or an artificial loading state. Each numbered link has an address; browser Back and refresh retain the selection. `/read/short-posts?post=<slug>` resolves the numbered page currently containing that published Short post, then returns focus to its title. Invalid page numbers, pages beyond the available results, unknown topics and unknown post targets return not found. Known empty collections stay readable, carry noindex, and stay out of the sitemap. When collection data comes from a service, the existing retained-results, retry and latest-request-wins requirements apply before that change ships.
 
 Quantitative chart inputs must fit the displayed precision: USD uses whole cents and other measured units allow up to 4 decimal places, within safe integer arithmetic after scaling. Unsupported precision fails publication instead of silently rounding source values. Comparison headers name each reporting period when the periods differ.
+
+### 26 September 2026: concise drafting and first-post review
+
+Eugene approved the copy-simplification approach for every post type, including
+Short posts, Research, Guides and blog articles.
+[ui-copy-guide.md](../design/ui-copy-guide.md#draft-every-post-for-meaning-without-repeated-explanations)
+owns the rule. A subtitle is optional when it would only repeat the title.
+He authorized implementing the pending symbol-only branding, chart transcript
+removal, minimal private banner and article copy changes in the private preview.
+“2 records do not always mean 2 donations” is the intended first Short post,
+subject to his final review and publication instruction. The original-graphic
+investigations remain separate; neither is replaced by this article.

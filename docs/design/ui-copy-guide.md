@@ -63,6 +63,51 @@ words do not already give. It may identify the larger section, the kind of recor
 or the coverage of a list. Omit it when it only repeats the page title, the back
 link or a complete title that already names both sides of a relationship.
 
+## Avoid redundant nearby text
+
+State a fact once within a connected group when the reader can still understand it
+without repetition. Chart labels, values and a shared period line should not be
+transcribed again in a paragraph immediately below the chart. Supporting text should
+add meaning or necessary context, not restate the display. Keep repetition only when
+removing it would lose meaning, a necessary qualification or access to the information.
+
+For example, the comparison chart labels “Sum of 2 matching download entries” and
+“Amount of the matching entry in each filing” already identify their values. Do not
+repeat both labels, values and the shared filing period underneath. Keep evidence,
+limits and any useful explanation that the chart itself does not convey. Keep chart
+information available as text to readers, search engines and screen readers without
+requiring a second visible transcript or duplicate spoken values.
+
+### Draft every post for meaning, without repeated explanations
+
+Apply this when drafting or revising every type of website post, including Short
+posts, Research, Guides and blog articles. Each sentence should add a fact, useful
+explanation, necessary qualification or a clear next action.
+
+- Remove subtitles that only rephrase the title, and introductory sentences that
+  merely announce the evidence or explanation that follows. A subtitle is optional.
+- Keep names and the finding in the opening. Put registration numbers, query filters,
+  matching columns and other reproduction details in the method, unless readers
+  need them to distinguish the people or records being discussed.
+- State the conclusion and each scope limit once in the relevant connected group.
+  Do not repeat them across the chart caption, the following paragraph, the method
+  and the sources. Keep a qualification beside any claim that would mislead without it.
+- Name dates by what they mean: receipt date, reporting period, filing receipt date
+  or download date. Group source dates where useful; do not repeat the complete set
+  throughout the article. A standalone chart still needs its own clear scope.
+- Prefer precise positive wording, such as naming the dated source copy, over an
+  extra sentence ruling out every other source version. Do not turn that into a
+  broader claim or erase real uncertainty.
+- Preserve citations, reproducible methods, required disclosures and distinctions
+  between reported records and independently established events. Put detailed
+  reproduction steps behind Full method when the essential explanation is enough.
+- Review title, subtitle, body, charts, methods, sources and disclosures together.
+  Do not add duplicate visible or spoken text for SEO or accessibility. Preserve
+  unique information and accessible chart labels when cutting a transcript.
+
+Approved by Eugene on 26 September 2026, including implementation in the private
+“2 records do not always mean 2 donations” draft. Publication awaits his final review.
+
 ## Test for any copy
 Does this deliver a sovereignty recognition moment, or is it just a label? If just a label, rewrite.
 

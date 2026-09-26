@@ -58,12 +58,14 @@ describe('Short post article and charts', () => {
     expect(markup).toContain('scope="row"');
     expect(markup).toContain('>109</td>');
     expect(markup).toContain('Other records');
-    expect(markup).toContain('aria-hidden="true"');
     expect(markup).toContain('white-space:nowrap');
     expect(markup).toContain('https://example.gov/records');
+    expect(markup).not.toContain('sp-chart-description');
+    expect(markup).toContain('aria-label="Alethical"');
+    expect(markup).not.toContain('ShortPostWordmark');
   });
 
-  it('keeps overlap values in one accessible description and states circle sizes are not shares', () => {
+  it('keeps overlap values in accessible labels and states circle sizes are not shares', () => {
     const overlap: ShortPostGraphic = {
       ...graphic,
       id: 'overlap',
@@ -92,8 +94,11 @@ describe('Short post article and charts', () => {
       />,
     );
     expect(markup).toContain('Diagram shows overlap, not relative group sizes.');
-    expect(markup).toContain('Group A contains 80 records');
-    expect(markup).toContain('Group B contains 70 records');
+    expect(markup).toContain('Group A contains 80.');
+    expect(markup).toContain('Group B contains 70.');
+    expect(markup).toContain('Total, including neither group');
+    expect(markup).not.toContain('sp-chart-description');
+    expect(markup).not.toContain('sp-chart-overlap-legend\" aria-hidden');
     expect(markup).toContain('aria-hidden="true"');
   });
 

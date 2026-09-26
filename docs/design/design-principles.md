@@ -38,6 +38,14 @@ credibility first.
   on stay calm — bold headline, restrained page. The chrome never competes with the content.
 - **Clarity over density, but honest about volume.** Legislative data is dense; we make it
   scannable through hierarchy and whitespace, never by hiding how much there is.
+- **Nearby text earns its place.** Remove repeated labels, values, dates and explanations
+  when the remaining content still makes sense on its own. A chart with readable labels
+  and values does not need a paragraph below it repeating those same facts. Supporting
+  text adds an interpretation, source, limitation or other necessary context. Preserve
+  distinct periods, units and qualifications where needed to avoid ambiguity. Keep the
+  information available as text and usable with a screen reader without announcing the
+  same chart data twice. Eugene approved this rule on 26 September 2026; wording guidance
+  is in [ui-copy-guide.md](ui-copy-guide.md#avoid-redundant-nearby-text).
 - **Neutral by construction.** Layout, color, and emphasis describe records; they never editorialize.
   We don't use visual weight to imply a position (see `grounded-answers.md` rule 3, grounded
   neutrality). Green is the brand, not a partisan signal.
@@ -48,6 +56,17 @@ credibility first.
 
 Character summary. **Exact values live in `tokens.ts`** — read it for hex, scale, and spacing.
 
+- **Branding inside website posts and standalone reports.** Inside posts viewed on
+  Alethical, including their recreated graphics, use the approved Alethical symbol
+  without the “ALETHICAL” wordmark. The website already identifies the publisher.
+  Place the symbol where it fits the approved composition and gives the post a clear
+  Alethical identity, with comfortable clear space; it need not repeat on every graphic.
+  Use the approved symbol asset rather than cropping or rebuilding the full wordmark.
+  Standalone PDF reports retain both the symbol and wordmark because readers may view
+  them outside Alethical. This distinction concerns branding within post content, not
+  the shared website header. Eugene approved this clarification on 26 September 2026;
+  the website implementation remains queued in
+  [short-posts-screen-plan.md](../operations/short-posts-screen-plan.md#pending-updates-waiting-for-eugenes-go).
 - **Color intent.** A light, warm-neutral page with a soft green radial wash on wider screens and a
   plain warm-neutral background on phone widths; green is the single brand accent, used with intent
   (brand fills, CTAs, links, focus), not sprinkled. Text is a
