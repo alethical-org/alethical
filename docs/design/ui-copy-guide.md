@@ -149,6 +149,23 @@ Approved by Eugene on 26 September 2026 and applied to the private first-post
 comparison chart. Review all post drafts for implied text and visual clutter;
 this rule does not authorize unrelated redesigns.
 
+### Display dollar amounts without cents
+
+In every post draft, display dollar amounts as whole dollars by dropping the
+cents, never rounding. For example, $26,837,090.78 becomes $26,837,090 and
+$13,904,932.99 becomes $13,904,932. Apply this to prose, tables, charts, labels
+and supporting text. Keep currency signs, grouping separators and negative signs.
+
+Retain full precision in source records and calculation inputs. Calculate totals,
+percentages and comparisons from those exact values, then drop cents only for
+display. Do not total already-truncated display values: the displayed parts can
+differ from the displayed total by a dollar because their cents were omitted.
+Check generated chart and table text before the first review so rendering cannot
+restore decimal places. This is a post-drafting rule, not a request to alter
+underlying records or bulk-edit unrelated published pages.
+
+Approved by Eugene on 26 September 2026.
+
 ### Draft every post for meaning, without repeated explanations
 
 Apply this when drafting or revising every type of website post, including Short
