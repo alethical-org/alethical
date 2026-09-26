@@ -3,6 +3,7 @@ import { Platform, StyleSheet, View } from 'react-native';
 
 import { AppProviders } from './src/providers/AppProviders';
 import { AppErrorBoundary } from './src/components/AppErrorBoundary';
+import { CommentStateProvider } from './src/components/comments/CommentStateProvider';
 import { unregisterServiceWorkers } from './src/lib/serviceWorkerCleanup';
 import { loadSignInBundle } from './src/lib/auth/loadSignInBundle';
 import { RootNavigator } from './src/navigation/RootNavigator';
@@ -107,7 +108,9 @@ export default function App() {
           <EmailLinkPage kind={emailLinkKind} />
         ) : (
           <AppProviders>
-            <RootNavigator />
+            <CommentStateProvider>
+              <RootNavigator />
+            </CommentStateProvider>
           </AppProviders>
         )}
       </View>

@@ -8,7 +8,8 @@ export function isPrivateMetricUrl(value: string): boolean {
       path === '/admin' ||
       path.startsWith('/admin/') ||
       path === '/email-preferences' ||
-      path === '/unsubscribe'
+      path === '/unsubscribe' ||
+      path === '/comment-emails'
     );
   } catch {
     // A malformed URL cannot be safely classified for collection.

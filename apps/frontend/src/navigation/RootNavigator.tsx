@@ -73,6 +73,7 @@ const LobbyingPrincipalScreen = loadOnDemand(screenChunks.LobbyingPrincipal);
 const LobbyingLobbyistScreen = loadOnDemand(screenChunks.LobbyingLobbyist);
 const MoneyLandingScreen = loadOnDemand(screenChunks.MoneyLanding);
 const EmailPreferencesScreen = loadOnDemand(screenChunks.EmailPreferences);
+const CommentEmailsScreen = loadOnDemand(screenChunks.CommentEmails);
 const UnsubscribeScreen = loadOnDemand(screenChunks.Unsubscribe);
 const OutsideSpendingScreen = loadOnDemand(screenChunks.OutsideSpending);
 const MoneyByRaceScreen = loadOnDemand(screenChunks.MoneyByRace);
@@ -736,6 +737,11 @@ export function RootNavigator() {
               name="EmailPreferences"
               component={EmailPreferencesScreen}
               options={{ headerShown: false, title: 'Email preferences' }}
+            />
+            <Stack.Screen
+              name="CommentEmails"
+              component={CommentEmailsScreen}
+              options={{ headerShown: false, title: 'Comment emails' }}
             />
             <Stack.Screen
               name="Unsubscribe"

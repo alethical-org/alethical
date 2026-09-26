@@ -292,6 +292,7 @@ export function pieceShareDescription(
 }
 
 export const WHAT_THE_RECORDS_NAME_INDEX_ENTRY: PieceIndexEntry = {
+  articleId: 'guide-what-the-records-name',
   slug: 'what-the-records-name',
   topics: ['campaign-finance'],
   traits: { research: false, guide: true },
@@ -302,6 +303,7 @@ export const WHAT_THE_RECORDS_NAME_INDEX_ENTRY: PieceIndexEntry = {
 };
 
 export const WHO_HAS_TO_REPORT_THEIR_MONEY_INDEX_ENTRY: PieceIndexEntry = {
+  articleId: 'guide-who-has-to-report-their-money',
   slug: 'who-has-to-report-their-money',
   topics: ['campaign-finance'],
   traits: { research: false, guide: true },
@@ -312,6 +314,7 @@ export const WHO_HAS_TO_REPORT_THEIR_MONEY_INDEX_ENTRY: PieceIndexEntry = {
 };
 
 export const WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT_INDEX_ENTRY: PieceIndexEntry = {
+  articleId: 'guide-why-2-official-numbers-can-both-be-right',
   slug: 'why-2-official-numbers-can-both-be-right',
   topics: ['campaign-finance'],
   traits: { research: false, guide: true },
@@ -322,6 +325,7 @@ export const WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT_INDEX_ENTRY: PieceIndexE
 };
 
 export const MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY_INDEX_ENTRY: PieceIndexEntry = {
+  articleId: 'guide-money-spent-without-a-campaigns-say',
   slug: 'money-spent-without-a-campaigns-say',
   topics: ['campaign-finance', 'elections'],
   traits: { research: false, guide: true },
@@ -332,6 +336,7 @@ export const MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY_INDEX_ENTRY: PieceIndexEntry = 
 };
 
 export const WHY_NOBODY_CAN_FOLLOW_A_DOLLAR_INDEX_ENTRY: PieceIndexEntry = {
+  articleId: 'guide-why-nobody-can-follow-a-dollar',
   slug: 'why-nobody-can-follow-a-dollar',
   topics: ['campaign-finance'],
   traits: { research: false, guide: true },
@@ -342,6 +347,7 @@ export const WHY_NOBODY_CAN_FOLLOW_A_DOLLAR_INDEX_ENTRY: PieceIndexEntry = {
 };
 
 export const MONEY_ONLY_GOES_ONE_WAY_INDEX_ENTRY: PieceIndexEntry = {
+  articleId: 'research-the-money-only-goes-one-way',
   slug: 'the-money-only-goes-one-way',
   topics: ['campaign-finance', 'lobbying'],
   // Research only: it concludes, and it adds figures up across members, which is
@@ -355,11 +361,28 @@ export const MONEY_ONLY_GOES_ONE_WAY_INDEX_ENTRY: PieceIndexEntry = {
   recordsThrough: '2026-07-20',
 };
 
+export const TWO_RECORDS_NOT_TWO_DONATIONS_INDEX_ENTRY: PieceIndexEntry = {
+  articleId: 'short-records-not-donations-2023',
+  slug: '2-records-not-always-2-donations',
+  format: 'short-post',
+  topics: ['campaign-finance', 'lobbying'],
+  traits: {
+    research: true,
+    guide: true,
+  },
+  indexed: true,
+  title: '2 records do not always mean 2 donations',
+  publishedOn: '2026-09-26',
+  recordsThrough: '2023-12-20',
+  publishedAt: '2026-09-26T20:32:16Z',
+};
+
 /**
  * Every posted piece, newest first, in the order `PUBLISHED_RESEARCH` lists the
  * full pieces (`lib/research.ts`).
  */
 export const PUBLISHED_PIECE_INDEX: PieceIndexEntry[] = [
+  TWO_RECORDS_NOT_TWO_DONATIONS_INDEX_ENTRY,
   WHAT_THE_RECORDS_NAME_INDEX_ENTRY,
   WHO_HAS_TO_REPORT_THEIR_MONEY_INDEX_ENTRY,
   WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT_INDEX_ENTRY,

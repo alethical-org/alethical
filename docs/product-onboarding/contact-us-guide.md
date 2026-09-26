@@ -31,8 +31,32 @@ The fields stay in this order:
 4. Subject, required.
 5. Message, required.
 
-The page does not guess or prefill any field. Missing required fields are explained beside
-the field after a send attempt. What the person typed stays in place if delivery fails.
+Ordinary Contact us opens blank. A published article's correction link carries only its
+stable article identity in `/about/contact?article=<identity>`. The form resolves that
+identity against the published article list, then fills the subject with
+`Possible correction: <actual article title>` and the message with:
+
+```text
+I’d like to report a possible error in this article:
+<canonical public article URL>
+
+What may be wrong:
+
+```
+
+The reader can edit every field. Name, email and phone are never filled by the article
+link. Unknown identities, private drafts and arbitrary title or URL parameters do not
+fill the form. Only **Send message** submits it. If a complete title would exceed the
+200-character subject limit, the subject becomes **Possible correction** and the full
+title appears in the message. If the complete message would exceed 5000 characters,
+the form stays blank instead of cutting the title or address.
+
+An unfinished message stays in memory while the app remains open, including navigation
+away and back, changed article links, and failed-send retries. A new link never overwrites
+that draft. The app does not store the draft in browser storage; closing or reloading
+the app discards it. A successful send clears the retained draft. **Send another message**
+opens a blank form. Missing required fields are explained beside the field after a send
+attempt. What the person typed stays in place if delivery fails.
 Each field has a light border on a white box. The whole box gets a purple glow only while
 the person is typing in it. A field with an error gets an amber border; the other fields
 stay unchanged.

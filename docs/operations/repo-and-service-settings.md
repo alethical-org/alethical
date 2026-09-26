@@ -174,6 +174,7 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 | Setting | Intended | Why | Automated check |
 | --- | --- | --- | --- |
 | `ALETHICAL_ADMIN_ACCOUNT_IDS` | Present | Binds private account visibility to explicitly approved Supabase identities; current confirmed email and active status are also required. An approved email needs an existing confirmed account and a listed identifier before access activates. | Live |
+| `ALETHICAL_COMMENT_EMAIL_ENABLED` | Present | Enables durable reader and administrator comment alerts after the release privacy checks; local and test environments keep it false. | Live |
 | `ALETHICAL_CONTACT_RATE_PER_MIN` | Present | Limits repeated Contact us requests. | Live |
 | `ALETHICAL_CORS_ORIGINS` | Present | Limits which websites can call the API from a browser. | Live |
 | `ALETHICAL_EMAIL_ENABLED` | Present | Turns production Contact us delivery on. | Live |

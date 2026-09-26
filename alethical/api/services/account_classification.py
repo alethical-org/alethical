@@ -20,6 +20,7 @@ TEAM_EMAILS = frozenset(
         "joe@alethical.com",
         "afnetter@gmail.com",
         "joseph.fleishman@gmail.com",
+        "ask@alethical.com",
         "elopinyoga@gmail.com",
         "elopinmisc@gmail.com",
         "eugenelopin@gmail.com",

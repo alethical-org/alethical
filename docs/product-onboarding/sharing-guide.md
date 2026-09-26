@@ -108,6 +108,14 @@ Instagram has no direct button. It cannot open a prepared visitor post containin
 
 ## Link preview cards
 
+Reader comments load separately beneath individual editorial pieces. Their text
+does not enter an article's first response, search description, shared preview,
+structured article data, or export. A comment email links to the article with a
+`#comment-<id>` target. Its title and canonical address remain the article's own.
+The private `/comment-emails` stop screen has no share control, is excluded from
+search and site metrics, and keeps its secret in the browser fragment until the
+screen removes it. See [editorial-comments-guide.md](editorial-comments-guide.md).
+
 Facebook, LinkedIn, X, messaging apps, and work-chat apps usually read preview data from the shared page rather than from the Share button. Every visitor to one of our real pages — a person, a messaging app, or a search engine — receives the same page, carrying that page's own title, description, real address, and the 1200×630 Alethical image. There is no separate version for robots. An address that is not one of our pages, or that has the capital letters wrong, receives the missing-page preview and a 404 answer.
 
 The one image uses Alethical’s ink background, green mark, and the words “Minnesota’s legislative

@@ -74,6 +74,10 @@ describe('private admin addresses', () => {
 });
 
 describe('email choice addresses', () => {
+  it('opens comment email choices without placing a private token in route state', () => {
+    expect(targetFromPathname('/comment-emails')).toEqual({ kind: 'commentEmails' });
+    expect(pathForRoute({ name: 'CommentEmails' })).toBe('/comment-emails');
+  });
   it('opens saved preferences at a stable, private page address', () => {
     expect(targetFromPathname('/email-preferences')).toEqual({ kind: 'emailPreferences' });
     expect(pathForRoute({ name: 'EmailPreferences' })).toBe('/email-preferences');
@@ -983,5 +987,24 @@ describe('lobbying search address', () => {
       kind: 'lobbyingLanding',
       params: { q: 'Smith & Co' },
     });
+  });
+});
+
+describe('article correction contact navigation', () => {
+  it('round-trips an encoded identity and ignores arbitrary content and submission parameters', () => {
+    const article = 'known-article & identity';
+    const path = pathForRoute({ name: 'ContactUs', params: { article } });
+    expect(path).toBe('/about/contact?article=known-article%20%26%20identity');
+    expect(targetFromPathname(path)).toEqual({ kind: 'contactUs', article });
+    expect(
+      stateFromPathname(`${path}&title=Fake&url=https://evil.example&message=Injected&send=true`)
+        ?.routes[1],
+    ).toEqual({ name: 'ContactUs', params: { article } });
+    expect(
+      targetFromPathname('/about/contact?title=Fake&url=https://evil.example&send=true'),
+    ).toEqual({ kind: 'contactUs' });
+    expect(pathForRoute({ name: 'ContactUs', params: { article: '', title: 'Fake' } })).toBe(
+      '/about/contact',
+    );
   });
 });

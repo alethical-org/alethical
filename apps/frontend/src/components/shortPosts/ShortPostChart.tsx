@@ -223,7 +223,7 @@ export function ShortPostChart({ graphic, display, evidence, correction, article
               <strong>Conclusion: {display.conclusion}</strong> {evidence.limitations}
             </p>
           ) : null}
-          {!evidence.url.startsWith('#') ? (
+          {display.sourcePlacement !== 'sources' && !evidence.url.startsWith('#') ? (
             <span>
               Source:{' '}
               <a href={evidence.url} target="_blank" rel="noopener noreferrer">

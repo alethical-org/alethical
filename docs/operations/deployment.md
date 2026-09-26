@@ -92,6 +92,13 @@ the backend build when the hand-run fallback uploads a release.
 
 The complete intended Railway variable-name list lives in
 [`repo-and-service-settings.md` § Railway environment variables](repo-and-service-settings.md#railway-environment-variables).
+
+Comment alerts additionally require `ALETHICAL_COMMENT_EMAIL_ENABLED=true`.
+Stage it off for the first deployment, inspect the migrated comment tables' row
+security, then activate delivery using the existing verified Resend setup. The
+API process drains saved messages independently from reader requests. See
+[editorial-comments-guide.md](../product-onboarding/editorial-comments-guide.md#recovery-privacy-and-delivery)
+for delivery gates, retries and safe checks; do not send real test messages.
 Keep values only in Railway, never in this repository.
 
 `OPENAI_API_KEY` powers live Ask question sorting and search embeddings. It also

@@ -82,6 +82,7 @@ export type RootStackParamList = {
   MoneyLanding: undefined;
   EmailPreferences: undefined;
   Unsubscribe: undefined;
+  CommentEmails: undefined;
   LobbyingLanding: { q?: string } | undefined;
   LobbyingPrincipals: { q?: string; page?: string } | undefined;
   LobbyingLobbyists: { q?: string; page?: string; year?: string; sort?: string } | undefined;
@@ -156,7 +157,7 @@ export type RootStackParamList = {
   SiteMetrics: undefined;
   Terms: undefined;
   AboutUs: undefined;
-  ContactUs: undefined;
+  ContactUs: { article?: string } | undefined;
   ConfirmEmail: undefined;
   ResetPassword: undefined;
   NotFound: { path: string };

@@ -35,6 +35,7 @@ type WebRouteTarget =
   | { kind: 'moneyLanding' }
   | { kind: 'emailPreferences' }
   | { kind: 'unsubscribe' }
+  | { kind: 'commentEmails' }
   | { kind: 'lobbyingLanding'; params?: { q: string } }
   | { kind: 'lobbyingPrincipals' | 'lobbyingLobbyists'; params: Record<string, string> }
   | { kind: 'lobbyingPrincipal' | 'lobbyingLobbyist'; slug: string; year?: string }
@@ -68,7 +69,7 @@ type WebRouteTarget =
   | { kind: 'siteMetrics' }
   | { kind: 'terms' }
   | { kind: 'aboutUs' }
-  | { kind: 'contactUs' }
+  | { kind: 'contactUs'; article?: string }
   | { kind: 'confirmEmail' }
   | { kind: 'resetPassword' }
   | { kind: 'chatSession'; params: RootStackParamList['ChatSession'] }
@@ -216,6 +217,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
 
   if (segments.length === 1) {
     if (segments[0] === 'email-preferences') return { kind: 'emailPreferences' };
+    if (segments[0] === 'comment-emails') return { kind: 'commentEmails' };
     if (segments[0] === 'unsubscribe') return { kind: 'unsubscribe' };
     if (segments[0] === 'bills') {
       return { kind: 'bills', params: billsFilterParams(searchParams) };
@@ -299,7 +301,8 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   }
 
   if (segments.length === 2 && segments[0] === 'about' && segments[1] === 'contact') {
-    return { kind: 'contactUs' };
+    const article = searchParams.get('article') || undefined;
+    return article ? { kind: 'contactUs', article } : { kind: 'contactUs' };
   }
 
   if (segments[0] === 'read' && segments[1] === 'short-posts' && segments.length === 2) {
@@ -697,6 +700,8 @@ export function pathForRoute(activeRoute: {
       return '/money';
     case 'EmailPreferences':
       return '/email-preferences';
+    case 'CommentEmails':
+      return '/comment-emails';
     case 'Unsubscribe':
       return '/unsubscribe';
     case 'LobbyingLanding': {
@@ -839,8 +844,12 @@ export function pathForRoute(activeRoute: {
       return '/terms';
     case 'AboutUs':
       return '/about';
-    case 'ContactUs':
-      return '/about/contact';
+    case 'ContactUs': {
+      const article = activeRoute.params?.article;
+      return typeof article === 'string' && article
+        ? `/about/contact?article=${encodeURIComponent(article)}`
+        : '/about/contact';
+    }
     case 'ConfirmEmail':
       return '/confirm';
     case 'ResetPassword':
@@ -997,6 +1006,8 @@ export function stateFromPathname(pathname: string): WebNavigationState {
       };
     case 'emailPreferences':
       return { routes: [homeTabs, { name: 'EmailPreferences' }], index: 1 };
+    case 'commentEmails':
+      return { routes: [homeTabs, { name: 'CommentEmails' }], index: 1 };
     case 'unsubscribe':
       return { routes: [homeTabs, { name: 'Unsubscribe' }], index: 1 };
     case 'read':
@@ -1116,7 +1127,12 @@ export function stateFromPathname(pathname: string): WebNavigationState {
       };
     case 'contactUs':
       return {
-        routes: [homeTabs, { name: 'ContactUs' }],
+        routes: [
+          homeTabs,
+          target.article
+            ? { name: 'ContactUs', params: { article: target.article } }
+            : { name: 'ContactUs' },
+        ],
         index: 1,
       };
     case 'confirmEmail':

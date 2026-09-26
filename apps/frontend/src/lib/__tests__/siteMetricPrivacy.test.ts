@@ -6,6 +6,7 @@ describe('private email pages', () => {
   it.each([
     'https://www.alethical.com/email-preferences',
     'https://www.alethical.com/unsubscribe#private-token',
+    'https://www.alethical.com/comment-emails#token=fake-comment-token',
     'https://www.alethical.com/%75nsubscribe',
   ])('never sends a visit from %s to site metrics', (address) => {
     expect(isPrivateMetricUrl(address)).toBe(true);

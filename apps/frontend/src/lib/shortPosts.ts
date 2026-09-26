@@ -5,6 +5,7 @@ import {
   SHORT_POST_PRESENTATION_READY,
   TOPICS,
   piecePath,
+  isoDateCapsLabel,
 } from './researchIndex';
 import {
   calculateChart,
@@ -28,6 +29,8 @@ export interface ShortPostEvidence {
   period?: ReportingPeriod;
   /** The real date of a source used by a purely explanatory Guide, when known. */
   sourceDatedOn?: string;
+  /** A selected download is evidence, not a claim about its overall reporting coverage. */
+  downloadSnapshot?: { copiedOn: string; selectedRecords: string };
   method: string;
   limitations: string;
   /** A durable source copy or release identifier, without a temporary poster path. */
@@ -70,6 +73,8 @@ export interface ShortPostChartDisplay {
   omitRepeatedUnit?: boolean;
   /** Reviewed answer, shown separately from the evidence limitations. */
   conclusion?: string;
+  /** Keep citations together in the article sources when the chart needs no extra link. */
+  sourcePlacement?: 'chart' | 'sources';
   sourceEvidenceId: string;
   limitation: string;
   /** A parts graphic may use the table treatment instead of the percentage plot. */
@@ -94,6 +99,9 @@ export interface ShortPostEditorial {
   graphics: readonly ShortPostGraphic[];
   limitations: string;
   coverageNote: string;
+  /** Scope the date to cited filings instead of suggesting whole-download coverage. */
+  recordsScope?: 'cited-filings';
+  aiAssisted?: boolean;
   disclosures: readonly string[];
   history: readonly ShortPostHistory[];
   /** Optional until an article is reviewed for the new Short post layout. */
@@ -200,11 +208,22 @@ export function shortPostArticleSnapshotBlocks(
         throw new Error(`chart ${block.graphicId} lacks reviewed display or source`);
       blocks.push({ kind: 'heading', text: display.title });
       blocks.push({ kind: 'paragraph', text: chartDescription(graphic.input) });
-      blocks.push({
-        kind: 'paragraph',
-        text: `Source: ${source.title}. ${source.limitations}${display.limitation === source.limitations ? '' : ` ${display.limitation}`}`,
-        links: [{ text: source.title, href: source.url }],
-      });
+      if (display.conclusion) {
+        blocks.push({
+          kind: 'paragraph',
+          text: `Conclusion: ${display.conclusion} ${source.limitations}`,
+        });
+      }
+      if (display.sourcePlacement !== 'sources' && !source.url.startsWith('#')) {
+        blocks.push({
+          kind: 'paragraph',
+          text: `Source: ${source.title}`,
+          links: [{ text: source.title, href: source.url }],
+        });
+      }
+      if (!display.conclusion) blocks.push({ kind: 'paragraph', text: source.limitations });
+      if (display.limitation !== source.limitations)
+        blocks.push({ kind: 'paragraph', text: display.limitation });
     }
   }
   blocks.push({
@@ -221,7 +240,9 @@ export function shortPostArticleSnapshotBlocks(
   (piece.sourceRuns ?? []).forEach((runs) => blocks.push(snapshotRuns(runs)));
   blocks.push({ kind: 'paragraph', text: editorial.coverageNote });
   blocks.push({ kind: 'paragraph', text: editorial.limitations });
-  editorial.disclosures.forEach((text) => blocks.push(snapshotRuns(articleDisclosureRuns(text))));
+  editorial.disclosures.forEach((text) =>
+    blocks.push(snapshotRuns(articleDisclosureRuns(text, piece.articleId ?? piece.slug))),
+  );
   const related = (editorial.relatedSlugs ?? []).flatMap((slug) => {
     const entry = PUBLISHED_PIECE_INDEX.find((candidate) => candidate.slug === slug);
     return entry ? [{ text: entry.title, href: piecePath(entry) }] : [];
@@ -247,6 +268,8 @@ function graphicNumber(result: ChartResult, run: CalculatedRun): number {
     }
   }
   if (result.kind === 'comparison') {
+    if (run.metric === 'baseline-value') return result.baseline.value;
+    if (run.metric === 'compared-value') return result.compared.value;
     if (run.metric === 'difference') return result.difference;
     if (run.metric === 'percent-change' && result.percentChange !== undefined) {
       return result.percentChange;
@@ -295,7 +318,7 @@ export function calculatedRun(
   }
   const options: Intl.NumberFormatOptions =
     display === 'usd'
-      ? { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }
+      ? { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 2 }
       : { maximumFractionDigits: display === 'integer' ? 0 : 4 };
   if (display === 'integer' && !Number.isInteger(value)) {
     throw new Error('integer display would hide a fractional value');
@@ -328,9 +351,24 @@ export function shortPostFingerprint(piece: ResearchPiece): string {
   if (!editorial) throw new Error('Short post editorial record is missing');
   const { shortPost: _shortPost, ...article } = piece;
   const { review: _review, ...checkedMaterial } = editorial;
+  let visibleBlocks: unknown;
+  try {
+    visibleBlocks = shortPostArticleSnapshotBlocks(piece);
+  } catch (error) {
+    // Invalid inputs must still produce publication errors, never crash the checker.
+    visibleBlocks = { renderError: (error as Error).message };
+  }
   const material = JSON.stringify({
     article,
     checkedMaterial,
+    visibleBlocks,
+    disclosureLinks: editorial.disclosures.map((text) =>
+      articleDisclosureRuns(text, piece.articleId ?? piece.slug),
+    ),
+    related: (editorial.relatedSlugs ?? []).map((slug) =>
+      PUBLISHED_PIECE_INDEX.find((entry) => entry.slug === slug),
+    ),
+    topics: (piece.topics ?? []).map((slug) => TOPICS.find((topic) => topic.slug === slug)),
   });
   let hash = 2166136261;
   for (let index = 0; index < material.length; index += 1) {
@@ -338,6 +376,12 @@ export function shortPostFingerprint(piece: ResearchPiece): string {
     hash = Math.imul(hash, 16777619);
   }
   return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+export function shortPostRecordsLine(piece: ResearchPiece): string {
+  return piece.shortPost?.recordsScope === 'cited-filings'
+    ? `Records in cited filings through ${new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${piece.recordsThrough}T12:00:00Z`))}`
+    : `RECORDS THROUGH ${isoDateCapsLabel(piece.recordsThrough)}`;
 }
 
 const nonempty = (value: string | undefined): boolean => Boolean(value?.trim());
@@ -385,7 +429,7 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
   ) {
     errors.push('at least 1 distinct controlled topic is required');
   }
-  if (!nonempty(piece.title) || !nonempty(piece.dek) || !contentRuns(piece).length) {
+  if (!nonempty(piece.title) || !contentRuns(piece).length) {
     errors.push('complete article text is required');
   }
   if (!editorial.body?.length) errors.push('ordered Short post article body is required');
@@ -393,7 +437,10 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
     errors.push('subject-only search description is required');
   if (!editorial.evidence.length) errors.push('evidence is missing');
   if (!editorial.claims.length) errors.push('claim checks are missing');
-  if (!nonempty(editorial.limitations) || !nonempty(editorial.coverageNote)) {
+  if (
+    !nonempty(editorial.limitations) ||
+    (!nonempty(editorial.coverageNote) && editorial.recordsScope !== 'cited-filings')
+  ) {
     errors.push('limitations and source coverage are required');
   }
   if (
@@ -406,6 +453,10 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
     !editorial.disclosures.some((text) => text === ARTICLE_AI_NOTE || text === ARTICLE_SOURCE_NOTE)
   )
     errors.push('source and correction note is missing');
+  if (editorial.aiAssisted === true && !editorial.disclosures.includes(ARTICLE_AI_NOTE))
+    errors.push('AI assistance note is missing');
+  if (editorial.aiAssisted === false && editorial.disclosures.includes(ARTICLE_AI_NOTE))
+    errors.push('AI assistance note contradicts the article record');
   const evidenceIds = new Set<string>();
   const sourceUrls = new Set(
     (piece.sourceRuns ?? []).flatMap((line) =>
@@ -434,7 +485,11 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
     ) {
       errors.push(`evidence ${evidence.id} needs a linked official or held source`);
     }
-    if (editorial.coverageBasis !== 'explanatory-guide' && !evidence.period) {
+    if (
+      editorial.coverageBasis !== 'explanatory-guide' &&
+      !evidence.period &&
+      !evidence.downloadSnapshot
+    ) {
       errors.push(`evidence ${evidence.id} needs its covered reporting period`);
     } else if (
       evidence.period &&
@@ -444,6 +499,17 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
         !nonempty(evidence.period.label))
     ) {
       errors.push(`evidence ${evidence.id} needs its covered reporting period`);
+    }
+    if (
+      evidence.downloadSnapshot &&
+      (evidence.period ||
+        evidence.kind !== 'held-records' ||
+        !validDate(evidence.downloadSnapshot.copiedOn) ||
+        !nonempty(evidence.downloadSnapshot.selectedRecords))
+    ) {
+      errors.push(
+        `evidence ${evidence.id} needs a dated, scoped held download without invented coverage`,
+      );
     }
     if (evidence.sourceDatedOn && !validDate(evidence.sourceDatedOn)) {
       errors.push(`evidence ${evidence.id} has an invalid source date`);

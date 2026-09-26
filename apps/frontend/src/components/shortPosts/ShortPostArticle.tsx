@@ -1,4 +1,5 @@
-import { useId } from 'react';
+import { useId, type MouseEventHandler } from 'react';
+import { linkProps } from '../../navigation/links';
 import { SharePopover } from '../billDetail/SharePopover';
 import {
   isoDateCapsLabel,
@@ -17,14 +18,20 @@ import {
   type ResearchPiece,
 } from '../../lib/research';
 import { TOPICS, topicPath } from '../../lib/researchIndex';
-import type { ShortPostDisplayBlock } from '../../lib/shortPosts';
+import { shortPostRecordsLine, type ShortPostDisplayBlock } from '../../lib/shortPosts';
 import { articleDisclosureRuns } from '../../lib/articleDisclosure';
 import { publicPageUrl, type ShareContent } from '../../lib/share';
 import { ShortPostChart } from './ShortPostChart';
 
-type Props = { piece: ResearchPiece };
+type Props = { piece: ResearchPiece; privatePreview?: boolean; onCorrectionContact?: () => void };
 
-function Runs({ runs }: { runs: readonly ResearchInline[] }) {
+function Runs({
+  runs,
+  onInternalLink,
+}: {
+  runs: readonly ResearchInline[];
+  onInternalLink?: () => void;
+}) {
   return (
     <>
       {runs.map((run, index) => {
@@ -36,7 +43,16 @@ function Runs({ runs }: { runs: readonly ResearchInline[] }) {
           );
         if (run.kind === 'internalLink')
           return (
-            <a key={index} href={run.href}>
+            <a
+              key={index}
+              href={run.href}
+              onClick={
+                onInternalLink
+                  ? (linkProps(run.href, onInternalLink)
+                      .onPress as unknown as MouseEventHandler<HTMLAnchorElement>)
+                  : undefined
+              }
+            >
               {run.text}
             </a>
           );
@@ -211,7 +227,7 @@ function ArticleBody({ piece }: Props) {
 }
 
 /** Layout for an approved Short post. The publication gate decides whether it may be registered. */
-export function ShortPostArticle({ piece }: Props) {
+export function ShortPostArticle({ piece, privatePreview = false, onCorrectionContact }: Props) {
   const topicLabelId = useId();
   const editorial = piece.shortPost;
   if (!editorial || piece.format !== 'short-post') return null;
@@ -275,11 +291,13 @@ export function ShortPostArticle({ piece }: Props) {
         {piece.dek ? <p className="sp-dek">{piece.dek}</p> : null}
         <div className="sp-meta-share">
           <p className="sp-meta">
-            {piece.traits.research ? (
+            {privatePreview ? (
+              <span>{shortPostRecordsLine(piece)}</span>
+            ) : piece.traits.research ? (
               <>
                 <span>PUBLISHED {isoDateCapsLabel(piece.publishedOn)}</span>
                 <span aria-hidden="true"> · </span>
-                <span>RECORDS THROUGH {isoDateCapsLabel(piece.recordsThrough)}</span>
+                <span>{shortPostRecordsLine(piece)}</span>
               </>
             ) : (
               <>
@@ -289,7 +307,7 @@ export function ShortPostArticle({ piece }: Props) {
               </>
             )}
           </p>
-          <SharePopover content={shareContent} />
+          <SharePopover content={shareContent} disabled={privatePreview} />
         </div>
         <nav className="sp-topics" aria-labelledby={topicLabelId}>
           <span id={topicLabelId}>Topics</span>
@@ -327,7 +345,7 @@ export function ShortPostArticle({ piece }: Props) {
             <Runs runs={runs} />
           </p>
         ))}
-        <p className="sp-coverage">{editorial.coverageNote}</p>
+        {editorial.coverageNote ? <p className="sp-coverage">{editorial.coverageNote}</p> : null}
         <p className="sp-coverage">{editorial.limitations}</p>
       </section>
 
@@ -335,7 +353,10 @@ export function ShortPostArticle({ piece }: Props) {
         <aside className="sp-disclosures">
           {editorial.disclosures.map((text) => (
             <p key={text}>
-              <Runs runs={articleDisclosureRuns(text)} />
+              <Runs
+                runs={articleDisclosureRuns(text, piece.articleId ?? piece.slug)}
+                onInternalLink={onCorrectionContact}
+              />
             </p>
           ))}
         </aside>

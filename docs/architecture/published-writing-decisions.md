@@ -577,7 +577,7 @@ note from “2 records do not always mean 2 donations” because it states the o
 Keep the specific limits on what the cited filings establish. This change does
 not remove the AI disclosure or authorize publication.
 
-The original social poster is temporary working material and never appears in the article. After publication, its temporary processing copy may be removed; the extracted claims, evidence and source copies, calculations, finished charts, and correction history remain. Eugene's original Downloads files remain untouched. Quantitative charts are built from checked values, never generated artwork. Comments may later attach to each stable article identity, including a Short post carrying Research, but remain off until individually enabled through the separate comments work. Existing Research and Guides stay off unless separately enabled.
+The original social poster is temporary working material and never appears in the article. After publication, its temporary processing copy may be removed; the extracted claims, evidence and source copies, calculations, finished charts, and correction history remain. Eugene's original Downloads files remain untouched. Quantitative charts are built from checked values, never generated artwork. Every individual published editorial piece now falls within the approved comments scope, including Research, Guides and Short posts. Comments attach to its stable article identity by default, without a per-piece switch. Listing and factual data pages remain comment-free. The 26 September 2026 decision and complete behavior are recorded in [Reader comments](../product-onboarding/editorial-comments-guide.md); implementation and release are tracked in [issue 2399](https://github.com/alethical-org/alethical/issues/2399).
 
 
 Branding clarification approved by Eugene on 26 Sep 2026: posts and recreated graphics
@@ -612,6 +612,26 @@ removal, minimal private banner and article copy changes in the private preview.
 subject to his final review and publication instruction. The original-graphic
 investigations remain separate; neither is replaced by this article.
 
+### First-post preparation checks, 26 September 2026
+
+A Short post may omit a subtitle when it repeats the title. A retained download
+whose overall reporting-period end is unknown records its copy date and exact
+selection separately; it cannot supply a made-up coverage date. The dated cited
+filings control the records-through line. The first article labels that line
+“Records in cited filings through December 20, 2023.”
+
+The initial HTML includes the chart conclusion and the same correction-contact
+link as the interactive article. Full-content fingerprints include dynamically
+resolved reader text and destinations, including linked newer-coverage titles.
+Final human approval and publication instructions remain separate, required
+fields; a private preview never supplies them.
+
+Correction-contact links carry the stable article identity. The contact form
+resolves the published title and permanent Alethical address, retains the
+reader's edits during in-app navigation and retries, and sends only after
+“Send message.” [contact-us-guide.md](../product-onboarding/contact-us-guide.md)
+owns the form's precise behavior. The source archive remains internal under §2.14.
+
 ### 26 September 2026: browser previews are the review deliverable
 
 Eugene directed that post-review preparation always produce private browser
@@ -624,3 +644,14 @@ direction and new Design requests retain their separate approval requirements.
 owns the delivery and review checks. Each post gets its own browser tab and direct
 preview link; existing review addresses and another task's publishing preview
 remain intact.
+
+
+### 26 September 2026: accepted first post authorized for publication
+
+Eugene instructed publication of “2 records do not always mean 2 donations” at
+`/read/research/2-records-not-always-2-donations`. The accepted article, chart inputs,
+source scope and closing note stay unchanged. The article joins the Short posts
+archive, Campaign finance and Lobbying topics, sitemap, and the approved default
+comments list. Other private drafts retain their individual publication holds.
+[First Short post preparation](../operations/first-short-post-preparation.md)
+records approval times and the release checks.

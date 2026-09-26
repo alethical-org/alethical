@@ -125,6 +125,8 @@ Target:
 - public read endpoints stay public
 - signed-in features live under authenticated user scope
 - internal ingestion and moderation tooling use a separate internal namespace
+- reader-comment removal is an authenticated administrator action on the public
+  article resource, not an ingestion operation
 
 ### 5. Evolvability
 
@@ -141,6 +143,8 @@ Public API:
 Authenticated user API:
 
 - `/api/v1/me/...`
+- authenticated mutations on `/api/v1/comments/articles/...`, with ownership or
+  administrator permission checked separately on every write
 
 Internal operations API:
 
@@ -155,6 +159,40 @@ Health and readiness:
   failed deployment record, so nothing could tell whether a merge had reached
   readers ([issue 2046](https://github.com/alethical-org/alethical/issues/2046)).
   Never cached, and it needs neither the database nor a worker thread.
+
+## Editorial comments
+
+The routes below live under `/api/v1`. Only article identifiers in the generated
+published-editorial registry are eligible. Factual records and lists cannot gain
+comments by supplying an arbitrary identifier. Responses use the `data` envelope
+and `private, no-store`, including public discussion reads and failures.
+
+| Method and path | Access and behavior |
+| --- | --- |
+| `GET /comments/articles/{article_id}` | Public, 10 oldest-first root conversations and their replies; cursor paging |
+| `GET /comments/articles/{article_id}/conversation/{comment_id}` | Public, complete conversation for a contribution link |
+| `POST /comments/articles/{article_id}` | Confirmed account; create a comment or a reply |
+| `POST /comments/articles/{article_id}/{comment_id}/edit` | Owner; replace text with a matching version |
+| `POST /comments/articles/{article_id}/{comment_id}/delete` | Owner; erase text and public identity while retaining the private owner link and needed reply structure |
+| `POST /comments/articles/{article_id}/{comment_id}/remove` | Fresh confirmed administrator permission; erase another contribution |
+| `GET /me/comments/settings?article_id=...` | Confirmed account; chosen public name, versions and independent email choices |
+| `POST /me/comments/name` | Confirmed account; update the global public name |
+| `POST /me/comments/preferences` | Confirmed account; update supplied choices with matching versions |
+| `GET /me/comments/requests/{request_key}?article_id=...` | Confirmed account; recover a submission outcome |
+| `POST /comments/email-stop/inspect` | Private bearer token in the body; read choices without changing them |
+| `POST /comments/email-stop` | The same token plus an explicit choice; stop that choice only |
+
+Writes bind a request key to the account, article and expected version. Duplicate
+requests reuse the result. The request-status lookup serializes with the account's
+writes and reserves an absent key before answering `not_found`, preventing a late
+original request from publishing after the client starts a replacement. This GET
+has that narrow recovery side effect and is never cached or prefetched.
+
+Comments and pending email recipients commit together; the independent drain
+never delays the write on an email-provider request. Replies have 1 visual inset
+while retaining their exact target. Full identity, deletion, consent and delivery
+behavior lives in
+[editorial-comments-guide.md](../product-onboarding/editorial-comments-guide.md).
 
 ## Resource Identity
 

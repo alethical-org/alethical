@@ -15,9 +15,11 @@ import { isWeb, useHover } from './interactions';
 export function SharePopover({
   content,
   compact = false,
+  disabled = false,
 }: {
   content: ShareContent;
   compact?: boolean;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [btnHovered, btnHover] = useHover();
@@ -56,15 +58,18 @@ export function SharePopover({
   return (
     <View style={[styles.shareWrap, compact && styles.shareWrapCompact]}>
       <Pressable
+        disabled={disabled}
+        accessibilityState={{ disabled }}
         ref={shareBtnRef}
         accessibilityRole="button"
         accessibilityLabel={shareDialogLabel(content.subject, content.resultsKind)}
         aria-expanded={open}
         aria-haspopup="dialog"
         onPress={() => setOpen((value) => !value)}
-        {...btnHover}
+        {...(!disabled ? btnHover : {})}
         style={[
           styles.shareBtn,
+          disabled && { opacity: 0.5 },
           compact && styles.shareBtnCompact,
           btnHovered && styles.shareBtnHover,
           compact && btnHovered && styles.shareBtnCompactHover,

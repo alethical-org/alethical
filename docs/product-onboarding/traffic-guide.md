@@ -137,7 +137,9 @@ exact account and token that requested it, and checks permission before each Ver
 leaves. An account or token change invalidates previous permission immediately. An unresolved
 identity or failed permission check keeps signed-in Vercel collection off. Vercel never
 receives the account identifier. `/admin` and its child addresses are excluded from Vercel
-page-use and anonymous action collection at event time. The older `/api/traffic-collection`
+page-use and anonymous action collection at event time. The private `/comment-emails`
+screen is excluded too; its first response omits the Cloudflare measurement script.
+The older `/api/traffic-collection`
 route returns a private, fixed 410 response. It never reads a caller-supplied account
 identifier or reveals exclusion-list membership; older clients must reload.
 
@@ -157,10 +159,11 @@ exclusions do not apply to Cloudflare; team visits may remain. This
 is not a claim that all automated visits can be identified.
 Cloudflare Web Analytics uses no cookies, local storage, or fingerprinting.
 
-The shared backend classifier recognizes 13 known team mailboxes, their supported aliases,
+The shared backend classifier recognizes 14 known team mailboxes, their supported aliases,
 configured account identifiers, and test mail domains. Aliases include plus tags and Gmail
 dot and googlemail variations. Excluding 1 linked identity excludes the whole linked account.
-The 13-mailbox exclusion list is broader than the 8 exact administrator mailboxes. Neither
+The 14-mailbox exclusion list is broader than the 9 exact administrator mailboxes.
+Both include `ask@alethical.com`. Neither
 an alias nor exclusion status grants administrator access. `TRAFFIC_EXCLUDED_ACCOUNT_IDS`,
 `ALETHICAL_TEST_ACCOUNT_IDS`, and `ALETHICAL_ADMIN_ACCOUNT_IDS` also contribute to exclusions.
 Current reader and follow inventories can be recalculated when classification changes.
@@ -236,7 +239,7 @@ no version or `version=1` keep the older response shape without that field, so a
 older open browser can continue reading its report.
 The former `/admin/site-metrics` address redirects to `/admin/metrics`. Refresh and
 the date-range controls share the same width as the account and activity cards.
-The server requires an explicitly allowed account identifier, 1 of the 8 exact confirmed
+The server requires an explicitly allowed account identifier, 1 of the 9 exact confirmed
 administrator mailboxes, and a currently eligible account. This report shows combined counts
 only. Account growth, activity, and operating records can fail independently; unavailable
 sources never become zero. Sign-out, account changes, and token changes remove the previous
@@ -392,7 +395,7 @@ The server settings are:
 - `VERCEL_ANALYTICS_TEAM_ID`: the Vercel team identifier;
 - `TRAFFIC_COUNTING_STARTED_AT`: the exact UTC time counting was switched on;
 - `TRAFFIC_EXCLUDED_ACCOUNT_IDS`: additional comma-separated Supabase account identifiers
-  for the backend classifier; the 13 known mailboxes and test-domain rules do not depend on
+  for the backend classifier; the 14 known mailboxes and test-domain rules do not depend on
   this setting. Browser collection uses the authenticated backend decision; and
 - `EXPO_PUBLIC_CHECKLY_STATUS_URL`: the HTTPS public dashboard address on
   `<name>.checkly-dashboards.com`.

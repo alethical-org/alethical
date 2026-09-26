@@ -194,10 +194,12 @@ ourselves that way. Someone who arrives with a question, gets a true answer with
 source in view, and leaves four minutes later is the best outcome this product has — not
 a retention failure to be fixed.
 
-The [scope](product-onboarding/product-scope.md) already reads this way: no social
-features, no comment threads, personalization kept to tracked bills and saved places, one
-quiet email when a tracked bill moves. Those are not gaps waiting to be filled. They are
-the same decision, made over and over.
+The [scope](product-onboarding/product-scope.md) keeps factual data pages free of
+comment threads and social ranking. [Reader comments](product-onboarding/editorial-comments-guide.md)
+on individual editorial pieces are the approved exception, settled 26 September 2026:
+readers can ask questions, offer corrections and discuss related topics without
+turning the official record into a debate. Replies and optional article updates
+follow the reader's choices. This does not change what counts as success.
 
 ### 11. Reputation is the whole asset, and it is asymmetric
 
