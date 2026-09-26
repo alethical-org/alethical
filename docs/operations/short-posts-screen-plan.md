@@ -215,3 +215,10 @@ The conclusion also omits “This comparison does not independently confirm mone
 changing hands.” The bold answer already says “filings support” and “reported,”
 which states the evidence boundary. Keep the concrete distinction that 2 download
 entries do not establish 2 separate donations.
+
+### First-post chart label width (26 September 2026)
+
+Eugene approved wider left-hand chart labels so they wrap into fewer lines, moving
+both bar origins right together. Use 30% of the comparison width, at least 180px,
+on the existing side-by-side layout. Preserve the common zero and scale. On phones,
+keep the existing full-width label above each bar instead of squeezing columns.
