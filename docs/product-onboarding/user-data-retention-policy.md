@@ -100,6 +100,10 @@ display name (`alethical/api/auth.py`). So a reader who has never given us a nam
 has one on file, and it is a slice of their email address. That is worth knowing before
 we ever show a display name to anyone but its owner.
 
+Editorial comments use a separate reader-chosen public name. That field starts
+empty and never inherits this internal display name or any part of an email.
+Changing it updates the name shown beside past comments and replies (§2.9).
+
 **The "active" switch works** ([#1043](https://github.com/alethical-org/alethical/issues/1043)):
 `user_account.is_active` is enforced everywhere an account acts. The risk #1043 closed:
 a switch that exists, defaults to on, and is checked nowhere reads as a way to lock
@@ -264,6 +268,47 @@ keep the support record. The sender controls their copy. Resend's
 as long as needed for its service and legal duties; its current plan terms, not this code,
 control the provider copy.
 
+### 2.9 Public editorial comments and comment emails
+
+**What it holds.** A chosen public name, comment and reply text, article and reply
+identifiers, posted and latest edited dates, and the account that owns each
+contribution. Anyone can read the published name and text. Public responses also
+carry an opaque author identifier so the interface can identify an owner's
+contributions; they never include the email or Supabase sign-in identifier.
+
+The account has an independent direct-reply email choice and an update choice for
+each article. Retry receipts hold a request key, article, contribution identifier
+and payload fingerprint, not a second copy of the words. Private stop links store
+only a token digest, account, article and choice. These account-owned records last
+while the account exists and are deleted with it.
+
+**Public text remains until removed.** Readers can edit or delete their own
+contributions, and confirmed administrators can remove any contribution. Deletion
+erases its text and hides its public identity, while retaining the private owner
+link for permission and retry checks. Account deletion also clears that owner
+link on every contribution through a database trigger. Structural rows and dates remain so
+other readers' replies stay connected. Empty placeholders are hidden. The chosen
+name disappears with the profile on account deletion. There is no automatic age
+limit for public comments; §5's private-question rules do not apply to them.
+
+**Email delivery.** Saved delivery records contain the event, contribution,
+recipient account or administrator destination, attempts and outcome. A prepared
+message temporarily holds the destination, public names, article title, direct
+link and private stop links, never the comment text. Terminal outcomes clear this
+payload. Messages are first prepared from current information and then kept stable
+for duplicate protection. No retry is made once the 23-hour retry window has
+elapsed; the next eligible drain clears the payload. Disabled delivery or an
+unavailable worker can leave a prepared payload pending. Account deletion removes reader deliveries;
+administrator delivery records can remain with the actor link cleared. A later
+drain cancels a pending delivery for an erased contribution and clears its payload.
+
+Resend receives the email to deliver it. Administrator alerts reach only
+`ask@alethical.com` in Google Workspace. Already delivered copies are controlled
+by the recipient and provider, and cannot be recalled when a comment is removed.
+Public-name changes, deletion and removal do not themselves send mail.
+The exact choices and copy are in
+[editorial-comments-guide.md](editorial-comments-guide.md).
+
 ---
 
 ## 3. Given, generated, or just written down
@@ -273,7 +318,8 @@ useful cut through the whole list — because it predicts how a reader will feel
 each item without them having to be asked.
 
 **Given deliberately.** Bills someone chose to follow. Their alert settings. A note on a
-bill. A saved address, if the feature ever ships. The reader performed an act meant to
+bill. A chosen public name, published comments and replies, and comment email
+choices. A saved address, if the feature ever ships. The reader performed an act meant to
 be remembered, and would be annoyed if we forgot.
 
 **Volunteered without being asked for.** Every question typed into a bill conversation.
@@ -296,8 +342,7 @@ no.
 
 ## 4. What leaves our systems
 
-Three kinds of reader data travel to third parties. Only one of the three is named in
-the published Privacy Policy.
+The published Privacy Policy names the recipients and purposes in this table.
 
 | Who gets it                                 | What they get                                                                                                         | When                                                                                                 | Named in our Privacy Policy? |
 | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------- |
@@ -314,8 +359,8 @@ the published Privacy Policy.
 | Checkly                                     | The 3 public Alethical addresses it tests                                                                             | Every 2 minutes from North Virginia                                                                  | Yes                          |
 | Railway                                     | Runs the API and captures its log stream (§7)                                                                         | Every API call                                                                                       | Yes                          |
 | Sentry                                      | Error class, code stack, safe route pattern, and public operating labels; **no reader data**                          | Only when an import, sign-in service, answer provider, or API request fails                          | Yes                          |
-| Resend                                      | Contact name, email, phone, subject, and message                                                                      | Every Contact us send                                                                                | Yes                          |
-| Google Workspace                            | Alethical's delivered copy of the same contact message                                                                | Every Contact us send                                                                                | Yes, through the Resend line |
+| Resend | Contact form fields; for comment mail, recipient address, public names, article title, contribution link and private stop links, never comment text | Contact and comment email sends | Yes |
+| Google Workspace | Alethical's delivered contact copy; comment administrator alerts containing article title and contribution link | Contact sends and comment administrator alerts | Yes, through the Resend lines |
 
 **The good half.** No account identifier ever reaches a model. The prompt we send is
 built from the bill's identifier, the reader's question, and passages of bill text
@@ -338,6 +383,9 @@ make the question stop travelling; it makes the reader able to see that it does.
 ---
 
 ## 5. The hard one: typed questions
+
+This section governs private questions and bill notes. Deliberately public
+editorial comments follow §2.9 instead.
 
 **The judgment call.** _Treat text a reader typed as a strictly more sensitive class
 than choices a reader made, give it a life of its own that does not depend on the
@@ -402,7 +450,9 @@ small.
 
 ## 6. What deletion should mean
 
-None of this exists yet (§7). This is the specification for when it is built.
+There is no reader-facing account deletion flow yet (§7). This specifies the
+whole operation; the comment tables already enforce the erasure described here
+when an account row is deleted.
 
 **"Delete my account" should mean:**
 
@@ -416,6 +466,8 @@ None of this exists yet (§7). This is the specification for when it is built.
 | Alert settings                  | Deleted      | Meaningless without an account                                       |
 | Sent alerts                     | Deleted      | A delivery receipt for an address we no longer hold                  |
 | Conversations and every message | Deleted      | Typed text (§5) — this is the one that most needs to actually happen |
+| Public comments and replies | Erase text and author link; retain anonymous structure needed by other replies | Preserve other readers' contributions without preserving the deleted person's words |
+| Comment name, choices, retry receipts, stop tokens and reader deliveries | Deleted | All belong to the account; administrator delivery records instead lose their actor link (§2.9) |
 
 **What we would keep.** Anonymous action counts and hourly totals of local first use,
 bill-follow creation, and committee-follow creation have no account, email, bill, or
@@ -453,18 +505,22 @@ Written in the present tense, because pretending otherwise is the exact failure
 exists to prevent, and that rule binds our own documents as much as our product copy.
 
 **There is no way to delete an account.** No endpoint, no button, no script, no runbook.
-The API can delete a followed bill and a saved place; that is all
-(`alethical/api/routers/me.py`). Deleting a conversation is not possible. Deleting an
+The API can delete a followed bill and a saved place
+(`alethical/api/routers/me.py`). Readers can also delete their own editorial
+comments and replies (`alethical/api/routers/comments.py`). Deleting a conversation is not possible. Deleting an
 account is not possible. If someone emails `ask@alethical.com` today and asks us to
 delete their data, honouring it means someone hand-writing SQL against production with
-nothing to check their work against. **Everything in §6 above is a proposal, not a
-description.** Building it is [#1040](https://github.com/alethical-org/alethical/issues/1040).
+nothing to check the complete operation against. **The complete account deletion
+flow in §6 remains a proposal; comment erasure on account removal is implemented.**
+Building the complete flow is [#1040](https://github.com/alethical-org/alethical/issues/1040).
 
 **The published Privacy Policy now matches this document** (`apps/frontend/src/screens/LegalScreens.tsx`,
-effective and updated 15 August 2026, [#1041](https://github.com/alethical-org/alethical/issues/1041)).
+updated 26 September 2026 for editorial comments; its original alignment was
+[#1041](https://github.com/alethical-org/alethical/issues/1041)).
 _Information We Collect_ lists every category in §2 that a reader can actually reach: the
 manufactured display name, followed bills and their notes, the alert switch, messages typed
-into a bill conversation, and Ask questions. Under _How We Share Information_ it names
+into a bill conversation, Ask questions, chosen public names, public comments and
+their email choices. Under _How We Share Information_ it names
 Supabase, Google, OpenAI, Anthropic, the US Census Bureau, the Minnesota Geospatial
 Information Office, Resend, Vercel, Cloudflare, Railway, Sentry, Google Search Console,
 Bing Webmaster Tools, and Checkly (§4). It does not name
@@ -546,7 +602,10 @@ sign-in token to Alethical's `/api/v1/site-metrics/collection` route, which dete
 is excluded as team or test use. It does not trust a browser-supplied account identifier.
 If that decision cannot be read, Vercel analytics stays off for the signed-in visit.
 Neither the token nor account identifier is sent to Vercel. Private `/admin` routes are
-omitted from Vercel page-load and Alethical action collection.
+omitted from Vercel page-load and Alethical action collection. The private
+`/comment-emails` route is omitted too and its first response has no Cloudflare
+measurement script. Its stop secret is carried in the browser fragment, never
+in a page request, and is removed after the screen reads it.
 The behavior and server settings are in [How Site Metrics works](traffic-guide.md).
 
 **Product measurements have no reader attached.** The action table (`site_metric_event`)
@@ -625,10 +684,15 @@ write path if a real product need appears.
 | Account, name, and a confirmed email if there is one | Life of the account                                                                    | It is the account                                                                                         |
 | Google link                                          | Life of the account                                                                    | Removing it orphans the person                                                                            |
 | Followed bills, alert settings                       | Life of the account                                                                    | The feature they signed in for                                                                            |
+| Public editorial name | Life of the account; changes replace the displayed name across past contributions | Reader-chosen identity, separate from the internal sign-in name |
+| Public editorial comments and replies | Until reader deletion, administrator removal or account deletion; anonymous structure may remain | Preserve other people's replies while erasing the removed contribution |
+| Comment email choices, retry receipts and stop-token digests | Life of the account | Preserve reader choices, dependable retries and working stop links |
+| Comment reader delivery records | Life of the account; prepared payload cleared on a terminal outcome | Prevent duplicate sends without retaining the delivered message payload |
+| Comment administrator delivery records | Event record retained; actor link cleared on account deletion and prepared payload cleared on a terminal outcome | Record the operational outcome without retaining comment text |
 | Saved address (if ever built)                        | Life of the account, deletable on its own                                              | Most sensitive thing we would hold; the reader should be able to remove it without losing everything else |
 | Notes on bills                                       | Typed text — §5 rules apply                                                            | A free-text box is a free-text box                                                                        |
-| Sent alerts                                          | 90 days after sending                                                                  | A delivery receipt nobody asks about after three months                                                   |
-| Unsent alerts                                        | Until sent, or account deletion                                                        | They are pending work                                                                                     |
+| Sent bill alerts                                     | 90 days after sending                                                                  | A delivery receipt nobody asks about after three months                                                   |
+| Unsent bill alerts                                   | Until sent, or account deletion                                                        | They are pending work                                                                                     |
 | Conversations and messages                           | **24 months from the last message**, then deleted whether or not the account is active | Matches the two-year biennium the record is organised by                                                  |
 | Contact us message                                   | No Alethical database copy; inbox and provider copies follow §2.8                      | The message exists only to answer the person and keep the support record                                  |
 | Server logs                                          | Whatever the host keeps; no reader data in them at all (§7 rule)                       | Redaction beats retention — the cheapest data to keep safe is data you never wrote                        |

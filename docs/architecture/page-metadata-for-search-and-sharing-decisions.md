@@ -1157,9 +1157,11 @@ Settled, and binding on the `/read` page and every piece that lives on it:
 
 1. **Every piece stays reachable by an ordinary link from a page search engines visit, permanently**,
    not only while it is recent.
-2. **No "load more" button and no endless scrolling.** Google states it generally does not press
+2. **No published piece is reachable only behind a "load more" button or endless scrolling.** Google states it generally does not press
    buttons or run actions requiring a person's click, so anything behind one is invisible. Overflow
    means numbered pages with their own addresses and ordinary previous and next links.
+   Discussion paging beneath an already reachable piece follows
+   [editorial-comments-guide.md](../product-onboarding/editorial-comments-guide.md).
 3. **The list must exist before any JavaScript runs**, which is the same requirement §20.4's first
    defect is fixing.
 4. **Each piece has to be worth indexing on its own.** Google publishes no word count; what it does
@@ -2119,3 +2121,12 @@ page contributes to a sitemap. Unsubscribe credentials live in a fragment named
 metadata or public snapshots. Research articles remain publicly indexable.
 [Unconcealed email signup](../product-onboarding/unconcealed-email-spec.md) owns
 the account and email behavior.
+
+`/comment-emails` follows the same private response and no-referrer rules, with
+`noindex, nofollow`, no sitemap entry, no public snapshot and no site metrics.
+Its credential lives in a fragment named `token`; the client captures and removes
+it before inspecting choices. The initial response omits the Cloudflare beacon.
+Opening a link changes no preference: the reader explicitly chooses what to stop.
+Comment text stays out of article metadata, structured data and initial snapshots.
+[editorial-comments-guide.md](../product-onboarding/editorial-comments-guide.md)
+owns those choices and the exact messages.

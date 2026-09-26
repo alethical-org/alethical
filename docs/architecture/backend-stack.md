@@ -33,7 +33,7 @@ first and follow the link for the part you need.
 | Background jobs | `oban`, a queue that lives in Postgres | `oban.toml`, `alethical/pipeline/oban.py` |
 | Writing bill summaries | Anthropic (Claude) | `alethical/pipeline/anthropic_enrichment.py` |
 | Making bill text searchable by meaning | OpenAI embeddings | `alethical/pipeline/rag_ingest.py` |
-| Sending email | Resend | `alethical/api/services/contact.py` |
+| Sending email | Resend | `alethical/api/services/contact.py`, `alethical/api/services/comment_email.py` |
 | Alerting on server failures | Sentry, with no request or reader data | `alethical/monitoring.py` |
 | Hosting | Railway, one service | `railway.json` |
 | Releasing | Railway and Vercel Git connections, with hand-run GitHub backups | `railway.json`, `vercel.json`, `.github/workflows/` |
@@ -120,8 +120,8 @@ fetch can take minutes.
 - The job types are one per source: bills, roll-call votes, committee memberships, the
   legislator roster, the search index, and the AI summary batches
   (`alethical/pipeline/oban_workers.py`).
-- **Nothing runs these on a timer.** Railway hosts one service and its only job is the web
-  API (`railway.json`), so a full ingest is started by a person from a laptop
+- **Nothing runs these ingestion jobs on a timer inside Railway.** Railway hosts the web
+  API and its gated comment-mail drain in the same process (`railway.json`), so a full ingest is started by a person from a laptop
   (`alethical/pipeline/oban.py`). Four GitHub Actions workflows cover the narrow slices that
   can be done safely without a person: a nightly roll-call vote top-up
   (`vote-backfill.yml`), a manual residence-city fill (`legislator-city-backfill.yml`), and
@@ -159,6 +159,14 @@ transport is set to Resend rather than the printing-to-the-log default
 startup which of those is missing, so a misconfigured key shows up in the log instead of as
 silently lost mail. The free plan's daily and monthly caps are read back from Resend's own
 response headers rather than assumed.
+
+Comment alerts use the same transport and provider key, plus the separate
+`ALETHICAL_COMMENT_EMAIL_ENABLED` switch. Each comment or edit saves its pending
+deliveries in the same database transaction. The API process checks for saved work
+every 10 seconds, outside request handling, with bounded sending and durable retry
+records. Disabling delivery retains pending work and does not stop comments.
+The worker starts with the API and stops with it; no separate service is required.
+See [editorial-comments-guide.md](../product-onboarding/editorial-comments-guide.md#recovery-privacy-and-delivery).
 
 ## 8. Error alerts
 
@@ -206,7 +214,8 @@ Named so nobody adds one by reflex, and so a real need is easy to spot:
 - **No separate queue or cache server.** The job queue is Postgres tables. Rate limiting is
   in process memory. Both are deliberate for one small service; the moment we run more than
   one replica, the rate limit is the first thing that needs a shared store.
-- **No always-on worker process.** See section 5 for why, and for what that costs us.
+- **No separate always-on ingestion worker process.** See section 5 for why, and
+  section 7 for the comment-mail work inside the API process.
 - **No second database.** Search vectors, records, accounts, and the job queue all live in
   the same Postgres.
 

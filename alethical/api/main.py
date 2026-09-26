@@ -24,6 +24,7 @@ from alethical.api.rate_limit import (
 from alethical.api.routers.admin import router as admin_router
 from alethical.api.routers.ask import router as ask_router
 from alethical.api.routers.contact import router as contact_router
+from alethical.api.routers.comments import router as comments_router
 from alethical.api.routers.email_subscriptions import (
     router as email_subscriptions_router,
 )
@@ -44,6 +45,7 @@ from alethical.api.request_admission import (
     RequestAdmissionMiddleware,
 )
 from alethical.api.services.contact import log_contact_delivery_readiness
+from alethical.api.services.comment_email import comment_email_lifespan
 from alethical.logging import configure_logging
 from alethical.release import release_commit
 
@@ -51,7 +53,9 @@ from alethical.release import release_commit
 def create_app() -> FastAPI:
     configure_logging()
     log_contact_delivery_readiness()
-    app = FastAPI(title="Alethical API", version="1.0.0")
+    app = FastAPI(
+        title="Alethical API", version="1.0.0", lifespan=comment_email_lifespan
+    )
     # Added before CORS so overload responses retain the same cross-origin
     # permissions as successful reads and browsers can see the 503 response.
     app.add_middleware(RequestAdmissionMiddleware, max_in_flight=MAX_IN_FLIGHT_REQUESTS)
@@ -122,7 +126,13 @@ def create_app() -> FastAPI:
         alethical/api/routers/public.py."""
         response = await call_next(request)
         if request.url.path.startswith(
-            ("/api/v1/admin/", "/api/v1/email-subscriptions/", "/api/v1/me/email-")
+            (
+                "/api/v1/admin/",
+                "/api/v1/email-subscriptions/",
+                "/api/v1/me/email-",
+                "/api/v1/comments/",
+                "/api/v1/me/comments/",
+            )
         ):
             response.headers["Cache-Control"] = "private, no-store"
             response.headers["Vary"] = ", ".join(
@@ -176,10 +186,40 @@ def create_app() -> FastAPI:
     app.state.contact_limiter = limiter_from_env(
         "ALETHICAL_CONTACT_RATE_PER_MIN", DEFAULT_CONTACT_PER_MINUTE
     )
+    app.state.comment_limiter = limiter_from_env("ALETHICAL_COMMENT_RATE_PER_MIN", 60)
     app.state.pending_action_limiter = limiter_from_env(
         "ALETHICAL_PENDING_ACTION_RATE_PER_MIN",
         DEFAULT_PENDING_ACTION_PER_MINUTE,
     )
+
+    @app.middleware("http")
+    async def bound_comment_request_size(request: Request, call_next):
+        # This is a transport limit, not a public-name length rule. Bound JSON
+        # before parsing, including requests without a Content-Length header.
+        if request.method == "POST" and request.url.path.startswith(
+            ("/api/v1/comments/", "/api/v1/me/comments/")
+        ):
+            body = bytearray()
+            async for chunk in request.stream():
+                body.extend(chunk)
+                if len(body) > 65_536:
+                    headers = {
+                        "Cache-Control": "private, no-store",
+                        "Referrer-Policy": "no-referrer",
+                        "X-Robots-Tag": "noindex, nofollow",
+                        "Vary": "Origin, Authorization",
+                    }
+                    origin = request.headers.get("origin")
+                    if origin in allowed_origins:
+                        headers["Access-Control-Allow-Origin"] = origin
+                        headers["Access-Control-Allow-Credentials"] = "true"
+                    return JSONResponse(
+                        status_code=413,
+                        content={"detail": "The request is too large"},
+                        headers=headers,
+                    )
+            request._body = bytes(body)
+        return await call_next(request)
 
     @app.get("/healthz")
     async def healthz():
@@ -223,6 +263,7 @@ def create_app() -> FastAPI:
     app.include_router(site_metrics_router, prefix="/api/v1", tags=["site-metrics"])
     app.include_router(ask_router, prefix="/api/v1", tags=["ask"])
     app.include_router(contact_router, prefix="/api/v1", tags=["contact"])
+    app.include_router(comments_router, prefix="/api/v1", tags=["comments"])
     app.include_router(
         email_subscriptions_router, prefix="/api/v1", tags=["email-subscriptions"]
     )

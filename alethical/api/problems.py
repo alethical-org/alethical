@@ -150,7 +150,13 @@ async def unexpected_exception_handler(request: Request, exc: Exception):
             "Referrer-Policy": "no-referrer",
         }
         if request.url.path.startswith(
-            ("/api/v1/admin/", "/api/v1/email-subscriptions/", "/api/v1/me/email-")
+            (
+                "/api/v1/admin/",
+                "/api/v1/email-subscriptions/",
+                "/api/v1/me/email-",
+                "/api/v1/comments/",
+                "/api/v1/me/comments/",
+            )
         )
         else None
     )

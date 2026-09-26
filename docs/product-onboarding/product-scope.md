@@ -499,8 +499,8 @@ Native iOS and Android apps are not built yet ([#91](https://github.com/alethica
 
 ### Permanent non-goals — frontend
 
-- Social features
-- Community commenting or public comment threads
+- Social feeds and engagement ranking
+- Comments on factual data pages and listing pages. Individual editorial pieces support [reader comments](editorial-comments-guide.md), approved 26 September 2026.
 - **Distinct feature sets by platform.** One product across clients, not three that
   diverge — the same commitment as Core Principle 4 and the shared design language.
 
@@ -622,7 +622,7 @@ it does not adjudicate people.**
 - Open-ended political analysis with no grounding requirement
 - User-facing debate or opinion mode
 - Agentic research across the open web
-- Public commenting, comment threads, or social sharing loops
+- Public comment threads on factual data or listing pages, and social sharing loops. The approved editorial exception is defined in [Reader comments](editorial-comments-guide.md).
 - 50-state ingestion
 
 **Not on this list, and deliberately so** — these are unbuilt, not refused, and each is

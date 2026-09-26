@@ -35,6 +35,7 @@ type WebRouteTarget =
   | { kind: 'moneyLanding' }
   | { kind: 'emailPreferences' }
   | { kind: 'unsubscribe' }
+  | { kind: 'commentEmails' }
   | { kind: 'lobbyingLanding'; params?: { q: string } }
   | { kind: 'lobbyingPrincipals' | 'lobbyingLobbyists'; params: Record<string, string> }
   | { kind: 'lobbyingPrincipal' | 'lobbyingLobbyist'; slug: string; year?: string }
@@ -216,6 +217,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
 
   if (segments.length === 1) {
     if (segments[0] === 'email-preferences') return { kind: 'emailPreferences' };
+    if (segments[0] === 'comment-emails') return { kind: 'commentEmails' };
     if (segments[0] === 'unsubscribe') return { kind: 'unsubscribe' };
     if (segments[0] === 'bills') {
       return { kind: 'bills', params: billsFilterParams(searchParams) };
@@ -697,6 +699,8 @@ export function pathForRoute(activeRoute: {
       return '/money';
     case 'EmailPreferences':
       return '/email-preferences';
+    case 'CommentEmails':
+      return '/comment-emails';
     case 'Unsubscribe':
       return '/unsubscribe';
     case 'LobbyingLanding': {
@@ -997,6 +1001,8 @@ export function stateFromPathname(pathname: string): WebNavigationState {
       };
     case 'emailPreferences':
       return { routes: [homeTabs, { name: 'EmailPreferences' }], index: 1 };
+    case 'commentEmails':
+      return { routes: [homeTabs, { name: 'CommentEmails' }], index: 1 };
     case 'unsubscribe':
       return { routes: [homeTabs, { name: 'Unsubscribe' }], index: 1 };
     case 'read':

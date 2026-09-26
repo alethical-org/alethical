@@ -54,6 +54,7 @@ APPROVED_ADMIN_EMAILS = (
     "joe@alethical.com",
     "afnetter@gmail.com",
     "joseph.fleishman@gmail.com",
+    "ask@alethical.com",
 )
 EXCLUSION_ONLY_EMAILS = (
     "elopinyoga@gmail.com",

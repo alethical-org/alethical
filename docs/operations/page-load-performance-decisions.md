@@ -23,7 +23,14 @@ Each release issue records a fresh before-and-after measurement because the star
 
 ## Current record freshness
 
-The website treats a public read as fresh for 5 minutes. After that window, returning to the browser tab or reconnecting to the network rechecks every active read that can show a saved bill record: bill detail, votes, bill text, bill lists, legislator bill lists, featured cards, tracked bills, and saved Ask suggestions. The update replaces data in place, so the selected URL tab and the reader's scroll position stay put. React Query shares an in-flight request for one key, so a burst of return signals cannot start duplicate reads.
+The website treats a saved bill-record read as fresh for 5 minutes. After that window, returning to the browser tab or reconnecting to the network rechecks every active read that can show a saved bill record: bill detail, votes, bill text, bill lists, legislator bill lists, featured cards, tracked bills, and saved Ask suggestions. The update replaces data in place, so the selected URL tab and the reader's scroll position stay put. React Query shares an in-flight request for one key, so a burst of return signals cannot start duplicate reads.
+
+Editorial comments are separate uncached reads. They load 10 oldest-first complete
+conversations at a time and retain visible discussion during further loading or
+failure. Article-local drafts survive navigation; account changes clear private
+state. Email delivery runs outside requests. The comments implementation loads with
+editorial screens rather than increasing the shared startup program.
+See [editorial-comments-guide.md](../product-onboarding/editorial-comments-guide.md).
 
 A free-form Ask is the exception. Its request can generate paid prose, so focus and reconnect never repeat it. The prose remains the answer originally served, while one read-only featured-bills request refreshes the bill cards it displays. The query-root list, the 5-minute gate, burst sharing, and the free-form Ask exception are enforced by `apps/frontend/src/lib/__tests__/billFreshness.test.ts` and `apps/frontend/src/lib/__tests__/appQueryClient.test.ts`.
 
@@ -74,7 +81,7 @@ read never gains that window from a query parameter alone.
 | `/api/v1/campaign-finance/outside-spending/names` | |
 | `/api/v1/campaign-finance/payments-under-name` | `/api/v1/committees/{registration_number}/finance` |
 | `/api/v1/campaign-finance/races` | `/api/v1/committees/{registration_number}/confirmation` |
-| `/api/v1/committees/{registration_number}/finance?year=2025&include_confirmation=false` | every other public read |
+| `/api/v1/committees/{registration_number}/finance?year=2025&include_confirmation=false` | other cacheable public record reads |
 | `/api/v1/committees/{registration_number}/payments` when the answer is `reported` or `not_reported` | `/api/v1/committees/{registration_number}/payments` when our own copy could not be read (`unavailable`) |
 
 **The test is what an answer CLAIMS, never whether it names a person.** A person's
@@ -2044,7 +2051,7 @@ confident figure.
 large.** On `/api/v1/bills` it is 5.3 points and on
 `/api/v1/campaign-finance/races` it is 32.9, which is more than half of that address's
 origin reads happening behind a reader who had already been answered. That is
-`stale-while-revalidate` doing its job, and it is on every public read, at 5 minutes
+`stale-while-revalidate` doing its job, and it is on cacheable public record reads, at 5 minutes
 for bill and vote records and at a day for the 6 named money records.
 
 **Nothing here prices the difference between those 2 windows, and the addresses
