@@ -1846,8 +1846,10 @@ article. Alethical checked its claims against the cited records before publicati
 but errors may remain. The records may be incomplete or later corrected.” A Short post
 about campaign finance also prints: “A contribution alone does not establish why
 someone gave, whether it influenced a decision, or whether wrongdoing occurred.”
-These notes cannot stand in for a missing source or an unresolved error. Comments
-remain disabled until the separate comments work enables them for that article identity.
+These notes cannot stand in for a missing source or an unresolved error. Every individual
+published Short post is included by default in the separately approved
+[editorial comments](editorial-comments-guide.md) feature, tracked in
+[issue 2399](https://github.com/alethical-org/alethical/issues/2399).
 
 The social copy and image Angel gives Eugene do not themselves publish. The coding
 agent records each claim's source, period, method, coverage, scope, checked result and

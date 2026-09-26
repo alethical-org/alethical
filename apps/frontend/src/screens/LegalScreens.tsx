@@ -25,7 +25,7 @@ type LegalDocumentContent = {
 
 const privacyContent: LegalDocumentContent = {
   title: 'Privacy Policy',
-  meta: 'Effective date: August 15, 2026 · Last updated: September 25, 2026',
+  meta: 'Effective date: August 15, 2026 · Last updated: September 26, 2026',
   sections: [
     {
       blocks: [
@@ -47,10 +47,11 @@ const privacyContent: LegalDocumentContent = {
           kind: 'list',
           items: [
             'Account information — your name, email address, and profile picture.',
-            'A display name we make for you — you never type it. We take the part of your email address before the “@” and use that as your display name.',
+            'An account display name made from the part of your email address before the “@”. This is separate from the public name you choose for comments.',
+            'Public comments and replies: the public name you choose, your text, the article and reply target, and posted and edited dates. Anyone can read these contributions. A public name is not verified.',
             'Authentication data — identifiers used to create and maintain your secure session.',
             'Bills you follow — which bills you chose to follow, and any note you write on one.',
-            'Email choices: whether you chose Unconcealed research emails or new-feature and service emails, when each choice last changed, and where you made it. We also keep delivery records to prevent duplicate sends.',
+            'Email choices: your choices for Unconcealed research emails, new-feature and service emails, direct comment replies, and updates on articles you follow. We keep those settings and delivery records to prevent duplicate sends.',
             'Alert settings — a saved switch for whether a bill you follow should alert you. We are not sending those alerts yet.',
             'Questions and messages you type in a conversation about a bill — your questions, and the answers we gave, kept with your account.',
             'Questions you type into the Ask box — we do not save these to your account, but we do send them to the AI providers named below to answer them, and they appear in the page address.',
@@ -149,6 +150,7 @@ const privacyContent: LegalDocumentContent = {
           kind: 'list',
           items: [
             'Your account, your name and email address, the bills you follow, the notes on them, and your alert settings — as long as your account exists.',
+            'Public comments and replies stay until you delete them, an administrator removes them, or your account is deleted. Removing a contribution erases its name and text; a placeholder can remain to keep other readers’ replies together.',
             'Email choices and delivery records stay while your account exists. Unsubscribe links store a scrambled lookup value in our database, not the original link secret. Closing your account removes those records.',
             'Conversations about a bill, and every message in them — no longer than 24 months after the last message in that conversation, whether or not your account is still active. Text you typed is the most sensitive thing we hold, so it does not simply live forever alongside the account.',
             'Alerts we have sent you — 90 days after we send them. An alert waiting to go out stays until it is sent.',

@@ -73,6 +73,10 @@ export const screenChunks = {
     import('../screens/redesign/EmailPreferencesScreen').then((m) => ({
       default: m.EmailPreferencesScreen,
     })),
+  CommentEmails: () =>
+    import('../screens/redesign/CommentEmailsScreen').then((m) => ({
+      default: m.CommentEmailsScreen,
+    })),
   Unsubscribe: () =>
     import('../screens/redesign/UnsubscribeScreen').then((m) => ({
       default: m.UnsubscribeScreen,

@@ -35,6 +35,7 @@ def seed_database():
         "joe@alethical.com",
         "afnetter@gmail.com",
         "joseph.fleishman@gmail.com",
+        "ask@alethical.com",
     ],
 )
 def test_current_account_sql_excludes_ineligible_and_linked_team_accounts(

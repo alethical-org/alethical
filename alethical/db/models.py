@@ -1021,6 +1021,131 @@ class UserAccount(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     chat_sessions: Mapped[list["ChatSession"]] = relationship(back_populates="user")
 
 
+class CommentProfile(Base):
+    """A reader-chosen identity, separate from sign-in's email-derived display name."""
+
+    __tablename__ = "comment_profile"
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), primary_key=True
+    )
+    public_name: Mapped[Optional[str]] = mapped_column(Text)
+    reply_emails: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class EditorialComment(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "editorial_comment"
+    article_id: Mapped[str] = mapped_column(String(200), nullable=False)
+    author_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("user_account.id", ondelete="SET NULL")
+    )
+    root_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("editorial_comment.id")
+    )
+    reply_to_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("editorial_comment.id")
+    )
+    body: Mapped[Optional[str]] = mapped_column(Text)
+    posted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    edited_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default="live")
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    __table_args__ = (
+        CheckConstraint("status IN ('live', 'deleted', 'removed')", name="status"),
+        CheckConstraint(
+            "(root_id IS NULL AND reply_to_id IS NULL) OR "
+            "(root_id IS NOT NULL AND reply_to_id IS NOT NULL)",
+            name="reply_shape",
+        ),
+        CheckConstraint(
+            "status != 'live' OR (body IS NOT NULL AND length(body) BETWEEN 1 AND 2000)",
+            name="body_length",
+        ),
+        Index("ix_editorial_comment_article_order", "article_id", "posted_at", "id"),
+        Index("ix_editorial_comment_root_id", "root_id"),
+        Index("ix_editorial_comment_reply_to_id", "reply_to_id"),
+    )
+
+
+class CommentArticleFollow(Base):
+    __tablename__ = "comment_article_follow"
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), primary_key=True
+    )
+    article_id: Mapped[str] = mapped_column(String(200), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    __table_args__ = (Index("ix_comment_article_follow_article_id", "article_id"),)
+
+
+class CommentMutation(Base):
+    __tablename__ = "comment_mutation"
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), primary_key=True
+    )
+    request_key: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    article_id: Mapped[str] = mapped_column(String(200), nullable=False)
+    payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    comment_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("editorial_comment.id")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class CommentStopToken(Base):
+    __tablename__ = "comment_stop_token"
+    token_digest: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    article_id: Mapped[str] = mapped_column(String(200), nullable=False)
+    link_choice: Mapped[str] = mapped_column(String(12), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class CommentEmailDelivery(UUIDPrimaryKeyMixin, Base):
+    """Durable, per-event recipient delivery, committed with its contribution."""
+
+    __tablename__ = "comment_email_delivery"
+    event_key: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    recipient_key: Mapped[str] = mapped_column(String(80), nullable=False)
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE")
+    )
+    is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    actor_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("user_account.id", ondelete="SET NULL")
+    )
+    article_id: Mapped[str] = mapped_column(String(200), nullable=False)
+    comment_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("editorial_comment.id"), nullable=False
+    )
+    event_kind: Mapped[str] = mapped_column(String(24), nullable=False)
+    direct_reply: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    article_update: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    provider_id: Mapped[Optional[str]] = mapped_column(String(200))
+    message_payload: Mapped[Optional[dict]] = mapped_column(JSONB)
+    attempted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    next_attempt_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    __table_args__ = (
+        UniqueConstraint("event_key", "recipient_key"),
+        Index("ix_comment_email_delivery_pending", "state", "next_attempt_at"),
+    )
+
+
 class EmailSubscription(Base):
     """Optional emails, independent of sign-in and tracked-bill notifications."""
 

@@ -17,6 +17,7 @@ ADMIN_EMAILS = frozenset(
         "joe@alethical.com",
         "afnetter@gmail.com",
         "joseph.fleishman@gmail.com",
+        "ask@alethical.com",
     }
 )
 

@@ -225,7 +225,7 @@ binds a page, because a page can be fixed and an inbox cannot.
 This is already the shape the product committed to. `docs/philosophy.md` principle 10
 ("We are not competing for attention") describes the intended personalization as
 "**one quiet email when a tracked bill moves**" — and lists it beside no social features
-and no comment threads as "not gaps waiting to be filled". A digest is what "one quiet
+and no comment threads on factual data pages. The separately approved [editorial comments](editorial-comments-guide.md) do not change tracked-bill alerts. A digest is what "one quiet
 email" means once you have to pick a mechanism.
 
 **First, the argument that does *not* hold, because it is the one everybody reaches
