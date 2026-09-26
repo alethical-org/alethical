@@ -117,6 +117,27 @@ same fact. Preserve dates, scope and qualifications that add a distinct meaning,
 and necessary context for figures encountered separately. Carry each correction
 into the saved draft and rendering inputs so regeneration does not restore it.
 
+Omit generic explanations of what a labelled visual already communicates, not
+just repeated words. Before adding a chart note, identify the specific mistaken
+reading it prevents and whether the heading, labels and values already resolve
+it. Do not add routine chart-reading commentary by default. In the approved
+organizations overlap draft, omit “Diagram shows overlap, not relative group
+sizes”; retain the labelled counts and the actual evidence qualifications.
+Removing that note does not turn circle areas into measured proportions or
+permit unsupported visual claims. This applies to first drafts as well as edits.
+
+For a compact set of related label-and-value facts, give each fact its own line
+instead of joining them into a sentence. Keep each label next to its value and
+the rows in the same reading order as the graphic. Use explicit row breaks,
+rather than relying on the screen width to wrap a paragraph. Apply this when
+first drafting chart legends and supporting totals. These short label-and-value
+rows have no ending periods, for example:
+
+```text
+DFL caucus funds: 265
+Republican caucus funds: 211
+```
+
 For directly labelled comparison bars with a shared starting point, omit the
 isolated “0” and its horizontal axis line. The bars must still use the same scale
 and start mathematically at zero; removing the decoration must never truncate or
