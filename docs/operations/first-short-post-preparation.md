@@ -58,4 +58,5 @@ The release timestamp is 26 September 2026 at 20:32:16 UTC, when the accepted ar
 - Independent acceptance found the public record identical to the accepted private contents after excluding publication and approval fields. Publication validation returns no errors; approval is frozen against fingerprint `758077a2`.
 - The comments service recognizes the article's stable identity. No comment was submitted.
 - Upload checks pass against the exact committed tree, including 3,443 backend tests with temporary local data and mocked external effects.
-- Current-head GitHub checks, merge-queue checks, deployment and live acceptance remain pending.
+- Current-head GitHub checks and merge-queue checks pass. [Pull request 2400](https://github.com/alethical-org/alethical/pull/2400) merged at 21:12 UTC on 26 September 2026.
+- The hosted production build measured 296,142 startup bytes, 120 above the previous limit, and stopped before deploying. The focused recovery uses that hosted measurement plus the existing 739-byte margin; local and preview results do not set the limit. Deployment and live acceptance remain pending.
