@@ -6,6 +6,7 @@ export interface PendingContribution {
   body: string;
   kind: DraftKind;
   target: string | null;
+  targetRootId: string | null;
   expectedVersion?: number;
   publicName?: string;
   profileVersion?: number;
@@ -18,6 +19,7 @@ export interface ContributionDraft {
   notice: string;
   bodyError: string;
   nameError: string;
+  unavailable?: boolean;
 }
 export const emptyDraft = (): ContributionDraft => ({
   body: '',
@@ -42,7 +44,7 @@ export interface PieceDiscussion {
   settingsLoading: boolean;
   settingsError: boolean;
   drafts: Record<string, ContributionDraft>;
-  activeBox: { kind: 'reply' | 'edit'; target: string } | null;
+  activeBox: { kind: 'reply' | 'edit'; target: string; rootId: string | null } | null;
   nameDraft: string;
   nameEditing: boolean;
   nameEditDraft: string;

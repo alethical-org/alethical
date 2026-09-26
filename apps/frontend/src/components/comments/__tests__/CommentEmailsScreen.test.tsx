@@ -131,3 +131,18 @@ it('offers retry when loading email choices temporarily fails', async () => {
   expect(button('Stop reply emails')).toBeTruthy();
   expect(mocks.stop).not.toHaveBeenCalled();
 });
+
+it.each([400, 404, 422])(
+  'shows invalid-link recovery when stop returns %s after opening',
+  async (status) => {
+    mocks.stop.mockRejectedValue(new ApiError(status, 'Invalid email link'));
+    await act(async () => root.render(<CommentEmailsScreen />));
+    await act(async () => button('Stop reply emails').click());
+    expect(host.textContent).toContain('This email link could not be opened');
+    expect(button('Stop reply emails')).toBeUndefined();
+    expect(button('Stop updates for this article')).toBeUndefined();
+    expect(button('Try again')).toBeUndefined();
+    expect(host.querySelector('a[href="mailto:ask@alethical.com"]')).toBeTruthy();
+    expect(mocks.stop).toHaveBeenCalledTimes(1);
+  },
+);

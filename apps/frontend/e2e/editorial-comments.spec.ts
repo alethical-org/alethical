@@ -297,4 +297,122 @@ test.describe('editorial comments with a real local database', () => {
       await context.close();
     }
   });
+
+  test('an admin removal preserves open reply and edit drafts', async ({ browser }) => {
+    const owner = await localBrowser(browser, 'reader');
+    const reader = await localBrowser(browser, 'second');
+    try {
+      await owner.go(article);
+      const original = `Removal recovery ${Date.now()}`;
+      await owner.page
+        .getByRole('textbox', { name: 'Write a comment', exact: true })
+        .fill(original);
+      await owner.page.getByRole('button', { name: 'Post comment', exact: true }).click();
+      const posted = owner.page.getByRole('article').filter({ hasText: original }).last();
+      await expect(posted).toBeVisible();
+      const anchor = (await posted.getAttribute('id'))!;
+      await posted.getByRole('button', { name: 'Edit', exact: true }).click();
+      await posted.getByRole('textbox').fill('Keep my unfinished edit');
+
+      await reader.go(`${article}#${anchor}`);
+      await reader.page
+        .locator(`[id="${anchor}"]`)
+        .getByRole('button', { name: 'Reply', exact: true })
+        .click();
+      await reader.page
+        .getByRole('textbox', { name: 'Write a reply', exact: true })
+        .fill('Keep my unfinished reply');
+
+      const headers = { Authorization: `Bearer ${accounts.admin.token}` };
+      const settingsResponse = await owner.context.request.get(
+        `${api}/api/v1/me/comments/settings?article_id=${articleId}`,
+        { headers },
+      );
+      expect(settingsResponse.ok()).toBe(true);
+      const { data: settings } = await settingsResponse.json();
+      const removed = await owner.context.request.post(
+        `${api}/api/v1/comments/articles/${articleId}/${anchor.slice('comment-'.length)}/remove`,
+        {
+          headers,
+          data: {
+            request_key: crypto.randomUUID(),
+            expected_account_id: settings.account_id,
+            expected_version: 1,
+          },
+        },
+      );
+      expect(removed.ok()).toBe(true);
+
+      await owner.page.getByRole('button', { name: 'Save changes', exact: true }).click();
+      await expect(
+        owner.page.getByText('This comment is no longer available. Your draft is kept here.', {
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(
+        owner.page.getByRole('textbox', { name: 'Write a comment', exact: true }).last(),
+      ).toHaveValue('Keep my unfinished edit');
+      await expect(
+        owner.page.getByRole('button', { name: 'Save changes', exact: true }),
+      ).toHaveAttribute('aria-disabled', 'true');
+      await reader.page.getByRole('button', { name: 'Post reply', exact: true }).click();
+      await expect(
+        reader.page.getByText(
+          'The comment you were replying to is no longer available. Your draft is kept here.',
+          { exact: true },
+        ),
+      ).toBeVisible();
+      await expect(
+        reader.page.getByRole('textbox', { name: 'Write a reply', exact: true }),
+      ).toHaveValue('Keep my unfinished reply');
+      await expect(
+        reader.page.getByRole('button', { name: 'Post reply', exact: true }),
+      ).toHaveAttribute('aria-disabled', 'true');
+      await reader.page.getByRole('button', { name: 'Cancel', exact: true }).click();
+      await expect(
+        reader.page.getByRole('heading', { name: 'Reader comments', exact: true }),
+      ).toBeFocused();
+    } finally {
+      await Promise.all([owner.context.close(), reader.context.close()]);
+    }
+  });
+
+  test('a stop link invalidated after opening uses the final invalid-link view', async ({
+    browser,
+  }) => {
+    const { context, page, go } = await localBrowser(browser);
+    try {
+      await page.route(`${api}/api/v1/comments/email-stop/inspect`, (route) =>
+        route.fulfill({
+          json: {
+            data: {
+              article_id: articleId,
+              article_title: 'Local recovery check',
+              article_path: article,
+              link_choice: 'replies',
+              reply_emails: true,
+              article_updates: true,
+            },
+          },
+        }),
+      );
+      await page.route(`${api}/api/v1/comments/email-stop`, (route) =>
+        route.fulfill({ status: 404, json: { detail: 'Invalid local test link' } }),
+      );
+      await go('/comment-emails#token=fake-local-recovery-only');
+      await page.getByRole('button', { name: 'Stop reply emails', exact: true }).click();
+      await expect(
+        page.getByText('This email link could not be opened', { exact: true }),
+      ).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Try again', exact: true })).toHaveCount(0);
+      await expect(
+        page.getByRole('button', { name: 'Stop reply emails', exact: true }),
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole('link', { name: 'ask@alethical.com', exact: true }),
+      ).toBeVisible();
+    } finally {
+      await context.close();
+    }
+  });
 });

@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useIsFocused } from '@react-navigation/native';
+import { ApiError } from '../../data/api';
 import { useAuth } from '../../providers/AuthProvider';
 import { useSignInModal } from '../../providers/signInModalContext';
 import {
@@ -40,6 +41,7 @@ const SIGN_IN_TARGET = 'alethical.comments.signInTarget';
 const newKey = () => crypto.randomUUID();
 const draftKey = (kind: DraftKind, target: string | null) =>
   kind === 'comment' ? 'comment' : `${kind}:${target}`;
+type ContributionTarget = Pick<ReaderComment, 'id' | 'root_id' | 'name' | 'version'>;
 
 function NameField({
   id,
@@ -96,6 +98,7 @@ function Composer({
   locked = false,
   children,
   isReply = false,
+  unavailableNotice,
 }: {
   id: string;
   kind: DraftKind;
@@ -110,6 +113,7 @@ function Composer({
   locked?: boolean;
   children?: ReactNode;
   isReply?: boolean;
+  unavailableNotice?: string;
 }) {
   const label = kind === 'reply' || isReply ? 'Write a reply' : 'Write a comment';
   const count = characterCount(draft.body);
@@ -133,6 +137,7 @@ function Composer({
         />
       )}
       {children}
+      {unavailableNotice && <CommentNotice>{unavailableNotice}</CommentNotice>}
       <label className="rc-field-label" htmlFor={`${id}-text`}>
         {label}
       </label>
@@ -153,7 +158,7 @@ function Composer({
           {count.toLocaleString('en-US')} of 2,000
         </span>
       </div>
-      {draft.notice && (
+      {draft.notice && (!unavailableNotice || draft.pending) && (
         <CommentNotice>
           {draft.notice}
           {draft.pending && (
@@ -264,10 +269,16 @@ export function ReaderComments({ articleId }: { articleId: string }) {
       }));
     if (result.settings) store.acceptSettings(articleId, result.settings);
   };
-  const refreshConversation = async (target: ReaderComment) => {
+  const refreshConversation = async (target: Pick<ReaderComment, 'id' | 'root_id'>) => {
     const rootId = target.root_id ?? target.id;
     const before = store.get(articleId).items;
-    const page = await readCommentConversation(articleId, rootId);
+    let page;
+    try {
+      page = await readCommentConversation(articleId, rootId);
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 404) throw error;
+      page = { items: [], next_cursor: null };
+    }
     const returned = new Set(page.items.map((item) => item.id));
     store.update(articleId, (state) => ({
       ...state,
@@ -282,6 +293,9 @@ export function ReaderComments({ articleId }: { articleId: string }) {
         page.items,
       ),
     }));
+    return store
+      .get(articleId)
+      .items.some((item) => item.id === target.id && item.status === 'live');
   };
 
   const load = async (more = false) => {
@@ -365,7 +379,7 @@ export function ReaderComments({ articleId }: { articleId: string }) {
     const key = draftKey(kind, item.id);
     store.update(articleId, (state) => ({
       ...state,
-      activeBox: { kind, target: item.id },
+      activeBox: { kind, target: item.id, rootId: item.root_id },
       drafts: {
         ...state.drafts,
         [key]: state.drafts[key] ?? {
@@ -490,13 +504,20 @@ export function ReaderComments({ articleId }: { articleId: string }) {
     }
   };
 
-  const submit = async (kind: DraftKind, target: ReaderComment | null) => {
+  const submit = async (kind: DraftKind, target: ContributionTarget | null) => {
     const state = store.get(articleId);
     const settings = state.settings;
     if (!accessToken || !settings) return;
     const key = draftKey(kind, target?.id ?? null);
     const draft = state.drafts[key] ?? emptyDraft();
-    if (draft.busy || draft.checking || draft.pending || state.nameBusy || state.preferencesBusy)
+    if (
+      draft.busy ||
+      draft.checking ||
+      draft.pending ||
+      draft.unavailable ||
+      state.nameBusy ||
+      state.preferencesBusy
+    )
       return;
     const needName = !settings.public_name && kind !== 'edit';
     const noun = kind === 'reply' || target?.root_id ? 'reply' : 'comment';
@@ -516,6 +537,7 @@ export function ReaderComments({ articleId }: { articleId: string }) {
       body: draft.body,
       kind,
       target: target?.id ?? null,
+      targetRootId: target?.root_id ?? null,
       expectedVersion: target?.version,
       publicName: needName ? state.nameDraft : undefined,
       profileVersion: needName ? settings.profile_version : undefined,
@@ -544,8 +566,17 @@ export function ReaderComments({ articleId }: { articleId: string }) {
       finishContribution(key, pending, result, false);
     } catch (error) {
       const unknown = commentOutcomeUnknown(error);
+      let unavailable = !!target && error instanceof ApiError && error.status === 404;
+      if (!unknown && target) {
+        try {
+          unavailable = !(await refreshConversation(target));
+        } catch {
+          /* A failed refresh cannot establish a different target state. */
+        }
+      }
       store.draft(articleId, key, {
         busy: false,
+        unavailable,
         pending: unknown ? pending : null,
         notice:
           kind === 'edit'
@@ -557,7 +588,6 @@ export function ReaderComments({ articleId }: { articleId: string }) {
               : `Couldn’t post your ${noun}. Try again.`,
       });
       if (!unknown) void loadSettings();
-      if (!unknown && target) void refreshConversation(target).catch(() => {});
     }
   };
 
@@ -570,15 +600,28 @@ export function ReaderComments({ articleId }: { articleId: string }) {
       const response = await checkCommentRequest(accessToken, articleId, pending.key);
       if (response.state === 'saved' && response.result)
         finishContribution(key, pending, response.result, true);
-      else
+      else {
+        let unavailable = draft.unavailable ?? false;
+        if (pending.target) {
+          try {
+            unavailable = !(await refreshConversation({
+              id: pending.target,
+              root_id: pending.targetRootId,
+            }));
+          } catch {
+            /* Keep a known draft even when its target cannot be refreshed. */
+          }
+        }
         store.draft(articleId, key, {
           checking: false,
           pending: null,
+          unavailable,
           notice:
             pending.kind === 'edit'
               ? 'Your changes weren’t saved. Try again.'
               : `Your ${pending.kind === 'reply' ? 'reply' : 'comment'} wasn’t posted. Try again.`,
         });
+      }
     } catch {
       store.draft(articleId, key, { checking: false });
     }
@@ -768,11 +811,15 @@ export function ReaderComments({ articleId }: { articleId: string }) {
       delete drafts[key];
       return { ...state, activeBox: null, drafts };
     });
-    focus(`${prefix}-${kind}-action-${target}`);
+    focus(
+      store.get(articleId).items.some((item) => item.id === target && item.status === 'live')
+        ? `${prefix}-${kind}-action-${target}`
+        : headingId,
+    );
   };
   const composing = Object.values(piece.drafts).some((draft) => draft.busy || draft.checking);
   const settingsLocked = composing || piece.nameBusy || piece.preferencesBusy;
-  const composer = (kind: DraftKind, target: ReaderComment | null) => {
+  const composer = (kind: DraftKind, target: ContributionTarget | null, unavailable = false) => {
     const key = draftKey(kind, target?.id ?? null);
     return (
       <Composer
@@ -780,7 +827,12 @@ export function ReaderComments({ articleId }: { articleId: string }) {
         kind={kind}
         isReply={!!target?.root_id}
         draft={piece.drafts[key] ?? emptyDraft()}
-        needName={kind !== 'edit' && !piece.settings?.public_name}
+        needName={!unavailable && kind !== 'edit' && !piece.settings?.public_name}
+        unavailableNotice={
+          unavailable
+            ? `${kind === 'reply' ? `The ${target?.root_id ? 'reply' : 'comment'} you were replying to` : `This ${target?.root_id ? 'reply' : 'comment'}`} is no longer available. Your draft is kept here.`
+            : undefined
+        }
         name={piece.nameDraft}
         setName={(nameDraft) => store.patch(articleId, { nameDraft })}
         setBody={(body) => store.draft(articleId, key, { body, bodyError: '' })}
@@ -791,6 +843,7 @@ export function ReaderComments({ articleId }: { articleId: string }) {
           void check(key);
         }}
         locked={
+          unavailable ||
           piece.nameBusy ||
           piece.preferencesBusy ||
           (!piece.settings?.public_name &&
@@ -806,8 +859,14 @@ export function ReaderComments({ articleId }: { articleId: string }) {
     );
   };
   const renderItem = (item: ReaderComment) => {
-    const editing = piece.activeBox?.target === item.id && piece.activeBox.kind === 'edit';
-    const replying = piece.activeBox?.target === item.id && piece.activeBox.kind === 'reply';
+    const editing =
+      piece.activeBox?.target === item.id &&
+      piece.activeBox.kind === 'edit' &&
+      !piece.drafts[draftKey('edit', item.id)]?.unavailable;
+    const replying =
+      piece.activeBox?.target === item.id &&
+      piece.activeBox.kind === 'reply' &&
+      !piece.drafts[draftKey('reply', item.id)]?.unavailable;
     const mine = !!piece.settings && item.author_id === piece.settings.account_id;
     const live = item.status === 'live';
     return (
@@ -913,6 +972,14 @@ export function ReaderComments({ articleId }: { articleId: string }) {
     );
   };
   const shown = visibleComments(piece.items);
+  const activeTarget = piece.items.find((item) => item.id === piece.activeBox?.target);
+  const unavailableBox =
+    piece.activeBox &&
+    (!activeTarget ||
+      activeTarget.status !== 'live' ||
+      piece.drafts[draftKey(piece.activeBox.kind, piece.activeBox.target)]?.unavailable)
+      ? piece.activeBox
+      : null;
   const roots = shown.filter((item) => !item.root_id);
   const loadedSet = new Set(piece.loadedRoots);
   const loadedRoots = roots.filter((root) => loadedSet.has(root.id));
@@ -1114,6 +1181,20 @@ export function ReaderComments({ articleId }: { articleId: string }) {
             )}
           </div>
           <div className="rc-list" aria-busy={piece.loading || piece.loadingMore || piece.updating}>
+            {unavailableBox && (
+              <div className="rc-box rc-inline-card">
+                {composer(
+                  unavailableBox.kind,
+                  {
+                    id: unavailableBox.target,
+                    root_id: unavailableBox.rootId,
+                    name: null,
+                    version: 0,
+                  },
+                  true,
+                )}
+              </div>
+            )}
             <div className="rc-list-status">
               <span>{shown.length > 0 ? 'Oldest first' : ''}</span>
               <span role="status">{piece.updating ? 'Updating comments…' : ''}</span>

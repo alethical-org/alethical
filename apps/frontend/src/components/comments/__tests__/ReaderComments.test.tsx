@@ -34,6 +34,17 @@ vi.mock('../../../providers/AuthProvider', () => ({
 vi.mock('../../../providers/signInModalContext', () => ({
   useSignInModal: () => ({ openSignIn: mocks.signIn }),
 }));
+vi.mock('../../../data/api', () => ({
+  ApiError: class extends Error {
+    known = true;
+    constructor(
+      public status: number,
+      message: string,
+    ) {
+      super(message);
+    }
+  },
+}));
 vi.mock('../../../data/comments', () => ({
   readComments: mocks.list,
   readCommentConversation: mocks.conversation,
@@ -46,6 +57,7 @@ vi.mock('../../../data/comments', () => ({
   commentOutcomeUnknown: (error: { known?: boolean }) => !error.known,
 }));
 import { ReaderComments } from '../ReaderComments';
+import { ApiError } from '../../../data/api';
 import { CommentStateProvider } from '../CommentStateProvider';
 
 const settings = (fields: Partial<CommentSettings> = {}): CommentSettings => ({
@@ -372,6 +384,101 @@ describe('reader comments', () => {
     fields = host.querySelectorAll('textarea');
     expect(fields[1].value).toBe('Body root');
     expect(mocks.change).not.toHaveBeenCalled();
+  });
+
+  it('keeps a reply draft visible when its deleted target has no remaining conversation', async () => {
+    mocks.list.mockResolvedValue({ items: [item('root')], next_cursor: null });
+    mocks.post.mockRejectedValue(new ApiError(404, 'Target no longer available'));
+    mocks.conversation.mockRejectedValue(new ApiError(404, 'Comment not found'));
+    await render();
+    await click('Reply');
+    await type(host.querySelectorAll('textarea')[1], 'My reply draft');
+    await click('Post reply');
+    expect(host.textContent).toContain(
+      'The comment you were replying to is no longer available. Your draft is kept here.',
+    );
+    expect(host.querySelectorAll('textarea')[1]?.value).toBe('My reply draft');
+    expect(button('Post reply').getAttribute('aria-disabled')).toBe('true');
+    await click('Post reply');
+    expect(mocks.post).toHaveBeenCalledTimes(1);
+    await render('b');
+    await render('a');
+    expect(host.querySelectorAll('textarea')[1]?.value).toBe('My reply draft');
+    await click('Cancel');
+    expect(host.querySelectorAll('textarea')).toHaveLength(1);
+    expect(document.activeElement).toBe(host.querySelector('h2'));
+  });
+
+  it('keeps a failed reply draft when its target disappears before Check submission resolves', async () => {
+    const reply = item('reply', { root_id: 'root', reply_to_id: 'root', author_id: 'other' });
+    mocks.list.mockResolvedValue({ items: [item('root'), reply], next_cursor: null });
+    mocks.post.mockRejectedValue(new Error('timeout'));
+    mocks.check.mockResolvedValue({ state: 'not_found', result: null });
+    mocks.conversation.mockResolvedValue({ items: [item('root')], next_cursor: null });
+    await render();
+    await click('Reply', host.querySelector('#comment-reply')!);
+    await type(host.querySelectorAll('textarea')[1], 'My reply to a reply');
+    await click('Post reply');
+    await click('Check submission');
+    expect(mocks.conversation).toHaveBeenCalledWith('a', 'root');
+    expect(host.textContent).toContain(
+      'The reply you were replying to is no longer available. Your draft is kept here.',
+    );
+    expect(host.querySelectorAll('textarea')[1]?.value).toBe('My reply to a reply');
+    expect(button('Post reply').getAttribute('aria-disabled')).toBe('true');
+    expect(button('Check submission')).toBeUndefined();
+    expect(host.querySelector('#comment-root')).toBeTruthy();
+    await click('Post reply');
+    expect(mocks.post).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps an edit draft when an admin has removed its comment but other replies remain', async () => {
+    const reply = item('reply', { root_id: 'root', reply_to_id: 'root', author_id: 'other' });
+    mocks.list.mockResolvedValue({ items: [item('root'), reply], next_cursor: null });
+    mocks.change.mockRejectedValue(new ApiError(409, 'This comment is no longer available'));
+    mocks.conversation.mockResolvedValue({
+      items: [item('root', { status: 'removed', body: null, name: null, version: 2 }), reply],
+      next_cursor: null,
+    });
+    await render();
+    await click('Edit');
+    await type(host.querySelectorAll('textarea')[1], 'My edit draft');
+    await click('Save changes');
+    expect(host.textContent).toContain(
+      'This comment is no longer available. Your draft is kept here.',
+    );
+    expect(host.querySelectorAll('textarea')[1]?.value).toBe('My edit draft');
+    expect(button('Save changes').getAttribute('aria-disabled')).toBe('true');
+    expect(host.querySelector('#comment-root')?.textContent).toBe('Comment removed');
+    expect(host.querySelector('#comment-reply')).toBeTruthy();
+    await click('Save changes');
+    expect(mocks.change).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes an edit version conflict and saves the preserved draft on retry', async () => {
+    mocks.list.mockResolvedValue({ items: [item('root')], next_cursor: null });
+    mocks.change
+      .mockRejectedValueOnce(new ApiError(409, 'This changed since you opened it'))
+      .mockResolvedValueOnce({
+        comment: item('root', { body: 'My edit draft', version: 3 }),
+        settings: settings(),
+      });
+    mocks.conversation.mockResolvedValue({
+      items: [item('root', { version: 2 })],
+      next_cursor: null,
+    });
+    await render();
+    await click('Edit');
+    await type(host.querySelectorAll('textarea')[1], 'My edit draft');
+    await click('Save changes');
+    expect(host.querySelectorAll('textarea')[1]?.value).toBe('My edit draft');
+    expect(button('Save changes').getAttribute('aria-disabled')).toBe('false');
+    await click('Save changes');
+    expect(mocks.change.mock.calls[1][4]).toMatchObject({
+      expected_version: 2,
+      body: 'My edit draft',
+    });
+    expect(host.querySelector('#comment-root')?.textContent).toContain('My edit draft');
   });
 
   it('keeps a reply-to-reply at one depth and sends the exact answered contribution', async () => {

@@ -81,6 +81,14 @@ before merge.
 The final browser run passes all 12 checks, including cross-article drafts and
 returning focus only to the visible discussion.
 
+Final recovery review also covers a reply/edit target removed in another browser:
+keep its draft visible, disable the impossible submission, and return Cancel focus
+to the comments heading. A stop link invalidated after opening uses the existing
+invalid-link view. The focused comments suite passes 38 checks. The team-mailbox
+guidance test now expects the approved 14 team addresses and 9 admin addresses.
+Resend's domain settings have both click and open tracking disabled; Railway's
+API service has Serverless disabled, so the saved-delivery worker stays active.
+
 Remaining: required checks on final head,
 PR/queue/release, exact deployed table privacy checks,
 email gate activation, safe live reads, and ask@ account activation when available.

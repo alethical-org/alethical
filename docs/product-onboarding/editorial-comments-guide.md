@@ -208,6 +208,16 @@ post/edit shows `Check submission`; its check is bounded and safely reuses the
 original request identity. A success clears a draft only if it still matches the
 submitted text. Changing accounts clears private drafts and open controls.
 
+If a reply target or a comment being edited is removed elsewhere, keep the draft
+visible in its existing composer treatment and disable the impossible submission.
+Show `The comment you were replying to is no longer available. Your draft is kept here.`
+for a reply, or `This comment is no longer available. Your draft is kept here.` for
+an edit; use `reply` in place of `comment` when the target is itself a reply.
+Cancel discards that draft and returns focus to the comments heading when the
+original action is gone. Ordinary version conflicts retain a working retry.
+An invalid stop link uses the existing `This email link could not be opened` view,
+including when it becomes invalid after opening. Only temporary failures offer retry.
+
 Comment changes and pending email deliveries commit together. A bounded server
 worker drains saved deliveries independently from requests and retries after failure
 or restart. Provider idempotency keys remain stable across uncertain attempts.

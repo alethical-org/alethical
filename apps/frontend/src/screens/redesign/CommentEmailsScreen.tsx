@@ -17,6 +17,8 @@ const stoppedHeading = (choice: StopCommentEmailChoice) =>
   choice === 'replies' ? 'Reply emails stopped' : 'Updates for this article stopped';
 const choiceEnabled = (state: CommentEmailStopState, choice: StopCommentEmailChoice) =>
   choice === 'replies' ? state.reply_emails : state.article_updates;
+const invalidLink = (cause: unknown) =>
+  cause instanceof ApiError && [400, 404, 422].includes(cause.status);
 
 export function CommentEmailsScreen() {
   const [token] = useState(readToken);
@@ -48,11 +50,7 @@ export function CommentEmailsScreen() {
       if (!choiceEnabled(result, result.link_choice)) setLastStopped(result.link_choice);
     } catch (cause) {
       if (mounted.current && sequence.current === request)
-        setFailed(
-          cause instanceof ApiError && [400, 404, 422].includes(cause.status)
-            ? 'invalid'
-            : 'network',
-        );
+        setFailed(invalidLink(cause) ? 'invalid' : 'network');
     } finally {
       if (mounted.current && sequence.current === request) setLoading(false);
     }
@@ -91,9 +89,14 @@ export function CommentEmailsScreen() {
       requestAnimationFrame(() => {
         if (mounted.current) heading.current?.focus();
       });
-    } catch {
-      if (mounted.current && sequence.current === request)
-        setError('Couldn’t save your email choices. Try again.');
+    } catch (cause) {
+      if (mounted.current && sequence.current === request) {
+        if (invalidLink(cause)) {
+          setState(null);
+          setLastStopped(null);
+          setFailed('invalid');
+        } else setError('Couldn’t save your email choices. Try again.');
+      }
     } finally {
       gate.current = false;
       if (mounted.current && sequence.current === request) setBusy(null);
