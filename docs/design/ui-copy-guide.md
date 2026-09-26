@@ -195,7 +195,7 @@ and blog articles. Replace older AI boilerplate rather than stacking disclosures
 When AI helped prepare the article, use this approved wording:
 
 > AI helped prepare this article and can make mistakes. We report what the cited
-> public sources support and identify known gaps and uncertainty. [Contact us](/about/contact)
+> public sources support and identify known gaps and uncertainty. [Contact us](https://alethical.com/about/contact)
 > to report a possible error so we can review it and make corrections.
 
 Omit the first sentence when AI did not help prepare the article. Establish that
