@@ -16,11 +16,6 @@ const senateVictoryUrl =
 const availabilityUrl = 'https://cfb.mn.gov/reports-and-data/campaign-finance/';
 
 const text = (value: string): ResearchInline => ({ kind: 'text', text: value });
-const external = (value: string, href: string): ResearchInline => ({
-  kind: 'externalLink',
-  text: value,
-  href,
-});
 const paragraph = (value: string) => ({
   kind: 'paragraph' as const,
   runs: [text(value)],
@@ -44,18 +39,56 @@ export const LOBBYIST_GIVING: ResearchPiece = {
   sources: [],
   sourceRuns: [
     [
-      external('Minnesota Campaign Finance Board contribution download', downloadUrl),
+      {
+        kind: 'externalLink',
+        text: 'Minnesota Campaign Finance Board contribution download',
+        href: 'https://register.cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/',
+      },
       text(', saved September 26, 2026'),
     ],
     [
-      external('Board candidate records', candidatesUrl),
+      {
+        kind: 'externalLink',
+        text: 'Board candidate records',
+        href: 'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/',
+      },
       text(', historical election-cycle party labels'),
     ],
-    [external('DFL House Caucus, 2025 annual filing, page 8', dflHouseUrl)],
-    [external('HRCC, 2025 annual filing, page 9', hrccUrl)],
-    [external('DFL Senate Caucus, 2025 annual filing, page 10', dflSenateUrl)],
-    [external('Senate Victory Fund, 2025 annual filing, page 6', senateVictoryUrl)],
-    [external('Board filing-availability notice', availabilityUrl)],
+    [
+      {
+        kind: 'externalLink',
+        text: 'DFL House Caucus, 2025 annual filing, page 8',
+        href: 'https://cfb.mn.gov/rptViewer/Main.php?do=viewPDF&searchType=Candidate&downloadpdf=true&year=25&type=ptu&period=YE&se=0&regnum=20006&amend=1&show=0#page=8',
+      },
+    ],
+    [
+      {
+        kind: 'externalLink',
+        text: 'HRCC, 2025 annual filing, page 9',
+        href: 'https://cfb.mn.gov/rptViewer/Main.php?do=viewPDF&searchType=Candidate&downloadpdf=true&year=25&type=ptu&period=YE&se=0&regnum=20010&amend=2&show=0#page=9',
+      },
+    ],
+    [
+      {
+        kind: 'externalLink',
+        text: 'DFL Senate Caucus, 2025 annual filing, page 10',
+        href: 'https://cfb.mn.gov/rptViewer/Main.php?do=viewPDF&searchType=Candidate&downloadpdf=true&year=25&type=ptu&period=YE&se=0&regnum=20011&amend=2&show=0#page=10',
+      },
+    ],
+    [
+      {
+        kind: 'externalLink',
+        text: 'Senate Victory Fund, 2025 annual filing, page 6',
+        href: 'https://cfb.mn.gov/rptViewer/Main.php?do=viewPDF&searchType=Candidate&downloadpdf=true&year=25&type=ptu&period=YE&se=0&regnum=20013&amend=3&show=0#page=6',
+      },
+    ],
+    [
+      {
+        kind: 'externalLink',
+        text: 'Board filing-availability notice',
+        href: 'https://cfb.mn.gov/reports-and-data/campaign-finance/',
+      },
+    ],
   ],
   shortPost: {
     origin: 'social-adaptation',

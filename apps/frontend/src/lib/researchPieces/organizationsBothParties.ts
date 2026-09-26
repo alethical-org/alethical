@@ -14,7 +14,6 @@ const republicanHouseUrl =
   'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/party-unit/20010/';
 const republicanSenateUrl =
   'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/party-unit/20013/';
-const handbookUrl = 'https://cfb.mn.gov/pdf/publications/handbooks/PTU_handbook.pdf';
 
 const period = {
   from: '2015-01-01',
@@ -40,11 +39,6 @@ const overlapGraphic: ShortPostGraphic = {
 };
 
 const text = (value: string): ResearchInline => ({ kind: 'text', text: value });
-const external = (value: string, href: string): ResearchInline => ({
-  kind: 'externalLink',
-  text: value,
-  href,
-});
 const paragraph = (value: string) => ({ kind: 'paragraph' as const, runs: [text(value)] });
 
 export const ORGANIZATIONS_BOTH_PARTIES: ResearchPiece = {
@@ -58,23 +52,47 @@ export const ORGANIZATIONS_BOTH_PARTIES: ResearchPiece = {
   sources: [],
   sourceRuns: [
     [
-      external('Minnesota Campaign Finance Board contribution download', boardDownloadUrl),
+      {
+        kind: 'externalLink',
+        text: 'Minnesota Campaign Finance Board contribution download',
+        href: 'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/',
+      },
       text(', saved September 24, 2026'),
     ],
     [
-      external('DFL House Caucus', dflHouseUrl),
+      {
+        kind: 'externalLink',
+        text: 'DFL House Caucus',
+        href: 'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/party-unit/20006/',
+      },
       text(' and '),
-      external('DFL Senate Caucus', dflSenateUrl),
+      {
+        kind: 'externalLink',
+        text: 'DFL Senate Caucus',
+        href: 'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/party-unit/20011/',
+      },
       text(', recipient identities and filings'),
     ],
     [
-      external('House Republican Campaign Committee', republicanHouseUrl),
+      {
+        kind: 'externalLink',
+        text: 'House Republican Campaign Committee',
+        href: 'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/party-unit/20010/',
+      },
       text(' and '),
-      external('Senate Victory Fund', republicanSenateUrl),
+      {
+        kind: 'externalLink',
+        text: 'Senate Victory Fund',
+        href: 'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/party-unit/20013/',
+      },
       text(', recipient identities and filings'),
     ],
     [
-      external('Board party-unit handbook', handbookUrl),
+      {
+        kind: 'externalLink',
+        text: 'Board party-unit handbook',
+        href: 'https://cfb.mn.gov/pdf/publications/handbooks/PTU_handbook.pdf',
+      },
       text(', contribution and returned-contribution reporting'),
     ],
   ],
