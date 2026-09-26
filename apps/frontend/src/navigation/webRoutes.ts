@@ -68,7 +68,7 @@ type WebRouteTarget =
   | { kind: 'siteMetrics' }
   | { kind: 'terms' }
   | { kind: 'aboutUs' }
-  | { kind: 'contactUs' }
+  | { kind: 'contactUs'; article?: string }
   | { kind: 'confirmEmail' }
   | { kind: 'resetPassword' }
   | { kind: 'chatSession'; params: RootStackParamList['ChatSession'] }
@@ -299,7 +299,8 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   }
 
   if (segments.length === 2 && segments[0] === 'about' && segments[1] === 'contact') {
-    return { kind: 'contactUs' };
+    const article = searchParams.get('article') || undefined;
+    return article ? { kind: 'contactUs', article } : { kind: 'contactUs' };
   }
 
   if (segments[0] === 'read' && segments[1] === 'short-posts' && segments.length === 2) {
@@ -839,8 +840,12 @@ export function pathForRoute(activeRoute: {
       return '/terms';
     case 'AboutUs':
       return '/about';
-    case 'ContactUs':
-      return '/about/contact';
+    case 'ContactUs': {
+      const article = activeRoute.params?.article;
+      return typeof article === 'string' && article
+        ? `/about/contact?article=${encodeURIComponent(article)}`
+        : '/about/contact';
+    }
     case 'ConfirmEmail':
       return '/confirm';
     case 'ResetPassword':
@@ -1116,7 +1121,12 @@ export function stateFromPathname(pathname: string): WebNavigationState {
       };
     case 'contactUs':
       return {
-        routes: [homeTabs, { name: 'ContactUs' }],
+        routes: [
+          homeTabs,
+          target.article
+            ? { name: 'ContactUs', params: { article: target.article } }
+            : { name: 'ContactUs' },
+        ],
         index: 1,
       };
     case 'confirmEmail':

@@ -94,7 +94,8 @@ export const routePath = {
   siteMetrics: () => pathForRoute({ name: 'SiteMetrics' }),
   terms: () => pathForRoute({ name: 'Terms' }),
   aboutUs: () => pathForRoute({ name: 'AboutUs' }),
-  contactUs: () => pathForRoute({ name: 'ContactUs' }),
+  contactUs: (params?: RootStackParamList['ContactUs']) =>
+    pathForRoute({ name: 'ContactUs', params }),
 };
 
 /**

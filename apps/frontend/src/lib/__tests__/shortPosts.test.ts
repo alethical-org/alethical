@@ -10,6 +10,7 @@ import {
 } from '../researchIndex';
 import { PUBLISHED_RESEARCH, type ResearchPiece } from '../research';
 import { chartDescription } from '../shortPostCalculations';
+import { ARTICLE_SOURCE_NOTE } from '../articleDisclosure';
 import {
   assertPublishedShortPosts,
   calculatedRun,
@@ -17,6 +18,7 @@ import {
   SHORT_POST_AI_NOTE,
   shortPostFingerprint,
   shortPostPublicationErrors,
+  shortPostArticleSnapshotBlocks,
   type ShortPostGraphic,
 } from '../shortPosts';
 import {
@@ -129,6 +131,138 @@ function readyPiece(): ResearchPiece {
 }
 
 describe('social-derived Short post publication gate', () => {
+  it('accepts an optional subtitle and separately dated selected download without inventing coverage', () => {
+    const piece = readyPiece();
+    piece.dek = '';
+    piece.shortPost!.coverageBasis = 'held-records';
+    piece.shortPost!.evidence[0].kind = 'held-records';
+    piece.shortPost!.evidence = [
+      ...piece.shortPost!.evidence,
+      {
+        id: 'download',
+        title: 'Selected download records',
+        url: 'https://example.gov/download',
+        kind: 'held-records',
+        downloadSnapshot: {
+          copiedOn: '2026-09-25',
+          selectedRecords: 'Recipient 123, contributor 456',
+        },
+        method: 'Compare the selected records with the dated filing.',
+        limitations: 'Whole-download coverage is unknown.',
+        version: 'sha256:example',
+      },
+    ];
+    piece.sourceRuns!.push([
+      { kind: 'externalLink', text: 'Download', href: 'https://example.gov/download' },
+    ]);
+    piece.shortPost!.review.eugeneApprovedFingerprint = shortPostFingerprint(piece);
+    expect(shortPostPublicationErrors(piece)).toEqual([]);
+    piece.shortPost!.evidence[1].period = period;
+    expect(shortPostPublicationErrors(piece).join(' ')).toContain('without invented coverage');
+  });
+
+  it('includes the chart conclusion and resolved correction link in first-response text and review fingerprint', () => {
+    const piece = readyPiece();
+    piece.shortPost!.charts![0].conclusion = 'The records support this narrower finding.';
+    piece.shortPost!.charts![0].sourcePlacement = 'sources';
+    const blocks = shortPostArticleSnapshotBlocks(piece);
+    expect(
+      blocks.some(
+        (block) =>
+          block.text ===
+          'Conclusion: The records support this narrower finding. The example covers 2025 only.',
+      ),
+    ).toBe(true);
+    expect(
+      blocks.filter((block) =>
+        block.links?.some((link) => link.href === 'https://example.gov/filings'),
+      ),
+    ).toHaveLength(1);
+    const fingerprint = shortPostFingerprint(piece);
+    piece.articleId = 'changed-identity';
+    expect(shortPostFingerprint(piece)).not.toBe(fingerprint);
+    expect(
+      shortPostArticleSnapshotBlocks(piece).flatMap((block) => block.links ?? []),
+    ).toContainEqual({ text: 'Contact us', href: '/about/contact?article=changed-identity' });
+  });
+
+  it('invalidates review when a linked newer article title changes', () => {
+    const piece = readyPiece();
+    const newer = PUBLISHED_PIECE_INDEX[0];
+    const originalTitle = newer.title;
+    piece.shortPost!.history = [
+      {
+        kind: 'newer-records',
+        datedOn: '2026-09-25',
+        explanation: 'Newer filings exist.',
+        newerCoverageSlug: newer.slug,
+      },
+    ];
+    const fingerprint = shortPostFingerprint(piece);
+    try {
+      newer.title = originalTitle + ' changed';
+      expect(shortPostFingerprint(piece)).not.toBe(fingerprint);
+    } finally {
+      newer.title = originalTitle;
+    }
+  });
+
+  it('uses each comparison amount directly for prose rather than substituting the difference', () => {
+    const graphic: ShortPostGraphic = {
+      id: 'compare',
+      claimIds: [],
+      input: {
+        kind: 'comparison',
+        baseline: { value: 1200, unit: 'USD', period },
+        compared: { value: 500, unit: 'USD', period },
+        baselineLabel: 'Download sum',
+        comparedLabel: 'Filing entry',
+        showPercentChange: false,
+      },
+      altDescription: '',
+    };
+    expect(calculatedRun(graphic, 'baseline-value', 'usd').text).toBe('$1,200');
+    expect(calculatedRun(graphic, 'compared-value', 'usd').text).toBe('$500');
+    expect(calculatedRun(graphic, 'difference', 'usd').text).not.toBe('$500');
+  });
+
+  it('requires the AI sentence when AI helped and keeps final approvals independent', () => {
+    const piece = readyPiece();
+    piece.shortPost!.aiAssisted = true;
+    piece.shortPost!.disclosures = [ARTICLE_SOURCE_NOTE];
+    expect(shortPostPublicationErrors(piece)).toContain('AI assistance note is missing');
+    piece.shortPost!.disclosures = [SHORT_POST_AI_NOTE];
+    piece.shortPost!.review.eugeneApprovedFingerprint = '';
+    piece.shortPost!.review.publicationInstructionAt = '';
+    expect(shortPostPublicationErrors(piece)).toContain(
+      'article-specific publication instruction is missing',
+    );
+  });
+
+  it('allows specific limits without generic contribution boilerplate but still requires the closing note', () => {
+    const piece = readyPiece();
+    piece.shortPost!.disclosures = [SHORT_POST_AI_NOTE];
+    piece.shortPost!.review.eugeneApprovedFingerprint = shortPostFingerprint(piece);
+    expect(shortPostPublicationErrors(piece)).toEqual([]);
+
+    expect(
+      shortPostArticleSnapshotBlocks(piece).find((block) => block.text === SHORT_POST_AI_NOTE)
+        ?.links,
+    ).toEqual([{ text: 'Contact us', href: '/about/contact?article=short-example-001' }]);
+
+    piece.shortPost!.disclosures = [ARTICLE_SOURCE_NOTE];
+    piece.shortPost!.review.eugeneApprovedFingerprint = shortPostFingerprint(piece);
+    expect(shortPostPublicationErrors(piece)).toEqual([]);
+    expect(
+      shortPostArticleSnapshotBlocks(piece).find((block) => block.text === ARTICLE_SOURCE_NOTE)
+        ?.links,
+    ).toEqual([{ text: 'Contact us', href: '/about/contact?article=short-example-001' }]);
+
+    piece.shortPost!.disclosures = [];
+    piece.shortPost!.review.eugeneApprovedFingerprint = shortPostFingerprint(piece);
+    expect(shortPostPublicationErrors(piece)).toContain('source and correction note is missing');
+  });
+
   it('accepts complete checked material without changing older published pieces', () => {
     const piece = readyPiece();
     expect(shortPostPublicationErrors(piece)).toEqual([]);
@@ -244,7 +378,7 @@ describe('social-derived Short post publication gate', () => {
       '40%',
     );
     expect(calculatedRun(graphic, 'part-percent', 'integer', 'Example recipients').text).toBe('40');
-    expect(calculatedRun(graphic, 'part-value', 'usd', 'Example recipients').text).toBe('$40.00');
+    expect(calculatedRun(graphic, 'part-value', 'usd', 'Example recipients').text).toBe('$40');
     expect(() => calculatedRun(graphic, 'part-percent', 'usd', 'Example recipients')).toThrow(
       'dollar display',
     );

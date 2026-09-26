@@ -156,7 +156,7 @@ export type RootStackParamList = {
   SiteMetrics: undefined;
   Terms: undefined;
   AboutUs: undefined;
-  ContactUs: undefined;
+  ContactUs: { article?: string } | undefined;
   ConfirmEmail: undefined;
   ResetPassword: undefined;
   NotFound: { path: string };

@@ -58,12 +58,14 @@ describe('Short post article and charts', () => {
     expect(markup).toContain('scope="row"');
     expect(markup).toContain('>109</td>');
     expect(markup).toContain('Other records');
-    expect(markup).toContain('aria-hidden="true"');
     expect(markup).toContain('white-space:nowrap');
     expect(markup).toContain('https://example.gov/records');
+    expect(markup).not.toContain('sp-chart-description');
+    expect(markup).toContain('aria-label="Alethical"');
+    expect(markup).not.toContain('ShortPostWordmark');
   });
 
-  it('keeps overlap values in one accessible description and states circle sizes are not shares', () => {
+  it('keeps overlap values in accessible labels and states circle sizes are not shares', () => {
     const overlap: ShortPostGraphic = {
       ...graphic,
       id: 'overlap',
@@ -91,9 +93,12 @@ describe('Short post article and charts', () => {
         articleId="article-one"
       />,
     );
-    expect(markup).toContain('Diagram shows overlap, not relative group sizes.');
-    expect(markup).toContain('Group A contains 80 records');
-    expect(markup).toContain('Group B contains 70 records');
+    expect(markup).toContain('Diagram shows overlap, not relative group sizes');
+    expect(markup).toContain('Group A contains 80.');
+    expect(markup).toContain('Group B contains 70.');
+    expect(markup).toContain('Total, including neither group');
+    expect(markup).not.toContain('sp-chart-description');
+    expect(markup).not.toContain('sp-chart-overlap-legend\" aria-hidden');
     expect(markup).toContain('aria-hidden="true"');
   });
 
@@ -180,6 +185,30 @@ it('names both reporting periods above a comparison when they differ', () => {
     />,
   );
   const topLine = markup.match(/<p class="sp-chart-measure">(.*?)<\/p>/)?.[1];
+  expect(topLine).not.toContain('USD');
+  expect(markup).toContain('100 USD');
+  expect(markup).toContain('200 USD');
   expect(topLine).toContain('Earlier: 2025 filings');
   expect(topLine).toContain('Later: 2026 filings');
+});
+
+it('uses the article source list without a redundant jump link and retains direct outside sources', () => {
+  for (const url of ['#private-sources', evidence.url]) {
+    const markup = renderToStaticMarkup(
+      <ShortPostChart
+        graphic={graphic}
+        display={{
+          graphicId: graphic.id,
+          title: 'Source navigation',
+          sourceEvidenceId: evidence.id,
+          limitation: evidence.limitations,
+        }}
+        evidence={{ ...evidence, url }}
+        articleId="source-navigation"
+      />,
+    );
+    const sourceLink = markup.match(/<a href="([^"]+)"[^>]*>/)?.[0];
+    if (url.startsWith('#')) expect(sourceLink).toBeUndefined();
+    else expect(sourceLink).toContain('target="_blank"');
+  }
 });
