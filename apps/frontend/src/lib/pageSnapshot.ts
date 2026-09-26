@@ -119,7 +119,7 @@ import {
   type ResearchPiece,
   type ResearchBlock,
 } from './research';
-import { shortPostArticleSnapshotBlocks } from './shortPosts';
+import { shortPostArticleSnapshotBlocks, shortPostRecordsLine } from './shortPosts';
 import { readGroups, shortPostsPage, topicPage } from './shortPostSelection';
 import { TOPICS, topicPath, type TopicSlug } from './researchIndex';
 import {
@@ -1069,7 +1069,15 @@ export function shortPostPageSnapshot(piece: ResearchPiece): PageSnapshot {
   if (current.blocks?.length) sections.push(current);
   return {
     heading: piece.title,
-    subheading: pieceMastheadLine(piece),
+    subheading:
+      piece.shortPost?.recordsScope === 'cited-filings'
+        ? [
+            piece.publishedOn ? `PUBLISHED ${isoDateCapsLabel(piece.publishedOn)}` : '',
+            shortPostRecordsLine(piece),
+          ]
+            .filter(Boolean)
+            .join(' · ')
+        : pieceMastheadLine(piece),
     bodyHeading: '',
     body: piece.dek ? [piece.dek] : [],
     bodyIsList: false,

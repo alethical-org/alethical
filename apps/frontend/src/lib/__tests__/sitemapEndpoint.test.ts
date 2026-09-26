@@ -2,6 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import handler from '../../../../../api/sitemap';
 import { indexedResearch, piecePath } from '../research';
+import { TOPICS } from '../researchIndex';
+import { shortPostsPage, topicPage } from '../shortPostSelection';
+const COLLECTION_PAGE_ROWS =
+  shortPostsPage(1).pageCount +
+  TOPICS.reduce((sum, topic) => sum + topicPage(topic.slug, 1).pageCount, 0);
 
 /**
  * The rows that are not a published piece: every fixed public page. Counted this
@@ -118,9 +123,12 @@ describe('sitemap endpoint', () => {
     expect(body).toContain('<loc>https://www.alethical.com/read/topics/campaign-finance</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/read/topics/lobbying</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/read/topics/elections</loc>');
-    expect(body).not.toContain('<loc>https://www.alethical.com/read/short-posts</loc>');
+    expect(body).toContain('<loc>https://www.alethical.com/read/short-posts</loc>');
+    expect(body).toContain(
+      '<loc>https://www.alethical.com/read/topics/campaign-finance?page=2</loc>',
+    );
     expect(body.match(/<url>/g)).toHaveLength(
-      FIXED_PAGE_ROWS + DIRECTORY_PAGE_ROWS + indexedResearch().length + 3,
+      FIXED_PAGE_ROWS + DIRECTORY_PAGE_ROWS + indexedResearch().length + COLLECTION_PAGE_ROWS,
     );
     // Money by race is one fixed page: an office chip is a filtered view and is
     // never listed (issue #1954).
@@ -160,14 +168,16 @@ describe('sitemap endpoint', () => {
 
     const { body, status } = recorder.read();
     expect(status).toBe(200);
-    expect(body.match(/<url>/g)).toHaveLength(FIXED_PAGE_ROWS + indexedResearch().length + 3);
+    expect(body.match(/<url>/g)).toHaveLength(
+      FIXED_PAGE_ROWS + indexedResearch().length + COLLECTION_PAGE_ROWS,
+    );
     expect(body).toContain(
       '<loc>https://www.alethical.com/read/research/the-money-only-goes-one-way</loc>',
     );
     expect(body).toContain(
       '<loc>https://www.alethical.com/read/guides/who-has-to-report-their-money</loc>',
     );
-    expect(body).not.toContain('?page=');
+    expect(body).not.toContain('/bills?page=');
   });
 
   it('lists all lobbying directory pages from the whole live counts at 50 names per page', async () => {
@@ -208,7 +218,7 @@ describe('sitemap endpoint', () => {
       expect(body).not.toContain(`/money/lobbying/${kind}?page=${lastPage + 1}</loc>`);
     }
     expect(body.match(/<url>/g)).toHaveLength(
-      FIXED_PAGE_ROWS + 68 + 33 + indexedResearch().length + 3,
+      FIXED_PAGE_ROWS + 68 + 33 + indexedResearch().length + COLLECTION_PAGE_ROWS,
     );
     expect(body).not.toContain('<lastmod>');
     expect(fetchSpy).toHaveBeenCalledTimes(3);
@@ -248,7 +258,7 @@ describe('sitemap endpoint', () => {
         '<loc>https://www.alethical.com/money/lobbying/lobbyists?page=34</loc>',
       );
       expect(body.match(/<url>/g)).toHaveLength(
-        FIXED_PAGE_ROWS + 33 + indexedResearch().length + 3,
+        FIXED_PAGE_ROWS + 33 + indexedResearch().length + COLLECTION_PAGE_ROWS,
       );
     },
   );

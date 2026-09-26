@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import sitemapHandler from '../../../../../api/sitemap';
-import { renderPageSnapshot, researchPageSnapshot } from '../pageSnapshot';
+import { renderPageSnapshot, researchPageSnapshot, shortPostPageSnapshot } from '../pageSnapshot';
 import { PUBLISHED_RESEARCH, piecePath, researchBySlug } from '../research';
 
 /**
@@ -36,6 +36,7 @@ import { PUBLISHED_RESEARCH, piecePath, researchBySlug } from '../research';
  * checks underneath without somebody deciding what it must carry.
  */
 const PUBLISHED_ADDRESSES = [
+  '/read/research/2-records-not-always-2-donations',
   '/read/research/the-money-only-goes-one-way',
   '/read/guides/who-has-to-report-their-money',
   '/read/guides/what-the-records-name',
@@ -44,8 +45,12 @@ const PUBLISHED_ADDRESSES = [
   '/read/guides/why-nobody-can-follow-a-dollar',
 ];
 
-const servedPage = (slug: string): string =>
-  renderPageSnapshot(researchPageSnapshot(researchBySlug(slug)!));
+const servedPage = (slug: string): string => {
+  const piece = researchBySlug(slug)!;
+  return renderPageSnapshot(
+    piece.format === 'short-post' ? shortPostPageSnapshot(piece) : researchPageSnapshot(piece),
+  );
+};
 
 describe('the pieces this file speaks for are the pieces we publish', () => {
   it('names every published address, so a new piece cannot skip these checks', () => {
@@ -252,5 +257,24 @@ describe('every published piece has a sitemap row at its own address', () => {
     for (const address of PUBLISHED_ADDRESSES) {
       expect(body).toContain(`<loc>https://www.alethical.com${address}</loc>`);
     }
+  });
+});
+
+describe('the repeated-records Short post preserves its narrow finding and method', () => {
+  const html = servedPage('2-records-not-always-2-donations');
+  it('names the source, dates, exact selection and limitation in initial HTML', () => {
+    for (const text of [
+      'Minnesota Campaign Finance Board',
+      'copied September 25, 2026',
+      'Records in cited filings through December 20, 2023',
+      'recipient registration 19013, contributor registration 8692',
+      '2 rows, identical in all 15 source columns',
+      'The filings support 1 reported $500 contribution appearing in repeated records.',
+      'The 2 download entries do not establish 2 separate donations.',
+      'This example does not establish corrected totals for Carlson or all lobbyists',
+      'AI helped prepare this article and can make mistakes.',
+    ])
+      expect(html).toContain(text);
+    expect(html).toContain('/about/contact?article=short-records-not-donations-2023');
   });
 });

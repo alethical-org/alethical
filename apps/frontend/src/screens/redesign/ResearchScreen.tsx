@@ -460,7 +460,12 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
         >
           <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
           <Container>
-            <ShortPostArticle piece={piece} />
+            <ShortPostArticle
+              piece={piece}
+              onCorrectionContact={() =>
+                navigation.navigate('ContactUs', { article: piece.articleId ?? piece.slug })
+              }
+            />
           </Container>
           {piece.articleId && <ReaderComments articleId={piece.articleId} />}
           <Footer
