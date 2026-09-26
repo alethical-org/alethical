@@ -143,3 +143,26 @@ Independent read-only review found the explicit overlap population total needed 
 survive transcript removal; it is retained in the shared chart's legend.
 Source copies, original private draft and calculation inputs remain retained.
 Final article review and publication are the next checkpoint.
+
+### Shared comments integration copy, received 26 September 2026
+
+The owning task “blog comments” (`01a0d4e4-f4d1-7b03-95d7-853fcaa37b48`)
+reported Eugene's approved shared-comments corrections. Carry these into the next
+authorized Short post comments integration; this message does not authorize a
+new build or Design request, and the private first-post review remains unchanged.
+
+Standalone 1-sentence UI instructions, explanations and notices omit their final
+period, including when wrapping. Messages with 2 or more sentences keep punctuation.
+Exact shared copy:
+
+- “This name appears on your comments and replies”
+- “Names are chosen by readers and are not verified”
+- “Email me about all new or edited comments and replies on this article”
+
+“All” does not change behavior: the reader's own contributions stay excluded.
+The owner is updating Comments.dc.html and shared punctuation guidance while
+leaving Short post.dc.html untouched. Its flagged names notice, 2 “Comments could
+not be loaded” messages and “No published comments yet” need the same punctuation
+when integrated. Its old paused/closed/review workflow is obsolete; do not restore
+those controls while correcting copy. Use the complete shared comments flow
+accepted by the owning task, subject to the existing integration holds.
