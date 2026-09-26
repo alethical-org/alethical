@@ -13,8 +13,9 @@ than only by pasting an address, and a name that got paid opens every payment fi
 that exact spelling
 ([#1780](https://github.com/alethical-org/alethical/issues/1780)). Our own signed research
 lives one level up, on the `/read` page, which the money landing points at. The `/read`
-page currently lists 6 published pieces: 1 Research piece and 5 Guides. No Short post
-has been published.
+page lists 6 long-form pieces (1 Research piece and 5 Guides) and the Short post
+“2 records do not always mean 2 donations” at
+`/read/research/2-records-not-always-2-donations`.
 
 Lobbying is available at `/money/lobbying`, with the copied lobbyist list, represented
 organisations and yearly spending. The earlier lobbying-under-development strip is removed
@@ -1663,7 +1664,7 @@ footing as a bill page, which hands its text over straight away too
 whether a search engine may _list_ a piece, which is still Eugene's per-piece decision
 above: a piece marked to be skipped is served in full and still asks to be skipped.
 
-6 pieces are posted: the research piece "The Money Only Goes One Way" at
+6 long-form pieces are posted: the research piece "The Money Only Goes One Way" at
 `/read/research/the-money-only-goes-one-way`, and the 5 Guides in "How the Money Works":
 "Who has to report their money" at `/read/guides/who-has-to-report-their-money`,
 "What the records name, and what they leave out" at `/read/guides/what-the-records-name`,
@@ -1671,7 +1672,9 @@ above: a piece marked to be skipped is served in full and still asks to be skipp
 `/read/guides/why-2-official-numbers-can-both-be-right`, "Money spent without a campaign’s
 say" at `/read/guides/money-spent-without-a-campaigns-say`, and "Why nobody can follow a
 dollar" at `/read/guides/why-nobody-can-follow-a-dollar`. This is their set reading order,
-not a number printed beside each row. No Short post is in the published registry.
+not a number printed beside each row. The published Short post “2 records do not always
+mean 2 donations” is at `/read/research/2-records-not-always-2-donations` and appears in
+the Campaign finance and Lobbying topic collections.
 
 ## Short-post and topic collections (`/read/short-posts`, `/read/topics/<topic>`)
 
@@ -1682,9 +1685,10 @@ have their own addresses (`?page=2`), so refresh and browser Back retain the pag
 The first server response contains the page's article links and their words.
 `/read/short-posts?post=<slug>` finds the numbered page currently holding that published
 Short post and returns focus to its title. An unknown post, a bad page number or a page
-beyond the end opens the page-not-found screen. The list currently stays readable with
-**No short posts yet.** and **Back to Read**; while empty it is left out of the site map
-and tells search engines not to list it.
+beyond the end opens the page-not-found screen. An empty list stays readable with
+**No short posts yet.** and **Back to Read**, stays out of the site map and tells search
+engines not to list it. The populated list links to the accepted first Short post and
+appears in the site map.
 
 `/read/topics/<topic>` gathers all published pieces assigned 1 of the controlled topics:
 Campaign finance (`campaign-finance`), Lobbying (`lobbying`) or Elections (`elections`).
@@ -1822,7 +1826,9 @@ Every quantitative chart is recreated from checked numeric inputs, with its titl
 units, covered period, source link and specific limitation. The article text and chart
 read from those same values. A chart showing 1 share names its remainder; multiple named shares use
 a table; comparison bars have 1 zero and 1 scale. An overlap diagram does not pretend
-its areas show group sizes and says: “Diagram shows overlap, not relative group sizes.”
+its areas show group sizes. Labels and any needed explanation follow
+[ui-copy-guide.md §Remove implied information from text and visuals](../design/ui-copy-guide.md#remove-implied-information-from-text-and-visuals);
+the approved organizations draft omits the generic overlap sentence.
 The original social image is temporary working material, not the article's graphic.
 
 The sources block links each source and states its coverage and limits. **Records through**
