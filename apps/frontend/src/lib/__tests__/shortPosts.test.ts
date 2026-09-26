@@ -10,6 +10,7 @@ import {
 } from '../researchIndex';
 import { PUBLISHED_RESEARCH, type ResearchPiece } from '../research';
 import { chartDescription } from '../shortPostCalculations';
+import { ARTICLE_SOURCE_NOTE } from '../articleDisclosure';
 import {
   assertPublishedShortPosts,
   calculatedRun,
@@ -17,6 +18,7 @@ import {
   SHORT_POST_AI_NOTE,
   shortPostFingerprint,
   shortPostPublicationErrors,
+  shortPostArticleSnapshotBlocks,
   type ShortPostGraphic,
 } from '../shortPosts';
 import {
@@ -129,15 +131,28 @@ function readyPiece(): ResearchPiece {
 }
 
 describe('social-derived Short post publication gate', () => {
-  it('allows specific limits without generic contribution boilerplate but still requires the AI note', () => {
+  it('allows specific limits without generic contribution boilerplate but still requires the closing note', () => {
     const piece = readyPiece();
     piece.shortPost!.disclosures = [SHORT_POST_AI_NOTE];
     piece.shortPost!.review.eugeneApprovedFingerprint = shortPostFingerprint(piece);
     expect(shortPostPublicationErrors(piece)).toEqual([]);
 
+    expect(
+      shortPostArticleSnapshotBlocks(piece).find((block) => block.text === SHORT_POST_AI_NOTE)
+        ?.links,
+    ).toEqual([{ text: 'Contact us', href: '/about/contact' }]);
+
+    piece.shortPost!.disclosures = [ARTICLE_SOURCE_NOTE];
+    piece.shortPost!.review.eugeneApprovedFingerprint = shortPostFingerprint(piece);
+    expect(shortPostPublicationErrors(piece)).toEqual([]);
+    expect(
+      shortPostArticleSnapshotBlocks(piece).find((block) => block.text === ARTICLE_SOURCE_NOTE)
+        ?.links,
+    ).toEqual([{ text: 'Contact us', href: '/about/contact' }]);
+
     piece.shortPost!.disclosures = [];
     piece.shortPost!.review.eugeneApprovedFingerprint = shortPostFingerprint(piece);
-    expect(shortPostPublicationErrors(piece)).toContain('checked AI note is missing');
+    expect(shortPostPublicationErrors(piece)).toContain('source and correction note is missing');
   });
 
   it('accepts complete checked material without changing older published pieces', () => {

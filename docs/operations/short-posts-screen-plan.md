@@ -232,3 +232,15 @@ responsive chart layout, symbol alignment and empty-box removal. Existing rules 
 nonredundant units, sources, dates, punctuation, zero marks and website branding
 remain in their existing sections. These are local changes pending the first-post
 release; they do not approve publication or resume other task reviews.
+
+### Shared closing note approved and visible (26 September 2026)
+
+Eugene approved the revised closing note across new or revised posts of every type,
+with the AI sentence only where AI helped. The first private post now shows the
+new note after sources with a working contact link. This supersedes earlier notes
+in this plan about withholding the AI text: the replacement no longer claims that
+Alethical completed review. The website link uses `/about/contact`; the isolated
+preview points to the public contact address. Do not submit a test message.
+The shared article helper supplies the same text and link to rendering and search
+snapshots. Existing published articles are not retroactively edited. First-post
+publication and other task reviews remain held.

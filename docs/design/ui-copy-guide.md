@@ -188,6 +188,27 @@ of motive, causation or wrongdoing. A generic caveat cannot make a false claim s
 This replaces the automatic generic contribution-note requirement for new drafts;
 it does not request edits to already published articles.
 
+### Standard closing note for every post type
+
+Use 1 closing note after sources in new or revised Short posts, Research, Guides
+and blog articles. Replace older AI boilerplate rather than stacking disclosures.
+When AI helped prepare the article, use this approved wording:
+
+> AI helped prepare this article and can make mistakes. We report what the cited
+> public sources support and identify known gaps and uncertainty. [Contact us](/about/contact)
+> to report a possible error so we can review it and make corrections.
+
+Omit the first sentence when AI did not help prepare the article. Establish that
+from the article's preparation record, not its format or author name. Keep the
+remaining source-and-correction wording and the working `/about/contact` link.
+Use normal paragraph punctuation. Keep specific gaps beside the affected claims.
+The note does not certify a completed review or promise that the records are
+complete. It can be shown in a private draft; publication still needs the usual
+source checks, human review and explicit instruction. Do not send a contact message
+as a test. This approval does not request a bulk edit of previously published posts.
+
+Approved by Eugene on 26 September 2026, replacing the older closing-note wording.
+
 ### Keep private-review status separate from article copy
 
 In a private article preview, the yellow top banner says **PRIVATE DRAFT**, once.

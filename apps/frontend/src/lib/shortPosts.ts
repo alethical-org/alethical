@@ -1,4 +1,5 @@
 import type { ResearchBlock, ResearchInline, ResearchPiece } from './research';
+import { ARTICLE_AI_NOTE, ARTICLE_SOURCE_NOTE, articleDisclosureRuns } from './articleDisclosure';
 import {
   PUBLISHED_PIECE_INDEX,
   SHORT_POST_PRESENTATION_READY,
@@ -14,8 +15,7 @@ import {
   type ReportingPeriod,
 } from './shortPostCalculations';
 
-export const SHORT_POST_AI_NOTE =
-  'AI helped prepare this article. Alethical checked its claims against the cited records before publication, but errors may remain. The records may be incomplete or later corrected.';
+export const SHORT_POST_AI_NOTE = ARTICLE_AI_NOTE;
 export const CONTRIBUTION_NOTE =
   'A contribution alone does not establish why someone gave, whether it influenced a decision, or whether wrongdoing occurred';
 
@@ -219,7 +219,7 @@ export function shortPostArticleSnapshotBlocks(
   (piece.sourceRuns ?? []).forEach((runs) => blocks.push(snapshotRuns(runs)));
   blocks.push({ kind: 'paragraph', text: editorial.coverageNote });
   blocks.push({ kind: 'paragraph', text: editorial.limitations });
-  editorial.disclosures.forEach((text) => blocks.push({ kind: 'paragraph', text }));
+  editorial.disclosures.forEach((text) => blocks.push(snapshotRuns(articleDisclosureRuns(text))));
   const related = (editorial.relatedSlugs ?? []).flatMap((slug) => {
     const entry = PUBLISHED_PIECE_INDEX.find((candidate) => candidate.slug === slug);
     return entry ? [{ text: entry.title, href: piecePath(entry) }] : [];
@@ -400,8 +400,10 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
   ) {
     errors.push('official-only coverage must be named to the reader');
   }
-  if (!editorial.disclosures.includes(SHORT_POST_AI_NOTE))
-    errors.push('checked AI note is missing');
+  if (
+    !editorial.disclosures.some((text) => text === ARTICLE_AI_NOTE || text === ARTICLE_SOURCE_NOTE)
+  )
+    errors.push('source and correction note is missing');
   const evidenceIds = new Set<string>();
   const sourceUrls = new Set(
     (piece.sourceRuns ?? []).flatMap((line) =>

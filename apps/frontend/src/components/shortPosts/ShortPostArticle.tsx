@@ -18,6 +18,7 @@ import {
 } from '../../lib/research';
 import { TOPICS, topicPath } from '../../lib/researchIndex';
 import type { ShortPostDisplayBlock } from '../../lib/shortPosts';
+import { articleDisclosureRuns } from '../../lib/articleDisclosure';
 import { publicPageUrl, type ShareContent } from '../../lib/share';
 import { ShortPostChart } from './ShortPostChart';
 
@@ -324,7 +325,9 @@ export function ShortPostArticle({ piece }: Props) {
       {editorial.disclosures.length ? (
         <aside className="sp-disclosures">
           {editorial.disclosures.map((text) => (
-            <p key={text}>{text}</p>
+            <p key={text}>
+              <Runs runs={articleDisclosureRuns(text)} />
+            </p>
           ))}
         </aside>
       ) : null}
