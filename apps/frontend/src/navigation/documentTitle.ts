@@ -45,6 +45,7 @@ export const STATIC_PAGE_SUBJECTS: Record<string, string> = {
   '/read': 'Read',
   '/email-preferences': 'Email preferences',
   '/unsubscribe': 'Unsubscribe',
+  '/comment-emails': 'Comment emails',
   '/confirm': 'Confirm email',
   '/reset': 'Reset password',
   '/find-my-legislator': 'Find my legislator',

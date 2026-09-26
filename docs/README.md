@@ -50,6 +50,8 @@ things work in practice and are the place to start if you're new.
 - [How Contact us works](product-onboarding/contact-us-guide.md) — the page, its 5 states, message delivery, and what reader data leaves Alethical
 - [About Us page](product-onboarding/about-us-page-spec.md) — the public statement of Alethical’s name, beliefs, current features, roadmap, and correction policy
 
+- [Reader comments](product-onboarding/editorial-comments-guide.md) — editorial discussions, public names, author and admin controls, and comment email choices
+
 ## Design
 
 - [Design principles](design/design-principles.md) — green system's design intent + visual/interaction/accessibility rules; brief for Claude Design
@@ -97,6 +99,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 
 ## Operations
 
+- [Editorial comments delivery plan](operations/editorial-comments-build-plan.md) — implementation, test system, permissions, email activation and release checks
 - [Branching, drawn](operations/git-branching-guide.html) — visual companion to `CONTRIBUTING.md` "Branch & PR workflow", for onboarding: 2 commit graphs, one measuring this repo's real branch shape and one showing the dev/staging/production reference flow, plus the habits and commands behind each
 - [Database and source-file recovery](operations/recovery.md) — current backup checks, private isolated restore procedure, and measured recovery limits
 - [Production setup and recovery](operations/deployment.md) — rebuild order, setting owners, Railway and Vercel releases, and Supabase callbacks

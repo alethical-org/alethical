@@ -14,7 +14,7 @@ comes before Sign out. **Metrics** follows Users in that group and opens `/admin
 whose title remains **Admin metrics**. Opening `/admin` also leads to `/admin/users`.
 An administrator may open `/admin/users` directly or reload it.
 
-These 8 email addresses are approved for administrator access:
+These 9 email addresses are approved for administrator access:
 
 - `angelzierden@gmail.com`
 - `angel@alethical.com`
@@ -24,6 +24,7 @@ These 8 email addresses are approved for administrator access:
 - `joe@alethical.com`
 - `afnetter@gmail.com`
 - `joseph.fleishman@gmail.com`
+- `ask@alethical.com`
 
 Approval does not create an account or activate access. Each owner must sign up
 and confirm their email, and their stable Supabase account identifier must be
@@ -81,7 +82,7 @@ Their email addresses appear in a separate **Excluded accounts** section below
 the main list. This section stays visible even when the main list is empty, and
 its contents do not change with search, status, signup-date filters, or pagination.
 There is no control to include them in the totals or main results. Exclusion covers
-the 8 approved administrator emails and these 5 other team emails:
+the 9 approved administrator emails and these 5 other team emails:
 
 - `elopinyoga@gmail.com`
 - `elopinmisc@gmail.com`
@@ -143,3 +144,9 @@ Removing an identifier revokes administrator access on the next private request.
 Removing the entire admin setting disables this feature without deleting data.
 Restoring its saved value reverses that configuration change. Every private API
 response, including access refusals and errors, carries `private, no-store`.
+
+The same confirmed administrator access permits removing comments and replies
+beside individual editorial pieces. It does not permit rewriting another reader's
+words. Only `ask@alethical.com` receives comment alerts; approving that mailbox
+does not create its account. The complete behavior and current activation state
+are in [editorial-comments-guide.md](editorial-comments-guide.md).

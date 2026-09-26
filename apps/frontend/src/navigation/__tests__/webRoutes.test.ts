@@ -74,6 +74,10 @@ describe('private admin addresses', () => {
 });
 
 describe('email choice addresses', () => {
+  it('opens comment email choices without placing a private token in route state', () => {
+    expect(targetFromPathname('/comment-emails')).toEqual({ kind: 'commentEmails' });
+    expect(pathForRoute({ name: 'CommentEmails' })).toBe('/comment-emails');
+  });
   it('opens saved preferences at a stable, private page address', () => {
     expect(targetFromPathname('/email-preferences')).toEqual({ kind: 'emailPreferences' });
     expect(pathForRoute({ name: 'EmailPreferences' })).toBe('/email-preferences');

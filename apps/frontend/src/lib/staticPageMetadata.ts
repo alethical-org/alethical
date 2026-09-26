@@ -42,6 +42,13 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
     canonicalPath: '/email-preferences',
     noindex: true,
   }),
+  '/comment-emails': pageMetadata({
+    title: titleFor('Comment emails'),
+    socialTitle: 'Comment emails',
+    description: 'Choose which comment emails to stop.',
+    canonicalPath: '/comment-emails',
+    noindex: true,
+  }),
   '/unsubscribe': pageMetadata({
     title: titleFor('Unsubscribe'),
     socialTitle: 'Unsubscribe',

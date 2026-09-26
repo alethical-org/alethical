@@ -1613,6 +1613,8 @@ async function contentFor(
       return moneyLandingContent();
     case "emailPreferences":
       return headOnly(STATIC_PAGE_METADATA["/email-preferences"]);
+    case "commentEmails":
+      return headOnly(STATIC_PAGE_METADATA["/comment-emails"]);
     case "unsubscribe":
       return headOnly(STATIC_PAGE_METADATA["/unsubscribe"]);
     case "lobbyingLanding":
@@ -1862,7 +1864,9 @@ export default async function handler(
     requestedPath === "/confirm" || requestedPath === "/reset";
   const isForgotPasswordBridge = requestedPath === "/forgot-password";
   const isPrivateEmailPage =
-    requestedPath === "/email-preferences" || requestedPath === "/unsubscribe";
+    requestedPath === "/email-preferences" ||
+    requestedPath === "/unsubscribe" ||
+    requestedPath === "/comment-emails";
   const isAdminPage = ["adminUsers", "adminSiteMetrics"].includes(
     targetFromPathname(requestedPath).kind,
   );

@@ -1,3 +1,4 @@
+import { ReaderComments } from '../../components/comments/ReaderComments';
 import { ShortPostArticle } from '../../components/shortPosts/ShortPostArticle';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useEffect, useMemo, useState } from 'react';
@@ -466,6 +467,7 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
               }
             />
           </Container>
+          {piece.articleId && <ReaderComments articleId={piece.articleId} />}
           <Footer
             onContact={() => navigation.navigate('ContactUs')}
             onPrivacy={() => navigation.navigate('Privacy')}
@@ -599,6 +601,7 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
           </View>
         </Container>
 
+        {piece.articleId && <ReaderComments articleId={piece.articleId} />}
         <Footer
           onContact={() => navigation.navigate('ContactUs')}
           onPrivacy={() => navigation.navigate('Privacy')}
