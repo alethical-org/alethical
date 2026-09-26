@@ -85,6 +85,21 @@ when nearby words, values or the visual structure already make its meaning clear
 and removing it loses no needed information. Do not keep a mark merely because
 charts conventionally include it.
 
+Check the entire connected group before adding shared context. Units, currencies,
+periods, scope and labels belong where they make the values unambiguous, not in
+both a shared heading and every value. When every displayed amount includes its
+currency, omit that currency from the chart's heading. When a table column heading
+supplies the unit, do not repeat it above the table. Retain shared units where
+individual values otherwise lack them, and retain each distinct unit in a mixed-unit
+comparison. This applies to visual and screen-reader text: remove the redundant
+copy, not the reader's ability to identify what each number measures.
+
+Review each heading, legend, value label and caption together: what information
+does this element add that its neighbors do not already supply? Keep repetition
+only when separation or ambiguity makes it necessary. For example, a comparison
+showing “1,000 USD” and “500 USD” has a period line reading “Cited filings
+(2023-01-01 through 2023-12-20)”, without a second “USD”.
+
 For directly labelled comparison bars with a shared starting point, omit the
 isolated “0” and its horizontal axis line. The bars must still use the same scale
 and start mathematically at zero; removing the decoration must never truncate or

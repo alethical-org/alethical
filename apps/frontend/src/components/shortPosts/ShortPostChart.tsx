@@ -61,7 +61,7 @@ export function ShortPostChart({ graphic, display, evidence, correction, article
         {display.title}
       </figcaption>
       <p className="sp-chart-measure">
-        {unit} ·{' '}
+        {result.kind !== 'comparison' && !asTable ? `${unit} · ` : null}
         {differentPeriods && result.kind === 'comparison'
           ? `${result.baselineLabel}: ${periodText(result.baseline.period)}; ${result.comparedLabel}: ${periodText(result.compared.period)}`
           : periodText(period)}

@@ -185,3 +185,9 @@ On 26 September 2026 Eugene approved removing the implied zero and the horizonta
 line above it. The shared comparison chart and existing private preview now omit
 both. Both bars still start at zero and share a scale; the $1,000 bar remains twice
 the $500 bar. The draft stays private for Eugene's final review.
+
+The comparison chart now omits “USD” from its shared period line because each
+amount carries the currency. Shared units remain where values lack their own
+unit; table column headings supply their table's unit. The drafting rule now
+requires reviewing headings, labels, values, legends and captions as one group
+to remove duplicated units, dates and context without losing meaning.

@@ -185,6 +185,9 @@ it('names both reporting periods above a comparison when they differ', () => {
     />,
   );
   const topLine = markup.match(/<p class="sp-chart-measure">(.*?)<\/p>/)?.[1];
+  expect(topLine).not.toContain('USD');
+  expect(markup).toContain('100 USD');
+  expect(markup).toContain('200 USD');
   expect(topLine).toContain('Earlier: 2025 filings');
   expect(topLine).toContain('Later: 2026 filings');
 });
