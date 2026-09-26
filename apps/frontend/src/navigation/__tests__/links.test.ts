@@ -43,6 +43,10 @@ function press(props: { onPress?: (event: GestureResponderEvent) => void }, even
 describe('routePath builds the URL the router will land on', () => {
   it('covers the destinations screens link to', () => {
     expect(routePath.home()).toBe('/');
+    expect(routePath.contactUs()).toBe('/about/contact');
+    expect(routePath.contactUs({ article: 'article & identity' })).toBe(
+      '/about/contact?article=article%20%26%20identity',
+    );
     expect(routePath.bills()).toBe('/bills');
     expect(routePath.legislators()).toBe('/legislators');
     expect(routePath.legislators({ tab: 'money' })).toBe('/legislators?tab=money');

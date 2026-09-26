@@ -985,3 +985,22 @@ describe('lobbying search address', () => {
     });
   });
 });
+
+describe('article correction contact navigation', () => {
+  it('round-trips an encoded identity and ignores arbitrary content and submission parameters', () => {
+    const article = 'known-article & identity';
+    const path = pathForRoute({ name: 'ContactUs', params: { article } });
+    expect(path).toBe('/about/contact?article=known-article%20%26%20identity');
+    expect(targetFromPathname(path)).toEqual({ kind: 'contactUs', article });
+    expect(
+      stateFromPathname(`${path}&title=Fake&url=https://evil.example&message=Injected&send=true`)
+        ?.routes[1],
+    ).toEqual({ name: 'ContactUs', params: { article } });
+    expect(
+      targetFromPathname('/about/contact?title=Fake&url=https://evil.example&send=true'),
+    ).toEqual({ kind: 'contactUs' });
+    expect(pathForRoute({ name: 'ContactUs', params: { article: '', title: 'Fake' } })).toBe(
+      '/about/contact',
+    );
+  });
+});

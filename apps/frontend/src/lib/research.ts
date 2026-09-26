@@ -89,6 +89,8 @@ export type ResearchInline =
         | 'part-percent'
         | 'remainder-value'
         | 'remainder-percent'
+        | 'baseline-value'
+        | 'compared-value'
         | 'difference'
         | 'percent-change'
         | 'left-only'

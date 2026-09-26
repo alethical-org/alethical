@@ -1,4 +1,4 @@
-import { createElement, useEffect, useReducer, useRef, useState } from 'react';
+import { createElement, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   ActivityIndicator,
   Linking,
@@ -22,8 +22,7 @@ import {
   CONTACT_PAGE_SUBTITLE,
   CONTACT_SOCIALS,
   ContactField,
-  contactFormReducer,
-  initialContactFormState,
+  createContactDraft,
   validateContactForm,
 } from '../../lib/contactUs';
 import { loadOnDemand } from '../../lib/loadOnDemand';
@@ -254,13 +253,21 @@ function ContactFieldInput({
   );
 }
 
-export function ContactUsScreen({ navigation }: RootScreenProps<'ContactUs'>) {
+// Kept only while this app instance is open. A successful send releases the draft.
+let currentDraft: ReturnType<typeof createContactDraft> | undefined;
+
+export function ContactUsScreen({ navigation, route }: RootScreenProps<'ContactUs'>) {
   const { isMobile } = useResponsive();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
-  const [state, dispatch] = useReducer(contactFormReducer, initialContactFormState);
-  const requestIdRef = useRef<string | null>(null);
+  const [draft] = useState(() => (currentDraft ??= createContactDraft(route.params?.article)));
+  const state = useSyncExternalStore(draft.subscribe, draft.getSnapshot, draft.getSnapshot);
+  const dispatch = draft.dispatch;
   const fieldRefs = useRef<Partial<Record<ContactField, any>>>({});
   const hasDraft = CONTACT_FIELD_ORDER.some((field) => state.values[field].length > 0);
+
+  useEffect(() => {
+    draft.prefill(route.params?.article);
+  }, [draft, route.params?.article]);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || !hasDraft || state.status === 'sent') return;
@@ -278,11 +285,12 @@ export function ContactUsScreen({ navigation }: RootScreenProps<'ContactUs'>) {
   };
 
   const changeField = (field: ContactField, value: string) => {
-    requestIdRef.current = null;
+    draft.requestId = null;
     dispatch({ type: 'change', field, value });
   };
 
   const submit = async () => {
+    if (draft.getSnapshot().status !== 'editing') return;
     const errors = validateContactForm(state.values);
     if (Object.keys(errors).length > 0) {
       dispatch({ type: 'validate', errors });
@@ -293,18 +301,20 @@ export function ContactUsScreen({ navigation }: RootScreenProps<'ContactUs'>) {
       return;
     }
     dispatch({ type: 'submit' });
-    requestIdRef.current ??= requestId();
+    draft.requestId ??= requestId();
     try {
-      await sendContactMessageFromApi({ requestId: requestIdRef.current, ...state.values });
+      await sendContactMessageFromApi({ requestId: draft.requestId, ...state.values });
       dispatch({ type: 'sent' });
+      if (currentDraft === draft) currentDraft = undefined;
     } catch {
       dispatch({ type: 'failed' });
     }
   };
 
   const reset = () => {
-    requestIdRef.current = null;
+    draft.requestId = null;
     dispatch({ type: 'reset' });
+    currentDraft = draft;
   };
 
   return (

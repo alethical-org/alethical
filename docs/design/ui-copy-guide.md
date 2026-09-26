@@ -63,6 +63,175 @@ words do not already give. It may identify the larger section, the kind of recor
 or the coverage of a list. Omit it when it only repeats the page title, the back
 link or a complete title that already names both sides of a relationship.
 
+## Avoid redundant nearby text
+
+State a fact once within a connected group when the reader can still understand it
+without repetition. Chart labels, values and a shared period line should not be
+transcribed again in a paragraph immediately below the chart. Supporting text should
+add meaning or necessary context, not restate the display. Keep repetition only when
+removing it would lose meaning, a necessary qualification or access to the information.
+
+For example, the comparison chart labels “Sum of 2 matching download entries” and
+“Amount of the matching entry in each filing” already identify their values. Do not
+repeat both labels, values and the shared filing period underneath. Keep evidence,
+limits and any useful explanation that the chart itself does not convey. Keep chart
+information available as text to readers, search engines and screen readers without
+requiring a second visible transcript or duplicate spoken values.
+
+### Remove implied information from text and visuals
+
+Simplify text and visuals together. Remove a label, number, line or explanation
+when nearby words, values or the visual structure already make its meaning clear
+and removing it loses no needed information. Do not keep a mark merely because
+charts conventionally include it.
+
+Check the entire connected group before adding shared context. Units, currencies,
+periods, scope and labels belong where they make the values unambiguous, not in
+both a shared heading and every value. When every displayed amount includes its
+currency, omit that currency from the chart's heading. When a table column heading
+supplies the unit, do not repeat it above the table. Retain shared units where
+individual values otherwise lack them, and retain each distinct unit in a mixed-unit
+comparison. This applies to visual and screen-reader text: remove the redundant
+copy, not the reader's ability to identify what each number measures.
+
+Review each heading, legend, value label and caption together: what information
+does this element add that its neighbors do not already supply? Keep repetition
+only when separation or ambiguity makes it necessary. For example, a comparison
+showing “1,000 USD” and “500 USD” has a period line reading “Cited filings
+(2023-01-01 through 2023-12-20)”, without a second “USD”.
+
+For directly labelled comparison bars with a shared starting point, omit the
+isolated “0” and its horizontal axis line. The bars must still use the same scale
+and start mathematically at zero; removing the decoration must never truncate or
+change their lengths. Keep both amounts and their labels visible and accessible.
+This does not remove a zero that is a measured value, a needed scale label on a
+more complex chart, a meaningful boundary or a necessary qualification.
+
+Approved by Eugene on 26 September 2026 and applied to the private first-post
+comparison chart. Review all post drafts for implied text and visual clutter;
+this rule does not authorize unrelated redesigns.
+
+### Draft every post for meaning, without repeated explanations
+
+Apply this when drafting or revising every type of website post, including Short
+posts, Research, Guides and blog articles. Each sentence should add a fact, useful
+explanation, necessary qualification or a clear next action.
+
+- Remove subtitles that only rephrase the title, and introductory sentences that
+  merely announce the evidence or explanation that follows. A subtitle is optional.
+- Keep names and the finding in the opening. Put registration numbers, query filters,
+  matching columns and other reproduction details in the method, unless readers
+  need them to distinguish the people or records being discussed.
+- State the conclusion and each scope limit once in the relevant connected group.
+  Do not repeat them across the chart caption, the following paragraph, the method
+  and the sources. Keep a qualification beside any claim that would mislead without it.
+- Name dates by what they mean: receipt date, reporting period, filing receipt date
+  or download date. Group source dates where useful; do not repeat the complete set
+  throughout the article. A standalone chart still needs its own clear scope.
+- Prefer precise positive wording, such as naming the dated source copy, over an
+  extra sentence ruling out every other source version. Do not turn that into a
+  broader claim or erase real uncertainty.
+- Preserve citations, reproducible methods, required disclosures and distinctions
+  between reported records and independently established events. Put detailed
+  reproduction steps behind Full method when the essential explanation is enough.
+- In a short article with one clearly named source list, keep the source links
+  together there instead of repeating them in the paragraphs and in a chart link
+  that only jumps to that same list. Keep source scope and necessary qualifications
+  beside the figures. Retain direct chart citations when needed to identify a
+  different source or when the chart is presented on its own.
+- Review title, subtitle, body, charts, methods, sources and disclosures together.
+  Do not add duplicate visible or spoken text for SEO or accessibility. Preserve
+  unique information and accessible chart labels when cutting a transcript.
+
+Approved by Eugene on 26 September 2026, including implementation in the private
+“2 records do not always mean 2 donations” draft. Publication awaits his final review.
+
+### Make the answer easy to find
+
+For a post that answers a question or establishes a finding, make the supported
+answer easy to spot. Do not bury it in small source text or a block of caveats.
+Use **Conclusion:** followed by the answer in bold when that identifies the answer
+more clearly. Do not force a conclusion onto a guide that only explains steps, or
+present an unresolved claim as settled to fill the slot.
+
+Keep a short qualification in regular text directly after the bold answer in the
+same paragraph when it qualifies that answer. Avoid a new paragraph and extra gap
+for a sentence that naturally continues the thought. Keep sentence punctuation
+throughout this combined paragraph; changing from bold to regular text does not
+start a separate punctuation unit. For example:
+
+**Conclusion: The filings support 1 reported $500 contribution appearing in repeated
+records.** The 2 download entries do not establish 2 separate donations.
+
+State the answer once. Improve its placement and emphasis instead of adding a
+second summary to make readers notice it. Keep its evidence and limits reachable.
+
+### Keep meaningful uncertainty, remove obvious caveats
+
+Explain a limitation when omitting it could change the reader's understanding of
+the finding: incomplete coverage, unresolved duplicates, uncertain identity,
+different reporting periods or an unsupported total. Put it beside the affected
+claim. Do not append a generic disclaimer merely because the subject is money or
+politics, or list every inference the records cannot establish.
+
+Precise wording can carry the boundary itself. “The filings support” and “reported”
+already say the finding concerns public records. When that is clear, omit a second
+sentence saying the comparison does not independently confirm money changing hands.
+Likewise, do not routinely tell readers that a contribution alone establishes no
+motive, influence or wrongdoing. Describe the supported records without directing
+the reader's personal conclusions. If the article's own wording implies a claim
+the evidence cannot support, correct that wording rather than adding boilerplate.
+
+This does not remove the approved AI-use disclosure, specific material gaps,
+required legal notices or source citations. It does not permit unsupported claims
+of motive, causation or wrongdoing. A generic caveat cannot make a false claim safe.
+This replaces the automatic generic contribution-note requirement for new drafts;
+it does not request edits to already published articles.
+
+### Standard closing note for every post type
+
+Use 1 closing note after sources in new or revised Short posts, Research, Guides
+and blog articles. Replace older AI boilerplate rather than stacking disclosures.
+When AI helped prepare the article, use this approved wording:
+
+> AI helped prepare this article and can make mistakes. We report what the cited
+> public sources support and identify known gaps and uncertainty. [Contact us](/about/contact)
+> to report a possible error so we can review it and make corrections.
+
+Omit the first sentence when AI did not help prepare the article. Establish that
+from the article's preparation record, not its format or author name. Keep the
+remaining source-and-correction wording and the working `/about/contact` link.
+Use normal paragraph punctuation. Keep specific gaps beside the affected claims.
+The note does not certify a completed review or promise that the records are
+complete. It can be shown in a private draft; publication still needs the usual
+source checks, human review and explicit instruction. Do not send a contact message
+as a test. This approval does not request a bulk edit of previously published posts.
+
+Approved by Eugene on 26 September 2026, replacing the older closing-note wording.
+
+### Keep private-review status separate from article copy
+
+In a private article preview, the yellow top banner says **PRIVATE DRAFT**, once.
+Do not repeat draft, preview, unpublished or review-pending explanations in the
+title, date row, chart, footer or disabled Share label. Keep normal control labels
+and enforce the actual private state separately. Minimal wording does not enable
+sharing, public navigation, indexing or publication. Do not display a completed
+review claim while that review is still pending.
+
+### Review the whole draft before presenting it
+
+Read the title, opening, chart, conclusion, method, sources and disclosures as one
+article. Can a newcomer find the answer, tell what each number measures and reach
+its evidence? Remove repeated or implied copy, retain any limit that changes the
+meaning, and check punctuation after joining or separating text. Inspect real
+wrapping and chart-label space on narrow and wide screens using
+[design-principles.md](design-principles.md#post-chart-readability-and-conclusions).
+Do this before Eugene's review, not one correction at a time afterward.
+
+These additions capture Eugene's first-post corrections on 26 September 2026 for
+future drafts of every post type. They do not authorize publication or a redesign
+of unrelated surfaces.
+
 ## Test for any copy
 Does this deliver a sovereignty recognition moment, or is it just a label? If just a label, rewrite.
 
@@ -81,6 +250,17 @@ Does this deliver a sovereignty recognition moment, or is it just a label? If ju
 ## Punctuation & typography
 Use typographer's punctuation in all user-facing copy. It is the quality-publishing default, and for a truth-and-records product the polish quietly reinforces credibility (ratified 2026-07-13).
 - **Standalone interface units omit the final period.** A caption, helper, source line, status, success message, field error, list item or 1-step instruction containing 1 sentence ends after its last word. It is still 1 unit when it wraps onto several screen lines. Separate units do not become a paragraph merely because they share a card or container. A link and the sentence tail beside it form 1 unit. Keep full punctuation in paragraphs containing 2 or more sentences, legal text and serious warnings.
+- **Article prose and supporting information have different punctuation.** Keep
+  normal punctuation in editorial article paragraphs, including a 1-sentence
+  paragraph. Outside that prose, a standalone 1-sentence information line,
+  explanation, method summary, source-scope limit or informational disclosure has
+  no final period. Count sentences, not the number of screen lines: wrapping does
+  not change the rule. Keep punctuation in supporting text with 2 or more
+  sentences and within quoted source text. Author the intended wording directly;
+  do not blindly strip punctuation from arbitrary content at display time.
+  Approved by Eugene on 26 September 2026. For example:
+  “This example does not establish corrected totals for Carlson or all lobbyists”
+  ends without a period. This applies to drafting every post type.
 - **Apostrophes — curly `’` (U+2019), never the straight typewriter `'`.** e.g. don’t, they’ve, Minnesota’s.
 - **Quotation marks — curly `“ ”` (U+201C / U+201D), never straight `"`.** Applies to quoted bill/statute language, pull-quotes, etc.
 - **Ellipsis — the single glyph `…` (U+2026), never three periods `...`** — for genuine omission inside a quotation and for loading/progress states ("Loading…"). **Do *not* trail input-field placeholders with `…`** — a placeholder states its prompt plainly (e.g. "Ask about bills or legislators by issue or name"). This deliberately overrides the generic "placeholders end with …" web guideline.

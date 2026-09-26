@@ -568,21 +568,66 @@ The new prepublication checks apply to social-derived Short posts, not retroacti
 
 One controlled topic vocabulary describes subject independently of format and traits. It begins with Campaign finance, Lobbying, and Elections. The `/read` page will group Research, then Short posts, then Guides; show the newest 3 Short posts with an All short posts link; hide that group until a Short post is published; and keep each Short post out of the long-form groups and reading sets in the first release. `/read/short-posts` will use newest-first publication timestamps, 6 pieces per numbered page, and a stable tie-breaker. Checks and corrections never reset publication time or ordering. `/read/topics/<topic>` will gather published pieces across traits and format. No topic directory, new search box, or combined filters are part of this decision. Eugene authorized these screens on 26 Sep 2026; [issue 2396](https://github.com/alethical-org/alethical/issues/2396) owns implementation and release. Individual articles retain their separate publication gate.
 
-Related reading names a few relevant pieces already published, never the current piece or an invented destination. Reader-facing article text and quantitative graphics draw from the same approved numeric inputs, including units, periods, denominators, and any remainder category. A nonproportional overlap diagram says, “Diagram shows overlap, not relative group sizes.” A dated newer-record notice points to newer activity without silently recalculating a dated article. An amended source earns a dated explanation and revised finding; Alethical's own error is corrected in text and chart with a dated correction, leaving no wrong figure readable with a line through it. The original publication date follows Minnesota's calendar and stays fixed; a later correction has its own full-content review and release instruction. Records-through is the newest covered reporting-period end among cited records Alethical holds, not extraction day. A piece using only official sources names that outside-source coverage and uses their newest covered end; it never presents that date as coverage of records Alethical loaded. A purely explanatory Guide names source dates when known and never invents a numeric reporting period or date for an undated source. Different sources' coverage stays explicit.
+Related reading names a few relevant pieces already published, never the current piece or an invented destination. Reader-facing article text and quantitative graphics draw from the same approved numeric inputs, including units, periods, denominators, and any remainder category. A nonproportional overlap diagram says, “Diagram shows overlap, not relative group sizes” A dated newer-record notice points to newer activity without silently recalculating a dated article. An amended source earns a dated explanation and revised finding; Alethical's own error is corrected in text and chart with a dated correction, leaving no wrong figure readable with a line through it. The original publication date follows Minnesota's calendar and stays fixed; a later correction has its own full-content review and release instruction. Records-through is the newest covered reporting-period end among cited records Alethical holds, not extraction day. A piece using only official sources names that outside-source coverage and uses their newest covered end; it never presents that date as coverage of records Alethical loaded. A purely explanatory Guide names source dates when known and never invents a numeric reporting period or date for an undated source. Different sources' coverage stays explicit.
 
-Only after the checks are complete, a social-derived Short post carries this note: “AI helped prepare this article. Alethical checked its claims against the cited records before publication, but errors may remain. The records may be incomplete or later corrected.” Campaign-finance pieces also carry: “A contribution alone does not establish why someone gave, whether it influenced a decision, or whether wrongdoing occurred.” Each known gap belongs beside the affected claim. No complete-accuracy guarantee is made.
+New or revised posts of every type use 1 closing note: “AI helped prepare this article and can make mistakes. We report what the cited public sources support and identify known gaps and uncertainty. Contact us to report a possible error so we can review it and make corrections.” Link “Contact us” to `/about/contact`. Omit the first sentence when AI did not help prepare the article. This replaces the earlier social-derived-only note and may appear in private drafts because it does not claim completed review. [ui-copy-guide.md](../design/ui-copy-guide.md#standard-closing-note-for-every-post-type) owns the wording. Publication still requires all source checks, human review and a separate publication instruction. Each known material gap belongs beside the affected claim. No complete-accuracy guarantee is made. Following Eugene’s 26 September drafting-rule update, the generic contribution/motive/influence/wrongdoing note is not mandatory for new drafts. Use precise, supported wording and specific limitations instead of automatic boilerplate. [ui-copy-guide.md](../design/ui-copy-guide.md#keep-meaningful-uncertainty-remove-obvious-caveats) owns this rule; already published articles are outside this change.
+
+**26 September 2026, origin of the drafting update:** Eugene removed the generic contribution
+note from “2 records do not always mean 2 donations” because it states the obvious.
+Keep the specific limits on what the cited filings establish. This change does
+not remove the AI disclosure or authorize publication.
 
 The original social poster is temporary working material and never appears in the article. After publication, its temporary processing copy may be removed; the extracted claims, evidence and source copies, calculations, finished charts, and correction history remain. Eugene's original Downloads files remain untouched. Quantitative charts are built from checked values, never generated artwork. Comments may later attach to each stable article identity, including a Short post carrying Research, but remain off until individually enabled through the separate comments work. Existing Research and Guides stay off unless separately enabled.
 
+
+Branding clarification approved by Eugene on 26 Sep 2026: posts and recreated graphics
+viewed within Alethical use the approved symbol without the “ALETHICAL” wordmark,
+placed to fit the approved composition. Standalone PDF reports retain both. This
+does not change the shared website header. The visual rule is owned by
+[design-principles.md §2](../design/design-principles.md#2-the-green-visual-system);
+private implementation was authorized on 26 Sep 2026, as recorded in
+[short-posts-screen-plan.md](../operations/short-posts-screen-plan.md#september-26-follow-up-private-build-approved-publication-held).
 
 ### 7.1 Screen and publication checks
 
 The Short post article uses an ordered body. Every quantitative graphic has exactly 1 position in that body and 1 display record naming its title, checked evidence and limitation. Every amended-source history record appears exactly once beside the relevant content. Missing notices and missing graphics block publication. Related reading is up to 3 editor-selected, already published pieces sharing a topic; the selection helper offers candidates and never automatically publishes them.
 
-The initial HTML includes the same ordered text, chart descriptions, methods, evidence links, limitations and disclosures as the article. Search descriptions follow the existing trait rule: Research uses publication and records-through dates; Guide may describe its subject. External sharing keeps the existing dates-only rule for each trait. Guide reading time is computed from its current text.
+The initial HTML includes the same ordered text, chart labels and values, necessary descriptions, methods, evidence links, limitations and disclosures as the article. A chart's text labels and values can supply its factual description; no second visible transcript is required. Nearby supporting text adds meaning or necessary context rather than repeating labels, values and shared dates. Screen readers must receive the chart's information without duplicate announcements. Eugene approved this clarification on 26 Sep 2026; [ui-copy-guide.md](../design/ui-copy-guide.md#avoid-redundant-nearby-text) owns the wording rule. Search descriptions follow the existing trait rule: Research uses publication and records-through dates; Guide may describe its subject. External sharing keeps the existing dates-only rule for each trait. Guide reading time is computed from its current text.
 
 The approved comparison bars share one zero and one scale, and accept nonnegative measured values. The percentage bar represents 1 named share plus an explicit remainder; multiple named shares use the approved data table. Overlap diagrams are nonproportional and carry the exact explanatory sentence in §7. Unsupported proportional inputs cannot pass publication checks. These display limits do not alter the underlying calculation helpers.
 
 The published registry is local to each website release. Numbered-page selections therefore replace immediately without a network wait or an artificial loading state. Each numbered link has an address; browser Back and refresh retain the selection. `/read/short-posts?post=<slug>` resolves the numbered page currently containing that published Short post, then returns focus to its title. Invalid page numbers, pages beyond the available results, unknown topics and unknown post targets return not found. Known empty collections stay readable, carry noindex, and stay out of the sitemap. When collection data comes from a service, the existing retained-results, retry and latest-request-wins requirements apply before that change ships.
 
 Quantitative chart inputs must fit the displayed precision: USD uses whole cents and other measured units allow up to 4 decimal places, within safe integer arithmetic after scaling. Unsupported precision fails publication instead of silently rounding source values. Comparison headers name each reporting period when the periods differ.
+
+### 26 September 2026: concise drafting and first-post review
+
+Eugene approved the copy-simplification approach for every post type, including
+Short posts, Research, Guides and blog articles.
+[ui-copy-guide.md](../design/ui-copy-guide.md#draft-every-post-for-meaning-without-repeated-explanations)
+owns the rule. A subtitle is optional when it would only repeat the title.
+He authorized implementing the pending symbol-only branding, chart transcript
+removal, minimal private banner and article copy changes in the private preview.
+“2 records do not always mean 2 donations” is the intended first Short post,
+subject to his final review and publication instruction. The original-graphic
+investigations remain separate; neither is replaced by this article.
+
+### First-post preparation checks, 26 September 2026
+
+A Short post may omit a subtitle when it repeats the title. A retained download
+whose overall reporting-period end is unknown records its copy date and exact
+selection separately; it cannot supply a made-up coverage date. The dated cited
+filings control the records-through line. The first article labels that line
+“Records in cited filings through December 20, 2023.”
+
+The initial HTML includes the chart conclusion and the same correction-contact
+link as the interactive article. Full-content fingerprints include dynamically
+resolved reader text and destinations, including linked newer-coverage titles.
+Final human approval and publication instructions remain separate, required
+fields; a private preview never supplies them.
+
+Correction-contact links carry the stable article identity. The contact form
+resolves the published title and permanent Alethical address, retains the
+reader's edits during in-app navigation and retries, and sends only after
+“Send message.” [contact-us-guide.md](../product-onboarding/contact-us-guide.md)
+owns the form's precise behavior. The source archive remains internal under §2.14.

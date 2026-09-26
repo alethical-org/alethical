@@ -38,6 +38,14 @@ credibility first.
   on stay calm — bold headline, restrained page. The chrome never competes with the content.
 - **Clarity over density, but honest about volume.** Legislative data is dense; we make it
   scannable through hierarchy and whitespace, never by hiding how much there is.
+- **Nearby text earns its place.** Remove repeated labels, values, dates and explanations
+  when the remaining content still makes sense on its own. A chart with readable labels
+  and values does not need a paragraph below it repeating those same facts. Supporting
+  text adds an interpretation, source, limitation or other necessary context. Preserve
+  distinct periods, units and qualifications where needed to avoid ambiguity. Keep the
+  information available as text and usable with a screen reader without announcing the
+  same chart data twice. Eugene approved this rule on 26 September 2026; wording guidance
+  is in [ui-copy-guide.md](ui-copy-guide.md#avoid-redundant-nearby-text).
 - **Neutral by construction.** Layout, color, and emphasis describe records; they never editorialize.
   We don't use visual weight to imply a position (see `grounded-answers.md` rule 3, grounded
   neutrality). Green is the brand, not a partisan signal.
@@ -48,6 +56,17 @@ credibility first.
 
 Character summary. **Exact values live in `tokens.ts`** — read it for hex, scale, and spacing.
 
+- **Branding inside website posts and standalone reports.** Inside posts viewed on
+  Alethical, including their recreated graphics, use the approved Alethical symbol
+  without the “ALETHICAL” wordmark. The website already identifies the publisher.
+  Place the symbol where it fits the approved composition and gives the post a clear
+  Alethical identity, with comfortable clear space; it need not repeat on every graphic.
+  Use the approved symbol asset rather than cropping or rebuilding the full wordmark.
+  Standalone PDF reports retain both the symbol and wordmark because readers may view
+  them outside Alethical. This distinction concerns branding within post content, not
+  the shared website header. Eugene approved this clarification on 26 September 2026;
+  the website implementation remains queued in
+  [short-posts-screen-plan.md](../operations/short-posts-screen-plan.md#pending-updates-waiting-for-eugenes-go).
 - **Color intent.** A light, warm-neutral page with a soft green radial wash on wider screens and a
   plain warm-neutral background on phone widths; green is the single brand accent, used with intent
   (brand fills, CTAs, links, focus), not sprinkled. Text is a
@@ -583,3 +602,42 @@ keyboard focus remains independent. A selected checkbox exposes its checked stat
 to screen readers. Phone save buttons fill the available content width, and long
 account addresses wrap. [Unconcealed email signup](../product-onboarding/unconcealed-email-spec.md)
 records the exact approved wording, breakpoints and feedback states.
+
+### Implied information in post graphics
+
+Remove text and visual marks that add no needed meaning beyond nearby labels,
+values and structure. Directly labelled comparison bars omit an isolated zero
+and its horizontal axis line while retaining a true shared zero and equal scale.
+Keep meaningful data, boundaries and qualifications. The full drafting rule is in
+[ui-copy-guide.md](ui-copy-guide.md#remove-implied-information-from-text-and-visuals).
+Approved by Eugene on 26 September 2026.
+
+### Post chart readability and conclusions
+
+- Give long chart labels enough horizontal room to avoid tall stacks of short
+  lines. Widen the label column and move all bar starting points right together
+  before shrinking type, abbreviating away meaning or changing the data. Keep
+  readable amounts, a common zero and the same scale. At narrow widths, use the
+  approved label-above-bar arrangement instead of squeezing 3 columns together.
+- Judge column widths using the actual labels and longest amounts. The first
+  private post fits both labels on 2 lines in the desktop layout after widening
+  its label column. That result is an example, not a universal 2-line limit or a
+  fixed width for every chart. Check wrapped text on phone, tablet and desktop.
+- A chart's supported answer should be visually distinct from its evidence limits.
+  In the approved conclusion treatment, put the symbol on the left and bold
+  “Conclusion:” plus the answer. Short supporting qualifications continue in regular
+  text within the same paragraph. Do not repeat the answer elsewhere in the chart.
+- Center the symbol against the first 2 text lines, not against the top edge or
+  the entire paragraph including any later wrapped explanation. Derive the offset
+  from the actual line height and symbol height. With 24px lines and a 30px symbol,
+  the top gap is 9px. Recheck when typography or symbol size changes; do not copy
+  that offset into unrelated layouts.
+- Keep the approved symbol's proportions and clear space. The website-post
+  symbol-only rule still applies; standalone reports retain the full wordmark.
+- Remove an empty disclosure box when its contents are removed. Do not preserve
+  decorative space or borders for copy the article no longer carries.
+
+The wording and caveat rules live in
+[ui-copy-guide.md](ui-copy-guide.md#make-the-answer-easy-to-find).
+Approved from Eugene's first-post refinements on 26 September 2026; preserve each
+surface's other approved visual choices.
