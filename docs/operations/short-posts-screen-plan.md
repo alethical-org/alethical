@@ -191,3 +191,12 @@ amount carries the currency. Shared units remain where values lack their own
 unit; table column headings supply their table's unit. The drafting rule now
 requires reviewing headings, labels, values, legends and captions as one group
 to remove duplicated units, dates and context without losing meaning.
+
+### First private post: visible conclusion (26 September 2026)
+
+Eugene approved a bold “Conclusion:” and the existing supported answer beside the
+Alethical symbol, with the symbol on the left. The remaining evidence limits stay
+in regular text beneath the answer. The standalone answer omits its final period
+under the approved supporting-copy rule. This changes presentation, not findings.
+Finish the first short post with Eugene before resuming other task reviews.
+Publication still waits for his final review and instruction.

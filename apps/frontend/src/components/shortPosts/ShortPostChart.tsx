@@ -216,8 +216,11 @@ export function ShortPostChart({ graphic, display, evidence, correction, article
           Change: {amount(result.difference, unit)} ({number(result.percentChange)}%)
         </p>
       ) : null}
-      <div className="sp-chart-foot">
+      <div className={`sp-chart-foot${display.conclusion ? ' sp-chart-foot-conclusion' : ''}`}>
         <div className="sp-chart-foot-text">
+          {display.conclusion ? (
+            <strong className="sp-chart-conclusion">Conclusion: {display.conclusion}</strong>
+          ) : null}
           {!evidence.url.startsWith('#') ? (
             <span>
               Source:{' '}
@@ -251,6 +254,7 @@ export function ShortPostChart({ graphic, display, evidence, correction, article
 }
 
 const chartCss = `
+.sp-chart-foot.sp-chart-foot-conclusion{flex-direction:row;align-items:flex-start;justify-content:flex-start;gap:14px}.sp-chart-foot-conclusion .sp-chart-symbol{order:-1;margin-top:2px}.sp-chart-conclusion{font-size:16px;line-height:1.5;font-weight:700;color:#11150f}
 .sp-chart{box-sizing:border-box;margin:30px 0;background:#fff;border:1px solid rgba(17,21,15,.12);border-radius:14px;padding:24px 26px 20px;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;color:#11150f;min-width:0}
 .sp-chart *{box-sizing:border-box}.sp-chart-title{font-size:19px;line-height:1.3;font-weight:800;letter-spacing:-.01em}.sp-chart-measure{margin:6px 0 0;font-size:15px;line-height:1.45;color:#4b524b}
 .sp-chart-plot{margin-top:20px}.sp-chart-emphasis{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 12px;font-variant-numeric:tabular-nums}.sp-chart-emphasis strong{font-size:40px;line-height:1;letter-spacing:-.02em;white-space:nowrap}.sp-chart-emphasis span{font-size:16px;font-weight:600;color:#2c322c}

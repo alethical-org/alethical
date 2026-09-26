@@ -66,6 +66,8 @@ export type ShortPostDisplayBlock =
 export interface ShortPostChartDisplay {
   graphicId: string;
   title: string;
+  /** Reviewed answer, shown separately from the evidence limitations. */
+  conclusion?: string;
   sourceEvidenceId: string;
   limitation: string;
   /** A parts graphic may use the table treatment instead of the percentage plot. */
