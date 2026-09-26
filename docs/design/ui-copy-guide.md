@@ -100,6 +100,23 @@ only when separation or ambiguity makes it necessary. For example, a comparison
 showing “1,000 USD” and “500 USD” has a period line reading “Cited filings
 (2023-01-01 through 2023-12-20)”, without a second “USD”.
 
+The heading itself can supply the unit. For example, “Donor registrations
+appearing in both parties’ caucus records” already tells readers what the diagram
+counts. Its next line should start “Selected caucus contribution records
+(2015-01-01 through 2025-12-31)”, not “donor registrations · Selected…”. Keep the
+unit in calculation inputs; omit its repeated visible label. A chart template
+adding the label automatically does not make it necessary.
+
+Before the first review, inspect the rendered result, including words generated
+by templates, rather than checking the manuscript alone. Read each connected
+group in display order: heading, supporting line, labels, values, legend and
+conclusion. For every repeated fact, identify what readers would lose if its
+second occurrence disappeared. Remove it when the answer is nothing. This is a
+meaning check, not just a search for identical words: paraphrases can repeat the
+same fact. Preserve dates, scope and qualifications that add a distinct meaning,
+and necessary context for figures encountered separately. Carry each correction
+into the saved draft and rendering inputs so regeneration does not restore it.
+
 For directly labelled comparison bars with a shared starting point, omit the
 isolated “0” and its horizontal axis line. The bars must still use the same scale
 and start mathematically at zero; removing the decoration must never truncate or
@@ -233,6 +250,10 @@ provide its direct link. Preserve an existing review address and leave another
 task's publishing preview untouched. Keep the preview private, excluded from
 search and without an invented publication date; the yellow banner says only
 “PRIVATE DRAFT”, and public sharing stays disabled.
+
+Complete the redundancy review on the rendered preview before opening it for
+Eugene. Check template-generated units and labels against nearby headings and
+values. A manuscript review alone cannot catch text added during rendering.
 
 This authorizes private rendering with the existing approved design. It does not
 authorize publication, a new visual direction or a new Design request. Identify
