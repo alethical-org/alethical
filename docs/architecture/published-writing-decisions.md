@@ -644,3 +644,14 @@ direction and new Design requests retain their separate approval requirements.
 owns the delivery and review checks. Each post gets its own browser tab and direct
 preview link; existing review addresses and another task's publishing preview
 remain intact.
+
+
+### 26 September 2026: accepted first post authorized for publication
+
+Eugene instructed publication of “2 records do not always mean 2 donations” at
+`/read/research/2-records-not-always-2-donations`. The accepted article, chart inputs,
+source scope and closing note stay unchanged. The article joins the Short posts
+archive, Campaign finance and Lobbying topics, sitemap, and the approved default
+comments list. Other private drafts retain their individual publication holds.
+[First Short post preparation](../operations/first-short-post-preparation.md)
+records approval times and the release checks.

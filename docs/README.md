@@ -73,6 +73,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 
 **Research** — our own digging, in no set.
 
+- [2 records do not always mean 2 donations](published-writing/2-records-not-always-2-donations.md) — the accepted Short post comparing 2 identical download entries with 1 matching $500 entry in each cited filing
 - [The Money Only Goes One Way](published-writing/the-money-only-goes-one-way.md) — where a $50 donation actually goes: $13.9 million leaving candidate accounts for the 6 party and caucus committees against $730,338 coming back down, the 191 PACs funding both parties' caucuses, and the $886 million of reported lobbying that dwarfs every election dollar. Unlike the 5 files above, this one was written from the shipped piece rather than settled before it, so it pins what shipped and says so in its own opening comment
 
 **The record of what we changed after publishing.**
@@ -103,7 +104,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [Branching, drawn](operations/git-branching-guide.html) — visual companion to `CONTRIBUTING.md` "Branch & PR workflow", for onboarding: 2 commit graphs, one measuring this repo's real branch shape and one showing the dev/staging/production reference flow, plus the habits and commands behind each
 - [Database and source-file recovery](operations/recovery.md) — current backup checks, private isolated restore procedure, and measured recovery limits
 - [Production setup and recovery](operations/deployment.md) — rebuild order, setting owners, Railway and Vercel releases, and Supabase callbacks
-- [First Short post preparation](operations/first-short-post-preparation.md) — private article checks, editable correction contact and held publication steps
+- [First Short post preparation](operations/first-short-post-preparation.md) — accepted article checks, editable correction contact and authorized publication steps
 - [Short posts screen delivery plan](operations/short-posts-screen-plan.md) — archive, topic and article screen release checks and the separate article-publication boundary
 - [Short posts foundation delivery plan](operations/short-posts-foundation-plan.md) — nonvisual build sequence, checks, and the drawing and publication boundaries for issue 2377
 - [How a legislator is matched to their campaign account](operations/how-a-legislator-is-matched-to-their-campaign-account.md) — the public audit record of the one decision no machine may make: what we claim, the 3 pieces of evidence a person reads, who signs, how a wrong match surfaces, how to challenge one, and where all 200 sitting members stand today

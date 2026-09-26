@@ -620,8 +620,10 @@ describe('Short post and topic selection', () => {
   it('selects the existing public Research and Guides for their controlled topics', () => {
     const campaign = topicPage('campaign-finance', 1);
     expect(campaign.total).toBe(PUBLISHED_PIECE_INDEX.length);
-    expect(newestShortPosts()).toEqual([]);
-    expect(readGroups().shortPosts).toEqual([]);
+    expect(newestShortPosts().map((piece) => piece.slug)).toEqual([
+      '2-records-not-always-2-donations',
+    ]);
+    expect(readGroups().shortPosts).toEqual(newestShortPosts());
     expect(() => topicPage('unknown' as 'lobbying', 1)).toThrow('unknown topic');
   });
 });

@@ -36,7 +36,10 @@ import { articleDisclosureRuns, ARTICLE_AI_NOTE } from '../../../lib/articleDisc
 let host: HTMLElement;
 let root: Root;
 let ContactUsScreen: (typeof import('../ContactUsScreen'))['ContactUsScreen'];
-const piece = PUBLISHED_PIECE_INDEX[0];
+const piece = PUBLISHED_PIECE_INDEX.find(
+  (entry) => entry.articleId === 'short-records-not-donations-2023',
+)!;
+const articleIdentity = piece.articleId!;
 
 beforeEach(async () => {
   // A fresh module represents a new app instance, with no retained draft.
@@ -84,7 +87,7 @@ async function click(label: string) {
 }
 
 it('opens the shared article correction link with editable known text and no send', async () => {
-  const link = articleDisclosureRuns(ARTICLE_AI_NOTE, piece.slug)[1];
+  const link = articleDisclosureRuns(ARTICLE_AI_NOTE, articleIdentity)[1];
   expect(link.kind).toBe('internalLink');
   const route = stateFromPathname((link as { href: string }).href)!.routes[1];
   await act(async () => {
@@ -114,7 +117,7 @@ it.each([undefined, 'unknown-draft', 'http://127.0.0.1:8766/'])(
 
 it('preserves edited and cleared fields through rerenders, changed links, and back navigation', async () => {
   const storage = vi.spyOn(Storage.prototype, 'setItem');
-  await render(piece.slug);
+  await render(articleIdentity);
   await type('email', 'reader@example.com');
   await type('message', 'This is what I found');
   await type('subject', '');
@@ -133,7 +136,7 @@ it('preserves edited and cleared fields through rerenders, changed links, and ba
 
 it('requires a deliberate send and keeps the same draft and request identity after a failed send and back', async () => {
   mocks.send.mockRejectedValueOnce(new Error('Email disabled')).mockResolvedValueOnce({});
-  await render(piece.slug);
+  await render(articleIdentity);
   await click('Send message');
   expect(mocks.send).not.toHaveBeenCalled();
   expect(host.textContent).toContain('Enter an email address so we can reply');
@@ -165,7 +168,7 @@ it('keeps pending send state across navigation and accepts its result without a 
         finish = resolve;
       }),
   );
-  await render(piece.slug);
+  await render(articleIdentity);
   await type('email', 'reader@example.com');
   await click('Send message');
   expect(mocks.send).toHaveBeenCalledTimes(1);
@@ -187,7 +190,7 @@ it('keeps pending send state across navigation and accepts its result without a 
 
 it('prefills an untouched ordinary form when the reader later follows an article link', async () => {
   await render();
-  await render(piece.slug);
+  await render(articleIdentity);
   expect(field('subject').value).toBe(`Possible correction: ${piece.title}`);
   expect(mocks.send).not.toHaveBeenCalled();
 });
@@ -196,7 +199,7 @@ it('does not repopulate a form the reader deliberately cleared', async () => {
   await render();
   await type('subject', 'Something');
   await type('subject', '');
-  await render(piece.slug);
+  await render(articleIdentity);
   expect(field('subject').value).toBe('');
   expect(field('message').value).toBe('');
   expect(mocks.send).not.toHaveBeenCalled();
@@ -230,7 +233,7 @@ it('navigates from the actual correction anchor without reload and preserves edi
         <button onClick={() => setContact(false)}>Back to article</button>
         <ContactUsScreen
           navigation={{ navigate: vi.fn() } as any}
-          route={{ params: { article: piece.slug } } as any}
+          route={{ params: { article: articleIdentity } } as any}
         />
       </>
     ) : (
@@ -240,7 +243,7 @@ it('navigates from the actual correction anchor without reload and preserves edi
   await act(async () => root.render(<Flow />));
   const openCorrection = async () => {
     const anchor = host.querySelector<HTMLAnchorElement>('.sp-disclosures a')!;
-    expect(anchor.getAttribute('href')).toBe(`/about/contact?article=${piece.slug}`);
+    expect(anchor.getAttribute('href')).toBe(`/about/contact?article=${articleIdentity}`);
     const event = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
     await act(async () => {
       anchor.dispatchEvent(event);

@@ -68,7 +68,8 @@ describe('Contact us form rules', () => {
 
 describe('article correction links', () => {
   it('resolves the approved title and canonical address from a published legacy slug', () => {
-    const piece = PUBLISHED_PIECE_INDEX[0];
+    const piece = { ...PUBLISHED_PIECE_INDEX[0], articleId: undefined, slug: 'legacy-slug' };
+    PUBLISHED_PIECE_INDEX.push(piece);
     expect(correctionContactValues(piece.slug)).toEqual({
       name: '',
       email: '',
@@ -92,7 +93,7 @@ describe('article correction links', () => {
     undefined,
     '',
     'unknown',
-    '2-records-not-always-2-donations',
+    'unpublished-private-post',
     '/private/draft',
     'http://127.0.0.1:8766/',
     'https://evil.example/article',
@@ -102,9 +103,9 @@ describe('article correction links', () => {
 
   it('rejects an ambiguous identity rather than choosing the wrong article', () => {
     PUBLISHED_PIECE_INDEX.push({ ...PUBLISHED_PIECE_INDEX[0] });
-    expect(correctionContactValues(PUBLISHED_PIECE_INDEX[0].slug)).toEqual(
-      initialContactFormState.values,
-    );
+    expect(
+      correctionContactValues(PUBLISHED_PIECE_INDEX[0].articleId ?? PUBLISHED_PIECE_INDEX[0].slug),
+    ).toEqual(initialContactFormState.values);
   });
 
   it('keeps a long title complete in the message and never exceeds either field limit', () => {

@@ -765,13 +765,13 @@ describe('first-response page tags', () => {
     expect(calls).toHaveLength(0);
   });
 
-  it('serves the empty Short posts archive and topic words in the first response', async () => {
+  it('serves the published Short posts archive and topic words in the first response', async () => {
     stubNetwork(() => ({ status: 500 }));
     const archive = await serve({ path: '/read/short-posts' });
     expect(archive.status).toBe(200);
     expect(archive.body).toContain('<h1>Short posts</h1>');
-    expect(archive.body).toContain('No short posts yet.');
-    expect(archive.body).toContain('noindex');
+    expect(archive.body).toContain('2 records do not always mean 2 donations');
+    expect(archive.body).not.toContain('noindex');
 
     const topic = await serve({ path: '/read/topics/campaign-finance' });
     expect(topic.status).toBe(200);

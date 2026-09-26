@@ -51,6 +51,8 @@ import {
   WORDS_PER_MINUTE,
 } from '../research';
 
+import { shortPostArticleSnapshotBlocks } from '../shortPosts';
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 // A populated piece that exists ONLY here: nothing a reader can reach may show
@@ -368,8 +370,12 @@ describe('the 2 trait flags decide the label and the address', () => {
     expect(piecePath(SAMPLE_PIECE)).toBe('/read/research/sample-piece');
   });
 
-  it('sorts every posted piece into exactly 1 of the page\u2019s 2 groups', () => {
-    const grouped = [...piecesLabelledResearch(), ...piecesLabelledGuide()];
+  it('sorts every posted piece into exactly 1 of the page\u2019s 3 groups', () => {
+    const grouped = [
+      ...piecesLabelledResearch(),
+      ...piecesLabelledGuide(),
+      ...PUBLISHED_RESEARCH.filter((piece) => piece.format === 'short-post'),
+    ];
     expect(grouped).toHaveLength(PUBLISHED_RESEARCH.length);
     expect(new Set(grouped.map((piece) => piece.slug)).size).toBe(PUBLISHED_RESEARCH.length);
     expect(piecesLabelledResearch().every((piece) => piece.traits.research)).toBe(true);
@@ -601,6 +607,11 @@ const blockText = (blocks: readonly ResearchBlock[]): string[] =>
  * dropped and no test notices — which is the whole reason issue 1832 exists.
  */
 function shippedWords(piece: ResearchPiece): string {
+  if (piece.format === 'short-post')
+    return [piece.title, ...shortPostArticleSnapshotBlocks(piece).map((block) => block.text)]
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   return [
     piece.title,
     // The 2 lines under the title, in the order the masthead draws them: a guide
@@ -659,6 +670,7 @@ function draftWords(file: string): string {
 
 describe('every shipped piece is its settled prose, word for word', () => {
   const pieces = [
+    { slug: '2-records-not-always-2-donations', file: '2-records-not-always-2-donations.md' },
     { slug: 'who-has-to-report-their-money', file: 'who-has-to-report-their-money.md' },
     { slug: 'what-the-records-name', file: 'what-the-records-name.md' },
     {

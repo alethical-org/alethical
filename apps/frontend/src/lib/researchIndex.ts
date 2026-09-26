@@ -361,11 +361,28 @@ export const MONEY_ONLY_GOES_ONE_WAY_INDEX_ENTRY: PieceIndexEntry = {
   recordsThrough: '2026-07-20',
 };
 
+export const TWO_RECORDS_NOT_TWO_DONATIONS_INDEX_ENTRY: PieceIndexEntry = {
+  articleId: 'short-records-not-donations-2023',
+  slug: '2-records-not-always-2-donations',
+  format: 'short-post',
+  topics: ['campaign-finance', 'lobbying'],
+  traits: {
+    research: true,
+    guide: true,
+  },
+  indexed: true,
+  title: '2 records do not always mean 2 donations',
+  publishedOn: '2026-09-26',
+  recordsThrough: '2023-12-20',
+  publishedAt: '2026-09-26T20:32:16Z',
+};
+
 /**
  * Every posted piece, newest first, in the order `PUBLISHED_RESEARCH` lists the
  * full pieces (`lib/research.ts`).
  */
 export const PUBLISHED_PIECE_INDEX: PieceIndexEntry[] = [
+  TWO_RECORDS_NOT_TWO_DONATIONS_INDEX_ENTRY,
   WHAT_THE_RECORDS_NAME_INDEX_ENTRY,
   WHO_HAS_TO_REPORT_THEIR_MONEY_INDEX_ENTRY,
   WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT_INDEX_ENTRY,
