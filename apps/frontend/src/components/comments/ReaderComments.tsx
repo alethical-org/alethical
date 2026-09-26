@@ -26,7 +26,7 @@ import {
 import {
   characterCount,
   commentDateLine,
-  DiscussionStore,
+  type DiscussionStore,
   emptyDraft,
   mergeComments,
   visibleComments,
@@ -34,10 +34,9 @@ import {
   type DraftKind,
   type PendingContribution,
 } from './state';
-import { useCommentStore } from './CommentStateProvider';
+import { useCommentStore } from './useCommentStore';
 
 const SIGN_IN_TARGET = 'alethical.comments.signInTarget';
-const createCommentStore = (accountId: string | null) => new DiscussionStore(accountId);
 const newKey = () => crypto.randomUUID();
 const draftKey = (kind: DraftKind, target: string | null) =>
   kind === 'comment' ? 'comment' : `${kind}:${target}`;
@@ -203,7 +202,7 @@ export function ReaderComments({ articleId }: { articleId: string }) {
   const focused = useIsFocused();
   const { user, accessToken, isLoading: authLoading } = useAuth();
   const { openSignIn } = useSignInModal();
-  const store = useCommentStore(createCommentStore);
+  const store = useCommentStore();
   const piece = useSyncExternalStore(
     store.subscribe,
     () => store.get(articleId),

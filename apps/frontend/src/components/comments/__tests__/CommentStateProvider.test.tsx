@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act } from 'react';
+import { act, useContext } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { DiscussionStore } from '../state';
@@ -13,12 +13,14 @@ vi.mock('../../../providers/AuthProvider', () => ({ useAuth: () => auth }));
 vi.mock('../state', () => {
   throw new Error('The global provider must not load the discussion module');
 });
-import { CommentStateProvider, useCommentStore } from '../CommentStateProvider';
+import { CommentStateProvider, CommentStateContext } from '../CommentStateProvider';
 
 const createStore = vi.fn((accountId: string | null) => ({ accountId }) as DiscussionStore);
 let currentStore: DiscussionStore;
 function Consumer() {
-  currentStore = useCommentStore(createStore);
+  const scope = useContext(CommentStateContext)!;
+  scope.store ??= createStore(scope.accountId);
+  currentStore = scope.store;
   return <span>{currentStore.accountId}</span>;
 }
 

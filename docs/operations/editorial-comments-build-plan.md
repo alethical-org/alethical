@@ -6,6 +6,7 @@ This covers implementation, tests, browser review, pull request, merge, deployme
 and safe live verification. There is no new product or Design request in this build.
 
 Issue: [2399](https://github.com/alethical-org/alethical/issues/2399).
+Release: [pull request 2401](https://github.com/alethical-org/alethical/pull/2401).
 Approved behavior: [editorial-comments-guide.md](../product-onboarding/editorial-comments-guide.md).
 Accepted source: `Alethical UX (26).zip`, SHA-256
 `4a693c8bad526b329df4ebea0f58f2feef01bae97a817040642cefe5ba3cce9b`.
@@ -72,7 +73,10 @@ The independent reader review passed desktop, tablet, 320-wide phones, keyboard,
 long text, nested replies and actual Chrome 200%/400% zoom. Root's 4 browser stories passed in Chromium, Firefox and WebKit against disposable
 PostgreSQL with external requests disabled. The private stop screen was exercised
 through both independent choices with a fictional local account. The release build
-passes the unchanged startup limit at 295,841 compressed bytes.
+passes the unchanged startup limit locally at 295,772 compressed bytes after
+moving the discussion hook into the article download. The first hosted preview
+exceeded the unchanged limit by 15 bytes; the corrected hosted build must pass
+before merge.
 
 The final browser run passes all 12 checks, including cross-article drafts and
 returning focus only to the visible discussion.
