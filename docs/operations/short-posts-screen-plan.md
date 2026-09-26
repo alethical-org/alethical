@@ -244,3 +244,19 @@ preview points to the public contact address. Do not submit a test message.
 The shared article helper supplies the same text and link to rendering and search
 snapshots. Existing published articles are not retroactively edited. First-post
 publication and other task reviews remain held.
+
+### Separate publication-preparation task launched (26 September 2026)
+
+Eugene approved a separate task so this parent can stay available for discussion.
+“Prepare first short post for publication” (01a0de8f-369c-7f30-a8c5-c59768f40b31)
+is active in /Users/eug/.codex/worktrees/fbd0/Alethical, using the configured
+GPT-6 Astra model with high effort. Its first turn began source/rule and branch
+inspection; no setup-only wait remains. Parent “social posts seo”
+(01a0d4e8-7a6a-7941-8124-12207773d4e2) owns user decisions and acceptance review.
+The child owns integrating parent commits through 48b927db, article correction-link
+prefilling, evidence and browser checks, and a draft PR. It must preserve the
+original private preview and coordinate any update with the parent. The full
+handoff retains the final publication hold, no real email sends, and no comments,
+new Design work or original-graphic reinvestigation. Parent must inspect the returned
+result before reporting it accepted. Final article publication remains a separate
+explicit approval; launch approval was not recorded as that approval.
