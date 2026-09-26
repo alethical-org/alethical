@@ -58,7 +58,11 @@ import { WHAT_THE_RECORDS_NAME } from './researchPieces/whatTheRecordsName';
 import { WHO_HAS_TO_REPORT_THEIR_MONEY } from './researchPieces/whoHasToReportTheirMoney';
 import { WHY_NOBODY_CAN_FOLLOW_A_DOLLAR } from './researchPieces/whyNobodyCanFollowADollar';
 import { WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT } from './researchPieces/whyTwoOfficialNumbersCanBothBeRight';
-import { assertPublishedShortPosts, type ShortPostEditorial } from './shortPosts';
+import {
+  assertPublishedShortPosts,
+  shortPostArticleSnapshotBlocks,
+  type ShortPostEditorial,
+} from './shortPosts';
 
 /**
  * One run of piece prose.
@@ -403,6 +407,13 @@ export function researchSharePanelDescription(piece: Pick<ResearchPiece, 'publis
  * ruling behind it).
  */
 export function pieceWordCount(piece: ResearchPiece): number {
+  if (piece.format === 'short-post' && piece.shortPost?.body) {
+    return shortPostArticleSnapshotBlocks(piece)
+      .map((block) => block.text)
+      .join(' ')
+      .split(/\s+/)
+      .filter(Boolean).length;
+  }
   const runs = (items: ResearchInline[]) => researchRunsText(items);
   const fromBlocks = (blocks: readonly ResearchBlock[]): string[] =>
     blocks.flatMap((block) => {

@@ -9,9 +9,10 @@ import {
   billPageMetadata,
   homePageMetadata,
   legislatorListPageMetadata,
-  researchPageMetadata,
-  STATIC_PAGE_METADATA,
 } from '../share';
+import { STATIC_PAGE_METADATA } from '../staticPageMetadata';
+import { STATIC_PAGE_SUBJECTS } from '../../navigation/documentTitle';
+import { researchPageMetadata } from '../researchMetadata';
 import { legislatorPageMetadata } from '../screenPageMetadata';
 import {
   HEAD_MARKER_END,
@@ -199,6 +200,15 @@ describe('page metadata', () => {
       // Rule 6 of the wording rules: the title carries the brand, the description
       // spends its characters on the page's own subject.
       expect(meta.description).not.toContain('Alethical');
+    }
+  });
+
+  it('keeps every in-app static tab title equal to the first-response title', () => {
+    expect(Object.keys(STATIC_PAGE_SUBJECTS).sort()).toEqual(
+      Object.keys(STATIC_PAGE_METADATA).sort(),
+    );
+    for (const [path, metadata] of Object.entries(STATIC_PAGE_METADATA)) {
+      expect(`${STATIC_PAGE_SUBJECTS[path]} | Alethical`).toBe(metadata.title);
     }
   });
 });

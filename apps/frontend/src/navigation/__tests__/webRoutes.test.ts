@@ -13,6 +13,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { IA, NAV_BAR, mobileNavRoadmapLabels, navDropdownItems } from '../ia';
+import { PUBLISHED_PIECE_INDEX, type PieceIndexEntry } from '../../lib/researchIndex';
 import { pathForRoute, stateFromPathname, targetFromPathname } from '../webRoutes';
 
 const routeSource = readFileSync(join(__dirname, '..', 'webRoutes.ts'), 'utf8');
@@ -329,6 +330,58 @@ describe('campaign money routes', () => {
   it('round-trips the /read page through /read', () => {
     expect(targetFromPathname('/read')).toEqual({ kind: 'read' });
     expect(pathForRoute({ name: 'Read' })).toBe('/read');
+  });
+
+  it('opens Short posts and known topics at their own addresses', () => {
+    expect(targetFromPathname('/read/short-posts')).toEqual({ kind: 'shortPosts' });
+    expect(targetFromPathname('/read/topics/campaign-finance')).toEqual({
+      kind: 'readTopic',
+      topic: 'campaign-finance',
+    });
+    expect(pathForRoute({ name: 'ShortPosts', params: { page: '2', post: 'example' } })).toBe(
+      '/read/short-posts?page=2&post=example',
+    );
+    expect(pathForRoute({ name: 'ReadTopic', params: { topic: 'lobbying', page: '1' } })).toBe(
+      '/read/topics/lobbying',
+    );
+  });
+
+  it('refuses invalid and unavailable Short posts pages', () => {
+    for (const path of [
+      '/read/short-posts?page=0',
+      '/read/short-posts?page=02',
+      '/read/short-posts?page=2',
+      '/read/topics/unknown',
+      '/read/topics/lobbying?page=2',
+    ]) {
+      expect(targetFromPathname(path)).toEqual({ kind: 'notFound', path });
+    }
+  });
+
+  it('returns to the current page of a Short post when newer posts move it', () => {
+    const originalLength = PUBLISHED_PIECE_INDEX.length;
+    const posts: PieceIndexEntry[] = Array.from({ length: 7 }, (_, index) => ({
+      articleId: `route-test-${index}`,
+      format: 'short-post',
+      slug: `route-test-${index}`,
+      traits: { research: true, guide: false },
+      topics: ['lobbying'],
+      indexed: true,
+      title: `Route test ${index}`,
+      publishedOn: '2026-09-25',
+      publishedAt: `2026-09-25T12:${String(index).padStart(2, '0')}:00Z`,
+      recordsThrough: '2025-12-31',
+    }));
+    try {
+      PUBLISHED_PIECE_INDEX.push(...posts);
+      expect(targetFromPathname('/read/short-posts?page=1&post=route-test-0')).toEqual({
+        kind: 'shortPosts',
+        page: '2',
+        post: 'route-test-0',
+      });
+    } finally {
+      PUBLISHED_PIECE_INDEX.splice(originalLength);
+    }
   });
 
   // An unknown slug is a page that does not exist — NotFound, not an empty shell

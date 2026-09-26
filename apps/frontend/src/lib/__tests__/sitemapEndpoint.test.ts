@@ -115,8 +115,12 @@ describe('sitemap endpoint', () => {
     expect(body).toContain(
       '<loc>https://www.alethical.com/read/guides/who-has-to-report-their-money</loc>',
     );
+    expect(body).toContain('<loc>https://www.alethical.com/read/topics/campaign-finance</loc>');
+    expect(body).toContain('<loc>https://www.alethical.com/read/topics/lobbying</loc>');
+    expect(body).toContain('<loc>https://www.alethical.com/read/topics/elections</loc>');
+    expect(body).not.toContain('<loc>https://www.alethical.com/read/short-posts</loc>');
     expect(body.match(/<url>/g)).toHaveLength(
-      FIXED_PAGE_ROWS + DIRECTORY_PAGE_ROWS + indexedResearch().length,
+      FIXED_PAGE_ROWS + DIRECTORY_PAGE_ROWS + indexedResearch().length + 3,
     );
     // Money by race is one fixed page: an office chip is a filtered view and is
     // never listed (issue #1954).
@@ -156,7 +160,7 @@ describe('sitemap endpoint', () => {
 
     const { body, status } = recorder.read();
     expect(status).toBe(200);
-    expect(body.match(/<url>/g)).toHaveLength(FIXED_PAGE_ROWS + indexedResearch().length);
+    expect(body.match(/<url>/g)).toHaveLength(FIXED_PAGE_ROWS + indexedResearch().length + 3);
     expect(body).toContain(
       '<loc>https://www.alethical.com/read/research/the-money-only-goes-one-way</loc>',
     );
@@ -203,7 +207,9 @@ describe('sitemap endpoint', () => {
       }
       expect(body).not.toContain(`/money/lobbying/${kind}?page=${lastPage + 1}</loc>`);
     }
-    expect(body.match(/<url>/g)).toHaveLength(FIXED_PAGE_ROWS + 68 + 33 + indexedResearch().length);
+    expect(body.match(/<url>/g)).toHaveLength(
+      FIXED_PAGE_ROWS + 68 + 33 + indexedResearch().length + 3,
+    );
     expect(body).not.toContain('<lastmod>');
     expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
@@ -241,7 +247,9 @@ describe('sitemap endpoint', () => {
       expect(body).toContain(
         '<loc>https://www.alethical.com/money/lobbying/lobbyists?page=34</loc>',
       );
-      expect(body.match(/<url>/g)).toHaveLength(FIXED_PAGE_ROWS + 33 + indexedResearch().length);
+      expect(body.match(/<url>/g)).toHaveLength(
+        FIXED_PAGE_ROWS + 33 + indexedResearch().length + 3,
+      );
     },
   );
 

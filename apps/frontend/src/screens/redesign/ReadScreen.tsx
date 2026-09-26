@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { ShortPostsPreview } from '../../components/read/TopicPieceCard';
+import { newestShortPosts } from '../../lib/shortPostSelection';
+import { publishedResearch } from '../../lib/research';
 import { SetBox } from '../../components/read/SetBox';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -43,8 +46,8 @@ import { theme as t } from '../../theme/tokens';
  * name; `READ_PAGE_NAME` reads it off the bar's own label so the 2 cannot
  * disagree.
  *
- * The page holds both kinds of writing, in 2 groups: **RESEARCH first, then
- * GUIDES**, in source order (Eugene, 27 Aug 2026, overruling the drawn order).
+ * The page groups RESEARCH, SHORT POSTS, then GUIDES in source order. Short
+ * posts appear once, outside longer pieces and reading sets.
  * Source order rather than a CSS reordering, because reordering in the styling
  * alone separates what a person sees from what a screen reader reads and what the
  * keyboard reaches. Research is Alethical's own original work and guides exist
@@ -139,7 +142,12 @@ function PieceCard({
 }
 
 /** One group on the page: its heading, and what renders under it. */
-type PieceGroup = { heading: string; sets: PieceSetGroup[]; pieces: ResearchPiece[] };
+type PieceGroup = {
+  heading: string;
+  sets: PieceSetGroup[];
+  pieces: ResearchPiece[];
+  shortPosts?: boolean;
+};
 
 export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
   const { isMobile } = useResponsive();
@@ -148,18 +156,28 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
       ? navigation.navigate('Research', { slug: piece.slug })
       : navigation.navigate('Guide', { slug: piece.slug });
 
-  // Source order, research first. An empty group is dropped here rather than
+  // Source order: Research, Short posts, Guides. An empty group is dropped here rather than
   // hidden in the markup, so the group that renders first is genuinely first for
   // a screen reader and for the keyboard as well as in ink.
   const groups: PieceGroup[] = [
-    { heading: READ_RESEARCH_GROUP_HEADING, sets: [], pieces: piecesLabelledResearch() },
+    {
+      heading: READ_RESEARCH_GROUP_HEADING,
+      sets: [],
+      pieces: piecesLabelledResearch().filter((piece) => piece.format !== 'short-post'),
+    },
+    {
+      heading: 'SHORT POSTS',
+      sets: [],
+      pieces: newestShortPosts(publishedResearch()) as ResearchPiece[],
+      shortPosts: true,
+    },
     {
       heading: READ_GUIDES_GROUP_HEADING,
       // Guides only, so a research piece that ever joins a set stays a card under
       // RESEARCH rather than appearing twice, and a set's meta line keeps naming
       // the one kind its rows hold.
-      sets: publishedSets(piecesLabelledGuide()),
-      pieces: guidesOutsideEverySet(),
+      sets: publishedSets(piecesLabelledGuide().filter((piece) => piece.format !== 'short-post')),
+      pieces: guidesOutsideEverySet().filter((piece) => piece.format !== 'short-post'),
     },
   ].filter((group) => group.sets.length > 0 || group.pieces.length > 0);
 
@@ -207,24 +225,33 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
                   >
                     {group.heading}
                   </Text>
-                  <View style={[styles.cardList, isMobile && styles.cardListMobile]}>
-                    {group.sets.map((set) => (
-                      <SetBox
-                        key={set.slug}
-                        group={set}
-                        isMobile={isMobile}
-                        onOpenPiece={openPiece}
-                      />
-                    ))}
-                    {group.pieces.map((piece) => (
-                      <PieceCard
-                        key={piece.slug}
-                        piece={piece}
-                        isMobile={isMobile}
-                        onOpen={() => openPiece(piece)}
-                      />
-                    ))}
-                  </View>
+                  {group.shortPosts ? (
+                    <ShortPostsPreview
+                      pieces={group.pieces}
+                      onOpen={openPiece}
+                      onTopic={(topic) => navigation.navigate('ReadTopic', { topic })}
+                      onAll={() => navigation.navigate('ShortPosts')}
+                    />
+                  ) : (
+                    <View style={[styles.cardList, isMobile && styles.cardListMobile]}>
+                      {group.sets.map((set) => (
+                        <SetBox
+                          key={set.slug}
+                          group={set}
+                          isMobile={isMobile}
+                          onOpenPiece={openPiece}
+                        />
+                      ))}
+                      {group.pieces.map((piece) => (
+                        <PieceCard
+                          key={piece.slug}
+                          piece={piece}
+                          isMobile={isMobile}
+                          onOpen={() => openPiece(piece)}
+                        />
+                      ))}
+                    </View>
+                  )}
                 </View>
               ))
             )}

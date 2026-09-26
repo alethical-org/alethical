@@ -4,7 +4,7 @@
 
 # How the Money in politics section works
 
-<!-- describes: apps/frontend/src/lib/moneyLandingSources.ts -->
+<!-- describes: apps/frontend/src/lib/moneyLandingSources.ts, apps/frontend/src/screens/redesign/ShortPostsScreen.tsx, apps/frontend/src/components/read/TopicPieceCard.tsx, apps/frontend/src/components/shortPosts/ShortPostArticle.tsx, apps/frontend/src/components/shortPosts/ShortPostChart.tsx, apps/frontend/src/lib/shortPostSelection.ts, apps/frontend/src/lib/shortPosts.ts, apps/frontend/src/lib/researchIndex.ts -->
 
 **Net.** `/money` is the public front door to Minnesota's campaign-money and lobbying records, open to
 everyone with no sign-in. Typing a name in the box on it now works, the register of
@@ -12,8 +12,9 @@ committees has its own browsable list, every committee page is reachable by brow
 than only by pasting an address, and a name that got paid opens every payment filed under
 that exact spelling
 ([#1780](https://github.com/alethical-org/alethical/issues/1780)). Our own signed research
-lives one level up, on the `/read` page, which the money landing points at. One piece is
-published there.
+lives one level up, on the `/read` page, which the money landing points at. The `/read`
+page currently lists 6 published pieces: 1 Research piece and 5 Guides. No Short post
+has been published.
 
 Lobbying is available at `/money/lobbying`, with the copied lobbyist list, represented
 organisations and yearly spending. The earlier lobbying-under-development strip is removed
@@ -22,9 +23,10 @@ their own copy dates. Challengers remain at `/money/races`, and outside spending
 at `/money/outside-spending`. See [lobbying-guide.md](lobbying-guide.md).
 
 **"Report" means one thing on this site: the document a campaign files with the state.** Our
-own writing is **Research**, and a short piece explaining 1 term is a **Guide** (settled
-27 Aug 2026, [`docs/architecture/published-writing-decisions.md`](../architecture/published-writing-decisions.md)
-§2.6). The `/read` page and its pieces were addressed `/money/reports`, then `/reports`, then
+own writing carries a **Research** or **Guide** trait. A **Short post** is a focused format
+that can carry either or both traits (settled in
+[`published-writing-decisions.md §7`](../architecture/published-writing-decisions.md#7-short-posts-from-checked-social-material)).
+The `/read` page and its pieces were addressed `/money/reports`, then `/reports`, then
 `/read` before landing on `/read` on 27 Aug 2026, and every one of those old addresses forwards
 permanently and straight to the `/read` address it belongs to, never through the one in between.
 
@@ -1556,7 +1558,7 @@ with the state, and at `/read` until that evening, when the menu item became the
 link shared before any of the moves still opens the right page in one hop. Nothing about either page's contents changed with
 either move.
 
-This is the page listing everything Alethical publishes in its own name
+This is the front door to the writing Alethical publishes in its own name
 ([`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md)).
 With nothing posted the page says "Nothing published yet". The `/money` Research
 feature says "Nothing is published yet", with no count or link.
@@ -1571,23 +1573,29 @@ guides to how state government works". The page's name still exists for a screen
 in the browser tab, on a heading that is there but not drawn; it is taken from the top bar's
 own label, so the 2 cannot end up saying different words.
 
-**Two kinds of writing, in 2 groups: RESEARCH first, then GUIDES** (Eugene, 27 Aug 2026,
-overruling the drawn order). Research is Alethical's own digging through these records, signed
-and dated. A guide explains 1 term in plain language, concludes nothing, and adds nothing up
-across members, so it needs no part of rule 13's exception. Research leads because it is the
-original work and guides exist because that work needs vocabulary.
+**Two kinds of writing, in 3 groups: RESEARCH, SHORT POSTS, then GUIDES.** Research is
+Alethical's own digging through these records, signed and dated. A guide explains 1 term
+in plain language, concludes nothing, and adds nothing up across members, so it needs no
+part of rule 13's exception. Short post names a focused format, not a third kind or a word
+limit: each Short post carries a Research or Guide trait, and a piece may carry both.
+Research still determines the 1 permanent article address for a both-traits piece.
+The SHORT POSTS group sits between the long-form groups, shows only the newest 3 published
+Short posts, and includes **All short posts** linking to `/read/short-posts`. It stays
+entirely hidden until a Short post is published. A Short post appears in no long-form group
+or reading set in this first release
+([`published-writing-decisions.md §7`](../architecture/published-writing-decisions.md#7-short-posts-from-checked-social-material)).
 
 The order is the order the page is written in, not a styling trick, so what a person sees,
-what a screen reader reads out and what the keyboard reaches are the same order. Both headings
-are ordinary level-2 headings, so someone skipping through the page by heading meets RESEARCH
-first.
+what a screen reader reads out and what the keyboard reaches are the same order. All visible
+group headings are ordinary level-2 headings, so someone skipping through the page by heading
+meets RESEARCH first, then SHORT POSTS when it has a published piece, then GUIDES.
 
 **A group with nothing in it shows no heading and no list.** A heading over nothing reads as
 broken. The spacing belongs to the position rather than to the group, so whichever group comes
 first sits closer to the rule above it, and if one is empty the other simply takes that place.
 
-One card per piece, newest first inside each group. **Every card is the same shape,
-whichever kind it holds**, because a column that changes shape from one card to the next
+One card per long-form piece, newest first inside each group. **Every long-form card is
+the same shape, whichever kind it holds**, because a column that changes shape from one card to the next
 reads as 2 columns. A card carries, in this order:
 
 - A short line in the typewriter face: how long the piece takes to read, then its date. A
@@ -1606,9 +1614,16 @@ reads as 2 columns. A card carries, in this order:
 - Nothing else. There is no "Read the research" line: the whole card is the link, and the
   border turning green under the pointer is what says so.
 
+Short-post cards have their own shape. They show the Research or Guide trait, reading
+time and date, title, short description and topic links on `/read/short-posts` and
+`/read/topics/<topic>`. Under SHORT POSTS on `/read`, 1 shared box holds up to 3 rows,
+each with its Research or Guide chip. The title opens the article; each topic is a
+separate link and keyboard stop. A topic click never opens the article.
+
 **A set of pieces written to be read together gets a box instead of a card each**, drawn
-above the loose cards under GUIDES. "How the Money Works" now has 2 published pieces, so its
-box shows. A box carries the set's name, a line reading "2 GUIDES · 10 MIN", and a row per
+above the loose cards under GUIDES. "How the Money Works" now has 5 published pieces, so its
+box shows. A box carries the set's name, a line giving the published Guide count and
+their combined reading time, and a row per
 published piece with its title and its reading time. A row carries no date, no kind word and
 no number: where a piece sits in its set is internal talk and reaches no reader (§2.12).
 
@@ -1625,36 +1640,66 @@ box at all (§2.4). A set with 1 published piece shows the whole box holding 1 r
 opening a box is a statement that the next piece is coming shortly (§2.5).
 
 **Not built yet:** a set's own page, and the "All of <set name>" link Design gives a box once
-a set reaches 6 published pieces. Sorting the page by subject rather than by our own 2 kinds
-is an open question, deferred until there are 4 sets or a dozen research pieces (§2.11).
+a set reaches 6 published pieces. The controlled topic pages below add a way to gather
+published writing by subject; the earlier question about replacing the `/read` page's
+long-form groups has not changed that page's order (§2.11).
 
-Posting a piece puts it on the site straight away, before any of its figures have been
-checked: its own address and this page, plus the `/money` Research feature when it is
-the newest research piece, all on the day it posts. **Search engines see it the same day too (Eugene, 25 Aug 2026):** it goes into the
-site map search engines read (`/sitemap.xml`) and its page carries no instruction to skip
-it. Nothing about a piece waits.
-
-The cost of that, stated plainly: a figure nobody has recomputed can reach a search result
-on the day it posts. What stands in the way is
-the checking itself happening promptly, and a correction replacing a wrong figure the moment
-it is agreed. Holding a particular piece back stays possible, for a reason Eugene names,
-rather than being a step every piece waits behind.
+The 6 Research and Guide pieces already live keep their earlier publication policy.
+That policy made an article's own address and its `/read` link available on publication,
+and put the newest Research piece on `/money`. It also let an unchecked figure reach a
+search result, so checking promptly and correcting an agreed wrong figure mattered.
+A social-derived Short post needs the separate checks and article-specific instruction
+below before publication. Search engines see a published piece the same day (Eugene,
+25 Aug 2026): its address goes into the site map (`/sitemap.xml`) and its page carries no
+instruction to skip it, unless Eugene names a reason to hold that particular piece back.
 
 The `/read` page and every piece's page hand their words over in the **very first response
-from the server**, before any of the app's own code runs: the listing its cards and a plain
-link to every posted piece, a piece its entire text. That puts our own writing on the same
+from the server**, before any of the app's own code runs: `/read` includes its visible
+cards and a plain link to the complete Short-post list once that group is populated;
+the numbered lists link to the older Short posts, and each article includes its text.
+That puts our own writing on the same
 footing as a bill page, which hands its text over straight away too
 ([#1760](https://github.com/alethical-org/alethical/issues/1760)). This is separate from
 whether a search engine may _list_ a piece, which is still Eugene's per-piece decision
 above: a piece marked to be skipped is served in full and still asks to be skipped.
 
-Three pieces are posted: the research piece "The Money Only Goes One Way", at
-`/read/research/the-money-only-goes-one-way`, and 2 guides, "Who has to report their
-money" at `/read/guides/who-has-to-report-their-money` and "What the records name, and
-what they leave out" at `/read/guides/what-the-records-name`. The 2 guides are the set
-"How the Money Works", in that reading order.
+6 pieces are posted: the research piece "The Money Only Goes One Way" at
+`/read/research/the-money-only-goes-one-way`, and the 5 Guides in "How the Money Works":
+"Who has to report their money" at `/read/guides/who-has-to-report-their-money`,
+"What the records name, and what they leave out" at `/read/guides/what-the-records-name`,
+"Why 2 official numbers can both be right" at
+`/read/guides/why-2-official-numbers-can-both-be-right`, "Money spent without a campaign’s
+say" at `/read/guides/money-spent-without-a-campaigns-say`, and "Why nobody can follow a
+dollar" at `/read/guides/why-nobody-can-follow-a-dollar`. This is their set reading order,
+not a number printed beside each row. No Short post is in the published registry.
 
-## One research piece's page (`/read/research/{name}`)
+## Short-post and topic collections (`/read/short-posts`, `/read/topics/<topic>`)
+
+`/read/short-posts` lists every published Short post, newest publication time first, with
+6 per numbered page. A stable article identity breaks a tie at the same time. Rechecking
+or correcting a piece does not move it in the list. Previous, numbered and Next links
+have their own addresses (`?page=2`), so refresh and browser Back retain the page.
+The first server response contains the page's article links and their words.
+`/read/short-posts?post=<slug>` finds the numbered page currently holding that published
+Short post and returns focus to its title. An unknown post, a bad page number or a page
+beyond the end opens the page-not-found screen. The list currently stays readable with
+**No short posts yet.** and **Back to Read**; while empty it is left out of the site map
+and tells search engines not to list it.
+
+`/read/topics/<topic>` gathers all published pieces assigned 1 of the controlled topics:
+Campaign finance (`campaign-finance`), Lobbying (`lobbying`) or Elections (`elections`).
+It crosses Research, Guides and Short posts, with a both-traits piece shown once.
+The same newest-first and 6-per-page rules apply. The title opens the article at its
+single Research or Guide address; separate links open its other topics. The current
+topic is already named by the page heading and is omitted from each entry’s links. There is
+no topic directory, new search box or combined filter. A known topic with no pieces
+shows **No articles about this topic yet.** and **Back to Read**, stays out of the site map
+and tells search engines not to list it. An unknown topic or out-of-range page is not
+a valid page. Every populated numbered page has its own main address for search engines.
+These lists are built from the published writing in the website release, so moving
+between their numbered pages does not wait for a network request or show a loading state.
+
+## One long-form research piece's page (`/read/research/{name}`)
 
 Every posted research piece has a page here; an address with no piece behind it shows the
 ordinary "page not found" screen. **So does a real piece asked for under the wrong folder** —
@@ -1707,7 +1752,7 @@ and its label reads Research, because rule 13 binds it in full
 Links run one way: a piece links out to record pages and official sources; no record page
 links back to a piece.
 
-## One guide's page (`/read/guides/{name}`)
+## One long-form guide's page (`/read/guides/{name}`)
 
 A guide is a short piece explaining 1 term in the words a person actually uses. It concludes
 nothing, adds no figures up across members and defines no labels of our own, so it lives under
@@ -1742,19 +1787,77 @@ differs:
 - **A closing "where this comes from" block**, in the guide's own words, with every source
   linked at the body that published it.
 
-One guide is posted: **"Who has to report their money"**, which explains Minnesota's 3 kinds of
-political account — a candidate's own campaign committee, a party unit, and a political
-committee or fund — and why the kind decides what the records will tell you. Its prose was
+5 Guides are posted, all in "How the Money Works". **"Who has to report
+their money"** explains Minnesota's 3 kinds of political account — a candidate's own
+campaign committee, a party unit, and a political committee or fund — and why the kind
+decides what the records will tell you. Its prose was
 written and settled in
 [`docs/published-writing/who-has-to-report-their-money.md`](../published-writing/who-has-to-report-their-money.md)
 before the page existed, and a test compares the shipped page against that file word for word,
 so neither can drift from the other. It cites 11 sources: 8 at the Campaign Finance Board and 3
 at Minnesota's own statutes.
 
-It carries no links out of its own body yet. The 2 forward links it will gain, on the $200
-donor-naming rule and on running your own ads about a race, go in the day those guides post and
-not before, and a person decides every such link rather than software proposing one (§2.6, and
+Its body now links to "What the records name, and what they leave out". Links between
+published pieces are chosen by a person rather than added by software (§2.6 and
 [issue 1752](https://github.com/alethical-org/alethical/issues/1752)).
+
+## One Short post's page (`/read/research/{name}` or `/read/guides/{name}`)
+
+A published Short post uses 1 stable article identity and 1 permanent address. Research
+goes under `/read/research/`, even when it also carries the Guide trait; Guide without
+Research goes under `/read/guides/`. Changing the title, rechecking the claims or
+correcting a figure does not change that address or the original publication time.
+The article starts with a return link to `/read/short-posts?post=<slug>`, which finds
+the page holding it now. The visible Research or Guide label, title, short description,
+publication and records-through dates for Research (or computed reading time and written
+or checked date for Guide), Share control and separate topic links follow. Share previews
+carry the title and the trait's approved dates, not claims or figures. Related reading
+shows at most 3 editor-chosen, already published pieces with a shared topic, never a link
+to itself or a promised future page.
+
+The article's body has a reviewed order for prose, headings, calculations, charts,
+limitations, methods and notices. The first server response includes the same words,
+numbers, chart descriptions, methods, evidence links, limitations and disclosures.
+Every quantitative chart is recreated from checked numeric inputs, with its title,
+units, covered period, source link and specific limitation. The article text and chart
+read from those same values. A chart showing 1 share names its remainder; multiple named shares use
+a table; comparison bars have 1 zero and 1 scale. An overlap diagram does not pretend
+its areas show group sizes and says: “Diagram shows overlap, not relative group sizes.”
+The original social image is temporary working material, not the article's graphic.
+
+The sources block links each source and states its coverage and limits. **Records through**
+means the newest covered reporting-period end in cited records Alethical holds, not the
+day Alethical copied them. When only official sources supply the figures, the article
+names that outside coverage without claiming Alethical holds those records. A purely
+explanatory Guide names source dates when known, without inventing a reporting period
+for an undated source. A gap or a source with a different end date is explained beside
+the affected claim.
+
+An article may show 3 distinct dated notices. **NEWER FILINGS EXIST** points to later
+activity while the original figures stay tied to their published records. **SOURCE
+AMENDED** appears once beside the affected content and explains the changed source and
+finding. **CORRECTED** names Alethical's own error; the text and chart use the corrected
+figure, and the wrong figure is no longer readable. A later correction needs review of
+the entire updated article and a separate release instruction. The original publication
+date does not move.
+
+After its checks, every social-derived Short post prints: “AI helped prepare this
+article. Alethical checked its claims against the cited records before publication,
+but errors may remain. The records may be incomplete or later corrected.” A Short post
+about campaign finance also prints: “A contribution alone does not establish why
+someone gave, whether it influenced a decision, or whether wrongdoing occurred.”
+These notes cannot stand in for a missing source or an unresolved error. Comments
+remain disabled until the separate comments work enables them for that article identity.
+
+The social copy and image Angel gives Eugene do not themselves publish. The coding
+agent records each claim's source, period, method, coverage, scope, checked result and
+human reviewer, then reconciles factual changes with the article and graphics. Eugene
+reviews the complete article and graphics; each article needs its own publication
+instruction after that review. A missing check, unresolved claim, absent chart or
+notice, changed material after approval, or missing instruction blocks publication.
+These extra checks apply to social-derived Short posts, not retroactively to the 6
+published Research and Guide pieces
+([`published-writing-decisions.md §7.1`](../architecture/published-writing-decisions.md#71-screen-and-publication-checks)).
 
 ## Limits, sources, and reader data
 

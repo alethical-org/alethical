@@ -5,7 +5,7 @@ import { IA } from '../../navigation/ia';
 import { MONEY_PROMO_CTA, MONEY_PROMO_HEADING } from '../homepage';
 import { MONEY_LANDING_HEADING } from '../moneyLanding';
 import { MONEY_SECTION_NAME } from '../moneySectionName';
-import { STATIC_PAGE_METADATA } from '../share';
+import { STATIC_PAGE_METADATA } from '../staticPageMetadata';
 import { LOBBYING_DIRECTORY_COPY } from '../lobbyingDirectoryCopy';
 
 describe('one name for the /money destination', () => {

@@ -1,15 +1,6 @@
 import { registrationNumberFromSlug } from './committeeRoute';
 import { directoryPagePath } from './directoryPagination';
-import { MONEY_SECTION_NAME } from './moneySectionName';
 import { paymentNameRole, paymentsUnderNameHeading } from './paymentNameRoute';
-import {
-  READ_PAGE_HEADING,
-  READ_PAGE_INTRO,
-  READ_PAGE_NAME,
-  pieceShareDescription,
-  piecePath,
-  type PieceIndexEntry,
-} from './researchIndex';
 
 export const PUBLIC_SITE_ORIGIN = 'https://www.alethical.com';
 export const SOCIAL_PREVIEW_IMAGE_URL = `${PUBLIC_SITE_ORIGIN}/social-preview.png`;
@@ -17,7 +8,7 @@ export const SOCIAL_PREVIEW_IMAGE_ALT =
   'Alethical: Minnesota’s legislative record in plain language, with links to official sources.';
 export const SITE_NAME = 'Alethical';
 
-// Every page's own wording lives in this file — issue #1325. Three surfaces read
+// Page wording starts here — issue #1325. Three surfaces read
 // it and they must not drift: the browser tab title, the tags in the FIRST server
 // response (api/page.ts, so a search engine and a person receive the same HTML),
 // and the share sheet. The rules these strings obey are argued in
@@ -314,51 +305,6 @@ export function askPageMetadata(question?: string | null): PageMetadata {
 }
 
 /**
- * One posted research piece's page metadata. Title and dates ONLY: piece
- * claims and derived labels appear in no social-share preview or metadata
- * (.claude/rules/grounded-answers.md rule 13), so the dek and every figure stay
- * out of these tags.
- *
- * An indexed piece carries no `nosnippet`: an ordinary search snippet always
- * links to the page holding the method, and suppressing body text on a
- * transparency product reads as hiding the thing it publishes. Since 25 Aug
- * 2026 rule 13 publishes every piece `indexed: true` on the day it posts, so
- * the `noindex` branch below is now the hold-back for a piece Eugene names
- * rather than the default; a held piece carries no canonical while it is held.
- * It stays fully readable on the site either way; only search engines are held
- * off (rule 13's publishing order).
- */
-export function researchPageMetadata(
-  piece: PieceIndexEntry,
-  /**
-   * What a search result says: a guide describes what it covers, in its own
-   * words, and a piece with no such line falls back to its dates (Eugene,
-   * 18 Sep 2026). A date alone tells a searcher nothing about whether the page
-   * answers their question, and 5 guides were telling them nothing else.
-   *
-   * Handed in rather than read off the index entry, because only the server ever
-   * renders a description while this file loads with every page in the browser
-   * (decisions doc §28.8). It lives on the full piece record in `lib/research.ts`,
-   * beside the writing it describes.
-   */
-  searchDescription?: string,
-): PageMetadata {
-  return pageMetadata({
-    title: titleFor(piece.title),
-    socialTitle: piece.title,
-    description: clean(searchDescription ?? '') || pieceShareDescription(piece),
-    // A share preview still carries title and dates only, which is rule 13's own
-    // wording and is unchanged.
-    socialDescription: pieceShareDescription(piece),
-    // The canonical address comes from the piece's traits, so it can only ever be
-    // the 1 address the router accepts for it.
-    canonicalPath: piece.indexed ? piecePath(piece) : '',
-    noindex: !piece.indexed,
-    article: { publishedOn: piece.publishedOn },
-  });
-}
-
-/**
  * The committees list's metadata. A filtered or scrolled address carries no
  * canonical and is noindex: the name box, the kind filter and the row count
  * combine into effectively unlimited addresses, and only the bare list is a page
@@ -418,121 +364,3 @@ export function moneyByRacePageMetadata(
     noindex: options.noindex,
   });
 }
-
-/** Pages whose wording never varies. */
-export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
-  // The campaign money landing (public, no sign-in gate). The description may
-  // say these records are searchable now that the field on it works and the
-  // committees list exists (issue #1696) — until they shipped it deliberately
-  // promised only the record (grounded-answers.md rule 2).
-  '/money': pageMetadata({
-    title: titleFor(`${MONEY_SECTION_NAME} in Minnesota`),
-    socialTitle: MONEY_SECTION_NAME,
-    description:
-      'Campaign money records for Minnesota state campaigns, as the state publishes them, searchable by the name each record was filed under.',
-    canonicalPath: '/money',
-  }),
-  '/money/committees': committeeListPageMetadata(),
-  '/money/races': moneyByRacePageMetadata(),
-  // The tab carries the page's own name, because the page itself shows no title:
-  // the bar and the address already say the word, so a third visible instance is
-  // what the naming rule forbids, and the tab is where the name still has to
-  // exist (Design's /read handoff, 27 Aug 2026). The share card keeps the
-  // descriptive title instead, because a card has no bar or address beside it to
-  // say what "Read" would mean.
-  '/read': pageMetadata({
-    title: titleFor(READ_PAGE_NAME),
-    socialTitle: READ_PAGE_HEADING,
-    description: READ_PAGE_INTRO,
-    canonicalPath: '/read',
-  }),
-  '/email-preferences': pageMetadata({
-    title: titleFor('Email preferences'),
-    socialTitle: 'Email preferences',
-    description: 'Choose which research and feature emails reach your account address.',
-    canonicalPath: '/email-preferences',
-    noindex: true,
-  }),
-  '/unsubscribe': pageMetadata({
-    title: titleFor('Unsubscribe'),
-    socialTitle: 'Unsubscribe',
-    description: 'Choose which research and feature emails to stop.',
-    canonicalPath: '/unsubscribe',
-    noindex: true,
-  }),
-  '/confirm': pageMetadata({
-    title: titleFor('Confirm email'),
-    socialTitle: 'Confirm email',
-    description: 'Confirm the email address from this message.',
-    canonicalPath: '/confirm',
-    noindex: true,
-  }),
-  '/reset': pageMetadata({
-    title: titleFor('Reset password'),
-    socialTitle: 'Reset password',
-    description: 'Check this reset link and choose a new password.',
-    canonicalPath: '/reset',
-    noindex: true,
-  }),
-  '/find-my-legislator': pageMetadata({
-    title: titleFor('Find my legislator'),
-    socialTitle: 'Find my legislator',
-    description:
-      'Enter a Minnesota address to see which state House and Senate members represent it.',
-    canonicalPath: '/find-my-legislator',
-  }),
-  '/about': pageMetadata({
-    title: titleFor('About us'),
-    socialTitle: 'About us',
-    description:
-      'Why this site exists, and how Minnesota’s official legislative record is turned into plain language.',
-    canonicalPath: '/about',
-  }),
-  '/about/contact': pageMetadata({
-    title: titleFor('Contact us'),
-    socialTitle: 'Contact us',
-    description: 'Send a question, a correction, or feedback about Minnesota legislative records.',
-    canonicalPath: '/about/contact',
-  }),
-  '/privacy': pageMetadata({
-    title: titleFor('Privacy Policy'),
-    socialTitle: 'Privacy Policy',
-    description: 'How information is collected, used, and protected on this site.',
-    canonicalPath: '/privacy',
-  }),
-  '/site-metrics': pageMetadata({
-    title: titleFor('Site Metrics'),
-    socialTitle: 'Site Metrics',
-    description: 'Public totals about traffic, search discovery, availability, and speed.',
-    canonicalPath: '/site-metrics',
-  }),
-  '/terms': pageMetadata({
-    title: titleFor('Terms of Service'),
-    socialTitle: 'Terms of Service',
-    description: 'The terms that govern use of this website and application.',
-    canonicalPath: '/terms',
-  }),
-  // Signed-in surface: a search engine would only ever see the signed-out card,
-  // so it is left out of the sitemap and unlisted.
-  '/admin/metrics': pageMetadata({
-    title: titleFor('Admin metrics'),
-    socialTitle: 'Admin metrics',
-    description: 'Private aggregate measurements for approved administrators.',
-    canonicalPath: '/admin/metrics',
-    noindex: true,
-  }),
-  '/admin/users': pageMetadata({
-    title: titleFor('Users'),
-    socialTitle: 'Users',
-    description: 'Private account information for approved administrators.',
-    canonicalPath: '/admin/users',
-    noindex: true,
-  }),
-  '/tracked': pageMetadata({
-    title: titleFor('Tracked'),
-    socialTitle: 'Tracked',
-    description: 'The Minnesota bills and campaign committees you have chosen to follow.',
-    canonicalPath: '/tracked',
-    noindex: true,
-  }),
-};

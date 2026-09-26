@@ -1,12 +1,13 @@
 import {
   PUBLISHED_PIECE_INDEX,
+  SHORT_POST_PAGE_SIZE,
   piecePath,
   topicFromSlug,
   type PieceIndexEntry,
   type TopicSlug,
 } from './researchIndex';
 
-export const SHORT_POST_PAGE_SIZE = 6;
+export { SHORT_POST_PAGE_SIZE } from './researchIndex';
 
 function identity(piece: PieceIndexEntry): string {
   return piece.articleId ?? piecePath(piece);

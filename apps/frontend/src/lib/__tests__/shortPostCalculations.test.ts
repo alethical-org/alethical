@@ -100,6 +100,56 @@ describe('Short post chart calculations', () => {
     ).toThrow('positive baseline');
   });
 
+  it('uses exact decimal arithmetic for parts, remainders, and differences', () => {
+    const parts: ChartInput = {
+      kind: 'parts',
+      total: quantity(0.6),
+      parts: [
+        { ...quantity(0.1), label: 'First' },
+        { ...quantity(0.2), label: 'Second' },
+      ],
+      remainderLabel: 'Other',
+    };
+    expect(calculateChart(parts)).toMatchObject({ remainder: { value: 0.3, percent: 50 } });
+    expect(chartDescription(parts)).toContain('Other: 0.3 USD (50%)');
+
+    const comparison: ChartInput = {
+      kind: 'comparison',
+      baseline: quantity(0.1),
+      compared: quantity(0.3),
+      baselineLabel: 'Before',
+      comparedLabel: 'After',
+      showPercentChange: true,
+    };
+    expect(calculateChart(comparison)).toMatchObject({ difference: 0.2, percentChange: 200 });
+    expect(chartDescription(comparison)).toContain('Difference: 0.2 USD (200%)');
+    expect(
+      calculateChart({ ...comparison, baseline: quantity(0.3), compared: quantity(0.1) }),
+    ).toMatchObject({ difference: -0.2 });
+  });
+
+  it('rejects quantities whose precision or size would change the printed number', () => {
+    const parts: ChartInput = {
+      kind: 'parts',
+      total: quantity(1),
+      parts: [{ ...quantity(0.1), label: 'Named' }],
+      remainderLabel: 'Other',
+    };
+    expect(() =>
+      calculateChart({ ...parts, parts: [{ ...quantity(0.001), label: 'Named' }] }),
+    ).toThrow('precision');
+    expect(() =>
+      calculateChart({
+        ...parts,
+        total: quantity(1, 'people'),
+        parts: [{ ...quantity(0.12345, 'people'), label: 'Named' }],
+      }),
+    ).toThrow('precision');
+    expect(() => calculateChart({ ...parts, total: quantity(100_000_000_000_000) })).toThrow(
+      'safe range',
+    );
+  });
+
   it('keeps overlap counts coherent and refuses proportional area without a universe', () => {
     const base: ChartInput = {
       kind: 'overlap',

@@ -1,5 +1,10 @@
 import type { ResearchBlock, ResearchInline, ResearchPiece } from './research';
-import { SHORT_POST_PRESENTATION_READY, TOPICS } from './researchIndex';
+import {
+  PUBLISHED_PIECE_INDEX,
+  SHORT_POST_PRESENTATION_READY,
+  TOPICS,
+  piecePath,
+} from './researchIndex';
 import {
   calculateChart,
   chartDescription,
@@ -49,10 +54,31 @@ export interface ShortPostGraphic {
   altDescription: string;
 }
 
+/** The visible article order. Text and chart references stay in one reviewed record. */
+export type ShortPostDisplayBlock =
+  | ResearchBlock
+  | { kind: 'heading'; text: string }
+  | { kind: 'chart'; graphicId: string }
+  | { kind: 'limitation'; label: string; text: string }
+  | { kind: 'source-amendment'; historyIndex: number }
+  | { kind: 'method'; essential: string; full?: string };
+
+export interface ShortPostChartDisplay {
+  graphicId: string;
+  title: string;
+  sourceEvidenceId: string;
+  limitation: string;
+  /** A parts graphic may use the table treatment instead of the percentage plot. */
+  treatment?: 'graphic' | 'table';
+  correctionHistoryIndex?: number;
+}
+
 export interface ShortPostHistory {
   kind: 'newer-records' | 'source-amendment' | 'our-correction';
   datedOn: string;
   explanation: string;
+  /** Optional already-published coverage for a newer-records notice. */
+  newerCoverageSlug?: string;
 }
 
 export interface ShortPostEditorial {
@@ -66,6 +92,10 @@ export interface ShortPostEditorial {
   coverageNote: string;
   disclosures: readonly string[];
   history: readonly ShortPostHistory[];
+  /** Optional until an article is reviewed for the new Short post layout. */
+  body?: readonly ShortPostDisplayBlock[];
+  charts?: readonly ShortPostChartDisplay[];
+  relatedSlugs?: readonly string[];
   review: {
     editorialApprovedBy: string;
     editorialApprovedAt: string;
@@ -83,6 +113,120 @@ export interface ShortPostEditorial {
       releaseInstructionAt: string;
     };
   };
+}
+
+export interface ShortPostArticleSnapshotBlock {
+  kind: 'heading' | 'paragraph';
+  text: string;
+  links?: readonly { text: string; href: string }[];
+}
+
+function snapshotRuns(runs: readonly ResearchInline[]): ShortPostArticleSnapshotBlock {
+  return {
+    kind: 'paragraph',
+    text: runs.map((run) => run.text).join(''),
+    links: runs
+      .filter(
+        (run): run is Extract<ResearchInline, { kind: 'externalLink' | 'internalLink' }> =>
+          run.kind === 'externalLink' || run.kind === 'internalLink',
+      )
+      .map((run) => ({ text: run.text, href: run.href })),
+  };
+}
+
+/** Text in the first response follows the same reviewed order as the rendered article. */
+export function shortPostArticleSnapshotBlocks(
+  piece: ResearchPiece,
+): ShortPostArticleSnapshotBlock[] {
+  const editorial = piece.shortPost;
+  if (!editorial || piece.format !== 'short-post') return [];
+  const body = editorial.body ?? [
+    ...piece.shortVersion,
+    ...(piece.intro ?? []),
+    ...piece.sections.flatMap((section) => [
+      { kind: 'heading' as const, text: section.heading },
+      ...section.blocks,
+    ]),
+  ];
+  const blocks: ShortPostArticleSnapshotBlock[] = [];
+  for (const event of editorial.history) {
+    if (event.kind === 'source-amendment') continue;
+    blocks.push({
+      kind: 'heading',
+      text: `${event.kind === 'our-correction' ? 'Corrected' : 'Newer filings exist'} ${event.datedOn}`,
+    });
+    blocks.push({ kind: 'paragraph', text: event.explanation });
+    const newer = event.newerCoverageSlug
+      ? PUBLISHED_PIECE_INDEX.find((entry) => entry.slug === event.newerCoverageSlug)
+      : undefined;
+    if (newer)
+      blocks.push({
+        kind: 'paragraph',
+        text: newer.title,
+        links: [{ text: newer.title, href: piecePath(newer) }],
+      });
+  }
+  for (const block of body) {
+    if (block.kind === 'heading') blocks.push({ kind: 'heading', text: block.text });
+    else if (block.kind === 'paragraph') blocks.push(snapshotRuns(block.runs));
+    else if (block.kind === 'bullets')
+      block.items.forEach((runs) => blocks.push(snapshotRuns(runs)));
+    else if (block.kind === 'table') {
+      blocks.push({ kind: 'paragraph', text: block.columns.join(' · ') });
+      block.rows.forEach((row) => blocks.push({ kind: 'paragraph', text: row.join(' · ') }));
+    } else if (block.kind === 'note') blocks.push({ kind: 'paragraph', text: block.text });
+    else if (block.kind === 'limitation') {
+      blocks.push({ kind: 'heading', text: block.label });
+      blocks.push({ kind: 'paragraph', text: block.text });
+    } else if (block.kind === 'method') {
+      blocks.push({ kind: 'heading', text: 'How this was calculated' });
+      blocks.push({ kind: 'paragraph', text: block.essential });
+      if (block.full) blocks.push({ kind: 'paragraph', text: block.full });
+    } else if (block.kind === 'source-amendment') {
+      const history = editorial.history[block.historyIndex];
+      if (history?.kind !== 'source-amendment')
+        throw new Error('source-amendment block lacks history');
+      blocks.push({ kind: 'heading', text: `Source amended ${history.datedOn}` });
+      blocks.push({ kind: 'paragraph', text: history.explanation });
+    } else if (block.kind === 'chart') {
+      const graphic = editorial.graphics.find((entry) => entry.id === block.graphicId);
+      const display = editorial.charts?.find((entry) => entry.graphicId === block.graphicId);
+      const source = editorial.evidence.find((entry) => entry.id === display?.sourceEvidenceId);
+      if (!graphic || !display || !source)
+        throw new Error(`chart ${block.graphicId} lacks reviewed display or source`);
+      blocks.push({ kind: 'heading', text: display.title });
+      blocks.push({ kind: 'paragraph', text: chartDescription(graphic.input) });
+      blocks.push({
+        kind: 'paragraph',
+        text: `Source: ${source.title}. ${source.limitations}${display.limitation === source.limitations ? '' : ` ${display.limitation}`}`,
+        links: [{ text: source.title, href: source.url }],
+      });
+    }
+  }
+  blocks.push({
+    kind: 'heading',
+    text: piece.traits.research ? 'Where these numbers come from' : 'Where this comes from',
+  });
+  piece.sources.forEach((source) =>
+    blocks.push({
+      kind: 'paragraph',
+      text: `${source.text} ${source.note ?? ''} ${source.noteLink?.text ?? ''}`.trim(),
+      links: source.noteLink ? [source.noteLink] : [],
+    }),
+  );
+  (piece.sourceRuns ?? []).forEach((runs) => blocks.push(snapshotRuns(runs)));
+  blocks.push({ kind: 'paragraph', text: editorial.coverageNote });
+  blocks.push({ kind: 'paragraph', text: editorial.limitations });
+  editorial.disclosures.forEach((text) => blocks.push({ kind: 'paragraph', text }));
+  const related = (editorial.relatedSlugs ?? []).flatMap((slug) => {
+    const entry = PUBLISHED_PIECE_INDEX.find((candidate) => candidate.slug === slug);
+    return entry ? [{ text: entry.title, href: piecePath(entry) }] : [];
+  });
+  if (related.length) {
+    blocks.push({ kind: 'heading', text: 'Related reading' });
+    related.forEach((link) => blocks.push({ kind: 'paragraph', text: link.text, links: [link] }));
+  }
+  return blocks;
 }
 
 type CalculatedRun = Extract<ResearchInline, { kind: 'calculated' }>;
@@ -157,10 +301,17 @@ export function calculatedRun(
 }
 
 function contentRuns(piece: ResearchPiece): ResearchInline[] {
+  const displayBody = piece.shortPost?.body;
   const blocks: ResearchBlock[] = [
-    ...piece.shortVersion,
-    ...(piece.intro ?? []),
-    ...piece.sections.flatMap((section) => section.blocks),
+    ...(displayBody
+      ? displayBody.filter((block): block is ResearchBlock =>
+          ['paragraph', 'bullets', 'table', 'note'].includes(block.kind),
+        )
+      : [
+          ...piece.shortVersion,
+          ...(piece.intro ?? []),
+          ...piece.sections.flatMap((section) => section.blocks),
+        ]),
   ];
   return blocks.flatMap((block) =>
     block.kind === 'paragraph' ? block.runs : block.kind === 'bullets' ? block.items.flat() : [],
@@ -233,7 +384,8 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
   if (!nonempty(piece.title) || !nonempty(piece.dek) || !contentRuns(piece).length) {
     errors.push('complete article text is required');
   }
-  if (!nonempty(piece.searchDescription))
+  if (!editorial.body?.length) errors.push('ordered Short post article body is required');
+  if (!piece.traits.research && !nonempty(piece.searchDescription))
     errors.push('subject-only search description is required');
   if (!editorial.evidence.length) errors.push('evidence is missing');
   if (!editorial.claims.length) errors.push('claim checks are missing');
@@ -397,6 +549,86 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
       errors.push(`graphic ${graphic.id}: ${(error as Error).message}`);
     }
   }
+  if (editorial.body) {
+    const shown = new Set<string>();
+    for (const block of editorial.body) {
+      if (block.kind === 'chart') {
+        if (shown.has(block.graphicId) || !graphicIds.has(block.graphicId)) {
+          errors.push(`chart reference ${block.graphicId} is repeated or missing`);
+        }
+        shown.add(block.graphicId);
+      }
+      if (
+        block.kind === 'source-amendment' &&
+        editorial.history[block.historyIndex]?.kind !== 'source-amendment'
+      ) {
+        errors.push('source amendment needs matching dated history');
+      }
+      if (block.kind === 'method' && !nonempty(block.essential)) {
+        errors.push('essential calculation method is missing');
+      }
+      if (block.kind === 'limitation' && (!nonempty(block.label) || !nonempty(block.text))) {
+        errors.push('limitation label and explanation are required');
+      }
+    }
+    for (const graphic of editorial.graphics) {
+      if (!shown.has(graphic.id)) errors.push(`graphic ${graphic.id} is absent from article body`);
+    }
+  }
+  editorial.history.forEach((event, index) => {
+    if (
+      event.kind === 'source-amendment' &&
+      editorial.body?.filter(
+        (block) => block.kind === 'source-amendment' && block.historyIndex === index,
+      ).length !== 1
+    ) {
+      errors.push(`source amendment ${index} needs exactly 1 visible article notice`);
+    }
+  });
+  for (const display of editorial.charts ?? []) {
+    const graphic = editorial.graphics.find((item) => item.id === display.graphicId);
+    const evidence = editorial.evidence.find((item) => item.id === display.sourceEvidenceId);
+    const claims = editorial.claims.filter((claim) => graphic?.claimIds.includes(claim.id));
+    if (
+      !graphic ||
+      !evidence ||
+      !claims.some((claim) => claim.evidenceIds.includes(evidence.id)) ||
+      !nonempty(display.title) ||
+      !nonempty(display.limitation) ||
+      (display.treatment === 'table' && graphic.input.kind !== 'parts') ||
+      (graphic.input.kind === 'parts' &&
+        graphic.input.parts.length !== 1 &&
+        display.treatment !== 'table') ||
+      (graphic.input.kind === 'overlap' && graphic.input.proportional) ||
+      (graphic.input.kind === 'comparison' &&
+        (graphic.input.baseline.value < 0 || graphic.input.compared.value < 0)) ||
+      (display.correctionHistoryIndex !== undefined &&
+        editorial.history[display.correctionHistoryIndex]?.kind !== 'our-correction')
+    ) {
+      errors.push(`chart ${display.graphicId} needs a checked source, title and limitation`);
+    }
+  }
+  if (editorial.body) {
+    for (const graphic of editorial.graphics) {
+      if (editorial.charts?.filter((display) => display.graphicId === graphic.id).length !== 1) {
+        errors.push(`graphic ${graphic.id} needs exactly 1 display record`);
+      }
+    }
+  }
+  const relatedSlugs = editorial.relatedSlugs ?? [];
+  if (relatedSlugs.length > 3 || new Set(relatedSlugs).size !== relatedSlugs.length) {
+    errors.push('related reading needs at most 3 distinct pieces');
+  }
+  for (const slug of relatedSlugs) {
+    const entry = PUBLISHED_PIECE_INDEX.find((candidate) => candidate.slug === slug);
+    if (
+      !entry ||
+      entry.slug === piece.slug ||
+      !entry.topics?.some((topic) => piece.topics?.includes(topic))
+    ) {
+      errors.push(`related piece ${slug} must be published and share a topic`);
+    }
+  }
   const usedGraphics = new Set<string>();
   for (const run of contentRuns(piece)) {
     if (run.kind !== 'calculated') continue;
@@ -418,6 +650,15 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
     if (!usedGraphics.has(graphic.id)) errors.push(`graphic ${graphic.id} has no body number`);
   }
   for (const event of editorial.history) {
+    if (event.kind === 'newer-records' && !piece.traits.research)
+      errors.push('newer-records notices belong to Research');
+    if (
+      event.newerCoverageSlug &&
+      (event.kind !== 'newer-records' ||
+        event.newerCoverageSlug === piece.slug ||
+        !PUBLISHED_PIECE_INDEX.some((entry) => entry.slug === event.newerCoverageSlug))
+    )
+      errors.push('newer coverage needs another published article');
     if (!validDate(event.datedOn) || !nonempty(event.explanation)) {
       errors.push('update and correction history needs a date and explanation');
     }

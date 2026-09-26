@@ -95,6 +95,27 @@ function validQuantity(quantity: Quantity, name: string): void {
   if (from > through || !label.trim()) throw new Error(`${name} needs a valid reporting period`);
 }
 
+function quantityScale(unit: string): number {
+  return unit === 'USD' ? 100 : 10_000;
+}
+
+/** Refuse source precision that the visible chart would silently round away. */
+function scaledQuantity(quantity: Quantity, name: string): number {
+  validQuantity(quantity, name);
+  const scale = quantityScale(quantity.unit);
+  const scaled = Math.round(quantity.value * scale);
+  if (!Number.isSafeInteger(scaled) || scaled / scale !== quantity.value) {
+    throw new Error(`${name} exceeds supported quantity precision or safe range`);
+  }
+  return scaled;
+}
+
+function safeSum(left: number, right: number): number {
+  const result = left + right;
+  if (!Number.isSafeInteger(result)) throw new Error('chart arithmetic exceeds safe range');
+  return result;
+}
+
 function sameUnitAndPeriod(left: Quantity, right: Quantity): void {
   if (left.unit !== right.unit) throw new Error('quantities use different units');
   if (
@@ -117,29 +138,30 @@ function round(value: number, places: number): number {
 /** This one result supplies the body figures and the eventual chart geometry. */
 export function calculateChart(input: ChartInput): ChartResult {
   if (input.kind === 'parts') {
-    validQuantity(input.total, 'total');
+    const total = scaledQuantity(input.total, 'total');
+    const scale = quantityScale(input.total.unit);
     if (input.total.value <= 0) throw new Error('percentage needs an explicit positive total');
     if (!input.parts.length) throw new Error('parts need at least 1 category');
     if (!input.remainderLabel.trim()) throw new Error('remainder needs an explanation');
     let used = 0;
     const labels = new Set<string>();
     const parts = input.parts.map((part) => {
-      validQuantity(part, part.label || 'part');
+      const value = scaledQuantity(part, part.label || 'part');
       sameUnitAndPeriod(input.total, part);
       if (!part.label.trim() || labels.has(part.label))
         throw new Error('parts need distinct labels');
       if (part.value < 0) throw new Error('parts cannot be negative');
       labels.add(part.label);
-      used += part.value;
+      used = safeSum(used, value);
       return {
         label: part.label,
         value: part.value,
-        percent: round((part.value / input.total.value) * 100, input.decimalPlaces ?? 1),
+        percent: round((value / total) * 100, input.decimalPlaces ?? 1),
       };
     });
     if (labels.has(input.remainderLabel)) throw new Error('remainder label repeats a part');
-    if (used > input.total.value + 1e-8) throw new Error('parts exceed their total');
-    const remainderValue = Math.max(0, input.total.value - used);
+    if (used > total) throw new Error('parts exceed their total');
+    const remainderValue = (total - used) / scale;
     return {
       kind: 'parts',
       total: input.total,
@@ -147,14 +169,14 @@ export function calculateChart(input: ChartInput): ChartResult {
       remainder: {
         label: input.remainderLabel,
         value: remainderValue,
-        percent: round((remainderValue / input.total.value) * 100, input.decimalPlaces ?? 1),
+        percent: round(((total - used) / total) * 100, input.decimalPlaces ?? 1),
       },
     };
   }
 
   if (input.kind === 'comparison') {
-    validQuantity(input.baseline, 'baseline');
-    validQuantity(input.compared, 'compared value');
+    const baseline = scaledQuantity(input.baseline, 'baseline');
+    const compared = scaledQuantity(input.compared, 'compared value');
     if (input.baseline.unit !== input.compared.unit) {
       throw new Error('comparison uses different units');
     }
@@ -164,7 +186,7 @@ export function calculateChart(input: ChartInput): ChartResult {
     if (input.showPercentChange && (input.baseline.value <= 0 || input.compared.value < 0)) {
       throw new Error('percentage comparison needs nonnegative values and a positive baseline');
     }
-    const difference = input.compared.value - input.baseline.value;
+    const difference = safeSum(compared, -baseline) / quantityScale(input.baseline.unit);
     return {
       kind: 'comparison',
       baseline: input.baseline,
@@ -175,7 +197,7 @@ export function calculateChart(input: ChartInput): ChartResult {
       ...(input.showPercentChange
         ? {
             percentChange: round(
-              (difference / input.baseline.value) * 100,
+              ((compared - baseline) / baseline) * 100,
               input.decimalPlaces ?? 1,
             ),
           }
@@ -193,7 +215,7 @@ export function calculateChart(input: ChartInput): ChartResult {
   }
   if (
     [input.left.value, input.right.value, input.both.value].some(
-      (value) => !Number.isInteger(value) || value < 0,
+      (value) => !Number.isSafeInteger(value) || value < 0,
     )
   ) {
     throw new Error('overlap needs nonnegative whole counts');
@@ -201,14 +223,14 @@ export function calculateChart(input: ChartInput): ChartResult {
   if (input.both.value > Math.min(input.left.value, input.right.value)) {
     throw new Error('overlap exceeds one of its sets');
   }
-  const union = input.left.value + input.right.value - input.both.value;
+  const union = safeSum(input.left.value, input.right.value - input.both.value);
   if (input.proportional && !input.universe) {
     throw new Error('proportional overlap needs an explicit universe');
   }
   if (input.universe) {
     validQuantity(input.universe, 'universe');
     sameUnitAndPeriod(input.left, input.universe);
-    if (!Number.isInteger(input.universe.value) || input.universe.value < union) {
+    if (!Number.isSafeInteger(input.universe.value) || input.universe.value < union) {
       throw new Error('universe is smaller than the union');
     }
   }

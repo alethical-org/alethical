@@ -765,6 +765,27 @@ describe('first-response page tags', () => {
     expect(calls).toHaveLength(0);
   });
 
+  it('serves the empty Short posts archive and topic words in the first response', async () => {
+    stubNetwork(() => ({ status: 500 }));
+    const archive = await serve({ path: '/read/short-posts' });
+    expect(archive.status).toBe(200);
+    expect(archive.body).toContain('<h1>Short posts</h1>');
+    expect(archive.body).toContain('No short posts yet.');
+    expect(archive.body).toContain('noindex');
+
+    const topic = await serve({ path: '/read/topics/campaign-finance' });
+    expect(topic.status).toBe(200);
+    expect(topic.body).toContain('<h1>Campaign finance</h1>');
+    expect(topic.body).toContain(`href="${piecePath(WHO_HAS_TO_REPORT_THEIR_MONEY)}"`);
+    expect(topic.body).toContain(WHO_HAS_TO_REPORT_THEIR_MONEY.title);
+    expect(topic.body).toContain(
+      '<link rel="canonical" href="https://www.alethical.com/read/topics/campaign-finance"',
+    );
+
+    const absent = await serve({ path: '/read/short-posts', page: '2' });
+    expect(absent.status).toBe(404);
+  });
+
   it('sends a piece its whole body, not only its title', async () => {
     const calls: string[] = [];
     stubNetwork((url) => {

@@ -311,7 +311,7 @@ followed by the next person.
 card component needs to know whether a heading sits above it. That is a small amount of wiring and
 1 more state to get wrong.
 
-### 2.11 The `/read` page groups by our 2 kinds for now, and the objection is recorded
+### 2.11 The `/read` page groups writing, with topic destinations alongside
 
 Ratified by Eugene 27 Aug 2026. `GUIDES` and `RESEARCH` stay as the page's headings, and
 **`RESEARCH` sits above `GUIDES`**.
@@ -339,9 +339,11 @@ page to find it.
 **What it costs to wait.** If the answer turns out to be subject grouping, the page is restructured
 after readers have learned the current shape, and any inbound link to a heading anchor breaks.
 
-**Updated 25 Sep 2026.** §7 adds controlled subjects to every currently published piece and
-settles topic destinations. The existing Research and Guides groups remain until the new drawings
-are reviewed and their build is authorized.
+**Updated 26 Sep 2026.** §7 adds controlled subjects to every currently published piece and
+settles topic destinations. Eugene authorized the screen build: Research, Short posts, then Guides.
+The newest 3 Short posts share one box of rows with kind labels and separate topic links. This
+group stays hidden until an article is published. Topic destinations show only each entry’s other
+topics, since the heading already names the current topic.
 
 ### 2.12 A piece's number in its set never reaches a reader
 
@@ -564,10 +566,23 @@ Angel finishes the social copy and image and provides available sources. Eugene 
 
 The new prepublication checks apply to social-derived Short posts, not retroactively to signed Research and Guides already live. Arithmetic only checks arithmetic. A factual claim needs a recorded source, period, method, coverage, checked scope, and human review. A missing Alethical record is a coverage gap, not proof a source claim is false. Official sources may fill a genuine gap when their own period and method are stated. Known errors block publication; generic disclaimers cannot excuse them.
 
-One controlled topic vocabulary describes subject independently of format and traits. It begins with Campaign finance, Lobbying, and Elections. The `/read` page will group Research, then Short posts, then Guides; show the newest 3 Short posts with an All short posts link; hide that group until a Short post is published; and keep each Short post out of the long-form groups and reading sets in the first release. `/read/short-posts` will use newest-first publication timestamps, 6 pieces per numbered page, and a stable tie-breaker. Checks and corrections never reset publication time or ordering. `/read/topics/<topic>` will gather published pieces across traits and format. No topic directory, new search box, or combined filters are part of this decision. The drawings are accepted for build planning; the public screens await a separate build instruction.
+One controlled topic vocabulary describes subject independently of format and traits. It begins with Campaign finance, Lobbying, and Elections. The `/read` page will group Research, then Short posts, then Guides; show the newest 3 Short posts with an All short posts link; hide that group until a Short post is published; and keep each Short post out of the long-form groups and reading sets in the first release. `/read/short-posts` will use newest-first publication timestamps, 6 pieces per numbered page, and a stable tie-breaker. Checks and corrections never reset publication time or ordering. `/read/topics/<topic>` will gather published pieces across traits and format. No topic directory, new search box, or combined filters are part of this decision. Eugene authorized these screens on 26 Sep 2026; [issue 2396](https://github.com/alethical-org/alethical/issues/2396) owns implementation and release. Individual articles retain their separate publication gate.
 
 Related reading names a few relevant pieces already published, never the current piece or an invented destination. Reader-facing article text and quantitative graphics draw from the same approved numeric inputs, including units, periods, denominators, and any remainder category. A nonproportional overlap diagram says, “Diagram shows overlap, not relative group sizes.” A dated newer-record notice points to newer activity without silently recalculating a dated article. An amended source earns a dated explanation and revised finding; Alethical's own error is corrected in text and chart with a dated correction, leaving no wrong figure readable with a line through it. The original publication date follows Minnesota's calendar and stays fixed; a later correction has its own full-content review and release instruction. Records-through is the newest covered reporting-period end among cited records Alethical holds, not extraction day. A piece using only official sources names that outside-source coverage and uses their newest covered end; it never presents that date as coverage of records Alethical loaded. A purely explanatory Guide names source dates when known and never invents a numeric reporting period or date for an undated source. Different sources' coverage stays explicit.
 
 Only after the checks are complete, a social-derived Short post carries this note: “AI helped prepare this article. Alethical checked its claims against the cited records before publication, but errors may remain. The records may be incomplete or later corrected.” Campaign-finance pieces also carry: “A contribution alone does not establish why someone gave, whether it influenced a decision, or whether wrongdoing occurred.” Each known gap belongs beside the affected claim. No complete-accuracy guarantee is made.
 
 The original social poster is temporary working material and never appears in the article. After publication, its temporary processing copy may be removed; the extracted claims, evidence and source copies, calculations, finished charts, and correction history remain. Eugene's original Downloads files remain untouched. Quantitative charts are built from checked values, never generated artwork. Comments may later attach to each stable article identity, including a Short post carrying Research, but remain off until individually enabled through the separate comments work. Existing Research and Guides stay off unless separately enabled.
+
+
+### 7.1 Screen and publication checks
+
+The Short post article uses an ordered body. Every quantitative graphic has exactly 1 position in that body and 1 display record naming its title, checked evidence and limitation. Every amended-source history record appears exactly once beside the relevant content. Missing notices and missing graphics block publication. Related reading is up to 3 editor-selected, already published pieces sharing a topic; the selection helper offers candidates and never automatically publishes them.
+
+The initial HTML includes the same ordered text, chart descriptions, methods, evidence links, limitations and disclosures as the article. Search descriptions follow the existing trait rule: Research uses publication and records-through dates; Guide may describe its subject. External sharing keeps the existing dates-only rule for each trait. Guide reading time is computed from its current text.
+
+The approved comparison bars share one zero and one scale, and accept nonnegative measured values. The percentage bar represents 1 named share plus an explicit remainder; multiple named shares use the approved data table. Overlap diagrams are nonproportional and carry the exact explanatory sentence in §7. Unsupported proportional inputs cannot pass publication checks. These display limits do not alter the underlying calculation helpers.
+
+The published registry is local to each website release. Numbered-page selections therefore replace immediately without a network wait or an artificial loading state. Each numbered link has an address; browser Back and refresh retain the selection. `/read/short-posts?post=<slug>` resolves the numbered page currently containing that published Short post, then returns focus to its title. Invalid page numbers, pages beyond the available results, unknown topics and unknown post targets return not found. Known empty collections stay readable, carry noindex, and stay out of the sitemap. When collection data comes from a service, the existing retained-results, retry and latest-request-wins requirements apply before that change ships.
+
+Quantitative chart inputs must fit the displayed precision: USD uses whole cents and other measured units allow up to 4 decimal places, within safe integer arithmetic after scaling. Unsupported precision fails publication instead of silently rounding source values. Comparison headers name each reporting period when the periods differ.

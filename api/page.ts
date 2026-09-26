@@ -49,6 +49,9 @@ import {
   moneySearchPageSnapshot,
   outsideSpendingPageSnapshot,
   researchPageSnapshot,
+  shortPostPageSnapshot,
+  shortPostsPageSnapshot,
+  readTopicPageSnapshot,
   readPageSnapshot,
   renderPageSnapshot,
   type BillDirectorySnapshotSource,
@@ -131,14 +134,18 @@ import {
   legislatorListPageMetadata,
   committeeListPageMetadata,
   moneyByRacePageMetadata,
-  researchPageMetadata,
   NOT_FOUND_DESCRIPTION,
   NOT_FOUND_HEADING,
   notFoundPageMetadata,
-  STATIC_PAGE_METADATA,
   publicPageUrl,
   type PageMetadata,
 } from "../apps/frontend/src/lib/share";
+import { STATIC_PAGE_METADATA } from "../apps/frontend/src/lib/staticPageMetadata";
+import { researchPageMetadata } from "../apps/frontend/src/lib/researchMetadata";
+import {
+  shortPostsPageMetadata,
+  readTopicPageMetadata,
+} from "../apps/frontend/src/lib/readCollectionMetadata";
 import {
   legislatorPageMetadata,
   committeeMoneyPageMetadata,
@@ -155,6 +162,10 @@ import {
   publishedResearch,
   researchBySlug,
 } from "../apps/frontend/src/lib/research";
+import {
+  shortPostsPage,
+  topicPage,
+} from "../apps/frontend/src/lib/shortPostSelection";
 import {
   contestSeatLabel,
   getCampaignFinanceRacesFromApiPayload,
@@ -1042,13 +1053,18 @@ async function committeeConfirmation(registrationNumber: string) {
 
 /** One committee's large-contribution notices for one year, or `null` on any failure,
  *  including an answer the card could not read: that is never seeded or served. */
-async function committeeNotices(registrationNumber: string, year: number): Promise<unknown> {
+async function committeeNotices(
+  registrationNumber: string,
+  year: number,
+): Promise<unknown> {
   try {
     const payload = await getApiData<unknown>(
       `/committees/${encodeURIComponent(registrationNumber)}/notices?year=${year}`,
     );
     const notices = committeeNoticesFromPayload(payload);
-    return notices && notices.registrationNumber === registrationNumber && notices.year === year
+    return notices &&
+      notices.registrationNumber === registrationNumber &&
+      notices.year === year
       ? payload
       : null;
   } catch {
@@ -1067,7 +1083,9 @@ async function committeeUnlinkedStatements(
       `/committees/${encodeURIComponent(registrationNumber)}/disclosure-statements?year=${year}`,
     );
     const listed = unlinkedStatementsFromPayload(payload);
-    return listed && listed.registrationNumber === registrationNumber && listed.year === year
+    return listed &&
+      listed.registrationNumber === registrationNumber &&
+      listed.year === year
       ? payload
       : null;
   } catch {
@@ -1104,13 +1122,18 @@ async function committeeContent(
   // The notices card's read rides beside the money (#2347). It is optional: a failed
   // or missing answer serves no notices section and the app loads the card itself.
   // Filed reports and Independent spending cover all years and draw no notices card.
-  const withNotices = view.tab !== 'filings' && view.tab !== 'by';
-  const [money, confirmationRead, notices, unlinkedStatements] = await Promise.all([
-    committeeFinance(registrationNumber, year),
-    committeeConfirmation(registrationNumber),
-    withNotices ? committeeNotices(registrationNumber, year) : Promise.resolve(null),
-    withNotices ? committeeUnlinkedStatements(registrationNumber, year) : Promise.resolve(null),
-  ]);
+  const withNotices = view.tab !== "filings" && view.tab !== "by";
+  const [money, confirmationRead, notices, unlinkedStatements] =
+    await Promise.all([
+      committeeFinance(registrationNumber, year),
+      committeeConfirmation(registrationNumber),
+      withNotices
+        ? committeeNotices(registrationNumber, year)
+        : Promise.resolve(null),
+      withNotices
+        ? committeeUnlinkedStatements(registrationNumber, year)
+        : Promise.resolve(null),
+    ]);
   const data: PageDataEntry[] = [
     {
       key: committeeMoneyQueryKey(registrationNumber, year),
@@ -1118,7 +1141,10 @@ async function committeeContent(
     },
   ];
   if (notices !== null) {
-    data.push({ key: committeeNoticesQueryKey(registrationNumber, year), payload: notices });
+    data.push({
+      key: committeeNoticesQueryKey(registrationNumber, year),
+      payload: notices,
+    });
   }
   if (unlinkedStatements !== null) {
     data.push({
@@ -1611,6 +1637,34 @@ async function contentFor(
         metadata: STATIC_PAGE_METADATA["/read"],
         snapshot: renderPageSnapshot(readPageSnapshot(publishedResearch())),
       };
+    case "shortPosts": {
+      const page = Number(target.page ?? 1);
+      const selection = shortPostsPage(page);
+      return {
+        metadata: shortPostsPageMetadata(page, selection.total > 0),
+        snapshot: renderPageSnapshot(shortPostsPageSnapshot(page)),
+      };
+    }
+    case "readTopic": {
+      const page = Number(target.page ?? 1);
+      const selection = topicPage(
+        target.topic as Parameters<typeof topicPage>[0],
+        page,
+      );
+      return {
+        metadata: readTopicPageMetadata(
+          target.topic as Parameters<typeof topicPage>[0],
+          page,
+          selection.total > 0,
+        ),
+        snapshot: renderPageSnapshot(
+          readTopicPageSnapshot(
+            target.topic as Parameters<typeof topicPage>[0],
+            page,
+          ),
+        ),
+      };
+    }
     case "guide":
     case "research": {
       // Title and dates only in a piece's tags (grounded-answers.md rule 13);
@@ -1623,7 +1677,11 @@ async function contentFor(
       if (!piece) throw new UnknownAddress(`no piece ${target.slug}`);
       return {
         metadata: researchPageMetadata(piece, piece.searchDescription),
-        snapshot: renderPageSnapshot(researchPageSnapshot(piece)),
+        snapshot: renderPageSnapshot(
+          piece.format === "short-post"
+            ? shortPostPageSnapshot(piece)
+            : researchPageSnapshot(piece),
+        ),
       };
     }
     case "moneyCommitteeList":
@@ -1826,7 +1884,8 @@ export default async function handler(
       // A brief outage must never tell a search engine our pages are gone.
       response.setHeader("Content-Type", "text/plain; charset=utf-8");
       response.setHeader("Cache-Control", "no-store");
-      if (isPrivateEmailPage) response.setHeader("Referrer-Policy", "no-referrer");
+      if (isPrivateEmailPage)
+        response.setHeader("Referrer-Policy", "no-referrer");
       response.setHeader("Retry-After", "120");
       response.status(503).send("This page is temporarily unavailable.");
       return;
@@ -1859,7 +1918,8 @@ export default async function handler(
   } catch {
     response.setHeader("Content-Type", "text/plain; charset=utf-8");
     response.setHeader("Cache-Control", "no-store");
-    if (isPrivateEmailPage) response.setHeader("Referrer-Policy", "no-referrer");
+    if (isPrivateEmailPage)
+      response.setHeader("Referrer-Policy", "no-referrer");
     response.setHeader("Retry-After", "120");
     response.status(503).send("This page is temporarily unavailable.");
     return;
@@ -1889,7 +1949,12 @@ export default async function handler(
   }
 
   response.setHeader("Content-Type", "text/html; charset=utf-8");
-  if (isEmailLinkPage || isForgotPasswordBridge || isAdminPage || isPrivateEmailPage) {
+  if (
+    isEmailLinkPage ||
+    isForgotPasswordBridge ||
+    isAdminPage ||
+    isPrivateEmailPage
+  ) {
     response.setHeader(
       "Cache-Control",
       isAdminPage || isPrivateEmailPage ? "private, no-store" : "no-store",
