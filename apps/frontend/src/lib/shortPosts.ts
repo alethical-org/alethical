@@ -402,12 +402,6 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
   }
   if (!editorial.disclosures.includes(SHORT_POST_AI_NOTE))
     errors.push('checked AI note is missing');
-  if (
-    piece.topics?.includes('campaign-finance') &&
-    !editorial.disclosures.includes(CONTRIBUTION_NOTE)
-  ) {
-    errors.push('campaign-finance contribution note is missing');
-  }
   const evidenceIds = new Set<string>();
   const sourceUrls = new Set(
     (piece.sourceRuns ?? []).flatMap((line) =>

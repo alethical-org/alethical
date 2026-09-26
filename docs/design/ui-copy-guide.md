@@ -146,6 +146,71 @@ explanation, necessary qualification or a clear next action.
 Approved by Eugene on 26 September 2026, including implementation in the private
 “2 records do not always mean 2 donations” draft. Publication awaits his final review.
 
+### Make the answer easy to find
+
+For a post that answers a question or establishes a finding, make the supported
+answer easy to spot. Do not bury it in small source text or a block of caveats.
+Use **Conclusion:** followed by the answer in bold when that identifies the answer
+more clearly. Do not force a conclusion onto a guide that only explains steps, or
+present an unresolved claim as settled to fill the slot.
+
+Keep a short qualification in regular text directly after the bold answer in the
+same paragraph when it qualifies that answer. Avoid a new paragraph and extra gap
+for a sentence that naturally continues the thought. Keep sentence punctuation
+throughout this combined paragraph; changing from bold to regular text does not
+start a separate punctuation unit. For example:
+
+**Conclusion: The filings support 1 reported $500 contribution appearing in repeated
+records.** The 2 download entries do not establish 2 separate donations.
+
+State the answer once. Improve its placement and emphasis instead of adding a
+second summary to make readers notice it. Keep its evidence and limits reachable.
+
+### Keep meaningful uncertainty, remove obvious caveats
+
+Explain a limitation when omitting it could change the reader's understanding of
+the finding: incomplete coverage, unresolved duplicates, uncertain identity,
+different reporting periods or an unsupported total. Put it beside the affected
+claim. Do not append a generic disclaimer merely because the subject is money or
+politics, or list every inference the records cannot establish.
+
+Precise wording can carry the boundary itself. “The filings support” and “reported”
+already say the finding concerns public records. When that is clear, omit a second
+sentence saying the comparison does not independently confirm money changing hands.
+Likewise, do not routinely tell readers that a contribution alone establishes no
+motive, influence or wrongdoing. Describe the supported records without directing
+the reader's personal conclusions. If the article's own wording implies a claim
+the evidence cannot support, correct that wording rather than adding boilerplate.
+
+This does not remove the approved AI-use disclosure, specific material gaps,
+required legal notices or source citations. It does not permit unsupported claims
+of motive, causation or wrongdoing. A generic caveat cannot make a false claim safe.
+This replaces the automatic generic contribution-note requirement for new drafts;
+it does not request edits to already published articles.
+
+### Keep private-review status separate from article copy
+
+In a private article preview, the yellow top banner says **PRIVATE DRAFT**, once.
+Do not repeat draft, preview, unpublished or review-pending explanations in the
+title, date row, chart, footer or disabled Share label. Keep normal control labels
+and enforce the actual private state separately. Minimal wording does not enable
+sharing, public navigation, indexing or publication. Do not display a completed
+review claim while that review is still pending.
+
+### Review the whole draft before presenting it
+
+Read the title, opening, chart, conclusion, method, sources and disclosures as one
+article. Can a newcomer find the answer, tell what each number measures and reach
+its evidence? Remove repeated or implied copy, retain any limit that changes the
+meaning, and check punctuation after joining or separating text. Inspect real
+wrapping and chart-label space on narrow and wide screens using
+[design-principles.md](design-principles.md#post-chart-readability-and-conclusions).
+Do this before Eugene's review, not one correction at a time afterward.
+
+These additions capture Eugene's first-post corrections on 26 September 2026 for
+future drafts of every post type. They do not authorize publication or a redesign
+of unrelated surfaces.
+
 ## Test for any copy
 Does this deliver a sovereignty recognition moment, or is it just a label? If just a label, rewrite.
 

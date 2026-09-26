@@ -611,3 +611,33 @@ and its horizontal axis line while retaining a true shared zero and equal scale.
 Keep meaningful data, boundaries and qualifications. The full drafting rule is in
 [ui-copy-guide.md](ui-copy-guide.md#remove-implied-information-from-text-and-visuals).
 Approved by Eugene on 26 September 2026.
+
+### Post chart readability and conclusions
+
+- Give long chart labels enough horizontal room to avoid tall stacks of short
+  lines. Widen the label column and move all bar starting points right together
+  before shrinking type, abbreviating away meaning or changing the data. Keep
+  readable amounts, a common zero and the same scale. At narrow widths, use the
+  approved label-above-bar arrangement instead of squeezing 3 columns together.
+- Judge column widths using the actual labels and longest amounts. The first
+  private post fits both labels on 2 lines in the desktop layout after widening
+  its label column. That result is an example, not a universal 2-line limit or a
+  fixed width for every chart. Check wrapped text on phone, tablet and desktop.
+- A chart's supported answer should be visually distinct from its evidence limits.
+  In the approved conclusion treatment, put the symbol on the left and bold
+  “Conclusion:” plus the answer. Short supporting qualifications continue in regular
+  text within the same paragraph. Do not repeat the answer elsewhere in the chart.
+- Center the symbol against the first 2 text lines, not against the top edge or
+  the entire paragraph including any later wrapped explanation. Derive the offset
+  from the actual line height and symbol height. With 24px lines and a 30px symbol,
+  the top gap is 9px. Recheck when typography or symbol size changes; do not copy
+  that offset into unrelated layouts.
+- Keep the approved symbol's proportions and clear space. The website-post
+  symbol-only rule still applies; standalone reports retain the full wordmark.
+- Remove an empty disclosure box when its contents are removed. Do not preserve
+  decorative space or borders for copy the article no longer carries.
+
+The wording and caveat rules live in
+[ui-copy-guide.md](ui-copy-guide.md#make-the-answer-easy-to-find).
+Approved from Eugene's first-post refinements on 26 September 2026; preserve each
+surface's other approved visual choices.

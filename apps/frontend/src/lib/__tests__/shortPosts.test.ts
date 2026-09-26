@@ -129,6 +129,17 @@ function readyPiece(): ResearchPiece {
 }
 
 describe('social-derived Short post publication gate', () => {
+  it('allows specific limits without generic contribution boilerplate but still requires the AI note', () => {
+    const piece = readyPiece();
+    piece.shortPost!.disclosures = [SHORT_POST_AI_NOTE];
+    piece.shortPost!.review.eugeneApprovedFingerprint = shortPostFingerprint(piece);
+    expect(shortPostPublicationErrors(piece)).toEqual([]);
+
+    piece.shortPost!.disclosures = [];
+    piece.shortPost!.review.eugeneApprovedFingerprint = shortPostFingerprint(piece);
+    expect(shortPostPublicationErrors(piece)).toContain('checked AI note is missing');
+  });
+
   it('accepts complete checked material without changing older published pieces', () => {
     const piece = readyPiece();
     expect(shortPostPublicationErrors(piece)).toEqual([]);

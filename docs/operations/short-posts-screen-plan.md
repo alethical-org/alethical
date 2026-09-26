@@ -206,10 +206,10 @@ Publication still waits for his final review and instruction.
 Eugene removed the generic motive/influence/wrongdoing disclaimer from the first
 private post. The specific evidence limits stay. The empty disclosure box is omitted
 from the preview; the separately approved AI note remains held until human review.
-When preparing this article for its separately authorized publication, carry the
-article-specific exception into the publication validator, which currently requires
-the generic note for every campaign-finance topic. Do not restore the removed copy
-to satisfy that older check. Publication remains held.
+Eugene subsequently requested these principles as rules for future drafts. The
+publication validator now permits omission of the generic contribution note,
+while retaining the AI disclosure, evidence and approval checks. Do not restore
+the removed copy to satisfy the older policy. Publication remains held.
 
 The conclusion also omits “This comparison does not independently confirm money
 changing hands.” The bold answer already says “filings support” and “reported,”
@@ -222,3 +222,13 @@ Eugene approved wider left-hand chart labels so they wrap into fewer lines, movi
 both bar origins right together. Use 30% of the comparison width, at least 180px,
 on the existing side-by-side layout. Preserve the common zero and scale. On phones,
 keep the existing full-width label above each bar instead of squeezing columns.
+
+### Drafting principles consolidated (26 September 2026)
+
+The copy guide now owns answer emphasis, continuous supporting copy, meaningful
+uncertainty versus obvious caveats, minimal private-review wording and a whole-draft
+review before presentation. The design principles own label width, preserved scales,
+responsive chart layout, symbol alignment and empty-box removal. Existing rules for
+nonredundant units, sources, dates, punctuation, zero marks and website branding
+remain in their existing sections. These are local changes pending the first-post
+release; they do not approve publication or resume other task reviews.

@@ -1843,10 +1843,11 @@ date does not move.
 
 After its checks, every social-derived Short post prints: “AI helped prepare this
 article. Alethical checked its claims against the cited records before publication,
-but errors may remain. The records may be incomplete or later corrected.” A Short post
-about campaign finance also prints: “A contribution alone does not establish why
-someone gave, whether it influenced a decision, or whether wrongdoing occurred.”
-These notes cannot stand in for a missing source or an unresolved error. Comments
+but errors may remain. The records may be incomplete or later corrected.”
+For new drafts, generic contribution disclaimers are not mandatory. State the
+supported finding precisely and keep specific material limits beside it, following
+[ui-copy-guide.md](../design/ui-copy-guide.md#keep-meaningful-uncertainty-remove-obvious-caveats).
+Disclosure text cannot stand in for a missing source or an unresolved error. Comments
 remain disabled until the separate comments work enables them for that article identity.
 
 The social copy and image Angel gives Eugene do not themselves publish. The coding
