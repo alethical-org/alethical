@@ -103,7 +103,7 @@ export type ResearchInline =
   | { kind: 'internalLink'; text: string; href: string };
 
 export type ResearchBlock =
-  | { kind: 'paragraph'; runs: ResearchInline[] }
+  | { kind: 'paragraph'; runs: ResearchInline[]; role?: 'conclusion' }
   | { kind: 'bullets'; items: ResearchInline[][] }
   /** A small table the piece's prose introduces. Plain strings: a table states
    * filed figures, so it carries no links, no emphasis and no derived label. */

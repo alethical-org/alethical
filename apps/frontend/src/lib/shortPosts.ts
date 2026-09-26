@@ -66,6 +66,8 @@ export type ShortPostDisplayBlock =
 export interface ShortPostChartDisplay {
   graphicId: string;
   title: string;
+  /** The title or labelled values already identify the measure. */
+  omitRepeatedUnit?: boolean;
   /** Reviewed answer, shown separately from the evidence limitations. */
   conclusion?: string;
   sourceEvidenceId: string;

@@ -174,7 +174,9 @@ describe('Short post chart calculations', () => {
     expect(chartDescription(base)).toContain('Gave to B contains 80 organizations');
     expect(chartDescription(base)).toContain('Gave to B only: 40 organizations');
     expect(chartDescription(base)).toContain('both groups: 40 organizations');
-    expect(chartDescription(base)).toContain('Diagram shows overlap, not relative group sizes.');
+    expect(chartDescription(base)).not.toContain(
+      'Diagram shows overlap, not relative group sizes.',
+    );
     expect(() => calculateChart({ ...base, proportional: true })).toThrow('universe');
     expect(() => calculateChart({ ...base, both: quantity(90, 'organizations') })).toThrow(
       'exceeds',

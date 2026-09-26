@@ -623,7 +623,11 @@ Approved by Eugene on 26 September 2026.
   private post fits both labels on 2 lines in the desktop layout after widening
   its label column. That result is an example, not a universal 2-line limit or a
   fixed width for every chart. Check wrapped text on phone, tablet and desktop.
-- A chart's supported answer should be visually distinct from its evidence limits.
+- Apply the same conclusion treatment to every post type, whether the conclusion
+  appears inside a chart or as article text. Mark standalone conclusion paragraphs
+  explicitly in the article's rendering inputs so rebuilding preserves the logo.
+  Do not depend on a chart wrapper to supply branding.
+- A post's supported answer should be visually distinct from its evidence limits.
   In the approved conclusion treatment, put the symbol on the left and bold
   “Conclusion:” plus the answer. Short supporting qualifications continue in regular
   text within the same paragraph. Do not repeat the answer elsewhere in the chart.

@@ -218,6 +218,12 @@ start a separate punctuation unit. For example:
 **Conclusion: The filings support 1 reported $500 contribution appearing in repeated
 records.** The 2 download entries do not establish 2 separate donations.
 
+Use the approved Alethical symbol to the left of the conclusion in every post
+type, including conclusions outside charts. Center it against the first 2 text
+lines, with the answer bold and continuing qualifications unbolded. Keep the
+wordmark out of website post conclusions. This treatment does not require adding
+a conclusion where the post has none.
+
 State the answer once. Improve its placement and emphasis instead of adding a
 second summary to make readers notice it. Keep its evidence and limits reachable.
 

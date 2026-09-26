@@ -1822,7 +1822,8 @@ Every quantitative chart is recreated from checked numeric inputs, with its titl
 units, covered period, source link and specific limitation. The article text and chart
 read from those same values. A chart showing 1 share names its remainder; multiple named shares use
 a table; comparison bars have 1 zero and 1 scale. An overlap diagram does not pretend
-its areas show group sizes and says: “Diagram shows overlap, not relative group sizes.”
+its areas show group sizes. Explicit set counts carry the meaning without a generic
+overlap explanation, following Eugene’s 26 September 2026 drafting correction.
 The original social image is temporary working material, not the article's graphic.
 
 The sources block links each source and states its coverage and limits. **Records through**
