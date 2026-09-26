@@ -1,7 +1,13 @@
 import { campaignMoneyYear } from '../lib/campaignMoneyYears';
 import { registrationNumberFromSlug } from '../lib/committeeRoute';
 import { paymentNameRole } from '../lib/paymentNameRoute';
-import { pieceAddressFolder, pieceIndexBySlug } from '../lib/researchIndex';
+import {
+  PUBLISHED_PIECE_INDEX,
+  SHORT_POST_PAGE_SIZE,
+  pieceAddressFolder,
+  pieceIndexBySlug,
+  topicFromSlug,
+} from '../lib/researchIndex';
 import type { MainTabParamList, RootStackParamList } from './types';
 
 type WebNavigationState = {
@@ -33,6 +39,8 @@ type WebRouteTarget =
   | { kind: 'lobbyingPrincipals' | 'lobbyingLobbyists'; params: Record<string, string> }
   | { kind: 'lobbyingPrincipal' | 'lobbyingLobbyist'; slug: string; year?: string }
   | { kind: 'read' }
+  | { kind: 'shortPosts'; page?: string; post?: string }
+  | { kind: 'readTopic'; topic: string; page?: string }
   | { kind: 'research'; slug: string }
   | { kind: 'guide'; slug: string }
   | {
@@ -95,6 +103,15 @@ function normalizePathname(pathname: string) {
 function searchParamsFromPathname(pathname: string) {
   const queryIndex = pathname.indexOf('?');
   return new URLSearchParams(queryIndex >= 0 ? pathname.slice(queryIndex + 1) : '');
+}
+
+/** Page 1 is the bare address; every other value must name an existing page. */
+function readPageNumber(searchParams: URLSearchParams): number | null {
+  if (!searchParams.has('page')) return 1;
+  const raw = searchParams.get('page');
+  if (!raw || !/^[1-9]\d*$/.test(raw)) return null;
+  const page = Number(raw);
+  return Number.isSafeInteger(page) ? page : null;
 }
 
 // URL-addressable Search Bills filters (issue #135). One list drives both
@@ -283,6 +300,42 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
 
   if (segments.length === 2 && segments[0] === 'about' && segments[1] === 'contact') {
     return { kind: 'contactUs' };
+  }
+
+  if (segments[0] === 'read' && segments[1] === 'short-posts' && segments.length === 2) {
+    const requestedPage = readPageNumber(searchParams);
+    if (requestedPage === null) return { kind: 'notFound', path: pathname };
+    const post = searchParams.get('post') ?? undefined;
+    const posts = PUBLISHED_PIECE_INDEX.filter((piece) => piece.format === 'short-post');
+    const postPiece = post ? posts.find((piece) => piece.slug === post) : undefined;
+    if (post && !postPiece) return { kind: 'notFound', path: pathname };
+    const postTime = postPiece ? Date.parse(postPiece.publishedAt!) : 0;
+    const position = postPiece
+      ? posts.filter(
+          (piece) =>
+            Date.parse(piece.publishedAt!) > postTime ||
+            (Date.parse(piece.publishedAt!) === postTime &&
+              piece.articleId! < postPiece.articleId!),
+        ).length
+      : -1;
+    const page = position >= 0 ? Math.floor(position / SHORT_POST_PAGE_SIZE) + 1 : requestedPage;
+    if (page > Math.max(1, Math.ceil(posts.length / SHORT_POST_PAGE_SIZE)))
+      return { kind: 'notFound', path: pathname };
+    return {
+      kind: 'shortPosts',
+      ...(page > 1 ? { page: String(page) } : {}),
+      ...(post ? { post } : {}),
+    };
+  }
+
+  if (segments[0] === 'read' && segments[1] === 'topics' && segments.length === 3) {
+    const topic = topicFromSlug(segments[2]);
+    const page = readPageNumber(searchParams);
+    if (!topic || page === null) return { kind: 'notFound', path: pathname };
+    const count = PUBLISHED_PIECE_INDEX.filter((piece) => piece.topics?.includes(topic)).length;
+    if (page > Math.max(1, Math.ceil(count / SHORT_POST_PAGE_SIZE)))
+      return { kind: 'notFound', path: pathname };
+    return { kind: 'readTopic', topic, ...(page > 1 ? { page: String(page) } : {}) };
   }
 
   // One piece of our own writing, at /read/research/{slug} or
@@ -674,6 +727,20 @@ export function pathForRoute(activeRoute: {
     }
     case 'Read':
       return '/read';
+    case 'ShortPosts': {
+      const params = new URLSearchParams();
+      if (activeRoute.params?.page && String(activeRoute.params.page) !== '1')
+        params.set('page', String(activeRoute.params.page));
+      if (activeRoute.params?.post) params.set('post', String(activeRoute.params.post));
+      return params.size ? `/read/short-posts?${params}` : '/read/short-posts';
+    }
+    case 'ReadTopic': {
+      const base = `/read/topics/${encodeURIComponent(String(activeRoute.params?.topic ?? ''))}`;
+      const page = activeRoute.params?.page;
+      return page && String(page) !== '1'
+        ? `${base}?page=${encodeURIComponent(String(page))}`
+        : base;
+    }
     case 'Research':
       return `/read/research/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
     case 'Guide':
@@ -935,6 +1002,22 @@ export function stateFromPathname(pathname: string): WebNavigationState {
     case 'read':
       return {
         routes: [homeTabs, { name: 'Read' }],
+        index: 1,
+      };
+    case 'shortPosts':
+      return {
+        routes: [
+          homeTabs,
+          { name: 'ShortPosts', params: { page: target.page, post: target.post } },
+        ],
+        index: 1,
+      };
+    case 'readTopic':
+      return {
+        routes: [
+          homeTabs,
+          { name: 'ReadTopic', params: { topic: target.topic, page: target.page } },
+        ],
         index: 1,
       };
     case 'research':

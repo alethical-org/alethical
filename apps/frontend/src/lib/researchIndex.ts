@@ -42,8 +42,11 @@ export const TOPICS = [
 
 export type TopicSlug = (typeof TOPICS)[number]['slug'];
 
+/** The shared page size for Short posts and topic collections. */
+export const SHORT_POST_PAGE_SIZE = 6;
+
 /** The public Short post layout must show its evidence and disclosures before any can post. */
-export const SHORT_POST_PRESENTATION_READY = false;
+export const SHORT_POST_PRESENTATION_READY = true;
 
 export function topicFromSlug(value: string): TopicSlug | undefined {
   return TOPICS.find((topic) => topic.slug === value)?.slug;

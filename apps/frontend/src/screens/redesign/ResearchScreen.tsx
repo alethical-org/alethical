@@ -1,3 +1,4 @@
+import { ShortPostArticle } from '../../components/shortPosts/ShortPostArticle';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -438,6 +439,27 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
           <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
           <Container style={styles.main}>
             <Text style={styles.paragraph}>This piece is not published.</Text>
+          </Container>
+          <Footer
+            onContact={() => navigation.navigate('ContactUs')}
+            onPrivacy={() => navigation.navigate('Privacy')}
+            onTerms={() => navigation.navigate('Terms')}
+          />
+        </ScrollView>
+      </PageBackground>
+    );
+  }
+
+  if (piece.format === 'short-post') {
+    return (
+      <PageBackground>
+        <ScrollView
+          {...scrollRestoration}
+          contentContainerStyle={[styles.page, { backgroundColor: '#fff' }]}
+        >
+          <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
+          <Container>
+            <ShortPostArticle piece={piece} />
           </Container>
           <Footer
             onContact={() => navigation.navigate('ContactUs')}

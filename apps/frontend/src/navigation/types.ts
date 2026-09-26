@@ -88,6 +88,8 @@ export type RootStackParamList = {
   LobbyingPrincipal: { slug: string };
   LobbyingLobbyist: { slug: string; year?: string };
   Read: undefined;
+  ShortPosts: { page?: string; post?: string } | undefined;
+  ReadTopic: { topic: string; page?: string };
   // One published piece of our own writing. Both names draw the same screen and
   // differ only in the address they write: a piece carrying the research trait
   // lives at /read/research/{slug}, one carrying only the guide trait at

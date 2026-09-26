@@ -11,8 +11,9 @@ import {
   notFoundPageMetadata,
   SITE_NAME,
   STATIC_PAGE_METADATA,
+  titleFor,
 } from '../lib/share';
-import { pieceIndexBySlug } from '../lib/researchIndex';
+import { pieceIndexBySlug, TOPICS } from '../lib/researchIndex';
 
 import { MainTabParamList, RootStackParamList } from './types';
 import { pathForRoute } from './webRoutes';
@@ -75,6 +76,17 @@ function titleWithoutRecord(route: TitledRoute): string | null {
       const piece = slug ? pieceIndexBySlug(slug) : undefined;
       // An unknown slug renders the NotFound screen, which titles itself.
       return piece ? researchPageMetadata(piece).title : null;
+    }
+    case 'ShortPosts': {
+      const page = Number(route.params?.page ?? 1);
+      return titleFor(page > 1 ? `Short posts, page ${page}` : 'Short posts');
+    }
+    case 'ReadTopic': {
+      const topic = route.params?.topic ? String(route.params.topic) : '';
+      const matched = TOPICS.find((entry) => entry.slug === topic);
+      if (!matched) return null;
+      const page = Number(route.params?.page ?? 1);
+      return titleFor(page > 1 ? `${matched.label}, page ${page}` : matched.label);
     }
     default:
       return STATIC_PAGE_METADATA[pathnameOf(route)]?.title ?? null;

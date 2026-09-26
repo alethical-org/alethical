@@ -1,3 +1,4 @@
+import { researchPageMetadata } from '../share';
 import { describe, expect, it } from 'vitest';
 import { targetFromPathname } from '../../navigation/webRoutes';
 import {
@@ -114,6 +115,15 @@ function readyPiece(): ResearchPiece {
       },
     },
   };
+  piece.shortPost!.body = [piece.shortVersion[0], { kind: 'chart', graphicId: 'shares' }];
+  piece.shortPost!.charts = [
+    {
+      graphicId: 'shares',
+      title: 'Example recipients as a share of all recipients',
+      sourceEvidenceId: 'filing',
+      limitation: 'The example covers 2025 only.',
+    },
+  ];
   piece.shortPost!.review.eugeneApprovedFingerprint = shortPostFingerprint(piece);
   return piece;
 }
@@ -128,8 +138,12 @@ describe('social-derived Short post publication gate', () => {
 
   it('keeps even a checked Short post private until its public layout is ready', () => {
     const piece = readyPiece();
-    expect(() => assertPublishedShortPosts([piece])).toThrow('public presentation is not ready');
-    expect(() => assertPublishedPieceIndex([piece])).toThrow('public presentation is not ready');
+    expect(() => assertPublishedShortPosts([piece], false)).toThrow(
+      'public presentation is not ready',
+    );
+    expect(() => assertPublishedPieceIndex([piece], false)).toThrow(
+      'public presentation is not ready',
+    );
   });
 
   it('blocks missing coverage, evidence, method, source checks, and approvals', () => {
@@ -310,6 +324,8 @@ describe('social-derived Short post publication gate', () => {
     guide.shortPost!.coverageBasis = 'explanatory-guide';
     guide.shortPost!.graphics = [];
     guide.shortVersion = [{ kind: 'paragraph', runs: [{ kind: 'text', text: 'An explanation.' }] }];
+    guide.shortPost!.body = [guide.shortVersion[0]];
+    guide.shortPost!.charts = [];
     guide.shortPost!.evidence[0].period = undefined;
     guide.shortPost!.evidence[0].sourceDatedOn = '2025-12-31';
     guide.shortPost!.coverageNote = 'The explanatory source is dated 2025-12-31.';
@@ -473,5 +489,71 @@ describe('Short post and topic selection', () => {
     expect(newestShortPosts()).toEqual([]);
     expect(readGroups().shortPosts).toEqual([]);
     expect(() => topicPage('unknown' as 'lobbying', 1)).toThrow('unknown topic');
+  });
+});
+
+describe('Short post amended sources stay visible', () => {
+  it('requires each source amendment exactly once in the body', () => {
+    const piece = readyPiece();
+    piece.shortPost!.history = [
+      {
+        kind: 'source-amendment',
+        datedOn: '2026-09-25',
+        explanation: 'The source revised the entry.',
+      },
+    ];
+    expect(shortPostPublicationErrors(piece).join(' ')).toContain(
+      'exactly 1 visible article notice',
+    );
+    piece.shortPost!.body = [
+      ...piece.shortPost!.body!,
+      { kind: 'source-amendment', historyIndex: 0 },
+    ];
+    expect(shortPostPublicationErrors(piece).join(' ')).not.toContain(
+      'exactly 1 visible article notice',
+    );
+    piece.shortPost!.body = [
+      ...piece.shortPost!.body!,
+      { kind: 'source-amendment', historyIndex: 0 },
+    ];
+    expect(shortPostPublicationErrors(piece).join(' ')).toContain(
+      'exactly 1 visible article notice',
+    );
+  });
+});
+
+describe('Short post display boundaries', () => {
+  it('keeps Research and both-traits metadata on dates even with a search description', () => {
+    const piece = readyPiece();
+    piece.traits.guide = true;
+    expect(researchPageMetadata(piece, 'A subject description.').description).not.toContain(
+      'A subject description.',
+    );
+    expect(researchPageMetadata(piece, 'A subject description.').description).toContain(
+      'Published',
+    );
+    piece.traits.research = false;
+    expect(researchPageMetadata(piece, 'A subject description.').description).toBe(
+      'A subject description.',
+    );
+  });
+  it('refuses proportional claims for the explanatory overlap treatment', () => {
+    const piece = readyPiece();
+    const quantity = (value: number) => ({ value, unit: 'records', period });
+    const graphic = piece.shortPost!.graphics[0];
+    graphic.input = {
+      kind: 'overlap',
+      left: quantity(80),
+      right: quantity(70),
+      both: quantity(40),
+      universe: quantity(150),
+      leftLabel: 'Group A',
+      rightLabel: 'Group B',
+      proportional: true,
+    };
+    graphic.altDescription = chartDescription(graphic.input);
+    expect(shortPostPublicationErrors(piece).join(' ')).toContain(
+      'needs a checked source, title and limitation',
+    );
   });
 });

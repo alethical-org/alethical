@@ -1,5 +1,13 @@
-import { publicPageUrl } from "../apps/frontend/src/lib/share";
+import {
+  publicPageUrl,
+  readCollectionPagePath,
+} from "../apps/frontend/src/lib/share";
 import { indexedResearch, piecePath } from "../apps/frontend/src/lib/research";
+import { TOPICS, topicPath } from "../apps/frontend/src/lib/researchIndex";
+import {
+  shortPostsPage,
+  topicPage,
+} from "../apps/frontend/src/lib/shortPostSelection";
 import { committeeSlug } from "../apps/frontend/src/lib/committeeMoneyShared";
 import { COMMITTEE_PAGE_SIZE } from "../apps/frontend/src/lib/committeeList";
 import {
@@ -113,6 +121,17 @@ function pagesUrlset(
     // Each piece's own address, from the one function that decides the folder, so
     // the site map can never advertise an address the router rejects.
     paths.push(piecePath(piece));
+  }
+  const indexedPieces = indexedResearch();
+  const shortPosts = shortPostsPage(1, indexedPieces);
+  for (let page = 1; page <= shortPosts.pageCount; page += 1) {
+    paths.push(readCollectionPagePath("/read/short-posts", page));
+  }
+  for (const topic of TOPICS) {
+    const collection = topicPage(topic.slug, 1, indexedPieces);
+    for (let page = 1; page <= collection.pageCount; page += 1) {
+      paths.push(readCollectionPagePath(topicPath(topic.slug), page));
+    }
   }
   if (data) {
     for (

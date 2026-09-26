@@ -64,6 +64,10 @@ export const routePath = {
   lobbyingLobbyist: (slug: string, year?: string) =>
     pathForRoute({ name: 'LobbyingLobbyist', params: { slug, year } }),
   read: () => pathForRoute({ name: 'Read' }),
+  shortPosts: (params?: RootStackParamList['ShortPosts']) =>
+    pathForRoute({ name: 'ShortPosts', params }),
+  readTopic: (topic: string, page?: string) =>
+    pathForRoute({ name: 'ReadTopic', params: { topic, page } }),
   research: (slug: string) => pathForRoute({ name: 'Research', params: { slug } }),
   guide: (slug: string) => pathForRoute({ name: 'Guide', params: { slug } }),
   /** A piece's own address, whichever kind it is. One place decides the folder. */

@@ -105,6 +105,7 @@ import {
   READ_PAGE_INTRO,
   READ_PAGE_NAME,
   pieceCardMetaLine,
+  pieceKindLabel,
   pieceCardSecondaryLine,
   pieceMastheadLine,
   pieceSourcesLabel,
@@ -112,11 +113,15 @@ import {
   researchRunsText,
   researchSourceText,
   piecesLabelledResearch,
+  publishedResearch,
   isoDateCapsLabel,
   type ResearchInline,
   type ResearchPiece,
   type ResearchBlock,
 } from './research';
+import { shortPostArticleSnapshotBlocks } from './shortPosts';
+import { readGroups, shortPostsPage, topicPage } from './shortPostSelection';
+import { TOPICS, topicPath, type TopicSlug } from './researchIndex';
 import {
   COMMITTEE_LIST_DEK,
   COMMITTEE_LIST_NOTE,
@@ -1043,12 +1048,107 @@ export function researchPageSnapshot(piece: ResearchPiece): PageSnapshot {
   };
 }
 
+/** The approved Short post body, including every cited number and caveat, in the first HTML. */
+export function shortPostPageSnapshot(piece: ResearchPiece): PageSnapshot {
+  const sections: SnapshotSection[] = [];
+  let current: SnapshotSection = { heading: '', blocks: [] };
+  for (const block of shortPostArticleSnapshotBlocks(piece)) {
+    if (block.kind === 'heading') {
+      if (current.blocks?.length) sections.push(current);
+      current = { heading: block.text, blocks: [] };
+      continue;
+    }
+    current.blocks?.push({ kind: 'prose', lines: [block.text] });
+    if (block.links?.length) {
+      current.blocks?.push({
+        kind: 'links',
+        items: block.links.map((link) => ({ label: link.text, href: link.href })),
+      });
+    }
+  }
+  if (current.blocks?.length) sections.push(current);
+  return {
+    heading: piece.title,
+    subheading: pieceMastheadLine(piece),
+    bodyHeading: '',
+    body: piece.dek ? [piece.dek] : [],
+    bodyIsList: false,
+    facts: [],
+    sections,
+    links: [{ label: READ_PAGE_HEADING, href: '/read' }],
+  };
+}
+
+function collectionRecord(piece: ResearchPiece): SnapshotRecordLink {
+  return {
+    label: piece.title,
+    detail: [pieceKindLabel(piece), pieceCardMetaLine(piece), piece.dek]
+      .filter(Boolean)
+      .join(' · '),
+    href: piecePath(piece),
+  };
+}
+
+export function shortPostsPageSnapshot(page: number): PageSnapshot {
+  const selection = shortPostsPage(page, publishedResearch());
+  const links: SnapshotLink[] = [{ label: READ_PAGE_HEADING, href: '/read' }];
+  for (const topic of TOPICS) {
+    if (selection.items.some((piece) => piece.topics?.includes(topic.slug))) {
+      links.push({ label: topic.label, href: topicPath(topic.slug) });
+    }
+  }
+  if (page > 1)
+    links.push({
+      label: 'Previous page',
+      href: page === 2 ? '/read/short-posts' : `/read/short-posts?page=${page - 1}`,
+    });
+  if (page < selection.pageCount)
+    links.push({ label: 'Next page', href: `/read/short-posts?page=${page + 1}` });
+  return {
+    heading: 'Short posts',
+    subheading: '',
+    bodyHeading: '',
+    body: selection.total === 0 ? ['No short posts yet.'] : [],
+    bodyIsList: false,
+    facts: [],
+    records: (selection.items as ResearchPiece[]).map(collectionRecord),
+    links,
+  };
+}
+
+export function readTopicPageSnapshot(topic: TopicSlug, page: number): PageSnapshot {
+  const selection = topicPage(topic, page, publishedResearch());
+  const label = TOPICS.find((entry) => entry.slug === topic)?.label ?? topic;
+  const base = `/read/topics/${topic}`;
+  const links: SnapshotLink[] = [{ label: READ_PAGE_HEADING, href: '/read' }];
+  if (page > 1)
+    links.push({ label: 'Previous page', href: page === 2 ? base : `${base}?page=${page - 1}` });
+  if (page < selection.pageCount)
+    links.push({ label: 'Next page', href: `${base}?page=${page + 1}` });
+  return {
+    heading: label,
+    subheading: '',
+    bodyHeading: '',
+    body: selection.total === 0 ? ['No articles about this topic yet.'] : [],
+    bodyIsList: false,
+    facts: [],
+    records: (selection.items as ResearchPiece[]).map(collectionRecord),
+    links,
+  };
+}
+
 /**
  * The /read page, with one crawlable link per posted piece. The link is the
  * point: without it the route to an older piece exists only after the app has
  * run, so an archive is unreachable on a first visit.
  */
 export function readPageSnapshot(pieces: readonly ResearchPiece[]): PageSnapshot {
+  const groups = readGroups(pieces);
+  const visible = [
+    ...groups.research,
+    ...groups.shortPosts.slice(0, 3),
+    ...groups.guides,
+  ] as ResearchPiece[];
   return {
     // The page's own name, the same word the visually hidden `h1` carries, so the
     // served document and the loaded page name the page identically. What the page
@@ -1061,7 +1161,7 @@ export function readPageSnapshot(pieces: readonly ResearchPiece[]): PageSnapshot
       : [READ_PAGE_INTRO, READ_PAGE_EMPTY_TITLE, READ_PAGE_EMPTY_BODY],
     bodyIsList: false,
     facts: [],
-    records: pieces.map((piece) => ({
+    records: visible.map((piece) => ({
       label: piece.title,
       // The same lines the card draws: its minutes and date, then its standfirst
       // or the set it belongs to.
@@ -1070,7 +1170,12 @@ export function readPageSnapshot(pieces: readonly ResearchPiece[]): PageSnapshot
       href: piecePath(piece),
     })),
     // The page's own back link, to the section the nav calls "Money in politics".
-    links: [{ label: MONEY_SECTION_NAME, href: '/money' }],
+    links: [
+      ...(groups.shortPosts.length
+        ? [{ label: 'All short posts', href: '/read/short-posts' }]
+        : []),
+      { label: MONEY_SECTION_NAME, href: '/money' },
+    ],
   };
 }
 
@@ -2559,7 +2664,7 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
         : '';
       const content = `${orderedBlocks}${sectionBody}${items}${sourceGroups}`;
       return content
-        ? `${section.separated ? '<hr />' : ''}<section class="ps-card${section.researchFeature ? ' ps-card-feature' : ''}"><h2>${escapeHtml(section.heading)}</h2>${content}</section>`
+        ? `${section.separated ? '<hr />' : ''}<section class="ps-card${section.researchFeature ? ' ps-card-feature' : ''}">${section.heading ? `<h2>${escapeHtml(section.heading)}</h2>` : ''}${content}</section>`
         : '';
     })
     .join('');

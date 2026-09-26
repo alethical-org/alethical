@@ -78,6 +78,10 @@ export const screenChunks = {
       default: m.UnsubscribeScreen,
     })),
   Read: () => import('../screens/redesign/ReadScreen').then((m) => ({ default: m.ReadScreen })),
+  ShortPosts: () =>
+    import('../screens/redesign/ShortPostsScreen').then((m) => ({ default: m.ShortPostsScreen })),
+  ReadTopic: () =>
+    import('../screens/redesign/ShortPostsScreen').then((m) => ({ default: m.ShortPostsScreen })),
   Research: () =>
     import('../screens/redesign/ResearchScreen').then((m) => ({ default: m.ResearchScreen })),
   MoneySearch: () =>
