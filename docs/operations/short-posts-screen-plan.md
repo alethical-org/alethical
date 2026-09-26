@@ -195,8 +195,8 @@ to remove duplicated units, dates and context without losing meaning.
 ### First private post: visible conclusion (26 September 2026)
 
 Eugene approved a bold “Conclusion:” and the existing supported answer beside the
-Alethical symbol, with the symbol on the left. The remaining evidence limits stay
-in regular text beneath the answer. The standalone answer omits its final period
-under the approved supporting-copy rule. This changes presentation, not findings.
+Alethical symbol, with the symbol on the left. The evidence limits continue in regular text in the same paragraph after the
+bold answer. The answer retains its period to separate the sentences. Center the
+30px symbol vertically against the first 2 lines (24px line height, 9px top gap). This changes presentation, not findings.
 Finish the first short post with Eugene before resuming other task reviews.
 Publication still waits for his final review and instruction.
