@@ -177,7 +177,7 @@ function ContactFieldInput({
         rows,
         ref: inputRef,
         spellCheck: field === 'email' ? false : undefined,
-        style: StyleSheet.flatten(inputStyle) as any,
+        style: { ...StyleSheet.flatten(inputStyle), boxSizing: 'border-box' } as any,
         value,
       })
     ) : (
@@ -540,8 +540,11 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
     fontFamily: t.typography.body,
     fontSize: 17,
-    paddingHorizontal: 16,
-    paddingVertical: 15,
+    // These styles also reach raw HTML controls, which ignore native padding aliases.
+    paddingLeft: 16,
+    paddingRight: 16,
+    paddingTop: 15,
+    paddingBottom: 15,
   },
   messageInput: {
     minHeight: 320,
