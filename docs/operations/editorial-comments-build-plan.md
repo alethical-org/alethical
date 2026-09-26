@@ -53,7 +53,10 @@ coherent milestones; helpers do not stage or commit another writer's work.
 - Additive migration passes upgrade/downgrade/upgrade on owned disposable PostgreSQL.
 - Required checks pass on the exact PR head, then the deployed release is reachable.
 
-## Current checkpoint
+## Build setup and acceptance record
+
+The current release status and live evidence belong on
+[issue 2399](https://github.com/alethical-org/alethical/issues/2399).
 
 Branch `codex/editorial-comments`, isolated checkout
 `/Users/eug/.codex/worktrees/938a/Alethical`. Backend API contract is temporarily
@@ -75,8 +78,8 @@ PostgreSQL with external requests disabled. The private stop screen was exercise
 through both independent choices with a fictional local account. The release build
 passes the unchanged startup limit locally at 295,772 compressed bytes after
 moving the discussion hook into the article download. The first hosted preview
-exceeded the unchanged limit by 15 bytes; the corrected hosted build must pass
-before merge.
+exceeded the unchanged limit by 15 bytes; the corrected hosted build passed at
+295,992 compressed bytes against the unchanged 296,022-byte limit.
 
 The final browser run passes all 12 checks, including cross-article drafts and
 returning focus only to the visible discussion.
@@ -89,12 +92,19 @@ guidance test now expects the approved 14 team addresses and 9 admin addresses.
 Resend's domain settings have both click and open tracking disabled; Railway's
 API service has Serverless disabled, so the saved-delivery worker stays active.
 
-Remaining: required checks on final head,
-PR/queue/release, exact deployed table privacy checks,
-email gate activation, safe live reads, and ask@ account activation when available.
-Production has an enabled ensure_rls CREATE TABLE trigger; inspect the 6 resulting
-tables and zero policies after migration. No outbound test mail or public test
+Release checklist: required checks on final head, PR/queue/release, exact deployed
+table privacy checks, email gate activation, safe live reads, and ask@ account
+activation when available. Record each outcome on
+[issue 2399](https://github.com/alethical-org/alethical/issues/2399).
+Migration 0065 explicitly enables and checks row-level security on all 6 new tables
+inside its transaction, before the API exposes posting. It requires zero direct-access
+policies and does not rely on production's ensure_rls CREATE TABLE trigger. Read
+back those protections after deployment. Read queued delivery count and age before
+mail activation, then inspect failed/uncertain states afterward. No outbound test mail or public test
 comments are allowed. Do not wait for ask@ account creation to release the feature.
 
-Production Resend reports alethical.com verified. The comment-mail gate is staged
-false in Railway, without starting a deployment; enable only after release checks.
+Production Resend reports alethical.com verified. The initial rollout stages the
+comment-mail gate false in Railway; enable only after release checks. The migration
+security tests reproduce unprotected tables without the host trigger, prove the
+explicit protection, and prove an unexpected permissive policy rolls the update
+back. The comments, mail and migration suite passes 63 PostgreSQL tests.

@@ -238,7 +238,7 @@ test.describe('editorial comments with a real local database', () => {
       await page.getByRole('textbox', { name: 'Write a comment', exact: true }).fill(posted);
       await page.getByRole('button', { name: 'Post comment', exact: true }).click();
       await expect(
-        page.getByRole('button', { name: 'Check submission', exact: true }),
+        page.getByRole('alert').getByRole('button', { name: 'Check submission', exact: true }),
       ).toBeVisible();
       await page
         .getByRole('textbox', { name: 'Write a comment', exact: true })
@@ -357,10 +357,10 @@ test.describe('editorial comments with a real local database', () => {
       ).toHaveAttribute('aria-disabled', 'true');
       await reader.page.getByRole('button', { name: 'Post reply', exact: true }).click();
       await expect(
-        reader.page.getByText(
-          'The comment you were replying to is no longer available. Your draft is kept here.',
-          { exact: true },
-        ),
+        reader.page.getByRole('alert').filter({
+          hasText:
+            'The comment you were replying to is no longer available. Your draft is kept here.',
+        }),
       ).toBeVisible();
       await expect(
         reader.page.getByRole('textbox', { name: 'Write a reply', exact: true }),

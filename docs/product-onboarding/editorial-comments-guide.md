@@ -233,6 +233,14 @@ Uncertain sends retry the identical provider request for at most 23 hours, withi
 Resend's 24-hour duplicate-protection window. Terminal delivery records erase the
 private message payload. Pending or failed delivery never blocks discussion writes.
 
+The database update explicitly enables row-level security on all 6 discussion
+tables and checks that none has a direct-access policy, in the same transaction.
+A failed check stops the database update before the API can expose posting.
+After deployment, read back all 6 protections and confirm that the public and
+signed-in Supabase roles cannot read those tables directly. Before enabling email,
+read the count and age of retained deliveries. After activation, inspect delivery
+states for failed or uncertain outcomes; these checks send no test messages.
+
 For safe browser checks, run `uv run python scripts/comments_local_qa.py` and start
 the web app on port 19261 with `EXPO_PUBLIC_API_URL=http://127.0.0.1:18261`,
 `EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:8991` and

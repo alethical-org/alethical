@@ -605,7 +605,7 @@ describe('reader comments', () => {
     await act(async () =>
       host.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')[0].click(),
     );
-    expect(host.textContent).toContain(
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
       'We couldn’t confirm whether your email choices were saved. Try again.',
     );
     const originalKey = mocks.preferences.mock.calls[0][1].request_key;

@@ -12,6 +12,15 @@ down_revision = "0064_email_subscriptions"
 branch_labels = None
 depends_on = None
 
+COMMENT_TABLES = (
+    "comment_profile",
+    "editorial_comment",
+    "comment_article_follow",
+    "comment_mutation",
+    "comment_stop_token",
+    "comment_email_delivery",
+)
+
 
 def user(name="user_id", *, primary_key=False, nullable=False, ondelete="CASCADE"):
     return sa.Column(
@@ -141,6 +150,30 @@ def upgrade():
         CREATE TRIGGER erase_deleted_account_comments
         BEFORE DELETE ON user_account FOR EACH ROW
         EXECUTE FUNCTION erase_deleted_account_comments();
+    """)
+    # Direct client database access is denied before these tables become visible.
+    # The trusted API connects as their owner, so FORCE RLS is deliberately absent.
+    # Do not rely on a hosting provider's CREATE TABLE event trigger.
+    for table in COMMENT_TABLES:
+        op.execute(f'ALTER TABLE public."{table}" ENABLE ROW LEVEL SECURITY')
+    table_names = ", ".join(f"'{table}'" for table in COMMENT_TABLES)
+    op.execute(f"""
+        DO $$ BEGIN
+            IF (
+                SELECT count(*) FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = 'public' AND c.relkind = 'r'
+                  AND c.relname IN ({table_names}) AND c.relrowsecurity
+            ) <> 6 OR EXISTS (
+                SELECT 1 FROM pg_policy p
+                JOIN pg_class c ON c.oid = p.polrelid
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = 'public' AND c.relname IN ({table_names})
+            ) THEN
+                RAISE EXCEPTION
+                    'Editorial comments require RLS enabled and zero policies on all 6 tables';
+            END IF;
+        END $$;
     """)
 
 
