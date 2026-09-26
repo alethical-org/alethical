@@ -188,3 +188,24 @@ it('names both reporting periods above a comparison when they differ', () => {
   expect(topLine).toContain('Earlier: 2025 filings');
   expect(topLine).toContain('Later: 2026 filings');
 });
+
+it('uses the article source list without a redundant jump link and retains direct outside sources', () => {
+  for (const url of ['#private-sources', evidence.url]) {
+    const markup = renderToStaticMarkup(
+      <ShortPostChart
+        graphic={graphic}
+        display={{
+          graphicId: graphic.id,
+          title: 'Source navigation',
+          sourceEvidenceId: evidence.id,
+          limitation: evidence.limitations,
+        }}
+        evidence={{ ...evidence, url }}
+        articleId="source-navigation"
+      />,
+    );
+    const sourceLink = markup.match(/<a href="([^"]+)"[^>]*>/)?.[0];
+    if (url.startsWith('#')) expect(sourceLink).toBeUndefined();
+    else expect(sourceLink).toContain('target="_blank"');
+  }
+});

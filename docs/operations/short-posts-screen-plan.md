@@ -166,3 +166,8 @@ not be loaded” messages and “No published comments yet” need the same punc
 when integrated. Its old paused/closed/review workflow is obsolete; do not restore
 those controls while correcting copy. Use the complete shared comments flow
 accepted by the owning task, subject to the existing integration holds.
+
+The first-post review also removed the chart's source-list jump and repeated inline
+source links. All 3 official source links remain together under “Where these numbers
+come from”. The chart retains its filing period and necessary limits. Direct
+external chart citations remain supported for charts that need them.

@@ -101,6 +101,11 @@ explanation, necessary qualification or a clear next action.
 - Preserve citations, reproducible methods, required disclosures and distinctions
   between reported records and independently established events. Put detailed
   reproduction steps behind Full method when the essential explanation is enough.
+- In a short article with one clearly named source list, keep the source links
+  together there instead of repeating them in the paragraphs and in a chart link
+  that only jumps to that same list. Keep source scope and necessary qualifications
+  beside the figures. Retain direct chart citations when needed to identify a
+  different source or when the chart is presented on its own.
 - Review title, subtitle, body, charts, methods, sources and disclosures together.
   Do not add duplicate visible or spoken text for SEO or accessibility. Preserve
   unique information and accessible chart labels when cutting a transcript.

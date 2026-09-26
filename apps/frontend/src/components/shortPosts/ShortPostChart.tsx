@@ -221,12 +221,14 @@ export function ShortPostChart({ graphic, display, evidence, correction, article
       ) : null}
       <div className="sp-chart-foot">
         <div className="sp-chart-foot-text">
-          <span>
-            Source:{' '}
-            <a href={evidence.url} target="_blank" rel="noopener noreferrer">
-              {evidence.title}
-            </a>
-          </span>
+          {!evidence.url.startsWith('#') ? (
+            <span>
+              Source:{' '}
+              <a href={evidence.url} target="_blank" rel="noopener noreferrer">
+                {evidence.title}
+              </a>
+            </span>
+          ) : null}
           <span>{evidence.limitations}</span>
           {display.limitation !== evidence.limitations ? <span>{display.limitation}</span> : null}
           {correction ? (
