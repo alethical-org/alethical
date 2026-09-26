@@ -611,3 +611,16 @@ removal, minimal private banner and article copy changes in the private preview.
 “2 records do not always mean 2 donations” is the intended first Short post,
 subject to his final review and publication instruction. The original-graphic
 investigations remain separate; neither is replaced by this article.
+
+### 26 September 2026: browser previews are the review deliverable
+
+Eugene directed that post-review preparation always produce private browser
+previews using the approved article design, including useful recreated graphics
+or tables, rather than stopping at manuscript links. This applies to all post
+types, including `verify post` / `vp`, unless he requests text only. Reusing the
+existing design for a private preview is authorized; publication, a new visual
+direction and new Design requests retain their separate approval requirements.
+[ui-copy-guide.md, Prepare post reviews in the browser](../design/ui-copy-guide.md#prepare-post-reviews-in-the-browser)
+owns the delivery and review checks. Each post gets its own browser tab and direct
+preview link; existing review addresses and another task's publishing preview
+remain intact.
