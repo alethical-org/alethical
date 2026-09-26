@@ -57,4 +57,5 @@ The release timestamp is 26 September 2026 at 20:32:16 UTC, when the accepted ar
 - The actual correction link fills the accepted title and permanent article address, leaves identity fields blank, and preserves an edited message after returning to the article. No message was sent.
 - Independent acceptance found the public record identical to the accepted private contents after excluding publication and approval fields. Publication validation returns no errors; approval is frozen against fingerprint `758077a2`.
 - The comments service recognizes the article's stable identity. No comment was submitted.
+- Upload checks pass against the exact committed tree, including 3,443 backend tests with temporary local data and mocked external effects.
 - Current-head GitHub checks, merge-queue checks, deployment and live acceptance remain pending.

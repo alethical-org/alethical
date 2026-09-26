@@ -1070,7 +1070,8 @@ export function shortPostPageSnapshot(piece: ResearchPiece): PageSnapshot {
   return {
     heading: piece.title,
     subheading:
-      piece.shortPost?.recordsScope === 'cited-filings'
+      piece.shortPost?.recordsScope === 'cited-filings' ||
+      piece.shortPost?.coveragePlacement === 'metadata'
         ? [
             piece.publishedOn ? `PUBLISHED ${isoDateCapsLabel(piece.publishedOn)}` : '',
             shortPostRecordsLine(piece),

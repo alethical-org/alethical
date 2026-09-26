@@ -345,8 +345,12 @@ export function ShortPostArticle({ piece, privatePreview = false, onCorrectionCo
             <Runs runs={runs} />
           </p>
         ))}
-        {editorial.coverageNote ? <p className="sp-coverage">{editorial.coverageNote}</p> : null}
-        <p className="sp-coverage">{editorial.limitations}</p>
+        {editorial.coverageNote && editorial.coveragePlacement !== 'metadata' ? (
+          <p className="sp-coverage">{editorial.coverageNote}</p>
+        ) : null}
+        {editorial.limitationsPlacement !== 'body' ? (
+          <p className="sp-coverage">{editorial.limitations}</p>
+        ) : null}
       </section>
 
       {editorial.disclosures.length ? (

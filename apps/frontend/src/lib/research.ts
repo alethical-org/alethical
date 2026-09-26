@@ -52,6 +52,8 @@ export {
   researchShareDescription,
 } from './researchIndex';
 export type { PieceIndexEntry, PieceTraits } from './researchIndex';
+import { LOBBYIST_GIVING } from './researchPieces/lobbyistGiving';
+import { ORGANIZATIONS_BOTH_PARTIES } from './researchPieces/organizationsBothParties';
 import { TWO_RECORDS_NOT_TWO_DONATIONS } from './researchPieces/twoRecordsNotTwoDonations';
 import { MONEY_ONLY_GOES_ONE_WAY } from './researchPieces/moneyOnlyGoesOneWay';
 import { MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY } from './researchPieces/moneySpentWithoutACampaignsSay';
@@ -309,6 +311,8 @@ export function researchSourceText(source: ResearchSource): string {
  * disagree about a slug, a title or a date; research.test.ts pins the order.
  */
 export const PUBLISHED_RESEARCH: ResearchPiece[] = assertPublishedShortPosts([
+  LOBBYIST_GIVING,
+  ORGANIZATIONS_BOTH_PARTIES,
   TWO_RECORDS_NOT_TWO_DONATIONS,
   WHAT_THE_RECORDS_NAME,
   WHO_HAS_TO_REPORT_THEIR_MONEY,

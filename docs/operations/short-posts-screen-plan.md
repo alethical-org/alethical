@@ -281,3 +281,36 @@ archive, Campaign finance and Lobbying topics, sitemap, and the approved default
 comments list. Other private drafts retain their individual publication holds.
 [First Short post preparation](../operations/first-short-post-preparation.md)
 records approval times and the release checks.
+
+
+## September 26: publish the 2 reviewed original-topic posts
+
+Eugene authorized the organizations article at 2026-09-26T20:39:49.138Z:
+“when done updating drafts and rules publish the 2nd short post”. He authorized
+the lobbyist article at 2026-09-26T20:45:24.598Z: “publish the 3rd short post when ready”.
+These instructions supersede the private-only holds for these 2 articles.
+The first article remains owned by the separate task “Prepare first short post for publication”.
+
+Release sequence owned here:
+1. Preserve the reviewed manuscripts, tables, source links and scope limitations in
+   article modules. Keep the current private addresses on port 8768 stable.
+2. Register both articles, including their comment identities and correction links.
+   Store coverage in the reviewed metadata position and limits where the body explains them.
+3. Run source-backed publication checks, compare final rendered copy with the reviewed
+   previews, test phone and desktop layouts, and open the correction form without sending.
+4. Wait for the first article’s release, integrate current main, open the follow-on pull
+   request, clear checks, merge, deploy and inspect both live addresses.
+
+Editorial copy acceptance was recorded at 2026-09-26T16:47:25.940Z. The publication
+instructions also approve the displayed content with Eugene’s requested formatting
+corrections. Exact source values and historic peer acceptances remain in retained research
+packages; formatting never changes the calculations. Approval fingerprints are frozen only
+after comparing the integrated article with those approved previews.
+
+Release preparation: both actual article renders match the reviewed manuscripts.
+All 3,726 frontend tests and TypeScript checks pass. The local release build passes
+at 295,981 bytes against the unchanged 296,022-byte first-load limit. Address-table
+validation now runs before every build rather than increasing every reader’s initial
+download. Production must pass its own measured size. The existing private URLs
+render the actual release modules; both correction links prefill title, public URL
+and introduction in the built application. No contact message was sent.

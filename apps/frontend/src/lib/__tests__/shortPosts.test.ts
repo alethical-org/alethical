@@ -1,9 +1,9 @@
+import { assertPublishedPieceIndex } from '../researchIndexValidation';
 import { researchPageMetadata } from '../researchMetadata';
 import { describe, expect, it } from 'vitest';
 import { targetFromPathname } from '../../navigation/webRoutes';
 import {
   PUBLISHED_PIECE_INDEX,
-  assertPublishedPieceIndex,
   pieceIndexBySlug,
   piecePath,
   type PieceIndexEntry,
@@ -224,6 +224,68 @@ describe('social-derived Short post publication gate', () => {
     expect(calculatedRun(graphic, 'baseline-value', 'usd').text).toBe('$1,200');
     expect(calculatedRun(graphic, 'compared-value', 'usd').text).toBe('$500');
     expect(calculatedRun(graphic, 'difference', 'usd').text).not.toBe('$500');
+  });
+
+  it('allows a checked chart without forcing duplicate prose numbers', () => {
+    const piece = readyPiece();
+    piece.shortPost!.body = [
+      { kind: 'paragraph', runs: [{ kind: 'text', text: 'The checked comparison follows.' }] },
+      { kind: 'chart', graphicId: 'shares' },
+    ];
+    piece.shortPost!.review.eugeneApprovedFingerprint = shortPostFingerprint(piece);
+    expect(shortPostPublicationErrors(piece)).toEqual([]);
+    piece.shortPost!.body = piece.shortPost!.body!.slice(0, -1);
+    expect(shortPostPublicationErrors(piece)).toContain('graphic shares has no body number');
+  });
+
+  it('rejects body placement when the material limit is absent', () => {
+    const piece = readyPiece();
+    piece.shortPost!.limitationsPlacement = 'body';
+    expect(shortPostPublicationErrors(piece)).toContain(
+      'body limitations must appear in the reviewed article text',
+    );
+  });
+
+  it('keeps retained notices separate from reporting periods', () => {
+    const piece = readyPiece();
+    const evidence = piece.shortPost!.evidence[0];
+    piece.shortPost!.coverageBasis = 'held-records';
+    evidence.kind = 'held-records';
+    piece.shortPost!.evidence = [
+      ...piece.shortPost!.evidence,
+      {
+        ...evidence,
+        id: 'notice',
+        kind: 'held-records',
+        period: undefined,
+        sourceSnapshot: {
+          copiedOn: '2026-09-24',
+          selectedRecords: 'A retained availability notice',
+        },
+      },
+    ];
+    piece.shortPost!.review.eugeneApprovedFingerprint = shortPostFingerprint(piece);
+    expect(shortPostPublicationErrors(piece)).toEqual([]);
+    piece.shortPost!.evidence[1].period = period;
+    expect(shortPostPublicationErrors(piece).join(' ')).toContain('without invented coverage');
+  });
+
+  it('drops cents without rounding positive or negative dollars', () => {
+    const piece = readyPiece();
+    const graphic = piece.shortPost!.graphics[0];
+    const comparison: ShortPostGraphic = {
+      ...graphic,
+      input: {
+        kind: 'comparison',
+        baseline: { value: 1200.99, unit: 'USD', period },
+        compared: { value: 500.21, unit: 'USD', period },
+        baselineLabel: 'Listed',
+        comparedLabel: 'Filed',
+        showPercentChange: false,
+      },
+    };
+    expect(calculatedRun(comparison, 'baseline-value', 'usd').text).toBe('$1,200');
+    expect(calculatedRun(comparison, 'difference', 'usd').text).toBe('-$700');
   });
 
   it('requires the AI sentence when AI helped and keeps final approvals independent', () => {
@@ -544,6 +606,9 @@ function indexPiece(
 }
 
 describe('Short post and topic selection', () => {
+  it('validates the actual published address table', () => {
+    expect(() => assertPublishedPieceIndex(PUBLISHED_PIECE_INDEX)).not.toThrow();
+  });
   const pieces = Array.from({ length: 8 }, (_, index) =>
     indexPiece(`short-${index}`, `2026-09-25T${String(index).padStart(2, '0')}:00:00Z`),
   );
@@ -621,6 +686,8 @@ describe('Short post and topic selection', () => {
     const campaign = topicPage('campaign-finance', 1);
     expect(campaign.total).toBe(PUBLISHED_PIECE_INDEX.length);
     expect(newestShortPosts().map((piece) => piece.slug)).toEqual([
+      'lobbyist-giving',
+      'organizations-both-parties',
       '2-records-not-always-2-donations',
     ]);
     expect(readGroups().shortPosts).toEqual(newestShortPosts());

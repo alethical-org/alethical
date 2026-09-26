@@ -670,6 +670,8 @@ function draftWords(file: string): string {
 
 describe('every shipped piece is its settled prose, word for word', () => {
   const pieces = [
+    { slug: 'organizations-both-parties', file: 'organizations-both-parties.md' },
+    { slug: 'lobbyist-giving', file: 'lobbyist-giving.md' },
     { slug: '2-records-not-always-2-donations', file: '2-records-not-always-2-donations.md' },
     { slug: 'who-has-to-report-their-money', file: 'who-has-to-report-their-money.md' },
     { slug: 'what-the-records-name', file: 'what-the-records-name.md' },

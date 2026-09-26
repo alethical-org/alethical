@@ -64,9 +64,8 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   Use the approved symbol asset rather than cropping or rebuilding the full wordmark.
   Standalone PDF reports retain both the symbol and wordmark because readers may view
   them outside Alethical. This distinction concerns branding within post content, not
-  the shared website header. Eugene approved this clarification on 26 September 2026;
-  the website implementation remains queued in
-  [short-posts-screen-plan.md](../operations/short-posts-screen-plan.md#pending-updates-waiting-for-eugenes-go).
+  the shared website header. The approved implementation and release are recorded in
+  [short-posts-screen-plan.md](../operations/short-posts-screen-plan.md).
 - **Color intent.** A light, warm-neutral page with a soft green radial wash on wider screens and a
   plain warm-neutral background on phone widths; green is the single brand accent, used with intent
   (brand fills, CTAs, links, focus), not sprinkled. Text is a

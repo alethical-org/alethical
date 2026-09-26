@@ -18,7 +18,8 @@ type Props = {
 
 const number = (value: number) =>
   new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 }).format(value);
-const amount = (value: number, unit: string) => `${number(value)} ${unit}`;
+const amount = (value: number, unit: string) =>
+  `${number(unit === 'USD' ? Math.trunc(value) : value)} ${unit}`;
 const safeId = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, '-');
 
 /** Quantities and text are both calculated from the reviewed ChartInput. */
@@ -197,13 +198,15 @@ export function ShortPostChart({ graphic, display, evidence, correction, article
               {[...result.parts, result.remainder].map((part) => (
                 <tr key={part.label}>
                   <th scope="row">{part.label}</th>
-                  <td>{number(part.value)}</td>
+                  <td>{number(unit === 'USD' ? Math.trunc(part.value) : part.value)}</td>
                   <td>{number(part.percent)}%</td>
                 </tr>
               ))}
               <tr className="sp-chart-table-total">
                 <th scope="row">Total</th>
-                <td>{number(result.total.value)}</td>
+                <td>
+                  {number(unit === 'USD' ? Math.trunc(result.total.value) : result.total.value)}
+                </td>
                 <td>100%</td>
               </tr>
             </tbody>

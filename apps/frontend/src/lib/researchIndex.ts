@@ -377,11 +377,39 @@ export const TWO_RECORDS_NOT_TWO_DONATIONS_INDEX_ENTRY: PieceIndexEntry = {
   publishedAt: '2026-09-26T20:32:16Z',
 };
 
+export const ORGANIZATIONS_BOTH_PARTIES_INDEX_ENTRY: PieceIndexEntry = {
+  articleId: 'short-organizations-both-parties-2015-2025',
+  slug: 'organizations-both-parties',
+  format: 'short-post',
+  topics: ['campaign-finance'],
+  traits: { research: true, guide: false },
+  indexed: true,
+  title: 'Political donors appearing in both parties’ Minnesota caucus records',
+  publishedOn: '2026-09-26',
+  recordsThrough: '2025-12-31',
+  publishedAt: '2026-09-26T20:54:05Z',
+};
+
+export const LOBBYIST_GIVING_INDEX_ENTRY: PieceIndexEntry = {
+  articleId: 'short-lobbyist-giving-2015-2026',
+  slug: 'lobbyist-giving',
+  format: 'short-post',
+  topics: ['campaign-finance', 'lobbying'],
+  traits: { research: true, guide: false },
+  indexed: true,
+  title: 'What Minnesota’s records show about lobbyist contributions, 2015–2026',
+  publishedOn: '2026-09-26',
+  recordsThrough: '2025-12-31',
+  publishedAt: '2026-09-26T20:54:05Z',
+};
+
 /**
  * Every posted piece, newest first, in the order `PUBLISHED_RESEARCH` lists the
  * full pieces (`lib/research.ts`).
  */
 export const PUBLISHED_PIECE_INDEX: PieceIndexEntry[] = [
+  LOBBYIST_GIVING_INDEX_ENTRY,
+  ORGANIZATIONS_BOTH_PARTIES_INDEX_ENTRY,
   TWO_RECORDS_NOT_TWO_DONATIONS_INDEX_ENTRY,
   WHAT_THE_RECORDS_NAME_INDEX_ENTRY,
   WHO_HAS_TO_REPORT_THEIR_MONEY_INDEX_ENTRY,
@@ -390,43 +418,6 @@ export const PUBLISHED_PIECE_INDEX: PieceIndexEntry[] = [
   WHY_NOBODY_CAN_FOLLOW_A_DOLLAR_INDEX_ENTRY,
   MONEY_ONLY_GOES_ONE_WAY_INDEX_ENTRY,
 ];
-
-/** The first-load address table cannot contain an incomplete Short post entry. */
-export function assertPublishedPieceIndex<T extends PieceIndexEntry>(
-  pieces: T[],
-  presentationReady = SHORT_POST_PRESENTATION_READY,
-): T[] {
-  const identities = new Set<string>();
-  for (const piece of pieces) {
-    if (piece.format !== 'short-post') continue;
-    if (!presentationReady) throw new Error('Short post public presentation is not ready');
-    if (!piece.articleId?.trim() || identities.has(piece.articleId)) {
-      throw new Error(`Short post ${piece.slug} needs a unique stable identity`);
-    }
-    identities.add(piece.articleId);
-    if (!piece.traits.research && !piece.traits.guide) {
-      throw new Error(`Short post ${piece.slug} needs Research or Guide`);
-    }
-    if (
-      !piece.publishedAt ||
-      !/^\d{4}-\d{2}-\d{2}T.+(?:Z|[+-]\d{2}:\d{2})$/.test(piece.publishedAt) ||
-      Number.isNaN(Date.parse(piece.publishedAt)) ||
-      !piece.topics?.length
-    ) {
-      throw new Error(`Short post ${piece.slug} needs a publication timestamp and topics`);
-    }
-    if (
-      new Set(piece.topics).size !== piece.topics.length ||
-      piece.topics.some((topic) => !topicFromSlug(topic))
-    ) {
-      throw new Error(`Short post ${piece.slug} has an unknown topic`);
-    }
-  }
-  return pieces;
-}
-
-// Keep the published array literal readable by the existing email publication check.
-assertPublishedPieceIndex(PUBLISHED_PIECE_INDEX);
 
 export function pieceIndexBySlug(slug: string): PieceIndexEntry | undefined {
   return PUBLISHED_PIECE_INDEX.find((piece) => piece.slug === slug);

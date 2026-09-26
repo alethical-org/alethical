@@ -31,6 +31,10 @@ function load(file) {
 const { PUBLISHED_PIECE_INDEX, piecePath } = load(
   path.resolve(here, '../src/lib/researchIndex.ts'),
 );
+const { assertPublishedPieceIndex } = load(
+  path.resolve(here, '../src/lib/researchIndexValidation.ts'),
+);
+assertPublishedPieceIndex(PUBLISHED_PIECE_INDEX);
 const identities = new Set();
 const articles = PUBLISHED_PIECE_INDEX.map((piece) => {
   if (!piece.articleId || identities.has(piece.articleId)) {
@@ -40,6 +44,13 @@ const articles = PUBLISHED_PIECE_INDEX.map((piece) => {
   return { article_id: piece.articleId, title: piece.title, path: piecePath(piece) };
 }).sort((a, b) => a.article_id.localeCompare(b.article_id));
 const destination = path.resolve(here, '../../../alethical/data/editorial_articles.json');
-mkdirSync(path.dirname(destination), { recursive: true });
-writeFileSync(destination, `${JSON.stringify(articles, null, 2)}\n`);
-console.log(`Saved ${articles.length} published editorial identities`);
+const expected = `${JSON.stringify(articles, null, 2)}\n`;
+if (process.argv.includes('--check')) {
+  if (readFileSync(destination, 'utf8') !== expected)
+    throw new Error('Published article identities differ. Run pnpm comments:registry.');
+  console.log(`Checked ${articles.length} published editorial identities`);
+} else {
+  mkdirSync(path.dirname(destination), { recursive: true });
+  writeFileSync(destination, expected);
+  console.log(`Saved ${articles.length} published editorial identities`);
+}
