@@ -14,13 +14,15 @@ import { pathToFileURL } from 'node:url';
  * even when the local export includes production settings. Lower it with a
  * measured reduction; raise it only with a hosted measurement and a reason.
  *
- * The hosted production build of merge commit a092f832 (18 September 2026) serves
- * its 1 program file as 295,283 Brotli bytes, read straight off www.alethical.com
- * after the release reached it. The 296,022 limit leaves the existing 739-byte
- * headroom. The dated measurements and release contract live in
+ * The hosted production build of merge commit 2a437d47 (26 September 2026)
+ * measured its 1 program file at 296,142 Brotli bytes while publishing the first
+ * accepted Short post and editable correction links. Deployment
+ * dpl_9tUBcjVD7eAMyanG1hP7GQad7Lkd stopped at the previous size limit.
+ * The 296,881 limit preserves the existing 739-byte headroom. No local or preview
+ * measurement sets this value. The dated measurements and release contract live in
  * docs/operations/page-load-performance-decisions.md.
  */
-export const FIRST_LOAD_LIMIT = 296022;
+export const FIRST_LOAD_LIMIT = 296881;
 
 /**
  * The exact settings Vercel compresses with, so this reports the bytes a reader

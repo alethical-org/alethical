@@ -1178,12 +1178,24 @@ or settings files were uploaded. The build used the production target with
 `--skip-domain`. Vercel assigned only its project `.vercel.app` alias; the public
 `www.alethical.com` address still served `a8e42d9a` afterward.
 
-The size limit is **296,022 bytes**: the 295,283 Brotli bytes the hosted production
+The size limit from 18 to 26 September was **296,022 bytes**: the 295,283 Brotli bytes the hosted production
 build of merge commit a092f832 serves for its 1 program file (read off
 www.alethical.com on 18 September 2026, after the release that took the code only a
 few screens use out of the first download) plus the same 739-byte headroom. Before
 that release the hosted figure was 339,149 bytes (13 September 2026,
 [issue 2182](https://github.com/alethical-org/alethical/issues/2182)).
+
+On 26 September, the hosted production build for the accepted first Short post
+and editable article correction links measured **296,142 bytes** in its single
+startup program. [Vercel deployment 9tUBcjVD7eAMyanG1hP7GQad7Lkd](https://vercel.com/alethical/alethical-web/9tUBcjVD7eAMyanG1hP7GQad7Lkd)
+stopped at the old limit, 120 bytes over, at 21:13:20 UTC. The build used
+[merge commit 2a437d47](https://github.com/alethical-org/alethical/commit/2a437d474c28ced895c8bfec73c501138d579b1f).
+The new limit is **296,881 bytes**, preserving the existing 739-byte margin over
+that hosted production measurement. This accepts the small startup increase for
+the approved publication and correction flow. Article bodies remain in their
+screen's later download; address and title metadata remain available at startup.
+The local 295,863-byte result and the successful preview did not establish the
+production size. The guard still rejects any build above the new measured limit.
 
 **That 239-byte rise is compression packing, not source size, and the distinction
 decides whether chasing it is worth anything.** Measured against `origin/main` on one
