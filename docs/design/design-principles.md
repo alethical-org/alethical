@@ -602,3 +602,12 @@ keyboard focus remains independent. A selected checkbox exposes its checked stat
 to screen readers. Phone save buttons fill the available content width, and long
 account addresses wrap. [Unconcealed email signup](../product-onboarding/unconcealed-email-spec.md)
 records the exact approved wording, breakpoints and feedback states.
+
+### Implied information in post graphics
+
+Remove text and visual marks that add no needed meaning beyond nearby labels,
+values and structure. Directly labelled comparison bars omit an isolated zero
+and its horizontal axis line while retaining a true shared zero and equal scale.
+Keep meaningful data, boundaries and qualifications. The full drafting rule is in
+[ui-copy-guide.md](ui-copy-guide.md#remove-implied-information-from-text-and-visuals).
+Approved by Eugene on 26 September 2026.

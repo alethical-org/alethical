@@ -180,3 +180,8 @@ text retain punctuation. The shared overlap caption follows the same rule.
 The comments owner additionally flagged “No short posts yet” and “No articles about
 this topic yet” for the next authorized archive/topic integration; this private
 article pass does not release archive changes.
+
+On 26 September 2026 Eugene approved removing the implied zero and the horizontal
+line above it. The shared comparison chart and existing private preview now omit
+both. Both bars still start at zero and share a scale; the $1,000 bar remains twice
+the $500 bar. The draft stays private for Eugene's final review.

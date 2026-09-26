@@ -78,6 +78,24 @@ limits and any useful explanation that the chart itself does not convey. Keep ch
 information available as text to readers, search engines and screen readers without
 requiring a second visible transcript or duplicate spoken values.
 
+### Remove implied information from text and visuals
+
+Simplify text and visuals together. Remove a label, number, line or explanation
+when nearby words, values or the visual structure already make its meaning clear
+and removing it loses no needed information. Do not keep a mark merely because
+charts conventionally include it.
+
+For directly labelled comparison bars with a shared starting point, omit the
+isolated “0” and its horizontal axis line. The bars must still use the same scale
+and start mathematically at zero; removing the decoration must never truncate or
+change their lengths. Keep both amounts and their labels visible and accessible.
+This does not remove a zero that is a measured value, a needed scale label on a
+more complex chart, a meaningful boundary or a necessary qualification.
+
+Approved by Eugene on 26 September 2026 and applied to the private first-post
+comparison chart. Review all post drafts for implied text and visual clutter;
+this rule does not authorize unrelated redesigns.
+
 ### Draft every post for meaning, without repeated explanations
 
 Apply this when drafting or revising every type of website post, including Short
