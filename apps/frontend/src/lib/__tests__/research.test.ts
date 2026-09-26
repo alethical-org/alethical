@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { researchPageMetadata } from '../share';
+import { researchPageMetadata } from '../researchMetadata';
 import {
   guidesOutsideEverySet,
   indexedResearch,

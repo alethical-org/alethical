@@ -1,4 +1,4 @@
-import { researchPageMetadata } from '../share';
+import { researchPageMetadata } from '../researchMetadata';
 import { describe, expect, it } from 'vitest';
 import { targetFromPathname } from '../../navigation/webRoutes';
 import {

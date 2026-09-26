@@ -7,10 +7,8 @@ import {
   billPageMetadata,
   homePageMetadata,
   legislatorListPageMetadata,
-  researchPageMetadata,
   notFoundPageMetadata,
   SITE_NAME,
-  STATIC_PAGE_METADATA,
   titleFor,
 } from '../lib/share';
 import { pieceIndexBySlug, TOPICS } from '../lib/researchIndex';
@@ -37,6 +35,27 @@ import { directoryPageNumber } from '../lib/directoryPagination';
 type TitledRoute = {
   name: keyof RootStackParamList | keyof MainTabParamList;
   params?: Record<string, unknown>;
+};
+
+/** A tab only needs titles; full search/share descriptions stay in the server response. */
+export const STATIC_PAGE_SUBJECTS: Record<string, string> = {
+  '/money': 'Money in politics in Minnesota',
+  '/money/committees': 'Committees — Minnesota campaign money',
+  '/money/races': 'Money by race: Minnesota candidates by office and district',
+  '/read': 'Read',
+  '/email-preferences': 'Email preferences',
+  '/unsubscribe': 'Unsubscribe',
+  '/confirm': 'Confirm email',
+  '/reset': 'Reset password',
+  '/find-my-legislator': 'Find my legislator',
+  '/about': 'About us',
+  '/about/contact': 'Contact us',
+  '/privacy': 'Privacy Policy',
+  '/site-metrics': 'Site Metrics',
+  '/terms': 'Terms of Service',
+  '/admin/metrics': 'Admin metrics',
+  '/admin/users': 'Users',
+  '/tracked': 'Tracked',
 };
 
 // Keyed by pathname, so the tab bar's own state changes and query-string edits
@@ -75,7 +94,7 @@ function titleWithoutRecord(route: TitledRoute): string | null {
       const slug = route.params?.slug ? String(route.params.slug) : '';
       const piece = slug ? pieceIndexBySlug(slug) : undefined;
       // An unknown slug renders the NotFound screen, which titles itself.
-      return piece ? researchPageMetadata(piece).title : null;
+      return piece ? titleFor(piece.title) : null;
     }
     case 'ShortPosts': {
       const page = Number(route.params?.page ?? 1);
@@ -89,7 +108,9 @@ function titleWithoutRecord(route: TitledRoute): string | null {
       return titleFor(page > 1 ? `${matched.label}, page ${page}` : matched.label);
     }
     default:
-      return STATIC_PAGE_METADATA[pathnameOf(route)]?.title ?? null;
+      return STATIC_PAGE_SUBJECTS[pathnameOf(route)]
+        ? titleFor(STATIC_PAGE_SUBJECTS[pathnameOf(route)])
+        : null;
   }
 }
 

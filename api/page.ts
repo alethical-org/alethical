@@ -134,16 +134,18 @@ import {
   legislatorListPageMetadata,
   committeeListPageMetadata,
   moneyByRacePageMetadata,
-  researchPageMetadata,
-  shortPostsPageMetadata,
-  readTopicPageMetadata,
   NOT_FOUND_DESCRIPTION,
   NOT_FOUND_HEADING,
   notFoundPageMetadata,
-  STATIC_PAGE_METADATA,
   publicPageUrl,
   type PageMetadata,
 } from "../apps/frontend/src/lib/share";
+import { STATIC_PAGE_METADATA } from "../apps/frontend/src/lib/staticPageMetadata";
+import { researchPageMetadata } from "../apps/frontend/src/lib/researchMetadata";
+import {
+  shortPostsPageMetadata,
+  readTopicPageMetadata,
+} from "../apps/frontend/src/lib/readCollectionMetadata";
 import {
   legislatorPageMetadata,
   committeeMoneyPageMetadata,

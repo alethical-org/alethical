@@ -1,7 +1,5 @@
-import {
-  publicPageUrl,
-  readCollectionPagePath,
-} from "../apps/frontend/src/lib/share";
+import { publicPageUrl } from "../apps/frontend/src/lib/share";
+import { readCollectionPagePath } from "../apps/frontend/src/lib/readCollectionMetadata";
 import { indexedResearch, piecePath } from "../apps/frontend/src/lib/research";
 import { TOPICS, topicPath } from "../apps/frontend/src/lib/researchIndex";
 import {

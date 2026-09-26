@@ -307,18 +307,18 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     if (requestedPage === null) return { kind: 'notFound', path: pathname };
     const post = searchParams.get('post') ?? undefined;
     const posts = PUBLISHED_PIECE_INDEX.filter((piece) => piece.format === 'short-post');
-    const postPiece = post ? posts.find((piece) => piece.slug === post) : undefined;
-    if (post && !postPiece) return { kind: 'notFound', path: pathname };
-    const postTime = postPiece ? Date.parse(postPiece.publishedAt!) : 0;
-    const position = postPiece
-      ? posts.filter(
-          (piece) =>
-            Date.parse(piece.publishedAt!) > postTime ||
-            (Date.parse(piece.publishedAt!) === postTime &&
-              piece.articleId! < postPiece.articleId!),
-        ).length
-      : -1;
-    const page = position >= 0 ? Math.floor(position / SHORT_POST_PAGE_SIZE) + 1 : requestedPage;
+    let page = requestedPage;
+    if (post) {
+      const position = posts
+        .sort(
+          (left, right) =>
+            Date.parse(right.publishedAt!) - Date.parse(left.publishedAt!) ||
+            left.articleId!.localeCompare(right.articleId!),
+        )
+        .findIndex((piece) => piece.slug === post);
+      if (position < 0) return { kind: 'notFound', path: pathname };
+      page = Math.floor(position / SHORT_POST_PAGE_SIZE) + 1;
+    }
     if (page > Math.max(1, Math.ceil(posts.length / SHORT_POST_PAGE_SIZE)))
       return { kind: 'notFound', path: pathname };
     return {
