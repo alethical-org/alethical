@@ -321,11 +321,13 @@ export function ShortPostArticle({ piece }: Props) {
         <p className="sp-coverage">{editorial.limitations}</p>
       </section>
 
-      <aside className="sp-disclosures">
-        {editorial.disclosures.map((text) => (
-          <p key={text}>{text}</p>
-        ))}
-      </aside>
+      {editorial.disclosures.length ? (
+        <aside className="sp-disclosures">
+          {editorial.disclosures.map((text) => (
+            <p key={text}>{text}</p>
+          ))}
+        </aside>
+      ) : null}
 
       {related.length ? (
         <section className="sp-related" aria-label="Related reading">

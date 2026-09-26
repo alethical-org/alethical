@@ -200,3 +200,18 @@ bold answer. The answer retains its period to separate the sentences. Center the
 30px symbol vertically against the first 2 lines (24px line height, 9px top gap). This changes presentation, not findings.
 Finish the first short post with Eugene before resuming other task reviews.
 Publication still waits for his final review and instruction.
+
+### First-post generic contribution note removed (26 September 2026)
+
+Eugene removed the generic motive/influence/wrongdoing disclaimer from the first
+private post. The specific evidence limits stay. The empty disclosure box is omitted
+from the preview; the separately approved AI note remains held until human review.
+When preparing this article for its separately authorized publication, carry the
+article-specific exception into the publication validator, which currently requires
+the generic note for every campaign-finance topic. Do not restore the removed copy
+to satisfy that older check. Publication remains held.
+
+The conclusion also omits “This comparison does not independently confirm money
+changing hands.” The bold answer already says “filings support” and “reported,”
+which states the evidence boundary. Keep the concrete distinction that 2 download
+entries do not establish 2 separate donations.

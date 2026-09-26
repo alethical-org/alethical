@@ -572,6 +572,11 @@ Related reading names a few relevant pieces already published, never the current
 
 Only after the checks are complete, a social-derived Short post carries this note: “AI helped prepare this article. Alethical checked its claims against the cited records before publication, but errors may remain. The records may be incomplete or later corrected.” Campaign-finance pieces also carry: “A contribution alone does not establish why someone gave, whether it influenced a decision, or whether wrongdoing occurred” Each known gap belongs beside the affected claim. No complete-accuracy guarantee is made.
 
+**26 September 2026, first-post exception:** Eugene removed the generic contribution
+note from “2 records do not always mean 2 donations” because it states the obvious.
+Keep the specific limits on what the cited filings establish. This exception does
+not remove the AI disclosure or authorize publication.
+
 The original social poster is temporary working material and never appears in the article. After publication, its temporary processing copy may be removed; the extracted claims, evidence and source copies, calculations, finished charts, and correction history remain. Eugene's original Downloads files remain untouched. Quantitative charts are built from checked values, never generated artwork. Comments may later attach to each stable article identity, including a Short post carrying Research, but remain off until individually enabled through the separate comments work. Existing Research and Guides stay off unless separately enabled.
 
 
