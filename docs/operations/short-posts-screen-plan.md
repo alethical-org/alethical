@@ -171,3 +171,12 @@ The first-post review also removed the chart's source-list jump and repeated inl
 source links. All 3 official source links remain together under “Where these numbers
 come from”. The chart retains its filing period and necessary limits. Direct
 external chart citations remain supported for charts that need them.
+
+On 26 September 2026 Eugene clarified that standalone 1-sentence information
+outside editorial article prose has no final period, regardless of screen wrapping.
+Applied to the private source-scope limit, essential method summary and informational
+campaign-finance disclosure. Editorial paragraphs and multi-sentence supporting
+text retain punctuation. The shared overlap caption follows the same rule.
+The comments owner additionally flagged “No short posts yet” and “No articles about
+this topic yet” for the next authorized archive/topic integration; this private
+article pass does not release archive changes.

@@ -17,7 +17,7 @@ import {
 export const SHORT_POST_AI_NOTE =
   'AI helped prepare this article. Alethical checked its claims against the cited records before publication, but errors may remain. The records may be incomplete or later corrected.';
 export const CONTRIBUTION_NOTE =
-  'A contribution alone does not establish why someone gave, whether it influenced a decision, or whether wrongdoing occurred.';
+  'A contribution alone does not establish why someone gave, whether it influenced a decision, or whether wrongdoing occurred';
 
 export interface ShortPostEvidence {
   id: string;

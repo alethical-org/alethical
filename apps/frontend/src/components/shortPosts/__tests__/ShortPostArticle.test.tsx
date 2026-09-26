@@ -93,7 +93,7 @@ describe('Short post article and charts', () => {
         articleId="article-one"
       />,
     );
-    expect(markup).toContain('Diagram shows overlap, not relative group sizes.');
+    expect(markup).toContain('Diagram shows overlap, not relative group sizes');
     expect(markup).toContain('Group A contains 80.');
     expect(markup).toContain('Group B contains 70.');
     expect(markup).toContain('Total, including neither group');

@@ -181,7 +181,7 @@ export function ShortPostChart({ graphic, display, evidence, correction, article
             </p>
           </div>
           <p className="sp-chart-overlap-warning">
-            Diagram shows overlap, not relative group sizes.
+            Diagram shows overlap, not relative group sizes
           </p>
         </div>
       ) : null}

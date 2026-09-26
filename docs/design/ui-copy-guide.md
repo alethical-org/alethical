@@ -131,6 +131,17 @@ Does this deliver a sovereignty recognition moment, or is it just a label? If ju
 ## Punctuation & typography
 Use typographer's punctuation in all user-facing copy. It is the quality-publishing default, and for a truth-and-records product the polish quietly reinforces credibility (ratified 2026-07-13).
 - **Standalone interface units omit the final period.** A caption, helper, source line, status, success message, field error, list item or 1-step instruction containing 1 sentence ends after its last word. It is still 1 unit when it wraps onto several screen lines. Separate units do not become a paragraph merely because they share a card or container. A link and the sentence tail beside it form 1 unit. Keep full punctuation in paragraphs containing 2 or more sentences, legal text and serious warnings.
+- **Article prose and supporting information have different punctuation.** Keep
+  normal punctuation in editorial article paragraphs, including a 1-sentence
+  paragraph. Outside that prose, a standalone 1-sentence information line,
+  explanation, method summary, source-scope limit or informational disclosure has
+  no final period. Count sentences, not the number of screen lines: wrapping does
+  not change the rule. Keep punctuation in supporting text with 2 or more
+  sentences and within quoted source text. Author the intended wording directly;
+  do not blindly strip punctuation from arbitrary content at display time.
+  Approved by Eugene on 26 September 2026. For example:
+  “This example does not establish corrected totals for Carlson or all lobbyists”
+  ends without a period. This applies to drafting every post type.
 - **Apostrophes — curly `’` (U+2019), never the straight typewriter `'`.** e.g. don’t, they’ve, Minnesota’s.
 - **Quotation marks — curly `“ ”` (U+201C / U+201D), never straight `"`.** Applies to quoted bill/statute language, pull-quotes, etc.
 - **Ellipsis — the single glyph `…` (U+2026), never three periods `...`** — for genuine omission inside a quotation and for loading/progress states ("Loading…"). **Do *not* trail input-field placeholders with `…`** — a placeholder states its prompt plainly (e.g. "Ask about bills or legislators by issue or name"). This deliberately overrides the generic "placeholders end with …" web guideline.
