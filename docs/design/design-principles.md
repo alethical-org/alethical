@@ -200,11 +200,17 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   wins and the build corrects the drawing. The `mobileLinkArrows.test.ts` check rejects typed link
   arrows, old local link drawings, and page-specific link-arrow vertical adjustments, while allowing
   the restored on-screen action treatments below.
-- **A link's underline covers every word, including the final word beside its arrow.** Keep each
-  link's accepted always-visible or hover/focus-only underline behavior. `LinkArrowLabel` carries
-  that decoration across its final-word group, including when an enclosing text link owns the
-  style. The arrow and its 6px gap remain undecorated. Check single-word and wrapping labels as
-  well as complete lines; never copy a partial underline from a Design drawing.
+- **A link's underline covers every word and the spaces between them, including the final word
+  beside its arrow.** Keep each link's accepted always-visible or hover/focus-only underline
+  behavior. A simple flex link with a separate arrow holds the whole label, including visually
+  hidden words, in one text span;
+  underline that span, not the flex parent or separate word items. `LinkArrowLabel` carries the
+  decoration across its final-word group when a label wraps. A return link keeps its separate
+  18px left chevron and 9px gap, with its whole label in one span. The chevron, trailing arrow, and
+  their gaps remain undecorated. During design review and build, inspect every affected text link and its sibling
+  links in the working browser at rest, on pointer hover, and with keyboard focus. Check that the
+  underline is continuous through spaces and that the arrow stays bare; never copy a partial
+  underline from a Design drawing.
 - **Add pointer hover only where the live control lacks it (Eugene, 25 Sep 2026).** Preserve an
   existing hover even when it differs from this table. Use these treatments only for a mouse or
   trackpad on computer and tablet widths, never for a touch tap, and keep busy or disabled

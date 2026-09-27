@@ -23,6 +23,12 @@ vi.mock('../../../components/billDetail/interactions', () => ({
 }));
 vi.mock('../../../components/billDetail/SharePopover', () => ({ SharePopover: () => null }));
 vi.mock('../../../components/comments/ReaderComments', () => ({ ReaderComments: () => null }));
+vi.mock('react-native-svg', () => ({
+  default: () => null,
+  Path: () => null,
+  Circle: () => null,
+  Polygon: () => null,
+}));
 vi.mock('../../../components/shortPosts/ShortPostArticle', () => ({
   ShortPostArticle: () => null,
   ShortPostRelatedReading: () => null,

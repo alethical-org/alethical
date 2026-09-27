@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ChevronDown } from '../icons';
+import { GreenLinkArrow, linkArrowRow } from '../LinkArrow';
 import { articleHrefWithReturn } from '../../lib/articleReturn';
 import { TOPICS, topicPath, type TopicSlug } from '../../lib/researchIndex';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
@@ -202,7 +203,7 @@ export function SetBox({
           {sharedTopics.map((slug) => (
             <Pressable
               key={slug}
-              {...({ 'data-set-topic-link': '' } as object)}
+              {...({ dataSet: { setTopicLink: '' } } as object)}
               {...linkProps(topicPath(slug), () => onTopic?.(slug))}
               style={styles.topicTarget}
             >
@@ -241,15 +242,15 @@ export function SetBox({
       </View>
       {showPageLink && (
         <Pressable
-          {...({ 'data-set-page-link': '' } as object)}
+          {...({ dataSet: { setPageLink: '' } } as object)}
           {...linkProps(`/read/sets/${group.slug}`, () => onOpenPage?.())}
           accessibilityLabel={`Open the ${group.name} group page`}
           style={styles.pageLink}
         >
-          <Text style={styles.pageLinkText}>
-            <Text {...({ 'data-set-page-words': '' } as object)}>Open group page</Text>
-            <Text aria-hidden> →</Text>
+          <Text style={styles.pageLinkText} {...({ dataSet: { setPageWords: '' } } as object)}>
+            Open group page
           </Text>
+          <GreenLinkArrow />
         </Pressable>
       )}
     </View>
@@ -282,7 +283,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: t.fontWeights.semibold,
   },
-  pageLink: { minHeight: 44, justifyContent: 'center', marginTop: 8 },
+  pageLink: { ...linkArrowRow, minHeight: 44, marginTop: 8 },
   pageLinkText: {
     color: '#0f7a45',
     fontFamily: t.typography.ui,

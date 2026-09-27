@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useHover } from '../../components/billDetail/interactions';
+import { ChevronLeft } from '../../components/icons';
 import { SharePopover } from '../../components/billDetail/SharePopover';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { articleReturnLink } from '../../lib/articleReturn';
@@ -547,9 +548,10 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
 
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
           <a className="article-return" href={returnLink.href} onClick={returnToSource}>
-            <span aria-hidden="true">‹</span> {returnLink.label}
+            <ChevronLeft size={18} strokeWidth={2.2} aria-hidden />
+            <span className="article-return-label">{returnLink.label}</span>
           </a>
-          <style>{`.article-return{display:inline-flex;align-items:center;gap:9px;min-height:44px;color:#4b524b;font:600 16px 'Libre Franklin',sans-serif;text-decoration:none}.article-return span{font-size:25px;line-height:1}@media(hover:hover){.article-return:hover{color:#11150f;text-decoration:underline}}.article-return:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}.article-topics{display:flex;align-items:center;flex-wrap:wrap;gap:0 8px;margin-top:12px;font-family:'Libre Franklin',sans-serif}.article-topics>span{font-size:14.5px;font-weight:700;color:#4f5651;margin-right:4px}.article-topics a{display:inline-flex;align-items:center;min-height:44px;color:#11150f;text-decoration:none}.article-topics a span{padding:6px 12px;border:1px solid rgba(17,21,15,.18);border-radius:8px;font-size:14.5px;font-weight:600;line-height:1.35;background:#fff}.article-topics a:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}@media(hover:hover){.article-topics a:hover span{background:#f1f3f2;border-color:rgba(17,21,15,.3)}}.article-topics a:active span{background:#e6e9e7}@media(max-width:767px){.article-topics{margin-top:10px}}`}</style>
+          <style>{`.article-return{display:inline-flex;align-items:center;gap:9px;min-height:44px;color:#4b524b;font:600 16px 'Libre Franklin',sans-serif;text-decoration:none}@media(hover:hover){.article-return:hover{color:#11150f}.article-return:hover .article-return-label{text-decoration:underline}}.article-return:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}.article-topics{display:flex;align-items:center;flex-wrap:wrap;gap:0 8px;margin-top:12px;font-family:'Libre Franklin',sans-serif}.article-topics>span{font-size:14.5px;font-weight:700;color:#4f5651;margin-right:4px}.article-topics a{display:inline-flex;align-items:center;min-height:44px;color:#11150f;text-decoration:none}.article-topics a span{padding:6px 12px;border:1px solid rgba(17,21,15,.18);border-radius:8px;font-size:14.5px;font-weight:600;line-height:1.35;background:#fff}.article-topics a:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}@media(hover:hover){.article-topics a:hover span{background:#f1f3f2;border-color:rgba(17,21,15,.3)}}.article-topics a:active span{background:#e6e9e7}@media(max-width:767px){.article-topics{margin-top:10px}}`}</style>
 
           <View style={[styles.grid, isMobile && styles.gridMobile]}>
             {!isMobile ? (

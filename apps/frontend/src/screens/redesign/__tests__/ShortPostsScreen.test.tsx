@@ -8,6 +8,12 @@ import type { ResearchPiece } from '../../../lib/research';
 import type { RootScreenProps } from '../../../navigation/types';
 
 const source = vi.hoisted(() => ({ pieces: [] as ResearchPiece[] }));
+vi.mock('react-native-svg', () => ({
+  default: () => null,
+  Path: () => null,
+  Circle: () => null,
+  Polygon: () => null,
+}));
 vi.mock('../../../lib/research', async (original) => ({
   ...(await original<object>()),
   publishedResearch: () => source.pieces,

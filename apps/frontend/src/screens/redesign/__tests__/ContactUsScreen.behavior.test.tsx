@@ -24,7 +24,12 @@ vi.mock('../../../hooks/useResponsive', () => ({
 vi.mock('../../../components/GoBackLink', () => ({ GoBackLink: () => null }));
 vi.mock('../../../components/SocialIconLink', () => ({ SocialIconLink: () => null }));
 vi.mock('../../../components/billDetail/SharePopover', () => ({ SharePopover: () => null }));
-vi.mock('react-native-svg', () => ({ default: () => null, Path: () => null }));
+vi.mock('react-native-svg', () => ({
+  default: () => null,
+  Path: () => null,
+  Circle: () => null,
+  Polygon: () => null,
+}));
 vi.mock('../../../theme/primitives', async () => {
   const { View } = await import('react-native');
   return {

@@ -1,6 +1,7 @@
 import { useId, type MouseEvent, type MouseEventHandler } from 'react';
 import { linkProps } from '../../navigation/links';
 import { SharePopover } from '../billDetail/SharePopover';
+import { ChevronLeft } from '../icons';
 import {
   isoDateCapsLabel,
   isoDateCommaCapsLabel,
@@ -309,7 +310,8 @@ export function ShortPostArticle({
     <article className="sp-article">
       <style>{articleCss}</style>
       <a className="sp-back" href={returnLink?.href ?? '/read'} onClick={onReturn}>
-        <span aria-hidden="true">‹</span> {returnLink?.label ?? 'Back to Read'}
+        <ChevronLeft size={18} strokeWidth={2.2} aria-hidden />
+        <span>{returnLink?.label ?? 'Back to Read'}</span>
       </a>
       {notices
         .filter((event) => event.kind === 'newer-records')
@@ -470,7 +472,7 @@ export function ShortPostRelatedReading({ piece }: { piece: ResearchPiece }) {
 
 const articleCss = `
 .sp-article{box-sizing:border-box;width:100%;max-width:700px;margin:0 auto;padding:38px 0 76px;background:#fff;color:#11150f;font-family:'Libre Franklin',Helvetica,Arial,sans-serif}.sp-article *{box-sizing:border-box}.sp-article a{color:#0f7a45;text-decoration:underline;overflow-wrap:anywhere}.sp-article a:hover{color:#11832b}.sp-article a:focus-visible,.sp-article summary:focus-visible{outline:2px solid #7c5cff;outline-offset:2px;border-radius:3px}
-.sp-back{display:inline-flex;align-items:center;min-height:44px;gap:9px;color:#4b524b!important;font-size:16px;font-weight:600;text-decoration:none!important}.sp-back:hover{color:#11150f!important;text-decoration:underline!important}.sp-back span{font-size:25px;line-height:1}
+.sp-back{display:inline-flex;align-items:center;min-height:44px;gap:9px;color:#4b524b!important;font-size:16px;font-weight:600;text-decoration:none!important}.sp-back:hover{color:#11150f!important}.sp-back:hover span{text-decoration:underline}
 .sp-newer,.sp-correction{margin:20px 0;padding:16px 18px;border-radius:13px;font-size:16px;line-height:1.55}.sp-newer{background:#fbf1e2;border:1px solid #f0d6a8}.sp-correction{background:#f7f8fa;border:1px solid rgba(17,21,15,.14)}.sp-newer strong,.sp-correction strong{display:block;font-size:12px;font-weight:800;letter-spacing:.02em}.sp-correction strong{color:#8a2a17}.sp-newer-link{display:inline-flex;align-items:center;min-height:44px;font-weight:700}.sp-newer p,.sp-correction p{margin:6px 0 0}
 .sp-header{margin-top:30px}.sp-kind{display:inline-block;font-family:'JetBrains Mono',monospace;color:#2b6377;font-size:11px;font-weight:700;letter-spacing:.14em;line-height:1.5;text-transform:uppercase}.sp-related-kind{display:inline-block;background:#eef0ee;border:0;border-radius:6px;padding:5px 8px;color:#11150f;font-size:13px;font-weight:700;line-height:1}.sp-header h1{font-size:48px;line-height:1.08;font-weight:800;letter-spacing:-.03em;margin:16px 0 0;overflow-wrap:anywhere}.sp-dek{font-size:22px;line-height:1.5;color:#2c322c;margin:18px 0 24px}.sp-header h1+.sp-meta-share{margin-top:24px}.sp-meta-share{border-top:1px solid rgba(17,21,15,.1);padding-top:18px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px 16px}.sp-meta{margin:0;color:#656c66;font-size:11.5px;line-height:1.5;font-weight:800;letter-spacing:.01em;font-variant-numeric:tabular-nums}.sp-topics{display:flex;align-items:center;flex-wrap:wrap;gap:0 8px;margin-top:12px}.sp-topics>span{font-size:14.5px;font-weight:700;color:#4f5651;margin-right:4px}.sp-topics ul{flex:1 1 240px;list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:0 8px;min-width:0}.sp-topics li{margin:0;min-width:0}.sp-topics a{display:inline-flex;align-items:center;min-height:44px;max-width:100%;color:#11150f;text-decoration:none}.sp-topics a>span{display:inline-block;max-width:100%;padding:6px 12px;border:1px solid rgba(17,21,15,.18);border-radius:8px;font-size:14.5px;line-height:1.35;font-weight:600;background:#fff}.sp-topics a:active>span{background:#e6e9e7}
 @media(hover:hover){.sp-topics a:hover{color:#11150f}.sp-topics a:hover>span{background:#f1f3f2;border-color:rgba(17,21,15,.3)}}
