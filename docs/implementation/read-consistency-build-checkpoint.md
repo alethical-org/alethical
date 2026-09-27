@@ -183,8 +183,8 @@ export passed at 296,462. Auto-merge was disabled while repairing this failure.
 [Commit 0b05832a](https://github.com/alethical-org/alethical/commit/0b05832a)
 reuses the startup address reader's existing collection validation instead of
 loading the separate article return-link validator before any screen opens.
-The article components keep their own full validation. The repair passed 119
-focused tests, TypeScript and the production build, measuring 296,129 locally.
+The article components keep their own full validation. The repair passed 122
+focused tests, TypeScript and the production build, measuring 296,265 locally.
 The hosted build must pass its own measurement before merge resumes. The limit
 has not changed. The hidden `/read` heading remains **Read** in both initial HTML
 and the interactive screen, matching the saved wording in §2.13 of
