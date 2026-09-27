@@ -107,7 +107,7 @@ export interface PieceIndexEntry {
    * from the publication date (settled 26 Aug 2026,
    * `docs/architecture/published-writing-decisions.md` §4.4).
    *
-   * Absent, the slot reads "Written August 2026" and promises nothing. Present,
+   * Absent, the slot reads "Published August 2026" and promises no new check. Present,
    * the same slot reads "Checked March 2027": one word swapped, never a second
    * date. That is the point of the swap — re-verifying a piece moves its date
    * forward, so staying accurate makes a piece look current instead of old,
