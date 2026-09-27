@@ -157,6 +157,9 @@ export function linkProps(
     return { accessibilityRole: 'link', onPress };
   }
 
+  // A real href without an in-app destination belongs to the browser.
+  if (!onPress) return { accessibilityRole: 'link', href };
+
   return {
     accessibilityRole: 'link',
     href,
@@ -167,7 +170,7 @@ export function linkProps(
       // Without this the browser would follow the href itself and reload the
       // whole app instead of transitioning to the next screen in place.
       (event as unknown as WebClickFields)?.preventDefault?.();
-      onPress?.(event);
+      onPress(event);
     },
   };
 }
