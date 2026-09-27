@@ -179,6 +179,19 @@ describe('article correction links', () => {
     expect(draft.getSnapshot().values.email).toBe('');
   });
 
+  it('removes a missing-email message when the account fills the email', () => {
+    const draft = createContactDraft();
+    draft.dispatch({
+      type: 'validate',
+      errors: validateContactForm(initialContactFormState.values),
+    });
+    expect(draft.getSnapshot().errors.email).toBe('Enter an email address so we can reply');
+
+    draft.setAccount({ id: 'account-a', email: 'account-a@example.test' });
+    expect(draft.getSnapshot().values.email).toBe('account-a@example.test');
+    expect(draft.getSnapshot().errors.email).toBeUndefined();
+  });
+
   it('removes a previous account default and restores the current default on reset', () => {
     const draft = createContactDraft();
     draft.setAccount({ id: 'account-a', email: 'account-a@example.test' });

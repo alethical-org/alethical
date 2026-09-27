@@ -116,7 +116,9 @@ export function createContactDraft(article?: string) {
       const email = currentAccount?.email ?? '';
       const accountId = currentAccount?.id ?? null;
       if (state.values.email === email && automaticEmailAccountId === accountId) return;
-      state = { ...state, values: { ...state.values, email } };
+      const errors = { ...state.errors };
+      delete errors.email;
+      state = { ...state, values: { ...state.values, email }, errors };
       automaticEmailAccountId = accountId;
       draft.requestId = null;
       notify();

@@ -1,4 +1,11 @@
-import { createElement, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  createElement,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import {
   ActivityIndicator,
   Linking,
@@ -261,7 +268,13 @@ export function ContactUsScreen({ navigation, route }: RootScreenProps<'ContactU
   const { isMobile } = useResponsive();
   const { isLoading: isAuthLoading, isSignedIn, user } = useAuth();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
-  const [draft] = useState(() => (currentDraft ??= createContactDraft(route.params?.article)));
+  const [draft] = useState(() => {
+    const retainedDraft = (currentDraft ??= createContactDraft(route.params?.article));
+    retainedDraft.setAccount(
+      isAuthLoading ? undefined : isSignedIn && user ? { id: user.id, email: user.email } : null,
+    );
+    return retainedDraft;
+  });
   const state = useSyncExternalStore(draft.subscribe, draft.getSnapshot, draft.getSnapshot);
   const dispatch = draft.dispatch;
   const fieldRefs = useRef<Partial<Record<ContactField, any>>>({});
@@ -271,7 +284,7 @@ export function ContactUsScreen({ navigation, route }: RootScreenProps<'ContactU
     draft.prefill(route.params?.article);
   }, [draft, route.params?.article]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     draft.setAccount(
       isAuthLoading ? undefined : isSignedIn && user ? { id: user.id, email: user.email } : null,
     );

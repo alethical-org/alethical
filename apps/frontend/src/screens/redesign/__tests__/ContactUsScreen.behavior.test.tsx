@@ -155,6 +155,22 @@ it('fills an untouched email after delayed account loading', async () => {
   expect(field('email').value).toBe('account-a@example.test');
 });
 
+it('removes an old missing-email message when delayed sign-in fills the email', async () => {
+  mocks.auth.isLoading = true;
+  await render();
+  await click('Send message');
+  expect(host.textContent).toContain('Enter an email address so we can reply');
+  expect(field('email').getAttribute('aria-invalid')).toBe('true');
+
+  mocks.auth.isLoading = false;
+  mocks.auth.isSignedIn = true;
+  mocks.auth.user = { id: 'account-a', email: 'account-a@example.test' };
+  await render();
+  expect(field('email').value).toBe('account-a@example.test');
+  expect(host.textContent).not.toContain('Enter an email address so we can reply');
+  expect(field('email').getAttribute('aria-invalid')).toBe('false');
+});
+
 it('keeps an email typed or cleared before delayed account loading', async () => {
   mocks.auth.isLoading = true;
   await render();
@@ -191,6 +207,27 @@ it('replaces or clears only an automatically filled email when the account chang
   mocks.auth.user = null;
   await render();
   expect(field('email').value).toBe('reader-chose@example.test');
+});
+
+it('reconciles a retained automatic email before a reopened form is shown', async () => {
+  mocks.auth.isSignedIn = true;
+  mocks.auth.user = { id: 'account-a', email: 'account-a@example.test' };
+  await render();
+  expect(field('email').value).toBe('account-a@example.test');
+
+  act(() => root.unmount());
+  root = createRoot(host);
+  mocks.auth.isSignedIn = false;
+  mocks.auth.user = null;
+  await render();
+  expect(field('email').value).toBe('');
+
+  act(() => root.unmount());
+  root = createRoot(host);
+  mocks.auth.isSignedIn = true;
+  mocks.auth.user = { id: 'account-b', email: 'account-b@example.test' };
+  await render();
+  expect(field('email').value).toBe('account-b@example.test');
 });
 
 it('does not treat an automatically filled email as unfinished reader work', async () => {
