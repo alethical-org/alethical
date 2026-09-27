@@ -58,7 +58,7 @@ function washTransition(reducedMotion: boolean) {
   return { transitionProperty: 'background-color, color', transitionDuration: '0.14s' } as object;
 }
 
-/** One published piece inside a set: its title, and its reading time in a right-hand column. */
+/** One published piece inside a set: its reading time above its title. */
 function SetRow({
   piece,
   isLast,
@@ -94,6 +94,9 @@ function SetRow({
             once for the whole set. A screen reader still hears it, because a row
             announced on its own has no meta line beside it. */}
         <Text style={[styles.rowKindForScreenReaders, webClip]}>Guide: </Text>
+        <Text style={[styles.rowTime, isMobile && styles.rowTimeMobile]}>
+          {pieceRowTime(piece)}
+        </Text>
         <Text
           style={[
             styles.rowTitle,
@@ -102,9 +105,6 @@ function SetRow({
           ]}
         >
           {piece.title}
-        </Text>
-        <Text style={[styles.rowTime, isMobile && styles.rowTimeMobile]}>
-          {pieceRowTime(piece)}
         </Text>
       </Pressable>
     </View>
@@ -128,6 +128,8 @@ export function SetBox({
 
   return (
     <View style={[styles.box, isMobile && styles.boxMobile]}>
+      {/* The count comes before the set name, matching the cards and rows. */}
+      <Text style={[styles.meta, isMobile && styles.metaMobile]}>{setMetaLine(group)}</Text>
       {/* The button sits INSIDE the heading, never the other way round: a heading
           nested inside interactive content is not reliably exposed as a heading,
           and this is the only order that survives heading navigation. A reader
@@ -143,7 +145,7 @@ export function SetBox({
           onHoverOut={() => setHovered(false)}
           onPressIn={() => setPressed(true)}
           onPressOut={() => setPressed(false)}
-          style={styles.summary}
+          style={[styles.summary, isMobile && styles.summaryMobile]}
         >
           {/* The set's name is a heading, not a destination, so it never changes
               colour. Everything this control does visually happens in the
@@ -172,10 +174,6 @@ export function SetBox({
           </View>
         </Pressable>
       </View>
-
-      {/* Closing hides the rows and the rule above them, never the meta line: the
-          count and the total are how a reader decides whether to open it. */}
-      <Text style={[styles.meta, isMobile && styles.metaMobile]}>{setMetaLine(group)}</Text>
 
       {/* The wrapper carries the id whether the box is open or shut, so
           `aria-controls` never points at an element that is not there. Rows appear
@@ -220,7 +218,9 @@ const styles = StyleSheet.create({
     gap: 24,
     width: '100%',
     minHeight: CLEAR_SEARCH_TARGET_SIZE,
+    marginTop: 11,
   },
+  summaryMobile: { marginTop: 8 },
   setName: {
     flexShrink: 1,
     color: t.colors.text.primary,
@@ -255,55 +255,51 @@ const styles = StyleSheet.create({
   // below". Open is the same glyph turned over, rather than a second glyph.
   chevronOpen: { transform: [{ rotate: '180deg' }] },
   meta: {
-    marginTop: 11,
-    color: t.colors.text.muted,
-    fontFamily: t.typography.mono,
-    fontSize: 12.5,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1,
+    color: '#656c66',
+    fontFamily: t.typography.ui,
+    fontSize: 11.5,
+    lineHeight: 17.25,
+    fontWeight: t.fontWeights.heavy,
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 0.115,
   },
-  metaMobile: { marginTop: 9, fontSize: 11.5, letterSpacing: 0.92 },
+  metaMobile: { fontSize: 10.5, lineHeight: 15.75, letterSpacing: 0.105 },
   list: { marginTop: 22, borderTopWidth: 1, borderTopColor: t.colors.alpha.ink08 },
   listMobile: { marginTop: 16 },
   rowDivider: { borderBottomWidth: 1, borderBottomColor: t.colors.alpha.ink07 },
   row: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: 32,
-    paddingVertical: 20,
+    paddingVertical: 22,
     paddingHorizontal: 14,
     marginHorizontal: -14,
     borderRadius: 10,
   },
   rowMobile: {
-    gap: 14,
-    minHeight: CLEAR_SEARCH_TARGET_SIZE,
-    paddingVertical: 14,
+    paddingVertical: 16,
     paddingHorizontal: 10,
     marginHorizontal: -10,
   },
   rowHover: { backgroundColor: t.colors.surfaces.s200 },
   rowTitle: {
-    flexShrink: 1,
+    marginTop: 11,
     color: t.colors.text.primary,
     fontFamily: t.typography.ui,
     fontSize: 20,
-    lineHeight: 28,
-    fontWeight: t.fontWeights.semibold,
+    lineHeight: 27,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: -0.2,
   },
-  rowTitleMobile: { fontSize: 18, lineHeight: 24 },
+  rowTitleMobile: { marginTop: 9, fontSize: 18, lineHeight: 24.3, letterSpacing: -0.18 },
   rowTitleHover: { color: t.colors.text.greenOnLight },
   rowTime: {
-    flexGrow: 0,
-    flexShrink: 0,
-    color: t.colors.text.faint,
-    fontFamily: t.typography.mono,
-    fontSize: 14,
-    fontWeight: t.fontWeights.medium,
-    letterSpacing: 0.56,
+    color: '#656c66',
+    fontFamily: t.typography.ui,
+    fontSize: 11.5,
+    lineHeight: 17.25,
+    fontWeight: t.fontWeights.heavy,
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 0.115,
   },
-  rowTimeMobile: { fontSize: 13, letterSpacing: 0.52 },
+  rowTimeMobile: { fontSize: 10.5, lineHeight: 15.75, letterSpacing: 0.105 },
   // Read out, never drawn: the app's own visually-hidden treatment, which keeps
   // the words in the accessible name while taking them out of the layout.
   rowKindForScreenReaders: {

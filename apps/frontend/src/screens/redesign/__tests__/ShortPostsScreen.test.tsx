@@ -87,6 +87,8 @@ describe('Short posts reader paths', () => {
     act(() => topic.click());
     expect(navigate).toHaveBeenCalledExactlyOnceWith('ReadTopic', { topic: 'lobbying' });
     expect(element.querySelector('.topic-piece-dek')?.textContent).toBe(source.pieces[0].dek);
+    expect(element.querySelector('.topic-piece-kind')).toBeNull();
+    expect(element.querySelector('.topic-piece-kind-sr')?.textContent).toBe('Research: ');
     act(() => root.unmount());
   });
   it('keeps 6 entries on numbered URLs and changes results without a loading flash', () => {
@@ -121,6 +123,7 @@ describe('Short post context links', () => {
     const root = createRoot(element);
     act(() => root.render(<TopicPieceCard piece={piece} currentTopic="lobbying" />));
     expect(element.querySelector('ul')?.getAttribute('aria-label')).toBe('Other topics');
+    expect(element.querySelector('.topic-piece-kind')?.textContent).toBe('Research');
     expect(element.querySelectorAll('.topic-piece-topics a')).toHaveLength(1);
     expect(element.querySelector('.topic-piece-topics a')?.getAttribute('href')).toBe(
       '/read/topics/elections',
@@ -144,7 +147,8 @@ describe('Short post context links', () => {
     );
     expect(element.querySelectorAll('.short-posts-preview')).toHaveLength(1);
     expect(element.querySelectorAll('.topic-piece-row')).toHaveLength(3);
-    expect(element.querySelectorAll('.topic-piece-kind')).toHaveLength(3);
+    expect(element.querySelectorAll('.topic-piece-kind')).toHaveLength(0);
+    expect(element.querySelectorAll('.topic-piece-kind-sr')).toHaveLength(3);
     expect(element.querySelector('a a')).toBeNull();
     act(() => element.querySelector<HTMLAnchorElement>('.short-posts-preview-all a')!.click());
     expect(onAll).toHaveBeenCalledOnce();

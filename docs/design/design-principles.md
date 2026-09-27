@@ -602,6 +602,21 @@ to screen readers. Phone save buttons fill the available content width, and long
 account addresses wrap. [Unconcealed email signup](../product-onboarding/unconcealed-email-spec.md)
 records the exact approved wording, breakpoints and feedback states.
 
+### `/read` listing rhythm
+
+The Research card, Short post rows, Guide set count, Guide row times, and
+`/read/short-posts` cards put metadata above titles. Metadata uses Libre Franklin
+800, equal-width digits, uppercase text, `#656c66`, `0.01em` spacing, and 1.5 line
+height at 11.5px on computer and tablet or 10.5px on phone. Short post and Guide
+rows on `/read` use 20px, weight 700 titles with 1.35 line height and `-0.01em`
+spacing, or 18px on phone; cards on `/read/short-posts` retain 24px titles, or
+20px on phone. The Research card and `/read/short-posts` cards use the white card
+hover: green border `rgba(45,212,126,0.85)`, shadow
+`0 22px 46px rgba(17,21,15,0.14)`, and a 3px lift over 0.16s, without the lift
+under reduced motion. Keyboard focus draws 1 purple 2px ring, offset 2px, around
+the whole Short post row or card from its title link; pointer clicks draw no ring.
+The Guide fold button and topic links keep their separate focus and hover states.
+
 ### Implied information in post graphics
 
 Remove text and visual marks that add no needed meaning beyond nearby labels,

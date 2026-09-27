@@ -65,7 +65,7 @@ import { theme as t } from '../../theme/tokens';
  * A card under one of these headings prints no kind word: the heading is the
  * source and the card inherits it (§2.10). Its accessible name still opens with
  * "Research: " or "Guide: ", because a card announced out of context has no
- * heading above it. Every card in a column is one shape — the same mono meta, the
+ * heading above it. Every card in a column is one shape — the same metadata, the
  * same title, and one smaller line holding a research piece's standfirst or a
  * guide's set — because a column that changes shape per kind reads as 2 columns.
  *
@@ -106,9 +106,10 @@ function PieceCard({
         styles.card,
         isMobile && styles.cardMobile,
         hovered && styles.cardHover,
+        hovered && !reducedMotion && styles.cardHoverLift,
         isWeb && !reducedMotion
           ? ({
-              transitionProperty: 'border-color, box-shadow',
+              transitionProperty: 'border-color, box-shadow, transform',
               transitionDuration: '0.16s',
             } as object)
           : null,
@@ -343,18 +344,21 @@ const styles = StyleSheet.create({
   },
   cardMobile: { paddingTop: 22, paddingBottom: 24, paddingHorizontal: 20 },
   cardHover: {
-    borderColor: t.colors.brand.hover,
-    ...(isWeb ? ({ boxShadow: '0 8px 24px rgba(17,21,15,0.06)' } as object) : null),
+    borderColor: 'rgba(45,212,126,0.85)',
+    ...(isWeb ? ({ boxShadow: '0 22px 46px rgba(17,21,15,0.14)' } as object) : null),
   },
+  cardHoverLift: { transform: [{ translateY: -3 }] },
   cardKindForScreenReaders: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
   cardMeta: {
-    color: t.colors.text.muted,
-    fontFamily: t.typography.mono,
+    color: '#656c66',
+    fontFamily: t.typography.ui,
     fontSize: 11.5,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.92,
+    lineHeight: 17.25,
+    fontWeight: t.fontWeights.heavy,
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 0.115,
   },
-  cardMetaMobile: { fontSize: 10.5, lineHeight: 16 },
+  cardMetaMobile: { fontSize: 10.5, lineHeight: 15.75, letterSpacing: 0.105 },
   cardTitle: {
     marginTop: 14,
     color: t.colors.text.primary,

@@ -103,6 +103,7 @@ export function ShortPostsScreen({ navigation, route }: Props) {
                     <li key={piece.articleId ?? piece.slug}>
                       <TopicPieceCard
                         piece={piece}
+                        showKind={Boolean(topic)}
                         headingLevel={2}
                         currentTopic={topic?.slug}
                         onOpen={() =>

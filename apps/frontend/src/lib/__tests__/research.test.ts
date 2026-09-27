@@ -912,7 +912,7 @@ describe('sets, as the /read page groups them', () => {
 
   it('gives a row a time and never a decimal', () => {
     for (const piece of publishedResearch()) {
-      expect(pieceRowTime(piece)).toMatch(/^\d+ min$/);
+      expect(pieceRowTime(piece)).toMatch(/^\d+ MIN$/);
     }
   });
 });

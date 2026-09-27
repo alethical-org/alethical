@@ -604,7 +604,7 @@ export function setMetaLine(group: PieceSetGroup): string {
   return `${count} ${count === 1 ? 'GUIDE' : 'GUIDES'} \u00b7 ${setReadingMinutes(group)} MIN`;
 }
 
-/** The time in a set row's right-hand column: "5 min", never a decimal. */
+/** The time above a set row's title: "5 MIN", never a decimal. */
 export function pieceRowTime(piece: ResearchPiece): string {
-  return `${pieceReadingMinutes(piece)} min`;
+  return `${pieceReadingMinutes(piece)} MIN`;
 }
