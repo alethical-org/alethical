@@ -1,3 +1,4 @@
+import { guideCollectionItems } from './readCollectionSelection';
 import { TOPICS, type TopicSlug } from './researchIndex';
 import { pageMetadata, titleFor, type PageMetadata } from './share';
 
@@ -26,5 +27,34 @@ export function readTopicPageMetadata(topic: TopicSlug, page = 1, hasPieces = tr
     description: `Published writing about ${label.toLowerCase()} in Minnesota.${page > 1 ? ` Page ${page}.` : ''}`,
     canonicalPath: hasPieces ? readCollectionPagePath(`/read/topics/${topic}`, page) : '',
     noindex: !hasPieces,
+  });
+}
+
+export function readingCollectionMetadata(
+  kind: 'research' | 'guides' | 'set',
+  page = 1,
+  setSlug = 'how-the-money-works',
+): PageMetadata {
+  const group = guideCollectionItems().find(
+    (item) => item.kind === 'group' && item.slug === setSlug,
+  );
+  const title =
+    kind === 'research'
+      ? 'Research reports'
+      : kind === 'guides'
+        ? 'Guides'
+        : group?.kind === 'group'
+          ? group.name
+          : 'Guides';
+  const base = kind === 'set' ? `/read/sets/${setSlug}` : `/read/${kind}`;
+  const subject = page > 1 ? `${title}, page ${page}` : title;
+  return pageMetadata({
+    title: titleFor(subject),
+    socialTitle: subject,
+    description:
+      kind === 'research'
+        ? 'Alethical research reports about Minnesota public records.'
+        : 'Guides to reading Minnesota public records.',
+    canonicalPath: readCollectionPagePath(base, page),
   });
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, type MouseEvent } from 'react';
 import { ScrollView } from 'react-native';
 import { TopicPieceCard } from '../../components/read/TopicPieceCard';
+import { articleReturnHref, captureArticleReturn } from '../../lib/articleReturn';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { publishedResearch, type ResearchPiece } from '../../lib/research';
@@ -28,7 +29,7 @@ export function ShortPostsScreen({ navigation, route }: Props) {
   const heading = useRef<HTMLHeadingElement>(null);
   const reducedMotion = useReducedMotion();
   const requestedPage = useRef<{ page: number; control: HTMLAnchorElement } | undefined>(undefined);
-  const returnPost = route.name === 'ShortPosts' ? route.params?.post : undefined;
+  const returnPost = route.params?.post;
   const returnToPost = useRef(returnPost);
   const navigatePage = (event: MouseEvent<HTMLAnchorElement>, next: number) => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
@@ -58,7 +59,6 @@ export function ShortPostsScreen({ navigation, route }: Props) {
     );
     if (!link) return;
     link.scrollIntoView({ block: 'center' });
-    link.focus({ preventScroll: true });
     returnToPost.current = undefined;
   }, [page, returnPost]);
   const pageLink = (number: number, label: string, current = false) => (
@@ -80,11 +80,11 @@ export function ShortPostsScreen({ navigation, route }: Props) {
         <main className="sp-collection">
           <style>{collectionCss}</style>
           <div className="sp-collection-column">
+            <a className="sp-collection-back" href="/read">
+              ‹ Back to Read
+            </a>
             {topic && (
               <>
-                <a className="sp-collection-back" href="/read">
-                  ‹ Back to Read
-                </a>
                 <div className="sp-collection-label">Topics</div>
               </>
             )}
@@ -106,9 +106,23 @@ export function ShortPostsScreen({ navigation, route }: Props) {
                         showKind={Boolean(topic)}
                         headingLevel={2}
                         currentTopic={topic?.slug}
+                        sourceHref={articleReturnHref(
+                          topic ? 'topic' : 'archive',
+                          piece.slug,
+                          route.params?.page,
+                          topic?.slug,
+                        )}
                         onOpen={() =>
                           navigation.navigate(piece.traits.research ? 'Research' : 'Guide', {
                             slug: piece.slug,
+                            returnContext: captureArticleReturn(
+                              articleReturnHref(
+                                topic ? 'topic' : 'archive',
+                                piece.slug,
+                                route.params?.page,
+                                topic?.slug,
+                              ),
+                            ),
                           })
                         }
                         onTopic={(slug) => navigation.navigate('ReadTopic', { topic: slug })}

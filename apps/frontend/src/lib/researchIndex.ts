@@ -58,12 +58,18 @@ export function topicPath(topic: TopicSlug): string {
 
 /** What every surface that loads before a screen may know about a piece. */
 export interface PieceIndexEntry {
+  /** Whether AI helped prepare any of the article, including its method text. */
+  aiAssisted?: boolean;
+  /** Published guide group membership, kept in the lightweight listing index. */
+  set?: { name: string; position: number };
   /** Stable identity for later article features. A Short post must set this. */
   articleId?: string;
   /** Short posts are a format, independent of the Research and Guide traits. */
   format?: 'short-post';
   /** Controlled subject names, independent of kind and format. */
   topics?: readonly TopicSlug[];
+  /** Editorial, published related-reading picks. Empty until reviewed. */
+  relatedSlugs?: readonly string[];
   /** Full ISO publication instant for Short post ordering. Never changed by checks. */
   publishedAt?: string;
   /**
@@ -271,7 +277,7 @@ export function pieceWrittenLine(
 ): string {
   return piece.checkedOn
     ? `CHECKED ${isoMonthYearCapsLabel(piece.checkedOn)}`
-    : `WRITTEN ${isoMonthYearCapsLabel(piece.publishedOn)}`;
+    : `PUBLISHED ${isoMonthYearCapsLabel(piece.publishedOn)}`;
 }
 
 /** The sentence-case form of the same slot, for a share preview and a page description. */
@@ -292,6 +298,8 @@ export function pieceShareDescription(
 }
 
 export const WHAT_THE_RECORDS_NAME_INDEX_ENTRY: PieceIndexEntry = {
+  aiAssisted: true,
+  set: { name: 'How the Money Works', position: 2 },
   articleId: 'guide-what-the-records-name',
   slug: 'what-the-records-name',
   topics: ['campaign-finance'],
@@ -303,6 +311,8 @@ export const WHAT_THE_RECORDS_NAME_INDEX_ENTRY: PieceIndexEntry = {
 };
 
 export const WHO_HAS_TO_REPORT_THEIR_MONEY_INDEX_ENTRY: PieceIndexEntry = {
+  aiAssisted: true,
+  set: { name: 'How the Money Works', position: 1 },
   articleId: 'guide-who-has-to-report-their-money',
   slug: 'who-has-to-report-their-money',
   topics: ['campaign-finance'],
@@ -314,6 +324,8 @@ export const WHO_HAS_TO_REPORT_THEIR_MONEY_INDEX_ENTRY: PieceIndexEntry = {
 };
 
 export const WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT_INDEX_ENTRY: PieceIndexEntry = {
+  aiAssisted: true,
+  set: { name: 'How the Money Works', position: 3 },
   articleId: 'guide-why-2-official-numbers-can-both-be-right',
   slug: 'why-2-official-numbers-can-both-be-right',
   topics: ['campaign-finance'],
@@ -325,6 +337,8 @@ export const WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT_INDEX_ENTRY: PieceIndexE
 };
 
 export const MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY_INDEX_ENTRY: PieceIndexEntry = {
+  aiAssisted: true,
+  set: { name: 'How the Money Works', position: 4 },
   articleId: 'guide-money-spent-without-a-campaigns-say',
   slug: 'money-spent-without-a-campaigns-say',
   topics: ['campaign-finance', 'elections'],
@@ -336,6 +350,8 @@ export const MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY_INDEX_ENTRY: PieceIndexEntry = 
 };
 
 export const WHY_NOBODY_CAN_FOLLOW_A_DOLLAR_INDEX_ENTRY: PieceIndexEntry = {
+  aiAssisted: true,
+  set: { name: 'How the Money Works', position: 5 },
   articleId: 'guide-why-nobody-can-follow-a-dollar',
   slug: 'why-nobody-can-follow-a-dollar',
   topics: ['campaign-finance'],
@@ -347,6 +363,7 @@ export const WHY_NOBODY_CAN_FOLLOW_A_DOLLAR_INDEX_ENTRY: PieceIndexEntry = {
 };
 
 export const MONEY_ONLY_GOES_ONE_WAY_INDEX_ENTRY: PieceIndexEntry = {
+  aiAssisted: true,
   articleId: 'research-the-money-only-goes-one-way',
   slug: 'the-money-only-goes-one-way',
   topics: ['campaign-finance', 'lobbying'],
@@ -418,6 +435,39 @@ export const PUBLISHED_PIECE_INDEX: PieceIndexEntry[] = [
   WHY_NOBODY_CAN_FOLLOW_A_DOLLAR_INDEX_ENTRY,
   MONEY_ONLY_GOES_ONE_WAY_INDEX_ENTRY,
 ];
+
+/** A guide group is one numbered collection item, whatever its member count. */
+export const READING_COLLECTION_PAGE_SIZE = 10;
+
+export function guideSetSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+export function guideIndexEntries(entries: readonly PieceIndexEntry[] = PUBLISHED_PIECE_INDEX) {
+  return entries.filter(
+    (piece) => piece.traits.guide && !piece.traits.research && piece.format !== 'short-post',
+  );
+}
+
+export function guideCollectionCount(entries: readonly PieceIndexEntry[] = PUBLISHED_PIECE_INDEX) {
+  const guides = guideIndexEntries(entries);
+  return (
+    guides.filter((piece) => !piece.set).length +
+    new Set(guides.flatMap((piece) => (piece.set ? [piece.set.name] : []))).size
+  );
+}
+
+export function guideSetBySlug(
+  slug: string,
+  entries: readonly PieceIndexEntry[] = PUBLISHED_PIECE_INDEX,
+) {
+  return guideIndexEntries(entries).find(
+    (piece) => piece.set && guideSetSlug(piece.set.name) === slug,
+  )?.set?.name;
+}
 
 export function pieceIndexBySlug(slug: string): PieceIndexEntry | undefined {
   return PUBLISHED_PIECE_INDEX.find((piece) => piece.slug === slug);

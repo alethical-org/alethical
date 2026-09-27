@@ -79,6 +79,7 @@ const OutsideSpendingScreen = loadOnDemand(screenChunks.OutsideSpending);
 const MoneyByRaceScreen = loadOnDemand(screenChunks.MoneyByRace);
 const ResearchScreen = loadOnDemand(screenChunks.Research);
 const ReadScreen = loadOnDemand(screenChunks.Read);
+const ReadCollectionScreen = loadOnDemand(screenChunks.ReadResearch);
 const ShortPostsScreen = loadOnDemand(screenChunks.ShortPosts);
 const NotFoundScreen = loadOnDemand(screenChunks.NotFound);
 const SearchBillsScreen = loadOnDemand(screenChunks.Bills);
@@ -752,6 +753,21 @@ export function RootNavigator() {
               name="Read"
               component={ReadScreen}
               options={{ headerShown: false, title: 'Campaign money research' }}
+            />
+            <Stack.Screen
+              name="ReadResearch"
+              component={ReadCollectionScreen}
+              options={{ headerShown: false, title: 'Research reports' }}
+            />
+            <Stack.Screen
+              name="ReadGuides"
+              component={ReadCollectionScreen}
+              options={{ headerShown: false, title: 'Guides' }}
+            />
+            <Stack.Screen
+              name="ReadSet"
+              component={ReadCollectionScreen}
+              options={{ headerShown: false, title: 'How the Money Works' }}
             />
             <Stack.Screen
               name="ShortPosts"

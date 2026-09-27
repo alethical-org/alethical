@@ -1,4 +1,9 @@
 import { publicPageUrl } from "../apps/frontend/src/lib/share";
+import {
+  collectionPage,
+  guideCollectionItems,
+  researchReportItems,
+} from "../apps/frontend/src/lib/readCollectionSelection";
 import { readCollectionPagePath } from "../apps/frontend/src/lib/readCollectionMetadata";
 import { indexedResearch, piecePath } from "../apps/frontend/src/lib/research";
 import { TOPICS, topicPath } from "../apps/frontend/src/lib/researchIndex";
@@ -120,6 +125,17 @@ function pagesUrlset(
     // the site map can never advertise an address the router rejects.
     paths.push(piecePath(piece));
   }
+  for (
+    let page = 1;
+    page <= collectionPage(researchReportItems(), 1).pageCount;
+    page += 1
+  )
+    paths.push(readCollectionPagePath("/read/research", page));
+  const guideItems = guideCollectionItems();
+  for (let page = 1; page <= collectionPage(guideItems, 1).pageCount; page += 1)
+    paths.push(readCollectionPagePath("/read/guides", page));
+  for (const item of guideItems)
+    if (item.kind === "group") paths.push(`/read/sets/${item.slug}`);
   const indexedPieces = indexedResearch();
   const shortPosts = shortPostsPage(1, indexedPieces);
   for (let page = 1; page <= shortPosts.pageCount; page += 1) {

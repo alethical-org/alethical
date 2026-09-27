@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ChevronDown } from '../icons';
+import { articleHrefWithReturn } from '../../lib/articleReturn';
+import { TOPICS, topicPath, type TopicSlug } from '../../lib/researchIndex';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { CLEAR_SEARCH_TARGET_SIZE } from '../../lib/legislatorSearch';
 import {
@@ -20,7 +22,7 @@ import { theme as t } from '../../theme/tokens';
  *
  * **The box is not a link and does not lift on hover.** Only its summary row is a
  * control, and each row inside is its own link. Lifting the box would promise a
- * destination it does not have: `/read/sets/{slug}` is not built.
+ * destination from the box itself, while its group page has a separate link.
  *
  * **It lists published pieces only** — never a title a reader cannot open, and
  * never a count of how many the set is eventually meant to hold
@@ -64,11 +66,13 @@ function SetRow({
   isLast,
   isMobile,
   onOpen,
+  sourceHref,
 }: {
   piece: ResearchPiece;
   isLast: boolean;
   isMobile: boolean;
   onOpen: () => void;
+  sourceHref: string;
 }) {
   const [hovered, setHovered] = useState(false);
   const reducedMotion = useReducedMotion();
@@ -80,7 +84,8 @@ function SetRow({
     // role: the renderer turns it into a real `<li>` inside the `<ul>` above.
     <View {...({ role: 'listitem' } as object)} style={!isLast && styles.rowDivider}>
       <Pressable
-        {...linkProps(routePath.piece(piece), onOpen)}
+        {...({ 'data-entry-link': piece.slug } as object)}
+        {...linkProps(articleHrefWithReturn(routePath.piece(piece), sourceHref), onOpen)}
         onHoverIn={() => setHovered(true)}
         onHoverOut={() => setHovered(false)}
         style={[
@@ -115,19 +120,36 @@ export function SetBox({
   group,
   isMobile,
   onOpenPiece,
+  sourceHref = '/read',
+  onTopic,
+  onOpenPage,
+  showPageLink = false,
+  initiallyOpen = true,
+  headingLevel = 3,
 }: {
   group: PieceSetGroup;
   isMobile: boolean;
   onOpenPiece: (piece: ResearchPiece) => void;
+  sourceHref?: string;
+  onTopic?: (topic: TopicSlug) => void;
+  onOpenPage?: () => void;
+  showPageLink?: boolean;
+  initiallyOpen?: boolean;
+  headingLevel?: 1 | 2 | 3;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(initiallyOpen);
   const [hovered, setHovered] = useState(false);
   const [pressed, setPressed] = useState(false);
   const reducedMotion = useReducedMotion();
   const listId = `set-${group.slug}-list`;
+  const sharedTopics =
+    group.pieces[0]?.topics?.filter((topic) =>
+      group.pieces.every((piece) => piece.topics?.includes(topic)),
+    ) ?? [];
 
   return (
     <View style={[styles.box, isMobile && styles.boxMobile]}>
+      <style>{`[data-set-topic-link]:focus-visible,[data-set-page-link]:focus-visible{outline:2px solid #7c5cff;outline-offset:2px;border-radius:8px}@media(hover:hover){[data-set-topic-link]:hover>*{background:#f1f3f2;border-color:rgba(17,21,15,.3)}[data-set-page-link]:hover [data-set-page-words]{color:#11832b;text-decoration:underline}}[data-set-topic-link]:active>*{background:#e6e9e7}`}</style>
       {/* The count comes before the set name, matching the cards and rows. */}
       <Text style={[styles.meta, isMobile && styles.metaMobile]}>{setMetaLine(group)}</Text>
       {/* The button sits INSIDE the heading, never the other way round: a heading
@@ -135,7 +157,7 @@ export function SetBox({
           and this is the only order that survives heading navigation. A reader
           jumping by headings lands on the set's name, and that same element is
           the control. */}
-      <View accessibilityRole="header" aria-level={3}>
+      <View accessibilityRole="header" aria-level={headingLevel}>
         <Pressable
           accessibilityRole="button"
           aria-expanded={open}
@@ -175,6 +197,23 @@ export function SetBox({
         </Pressable>
       </View>
 
+      {sharedTopics.length > 0 && (
+        <View style={styles.sharedTopics}>
+          {sharedTopics.map((slug) => (
+            <Pressable
+              key={slug}
+              {...({ 'data-set-topic-link': '' } as object)}
+              {...linkProps(topicPath(slug), () => onTopic?.(slug))}
+              style={styles.topicTarget}
+            >
+              <Text style={styles.topicChip}>
+                {TOPICS.find((topic) => topic.slug === slug)?.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
       {/* The wrapper carries the id whether the box is open or shut, so
           `aria-controls` never points at an element that is not there. Rows appear
           and disappear instantly, whatever the motion setting: animating the
@@ -189,12 +228,30 @@ export function SetBox({
                 piece={piece}
                 isLast={index === group.pieces.length - 1}
                 isMobile={isMobile}
+                sourceHref={
+                  sourceHref === '/read'
+                    ? '/read'
+                    : `${sourceHref}${sourceHref.includes('?') ? '&' : '?'}post=${encodeURIComponent(piece.slug)}`
+                }
                 onOpen={() => onOpenPiece(piece)}
               />
             ))}
           </View>
         ) : null}
       </View>
+      {showPageLink && (
+        <Pressable
+          {...({ 'data-set-page-link': '' } as object)}
+          {...linkProps(`/read/sets/${group.slug}`, () => onOpenPage?.())}
+          accessibilityLabel={`Open the ${group.name} group page`}
+          style={styles.pageLink}
+        >
+          <Text style={styles.pageLinkText}>
+            <Text {...({ 'data-set-page-words': '' } as object)}>Open group page</Text>
+            <Text aria-hidden> →</Text>
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -211,6 +268,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 36,
   },
   boxMobile: { paddingTop: 22, paddingBottom: 24, paddingHorizontal: 20 },
+  sharedTopics: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+  topicTarget: { minHeight: 44, justifyContent: 'center' },
+  topicChip: {
+    paddingVertical: 5,
+    paddingHorizontal: 11,
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.18)',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    color: '#11150f',
+    fontFamily: t.typography.ui,
+    fontSize: 14,
+    fontWeight: t.fontWeights.semibold,
+  },
+  pageLink: { minHeight: 44, justifyContent: 'center', marginTop: 8 },
+  pageLinkText: {
+    color: '#0f7a45',
+    fontFamily: t.typography.ui,
+    fontSize: 17,
+    fontWeight: t.fontWeights.semibold,
+  },
   summary: {
     flexDirection: 'row',
     alignItems: 'center',

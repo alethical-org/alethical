@@ -4,16 +4,18 @@ import {
   ShortPostRelatedReading,
 } from '../../components/shortPosts/ShortPostArticle';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 
 import { useHover } from '../../components/billDetail/interactions';
 import { SharePopover } from '../../components/billDetail/SharePopover';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
+import { articleReturnLink } from '../../lib/articleReturn';
+import { articleOpeningSection } from '../../lib/articleOpeningSection';
+import { articleClosingNote, articleDisclosureRuns } from '../../lib/articleDisclosure';
+import { TOPICS, topicPath } from '../../lib/researchIndex';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
-  READ_PAGE_HEADING,
   pieceContentsLabel,
   pieceKindLabel,
   pieceMastheadLine,
@@ -29,6 +31,7 @@ import {
 } from '../../lib/research';
 import { publicPageUrl, type ShareContent } from '../../lib/share';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
+import { currentWebHistoryEntry } from '../../navigation/webHistory';
 import type { RootScreenProps, RootStackParamList } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
@@ -77,20 +80,6 @@ import { theme as t } from '../../theme/tokens';
  */
 
 const isWeb = Platform.OS === 'web';
-
-function BackChevron() {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <Path
-        d="M15 5 L8 12 L15 19"
-        stroke={t.colors.text.secondary}
-        strokeWidth={2.2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
 
 // How far below the top of the window a section comes to rest after a jump, so
 // the heading is not flush against the edge and reads as the top of a page
@@ -256,7 +245,14 @@ function Blocks({ blocks }: { blocks: ResearchBlock[] }) {
           );
         }
         if (block.kind === 'table') {
-          return <BlockTable key={index} columns={block.columns} rows={block.rows} />;
+          return (
+            <BlockTable
+              key={index}
+              columns={block.columns}
+              rows={block.rows}
+              totalRow={block.totalRow}
+            />
+          );
         }
         return (
           <View key={index} style={styles.bullets}>
@@ -280,10 +276,18 @@ function Blocks({ blocks }: { blocks: ResearchBlock[] }) {
  * figure with its column, and scrollable on its own so a long row never pushes
  * the page sideways.
  */
-function BlockTable({ columns, rows }: { columns: string[]; rows: string[][] }) {
+function BlockTable({
+  columns,
+  rows,
+  totalRow,
+}: {
+  columns: string[];
+  rows: string[][];
+  totalRow?: boolean;
+}) {
   return (
     <View style={styles.tableScroll}>
-      <View role="table" style={styles.table}>
+      <View role="table" style={[styles.table, totalRow && styles.tableNoBottom]}>
         <View role="row" style={[styles.tableRow, styles.tableHeadRow]}>
           {columns.map((column, index) => (
             <Text
@@ -295,13 +299,24 @@ function BlockTable({ columns, rows }: { columns: string[]; rows: string[][] }) 
             </Text>
           ))}
         </View>
-        {rows.map((row) => (
-          <View role="row" key={row[0]} style={styles.tableRow}>
+        {rows.map((row, rowIndex) => (
+          <View
+            role="row"
+            key={row[0]}
+            style={[
+              styles.tableRow,
+              totalRow && rowIndex === rows.length - 1 && styles.tableTotalRow,
+            ]}
+          >
             {row.map((cell, index) => (
               <Text
                 key={index}
                 role="cell"
-                style={[styles.tableCell, index > 0 && styles.tableCellNumeric]}
+                style={[
+                  styles.tableCell,
+                  index > 0 && styles.tableCellNumeric,
+                  totalRow && rowIndex === rows.length - 1 && styles.tableTotalCell,
+                ]}
               >
                 {cell}
               </Text>
@@ -411,6 +426,22 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
   // saves the position against the exact history entry.
   const scrollRestoration = useHistoryScrollRestoration(true, route.params.slug);
   const piece = researchBySlug(route.params.slug);
+  const returnLink = articleReturnLink(route.params.returnContext);
+  const returnToSource = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+      return;
+    const origin = route.params.returnContext;
+    const current = currentWebHistoryEntry();
+    if (
+      current &&
+      origin?.depth !== undefined &&
+      origin.sessionId === current.sessionId &&
+      current.depth === origin.depth + 1
+    ) {
+      event.preventDefault();
+      window.history.back();
+    }
+  };
 
   // One list of section link targets, read by both the rail and the article.
   const anchors = useMemo(() => researchSectionAnchors(piece?.sections ?? []), [piece]);
@@ -420,19 +451,26 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
   // is drawn by JavaScript, so when the browser looks for the fragment's target
   // on load there is nothing there yet. Read once on the first render, then
   // re-asserted after the layout settles.
-  const [openingAnchor] = useState(() =>
-    isWeb && typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : '',
-  );
   useEffect(() => {
-    if (!openingAnchor || !anchors.includes(openingAnchor)) return;
-    const jump = () => jumpToAnchor(openingAnchor);
+    if (!isWeb || typeof window === 'undefined') return;
+    // Navigation may reuse this screen. Read the destination URL after its history
+    // entry exists, rather than retaining the previous article's fragment.
+    const jump = () => {
+      const anchor = articleOpeningSection(
+        window.location.pathname,
+        `/read/${route.name === 'Research' ? 'research' : 'guides'}/${route.params.slug}`,
+        window.location.hash,
+        anchors,
+      );
+      if (anchor) jumpToAnchor(anchor);
+    };
     const first = setTimeout(jump, 0);
     const settled = setTimeout(jump, 250);
     return () => {
       clearTimeout(first);
       clearTimeout(settled);
     };
-  }, [openingAnchor, anchors]);
+  }, [route.name, route.params.slug, anchors]);
 
   // The router only produces this route for published slugs, so this is a
   // belt-and-braces guard, not a reachable state.
@@ -465,6 +503,8 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
           <Container>
             <ShortPostArticle
               piece={piece}
+              returnLink={returnLink}
+              onReturn={returnToSource}
               onCorrectionContact={() =>
                 navigation.navigate('ContactUs', { article: piece.articleId ?? piece.slug })
               }
@@ -497,16 +537,10 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
 
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
-          <Pressable
-            {...linkProps(routePath.read(), () => navigation.navigate('Read'))}
-            style={styles.backLink}
-          >
-            <BackChevron />
-            {/* The back link names its destination, and the /read page's name
-                lives in one place so this cannot drift from the page's own
-                heading. */}
-            <Text style={styles.backLinkText}>{READ_PAGE_HEADING}</Text>
-          </Pressable>
+          <a className="article-return" href={returnLink.href} onClick={returnToSource}>
+            <span aria-hidden="true">‹</span> {returnLink.label}
+          </a>
+          <style>{`.article-return{display:inline-flex;align-items:center;gap:9px;min-height:44px;color:#4b524b;font:600 16px 'Libre Franklin',sans-serif;text-decoration:none}.article-return span{font-size:25px;line-height:1}@media(hover:hover){.article-return:hover{color:#11150f;text-decoration:underline}}.article-return:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}.article-topics{display:flex;align-items:center;flex-wrap:wrap;gap:0 8px;margin-top:12px;font-family:'Libre Franklin',sans-serif}.article-topics>span{font-size:14.5px;font-weight:700;color:#4f5651;margin-right:4px}.article-topics a{display:inline-flex;align-items:center;min-height:44px;color:#11150f;text-decoration:none}.article-topics a span{padding:6px 12px;border:1px solid rgba(17,21,15,.18);border-radius:8px;font-size:14.5px;font-weight:600;line-height:1.35;background:#fff}.article-topics a:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}@media(hover:hover){.article-topics a:hover span{background:#f1f3f2;border-color:rgba(17,21,15,.3)}}.article-topics a:active span{background:#e6e9e7}@media(max-width:767px){.article-topics{margin-top:10px}}`}</style>
 
           <View style={[styles.grid, isMobile && styles.gridMobile]}>
             {!isMobile ? (
@@ -527,9 +561,7 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
               {/* Only where the masthead does not already say it: a guide's
                   masthead opens with GUIDE, and printing the word twice in one
                   glance is what §2.10 narrows away. */}
-              {piece.traits.research ? (
-                <Text style={styles.eyebrow}>{pieceKindLabel(piece).toUpperCase()}</Text>
-              ) : null}
+              <Text style={styles.eyebrow}>{pieceKindLabel(piece).toUpperCase()}</Text>
               <Text
                 accessibilityRole="header"
                 aria-level={1}
@@ -537,15 +569,26 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
               >
                 {piece.title}
               </Text>
-              {piece.set ? <Text style={styles.setLine}>{piece.set.name}</Text> : null}
               {piece.dek ? <Text style={styles.dek}>{piece.dek}</Text> : null}
 
-              <View style={styles.mastheadRow}>
+              <View style={[styles.mastheadRow, isMobile && styles.mastheadRowMobile]}>
                 <View style={styles.mastheadMeta}>
                   <Text style={styles.mastheadLineMuted}>{pieceMastheadLine(piece)}</Text>
                 </View>
                 <SharePopover content={shareContent} />
               </View>
+              {!!piece.topics?.length && (
+                <nav className="article-topics" aria-labelledby="article-topic-label">
+                  <span id="article-topic-label">
+                    {piece.topics.length === 1 ? 'Topic' : 'Topics'}
+                  </span>
+                  {piece.topics.map((slug) => (
+                    <a key={slug} href={topicPath(slug)}>
+                      <span>{TOPICS.find((topic) => topic.slug === slug)?.label}</span>
+                    </a>
+                  ))}
+                </nav>
+              )}
 
               {piece.correction ? (
                 <View style={[styles.correctionBanner, isMobile && styles.bannerMobile]}>
@@ -577,7 +620,7 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
                 <SectionView key={anchors[index]} section={section} anchor={anchors[index]} />
               ))}
 
-              <View style={styles.sourcesBlock}>
+              <View style={[styles.sourcesBlock, isMobile && styles.sourcesBlockMobile]}>
                 <Text style={styles.insetLabel}>{pieceSourcesLabel(piece)}</Text>
                 <View style={styles.sourcesList}>
                   {piece.sources.map((source, index) => (
@@ -601,11 +644,22 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
                   ))}
                 </View>
               </View>
+              <View style={styles.closingNote}>
+                <Text style={styles.closingText}>
+                  <InlineRuns
+                    runs={articleDisclosureRuns(
+                      articleClosingNote(piece.aiAssisted),
+                      piece.articleId ?? piece.slug,
+                    )}
+                  />
+                </Text>
+              </View>
             </View>
           </View>
         </Container>
 
         {piece.articleId && <ReaderComments articleId={piece.articleId} />}
+        <ShortPostRelatedReading piece={piece} />
         <Footer
           onContact={() => navigation.navigate('ContactUs')}
           onPrivacy={() => navigation.navigate('Privacy')}
@@ -728,21 +782,25 @@ const styles = StyleSheet.create({
   },
   mastheadRow: {
     marginTop: 24,
-    paddingTop: 20,
+    paddingTop: 18,
     borderTopWidth: 1,
     borderTopColor: t.colors.alpha.ink10,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: 24,
     flexWrap: 'wrap',
   },
+  mastheadRowMobile: { paddingTop: 14 },
   mastheadMeta: { flexShrink: 1, minWidth: 0, gap: 7 },
   mastheadLineMuted: {
-    color: t.colors.text.muted,
-    fontFamily: t.typography.mono,
+    color: '#656c66',
+    fontFamily: t.typography.ui,
     fontSize: 11.5,
-    letterSpacing: 0.9,
+    lineHeight: 17.25,
+    fontWeight: t.fontWeights.heavy,
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 0.115,
   },
   correctionBanner: {
     marginTop: 22,
@@ -812,18 +870,21 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     minWidth: 320,
   },
+  tableNoBottom: { borderBottomWidth: 0 },
   tableRow: {
     flexDirection: 'row',
     borderTopWidth: 1,
     borderTopColor: t.colors.alpha.ink08,
   },
+  tableTotalRow: { borderBottomWidth: 0 },
+  tableTotalCell: { fontWeight: t.fontWeights.bold },
   tableHeadRow: { borderTopWidth: 0, backgroundColor: t.colors.surfaces.s200 },
   tableHeadCell: {
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,
     color: t.colors.text.secondary,
-    fontFamily: t.typography.mono,
+    fontFamily: t.typography.ui,
     fontSize: 11,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.7,
@@ -838,7 +899,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
   },
-  tableCellNumeric: { flex: 0, minWidth: 140, textAlign: 'right' },
+  tableCellNumeric: {
+    flex: 0,
+    minWidth: 140,
+    textAlign: 'right',
+    fontVariant: ['tabular-nums'],
+    ...(isWeb ? ({ whiteSpace: 'nowrap' } as object) : null),
+  },
   bullets: { marginTop: 16, gap: 10 },
   bulletRow: { flexDirection: 'row', gap: 10 },
   bulletDot: {
@@ -880,12 +947,23 @@ const styles = StyleSheet.create({
     lineHeight: 29,
   },
   sourcesBlock: {
-    marginTop: 44,
+    marginTop: 40,
     paddingTop: 28,
     borderTopWidth: 1,
     borderTopColor: t.colors.alpha.ink10,
   },
-  sourcesList: { marginTop: 16, gap: 13 },
+  sourcesBlockMobile: { marginTop: 30, paddingTop: 22 },
+  sourcesList: { marginTop: 14, gap: 12 },
+  closingNote: {
+    marginTop: 22,
+    backgroundColor: '#f7f8fa',
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.1)',
+    borderRadius: 13,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+  },
+  closingText: { color: '#11150f', fontFamily: t.typography.body, fontSize: 16, lineHeight: 25.6 },
   sourceItem: {
     color: t.colors.ink,
     fontFamily: t.typography.body,

@@ -203,7 +203,7 @@ describe('piece date labels', () => {
 
   it('writes the masthead dates line from both dates', () => {
     expect(researchDatesLine(SAMPLE_PIECE)).toBe(
-      'PUBLISHED AUG 17 2026 · RECORDS THROUGH AUG 11 2026',
+      'PUBLISHED AUG 17, 2026 · RECORDS THROUGH AUG 11, 2026',
     );
   });
 });
@@ -489,7 +489,7 @@ describe('the written-or-checked date', () => {
   // "Checked" date that never moves would say we stopped looking, so the word
   // follows the fact.
   it('says Written until somebody re-checks the piece, and Checked after', () => {
-    expect(pieceWrittenLine({ publishedOn: '2026-08-27' })).toBe('WRITTEN AUGUST 2026');
+    expect(pieceWrittenLine({ publishedOn: '2026-08-27' })).toBe('PUBLISHED AUGUST 2026');
     expect(pieceWrittenLine({ publishedOn: '2026-08-27', checkedOn: '2027-03-04' })).toBe(
       'CHECKED MARCH 2027',
     );
@@ -513,7 +513,7 @@ describe('the written-or-checked date', () => {
 describe('a guide\u2019s masthead', () => {
   it('reads kind, minutes and the 1 date, with no piece number', () => {
     const guide = researchBySlug('who-has-to-report-their-money')!;
-    expect(pieceMastheadLine(guide)).toBe('GUIDE \u00b7 5 MIN \u00b7 WRITTEN AUGUST 2026');
+    expect(pieceMastheadLine(guide)).toBe('5 MIN \u00b7 PUBLISHED AUGUST 2026');
   });
 
   it('leaves a research piece\u2019s masthead at its 2 dates and nothing else', () => {
@@ -524,7 +524,7 @@ describe('a guide\u2019s masthead', () => {
   });
 
   it('describes a guide by its 1 date in a share preview', () => {
-    expect(pieceShareDescription(SAMPLE_GUIDE)).toBe('Written August 2026.');
+    expect(pieceShareDescription(SAMPLE_GUIDE)).toBe('Published August 2026.');
     expect(pieceShareDescription(SAMPLE_PIECE)).toBe(researchShareDescription(SAMPLE_PIECE));
   });
 
@@ -540,7 +540,7 @@ describe('a guide\u2019s masthead', () => {
       `${pieceReadingMinutes(SAMPLE_PIECE)} MIN \u00b7 PUBLISHED AUG 17, 2026`,
     );
     expect(pieceCardMetaLine(SAMPLE_GUIDE)).toBe(
-      `${pieceReadingMinutes(SAMPLE_GUIDE)} MIN \u00b7 WRITTEN AUGUST 2026`,
+      `${pieceReadingMinutes(SAMPLE_GUIDE)} MIN \u00b7 PUBLISHED AUGUST 2026`,
     );
   });
 

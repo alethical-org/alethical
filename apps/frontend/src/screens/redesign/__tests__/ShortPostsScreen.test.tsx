@@ -80,7 +80,7 @@ describe('Short posts reader paths', () => {
     const { element, root, navigate } = mount();
     expect(element.querySelector('a a')).toBeNull();
     expect(element.querySelector('[data-entry-link]')?.getAttribute('href')).toBe(
-      '/read/research/example-1',
+      '/read/research/example-1?from=%2Fread%2Fshort-posts%3Fpost%3Dexample-1',
     );
     const topic = element.querySelector<HTMLAnchorElement>('.topic-piece-topics a')!;
     expect(topic.getAttribute('href')).toBe('/read/topics/lobbying');
@@ -150,8 +150,7 @@ describe('Short post context links', () => {
     expect(element.querySelectorAll('.topic-piece-kind')).toHaveLength(0);
     expect(element.querySelectorAll('.topic-piece-kind-sr')).toHaveLength(3);
     expect(element.querySelector('a a')).toBeNull();
-    act(() => element.querySelector<HTMLAnchorElement>('.short-posts-preview-all a')!.click());
-    expect(onAll).toHaveBeenCalledOnce();
+    expect(element.querySelector('.short-posts-preview-all')).toBeNull();
     act(() => root.unmount());
   });
 });

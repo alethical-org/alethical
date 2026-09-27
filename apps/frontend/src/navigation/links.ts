@@ -22,6 +22,7 @@
 import { Platform, type GestureResponderEvent } from 'react-native';
 
 import type { PieceTraits } from '../lib/research';
+import { safeArticleReturnPath } from '../lib/articleReturnSafety';
 import type { RootStackParamList } from './types';
 import { hasInAppBackEntry } from './webHistory';
 import { pathForRoute } from './webRoutes';
@@ -67,8 +68,14 @@ export const routePath = {
   research: (slug: string) => pathForRoute({ name: 'Research', params: { slug } }),
   guide: (slug: string) => pathForRoute({ name: 'Guide', params: { slug } }),
   /** A piece's own address, whichever kind it is. One place decides the folder. */
-  piece: (piece: { slug: string; traits: PieceTraits }) =>
-    piece.traits.research ? routePath.research(piece.slug) : routePath.guide(piece.slug),
+  piece: (piece: { slug: string; traits: PieceTraits }, sourceHref?: string) => {
+    const base = piece.traits.research
+      ? routePath.research(piece.slug)
+      : routePath.guide(piece.slug);
+    return sourceHref && safeArticleReturnPath(sourceHref)
+      ? `${base}?from=${encodeURIComponent(sourceHref)}`
+      : base;
+  },
   moneyCommittees: (params?: RootStackParamList['CommitteeList']) =>
     pathForRoute({ name: 'CommitteeList', params }),
   moneyRaces: (params?: RootStackParamList['MoneyByRace']) =>

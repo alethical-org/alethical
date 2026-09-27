@@ -15,6 +15,7 @@ import {
 import { ShortPostChart } from '../ShortPostChart';
 import { ShortPostArticle, ShortPostRelatedReading } from '../ShortPostArticle';
 import { LOBBYIST_GIVING } from '../../../lib/researchPieces/lobbyistGiving';
+import { WHO_HAS_TO_REPORT_THEIR_MONEY } from '../../../lib/researchPieces/whoHasToReportTheirMoney';
 import { ORGANIZATIONS_BOTH_PARTIES } from '../../../lib/researchPieces/organizationsBothParties';
 import { TWO_RECORDS_NOT_TWO_DONATIONS } from '../../../lib/researchPieces/twoRecordsNotTwoDonations';
 
@@ -89,6 +90,24 @@ describe('Short post article and charts', () => {
     expect(markup).not.toContain('/read/research/lobbyist-giving');
   });
 
+  it('keeps only unique published picks and does not repeat the next guide', () => {
+    const piece = {
+      ...WHO_HAS_TO_REPORT_THEIR_MONEY,
+      relatedSlugs: [
+        'who-has-to-report-their-money',
+        'what-the-records-name',
+        'never-published',
+        'why-2-official-numbers-can-both-be-right',
+        'why-2-official-numbers-can-both-be-right',
+      ],
+    };
+    const markup = renderToStaticMarkup(<ShortPostRelatedReading piece={piece} />);
+    expect((markup.match(/class="sp-related-row"/g) ?? []).length).toBe(1);
+    expect(markup).toContain('/read/guides/why-2-official-numbers-can-both-be-right');
+    expect(markup).not.toContain('/read/guides/what-the-records-name');
+    expect(markup).not.toContain('never-published');
+  });
+
   it('uses computed parts, a named remainder, linked source, and a real table with single-line numbers', () => {
     const markup = renderToStaticMarkup(
       <ShortPostChart
@@ -113,7 +132,7 @@ describe('Short post article and charts', () => {
     expect(markup).toContain('white-space:nowrap');
     expect(markup).toContain('https://example.gov/records');
     expect(markup).not.toContain('sp-chart-description');
-    expect(markup).toContain('aria-label="Alethical"');
+    expect(markup).not.toContain('aria-label="Alethical"');
     expect(markup).not.toContain('ShortPostWordmark');
   });
 
@@ -148,7 +167,8 @@ describe('Short post article and charts', () => {
     );
     expect(markup).not.toContain('Diagram shows overlap, not relative group sizes');
     expect(markup).not.toContain('records · 2025 filings');
-    expect(markup).toContain('Group A: 80<br/>Group B: 70');
+    expect(markup).toContain('<span>Group A</span><strong>80</strong>');
+    expect(markup).toContain('<span>Group B</span><strong>70</strong>');
     expect(markup).toContain('Total, including neither group');
     expect(markup).not.toContain('sp-chart-description');
     expect(markup).not.toContain('sp-chart-overlap-legend\" aria-hidden');

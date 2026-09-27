@@ -799,7 +799,7 @@ describe('first-response page tags', () => {
     expect(status).toBe(200);
     expect(calls).toHaveLength(0);
     expect(body).toContain(`<h1>${piece.title}</h1>`);
-    expect(body).toContain('PUBLISHED AUG 20 2026 · RECORDS THROUGH JUL 20 2026');
+    expect(body).toContain('PUBLISHED AUG 20, 2026 · RECORDS THROUGH JUL 20, 2026');
 
     // Every sentence, bullet and section heading, read out of the registry so
     // the check cannot go stale against a piece the team later revises.
@@ -855,11 +855,10 @@ describe('first-response page tags', () => {
     expect(calls).toHaveLength(0);
     expect(body).toContain(`<h1>${guide.title}</h1>`);
     // Kind, minutes and 1 date. No second date, and no piece number.
-    expect(body).toContain('GUIDE · 5 MIN · WRITTEN AUGUST 2026');
+    expect(body).toContain('5 MIN · PUBLISHED AUGUST 2026');
     expect(body).not.toContain('RECORDS THROUGH');
     expect(body).not.toContain('piece 1');
-    // The set's name, which is all a reader is told about where the piece sits.
-    expect(body).toContain('How the Money Works');
+    // The source-aware return link names the set only when a reader came from it.
 
     for (const section of guide.sections) {
       expect(body).toContain(escapeHtml(section.heading));
@@ -899,7 +898,7 @@ describe('first-response page tags', () => {
     // the sentence lives on the full piece record rather than on the light index
     // the browser loads (§28.8).
     const head = body.slice(0, body.indexOf('</head>'));
-    expect(head).toContain('<meta property="og:description" content="Written August 2026." />');
+    expect(head).toContain('<meta property="og:description" content="Published August 2026." />');
     expect(head).toContain(
       `<meta name="description" content="${escapeHtml(guide.searchDescription!)}" />`,
     );

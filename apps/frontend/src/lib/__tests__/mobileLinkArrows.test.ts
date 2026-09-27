@@ -6,6 +6,8 @@ import ts from 'typescript';
 const SRC = join(__dirname, '..', '..');
 
 const legacyTextArrowLimits: Record<string, number> = {
+  'components/read/SetBox.tsx': 1, // Approved Open group page action.
+  'screens/redesign/ReadScreen.tsx': 1, // Approved collection link arrow.
   'components/billDetail/CitationCard.tsx': 1,
   'screens/redesign/LegislatorProfileMobileScreen.tsx': 1,
   // On-screen actions restored to their pre-link-standardization appearance.

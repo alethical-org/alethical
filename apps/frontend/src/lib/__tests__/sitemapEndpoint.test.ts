@@ -3,8 +3,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import handler from '../../../../../api/sitemap';
 import { indexedResearch, piecePath } from '../research';
 import { TOPICS } from '../researchIndex';
+import {
+  collectionPage,
+  guideCollectionItems,
+  researchReportItems,
+} from '../readCollectionSelection';
 import { shortPostsPage, topicPage } from '../shortPostSelection';
 const COLLECTION_PAGE_ROWS =
+  collectionPage(researchReportItems(), 1).pageCount +
+  collectionPage(guideCollectionItems(), 1).pageCount +
+  guideCollectionItems().filter((item) => item.kind === 'group').length +
   shortPostsPage(1).pageCount +
   TOPICS.reduce((sum, topic) => sum + topicPage(topic.slug, 1).pageCount, 0);
 

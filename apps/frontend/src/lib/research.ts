@@ -400,7 +400,7 @@ export function researchBySlug(slug: string): ResearchPiece | undefined {
 
 /** "PUBLISHED AUG 17 2026 · RECORDS THROUGH AUG 11 2026" — listing and masthead. */
 export function researchDatesLine(piece: Pick<ResearchPiece, 'publishedOn' | 'recordsThrough'>) {
-  return `PUBLISHED ${isoDateCapsLabel(piece.publishedOn)} · RECORDS THROUGH ${isoDateCapsLabel(piece.recordsThrough)}`;
+  return `PUBLISHED ${isoDateCommaCapsLabel(piece.publishedOn)} · RECORDS THROUGH ${isoDateCommaCapsLabel(piece.recordsThrough)}`;
 }
 
 /** The quiet identity line shown inside the Share panel. */
@@ -474,11 +474,7 @@ export function pieceReadingMinutes(piece: ResearchPiece): number {
  */
 export function pieceMastheadLine(piece: ResearchPiece): string {
   if (piece.traits.research) return researchDatesLine(piece);
-  return [
-    pieceKindLabel(piece).toUpperCase(),
-    `${pieceReadingMinutes(piece)} MIN`,
-    pieceWrittenLine(piece),
-  ].join(' · ');
+  return [`${pieceReadingMinutes(piece)} MIN`, pieceWrittenLine(piece)].join(' · ');
 }
 
 /** The quiet identity line inside the Share panel, for either kind. */

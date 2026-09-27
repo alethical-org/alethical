@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { ShortPostsPreview } from '../../components/read/TopicPieceCard';
+import { ShortPostsPreview, TopicPieceCard } from '../../components/read/TopicPieceCard';
+import { articleReturnHref, captureArticleReturn } from '../../lib/articleReturn';
 import { newestShortPosts } from '../../lib/shortPostSelection';
+import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
+import { guideCollectionItems } from '../../lib/readCollectionSelection';
 import { publishedResearch } from '../../lib/research';
 import { SetBox } from '../../components/read/SetBox';
-import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
   READ_GUIDES_GROUP_HEADING,
@@ -14,17 +15,10 @@ import {
   READ_PAGE_INTRO,
   READ_PAGE_NAME,
   READ_RESEARCH_GROUP_HEADING,
-  guidesOutsideEverySet,
-  pieceCardMetaLine,
-  pieceCardSecondaryLine,
-  pieceKindLabel,
-  piecesLabelledGuide,
   piecesLabelledResearch,
-  publishedSets,
   type PieceSetGroup,
   type ResearchPiece,
 } from '../../lib/research';
-import { linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
@@ -84,79 +78,49 @@ const isWeb = Platform.OS === 'web';
 /** Safari needs the clip as well as the 1px box to hide text without hiding it from a reader. */
 const webClip = isWeb ? ({ clipPath: 'inset(50%)' } as object) : null;
 
-function PieceCard({
-  piece,
-  onOpen,
-  isMobile,
-}: {
-  piece: ResearchPiece;
-  onOpen: () => void;
-  isMobile: boolean;
-}) {
-  const [hovered, setHovered] = useState(false);
-  const reducedMotion = useReducedMotion();
-  const secondary = pieceCardSecondaryLine(piece);
-
-  return (
-    <Pressable
-      {...linkProps(routePath.piece(piece), onOpen)}
-      onHoverIn={() => setHovered(true)}
-      onHoverOut={() => setHovered(false)}
-      style={[
-        styles.card,
-        isMobile && styles.cardMobile,
-        hovered && styles.cardHover,
-        hovered && !reducedMotion && styles.cardHoverLift,
-        isWeb && !reducedMotion
-          ? ({
-              transitionProperty: 'border-color, box-shadow, transform',
-              transitionDuration: '0.16s',
-            } as object)
-          : null,
-      ]}
-    >
-      {/* The heading above supplies the kind word in ink; this supplies it to a
-          screen reader, which may be announcing the card on its own. */}
-      <Text style={[styles.cardKindForScreenReaders, webClip]}>{`${pieceKindLabel(piece)}: `}</Text>
-      {/* Reading time, then the date: the day a research piece was published, or
-          the month a guide was written, swapping to "checked" when somebody
-          re-checks it. */}
-      <Text style={[styles.cardMeta, isMobile && styles.cardMetaMobile]}>
-        {pieceCardMetaLine(piece)}
-      </Text>
-      <Text
-        accessibilityRole="header"
-        aria-level={3}
-        style={[styles.cardTitle, isMobile && styles.cardTitleMobile]}
-      >
-        {piece.title}
-      </Text>
-      {/* One slot, whatever the kind puts in it. A guide outside every set has
-          nothing to put there, so the slot is not drawn. */}
-      {secondary ? (
-        <Text style={[styles.cardSecondary, isMobile && styles.cardSecondaryMobile]}>
-          {secondary}
-        </Text>
-      ) : null}
-    </Pressable>
-  );
-}
-
 /** One group on the page: its heading, and what renders under it. */
 type PieceGroup = {
   heading: string;
   sets: PieceSetGroup[];
   pieces: ResearchPiece[];
+  guideItems?: Array<
+    { kind: 'group'; group: PieceSetGroup } | { kind: 'piece'; piece: ResearchPiece }
+  >;
   shortPosts?: boolean;
 };
 
 export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
   const { isMobile } = useResponsive();
+  const scrollRestoration = useHistoryScrollRestoration();
   const openPiece = (piece: ResearchPiece) =>
     piece.traits.research
-      ? navigation.navigate('Research', { slug: piece.slug })
-      : navigation.navigate('Guide', { slug: piece.slug });
+      ? navigation.navigate('Research', {
+          slug: piece.slug,
+          returnContext: captureArticleReturn(articleReturnHref('read', piece.slug)),
+        })
+      : navigation.navigate('Guide', {
+          slug: piece.slug,
+          returnContext: captureArticleReturn(articleReturnHref('read', piece.slug)),
+        });
 
+  const bySlug = new Map(publishedResearch().map((piece) => [piece.slug, piece]));
+  const guidePreview = guideCollectionItems()
+    .slice(0, 3)
+    .map((item) =>
+      item.kind === 'group'
+        ? {
+            kind: 'group' as const,
+            group: {
+              name: item.name,
+              slug: item.slug,
+              pieces: item.members
+                .map((member) => bySlug.get(member.slug))
+                .filter((piece): piece is ResearchPiece => Boolean(piece)),
+            },
+          }
+        : { kind: 'piece' as const, piece: bySlug.get(item.piece.slug) },
+    )
+    .filter((item) => item.kind === 'group' || Boolean(item.piece));
   // Source order: Research reports, Short posts, Guides. An empty group is dropped here rather than
   // hidden in the markup, so the group that renders first is genuinely first for
   // a screen reader and for the keyboard as well as in ink.
@@ -164,31 +128,35 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
     {
       heading: READ_RESEARCH_GROUP_HEADING,
       sets: [],
-      pieces: piecesLabelledResearch().filter((piece) => piece.format !== 'short-post'),
+      pieces: piecesLabelledResearch()
+        .filter((piece) => piece.format !== 'short-post')
+        .slice(0, 3),
     },
     {
       heading: 'SHORT POSTS',
       sets: [],
-      pieces: newestShortPosts(publishedResearch()) as ResearchPiece[],
+      pieces: newestShortPosts(publishedResearch()).slice(0, 3) as ResearchPiece[],
       shortPosts: true,
     },
     {
       heading: READ_GUIDES_GROUP_HEADING,
-      // Guides only, so a research piece that ever joins a set stays a card under
-      // RESEARCH rather than appearing twice, and a set's meta line keeps naming
-      // the one kind its rows hold.
-      sets: publishedSets(piecesLabelledGuide().filter((piece) => piece.format !== 'short-post')),
-      pieces: guidesOutsideEverySet().filter((piece) => piece.format !== 'short-post'),
+      sets: [],
+      pieces: [],
+      guideItems: guidePreview as PieceGroup['guideItems'],
     },
-  ].filter((group) => group.sets.length > 0 || group.pieces.length > 0);
+  ].filter(
+    (group) =>
+      group.sets.length > 0 || group.pieces.length > 0 || (group.guideItems?.length ?? 0) > 0,
+  );
 
   return (
     <PageBackground>
-      <ScrollView contentContainerStyle={styles.page}>
+      <ScrollView {...scrollRestoration} contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
 
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
           <View style={[styles.column, isMobile && styles.columnMobile]}>
+            <style>{`.read-collection-link{display:inline-flex;align-items:center;min-height:44px;gap:9px;margin:6px 0 0 16px;color:#0f7a45;font-family:'Libre Franklin',sans-serif;font-size:17px;font-weight:600;text-decoration:none}.read-collection-link:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}.read-collection-link span[aria-hidden]{text-decoration:none}@media(hover:hover){.read-collection-link:hover{color:#11832b;text-decoration:underline}}.read-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}`}</style>
             {/* Visually hidden, and the only h1 on the page. */}
             <Text accessibilityRole="header" aria-level={1} style={[styles.hiddenHeading, webClip]}>
               {READ_PAGE_NAME}
@@ -231,28 +199,75 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
                       pieces={group.pieces}
                       onOpen={openPiece}
                       onTopic={(topic) => navigation.navigate('ReadTopic', { topic })}
-                      onAll={() => navigation.navigate('ShortPosts')}
                     />
                   ) : (
                     <View style={[styles.cardList, isMobile && styles.cardListMobile]}>
-                      {group.sets.map((set) => (
-                        <SetBox
-                          key={set.slug}
-                          group={set}
-                          isMobile={isMobile}
-                          onOpenPiece={openPiece}
-                        />
-                      ))}
+                      {group.guideItems?.map((item, guideIndex) =>
+                        item.kind === 'group' ? (
+                          <SetBox
+                            key={item.group.slug}
+                            group={item.group}
+                            isMobile={isMobile}
+                            initiallyOpen={
+                              !group
+                                .guideItems!.slice(0, guideIndex)
+                                .some((earlier) => earlier.kind === 'group')
+                            }
+                            onOpenPiece={openPiece}
+                            onTopic={(topic) => navigation.navigate('ReadTopic', { topic })}
+                            showPageLink
+                            onOpenPage={() =>
+                              navigation.navigate('ReadSet', { slug: item.group.slug })
+                            }
+                          />
+                        ) : (
+                          <TopicPieceCard
+                            key={item.piece.slug}
+                            piece={item.piece}
+                            showKind={false}
+                            sourceHref="/read"
+                            onOpen={() => openPiece(item.piece)}
+                            onTopic={(topic) => navigation.navigate('ReadTopic', { topic })}
+                          />
+                        ),
+                      )}
                       {group.pieces.map((piece) => (
-                        <PieceCard
+                        <TopicPieceCard
                           key={piece.slug}
                           piece={piece}
-                          isMobile={isMobile}
+                          showKind={false}
+                          variant={piece.traits.research ? 'report' : 'card'}
+                          sourceHref="/read"
                           onOpen={() => openPiece(piece)}
+                          onTopic={(topic) => navigation.navigate('ReadTopic', { topic })}
                         />
                       ))}
                     </View>
                   )}
+                  <a
+                    className="read-collection-link"
+                    href={
+                      group.shortPosts
+                        ? '/read/short-posts'
+                        : group.heading === READ_RESEARCH_GROUP_HEADING
+                          ? '/read/research'
+                          : '/read/guides'
+                    }
+                  >
+                    All{' '}
+                    {group.shortPosts ? (
+                      <>
+                        <span className="read-sr">short </span>posts
+                      </>
+                    ) : group.heading === READ_RESEARCH_GROUP_HEADING ? (
+                      <>
+                        <span className="read-sr">research </span>reports
+                      </>
+                    ) : (
+                      'guides'
+                    )}{' '}
+                    <span aria-hidden="true">→</span>
+                  </a>
                 </View>
               ))
             )}
