@@ -12,7 +12,6 @@ import {
   pieceIndexBySlug,
   topicFromSlug,
 } from '../lib/researchIndex';
-import { safeArticleReturnPath } from '../lib/articleReturnSafety';
 import type { MainTabParamList, RootStackParamList } from './types';
 
 type WebNavigationState = {
@@ -120,6 +119,26 @@ function readPageNumber(searchParams: URLSearchParams): number | null {
   if (!raw || !/^[1-9]\d*$/.test(raw)) return null;
   const page = Number(raw);
   return Number.isSafeInteger(page) ? page : null;
+}
+
+/** Reuse the address reader's published-list checks for article return links. */
+function safeArticleReturnHref(href: string): boolean {
+  if (!href.startsWith('/') || href.startsWith('//') || href.includes('\\') || href.includes('#'))
+    return false;
+  if (href !== '/read' && !href.startsWith('/read?') && !href.startsWith('/read/')) return false;
+  try {
+    const kind = targetFromPathname(href).kind;
+    return (
+      kind === 'read' ||
+      kind === 'readResearch' ||
+      kind === 'readGuides' ||
+      kind === 'readSet' ||
+      kind === 'shortPosts' ||
+      kind === 'readTopic'
+    );
+  } catch {
+    return false;
+  }
 }
 
 // URL-addressable Search Bills filters (issue #135). One list drives both
@@ -415,7 +434,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     const piece = pieceIndexBySlug(slug);
     if (piece && pieceAddressFolder(piece) === segments[1]) {
       const from = searchParams.get('from') ?? undefined;
-      const safeFrom = from && safeArticleReturnPath(from) ? from : undefined;
+      const safeFrom = from && safeArticleReturnHref(from) ? from : undefined;
       return segments[1] === 'guides'
         ? { kind: 'guide', slug, from: safeFrom }
         : { kind: 'research', slug, from: safeFrom };
@@ -818,7 +837,7 @@ export function pathForRoute(activeRoute: {
     case 'Guide': {
       const base = `/read/${activeRoute.name === 'Research' ? 'research' : 'guides'}/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
       const from = (activeRoute.params?.returnContext as { href?: string } | undefined)?.href;
-      return from && safeArticleReturnPath(String(from))
+      return from && safeArticleReturnHref(String(from))
         ? `${base}?from=${encodeURIComponent(String(from))}`
         : base;
     }

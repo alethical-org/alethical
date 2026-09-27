@@ -92,6 +92,48 @@ describe('the shared address reader stays safe for the server build', () => {
   it('does not import the browser navigation package', () => {
     expect(routeSource).not.toMatch(/from ['"]@react-navigation\//);
   });
+  it('keeps article-only return-link validation out of the startup program', () => {
+    expect(routeSource).not.toContain("from '../lib/articleReturnSafety'");
+  });
+});
+
+describe('article return addresses', () => {
+  const article = '/read/research/the-money-only-goes-one-way';
+  const source = '/read/sets/how-the-money-works?post=who-has-to-report-their-money';
+
+  it('keeps a published local collection when opening a saved article link', () => {
+    expect(targetFromPathname(`${article}?from=${encodeURIComponent(source)}`)).toMatchObject({
+      kind: 'research',
+      from: source,
+    });
+    expect(
+      pathForRoute({
+        name: 'Research',
+        params: { slug: 'the-money-only-goes-one-way', returnContext: { href: source } },
+      }),
+    ).toBe(`${article}?from=${encodeURIComponent(source)}`);
+  });
+
+  it.each([
+    'https://elsewhere.test/',
+    '//elsewhere.test/',
+    '/read/sets/not-published',
+    '/read#next',
+    '/read/research/%',
+    '/reading',
+    '/reports',
+  ])('drops unsafe return address %s', (unsafe) => {
+    expect(targetFromPathname(`${article}?from=${encodeURIComponent(unsafe)}`)).toEqual({
+      kind: 'research',
+      slug: 'the-money-only-goes-one-way',
+    });
+    expect(
+      pathForRoute({
+        name: 'Research',
+        params: { slug: 'the-money-only-goes-one-way', returnContext: { href: unsafe } },
+      }),
+    ).toBe(article);
+  });
 });
 
 describe('old-design URLs land on a shipped page', () => {
