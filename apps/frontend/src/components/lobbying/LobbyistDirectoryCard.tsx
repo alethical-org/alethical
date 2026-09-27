@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode, type Ref } from 'react';
+import { type ReactNode, type Ref } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
 
 import { GreenLinkArrow } from '../LinkArrow';
@@ -12,7 +12,6 @@ import type {
   LobbyingLobbyistListRow,
 } from '../../lib/lobbyingTypes';
 import { useResponsive } from '../../hooks/useResponsive';
-import { ensureDirectoryRowWebStyles, DIRECTORY_ROW_DATA_SET } from '../../theme/directoryRows';
 import { linkProps } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
 
@@ -89,7 +88,6 @@ export function LobbyistDirectoryCard({
     : isTablet
       ? { paddingTop: 16, paddingBottom: 18 }
       : { paddingTop: 18, paddingBottom: 20 };
-  useEffect(() => ensureDirectoryRowWebStyles(), []);
   return (
     <View>
       <View
@@ -243,7 +241,6 @@ function DirectoryRow({
     <View role="listitem">
       <Pressable
         {...linkProps(row.href, row.open)}
-        {...{ dataSet: DIRECTORY_ROW_DATA_SET }}
         {...hover}
         style={[
           styles.row,

@@ -53,7 +53,7 @@ import { SignInContainer } from './SignInContainer';
 
 const isWeb = Platform.OS === 'web';
 const emailPasswordEnabled = process.env.EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED === 'true';
-const menuRowDataSet = { accountMenuRow: 'true', arrowFocus: 'true' } as const;
+const menuRowDataSet = { accountMenuRow: 'true' } as const;
 const SIGN_OUT_FAILURE = 'We couldn’t sign you out. Check your connection and try again.';
 
 function useFineHover() {
@@ -977,16 +977,6 @@ function AccountSurfaceContent({
 }) {
   const passwordCopy = passwordMethodCopy(signInMethods, email || 'your email');
   const passwordHover = useFineHover();
-  useEffect(() => {
-    if (!isWeb || document.getElementById('alethical-account-menu-focus')) return;
-    const style = document.createElement('style');
-    style.id = 'alethical-account-menu-focus';
-    style.textContent =
-      '[data-account-menu-row]:focus{outline:none;}' +
-      '[data-account-menu-row]:focus-visible{outline:2px solid #7c5cff !important;outline-offset:-2px !important;}';
-    document.head.appendChild(style);
-  }, []);
-
   if (variant === 'desktop') {
     return (
       <DesktopAccountMenu flow={signOutFlow}>
@@ -1381,7 +1371,9 @@ const styles = StyleSheet.create({
       ? ({ overflowY: 'auto', overscrollBehavior: 'contain', overflowAnchor: 'none' } as object)
       : {}),
   },
-  menuRowsContent: { paddingBottom: 4 },
+  // The menu scrolls inside a clipped frame. Leave 4px around each row so the
+  // sitewide 2px ring and its 2px offset remain visible at every scroll position.
+  menuRowsContent: { padding: 4 },
   menuScrollShade: {
     position: 'absolute',
     top: 0,

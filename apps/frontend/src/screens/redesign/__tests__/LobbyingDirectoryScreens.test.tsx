@@ -71,7 +71,6 @@ import { LobbyingLandingScreen } from '../LobbyingLandingScreen';
 import { LobbyingLobbyistsScreen } from '../LobbyingLobbyistsScreen';
 import { LobbyingPrincipalsScreen } from '../LobbyingPrincipalsScreen';
 import { LOBBYING_DIRECTORY_COPY as copy } from '../../../lib/lobbyingDirectoryCopy';
-import { directoryRowWebCss } from '../../../theme/directoryRows';
 import { lobbyingPageMetadata } from '../../../lib/lobbyingMetadata';
 import { useDocumentTitle } from '../../../navigation/documentTitle';
 import fixture from './fixtures/lobbying-directories-live.json';
@@ -862,14 +861,12 @@ describe('the lobbyist card’s drawn controls', () => {
     expect(navigation.setParams).not.toHaveBeenCalled();
   });
 
-  it('draws a row’s keyboard ring inside the card rather than outside it', () => {
+  it('lets the sitewide keyboard ring follow the full result row', () => {
     state.lobbyists = served();
     render(screen());
     const row = listRows()[0].querySelector('a')!;
-    expect(row.getAttribute('data-alethical-directory-row')).toBe('true');
-    // The sitewide ring sits 2px outside; a full-width row needs it inside.
-    expect(row.getAttribute('data-arrow-focus')).toBe('true');
-    expect(directoryRowWebCss).toContain('outline-offset:-2px');
+    expect(row.getAttribute('data-arrow-focus')).toBeNull();
+    expect(row.querySelectorAll('a')).toHaveLength(0);
   });
 });
 

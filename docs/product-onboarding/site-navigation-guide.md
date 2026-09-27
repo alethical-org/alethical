@@ -49,8 +49,9 @@ The count uses Libre Franklin with equal-width digits, and expands to fit the fu
 It appears only after both the bill and committee lists have loaded and the total is positive.
 The password dialog keeps its own larger lock and success check mark.
 
-Hovering over a row gives it a light grey background. Keyboard focus has a purple outline
-inside the row so the menu cannot crop it. The separate sign-out button has room for its
+Hovering over a row gives it a light grey background. Keyboard focus has 1 purple outline
+outside the whole row, following its corners. The scrolling menu leaves room around the
+rows so their outlines are not cropped. The separate sign-out button also has room for its
 outline outside its border. A mouse click or touch does not add a keyboard-only outline.
 Phone password and Email preferences rows keep their right-pointing arrows.
 

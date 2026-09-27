@@ -66,7 +66,7 @@ export function CitationCard({
   const { focused, focusProps } = useFieldFocus();
   const pressable = !!onPress || !!linkProps;
   const chipLabel = citationChipLabel(label, sectionTopic);
-  const lifted = pressable && (hovered || focused);
+  const lifted = pressable && (hovered || (!isWeb && focused));
   return (
     <Pressable
       accessibilityLabel={
@@ -74,7 +74,7 @@ export function CitationCard({
       }
       disabled={!pressable}
       {...(pressable ? hover : {})}
-      {...(pressable ? focusProps : {})}
+      {...(pressable && !isWeb ? focusProps : {})}
       // Either the link props or the button props — never both, or the link's own
       // handler gets overwritten by the button branch's `undefined`.
       {...(linkProps ?? { accessibilityRole: pressable ? 'button' : undefined, onPress })}
