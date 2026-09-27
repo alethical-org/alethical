@@ -12,6 +12,7 @@ rule 13). Milestone claims in particular go stale: check the tracker, not the pr
 
 ## Start Here
 
+- [Sitewide destination-card focus delivery](implementation/sitewide-card-focus-plan.md) — current implementation, checks and release dependencies for 1 keyboard outline per destination
 - [Philosophy](philosophy.md) — the _why_ beneath Alethical: what the product is, the problem it solves (legibility, not secrecy), who we assume is reading, and the principles the product, design, and copy all answer to. Read this before the specs.
 
 ## Product & Onboarding

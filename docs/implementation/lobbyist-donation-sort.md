@@ -277,10 +277,14 @@ At 1440, 1200, 1100, 1024, 768, 767, 390, 360 and 320 pixels: no sideways scroll
 row past the viewport, and both menus wide enough for their own longest choice
 (6.6px to spare on `Sort by` at 16px, 3.7px at 320). The chevron's drawn arrow ends
 20px from the box's right border. Keyboard: Enter opens the explanation and Space
-closes it, the row focus ring draws inset, and paging moved focus onto the results
+closes it, the row focus ring drew inset in that release, and paging moved focus onto the results
 card. Against the live API: year 2024 showed 131 supported amounts of 1,665, a
 2-result search read `1 of the 2 lobbyists`, and a 1-result search read
 `1 of the 1 lobbyist`.
+
+The 27 September 2026 destination-card update replaces that inset row outline with
+the shared keyboard-only outline outside the whole row. The card does not clip
+overflow, and the last row retains its own rounded bottom corners.
 
 ## The directory draws its own choice menus
 
