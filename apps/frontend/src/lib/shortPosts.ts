@@ -465,7 +465,14 @@ const APPROVED_LINK_ONLY_REVISIONS: Record<
 };
 
 export function shortPostRecordsLine(piece: ResearchPiece): string {
-  if (piece.shortPost?.coveragePlacement === 'metadata') return piece.shortPost.coverageNote;
+  if (piece.shortPost?.coveragePlacement === 'metadata') {
+    // The reviewed evidence retains its original wording. Source-copy dates belong
+    // with the source links, not beside the publication date and reporting period.
+    return piece.shortPost.coverageNote
+      .split(' · ')
+      .filter((part) => !part.startsWith('Download copied '))
+      .join(' · ');
+  }
   return piece.shortPost?.recordsScope === 'cited-filings'
     ? `Records in cited filings through ${new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${piece.recordsThrough}T12:00:00Z`))}`
     : `RECORDS THROUGH ${isoDateCapsLabel(piece.recordsThrough)}`;

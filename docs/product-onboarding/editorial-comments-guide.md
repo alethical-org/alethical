@@ -44,11 +44,18 @@ the same appearance and publish immediately.
 The heading is `Reader comments`. Its only notice is
 `Names are chosen by readers and are not verified`.
 
-Desktop has the conversation and form beside a rules card. The rules card starts
-beside the form and scrolls away with the page; it does not stay pinned while
-someone reads the discussion. Below 1100 pixels the
-rules appear above the form; below 768 pixels buttons stack and replies use a
-smaller inset. All controls have targets at least 44 pixels high. The form, errors,
+Existing comments come before the writing form or `Sign in to comment` on every
+screen size. Desktop has a 1128px maximum-width layout: a discussion column and
+a 340px rules card, separated by 48px. The rules card begins beside the heading
+and scrolls away with the page. The heading notice and discussion are separated
+by 22px; the discussion and form by 30px. A tall rules card must not stretch
+the heading row and leave an empty band above the comments.
+
+Below 1100 pixels the order is heading, discussion, rules, then form, in a column
+up to 720px wide. Leave 30px between discussion and rules and 22px before the form.
+Below 768 pixels use 16px page gutters, stacked buttons and the smaller reply inset.
+An empty discussion shows its empty message without an unused sorting row or
+reserved status band. All controls have targets at least 44 pixels high. The form, errors,
 and busy buttons preserve their space. Keyboard focus is visible without adding
 keyboard-only outlines to ordinary clicks. Text fields retain typing focus.
 
@@ -56,6 +63,15 @@ Comments and replies publish immediately. Text is plain, with line breaks and a
 2,000 Unicode-character limit. Addresses wrap but do not become links. The field
 keeps over-limit text and explains the limit rather than cutting the text.
 The actions are `Post comment`, `Post reply`, `Save changes` and `Cancel`.
+
+Every comment button uses the loaded Libre Franklin web family and weight 700,
+including buttons in dialogs rendered outside the discussion container. Main
+form, sign-in, Delete, Remove and dialog Cancel buttons use 16px text; inline
+reply/edit actions use 15px. Declare the family, weight and size on the shared
+button itself so a general form-control reset cannot override them. Active dark
+buttons change from `#11150f` to `#000000` on pointer hover. Disabled and busy
+buttons have no active hover treatment. Keyboard focus remains visible, and
+touch does not depend on hover.
 
 Top-level conversations appear oldest first, with replies oldest first in each
 conversation. Replies have 1 indentation level. A reply to another reply stays in

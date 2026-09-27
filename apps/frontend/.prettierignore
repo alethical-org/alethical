@@ -3,3 +3,5 @@ dist
 node_modules
 public
 assets
+test-results
+playwright-report

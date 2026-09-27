@@ -1043,143 +1043,7 @@ export function ReaderComments({ articleId }: { articleId: string }) {
           </h2>
           <p className="rc-disclaimer">Names are chosen by readers and are not verified</p>
         </div>
-        <DiscussionRules />
         <div className="rc-discussion">
-          <div className="rc-card rc-form-card">
-            {!user ? (
-              <CommentButton
-                type="button"
-                className="rc-primary"
-                label="Sign in to comment"
-                locked={authLoading}
-                onClick={() => signIn(null)}
-              />
-            ) : !piece.settings ? (
-              piece.settingsError ? (
-                <div role="alert">
-                  <p>Comment settings could not be loaded</p>
-                  <CommentButton
-                    type="button"
-                    kind="outline"
-                    label="Try again"
-                    onClick={() => {
-                      void loadSettings();
-                    }}
-                  />
-                </div>
-              ) : (
-                <p role="status">Loading comment settings…</p>
-              )
-            ) : (
-              <>
-                {piece.settings.public_name && (
-                  <>
-                    {piece.nameEditing ? (
-                      <div className="rc-inline-card">
-                        <NameField
-                          id={`${prefix}-name-edit`}
-                          edit
-                          value={piece.nameEditDraft}
-                          onChange={(nameEditDraft) =>
-                            store.patch(articleId, { nameEditDraft, nameError: '' })
-                          }
-                          readOnly={piece.nameBusy}
-                          error={piece.nameError}
-                        />
-                        {piece.nameNotice && <CommentNotice>{piece.nameNotice}</CommentNotice>}
-                        <div className="rc-actions">
-                          <CommentButton
-                            type="button"
-                            label="Save name"
-                            busyLabel="Saving…"
-                            busy={piece.nameBusy}
-                            locked={piece.preferencesBusy || composing}
-                            onClick={() => {
-                              void saveName();
-                            }}
-                          />
-                          <CommentButton
-                            type="button"
-                            label="Cancel"
-                            kind="outline"
-                            locked={piece.nameBusy || !!nameRequests.get(articleId)}
-                            onClick={() => {
-                              store.patch(articleId, {
-                                nameEditing: false,
-                                nameNotice: '',
-                                nameError: '',
-                              });
-                              focus(`${prefix}-change-name`);
-                            }}
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="rc-name-row">
-                        <div>
-                          <div className="rc-name-label">Public name</div>
-                          <div className="rc-name">{piece.settings.public_name}</div>
-                        </div>
-                        <CommentButton
-                          id={`${prefix}-change-name`}
-                          type="button"
-                          label="Change name"
-                          kind="text"
-                          locked={settingsLocked}
-                          onClick={() => {
-                            store.patch(articleId, {
-                              nameEditing: true,
-                              nameEditDraft: piece.settings!.public_name ?? '',
-                              nameError: '',
-                              nameNotice: '',
-                              nameStatus: '',
-                            });
-                            focus(`${prefix}-name-edit`);
-                          }}
-                        />
-                      </div>
-                    )}
-                    <p role="status" className="rc-name-status">
-                      {piece.nameStatus}
-                    </p>
-                  </>
-                )}
-                {composer('comment', null)}
-                <fieldset className="rc-emails">
-                  <legend>Emails</legend>
-                  <div className="rc-choices">
-                    {(
-                      [
-                        ['reply_emails', 'Email me when someone replies to me'],
-                        [
-                          'article_updates',
-                          'Email me about all new or edited comments and replies on this article',
-                        ],
-                      ] as const
-                    ).map(([key, label]) => (
-                      <label className="rc-choice" key={key}>
-                        <input
-                          type="checkbox"
-                          checked={piece.settings![key]}
-                          aria-disabled={settingsLocked}
-                          onChange={(event) => {
-                            if (!settingsLocked) void savePreference(key, event.target.checked);
-                          }}
-                        />
-                        <span>{label}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <p className="rc-preferences-status" role="status">
-                    {piece.preferencesStatus}
-                  </p>
-                  {piece.preferencesError && (
-                    <CommentNotice>{piece.preferencesError}</CommentNotice>
-                  )}
-                </fieldset>
-              </>
-            )}
-          </div>
           <div className="rc-list" aria-busy={piece.loading || piece.loadingMore || piece.updating}>
             {unavailableBox && (
               <div className="rc-box rc-inline-card">
@@ -1195,10 +1059,12 @@ export function ReaderComments({ articleId }: { articleId: string }) {
                 )}
               </div>
             )}
-            <div className="rc-list-status">
-              <span>{shown.length > 0 ? 'Oldest first' : ''}</span>
-              <span role="status">{piece.updating ? 'Updating comments…' : ''}</span>
-            </div>
+            {(shown.length > 0 || piece.updating) && (
+              <div className="rc-list-status">
+                <span>{shown.length > 0 ? 'Oldest first' : ''}</span>
+                <span role="status">{piece.updating ? 'Updating comments…' : ''}</span>
+              </div>
+            )}
             {!piece.loaded && !piece.listError && shown.length === 0 ? (
               <div className="rc-card rc-skeleton">
                 <p role="status">Loading comments…</p>
@@ -1232,6 +1098,140 @@ export function ReaderComments({ articleId }: { articleId: string }) {
               </ol>
             )}
           </div>
+        </div>
+        <DiscussionRules />
+        <div className="rc-card rc-form-card">
+          {!user ? (
+            <CommentButton
+              type="button"
+              className="rc-primary"
+              label="Sign in to comment"
+              locked={authLoading}
+              onClick={() => signIn(null)}
+            />
+          ) : !piece.settings ? (
+            piece.settingsError ? (
+              <div role="alert">
+                <p>Comment settings could not be loaded</p>
+                <CommentButton
+                  type="button"
+                  kind="outline"
+                  label="Try again"
+                  onClick={() => {
+                    void loadSettings();
+                  }}
+                />
+              </div>
+            ) : (
+              <p role="status">Loading comment settings…</p>
+            )
+          ) : (
+            <>
+              {piece.settings.public_name && (
+                <>
+                  {piece.nameEditing ? (
+                    <div className="rc-inline-card">
+                      <NameField
+                        id={`${prefix}-name-edit`}
+                        edit
+                        value={piece.nameEditDraft}
+                        onChange={(nameEditDraft) =>
+                          store.patch(articleId, { nameEditDraft, nameError: '' })
+                        }
+                        readOnly={piece.nameBusy}
+                        error={piece.nameError}
+                      />
+                      {piece.nameNotice && <CommentNotice>{piece.nameNotice}</CommentNotice>}
+                      <div className="rc-actions">
+                        <CommentButton
+                          type="button"
+                          label="Save name"
+                          busyLabel="Saving…"
+                          busy={piece.nameBusy}
+                          locked={piece.preferencesBusy || composing}
+                          onClick={() => {
+                            void saveName();
+                          }}
+                        />
+                        <CommentButton
+                          type="button"
+                          label="Cancel"
+                          kind="outline"
+                          locked={piece.nameBusy || !!nameRequests.get(articleId)}
+                          onClick={() => {
+                            store.patch(articleId, {
+                              nameEditing: false,
+                              nameNotice: '',
+                              nameError: '',
+                            });
+                            focus(`${prefix}-change-name`);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rc-name-row">
+                      <div>
+                        <div className="rc-name-label">Public name</div>
+                        <div className="rc-name">{piece.settings.public_name}</div>
+                      </div>
+                      <CommentButton
+                        id={`${prefix}-change-name`}
+                        type="button"
+                        label="Change name"
+                        kind="text"
+                        locked={settingsLocked}
+                        onClick={() => {
+                          store.patch(articleId, {
+                            nameEditing: true,
+                            nameEditDraft: piece.settings!.public_name ?? '',
+                            nameError: '',
+                            nameNotice: '',
+                            nameStatus: '',
+                          });
+                          focus(`${prefix}-name-edit`);
+                        }}
+                      />
+                    </div>
+                  )}
+                  <p role="status" className="rc-name-status">
+                    {piece.nameStatus}
+                  </p>
+                </>
+              )}
+              {composer('comment', null)}
+              <fieldset className="rc-emails">
+                <legend>Emails</legend>
+                <div className="rc-choices">
+                  {(
+                    [
+                      ['reply_emails', 'Email me when someone replies to me'],
+                      [
+                        'article_updates',
+                        'Email me about all new or edited comments and replies on this article',
+                      ],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <label className="rc-choice" key={key}>
+                      <input
+                        type="checkbox"
+                        checked={piece.settings![key]}
+                        aria-disabled={settingsLocked}
+                        onChange={(event) => {
+                          if (!settingsLocked) void savePreference(key, event.target.checked);
+                        }}
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="rc-preferences-status" role="status">
+                  {piece.preferencesStatus}
+                </p>
+                {piece.preferencesError && <CommentNotice>{piece.preferencesError}</CommentNotice>}
+              </fieldset>
+            </>
+          )}
         </div>
       </div>
       {dialog && dialog.articleId === articleId && dialog.store === store && (

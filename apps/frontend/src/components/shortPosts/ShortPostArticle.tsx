@@ -20,7 +20,11 @@ import {
   type ResearchPiece,
 } from '../../lib/research';
 import { TOPICS, topicPath } from '../../lib/researchIndex';
-import { CONTRIBUTION_NOTE, type ShortPostDisplayBlock } from '../../lib/shortPosts';
+import {
+  CONTRIBUTION_NOTE,
+  shortPostRecordsLine,
+  type ShortPostDisplayBlock,
+} from '../../lib/shortPosts';
 import { articleClosingNote, articleDisclosureRuns } from '../../lib/articleDisclosure';
 import { publicPageUrl, type ShareContent } from '../../lib/share';
 import { ShortPostChart } from './ShortPostChart';
@@ -48,10 +52,10 @@ const FULL_MONTHS = [
   'DECEMBER',
 ];
 
-/** The article's display style leaves the approved coverage wording and dates intact. */
+/** Format coverage for the heading; source-copy dates remain in the sources. */
 function articleRecordsLine(piece: ResearchPiece): string {
   if (piece.shortPost?.coveragePlacement === 'metadata') {
-    return piece.shortPost.coverageNote
+    return shortPostRecordsLine(piece)
       .toUpperCase()
       .replaceAll(':', '')
       .replace(/\b[A-Z]+(?= \d{1,2}, \d{4})/g, (month) =>

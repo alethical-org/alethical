@@ -377,12 +377,12 @@ describe('reader comments', () => {
     mocks.list.mockResolvedValue({ items: [item('root')], next_cursor: null });
     await render();
     await click('Edit');
-    let fields = host.querySelectorAll('textarea');
-    await type(fields[1], 'Unsent edit');
+    await type(host.querySelector<HTMLTextAreaElement>('.rc-inline-card textarea')!, 'Unsent edit');
     await click('Cancel');
     await click('Edit');
-    fields = host.querySelectorAll('textarea');
-    expect(fields[1].value).toBe('Body root');
+    expect(host.querySelector<HTMLTextAreaElement>('.rc-inline-card textarea')?.value).toBe(
+      'Body root',
+    );
     expect(mocks.change).not.toHaveBeenCalled();
   });
 
@@ -392,18 +392,25 @@ describe('reader comments', () => {
     mocks.conversation.mockRejectedValue(new ApiError(404, 'Comment not found'));
     await render();
     await click('Reply');
-    await type(host.querySelectorAll('textarea')[1], 'My reply draft');
+    await type(
+      host.querySelector<HTMLTextAreaElement>('.rc-inline-card textarea')!,
+      'My reply draft',
+    );
     await click('Post reply');
     expect(host.textContent).toContain(
       'The comment you were replying to is no longer available. Your draft is kept here.',
     );
-    expect(host.querySelectorAll('textarea')[1]?.value).toBe('My reply draft');
+    expect(host.querySelector<HTMLTextAreaElement>('.rc-inline-card textarea')!?.value).toBe(
+      'My reply draft',
+    );
     expect(button('Post reply').getAttribute('aria-disabled')).toBe('true');
     await click('Post reply');
     expect(mocks.post).toHaveBeenCalledTimes(1);
     await render('b');
     await render('a');
-    expect(host.querySelectorAll('textarea')[1]?.value).toBe('My reply draft');
+    expect(host.querySelector<HTMLTextAreaElement>('.rc-inline-card textarea')!?.value).toBe(
+      'My reply draft',
+    );
     await click('Cancel');
     expect(host.querySelectorAll('textarea')).toHaveLength(1);
     expect(document.activeElement).toBe(host.querySelector('h2'));
@@ -417,14 +424,19 @@ describe('reader comments', () => {
     mocks.conversation.mockResolvedValue({ items: [item('root')], next_cursor: null });
     await render();
     await click('Reply', host.querySelector('#comment-reply')!);
-    await type(host.querySelectorAll('textarea')[1], 'My reply to a reply');
+    await type(
+      host.querySelector<HTMLTextAreaElement>('.rc-inline-card textarea')!,
+      'My reply to a reply',
+    );
     await click('Post reply');
     await click('Check submission');
     expect(mocks.conversation).toHaveBeenCalledWith('a', 'root');
     expect(host.textContent).toContain(
       'The reply you were replying to is no longer available. Your draft is kept here.',
     );
-    expect(host.querySelectorAll('textarea')[1]?.value).toBe('My reply to a reply');
+    expect(host.querySelector<HTMLTextAreaElement>('.rc-inline-card textarea')!?.value).toBe(
+      'My reply to a reply',
+    );
     expect(button('Post reply').getAttribute('aria-disabled')).toBe('true');
     expect(button('Check submission')).toBeUndefined();
     expect(host.querySelector('#comment-root')).toBeTruthy();
@@ -442,12 +454,17 @@ describe('reader comments', () => {
     });
     await render();
     await click('Edit');
-    await type(host.querySelectorAll('textarea')[1], 'My edit draft');
+    await type(
+      host.querySelector<HTMLTextAreaElement>('.rc-inline-card textarea')!,
+      'My edit draft',
+    );
     await click('Save changes');
     expect(host.textContent).toContain(
       'This comment is no longer available. Your draft is kept here.',
     );
-    expect(host.querySelectorAll('textarea')[1]?.value).toBe('My edit draft');
+    expect(host.querySelector<HTMLTextAreaElement>('.rc-inline-card textarea')!?.value).toBe(
+      'My edit draft',
+    );
     expect(button('Save changes').getAttribute('aria-disabled')).toBe('true');
     expect(host.querySelector('#comment-root')?.textContent).toBe('Comment removed');
     expect(host.querySelector('#comment-reply')).toBeTruthy();
@@ -469,9 +486,14 @@ describe('reader comments', () => {
     });
     await render();
     await click('Edit');
-    await type(host.querySelectorAll('textarea')[1], 'My edit draft');
+    await type(
+      host.querySelector<HTMLTextAreaElement>('.rc-inline-card textarea')!,
+      'My edit draft',
+    );
     await click('Save changes');
-    expect(host.querySelectorAll('textarea')[1]?.value).toBe('My edit draft');
+    expect(host.querySelector<HTMLTextAreaElement>('.rc-inline-card textarea')!?.value).toBe(
+      'My edit draft',
+    );
     expect(button('Save changes').getAttribute('aria-disabled')).toBe('false');
     await click('Save changes');
     expect(mocks.change.mock.calls[1][4]).toMatchObject({
@@ -499,7 +521,10 @@ describe('reader comments', () => {
     });
     await render();
     await click('Reply', host.querySelector('#comment-reply')!);
-    await type(host.querySelectorAll('textarea')[1], 'Reply to Other');
+    await type(
+      host.querySelector<HTMLTextAreaElement>('.rc-inline-card textarea')!,
+      'Reply to Other',
+    );
     await click('Post reply');
     expect(mocks.post.mock.calls[0][2].reply_to_id).toBe('reply');
     expect(host.querySelectorAll('.rc-reply-inner .rc-reply-inner')).toHaveLength(0);
@@ -665,7 +690,10 @@ describe('reader comments', () => {
     });
     await render();
     await click('Edit', host.querySelector('#comment-root')!);
-    await type(host.querySelectorAll('textarea')[1], 'Edited words');
+    await type(
+      host.querySelector<HTMLTextAreaElement>('.rc-inline-card textarea')!,
+      'Edited words',
+    );
     await click('Save changes');
     expect(host.querySelector('#comment-root')?.textContent).toContain(
       'Posted Sep 26, 2026 · Edited Sep 26, 2026',
@@ -675,6 +703,8 @@ describe('reader comments', () => {
       'comment-root',
     ]);
     await click('Edit', host.querySelector('#comment-root')!);
-    expect(host.querySelectorAll('textarea')[1].value).toBe('Edited words');
+    expect(host.querySelector<HTMLTextAreaElement>('.rc-inline-card textarea')!.value).toBe(
+      'Edited words',
+    );
   });
 });

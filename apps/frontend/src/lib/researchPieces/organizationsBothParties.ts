@@ -354,8 +354,8 @@ export const ORGANIZATIONS_BOTH_PARTIES: ResearchPiece = {
         full: 'Keep entries dated in 2015–2025 with receipt type “Contribution” and recipient registration 20006, 20011, 20010 or 20013. A donor registration qualifies if at least 1 of its entries to those recipients is labelled “Political Committee/Fund.” Include all contribution entries for that registration to the 4 recipients during the period, including entries with other donor-type labels. No qualifying registration has an Individual or Lobbyist label in these entries.\n\nA registration must have a positive contribution entry to each party during the period to enter the overlap count. Loans and other income are excluded. Retain cash and reported goods or services without removing repeated entries. Exclude the 2 otherwise eligible entries, worth $3,500, with no donor registration number.\n\nThe qualifying records contain 265 registrations on the DFL side and 211 on the Republican side. Of the 288 registrations across both sides, 77 appear only on the DFL side and 23 only on the Republican side. These groups describe the selected committee-and-fund registrations, not all donors to either party.\n\nThe 188 overlapping registrations account for 9,882 entries. The calculation does not reconcile every source amendment. The 4 retained caucus year-end summaries cover through December 31, 2025; the download copy date is separate from that reporting period.',
       },
     ],
-    // The approved preview prints this in its masthead. The integrating change must
-    // move it there and avoid repeating it below the source links.
+    // Keep the original reviewed wording in the evidence record. The metadata
+    // formatter displays its reporting period; the source link carries the copy date.
     coveragePlacement: 'metadata',
     limitationsPlacement: 'body',
     coverageNote: 'Contribution records: 2015–2025 · Download copied September 24, 2026',

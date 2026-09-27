@@ -18,7 +18,11 @@ describe('approved social-derived posts', () => {
       const text = shortPostArticleSnapshotBlocks(piece)
         .map((block) => block.text)
         .join('\n');
-      expect(shortPostRecordsLine(piece)).toBe(piece.shortPost!.coverageNote);
+      expect(shortPostRecordsLine(piece)).toBe(
+        piece.slug === 'organizations-both-parties'
+          ? 'Contribution records: 2015–2025'
+          : 'Candidate records: 2015–2026 · Caucus amounts: 2025',
+      );
       expect(text).not.toContain(piece.shortPost!.coverageNote);
       expect(text.split(piece.shortPost!.limitations)).toHaveLength(2);
       expect(text.match(/Conclusion:/g)).toHaveLength(1);
