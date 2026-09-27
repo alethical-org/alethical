@@ -8,8 +8,16 @@ vi.hoisted(() => {
   (globalThis as { __DEV__?: boolean }).__DEV__ = false;
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 });
-const mocks = vi.hoisted(() => ({ send: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  send: vi.fn(),
+  auth: {
+    isLoading: false,
+    isSignedIn: false,
+    user: null as null | { id: string; email: string },
+  },
+}));
 vi.mock('../../../data/api', () => ({ sendContactMessageFromApi: mocks.send }));
+vi.mock('../../../providers/AuthProvider', () => ({ useAuth: () => mocks.auth }));
 vi.mock('../../../hooks/useResponsive', () => ({
   useResponsive: () => ({ isMobile: false, isTablet: false }),
 }));
@@ -49,6 +57,9 @@ beforeEach(async () => {
   document.body.append(host);
   root = createRoot(host);
   mocks.send.mockReset();
+  mocks.auth.isLoading = false;
+  mocks.auth.isSignedIn = false;
+  mocks.auth.user = null;
 });
 afterEach(() => {
   act(() => root.unmount());
@@ -114,6 +125,84 @@ it.each([undefined, 'unknown-draft', 'http://127.0.0.1:8766/'])(
     expect(mocks.send).not.toHaveBeenCalled();
   },
 );
+
+it('fills the signed-in account email on ordinary and article entries while keeping article text separate', async () => {
+  mocks.auth.isSignedIn = true;
+  mocks.auth.user = { id: 'account-a', email: 'account-a@example.test' };
+  await render();
+  expect(field('email').value).toBe('account-a@example.test');
+  expect(field('subject').value).toBe('');
+  expect(field('message').value).toBe('');
+  await type('email', 'reader-chose@example.test');
+
+  await render(articleIdentity);
+  expect(field('email').value).toBe('reader-chose@example.test');
+  expect(field('subject').value).toBe(`Possible correction: ${piece.title}`);
+  expect(field('message').value).toContain(`https://alethical.com${piecePath(piece)}`);
+  expect(field('name').value).toBe('');
+  expect(field('phone').value).toBe('');
+});
+
+it('fills an untouched email after delayed account loading', async () => {
+  mocks.auth.isLoading = true;
+  await render();
+  expect(field('email').value).toBe('');
+
+  mocks.auth.isLoading = false;
+  mocks.auth.isSignedIn = true;
+  mocks.auth.user = { id: 'account-a', email: 'account-a@example.test' };
+  await render();
+  expect(field('email').value).toBe('account-a@example.test');
+});
+
+it('keeps an email typed or cleared before delayed account loading', async () => {
+  mocks.auth.isLoading = true;
+  await render();
+  await type('email', 'reader@example.test');
+  await type('email', '');
+
+  mocks.auth.isLoading = false;
+  mocks.auth.isSignedIn = true;
+  mocks.auth.user = { id: 'account-a', email: 'account-a@example.test' };
+  await render();
+  expect(field('email').value).toBe('');
+});
+
+it('replaces or clears only an automatically filled email when the account changes', async () => {
+  mocks.auth.isSignedIn = true;
+  mocks.auth.user = { id: 'account-a', email: 'account-a@example.test' };
+  await render();
+  expect(field('email').value).toBe('account-a@example.test');
+
+  mocks.auth.user = { id: 'account-b', email: 'account-b@example.test' };
+  await render();
+  expect(field('email').value).toBe('account-b@example.test');
+
+  mocks.auth.isSignedIn = false;
+  mocks.auth.user = null;
+  await render();
+  expect(field('email').value).toBe('');
+
+  mocks.auth.isSignedIn = true;
+  mocks.auth.user = { id: 'account-a', email: 'account-a@example.test' };
+  await render();
+  await type('email', 'reader-chose@example.test');
+  mocks.auth.isSignedIn = false;
+  mocks.auth.user = null;
+  await render();
+  expect(field('email').value).toBe('reader-chose@example.test');
+});
+
+it('does not treat an automatically filled email as unfinished reader work', async () => {
+  const addEventListener = vi.spyOn(window, 'addEventListener');
+  mocks.auth.isSignedIn = true;
+  mocks.auth.user = { id: 'account-a', email: 'account-a@example.test' };
+  await render();
+  expect(addEventListener.mock.calls.some(([event]) => event === 'beforeunload')).toBe(false);
+
+  await type('subject', 'A question');
+  expect(addEventListener.mock.calls.some(([event]) => event === 'beforeunload')).toBe(true);
+});
 
 it('preserves edited and cleared fields through rerenders, changed links, and back navigation', async () => {
   const storage = vi.spyOn(Storage.prototype, 'setItem');
@@ -185,6 +274,22 @@ it('keeps pending send state across navigation and accepts its result without a 
   act(() => root.unmount());
   root = createRoot(host);
   await render();
+  expect(field('message').value).toBe('');
+});
+
+it('starts another message with the current account email after a successful send', async () => {
+  mocks.auth.isSignedIn = true;
+  mocks.auth.user = { id: 'account-a', email: 'account-a@example.test' };
+  mocks.send.mockResolvedValueOnce({});
+  await render(articleIdentity);
+  await click('Send message');
+  expect(host.textContent).toContain('Message sent');
+
+  mocks.auth.user = { id: 'account-b', email: 'account-b@example.test' };
+  await render(articleIdentity);
+  await click('Send another message');
+  expect(field('email').value).toBe('account-b@example.test');
+  expect(field('subject').value).toBe('');
   expect(field('message').value).toBe('');
 });
 

@@ -31,9 +31,16 @@ The fields stay in this order:
 4. Subject, required.
 5. Message, required.
 
-Ordinary Contact us opens blank. A published article's correction link carries only its
-stable article identity in `/about/contact?article=<identity>`. The form resolves that
-identity against the published article list, then fills the subject with
+For a signed-in person, a fresh Contact us form fills the email address from their
+Alethical account. The email stays editable. Anything the person types, including
+deliberately clearing the email field, stays in place through account loading, navigation,
+and a failed send. Signing out or changing accounts removes an email that Alethical filled
+automatically, so one account's address never becomes another account's default. A signed-out
+person starts with a blank email field. The name and phone fields always start blank.
+
+A published article's correction link carries only its stable article identity in
+`/about/contact?article=<identity>`. The form resolves that identity against the published
+article list, then fills the subject with
 `Possible correction: <actual article title>` and the message with:
 
 ```text
@@ -44,9 +51,10 @@ What may be wrong:
 
 ```
 
-The reader can edit every field. Name, email and phone are never filled by the article
-link. Unknown identities, private drafts and arbitrary title or URL parameters do not
-fill the form. Only **Send message** submits it. If a complete title would exceed the
+The reader can edit every field. The article link never fills name, email, or phone; the
+signed-in account supplies email separately. Unknown identities, private drafts and
+arbitrary title or URL parameters do not fill the form. Only **Send message** submits it.
+If a complete title would exceed the
 200-character subject limit, the subject becomes **Possible correction** and the full
 title appears in the message. If the complete message would exceed 5000 characters,
 the form stays blank instead of cutting the title or address.
@@ -55,8 +63,10 @@ An unfinished message stays in memory while the app remains open, including navi
 away and back, changed article links, and failed-send retries. A new link never overwrites
 that draft. The app does not store the draft in browser storage; closing or reloading
 the app discards it. A successful send clears the retained draft. **Send another message**
-opens a blank form. Missing required fields are explained beside the field after a send
-attempt. What the person typed stays in place if delivery fails.
+opens a fresh form with the current signed-in account email, or a blank email field when
+signed out. An automatically filled account email by itself does not trigger the browser's
+warning about leaving with unfinished work. Missing required fields are explained beside
+the field after a send attempt. What the person typed stays in place if delivery fails.
 Each field has a light border on a white box. The whole box gets a purple glow only while
 the person is typing in it. A field with an error gets an amber border; the other fields
 stay unchanged.

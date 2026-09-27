@@ -166,4 +166,36 @@ describe('article correction links', () => {
     expect(draft.getSnapshot().sendFailed).toBe(true);
     expect(draft.requestId).toBe('same-retry-id');
   });
+
+  it('fills account email independently from article text and protects reader changes', () => {
+    const draft = createContactDraft();
+    draft.setAccount({ id: 'account-a', email: 'account-a@example.test' });
+    draft.prefill(PUBLISHED_PIECE_INDEX[0].articleId ?? PUBLISHED_PIECE_INDEX[0].slug);
+    expect(draft.getSnapshot().values.email).toBe('account-a@example.test');
+    expect(draft.getSnapshot().values.subject).toContain('Possible correction:');
+
+    draft.dispatch({ type: 'change', field: 'email', value: '' });
+    draft.setAccount({ id: 'account-b', email: 'account-b@example.test' });
+    expect(draft.getSnapshot().values.email).toBe('');
+  });
+
+  it('removes a previous account default and restores the current default on reset', () => {
+    const draft = createContactDraft();
+    draft.setAccount({ id: 'account-a', email: 'account-a@example.test' });
+    expect(draft.hasDraft()).toBe(false);
+    draft.setAccount({ id: 'account-b', email: 'account-b@example.test' });
+    expect(draft.getSnapshot().values.email).toBe('account-b@example.test');
+    draft.setAccount(null);
+    expect(draft.getSnapshot().values.email).toBe('');
+
+    draft.setAccount({ id: 'account-b', email: 'account-b@example.test' });
+    draft.dispatch({ type: 'change', field: 'email', value: 'reader@example.test' });
+    expect(draft.hasDraft()).toBe(true);
+    draft.dispatch({ type: 'reset' });
+    expect(draft.getSnapshot().values).toEqual({
+      ...initialContactFormState.values,
+      email: 'account-b@example.test',
+    });
+    expect(draft.hasDraft()).toBe(false);
+  });
 });

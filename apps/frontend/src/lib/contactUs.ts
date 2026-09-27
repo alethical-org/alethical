@@ -30,6 +30,7 @@ export const CONTACT_FIELD_ORDER = ['name', 'email', 'phone', 'subject', 'messag
 export type ContactField = (typeof CONTACT_FIELD_ORDER)[number];
 export type ContactValues = Record<ContactField, string>;
 export type ContactErrors = Partial<Record<ContactField, string>>;
+export type ContactAccountEmail = { id: string; email: string };
 
 export type ContactFormState = {
   values: ContactValues;
@@ -71,11 +72,19 @@ export function createContactDraft(article?: string) {
     ...initialContactFormState,
     values: correctionContactValues(article),
   };
-  let edited = false;
+  let currentAccount: ContactAccountEmail | null = null;
+  let automaticEmailAccountId: string | null = null;
+  const editedFields = new Set<ContactField>();
   const listeners = new Set<() => void>();
-  return {
+  const notify = () => listeners.forEach((listener) => listener());
+  const draft = {
     requestId: null as string | null,
     getSnapshot: () => state,
+    hasDraft() {
+      return CONTACT_FIELD_ORDER.some(
+        (field) => state.values[field].length > 0 && (field !== 'email' || editedFields.has(field)),
+      );
+    },
     subscribe(listener: () => void) {
       listeners.add(listener);
       return () => {
@@ -83,19 +92,52 @@ export function createContactDraft(article?: string) {
       };
     },
     prefill(article?: string) {
-      if (edited || state.status !== 'editing' || Object.values(state.values).some(Boolean)) return;
       const values = correctionContactValues(article);
-      if (!Object.values(values).some(Boolean)) return;
-      state = { ...state, values };
-      listeners.forEach((listener) => listener());
+      if (state.status !== 'editing' || editedFields.has('subject') || editedFields.has('message'))
+        return;
+      const additions = (['subject', 'message'] as const).filter(
+        (field) => !state.values[field] && values[field],
+      );
+      if (additions.length === 0) return;
+      state = {
+        ...state,
+        values: {
+          ...state.values,
+          ...Object.fromEntries(additions.map((field) => [field, values[field]])),
+        },
+      };
+      notify();
+    },
+    setAccount(account: ContactAccountEmail | null | undefined) {
+      // Undefined means account loading is unfinished, so it must not change the form.
+      if (account === undefined) return;
+      currentAccount = account?.email ? account : null;
+      if (editedFields.has('email')) return;
+      const email = currentAccount?.email ?? '';
+      const accountId = currentAccount?.id ?? null;
+      if (state.values.email === email && automaticEmailAccountId === accountId) return;
+      state = { ...state, values: { ...state.values, email } };
+      automaticEmailAccountId = accountId;
+      draft.requestId = null;
+      notify();
     },
     dispatch(action: ContactFormAction) {
-      if (action.type === 'change') edited = true;
-      if (action.type === 'reset') edited = false;
+      if (action.type === 'change') {
+        editedFields.add(action.field);
+        if (action.field === 'email') automaticEmailAccountId = null;
+      }
+      if (action.type === 'reset') {
+        editedFields.clear();
+        automaticEmailAccountId = currentAccount?.id ?? null;
+      }
       state = contactFormReducer(state, action);
-      listeners.forEach((listener) => listener());
+      if (action.type === 'reset' && currentAccount) {
+        state = { ...state, values: { ...state.values, email: currentAccount.email } };
+      }
+      notify();
     },
   };
+  return draft;
 }
 
 export function validateContactForm(values: ContactValues): ContactErrors {
