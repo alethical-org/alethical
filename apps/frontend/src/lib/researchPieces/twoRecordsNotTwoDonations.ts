@@ -201,13 +201,20 @@ export const TWO_RECORDS_NOT_TWO_DONATIONS: ResearchPiece = {
       'AI helped prepare this article and can make mistakes. We report what the cited public sources support and identify known gaps and uncertainty. Contact us to report a possible error so we can review it and make corrections.',
     ],
     history: [],
-    relatedSlugs: [],
+    relatedSlugs: ['lobbyist-giving', 'organizations-both-parties'],
     review: {
       editorialApprovedBy: 'Codex, accepted by parent task social posts seo',
       editorialApprovedAt: '2026-09-26T17:19:42Z',
       eugeneApprovedFingerprint: '758077a2',
       eugeneReviewedAt: '2026-09-26T20:28:06Z',
       publicationInstructionAt: '2026-09-26T20:28:06Z',
+      navigationRevision: {
+        reviewedBy: 'Codex',
+        reviewedOn: '2026-09-27',
+        approvedNavigationFingerprint: '232f0610',
+        approvedOn: '2026-09-27',
+        releaseInstructionOn: '2026-09-27',
+      },
     },
   },
 };
@@ -220,9 +227,21 @@ TWO_RECORDS_NOT_TWO_DONATIONS.shortPost!.body = [
     'The committee’s amended special-election filing lists 1 $500 Carlson entry. A later filing lists that entry again and marks its cover “No Change Since Last Report.”',
   ),
   { kind: 'chart', graphicId: 'matching-records' },
-  paragraph(
-    'Matching entries must be checked against filings before counting them as separate donations or removing them as duplicates.',
-  ),
+  {
+    kind: 'paragraph',
+    runs: [
+      { kind: 'text', text: 'Matching entries must be ' },
+      {
+        kind: 'internalLink',
+        text: 'checked against filings',
+        href: '/read/guides/why-2-official-numbers-can-both-be-right',
+      },
+      {
+        kind: 'text',
+        text: ' before counting them as separate donations or removing them as duplicates.',
+      },
+    ],
+  },
   {
     kind: 'method',
     essential:

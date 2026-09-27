@@ -450,6 +450,7 @@ export function ShortPostRelatedReading({ piece }: { piece: ResearchPiece }) {
   if (!related.length) return null;
   return (
     <div className="sp-related-wrap">
+      {piece.format !== 'short-post' && <style>{articleCss}</style>}
       <section className="sp-related" aria-label="Related reading">
         <h2>Related reading</h2>
         <ul>

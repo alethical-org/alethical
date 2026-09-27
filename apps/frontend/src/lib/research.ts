@@ -422,7 +422,12 @@ export function researchSharePanelDescription(piece: Pick<ResearchPiece, 'publis
  */
 export function pieceWordCount(piece: ResearchPiece): number {
   if (piece.format === 'short-post' && piece.shortPost?.body) {
-    return shortPostArticleSnapshotBlocks(piece)
+    const blocks = shortPostArticleSnapshotBlocks(piece);
+    const relatedStart = blocks.findIndex(
+      (block) => block.kind === 'heading' && block.text === 'Related reading',
+    );
+    return blocks
+      .slice(0, relatedStart < 0 ? undefined : relatedStart)
       .map((block) => block.text)
       .join(' ')
       .split(/\s+/)

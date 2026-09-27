@@ -311,9 +311,22 @@ export const ORGANIZATIONS_BOTH_PARTIES: ResearchPiece = {
       },
     ],
     body: [
-      paragraph(
-        'Minnesota’s legislative caucus funds support DFL and Republican campaigns for the House and Senate. We examined political committee and fund entries in the Minnesota Campaign Finance Board’s contribution records for 2015–2025.',
-      ),
+      {
+        kind: 'paragraph',
+        runs: [
+          text(
+            'Minnesota’s legislative caucus funds support DFL and Republican campaigns for the House and Senate. We examined ',
+          ),
+          {
+            kind: 'internalLink',
+            text: 'political committee and fund',
+            href: '/read/guides/who-has-to-report-their-money',
+          },
+          text(
+            ' entries in the Minnesota Campaign Finance Board’s contribution records for 2015–2025.',
+          ),
+        ],
+      },
       paragraph(
         'The comparison covers 4 recipients: DFL House Caucus, DFL Senate Caucus, House Republican Campaign Committee (HRCC) and Senate Victory Fund. It counts donors by their recorded registration numbers, which do not establish the companies or parent organizations behind them.',
       ),
@@ -352,13 +365,20 @@ export const ORGANIZATIONS_BOTH_PARTIES: ResearchPiece = {
       'The amounts retain repeated entries and do not subtract returned contributions, so they are not confirmed totals of separate payments.',
     disclosures: [ARTICLE_AI_NOTE],
     history: [],
-    relatedSlugs: [],
+    relatedSlugs: ['lobbyist-giving', 'why-nobody-can-follow-a-dollar'],
     review: {
       editorialApprovedBy: 'Codex with independent copy acceptance',
       editorialApprovedAt: '2026-09-26T16:47:25.940Z',
       eugeneApprovedFingerprint: '046f2062',
       eugeneReviewedAt: '2026-09-26T20:39:49.138Z',
       publicationInstructionAt: '2026-09-26T20:39:49.138Z',
+      navigationRevision: {
+        reviewedBy: 'Codex',
+        reviewedOn: '2026-09-27',
+        approvedNavigationFingerprint: '163d607a',
+        approvedOn: '2026-09-27',
+        releaseInstructionOn: '2026-09-27',
+      },
     },
   },
 };

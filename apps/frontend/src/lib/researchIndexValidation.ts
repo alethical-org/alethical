@@ -11,6 +11,25 @@ export function assertPublishedPieceIndex<T extends PieceIndexEntry>(
 ): T[] {
   const identities = new Set<string>();
   for (const piece of pieces) {
+    const related = piece.relatedSlugs ?? [];
+    if (related.length > 3 || new Set(related).size !== related.length) {
+      throw new Error(`Related reading for ${piece.slug} needs at most 3 distinct pieces`);
+    }
+    for (const slug of related) {
+      const destination = pieces.find((entry) => entry.slug === slug);
+      if (
+        !destination ||
+        slug === piece.slug ||
+        !destination.topics?.some((topic) => piece.topics?.includes(topic)) ||
+        (piece.set &&
+          destination.set?.name === piece.set.name &&
+          destination.set.position === piece.set.position + 1)
+      ) {
+        throw new Error(
+          `Related reading for ${piece.slug} needs another published piece sharing a topic, not its next guide`,
+        );
+      }
+    }
     if (piece.format !== 'short-post') continue;
     if (!presentationReady) throw new Error('Short post public presentation is not ready');
     if (!piece.articleId?.trim() || identities.has(piece.articleId)) {

@@ -130,12 +130,21 @@ export interface ShortPostEditorial {
       eugeneReviewedAt: string;
       releaseInstructionAt: string;
     };
+    /** An approved link-only update leaves the previously reviewed claims and prose intact. */
+    navigationRevision?: {
+      reviewedBy: string;
+      reviewedOn: string;
+      approvedNavigationFingerprint: string;
+      approvedOn: string;
+      releaseInstructionOn: string;
+    };
   };
 }
 
 export interface ShortPostArticleSnapshotBlock {
   kind: 'heading' | 'paragraph';
   text: string;
+  runs?: readonly ResearchInline[];
   links?: readonly { text: string; href: string }[];
 }
 
@@ -143,6 +152,7 @@ function snapshotRuns(runs: readonly ResearchInline[]): ShortPostArticleSnapshot
   return {
     kind: 'paragraph',
     text: runs.map((run) => run.text).join(''),
+    runs: runs.some((run) => run.kind === 'internalLink') ? runs : undefined,
     links: runs
       .filter(
         (run): run is Extract<ResearchInline, { kind: 'externalLink' | 'internalLink' }> =>
@@ -361,7 +371,7 @@ export function shortPostFingerprint(piece: ResearchPiece): string {
   const { review: _review, ...checkedMaterial } = editorial;
   let visibleBlocks: unknown;
   try {
-    visibleBlocks = shortPostArticleSnapshotBlocks(piece);
+    visibleBlocks = shortPostArticleSnapshotBlocks(piece).map(({ runs: _runs, ...block }) => block);
   } catch (error) {
     // Invalid inputs must still produce publication errors, never crash the checker.
     visibleBlocks = { renderError: (error as Error).message };
@@ -385,6 +395,74 @@ export function shortPostFingerprint(piece: ResearchPiece): string {
   }
   return (hash >>> 0).toString(16).padStart(8, '0');
 }
+
+/** Check that an editorial link update has not changed the originally approved words or facts. */
+export function shortPostOriginalContentFingerprint(piece: ResearchPiece): string {
+  const editorial = piece.shortPost;
+  if (!editorial) throw new Error('Short post editorial record is missing');
+  const approvedLinks = APPROVED_LINK_ONLY_REVISIONS[piece.slug]?.inline ?? [];
+  return shortPostFingerprint({
+    ...piece,
+    shortPost: {
+      ...editorial,
+      relatedSlugs: [],
+      body: editorial.body?.map((block) =>
+        block.kind === 'paragraph' && block.runs.some((run) => run.kind === 'internalLink')
+          ? {
+              ...block,
+              runs: block.runs.reduce<ResearchInline[]>((restored, run) => {
+                const approved =
+                  run.kind === 'internalLink' &&
+                  approvedLinks.some((link) => link.text === run.text && link.href === run.href);
+                const next: ResearchInline = approved
+                  ? { kind: 'text', text: run.text }
+                  : { ...run };
+                const previous = restored[restored.length - 1];
+                if (next.kind === 'text' && previous?.kind === 'text') previous.text += next.text;
+                else restored.push(next);
+                return restored;
+              }, []),
+            }
+          : block,
+      ),
+    },
+  });
+}
+
+/** Eugene approved these exact existing-word links and related picks on 27 September 2026. */
+const APPROVED_LINK_ONLY_REVISIONS: Record<
+  string,
+  {
+    inline: readonly { text: string; href: string }[];
+    related: readonly string[];
+  }
+> = {
+  'lobbyist-giving': {
+    inline: [
+      { text: 'candidate committees', href: '/read/guides/who-has-to-report-their-money' },
+      {
+        text: 'Some download entries repeat reported information',
+        href: '/read/research/2-records-not-always-2-donations',
+      },
+    ],
+    related: ['organizations-both-parties', 'why-2-official-numbers-can-both-be-right'],
+  },
+  'organizations-both-parties': {
+    inline: [
+      { text: 'political committee and fund', href: '/read/guides/who-has-to-report-their-money' },
+    ],
+    related: ['lobbyist-giving', 'why-nobody-can-follow-a-dollar'],
+  },
+  '2-records-not-always-2-donations': {
+    inline: [
+      {
+        text: 'checked against filings',
+        href: '/read/guides/why-2-official-numbers-can-both-be-right',
+      },
+    ],
+    related: ['lobbyist-giving', 'organizations-both-parties'],
+  },
+};
 
 export function shortPostRecordsLine(piece: ResearchPiece): string {
   if (piece.shortPost?.coveragePlacement === 'metadata') return piece.shortPost.coverageNote;
@@ -776,7 +854,36 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
     errors.push('article-specific publication instruction is missing');
   }
   const currentFingerprint = shortPostFingerprint(piece);
-  if (review.revision) {
+  if (review.navigationRevision) {
+    const navigation = review.navigationRevision;
+    const approved = APPROVED_LINK_ONLY_REVISIONS[piece.slug];
+    const inline = contentRuns(piece)
+      .filter(
+        (run): run is Extract<ResearchInline, { kind: 'internalLink' }> =>
+          run.kind === 'internalLink',
+      )
+      .map(({ text, href }) => ({ text, href }));
+    if (
+      review.revision ||
+      !approved ||
+      shortPostOriginalContentFingerprint(piece) !== review.eugeneApprovedFingerprint ||
+      JSON.stringify(inline) !== JSON.stringify(approved.inline) ||
+      JSON.stringify(editorial.relatedSlugs ?? []) !== JSON.stringify(approved.related)
+    ) {
+      errors.push('link-only revision changed previously reviewed article content');
+    }
+    if (
+      !nonempty(navigation.reviewedBy) ||
+      !validDate(navigation.reviewedOn) ||
+      !validDate(navigation.approvedOn) ||
+      !validDate(navigation.releaseInstructionOn) ||
+      navigation.approvedOn < piece.publishedOn ||
+      navigation.releaseInstructionOn < navigation.approvedOn ||
+      navigation.approvedNavigationFingerprint !== currentFingerprint
+    ) {
+      errors.push('link-only revision needs checked links and the approved release scope');
+    }
+  } else if (review.revision) {
     const revision = review.revision;
     if (
       !editorial.history.length ||
