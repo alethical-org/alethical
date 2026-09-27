@@ -31,6 +31,7 @@ import {
 } from '../../lib/research';
 import { publicPageUrl, type ShareContent } from '../../lib/share';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
+import { targetFromPathname } from '../../navigation/webRoutes';
 import { currentWebHistoryEntry } from '../../navigation/webHistory';
 import type { RootScreenProps, RootStackParamList } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
@@ -160,18 +161,26 @@ function useActiveSection(anchors: string[], enabled: boolean): string | null {
 }
 
 /**
- * Sends an inward link through the app's own router rather than letting the
- * browser reload the whole app on it.
+ * Opens a posted article or its correction contact form through the app's
+ * router rather than reloading the whole app.
  *
- * The href is the destination piece's own address, which is the form the served
- * first response needs, so the route is resolved back out of it here: the last
- * segment is a slug, and the registry says which of the 2 piece routes it answers
- * on. A slug the registry does not hold falls through to an ordinary page load,
- * which still lands on the right address.
+ * Article links use the registry's slug and kind. The contact link uses the
+ * same address parser as a direct visit so its article identity survives.
+ * Unknown links fall through to an ordinary browser load at their real href.
  */
 function useInternalLinkPress() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   return (href: string) => {
+    if (href.startsWith('/about/contact')) {
+      const target = targetFromPathname(href);
+      if (target.kind === 'contactUs') {
+        return () =>
+          navigation.navigate(
+            'ContactUs',
+            target.article ? { article: target.article } : undefined,
+          );
+      }
+    }
     const slug = decodeURIComponent(href.split('/').pop() ?? '');
     const piece = researchBySlug(slug);
     if (!piece) return undefined;

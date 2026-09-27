@@ -157,6 +157,12 @@ describe('linkProps gives an in-app destination a real href', () => {
     expect(props.accessibilityRole).toBe('link');
   });
 
+  it('lets the browser follow an href when no in-app handler exists', () => {
+    const event = clickEvent();
+    press(linkProps('/about/contact?article=guide'), event);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+  });
+
   it('handles a plain left click itself, so the page does not reload', () => {
     const navigate = vi.fn();
     const event = clickEvent();
