@@ -1,3 +1,10 @@
+import { articleReturnDestination } from './articleReturn';
+import {
+  collectionPage,
+  guideCollectionItems,
+  researchReportItems,
+} from './readCollectionSelection';
+import { articleClosingNote, articleDisclosureRuns } from './articleDisclosure';
 import {
   filesLastCopiedLine,
   INDEPENDENT_IS_A_SEPARATE_FILING,
@@ -381,6 +388,7 @@ export interface SnapshotSectionItem {
  */
 export type SnapshotBlock =
   | { kind: 'prose'; lines: string[] }
+  | { kind: 'runs'; runs: ResearchInline[] }
   | { kind: 'bullets'; items: string[] }
   | {
       kind: 'table';
@@ -966,10 +974,8 @@ function pieceSourceBlocks(piece: ResearchPiece): SnapshotBlock[] {
   ];
 }
 
-export function researchPageSnapshot(piece: ResearchPiece): PageSnapshot {
-  // The piece's own label wording. The screen draws these same words in mono
-  // caps; case is styling this file has never copied, the way a bill's
-  // "Where it stands" is served in sentence case too.
+export function researchPageSnapshot(piece: ResearchPiece, from?: string): PageSnapshot {
+  // The piece's own source heading stays in the served body.
   const bodyLinks = pieceBodyLinks(piece);
   const sections: SnapshotSection[] = [
     ...(piece.newerFilingsNote
@@ -1011,6 +1017,18 @@ export function researchPageSnapshot(piece: ResearchPiece): PageSnapshot {
         .replace(/^./, (first) => first.toUpperCase()),
       blocks: pieceSourceBlocks(piece),
     },
+    {
+      heading: 'Closing note',
+      blocks: [
+        {
+          kind: 'runs',
+          runs: articleDisclosureRuns(
+            articleClosingNote(piece.aiAssisted),
+            piece.articleId ?? piece.slug,
+          ),
+        },
+      ],
+    },
     // The pieces this one's own prose links to, as real anchors. A piece links to
     // another only where a person authored the link and the destination is
     // already posted, so this is absent on a piece that names no other.
@@ -1036,7 +1054,6 @@ export function researchPageSnapshot(piece: ResearchPiece): PageSnapshot {
     // same order.
     body: [
       ...(piece.dek ? [piece.dek] : []),
-      ...(piece.set ? [piece.set.name] : []),
       ...researchBlocks(piece.intro ?? []).flatMap((block) =>
         block.kind === 'prose' ? block.lines : [],
       ),
@@ -1044,12 +1061,12 @@ export function researchPageSnapshot(piece: ResearchPiece): PageSnapshot {
     bodyIsList: false,
     facts: [],
     sections,
-    links: [{ label: READ_PAGE_HEADING, href: '/read' }],
+    links: [articleReturnDestination(from ?? '') ?? { label: 'Back to Read', href: '/read' }],
   };
 }
 
 /** The approved Short post body, including every cited number and caveat, in the first HTML. */
-export function shortPostPageSnapshot(piece: ResearchPiece): PageSnapshot {
+export function shortPostPageSnapshot(piece: ResearchPiece, from?: string): PageSnapshot {
   const sections: SnapshotSection[] = [];
   let current: SnapshotSection = { heading: '', blocks: [] };
   for (const block of shortPostArticleSnapshotBlocks(piece)) {
@@ -1067,6 +1084,22 @@ export function shortPostPageSnapshot(piece: ResearchPiece): PageSnapshot {
     }
   }
   if (current.blocks?.length) sections.push(current);
+  sections.push({
+    heading: 'Closing note',
+    blocks: (piece.shortPost?.disclosures?.length
+      ? piece.shortPost.disclosures
+      : [articleClosingNote(piece.shortPost?.aiAssisted)]
+    )
+      .filter(
+        (line) =>
+          line !==
+          'A contribution alone does not establish why someone gave, whether it influenced a decision, or whether wrongdoing occurred',
+      )
+      .map((line) => ({
+        kind: 'runs' as const,
+        runs: articleDisclosureRuns(line, piece.articleId ?? piece.slug),
+      })),
+  });
   return {
     heading: piece.title,
     subheading:
@@ -1084,7 +1117,7 @@ export function shortPostPageSnapshot(piece: ResearchPiece): PageSnapshot {
     bodyIsList: false,
     facts: [],
     sections,
-    links: [{ label: READ_PAGE_HEADING, href: '/read' }],
+    links: [articleReturnDestination(from ?? '') ?? { label: 'Back to Read', href: '/read' }],
   };
 }
 
@@ -1100,7 +1133,7 @@ function collectionRecord(piece: ResearchPiece): SnapshotRecordLink {
 
 export function shortPostsPageSnapshot(page: number): PageSnapshot {
   const selection = shortPostsPage(page, publishedResearch());
-  const links: SnapshotLink[] = [{ label: READ_PAGE_HEADING, href: '/read' }];
+  const links: SnapshotLink[] = [{ label: 'Back to Read', href: '/read' }];
   for (const topic of TOPICS) {
     if (selection.items.some((piece) => piece.topics?.includes(topic.slug))) {
       links.push({ label: topic.label, href: topicPath(topic.slug) });
@@ -1129,7 +1162,7 @@ export function readTopicPageSnapshot(topic: TopicSlug, page: number): PageSnaps
   const selection = topicPage(topic, page, publishedResearch());
   const label = TOPICS.find((entry) => entry.slug === topic)?.label ?? topic;
   const base = `/read/topics/${topic}`;
-  const links: SnapshotLink[] = [{ label: READ_PAGE_HEADING, href: '/read' }];
+  const links: SnapshotLink[] = [{ label: 'Back to Read', href: '/read' }];
   if (page > 1)
     links.push({ label: 'Previous page', href: page === 2 ? base : `${base}?page=${page - 1}` });
   if (page < selection.pageCount)
@@ -1146,6 +1179,60 @@ export function readTopicPageSnapshot(topic: TopicSlug, page: number): PageSnaps
   };
 }
 
+export function readCollectionPageSnapshot(
+  kind: 'research' | 'guides' | 'set',
+  page: number,
+  setSlug = 'how-the-money-works',
+): PageSnapshot {
+  const bySlug = new Map(publishedResearch().map((piece) => [piece.slug, piece]));
+  const research = collectionPage(researchReportItems(), page);
+  const guides = guideCollectionItems();
+  const chosenGuides =
+    kind === 'set'
+      ? guides.filter((item) => item.kind === 'group' && item.slug === setSlug)
+      : collectionPage(guides, page).items;
+  const selected =
+    kind === 'research'
+      ? research.items
+      : chosenGuides.flatMap((item) => (item.kind === 'group' ? item.members : [item.piece]));
+  const records = selected
+    .map((entry) => bySlug.get(entry.slug))
+    .filter((piece): piece is ResearchPiece => Boolean(piece));
+  const heading =
+    kind === 'research'
+      ? 'Research reports'
+      : kind === 'guides'
+        ? 'Guides'
+        : chosenGuides[0]?.kind === 'group'
+          ? chosenGuides[0].name
+          : 'Guides';
+  const base = kind === 'set' ? `/read/sets/${setSlug}` : `/read/${kind}`;
+  const pages = kind === 'research' ? research.pageCount : collectionPage(guides, page).pageCount;
+  const links: SnapshotLink[] = [
+    {
+      label: kind === 'set' ? 'All guides' : 'Back to Read',
+      href: kind === 'set' ? '/read/guides' : '/read',
+    },
+  ];
+  if (kind === 'guides')
+    for (const item of chosenGuides)
+      if (item.kind === 'group') links.push({ label: item.name, href: `/read/sets/${item.slug}` });
+  if (page > 1)
+    links.push({ label: 'Previous page', href: page === 2 ? base : `${base}?page=${page - 1}` });
+  if (page < pages && kind !== 'set')
+    links.push({ label: 'Next page', href: `${base}?page=${page + 1}` });
+  return {
+    heading,
+    subheading: '',
+    bodyHeading: '',
+    body: [],
+    bodyIsList: false,
+    facts: [],
+    records: records.map(collectionRecord),
+    links,
+  };
+}
+
 /**
  * The /read page, with one crawlable link per posted piece. The link is the
  * point: without it the route to an older piece exists only after the app has
@@ -1153,11 +1240,17 @@ export function readTopicPageSnapshot(topic: TopicSlug, page: number): PageSnaps
  */
 export function readPageSnapshot(pieces: readonly ResearchPiece[]): PageSnapshot {
   const groups = readGroups(pieces);
-  const visible = [
-    ...groups.research,
-    ...groups.shortPosts.slice(0, 3),
-    ...groups.guides,
-  ] as ResearchPiece[];
+  const bySlug = new Map(pieces.map((piece) => [piece.slug, piece]));
+  const reports = researchReportItems()
+    .slice(0, 3)
+    .map((entry) => bySlug.get(entry.slug));
+  const guides = guideCollectionItems()
+    .slice(0, 3)
+    .flatMap((item) => (item.kind === 'group' ? item.members : [item.piece]))
+    .map((entry) => bySlug.get(entry.slug));
+  const visible = [...reports, ...groups.shortPosts.slice(0, 3), ...guides].filter(
+    (piece): piece is ResearchPiece => Boolean(piece),
+  );
   return {
     // The page's own name, the same word the visually hidden `h1` carries, so the
     // served document and the loaded page name the page identically. What the page
@@ -1180,9 +1273,11 @@ export function readPageSnapshot(pieces: readonly ResearchPiece[]): PageSnapshot
     })),
     // The page's own back link, to the section the nav calls "Money in politics".
     links: [
+      ...(reports.length ? [{ label: 'All research reports', href: '/read/research' }] : []),
       ...(groups.shortPosts.length
         ? [{ label: 'All short posts', href: '/read/short-posts' }]
         : []),
+      ...(guides.length ? [{ label: 'All guides', href: '/read/guides' }] : []),
       { label: MONEY_SECTION_NAME, href: '/money' },
     ],
   };
@@ -2530,6 +2625,9 @@ export function committeePaymentsPageSnapshot(
  * page draws it too.
  */
 function renderSnapshotBlock(block: SnapshotBlock): string {
+  if (block.kind === 'runs') {
+    return `<p class="ps-prose">${block.runs.map((run) => (run.kind === 'internalLink' || run.kind === 'externalLink' ? `<a href="${escapeHtml(run.href)}">${escapeHtml(run.text)}</a>` : escapeHtml(run.text))).join('')}</p>`;
+  }
   if (block.kind === 'prose') {
     return block.lines.map((line) => `<p class="ps-prose">${escapeHtml(line)}</p>`).join('');
   }

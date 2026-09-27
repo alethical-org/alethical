@@ -2,6 +2,10 @@ import type { ResearchInline } from './research';
 
 export const ARTICLE_SOURCE_NOTE =
   'We report what the cited public sources support and identify known gaps and uncertainty. Contact us to report a possible error so we can review it and make corrections.';
+export function articleClosingNote(aiAssisted?: boolean): string {
+  return aiAssisted ? ARTICLE_AI_NOTE : ARTICLE_SOURCE_NOTE;
+}
+
 export const ARTICLE_AI_NOTE = `AI helped prepare this article and can make mistakes. ${ARTICLE_SOURCE_NOTE}`;
 
 /** Keep the approved closing copy and its correction link together in every output. */

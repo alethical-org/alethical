@@ -82,6 +82,18 @@ export const screenChunks = {
       default: m.UnsubscribeScreen,
     })),
   Read: () => import('../screens/redesign/ReadScreen').then((m) => ({ default: m.ReadScreen })),
+  ReadResearch: () =>
+    import('../screens/redesign/ReadCollectionScreen').then((m) => ({
+      default: m.ReadCollectionScreen,
+    })),
+  ReadGuides: () =>
+    import('../screens/redesign/ReadCollectionScreen').then((m) => ({
+      default: m.ReadCollectionScreen,
+    })),
+  ReadSet: () =>
+    import('../screens/redesign/ReadCollectionScreen').then((m) => ({
+      default: m.ReadCollectionScreen,
+    })),
   ShortPosts: () =>
     import('../screens/redesign/ShortPostsScreen').then((m) => ({ default: m.ShortPostsScreen })),
   ReadTopic: () =>

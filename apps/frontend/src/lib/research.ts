@@ -112,7 +112,13 @@ export type ResearchBlock =
   | { kind: 'bullets'; items: ResearchInline[][] }
   /** A small table the piece's prose introduces. Plain strings: a table states
    * filed figures, so it carries no links, no emphasis and no derived label. */
-  | { kind: 'table'; columns: string[]; rows: string[][] }
+  | {
+      kind: 'table';
+      columns: string[];
+      rows: string[][];
+      /** The last row is a total, so it has no closing divider. */
+      totalRow?: boolean;
+    }
   /**
    * A short note qualifying a figure the prose has just given: where 2 official
    * records disagree, or where a figure comes from records we do not hold. Drawn
@@ -280,7 +286,7 @@ export const READ_PAGE_EMPTY_BODY =
  * is the source and the card inherits, or the page says "Guide" twice in one
  * glance (§2.10).
  */
-export const READ_RESEARCH_GROUP_HEADING = 'RESEARCH';
+export const READ_RESEARCH_GROUP_HEADING = 'RESEARCH REPORTS';
 export const READ_GUIDES_GROUP_HEADING = 'GUIDES';
 
 /**
@@ -394,7 +400,7 @@ export function researchBySlug(slug: string): ResearchPiece | undefined {
 
 /** "PUBLISHED AUG 17 2026 · RECORDS THROUGH AUG 11 2026" — listing and masthead. */
 export function researchDatesLine(piece: Pick<ResearchPiece, 'publishedOn' | 'recordsThrough'>) {
-  return `PUBLISHED ${isoDateCapsLabel(piece.publishedOn)} · RECORDS THROUGH ${isoDateCapsLabel(piece.recordsThrough)}`;
+  return `PUBLISHED ${isoDateCommaCapsLabel(piece.publishedOn)} · RECORDS THROUGH ${isoDateCommaCapsLabel(piece.recordsThrough)}`;
 }
 
 /** The quiet identity line shown inside the Share panel. */
@@ -468,11 +474,7 @@ export function pieceReadingMinutes(piece: ResearchPiece): number {
  */
 export function pieceMastheadLine(piece: ResearchPiece): string {
   if (piece.traits.research) return researchDatesLine(piece);
-  return [
-    pieceKindLabel(piece).toUpperCase(),
-    `${pieceReadingMinutes(piece)} MIN`,
-    pieceWrittenLine(piece),
-  ].join(' · ');
+  return [`${pieceReadingMinutes(piece)} MIN`, pieceWrittenLine(piece)].join(' · ');
 }
 
 /** The quiet identity line inside the Share panel, for either kind. */
@@ -604,7 +606,7 @@ export function setMetaLine(group: PieceSetGroup): string {
   return `${count} ${count === 1 ? 'GUIDE' : 'GUIDES'} \u00b7 ${setReadingMinutes(group)} MIN`;
 }
 
-/** The time in a set row's right-hand column: "5 min", never a decimal. */
+/** The time above a set row's title: "5 MIN", never a decimal. */
 export function pieceRowTime(piece: ResearchPiece): string {
-  return `${pieceReadingMinutes(piece)} min`;
+  return `${pieceReadingMinutes(piece)} MIN`;
 }

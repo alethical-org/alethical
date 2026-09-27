@@ -25,7 +25,7 @@ describe('the set box fold control', () => {
     const button = SET_BOX.indexOf('accessibilityRole="button"');
     expect(heading).toBeGreaterThan(-1);
     expect(button).toBeGreaterThan(heading);
-    expect(SET_BOX).toContain('aria-level={3}');
+    expect(SET_BOX).toContain('aria-level={headingLevel}');
   });
 
   it('carries both halves of the disclosure, not only the visible one', () => {
@@ -89,7 +89,7 @@ describe('the set box fold control', () => {
   });
 
   it('makes each row its own link and the box itself none', () => {
-    expect(SET_BOX).toContain('linkProps(routePath.piece(piece), onOpen)');
+    expect(SET_BOX).toContain('articleHrefWithReturn(routePath.piece(piece), sourceHref)');
     // The box has no hover lift, because it has no destination to promise.
     expect(SET_BOX).not.toContain('boxHover');
     expect(SET_BOX).toContain('rowHover');
@@ -114,23 +114,16 @@ describe('the /read page’s own structure', () => {
   });
 
   it('gives every card the kind word a screen reader needs and no ink word', () => {
-    expect(READING).toContain('pieceKindLabel(piece)');
-    expect(READING).toContain('cardKindForScreenReaders');
+    expect(READING).toContain('showKind={false}');
+    expect(READING).toContain('TopicPieceCard');
     // The heading above supplies it in ink, so the card prints nothing.
     expect(READING).not.toContain('pieceCardCta');
   });
 
-  it('draws the set boxes above the loose cards, in source order', () => {
-    const sets = READING.indexOf('group.sets.map');
-    const cards = READING.indexOf('group.pieces.map');
-    expect(sets).toBeGreaterThan(-1);
-    expect(cards).toBeGreaterThan(sets);
-  });
-
-  it('renders no kind heading over nothing', () => {
-    expect(READING).toContain(
-      '.filter((group) => group.sets.length > 0 || group.pieces.length > 0)',
-    );
+  it('draws a combined 3-item guide preview in publication order', () => {
+    expect(READING).toMatch(/guideCollectionItems\(\)\s*\.slice\(0, 3\)/);
+    expect(READING).toContain('group.guideItems?.map');
+    expect(READING).toContain('(group.guideItems?.length ?? 0) > 0');
   });
 
   it('keeps the spacing on the slot rather than on the group', () => {

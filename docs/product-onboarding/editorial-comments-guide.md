@@ -44,7 +44,9 @@ the same appearance and publish immediately.
 The heading is `Reader comments`. Its only notice is
 `Names are chosen by readers and are not verified`.
 
-Desktop has the conversation and form beside a rules card. Below 1100 pixels the
+Desktop has the conversation and form beside a rules card. The rules card starts
+beside the form and scrolls away with the page; it does not stay pinned while
+someone reads the discussion. Below 1100 pixels the
 rules appear above the form; below 768 pixels buttons stack and replies use a
 smaller inset. All controls have targets at least 44 pixels high. The form, errors,
 and busy buttons preserve their space. Keyboard focus is visible without adding

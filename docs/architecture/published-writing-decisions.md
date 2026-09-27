@@ -202,7 +202,7 @@ explanation inside the state's words.
 One vocabulary, no mapping layer: a reader sees "Research" or "Guide", and the code says `research`
 and `guide`.
 
-**Why not "report" for our own digging.** Minnesota's Campaign Finance Board calls a campaign's
+**Why not bare "Report" as an article kind.** Minnesota's Campaign Finance Board calls a campaign's
 filed disclosure document a report, and **21 distinct reader-facing strings** in
 `apps/frontend/src/lib/committeeMoney.ts` alone use the word for that document, including a counter
 rendering "16 reports filed" and an ordering line reading "by the period each report covers".
@@ -210,6 +210,8 @@ Counted 27 Aug 2026, before the 13 September helper split into `committeeMoney.t
 `committeePaymentsPage.ts` and `committeeMoneyShared.ts`; the count describes the
 original file, and every one of the 21 is about filing to the Board. Renaming a public record to
 free the word is not available, so our own writing is the half that moves.
+
+**The long-form section is `RESEARCH REPORTS` (27 Sep 2026).** Eugene asked to make the green headings distinguish longer research from short posts. The `/read` section heading uses the qualified phrase, while individual article labels remain `RESEARCH` or `GUIDE`. `SHORT POSTS` stays broad enough for either trait; it does not become `SHORT RESEARCH POSTS`. This changes the section heading, not article kinds, addresses or source rules. The qualification distinguishes Alethical's writing from filed Board reports.
 
 **Why "Guide" rather than "Explainer".** "Explainer" names a publishing format; "Guide" states the
 help on offer. Both are honest, and the reader-facing test is which one a person clicks when
@@ -300,10 +302,12 @@ another session's feet, not tidiness.
 Ratified by Eugene 27 Aug 2026, narrowing §2.2's wording at Design's own request rather than
 letting Design apply the narrowing quietly.
 
-**The rule.** A card carries its kind word where nothing above it already says the kind. Under a
-`GUIDES` or `RESEARCH` heading on the `/read` page, the heading is the source and the card
-inherits, so the card prints no word. A card prints the word on the home page, in a search result,
-and in a related-piece list, where no heading supplies it.
+**The rule.** A card carries its visible kind word where readers need it to tell mixed kinds
+apart. Under `GUIDES` or `RESEARCH REPORTS` on `/read`, the heading supplies the word. Short post rows
+on `/read` and cards on `/read/short-posts` also omit the visible word; each keeps a hidden
+`Research: ` or `Guide: ` before its metadata for screen readers. Cards on
+`/read/topics/<topic>` keep the visible kind because a topic mixes kinds. A card also prints
+the word on the home page, in a search result, and in a related-piece list when needed.
 
 **Why the word depends on context.** An unqualified rule, "a card outside a set box carries the
 word", prints "Guide" on the `/read` page under a heading already reading `GUIDES`, twice in one
@@ -317,8 +321,8 @@ card component needs to know whether a heading sits above it. That is a small am
 
 ### 2.11 The `/read` page groups writing, with topic destinations alongside
 
-Ratified by Eugene 27 Aug 2026. `GUIDES` and `RESEARCH` stay as the page's headings, and
-**`RESEARCH` sits above `GUIDES`**.
+Ratified by Eugene 27 Aug 2026, with the long-form heading clarified on 27 Sep 2026.
+`RESEARCH REPORTS` sits above `SHORT POSTS`, then `GUIDES`.
 
 **The order is Eugene's, against the design.** Every drawing in the accepted handoff puts `GUIDES`
 first; he overruled it and named it the only change from that handoff. Research is what Alethical
@@ -345,7 +349,8 @@ after readers have learned the current shape, and any inbound link to a heading 
 
 **Updated 26 Sep 2026.** §7 adds controlled subjects to every currently published piece and
 settles topic destinations. Eugene authorized the screen build: Research, Short posts, then Guides.
-The newest 3 Short posts share one box of rows with kind labels and separate topic links. This
+The first heading became `RESEARCH REPORTS` on 27 Sep 2026, without changing this order.
+The newest 3 Short posts share one box of rows with hidden kind labels and separate topic links. This
 group stays hidden until an article is published. Topic destinations show only each entry’s other
 topics, since the heading already names the current topic.
 
@@ -382,7 +387,7 @@ Ratified by Eugene 27 Aug 2026, after §2.1's addresses had already shipped once
 dropdown: one bar item on a computer with no panel behind it, and one row in the phone drawer with no
 heading over it. Every address takes the same word — `/read`, `/read/research/<name>`,
 `/read/guides/<name>`, `/read/sets/<name>` — and so does every internal name: the screen is
-`ReadScreen.tsx`, the route is `Read`, and the registry item's id is `read`. One vocabulary for
+`ReadScreen.tsx`, the route is `Read`, and the registry item's id is `read`. The visually hidden page heading on `/read` is also **Read**; the visible opening explains the subjects. One vocabulary for
 readers and code both, per §2.7.
 
 **Why the group went.** It held exactly 1 child, labelled "Campaign money". So the bar drew a
@@ -570,11 +575,11 @@ Angel finishes the social copy and image and provides available sources. Eugene 
 
 The new prepublication checks apply to social-derived Short posts, not retroactively to signed Research and Guides already live. Arithmetic only checks arithmetic. A factual claim needs a recorded source, period, method, coverage, checked scope, and human review. A missing Alethical record is a coverage gap, not proof a source claim is false. Official sources may fill a genuine gap when their own period and method are stated. Known errors block publication; generic disclaimers cannot excuse them.
 
-One controlled topic vocabulary describes subject independently of format and traits. It begins with Campaign finance, Lobbying, and Elections. The `/read` page will group Research, then Short posts, then Guides; show the newest 3 Short posts with an All short posts link; hide that group until a Short post is published; and keep each Short post out of the long-form groups and reading sets in the first release. `/read/short-posts` will use newest-first publication timestamps, 6 pieces per numbered page, and a stable tie-breaker. Checks and corrections never reset publication time or ordering. `/read/topics/<topic>` will gather published pieces across traits and format. No topic directory, new search box, or combined filters are part of this decision. Eugene authorized these screens on 26 Sep 2026; [issue 2396](https://github.com/alethical-org/alethical/issues/2396) owns implementation and release. Individual articles retain their separate publication gate.
+One controlled topic vocabulary describes subject independently of format and traits. It begins with Campaign finance, Lobbying, and Elections. The `/read` page groups Research reports, then Short posts, then Guides; shows the newest 3 Short posts with an All short posts link; hides that group until a Short post is published; and keeps each Short post out of the long-form groups and reading sets. `/read/short-posts` uses newest-first publication timestamps, 6 pieces per numbered page, and a stable tie-breaker. Checks and corrections never reset publication time or ordering. `/read/topics/<topic>` gathers published pieces across traits and format. The kind-label rule for each listing is in §2.10. No topic directory, new search box, or combined filters are part of this decision. Eugene authorized these screens on 26 Sep 2026; [issue 2396](https://github.com/alethical-org/alethical/issues/2396) owns implementation and release. Individual articles retain their separate publication gate.
 
 Related reading names a few relevant pieces already published, never the current piece or an invented destination. Reader-facing article text and quantitative graphics draw from the same approved numeric inputs, including units, periods, denominators, and any remainder category. An overlap diagram must not imply unsupported area proportions. Its labels and any needed explanation follow [ui-copy-guide.md §Remove implied information from text and visuals](../design/ui-copy-guide.md#remove-implied-information-from-text-and-visuals); omit the generic overlap sentence in the approved organizations draft. A dated newer-record notice points to newer activity without silently recalculating a dated article. An amended source earns a dated explanation and revised finding; Alethical's own error is corrected in text and chart with a dated correction, leaving no wrong figure readable with a line through it. The original publication date follows Minnesota's calendar and stays fixed; a later correction has its own full-content review and release instruction. Records-through is the newest covered reporting-period end among cited records Alethical holds, not extraction day. A piece using only official sources names that outside-source coverage and uses their newest covered end; it never presents that date as coverage of records Alethical loaded. A purely explanatory Guide names source dates when known and never invents a numeric reporting period or date for an undated source. Different sources' coverage stays explicit.
 
-New or revised posts of every type use 1 closing note: “AI helped prepare this article and can make mistakes. We report what the cited public sources support and identify known gaps and uncertainty. Contact us to report a possible error so we can review it and make corrections.” Link “Contact us” to `/about/contact`. Omit the first sentence when AI did not help prepare the article. The note applies beyond social-derived writing and may appear in private drafts because it does not claim completed review. [ui-copy-guide.md](../design/ui-copy-guide.md#standard-closing-note-for-every-post-type) owns the wording. Publication still requires all source checks, human review and a separate publication instruction. Each known material gap belongs beside the affected claim. No complete-accuracy guarantee is made. Following Eugene’s 26 September drafting-rule update, the generic contribution/motive/influence/wrongdoing note is not mandatory for new drafts. Use precise, supported wording and specific limitations instead of automatic boilerplate. [ui-copy-guide.md](../design/ui-copy-guide.md#keep-meaningful-uncertainty-remove-obvious-caveats) owns this rule; already published articles are outside this change.
+New or revised posts of every type use 1 closing note: “AI helped prepare this article and can make mistakes. We report what the cited public sources support and identify known gaps and uncertainty. Contact us to report a possible error so we can review it and make corrections.” Link “Contact us” to `/about/contact`. Omit the first sentence when AI did not help prepare the article. The note applies beyond social-derived writing and may appear in private drafts because it does not claim completed review. All 5 published guides and *The Money Only Goes One Way* carry `aiAssisted: true` in the writing index: the 5 guide manuscript commits explicitly credit Claude ([825a2357](https://github.com/alethical-org/alethical/commit/825a2357), [66bc1d77](https://github.com/alethical-org/alethical/commit/66bc1d77), [3de50d25](https://github.com/alethical-org/alethical/commit/3de50d25), [9a3d4838](https://github.com/alethical-org/alethical/commit/9a3d4838), [f505376a](https://github.com/alethical-org/alethical/commit/f505376a)); the research report's reader-facing methodology was prepared with Claude assistance ([8a862399](https://github.com/alethical-org/alethical/commit/8a862399)). This flag selects the closing sentence, not a claim that all source checking was delegated. [ui-copy-guide.md](../design/ui-copy-guide.md#standard-closing-note-for-every-post-type) owns the wording. Publication still requires all source checks, human review and a separate publication instruction. Each known material gap belongs beside the affected claim. No complete-accuracy guarantee is made. Following Eugene’s 26 September drafting-rule update, the generic contribution/motive/influence/wrongdoing note is not mandatory for new drafts. Use precise, supported wording and specific limitations instead of automatic boilerplate. [ui-copy-guide.md](../design/ui-copy-guide.md#keep-meaningful-uncertainty-remove-obvious-caveats) owns this rule; already published articles are outside this change.
 
 **26 September 2026, origin of the drafting update:** Eugene removed the generic contribution
 note from “2 records do not always mean 2 donations” because it states the obvious.
@@ -595,6 +600,8 @@ private implementation was authorized on 26 Sep 2026, as recorded in
 ### 7.1 Screen and publication checks
 
 The Short post article uses an ordered body. Every quantitative graphic has exactly 1 position in that body and 1 display record naming its title, checked evidence and limitation. Every amended-source history record appears exactly once beside the relevant content. Missing notices and missing graphics block publication. Related reading is up to 3 editor-selected, already published pieces sharing a topic; the selection helper offers candidates and never automatically publishes them.
+
+The Short post article keeps its kind label once above the title, in unboxed blue monospace capitals (11px, weight 700, `0.14em`, `#2b6377`). Its publication line uses uppercase Libre Franklin (11.5px, weight 800, `0.01em`, equal-width digits, `#656c66`), `MON D, YYYY` dates with commas, and scope labels without colons. The “How this was calculated” and “Where these numbers come from” labels share the same monospace treatment (10.5px, weight 700, `0.12em`, `#4f5651`). The article ends with sources and disclosures, then reader comments, then Related reading, then the footer. Related reading uses the page background in a 700px column, a `rgba(17,21,15,0.14)` top line and 48px/72px top/bottom space on desktop or 34px/48px on phone. When comments are unavailable, Related reading follows the disclosures. These display rules do not change an article's reviewed facts or approve new related links; each editor selection still passes the article's publication review.
 
 The initial HTML includes the same ordered text, chart labels and values, necessary descriptions, methods, evidence links, limitations and disclosures as the article. A chart's text labels and values can supply its factual description; no second visible transcript is required. Nearby supporting text adds meaning or necessary context rather than repeating labels, values and shared dates. Screen readers must receive the chart's information without duplicate announcements. Eugene approved this clarification on 26 Sep 2026; [ui-copy-guide.md](../design/ui-copy-guide.md#avoid-redundant-nearby-text) owns the wording rule. Search descriptions follow the existing trait rule: Research uses publication and records-through dates; Guide may describe its subject. External sharing keeps the existing dates-only rule for each trait. Guide reading time is computed from its current text.
 
@@ -659,3 +666,11 @@ archive, Campaign finance and Lobbying topics, sitemap, and the approved default
 comments list. Other private drafts retain their individual publication holds.
 [First Short post preparation](../operations/first-short-post-preparation.md)
 records approval times and the release checks.
+
+### 7.2 Reading layout across the 3 published formats (27 September 2026)
+
+The `/read` page shows at most 3 items in each of Research reports, Short posts, and Guides. A guide group counts as 1 item, sorted by its newest published member, and only the first group starts open on `/read`. `/read/research` and `/read/guides` show 10 items per numbered page; guides never split a group. Groups start open on `/read/guides`, and `/read/sets/<name>` shows its complete published group. The existing 6-per-page limit for Short posts and topics remains. Each article kind appears once above its title as Research or Guide; homogeneous lists omit the repeated kind word, while topic lists retain it.
+
+A guide's individual masthead shows reading time and **PUBLISHED AUGUST 2026** until a documented accuracy review earns a **CHECKED** date. A style change never updates that date. The 5 currently published guides take 25 minutes in total at 5 minutes each. The group shows shared topics once outside its fold button, including when collapsed. Standalone guides show their own topics. Article topics sit below dates, with **Topic** or **Topics** matching the count.
+
+Every article back link carries an allowlisted `/read` source address in the link itself, so a new tab can return to its source; a direct or shared visit uses **Back to Read**. The served initial HTML offers the same safe return link. Every article places the shared closing note below sources and above reader comments, then up to 3 editor-selected published Related reading links below comments. Related picks remain empty until their specific destinations pass review, and never repeat the current article or the next guide.

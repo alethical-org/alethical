@@ -23,8 +23,9 @@ function visibleScroller(node: HTMLElement | null): node is HTMLElement {
  * numbers already live in the URL; this supplies the remaining "same place"
  * part of browser Back for React Native Web's nested scroller.
  */
-export function useHistoryScrollRestoration(ready = true) {
+export function useHistoryScrollRestoration(ready = true, contentKey?: string) {
   const scrollRef = useRef<ScrollView | null>(null);
+  const previousContentKey = useRef(contentKey);
   // React Navigation draws the destination screen before RootNavigator adds its
   // browser-history entry. Reading here during render therefore reads the page
   // being left and can copy its scroll position onto the new page. Wait until
@@ -32,6 +33,16 @@ export function useHistoryScrollRestoration(ready = true) {
   const targetRef = useRef<number | null>(null);
   const restoredRef = useRef(Platform.OS !== 'web');
   const ownerRef = useRef<AppHistoryEntry | null>(null);
+
+  useEffect(() => {
+    if (previousContentKey.current === contentKey) return;
+    previousContentKey.current = contentKey;
+    // Navigation can reuse the same screen and ScrollView for another article.
+    // Give that article its own restoration pass against its new history entry.
+    targetRef.current = null;
+    restoredRef.current = Platform.OS !== 'web';
+    ownerRef.current = null;
+  }, [contentKey]);
 
   const ownsCurrentEntry = useCallback(() => {
     const current = currentWebHistoryEntry();
@@ -89,13 +100,16 @@ export function useHistoryScrollRestoration(ready = true) {
       // unmount. Hidden stack screens also stay mounted. Neither owns the new page.
       if (!visibleScroller(node) || !ownsCurrentEntry()) return;
       const y = event.nativeEvent.contentOffset.y;
+      // A delayed callback from the previous article can arrive after this
+      // same ScrollView has reset to the new article's top.
+      if (contentKey !== undefined && Math.abs(node.scrollTop - y) > 2) return;
       if (targetRef.current === null || (!restoredRef.current && y + 2 < targetRef.current)) {
         return;
       }
       restoredRef.current = true;
       saveCurrentScrollPosition(y);
     },
-    [ownsCurrentEntry],
+    [contentKey, ownsCurrentEntry],
   );
 
   return {

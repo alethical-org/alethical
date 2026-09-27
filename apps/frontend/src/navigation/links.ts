@@ -67,8 +67,9 @@ export const routePath = {
   research: (slug: string) => pathForRoute({ name: 'Research', params: { slug } }),
   guide: (slug: string) => pathForRoute({ name: 'Guide', params: { slug } }),
   /** A piece's own address, whichever kind it is. One place decides the folder. */
-  piece: (piece: { slug: string; traits: PieceTraits }) =>
-    piece.traits.research ? routePath.research(piece.slug) : routePath.guide(piece.slug),
+  piece: (piece: { slug: string; traits: PieceTraits }) => {
+    return piece.traits.research ? routePath.research(piece.slug) : routePath.guide(piece.slug);
+  },
   moneyCommittees: (params?: RootStackParamList['CommitteeList']) =>
     pathForRoute({ name: 'CommitteeList', params }),
   moneyRaces: (params?: RootStackParamList['MoneyByRace']) =>

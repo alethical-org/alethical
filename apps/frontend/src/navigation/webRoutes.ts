@@ -4,6 +4,10 @@ import { paymentNameRole } from '../lib/paymentNameRoute';
 import {
   PUBLISHED_PIECE_INDEX,
   SHORT_POST_PAGE_SIZE,
+  READING_COLLECTION_PAGE_SIZE,
+  guideCollectionCount,
+  guideIndexEntries,
+  guideSetBySlug,
   pieceAddressFolder,
   pieceIndexBySlug,
   topicFromSlug,
@@ -40,10 +44,12 @@ type WebRouteTarget =
   | { kind: 'lobbyingPrincipals' | 'lobbyingLobbyists'; params: Record<string, string> }
   | { kind: 'lobbyingPrincipal' | 'lobbyingLobbyist'; slug: string; year?: string }
   | { kind: 'read' }
+  | { kind: 'readResearch' | 'readGuides'; page?: string; post?: string }
+  | { kind: 'readSet'; slug: string; post?: string }
   | { kind: 'shortPosts'; page?: string; post?: string }
-  | { kind: 'readTopic'; topic: string; page?: string }
-  | { kind: 'research'; slug: string }
-  | { kind: 'guide'; slug: string }
+  | { kind: 'readTopic'; topic: string; page?: string; post?: string }
+  | { kind: 'research'; slug: string; from?: string }
+  | { kind: 'guide'; slug: string; from?: string }
   | {
       kind: 'moneyCommittee';
       contributionDetails?: string;
@@ -113,6 +119,26 @@ function readPageNumber(searchParams: URLSearchParams): number | null {
   if (!raw || !/^[1-9]\d*$/.test(raw)) return null;
   const page = Number(raw);
   return Number.isSafeInteger(page) ? page : null;
+}
+
+/** Reuse the address reader's published-list checks for article return links. */
+function safeArticleReturnHref(href: string): boolean {
+  if (!href.startsWith('/') || href.startsWith('//') || href.includes('\\') || href.includes('#'))
+    return false;
+  if (href !== '/read' && !href.startsWith('/read?') && !href.startsWith('/read/')) return false;
+  try {
+    const kind = targetFromPathname(href).kind;
+    return (
+      kind === 'read' ||
+      kind === 'readResearch' ||
+      kind === 'readGuides' ||
+      kind === 'readSet' ||
+      kind === 'shortPosts' ||
+      kind === 'readTopic'
+    );
+  } catch {
+    return false;
+  }
 }
 
 // URL-addressable Search Bills filters (issue #135). One list drives both
@@ -305,6 +331,38 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     return article ? { kind: 'contactUs', article } : { kind: 'contactUs' };
   }
 
+  if (
+    segments[0] === 'read' &&
+    segments.length === 2 &&
+    (segments[1] === 'research' || segments[1] === 'guides')
+  ) {
+    const page = readPageNumber(searchParams);
+    if (page === null) return { kind: 'notFound', path: pathname };
+    const pieces =
+      segments[1] === 'research'
+        ? PUBLISHED_PIECE_INDEX.filter(
+            (piece) => piece.traits.research && piece.format !== 'short-post',
+          )
+        : guideIndexEntries();
+    const itemCount = segments[1] === 'guides' ? guideCollectionCount() : pieces.length;
+    if (page > Math.max(1, Math.ceil(itemCount / READING_COLLECTION_PAGE_SIZE)))
+      return { kind: 'notFound', path: pathname };
+    const post = searchParams.get('post') ?? undefined;
+    if (post && !pieces.some((piece) => piece.slug === post))
+      return { kind: 'notFound', path: pathname };
+    return {
+      kind: segments[1] === 'research' ? 'readResearch' : 'readGuides',
+      ...(page > 1 ? { page: String(page) } : {}),
+      ...(post ? { post } : {}),
+    };
+  }
+
+  if (segments[0] === 'read' && segments[1] === 'sets' && segments.length === 3) {
+    return guideSetBySlug(segments[2])
+      ? { kind: 'readSet', slug: segments[2], post: searchParams.get('post') ?? undefined }
+      : { kind: 'notFound', path: pathname };
+  }
+
   if (segments[0] === 'read' && segments[1] === 'short-posts' && segments.length === 2) {
     const requestedPage = readPageNumber(searchParams);
     if (requestedPage === null) return { kind: 'notFound', path: pathname };
@@ -338,7 +396,18 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     const count = PUBLISHED_PIECE_INDEX.filter((piece) => piece.topics?.includes(topic)).length;
     if (page > Math.max(1, Math.ceil(count / SHORT_POST_PAGE_SIZE)))
       return { kind: 'notFound', path: pathname };
-    return { kind: 'readTopic', topic, ...(page > 1 ? { page: String(page) } : {}) };
+    const post = searchParams.get('post') ?? undefined;
+    if (
+      post &&
+      !PUBLISHED_PIECE_INDEX.some((piece) => piece.slug === post && piece.topics?.includes(topic))
+    )
+      return { kind: 'notFound', path: pathname };
+    return {
+      kind: 'readTopic',
+      topic,
+      ...(page > 1 ? { page: String(page) } : {}),
+      ...(post ? { post } : {}),
+    };
   }
 
   // One piece of our own writing, at /read/research/{slug} or
@@ -356,8 +425,6 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   // carrying both traits lives under 'research', because rule 13 binds it in
   // full, so `pieceAddressFolder` is the single decision and this is its guard.
   //
-  // Nothing is built for /read/sets/{slug} yet, so that address falls through
-  // to NotFound rather than promising a page.
   if (
     segments.length === 3 &&
     (segments[0] === 'read' || segments[0] === 'reading') &&
@@ -366,7 +433,11 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     const slug = decodeURIComponent(segments[2]);
     const piece = pieceIndexBySlug(slug);
     if (piece && pieceAddressFolder(piece) === segments[1]) {
-      return segments[1] === 'guides' ? { kind: 'guide', slug } : { kind: 'research', slug };
+      const from = searchParams.get('from') ?? undefined;
+      const safeFrom = from && safeArticleReturnHref(from) ? from : undefined;
+      return segments[1] === 'guides'
+        ? { kind: 'guide', slug, from: safeFrom }
+        : { kind: 'research', slug, from: safeFrom };
     }
     return { kind: 'notFound', path: pathname };
   }
@@ -732,6 +803,21 @@ export function pathForRoute(activeRoute: {
     }
     case 'Read':
       return '/read';
+    case 'ReadResearch':
+    case 'ReadGuides': {
+      const base = activeRoute.name === 'ReadResearch' ? '/read/research' : '/read/guides';
+      const params = new URLSearchParams();
+      if (activeRoute.params?.page && String(activeRoute.params.page) !== '1')
+        params.set('page', String(activeRoute.params.page));
+      if (activeRoute.params?.post) params.set('post', String(activeRoute.params.post));
+      return params.size ? `${base}?${params}` : base;
+    }
+    case 'ReadSet': {
+      const base = `/read/sets/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
+      return activeRoute.params?.post
+        ? `${base}?post=${encodeURIComponent(String(activeRoute.params.post))}`
+        : base;
+    }
     case 'ShortPosts': {
       const params = new URLSearchParams();
       if (activeRoute.params?.page && String(activeRoute.params.page) !== '1')
@@ -741,15 +827,20 @@ export function pathForRoute(activeRoute: {
     }
     case 'ReadTopic': {
       const base = `/read/topics/${encodeURIComponent(String(activeRoute.params?.topic ?? ''))}`;
-      const page = activeRoute.params?.page;
-      return page && String(page) !== '1'
-        ? `${base}?page=${encodeURIComponent(String(page))}`
-        : base;
+      const params = new URLSearchParams();
+      if (activeRoute.params?.page && String(activeRoute.params.page) !== '1')
+        params.set('page', String(activeRoute.params.page));
+      if (activeRoute.params?.post) params.set('post', String(activeRoute.params.post));
+      return params.size ? `${base}?${params}` : base;
     }
     case 'Research':
-      return `/read/research/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
-    case 'Guide':
-      return `/read/guides/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
+    case 'Guide': {
+      const base = `/read/${activeRoute.name === 'Research' ? 'research' : 'guides'}/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
+      const from = (activeRoute.params?.returnContext as { href?: string } | undefined)?.href;
+      return from && safeArticleReturnHref(String(from))
+        ? `${base}?from=${encodeURIComponent(String(from))}`
+        : base;
+    }
     case 'CommitteeList': {
       const params = new URLSearchParams();
       for (const key of COMMITTEE_LIST_PARAMS) {
@@ -1015,6 +1106,23 @@ export function stateFromPathname(pathname: string): WebNavigationState {
         routes: [homeTabs, { name: 'Read' }],
         index: 1,
       };
+    case 'readResearch':
+    case 'readGuides':
+      return {
+        routes: [
+          homeTabs,
+          {
+            name: target.kind === 'readResearch' ? 'ReadResearch' : 'ReadGuides',
+            params: { page: target.page, post: target.post },
+          },
+        ],
+        index: 1,
+      };
+    case 'readSet':
+      return {
+        routes: [homeTabs, { name: 'ReadSet', params: { slug: target.slug, post: target.post } }],
+        index: 1,
+      };
     case 'shortPosts':
       return {
         routes: [
@@ -1027,18 +1135,39 @@ export function stateFromPathname(pathname: string): WebNavigationState {
       return {
         routes: [
           homeTabs,
-          { name: 'ReadTopic', params: { topic: target.topic, page: target.page } },
+          {
+            name: 'ReadTopic',
+            params: { topic: target.topic, page: target.page, post: target.post },
+          },
         ],
         index: 1,
       };
     case 'research':
       return {
-        routes: [homeTabs, { name: 'Research', params: { slug: target.slug } }],
+        routes: [
+          homeTabs,
+          {
+            name: 'Research',
+            params: {
+              slug: target.slug,
+              returnContext: target.from ? { href: target.from } : undefined,
+            },
+          },
+        ],
         index: 1,
       };
     case 'guide':
       return {
-        routes: [homeTabs, { name: 'Guide', params: { slug: target.slug } }],
+        routes: [
+          homeTabs,
+          {
+            name: 'Guide',
+            params: {
+              slug: target.slug,
+              returnContext: target.from ? { href: target.from } : undefined,
+            },
+          },
+        ],
         index: 1,
       };
     case 'moneyCommittee':

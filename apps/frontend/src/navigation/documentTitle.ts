@@ -101,6 +101,14 @@ function titleWithoutRecord(route: TitledRoute): string | null {
       const page = Number(route.params?.page ?? 1);
       return titleFor(page > 1 ? `Short posts, page ${page}` : 'Short posts');
     }
+    case 'ReadResearch':
+    case 'ReadGuides': {
+      const page = Number(route.params?.page ?? 1);
+      const subject = route.name === 'ReadResearch' ? 'Research reports' : 'Guides';
+      return titleFor(page > 1 ? `${subject}, page ${page}` : subject);
+    }
+    case 'ReadSet':
+      return titleFor('How the Money Works');
     case 'ReadTopic': {
       const topic = route.params?.topic ? String(route.params.topic) : '';
       const matched = TOPICS.find((entry) => entry.slug === topic);

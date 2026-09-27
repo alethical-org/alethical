@@ -52,6 +52,7 @@ import {
   shortPostPageSnapshot,
   shortPostsPageSnapshot,
   readTopicPageSnapshot,
+  readCollectionPageSnapshot,
   readPageSnapshot,
   renderPageSnapshot,
   type BillDirectorySnapshotSource,
@@ -145,6 +146,7 @@ import { researchPageMetadata } from "../apps/frontend/src/lib/researchMetadata"
 import {
   shortPostsPageMetadata,
   readTopicPageMetadata,
+  readingCollectionMetadata,
 } from "../apps/frontend/src/lib/readCollectionMetadata";
 import {
   legislatorPageMetadata,
@@ -1639,6 +1641,31 @@ async function contentFor(
         metadata: STATIC_PAGE_METADATA["/read"],
         snapshot: renderPageSnapshot(readPageSnapshot(publishedResearch())),
       };
+    case "readResearch":
+    case "readGuides":
+    case "readSet": {
+      const kind =
+        target.kind === "readResearch"
+          ? "research"
+          : target.kind === "readGuides"
+            ? "guides"
+            : "set";
+      const page = target.kind === "readSet" ? 1 : Number(target.page ?? 1);
+      return {
+        metadata: readingCollectionMetadata(
+          kind,
+          page,
+          target.kind === "readSet" ? target.slug : undefined,
+        ),
+        snapshot: renderPageSnapshot(
+          readCollectionPageSnapshot(
+            kind,
+            page,
+            target.kind === "readSet" ? target.slug : undefined,
+          ),
+        ),
+      };
+    }
     case "shortPosts": {
       const page = Number(target.page ?? 1);
       const selection = shortPostsPage(page);
@@ -1681,8 +1708,8 @@ async function contentFor(
         metadata: researchPageMetadata(piece, piece.searchDescription),
         snapshot: renderPageSnapshot(
           piece.format === "short-post"
-            ? shortPostPageSnapshot(piece)
-            : researchPageSnapshot(piece),
+            ? shortPostPageSnapshot(piece, target.from)
+            : researchPageSnapshot(piece, target.from),
         ),
       };
     }

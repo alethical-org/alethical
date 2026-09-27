@@ -892,6 +892,7 @@ describe('the piece snapshot serves the piece’s own writing, unchanged', () =>
       'Short version',
       ...piece.sections.map((section) => section.heading),
       'Where these numbers come from',
+      'Closing note',
     ]);
   });
 
@@ -929,6 +930,7 @@ describe('the piece snapshot serves the piece’s own writing, unchanged', () =>
         if (block.kind === 'prose') served.push(...block.lines);
         else if (block.kind === 'bullets') served.push(...block.items);
         else if (block.kind === 'links') served.push(...block.items.map((item) => item.label));
+        else if (block.kind === 'runs') served.push(researchRunsText(block.runs));
         else
           served.push(
             ...block.columns,
@@ -940,7 +942,7 @@ describe('the piece snapshot serves the piece’s own writing, unchanged', () =>
     // Enough of the piece to be the piece, not a teaser.
     expect(served.length).toBeGreaterThan(40);
     for (const line of served) {
-      expect(storedStrings.has(line)).toBe(true);
+      expect(storedStrings.has(line) || line.includes('AI helped prepare this article')).toBe(true);
     }
 
     // And nothing the piece holds is left behind.
@@ -971,7 +973,7 @@ describe('the piece snapshot serves the piece’s own writing, unchanged', () =>
   });
 
   it('links back to the list, out to each source, and nowhere the site cannot honour', () => {
-    expect(snapshot.links).toEqual([{ label: READ_PAGE_HEADING, href: '/read' }]);
+    expect(snapshot.links).toEqual([{ label: 'Back to Read', href: '/read' }]);
     // One anchor back to the list, plus exactly one per source that stores an
     // address, and no others. Rule 13 requires a filing body to be named AND
     // linked at its source, and a link the reader only gets after the app runs is
@@ -979,7 +981,7 @@ describe('the piece snapshot serves the piece’s own writing, unchanged', () =>
     expect(sourceAddresses.length).toBeGreaterThan(0);
     // Counted below the site's top bar, whose 4 links every served page carries.
     const pageBody = html.slice(html.indexOf('<main'));
-    expect(pageBody.match(/href="/g)).toHaveLength(1 + sourceAddresses.length);
+    expect(pageBody.match(/href="/g)).toHaveLength(2 + sourceAddresses.length);
     for (const { href } of sourceAddresses) {
       expect(html).toContain(`<a href="${href}">`);
     }
@@ -1039,14 +1041,13 @@ describe('the guide snapshot serves the guide\u2019s own writing, unchanged', ()
   it('heads the page with the title and the guide masthead line', () => {
     expect(snapshot.heading).toBe(guide.title);
     expect(snapshot.subheading).toBe(pieceMastheadLine(guide));
-    expect(snapshot.subheading).toBe('GUIDE \u00b7 5 MIN \u00b7 WRITTEN AUGUST 2026');
+    expect(snapshot.subheading).toBe('5 MIN \u00b7 PUBLISHED AUGUST 2026');
   });
 
   it('opens with the set\u2019s name and the prose above the first heading', () => {
     // No standfirst to print, so nothing is invented to fill the slot.
     expect(guide.dek).toBe('');
-    expect(snapshot.body[0]).toBe('How the Money Works');
-    expect(snapshot.body.slice(1)).toEqual(
+    expect(snapshot.body).toEqual(
       (guide.intro ?? []).map((block) =>
         block.kind === 'paragraph' ? researchRunsText(block.runs) : '',
       ),
@@ -1064,6 +1065,7 @@ describe('the guide snapshot serves the guide\u2019s own writing, unchanged', ()
     expect(headings).toEqual([
       ...guide.sections.map((section) => section.heading),
       'Where this comes from',
+      'Closing note',
       'Also on Alethical',
     ]);
   });
@@ -1118,8 +1120,8 @@ describe('the guide snapshot serves the guide\u2019s own writing, unchanged', ()
     // One anchor back to the list, plus one per source address and one per internal
     // link, and no others below the site's top bar (whose 4 links every served page carries).
     const pageBody = html.slice(html.indexOf('<main'));
-    expect(pageBody.match(/href="/g)).toHaveLength(1 + hrefs.length + internal.length);
-    expect(snapshot.links).toEqual([{ label: READ_PAGE_HEADING, href: '/read' }]);
+    expect(pageBody.match(/href="/g)).toHaveLength(2 + hrefs.length + internal.length);
+    expect(snapshot.links).toEqual([{ label: 'Back to Read', href: '/read' }]);
   });
 
   it('prints no piece number anywhere in the served page', () => {
@@ -1228,7 +1230,7 @@ describe('both screens keep reading the same registry the server reads', () => {
       'piece.sourceRuns',
       'piece.shortVersion',
       'piece.intro',
-      'piece.set',
+      'piece.topics',
       'section.blocks',
     ]) {
       expect(source).toContain(call);

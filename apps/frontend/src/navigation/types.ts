@@ -89,16 +89,19 @@ export type RootStackParamList = {
   LobbyingPrincipal: { slug: string };
   LobbyingLobbyist: { slug: string; year?: string };
   Read: undefined;
+  ReadResearch: { page?: string; post?: string } | undefined;
+  ReadGuides: { page?: string; post?: string } | undefined;
+  ReadSet: { slug: string; post?: string };
   ShortPosts: { page?: string; post?: string } | undefined;
-  ReadTopic: { topic: string; page?: string };
+  ReadTopic: { topic: string; page?: string; post?: string };
   // One published piece of our own writing. Both names draw the same screen and
   // differ only in the address they write: a piece carrying the research trait
   // lives at /read/research/{slug}, one carrying only the guide trait at
   // /read/guides/{slug} (docs/architecture/published-writing-decisions.md
   // §2.1). The slug resolves against the piece registry (lib/research.ts); an
   // unknown slug, or the wrong folder for the piece, lands on NotFound.
-  Research: { slug: string };
-  Guide: { slug: string };
+  Research: { slug: string; returnContext?: import('../lib/articleReturn').ArticleReturnContext };
+  Guide: { slug: string; returnContext?: import('../lib/articleReturn').ArticleReturnContext };
   // One committee's money page and its full-payments view. The slug's trailing
   // registration number is the identity and the only part that resolves — names
   // collide, numbers do not — so an old or misspelled name part still lands on
