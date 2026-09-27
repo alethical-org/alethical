@@ -269,7 +269,7 @@ export function isoMonthYearCapsLabel(isoDate: string): string {
 }
 
 /**
- * "WRITTEN AUGUST 2026" until somebody re-checks the piece, "CHECKED MARCH 2027"
+ * "PUBLISHED AUGUST 2026" until somebody re-checks the piece, "CHECKED MARCH 2027"
  * from then on. Same slot, 1 word swapped, and never 2 dates (§4.4).
  */
 export function pieceWrittenLine(
