@@ -2,6 +2,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../billDetail/SharePopover', () => ({ SharePopover: () => null }));
+vi.mock('react-native-svg', () => ({
+  default: () => null,
+  Path: () => null,
+  Circle: () => null,
+  Polygon: () => null,
+}));
 
 import type { ResearchPiece } from '../../../lib/research';
 import { renderPageSnapshot, shortPostPageSnapshot } from '../../../lib/pageSnapshot';

@@ -1,5 +1,7 @@
 import { useEffect, useRef, type MouseEvent } from 'react';
 import { ScrollView } from 'react-native';
+import { GreenLinkArrow } from '../../components/LinkArrow';
+import { ChevronLeft } from '../../components/icons';
 import { TopicPieceCard } from '../../components/read/TopicPieceCard';
 import { articleReturnHref, captureArticleReturn } from '../../lib/articleReturn';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
@@ -81,7 +83,8 @@ export function ShortPostsScreen({ navigation, route }: Props) {
           <style>{collectionCss}</style>
           <div className="sp-collection-column">
             <a className="sp-collection-back" href="/read">
-              ‹ Back to Read
+              <ChevronLeft size={18} strokeWidth={2.2} aria-hidden />
+              <span>Back to Read</span>
             </a>
             {topic && (
               <>
@@ -94,7 +97,10 @@ export function ShortPostsScreen({ navigation, route }: Props) {
             {selection.total === 0 ? (
               <div className="sp-collection-empty">
                 <p>{topic ? 'No articles about this topic yet.' : 'No short posts yet.'}</p>
-                <a href="/read">‹ Back to Read</a>
+                <a href="/read">
+                  <GreenLinkArrow />
+                  <span>Back to Read</span>
+                </a>
               </div>
             ) : (
               <>
@@ -163,7 +169,7 @@ export function ShortPostsScreen({ navigation, route }: Props) {
 }
 
 const collectionCss = `
-.sp-collection{padding:48px 56px 80px;font-family:'Libre Franklin',sans-serif;color:#11150f;flex:1}.sp-collection-column{max-width:1000px}.sp-collection h1{margin:0;font-size:44px;line-height:1.08;font-weight:800;letter-spacing:-.03em;text-wrap:pretty;scroll-margin-top:24px}.sp-collection h1:focus{outline:none}.sp-collection-back{display:inline-flex;min-height:44px;align-items:center;color:#4b524b;font-size:16px;font-weight:600;text-decoration:none;margin-top:-20px}.sp-collection-label{margin-top:18px;margin-bottom:6px;font-size:15px;font-weight:700;color:#4f5651}.sp-collection-list{list-style:none;margin:28px 0 0;padding:0;display:flex;flex-direction:column;gap:16px}.sp-collection-empty{margin-top:28px;background:#fff;border:1px solid rgba(17,21,15,.08);border-radius:16px;padding:32px 36px}.sp-collection-empty p{margin:0;font-size:24px;line-height:1.25;font-weight:800}.sp-collection-empty a{display:inline-flex;min-height:44px;align-items:center;margin-top:14px;color:#0f7a45;text-decoration:none;font-size:17px;font-weight:600}.sp-collection a:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}.sp-collection-status{min-height:52px;margin-top:18px}.sp-collection-pages{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.sp-collection-pages a,.sp-collection-pages>span{box-sizing:border-box;display:inline-flex;min-width:44px;min-height:44px;align-items:center;justify-content:center;padding:0 12px;border:1px solid rgba(17,21,15,.16);border-radius:10px;font-size:16px;font-weight:600;color:#11150f;background:#fff;text-decoration:none;font-variant-numeric:tabular-nums}.sp-collection-pages a[aria-current=page]{background:#11150f;color:#fff;font-weight:800}.sp-collection-pages>span{color:#6f756f;background:transparent;border-color:rgba(17,21,15,.08)}
-@media(hover:hover){.sp-collection-back:hover,.sp-collection-empty a:hover{text-decoration:underline}.sp-collection-pages a:not([aria-current]):hover{background:#f7f8fa;border-color:rgba(17,21,15,.3)}}.sp-collection-pages a:not([aria-current]):active{background:#eef0ee}
+.sp-collection{padding:48px 56px 80px;font-family:'Libre Franklin',sans-serif;color:#11150f;flex:1}.sp-collection-column{max-width:1000px}.sp-collection h1{margin:0;font-size:44px;line-height:1.08;font-weight:800;letter-spacing:-.03em;text-wrap:pretty;scroll-margin-top:24px}.sp-collection h1:focus{outline:none}.sp-collection-back{display:inline-flex;min-height:44px;align-items:center;gap:9px;color:#4b524b;font-size:16px;font-weight:600;text-decoration:none;margin-top:-20px}.sp-collection-label{margin-top:18px;margin-bottom:6px;font-size:15px;font-weight:700;color:#4f5651}.sp-collection-list{list-style:none;margin:28px 0 0;padding:0;display:flex;flex-direction:column;gap:16px}.sp-collection-empty{margin-top:28px;background:#fff;border:1px solid rgba(17,21,15,.08);border-radius:16px;padding:32px 36px}.sp-collection-empty p{margin:0;font-size:24px;line-height:1.25;font-weight:800}.sp-collection-empty a{display:inline-flex;min-height:44px;align-items:center;gap:6px;margin-top:14px;color:#0f7a45;text-decoration:none;font-size:17px;font-weight:600}.sp-collection-empty a svg{transform:rotate(180deg)}.sp-collection a:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}.sp-collection-status{min-height:52px;margin-top:18px}.sp-collection-pages{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.sp-collection-pages a,.sp-collection-pages>span{box-sizing:border-box;display:inline-flex;min-width:44px;min-height:44px;align-items:center;justify-content:center;padding:0 12px;border:1px solid rgba(17,21,15,.16);border-radius:10px;font-size:16px;font-weight:600;color:#11150f;background:#fff;text-decoration:none;font-variant-numeric:tabular-nums}.sp-collection-pages a[aria-current=page]{background:#11150f;color:#fff}.sp-collection-pages>span{color:#6f756f;background:transparent;border-color:rgba(17,21,15,.08)}
+@media(hover:hover){.sp-collection-back:hover{color:#11150f}.sp-collection-back:hover span{text-decoration:underline}.sp-collection-empty a:hover{color:#11832b}.sp-collection-empty a:hover span{text-decoration:underline}.sp-collection-pages a:not([aria-current]):hover{background:#f7f8fa;border-color:rgba(17,21,15,.3)}}.sp-collection-pages a:not([aria-current]):active{background:#eef0ee}
 @media(min-width:768px) and (max-width:1099px){.sp-collection{padding-left:40px;padding-right:40px}}@media(max-width:767px){.sp-collection{padding:26px 20px 56px}.sp-collection h1{font-size:32px}.sp-collection-list{margin-top:20px;gap:12px}.sp-collection-label{margin-top:12px;font-size:14px}.sp-collection-back{margin-top:-12px}.sp-collection-empty{padding:24px 22px;margin-top:20px}.sp-collection-empty p{font-size:20px}.sp-collection-pages{gap:6px}.sp-collection-status{margin-top:14px}}
 `;

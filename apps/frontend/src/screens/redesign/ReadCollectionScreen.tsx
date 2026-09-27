@@ -1,6 +1,7 @@
 import { useEffect, useRef, type MouseEvent } from 'react';
 import { ScrollView } from 'react-native';
 import { SetBox } from '../../components/read/SetBox';
+import { ChevronLeft } from '../../components/icons';
 import { TopicPieceCard } from '../../components/read/TopicPieceCard';
 import { articleReturnHref, captureArticleReturn } from '../../lib/articleReturn';
 import { publishedResearch, type PieceSetGroup, type ResearchPiece } from '../../lib/research';
@@ -113,7 +114,8 @@ export function ReadCollectionScreen({ navigation, route }: Props) {
           <style>{css}</style>
           <div className="read-collection-column">
             <a className="read-collection-back" href={setPage ? '/read/guides' : '/read'}>
-              ‹ {setPage ? 'All guides' : 'Back to Read'}
+              <ChevronLeft size={18} strokeWidth={2.2} aria-hidden />
+              <span>{setPage ? 'All guides' : 'Back to Read'}</span>
             </a>
             {!setPage && (
               <h1 ref={heading} tabIndex={-1}>
@@ -178,6 +180,6 @@ export function ReadCollectionScreen({ navigation, route }: Props) {
 }
 
 const css = `
-.read-collection{padding:48px 56px 80px;flex:1;font-family:'Libre Franklin',sans-serif;color:#11150f}.read-collection-column{max-width:1000px}.read-collection-back{display:inline-flex;align-items:center;min-height:44px;margin-top:-20px;color:#4b524b;font-size:16px;font-weight:600;text-decoration:none}.read-collection-back:hover{color:#11150f;text-decoration:underline}.read-collection-back:focus-visible,.read-collection-pages a:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}.read-collection h1{margin:0 0 24px;font-size:44px;line-height:1.08;font-weight:800;letter-spacing:-.03em;scroll-margin-top:24px}.read-collection h1:focus{outline:none}.read-collection-list{display:grid;gap:20px}.read-collection-pages{display:flex;gap:8px;justify-content:center;margin-top:32px}.read-collection-pages a{display:grid;place-items:center;width:44px;height:44px;border:1px solid rgba(17,21,15,.16);border-radius:8px;color:#11150f;background:#fff;text-decoration:none}.read-collection-pages a[aria-current=page]{background:#11150f;color:#fff}.read-collection-pages a:not([aria-current=page]):hover{background:#f7f8fa;border-color:rgba(17,21,15,.3)}
+.read-collection{padding:48px 56px 80px;flex:1;font-family:'Libre Franklin',sans-serif;color:#11150f}.read-collection-column{max-width:1000px}.read-collection-back{display:inline-flex;align-items:center;gap:9px;min-height:44px;margin-top:-20px;color:#4b524b;font-size:16px;font-weight:600;text-decoration:none}.read-collection-back:hover{color:#11150f}.read-collection-back:hover span{text-decoration:underline}.read-collection-back:focus-visible,.read-collection-pages a:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}.read-collection h1{margin:0 0 24px;font-size:44px;line-height:1.08;font-weight:800;letter-spacing:-.03em;scroll-margin-top:24px}.read-collection h1:focus{outline:none}.read-collection-list{display:grid;gap:20px}.read-collection-pages{display:flex;gap:8px;justify-content:center;margin-top:32px}.read-collection-pages a{display:grid;place-items:center;width:44px;height:44px;border:1px solid rgba(17,21,15,.16);border-radius:8px;color:#11150f;background:#fff;text-decoration:none}.read-collection-pages a[aria-current=page]{background:#11150f;color:#fff}.read-collection-pages a:not([aria-current=page]):hover{background:#f7f8fa;border-color:rgba(17,21,15,.3)}
 @media(max-width:767px){.read-collection{padding:28px 20px 56px}.read-collection h1{font-size:32px}.read-collection-list{gap:16px}.read-collection-pages{gap:6px}}
 `;

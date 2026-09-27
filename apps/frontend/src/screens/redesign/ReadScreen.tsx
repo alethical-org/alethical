@@ -7,6 +7,7 @@ import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestora
 import { guideCollectionItems } from '../../lib/readCollectionSelection';
 import { publishedResearch } from '../../lib/research';
 import { SetBox } from '../../components/read/SetBox';
+import { GreenLinkArrow } from '../../components/LinkArrow';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
   READ_GUIDES_GROUP_HEADING,
@@ -156,7 +157,7 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
 
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
           <View style={[styles.column, isMobile && styles.columnMobile]}>
-            <style>{`.read-collection-link{display:inline-flex;align-items:center;min-height:44px;gap:9px;margin:6px 0 0 16px;color:#0f7a45;font-family:'Libre Franklin',sans-serif;font-size:17px;font-weight:600;text-decoration:none}.read-collection-link:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}.read-collection-link span[aria-hidden]{text-decoration:none}@media(hover:hover){.read-collection-link:hover{color:#11832b;text-decoration:underline}}.read-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}`}</style>
+            <style>{`.read-collection-link{display:inline-flex;align-items:center;min-height:44px;gap:6px;margin:6px 0 0 16px;color:#0f7a45;font-family:'Libre Franklin',sans-serif;font-size:17px;font-weight:600;text-decoration:none}.read-collection-link:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}@media(hover:hover){.read-collection-link:hover{color:#11832b}.read-collection-link:hover .read-collection-link-label{text-decoration:underline}}.read-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}`}</style>
             {/* Visually hidden, and the only h1 on the page. */}
             <Text accessibilityRole="header" aria-level={1} style={[styles.hiddenHeading, webClip]}>
               {READ_PAGE_NAME}
@@ -254,19 +255,21 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
                           : '/read/guides'
                     }
                   >
-                    All{' '}
-                    {group.shortPosts ? (
-                      <>
-                        <span className="read-sr">short </span>posts
-                      </>
-                    ) : group.heading === READ_RESEARCH_GROUP_HEADING ? (
-                      <>
-                        <span className="read-sr">research </span>reports
-                      </>
-                    ) : (
-                      'guides'
-                    )}{' '}
-                    <span aria-hidden="true">→</span>
+                    <span className="read-collection-link-label">
+                      All{' '}
+                      {group.shortPosts ? (
+                        <>
+                          <span className="read-sr">short </span>posts
+                        </>
+                      ) : group.heading === READ_RESEARCH_GROUP_HEADING ? (
+                        <>
+                          <span className="read-sr">research </span>reports
+                        </>
+                      ) : (
+                        'guides'
+                      )}
+                    </span>
+                    <GreenLinkArrow />
                   </a>
                 </View>
               ))
