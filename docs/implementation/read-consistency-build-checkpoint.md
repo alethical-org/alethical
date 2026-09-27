@@ -34,7 +34,8 @@ The discussion rules card no longer sticks to the screen while scrolling.
 Changing related-reading picks changes the saved article fingerprint. The
 publication check rejects this until the required post-publication review
 record is settled. The current build leaves those picks empty and preserves
-the existing publication checks. After the link decision, apply the prepared
-picks with the approved review record, rerun focused tests and web export,
-inspect the existing preview at `http://localhost:8782/read` on phone and
-desktop, then deliver through the repository's normal release steps.
+the existing publication checks. The independent layout and navigation
+changes can finish their browser acceptance and release now. Related links
+remain held. After the link decision, apply the approved picks with their
+article review record, rerun focused tests and web export, and release that
+separate article update.
