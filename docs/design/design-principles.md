@@ -688,3 +688,31 @@ The wording and caveat rules live in
 [ui-copy-guide.md](ui-copy-guide.md#make-the-answer-easy-to-find).
 Approved from Eugene's first-post refinements on 26 September 2026; preserve each
 surface's other approved visual choices.
+
+### Article metadata and Share
+
+Publication dates and reporting periods remain near the title. Source-copy dates
+follow [ui-copy-guide.md §Dates on a page](ui-copy-guide.md#dates-on-a-page).
+When redundant metadata is removed, Share remains right-aligned on the same row
+as the remaining metadata wherever both fit. Keep the approved narrow-screen
+wrapping and spacing; do not leave an empty row for the removed wording.
+
+### Build acceptance for controls
+
+For every changed surface, inventory its controls and approved resting, hover,
+keyboard-focus, disabled and busy states, including dialogs and inline forms.
+Read the actual drawings and written behavior together. A missing detail in
+build notes does not erase a detail the drawing specifies.
+
+Use the loaded web font explicitly on shared buttons. Review browser-computed
+font family, weight and size, not just declarations in a stylesheet: a form
+reset or a more specific selector can override the intended style. Include
+portal dialogs, which may sit outside the styled page container. Add a focused
+browser regression check for shared failures and exercise it before release.
+Check pointer hover, keyboard focus, disabled and busy states separately.
+
+Compare the working screen with the approved drawing at desktop and phone sizes,
+and exercise the tablet layout where its structure differs. Inspect both populated
+and empty states, including content order, gaps, and absent controls. An empty
+list must not reserve space for sorting or feedback that is not shown. A passing
+build or a test of stylesheet text does not establish visual fidelity.

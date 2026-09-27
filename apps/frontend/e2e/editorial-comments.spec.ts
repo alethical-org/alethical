@@ -122,6 +122,179 @@ test.describe('editorial comments with a real local database', () => {
     }
   });
 
+  test('comment layout and button type follow the approved desktop and phone design', async ({
+    browser,
+  }) => {
+    const { context, page, go } = await localBrowser(browser);
+    const root = {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      article_id: articleId,
+      author_id: accounts.reader.subject,
+      name: 'Rowan',
+      body: 'A local example comment',
+      root_id: null,
+      reply_to_id: null,
+      reply_to_name: null,
+      posted_at: '2026-09-26T14:00:00Z',
+      edited_at: null,
+      status: 'live',
+      version: 1,
+    };
+    let populated = false;
+    await page.route(`${api}/api/v1/comments/articles/${articleId}`, (route) =>
+      route.fulfill({ json: { data: { items: populated ? [root] : [], next_cursor: null } } }),
+    );
+    try {
+      await go(article);
+      await expect(page.getByText('No comments yet')).toBeVisible();
+      await expect(page.locator('.rc-list-status')).toHaveCount(0);
+      await expect(page.locator('.rc-list .rc-empty')).toHaveCSS('margin-top', '0px');
+      populated = true;
+      await page.reload();
+      await expect(page.getByText(root.body)).toBeVisible();
+      await expect(page.getByText('Oldest first')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Sign in to comment' })).toHaveCSS(
+        'font-weight',
+        '700',
+      );
+      await expect(page.getByRole('button', { name: 'Sign in to comment' })).toHaveCSS(
+        'font-size',
+        '16px',
+      );
+      const green = page.getByRole('button', { name: 'Sign in to comment' });
+      await expect(green).toHaveCSS('line-height', '24px');
+      await expect(green).toHaveCSS('background-color', 'rgb(46, 212, 126)');
+      await green.hover();
+      await expect(green).toHaveCSS('background-color', 'rgb(40, 191, 113)');
+      await green.evaluate((button) => {
+        button.setAttribute('aria-busy', 'true');
+        button.setAttribute('aria-disabled', 'true');
+      });
+      await expect(green).toHaveCSS('background-color', 'rgb(158, 230, 191)');
+      await green.evaluate((button) => {
+        button.removeAttribute('aria-busy');
+        button.removeAttribute('aria-disabled');
+      });
+      await expect(page.getByRole('button', { name: 'Sign in to reply' })).toHaveCSS(
+        'font-size',
+        '15px',
+      );
+      await expect(page.getByRole('button', { name: 'Sign in to reply' })).toHaveCSS(
+        'font-weight',
+        '700',
+      );
+      await expect(page.getByRole('button', { name: 'Sign in to reply' })).toHaveCSS(
+        'line-height',
+        '22.5px',
+      );
+      expect(
+        await page
+          .locator('.rc-grid')
+          .evaluate((grid) =>
+            [...grid.children].map((child) =>
+              child.classList.contains('rc-title')
+                ? 'heading'
+                : child.classList.contains('rc-discussion')
+                  ? 'discussion'
+                  : child.classList.contains('rc-rules')
+                    ? 'rules'
+                    : 'form',
+            ),
+          ),
+      ).toEqual(['heading', 'discussion', 'rules', 'form']);
+
+      for (const width of [1240, 900, 375]) {
+        await page.setViewportSize({ width, height: 900 });
+        const layout = await page.locator('.rc-grid').evaluate((grid) => {
+          const box = (selector: string) => grid.querySelector(selector)!.getBoundingClientRect();
+          const title = box('.rc-title');
+          const discussion = box('.rc-list');
+          const rules = box('.rc-rules');
+          const form = box('.rc-form-card');
+          return {
+            titleTop: title.top,
+            titleBottom: title.bottom,
+            listTop: discussion.top,
+            listBottom: discussion.bottom,
+            rulesTop: rules.top,
+            rulesBottom: rules.bottom,
+            formTop: form.top,
+            rulesPosition: getComputedStyle(grid.querySelector('.rc-rules')!).position,
+          };
+        });
+        expect(layout.listTop - layout.titleBottom).toBeCloseTo(22, 0);
+        if (width >= 1100) {
+          expect(layout.rulesTop).toBeCloseTo(layout.titleTop, 0);
+          expect(layout.formTop - layout.listBottom).toBeCloseTo(30, 0);
+        } else {
+          expect(layout.rulesTop - layout.listBottom).toBeCloseTo(30, 0);
+          expect(layout.formTop - layout.rulesBottom).toBeCloseTo(22, 0);
+        }
+        expect(layout.rulesPosition).toBe('static');
+      }
+      await green.hover();
+      await expect(green).toHaveCSS('background-color', 'rgb(46, 212, 126)');
+      expect(
+        await page
+          .getByRole('button', { name: 'Sign in to comment' })
+          .evaluate((button) => getComputedStyle(button).fontFamily.includes('Libre Franklin')),
+      ).toBe(true);
+    } finally {
+      await context.close();
+    }
+    const signedIn = await localBrowser(browser, 'reader');
+    try {
+      const settingsResponse = await signedIn.context.request.get(
+        `${api}/api/v1/me/comments/settings?article_id=${articleId}`,
+        { headers: { Authorization: `Bearer ${accounts.reader.token}` } },
+      );
+      expect(settingsResponse.ok()).toBe(true);
+      root.author_id = (await settingsResponse.json()).data.account_id;
+      await signedIn.page.route(`${api}/api/v1/comments/articles/${articleId}`, (route) =>
+        route.fulfill({ json: { data: { items: [root], next_cursor: null } } }),
+      );
+      await signedIn.go(article);
+      const edit = signedIn.page.getByRole('button', { name: 'Edit', exact: true });
+      await expect(edit).toBeVisible();
+      const post = signedIn.page.getByRole('button', { name: 'Post comment', exact: true });
+      await expect(post).toHaveCSS('font-family', /Libre Franklin/);
+      await expect(post).toHaveCSS('font-size', '16px');
+      await expect(post).toHaveCSS('font-weight', '700');
+      await expect(post).toHaveCSS('line-height', '24px');
+      await expect(edit).toHaveCSS('font-size', '15px');
+      await expect(edit).toHaveCSS('font-weight', '700');
+      await expect(edit).toHaveCSS('line-height', '22.5px');
+      await edit.hover();
+      await expect(edit).toHaveCSS('background-color', 'rgb(238, 243, 240)');
+      await signedIn.page.getByRole('button', { name: 'Delete', exact: true }).click();
+      const dark = signedIn.page.getByRole('dialog').getByRole('button', { name: 'Delete' });
+      await expect(dark).toHaveCSS('font-size', '16px');
+      await expect(dark).toHaveCSS('font-weight', '700');
+      await expect(dark).toHaveCSS('font-family', /Libre Franklin/);
+      await expect(dark).toHaveCSS('line-height', '24px');
+      await expect(dark).toHaveCSS('background-color', 'rgb(17, 21, 15)');
+      await dark.hover();
+      await expect(dark).toHaveCSS('background-color', 'rgb(0, 0, 0)');
+      await dark.evaluate((button) => {
+        button.setAttribute('aria-busy', 'true');
+        button.setAttribute('aria-disabled', 'true');
+      });
+      await expect(dark).toHaveCSS('background-color', 'rgb(74, 80, 75)');
+      await dark.evaluate((button) => {
+        button.removeAttribute('aria-busy');
+        button.removeAttribute('aria-disabled');
+      });
+      const cancel = signedIn.page.getByRole('dialog').getByRole('button', { name: 'Cancel' });
+      await expect(cancel).toHaveCSS('font-weight', '700');
+      await expect(cancel).toHaveCSS('font-size', '16px');
+      await cancel.hover();
+      await expect(cancel).toHaveCSS('background-color', 'rgb(247, 248, 250)');
+      await signedIn.page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+    } finally {
+      await signedIn.context.close();
+    }
+  });
+
   test('readers post, reply, rename, edit and preserve replies when a parent is deleted', async ({
     browser,
   }) => {
@@ -349,9 +522,9 @@ test.describe('editorial comments with a real local database', () => {
           exact: true,
         }),
       ).toBeVisible();
-      await expect(
-        owner.page.getByRole('textbox', { name: 'Write a comment', exact: true }).last(),
-      ).toHaveValue('Keep my unfinished edit');
+      await expect(owner.page.locator('.rc-list .rc-inline-card textarea')).toHaveValue(
+        'Keep my unfinished edit',
+      );
       await expect(
         owner.page.getByRole('button', { name: 'Save changes', exact: true }),
       ).toHaveAttribute('aria-disabled', 'true');

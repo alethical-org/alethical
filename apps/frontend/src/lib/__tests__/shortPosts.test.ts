@@ -1,5 +1,6 @@
 import { assertPublishedPieceIndex } from '../researchIndexValidation';
 import { researchPageMetadata } from '../researchMetadata';
+import { shortPostPageSnapshot, renderPageSnapshot } from '../pageSnapshot';
 import { describe, expect, it } from 'vitest';
 import { targetFromPathname } from '../../navigation/webRoutes';
 import {
@@ -19,6 +20,7 @@ import {
   shortPostFingerprint,
   shortPostPublicationErrors,
   shortPostArticleSnapshotBlocks,
+  shortPostRecordsLine,
   type ShortPostGraphic,
 } from '../shortPosts';
 import {
@@ -131,6 +133,23 @@ function readyPiece(): ResearchPiece {
 }
 
 describe('social-derived Short post publication gate', () => {
+  it('keeps a source-copy date in sources without repeating it in initial HTML metadata', () => {
+    const piece = PUBLISHED_RESEARCH.find((entry) => entry.slug === 'organizations-both-parties')!;
+    const snapshot = shortPostPageSnapshot(piece);
+    expect(snapshot.subheading).toContain('Contribution records: 2015–2025');
+    expect(snapshot.subheading).not.toMatch(/copied|saved|download/i);
+    expect(renderPageSnapshot(snapshot)).toContain('saved September 24, 2026');
+    expect(shortPostPublicationErrors(piece)).toEqual([]);
+  });
+
+  it('removes the source-copy segment without removing distinct reporting periods', () => {
+    const piece = readyPiece();
+    piece.shortPost!.coveragePlacement = 'metadata';
+    piece.shortPost!.coverageNote =
+      'Candidate records: 2015–2026 · Download copied October 3, 2026 · Caucus amounts: 2025';
+    expect(shortPostRecordsLine(piece)).toBe('Candidate records: 2015–2026 · Caucus amounts: 2025');
+  });
+
   it('accepts an optional subtitle and separately dated selected download without inventing coverage', () => {
     const piece = readyPiece();
     piece.dek = '';

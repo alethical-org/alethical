@@ -329,6 +329,16 @@ Does this deliver a sovereignty recognition moment, or is it just a label? If ju
 **Never say:** translate · dashboard · Sign Up (as marketing CTA) · Ask AI (use Grounded Ask / Ask — except the one scoped roadmap-chip exception noted under Feature naming).
 
 ## Dates on a page
+
+**Published writing keeps source-copy details with its sources.** Across Research
+reports, Guides and Short posts, put download, copy, retrieval and extraction
+dates beside the source link. Do not repeat those details in the metadata under
+the title. Keep the publication date and meaningful reporting periods there;
+neither is a source-copy date. Retain any date needed to qualify a specific claim
+or reproduce its calculation, and keep exact dates in the underlying evidence.
+Removing a redundant metadata segment does not add a new publication date or
+change the source's reporting period.
+
 **One date per page** (ratified 2026-07-31). A record-detail or one-bill answer page shows it once at the foot, in the standard line — `Source: Minnesota Legislature · revisor.mn.gov · Updated {date}` — built by the shared `billSourceText` (`apps/frontend/src/components/billDetail/SourceLine.tsx`). Search result pages and the issue-scope answer put their corpus date in the results header instead; their source line, when present, names the sources without repeating the date.
 
 - **Never date generated prose as though it were fresh.** A one-bill answer uses that bill's own pull date, never the moment the answer was written. The issue-scope answer is a matched-record list rather than generated prose, so its Search-style count uses the served corpus date (`data_as_of`).

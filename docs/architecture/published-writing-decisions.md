@@ -605,6 +605,14 @@ On 27 September 2026 Eugene approved the exact link choices in [reading-links-re
 
 The Short post article keeps its kind label once above the title, in unboxed blue monospace capitals (11px, weight 700, `0.14em`, `#2b6377`). Its publication line uses uppercase Libre Franklin (11.5px, weight 800, `0.01em`, equal-width digits, `#656c66`), `MON D, YYYY` dates with commas, and scope labels without colons. The “How this was calculated” and “Where these numbers come from” labels share the same monospace treatment (10.5px, weight 700, `0.12em`, `#4f5651`). The article ends with sources and disclosures, then reader comments, then Related reading, then the footer. Related reading uses the page background in a 700px column, a `rgba(17,21,15,0.14)` top line and 48px/72px top/bottom space on desktop or 34px/48px on phone. When comments are unavailable, Related reading follows the disclosures. These display rules do not change an article's reviewed facts or approve new related links; each editor selection still passes the article's publication review.
 
+The article metadata displays publication dates and reporting periods, with Share
+on the same row where space permits. Download/copy, retrieval and extraction dates
+belong with source links, following
+[ui-copy-guide.md §Dates on a page](../design/ui-copy-guide.md#dates-on-a-page).
+Presentation of an existing source-copy date does not change the reviewed evidence,
+claims, approval history or publication date. The stored source-copy date remains
+available for reproducing the analysis.
+
 The initial HTML includes the same ordered text, chart labels and values, necessary descriptions, methods, evidence links, limitations and disclosures as the article. A chart's text labels and values can supply its factual description; no second visible transcript is required. Nearby supporting text adds meaning or necessary context rather than repeating labels, values and shared dates. Screen readers must receive the chart's information without duplicate announcements. Eugene approved this clarification on 26 Sep 2026; [ui-copy-guide.md](../design/ui-copy-guide.md#avoid-redundant-nearby-text) owns the wording rule. Search descriptions follow the existing trait rule: Research uses publication and records-through dates; Guide may describe its subject. External sharing keeps the existing dates-only rule for each trait. Guide reading time is computed from its current text.
 
 The approved comparison bars share one zero and one scale, and accept nonnegative measured values. The percentage bar represents 1 named share plus an explicit remainder; multiple named shares use the approved data table. Overlap diagrams are nonproportional; their labels and any needed explanation follow §7 without automatic chart-reading commentary. Unsupported proportional inputs cannot pass publication checks. These display limits do not alter the underlying calculation helpers.

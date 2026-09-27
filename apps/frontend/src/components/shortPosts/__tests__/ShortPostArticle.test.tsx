@@ -63,15 +63,20 @@ describe('Short post article and charts', () => {
     expect(markup).not.toContain('<div class="sp-related-wrap"');
   });
 
-  it('keeps each covered period and the download date while using short month names', () => {
+  it('keeps reporting periods near the title and the source-copy date in sources', () => {
     const organizations = renderToStaticMarkup(
       <ShortPostArticle piece={ORGANIZATIONS_BOTH_PARTIES} />,
     );
     const citedFilings = renderToStaticMarkup(
       <ShortPostArticle piece={TWO_RECORDS_NOT_TWO_DONATIONS} />,
     );
-    expect(organizations).toContain(
-      'CONTRIBUTION RECORDS 2015–2025 · DOWNLOAD COPIED SEP 24, 2026',
+    expect(organizations).toContain('CONTRIBUTION RECORDS 2015–2025</span>');
+    const metadata = organizations.match(/<div class="sp-meta-share">(.*?)<\/p>/)?.[1];
+    expect(metadata).toBeDefined();
+    expect(metadata).toContain('PUBLISHED SEP 26, 2026');
+    expect(metadata).not.toMatch(/copied|saved|download/i);
+    expect(organizations.slice(organizations.indexOf('WHERE THESE NUMBERS COME FROM'))).toContain(
+      'saved September 24, 2026',
     );
     expect(organizations).toContain('class="sp-prose-total"><th scope="row">Combined');
     expect(citedFilings).toContain('RECORDS IN CITED FILINGS THROUGH DEC 20, 2023');
