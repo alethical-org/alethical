@@ -23,8 +23,8 @@ the design download are outside this release.
 - [x] Exercise comment states against fictional accounts with delivery disabled.
 - [x] Inspect desktop, tablet and phone in a browser, including Share placement.
 - [x] Obtain a fresh reader's browser review and resolve material findings.
-- [ ] Open a pull request, clear current-head checks and merge.
-- [ ] Verify the deployed article and comments, update the existing preview and report.
+- Release checks, merge and live acceptance are recorded on
+  [pull request 2416](https://github.com/alethical-org/alethical/pull/2416).
 
 ## Evidence
 
