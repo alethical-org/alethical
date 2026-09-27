@@ -112,7 +112,13 @@ export type ResearchBlock =
   | { kind: 'bullets'; items: ResearchInline[][] }
   /** A small table the piece's prose introduces. Plain strings: a table states
    * filed figures, so it carries no links, no emphasis and no derived label. */
-  | { kind: 'table'; columns: string[]; rows: string[][] }
+  | {
+      kind: 'table';
+      columns: string[];
+      rows: string[][];
+      /** The last row is a total, so it has no closing divider. */
+      totalRow?: boolean;
+    }
   /**
    * A short note qualifying a figure the prose has just given: where 2 official
    * records disagree, or where a figure comes from records we do not hold. Drawn

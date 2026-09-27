@@ -628,6 +628,11 @@ Approved by Eugene on 26 September 2026.
 
 ### Post chart readability and conclusions
 
+- In a post table, lines separate rows; the last total row has no closing line
+  underneath. Leave a clear gap before explanatory text following a table or
+  chart, using the post's existing paragraph spacing. Keep every value and label
+  unchanged when adjusting this space.
+
 - Give long chart labels enough horizontal room to avoid tall stacks of short
   lines. Widen the label column and move all bar starting points right together
   before shrinking type, abbreviating away meaning or changing the data. Keep

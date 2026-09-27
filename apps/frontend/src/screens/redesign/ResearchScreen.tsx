@@ -1,5 +1,8 @@
 import { ReaderComments } from '../../components/comments/ReaderComments';
-import { ShortPostArticle } from '../../components/shortPosts/ShortPostArticle';
+import {
+  ShortPostArticle,
+  ShortPostRelatedReading,
+} from '../../components/shortPosts/ShortPostArticle';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -468,6 +471,7 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
             />
           </Container>
           {piece.articleId && <ReaderComments articleId={piece.articleId} />}
+          <ShortPostRelatedReading piece={piece} />
           <Footer
             onContact={() => navigation.navigate('ContactUs')}
             onPrivacy={() => navigation.navigate('Privacy')}

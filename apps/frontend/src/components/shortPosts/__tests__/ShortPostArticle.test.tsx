@@ -1,5 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('../../billDetail/SharePopover', () => ({ SharePopover: () => null }));
 
 import type { ResearchPiece } from '../../../lib/research';
 import { renderPageSnapshot, shortPostPageSnapshot } from '../../../lib/pageSnapshot';
@@ -11,6 +13,10 @@ import {
   type ShortPostGraphic,
 } from '../../../lib/shortPosts';
 import { ShortPostChart } from '../ShortPostChart';
+import { ShortPostArticle, ShortPostRelatedReading } from '../ShortPostArticle';
+import { LOBBYIST_GIVING } from '../../../lib/researchPieces/lobbyistGiving';
+import { ORGANIZATIONS_BOTH_PARTIES } from '../../../lib/researchPieces/organizationsBothParties';
+import { TWO_RECORDS_NOT_TWO_DONATIONS } from '../../../lib/researchPieces/twoRecordsNotTwoDonations';
 
 const period = { from: '2025-01-01', through: '2025-12-31', label: '2025 filings' };
 const evidence: ShortPostEvidence = {
@@ -37,6 +43,52 @@ const graphic: ShortPostGraphic = {
 graphic.altDescription = chartDescription(graphic.input);
 
 describe('Short post article and charts', () => {
+  it('shows the approved publication line without changing the article records', () => {
+    const markup = renderToStaticMarkup(<ShortPostArticle piece={LOBBYIST_GIVING} />);
+    expect(markup).toContain(
+      'PUBLISHED SEP 26, 2026</span><span aria-hidden="true"> · </span><span>CANDIDATE RECORDS 2015–2026 · CAUCUS AMOUNTS 2025',
+    );
+    expect(markup).toContain('HOW THIS WAS CALCULATED');
+    expect(markup).toContain('WHERE THESE NUMBERS COME FROM');
+    expect(markup).toContain(
+      'class="sp-prose-total"><th scope="row">Total committee registrations',
+    );
+    expect(markup).not.toContain('<div class="sp-related-wrap"');
+  });
+
+  it('keeps each covered period and the download date while using short month names', () => {
+    const organizations = renderToStaticMarkup(
+      <ShortPostArticle piece={ORGANIZATIONS_BOTH_PARTIES} />,
+    );
+    const citedFilings = renderToStaticMarkup(
+      <ShortPostArticle piece={TWO_RECORDS_NOT_TWO_DONATIONS} />,
+    );
+    expect(organizations).toContain(
+      'CONTRIBUTION RECORDS 2015–2025 · DOWNLOAD COPIED SEP 24, 2026',
+    );
+    expect(organizations).toContain('class="sp-prose-total"><th scope="row">Combined');
+    expect(citedFilings).toContain('RECORDS IN CITED FILINGS THROUGH DEC 20, 2023');
+  });
+
+  it('uses 3 editor-selected published neighbors and excludes the current article', () => {
+    const piece = {
+      ...LOBBYIST_GIVING,
+      shortPost: {
+        ...LOBBYIST_GIVING.shortPost!,
+        relatedSlugs: [
+          'organizations-both-parties',
+          '2-records-not-always-2-donations',
+          'what-the-records-name',
+        ],
+      },
+    };
+    const markup = renderToStaticMarkup(<ShortPostRelatedReading piece={piece} />);
+    expect((markup.match(/class="sp-related-row"/g) ?? []).length).toBe(3);
+    expect(markup).toContain('/read/research/organizations-both-parties');
+    expect(markup).toContain('/read/guides/what-the-records-name');
+    expect(markup).not.toContain('/read/research/lobbyist-giving');
+  });
+
   it('uses computed parts, a named remainder, linked source, and a real table with single-line numbers', () => {
     const markup = renderToStaticMarkup(
       <ShortPostChart

@@ -279,7 +279,7 @@ export const COMMENTS_CSS = `
 .rc-grid {max-width:1128px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 340px;column-gap:48px;align-items:start}
 .rc-title {grid-column:1;grid-row:1;min-width:0}
 .rc-disclaimer {margin-top:8px!important;font-size:15px;color:#4f5651}
-.rc-rules {grid-column:2;grid-row:1 / span 2;position:sticky;top:24px;padding:20px 22px 22px}
+.rc-rules {grid-column:2;grid-row:1 / span 2;padding:20px 22px 22px}
 .rc-rules>p {margin-top:8px;font-size:15px;line-height:1.55}
 .rc-rules ol {padding:0;margin-top:14px;list-style:none;display:flex;flex-direction:column;gap:9px}
 .rc-rules li {display:grid;grid-template-columns:20px minmax(0,1fr);gap:6px;font-size:14.5px;line-height:1.5}
