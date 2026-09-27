@@ -41,18 +41,42 @@ export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
           "That's the scale most people picture when they think about political money: a neighbor running for the legislature, a few hundred donors, a yard sign budget.",
         ),
         p('Now the actual scale.'),
-        p(
-          'Over eleven years, 1,732 campaign accounts for state office took in $108 million between them. That is accounts rather than people: someone who serves in the House and later runs for the Senate has 2.',
-        ),
+        {
+          kind: 'paragraph',
+          runs: [
+            { kind: 'text', text: 'Over eleven years, 1,732 ' },
+            {
+              kind: 'internalLink',
+              text: 'campaign accounts for state office',
+              href: '/read/guides/who-has-to-report-their-money',
+            },
+            {
+              kind: 'text',
+              text: ' took in $108 million between them. That is accounts rather than people: someone who serves in the House and later runs for the Senate has 2.',
+            },
+          ],
+        },
         p(
           'Over those same eleven years, six committees — the four legislative caucuses and the two state parties — took in $221 million.',
         ),
         p(
           'Six organizations. Twice the money of every campaign account in the state put together, counting only the donations with a name attached. Counting every dollar they each reported taking in, unnamed donors included, it is about 1.4 times.',
         ),
-        p(
-          'One caution before the rest. Minnesota only requires a committee to name a donor once that person has given more than $200 in total during a calendar year, so a large share of all political money is reported as a lump figure with no names. Across the campaign accounts of sitting legislators, that unnamed share was 36.5% of the money in 2024 and 41.3% in 2025. Everything that follows below counts only the named donations.',
-        ),
+        {
+          kind: 'paragraph',
+          runs: [
+            {
+              kind: 'text',
+              text: 'One caution before the rest. Minnesota only requires a committee to name a donor once that person has given more than $200 in total during a calendar year, so a large share of all political money is reported as a lump figure with no names. Across the campaign accounts of sitting legislators, that unnamed share was 36.5% of the money in 2024 and 41.3% in 2025. Everything that follows below counts ',
+            },
+            {
+              kind: 'internalLink',
+              text: 'only the named donations',
+              href: '/read/guides/what-the-records-name',
+            },
+            { kind: 'text', text: '.' },
+          ],
+        },
       ],
     },
     {
@@ -83,9 +107,21 @@ export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
       railLabel: 'The counterargument',
       blocks: [
         p('True, and worth being precise about, because this is the honest counterargument.'),
-        p(
-          "Those six committees also spent $54.7 million on independent expenditures — ads and mail about specific races. That money is spent on campaigns. It just isn't spent by them.",
-        ),
+        {
+          kind: 'paragraph',
+          runs: [
+            { kind: 'text', text: 'Those six committees also spent $54.7 million on ' },
+            {
+              kind: 'internalLink',
+              text: 'independent expenditures',
+              href: '/read/guides/money-spent-without-a-campaigns-say',
+            },
+            {
+              kind: 'text',
+              text: " — ads and mail about specific races. That money is spent on campaigns. It just isn't spent by them.",
+            },
+          ],
+        },
         p(
           "By law it can't be coordinated with the candidate. The candidate doesn't see the script, doesn't approve the mailer, can't stop it, and often finds out the same day you do.",
         ),

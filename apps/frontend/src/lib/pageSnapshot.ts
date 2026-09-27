@@ -881,17 +881,18 @@ export function legislatorPageSnapshot(
  * forbids editing a piece's words at all, which is why nothing here shortens,
  * re-punctuates or summarises a stored sentence.
  *
- * An outward link inside a SENTENCE contributes its words and not its address,
- * because a bare address mid-prose reads as noise. A source's link is different
- * and does carry its address: rule 13 requires a filing body to be named and
- * linked at its source, and a link the reader only gets after the app runs is not
- * a link at all to anything reading the first response.
+ * Links in article paragraphs use their existing words as anchors. Source links
+ * retain their addresses too: a link that appears only after the app runs is
+ * unavailable to anything reading the first response.
  */
 
 /** One piece block as the screen draws it, in the piece's own order. */
 function researchBlocks(blocks: readonly ResearchBlock[]): SnapshotBlock[] {
   return blocks.map((block): SnapshotBlock => {
     if (block.kind === 'paragraph') {
+      if (block.runs.some((run) => run.kind === 'internalLink')) {
+        return { kind: 'runs', runs: block.runs };
+      }
       return { kind: 'prose', lines: [researchRunsText(block.runs)] };
     }
     if (block.kind === 'bullets') {
@@ -918,25 +919,22 @@ function runLinks(runs: readonly ResearchInline[]): SnapshotSectionItem[] {
 }
 
 /**
- * Every inward link a piece's own prose carries, in document order, served as
- * real anchors after the sections.
+ * Inward links that cannot be rendered in their prose position by the snapshot,
+ * served as real anchors after the sections.
  *
- * A link inside a sentence contributes its words to the prose and not its
- * address, because a bare address mid-prose reads as noise. An INWARD one still
- * has to be followable: it is the route from one posted piece to another, and a
- * route that only exists once the app has run is not a route at all to anything
- * reading the first response. So the words stay in the sentence and the address
- * is served beside it, the way a source's link already is.
+ * Intro paragraphs and bullets are still flattened to text in the first
+ * response. Their authored links remain available here, without duplicating
+ * the article paragraphs whose links are already inline anchors.
  */
 function pieceBodyLinks(piece: ResearchPiece): SnapshotSectionItem[] {
-  const runsIn = (blocks: readonly ResearchBlock[]): ResearchInline[] =>
-    blocks.flatMap((block) =>
-      block.kind === 'paragraph' ? block.runs : block.kind === 'bullets' ? block.items.flat() : [],
-    );
+  const runsInBullets = (blocks: readonly ResearchBlock[]): ResearchInline[] =>
+    blocks.flatMap((block) => (block.kind === 'bullets' ? block.items.flat() : []));
   const runs = [
-    ...runsIn(piece.shortVersion),
-    ...runsIn(piece.intro ?? []),
-    ...piece.sections.flatMap((section) => runsIn(section.blocks)),
+    ...runsInBullets(piece.shortVersion),
+    ...(piece.intro ?? []).flatMap((block) =>
+      block.kind === 'paragraph' ? block.runs : block.kind === 'bullets' ? block.items.flat() : [],
+    ),
+    ...piece.sections.flatMap((section) => runsInBullets(section.blocks)),
   ];
   return runs
     .filter(
@@ -977,6 +975,9 @@ function pieceSourceBlocks(piece: ResearchPiece): SnapshotBlock[] {
 export function researchPageSnapshot(piece: ResearchPiece, from?: string): PageSnapshot {
   // The piece's own source heading stays in the served body.
   const bodyLinks = pieceBodyLinks(piece);
+  const related = (piece.relatedSlugs ?? [])
+    .map((slug) => publishedResearch().find((entry) => entry.slug === slug))
+    .filter((entry): entry is ResearchPiece => Boolean(entry));
   const sections: SnapshotSection[] = [
     ...(piece.newerFilingsNote
       ? [
@@ -1040,6 +1041,19 @@ export function researchPageSnapshot(piece: ResearchPiece, from?: string): PageS
           },
         ]
       : []),
+    ...(related.length
+      ? [
+          {
+            heading: 'Related reading',
+            blocks: [
+              {
+                kind: 'links' as const,
+                items: related.map((entry) => ({ label: entry.title, href: piecePath(entry) })),
+              },
+            ],
+          },
+        ]
+      : []),
   ];
 
   return {
@@ -1055,7 +1069,11 @@ export function researchPageSnapshot(piece: ResearchPiece, from?: string): PageS
     body: [
       ...(piece.dek ? [piece.dek] : []),
       ...researchBlocks(piece.intro ?? []).flatMap((block) =>
-        block.kind === 'prose' ? block.lines : [],
+        block.kind === 'prose'
+          ? block.lines
+          : block.kind === 'runs'
+            ? [researchRunsText(block.runs)]
+            : [],
       ),
     ],
     bodyIsList: false,
@@ -1069,14 +1087,23 @@ export function researchPageSnapshot(piece: ResearchPiece, from?: string): PageS
 export function shortPostPageSnapshot(piece: ResearchPiece, from?: string): PageSnapshot {
   const sections: SnapshotSection[] = [];
   let current: SnapshotSection = { heading: '', blocks: [] };
-  for (const block of shortPostArticleSnapshotBlocks(piece)) {
+  const articleBlocks = shortPostArticleSnapshotBlocks(piece);
+  const relatedStart = articleBlocks.findIndex(
+    (block) => block.kind === 'heading' && block.text === 'Related reading',
+  );
+  const closingStart =
+    (relatedStart < 0 ? articleBlocks.length : relatedStart) -
+    (piece.shortPost?.disclosures.length ?? 0);
+  for (const block of articleBlocks.slice(0, closingStart)) {
     if (block.kind === 'heading') {
       if (current.blocks?.length) sections.push(current);
       current = { heading: block.text, blocks: [] };
       continue;
     }
-    current.blocks?.push({ kind: 'prose', lines: [block.text] });
-    if (block.links?.length) {
+    current.blocks?.push(
+      block.runs ? { kind: 'runs', runs: [...block.runs] } : { kind: 'prose', lines: [block.text] },
+    );
+    if (!block.runs && block.links?.length) {
       current.blocks?.push({
         kind: 'links',
         items: block.links.map((link) => ({ label: link.text, href: link.href })),
@@ -1100,6 +1127,21 @@ export function shortPostPageSnapshot(piece: ResearchPiece, from?: string): Page
         runs: articleDisclosureRuns(line, piece.articleId ?? piece.slug),
       })),
   });
+  if (relatedStart >= 0) {
+    sections.push({
+      heading: 'Related reading',
+      blocks: articleBlocks.slice(relatedStart + 1).flatMap((block) =>
+        block.links?.length
+          ? [
+              {
+                kind: 'links' as const,
+                items: block.links.map((link) => ({ label: link.text, href: link.href })),
+              },
+            ]
+          : [],
+      ),
+    });
+  }
   return {
     heading: piece.title,
     subheading:

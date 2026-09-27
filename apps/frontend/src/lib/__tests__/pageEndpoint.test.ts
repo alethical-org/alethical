@@ -16,6 +16,36 @@ import { CONFIRMATION_UNAVAILABLE_LINE } from '../committeeConfirmation';
 import { whoseCommitteeText } from '../committeeMoney';
 import lobbyingLive from '../../data/__tests__/fixtures/lobbying-live.json';
 
+const approvedInlineLinks = [
+  [
+    'the-money-only-goes-one-way',
+    'campaign accounts for state office',
+    '/read/guides/who-has-to-report-their-money',
+  ],
+  ['the-money-only-goes-one-way', 'only the named donations', '/read/guides/what-the-records-name'],
+  [
+    'the-money-only-goes-one-way',
+    'independent expenditures',
+    '/read/guides/money-spent-without-a-campaigns-say',
+  ],
+  ['lobbyist-giving', 'candidate committees', '/read/guides/who-has-to-report-their-money'],
+  [
+    'lobbyist-giving',
+    'Some download entries repeat reported information',
+    '/read/research/2-records-not-always-2-donations',
+  ],
+  [
+    'organizations-both-parties',
+    'political committee and fund',
+    '/read/guides/who-has-to-report-their-money',
+  ],
+  [
+    '2-records-not-always-2-donations',
+    'checked against filings',
+    '/read/guides/why-2-official-numbers-can-both-be-right',
+  ],
+] as const;
+
 const { readPageShell } = vi.hoisted(() => ({ readPageShell: vi.fn() }));
 
 vi.mock('node:fs/promises', () => ({ readFile: readPageShell }));
@@ -105,6 +135,27 @@ async function serve(query: Record<string, string>) {
   await handler({ query }, recorder.response);
   return recorder.read();
 }
+
+it('serves the approved article links in the first HTTP response of all 9 published pages', async () => {
+  stubNetwork(() => ({ status: 500 }));
+  expect(approvedInlineLinks).toHaveLength(7);
+  expect(publishedResearch()).toHaveLength(9);
+  for (const piece of publishedResearch()) {
+    const { body, status } = await serve({ path: piecePath(piece) });
+    expect(status).toBe(200);
+    for (const [, label, href] of approvedInlineLinks.filter(([slug]) => slug === piece.slug)) {
+      expect(body).toContain(`<a href="${href}">${label}</a>`);
+    }
+    const related = piece.relatedSlugs ?? piece.shortPost?.relatedSlugs ?? [];
+    expect(related).toHaveLength(2);
+    for (const slug of related) {
+      const destination = publishedResearch().find((entry) => entry.slug === slug)!;
+      expect(body).toContain(
+        `<a href="${piecePath(destination)}">${escapeHtml(destination.title)}</a>`,
+      );
+    }
+  }
+});
 
 it.each(['/admin', '/admin/users', '/admin/metrics', '/admin/site-metrics'])(
   'keeps %s private with no account HTML or analytics',
@@ -816,8 +867,9 @@ describe('first-response page tags', () => {
         return block.rows.flat();
       });
     expect(sentences.length).toBeGreaterThan(40);
+    const visibleBody = body.replace(/<[^>]+>/g, '');
     for (const sentence of sentences) {
-      expect(body).toContain(escapeHtml(sentence));
+      expect(visibleBody).toContain(escapeHtml(sentence));
     }
     for (const source of piece.sources) {
       expect(body).toContain(escapeHtml(researchSourceText(source)));
@@ -871,8 +923,9 @@ describe('first-response page tags', () => {
       },
     );
     expect(sentences.length).toBeGreaterThan(20);
+    const visibleBody = body.replace(/<[^>]+>/g, '');
     for (const sentence of sentences) {
-      expect(body).toContain(escapeHtml(sentence));
+      expect(visibleBody).toContain(escapeHtml(sentence));
     }
 
     // Every address the sources block holds, as a real anchor: 8 at the Board and

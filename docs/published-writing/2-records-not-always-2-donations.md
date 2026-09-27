@@ -13,7 +13,7 @@ Sum of 2 matching download entries: 1000 USD, Cited filings (2023-01-01 through 
 
 Conclusion: The filings support 1 reported $500 contribution appearing in repeated records. The 2 download entries do not establish 2 separate donations.
 
-Matching entries must be checked against filings before counting them as separate donations or removing them as duplicates.
+Matching entries must be [checked against filings](https://www.alethical.com/read/guides/why-2-official-numbers-can-both-be-right) before counting them as separate donations or removing them as duplicates.
 
 How this was calculated
 

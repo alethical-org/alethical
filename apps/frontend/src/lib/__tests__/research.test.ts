@@ -445,6 +445,20 @@ describe('reading time, computed from the piece\u2019s own words', () => {
     expect(pieceWordCount(guide)).toBeLessThan(1100);
   });
 
+  it('does not count Related reading links as words in a Short post', () => {
+    const shortPosts = PUBLISHED_RESEARCH.filter((piece) => piece.format === 'short-post');
+    expect(shortPosts).toHaveLength(3);
+    shortPosts.forEach((piece) => {
+      const withoutRelated = {
+        ...piece,
+        shortPost: { ...piece.shortPost!, relatedSlugs: [] },
+      };
+      expect(pieceWordCount(piece)).toBe(pieceWordCount(withoutRelated));
+      expect(pieceReadingMinutes(piece)).toBe(pieceReadingMinutes(withoutRelated));
+    });
+    expect(pieceReadingMinutes(researchBySlug('2-records-not-always-2-donations')!)).toBe(1);
+  });
+
   it('reads every kind of block, so no part of a piece is uncounted', () => {
     const blocks: ResearchBlock[] = [
       { kind: 'paragraph', runs: [{ kind: 'text', text: 'one two three' }] },
@@ -607,11 +621,19 @@ const blockText = (blocks: readonly ResearchBlock[]): string[] =>
  * dropped and no test notices — which is the whole reason issue 1832 exists.
  */
 function shippedWords(piece: ResearchPiece): string {
-  if (piece.format === 'short-post')
-    return [piece.title, ...shortPostArticleSnapshotBlocks(piece).map((block) => block.text)]
+  if (piece.format === 'short-post') {
+    const blocks = shortPostArticleSnapshotBlocks(piece);
+    const relatedStart = blocks.findIndex(
+      (block) => block.kind === 'heading' && block.text === 'Related reading',
+    );
+    return [
+      piece.title,
+      ...blocks.slice(0, relatedStart < 0 ? undefined : relatedStart).map((block) => block.text),
+    ]
       .join(' ')
       .replace(/\s+/g, ' ')
       .trim();
+  }
   return [
     piece.title,
     // The 2 lines under the title, in the order the masthead draws them: a guide

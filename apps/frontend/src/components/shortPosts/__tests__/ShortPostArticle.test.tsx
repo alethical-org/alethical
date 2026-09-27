@@ -112,6 +112,7 @@ describe('Short post article and charts', () => {
     expect(markup).toContain('/read/guides/why-2-official-numbers-can-both-be-right');
     expect(markup).not.toContain('/read/guides/what-the-records-name');
     expect(markup).not.toContain('never-published');
+    expect(markup).toContain('.sp-related-wrap{box-sizing:border-box');
   });
 
   it('uses computed parts, a named remainder, linked source, and a real table with single-line numbers', () => {
@@ -233,7 +234,7 @@ describe('Short post article and charts', () => {
     expect(firstResponse).toContain('https://example.gov/records');
     expect(firstResponse).toContain('Only the 2025 records are covered.');
     expect(firstResponse).toContain('No later records are included.');
-    expect(firstResponse).toContain(SHORT_POST_AI_NOTE);
+    expect(firstResponse.replace(/<[^>]+>/g, '')).toContain(SHORT_POST_AI_NOTE);
   });
 });
 

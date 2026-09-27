@@ -893,6 +893,7 @@ describe('the piece snapshot serves the piece’s own writing, unchanged', () =>
       ...piece.sections.map((section) => section.heading),
       'Where these numbers come from',
       'Closing note',
+      'Related reading',
     ]);
   });
 
@@ -926,6 +927,7 @@ describe('the piece snapshot serves the piece’s own writing, unchanged', () =>
   it('serves every sentence, bullet and table cell verbatim', () => {
     const served: string[] = [];
     for (const section of snapshot.sections ?? []) {
+      if (section.heading === 'Related reading') continue;
       for (const block of section.blocks ?? []) {
         if (block.kind === 'prose') served.push(...block.lines);
         else if (block.kind === 'bullets') served.push(...block.items);
@@ -974,14 +976,12 @@ describe('the piece snapshot serves the piece’s own writing, unchanged', () =>
 
   it('links back to the list, out to each source, and nowhere the site cannot honour', () => {
     expect(snapshot.links).toEqual([{ label: 'Back to Read', href: '/read' }]);
-    // One anchor back to the list, plus exactly one per source that stores an
-    // address, and no others. Rule 13 requires a filing body to be named AND
-    // linked at its source, and a link the reader only gets after the app runs is
-    // not a link at all to anything reading the first response.
+    // The 3 approved links in existing report sentences and 2 Related reading
+    // links join the return and source links in the first response.
     expect(sourceAddresses.length).toBeGreaterThan(0);
     // Counted below the site's top bar, whose 4 links every served page carries.
     const pageBody = html.slice(html.indexOf('<main'));
-    expect(pageBody.match(/href="/g)).toHaveLength(2 + sourceAddresses.length);
+    expect(pageBody.match(/href="/g)).toHaveLength(2 + sourceAddresses.length + 3 + 2);
     for (const { href } of sourceAddresses) {
       expect(html).toContain(`<a href="${href}">`);
     }
@@ -1057,16 +1057,12 @@ describe('the guide snapshot serves the guide\u2019s own writing, unchanged', ()
   it('draws no short-version box for a piece that has none', () => {
     const headings = (snapshot.sections ?? []).map((section) => section.heading);
     expect(headings).not.toContain('Short version');
-    // 'Also on Alethical' appears because guide 1 now carries an internal link, the
-    // forward link to guide 2 that its own closing paragraph promised. The snapshot
-    // builder collects a piece's internal links into that section so they are reachable
-    // by address before the app runs (rule 5). It is served writing the piece did not
-    // author, which is why it is asserted here rather than derived from the piece.
+    // The guide's existing forward link is now an anchor in its own sentence.
     expect(headings).toEqual([
       ...guide.sections.map((section) => section.heading),
       'Where this comes from',
       'Closing note',
-      'Also on Alethical',
+      'Related reading',
     ]);
   });
 
@@ -1087,6 +1083,7 @@ describe('the guide snapshot serves the guide\u2019s own writing, unchanged', ()
       for (const block of section.blocks ?? []) {
         if (block.kind === 'prose') served.push(...block.lines);
         else if (block.kind === 'bullets') served.push(...block.items);
+        else if (block.kind === 'runs') served.push(researchRunsText(block.runs));
       }
     }
     for (const line of stored) {
@@ -1117,10 +1114,10 @@ describe('the guide snapshot serves the guide\u2019s own writing, unchanged', ()
     for (const run of internal) {
       expect(html).toContain(`<a href="${(run as { href: string }).href}">`);
     }
-    // One anchor back to the list, plus one per source address and one per internal
-    // link, and no others below the site's top bar (whose 4 links every served page carries).
+    // 2 editor-selected Related reading links join the return, source, and
+    // existing forward links below the site's top bar.
     const pageBody = html.slice(html.indexOf('<main'));
-    expect(pageBody.match(/href="/g)).toHaveLength(2 + hrefs.length + internal.length);
+    expect(pageBody.match(/href="/g)).toHaveLength(2 + hrefs.length + internal.length + 2);
     expect(snapshot.links).toEqual([{ label: 'Back to Read', href: '/read' }]);
   });
 
@@ -2494,6 +2491,7 @@ describe('every posted guide is served whole, before the app runs', () => {
         for (const block of section.blocks ?? []) {
           if (block.kind === 'prose') served.push(...block.lines);
           else if (block.kind === 'bullets') served.push(...block.items);
+          else if (block.kind === 'runs') served.push(researchRunsText(block.runs));
         }
       }
       for (const line of stored) {

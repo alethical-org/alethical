@@ -1,7 +1,7 @@
 <!-- Settled publication copy; includes chart text for accessible first-response output -->
 # What Minnesota’s records show about lobbyist contributions, 2015–2026
 
-Ward Einess and Joel Carlson appear in Minnesota’s campaign-finance records alongside candidate committees from both major parties. Our comparison follows their lobbyist registration numbers through the state’s 2015–2026 contribution download and examines contributions to the 4 legislative caucus funds.
+Ward Einess and Joel Carlson appear in Minnesota’s campaign-finance records alongside [candidate committees](https://www.alethical.com/read/guides/who-has-to-report-their-money) from both major parties. Our comparison follows their lobbyist registration numbers through the state’s 2015–2026 contribution download and examines contributions to the 4 legislative caucus funds.
 
 ## Candidate committees in the records
 
@@ -39,7 +39,7 @@ Conclusion: The 2025 filings list Carlson contributions to all 4 legislative cau
 
 ## What remains unresolved
 
-We cannot establish the full-period lobbyist giving total, the caucus funds’ share, or Einess’s and Carlson’s full-period amounts. Some download entries repeat reported information, and some contributor names conflict with their registration numbers. The file does not identify the filing behind each entry, and some older filings needed to resolve these questions are unavailable.
+We cannot establish the full-period lobbyist giving total, the caucus funds’ share, or Einess’s and Carlson’s full-period amounts. [Some download entries repeat reported information](https://www.alethical.com/read/research/2-records-not-always-2-donations), and some contributor names conflict with their registration numbers. The file does not identify the filing behind each entry, and some older filings needed to resolve these questions are unavailable.
 
 ## How this was calculated
 

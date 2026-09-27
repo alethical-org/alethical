@@ -60,7 +60,7 @@ running for the legislature, a few hundred donors, a yard sign budget.
 
 Now the actual scale.
 
-Over eleven years, 1,732 campaign accounts for state office took in $108 million between
+Over eleven years, 1,732 [campaign accounts for state office](https://www.alethical.com/read/guides/who-has-to-report-their-money) took in $108 million between
 them. That is accounts rather than people: someone who serves in the House and later runs
 for the Senate has 2.
 
@@ -75,7 +75,7 @@ One caution before the rest. Minnesota only requires a committee to name a donor
 person has given more than $200 in total during a calendar year, so a large share of all
 political money is reported as a lump figure with no names. Across the campaign accounts
 of sitting legislators, that unnamed share was 36.5% of the money in 2024 and 41.3% in
-2025. Everything that follows below counts only the named donations.
+2025. Everything that follows below counts [only the named donations](https://www.alethical.com/read/guides/what-the-records-name).
 
 ## The one-way valve
 
@@ -106,7 +106,7 @@ The money does not trickle down. It pools.
 
 True, and worth being precise about, because this is the honest counterargument.
 
-Those six committees also spent $54.7 million on independent expenditures — ads and mail
+Those six committees also spent $54.7 million on [independent expenditures](https://www.alethical.com/read/guides/money-spent-without-a-campaigns-say) — ads and mail
 about specific races. That money is spent on campaigns. It just isn't spent by them.
 
 By law it can't be coordinated with the candidate. The candidate doesn't see the script,

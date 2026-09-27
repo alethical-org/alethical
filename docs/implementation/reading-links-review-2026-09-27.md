@@ -1,9 +1,10 @@
-# Article links proposed for review, 27 September 2026
+# Article links approved for release, 27 September 2026
 
-Status: proposed, not approved for publication. Eugene authorized preparing links
-alongside the reading redesign. Exact destinations and wording must be reviewed
-before publication. This record is a proposal, not a replacement for approved
-product intent. It does not authorize changing article findings or dates.
+Status: Eugene authorized the exact 7 inline links and 2 Related reading picks
+for each of the 9 published pieces described below. After those choices were
+explained, he said, “build everything through live like we agreed and show me
+where to check them when done.” This authorizes the link update and release,
+not a new factual check or a change to article findings, prose, or dates.
 
 ## Existing links
 
@@ -12,7 +13,7 @@ their Next paragraphs. Preserve those links. Do not add filler sentences merely
 to make another link. No proposed related-reading item below repeats its source
 article's existing Next link or a proposed new inline destination.
 
-## Proposed links within existing sentences
+## Approved links within existing sentences
 
 Make only the quoted existing words clickable. Keep each sentence otherwise
 unchanged. Links to examples do not imply that an example proves the whole source
@@ -32,7 +33,7 @@ The final link leads to the guide's explanation of dates, which total a filing
 reports, and amendments. It does not claim that cumulative annual reports alone
 explain the special-election example. No added factual statement is proposed.
 
-## Proposed Related reading, in display order
+## Approved Related reading, in display order
 
 2 destinations per article are sufficient. The shared component permits up to 3;
 the limit is not a quota. Every destination is already published and shares
@@ -50,7 +51,7 @@ Campaign finance with its source article.
 | Money spent without a campaign’s say                                  | [The Money Only Goes One Way](https://alethical.com/read/research/the-money-only-goes-one-way)                                         | [What Minnesota’s records show about lobbyist contributions, 2015–2026](https://alethical.com/read/research/lobbyist-giving)           |
 | Why nobody can follow a dollar                                        | [Political donors appearing in both parties’ Minnesota caucus records](https://alethical.com/read/research/organizations-both-parties) | [The Money Only Goes One Way](https://alethical.com/read/research/the-money-only-goes-one-way)                                         |
 
-## Completion checks after approval
+## Completion checks
 
 - Preserve exact prose and all current source links; synchronize manuscript link
   markup with the rendered article's link destinations.
@@ -58,8 +59,11 @@ Campaign finance with its source article.
   self and duplicate selections. Do not build an automatic recommendation engine.
 - Retain original publication dates and ordering. An editorial linking change is
   not a fresh accuracy check and does not earn a Checked date.
-- Record the user's exact approval and resulting full-content review fingerprints
-  for the 3 Short posts. Do not copy an old approved fingerprint onto changed content.
+- Preserve each Short post's original human-approved fingerprint. The link-only
+  release record stores the new navigation fingerprint separately and checks that
+  undoing only the approved links recovers the original full-content fingerprint.
+  It does not claim Eugene reviewed a newly generated fingerprint or that the
+  article earned a new Checked date.
 - Open each inline and related link in the working preview. A new article opens at
   its title, and Back restores the source article's reading position.
 - Review desktop and phone wrapping, accessible link names and keyboard focus.

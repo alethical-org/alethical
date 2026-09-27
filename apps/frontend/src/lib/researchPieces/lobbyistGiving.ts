@@ -288,9 +288,22 @@ export const LOBBYIST_GIVING: ResearchPiece = {
     graphics: [],
     charts: [],
     body: [
-      paragraph(
-        'Ward Einess and Joel Carlson appear in Minnesota’s campaign-finance records alongside candidate committees from both major parties. Our comparison follows their lobbyist registration numbers through the state’s 2015–2026 contribution download and examines contributions to the 4 legislative caucus funds.',
-      ),
+      {
+        kind: 'paragraph',
+        runs: [
+          text(
+            'Ward Einess and Joel Carlson appear in Minnesota’s campaign-finance records alongside ',
+          ),
+          {
+            kind: 'internalLink',
+            text: 'candidate committees',
+            href: '/read/guides/who-has-to-report-their-money',
+          },
+          text(
+            ' from both major parties. Our comparison follows their lobbyist registration numbers through the state’s 2015–2026 contribution download and examines contributions to the 4 legislative caucus funds.',
+          ),
+        ],
+      },
       { kind: 'heading', text: 'Candidate committees in the records' },
       paragraph(
         'The counts below identify distinct candidate-committee registration numbers linked to each lobbyist registration. They count committees, not payments or individual candidates. Party labels come from the Board’s records for the election cycle containing each receipt date.',
@@ -338,9 +351,22 @@ export const LOBBYIST_GIVING: ResearchPiece = {
         ],
       },
       { kind: 'heading', text: 'What remains unresolved' },
-      paragraph(
-        'We cannot establish the full-period lobbyist giving total, the caucus funds’ share, or Einess’s and Carlson’s full-period amounts. Some download entries repeat reported information, and some contributor names conflict with their registration numbers. The file does not identify the filing behind each entry, and some older filings needed to resolve these questions are unavailable.',
-      ),
+      {
+        kind: 'paragraph',
+        runs: [
+          text(
+            'We cannot establish the full-period lobbyist giving total, the caucus funds’ share, or Einess’s and Carlson’s full-period amounts. ',
+          ),
+          {
+            kind: 'internalLink',
+            text: 'Some download entries repeat reported information',
+            href: '/read/research/2-records-not-always-2-donations',
+          },
+          text(
+            ', and some contributor names conflict with their registration numbers. The file does not identify the filing behind each entry, and some older filings needed to resolve these questions are unavailable.',
+          ),
+        ],
+      },
       {
         kind: 'method',
         essential:
@@ -353,13 +379,20 @@ export const LOBBYIST_GIVING: ResearchPiece = {
       'We cannot establish the full-period lobbyist giving total, the caucus funds’ share, or Einess’s and Carlson’s full-period amounts.',
     disclosures: [ARTICLE_AI_NOTE],
     history: [],
-    relatedSlugs: [],
+    relatedSlugs: ['organizations-both-parties', 'why-2-official-numbers-can-both-be-right'],
     review: {
       editorialApprovedBy: 'Codex with independent copy acceptance',
       editorialApprovedAt: '2026-09-26T16:47:25.940Z',
       eugeneApprovedFingerprint: '16440cdd',
       eugeneReviewedAt: '2026-09-26T20:45:24.598Z',
       publicationInstructionAt: '2026-09-26T20:45:24.598Z',
+      navigationRevision: {
+        reviewedBy: 'Codex',
+        reviewedOn: '2026-09-27',
+        approvedNavigationFingerprint: '267ca371',
+        approvedOn: '2026-09-27',
+        releaseInstructionOn: '2026-09-27',
+      },
     },
   },
 };
