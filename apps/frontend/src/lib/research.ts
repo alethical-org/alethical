@@ -286,7 +286,7 @@ export const READ_PAGE_EMPTY_BODY =
  * is the source and the card inherits, or the page says "Guide" twice in one
  * glance (§2.10).
  */
-export const READ_RESEARCH_GROUP_HEADING = 'RESEARCH';
+export const READ_RESEARCH_GROUP_HEADING = 'RESEARCH REPORTS';
 export const READ_GUIDES_GROUP_HEADING = 'GUIDES';
 
 /**

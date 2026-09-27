@@ -608,6 +608,9 @@ records the exact approved wording, breakpoints and feedback states.
 
 ### `/read` listing rhythm
 
+The green section headings are `RESEARCH REPORTS`, `SHORT POSTS`, and `GUIDES`.
+Individual article kind labels remain `RESEARCH` or `GUIDE`; Short posts may carry either trait.
+
 The Research card, Short post rows, Guide set count, Guide row times, and
 `/read/short-posts` cards put metadata above titles. Metadata uses Libre Franklin
 800, equal-width digits, uppercase text, `#656c66`, `0.01em` spacing, and 1.5 line

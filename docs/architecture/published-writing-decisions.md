@@ -202,7 +202,7 @@ explanation inside the state's words.
 One vocabulary, no mapping layer: a reader sees "Research" or "Guide", and the code says `research`
 and `guide`.
 
-**Why not "report" for our own digging.** Minnesota's Campaign Finance Board calls a campaign's
+**Why not bare "Report" as an article kind.** Minnesota's Campaign Finance Board calls a campaign's
 filed disclosure document a report, and **21 distinct reader-facing strings** in
 `apps/frontend/src/lib/committeeMoney.ts` alone use the word for that document, including a counter
 rendering "16 reports filed" and an ordering line reading "by the period each report covers".
@@ -210,6 +210,8 @@ Counted 27 Aug 2026, before the 13 September helper split into `committeeMoney.t
 `committeePaymentsPage.ts` and `committeeMoneyShared.ts`; the count describes the
 original file, and every one of the 21 is about filing to the Board. Renaming a public record to
 free the word is not available, so our own writing is the half that moves.
+
+**The long-form section is `RESEARCH REPORTS` (27 Sep 2026).** Eugene asked to make the green headings distinguish longer research from short posts. The `/read` section heading uses the qualified phrase, while individual article labels remain `RESEARCH` or `GUIDE`. `SHORT POSTS` stays broad enough for either trait; it does not become `SHORT RESEARCH POSTS`. This changes the section heading, not article kinds, addresses or source rules. The qualification distinguishes Alethical's writing from filed Board reports.
 
 **Why "Guide" rather than "Explainer".** "Explainer" names a publishing format; "Guide" states the
 help on offer. Both are honest, and the reader-facing test is which one a person clicks when
@@ -301,7 +303,7 @@ Ratified by Eugene 27 Aug 2026, narrowing §2.2's wording at Design's own reques
 letting Design apply the narrowing quietly.
 
 **The rule.** A card carries its visible kind word where readers need it to tell mixed kinds
-apart. Under `GUIDES` or `RESEARCH` on `/read`, the heading supplies the word. Short post rows
+apart. Under `GUIDES` or `RESEARCH REPORTS` on `/read`, the heading supplies the word. Short post rows
 on `/read` and cards on `/read/short-posts` also omit the visible word; each keeps a hidden
 `Research: ` or `Guide: ` before its metadata for screen readers. Cards on
 `/read/topics/<topic>` keep the visible kind because a topic mixes kinds. A card also prints
@@ -319,8 +321,8 @@ card component needs to know whether a heading sits above it. That is a small am
 
 ### 2.11 The `/read` page groups writing, with topic destinations alongside
 
-Ratified by Eugene 27 Aug 2026. `GUIDES` and `RESEARCH` stay as the page's headings, and
-**`RESEARCH` sits above `GUIDES`**.
+Ratified by Eugene 27 Aug 2026, with the long-form heading clarified on 27 Sep 2026.
+`RESEARCH REPORTS` sits above `SHORT POSTS`, then `GUIDES`.
 
 **The order is Eugene's, against the design.** Every drawing in the accepted handoff puts `GUIDES`
 first; he overruled it and named it the only change from that handoff. Research is what Alethical
@@ -347,6 +349,7 @@ after readers have learned the current shape, and any inbound link to a heading 
 
 **Updated 26 Sep 2026.** §7 adds controlled subjects to every currently published piece and
 settles topic destinations. Eugene authorized the screen build: Research, Short posts, then Guides.
+The first heading became `RESEARCH REPORTS` on 27 Sep 2026, without changing this order.
 The newest 3 Short posts share one box of rows with hidden kind labels and separate topic links. This
 group stays hidden until an article is published. Topic destinations show only each entry’s other
 topics, since the heading already names the current topic.
@@ -572,7 +575,7 @@ Angel finishes the social copy and image and provides available sources. Eugene 
 
 The new prepublication checks apply to social-derived Short posts, not retroactively to signed Research and Guides already live. Arithmetic only checks arithmetic. A factual claim needs a recorded source, period, method, coverage, checked scope, and human review. A missing Alethical record is a coverage gap, not proof a source claim is false. Official sources may fill a genuine gap when their own period and method are stated. Known errors block publication; generic disclaimers cannot excuse them.
 
-One controlled topic vocabulary describes subject independently of format and traits. It begins with Campaign finance, Lobbying, and Elections. The `/read` page groups Research, then Short posts, then Guides; shows the newest 3 Short posts with an All short posts link; hides that group until a Short post is published; and keeps each Short post out of the long-form groups and reading sets. `/read/short-posts` uses newest-first publication timestamps, 6 pieces per numbered page, and a stable tie-breaker. Checks and corrections never reset publication time or ordering. `/read/topics/<topic>` gathers published pieces across traits and format. The kind-label rule for each listing is in §2.10. No topic directory, new search box, or combined filters are part of this decision. Eugene authorized these screens on 26 Sep 2026; [issue 2396](https://github.com/alethical-org/alethical/issues/2396) owns implementation and release. Individual articles retain their separate publication gate.
+One controlled topic vocabulary describes subject independently of format and traits. It begins with Campaign finance, Lobbying, and Elections. The `/read` page groups Research reports, then Short posts, then Guides; shows the newest 3 Short posts with an All short posts link; hides that group until a Short post is published; and keeps each Short post out of the long-form groups and reading sets. `/read/short-posts` uses newest-first publication timestamps, 6 pieces per numbered page, and a stable tie-breaker. Checks and corrections never reset publication time or ordering. `/read/topics/<topic>` gathers published pieces across traits and format. The kind-label rule for each listing is in §2.10. No topic directory, new search box, or combined filters are part of this decision. Eugene authorized these screens on 26 Sep 2026; [issue 2396](https://github.com/alethical-org/alethical/issues/2396) owns implementation and release. Individual articles retain their separate publication gate.
 
 Related reading names a few relevant pieces already published, never the current piece or an invented destination. Reader-facing article text and quantitative graphics draw from the same approved numeric inputs, including units, periods, denominators, and any remainder category. An overlap diagram must not imply unsupported area proportions. Its labels and any needed explanation follow [ui-copy-guide.md §Remove implied information from text and visuals](../design/ui-copy-guide.md#remove-implied-information-from-text-and-visuals); omit the generic overlap sentence in the approved organizations draft. A dated newer-record notice points to newer activity without silently recalculating a dated article. An amended source earns a dated explanation and revised finding; Alethical's own error is corrected in text and chart with a dated correction, leaving no wrong figure readable with a line through it. The original publication date follows Minnesota's calendar and stays fixed; a later correction has its own full-content review and release instruction. Records-through is the newest covered reporting-period end among cited records Alethical holds, not extraction day. A piece using only official sources names that outside-source coverage and uses their newest covered end; it never presents that date as coverage of records Alethical loaded. A purely explanatory Guide names source dates when known and never invents a numeric reporting period or date for an undated source. Different sources' coverage stays explicit.
 

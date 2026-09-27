@@ -46,7 +46,7 @@ import { theme as t } from '../../theme/tokens';
  * name; `READ_PAGE_NAME` reads it off the bar's own label so the 2 cannot
  * disagree.
  *
- * The page groups RESEARCH, SHORT POSTS, then GUIDES in source order. Short
+ * The page groups RESEARCH REPORTS, SHORT POSTS, then GUIDES in source order. Short
  * posts appear once, outside longer pieces and reading sets.
  * Source order rather than a CSS reordering, because reordering in the styling
  * alone separates what a person sees from what a screen reader reads and what the
@@ -157,7 +157,7 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
       ? navigation.navigate('Research', { slug: piece.slug })
       : navigation.navigate('Guide', { slug: piece.slug });
 
-  // Source order: Research, Short posts, Guides. An empty group is dropped here rather than
+  // Source order: Research reports, Short posts, Guides. An empty group is dropped here rather than
   // hidden in the markup, so the group that renders first is genuinely first for
   // a screen reader and for the keyboard as well as in ink.
   const groups: PieceGroup[] = [
