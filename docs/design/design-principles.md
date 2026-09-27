@@ -514,6 +514,10 @@ names wrap inside their available width instead of creating a horizontal scrollb
   or shared visit follows the fallback address instead. A link that names a destination, such as
   “Back to Lobbying”, always opens that destination. Modified clicks stay native browser actions.
   Top-level pages do not show this control.
+- **A link to another article opens at its title.** Guides, research articles, and short posts
+  start at the top when a reader follows a link to a different article. A link to a named
+  section of an article opens at that section. Browser Back and Forward return to the saved
+  reading position of the article being revisited.
 - **Loading and empty and error are designed states,** not afterthoughts. A refusal / "no matches" is
   a first-class, dignified state (`grounded-answers.md` rule 1), never a broken-looking blank.
 - **Source and freshness are page furniture, not hover help.** Bill and Ask answer surfaces close

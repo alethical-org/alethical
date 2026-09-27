@@ -409,7 +409,7 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
   // reading, not to the top. The browser cannot do it here — the page scrolls
   // an inner container, not the document — so this is the shared hook that
   // saves the position against the exact history entry.
-  const scrollRestoration = useHistoryScrollRestoration();
+  const scrollRestoration = useHistoryScrollRestoration(true, route.params.slug);
   const piece = researchBySlug(route.params.slug);
 
   // One list of section link targets, read by both the rail and the article.

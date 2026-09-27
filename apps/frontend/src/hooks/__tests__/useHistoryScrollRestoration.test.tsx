@@ -16,8 +16,8 @@ import {
   true;
 
 let currentScroll: ReturnType<typeof useHistoryScrollRestoration>;
-function ScrollHarness({ ready = true }: { ready?: boolean }) {
-  const scroll = useHistoryScrollRestoration(ready);
+function ScrollHarness({ ready = true, article }: { ready?: boolean; article?: string }) {
+  const scroll = useHistoryScrollRestoration(ready, article);
   currentScroll = scroll;
   return <div data-testid="page-scroller" ref={scroll.ref as unknown as Ref<HTMLDivElement>} />;
 }
@@ -39,7 +39,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function mountScroll(ready = true) {
+function mountScroll(ready = true, article?: string) {
   const frames = new Map<number, FrameRequestCallback>();
   let nextFrame = 0;
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
@@ -56,8 +56,9 @@ function mountScroll(ready = true) {
   const mount = document.createElement('div');
   document.body.append(mount);
   const root = createRoot(mount);
-  const render = (ready: boolean) => act(() => root.render(<ScrollHarness ready={ready} />));
-  render(ready);
+  const render = (ready: boolean, article?: string) =>
+    act(() => root.render(<ScrollHarness ready={ready} article={article} />));
+  render(ready, article);
   const node = mount.querySelector<HTMLDivElement>('[data-testid="page-scroller"]')!;
   return { root, node, flush, render };
 }
@@ -67,6 +68,65 @@ function scrollEvent(y: number): Parameters<typeof currentScroll.onScroll>[0] {
 }
 
 describe('browser-history scroll restoration', () => {
+  it('opens another article at the top when the reading screen is reused', () => {
+    window.history.replaceState({}, '', '/read/guides/first');
+    initializeWebHistory();
+    const screen = mountScroll(true, 'first');
+    screen.flush();
+    screen.node.scrollTop = 640;
+    currentScroll.onScroll(scrollEvent(640));
+    expect(readCurrentScrollPosition()).toBe(640);
+
+    pushWebHistory('/read/guides/second');
+    screen.render(true, 'second');
+    screen.flush();
+
+    expect(screen.node.scrollTop).toBe(0);
+    expect(readCurrentScrollPosition()).toBe(0);
+    // A delayed event from the old article must not save its old position
+    // against the new article's history entry.
+    currentScroll.onScroll(scrollEvent(640));
+    expect(readCurrentScrollPosition()).toBe(0);
+    act(() => screen.root.unmount());
+  });
+
+  it('restores the earlier article when Back returns after another article opens', () => {
+    window.history.replaceState({}, '', '/read/guides/first');
+    initializeWebHistory();
+    const firstEntry = window.history.state;
+    const screen = mountScroll(true, 'first');
+    screen.flush();
+    screen.node.scrollTop = 640;
+    currentScroll.onScroll(scrollEvent(640));
+
+    pushWebHistory('/read/guides/second');
+    screen.render(true, 'second');
+    screen.flush();
+    window.history.replaceState(firstEntry, '', '/read/guides/first');
+    screen.render(true, 'first');
+    screen.flush();
+
+    expect(screen.node.scrollTop).toBe(640);
+    act(() => screen.root.unmount());
+  });
+
+  it('keeps the reading position for a section link within the same article', () => {
+    window.history.replaceState({}, '', '/read/guides/first');
+    initializeWebHistory();
+    const screen = mountScroll(true, 'first');
+    screen.flush();
+    screen.node.scrollTop = 640;
+    currentScroll.onScroll(scrollEvent(640));
+
+    window.history.pushState(window.history.state, '', '/read/guides/first#sources');
+    screen.render(true, 'first');
+    screen.flush();
+
+    expect(screen.node.scrollTop).toBe(640);
+    expect(readCurrentScrollPosition()).toBe(640);
+    act(() => screen.root.unmount());
+  });
+
   it('opens a new page at the top instead of copying the prior page position', () => {
     window.history.replaceState({}, '', '/bills');
     initializeWebHistory();

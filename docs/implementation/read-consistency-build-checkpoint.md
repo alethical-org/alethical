@@ -29,6 +29,16 @@ lower line, and uses the existing 26px paragraph gap below tables. The
 published organizations piece also displays its final `Combined` row as a total.
 The discussion rules card no longer sticks to the screen while scrolling.
 
+Following an article link to a different guide, research article, or Short post now
+opens the destination at its title. The shared reading screen clears the previous
+article's scroll target when its article changes and ignores late scroll callbacks
+from the article being left. Browser Back and Forward still use each visit's saved
+position, while a link to a section in the same article still lands at that section.
+The focused scroll tests cover a reused reading screen, late callbacks, Back,
+and same-article section links. The rebuilt `http://localhost:8782` preview showed
+the exact cross-guide click opening at scroll position 0; Back returned to the
+source guide's position, and a section link placed its heading 24px from the top.
+
 ## Release gate and next checks
 
 Changing related-reading picks changes the saved article fingerprint. The
