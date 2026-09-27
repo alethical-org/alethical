@@ -6,6 +6,7 @@ treatments. The remaining article drawing is in `Alethical UX (29).zip`, section
 1c of `build-facts-read-consistency.md`. The comments drawing is in
 `Alethical UX (30).zip`, whose only new product change from the shipped comments
 bundle is that the discussion rules card scrolls with the page.
+The article and comments layout changes are committed at `af89a032`.
 
 The article build changes publication metadata to uppercase Franklin with a
 comma in the date and no scope colons, styles the kind word above the title
@@ -23,8 +24,7 @@ reviews the exact links:
 | `organizations-both-parties` | `lobbyist-giving`, `2-records-not-always-2-donations`, `what-the-records-name` |
 | `2-records-not-always-2-donations` | `lobbyist-giving`, `organizations-both-parties`, `what-the-records-name` |
 
-The article
-presentation marks the final total row explicitly, removes only that row's
+The article presentation marks the final total row explicitly, removes only that row's
 lower line, and uses the existing 26px paragraph gap below tables. The
 published organizations piece also displays its final `Combined` row as a total.
 The discussion rules card no longer sticks to the screen while scrolling.
