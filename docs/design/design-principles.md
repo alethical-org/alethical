@@ -459,6 +459,17 @@ names wrap inside their available width instead of creating a horizontal scrollb
   (`theme/fieldFocus.ts`) while the cursor is in them. Text fields never receive focus on page load
   or navigation; the visitor must tap one or reach it with the keyboard. Never remove focus styling
   without an equivalent replacement.
+- **Destination cards and rows get 1 whole-item keyboard outline.** A card or row
+  that opens 1 destination uses a 2px `#7c5cff` outline, offset 2px outside the whole
+  item and following its corners. Square rows stay square. Keep enough space around
+  the item, including inside scrolling menus, to show the entire outline. A title
+  opening the same destination does not get a second outline or keyboard stop.
+  Separate inner destinations and actions keep their own targets and focus feedback.
+  Use keyboard-aware focus (`:focus-visible` on web); clicking or tapping and then
+  going Back must not leave this keyboard-only outline showing. Preserve hover
+  feedback without adding a second purple focus glow. Static cards containing several
+  actions stay static. This rule does not replace the contribution-disclosure arrow
+  treatment below or the typing feedback on text fields above.
 - **Contribution disclosures keep the row clickable and focus the arrow.** In the
   shared **More on this year’s contributions** panel, **How Alethical confirmed this**
   and grouped outside-spender disclosures, the row remains 1 keyboard control with

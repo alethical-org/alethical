@@ -43,8 +43,8 @@ const ABOUT_COLORS = {
   sectionRule: 'rgba(17,21,15,0.1)',
 } as const;
 
-const startCardFocus = Platform.select({
-  web: { boxShadow: '0 0 0 3px #7c5cff, 0 14px 34px rgba(17,21,15,0.10)' },
+const nativeStartCardFocus = Platform.select({
+  web: {},
   default: {
     shadowColor: '#7c5cff',
     shadowOffset: { width: 0, height: 0 },
@@ -104,13 +104,13 @@ function StartCard({
       {...linkProps(item.href, item.onPress)}
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
+      onFocus={Platform.OS !== 'web' ? () => setFocused(true) : undefined}
+      onBlur={Platform.OS !== 'web' ? () => setFocused(false) : undefined}
       style={({ pressed }) => [
         styles.startCard,
         widthStyle,
         hovered && styles.startCardHovered,
-        focused && styles.startCardFocused,
+        Platform.OS !== 'web' && focused && styles.startCardFocused,
         pressed && styles.startCardPressed,
       ]}
     >
@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
   },
   startCardFocused: {
     borderColor: 'rgba(45,212,126,0.55)',
-    ...startCardFocus,
+    ...nativeStartCardFocus,
   },
   startCardPressed: { opacity: 0.76 },
   startCardHeader: {

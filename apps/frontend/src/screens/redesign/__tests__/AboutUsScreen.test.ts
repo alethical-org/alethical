@@ -74,9 +74,9 @@ describe('About us screen contract', () => {
     );
   });
 
-  it('makes each starting card respond to hover and keyboard focus', () => {
+  it('leaves keyboard focus to the shared card ring without changing hover', () => {
     expect(SCREEN).toContain('hovered && styles.startCardHovered');
-    expect(SCREEN).toContain('focused && styles.startCardFocused');
+    expect(SCREEN).toContain("Platform.OS !== 'web' && focused && styles.startCardFocused");
     expect(SCREEN).toContain("borderColor: 'rgba(45,212,126,0.55)'");
     expect(SCREEN).toContain("boxShadow: '0 14px 34px rgba(17,21,15,0.10)'");
     expect(SCREEN).toContain("transitionProperty: 'border-color, box-shadow'");

@@ -1,4 +1,11 @@
-import { createElement, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  createElement,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import {
   ActivityIndicator,
   Linking,
@@ -15,6 +22,7 @@ import Svg, { Path } from 'react-native-svg';
 import { GoBackLink } from '../../components/GoBackLink';
 import { sendContactMessageFromApi } from '../../data/api';
 import { useResponsive } from '../../hooks/useResponsive';
+import { useAuth } from '../../providers/AuthProvider';
 import {
   CONTACT_FIELD_ORDER,
   CONTACT_EMAIL,
@@ -258,16 +266,29 @@ let currentDraft: ReturnType<typeof createContactDraft> | undefined;
 
 export function ContactUsScreen({ navigation, route }: RootScreenProps<'ContactUs'>) {
   const { isMobile } = useResponsive();
+  const { isLoading: isAuthLoading, isSignedIn, user } = useAuth();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
-  const [draft] = useState(() => (currentDraft ??= createContactDraft(route.params?.article)));
+  const [draft] = useState(() => {
+    const retainedDraft = (currentDraft ??= createContactDraft(route.params?.article));
+    retainedDraft.setAccount(
+      isAuthLoading ? undefined : isSignedIn && user ? { id: user.id, email: user.email } : null,
+    );
+    return retainedDraft;
+  });
   const state = useSyncExternalStore(draft.subscribe, draft.getSnapshot, draft.getSnapshot);
   const dispatch = draft.dispatch;
   const fieldRefs = useRef<Partial<Record<ContactField, any>>>({});
-  const hasDraft = CONTACT_FIELD_ORDER.some((field) => state.values[field].length > 0);
+  const hasDraft = draft.hasDraft();
 
   useEffect(() => {
     draft.prefill(route.params?.article);
   }, [draft, route.params?.article]);
+
+  useLayoutEffect(() => {
+    draft.setAccount(
+      isAuthLoading ? undefined : isSignedIn && user ? { id: user.id, email: user.email } : null,
+    );
+  }, [draft, isAuthLoading, isSignedIn, user]);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || !hasDraft || state.status === 'sent') return;
