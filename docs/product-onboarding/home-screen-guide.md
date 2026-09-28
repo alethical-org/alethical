@@ -36,7 +36,7 @@ live feature.
   "registered" is what stops the number reading as the size of both.
 - The card never says an entry is tied to the filing it came from. The published
   rows carry no reference to the report they were filed on, so that link cannot be
-  built. It says the figures are read from the filings instead, and
+  built. It says the records were reported to the state instead, and
   `src/components/home/__tests__/moneyPromoCopy.test.ts` fails if that sentence
   drifts back.
 - The tracked-bills card is titled **Legislative session watch**. The longer name

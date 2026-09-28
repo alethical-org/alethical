@@ -21,7 +21,7 @@ export const HOME_BILL_GROUP_CONTINUATIONS = {
  * these sentences are the part under a rule, and this module is plain
  * TypeScript the test runner can read.
  *
- * The body line may say figures are READ FROM the filings. It may not say each
+ * The body line may say records are REPORTED TO the state. It may not say each
  * entry is TIED TO the filing it came from: the itemized-contributions download
  * carries no report reference to join on, matching by date names a different set
  * of donors than any single report does, and the Board's report documents are
@@ -35,6 +35,6 @@ export const HOME_BILL_GROUP_CONTINUATIONS = {
 export const MONEY_PROMO_EYEBROW = 'MONEY IN POLITICS';
 export const MONEY_PROMO_HEADING = 'Follow the money';
 export const MONEY_PROMO_BODY =
-  'Minnesota’s campaign and lobbying records — every figure read from the filings sent to the state, never a total we assembled.';
+  'Explore Minnesota’s campaign finance and lobbying records, as reported to the state.';
 export const MONEY_PROMO_COUNT_UNIT = 'registered campaigns, parties, and funds';
 export const MONEY_PROMO_CTA = MONEY_SECTION_NAME;
