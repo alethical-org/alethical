@@ -23,6 +23,8 @@ plain language.
 - Grey holds the 6 planned areas.
 - The 2 team biographies use the same grey surface as the roadmap, with approved
   portraits treated as one warm, balanced pair.
+- Every section heading uses weight 800 and one responsive size: 29 pixels on
+  computers, 26 pixels on tablets, and 22 pixels on phones.
 - Purple appears once in the hero as the source and citation color.
 - Green is reserved for the Contact us action and the email link.
 - The Contact us button follows the green-button hover treatment in

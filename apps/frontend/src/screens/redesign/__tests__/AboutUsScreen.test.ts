@@ -82,6 +82,17 @@ describe('About us screen contract', () => {
     );
   });
 
+  it('gives every section heading the approved responsive size and weight', () => {
+    expect(SCREEN.match(/<SectionTitle/g)).toHaveLength(7);
+    expect(SCREEN.match(/aria-level=\{2\}/g)).toHaveLength(1);
+    expect(SCREEN).toMatch(
+      /sectionTitle:\s*\{[^}]*fontSize: 29[^}]*lineHeight: 35[^}]*fontWeight: t\.fontWeights\.heavy/s,
+    );
+    expect(SCREEN).toMatch(/sectionTitleTablet:\s*\{[^}]*fontSize: 26[^}]*lineHeight: 31/s);
+    expect(SCREEN).toMatch(/sectionTitleMobile:\s*\{[^}]*fontSize: 22[^}]*lineHeight: 27/s);
+    expect(SCREEN).not.toMatch(/teamSectionTitle(?:Tablet|Mobile)?:\s*\{[^}]*fontSize/s);
+  });
+
   it('keeps tinted surfaces bounded to the intended panels', () => {
     expect(SCREEN).toContain("roadmapSurface: '#f7f8fa'");
     expect(SCREEN).toContain("subtleBorder: 'rgba(17,21,15,0.09)'");

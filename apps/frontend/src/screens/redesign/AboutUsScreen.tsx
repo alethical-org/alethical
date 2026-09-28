@@ -8,6 +8,7 @@ import {
   StyleProp,
   StyleSheet,
   Text,
+  TextStyle,
   View,
   ViewStyle,
 } from 'react-native';
@@ -242,9 +243,28 @@ function StartCard({
   );
 }
 
-function SectionTitle({ children }: { children: string }) {
+function SectionTitle({
+  children,
+  isMobile,
+  isTablet,
+  style,
+}: {
+  children: string;
+  isMobile: boolean;
+  isTablet: boolean;
+  style?: StyleProp<TextStyle>;
+}) {
   return (
-    <Text accessibilityRole="header" aria-level={2} style={styles.sectionTitle}>
+    <Text
+      accessibilityRole="header"
+      aria-level={2}
+      style={[
+        styles.sectionTitle,
+        isTablet && styles.sectionTitleTablet,
+        isMobile && styles.sectionTitleMobile,
+        style,
+      ]}
+    >
       {children}
     </Text>
   );
@@ -342,7 +362,9 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
           <View
             style={[styles.proseSection, styles.firstSection, isMobile && styles.mobileSection]}
           >
-            <SectionTitle>{ABOUT_WHY_HEADING}</SectionTitle>
+            <SectionTitle isMobile={isMobile} isTablet={isTablet}>
+              {ABOUT_WHY_HEADING}
+            </SectionTitle>
             {ABOUT_WHY_LINES.map((line) => (
               <Text key={line.text} style={line.lead ? styles.proseLead : styles.prose}>
                 {line.text}
@@ -351,7 +373,9 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
           </View>
 
           <View style={[styles.section, isMobile && styles.mobileSection]}>
-            <SectionTitle>{ABOUT_BELIEFS_HEADING}</SectionTitle>
+            <SectionTitle isMobile={isMobile} isTablet={isTablet}>
+              {ABOUT_BELIEFS_HEADING}
+            </SectionTitle>
             <View style={[styles.cardGrid, isMobile && styles.cardGridMobile]}>
               {ABOUT_BELIEFS.map((belief) => (
                 <View
@@ -384,18 +408,17 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
               isMobile && styles.mobileSection,
             ]}
           >
-            <Text
-              accessibilityRole="header"
-              aria-level={2}
+            <SectionTitle
+              isMobile={isMobile}
+              isTablet={isTablet}
               style={[
-                styles.sectionTitle,
                 styles.teamSectionTitle,
                 isTablet && styles.teamSectionTitleTablet,
                 isMobile && styles.teamSectionTitleMobile,
               ]}
             >
               {ABOUT_TEAM_HEADING}
-            </Text>
+            </SectionTitle>
             <View
               style={[
                 styles.teamGrid,
@@ -417,7 +440,9 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
           </View>
 
           <View style={[styles.proseSection, isMobile && styles.mobileSection]}>
-            <SectionTitle>What we’re working toward</SectionTitle>
+            <SectionTitle isMobile={isMobile} isTablet={isTablet}>
+              What we’re working toward
+            </SectionTitle>
             <Text style={styles.proseLead}>
               A Minnesota where anyone can check the public record for themselves.
             </Text>
@@ -432,7 +457,9 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
           </View>
 
           <View style={[styles.section, isMobile && styles.mobileSection]}>
-            <SectionTitle>{ABOUT_START_HEADING}</SectionTitle>
+            <SectionTitle isMobile={isMobile} isTablet={isTablet}>
+              {ABOUT_START_HEADING}
+            </SectionTitle>
             <View
               style={[styles.cardGrid, styles.startCardGrid, isMobile && styles.cardGridMobile]}
             >
@@ -448,7 +475,9 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
           </View>
 
           <View style={[styles.section, isMobile && styles.mobileSection]}>
-            <SectionTitle>On the roadmap</SectionTitle>
+            <SectionTitle isMobile={isMobile} isTablet={isTablet}>
+              On the roadmap
+            </SectionTitle>
             <View style={[styles.roadmapPanel, isMobile && styles.roadmapPanelMobile]}>
               <View style={styles.cardGrid}>
                 {ROADMAP_ITEMS.map((item) => (
@@ -482,7 +511,9 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
             ]}
           >
             <View style={styles.contactCopy}>
-              <SectionTitle>{ABOUT_CONTACT_HEADING}</SectionTitle>
+              <SectionTitle isMobile={isMobile} isTablet={isTablet}>
+                {ABOUT_CONTACT_HEADING}
+              </SectionTitle>
               <Text style={styles.contactText}>
                 {ABOUT_FEEDBACK_LABEL}{' '}
                 <Text
@@ -600,16 +631,18 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: t.colors.text.primary,
     fontFamily: t.typography.title,
-    fontSize: 30,
-    lineHeight: 36,
+    fontSize: 29,
+    lineHeight: 35,
     fontWeight: t.fontWeights.heavy,
     letterSpacing: -0.5,
     marginBottom: 20,
   },
+  sectionTitleTablet: { fontSize: 26, lineHeight: 31 },
+  sectionTitleMobile: { fontSize: 22, lineHeight: 27 },
   teamSectionTablet: { marginTop: 48 },
-  teamSectionTitle: { fontSize: 29, lineHeight: 35, marginBottom: 26 },
-  teamSectionTitleTablet: { fontSize: 26, lineHeight: 31, marginBottom: 22 },
-  teamSectionTitleMobile: { fontSize: 22, lineHeight: 27, marginBottom: 18 },
+  teamSectionTitle: { marginBottom: 26 },
+  teamSectionTitleTablet: { marginBottom: 22 },
+  teamSectionTitleMobile: { marginBottom: 18 },
   teamGrid: {
     flexDirection: 'row',
     alignItems: 'stretch',
