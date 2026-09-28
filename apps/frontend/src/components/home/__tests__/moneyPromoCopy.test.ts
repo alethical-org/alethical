@@ -5,7 +5,7 @@
  * claim we cannot support, which is why they are asserted rather than left to
  * review:
  *
- * - The body line may say figures are READ FROM the filings. It may not say each
+ * - The body line may say records are REPORTED TO the state. It may not say each
  *   entry is TIED TO the filing it came from. Minnesota's itemized-contributions
  *   download carries no report reference to join on, matching by date names a
  *   different set of donors than any single report does, and the Board's report
@@ -37,9 +37,9 @@ const homeSource = readFileSync(
 );
 
 describe('the money card never re-promises a per-row link to a filing', () => {
-  it('says the figures are read from the filings', () => {
+  it('says the records are reported to the state', () => {
     expect(MONEY_PROMO_BODY).toBe(
-      'Minnesota’s campaign and lobbying records — every figure read from the filings sent to the state, never a total we assembled.',
+      'Explore Minnesota’s campaign finance and lobbying records, as reported to the state.',
     );
   });
 
