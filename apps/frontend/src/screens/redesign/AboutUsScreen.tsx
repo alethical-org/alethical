@@ -640,6 +640,7 @@ const styles = StyleSheet.create({
     height: 128,
     flexShrink: 0,
     borderRadius: 12,
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(17,21,15,0.08)',
     backgroundColor: '#e9ebe8',
