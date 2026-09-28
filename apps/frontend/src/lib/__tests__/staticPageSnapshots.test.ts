@@ -15,6 +15,8 @@ import {
   ABOUT_PAGE_SUBTITLE,
   ABOUT_START_ITEMS,
   ABOUT_START_HEADING,
+  ABOUT_TEAM_HEADING,
+  ABOUT_TEAM_MEMBERS,
   ABOUT_WHY_HEADING,
   ABOUT_WHY_LINES,
   aboutPageSnapshot,
@@ -58,6 +60,14 @@ describe('the static About and Contact snapshots', () => {
         href: item.href,
       })),
     );
+    expect(
+      snapshot.sections?.find((section) => section.heading === ABOUT_TEAM_HEADING)?.items,
+    ).toEqual(
+      ABOUT_TEAM_MEMBERS.map((member) => ({
+        label: `${member.name}, ${member.title}`,
+        detail: member.bio.join(' '),
+      })),
+    );
     expect(JSON.stringify(snapshot)).not.toContain('On the roadmap');
     expect(JSON.stringify(snapshot)).not.toContain('/tracked');
     expect(snapshot.links).toEqual([
@@ -94,6 +104,8 @@ describe('the static About and Contact snapshots', () => {
       'ABOUT_WHY_LINES',
       'ABOUT_BELIEFS_HEADING',
       'ABOUT_BELIEFS',
+      'ABOUT_TEAM_HEADING',
+      'ABOUT_TEAM_MEMBERS',
       'ABOUT_START_HEADING',
       'ABOUT_START_ITEMS',
       'ABOUT_CONTACT_HEADING',

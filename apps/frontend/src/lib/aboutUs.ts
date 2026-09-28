@@ -6,6 +6,7 @@ export const ABOUT_PAGE_SOURCE_PROMISE = 'linked to the source.';
 export const ABOUT_PAGE_SUBTITLE = `${ABOUT_PAGE_SUBTITLE_LEAD}${ABOUT_PAGE_SOURCE_PROMISE}`;
 export const ABOUT_WHY_HEADING = 'Why we’re doing this';
 export const ABOUT_BELIEFS_HEADING = 'What we believe';
+export const ABOUT_TEAM_HEADING = 'Our team';
 export const ABOUT_START_HEADING = 'Where to start';
 
 export const ABOUT_NAME_ORIGIN = {
@@ -72,6 +73,27 @@ export const ABOUT_BELIEFS = [
   },
 ] as const;
 
+export const ABOUT_TEAM_MEMBERS = [
+  {
+    name: 'Angel Zierden',
+    title: 'Founder & CEO',
+    bio: [
+      'Angel builds things (companies, coalitions, and policy) at the intersection of technology, business, and public service. She leads Alethical, which uses AI to make policy transparent, mapping money, votes, and influence so voters can see the full picture before they decide. Alethical also offers political intelligence and campaign strategy services.',
+      'Her civic career spans elected office and political strategy: she has served as Mayor of Breezy Point, was elected Commissioner for the Region Five Development Commission, ran for Minnesota Senate, and has spent years as a political strategist working on campaigns and drafting legislation (including three pediatric medical-device innovation bills). She has also served on boards focused on restorative justice, relationship safety, and mental health.',
+      'Her entrepreneurial track record spans med-tech and real estate, including founding and advising health and medical-device ventures, judging the Minnesota Cup, and working across real estate investment, development, sales, and construction.',
+    ],
+  },
+  {
+    name: 'Eugene Lopin',
+    title: 'Co-Founder, CPO & Engineer',
+    bio: [
+      'Eugene builds products where AI meets real-world trust. He leads product and engineering at Alethical, turning records of lawmaking and money in politics into plain language grounded in official sources, so people can understand what their government is doing and check the evidence for themselves.',
+      'He brings 20+ years of product and entrepreneurial experience and has been building AI systems for real-world use. His work spans financial technology, payments, online commerce, fraud prevention, regulatory compliance, and AI-powered business tools. He combines product strategy, hands-on engineering, and business development to take products from concept to launch and growth.',
+      'At Estée Lauder, he led global payments and fraud prevention across 30 brands and 150 markets, improving checkout and reducing fraud losses. His earlier work includes launching financial technology businesses and leading digital products for Razorfish clients including Mercedes-Benz and Total Wine & More.',
+    ],
+  },
+] as const;
+
 export const ABOUT_START_ITEMS = [
   {
     startTitle: 'Bills',
@@ -124,6 +146,13 @@ export function aboutPageSnapshot(): PageSnapshot {
         items: ABOUT_BELIEFS.map((belief) => ({
           label: belief.beliefTitle,
           detail: belief.body,
+        })),
+      },
+      {
+        heading: ABOUT_TEAM_HEADING,
+        items: ABOUT_TEAM_MEMBERS.map((member) => ({
+          label: `${member.name}, ${member.title}`,
+          detail: member.bio.join(' '),
         })),
       },
       {
