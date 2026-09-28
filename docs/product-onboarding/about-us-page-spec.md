@@ -21,6 +21,11 @@ language.
 - Grey holds the 6 planned areas.
 - Purple appears once in the hero as the source and citation color.
 - Green is reserved for the Contact us action and the email link.
+- The Contact us button follows the green-button hover treatment in
+  [design-principles.md](../design/design-principles.md): a mouse or trackpad at
+  tablet and computer widths darkens the fill without moving or resizing the
+  button. Touch keeps its existing press feedback; keyboard navigation keeps
+  the separate purple focus outline.
 
 ## Small screens
 

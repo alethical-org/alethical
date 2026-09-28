@@ -345,10 +345,15 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
             </View>
             <Pressable
               {...linkProps(routePath.contactUs(), () => navigation.navigate('ContactUs'))}
-              style={({ pressed }) => [
+              style={(state) => [
                 styles.contactButton,
                 isMobile && styles.contactButtonMobile,
-                pressed && styles.contactButtonPressed,
+                Platform.OS === 'web' &&
+                  !isMobile &&
+                  window.matchMedia?.('(hover: hover) and (pointer: fine)').matches &&
+                  Boolean('hovered' in state && state.hovered) &&
+                  styles.contactButtonHovered,
+                state.pressed && styles.contactButtonPressed,
               ]}
             >
               <Text style={styles.contactButtonText}>{ABOUT_CONTACT_LINK.label}</Text>
@@ -595,6 +600,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
   },
   contactButtonMobile: { width: '100%', minHeight: 48 },
+  contactButtonHovered: { backgroundColor: t.colors.brand.hover },
   contactButtonPressed: { backgroundColor: t.colors.brand.hover, transform: [{ scale: 0.98 }] },
   contactButtonText: {
     color: t.colors.brand.darkest,
