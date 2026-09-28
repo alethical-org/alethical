@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Image,
   Linking,
   Platform,
   Pressable,
@@ -27,6 +28,8 @@ import {
   ABOUT_PAGE_SUBTITLE_LEAD,
   ABOUT_START_ITEMS,
   ABOUT_START_HEADING,
+  ABOUT_TEAM_HEADING,
+  ABOUT_TEAM_MEMBERS,
   ABOUT_WHY_HEADING,
   ABOUT_WHY_LINES,
 } from '../../lib/aboutUs';
@@ -87,6 +90,116 @@ type StartCardItem = {
   href: string;
   onPress: () => void;
 };
+
+const TEAM_PORTRAITS = [
+  require('../../../assets/team/angel-zierden.jpg'),
+  require('../../../assets/team/eugene-lopin.jpg'),
+] as const;
+
+type TeamMember = (typeof ABOUT_TEAM_MEMBERS)[number];
+
+function TeamMemberCard({
+  member,
+  portrait,
+  isMobile,
+  isTablet,
+}: {
+  member: TeamMember;
+  portrait: (typeof TEAM_PORTRAITS)[number];
+  isMobile: boolean;
+  isTablet: boolean;
+}) {
+  const identity = (
+    <View style={styles.teamIdentity}>
+      <Text
+        accessibilityRole="header"
+        aria-level={3}
+        style={[
+          styles.teamName,
+          isTablet && styles.teamNameTablet,
+          isMobile && styles.teamNameMobile,
+        ]}
+      >
+        {member.name}
+      </Text>
+      <Text
+        style={[
+          styles.teamRole,
+          isTablet && styles.teamRoleTablet,
+          isMobile && styles.teamRoleMobile,
+        ]}
+      >
+        {member.title}
+      </Text>
+    </View>
+  );
+
+  const biography = (
+    <View
+      style={[styles.teamBio, isTablet && styles.teamBioTablet, isMobile && styles.teamBioMobile]}
+    >
+      {member.bio.map((paragraph) => (
+        <Text
+          key={paragraph}
+          style={[
+            styles.teamBioText,
+            isTablet && styles.teamBioTextTablet,
+            isMobile && styles.teamBioTextMobile,
+          ]}
+        >
+          {paragraph}
+        </Text>
+      ))}
+    </View>
+  );
+
+  const portraitImage = (
+    <View
+      accessibilityRole="image"
+      accessibilityLabel={member.name}
+      style={[
+        styles.teamPortrait,
+        isTablet && styles.teamPortraitTablet,
+        isMobile && styles.teamPortraitMobile,
+      ]}
+    >
+      <Image
+        accessible={false}
+        source={portrait}
+        resizeMode="cover"
+        style={styles.teamPortraitImage}
+      />
+    </View>
+  );
+
+  return (
+    <View
+      style={[
+        styles.teamCard,
+        isTablet && styles.teamCardTablet,
+        isMobile && styles.teamCardMobile,
+      ]}
+    >
+      {isTablet ? (
+        <>
+          {portraitImage}
+          <View style={styles.teamTabletContent}>
+            {identity}
+            {biography}
+          </View>
+        </>
+      ) : (
+        <>
+          <View style={[styles.teamHeader, isMobile && styles.teamHeaderMobile]}>
+            {portraitImage}
+            {identity}
+          </View>
+          {biography}
+        </>
+      )}
+    </View>
+  );
+}
 
 function StartCard({
   item,
@@ -260,6 +373,45 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
                     {belief.body}
                   </Text>
                 </View>
+              ))}
+            </View>
+          </View>
+
+          <View
+            style={[
+              styles.section,
+              isTablet && styles.teamSectionTablet,
+              isMobile && styles.mobileSection,
+            ]}
+          >
+            <Text
+              accessibilityRole="header"
+              aria-level={2}
+              style={[
+                styles.sectionTitle,
+                styles.teamSectionTitle,
+                isTablet && styles.teamSectionTitleTablet,
+                isMobile && styles.teamSectionTitleMobile,
+              ]}
+            >
+              {ABOUT_TEAM_HEADING}
+            </Text>
+            <View
+              style={[
+                styles.teamGrid,
+                (isTablet || isMobile) && styles.teamGridStacked,
+                isTablet && styles.teamGridTablet,
+                isMobile && styles.teamGridMobile,
+              ]}
+            >
+              {ABOUT_TEAM_MEMBERS.map((member, index) => (
+                <TeamMemberCard
+                  key={member.name}
+                  member={member}
+                  portrait={TEAM_PORTRAITS[index]}
+                  isMobile={isMobile}
+                  isTablet={isTablet}
+                />
               ))}
             </View>
           </View>
@@ -454,6 +606,106 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     marginBottom: 20,
   },
+  teamSectionTablet: { marginTop: 48 },
+  teamSectionTitle: { fontSize: 29, lineHeight: 35, marginBottom: 26 },
+  teamSectionTitleTablet: { fontSize: 26, lineHeight: 31, marginBottom: 22 },
+  teamSectionTitleMobile: { fontSize: 22, lineHeight: 27, marginBottom: 18 },
+  teamGrid: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 18,
+  },
+  teamGridStacked: { flexDirection: 'column' },
+  teamGridTablet: { gap: 16 },
+  teamGridMobile: { gap: 12 },
+  teamCard: {
+    flexBasis: 0,
+    flexGrow: 1,
+    minWidth: 0,
+    backgroundColor: ABOUT_COLORS.roadmapSurface,
+    borderWidth: 1,
+    borderColor: ABOUT_COLORS.subtleBorder,
+    borderRadius: 16,
+    paddingTop: 30,
+    paddingHorizontal: 32,
+    paddingBottom: 32,
+  },
+  teamCardTablet: {
+    width: '100%',
+    flexBasis: 'auto',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 28,
+    paddingTop: 28,
+    paddingHorizontal: 30,
+    paddingBottom: 30,
+  },
+  teamCardMobile: {
+    width: '100%',
+    flexBasis: 'auto',
+    borderRadius: 14,
+    paddingTop: 18,
+    paddingHorizontal: 18,
+    paddingBottom: 20,
+  },
+  teamHeader: { flexDirection: 'row', alignItems: 'center', gap: 22 },
+  teamHeaderMobile: { gap: 16 },
+  teamPortrait: {
+    width: 128,
+    height: 128,
+    flexShrink: 0,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.08)',
+    backgroundColor: '#e9ebe8',
+  },
+  teamPortraitImage: { width: '100%', height: '100%' },
+  teamPortraitTablet: { width: 148, height: 148 },
+  teamPortraitMobile: { width: 84, height: 84, borderRadius: 10 },
+  teamTabletContent: { flex: 1, minWidth: 0 },
+  teamIdentity: { flex: 1, minWidth: 0 },
+  teamName: {
+    color: t.colors.text.primary,
+    fontFamily: t.typography.title,
+    fontSize: 23,
+    lineHeight: 28,
+    fontWeight: t.fontWeights.heavy,
+    letterSpacing: -0.23,
+    ...(Platform.OS === 'web' ? ({ textWrap: 'pretty' } as object) : null),
+  },
+  teamNameTablet: { fontSize: 22, lineHeight: 27 },
+  teamNameMobile: { fontSize: 19, lineHeight: 23 },
+  teamRole: {
+    color: t.colors.text.secondary,
+    fontFamily: t.typography.body,
+    fontSize: 16.5,
+    lineHeight: 23,
+    fontWeight: t.fontWeights.medium,
+    marginTop: 6,
+    ...(Platform.OS === 'web' ? ({ textWrap: 'pretty' } as object) : null),
+  },
+  teamRoleTablet: { fontSize: 16, lineHeight: 22 },
+  teamRoleMobile: { fontSize: 14.5, lineHeight: 20, marginTop: 5 },
+  teamBio: {
+    marginTop: 24,
+    paddingTop: 22,
+    borderTopWidth: 1,
+    borderTopColor: ABOUT_COLORS.subtleBorder,
+    gap: 14,
+  },
+  teamBioTablet: { marginTop: 20, paddingTop: 18, gap: 13 },
+  teamBioMobile: { marginTop: 18, paddingTop: 16, gap: 12 },
+  teamBioText: {
+    color: t.colors.text.secondary,
+    fontFamily: t.typography.body,
+    fontSize: 17,
+    lineHeight: 27.5,
+    fontVariant: ['tabular-nums'],
+    ...(Platform.OS === 'web' ? ({ textWrap: 'pretty' } as object) : null),
+  },
+  teamBioTextTablet: { fontSize: 16.5, lineHeight: 26.5 },
+  teamBioTextMobile: { fontSize: 15, lineHeight: 24 },
   prose: {
     color: t.colors.text.secondary,
     fontFamily: t.typography.body,

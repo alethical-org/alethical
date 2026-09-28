@@ -10,6 +10,8 @@ import {
   ABOUT_PAGE_SOURCE_PROMISE,
   ABOUT_PAGE_SUBTITLE_LEAD,
   ABOUT_START_ITEMS,
+  ABOUT_TEAM_HEADING,
+  ABOUT_TEAM_MEMBERS,
 } from '../../../lib/aboutUs';
 
 const SCREEN = readFileSync(
@@ -36,6 +38,23 @@ describe('About us screen contract', () => {
     expect(SCREEN).toContain('Claimed Profiles');
   });
 
+  it('shows both founders with complete bios and approved portraits', () => {
+    expect(ABOUT_TEAM_HEADING).toBe('Our team');
+    expect(ABOUT_TEAM_MEMBERS).toHaveLength(2);
+    expect(ABOUT_TEAM_MEMBERS.map((member) => [member.name, member.title])).toEqual([
+      ['Angel Zierden', 'Founder & CEO'],
+      ['Eugene Lopin', 'Co-Founder, CPO & Engineer'],
+    ]);
+    expect(ABOUT_TEAM_MEMBERS.every((member) => member.bio.length === 3)).toBe(true);
+    expect(ABOUT_TEAM_MEMBERS[0].bio[0]).toContain('(companies, coalitions, and policy)');
+    expect(ABOUT_TEAM_MEMBERS[0].bio[0]).toContain('before they decide');
+    expect(ABOUT_TEAM_MEMBERS[1].bio[0]).toContain('records of lawmaking and money in politics');
+    expect(SCREEN).toContain("require('../../../assets/team/angel-zierden.jpg')");
+    expect(SCREEN).toContain("require('../../../assets/team/eugene-lopin.jpg')");
+    expect(SCREEN).toContain('accessibilityRole="image"');
+    expect(SCREEN).toContain('accessibilityLabel={member.name}');
+  });
+
   it('makes all 4 starting points real links and keeps roadmap items unlinked', () => {
     expect(ABOUT_START_ITEMS).toHaveLength(4);
     expect(SCREEN).toContain('linkProps(item.href, item.onPress)');
@@ -57,7 +76,7 @@ describe('About us screen contract', () => {
     expect(SCREEN).toContain('<View style={styles.originDivider} />');
     expect(SCREEN).toContain('firstSection: { marginTop: 44 }');
     expect(SCREEN).toContain('section: { marginTop: 56 }');
-    expect(SCREEN.match(/isMobile && styles\.mobileSection/g)).toHaveLength(6);
+    expect(SCREEN.match(/isMobile && styles\.mobileSection/g)).toHaveLength(7);
     expect(SCREEN).toMatch(
       /mobileSection:\s*\{[^}]*marginTop: 34[^}]*paddingTop: 26[^}]*borderTopWidth: 1/s,
     );

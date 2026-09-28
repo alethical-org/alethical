@@ -48,7 +48,7 @@ things work in practice and are the place to start if you're new.
 - [How the Campaign money section works (plain English)](product-onboarding/campaign-money-section-guide.md) — the public /money landing and its lanes, the working name search and its results page, the register's own committees list, the `/read` page that lists Alethical's own research, and what a research piece's page carries
 - [How sharing works](product-onboarding/sharing-guide.md) — what each page and destination receives, why Instagram has no direct button, and how link previews are built
 - [How Contact us works](product-onboarding/contact-us-guide.md) — the page, its 5 states, message delivery, and what reader data leaves Alethical
-- [About Us page](product-onboarding/about-us-page-spec.md) — the public statement of Alethical’s name, beliefs, current features, roadmap, and correction policy
+- [About Us page](product-onboarding/about-us-page-spec.md) — the public statement of Alethical’s name, beliefs, team, current features, roadmap, and correction policy
 
 - [Reader comments](product-onboarding/editorial-comments-guide.md) — editorial discussions, public names, author and admin controls, and comment email choices
 
