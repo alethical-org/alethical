@@ -26,6 +26,9 @@ language.
   tablet and computer widths darkens the fill without moving or resizing the
   button. Touch keeps its existing press feedback; keyboard navigation keeps
   the separate purple focus outline.
+- The email link follows the same source's destination-link treatment: at tablet
+  and computer widths with a mouse or trackpad, its words turn `#11832b` and gain
+  an underline. The link does not move or resize, and touch does not retain hover.
 
 ## Small screens
 

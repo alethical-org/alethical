@@ -140,6 +140,11 @@ function SectionTitle({ children }: { children: string }) {
 export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
   const { isMobile, isTablet } = useResponsive();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
+  const [emailHovered, setEmailHovered] = useState(false);
+  const canHover =
+    Platform.OS === 'web' &&
+    !isMobile &&
+    window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
   const cardWidthStyle: ViewStyle = isMobile
     ? styles.fullWidth
     : isTablet
@@ -330,13 +335,20 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
                 {ABOUT_FEEDBACK_LABEL}{' '}
                 <Text
                   accessibilityRole="link"
-                  {...(Platform.OS === 'web' ? ({ href: `mailto:${ABOUT_EMAIL}` } as any) : {})}
+                  {...(Platform.OS === 'web'
+                    ? ({
+                        href: `mailto:${ABOUT_EMAIL}`,
+                        tabIndex: 0,
+                        onMouseEnter: () => setEmailHovered(true),
+                        onMouseLeave: () => setEmailHovered(false),
+                      } as any)
+                    : {})}
                   onPress={
                     Platform.OS === 'web'
                       ? undefined
                       : () => void Linking.openURL(`mailto:${ABOUT_EMAIL}`)
                   }
-                  style={styles.emailLink}
+                  style={[styles.emailLink, canHover && emailHovered && styles.emailLinkHovered]}
                 >
                   {ABOUT_EMAIL}
                 </Text>
@@ -348,9 +360,7 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
               style={(state) => [
                 styles.contactButton,
                 isMobile && styles.contactButtonMobile,
-                Platform.OS === 'web' &&
-                  !isMobile &&
-                  window.matchMedia?.('(hover: hover) and (pointer: fine)').matches &&
+                canHover &&
                   Boolean('hovered' in state && state.hovered) &&
                   styles.contactButtonHovered,
                 state.pressed && styles.contactButtonPressed,
@@ -609,4 +619,5 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
   },
   emailLink: { color: t.colors.text.greenOnLight, fontWeight: t.fontWeights.bold },
+  emailLinkHovered: { color: '#11832b', textDecorationLine: 'underline' },
 });
