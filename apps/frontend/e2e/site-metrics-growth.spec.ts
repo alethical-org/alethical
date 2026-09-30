@@ -225,6 +225,7 @@ async function openMetrics(page: Page) {
   await installPrivateSiteMetricsSession(page);
   await page.goto('/admin/site-metrics');
   await expect(page.getByRole('heading', { name: 'Site Metrics', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'How people use Alethical' })).toBeVisible();
   await expect(page.getByText('Loading site metrics.')).toHaveCount(0, { timeout: 30_000 });
 }
 
@@ -273,23 +274,25 @@ async function loadProductionFonts(page: Page) {
     return css;
   })();
   await page.addStyleTag({ content: await productionFontCss });
-  expect(
-    await page.evaluate(async () => {
-      const faces = await Promise.all(
-        [
-          '400 14.5px "Libre Franklin"',
-          '500 13.5px "Libre Franklin"',
-          '700 14px "JetBrains Mono"',
-          '800 19px "Libre Franklin"',
-          '500 20px "Space Grotesk"',
-        ].map((font) => document.fonts.load(font)),
-      );
-      await document.fonts.ready;
-      return faces.every(
-        (loaded) => loaded.length > 0 && loaded.every((face) => face.status === 'loaded'),
-      );
-    }),
-  ).toBe(true);
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        const faces = await Promise.all(
+          [
+            '400 14.5px "Libre Franklin"',
+            '500 13.5px "Libre Franklin"',
+            '700 14px "JetBrains Mono"',
+            '800 19px "Libre Franklin"',
+            '500 20px "Space Grotesk"',
+          ].map((font) => document.fonts.load(font)),
+        );
+        await document.fonts.ready;
+        return faces.every(
+          (loaded) => loaded.length > 0 && loaded.every((face) => face.status === 'loaded'),
+        );
+      }),
+    )
+    .toBe(true);
 }
 
 async function destinationGeometry(page: Page) {
