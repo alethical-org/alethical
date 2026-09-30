@@ -512,6 +512,7 @@ function TrackedRow({
   const navigation = useNavigation<never>();
   const count = useTrackedCount();
   const phone = variant === 'phone';
+  const { isTablet } = useResponsive();
   const hover = useFineHover();
   const press = () => {
     onNavigate();
@@ -539,7 +540,14 @@ function TrackedRow({
       <View style={phone ? styles.sheetIconBox : styles.menuIconBox}>
         <AccountMenuIcon name="bookmark" />
       </View>
-      <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Tracked</Text>
+      <Text
+        style={[
+          phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel,
+          phone && isTablet && styles.tabletActionText,
+        ]}
+      >
+        Tracked
+      </Text>
       {count === null ? null : (
         <Text style={phone ? styles.sheetTrackedCount : styles.menuTrackedCount}>{count}</Text>
       )}
@@ -577,6 +585,7 @@ function EmailPreferencesRow({
 }) {
   const navigation = useNavigation<any>();
   const phone = variant === 'phone';
+  const { isTablet } = useResponsive();
   const hover = useFineHover();
   return (
     <Pressable
@@ -597,7 +606,13 @@ function EmailPreferencesRow({
       <View style={phone ? styles.sheetIconBox : styles.menuIconBox}>
         <AccountMenuIcon name="email" />
       </View>
-      <Text style={[phone ? styles.sheetButtonText : styles.menuItemText, { flex: 1 }]}>
+      <Text
+        style={[
+          phone ? styles.sheetButtonText : styles.menuItemText,
+          phone && isTablet && styles.tabletActionText,
+          { flex: 1 },
+        ]}
+      >
         Email preferences
       </Text>
       {phone ? <ChevronRightIcon /> : null}
@@ -616,6 +631,7 @@ function AdminRow({
   onPress: () => void;
   phone: boolean;
 }) {
+  const { isTablet } = useResponsive();
   const hover = useFineHover();
   return (
     <Pressable
@@ -632,7 +648,14 @@ function AdminRow({
       ]}
     >
       <View style={phone ? styles.sheetIconBox : styles.menuIconBox} />
-      <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>{label}</Text>
+      <Text
+        style={[
+          phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel,
+          phone && isTablet && styles.tabletActionText,
+        ]}
+      >
+        {label}
+      </Text>
       <ChevronRightIcon />
     </Pressable>
   );
@@ -680,29 +703,50 @@ function Avatar({
   label,
   size,
   hovered = false,
+  control = false,
 }: {
   label: string;
   size: number;
   hovered?: boolean;
+  control?: boolean;
 }) {
   return (
     <View style={[styles.avatar, hovered && styles.avatarHovered, { width: size, height: size }]}>
-      <Text style={[styles.avatarText, { fontSize: Math.round(size * 0.45) }]}>
+      <Text
+        style={[
+          styles.avatarText,
+          { fontSize: Math.round(size * 0.45) },
+          control && styles.controlAvatarText,
+        ]}
+      >
         {initialOf(label)}
       </Text>
     </View>
   );
 }
 
-function Identity({ name, email, avatar }: { name: string; email: string; avatar: number }) {
+function Identity({
+  name,
+  email,
+  avatar,
+  drawer = false,
+}: {
+  name: string;
+  email: string;
+  avatar: number;
+  drawer?: boolean;
+}) {
   return (
-    <View style={styles.identityRow}>
-      <Avatar label={name} size={avatar} />
+    <View style={[styles.identityRow, drawer && styles.drawerIdentityRow]}>
+      <Avatar label={name} size={avatar} control={drawer} />
       <View style={styles.identityText}>
-        <Text numberOfLines={1} style={styles.identityName}>
+        <Text numberOfLines={1} style={[styles.identityName, drawer && styles.drawerIdentityName]}>
           {name}
         </Text>
-        <Text numberOfLines={1} style={styles.identityEmail}>
+        <Text
+          numberOfLines={1}
+          style={[styles.identityEmail, drawer && styles.drawerIdentityEmail]}
+        >
           {email}
         </Text>
       </View>
@@ -773,7 +817,11 @@ function SignOutLabel({
   flow: ReturnType<typeof useAccountSignOut>;
   phone?: boolean;
 }) {
-  const textStyle = phone ? styles.sheetButtonText : styles.menuItemText;
+  const { isTablet } = useResponsive();
+  const textStyle = [
+    phone ? styles.sheetButtonText : styles.menuItemText,
+    phone && isTablet && styles.tabletActionText,
+  ];
   return (
     <View style={styles.signOutLabelBox}>
       {isWeb ? (
@@ -985,6 +1033,7 @@ function AccountSurfaceContent({
   /** Shut the panel or sheet before navigating away from it. */
   onLeave: () => void;
 }) {
+  const { isTablet } = useResponsive();
   const passwordCopy = passwordMethodCopy(signInMethods, email || 'your email');
   const passwordHover = useFineHover();
   if (variant === 'desktop') {
@@ -1044,7 +1093,13 @@ function AccountSurfaceContent({
             <View style={styles.sheetIconBox}>
               <AccountMenuIcon name="password" />
             </View>
-            <Text style={[styles.sheetButtonText, styles.sheetPasswordText]}>
+            <Text
+              style={[
+                styles.sheetButtonText,
+                isTablet && styles.tabletActionText,
+                styles.sheetPasswordText,
+              ]}
+            >
               {passwordCopy.rowLabel}
             </Text>
             <ChevronRightIcon />
@@ -1119,7 +1174,12 @@ export function AccountNavButton({ compact = false }: { compact?: boolean } = {}
             pressed && styles.navPillPressed,
           ]}
         >
-          <Avatar label={name} size={compact ? 44 : 30} hovered={avatarHover.hovered} />
+          <Avatar
+            label={name}
+            size={compact ? 44 : 30}
+            hovered={avatarHover.hovered}
+            control={compact}
+          />
           {compact ? null : (
             <>
               <Text numberOfLines={1} style={styles.navPillName}>
@@ -1216,7 +1276,18 @@ function PhoneAccountControl({ trigger }: { trigger: 'avatar' | 'drawer' }) {
         {trigger === 'avatar' ? (
           <Avatar label={name} size={34} hovered={avatarHover.hovered} />
         ) : (
-          <Identity name={name} email={user?.email ?? ''} avatar={44} />
+          <>
+            <Identity name={name} email={user?.email ?? ''} avatar={44} drawer />
+            <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
+              <Path
+                d="M6 15 L12 9 L18 15"
+                stroke="#6f756f"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
+          </>
         )}
       </Pressable>
       <Modal
@@ -1330,7 +1401,11 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.brand.display,
   },
+  controlAvatarText: { fontSize: 17, fontWeight: t.fontWeights.heavy, color: '#0f7a45' },
   identityRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  drawerIdentityRow: { flex: 1, minWidth: 0, gap: 14 },
+  drawerIdentityName: { fontSize: 17 },
+  drawerIdentityEmail: { marginTop: 2, fontSize: 14, color: '#4f5651' },
   identityText: { flex: 1, minWidth: 0 },
   identityName: {
     fontFamily: t.typography.ui,
@@ -1483,7 +1558,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     fontFamily: t.typography.ui,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
@@ -1501,7 +1576,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     fontFamily: t.typography.ui,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
@@ -1610,9 +1685,16 @@ const styles = StyleSheet.create({
   drawerAccountButton: {
     width: '100%',
     minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 10,
-    paddingVertical: 4,
+    gap: 14,
+    backgroundColor: '#f7f8fa',
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.10)',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
   drawerAccountButtonPressed: { backgroundColor: t.colors.surfaces.s300 },
   sheetScrim: { flex: 1, backgroundColor: 'rgba(10,14,12,0.5)', justifyContent: 'flex-end' },
@@ -1694,7 +1776,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     fontFamily: t.typography.ui,
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
@@ -1725,9 +1807,11 @@ const styles = StyleSheet.create({
   sheetButtonText: {
     minWidth: 0,
     fontFamily: t.typography.ui,
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
+  // Tablet retains the sheet layout, but uses the focused handoff's computer label size.
+  tabletActionText: { fontSize: 16 },
   phoneSignOutError: { fontSize: 15, lineHeight: 21, marginHorizontal: 14 },
 });

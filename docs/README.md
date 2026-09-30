@@ -139,6 +139,7 @@ a completed code release does not approve a held data run. Remove a finished pla
 lasting decisions and release evidence have their permanent homes.
 
 - [Candidate lookup delivery](implementation/candidate-lookup-build-plan.md) — staged candidate imports, private address handling, and the design and source requirements before launch
+- [Navigation design 47 delivery](implementation/navigation-design-47-plan.md) — approved navigation and account-menu changes, comparison evidence, and release dependencies
 - [Lobbyist donation proof release report](implementation/lobbyist-donation-proof.md) — live before/after coverage, source evidence, validation and remaining gaps
 - [Lobbyist donor evidence](operations/lobbyist-donor-evidence.md) — source matching, review, safe publication and rollback.
 - [Private account activation](implementation/admin-users-plan.md) — approved account access and the remaining administrator activation

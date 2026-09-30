@@ -194,7 +194,6 @@ export function SignedOutHomepage({
             />
           ) : null}
           <TopNav
-            signInAppearance="outline"
             openMenu={openMenu}
             onOpenMenuChange={setOpenMenu}
             onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}

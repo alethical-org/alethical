@@ -932,14 +932,9 @@ describe('Find My Legislator round-trips through its URL', () => {
 // rides in the Search dropdown's greyed "ON THE ROADMAP" row, last. News moved
 // into this group from the old Track menu (campaign money IA, Aug 2026).
 describe('Search dropdown roadmap row', () => {
-  it('reads Candidates, Claimed Profiles, News, then Ask AI', () => {
+  it('reads Claimed profiles, News, then Ask AI', () => {
     const { roadmap } = navDropdownItems('search');
-    expect(roadmap.map((item) => item.label)).toEqual([
-      'Candidates',
-      'Claimed profiles',
-      'News',
-      'Ask AI',
-    ]);
+    expect(roadmap.map((item) => item.label)).toEqual(['Claimed profiles', 'News', 'Ask AI']);
   });
 
   it('keeps Ask AI a greyed roadmap pill, never a live row', () => {
@@ -951,11 +946,12 @@ describe('Search dropdown roadmap row', () => {
 // The Campaign money row is live, public, second in Search, and carries the
 // green NEW chip (campaign money IA §01).
 describe('top-level Money destination', () => {
-  it('leaves Search with Bills, Legislators and Find My Legislator', () => {
+  it('includes both lookups below Bills and Legislators', () => {
     const { live } = navDropdownItems('search');
     expect(live.map((item) => item.id)).toEqual([
       'search-bills',
       'search-legislators',
+      'search-candidates',
       'search-find-my-legislator',
     ]);
   });
@@ -997,8 +993,8 @@ describe('Mobile menu roadmap row', () => {
   // "More Tracking" was calculated from whatever the Yours menu still had on its
   // roadmap. With that menu gone from the bar the chip pointed at a group a
   // reader could no longer open, so it goes (#1698).
-  it('shows four chips, News by name and Ask AI last', () => {
-    expect(mobileNavRoadmapLabels()).toEqual(['Candidates', 'Claimed profiles', 'News', 'Ask AI']);
+  it('shows the remaining planned work, with Ask AI last', () => {
+    expect(mobileNavRoadmapLabels()).toEqual(['Claimed profiles', 'News', 'Ask AI']);
   });
 
   it('offers no More Tracking chip', () => {

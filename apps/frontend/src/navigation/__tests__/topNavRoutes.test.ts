@@ -6,6 +6,7 @@ describe('top navigation routes', () => {
   it.each([
     ['search-bills', ['Bills']],
     ['search-legislators', ['Legislators']],
+    ['search-candidates', ['Candidates']],
     ['search-find-my-legislator', ['FindMyLegislator']],
     ['search-campaign-money', ['MoneyLanding']],
     ['read', ['Read']],
@@ -34,7 +35,7 @@ describe('top navigation routes', () => {
   it('leaves a roadmap row with no page for its caller to handle', () => {
     const navigate = vi.fn();
 
-    expect(navigateTopNavItem({ navigate }, { id: 'search-candidates' })).toBe(false);
+    expect(navigateTopNavItem({ navigate }, { id: 'search-laws' })).toBe(false);
     expect(navigate).not.toHaveBeenCalled();
   });
 });
@@ -46,6 +47,7 @@ describe('a nav row that navigates also carries a link', () => {
   it.each([
     'search-bills',
     'search-legislators',
+    'search-candidates',
     'search-find-my-legislator',
     'search-campaign-money',
     'read',
@@ -64,6 +66,11 @@ describe('a nav row that navigates also carries a link', () => {
 describe('the nav row that names the page being viewed', () => {
   it('marks Read on the /blog page', () => {
     expect(currentNavItemId('/blog')).toBe('read');
+  });
+
+  it('marks the candidate destination', () => {
+    expect(currentNavItemId('/candidates')).toBe('search-candidates');
+    expect(NAV_ITEM_HREFS['search-candidates']).toBe('/candidates');
   });
 
   it('marks Services on the public offering', () => {

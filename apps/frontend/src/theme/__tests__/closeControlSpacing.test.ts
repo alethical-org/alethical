@@ -63,8 +63,11 @@ describe('corner close-control spacing', () => {
     );
   });
 
-  it('matches the phone menu corner control to its 24px side padding', () => {
-    expect(drawer).toMatch(/menuSheet: \{[\s\S]*?paddingHorizontal: 24,[\s\S]*?paddingTop: 24/);
+  it('keeps the phone menu close control in its separately padded header', () => {
+    expect(drawer).toMatch(/menuSheetHeader: \{[^}]*padding: 22/);
+    expect(drawer.indexOf('<View style={styles.menuSheetHeader}>')).toBeLessThan(
+      drawer.indexOf('<ScrollView style={styles.menuList}'),
+    );
   });
 
   it('keeps the shared Share close control and chat panel in the inventory', () => {
