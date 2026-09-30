@@ -109,3 +109,56 @@ for (const width of [390, 1600]) {
     await expect(billLink).toBeInViewport();
   });
 }
+
+for (const width of [900, 1100, 1600]) {
+  test(`editorial example matches the approved facts and layout at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto('/');
+    const badge = page.getByRole('link', { name: 'HF 4138', exact: true });
+    await expect(badge).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    const card = badge.locator('../..');
+    await card.scrollIntoViewIfNeeded();
+    await expect(card.getByText('Effective Jul 1, 2027', { exact: true })).toBeVisible();
+    const note = card.getByText(
+      'Such as infinite scrolling, autoplay video, and push notifications',
+      { exact: true },
+    );
+    await expect(note).toHaveCSS('font-style', 'normal');
+    const badgeText = badge.getByText('HF 4138', { exact: true });
+    await expect(badgeText).toHaveCSS('font-family', /Libre Franklin/);
+    await expect(badgeText).toHaveCSS('font-weight', '800');
+    await expect(badgeText).toHaveCSS('font-size', '16px');
+    await expect(badgeText).toHaveCSS('font-variant-numeric', 'tabular-nums');
+    const facts = badge.locator('..');
+    const layout = await facts.evaluate((row) => {
+      const boxes = Array.from(row.children).map((child) => child.getBoundingClientRect());
+      return {
+        count: boxes.length,
+        centers: boxes.map((r) => r.y + r.height / 2),
+        overflow: row.scrollWidth > row.clientWidth,
+      };
+    });
+    expect(layout.count).toBe(5);
+    expect(layout.overflow).toBe(false);
+    if (width === 1600)
+      expect(Math.max(...layout.centers) - Math.min(...layout.centers)).toBeLessThan(1);
+    const quotes = await Promise.all(
+      ['Parental consent', 'Addictive features', 'Privacy by default'].map(async (name) => {
+        return card.getByText(name, { exact: true }).locator('../..').boundingBox();
+      }),
+    );
+    const heights = quotes.map((box) => box!.height);
+    expect(Math.max(...heights) - Math.min(...heights)).toBeLessThan(1);
+    const footer = card.getByRole('link', { name: 'View bill profile', exact: true });
+    const footerBox = (await footer.boundingBox())!;
+    expect(Math.abs(footerBox.x - quotes[0]!.x)).toBeLessThan(1);
+    expect(Math.abs(footerBox.y - (quotes[0]!.y + quotes[0]!.height) - 18)).toBeLessThan(1);
+    await expect(footer).toHaveAttribute('href', '/bills/94-2026-HF4138');
+    await badge.hover();
+    await expect(badge).toHaveCSS('background-color', 'rgb(246, 230, 203)');
+    await expect(badgeText).toHaveCSS('text-decoration-line', 'underline');
+  });
+}

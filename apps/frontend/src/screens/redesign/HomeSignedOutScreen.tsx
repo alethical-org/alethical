@@ -353,7 +353,7 @@ const PEGGY_SCOTT_LEGISLATOR_ID = '2ebc386c-bf7e-4b9c-9d81-81f3bef1f971';
 // from the bill's Governor-approval and Secretary-of-State actions; the effective date
 // from `effective_date`; House 132–2 / Senate 66–0 from the two passage roll calls; all
 // three excerpts are verbatim from the enacted text (version 5).
-function CitedSectionCard({ title, quote }: { title: string; quote: string }) {
+function CitedSectionCard({ title, quote, note }: { title: string; quote: string; note?: string }) {
   const { isMobile } = useResponsive();
   return (
     <View style={styles.sectionCardBox}>
@@ -365,6 +365,7 @@ function CitedSectionCard({ title, quote }: { title: string; quote: string }) {
           {quote}
         </Text>
       </View>
+      {note ? <Text style={styles.sectionCardNote}>{note}</Text> : null}
     </View>
   );
 }
@@ -381,7 +382,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
       }
     : { backgroundColor: 'rgba(255,255,255,0.75)' };
   return (
-    <View style={[styles.answerCard, isMobile && styles.answerCardMobile, t.shadows.md as object]}>
+    <View style={[styles.answerCard, isMobile && styles.answerCardMobile]}>
       {/* The card opens at the bill facts. The question moved out to the section
           above when the card left the hero: it is the example being shown, so it
           belongs beside the section's own heading rather than repeated inside the
@@ -389,8 +390,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
 
       {/* badge + meta. Mobile: compact 2×2 grid (fixed 90px left column shared by
           badge + votes; right column holds dates and chief author, both aligned
-          at 90 + 20px). Desktop: two balanced meta columns (left = signed/effective,
-          right = chief author + vote counts). */}
+          at 90 + 20px). Desktop/tablet: one wrapping row of complete facts. */}
       {isMobile ? (
         <View style={styles.billMetaMobile}>
           <View style={styles.billMetaMobileRow}>
@@ -400,7 +400,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
                   navigation.navigate('BillDetail', { billId: HF4138_BILL_ID }),
                 )}
                 {...badgeHover}
-                style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#fbe7bd' }]}
+                style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#f6e6cb' }]}
               >
                 <Text
                   style={[
@@ -417,7 +417,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
                 <Text style={styles.billMetaBold}>Signed</Text> May 26, 2026
               </Text>
               <Text style={[styles.billMetaText, { marginTop: 2 }]}>
-                <Text style={styles.billMetaBold}>Effective</Text> July 1, 2027
+                <Text style={styles.billMetaBold}>Effective</Text> Jul 1, 2027
               </Text>
             </View>
           </View>
@@ -456,7 +456,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
               navigation.navigate('BillDetail', { billId: HF4138_BILL_ID }),
             )}
             {...badgeHover}
-            style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#fbe7bd' }]}
+            style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#f6e6cb' }]}
           >
             <Text
               style={[styles.billBadgeLgText, badgeHovered && { textDecorationLine: 'underline' }]}
@@ -464,38 +464,28 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
               HF 4138
             </Text>
           </Pressable>
-          <View style={styles.billMetaCols}>
-            <View style={styles.billMetaColsRow}>
-              <View>
-                <Text style={styles.billMetaText}>
-                  <Text style={styles.billMetaBold}>Signed</Text> May 26, 2026
-                </Text>
-                <Text style={[styles.billMetaText, { marginTop: 2 }]}>
-                  <Text style={styles.billMetaBold}>Effective</Text> July 1, 2027
-                </Text>
-              </View>
-              <View>
-                <View style={styles.billMetaLinkRow}>
-                  <Text style={styles.billMetaText}>Chief author </Text>
-                  <TextLink
-                    label="Rep. Peggy Scott"
-                    href={routePath.legislator(PEGGY_SCOTT_LEGISLATOR_ID)}
-                    internal
-                    size={13}
-                    weight="600"
-                    onPress={() =>
-                      navigation.navigate('LegislatorProfile', {
-                        legislatorId: PEGGY_SCOTT_LEGISLATOR_ID,
-                      })
-                    }
-                  />
-                </View>
-                <Text style={[styles.billMetaText, { marginTop: 2 }]}>
-                  House 132–2 · Senate 66–0
-                </Text>
-              </View>
-            </View>
+          <Text style={styles.billMetaText}>
+            <Text style={styles.billMetaBold}>Signed</Text> May 26, 2026
+          </Text>
+          <Text style={styles.billMetaText}>
+            <Text style={styles.billMetaBold}>Effective</Text> Jul 1, 2027
+          </Text>
+          <View style={styles.billMetaLinkRow}>
+            <Text style={styles.billMetaText}>Chief author </Text>
+            <TextLink
+              label="Rep. Peggy Scott"
+              href={routePath.legislator(PEGGY_SCOTT_LEGISLATOR_ID)}
+              internal
+              size={14}
+              weight="600"
+              onPress={() =>
+                navigation.navigate('LegislatorProfile', {
+                  legislatorId: PEGGY_SCOTT_LEGISLATOR_ID,
+                })
+              }
+            />
           </View>
+          <Text style={styles.billMetaText}>House 132–2 · Senate 66–0</Text>
         </View>
       )}
 
@@ -535,6 +525,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
         />
         <CitedSectionCard
           title="Addictive features"
+          note="Such as infinite scrolling, autoplay video, and push notifications"
           quote="A covered social media platform may not present addictive interface features in the display or feed of any account of a child."
         />
         <CitedSectionCard
@@ -2292,23 +2283,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: t.colors.alpha.ink08,
     backgroundColor: t.colors.surfaces.base,
-    borderRadius: 20,
-    paddingVertical: 32,
-    paddingHorizontal: 34,
+    borderRadius: 18,
+    paddingTop: 24,
+    paddingBottom: 26,
+    paddingHorizontal: 26,
     position: 'relative',
+    ...(isWeb ? { boxShadow: '0 8px 24px rgba(17,21,15,0.05)' } : {}),
   },
   answerCardMobile: { paddingVertical: 24, paddingHorizontal: 22 },
-  answerOverlay: { ...StyleSheet.absoluteFill, borderRadius: 20, zIndex: 5 },
+  answerOverlay: { ...StyleSheet.absoluteFill, borderRadius: 18, zIndex: 5 },
   billMetaRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 24,
+    alignItems: 'center',
+    gap: 30,
     flexWrap: 'wrap',
-    // 22px carries the facts→summary shift now that the plain hairline is gone.
-    marginBottom: 22,
+    marginBottom: 20,
   },
   billBadgeLg: {
-    marginTop: 5,
     backgroundColor: t.colors.omnibus.fill,
     borderWidth: 1,
     borderColor: t.colors.omnibus.border,
@@ -2317,22 +2308,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
   },
   billBadgeLgText: {
-    fontFamily: t.typography.mono,
-    fontSize: t.fontSizes.bodyLg,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.6,
+    fontFamily: t.typography.body,
+    fontSize: 16,
+    fontWeight: t.fontWeights.heavy,
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 0.64,
     color: t.colors.omnibus.text,
+    ...(isWeb ? { whiteSpace: 'nowrap' as const } : {}),
   },
-  billMetaCols: { flex: 1, minWidth: 0 },
-  billMetaColsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' },
   billMetaText: {
     fontFamily: t.typography.body,
-    fontSize: t.fontSizes.meta,
+    fontSize: 14,
     lineHeight: 21,
-    color: t.colors.text.secondary,
+    color: '#6b716b',
+    fontVariant: ['tabular-nums'],
+    ...(isWeb ? { whiteSpace: 'nowrap' as const } : {}),
   },
   billMetaBold: { fontWeight: t.fontWeights.bold },
-  billMetaLinkRow: { flexDirection: 'row', alignItems: 'center' },
+  billMetaLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   // Mobile compact metadata grid: fixed 90px left column + 20px gap + flexible right column.
   billMetaMobile: { marginBottom: 22 },
   billMetaMobileRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 20 },
@@ -2344,28 +2337,26 @@ const styles = StyleSheet.create({
   billMetaMobileRight: { flex: 1, minWidth: 0 },
   answerSummary: {
     fontFamily: t.typography.body,
-    fontSize: t.fontSizes.subheadLg,
-    lineHeight: 27,
-    color: t.colors.ink,
-    marginBottom: 14,
+    fontSize: 20,
+    lineHeight: 30,
+    color: '#1a201d',
+    maxWidth: 1040,
+    marginBottom: 24,
   },
   answerSummaryBold: { fontWeight: t.fontWeights.semibold },
-  citedRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  citedRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
   citedLabel: {
     fontFamily: t.typography.mono,
-    fontSize: t.fontSizes.label,
+    fontSize: 12,
     fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.7,
-    color: t.colors.text.muted,
+    letterSpacing: 0.72,
+    color: '#6f756f',
   },
   sectionCardStack: {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',
     gap: 14,
-    // Each box ends under its own last line rather than stretching to the tallest
-    // card's. The quotes are the bill's, so their lengths differ and a stretched
-    // box left empty grey under the shortest one. Columns stay equal in width.
-    alignItems: 'start',
+    alignItems: 'stretch',
   } as never,
   sectionCardBox: {
     backgroundColor: '#f7f9f8',
@@ -2399,9 +2390,15 @@ const styles = StyleSheet.create({
     ...(isWeb ? ({ maxWidth: '34em', textWrap: 'pretty' } as object) : null),
   },
   sectionCardQuoteTextMobile: { fontSize: 16, lineHeight: 24 },
+  sectionCardNote: {
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    lineHeight: 20.3,
+    color: '#6f756f',
+    marginTop: 10,
+  },
   answerFooter: {
-    marginTop: 12,
-    paddingLeft: t.spacing.underCardText,
+    marginTop: 18,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
