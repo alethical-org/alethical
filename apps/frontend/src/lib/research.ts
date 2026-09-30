@@ -27,29 +27,30 @@ import {
   isoDateCapsLabel,
   isoDateCommaCapsLabel,
   isoDateLabel,
-  pieceKindLabel,
   pieceWrittenLine,
   pieceWrittenSentence,
-  type PieceIndexEntry,
-} from './researchIndex';
+} from './articleDateLabels';
+import { pieceKindLabel, type PieceIndexEntry } from './researchIndex';
 
 export {
   isoDateCapsLabel,
   isoDateCommaCapsLabel,
   isoDateLabel,
   isoMonthYearCapsLabel,
-  pieceAddressFolder,
-  pieceKindLabel,
-  piecePath,
   pieceShareDescription,
   pieceWrittenLine,
   pieceWrittenSentence,
+  researchShareDescription,
+} from './articleDateLabels';
+export {
+  pieceAddressFolder,
+  pieceKindLabel,
+  piecePath,
   PUBLISHED_PIECE_INDEX,
   pieceIndexBySlug,
   READ_PAGE_HEADING,
   READ_PAGE_INTRO,
   READ_PAGE_NAME,
-  researchShareDescription,
 } from './researchIndex';
 export type { PieceIndexEntry, PieceTraits } from './researchIndex';
 import { LOBBYIST_GIVING } from './researchPieces/lobbyistGiving';

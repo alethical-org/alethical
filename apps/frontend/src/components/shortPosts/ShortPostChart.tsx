@@ -5,7 +5,7 @@ import type {
   ShortPostGraphic,
   ShortPostHistory,
 } from '../../lib/shortPosts';
-import { isoDateLabel } from '../../lib/researchIndex';
+import { isoDateLabel } from '../../lib/articleDateLabels';
 
 type Props = {
   graphic: ShortPostGraphic;
