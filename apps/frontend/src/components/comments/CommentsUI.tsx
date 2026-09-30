@@ -276,7 +276,7 @@ export const COMMENTS_CSS = `
 .rc input[type="text"]:focus,.rc textarea:focus {border-color:#7c5cff;box-shadow:0 0 0 3px rgba(124,92,255,.22)}
 .rc input[aria-invalid="true"],.rc textarea[aria-invalid="true"] {border-color:#97440c}
 .rc-region {width:100%;background:#f4f6f5;border-top:1px solid rgba(17,21,15,.14);padding:48px 56px 64px}
-.rc-grid {max-width:1128px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 340px;grid-template-rows:max-content max-content max-content minmax(0,1fr);column-gap:48px;align-content:start;align-items:start}
+.rc-grid {width:100%;display:grid;grid-template-columns:minmax(0,1fr) 340px;grid-template-rows:max-content max-content max-content minmax(0,1fr);column-gap:48px;align-content:start;align-items:start}
 .rc-title {grid-column:1;grid-row:1;min-width:0}
 .rc-disclaimer {margin-top:8px!important;font-size:15px;color:#4f5651}
 .rc-rules {grid-column:2;grid-row:1 / span 4;padding:20px 22px 22px}
@@ -394,7 +394,7 @@ export const COMMENTS_CSS = `
 }
 @media(max-width:1099px) {
  .rc-region {padding:44px 40px 56px}
- .rc-grid {max-width:720px;grid-template-columns:minmax(0,1fr);grid-template-rows:max-content max-content max-content max-content;gap:0}
+ .rc-grid {grid-template-columns:minmax(0,1fr);grid-template-rows:max-content max-content max-content max-content;gap:0}
  .rc h2 {font-size:26px}
  .rc-title {grid-row:1}
  .rc-rules {grid-column:1;grid-row:3;position:static;margin-top:30px;padding:20px 22px}

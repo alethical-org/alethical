@@ -1742,8 +1742,10 @@ and its label reads Research, because rule 13 binds it in full
   page, so a link someone shared still lands on the right section after a new section is
   added above it. On a computer the rail marks the section being read, and exactly one
   entry is marked at a time. The list is headed **CONTENTS** in ink; a screen reader is
-  given the piece's own kind instead, "Sections in this research" or "Sections in this
-  guide", because that label replaces the visible word rather than joining it.
+  given the piece's own kind instead, "Sections in this research", because that label
+  replaces the visible word rather than joining it. From 768px, the rail is 226px
+  wide with a 56px gap; the reading column fills the remaining space. Article
+  gutters are 20px on phone, 40px on tablet and 56px from 1100px.
 - The reading column, with the short version boxed on top, and a "how we scored this" inset
   printed beside the first use of any term we defined.
 - A "where these numbers come from" block naming every source.
@@ -1770,6 +1772,9 @@ research.
 A guide's page is the same document shape as a research piece's, drawn by the same screen. What
 differs:
 
+- **No side contents rail from 768px.** The guide uses the full available article
+  width between the same 20px/40px/56px gutters. The phone contents list remains.
+  Tablet titles use 44px type with a 48px line height; desktop titles remain 52px.
 - **One line under the title instead of a research masthead**, reading
   `GUIDE · 5 MIN · WRITTEN AUGUST 2026`. The kind, how long it takes to read, and one date.
   There is no second date on it.

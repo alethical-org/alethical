@@ -347,7 +347,14 @@ function SectionView({ section, anchor }: { section: ResearchSection; anchor: st
       <Blocks blocks={section.blocks} />
       {section.methodologyInset ? (
         <View style={styles.insetBox}>
-          <Text style={styles.insetLabel}>{section.methodologyInset.title.toUpperCase()}</Text>
+          <Text
+            style={[
+              styles.insetLabel,
+              /\d/.test(section.methodologyInset.title) && styles.numericLabel,
+            ]}
+          >
+            {section.methodologyInset.title.toUpperCase()}
+          </Text>
           <Text style={styles.insetBody}>{section.methodologyInset.body}</Text>
         </View>
       ) : null}
@@ -429,7 +436,7 @@ function ContentsLink({
 }
 
 export function ResearchScreen({ navigation, route }: RootScreenProps<'Research' | 'Guide'>) {
-  const { isMobile } = useResponsive();
+  const { isMobile, isTablet } = useResponsive();
   // Back out of a #section address should return the reader to where they were
   // reading, not to the top. The browser cannot do it here — the page scrolls
   // an inner container, not the document — so this is the shared hook that
@@ -510,7 +517,7 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
           contentContainerStyle={[styles.page, { backgroundColor: '#fff' }]}
         >
           <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
-          <Container>
+          <Container style={{ paddingHorizontal: isMobile ? 20 : isTablet ? 40 : 56 }}>
             <ShortPostArticle
               piece={piece}
               returnLink={returnLink}
@@ -546,7 +553,13 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
       <ScrollView {...scrollRestoration} contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
 
-        <Container style={[styles.main, isMobile && styles.mainMobile]}>
+        <Container
+          style={[
+            styles.main,
+            isMobile && styles.mainMobile,
+            { paddingHorizontal: isMobile ? 20 : isTablet ? 40 : 56 },
+          ]}
+        >
           <a className="article-return" href={returnLink.href} onClick={returnToSource}>
             <ChevronLeft size={18} strokeWidth={2.2} aria-hidden />
             <span className="article-return-label">{returnLink.label}</span>
@@ -554,7 +567,7 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
           <style>{`.article-return{display:inline-flex;align-items:center;gap:9px;min-height:44px;color:#4b524b;font:600 16px 'Libre Franklin',sans-serif;text-decoration:none}@media(hover:hover){.article-return:hover{color:#11150f}.article-return:hover .article-return-label{text-decoration:underline}}.article-return:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}.article-topics{display:flex;align-items:center;flex-wrap:wrap;gap:0 8px;margin-top:12px;font-family:'Libre Franklin',sans-serif}.article-topics>span{font-size:14.5px;font-weight:700;color:#4f5651;margin-right:4px}.article-topics a{display:inline-flex;align-items:center;min-height:44px;color:#11150f;text-decoration:none}.article-topics a span{padding:6px 12px;border:1px solid rgba(17,21,15,.18);border-radius:8px;font-size:14.5px;font-weight:600;line-height:1.35;background:#fff}.article-topics a:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}@media(hover:hover){.article-topics a:hover span{background:#f1f3f2;border-color:rgba(17,21,15,.3)}}.article-topics a:active span{background:#e6e9e7}@media(max-width:767px){.article-topics{margin-top:10px}}`}</style>
 
           <View style={[styles.grid, isMobile && styles.gridMobile]}>
-            {!isMobile ? (
+            {!isMobile && piece.traits.research ? (
               <View style={[styles.rail, webSticky as never]}>
                 <Text style={styles.railLabel}>CONTENTS</Text>
                 <ContentsLinks piece={piece} anchors={anchors} activeAnchor={activeAnchor} />
@@ -576,7 +589,11 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
               <Text
                 accessibilityRole="header"
                 aria-level={1}
-                style={[styles.heading, isMobile && styles.headingMobile]}
+                style={[
+                  styles.heading,
+                  isMobile && styles.headingMobile,
+                  isTablet && !piece.traits.research && styles.headingGuideTablet,
+                ]}
               >
                 {piece.title}
               </Text>
@@ -718,7 +735,7 @@ const styles = StyleSheet.create({
   },
   contentsLinkHovered: { color: '#11150f' },
   contentsLinkActive: { color: '#11150f', fontWeight: t.fontWeights.heavy },
-  column: { flex: 1, maxWidth: 760, minWidth: 0 },
+  column: { flex: 1, minWidth: 0 },
   mobileContents: {
     marginTop: 24,
     backgroundColor: t.colors.surfaces.s200,
@@ -768,12 +785,14 @@ const styles = StyleSheet.create({
     marginTop: 14,
     color: t.colors.text.primary,
     fontFamily: t.typography.title,
+    fontVariant: ['tabular-nums'],
     fontSize: 52,
     lineHeight: 55,
     fontWeight: t.fontWeights.heavy,
     letterSpacing: -1.6,
   },
   headingMobile: { fontSize: 32, lineHeight: 37, letterSpacing: -0.9 },
+  headingGuideTablet: { fontSize: 44, lineHeight: 48 },
   // The set's name under the title, quieter than a standfirst because it names
   // where the piece sits rather than what it says.
   setLine: {
@@ -788,6 +807,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     color: t.colors.text.secondary,
     fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
     fontSize: 22,
     lineHeight: 33,
   },
@@ -827,7 +847,8 @@ const styles = StyleSheet.create({
   correctionLabel: {
     marginTop: 1,
     color: t.colors.omnibus.text,
-    fontFamily: t.typography.mono,
+    fontFamily: t.typography.ui,
+    fontVariant: ['tabular-nums'],
     fontSize: 10,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.8,
@@ -837,6 +858,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     color: t.colors.text.primary,
     fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
     fontSize: 15.5,
     lineHeight: 24,
   },
@@ -864,6 +886,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     color: t.colors.ink,
     fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
     fontSize: 19,
     lineHeight: 32,
   },
@@ -912,7 +935,8 @@ const styles = StyleSheet.create({
   },
   tableCellNumeric: {
     flex: 0,
-    minWidth: 140,
+    // Fits "Reported lobbying" plus both 16px cell paddings without clipping.
+    minWidth: 160,
     textAlign: 'right',
     fontVariant: ['tabular-nums'],
     ...(isWeb ? ({ whiteSpace: 'nowrap' } as object) : null),
@@ -941,12 +965,14 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     letterSpacing: 1.3,
   },
+  numericLabel: { fontFamily: t.typography.ui, fontVariant: ['tabular-nums'] },
   // Prose size, deliberately: an 18px note beside 19px prose is a 1px step nobody
   // reads as deliberate, so the box alone does the separating (Design, 27 Aug 2026).
   noteBody: {
     marginTop: 13,
     color: t.colors.ink,
     fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
     fontSize: 19,
     lineHeight: 32,
   },
@@ -954,6 +980,7 @@ const styles = StyleSheet.create({
     marginTop: 13,
     color: t.colors.ink,
     fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
     fontSize: 17.5,
     lineHeight: 29,
   },
@@ -978,6 +1005,7 @@ const styles = StyleSheet.create({
   sourceItem: {
     color: t.colors.ink,
     fontFamily: t.typography.body,
+    fontVariant: ['tabular-nums'],
     fontSize: 17,
     lineHeight: 27,
   },
