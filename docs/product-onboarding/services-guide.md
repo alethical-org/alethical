@@ -24,6 +24,8 @@ other addresses. The production presentation omits the private-preview label.
 Section links keep working after returning home and opening `/services` again,
 including when the browser changes between desktop and phone widths. Each link
 scrolls the current visit rather than a hidden earlier visit kept in browser navigation.
+Audience keyboard focus also stays within the current visit. Services-specific
+footer layout settings load with this presentation rather than with every address.
 
 The standard dark Footer follows Delivery and pricing. It keeps the shared brand
 message, social accounts, Contact Us (`/about/contact`), Privacy Policy (`/privacy`)
