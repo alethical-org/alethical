@@ -80,7 +80,7 @@ panel's pointer-hover treatment and a keyboard-only focus outline.
 ## The name of `/money`
 
 **Money in politics** is the destination name for `/money`. Use those exact words
-in the homepage money card's button, the `/money` heading, browser
+in the signed-in homepage money card's button, the `/money` heading, browser
 title and shared-link title, and every link or empty-state button returning to
 `/money`, including campaign and lobbying pages. A browser title may append the
 site name in the usual format.
@@ -90,11 +90,15 @@ this scope on 30 Sep 2026: “move money in politics submenu (under Search menu)
 its own "Money" section left of "Search" in nav on web”. Money opens `/money` directly
 on desktop and in the phone drawer; it is not a dropdown and is not a Search child.
 The order is Money, Search, Blog, About. This navigation exception does not rename
-the `/money` page, its browser or shared title, its homepage button or other return links.
+the `/money` page, its browser or shared title, or other return links. The signed-out
+homepage button has its own approved wording, described next.
 
 **Follow the money** remains the homepage money card's headline, an invitation rather
-than a second destination name. The button beneath it says **Money in politics**,
-without “Explore”. **Campaign money** remains the narrower name on legislator and
+than a second destination name. The signed-in button beneath it says **Money in
+politics**, without “Explore”. The signed-out homepage button says **Search the
+money records**, approved on 30 Sep 2026. This exception applies only to that
+homepage action and does not rename `/money` or its return links. **Campaign money**
+remains the narrower name on legislator and
 committee tabs that show campaign records rather than the whole `/money` section.
 
 ## The greyed "ON THE ROADMAP" group

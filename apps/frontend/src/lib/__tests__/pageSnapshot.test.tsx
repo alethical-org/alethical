@@ -2399,16 +2399,25 @@ describe('the money screens keep reading the helpers the server reads', () => {
 });
 
 describe('rendering', () => {
-  it('puts every public home destination in the first response', () => {
+  it('serves the current public home cards without held destinations or duplicate body searches', () => {
     const snapshot = homePageSnapshot();
 
-    expect(snapshot.links).toEqual([
-      { label: 'Search Bills', href: '/bills' },
-      { label: 'Search Legislators', href: '/legislators' },
-      { label: 'Find My Legislator', href: '/find-my-legislator' },
-      { label: 'Money in politics', href: '/money' },
-      { label: READ_PAGE_NAME, href: '/blog' },
+    expect(snapshot.links).toEqual([]);
+    expect(snapshot.sections?.map((section) => section.heading)).toEqual([
+      'Follow the money',
+      'Bills and votes',
     ]);
+    const html = renderPageSnapshot(snapshot);
+    expect(html).toContain('Search the money records');
+    expect(html).toContain('Read plain-language bill summaries, see where they stand');
+    expect(html).toContain('href="/money"');
+    expect(html).toContain('href="/bills"');
+    expect(html).not.toContain('href="/services"');
+    expect(html).not.toContain('href="/candidates"');
+    // These remain available in shared navigation, but are not extra Home body links.
+    const body = html.slice(html.indexOf('<main'));
+    expect(body).not.toContain('href="/legislators"');
+    expect(body).not.toContain('href="/find-my-legislator"');
   });
 
   it('escapes every stored string it prints', () => {

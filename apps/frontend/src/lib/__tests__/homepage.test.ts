@@ -4,7 +4,36 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { HOME_BILL_GROUP_CONTINUATIONS } from '../homepage';
+import {
+  HOME_BILL_GROUP_CONTINUATIONS,
+  HOME_PUBLIC_INTRO,
+  HOME_PUBLIC_MONEY_BODY,
+  HOME_PUBLIC_MONEY_CTA,
+  HOME_PUBLIC_BILLS_BODY,
+  HOME_PUBLIC_SERVICES_BODY,
+  MONEY_PROMO_BODY,
+  MONEY_PROMO_CTA,
+} from '../homepage';
+
+describe('signed-out copy is separate from signed-in Home', () => {
+  it('keeps the introduction broad and puts the plain-language promise in bills', () => {
+    expect(HOME_PUBLIC_INTRO).toBe(
+      'We turn scattered public records into clear information you can use. Understand what’s happening, check the evidence, and get practical support to act on what you learn.',
+    );
+    expect(HOME_PUBLIC_INTRO).not.toContain('plain-language');
+    expect(HOME_PUBLIC_BILLS_BODY).toContain('plain-language bill summaries');
+    expect(HOME_PUBLIC_SERVICES_BODY).toContain('political intelligence');
+  });
+
+  it('keeps reported-record limits and preserves signed-in wording', () => {
+    expect(HOME_PUBLIC_MONEY_BODY).toContain('records reported to the state');
+    expect(HOME_PUBLIC_MONEY_CTA).toBe('Search the money records');
+    expect(MONEY_PROMO_BODY).toBe(
+      'Explore Minnesota’s campaign finance and lobbying records, as reported to the state.',
+    );
+    expect(MONEY_PROMO_CTA).toBe('Money in politics');
+  });
+});
 
 const cardSource = () =>
   readFileSync(
@@ -43,7 +72,7 @@ describe('the example answer names the law in the record’s own words', () => {
   it('starts the privacy promise on the second summary line', () => {
     expect(cardSource()).toContain(
       String.raw`ban addictive features,{'\n'}and default
-        their accounts to the strictest privacy.`,
+        their accounts to the strictest privacy`,
     );
   });
 });
