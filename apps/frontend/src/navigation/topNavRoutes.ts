@@ -116,6 +116,6 @@ function normalizeNavPath(path: string) {
  */
 export function currentNavItemId(pathname: string): string | null {
   const here = normalizeNavPath(pathname);
-  const match = Object.entries(NAV_ITEM_HREFS).find(([, href]) => normalizeNavPath(href) === here);
+  const match = Object.entries(NAV_ITEM_HREFS).find(([, href]) => href === here);
   return match ? match[0] : null;
 }

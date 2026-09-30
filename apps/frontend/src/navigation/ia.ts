@@ -53,8 +53,6 @@ export interface IaItem {
    * (campaign money IA, Aug 2026). Take it off once the section stops being new.
    */
   isNew?: boolean;
-  /** Optional framing note. */
-  note?: string;
 }
 
 /** Money is a direct public destination before Search in both website layouts. */
@@ -88,7 +86,7 @@ const READ_ITEM: IaItem = {
   menu: null,
   availability: 'mvp',
   authGated: false,
-  note: 'Opens the /blog page. A piece of our own research is the one surface allowed to add figures up across members (.claude/rules/grounded-answers.md rule 13).',
+  // Own research may add figures across members (.claude/rules/grounded-answers.md rule 13).
 };
 
 /**
@@ -106,7 +104,7 @@ export const IA: IaItem[] = [
     menu: null,
     availability: 'mvp',
     authGated: false,
-    note: 'Anonymous users get one stateless cited answer; follow-ups, history, and saved sessions require sign-in. Reached from in-page actions rather than the global navigation.',
+    // Anonymous Ask is one stateless cited answer; follow-ups and history require sign-in.
   },
 
   // Search — public discovery ("the library").
@@ -118,7 +116,7 @@ export const IA: IaItem[] = [
     availability: 'mvp',
     authGated: false,
     description: 'Read bill summaries, check their status, and see how legislators voted',
-    note: 'Carries the purple "Grounded Ask" pill in the nav dropdown.',
+    // Carries the purple "Grounded Ask" pill in the nav dropdown.
   },
   MONEY_ITEM,
   {
@@ -193,7 +191,7 @@ export const IA: IaItem[] = [
     availability: 'roadmap',
     authGated: false,
     inNavDropdown: true,
-    note: 'Roadmap: "In the news", YouTube legislative sessions. Beyond current product-scope boundary.',
+    // "In the news" and YouTube sessions remain beyond current product scope.
   },
   {
     // Free-form "Ask AI" is a ROADMAP capability, not the shipped grounded Ask
@@ -239,7 +237,7 @@ export const IA: IaItem[] = [
     authGated: true,
     description: 'Follow a legislator — every bill they author, every vote they cast',
     inNavDropdown: true,
-    note: 'Roadmap: follow a legislator for activity notifications (#151).',
+    // Follow a legislator for activity notifications (#151) remains on the roadmap.
   },
   {
     id: 'track-issues',
@@ -285,7 +283,7 @@ export const IA: IaItem[] = [
     menu: 'about',
     availability: 'mvp',
     authGated: false,
-    note: 'Mission, team, story.',
+    // Mission, team, story.
   },
   {
     id: 'about-contact',

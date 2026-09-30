@@ -308,18 +308,6 @@ const rowHoverTransition = isWeb
     } as object)
   : null;
 
-/**
- * Small green NEW chip beside a newly launched nav row's label (IaItem.isNew).
- * Solid green fill with the darkest brand ink, per the campaign money IA mock.
- */
-function NewChip() {
-  return (
-    <View style={styles.newChip}>
-      <Text style={styles.newChipText}>NEW</Text>
-    </View>
-  );
-}
-
 function MenuPanelRow({
   item,
   current,
@@ -339,7 +327,6 @@ function MenuPanelRow({
           <Text style={[styles.menuRowTitle, disabled && styles.menuRowTitleDisabled]}>
             {item.label}
           </Text>
-          {item.isNew ? <NewChip /> : null}
         </View>
         {item.description ? (
           <Text style={[styles.menuRowDesc, disabled && styles.menuRowDescDisabled]}>
@@ -529,14 +516,13 @@ function MenuDrawerRow({
       style={styles.menuSubRow}
     >
       <Text style={styles.menuSubRowText}>{item.label}</Text>
-      {item.isNew ? <NewChip /> : null}
     </Pressable>
   );
 }
 
 /**
  * Money and Blog use the existing top-level phone row: taller than menu children,
- * with rules above and below, a NEW chip and a decorative right arrow.
+ * with rules above and below and a decorative right arrow.
  */
 function MenuDrawerBarRow({
   item,
@@ -555,7 +541,6 @@ function MenuDrawerBarRow({
     >
       <View style={styles.menuBarRowLabel}>
         <Text style={styles.menuSubRowText}>{item.label}</Text>
-        {item.isNew ? <NewChip /> : null}
       </View>
       {/* Decoration only, so it is hidden from a screen reader: the row's own
           words already say where it goes, and `aria-current` already says
@@ -640,6 +625,8 @@ export function TopNav({
   const [openMenuState, setOpenMenuState] = useState<MenuKey | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const signInAfterDrawer = useRef(false);
+  const closeDrawer = () => setDrawerOpen(false);
+  const openNavSignIn = () => openSignIn({ intent: 'nav' });
   const openMenu = openMenuProp !== undefined ? openMenuProp : openMenuState;
   const setOpenMenu = (menu: MenuKey | null) => {
     setOpenMenuState(menu);
@@ -724,6 +711,16 @@ export function TopNav({
     }
     onNavigate?.(item);
   };
+  const drawerButtonStyle = (state: { pressed: boolean }) => [
+    styles.hamburger,
+    !isMobile &&
+      finePointerCanHover() &&
+      (state as { hovered?: boolean }).hovered &&
+      styles.hamburgerHover,
+  ];
+  const navSignInButton = (
+    <PrimaryButton label="Sign in" appearance={signInAppearance} onPress={openNavSignIn} />
+  );
 
   return (
     <Container style={styles.navRow}>
@@ -764,38 +761,16 @@ export function TopNav({
                 ),
               )}
             </View>
-            {isSignedIn ? (
-              <AccountNavButton compact />
-            ) : (
-              <PrimaryButton
-                label="Sign in"
-                appearance={signInAppearance}
-                onPress={() => openSignIn({ intent: 'nav' })}
-              />
-            )}
+            {isSignedIn ? <AccountNavButton compact /> : navSignInButton}
           </View>
         ) : (
           <View style={styles.navMobileRight}>
-            {isMobile ? null : isSignedIn ? (
-              <AccountAvatarButton />
-            ) : (
-              <PrimaryButton
-                label="Sign in"
-                appearance={signInAppearance}
-                onPress={() => openSignIn({ intent: 'nav' })}
-              />
-            )}
+            {isMobile ? null : isSignedIn ? <AccountAvatarButton /> : navSignInButton}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={drawerOpen ? 'Close menu' : 'Open menu'}
               onPress={() => setDrawerOpen((v) => !v)}
-              style={(state) => [
-                styles.hamburger,
-                !isMobile &&
-                  finePointerCanHover() &&
-                  Boolean((state as { hovered?: boolean }).hovered) &&
-                  styles.hamburgerHover,
-              ]}
+              style={drawerButtonStyle}
             >
               {drawerOpen ? (
                 <X size={22} color={t.colors.ink} />
@@ -810,11 +785,11 @@ export function TopNav({
         visible={!isDesktop && drawerOpen}
         transparent
         animationType="fade"
-        onRequestClose={() => setDrawerOpen(false)}
+        onRequestClose={closeDrawer}
         onDismiss={() => {
           if (!signInAfterDrawer.current) return;
           signInAfterDrawer.current = false;
-          openSignIn({ intent: 'nav' });
+          openNavSignIn();
         }}
       >
         <View style={styles.menuScrim}>
@@ -824,7 +799,7 @@ export function TopNav({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Close menu"
-            onPress={() => setDrawerOpen(false)}
+            onPress={closeDrawer}
             style={StyleSheet.absoluteFill}
           />
           <View style={[styles.menuSheet, isMobile && styles.menuSheetPhone]}>
@@ -833,14 +808,8 @@ export function TopNav({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Close menu"
-                onPress={() => setDrawerOpen(false)}
-                style={(state) => [
-                  styles.hamburger,
-                  !isMobile &&
-                    finePointerCanHover() &&
-                    Boolean((state as { hovered?: boolean }).hovered) &&
-                    styles.hamburgerHover,
-                ]}
+                onPress={closeDrawer}
+                style={drawerButtonStyle}
               >
                 <X size={22} color={t.colors.ink} />
               </Pressable>
@@ -903,7 +872,7 @@ export function TopNav({
                     // sign-in dialog remembers where to return on dismissal.
                     signInAfterDrawer.current = isWeb;
                     setDrawerOpen(false);
-                    if (!isWeb) openSignIn({ intent: 'nav' });
+                    if (!isWeb) openNavSignIn();
                   }}
                 />
               )}
@@ -1257,21 +1226,6 @@ const styles = StyleSheet.create({
   menuRowIconTileDisabled: { backgroundColor: t.colors.surfaces.s300 },
   menuRowBody: { flex: 1, minWidth: 0 },
   menuRowTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  // NEW chip (IaItem.isNew): solid green fill, darkest brand ink, mono caps —
-  // values from the campaign money IA mock's nav chip.
-  newChip: {
-    backgroundColor: t.colors.brand.base,
-    borderRadius: 7,
-    paddingVertical: 3,
-    paddingHorizontal: 7,
-  },
-  newChipText: {
-    fontFamily: t.typography.mono,
-    fontSize: 9.5,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1,
-    color: t.colors.brand.darkest,
-  },
   menuRowTitle: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.subhead,
@@ -1376,8 +1330,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: t.colors.alpha.ink10,
   },
-  // The label and its NEW chip are one group, so the chip stays beside the word
-  // and wraps with it rather than drifting toward the arrow.
+  // Keep long labels beside their arrow when the drawer narrows.
   menuBarRowLabel: {
     flexDirection: 'row',
     alignItems: 'center',

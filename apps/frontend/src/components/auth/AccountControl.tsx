@@ -605,6 +605,39 @@ function EmailPreferencesRow({
   );
 }
 
+function AdminRow({
+  label,
+  href,
+  onPress,
+  phone,
+}: {
+  label: string;
+  href: string;
+  onPress: () => void;
+  phone: boolean;
+}) {
+  const hover = useFineHover();
+  return (
+    <Pressable
+      {...({ dataSet: menuRowDataSet } as object)}
+      {...linkProps(href, onPress)}
+      onHoverIn={hover.onHoverIn}
+      onHoverOut={hover.onHoverOut}
+      style={({ pressed }) => [
+        phone ? styles.sheetTrackedRow : styles.menuTrackedRow,
+        phone ? styles.sheetIconRow : styles.menuIconRow,
+        styles.adminRow,
+        hover.hovered && styles.menuRowHover,
+        pressed && (phone ? styles.sheetButtonPressed : styles.menuItemPressed),
+      ]}
+    >
+      <View style={phone ? styles.sheetIconBox : styles.menuIconBox} />
+      <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>{label}</Text>
+      <ChevronRightIcon />
+    </Pressable>
+  );
+}
+
 function AdminGroup({
   variant,
   onNavigate,
@@ -615,77 +648,30 @@ function AdminGroup({
   const navigation = useNavigation<any>();
   const access = useAdminAccess();
   const phone = variant === 'phone';
-  const usersHover = useFineHover();
-  const metricsHover = useFineHover();
-  const siteMetricsHover = useFineHover();
   if (access.state !== 'allowed') return null;
   return (
     <View style={phone ? styles.sheetAdminGroup : styles.menuAdminGroup}>
       <Text style={[styles.adminLabel, phone ? styles.sheetAdminLabel : styles.menuAdminLabel]}>
         Admin
       </Text>
-      <Pressable
-        {...({ dataSet: menuRowDataSet } as object)}
-        {...linkProps(routePath.adminUsers(), () => {
-          onNavigate();
-          navigation.navigate('AdminUsers');
-        })}
-        onHoverIn={usersHover.onHoverIn}
-        onHoverOut={usersHover.onHoverOut}
-        style={({ pressed }) => [
-          phone ? styles.sheetTrackedRow : styles.menuTrackedRow,
-          phone ? styles.sheetIconRow : styles.menuIconRow,
-          styles.adminRow,
-          usersHover.hovered && styles.menuRowHover,
-          pressed && (phone ? styles.sheetButtonPressed : styles.menuItemPressed),
-        ]}
-      >
-        <View style={phone ? styles.sheetIconBox : styles.menuIconBox} />
-        <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>
-          User Accounts
-        </Text>
-        <ChevronRightIcon />
-      </Pressable>
-      <Pressable
-        {...({ dataSet: menuRowDataSet } as object)}
-        {...linkProps(routePath.siteMetrics(), () => {
-          onNavigate();
-          navigation.navigate('SiteMetrics');
-        })}
-        onHoverIn={siteMetricsHover.onHoverIn}
-        onHoverOut={siteMetricsHover.onHoverOut}
-        style={({ pressed }) => [
-          phone ? styles.sheetTrackedRow : styles.menuTrackedRow,
-          phone ? styles.sheetIconRow : styles.menuIconRow,
-          styles.adminRow,
-          siteMetricsHover.hovered && styles.menuRowHover,
-          pressed && (phone ? styles.sheetButtonPressed : styles.menuItemPressed),
-        ]}
-      >
-        <View style={phone ? styles.sheetIconBox : styles.menuIconBox} />
-        <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Site Metrics</Text>
-        <ChevronRightIcon />
-      </Pressable>
-      <Pressable
-        {...({ dataSet: menuRowDataSet } as object)}
-        {...linkProps(routePath.adminSiteMetrics(), () => {
-          onNavigate();
-          navigation.navigate('AdminSiteMetrics');
-        })}
-        onHoverIn={metricsHover.onHoverIn}
-        onHoverOut={metricsHover.onHoverOut}
-        style={({ pressed }) => [
-          phone ? styles.sheetTrackedRow : styles.menuTrackedRow,
-          phone ? styles.sheetIconRow : styles.menuIconRow,
-          styles.adminRow,
-          metricsHover.hovered && styles.menuRowHover,
-          pressed && (phone ? styles.sheetButtonPressed : styles.menuItemPressed),
-        ]}
-      >
-        <View style={phone ? styles.sheetIconBox : styles.menuIconBox} />
-        <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Operations</Text>
-        <ChevronRightIcon />
-      </Pressable>
+      {(
+        [
+          ['User Accounts', routePath.adminUsers(), 'AdminUsers'],
+          ['Site Metrics', routePath.siteMetrics(), 'SiteMetrics'],
+          ['Operations', routePath.adminSiteMetrics(), 'AdminSiteMetrics'],
+        ] as const
+      ).map(([label, href, screen]) => (
+        <AdminRow
+          key={screen}
+          label={label}
+          href={href}
+          phone={phone}
+          onPress={() => {
+            onNavigate();
+            navigation.navigate(screen);
+          }}
+        />
+      ))}
     </View>
   );
 }
