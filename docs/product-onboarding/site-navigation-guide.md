@@ -2,7 +2,7 @@
 
 # How the top bar works (plain English)
 
-**Net:** Every page carries the same bar: **Money · Search ▾ · Blog · About ▾**, then **Sign in**, or
+**Net:** Most pages carry the same bar: **Money · Search ▾ · Blog · About ▾**, then **Sign in**, or
 your account control once you are signed in. The bar is drawn from one typed list of pages
 (`apps/frontend/src/navigation/ia.ts`), so a page is in the bar because that list says so, and
 addresses are resolved by one router (`apps/frontend/src/navigation/webRoutes.ts`).
@@ -11,6 +11,11 @@ The private `/comment-emails` screen is an exception: it carries only the linked
 wordmark and the reader's email stop choices, without the normal bar or footer.
 Readers reach it through a private email link, not the account menu. See
 [editorial-comments-guide.md](editorial-comments-guide.md#stopping-emails).
+
+The public `/services` presentation is also an exception. It has 1 dark header
+with a home-linked wordmark, Services, Partners, Early work and Contact Us. It uses
+the standard dark footer after Delivery and pricing. Other addresses keep the
+shared navigation described here. See [services-guide.md](services-guide.md).
 
 ## What is in the bar
 

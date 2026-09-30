@@ -1099,25 +1099,59 @@ export function Footer({
   onContact,
   onPrivacy,
   onTerms,
+  services = false,
 }: {
   onContact?: () => void;
   onPrivacy?: () => void;
   onTerms?: () => void;
+  services?: boolean;
 }) {
-  const { isMobile } = useResponsive();
+  const { isMobile, isDesktop, width } = useResponsive();
   const navigation = useNavigation<any>();
   return (
-    <View style={[styles.footer, isMobile && styles.footerMobile]}>
-      <Container style={isMobile ? styles.footerContainerMobile : styles.footerContainer}>
-        <View style={[styles.footerTop, isMobile && styles.footerTopMobile]}>
+    <View
+      style={[
+        styles.footer,
+        isMobile && styles.footerMobile,
+        services && { borderTopWidth: 1, borderTopColor: '#1f1f1f' },
+      ]}
+    >
+      <Container
+        style={[
+          isMobile ? styles.footerContainerMobile : styles.footerContainer,
+          services && {
+            maxWidth: 1240,
+            alignSelf: 'center',
+            paddingHorizontal: isMobile ? 16 : Math.min(48, Math.max(16, width * 0.04)),
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.footerTop,
+            (isMobile || (services && !isDesktop)) && styles.footerTopMobile,
+          ]}
+        >
           <View style={styles.footerBrand}>
             <Text style={[styles.footerTagline, isMobile && styles.footerTaglineMobile]}>
               We hold these truths to be self-evident.{'\n'}
               <Text style={styles.footerTaglineAccent}>Alethical makes them accessible.</Text>
             </Text>
           </View>
-          <View style={[styles.footerUtility, isMobile && styles.footerUtilityMobile]}>
-            <View style={[styles.footerSocialLinks, isMobile && styles.footerSocialLinksMobile]}>
+          <View
+            style={[
+              styles.footerUtility,
+              isMobile && styles.footerUtilityMobile,
+              services && !isDesktop && { alignItems: 'flex-start' },
+            ]}
+          >
+            <View
+              style={[
+                styles.footerSocialLinks,
+                isMobile && styles.footerSocialLinksMobile,
+                services && { flexWrap: 'wrap' },
+              ]}
+            >
               {SOCIAL_ACCOUNTS.map((social) => (
                 <FooterSocialIconLink
                   key={social.platform}

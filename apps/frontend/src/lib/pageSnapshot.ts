@@ -1,3 +1,5 @@
+import { SOCIAL_ACCOUNTS } from './socialLinks';
+import { SERVICES_CONTACT_HREF } from './services';
 import { articleReturnDestination } from './articleReturn';
 import {
   collectionPage,
@@ -352,6 +354,7 @@ export interface SnapshotRecordLink extends SnapshotLink {
 export interface PageSnapshot {
   /** The approved dark presentation keeps its background before the app starts. */
   appearance?: 'dark';
+  navigation?: 'services';
   /**
    * The small link above the heading that returns to the section this page sits
    * in, drawn exactly where the app draws its own (`/money` for a committee).
@@ -419,6 +422,7 @@ export type SnapshotBlock =
   | { kind: 'links'; items: SnapshotSectionItem[] };
 
 export interface SnapshotSection {
+  id?: string;
   heading: string;
   /** Ordered pieces. A section uses this OR `body`/`items`, never both. */
   blocks?: SnapshotBlock[];
@@ -2756,6 +2760,31 @@ function renderSnapshotNav(): string {
   );
 }
 
+/** Services has its own public presentation header, including before hydration. */
+function renderServicesNav(): string {
+  return (
+    '<header class="ps-services-nav"><div class="ps-inner ps-services-row">' +
+    '<a href="/" aria-label="Alethical home"><img src="/services-wordmark.png" width="183" height="32" alt="" /></a>' +
+    '<nav aria-label="Services sections"><a href="#services-offering">Services</a><a href="#partners">Partners</a><a href="#early-work">Early work</a></nav>' +
+    `<a class="ps-services-contact" href="${escapeHtml(SERVICES_CONTACT_HREF)}">Contact Us</a></div></header>`
+  );
+}
+
+function renderServicesFooter(): string {
+  return (
+    '<footer class="ps-services-footer"><div class="ps-inner">' +
+    '<p>We hold these truths to be self-evident.<br /><span>Alethical makes them accessible.</span></p>' +
+    `<nav aria-label="Alethical social accounts">${SOCIAL_ACCOUNTS.filter((account) => account.url)
+      .map(
+        (account) =>
+          `<a href="${escapeHtml(account.url!)}" target="_blank" rel="noopener noreferrer">${escapeHtml(account.label)}</a>`,
+      )
+      .join('')}</nav>` +
+    '<nav aria-label="Website information"><a href="/about/contact">Contact Us</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Use</a></nav>' +
+    '<hr /><p>© ALETHICAL · BUILT IN MINNESOTA</p><p>TRUTH, UNCONCEALED</p></div></footer>'
+  );
+}
+
 /** The twin-peak mark, the same path the app's `Logo` draws (`theme/primitives.tsx`). */
 export const LOGO_MARK_PATH = 'M0 82 L38 0 L38 82 Z M84 82 L46 0 L46 82 Z';
 
@@ -2837,7 +2866,7 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
         : '';
       const content = `${orderedBlocks}${sectionBody}${items}${sourceGroups}`;
       return content
-        ? `${section.separated ? '<hr />' : ''}<section class="ps-card${section.researchFeature ? ' ps-card-feature' : ''}">${section.heading ? `<h2>${escapeHtml(section.heading)}</h2>` : ''}${content}</section>`
+        ? `${section.separated ? '<hr />' : ''}<section${section.id ? ` id="${escapeHtml(section.id)}"` : ''} class="ps-card${section.researchFeature ? ' ps-card-feature' : ''}">${section.heading ? `<h2>${escapeHtml(section.heading)}</h2>` : ''}${content}</section>`
         : '';
     })
     .join('');
@@ -2868,7 +2897,7 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
 
   return [
     `<div class="page-snapshot${snapshot.appearance === 'dark' ? ' page-snapshot-dark' : ''}">`,
-    renderSnapshotNav(),
+    snapshot.navigation === 'services' ? renderServicesNav() : renderSnapshotNav(),
     '<main class="ps-inner">',
     snapshot.backLink
       ? `<a class="ps-back" href="${escapeHtml(snapshot.backLink.href)}">${BACK_CHEVRON}${escapeHtml(snapshot.backLink.label)}</a>`
@@ -2881,6 +2910,7 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
     ...(snapshot.recordsBeforeSections ? [records, sections, facts] : [sections, facts, records]),
     links,
     '</main>',
+    snapshot.navigation === 'services' ? renderServicesFooter() : '',
     '</div>',
   ]
     .filter(Boolean)
