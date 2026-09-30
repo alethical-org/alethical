@@ -1190,12 +1190,28 @@ and editable article correction links measured **296,142 bytes** in its single
 startup program. [Vercel deployment 9tUBcjVD7eAMyanG1hP7GQad7Lkd](https://vercel.com/alethical/alethical-web/9tUBcjVD7eAMyanG1hP7GQad7Lkd)
 stopped at the old limit, 120 bytes over, at 21:13:20 UTC. The build used
 [merge commit 2a437d47](https://github.com/alethical-org/alethical/commit/2a437d474c28ced895c8bfec73c501138d579b1f).
-The new limit is **296,881 bytes**, preserving the existing 739-byte margin over
+The 26 September limit was **296,881 bytes**, preserving the existing 739-byte margin over
 that hosted production measurement. This accepts the small startup increase for
 the approved publication and correction flow. Article bodies remain in their
 screen's later download; address and title metadata remain available at startup.
 The local 295,863-byte result and the successful preview did not establish the
 production size. The guard still rejects any build above the new measured limit.
+
+On 30 September, the successful combined production release of the public
+candidate route, shared navigation, Services header and footer measured
+**296,767 bytes**. [Vercel deployment 4qoonA25GTnSksofTrnouwBVmEcd](https://vercel.com/alethical/alethical-web/4qoonA25GTnSksofTrnouwBVmEcd)
+logged that figure at 23:24:05 UTC for
+[commit 6c0855b5](https://github.com/alethical-org/alethical/commit/6c0855b5e0884ba84d2d3b94a37e529854a609b8).
+The current limit is **297,506 bytes**, restoring the same **739-byte** margin
+above that measured production baseline. This accepts the intervening approved
+public routes and navigation without treating a local or preview export as the
+production size. The repeated-visit Services correction's preview exceeded the
+old limit by 24 bytes, which prompted this baseline update; that preview did not
+set the new value. Services-specific footer calculations also moved into the
+later-loaded Services screen, with the same visual layout. Compression settings,
+asset counting and the check that rejects even 1 byte over the limit remain unchanged.
+Release evidence belongs to
+[issue 2447](https://github.com/alethical-org/alethical/issues/2447).
 
 **That 239-byte rise is compression packing, not source size, and the distinction
 decides whether chasing it is worth anything.** Measured against `origin/main` on one

@@ -142,14 +142,14 @@ describe('checkFirstLoadBudget', () => {
   });
 
   it('leaves room above the hosted production measurement', () => {
-    // Vercel's production build of merge commit 2a437d47 measured 296,142 bytes
-    // on 26 September 2026; deployment stopped at the previous 296,022 limit.
-    expect(FIRST_LOAD_LIMIT).toBeGreaterThanOrEqual(296_142);
-    expect(FIRST_LOAD_LIMIT - 296_142).toBe(739);
+    // Vercel's production build of merge commit 6c0855b5 measured 296,767 bytes
+    // on 30 September 2026, including the public navigation and Services release.
+    expect(FIRST_LOAD_LIMIT).toBeGreaterThanOrEqual(296_767);
+    expect(FIRST_LOAD_LIMIT - 296_767).toBe(739);
   });
 
   it('keeps the ratchet at the hosted figure plus its existing headroom', () => {
-    expect(FIRST_LOAD_LIMIT).toBeLessThanOrEqual(296_881);
+    expect(FIRST_LOAD_LIMIT).toBeLessThanOrEqual(297_506);
   });
 });
 
