@@ -21,6 +21,7 @@ import { useLastVisitWithoutAdvancing } from '../../hooks/useTrackedBillsLastVis
 import { useAuth } from '../../providers/AuthProvider';
 import { SessionWatchCard } from '../../components/home/SessionWatchCard';
 import { MoneyPromoCard } from '../../components/home/MoneyPromoCard';
+import { SignedOutHomepage } from '../../components/home/SignedOutHomepage';
 import { sessionWatch } from '../../lib/sessionWatch';
 import { lastVisitFrom } from '../../lib/trackedBillsLastVisit';
 import { BillResultCard } from '../../components/search/BillResultCard';
@@ -510,7 +511,7 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
       <Text style={styles.answerSummary}>
         <Text style={styles.answerSummaryBold}>New Rules For Minors' Social Media Accounts</Text>{' '}
         will require parental consent for kids under 16, ban addictive features,{'\n'}and default
-        their accounts to the strictest privacy.
+        their accounts to the strictest privacy
       </Text>
 
       <View style={styles.citedRow}>
@@ -604,11 +605,23 @@ const heroHeadingProps = (isFocused: boolean) =>
 
 export function HomeSignedOutScreen() {
   const { isDesktop } = useResponsive();
+  const { isSignedIn } = useAuth();
   const isFocused = useIsFocused();
-  const sessionsQuery = useSessions({ enabled: isFocused });
+  const sessionsQuery = useSessions({ enabled: isFocused && isSignedIn });
   const currentSession =
     sessionsQuery.data?.find((session) => session.isCurrent) ?? sessionsQuery.data?.[0];
   const sessionLabel = formatSessionLabel(currentSession ?? SESSION_LABEL_FALLBACK).toUpperCase();
+  // Signed-in layout remains at its approved version until its revised drawing
+  // returns. Its tracked-bill jumps still point to its retained activity list.
+  if (!isSignedIn)
+    return (
+      <SignedOutHomepage
+        renderExample={(dimmed) => <AnswerCard dimmed={dimmed} />}
+        renderNews={(bill, onPress) => (
+          <NewsCardMobile bill={bill} hotIssue onPress={onPress} standaloneCopy />
+        )}
+      />
+    );
   return isDesktop ? (
     <HomeSignedOutDesktop sessionLabel={sessionLabel} />
   ) : (
@@ -1114,16 +1127,22 @@ function NewsCardMobile({
   bill,
   hotIssue,
   onPress,
+  standaloneCopy = false,
 }: {
   bill: Bill;
   hotIssue: boolean;
   onPress: () => void;
+  standaloneCopy?: boolean;
 }) {
   const [hovered, hoverProps] = useHover();
   // Live data, so it goes through the shared cleaner (grounded-answers rule 9). Full
   // text — the card clamps to 4 lines visually, which is not the same as dropping
   // everything after the first sentence.
   const summary = plainBillSummary(bill.aiAnalysis?.summary);
+  // The summary is public data. Only remove its ending period when it is one
+  // standalone sentence; multi-sentence summaries retain normal punctuation.
+  const summaryCopy =
+    standaloneCopy && summary && /^[^.!?]+\.$/.test(summary) ? summary.slice(0, -1) : summary;
   return (
     <Pressable
       {...linkProps(routePath.bill(bill.id), onPress)}
@@ -1141,7 +1160,7 @@ function NewsCardMobile({
       <Text style={m.newsTitle}>{billHeadline(bill)}</Text>
       {summary ? (
         <Text style={m.newsSummary} numberOfLines={4}>
-          {summary}
+          {summaryCopy}
         </Text>
       ) : null}
       <View style={m.cardMeta}>

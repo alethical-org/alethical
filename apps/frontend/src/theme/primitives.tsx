@@ -569,10 +569,12 @@ export function PrimaryButton({
   label,
   onPress,
   size = 'md',
+  appearance = 'primary',
 }: {
   label: string;
   onPress?: () => void;
   size?: 'md' | 'lg';
+  appearance?: 'primary' | 'outline';
 }) {
   const [hovered, hoverProps] = useHover();
   return (
@@ -584,10 +586,26 @@ export function PrimaryButton({
         styles.primaryBtn,
         size === 'lg' && styles.primaryBtnLg,
         { backgroundColor: hovered ? t.colors.brand.hover : t.colors.brand.base },
+        appearance === 'outline' && {
+          backgroundColor: hovered && finePointerCanHover() ? '#f7f8fa' : '#ffffff',
+          borderWidth: 1,
+          borderColor:
+            hovered && finePointerCanHover() ? 'rgba(17,21,15,0.3)' : 'rgba(17,21,15,0.16)',
+          paddingVertical: size === 'lg' ? 13 : 11,
+          paddingHorizontal: size === 'lg' ? 29 : 21,
+        },
         pressed && { transform: [{ scale: 0.98 }] },
       ]}
     >
-      <Text style={[styles.primaryBtnText, size === 'lg' && styles.primaryBtnTextLg]}>{label}</Text>
+      <Text
+        style={[
+          styles.primaryBtnText,
+          size === 'lg' && styles.primaryBtnTextLg,
+          appearance === 'outline' && { color: '#11150f' },
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -604,11 +622,13 @@ export function TopNav({
   onOpenMenuChange,
   onNavigate,
   onHome,
+  signInAppearance = 'primary',
 }: {
   openMenu?: MenuKey | null;
   onOpenMenuChange?: (menu: MenuKey | null) => void;
   onNavigate?: (item: IaItem) => void;
   onHome?: () => void;
+  signInAppearance?: 'primary' | 'outline';
 }) {
   const { isDesktop, isMobile } = useResponsive();
   const navigation = useNavigation<any>();
@@ -747,7 +767,11 @@ export function TopNav({
             {isSignedIn ? (
               <AccountNavButton compact />
             ) : (
-              <PrimaryButton label="Sign in" onPress={() => openSignIn({ intent: 'nav' })} />
+              <PrimaryButton
+                label="Sign in"
+                appearance={signInAppearance}
+                onPress={() => openSignIn({ intent: 'nav' })}
+              />
             )}
           </View>
         ) : (
@@ -755,7 +779,11 @@ export function TopNav({
             {isMobile ? null : isSignedIn ? (
               <AccountAvatarButton />
             ) : (
-              <PrimaryButton label="Sign in" onPress={() => openSignIn({ intent: 'nav' })} />
+              <PrimaryButton
+                label="Sign in"
+                appearance={signInAppearance}
+                onPress={() => openSignIn({ intent: 'nav' })}
+              />
             )}
             <Pressable
               accessibilityRole="button"
@@ -868,6 +896,7 @@ export function TopNav({
               ) : (
                 <PrimaryButton
                   label="Sign in"
+                  appearance={signInAppearance}
                   size="lg"
                   onPress={() => {
                     // Let the drawer restore focus to its opener before the

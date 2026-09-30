@@ -295,7 +295,15 @@ import {
 } from './moneyNameSearch';
 import { formatSessionLabel } from './sessionLabel';
 import { FIND_MY_LEGISLATOR_INSTRUCTIONS } from './findMyLegislator';
-import { HOME_PUBLIC_INTRO } from './homepage';
+import {
+  HOME_PUBLIC_INTRO,
+  HOME_PUBLIC_MONEY_BODY,
+  HOME_PUBLIC_MONEY_CTA,
+  HOME_PUBLIC_BILLS_HEADING,
+  HOME_PUBLIC_BILLS_BODY,
+  HOME_PUBLIC_BILLS_CTA,
+  MONEY_PROMO_HEADING,
+} from './homepage';
 
 /**
  * The short factual snapshot that ships INSIDE the first server response. Bill
@@ -457,13 +465,19 @@ export function homePageSnapshot(): PageSnapshot {
     body: [HOME_PUBLIC_INTRO],
     facts: [],
     bodyIsList: false,
-    links: [
-      { label: 'Search Bills', href: '/bills' },
-      { label: 'Search Legislators', href: '/legislators' },
-      { label: 'Find My Legislator', href: '/find-my-legislator' },
-      { label: MONEY_SECTION_NAME, href: '/money' },
-      { label: READ_PAGE_NAME, href: '/blog' },
+    sections: [
+      {
+        heading: MONEY_PROMO_HEADING,
+        body: [HOME_PUBLIC_MONEY_BODY],
+        items: [{ label: HOME_PUBLIC_MONEY_CTA, href: '/money' }],
+      },
+      {
+        heading: HOME_PUBLIC_BILLS_HEADING,
+        body: [HOME_PUBLIC_BILLS_BODY],
+        items: [{ label: HOME_PUBLIC_BILLS_CTA, href: '/bills' }],
+      },
     ],
+    links: [],
   };
 }
 
