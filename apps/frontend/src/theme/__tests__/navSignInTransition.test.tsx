@@ -66,6 +66,14 @@ describe('phone menu to Sign in', () => {
       (node) => node.textContent === 'Sign in',
     )!;
     expect(signIn).toBeTruthy();
+    const links = [...document.querySelectorAll<HTMLAnchorElement>('a')];
+    const candidate = links.find((node) => node.getAttribute('href') === '/candidates')!;
+    const legislator = links.find((node) => node.getAttribute('href') === '/find-my-legislator')!;
+    expect(candidate.textContent).toBe('Find my candidatesNEW');
+    expect(
+      candidate.compareDocumentPosition(legislator) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(document.body.textContent).not.toContain('ON THE ROADMAPCandidates');
     act(() => signIn.click());
     expect(state.openSignIn).not.toHaveBeenCalled();
     act(() => {

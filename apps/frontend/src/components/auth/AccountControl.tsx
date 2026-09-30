@@ -680,29 +680,50 @@ function Avatar({
   label,
   size,
   hovered = false,
+  control = false,
 }: {
   label: string;
   size: number;
   hovered?: boolean;
+  control?: boolean;
 }) {
   return (
     <View style={[styles.avatar, hovered && styles.avatarHovered, { width: size, height: size }]}>
-      <Text style={[styles.avatarText, { fontSize: Math.round(size * 0.45) }]}>
+      <Text
+        style={[
+          styles.avatarText,
+          { fontSize: Math.round(size * 0.45) },
+          control && styles.controlAvatarText,
+        ]}
+      >
         {initialOf(label)}
       </Text>
     </View>
   );
 }
 
-function Identity({ name, email, avatar }: { name: string; email: string; avatar: number }) {
+function Identity({
+  name,
+  email,
+  avatar,
+  drawer = false,
+}: {
+  name: string;
+  email: string;
+  avatar: number;
+  drawer?: boolean;
+}) {
   return (
-    <View style={styles.identityRow}>
-      <Avatar label={name} size={avatar} />
+    <View style={[styles.identityRow, drawer && styles.drawerIdentityRow]}>
+      <Avatar label={name} size={avatar} control={drawer} />
       <View style={styles.identityText}>
-        <Text numberOfLines={1} style={styles.identityName}>
+        <Text numberOfLines={1} style={[styles.identityName, drawer && styles.drawerIdentityName]}>
           {name}
         </Text>
-        <Text numberOfLines={1} style={styles.identityEmail}>
+        <Text
+          numberOfLines={1}
+          style={[styles.identityEmail, drawer && styles.drawerIdentityEmail]}
+        >
           {email}
         </Text>
       </View>
@@ -1119,7 +1140,12 @@ export function AccountNavButton({ compact = false }: { compact?: boolean } = {}
             pressed && styles.navPillPressed,
           ]}
         >
-          <Avatar label={name} size={compact ? 44 : 30} hovered={avatarHover.hovered} />
+          <Avatar
+            label={name}
+            size={compact ? 44 : 30}
+            hovered={avatarHover.hovered}
+            control={compact}
+          />
           {compact ? null : (
             <>
               <Text numberOfLines={1} style={styles.navPillName}>
@@ -1216,7 +1242,18 @@ function PhoneAccountControl({ trigger }: { trigger: 'avatar' | 'drawer' }) {
         {trigger === 'avatar' ? (
           <Avatar label={name} size={34} hovered={avatarHover.hovered} />
         ) : (
-          <Identity name={name} email={user?.email ?? ''} avatar={44} />
+          <>
+            <Identity name={name} email={user?.email ?? ''} avatar={44} drawer />
+            <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
+              <Path
+                d="M6 15 L12 9 L18 15"
+                stroke="#6f756f"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
+          </>
         )}
       </Pressable>
       <Modal
@@ -1330,7 +1367,11 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.brand.display,
   },
+  controlAvatarText: { fontSize: 17, fontWeight: t.fontWeights.heavy, color: '#0f7a45' },
   identityRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  drawerIdentityRow: { flex: 1, minWidth: 0, gap: 14 },
+  drawerIdentityName: { fontSize: 17 },
+  drawerIdentityEmail: { marginTop: 2, fontSize: 14, color: '#4f5651' },
   identityText: { flex: 1, minWidth: 0 },
   identityName: {
     fontFamily: t.typography.ui,
@@ -1483,7 +1524,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     fontFamily: t.typography.ui,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
@@ -1501,7 +1542,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     fontFamily: t.typography.ui,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
@@ -1610,9 +1651,16 @@ const styles = StyleSheet.create({
   drawerAccountButton: {
     width: '100%',
     minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 10,
-    paddingVertical: 4,
+    gap: 14,
+    backgroundColor: '#f7f8fa',
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.10)',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
   drawerAccountButtonPressed: { backgroundColor: t.colors.surfaces.s300 },
   sheetScrim: { flex: 1, backgroundColor: 'rgba(10,14,12,0.5)', justifyContent: 'flex-end' },
@@ -1694,7 +1742,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     fontFamily: t.typography.ui,
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
@@ -1725,7 +1773,7 @@ const styles = StyleSheet.create({
   sheetButtonText: {
     minWidth: 0,
     fontFamily: t.typography.ui,
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },

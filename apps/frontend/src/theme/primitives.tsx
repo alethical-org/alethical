@@ -172,7 +172,7 @@ function Logo({
   if (variant === 'menu') {
     return (
       <View accessibilityRole="image" accessibilityLabel="Alethical">
-        <LogoMark height={isMobile ? 26 : 30} fill={fill} />
+        <LogoMark height={26} fill={fill} />
       </View>
     );
   }
@@ -207,9 +207,6 @@ function Logo({
 
 /** Dropdown-row icon tiles — inline SVGs lifted from the DC source. */
 function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean }) {
-  // Services has no approved menu pictogram. Preserve label alignment without
-  // drawing an empty coloured icon tile.
-  if (itemId === 'about-services') return <View style={{ width: 40, height: 40 }} />;
   const c = disabled ? '#a4aba5' : t.colors.brand.graphics;
   return (
     <View style={[styles.menuRowIconTile, disabled && styles.menuRowIconTileDisabled]}>
@@ -233,7 +230,6 @@ function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean 
         ) : null}
         {itemId === 'search-legislators' ||
         itemId === 'track-legislators' ||
-        itemId === 'search-candidates' ||
         itemId === 'track-candidates' ? (
           <>
             <Circle cx={12} cy={8} r={3.4} stroke={c} strokeWidth={2} />
@@ -242,6 +238,18 @@ function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean 
               stroke={c}
               strokeWidth={2}
               strokeLinecap="round"
+            />
+          </>
+        ) : null}
+        {itemId === 'search-candidates' ? (
+          <>
+            <Rect x={4} y={4} width={16} height={16} rx={2.5} stroke={c} strokeWidth={2} />
+            <Path
+              d="M8.5 12.2 L11 14.7 L15.8 9.6"
+              stroke={c}
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
             />
           </>
         ) : null}
@@ -285,6 +293,17 @@ function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean 
             <Path d="M18 13.9c2.4.5 4 2.7 4 5.6" stroke={c} strokeWidth={2} strokeLinecap="round" />
           </>
         ) : null}
+        {itemId === 'about-services' ? (
+          <>
+            <Rect x={3.5} y={7} width={17} height={12.5} rx={2} stroke={c} strokeWidth={2} />
+            <Path
+              d="M9 7V5.5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5.5V7M3.5 12.5h17"
+              stroke={c}
+              strokeWidth={2}
+              strokeLinejoin="round"
+            />
+          </>
+        ) : null}
         {itemId === 'about-contact' ? (
           <>
             <Rect x={3.5} y={5.5} width={17} height={13} rx={2} stroke={c} strokeWidth={2} />
@@ -322,14 +341,22 @@ function MenuPanelRow({
 }) {
   const [hovered, hoverProps] = useHover();
   const disabled = item.availability === 'roadmap';
+  const compact = item.menu === 'about';
   const body = (
     <>
       <MenuRowIcon itemId={item.id} disabled={disabled} />
-      <View style={styles.menuRowBody}>
+      <View style={[styles.menuRowBody, compact && styles.menuRowBodyCompact]}>
         <View style={styles.menuRowTitleRow}>
-          <Text style={[styles.menuRowTitle, disabled && styles.menuRowTitleDisabled]}>
+          <Text
+            style={[
+              styles.menuRowTitle,
+              compact && styles.menuRowTitleCompact,
+              disabled && styles.menuRowTitleDisabled,
+            ]}
+          >
             {item.label}
           </Text>
+          {item.isNew ? <NavNewBadge /> : null}
         </View>
         {item.description ? (
           <Text style={[styles.menuRowDesc, disabled && styles.menuRowDescDisabled]}>
@@ -347,10 +374,23 @@ function MenuPanelRow({
       {...navRowLinkProps(item, onPress)}
       aria-current={current ? 'page' : undefined}
       {...hoverProps}
-      style={[styles.menuPanelRow, rowHoverTransition, hovered && styles.menuPanelRowHover]}
+      style={[
+        styles.menuPanelRow,
+        compact && styles.menuPanelRowCompact,
+        rowHoverTransition,
+        hovered && styles.menuPanelRowHover,
+      ]}
     >
       {body}
     </Pressable>
+  );
+}
+
+function NavNewBadge({ large = false }: { large?: boolean }) {
+  return (
+    <View style={styles.navNewBadge}>
+      <Text style={[styles.navNewBadgeText, large && styles.navNewBadgeTextLarge]}>NEW</Text>
+    </View>
   );
 }
 
@@ -363,16 +403,21 @@ function RoadmapPill({ label, large }: { label: string; large?: boolean }) {
   );
 }
 
-const PANEL_WIDTHS: Partial<Record<MenuKey, number>> = { search: 452, about: 320 };
+const SEARCH_PANEL_WIDTH = 452;
 
 function MenuPanel({ menu, onNavigate }: { menu: MenuKey; onNavigate?: (item: IaItem) => void }) {
   const { live, roadmap } = navDropdownItems(menu);
   const currentItemId = useCurrentNavItemId();
-  const width = PANEL_WIDTHS[menu] ?? 452;
+  const compact = menu === 'about';
   return (
-    <View style={[styles.menuPanel, { width }, t.shadows.panel as ViewStyle]}>
-      <View style={[styles.menuPanelNotch, { left: width / 2 - 7.5 }]} />
-      <View style={styles.menuPanelList}>
+    <View
+      style={[
+        styles.menuPanel,
+        compact ? styles.menuPanelCompact : { width: SEARCH_PANEL_WIDTH },
+        t.shadows.panel as ViewStyle,
+      ]}
+    >
+      <View style={[styles.menuPanelList, compact && styles.menuPanelListCompact]}>
         {live.map((item) => (
           <MenuPanelRow
             key={item.id}
@@ -441,8 +486,7 @@ function NavDropdownTrigger({
 }) {
   const [hovered, hoverProps] = useHover();
   const [triggerLayout, setTriggerLayout] = useState({ width: 0, height: 0 });
-  const width = PANEL_WIDTHS[menu] ?? 452;
-  const color = open ? t.colors.text.green : hovered ? t.colors.text.primary : '#4b524b';
+  const color = !open && hovered ? t.colors.text.primary : '#4b524b';
   const Caret = open ? ChevronUp : ChevronDown;
   return (
     <View style={styles.navTriggerWrap} {...hoverRegionProps(onHoverOpen, onHoverClose)}>
@@ -455,15 +499,18 @@ function NavDropdownTrigger({
         style={styles.navTrigger}
       >
         <Text style={[styles.navTriggerText, { color }]}>{label}</Text>
-        <Caret size={14} color={color} strokeWidth={2.2} />
+        <Caret size={14} color={open ? '#0f7a45' : color} strokeWidth={2.2} />
       </Pressable>
       {open ? (
         <View
           style={[
             styles.menuPanelAnchor,
             {
-              top: triggerLayout.height + 30,
-              left: triggerLayout.width / 2 - width / 2,
+              top: triggerLayout.height + 26,
+              left: triggerLayout.width / 2,
+              ...(isWeb
+                ? ({ transform: 'translateX(-50%)' } as unknown as ViewStyle)
+                : { marginLeft: -SEARCH_PANEL_WIDTH / 2 }),
             },
           ]}
         >
@@ -519,6 +566,7 @@ function MenuDrawerRow({
       style={styles.menuSubRow}
     >
       <Text style={styles.menuSubRowText}>{item.label}</Text>
+      {item.isNew ? <NavNewBadge large /> : null}
     </Pressable>
   );
 }
@@ -548,7 +596,28 @@ function MenuDrawerBarRow({
       {/* Decoration only, so it is hidden from a screen reader: the row's own
           words already say where it goes, and `aria-current` already says
           whether you are there. */}
-      <ArrowRight size={21} color={t.colors.text.muted} strokeWidth={2.2} aria-hidden />
+      <ArrowRight size={21} color="#656c66" strokeWidth={2} aria-hidden />
+    </Pressable>
+  );
+}
+
+/** Navigation uses one bar treatment and a separate full-width drawer action. */
+function NavSignInButton({ drawer = false, onPress }: { drawer?: boolean; onPress: () => void }) {
+  const { isMobile } = useResponsive();
+  const [hovered, hoverProps] = useHover();
+  const showHover = hovered && !isMobile && finePointerCanHover();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      {...hoverProps}
+      style={[
+        styles.navSignIn,
+        drawer && styles.drawerSignIn,
+        showHover && (drawer ? styles.drawerSignInHover : styles.navSignInHover),
+      ]}
+    >
+      <Text style={[styles.navSignInText, drawer && styles.drawerSignInText]}>Sign in</Text>
     </Pressable>
   );
 }
@@ -610,13 +679,11 @@ export function TopNav({
   onOpenMenuChange,
   onNavigate,
   onHome,
-  signInAppearance = 'primary',
 }: {
   openMenu?: MenuKey | null;
   onOpenMenuChange?: (menu: MenuKey | null) => void;
   onNavigate?: (item: IaItem) => void;
   onHome?: () => void;
-  signInAppearance?: 'primary' | 'outline';
 }) {
   const { isDesktop, isMobile } = useResponsive();
   const navigation = useNavigation<any>();
@@ -721,9 +788,7 @@ export function TopNav({
       (state as { hovered?: boolean }).hovered &&
       styles.hamburgerHover,
   ];
-  const navSignInButton = (
-    <PrimaryButton label="Sign in" appearance={signInAppearance} onPress={openNavSignIn} />
-  );
+  const navSignInButton = <NavSignInButton onPress={openNavSignIn} />;
 
   return (
     <Container style={styles.navRow}>
@@ -778,7 +843,7 @@ export function TopNav({
               {drawerOpen ? (
                 <X size={22} color={t.colors.ink} />
               ) : (
-                <Menu size={22} color={t.colors.ink} />
+                <Menu size={20} color={t.colors.ink} />
               )}
             </Pressable>
           </View>
@@ -814,10 +879,10 @@ export function TopNav({
                 onPress={closeDrawer}
                 style={drawerButtonStyle}
               >
-                <X size={22} color={t.colors.ink} />
+                <X size={20} color={t.colors.ink} strokeWidth={2.2} />
               </Pressable>
             </View>
-            <ScrollView style={styles.menuList}>
+            <ScrollView style={styles.menuList} contentContainerStyle={styles.menuListContent}>
               {/* The shared menu is Ask-free on every screen and at every width.
                   A bar item with no dropdown gets one row and no heading, drawn
                   at top level so it does not read as a 5th Search row
@@ -852,8 +917,10 @@ export function TopNav({
               })}
               <View style={styles.mobileRoadmapBlock}>
                 <View style={styles.mobileRoadmapLabelRow}>
-                  <Text style={styles.roadmapLabel}>ON THE ROADMAP</Text>
-                  <View style={styles.roadmapRule} />
+                  <Text style={[styles.roadmapLabel, styles.mobileRoadmapLabel]}>
+                    ON THE ROADMAP
+                  </Text>
+                  <View style={[styles.roadmapRule, styles.mobileRoadmapRule]} />
                 </View>
                 <View style={styles.mobileRoadmapPillRow}>
                   {mobileRoadmapPills.map((label) => (
@@ -866,10 +933,8 @@ export function TopNav({
               {isSignedIn ? (
                 <AccountDrawerRow />
               ) : (
-                <PrimaryButton
-                  label="Sign in"
-                  appearance={signInAppearance}
-                  size="lg"
+                <NavSignInButton
+                  drawer
                   onPress={() => {
                     // Let the drawer restore focus to its opener before the
                     // sign-in dialog remembers where to return on dismissal.
@@ -1197,18 +1262,23 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 10,
   },
-  menuPanelNotch: {
-    position: 'absolute',
-    top: -8,
-    width: 15,
-    height: 15,
-    backgroundColor: t.colors.surfaces.base,
-    borderLeftWidth: 1,
-    borderTopWidth: 1,
-    borderColor: t.colors.alpha.ink14,
-    transform: [{ rotate: '45deg' }],
-  },
+  menuPanelCompact: isWeb ? { width: 'max-content' as unknown as number } : { minWidth: 267 },
+  menuPanelListCompact: { gap: 2 },
   menuPanelList: { gap: 6 },
+  navNewBadge: {
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: '#2ed47e',
+  },
+  navNewBadgeText: {
+    fontFamily: t.typography.mono,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.1,
+    color: '#06231a',
+  },
+  navNewBadgeTextLarge: { fontSize: 12, letterSpacing: 1.2 },
   menuPanelRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1217,7 +1287,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 12,
   },
-  menuPanelRowHover: { backgroundColor: t.colors.alpha.ink06 },
+  menuPanelRowCompact: { paddingRight: 22, borderRadius: 11, minHeight: 44 },
+  menuPanelRowHover: { backgroundColor: '#f5f6f7' },
+  menuRowBodyCompact: { flexGrow: 1, flexShrink: 0, flexBasis: 'auto' },
+  menuRowTitleCompact: { fontSize: 17 },
   menuRowIconTile: {
     width: 40,
     height: 40,
@@ -1228,7 +1301,7 @@ const styles = StyleSheet.create({
   },
   menuRowIconTileDisabled: { backgroundColor: t.colors.surfaces.s300 },
   menuRowBody: { flex: 1, minWidth: 0 },
-  menuRowTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  menuRowTitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 9 },
   menuRowTitle: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.subhead,
@@ -1248,18 +1321,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingTop: 14,
+    paddingTop: 16,
     paddingHorizontal: 14,
-    paddingBottom: 6,
+    paddingBottom: 10,
   },
   roadmapLabel: {
     fontFamily: t.typography.mono,
-    // 12 (label), matching the SEARCH/ABOUT group eyebrows — 11 (caption) left
-    // it the smallest text in the drawer for no reason.
-    fontSize: t.fontSizes.label,
+    fontSize: 11,
     fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.2,
-    color: t.colors.text.faint,
+    letterSpacing: 1.21,
+    color: '#6f756f',
   },
   roadmapRule: { flex: 1, height: 1, backgroundColor: t.colors.alpha.ink07 },
   roadmapPillRow: {
@@ -1282,42 +1353,36 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.title,
     fontSize: 13,
     fontWeight: t.fontWeights.semibold,
-    color: t.colors.text.faint,
+    color: '#6f756f',
   },
-  roadmapPillTextLarge: { fontSize: 14 },
-  mobileRoadmapBlock: { paddingTop: 16, gap: 12 },
+  roadmapPillTextLarge: { fontSize: 15 },
+  mobileRoadmapBlock: { gap: 14 },
+  mobileRoadmapLabel: { fontSize: 13, letterSpacing: 1.82 },
+  mobileRoadmapRule: { backgroundColor: t.colors.alpha.ink10 },
   mobileRoadmapLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  mobileRoadmapPillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  // mobile drawer groups
-  menuGroup: { paddingVertical: 14, gap: 2 },
+  mobileRoadmapPillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
+  // Group headings sit 14px above rows; groups remain 24px apart.
+  menuGroup: { gap: 6 },
   menuGroupLabel: {
     fontFamily: t.typography.mono,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.68,
-    // forest (green700), not deep (green600): at 12px this label needs ≥4.5:1 on
-    // white; deep is only ~3.5:1, forest is ~5.4:1 (WCAG AA). Scoped to this small
-    // label so the brand green elsewhere (larger, passes at 3:1) is unaffected.
-    color: t.colors.brand.forest,
-    marginBottom: 6,
+    letterSpacing: 2.08,
+    color: '#0f7a45',
+    marginBottom: 8,
   },
-  // paddingVertical 12 (not 9) gives the 21px rows more breathing room within a
-  // group. That alone lands the row near 49px, which clears the 44px minimum by
-  // accident: nothing holds it there if the type size ever changes. `minHeight`
-  // is what holds it, so a smaller row size can shrink the ink and not the
-  // target (Design's nav drawing, 27 Aug 2026).
   menuSubRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 12,
+    flexWrap: 'wrap',
     minHeight: 44,
   },
   menuSubRowText: {
     fontFamily: t.typography.title,
     fontSize: 25,
     fontWeight: t.fontWeights.semibold,
-    letterSpacing: -0.2,
+    letterSpacing: -0.25,
     color: t.colors.text.primary,
   },
   // Direct destinations keep the same type as the grouped rows, with dividing
@@ -1342,8 +1407,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   hamburger: {
-    padding: 10,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 11,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.borders.base,
@@ -1365,23 +1433,48 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.surfaces.base,
     borderTopLeftRadius: 24,
     borderBottomLeftRadius: 24,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 28,
   },
   menuSheetPhone: {
     width: '100%',
     borderTopLeftRadius: 0,
     borderBottomLeftRadius: 0,
-    paddingTop: 26,
   },
-  menuSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  menuList: { flex: 1, marginTop: 40 },
-  // Opaque and padded because the footer is now two lines tall when signed in
-  // (name + email, then Sign out), and the scrolling list above it ends flush
-  // against it — without a background the last roadmap pill showed through the
-  // name (measured: 5px of overlap in a 375px-wide browser).
-  menuFooter: { backgroundColor: t.colors.surfaces.base, paddingTop: 12 },
+  menuSheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 22,
+  },
+  menuList: { flex: 1 },
+  menuListContent: { paddingVertical: 10, paddingHorizontal: 24, gap: 24 },
+  menuFooter: {
+    backgroundColor: t.colors.surfaces.base,
+    paddingTop: 14,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+  },
+  navSignIn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 13,
+    paddingHorizontal: 26,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.16)',
+    borderRadius: 12,
+  },
+  navSignInHover: { backgroundColor: '#f7f8fa', borderColor: 'rgba(17,21,15,0.3)' },
+  navSignInText: { fontFamily: t.typography.ui, fontSize: 18, fontWeight: '600', color: '#11150f' },
+  drawerSignIn: {
+    minHeight: 56,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderWidth: 0,
+    borderRadius: 14,
+    backgroundColor: '#2ed47e',
+  },
+  drawerSignInHover: { backgroundColor: '#28bf71' },
+  drawerSignInText: { fontSize: 20, fontWeight: '700', color: '#06231a' },
   primaryBtn: {
     borderRadius: t.radii.md,
     paddingVertical: 12,

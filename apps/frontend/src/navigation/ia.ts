@@ -132,6 +132,16 @@ export const IA: IaItem[] = [
     description: 'Look up any legislator’s bills, committees, and campaign money',
   },
   {
+    id: 'search-candidates',
+    label: 'Find my candidates',
+    path: '/candidates',
+    menu: 'search',
+    availability: 'mvp',
+    authGated: false,
+    description: 'Enter your street address to see who’s running in your area',
+    isNew: true,
+  },
+  {
     id: 'search-find-my-legislator',
     label: 'Find my legislators',
     path: '/find-my-legislator',
@@ -160,16 +170,6 @@ export const IA: IaItem[] = [
     menu: 'search',
     availability: 'roadmap',
     authGated: false,
-  },
-  {
-    id: 'search-candidates',
-    label: 'Candidates',
-    path: '/search/candidates',
-    menu: 'search',
-    availability: 'roadmap',
-    authGated: false,
-    description: "Know who's really running — the record behind the campaign",
-    inNavDropdown: true,
   },
   {
     id: 'search-claimed-profiles',
@@ -287,7 +287,7 @@ export const IA: IaItem[] = [
   },
   {
     id: 'about-services',
-    label: 'Services',
+    label: 'Campaign services',
     path: '/services',
     menu: 'about',
     availability: 'mvp',

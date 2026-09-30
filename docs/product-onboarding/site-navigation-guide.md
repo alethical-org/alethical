@@ -16,16 +16,16 @@ Readers reach it through a private email link, not the account menu. See
 
 - **Money** is a plain link to `/money`, before Search. It uses the same direct-link
   treatment as Blog. Neither direct destination carries a NEW label.
-- **Search ▾** opens a dropdown of 3 live rows, each with a one-line description: **Bills and votes**
-  (`/bills`), **Legislators** (`/legislators`), and **Find my legislators** (`/find-my-legislator`).
+- **Search ▾** opens a dropdown of 4 live rows, each with a one-line description: **Bills and votes**
+  (`/bills`), **Legislators** (`/legislators`), **Find my candidates** (`/candidates`), and **Find my legislators** (`/find-my-legislator`).
 - **Blog** is a plain link, not a dropdown. It opens the `/blog` page, which lists Alethical's
   own research, short posts and guides.
-- **About ▾** opens **About us** (`/about`), **Services** (`/services`), and
+- **About ▾** opens **About us** (`/about`), **Campaign services** (`/services`), and
   **Contact us** (`/about/contact`).
-  Services keeps the labels aligned with an empty icon space; no new menu picture is invented.
-- **Sign in** is the account action when you are signed out. The signed-out homepage
-  uses the approved white outlined button; other screens retain their existing primary
-  treatment. Pressing it opens the sign-in
+  Each desktop row has its approved picture: people, a briefcase, and an envelope.
+  The About dropdown fits its contents; neither dropdown has a pointer notch.
+- **Sign in** is the account action when you are signed out. Every shared desktop bar
+  uses a white outlined button; the drawer has its own full-width green button. Pressing it opens the sign-in
   dialog over the page you are on (`docs/product-onboarding/sign-in-guide.md`); there is no
   sign-in page to route to.
 - **The account control replaces Sign in once you are in**: an avatar on a
@@ -49,7 +49,7 @@ Readers reach it through a private email link, not the account menu. See
 ## Inside the account menu
 
 The account menu uses matching outline pictures for Tracked, password, email, and sign out.
-Every action label has the same bold weight. The desktop popover has room for
+Every action label has the same bold weight and size within its layout band. The desktop popover has room for
 longer labels; phone labels and touch targets are larger.
 The Admin group has 1 divider above its label and no divider between its 3 links.
 Empty icon spaces keep its labels aligned with the ordinary actions.
@@ -110,8 +110,7 @@ committee tabs that show campaign records rather than the whole `/money` section
 
 ## The greyed "ON THE ROADMAP" group
 
-Under Search's live rows sits a muted group of pills that cannot be pressed: **Candidates ·
-Claimed profiles · News · Ask AI**. They name work that is planned, not built, and a pill never
+Under Search's live rows sits a muted group of pills that cannot be pressed: **Claimed profiles · News · Ask AI**. They name work that is planned, not built, and a pill never
 leads anywhere. Only Search carries this group. Every other planned page in the list stays
 declared but unshown, so a roadmap pill may only stand in for a menu a reader can open.
 
@@ -129,14 +128,17 @@ declared but unshown, so a roadmap pill may only stand in for a menu a reader ca
 
 Below 1100 pixels wide the dropdowns become a drawer opened from the bar.
 Below 768px the drawer covers the whole screen and hides the underlying page and
-its logo. The drawer symbol sits in the same top-left position as the page symbol.
+its logo. The drawer has its own symbol and a full-size Close menu button.
 The phone bar has the wordmark and menu button; sign-in and account actions are
 reachable inside the drawer. From 768px to 1099px the drawer is a fixed-width panel on
 the right, with the underlying page dimmed. Both layouts scroll internally. Search's and About's
 rows sit under their group headings; Money and Blog each have a direct top-level row.
 Money comes before Search, and Blog follows Search. Both direct rows use the existing
 Blog row's taller touch target, dividing lines and right-pointing arrow. The roadmap pills appear below in a
-larger touch size, and the account row sits in the drawer's footer and opens the phone sheet.
+larger touch size, and the account card sits in the drawer's footer and opens the phone sheet.
+The card has a pale background, a border, the account name and email, and an upward arrow.
+The drawer header, scrolling links and fixed footer each own their padding;
+short screens can scroll through every roadmap pill without moving the footer.
 Every row is at least 44 pixels tall, and nothing depends on hovering.
 
 ## Addresses that forward
@@ -166,19 +168,21 @@ sizes, and spacing live in code (`apps/frontend/src/theme/tokens.ts`), never in 
 Desktop links and the account control sit at the right edge, with the wordmark
 at the left.
 Money, Search, Blog and About keep their
-existing order. The account avatar opens the same popover; signed-out readers keep
-the existing green Sign in action. The signed-out homepage retains its separately
-approved outlined Sign in treatment. Every wordmark remains a link to Home.
+existing order. The account avatar opens the same popover; signed-out readers use
+the white outlined Sign in action throughout the shared bar. The drawer Sign in
+action remains green regardless of the page underneath. Every wordmark remains a link to Home.
 
 Search's Bills and votes row says “Read bill summaries, check their status, and see
 how legislators voted”. Find my legislators retains “Enter your street address to
-see who represents you”. About uses sentence case: About us and Contact us.
+see who represents you”. About uses sentence case: About us, Campaign services and Contact us.
+Opening Search or About turns only its upward arrow green; the word keeps its resting colour.
 
-The accepted future candidate row is Find my candidates, immediately before Find
-my legislators, with “Enter your street address to see who’s running in your area”
-and a green NEW label. It stays absent until /candidates and its source coverage
-are ready. Candidates stays on the roadmap meanwhile; remove that roadmap pill
-when the live candidate row launches, so it is never shown twice.
+Find my candidates sits immediately before Find my legislators, with “Enter your
+street address to see who’s running in your area” on desktop and a green NEW label
+on both surfaces. The candidate destination is public by Eugene's 30 September
+correction. Until source-backed lookup is ready, /candidates clearly explains that
+real records are unavailable. Example records remain private. Candidates no longer
+appears in the roadmap group; candidate ownership claims remain held.
 
 The account menu retains Tracked and its combined bill-and-committee count.
 The handoff's Tracked Bills label and its claim that only bills can be followed

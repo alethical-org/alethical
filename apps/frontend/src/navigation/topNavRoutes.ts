@@ -5,6 +5,7 @@ type TopNavNavigateArgs =
   | ['Bills']
   | ['Legislators']
   | ['FindMyLegislator']
+  | ['Candidates']
   | ['MoneyLanding']
   | ['Read']
   | ['AboutUs']
@@ -51,6 +52,9 @@ export function navigateTopNavItem(
     case 'read':
       navigation.navigate('Read');
       return true;
+    case 'search-candidates':
+      navigation.navigate('Candidates');
+      return true;
     case 'search-find-my-legislator':
       navigation.navigate('FindMyLegislator');
       return true;
@@ -82,6 +86,7 @@ export const NAV_ITEM_HREFS: Record<string, string> = {
   ask: routePath.ask(),
   'search-bills': routePath.bills(),
   'search-legislators': routePath.legislators(),
+  'search-candidates': '/candidates',
   // Restored now that /find-my-legislator reads back as its own screen instead
   // of redirecting to Home, so this row's link lands where its click lands
   // (issue #764).

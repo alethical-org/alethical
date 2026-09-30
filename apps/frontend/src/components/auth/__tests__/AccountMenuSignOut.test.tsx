@@ -44,7 +44,7 @@ vi.mock('../../../hooks/useReducedMotion', () => ({
 
 vi.mock('../SignInContainer', () => ({ SignInContainer: () => null }));
 
-import { AccountAvatarButton, AccountNavButton } from '../AccountControl';
+import { AccountAvatarButton, AccountDrawerRow, AccountNavButton } from '../AccountControl';
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT =
   true;
@@ -92,7 +92,7 @@ function visibleSignOutLabel(action: HTMLElement) {
 }
 
 function click(element: HTMLElement) {
-  act(() => element.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  act(() => element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
 }
 
 let root: Root;
@@ -115,6 +115,7 @@ afterEach(() => {
 describe.each([
   ['desktop menu', <AccountNavButton />, 'Account panel for Marissa Chen'],
   ['phone sheet', <AccountAvatarButton />, 'Account menu'],
+  ['drawer account sheet', <AccountDrawerRow />, 'Account for Marissa Chen'],
 ] as const)('%s sign out', (_surface, control, openerLabel) => {
   it('keeps one focused action during the request, then shows a failure above its retry', async () => {
     const first = deferred();
@@ -180,7 +181,7 @@ describe.each([
     await act(async () => {});
     expect(document.querySelector('[role="alert"]')).not.toBeNull();
 
-    if (openerLabel === 'Account menu') click(button('Close'));
+    if (openerLabel !== 'Account panel for Marissa Chen') click(button('Close'));
     else click(button(openerLabel));
     expect(document.querySelector('[role="alert"]')).toBeNull();
 
