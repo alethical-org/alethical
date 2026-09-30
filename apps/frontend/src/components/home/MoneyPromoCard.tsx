@@ -1,14 +1,15 @@
 /**
  * The homepage's campaign-money promo (20 Aug 2026 design handoff).
  *
- * One card, 4 sizes. The sizes are not a responsive scale of each other: a
+ * Signed-in sizes retain their August design. Signed-out sizes and whole-card
+ * links follow the 30 September design. The sizes are not a responsive scale: a
  * signed-in reader's card sits inside the hero next to the smaller signed-in
  * search buttons, while a signed-out reader's sits in its own pale-green band
  * next to the larger ones, so the card matches its neighbours rather than
  * matching its own other copies. That difference is deliberate and is written
  * into the handoff ("do not fix it to match the signed-out card").
  *
- * Two sentences here are load-bearing and neither may be softened:
+ * The shared source and register safeguards apply to both versions:
  *
  * - The body line says figures are *read from* the filings, never that each
  *   entry is *tied to* the filing it came from. The published rows carry no
@@ -31,25 +32,27 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { isWeb, useHover } from '../billDetail/interactions';
+import { isWeb, useFineHover, useHover } from '../billDetail/interactions';
 import {
   MONEY_PROMO_BODY,
   MONEY_PROMO_COUNT_UNIT,
   MONEY_PROMO_CTA,
   MONEY_PROMO_EYEBROW,
   MONEY_PROMO_HEADING,
+  HOME_PUBLIC_MONEY_BODY,
+  HOME_PUBLIC_MONEY_CTA,
 } from '../../lib/homepage';
 import { formatCount } from '../../lib/moneyLanding';
 import { linkProps, routePath } from '../../navigation/links';
-import { theme as t } from '../../theme/tokens';
+import { theme as t, prefersReducedMotion } from '../../theme/tokens';
 
-/** Which of the 4 drawn sizes to render. Desktop is identical signed in or out;
- *  the narrow sizes are not. */
-export type MoneyPromoVariant = 'desktop' | 'phoneSignedOut' | 'phoneSignedIn' | 'tabletSignedIn';
+/** Keep signed-in sizes unchanged while exposing the new signed-out sizes. */
+type LegacyMoneyPromoVariant = 'desktop' | 'phoneSignedOut' | 'phoneSignedIn' | 'tabletSignedIn';
+export type MoneyPromoVariant = LegacyMoneyPromoVariant | 'desktopSignedOut' | 'tabletSignedOut';
 
 /** Per-variant type and spacing, measured from the handoff's 4 frames. */
 const SIZES: Record<
-  MoneyPromoVariant,
+  LegacyMoneyPromoVariant,
   {
     eyebrow: number;
     heading: number;
@@ -179,9 +182,24 @@ export function MoneyPromoCard({
   dimmed?: boolean;
   onPress: () => void;
 }) {
-  const s = SIZES[variant];
+  const publicCard =
+    variant === 'desktopSignedOut' || variant === 'tabletSignedOut' || variant === 'phoneSignedOut';
+  const s =
+    variant === 'desktopSignedOut'
+      ? SIZES.desktop
+      : variant === 'tabletSignedOut'
+        ? {
+            ...SIZES.desktop,
+            heading: 40,
+            padV: 38,
+            padH: 36,
+          }
+        : SIZES[variant];
   const [hovered, hoverProps] = useHover();
-  const narrow = variant !== 'desktop';
+  const [cardHovered, cardHoverProps] = useFineHover();
+  const narrow = variant !== 'desktop' && variant !== 'desktopSignedOut';
+  const Card = publicCard ? Pressable : View;
+  const Action = publicCard ? View : Pressable;
   const countLine = useMemo(
     () => (filerCount === null ? null : formatCount(filerCount)),
     [filerCount],
@@ -195,13 +213,25 @@ export function MoneyPromoCard({
     : { backgroundColor: 'rgba(255,255,255,0.75)' };
 
   return (
-    <View
+    <Card
+      {...(publicCard ? { ...linkProps(routePath.money(), onPress), ...cardHoverProps } : {})}
       style={[
         styles.card,
         narrow ? styles.cardNarrow : styles.cardDesktop,
         { paddingVertical: s.padV, paddingHorizontal: s.padH },
         narrow ? undefined : (t.shadows.lg as object),
         narrow ? (t.shadows.card as object) : undefined,
+        publicCard && styles.publicCard,
+        publicCard &&
+          isWeb &&
+          !prefersReducedMotion() &&
+          ({
+            transitionProperty: 'border-color, box-shadow, transform',
+            transitionDuration: '0.16s',
+            transitionTimingFunction: 'ease',
+          } as object),
+        publicCard && cardHovered && styles.publicCardHover,
+        publicCard && cardHovered && !prefersReducedMotion() && { transform: [{ translateY: -3 }] },
       ]}
     >
       {dimmed ? <View pointerEvents="none" style={[styles.overlay, blurOverlay]} /> : null}
@@ -229,7 +259,7 @@ export function MoneyPromoCard({
           { fontSize: s.body, lineHeight: Math.round(s.body * 1.52), marginTop: s.bodyTop },
         ]}
       >
-        {MONEY_PROMO_BODY}
+        {publicCard ? HOME_PUBLIC_MONEY_BODY : MONEY_PROMO_BODY}
       </Text>
 
       {/* The count, its skeleton, or nothing at all. Three outcomes, never two:
@@ -254,9 +284,8 @@ export function MoneyPromoCard({
         />
       ) : null}
 
-      <Pressable
-        {...linkProps(routePath.money(), onPress)}
-        {...hoverProps}
+      <Action
+        {...(publicCard ? {} : { ...linkProps(routePath.money(), onPress), ...hoverProps })}
         style={[
           styles.cta,
           {
@@ -268,13 +297,15 @@ export function MoneyPromoCard({
             alignSelf: s.buttonFullWidth ? 'stretch' : 'flex-start',
             justifyContent: s.buttonFullWidth ? 'center' : 'flex-start',
           },
-          hovered && styles.ctaHover,
+          (publicCard ? cardHovered : hovered) && styles.ctaHover,
         ]}
       >
-        <Text style={[styles.ctaLabel, { fontSize: s.button }]}>{MONEY_PROMO_CTA}</Text>
+        <Text style={[styles.ctaLabel, { fontSize: s.button }]}>
+          {publicCard ? HOME_PUBLIC_MONEY_CTA : MONEY_PROMO_CTA}
+        </Text>
         <CtaArrow size={Math.round(s.button * 0.95)} />
-      </Pressable>
-    </View>
+      </Action>
+    </Card>
   );
 }
 
@@ -291,6 +322,11 @@ const styles = StyleSheet.create({
   // 48px heading were never tuned.
   cardDesktop: { maxWidth: 583 },
   cardNarrow: { borderWidth: 1, borderColor: 'rgba(17,21,15,0.10)' },
+  publicCard: { maxWidth: '100%', borderWidth: 1, borderColor: 'rgba(17,21,15,0.08)' },
+  publicCardHover: {
+    borderColor: 'rgba(45,212,126,0.85)',
+    boxShadow: '0 22px 46px rgba(17,21,15,0.14)',
+  },
   overlay: { ...(StyleSheet.absoluteFill as object), borderRadius: 20, zIndex: 5 },
   eyebrow: {
     fontFamily: t.typography.mono,

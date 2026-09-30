@@ -247,8 +247,12 @@ page for about 2 seconds, and on the outside-spending page for as long as 3.
 
 ## The records arrive with the page too
 
-The homepage links directly to `/money` and `/blog`, as well as bills,
-legislators and Find My Legislator. A legislator response also includes up to 2
+The homepage's first response links to `/money`, `/bills` and `/blog`. Its body
+uses the same signed-out introduction and money and bill invitations as the
+loaded screen. The loaded Search menu retains legislator search and Find My
+Legislator; their separate homepage body links were removed in the approved
+30 September 2026 redesign. Held services and candidate features are absent
+from the initial response too. A legislator response also includes up to 2
 current-session chief-authored bill links when available. `/about` and
 `/about/contact` arrive with their own shared public text and contact links;
 private Track links, roadmap promises and the interactive contact form stay out

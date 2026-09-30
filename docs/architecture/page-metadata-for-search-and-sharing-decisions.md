@@ -1816,10 +1816,14 @@ bill page. Serving the real font early removes the swap rather than disguising i
 search-discovery and page-delivery repairs. The dated measurements are in
 [seo-indexing-audit-2026-09-07.md](../research/seo-indexing-audit-2026-09-07.md).
 
-The homepage's first response links to `/bills`, `/legislators`,
-`/find-my-legislator`, `/money` and `/blog`, using the existing visible link
-labels. The static shell and `homePageSnapshot` carry the same links, protected
-by their existing exact-match test. The homepage remains a static response.
+The homepage's first response carries the signed-out introduction and the money
+and Bills and votes invitations. Their links open `/money` and `/bills`; the
+shared static navigation also links to `/blog`. The signed-out redesign approved
+on 30 September 2026 removes the separate body links to legislator search and
+Find My Legislator. Those destinations remain in the loaded Search menu.
+The static shell and `homePageSnapshot` carry the same text and links, protected
+by their existing exact-match test. Held services and candidate features stay out
+of both. The homepage remains a static response.
 
 The `/money` response links to every indexable destination its current cards
 offer: `/legislators`, `/money/committees`, `/money/races` and

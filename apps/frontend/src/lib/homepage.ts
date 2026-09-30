@@ -2,7 +2,20 @@ import { MONEY_SECTION_NAME } from './moneySectionName';
 
 /** Exact signed-out Home introduction used before and after the app starts. */
 export const HOME_PUBLIC_INTRO =
-  'We read every bill so you don’t have to — what it says, where it stands, and how legislators voted. And the money: who gives, who spends, who gets paid, and who lobbies. Plain language, with every claim linked to the official record.';
+  'We turn scattered public records into clear information you can use. Understand what’s happening, check the evidence, and get practical support to act on what you learn.';
+
+/** Signed-out card wording; signed-in Home keeps its current wording and layout. */
+export const HOME_PUBLIC_MONEY_BODY =
+  'See who gives, who spends, who gets paid, and who is registered to lobby, using records reported to the state';
+export const HOME_PUBLIC_MONEY_CTA = 'Search the money records';
+export const HOME_PUBLIC_BILLS_HEADING = 'Bills and votes';
+export const HOME_PUBLIC_BILLS_BODY =
+  'Read plain-language bill summaries, see where they stand, and find out how legislators voted';
+export const HOME_PUBLIC_BILLS_CTA = 'Search bills';
+export const HOME_PUBLIC_SERVICES_HEADING = 'Campaign services';
+export const HOME_PUBLIC_SERVICES_BODY =
+  'Get political intelligence through campaign-finance research, plus websites, marketing, and custom software for your campaign or organization';
+export const HOME_PUBLIC_SERVICES_CTA = 'Explore our services';
 
 /** The 2 bill-group exits and the exact Bill Search state they promise. */
 export const HOME_BILL_GROUP_CONTINUATIONS = {

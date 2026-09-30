@@ -1,47 +1,98 @@
 # How the Home screen works
 
-<!-- describes: apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx, apps/frontend/src/components/home/*.tsx, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/hooks/useTrackedBillsLastVisit.ts, apps/frontend/src/lib/homepage.ts, apps/frontend/src/lib/sessionWatch.ts, apps/frontend/src/lib/trackedBillsLastVisit.ts, apps/frontend/src/theme/pageBackground.ts, scripts/check_home_hero_card_literals.py, .github/workflows/home-hero-card-facts.yml -->
+<!-- describes: apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx, apps/frontend/src/components/home/SignedOutHomepage.tsx, apps/frontend/src/components/home/*.tsx, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/hooks/useTrackedBillsLastVisit.ts, apps/frontend/src/lib/homepage.ts, apps/frontend/src/lib/sessionWatch.ts, apps/frontend/src/lib/trackedBillsLastVisit.ts, apps/frontend/src/theme/pageBackground.ts, scripts/check_home_hero_card_literals.py, .github/workflows/home-hero-card-facts.yml -->
 
-The Home screen gives a new reader 3 clear ways into Alethical: search the public
-record, open a current bill, or find the legislators for a Minnesota address. It
-does not offer a free-form question box because reader-written questions are not a
-live feature.
+Signed-out Home introduces Alethical, then leads with money records and bills and
+votes. Campaign services is the next priority when its destination is ready. Home
+has no free-form question box because reader-written questions are not a live feature.
 
-## The opening section
+## Signed-out opening and tool cards
 
-- **Search Bills** opens the default bill search page.
-- **Search Legislators** opens the legislator directory.
-- **The campaign-money card** is the right-hand half of the opening section for a
-  signed-out reader. For a signed-in one it sits below the opening section but
-  still inside it: the card is the tail of the hero, not a section of its own, so
-  the hero's background runs unbroken from the greeting down past the card, with
-  120px above it and 120px below. A signed-in reader's right-hand slot already
-  holds their tracked bills, and a pitch must not take that away. On a phone it is
-  the third item in the search cluster, because its own action is a third search.
-- The money card's headline is **Follow the money**. Its button says **Money in
-  politics**, without “Explore”, and opens `/money`. The headline is an invitation;
-  the button names the destination, matching the shared menu and the `/money` title.
-  [site-navigation-guide.md](site-navigation-guide.md#the-name-of-money) owns this distinction.
+- The headline reads **Grounded answers on Minnesota politics**.
+- The introduction is **We turn scattered public records into clear information you
+  can use. Understand what’s happening, check the evidence, and get practical support
+  to act on what you learn.** It describes the overall purpose; the cards explain
+  the individual tools.
+- **Follow the money** remains beside the introduction on desktop, stacks below
+  it on tablet, and follows it in a green band on phone. Its body reads **See who gives, who spends, who gets paid,
+  and who is registered to lobby, using records reported to the state**. Its action
+  says **Search the money records** and opens `/money`. This approved signed-out
+  homepage wording is an exception to the destination name **Money in politics**.
+- **Bills and votes** follows money. Its body reads **Read plain-language bill
+  summaries, see where they stand, and find out how legislators voted**. Its action
+  says **Search bills** and opens `/bills`. This card replaces the full bill-activity
+  lists on signed-out Home. It also replaces the separate Search Bills and Search
+  Legislators action pair; both searches remain available through shared navigation.
+- **Campaign services** follows bills and votes. Its body reads **Get political
+  intelligence through campaign-finance research, plus websites, marketing, and
+  custom software for your campaign or organization**. Its action says **Explore
+  our services** and will open `/services`. The card is implemented but hidden until
+  that destination works; this homepage release does not create the services page.
+- When services is enabled, bills sits left and services right on desktop and
+  tablet. Phone order is money, bills, services.
+- Signed-out Home removes Find My Legislator from the page body. The shared Search
+  menu still offers `/find-my-legislator`.
+- The proposed candidate form remains held until its separate owner supplies working
+  `/candidates` search and supported filing coverage. This release does not draw,
+  store, or submit a candidate address and does not advertise that destination.
+  Eugene approved **Find my candidates** as the homepage candidate wording on
+  30 September 2026. Use that capitalization when the held candidate feature launches.
+- The money and tool cards each form 1 link: clicking anywhere opens the same
+  destination as the drawn action. Each card is 1 keyboard stop. Pointer hover
+  changes the border, shadow, and action and lifts the card 3px; reduced-motion
+  preferences disable the lift. Keyboard focus outlines the whole card. Touch
+  actions do not depend on hovering.
+- The dark services action uses the approved lighter charcoal hover. The green
+  money action and outlined bills action retain their approved hover treatments.
+- Standalone interface units containing 1 sentence omit the ending period even
+  when they wrap. Paragraphs containing 2 or more sentences retain every period.
+  Article prose, exact source quotations, legal text, and serious warnings keep
+  normal punctuation. Explicit exact-wording requests take precedence; suggested
+  punctuation changes are separate proposals. The hero has 2 sentences and keeps
+  both periods; the card bodies have 1 sentence each and omit their ending periods.
+
+## Shared money-record safeguards
+
+- The money count is read live from the register on every load. If the register
+  does not answer, the whole line disappears: never a zero, never a dash, never a
+  remembered number. While it loads, a grey bar stands in its place.
+- The count says **registered campaigns, parties, and funds** and counts campaign
+  filers only. Lobbying records are separate and are not included in that number.
+- The card never says each entry is tied to the filing it came from. Published
+  contribution rows carry no reference to their source report, so that link cannot
+  be built. The wording says records were reported to the state instead.
+
+## Signed-in opening section
+
+The signed-in homepage keeps its current behavior and wording until its separate
+updated design is approved. Signing in therefore also preserves the older shared
+bill-activity and legislator-finder sections described here.
+
+- **Welcome back** and **Legislative session watch** remain first, with the tracked
+  card beside the greeting on desktop and below it on phone.
+- A reader with tracked bills sees what changed since the last visit to the tracked
+  list. Reading Home does not mark those changes as seen; opening the tracked list
+  does.
+- A reader tracking nothing retains the existing bill search and link to bill
+  activity already on Home. This signed-out update does not remove that target.
+- The signed-in money body remains **Explore Minnesota’s campaign finance and
+  lobbying records, as reported to the state.** Its action remains **Money in
+  politics**, opening `/money`.
+- The signed-in Search Bills and Search Legislators pair remains in place.
+- The money card sits below the signed-in greeting and tracked card, inside the
+  same hero background, with 120px above it and 120px below.
 - Keeping the card inside the hero has 2 visible consequences, both chosen
   deliberately (20 Aug 2026). The hero's background is a gradient measured as
   percentages of its own height, so a taller hero pushes the fade further down and
   the area around the Search pair reads lighter than it did. The dot texture runs
   behind and around the card for the same reason. Neither is pinned to fixed pixel
   positions, because that would freeze the background to today's hero height.
-- The card's count is read live from the register on every load. If the register
-  does not answer, the whole line disappears: never a zero, never a dash, never a
-  remembered number. While it loads, a grey bar stands in its place.
-- The count says "registered campaigns, parties, and funds" and counts campaign
-  filers only. Lobbying is a separate register we do not hold, so the word
-  "registered" is what stops the number reading as the size of both.
-- The card never says an entry is tied to the filing it came from. The published
-  rows carry no reference to the report they were filed on, so that link cannot be
-  built. It says the records were reported to the state instead, and
-  `src/components/home/__tests__/moneyPromoCopy.test.ts` fails if that sentence
-  drifts back.
 - The tracked-bills card is titled **Legislative session watch**. The longer name
   is deliberate: sitting next to the account menu, "Session" alone reads as a
   login session.
+
+## Signed-out editorial example
+
 - The example answer card shows what a cited answer looks like. It is an editorial
   example about HF 4138, not a generated answer or a promise that a reader can ask
   any question from Home. It sits in its own section below the hero, labelled "What
@@ -50,32 +101,14 @@ live feature.
   navigation announced a single bill as a section of the homepage with nothing
   marking it as an example.
 - That label is the same small green section label used above the bill sections,
-  not a large black headline. At 44px it matched "Bills Moving Through the
-  Legislature" and ranked one worked example equal to a whole section of bills.
+  not a large black headline. This keeps one worked example from ranking equal
+  to a whole section of bills.
   The sample question underneath is now the loudest line in the section, which is
   right, because the example is the content.
 - The label is still a heading, and its capitals come from styling rather than
   from typing the words in capitals. The words a screen reader announces stay in
   ordinary sentence case, because some readers spell out short all-capital text
   letter by letter.
-- The headline reads "Grounded answers on Minnesota politics". It said "on Minnesota
-  law" until the money section was added to the page; "politics" is the wider word
-  because the page now covers campaign money as well as legislation. The headline is
-  written in 4 places and all 4 must match: both hero layouts in
-  `HomeSignedOutScreen.tsx`, `homePageSnapshot()` in `lib/pageSnapshot.ts`, and the
-  pre-rendered copy baked into `public/index.html` that a crawler reads before any
-  JavaScript runs. A test pins the last one against the first three.
-- The supporting sentence names what the record covers — bills, where they stand,
-  how legislators voted, and the money: who gives, who spends, who gets paid, and
-  who lobbies — and says every claim links to the official record. It does not
-  promise that every question can be answered.
-- The money half of that sentence runs ahead of what a reader can reach today, and
-  that is deliberate rather than an oversight. Minnesota publishes lobbyist and
-  lobbying-entity registration, the lobbyist-to-client relationships, and principal
-  expenditures, and loading them is a named item on the campaign-money plan
-  (`docs/product-onboarding/campaign-finance-roadmap.md`, "8. Lobbying"). The money
-  section carries its own under-construction notice, so a reader is told where the
-  gap is.
 
 The example answer card keeps 1 divider, a linked bill code, the signed and effective
 dates, the chief author, both chamber vote totals, a plain-language summary, up to 3
@@ -133,7 +166,7 @@ like a slow load and never resolves.
   we are working and fixes itself; this says we stopped and nothing else will
   start again.
 
-## Bill activity
+## Signed-in bill activity
 
 The activity lists come from the current Legislature's records. They are not chosen
 by hand.
@@ -144,8 +177,9 @@ by hand.
   shows 1.
 - A card uses **Updated {date}** when its newest action would only repeat the status.
   Otherwise it uses **Latest action: {action} · {date}**.
-- **See more** and **See all** open the default bill search page with no hidden
-  filter or scroll target.
+- **See more recently passed** opens `/bills` filtered to signed bills and ordered
+  by latest action. **See more recently introduced** opens `/bills` ordered by
+  introduction date. Those continuations remain part of signed-in Home.
 
 The mobile **In the News** list is different. An editor chooses its bill ids and
 their order (`IN_THE_NEWS` in `HomeSignedOutScreen.tsx`), while each card's title,
@@ -153,32 +187,36 @@ status, date, and summary still come from that bill's real record. The current p
 are HF 4138 and SF 856. The first replaced a design placeholder that named the wrong
 bill.
 
-## Signed-in opening section
-
-Signing in changes only the opening section. The rest of Home stays the same.
-
-- A reader with tracked bills sees what changed since the last visit to the tracked
-  list.
-- Reading the Home card does not mark those changes as seen. Opening the tracked list
-  does.
-- A reader tracking nothing gets a link to the bill activity already on Home, not a
-  dead end.
-
 ## Small screens
 
-Phone Home is an intentional one-column layout, not a squeezed desktop page. Its
-order is opening section, In the News, bill activity, Find My Legislator, and footer.
-The old account promotion remains removed until sign-in leads to a useful signed-in
-destination.
+Signed-out phone Home uses this order: introduction, money, bills, services when
+ready, In the News, and footer. In the News sits directly before the footer, with
+no general bill-activity or legislator-finder section after it. Its current pins
+remain HF 4138 and SF 856; each card uses that bill's real records.
 
-The black dotted texture behind the opening section is absent below 768px and present
-at 768px or wider. The green dotted texture behind Find My Legislator remains at every
-width. The page keeps enough space while records load so later sections do not jump.
+Signed-in phone Home keeps its existing order: greeting and tracked bills, search
+actions and money, In the News, bill activity, Find My Legislator, and footer.
+The old account promotion remains removed.
+
+The black dotted texture behind the opening section is absent below 768px and
+present at 768px or wider. The signed-in green dotted texture behind Find My
+Legislator remains at every width. The page keeps enough space while records load
+so later sections do not jump. The editorial answer example appears on signed-out
+desktop and tablet, not phone or signed-in Home.
+
+## The first response
+
+The text served before the app starts uses the same signed-out introduction,
+money card, and bills card as the screen. It omits held services and candidate
+features and the removed body search/finder links. Shared navigation still offers
+Money, Search, Blog, and About, including legislator search and Find My Legislator.
+`homePageSnapshot()` and the generated initial `public/index.html` stay in sync.
 
 ## Lasting source of truth
 
 This guide owns Home's product behavior. The shared visual rules live in
 [`design-principles.md`](../design/design-principles.md), and the exact implemented
 values live in `apps/frontend/src/theme/tokens.ts` and
-`apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx`. Design previews are
+`apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx` and
+`apps/frontend/src/components/home/SignedOutHomepage.tsx`. Design previews are
 temporary working files and are not permanent product records.
