@@ -1,10 +1,11 @@
 # Candidate lookup: build and release plan
 
-<!-- describes: alethical/pipeline/candidate_catalogue.py, apps/frontend/src/lib/candidateSearchState.ts -->
+<!-- describes: alethical/pipeline/candidate_catalogue.py, alethical/pipeline/candidate_ballot.py, apps/frontend/src/lib/candidateSearchState.ts, apps/frontend/src/components/candidates/CandidateSearchContent.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/screens/CandidatePreviewScreens.tsx, apps/frontend/src/lib/candidateLookupAvailability.ts, apps/frontend/metro.config.js -->
 
-**Net:** Build the record-handling and temporary search-state foundation while the
-candidate search drawings are prepared. Public launch still depends on reviewed
-screens, supported local election areas, and retained official records.
+**Net:** The dormant record-handling foundation has been released. Build the reviewed
+search and read-only profile screens in a private development preview. Public launch
+still depends on supported local election areas, retained official records, freshness,
+and end-to-end source checks.
 
 Owner: Codex task **candidate lookup** (`01a0f355-a105-7543-8036-7c5274c0d5b7`).
 Tracking: [Search candidates and candidate profiles](https://github.com/alethical-org/alethical/issues/147).
@@ -30,9 +31,9 @@ the older saved requirements do not settle candidate claim verification.
 
 The homepage and navigation have separate active design work. This branch does not
 edit their components while that work continues. The candidate destination is
-`/candidates`, plural. The homepage button and Search menu row say **Find my
-candidates**. The menu row sits above **Find My Legislator**; desktop supporting text
-is **Enter your street address to see who has filed to run**. Mobile has no supporting
+`/candidates`, plural. The homepage button and Search menu row say **Find My
+Candidates**. The menu row sits above the existing legislator lookup; desktop supporting
+text is **Enter your street address to see who’s running in your area**. Mobile has no supporting
 text. The older planned `/search/candidates` entry remains inactive until rollout.
 
 ## Build order and ownership
@@ -184,3 +185,90 @@ make network calls, resolve ambiguous addresses, or implement the drawn controls
 - Backend parser, replay and integrity checks pass all 27 cases. Saved folders must
   agree with their election, source kind and original-file hash. Independent review
   accepted the corrected foundation. Required upload and hosted checks remain.
+
+## 30 September: reviewed screens and private build
+
+Eugene then instructed **“bd unless you need drawings”**. The latest completed design
+is `Alethical UX (45).zip`. Search/results and read-only source profiles are build-ready.
+Claims, management, campaign statements and services remain held. No additional drawing
+is needed for the settled search/profile corrections described here.
+
+- Build actual app components and lazy route wrappers for `/candidates` and
+  `/candidates/<election-specific-record-id>`.
+- Require both development mode and `EXPO_PUBLIC_CANDIDATE_LOOKUP_PREVIEW=true`.
+  Production remains off even if someone sets the review flag.
+- Use clearly labeled illustrative records only in the private development preview.
+  There is no live candidate API or production candidate data replacement.
+- Keep entered addresses, matched addresses and search results in memory. Route
+  parameters, browser storage and profile URLs carry no address. Reload clears search
+  state; profile return in the same app preserves coherent results.
+- Read-only profile election comes from that record, independently of the search
+  election. Unknown records show not found. No claim, owner or error-report control is
+  shown until its supporting policy or destination exists.
+- Omit unavailable filing dates and filing authorities. Preserve neutral party labels,
+  source links and per-race checked dates. Use the current shared navigation across
+  screen widths, including the drawer below 1100 pixels.
+- Preserve previous results and their election label while replacements load. Failures
+  keep usable results and retry. Only the latest request can replace displayed records.
+
+### Official sample-ballot source evidence
+
+The [official Minnesota sample-ballot website](https://myballotmn.sos.mn.gov/) uses
+`/api/Streets/GetStreets?ZipCode=<zip>` and
+`/api/PollingPlaceData/GetPollingPlaceData?prodAddressRangeId=<id>`.
+The ZIP table supplies number bounds, parity, full street directions, suffix and unit
+fields. Require exactly 1 complete match; unresolved units or multiple matches must
+remain unresolved. Postal city is not municipality: a SHAKOPEE postal range returned
+JACKSON TWP. P-1. Never assign city races from the postal name.
+
+The current response supplies election ID `8334`, 3 November 2026, plus exact-precinct
+ballot records, county, commissioner and school-subdistrict context. The shipped source
+has no election-list or direct candidate-profile request. Reject a response for a different
+requested election. Retain a separate public candidate index before supporting direct
+profile requests; exclude voter addresses, range IDs and visitor-to-candidate associations.
+
+Office/candidate codes collide across districts: `5000/9001` identifies different names
+in SSD #1 and ISD #720. Preserve exact office title, district type, county and election.
+The source's `SchoolDistrictId` is an internal selector ID, not the district number.
+Exclude ballot questions and WRITE-IN placeholders. Governor names are 1 official joint
+label; splitting on “and” does not establish separate person identities.
+
+The [official Minneapolis W-3 P-12 sample ballot](https://myballotmn.sos.mn.gov/file/SampleBallotPdf/30AD9581-E181-40C9-B086-61E8974F220F.pdf)
+has 2 pages, SHA-256
+`7339516b10160e81122d6f7f05c43a8c86fd928a80c93842845f882fdafe9cea`.
+It agrees with the source's governor tickets, Senate 59, House 59B and 4 SSD #1 at-large
+school-board candidates for 2 seats. This proves ballot candidacy for those records,
+not an original filing date or permission to control a candidate profile.
+
+[The Secretary of State's ballot guidance](https://www.sos.mn.gov/elections-voting/whats-on-my-ballot/)
+says some local sample ballots may be unavailable. Empty or unavailable source data
+must not mean no candidates. The offline parser and strict range matching remain
+inactive pending source retention, broader reconciliation, coverage and launch checks.
+
+### Current checkpoint
+
+Search/profile components, private routes, preview data and source parser are being
+built and checked in `codex/147-candidate-search-build`. The previous foundation was
+released through [pull request 2428](https://github.com/alethical-org/alethical/pull/2428).
+Public navigation, homepage activation, claims and production source connection are
+not part of this release. This task owns browser acceptance, independent review,
+checks, release and the next source-backed integration step.
+
+The private development preview runs at `http://localhost:19047/candidates` from this
+worktree. It labels records **PRIVATE DRAFT · ILLUSTRATIVE DATA** and states that
+entered addresses stay in the browser rather than claiming a real mapping request.
+The production resolver excludes both private review modules from export, and the
+release-asset check rejects illustrative records or controls in any exported program.
+
+Acceptance repairs preserve the reviewed design: retain a newly typed address while
+an older request is pending; cancel that older request; preserve the old address and
+election beside old rows; retain the grey coverage panel; print **1 ticket listed**;
+and use the leading back arrow. Shared input focus and link-arrow components supply
+the existing approved treatments. No further drawing is required for these repairs.
+
+Release checkpoint: 3,512 backend tests passed before the reserved write-in-code
+correction; the affected parser's final 45 tests pass. The complete website suite
+passed 3,852 tests; source-disclosure correction has its own focused check. Formatting,
+backend lint, database type checks and website type checks pass. The production export
+passes the unchanged startup-size limit and contains no illustrative candidate data.
+A fresh user-path review and current-main release remain in progress.

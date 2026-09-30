@@ -1,3 +1,4 @@
+import { candidatePreviewEnabled } from '../lib/candidateLookupAvailability';
 import { campaignMoneyYear } from '../lib/campaignMoneyYears';
 import { registrationNumberFromSlug } from '../lib/committeeRoute';
 import { paymentNameRole } from '../lib/paymentNameRoute';
@@ -36,6 +37,8 @@ type WebRouteTarget =
   | { kind: 'bills'; params: Record<string, string> }
   | { kind: 'legislators'; params: Record<string, string> }
   | { kind: 'findMyLegislator'; address?: string }
+  | { kind: 'candidates' }
+  | { kind: 'candidateProfile'; candidateId: string }
   | { kind: 'moneyLanding' }
   | { kind: 'emailPreferences' }
   | { kind: 'unsubscribe' }
@@ -234,6 +237,17 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   const normalized = normalizePathname(pathname);
   const searchParams = searchParamsFromPathname(pathname);
   const segments = normalized.split('/').filter(Boolean);
+
+  if (
+    typeof __DEV__ !== 'undefined' &&
+    __DEV__ &&
+    segments[0] === 'candidates' &&
+    candidatePreviewEnabled()
+  ) {
+    if (segments.length === 1) return { kind: 'candidates' };
+    if (segments.length === 2 && /^[a-zA-Z0-9_-]+$/.test(segments[1]))
+      return { kind: 'candidateProfile', candidateId: segments[1] };
+  }
 
   // Private filters never come from or go into the address.
   // The old permanent /admin/site-metrics -> /admin/metrics redirect may remain
@@ -773,6 +787,14 @@ export function pathForRoute(activeRoute: {
         ? `/find-my-legislator?address=${encodeURIComponent(String(address))}`
         : '/find-my-legislator';
     }
+    case 'Candidates':
+      return typeof __DEV__ !== 'undefined' && __DEV__ && candidatePreviewEnabled()
+        ? '/candidates'
+        : '/not-found';
+    case 'CandidateProfile':
+      return typeof __DEV__ !== 'undefined' && __DEV__ && candidatePreviewEnabled()
+        ? `/candidates/${encodeURIComponent(String(activeRoute.params?.candidateId ?? ''))}`
+        : '/not-found';
     case 'MoneyLanding':
       return '/money';
     case 'EmailPreferences':
@@ -1046,6 +1068,16 @@ export function stateFromPathname(pathname: string): WebNavigationState {
               year: target.year,
             },
           },
+        ],
+        index: 1,
+      };
+    case 'candidates':
+      return { routes: [homeTabs, { name: 'Candidates' }], index: 1 };
+    case 'candidateProfile':
+      return {
+        routes: [
+          homeTabs,
+          { name: 'CandidateProfile', params: { candidateId: target.candidateId } },
         ],
         index: 1,
       };
