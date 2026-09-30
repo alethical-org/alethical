@@ -9,6 +9,7 @@ line, short notes, conclusions and tables, 30 Sep 2026”, accepted under his
 The named updated drawings and `build-facts-reading-round-3.md` §7d were not
 downloaded. The written proposal is the new target; `Alethical UX (43).zip`
 remains the prior appearance target outside the explicit exceptions below.
+Prior bundle SHA-256: `55908464d5659f1d2388a458aa182b7e08c617da58819464a5c67f11ec57aa50`.
 
 Branch `codex/article-reading-limits`; isolated working copy
 `/private/tmp/alethical-article-reading-limits`. The build helper owns code,
@@ -21,14 +22,14 @@ Expected behavior and acceptance evidence:
 
 | Surface | Approved target | Observed / evidence |
 | --- | --- | --- |
-| All article H1 titles | From 768px, maximum 1040px and balanced wrapping; every YYYY–YYYY range stays on 1 line at all widths; exact characters retained | Implemented; exact title characters pass automated tests; browser acceptance pending at 1600px, including lobbyist giving 2015–2026 and no isolated final word/year |
-| Long Research opening under H1 | Existing 22px text limited to 880px; Guide and Short post openings unchanged | Pending browser comparison |
-| HOW THIS WAS CALCULATED | Essential paragraph and Full method control limited to 880px; expanded body and enclosing box remain full width | Pending browser comparison and control checks |
-| Closing AI note | AI-preparation paragraph limited to 880px; enclosing box unchanged | Pending browser comparison |
-| Existing conclusions | Whole symbol-plus-gap-plus-text wrapper limited to 880px; exact current symbol size and text preserved | Pending browser comparison of prose and chart conclusions |
-| Every article table | Full-width table; label column width 1%, no wrapping from 768px; numeric columns width 1%, minimum 160px and expand for widest content; 1 empty aria-hidden spacer cell per row including header; real row/column header associations; full-width row lines | Pending browser measurements: at 1600px first figure within 200px of longest label, headings and values readable without wrapping |
-| Overflowing tables | Local horizontal scroll at every width when necessary, keyboard accessible with existing approved visible focus | Pending 320/375/768/900/1099px and 200% text checks; no page overflow or concealed values |
-| Unchanged surfaces | Article frame, body paragraphs/subheads/lists/boxes, contents rail, comments, Related reading, footer, navigation and Share remain as built; every word/value/date/link, font, spacing, fill, border and radius preserved | Pending source-diff review and browser comparison |
+| All article H1 titles | From 768px, maximum 1040px and balanced wrapping; every YYYY–YYYY range stays on 1 line at all widths; exact characters retained | All 9 published titles at 1600px measure1040px, use balanced lines and have no isolated final word/year. Exact title characters pass automated tests. Lobbyist giving 2015–2026 occupies1 line at320/375/768/900/1099/1600px. Exceptional200% phone zoom recovery is being corrected and retested. |
+| Long Research opening under H1 | Existing 22px text limited to 880px; Guide and Short post openings unchanged | Long report opening measures880px at1600px, with unchanged22px type. Guide opening remains1488px with unchanged19px type; Short post opening remains1488px. |
+| HOW THIS WAS CALCULATED | Essential paragraph and Full method control limited to 880px; expanded body and enclosing box remain full width | Essential summary and Full method control measure880px inside1488px box. Keyboard Space expands body to1438px usable width (1488px box less existing padding); focus stays on control. |
+| Closing AI note | AI-preparation paragraph limited to 880px; enclosing box unchanged | AI paragraph880px inside unchanged1488px box at1600px. |
+| Existing conclusions | Whole symbol-plus-gap-plus-text wrapper limited to 880px; exact current symbol size and text preserved | Prose conclusion and organizations chart conclusion measure880px including symbol, gap and text. Chart conclusion divider narrows with this approved whole-wrapper limit; its enclosing chart remains1488px. Existing symbol size and exact wording retained. |
+| Every article table | Full-width table; label column width 1%, no wrapping from 768px; numeric columns width 1%, minimum 160px and expand for widest content; 1 empty aria-hidden spacer cell per row including header; real row/column header associations; full-width row lines | All 5 published tables at1600px align each real column across rows. Numeric columns measure160px or expand to166.84/242.29px for headings. First figure lies24–109px from the longest label. Hidden empty spacers appear in every row and remain excluded from native accessibility tables; row lines span the article column. |
+| Overflowing tables | Local horizontal scroll at every width when necessary, keyboard accessible with existing approved visible focus | All 3 formats at320/375/768/900/1099px stay within viewport. Wider tables scroll locally; keyboard ArrowRight moves the focused320/375px table40px and keeps the existing2px purple focus visible. At768px lobbyist table717.96px scrolls within688px column, and long-report table440.35px within404px frame. Exceptional200% title recovery remains pending. |
+| Unchanged surfaces | Article frame, body paragraphs/subheads/lists/boxes, contents rail, comments, Related reading, footer, navigation and Share remain as built; every word/value/date/link, font, spacing, fill, border and radius preserved | Independent whole-scope source and appearance review found no changed words, values, dates, links, type, spacing or surrounding sections outside named exceptions. At1600px before/after, Guide/Short column1488px, Research column1206px, comments1600px and Related reading1488px are identical. Contents links land24px from top; Share opens and Escape closes/restores trigger. Phone Share works. |
 
 These are narrow exceptions to the earlier all-text-full-width direction.
 Numeric 160px is a floor, not a fixed cap. Tables may overflow locally on tablet
