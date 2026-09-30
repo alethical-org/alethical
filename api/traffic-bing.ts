@@ -1,4 +1,6 @@
-type RequestLike = { method?: string };
+import { requireSiteMetricsAdmin } from "./_lib/requireSiteMetricsAdmin";
+
+type RequestLike = { method?: string; headers?: Record<string, string | string[] | undefined> };
 type ResponseLike = {
   status: (code: number) => ResponseLike;
   setHeader: (name: string, value: string) => void;
@@ -11,8 +13,7 @@ type BingPayload = { d?: unknown };
 const ENDPOINT =
   "https://ssl.bing.com/webmaster/api.svc/json/GetRankAndTrafficStats";
 const DAY_MS = 86_400_000;
-const OK_CACHE =
-  "public, max-age=0, s-maxage=21600, stale-while-revalidate=86400";
+const OK_CACHE = "private, no-store";
 
 class SearchUnavailable extends Error {}
 
@@ -55,6 +56,7 @@ export default async function handler(
     sendJson(response, 405, { error: "Method not allowed." }, "no-store");
     return;
   }
+  if (!(await requireSiteMetricsAdmin(request, response))) return;
   const apiKey = process.env.BING_WEBMASTER_API_KEY?.trim();
   const siteUrl = process.env.BING_WEBMASTER_SITE_URL?.trim();
   if (!apiKey || !siteUrl) {

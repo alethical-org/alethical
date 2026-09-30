@@ -62,7 +62,7 @@ jobs:
             });
             const milestone = milestones.find((item) => item.title === 'v0 hardening');
             const body = [
-              `Net: Replace Alethical's private Vercel Traffic access key before it expires, or the public Site metrics totals will become unavailable.`,
+              `Net: Replace Alethical's private Vercel Traffic access key before it expires, or the administrator-only Site Metrics totals will become unavailable.`,
               '',
               `- The key expires on ${expiryLabel}.`,
               '- Create a new Vercel key for the Alethical team with access to All Projects.',
@@ -70,9 +70,9 @@ jobs:
               '- Replace the sensitive Production setting `VERCEL_ANALYTICS_ACCESS_TOKEN`.',
               '- Update `TRAFFIC_TOKEN_EXPIRES_AT` in `apps/frontend/scripts/traffic-token-expiry.mjs`.',
               '- Update `docs/product-onboarding/traffic-guide.md` with the new expiry date.',
-              '- Release a new Production version, then check `/api/traffic` and `/site-metrics` on alethical.com.',
+              '- Release a new Production version, then use an administrator account to check `/admin/site-metrics` and `/api/traffic` on alethical.com.',
               '',
-              'If the date is missed, the rest of Alethical stays up and can still be released. Only the public Site metrics totals become unavailable.',
+              'If the date is missed, the rest of Alethical stays up and can still be released. Only the administrator-only Site Metrics traffic totals become unavailable.',
             ].join('\n');
 
             let issue = existing;
@@ -112,8 +112,8 @@ jobs:
                 : null;
             if (marker && !comments.some((comment) => comment.body?.includes(marker))) {
               const message = status === 'expired'
-                ? `${marker}\nNet: The Vercel Traffic access key has expired, so the public Site metrics totals cannot recover until the key is replaced.`
-                : `${marker}\nNet: The Vercel Traffic access key expires in ${process.env.DAYS_REMAINING} days. Replace it now so the public totals stay available.`;
+                ? `${marker}\nNet: The Vercel Traffic access key has expired, so the administrator-only Site Metrics totals cannot recover until the key is replaced.`
+                : `${marker}\nNet: The Vercel Traffic access key expires in ${process.env.DAYS_REMAINING} days. Replace it now so the administrator-only totals stay available.`;
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,

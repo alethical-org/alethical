@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+vi.mock('../../../../../api/_lib/requireSiteMetricsAdmin', () => ({
+  requireSiteMetricsAdmin: async () => true,
+}));
 
 import handler from '../../../../../api/traffic-uptime';
 
@@ -95,9 +98,7 @@ describe('Checkly public uptime endpoint', () => {
       expect(init?.headers).toEqual({ Accept: 'application/json' });
       expect(init?.signal).toBeInstanceOf(AbortSignal);
     }
-    expect(result.headers.get('Cache-Control')).toBe(
-      'public, max-age=0, s-maxage=300, stale-while-revalidate=60',
-    );
+    expect(result.headers.get('Cache-Control')).toBe('private, no-store');
     expect(JSON.stringify(result.body)).not.toMatch(/private-checkly-key|account-id|web-id|api-id/);
   });
 

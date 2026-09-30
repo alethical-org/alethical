@@ -20,23 +20,25 @@ const routeSource = readFileSync(join(__dirname, '..', 'webRoutes.ts'), 'utf8');
 
 describe('private admin addresses', () => {
   it.each(['/admin/metrics', '/admin/site-metrics'])(
-    'keeps %s private and ignores incoming search state',
+    'opens private Site Metrics at %s without incoming search state',
     (path) => {
-      expect(targetFromPathname(`${path}?email=private`)).toEqual({ kind: 'adminSiteMetrics' });
-      expect(stateFromPathname(path)?.routes[1]).toEqual({ name: 'AdminSiteMetrics' });
-      expect(pathForRoute({ name: 'AdminSiteMetrics', params: { email: 'private' } })).toBe(
-        '/admin/metrics',
-      );
+      expect(targetFromPathname(`${path}?email=private`)).toEqual({ kind: 'siteMetrics' });
+      expect(stateFromPathname(path)?.routes[1]).toEqual({ name: 'SiteMetrics' });
     },
   );
-  it('redirects the former metrics address to its canonical address', () => {
+  it('gives Operations its own private address and moves the old public address', () => {
+    expect(targetFromPathname('/admin/operations?email=private')).toEqual({
+      kind: 'adminSiteMetrics',
+    });
+    expect(pathForRoute({ name: 'AdminSiteMetrics' })).toBe('/admin/operations');
+    expect(pathForRoute({ name: 'SiteMetrics' })).toBe('/admin/site-metrics');
     const config = JSON.parse(
       readFileSync(join(__dirname, '../../../../..', 'vercel.json'), 'utf8'),
     );
     expect(config.redirects).toContainEqual({
-      source: '/admin/site-metrics',
-      destination: '/admin/metrics',
-      permanent: true,
+      source: '/site-metrics',
+      destination: '/admin/site-metrics',
+      permanent: false,
     });
   });
   it.each([
@@ -346,7 +348,7 @@ describe('live URLs still resolve to themselves', () => {
     expect(targetFromPathname('/privacy')).toEqual({ kind: 'privacy' });
     expect(targetFromPathname('/site-metrics')).toEqual({ kind: 'siteMetrics' });
     expect(targetFromPathname('/terms')).toEqual({ kind: 'terms' });
-    expect(pathForRoute({ name: 'SiteMetrics' })).toBe('/site-metrics');
+    expect(pathForRoute({ name: 'SiteMetrics' })).toBe('/admin/site-metrics');
   });
 
   it('round-trips the Contact us page through its public URL', () => {

@@ -1,7 +1,8 @@
 import { getVercelOidcToken } from "@vercel/oidc";
 import { ExternalAccountClient } from "google-auth-library";
+import { requireSiteMetricsAdmin } from "./_lib/requireSiteMetricsAdmin";
 
-type RequestLike = { method?: string; url?: string };
+type RequestLike = { method?: string; url?: string; headers?: Record<string, string | string[] | undefined> };
 type ResponseLike = {
   status: (code: number) => ResponseLike;
   setHeader: (name: string, value: string) => void;
@@ -15,8 +16,7 @@ type SearchPayload = {
 };
 
 const READ_ONLY_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
-const OK_CACHE =
-  "public, max-age=0, s-maxage=21600, stale-while-revalidate=86400";
+const OK_CACHE = "private, no-store";
 const DAY_MS = 86_400_000;
 
 class SearchUnavailable extends Error {}
@@ -106,6 +106,8 @@ export default async function handler(
     sendJson(response, 405, { error: "Method not allowed." }, "no-store");
     return;
   }
+
+  if (!(await requireSiteMetricsAdmin(request, response))) return;
 
   const projectNumber =
     process.env.GOOGLE_SEARCH_CONSOLE_GCP_PROJECT_NUMBER?.trim();

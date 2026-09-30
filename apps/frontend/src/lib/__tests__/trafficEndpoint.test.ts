@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+vi.mock('../../../../../api/_lib/requireSiteMetricsAdmin', () => ({
+  requireSiteMetricsAdmin: async () => true,
+}));
 
 import handler from '../../../../../api/traffic';
 
@@ -277,9 +280,7 @@ describe('public traffic totals', () => {
     });
     expect(JSON.stringify(body)).not.toContain('private-profile');
     expect(JSON.stringify(body)).not.toContain('requestPath');
-    expect(headers.get('Cache-Control')).toBe(
-      'public, max-age=0, s-maxage=300, stale-while-revalidate=60, stale-if-error=86400',
-    );
+    expect(headers.get('Cache-Control')).toBe('private, no-store');
     expect(fetchSpy).toHaveBeenCalledTimes(30);
     expect(fetchSpy.mock.calls.every(([input]) => !String(input).includes('/visits/count'))).toBe(
       true,

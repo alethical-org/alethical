@@ -236,8 +236,11 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   const segments = normalized.split('/').filter(Boolean);
 
   // Private filters never come from or go into the address.
+  // The old permanent /admin/site-metrics -> /admin/metrics redirect may remain
+  // in browser caches. Both addresses now lead to the same private report.
   if (normalized === '/admin/metrics' || normalized === '/admin/site-metrics')
-    return { kind: 'adminSiteMetrics' };
+    return { kind: 'siteMetrics' };
+  if (normalized === '/admin/operations') return { kind: 'adminSiteMetrics' };
   if (normalized === '/admin' || normalized === '/admin/users') return { kind: 'adminUsers' };
 
   if (segments.length === 0) {
@@ -931,9 +934,9 @@ export function pathForRoute(activeRoute: {
     case 'AdminUsers':
       return '/admin/users';
     case 'AdminSiteMetrics':
-      return '/admin/metrics';
+      return '/admin/operations';
     case 'SiteMetrics':
-      return '/site-metrics';
+      return '/admin/site-metrics';
     case 'Terms':
       return '/terms';
     case 'AboutUs':

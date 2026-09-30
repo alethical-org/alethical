@@ -1,5 +1,5 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 
@@ -11,6 +11,8 @@ import {
 import { type AccountSignupTotals } from '../lib/accountSignupMetrics';
 import { GreenLinkArrow, linkArrowRow } from '../components/LinkArrow';
 import { useResponsive } from '../hooks/useResponsive';
+import { useAdminAccess } from '../hooks/useAdminAccess';
+import { ApiError } from '../data/api';
 import {
   formatTrafficWindowEnd,
   isPerformanceTotals,
@@ -29,6 +31,8 @@ import {
 import { externalLinkProps } from '../navigation/links';
 import { useDocumentTitle } from '../navigation/documentTitle';
 import { RootStackParamList } from '../navigation/types';
+import { useAuth } from '../providers/AuthProvider';
+import { useSignInModal } from '../providers/signInModalContext';
 import { Container, Footer, PageBackground, TopNav } from '../theme/primitives';
 import { theme } from '../theme/tokens';
 
@@ -37,19 +41,39 @@ const MINUTE_MS = 60 * 1000;
 const CHECKLY_PUBLIC_STATUS_URL = process.env.EXPO_PUBLIC_CHECKLY_STATUS_URL?.trim() ?? '';
 
 type ActivityRange = 7 | 30;
+type AccessIssue = 'denied' | 'unavailable';
 type SourceState<T> =
   | { kind: 'loading' }
   | { kind: 'ready'; totals: T; stale: boolean }
   | { kind: 'unavailable'; checkedAt: number };
 
-function useTrafficSource<T>(path: string, validate: (value: unknown) => value is T) {
+function useTrafficSource<T>(
+  path: string,
+  validate: (value: unknown) => value is T,
+  accessToken: string,
+  onAccessIssue: (issue: AccessIssue) => void,
+) {
   const [state, setState] = useState<SourceState<T>>({ kind: 'loading' });
 
   useEffect(() => {
     let active = true;
     const load = async () => {
       try {
-        const response = await fetch(path, { headers: { Accept: 'application/json' } });
+        const response = await fetch(path, {
+          cache: 'no-store',
+          headers: { Accept: 'application/json', Authorization: `Bearer ${accessToken}` },
+        });
+        if (response.status === 401 || response.status === 403) {
+          if (active) onAccessIssue('denied');
+          return;
+        }
+        if (
+          response.status === 503 &&
+          response.headers.get('X-Site-Metrics-Access') === 'unavailable'
+        ) {
+          if (active) onAccessIssue('unavailable');
+          return;
+        }
         const payload: unknown = response.ok ? await response.json() : null;
         if (!active || !validate(payload)) {
           if (active) {
@@ -79,19 +103,19 @@ function useTrafficSource<T>(path: string, validate: (value: unknown) => value i
       active = false;
       clearInterval(refresh);
     };
-  }, [path, validate]);
+  }, [path, validate, accessToken, onAccessIssue]);
 
   return state;
 }
 
-function useRecordTotals() {
+function useRecordTotals(accessToken: string, onAccessIssue: (issue: AccessIssue) => void) {
   const [state, setState] = useState<SourceState<SiteMetricRecordTotals>>({ kind: 'loading' });
 
   useEffect(() => {
     let active = true;
     const load = async () => {
       try {
-        const payload: unknown = await getSiteMetricRecordTotalsFromApi();
+        const payload: unknown = await getSiteMetricRecordTotalsFromApi(accessToken);
         if (!active || !isSiteMetricRecordTotals(payload)) {
           if (active) {
             setState((current) =>
@@ -103,7 +127,11 @@ function useRecordTotals() {
           return;
         }
         setState({ kind: 'ready', totals: payload, stale: false });
-      } catch {
+      } catch (error) {
+        if (error instanceof ApiError && [401, 403, 503].includes(error.status)) {
+          if (active) onAccessIssue(error.status === 503 ? 'unavailable' : 'denied');
+          return;
+        }
         if (active) {
           setState((current) =>
             current.kind === 'ready'
@@ -120,20 +148,24 @@ function useRecordTotals() {
       active = false;
       clearInterval(refresh);
     };
-  }, []);
+  }, [accessToken, onAccessIssue]);
 
   return state;
 }
 
-function useAccountSignupTotals() {
+function useAccountSignupTotals(accessToken: string, onAccessIssue: (issue: AccessIssue) => void) {
   const [state, setState] = useState<SourceState<AccountSignupTotals>>({ kind: 'loading' });
   useEffect(() => {
     let active = true;
     const load = async () => {
       try {
-        const totals = await getAccountSignupTotalsFromApi();
+        const totals = await getAccountSignupTotalsFromApi(accessToken);
         if (active) setState({ kind: 'ready', totals, stale: false });
-      } catch {
+      } catch (error) {
+        if (error instanceof ApiError && [401, 403, 503].includes(error.status)) {
+          if (active) onAccessIssue(error.status === 503 ? 'unavailable' : 'denied');
+          return;
+        }
         if (active)
           setState((current) =>
             current.kind === 'ready'
@@ -148,7 +180,7 @@ function useAccountSignupTotals() {
       active = false;
       clearInterval(timer);
     };
-  }, []);
+  }, [accessToken, onAccessIssue]);
   return state;
 }
 
@@ -1427,19 +1459,35 @@ function CollectionDates({
   );
 }
 
-export function TrafficScreen() {
+function PrivateTrafficScreen({ accessToken }: { accessToken: string }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { isMobile } = useResponsive();
-  const traffic = useTrafficSource('/api/traffic', isTrafficTotals);
-  const records = useRecordTotals();
-  const accounts = useAccountSignupTotals();
-  const google = useTrafficSource('/api/traffic-google?window=30', isSearchTotals);
-  const bing = useTrafficSource('/api/traffic-bing', isSearchTotals);
-  const uptime = useTrafficSource('/api/traffic-uptime', isUptimeTotals);
-  const performance = useTrafficSource('/api/traffic-performance', isPerformanceTotals);
+  const [accessIssue, setAccessIssue] = useState<AccessIssue | null>(null);
+  const onAccessIssue = useCallback((issue: AccessIssue) => setAccessIssue(issue), []);
+  const traffic = useTrafficSource('/api/traffic', isTrafficTotals, accessToken, onAccessIssue);
+  const records = useRecordTotals(accessToken, onAccessIssue);
+  const accounts = useAccountSignupTotals(accessToken, onAccessIssue);
+  const google = useTrafficSource(
+    '/api/traffic-google?window=30',
+    isSearchTotals,
+    accessToken,
+    onAccessIssue,
+  );
+  const bing = useTrafficSource('/api/traffic-bing', isSearchTotals, accessToken, onAccessIssue);
+  const uptime = useTrafficSource(
+    '/api/traffic-uptime',
+    isUptimeTotals,
+    accessToken,
+    onAccessIssue,
+  );
+  const performance = useTrafficSource(
+    '/api/traffic-performance',
+    isPerformanceTotals,
+    accessToken,
+    onAccessIssue,
+  );
   const [range, setRange] = useState<ActivityRange>(initialActivityRange);
   const [now, setNow] = useState(Date.now());
-  useDocumentTitle('/site-metrics', 'Site Metrics | Alethical');
 
   useEffect(() => {
     const clock = setInterval(() => setNow(Date.now()), MINUTE_MS);
@@ -1470,6 +1518,34 @@ export function TrafficScreen() {
   const loading = [traffic, records, accounts, google, bing, uptime, performance].some(
     (state) => state.kind === 'loading',
   );
+
+  if (accessIssue) {
+    return (
+      <PageBackground>
+        <ScrollView contentContainerStyle={styles.page}>
+          <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
+          <Container style={[styles.main, isMobile && styles.mainMobile]}>
+            <Text
+              accessibilityRole="header"
+              aria-level={1}
+              style={[styles.title, isMobile && styles.titleMobile]}
+            >
+              Site Metrics
+            </Text>
+            <Text accessibilityLiveRegion="polite" style={styles.privateState}>
+              {accessIssue === 'denied'
+                ? 'Access to Site Metrics has ended. Sign in again if you need access.'
+                : 'We couldn’t confirm access to Site Metrics. Refresh to try again.'}
+            </Text>
+          </Container>
+          <Footer
+            onPrivacy={() => navigation.navigate('Privacy')}
+            onTerms={() => navigation.navigate('Terms')}
+          />
+        </ScrollView>
+      </PageBackground>
+    );
+  }
 
   return (
     <PageBackground>
@@ -1653,7 +1729,67 @@ export function TrafficScreen() {
   );
 }
 
+export function TrafficScreen() {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const { user, accessToken } = useAuth();
+  const access = useAdminAccess();
+  const { openSignIn } = useSignInModal();
+  const { isMobile } = useResponsive();
+  useDocumentTitle('/admin/site-metrics', 'Site Metrics | Alethical');
+
+  if (access.state === 'allowed' && user && accessToken) {
+    return <PrivateTrafficScreen key={`${user.id}:${accessToken}`} accessToken={accessToken} />;
+  }
+
+  const message =
+    access.state === 'signed-out'
+      ? 'Sign in with an administrator account to view Site Metrics.'
+      : access.state === 'restricted'
+        ? 'Restricted access. This account cannot view Site Metrics.'
+        : access.state === 'error'
+          ? 'We couldn’t check access. Try again.'
+          : 'Checking access…';
+  return (
+    <PageBackground>
+      <ScrollView contentContainerStyle={styles.page}>
+        <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
+        <Container style={[styles.main, isMobile && styles.mainMobile]}>
+          <Text
+            accessibilityRole="header"
+            aria-level={1}
+            style={[styles.title, isMobile && styles.titleMobile]}
+          >
+            Site Metrics
+          </Text>
+          <Text accessibilityLiveRegion="polite" style={styles.privateState}>
+            {message}
+          </Text>
+          {access.state === 'signed-out' ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => openSignIn({ intent: 'nav', returnTo: '/admin/site-metrics' })}
+            >
+              <Text style={styles.privateAction}>Sign in</Text>
+            </Pressable>
+          ) : null}
+          {access.state === 'error' ? (
+            <Pressable accessibilityRole="button" onPress={access.retry}>
+              <Text style={styles.privateAction}>Retry</Text>
+            </Pressable>
+          ) : null}
+        </Container>
+        <Footer
+          onPrivacy={() => navigation.navigate('Privacy')}
+          onTerms={() => navigation.navigate('Terms')}
+        />
+      </ScrollView>
+    </PageBackground>
+  );
+}
+
 const styles = StyleSheet.create({
+  privateState: { marginTop: 24, color: '#4f5651', fontSize: 16, lineHeight: 24 },
+  privateAction: { marginTop: 16, color: '#08794a', fontSize: 16, fontWeight: '700' },
   metricValueNote: {
     fontFamily: 'LibreFranklin_400Regular',
     fontSize: 12,

@@ -4,26 +4,26 @@
 
 <!-- describes: api/traffic.ts, api/traffic-google.ts, api/traffic-bing.ts, api/traffic-uptime.ts, api/traffic-performance.ts, api/traffic-collection.ts, alethical/api/routers/site_metrics.py, alethical/db/models.py, alethical/alembic/versions/0038_site_metric_event.py, apps/frontend/src/components/TrafficAnalytics.tsx, apps/frontend/src/components/TrafficAnalytics.web.tsx, apps/frontend/src/lib/traffic.ts, apps/frontend/src/lib/siteMetricEvents.ts, apps/frontend/src/screens/TrafficScreen.tsx, apps/frontend/public/index.html, apps/frontend/scripts/check-traffic-production-env.mjs, apps/frontend/scripts/traffic-token-expiry.mjs, .github/workflows/traffic-token-expiry.yml, scripts/report_page_speed_by_address.py, apps/frontend/scripts/report-page-load-beacons.mjs -->
 
-The public `/site-metrics` page combines 7 independent sources:
+The administrator-only `/admin/site-metrics` page combines 7 independent sources:
 
 - Vercel Web Analytics shows estimated visitors, page views, destinations, and profile breadth for 24 hours, 7 days, or 30 days;
 - Alethical's own records show recorded actions, first signed-in use, and bill and committee follows;
-- Supabase shows the current surviving user-account total, including confirmed and pending sign-ups; the private leadership page also shows creation windows;
+- Supabase shows the current surviving user-account total, including confirmed and pending sign-ups; the separate Operations report also shows creation windows;
 - Google Search Console shows sitewide appearances and clicks for 30 finalized days;
 - Bing Webmaster Tools shows the same 2 sitewide search totals;
 - Checkly shows 30-day availability for the home page and data service; and
 - Cloudflare Web Analytics shows 30-day page-speed scores from real Chromium visits.
 
-The public totals are the same for signed-in and signed-out readers. The About menu links
-to `/site-metrics`. Private vendor dashboard links are not shown, including to signed-in
-team and test accounts. The separate public Checkly availability link remains. Team/test
-classification does not grant access to `/admin/metrics`.
+All 7 report reads require current administrator access. The former `/site-metrics`
+address leads to `/admin/site-metrics`. Private vendor dashboard links are not shown.
+The separate public Checkly availability link remains. Team/test classification does
+not grant administrator access.
 
 Each source has its own server route and page state. A Google problem hides only Google.
 A Checkly problem cannot erase Vercel visits. The browser keeps the last good answer from
-each source when a later refresh fails. Vercel's delivery network also keeps the last valid
-Vercel traffic answer available for up to 24 hours when that source temporarily fails, so a
-reload does not immediately replace working traffic totals with an unavailable message.
+each source when a later refresh fails, only while the same administrator session stays
+mounted. Signing out or changing accounts removes those answers. No report answer is
+stored in a shared cache.
 
 ## Collection dates
 
@@ -73,7 +73,7 @@ the right edge; Partial range occupies a separate right-aligned line below, with
 ## What the numbers mean
 
 A page view is 1 page load. Opening several pages creates several views. Opening or
-reloading `/site-metrics` creates a view too. Refreshing only the numbers does not.
+reloading `/admin/site-metrics` creates a view too. Refreshing only the numbers does not.
 
 Vercel counts without an analytics cookie and removes traffic it identifies as automated.
 Page views and page speed come from 2 different services over 2 different populations, so a
@@ -143,14 +143,14 @@ The older `/api/traffic-collection`
 route returns a private, fixed 410 response. It never reads a caller-supplied account
 identifier or reveals exclusion-list membership; older clients must reload.
 
-Google and Bing return only combined 30-day appearances and clicks. The public routes do
+Google and Bing return only combined 30-day appearances and clicks. The private routes do
 not request or return search phrases, page addresses, countries, devices, or positions.
 Google uses a read-only machine account that is separate from a reader's Google sign-in.
 
 Checkly opens public Alethical addresses, not reader accounts. Cloudflare receives
 page-speed measurements, page paths without the question text after `?`, referrers, broad
-place and browser facts, and some element or resource details. Alethical publishes none of
-those details. It publishes only sitewide speed scores after at least 50 actual measurements
+place and browser facts, and some element or resource details. The administrator-only report
+shows none of those details. It shows only sitewide speed scores after at least 50 actual measurements
 for each score. These cover document loads, including reloads and restored pages, with known
 bots excluded and with the automated client pool above separated out; the page prints how many
 measurements that separation removed. Its window starts no earlier than the first day Cloudflare
@@ -171,7 +171,7 @@ Anonymous history cannot be traced back to remove an account's earlier activity.
 
 ## Accounts and recorded history
 
-Total user accounts on the public `/site-metrics` page counts accounts that currently remain in
+Total user accounts on the private `/admin/site-metrics` page counts accounts that currently remain in
 Supabase, including accounts awaiting email confirmation. The activity range does not change
 this total. Deleted, deactivated, banned, anonymous, team, and test accounts are excluded.
 Linked sign-in records count as 1 account. This is not a lifetime total of every sign-up attempt.
@@ -193,7 +193,7 @@ not `0`. A fully covered window with no matching records is a real zero. These s
 populations do not establish conversion, retention, revenue, or cross-visit behavior.
 The original 4 action totals retain existing rows. Their coverage date marks tracking
 of the current counting rules, not the first historical action; earlier rows can use older
-rules and cannot be selectively corrected. Both public and private readers must be able
+rules and cannot be selectively corrected. Administrators must be able
 to distinguish incomplete measurement history from a complete zero.
 
 Search actions count settled results for the current search, not stale placeholder results.
@@ -202,7 +202,7 @@ normalized query and filter combination counts at most once while that search sc
 mounted. A new filter combination with results can count again; reopening the screen can
 count again. These are recorded successful search states, not unique people.
 
-## Public and private routes
+## Report and collection routes
 
 `/api/traffic` reads Vercel page views. The Vercel access token stays on the server.
 Vercel's traffic service rejected a project-only key. The working key covers the
@@ -228,16 +228,17 @@ signed-in accounts return success without storing an event.
 
 `/api/v1/site-metrics?version=2` returns current inventories, anonymous creation and action totals,
 prior-period comparisons, and per-measure coverage. `/api/v1/site-metrics/accounts` returns
-surviving-account creation totals directly from Supabase. Neither public route returns
-event rows, account identifiers, or email addresses. The unversioned activity route keeps
+surviving-account creation totals directly from Supabase. Both reads require administrator
+access and return no event rows, account identifiers, or email addresses. The unversioned activity route keeps
 the previous response shape while older browser sessions finish, so releasing the backend
 before the expanded frontend does not invalidate their working counts.
 
-`/admin/metrics` shows Admin metrics from `GET /api/v1/admin/site-metrics?version=2`.
+`/admin/operations` shows the existing Admin metrics report from `GET /api/v1/admin/site-metrics?version=2`.
 The version-2 response adds the currently serving legislator count. Requests with
 no version or `version=1` keep the older response shape without that field, so an
 older open browser can continue reading its report.
-The former `/admin/site-metrics` address redirects to `/admin/metrics`. Refresh and
+The former `/admin/metrics` address opens Site Metrics too, because some browsers saved
+the old permanent redirect from `/admin/site-metrics`. Refresh and
 the date-range controls share the same width as the account and activity cards.
 The server requires an explicitly allowed account identifier, 1 of the 9 exact confirmed
 administrator mailboxes, and a currently eligible account. This report shows combined counts
@@ -380,12 +381,10 @@ reads the beacon payloads, and
 [`real-visitor-page-speed-sources.md`](../research/real-visitor-page-speed-sources.md)
 records those observations.
 
-Publishing is the line, not measuring. The Privacy Policy tells readers that Alethical
-publishes only sitewide speed scores, so a per-address breakdown on the public page would
-contradict a promise a reader has already read. Changing that promise is the Alethical
-team's decision. A page address is a fact about the page rather than about the person who
-opened it, and Cloudflare already receives these paths, which is why reading them
-privately is not the same act as publishing them.
+The Privacy Policy tells readers that the administrator-only `/admin/site-metrics` report
+shows only sitewide speed scores. A per-address breakdown there would change that promise
+and needs a separate product decision. A page address is a fact about the page rather than
+the person who opened it, and Cloudflare already receives these paths.
 
 The server settings are:
 
@@ -421,21 +420,21 @@ Checkly settings:
 
 The dashboard address above and these 3 identity settings are required for public
 availability totals. `CHECKLY_API_KEY` and `CHECKLY_TRAFFIC_CHECK_ID` are not required by the
-public metrics build. A separate Site metrics check may continue operating independently.
+Site Metrics build. A separate Site Metrics access check operates independently.
 
 Cloudflare settings:
 
 - `CLOUDFLARE_ANALYTICS_API_TOKEN`, sensitive and limited to Account Analytics Read; and
 - `CLOUDFLARE_ACCOUNT_ID`.
 
-A Production build stops before release when any required public-metrics setting is
+A Production build stops before release when any required Site Metrics setting is
 missing. Preview and local builds do not need them. After a setting changes, Vercel must
 create a new Production deployment because an older deployment keeps its older settings.
 
 The current key expires on August 15, 2027. A free daily GitHub check opens 1 replacement
 issue 60 days before that date and adds 1 urgent note 14 days before it. If the issue is
 closed without changing the saved expiry date, the check reopens it. Missing the date makes
-only the public Site metrics totals unavailable. The rest of Alethical stays up and new releases
+only the private Site Metrics totals unavailable. The rest of Alethical stays up and new releases
 can continue.
 
 Before adding a second project to the Alethical Vercel team, replace or review this key. Its
@@ -457,19 +456,27 @@ as a sensitive Production setting. It must never be sent to the browser or writt
   50 actual measurements.
 
 The Privacy Policy names Vercel, Google Search Console, Bing Webmaster Tools, Checkly, and
-Cloudflare Web Analytics, along with what each receives and what Alethical publishes.
+Cloudflare Web Analytics, along with what each receives and what Alethical shows administrators.
 
 ## Automatic source checks
 
-[`site-metrics-health.yml`](../../.github/workflows/site-metrics-health.yml) reads all 7 cached
-public answers daily and on demand using [`check_site_metrics_health.py`](../../scripts/check_site_metrics_health.py).
-It checks source freshness, matching period boundaries, Money category completeness,
-independent account totals, and actual per-score sample floors. A genuine zero or a score
-building its sample is valid. Missing or stale sources fail by name without hiding the
-remaining checks. It writes only the GitHub run summary; it creates no test visits,
-actions, accounts, messages, paid model calls, or private-interest records.
+[`site-metrics-health.yml`](../../.github/workflows/site-metrics-health.yml) checks daily and on
+demand that all 7 feeds and 4 previously cached query variants deny signed-out requests using
+[`check_site_metrics_privacy.py`](../../scripts/check_site_metrics_privacy.py). It never
+receives an administrator token or calls a vendor. Its offline contract checks still
+test source data shapes, but the scheduled run no longer measures live source freshness.
+It writes only the GitHub run summary; it creates no test visits, actions, or accounts.
 
-The public and private metrics screens share 1 on-demand feature download. Their display
+The first private release must clear public CDN answers saved before the access check.
+After the guarded deployment, run `vercel cache purge --type cdn` for Vercel project
+`alethical-web`, then run `python -m scripts.check_site_metrics_privacy`. A cache
+invalidation is insufficient because it may serve the old answer once more. The
+project's Standard Deployment Protection also needs to cover older generated deployment
+addresses; the public `www.alethical.com` domain remains open. See
+[Vercel cache purge](https://vercel.com/docs/cli/cache) and
+[Vercel deployment protection](https://vercel.com/docs/deployment-protection).
+
+The Site Metrics and Operations screens share 1 on-demand feature download. Their display
 validators and report-only API readers are not imported by the global analytics collector.
 A code-only shared download grants no private access; the backend still checks every private
 request. The unchanged initial-download limit is 390000 compressed bytes.

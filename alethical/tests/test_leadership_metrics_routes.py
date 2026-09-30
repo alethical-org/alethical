@@ -68,7 +68,9 @@ def test_current_legislator_count_is_opt_in_for_older_browser_bundles(
     assert ("current_legislators" in corpus) is (version == 2)
 
 
-def test_public_signup_failure_never_becomes_zero(client, monkeypatch):
+def test_private_signup_failure_never_becomes_zero(client, monkeypatch):
+    client.app.dependency_overrides[require_admin] = lambda: None
+
     def failed(*args, **kwargs):
         raise RuntimeError("private source detail")
 
@@ -81,7 +83,8 @@ def test_public_signup_failure_never_becomes_zero(client, monkeypatch):
     }
 
 
-def test_public_signup_success_has_only_aggregate_source_result(client, monkeypatch):
+def test_private_signup_success_has_only_aggregate_source_result(client, monkeypatch):
+    client.app.dependency_overrides[require_admin] = lambda: None
     monkeypatch.setattr(
         accounts,
         "aggregate_account_signups",
@@ -90,4 +93,21 @@ def test_public_signup_success_has_only_aggregate_source_result(client, monkeypa
     response = client.get("/api/v1/site-metrics/accounts")
     assert response.status_code == 200
     assert response.json() == {"currentAccountsCreated": 3}
-    assert "s-maxage=300" in response.headers["Cache-Control"]
+    assert response.headers["Cache-Control"] == "private, no-store"
+
+
+@pytest.mark.parametrize(
+    "path", ["/api/v1/site-metrics?version=2", "/api/v1/site-metrics/accounts"]
+)
+def test_report_sources_reject_unsigned_requests(client, path):
+    response = client.get(path)
+    assert response.status_code == 401
+    assert response.headers.get("cache-control", "no-store") == "no-store"
+
+
+@pytest.mark.parametrize(
+    "path", ["/api/v1/site-metrics?version=2", "/api/v1/site-metrics/accounts"]
+)
+def test_report_sources_reject_nonadmins(client, path):
+    client.app.dependency_overrides[administrator_access] = lambda: False
+    assert client.get(path).status_code == 403

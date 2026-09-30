@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const SOURCE = readFileSync(join(__dirname, '..', 'TrafficScreen.tsx'), 'utf8');
 
-describe('public Site metrics page', () => {
+describe('private Site Metrics page', () => {
   it('keeps partial coverage notes below the aligned label and count', () => {
     expect(SOURCE).toContain('styles.metricRowLine');
     expect(SOURCE).toContain('`${testID}-value`');
@@ -38,16 +38,30 @@ describe('public Site metrics page', () => {
     expect(SOURCE).toContain('may include the same person more than once');
   });
 
-  it('has 1 top heading and the accepted loading and unavailable states', () => {
-    expect(SOURCE.match(/aria-level=\{1\}/g)).toHaveLength(1);
+  it('has 1 top heading per displayed state and the accepted loading and unavailable states', () => {
+    const report = SOURCE.slice(
+      SOURCE.indexOf('function PrivateTrafficScreen'),
+      SOURCE.indexOf('export function TrafficScreen'),
+    );
+    const accessState = SOURCE.slice(SOURCE.indexOf('export function TrafficScreen'));
+    expect(report.match(/aria-level=\{1\}/g)).toHaveLength(2);
+    expect(accessState.match(/aria-level=\{1\}/g)).toHaveLength(1);
     expect(SOURCE).toContain('Site Metrics');
-    expect(SOURCE).toContain("useDocumentTitle('/site-metrics', 'Site Metrics | Alethical')");
+    expect(SOURCE).toContain("useDocumentTitle('/admin/site-metrics', 'Site Metrics | Alethical')");
     expect(SOURCE).toContain('Loading site metrics.');
     expect(SOURCE.match(/Loading site metrics\./g)).toHaveLength(1);
     expect(SOURCE).toContain('Recent traffic is temporarily unavailable.');
     expect(SOURCE).toContain('A newer reading has not come through yet');
     expect(SOURCE).toContain('Last accepted');
     expect(SOURCE).toContain('Counted by Vercel');
+  });
+
+  it('hides previously loaded totals if administrator access is revoked or unavailable', () => {
+    expect(SOURCE).toContain('response.status === 401 || response.status === 403');
+    expect(SOURCE).toContain("response.headers.get('X-Site-Metrics-Access') === 'unavailable'");
+    expect(SOURCE).toContain('error instanceof ApiError && [401, 403, 503].includes(error.status)');
+    expect(SOURCE).toContain('if (accessIssue)');
+    expect(SOURCE).toContain('Access to Site Metrics has ended.');
   });
 
   it('keeps the public explanation short and puts freshness on 1 line', () => {
@@ -90,11 +104,11 @@ describe('public Site metrics page', () => {
   });
 
   it('loads each outside source separately so 1 failure cannot erase the rest', () => {
-    expect(SOURCE).toContain("useTrafficSource('/api/traffic'");
-    expect(SOURCE).toContain("useTrafficSource('/api/traffic-google?window=30'");
-    expect(SOURCE).toContain("useTrafficSource('/api/traffic-bing'");
-    expect(SOURCE).toContain("useTrafficSource('/api/traffic-uptime'");
-    expect(SOURCE).toContain("useTrafficSource('/api/traffic-performance'");
+    expect(SOURCE).toContain("'/api/traffic'");
+    expect(SOURCE).toContain("'/api/traffic-google?window=30'");
+    expect(SOURCE).toContain("'/api/traffic-bing'");
+    expect(SOURCE).toContain("'/api/traffic-uptime'");
+    expect(SOURCE).toContain("'/api/traffic-performance'");
   });
 
   it('names the 4 accepted sections and their panels in plain words', () => {

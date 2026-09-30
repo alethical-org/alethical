@@ -11,6 +11,7 @@ from sqlalchemy import distinct, func, select
 from sqlalchemy.orm import Session
 
 from alethical.api.auth import get_current_user, get_optional_current_user
+from alethical.api.routers.admin import require_admin
 from alethical.api.routers import leadership_metrics, site_metric_accounts
 from alethical.api.services.account_classification import (
     excluded_local_user_ids,
@@ -314,7 +315,7 @@ def site_metric_data(db: Session, now: datetime | None = None) -> dict:
     }
 
 
-@router.get("/site-metrics")
+@router.get("/site-metrics", dependencies=[Depends(require_admin)])
 def site_metric_totals(
     version: Literal["1", "2"] = "1", db: Session = Depends(get_db)
 ) -> JSONResponse:
@@ -345,7 +346,5 @@ def site_metric_totals(
         }
     return JSONResponse(
         content={"data": totals},
-        headers={
-            "Cache-Control": "public, max-age=0, s-maxage=300, stale-while-revalidate=60"
-        },
+        headers={"Cache-Control": "private, no-store"},
     )

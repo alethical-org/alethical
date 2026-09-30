@@ -71,11 +71,7 @@
   "redirects": [
     { "source": "/read", "destination": "/blog", "permanent": true },
     { "source": "/read/:path*", "destination": "/blog/:path*", "permanent": true },
-    {
-      "source": "/admin/site-metrics",
-      "destination": "/admin/metrics",
-      "permanent": true
-    },
+    { "source": "/site-metrics", "destination": "/admin/site-metrics", "permanent": false },
     { "source": "/search", "destination": "/bills", "permanent": true },
     { "source": "/reports", "destination": "/blog", "permanent": true },
     {

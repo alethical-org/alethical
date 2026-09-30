@@ -127,7 +127,7 @@ The live check reads names and release targets only. It never asks Vercel for va
 | `CHECKLY_API_KEY` | Production | Reads the 3 public availability checks. | Live |
 | `CHECKLY_ACCOUNT_ID` | Production | Targets Alethical's Checkly account. | Live |
 | `CHECKLY_WEB_CHECK_ID` | Production | Targets the main website availability check. | Live |
-| `CHECKLY_TRAFFIC_CHECK_ID` | Production | Targets the public Site metrics page availability check. | Live |
+| `CHECKLY_TRAFFIC_CHECK_ID` | Production | Targets the former public Site Metrics address, which now opens the private sign-in shell. It does not prove private report data is available. | Live |
 | `CHECKLY_API_READY_CHECK_ID` | Production | Targets the data service and database readiness check. | Live |
 | `CLOUDFLARE_ANALYTICS_API_TOKEN` | Production | Reads sitewide browser-speed totals. | Live |
 | `CLOUDFLARE_ACCOUNT_ID` | Production | Targets Alethical's Cloudflare account. | Live |

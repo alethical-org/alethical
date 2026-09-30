@@ -96,11 +96,12 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
     description: 'How information is collected, used, and protected on this site.',
     canonicalPath: '/privacy',
   }),
-  '/site-metrics': pageMetadata({
+  '/admin/site-metrics': pageMetadata({
     title: titleFor('Site Metrics'),
     socialTitle: 'Site Metrics',
-    description: 'Public totals about traffic, search discovery, availability, and speed.',
-    canonicalPath: '/site-metrics',
+    description: 'Private totals about traffic, search discovery, availability, and speed.',
+    canonicalPath: '/admin/site-metrics',
+    noindex: true,
   }),
   '/terms': pageMetadata({
     title: titleFor('Terms of Service'),
@@ -110,11 +111,11 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
   }),
   // Signed-in surface: a search engine would only ever see the signed-out card,
   // so it is left out of the sitemap and unlisted.
-  '/admin/metrics': pageMetadata({
+  '/admin/operations': pageMetadata({
     title: titleFor('Admin metrics'),
     socialTitle: 'Admin metrics',
     description: 'Private aggregate measurements for approved administrators.',
-    canonicalPath: '/admin/metrics',
+    canonicalPath: '/admin/operations',
     noindex: true,
   }),
   '/admin/users': pageMetadata({

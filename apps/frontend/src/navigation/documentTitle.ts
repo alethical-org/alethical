@@ -52,9 +52,9 @@ export const STATIC_PAGE_SUBJECTS: Record<string, string> = {
   '/about': 'About us',
   '/about/contact': 'Contact us',
   '/privacy': 'Privacy Policy',
-  '/site-metrics': 'Site Metrics',
+  '/admin/site-metrics': 'Site Metrics',
   '/terms': 'Terms of Service',
-  '/admin/metrics': 'Admin metrics',
+  '/admin/operations': 'Admin metrics',
   '/admin/users': 'Users',
   '/tracked': 'Tracked',
 };

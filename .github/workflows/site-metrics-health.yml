@@ -1,7 +1,7 @@
-name: Site metrics source health
+name: Site Metrics private access
 
-# Read cached public totals. No model runs, private APIs, synthetic visits,
-# searches, sign-ins, test events, vendor checks, or external notifications.
+# Check that all 7 report feeds refuse signed-out reads. Provider freshness
+# cannot be tested without an administrator session.
 on:
   schedule:
     - cron: "43 13 * * *"
@@ -28,7 +28,7 @@ jobs:
           python-version-file: ".python-version"
 
       - name: Test the checker with offline examples
-        run: python -m unittest scripts.tests.test_check_site_metrics_health
+        run: python -m unittest scripts.tests.test_check_site_metrics_privacy scripts.tests.test_check_site_metrics_health
 
-      - name: Check public metric sources
-        run: python scripts/check_site_metrics_health.py --summary "$GITHUB_STEP_SUMMARY"
+      - name: Check private report access
+        run: python -m scripts.check_site_metrics_privacy --summary "$GITHUB_STEP_SUMMARY"
