@@ -730,7 +730,9 @@ or interaction check that supports it. Inspect screenshots at readable size;
 capturing them without comparing them does not finish a check. A section labelled
 "existing", "reused", or "unchanged" still needs this evidence. An intentional
 difference needs the exact approved exception or launch hold and its source.
-Do not turn an omission into an exception after discovering it.
+Do not invent an exception to excuse missing work. Record any newly approved
+exception or scope change with its source, and update the comparison record
+before continuing.
 
 **An independent reviewer starts from the design.** Before release, give a
 reviewer who did not implement the change the accepted drawings, governing
