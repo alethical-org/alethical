@@ -14,7 +14,8 @@ recommendation, with no main-content changes. Downloaded at 18:24 Eastern; SHA25
 - [x] Replace the shared header only at `/services`; keep real home and section links.
 - [x] Reuse Footer with scoped column alignment and tablet stacking.
 - [x] Pass first-response checks, responsive browser checks and independent acceptance.
-- [ ] Merge, deploy and inspect the live result.
+- Current-head release checks, deployment and live comparison evidence are recorded
+  in [issue 2447](https://github.com/alethical-org/alethical/issues/2447).
 - Preserve the established contact and social destinations; the bundle's private
   access notes and prototype link targets are superseded.
 
