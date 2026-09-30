@@ -33,12 +33,6 @@ describe('cited sections distinguish quoted statute without decorative rules', (
     expect(home).not.toMatch(/sectionCardQuote: \{[^}]*width/);
   });
 
-  it('lays homepage cited sections into 3 equal tracks that end at their own text', () => {
-    expect(home).toMatch(
-      /sectionCardStack: \{\n    display: 'grid',\n    gridTemplateColumns: 'repeat\(3, 1fr\)',\n    gap: 14,\n(?:.*\n)*?    alignItems: 'start',\n  \} as never,/,
-    );
-  });
-
   it('keeps each Answer chip close to its first quote and separates later quotes', () => {
     expect(citationCard).toContain('firstAnswerQuote: { marginTop: 8 }');
     expect(citationCard).toContain('followingAnswerQuote: { marginTop: 15 }');
@@ -59,14 +53,8 @@ describe('cited sections distinguish quoted statute without decorative rules', (
     expect(answer).toContain('marginTop: 14,\n    paddingLeft: t.spacing.underCardText,');
   });
 
-  it('carries no gloss line under a homepage cited quote', () => {
-    expect(home).not.toContain('sectionCardNote');
-    expect(home).not.toContain('Such as infinite scrolling');
-  });
-
   it('reuses the 17px under-card inset on trailing rows and footnotes', () => {
     expect(tokens).toContain('underCardText: 17,');
-    expect(home).toContain('paddingLeft: t.spacing.underCardText,');
     expect(answer).toContain('paddingLeft: t.spacing.underCardText,');
   });
 });

@@ -25,6 +25,7 @@ on:
     paths:
       - "apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx"
       - "scripts/check_home_hero_card_literals.py"
+      - "scripts/tests/test_check_home_hero_card_literals.py"
       - ".github/workflows/home-hero-card-facts.yml"
   schedule:
     # 12:00 UTC daily (~6-7am America/Chicago). Monthly until Aug 2026, on the
@@ -54,6 +55,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Test date and source checks without network access
+        run: python -m unittest discover -s scripts/tests -p 'test_check_home_hero_card_literals.py'
 
       - name: Compare the card's facts against the published record
         id: check

@@ -223,6 +223,16 @@ export function MoneyPromoCard({
         narrow ? (t.shadows.card as object) : undefined,
         publicCard && styles.publicCard,
         publicCard &&
+          (variant === 'phoneSignedOut'
+            ? {
+                paddingBottom: 28,
+                borderColor: 'rgba(17,21,15,0.10)',
+                ...(isWeb ? { boxShadow: '0 10px 28px rgba(17,21,15,0.07)' } : {}),
+              }
+            : isWeb
+              ? { boxShadow: '0 18px 44px rgba(17,21,15,0.08)' }
+              : undefined),
+        publicCard &&
           isWeb &&
           !prefersReducedMotion() &&
           ({

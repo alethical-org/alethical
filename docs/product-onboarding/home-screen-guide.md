@@ -113,12 +113,32 @@ bill-activity and legislator-finder sections described here.
   ordinary sentence case, because some readers spell out short all-capital text
   letter by letter.
 
-The example answer card keeps 1 divider, a linked bill code, the signed and effective
-dates, the chief author, both chamber vote totals, a plain-language summary, up to 3
-cited passages, and 1 link to the bill page. The cited passages sit in 3 equal columns
-on the signed-out wide-screen page; their text keeps its readable cap and wraps inside
-each column. Amber marks bill identity, green marks
-links and verified citations, and purple is reserved for cited locations and focus.
+The example answer card has no divider. Its facts form 1 wrapping row, in this
+order: linked HF 4138 badge, Signed May 26, 2026, Effective Jul 1, 2027, chief author
+Rep. Peggy Scott, and the combined House 132–2 · Senate 66–0 totals. Each date and
+the author with its arrow stay together when the row wraps. The badge uses Libre
+Franklin with equal-width digits rather than the text-label font.
+
+The summary follows the facts. Preserve the explicit line break before “and
+default their accounts to the strictest privacy”; it is an approved wording-layout
+choice, not an accidental source line wrap. The 3 cited passages sit in equal-width,
+equal-height boxes on signed-out desktop and tablet. Each legal quote is italic
+and keeps its exact wording and punctuation. The addictive-features box also
+has a separate, nonitalic explanatory line: **Such as infinite scrolling, autoplay
+video, and push notifications**. This 1-sentence interface unit has no ending period
+and is not part of the legal quotation.
+
+Those 3 examples are supported by
+[HF 4138 version 5, section 2, subdivision 1(c)](https://www.revisor.mn.gov/bills/94/2026/0/HF/4138/versions/5/):
+items (1), (3), and (4) list infinite scrolling, push notifications, and autoplay video.
+The source-fact check protects the displayed explanatory line and requires each
+example within that definition, as well as checking the 3 exact legal quotations.
+
+The **View bill profile** link sits below the cited boxes, flush with the summary
+and boxes' left edge. Its existing green drawn arrow remains attached to the label.
+Amber marks bill identity, green marks links and verified citations, and purple
+is reserved for cited locations and focus. The card is a worked example with
+separate badge, author, and bill-profile links, not 1 whole-card link.
 
 The summary sentence opens by naming the law, in bold. The name is the record's own
 `short_title` for the bill, character for character and capitalised as the record
@@ -131,8 +151,8 @@ reader can neither verify nor search for.
 That name is a headline we wrote from the bill, not a legal one. HF 4138 carries no
 "may be cited as" clause, so it has no official short name, and nothing in the card
 calls this one official. What makes it honest is that it is the same wording as the
-page the card links to, one click away, so a reader can check it. No explanatory line
-is added, because the check a reader can actually perform is the link.
+page the card links to, one click away, so a reader can check it. No separate line
+explaining the name is added, because the check the reader can perform is the link.
 
 The name is typed into the card, not fetched when the page loads. It sits mid-sentence,
 so a pending state would be a hole in a sentence, and an unreachable API would need a
@@ -142,7 +162,9 @@ The card's wording is editorial, but every stated bill fact must stay true. The 
 check in `scripts/check_home_hero_card_literals.py` compares the card with Alethical's
 published record daily, and whenever the card or check changes
 (`.github/workflows/home-hero-card-facts.yml`). It fails in both directions: a literal
-the record no longer supports, and a literal it can no longer find in the card. The
+the record no longer supports, and a literal it can no longer find in the card.
+It treats **Jul 1, 2027** in the card and **July 1, 2027** in the record as the same
+date while still rejecting a changed day or year. The
 schedule was monthly until Aug 2026, when the short title joined the checked literals.
 An enacted law's dates, votes and text do not move, but `short_title` is regenerated
 whenever the corpus is re-enriched, so it is the one literal here that can change while
@@ -195,7 +217,11 @@ bill.
 Signed-out phone Home uses this order: introduction, money, bills, services,
 In the News, and footer. In the News sits directly before the footer, with
 no general bill-activity or legislator-finder section after it. Its current pins
-remain HF 4138 and SF 856; each card uses that bill's real records.
+remain HF 4138 and SF 856; each card uses that bill's real records. News retains
+its existing 4-line visual summary limit without removing later sentences from
+the source text. Signed-out news uses the approved larger phone text and
+equal-width digits on bill codes and dates. Signed-in news retains its existing
+visual treatment.
 
 Signed-in phone Home keeps its existing order: greeting and tracked bills, search
 actions and money, In the News, bill activity, Find My Legislator, and footer.

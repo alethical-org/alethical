@@ -74,7 +74,7 @@ function Invitation({
         {heading}
       </Text>
       <Text style={[s.cardBody, phone && s.cardBodyPhone]}>{body}</Text>
-      <View style={s.invitationAction}>
+      <View style={[s.invitationAction, phone && { paddingTop: 24 }]}>
         <View
           style={[
             s.button,
@@ -214,7 +214,7 @@ export function SignedOutHomepage({
                     {
                       fontSize: isMobile ? 21 : 15,
                       letterSpacing: isMobile ? 3.78 : 2.7,
-                      marginBottom: isMobile ? 30 : 36,
+                      marginBottom: isDesktop ? 36 : 30,
                     },
                   ]}
                 >
@@ -429,16 +429,16 @@ const s = StyleSheet.create({
     color: '#11150f',
   },
   example: { marginTop: 28 },
-  news: { paddingHorizontal: 20, paddingTop: 56, paddingBottom: 48 },
+  news: { paddingHorizontal: 20, paddingTop: 56, paddingBottom: 56 },
   newsLabel: {
     fontFamily: t.typography.ui,
     fontSize: 21,
     fontWeight: '700',
-    letterSpacing: 2.5,
+    letterSpacing: 4.2,
     color: '#0f7a45',
     textTransform: 'uppercase',
-    marginBottom: 22,
+    marginBottom: 20,
   },
-  newsStack: { gap: 16 },
+  newsStack: { gap: 18 },
   newsSkeleton: { height: 300, borderRadius: 20, backgroundColor: '#edf0ed' },
 });

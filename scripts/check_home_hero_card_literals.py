@@ -52,6 +52,10 @@ CARD_CODE = "HF 4138"
 CARD_SHORT_TITLE = "New Rules For Minors' Social Media Accounts"
 CARD_SIGNED = "May 26, 2026"
 CARD_EFFECTIVE = "July 1, 2027"
+CARD_ADDICTIVE_EXAMPLES = (
+    "Such as infinite scrolling, autoplay video, and push notifications"
+)
+ADDICTIVE_EXAMPLE_TERMS = ("infinite scrolling", "autoplay video", "push notifications")
 CARD_AUTHOR = "Rep. Peggy Scott"
 CARD_HOUSE_VOTE = "132–2"
 CARD_SENATE_VOTE = "66–0"
@@ -83,6 +87,12 @@ _MONTHS = (
     "November",
     "December",
 )
+_DISPLAY_MONTHS = {
+    spelling: month for month in _MONTHS for spelling in (month, month[:3])
+}
+_DISPLAY_MONTH_RE = re.compile(
+    r"\b(" + "|".join(_DISPLAY_MONTHS) + r")(?=\s+\d{1,2},\s+\d{4}\b)"
+)
 
 
 def fetch(api_base: str, path: str) -> dict:
@@ -103,6 +113,13 @@ def fetch(api_base: str, path: str) -> dict:
 def normalize(text: str) -> str:
     """Collapse whitespace so a quote spanning source lines still matches."""
     return re.sub(r"\s+", " ", text).strip()
+
+
+def normalize_display_dates(text: str) -> str:
+    """Compare full and 3-letter month names without changing the day or year."""
+    return _DISPLAY_MONTH_RE.sub(
+        lambda match: _DISPLAY_MONTHS[match.group(1)], normalize(text)
+    )
 
 
 def spoken_date(raw: str) -> str | None:
@@ -130,7 +147,7 @@ def card_source() -> str:
 def check_card_still_states(source: str, failures: list[str]) -> None:
     """Every literal below is what this check exists to verify. If the card has
     stopped stating one, the check has stopped covering it - say so loudly."""
-    flat = normalize(source)
+    flat = normalize_display_dates(source)
     expected = {
         "bill code": CARD_CODE,
         "short title": CARD_SHORT_TITLE,
@@ -151,6 +168,39 @@ def check_card_still_states(source: str, failures: list[str]) -> None:
             failures.append(
                 "The hero card no longer carries this quoted passage, so this check "
                 f"no longer covers it: {quote[:60]}…"
+            )
+    if CARD_ADDICTIVE_EXAMPLES not in flat:
+        failures.append(
+            "The hero card no longer carries its addictive-feature examples, so "
+            f"this check no longer covers them: {CARD_ADDICTIVE_EXAMPLES!r}."
+        )
+
+
+def check_addictive_examples_support(enacted: str, failures: list[str]) -> None:
+    """The explanation is editorial, but every example must be in the definition.
+
+    HF 4138 version 5, Sec. 2, Subd. 1(c) names infinite scrolling in item (1),
+    push notifications in item (3), and autoplay video in item (4):
+    https://www.revisor.mn.gov/bills/94/2026/0/HF/4138/versions/5/
+    Keep this separate from the verbatim quotation check; the explanation is not
+    a quoted sentence in the law. Unrelated mentions elsewhere do not support it.
+    """
+    text = normalize(enacted)
+    definition = re.search(
+        r'\(c\)\s*"Addictive interface features" means:(.*?)\(d\)\s*"Child" means',
+        text,
+    )
+    if definition is None:
+        failures.append(
+            "The record has no addictive-interface definition, so the card's "
+            "examples cannot be verified."
+        )
+        return
+    for term in ADDICTIVE_EXAMPLE_TERMS:
+        if not re.search(r"\b" + re.escape(term) + r"\b", definition.group(1)):
+            failures.append(
+                f"The card's example {term!r} is no longer in the enacted "
+                "definition of addictive interface features."
             )
 
 
@@ -178,7 +228,7 @@ def check_record_agrees(api_base: str, failures: list[str]) -> None:
         )
 
     effective = bill.get("effective_date")
-    if effective != CARD_EFFECTIVE:
+    if normalize_display_dates(effective or "") != CARD_EFFECTIVE:
         failures.append(
             f"Card shows the law taking effect {CARD_EFFECTIVE}; the record says "
             f"{effective or 'no effective date'}."
@@ -247,6 +297,7 @@ def check_record_agrees(api_base: str, failures: list[str]) -> None:
             "The record's current version has no stored text, so the quoted passages cannot be verified."
         )
         return
+    check_addictive_examples_support(enacted, failures)
     for quote in CARD_QUOTES:
         # A quote may elide a clause with "…". Every part around it must still be
         # verbatim, in order, so the ellipsis cannot hide a change of meaning.
