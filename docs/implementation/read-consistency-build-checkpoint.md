@@ -62,6 +62,13 @@ document checks and production build pass. Startup size remains296,590 bytes
 against the unchanged296,881-byte limit. Current-head hosted checks, merge queue,
 deployment and live comparison remain the next release steps.
 
+Current-main integration: rebased on the shared navigation, Services and narrow-phone
+footer releases through6c0855b5. Kept the existing Services navigation/footer selection
+and the new article marker together. The305 snapshot/endpoint checks pass; the
+production build passes296,814 /296,881 bytes. The parent’s1600px loaded article
+recheck retains1040px title,1488px table rules, aligned numeric columns and24px
+label-to-figure gap. Hosted and live acceptance will use this integrated head.
+
 ## Article width build, 30 Sep 2026
 
 Eugene's `bd unless you need design udpate?` authorizes the article-width build
