@@ -79,7 +79,7 @@ fit that larger menu, the menu itself scrolls. Changing screen size recalculates
 
 On phones, the bottom-anchored sheet grows upward for the message within the available screen. On short screens, Close
 stays visible while the account actions scroll by the added height before the browser paints.
-The scroll area owns the 22px side padding so the sign-out outline is not cropped. Its button
+The scroll area owns side padding so the sign-out outline is not cropped. Its button
 reserves space for the longest state label even when text wraps. Close uses the matching sign-in
 panel's pointer-hover treatment and a keyboard-only focus outline.
 
