@@ -6,6 +6,8 @@
 campaigns. It requires no account. The same address carries readable service text
 before the interactive app loads, page-title and description information for search,
 and a sitemap entry. It contains no private client records or purchasing controls.
+The first response retains the approved dark content and light shared header,
+so starting the interactive app does not replace a white services presentation.
 
 ## Ways in
 

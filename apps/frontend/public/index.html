@@ -474,6 +474,33 @@
         font-weight: 600;
         text-decoration: none;
       }
+      /* Services keeps its approved dark content before the app starts. */
+      .page-snapshot-dark {
+        background: #0a0a0a;
+        color: #ececec;
+      }
+      .page-snapshot-dark > header {
+        background: #f7f8fa;
+      }
+      .page-snapshot-dark .ps-card {
+        background: transparent;
+        border-color: #262626;
+      }
+      .page-snapshot-dark h2 {
+        color: #ececec;
+      }
+      .page-snapshot-dark .ps-sub,
+      .page-snapshot-dark .ps-prose,
+      .page-snapshot-dark .ps-list,
+      .page-snapshot-dark .ps-record-detail {
+        color: #b3b3b3;
+      }
+      .page-snapshot-dark .ps-list a,
+      .page-snapshot-dark .ps-prose a,
+      .page-snapshot-dark .ps-links a,
+      .page-snapshot-dark .ps-record-label {
+        color: #35c46b;
+      }
       /* Tablet: the app folds the bar's links into a menu and grows the logo. */
       @media (max-width: 1099px) {
         .page-snapshot .ps-nav-links a,

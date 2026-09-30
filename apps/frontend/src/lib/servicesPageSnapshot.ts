@@ -22,6 +22,7 @@ import {
 export function servicesPageSnapshot(): PageSnapshot {
   const candidateNames = `${SERVICES_CANDIDATE_NAMES.slice(0, -1).join(', ')}, and ${SERVICES_CANDIDATE_NAMES.at(-1)}`;
   return {
+    appearance: 'dark',
     heading: SERVICES_HEADLINE,
     subheading: SERVICES_SUBTITLE,
     bodyHeading: '',
