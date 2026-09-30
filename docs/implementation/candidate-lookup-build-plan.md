@@ -1,10 +1,11 @@
 # Candidate lookup: build and release plan
 
-<!-- describes: alethical/pipeline/candidate_catalogue.py, alethical/pipeline/candidate_ballot.py, apps/frontend/src/lib/candidateSearchState.ts, apps/frontend/src/components/candidates/CandidateSearchContent.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/screens/CandidatePreviewScreens.tsx, apps/frontend/src/lib/candidateLookupAvailability.ts, apps/frontend/metro.config.js -->
+<!-- describes: alethical/pipeline/candidate_catalogue.py, alethical/pipeline/candidate_ballot.py, apps/frontend/src/lib/candidateSearchState.ts, apps/frontend/src/components/candidates/CandidateSearchContent.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidatePreviewScreens.tsx, apps/frontend/src/lib/candidateLookupAvailability.ts, apps/frontend/src/lib/staticPageMetadata.ts, apps/frontend/src/navigation/webRoutes.ts, api/page.ts, apps/frontend/metro.config.js -->
 
-**Net:** The dormant record-handling foundation and reviewed private candidate
-search/results/read-only profiles have been released. Public launch
-still depends on supported local election areas, retained official records, freshness,
+**Net:** `/candidates` is approved as a public destination. The current implementation
+shows an honest Alethical source-connection limit and an official ballot-information
+link. Illustrative search/results/profile review remains development-only. Real
+candidate lookup still needs retained source records, supported coverage, freshness
 and end-to-end source checks.
 
 Owner: Codex task **candidate lookup** (`01a0f355-a105-7543-8036-7c5274c0d5b7`).
@@ -16,6 +17,29 @@ On 30 September 2026 Eugene instructed: “give design prompt then start buildin
 everything possible efficiently until designs are ready”. This authorizes the
 independent build work and its checks. New visual choices wait for returned drawings
 and review. Providing the Design prompt does not send it to Design.
+
+Later on 30 September Eugene corrected the destination scope, in this order:
+
+1. “its a public page which Find my candidates in nav should go to (see task building nav)”
+2. “go”
+3. “remove private labeling”
+
+This authorizes the public `/candidates` destination and removal of private labeling.
+The navigation's **Find my candidates** link goes to `/candidates`; the separate
+navigation task owns that integration. The accepted `/candidates` title remains
+**Find My Candidates**. The public destination must not collect an address before a
+real service is connected or substitute illustrative records for real candidates.
+Development review retains **ILLUSTRATIVE DATA** so examples cannot be mistaken for
+official records. Earlier private-release boundaries below are dated history, not a
+continuing hold on the public destination.
+
+Eugene's next instruction was: “eval why and when records are not avail and explain
+to me, are we able to see everyone running for the nov election now? based on MN
+public data, research more if needed to find everything the State informs”. That
+research is separate from opening the destination. The public notice is **Candidate
+records are not available on Alethical yet**, describing Alethical's unconnected
+service rather than claiming Minnesota has not published records. Source research
+must establish actual November coverage before promising everyone is included.
 
 The earlier meeting scope is street address → relevant filed candidates → claimable
 candidate profiles. County, council, and school board offices are part of the intended
@@ -31,22 +55,24 @@ the older saved requirements do not settle candidate claim verification.
 
 The homepage and navigation have separate active design work. This branch does not
 edit their components while that work continues. The candidate destination is
-`/candidates`, plural. The homepage button and Search menu row say **Find My
-Candidates**. The menu row sits above the existing legislator lookup; desktop supporting
-text is **Enter your street address to see who’s running in your area**. Mobile has no supporting
-text. The older planned `/search/candidates` entry remains inactive until rollout.
+`/candidates`, plural. The homepage candidate button uses **Find My Candidates**;
+the Search menu row uses **Find my candidates**. Homepage address handoff and working
+lookup remain future integration. The separate navigation work owns the latest menu
+layout and supporting text. The older planned `/search/candidates` entry remains inactive.
 
 ## Build order and ownership
 
-| Work | Owner | Starts after | Completion check |
-| --- | --- | --- | --- |
-| Official filing and boundary source research | `candidate_sources` helper | Now | Primary URLs, formats, source scope, actual access and local gaps recorded |
-| Strict election-file parser and offline retained import | `candidate_foundation` helper | Now | Real source excerpt, malformed-response rejection, election separation, immutable replay and coverage tests |
-| Temporary browser search state | `candidate_search_state` helper | Now | Old responses cannot replace newer searches; retry retains coherent results; clearing removes private state |
-| Source review, integration, documentation and independent review | Current task | Each result | Read actual source and code; focused checks; safe release of dormant foundation |
-| Public search/results, homepage and menu integration | Current task | Reviewed drawings and source contract | Desktop/phone browser journeys; keyboard, slow/failure/retry and privacy checks |
-| Candidate profiles and claim management | Current task | Profile/claim design review and settled identity/evidence rules | Public record remains immutable; account separation and claim-review checks |
-| Public activation | Current task | Local coverage, source retention, freshness and end-to-end checks | Live supported-address lookup produces sourced candidates and honest gaps |
+| Work                                                             | Owner                           | Starts after                                                      | Completion check                                                                                                          |
+| ---------------------------------------------------------------- | ------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Official filing and boundary source research                     | `candidate_sources` helper      | Now                                                               | Primary URLs, formats, source scope, actual access and local gaps recorded                                                |
+| Strict election-file parser and offline retained import          | `candidate_foundation` helper   | Now                                                               | Real source excerpt, malformed-response rejection, election separation, immutable replay and coverage tests               |
+| Temporary browser search state                                   | `candidate_search_state` helper | Now                                                               | Old responses cannot replace newer searches; retry retains coherent results; clearing removes private state               |
+| Source review, integration, documentation and independent review | Current task                    | Each result                                                       | Read actual source and code; focused checks; safe release of dormant foundation                                           |
+| Public `/candidates` destination                                 | Current task                    | Authorized by Eugene's later correction                           | Production route and HTTP response succeed; truthful unavailable notice, official link, no address collection or examples |
+| Navigation link to `/candidates`                                 | Separate navigation task        | Its authorized navigation build                                   | Find my candidates opens the public destination                                                                           |
+| Real search/results and homepage address handoff                 | Current task                    | Reviewed drawings and source contract                             | Desktop/phone browser journeys; keyboard, slow/failure/retry and privacy checks                                           |
+| Candidate profiles and claim management                          | Current task                    | Profile/claim design review and settled identity/evidence rules   | Public record remains immutable; account separation and claim-review checks                                               |
+| Real candidate-data activation                                   | Current task                    | Local coverage, source retention, freshness and end-to-end checks | Live supported-address lookup produces sourced candidates and honest gaps                                                 |
 
 Each helper has separate new files. Current task owns shared-file integration,
 documentation, commits, pull requests, and release. No recurring agent or paid data
@@ -131,7 +157,7 @@ lookup accepts address information in a request body and returns private, non-ca
 responses. Addresses and coordinates must not enter URLs, metrics, logs, saved-account
 records, campaign tools, or browser persistent storage.
 
-The homepage hands the address to `/candidates` through temporary memory. Returning
+The planned homepage integration hands the address to `/candidates` through temporary memory. Returning
 from a candidate profile restores the current search during that app lifetime. A hard
 reload or new tab can ask for the address again. Changing address or election retains
 the previous successful result as one labelled unit while a newer result loads.
@@ -156,14 +182,16 @@ The browser-state helper receives a lookup function supplied by its future calle
 Keep one instance above the homepage, search and profile routes. The helper does not
 make network calls, resolve ambiguous addresses, or implement the drawn controls.
 
-## Release holds
+## Holds on real data and claims
 
 - Full original-filing imports, county/city/school-board matching and freshness rules
   need source proof before activation.
 - The candidate list is not an official sample ballot. General-election results must
   not include everyone who filed for a primary.
-- Public search and profile routes, homepage marketing and menu activation wait for
-  functional destinations. Do not advertise this dormant foundation as live lookup.
+- The public `/candidates` destination is authorized with its current unavailable
+  state. Real search, source-backed profiles and homepage address handoff still need
+  functional source-backed destinations. Do not advertise the unavailable state as
+  a working address lookup.
 - Candidate statements, uploaded evidence, verification emails, claim approvals and
   paid services are not implemented by the foundation.
 
@@ -245,19 +273,21 @@ says some local sample ballots may be unavailable. Empty or unavailable source d
 must not mean no candidates. The offline parser and strict range matching remain
 inactive pending source retention, broader reconciliation, coverage and launch checks.
 
-### Current checkpoint
+### Earlier private release checkpoint, 30 September 2026
 
 Search/profile components, private routes, preview data and the inactive source
 parser were released through [pull request 2438](https://github.com/alethical-org/alethical/pull/2438).
 The previous foundation was released through
 [pull request 2428](https://github.com/alethical-org/alethical/pull/2428).
-Public navigation, homepage activation, claims and production source connection are
-not part of this release. This task keeps the working private preview available and owns the next source-backed
-integration step. Original filing access, retained evidence, supported local coverage
-and freshness remain unresolved; claims also wait for an ownership-verification policy.
+Public navigation, homepage activation, claims and production source connection were
+not part of that release. The task retained the working development preview and the
+next source-backed integration step. Original filing access, retained evidence,
+supported local coverage and freshness remained unresolved; claims also awaited an
+ownership-verification policy. The later public-destination approval above supersedes
+the destination-only restriction, preserving the data and claim checks.
 
-The private development preview runs at `http://localhost:19047/candidates` from this
-worktree. It labels records **PRIVATE DRAFT · ILLUSTRATIVE DATA** and states that
+At that release the private development preview ran at `http://localhost:19047/candidates` from this
+worktree. It labeled records **PRIVATE DRAFT · ILLUSTRATIVE DATA** and stated that
 entered addresses stay in the browser rather than claiming a real mapping request.
 The production resolver excludes both private review modules from export, and the
 release-asset check rejects illustrative records or controls in any exported program.
@@ -289,6 +319,76 @@ On 30 September 2026, website and server both reported release
 `4f4ab204193f9b36db0e9d3231542c6275c5d361`. The live `/candidates` and example-profile
 addresses returned 404 with that same website release and no illustrative records.
 The final independent visitor review passed after deployment.
-The accepted private preview stays at its original address; its worktree remains
-available while Eugene reviews it. Final release evidence and visitor acceptance are
+The accepted preview stayed at its original address; its worktree remained
+available while Eugene reviewed it. Final release evidence and visitor acceptance are
 recorded on [issue 147](https://github.com/alethical-org/alethical/issues/147).
+
+## Public-destination build checkpoint, 30 September 2026
+
+The later public build adds the normal `/candidates` route in every build and public
+page metadata. Without development review enabled, the `/candidates` page shows its
+title, Minnesota outline, **Candidate records are not available on Alethical yet**,
+and **Minnesota sample ballot information**. No address box, election selector,
+candidate-service request or example result is exposed. The public server returns
+200 at `/candidates` and 404 for illustrative candidate-profile addresses, including
+when a development review setting is accidentally present in production.
+
+The development review removes **PRIVATE DRAFT**, preserving **ILLUSTRATIVE DATA**
+and the explanation that example names are not candidate records. Production export
+continues to exclude the example-record module. This checkpoint describes the build
+underway; it is not evidence of deployment. The current release still needs normal
+tests, production-export checks, hosted checks, deployment and live acceptance.
+
+The [Find My Candidates guide](../product-onboarding/find-my-candidates-guide.md)
+describes the public destination, official ballot link, current source-connection
+limit, review states and address handling. The latest source research and future live
+integration must update this checkpoint without rewriting the dated earlier release.
+
+## November public-source review, 30 September 2026
+
+The [Secretary of State's candidate filing search](https://candidates.sos.mn.gov/CandidateFilingSearch.aspx)
+currently names the 3 November 2026 general election. It offers 4 distinct downloads:
+all filings for federal/state/county offices, all filings for local offices,
+general-election candidates for federal/state/county offices, and general-election
+candidates for local offices. Use the general-election set for November results;
+all filings are not a November ballot list. The filing search says withdrawn
+candidates are removed. A later source snapshot must therefore not silently overwrite
+the earlier retained evidence.
+
+The [Secretary of State's ballot guidance](https://www.sos.mn.gov/elections-voting/whats-on-my-ballot/)
+says sample-ballot information is posted about 45 days before an election and may
+be missing for some local elections. When a local sample is unavailable, the guidance
+directs readers to the city, town or school district holding that election. The 45-day
+guidance does not explain Alethical's current unavailable notice: the official
+November ballot service already supplies records, as the sample-ballot evidence
+above shows. Alethical still needs to connect and retain that source for its own
+working search.
+
+3 official MyBallot responses retrieved on 30 September all carry election ID
+`8334` and date `11/03/2026`. Their ballot-row counts include named candidates,
+WRITE-IN placeholders and questions; they are not candidate counts:
+
+| Official response                                                                                                            | Precinct             | Ballot rows | Local contests present                                                                                |
+| ---------------------------------------------------------------------------------------------------------------------------- | -------------------- | ----------- | ----------------------------------------------------------------------------------------------------- |
+| [Minneapolis range 316911](https://myballotmn.sos.mn.gov/api/PollingPlaceData/GetPollingPlaceData?prodAddressRangeId=316911) | MINNEAPOLIS W-3 P-12 | 101         | County commissioner, sheriff, attorney and SSD #1 at-large school board                               |
+| [Eagan range 364000](https://myballotmn.sos.mn.gov/api/PollingPlaceData/GetPollingPlaceData?prodAddressRangeId=364000)       | EAGAN P-17           | 87          | County sheriff and attorney, Eagan mayor and council                                                  |
+| [Cook range 801](https://myballotmn.sos.mn.gov/api/PollingPlaceData/GetPollingPlaceData?prodAddressRangeId=801)              | COOK                 | 78          | County offices, soil/water supervisors, Cook mayor and council, and ISD #2142 school-board District 2 |
+
+Each response also supplies 1 sample-ballot entry. These 3 locations establish
+available November state and local data, including school-board subdistrict detail;
+they do not establish coverage for every Minnesota address. Raw address-range and
+polling-place response data is not copied into this repository or published as a
+visitor record.
+
+The [2026 federal and state write-in request form](https://www.sos.mn.gov/media/3008/request-write-in-votes-be-counted-for-federal-and-state-office.pdf)
+allows requests through 15 October 2026 at 5:00 p.m. for write-in votes to be counted
+separately at the 3 November election. This is a federal/state deadline, not a
+general rule for every local office. As of 30 September, it also prevents treating
+today's records as a final list of every possible write-in candidate. The candidate
+ballot parser's exclusion of unnamed WRITE-IN placeholders remains correct;
+placeholders are not named candidate records.
+
+Real source connection is the next implementation work, not an unapproved product
+choice. Source retention, election matching, privacy, honest local gaps and freshness
+remain completion checks. None of these measurements establishes statewide
+completeness or authorizes claims about everyone running.

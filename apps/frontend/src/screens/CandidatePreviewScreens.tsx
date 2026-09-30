@@ -31,7 +31,7 @@ function PreviewControls({ preview }: { preview: typeof Preview }) {
   const [slow, setSlow] = useState(preview.candidatePreviewSettings.slow);
   return (
     <View style={styles.review}>
-      <Text style={styles.reviewTitle}>PRIVATE DRAFT · ILLUSTRATIVE DATA</Text>
+      <Text style={styles.reviewTitle}>ILLUSTRATIVE DATA</Text>
       <Text style={styles.reviewText}>
         These example names test the design. They are not candidate records.
       </Text>
@@ -74,7 +74,7 @@ function PreviewControls({ preview }: { preview: typeof Preview }) {
         </label>
         <CandidateButton
           kind="text"
-          label="Clear private address"
+          label="Clear address"
           onPress={() => {
             preview.candidatePreviewFlow.clear();
             window.location.assign('/candidates');
@@ -121,7 +121,7 @@ export function CandidatesScreen({ navigation }: RootScreenProps<'Candidates'>) 
         <>
           <PreviewControls preview={preview} />
           <CandidateSearchContent
-            privacyDisclosure="Private preview: your address stays in this browser and is not sent to mapping services"
+            privacyDisclosure="Your address stays in this browser and is not sent to mapping services"
             services={preview.candidatePreviewServices}
             flow={preview.candidatePreviewFlow}
             imageSource={require('../../assets/mn-outline-candidates.svg')}
@@ -131,7 +131,7 @@ export function CandidatesScreen({ navigation }: RootScreenProps<'Candidates'>) 
           />
         </>
       ) : (
-        <Text accessibilityLiveRegion="polite">Loading private preview…</Text>
+        <Text accessibilityLiveRegion="polite">Loading preview…</Text>
       )}
     </PreviewFrame>
   );
@@ -153,7 +153,7 @@ export function CandidateProfileScreen({ navigation, route }: RootScreenProps<'C
   return (
     <PreviewFrame navigation={navigation as never}>
       <View style={styles.review}>
-        <Text style={styles.reviewTitle}>PRIVATE DRAFT · ILLUSTRATIVE DATA</Text>
+        <Text style={styles.reviewTitle}>ILLUSTRATIVE DATA</Text>
       </View>
       {record ? (
         <CandidateProfileContent
@@ -162,7 +162,7 @@ export function CandidateProfileScreen({ navigation, route }: RootScreenProps<'C
           onOpenProfile={(candidateId) => navigation.navigate('CandidateProfile', { candidateId })}
         />
       ) : (
-        <Text accessibilityLiveRegion="polite">Loading private preview…</Text>
+        <Text accessibilityLiveRegion="polite">Loading preview…</Text>
       )}
     </PreviewFrame>
   );

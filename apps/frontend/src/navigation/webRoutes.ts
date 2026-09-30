@@ -239,13 +239,14 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   const searchParams = searchParamsFromPathname(pathname);
   const segments = normalized.split('/').filter(Boolean);
 
+  if (normalized === '/candidates') return { kind: 'candidates' };
+
   if (
     typeof __DEV__ !== 'undefined' &&
     __DEV__ &&
     segments[0] === 'candidates' &&
     candidatePreviewEnabled()
   ) {
-    if (segments.length === 1) return { kind: 'candidates' };
     if (segments.length === 2 && /^[a-zA-Z0-9_-]+$/.test(segments[1]))
       return { kind: 'candidateProfile', candidateId: segments[1] };
   }
@@ -705,10 +706,9 @@ export function pathForRoute(activeRoute: {
   name: keyof RootStackParamList | keyof MainTabParamList;
   params?: Record<string, unknown>;
 }): string {
-  // These names are never registered in production. Keep their URL builders
-  // inside the development branch so public visitors download none of them.
+  if (activeRoute.name === 'Candidates') return '/candidates';
+  // Illustrative profile routes remain development-only.
   if (typeof __DEV__ !== 'undefined' && __DEV__ && candidatePreviewEnabled()) {
-    if (activeRoute.name === 'Candidates') return '/candidates';
     if (activeRoute.name === 'CandidateProfile')
       return `/candidates/${encodeURIComponent(String(activeRoute.params?.candidateId ?? ''))}`;
   }
@@ -1038,9 +1038,8 @@ export function stateFromPathname(pathname: string): WebNavigationState {
     state: tabState('Home'),
   };
 
+  if (target.kind === 'candidates') return { routes: [homeTabs, { name: 'Candidates' }], index: 1 };
   if (typeof __DEV__ !== 'undefined' && __DEV__) {
-    if (target.kind === 'candidates')
-      return { routes: [homeTabs, { name: 'Candidates' }], index: 1 };
     if (target.kind === 'candidateProfile')
       return {
         routes: [

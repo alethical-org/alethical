@@ -67,6 +67,8 @@ export interface CandidateSearchServices {
   lookup(request: CandidateLookupRequest, signal: AbortSignal): Promise<CandidateLookupResponse>;
 }
 export interface CandidateSearchContentBaseProps {
+  /** A public destination can exist before candidate records are connected. */
+  recordsAvailable?: boolean;
   services: CandidateSearchServices;
   onOpenProfile(id: string): void;
   initialAddress?: string;

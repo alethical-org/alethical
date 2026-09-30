@@ -84,7 +84,7 @@ const ReadScreen = loadOnDemand(screenChunks.Read);
 const ReadCollectionScreen = loadOnDemand(screenChunks.ReadResearch);
 const ShortPostsScreen = loadOnDemand(screenChunks.ShortPosts);
 const NotFoundScreen = loadOnDemand(screenChunks.NotFound);
-const CandidatesScreen = __DEV__ ? loadOnDemand(screenChunks.Candidates!) : NotFoundScreen;
+const CandidatesScreen = loadOnDemand(screenChunks.Candidates);
 const CandidateProfileScreen = __DEV__
   ? loadOnDemand(screenChunks.CandidateProfile!)
   : NotFoundScreen;
@@ -700,13 +700,13 @@ export function RootNavigator() {
               component={FindMyLegislatorScreen}
               options={{ headerShown: false, title: 'Find my legislator' }}
             />
+            <Stack.Screen
+              name="Candidates"
+              component={CandidatesScreen}
+              options={{ headerShown: false }}
+            />
             {__DEV__ && candidatePreviewEnabled() && (
               <>
-                <Stack.Screen
-                  name="Candidates"
-                  component={CandidatesScreen}
-                  options={{ headerShown: false }}
-                />
                 <Stack.Screen
                   name="CandidateProfile"
                   component={CandidateProfileScreen}

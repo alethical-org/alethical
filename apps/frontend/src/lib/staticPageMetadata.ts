@@ -71,6 +71,13 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
     canonicalPath: '/reset',
     noindex: true,
   }),
+  '/candidates': pageMetadata({
+    title: titleFor('Find My Candidates'),
+    socialTitle: 'Find My Candidates',
+    description:
+      'Candidates for Minnesota state and local offices. Live candidate search is not connected yet.',
+    canonicalPath: '/candidates',
+  }),
   '/find-my-legislator': pageMetadata({
     title: titleFor('Find my legislator'),
     socialTitle: 'Find my legislator',
