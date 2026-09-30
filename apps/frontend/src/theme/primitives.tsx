@@ -1174,7 +1174,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  navBarDesktop: { justifyContent: 'flex-start', columnGap: 56 },
+  navBarDesktop: { columnGap: 56 },
   navLinks: { flexDirection: 'row', alignItems: 'center', gap: 30 },
   navTriggerGroup: { flexDirection: 'row', alignItems: 'center', gap: 32 },
   navMobileRight: { flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 'auto' },

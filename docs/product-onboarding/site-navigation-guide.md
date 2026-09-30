@@ -162,7 +162,8 @@ sizes, and spacing live in code (`apps/frontend/src/theme/tokens.ts`), never in 
 
 ## Navigation design accepted 30 September 2026
 
-Desktop links follow the wordmark rather than sitting at the right edge.
+Desktop links and the account control sit at the right edge, with the wordmark
+at the left.
 Money, Search, Blog and About keep their
 existing order. The account avatar opens the same popover; signed-out readers keep
 the existing green Sign in action. The signed-out homepage retains its separately
