@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { installPrivateSiteMetricsSession } from './private-site-metrics-session';
 import { suppressSiteMetrics } from './suppress-site-metrics';
 
 test.beforeEach(async ({ context, baseURL }) => {
@@ -192,12 +193,31 @@ async function installMetricAnswers(page: Page) {
 }
 
 async function waitForMetrics(page: Page) {
+  await installPrivateSiteMetricsSession(page);
   await installMetricAnswers(page);
-  await page.goto('/site-metrics');
+  await page.goto('/admin/site-metrics');
   await expect(page.getByRole('heading', { name: 'Site Metrics', level: 1 })).toBeVisible();
   await expect(page.getByText('Loading site metrics.')).toHaveCount(0, { timeout: 30_000 });
   await expect(page.getByTestId('site-metrics-explore')).toBeVisible();
 }
+
+test('a signed-out visitor sees no private Site Metrics figures or source requests', async ({
+  page,
+}) => {
+  const privateRequests: string[] = [];
+  page.on('request', (request) => {
+    const path = new URL(request.url()).pathname;
+    if (path.startsWith('/api/traffic') || path.startsWith('/api/v1/site-metrics')) {
+      privateRequests.push(path);
+    }
+  });
+  await page.goto('/admin/site-metrics');
+  await expect(
+    page.getByText('Sign in with an administrator account to view Site Metrics.'),
+  ).toBeVisible();
+  await expect(page.getByTestId('site-metrics-explore')).toHaveCount(0);
+  expect(privateRequests).toEqual([]);
+});
 
 test('Site Metrics matches the accepted desktop measurements', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1200 });

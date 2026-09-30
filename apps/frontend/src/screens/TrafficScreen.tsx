@@ -12,7 +12,7 @@ import { type AccountSignupTotals } from '../lib/accountSignupMetrics';
 import { GreenLinkArrow, linkArrowRow } from '../components/LinkArrow';
 import { useResponsive } from '../hooks/useResponsive';
 import { useAdminAccess } from '../hooks/useAdminAccess';
-import { ApiError } from '../data/api';
+import { accessIssueForSiteMetrics, type SiteMetricsAccessIssue } from '../lib/siteMetricsAccess';
 import {
   formatTrafficWindowEnd,
   isPerformanceTotals,
@@ -41,7 +41,7 @@ const MINUTE_MS = 60 * 1000;
 const CHECKLY_PUBLIC_STATUS_URL = process.env.EXPO_PUBLIC_CHECKLY_STATUS_URL?.trim() ?? '';
 
 type ActivityRange = 7 | 30;
-type AccessIssue = 'denied' | 'unavailable';
+type AccessIssue = SiteMetricsAccessIssue;
 type SourceState<T> =
   | { kind: 'loading' }
   | { kind: 'ready'; totals: T; stale: boolean }
@@ -128,8 +128,9 @@ function useRecordTotals(accessToken: string, onAccessIssue: (issue: AccessIssue
         }
         setState({ kind: 'ready', totals: payload, stale: false });
       } catch (error) {
-        if (error instanceof ApiError && [401, 403, 503].includes(error.status)) {
-          if (active) onAccessIssue(error.status === 503 ? 'unavailable' : 'denied');
+        const issue = accessIssueForSiteMetrics(error);
+        if (issue) {
+          if (active) onAccessIssue(issue);
           return;
         }
         if (active) {
@@ -162,8 +163,9 @@ function useAccountSignupTotals(accessToken: string, onAccessIssue: (issue: Acce
         const totals = await getAccountSignupTotalsFromApi(accessToken);
         if (active) setState({ kind: 'ready', totals, stale: false });
       } catch (error) {
-        if (error instanceof ApiError && [401, 403, 503].includes(error.status)) {
-          if (active) onAccessIssue(error.status === 503 ? 'unavailable' : 'denied');
+        const issue = accessIssueForSiteMetrics(error);
+        if (issue) {
+          if (active) onAccessIssue(issue);
           return;
         }
         if (active)

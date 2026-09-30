@@ -59,7 +59,7 @@ describe('private Site Metrics page', () => {
   it('hides previously loaded totals if administrator access is revoked or unavailable', () => {
     expect(SOURCE).toContain('response.status === 401 || response.status === 403');
     expect(SOURCE).toContain("response.headers.get('X-Site-Metrics-Access') === 'unavailable'");
-    expect(SOURCE).toContain('error instanceof ApiError && [401, 403, 503].includes(error.status)');
+    expect(SOURCE).toContain('accessIssueForSiteMetrics(error)');
     expect(SOURCE).toContain('if (accessIssue)');
     expect(SOURCE).toContain('Access to Site Metrics has ended.');
   });
