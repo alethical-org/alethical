@@ -712,7 +712,8 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.semibold,
   },
   grid: { marginTop: 28, flexDirection: 'row', gap: 56, alignItems: 'flex-start' },
-  gridMobile: { flexDirection: 'column', gap: 0 },
+  // Keep the reading column inside the phone gutters even when a table is wider.
+  gridMobile: { flexDirection: 'column', gap: 0, alignItems: 'stretch' },
   rail: { width: 226, flexShrink: 0 },
   railLabel: {
     color: t.colors.text.secondary,
