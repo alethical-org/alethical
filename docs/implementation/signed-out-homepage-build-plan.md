@@ -37,8 +37,8 @@ gate remains in place.
 3. Exercise desktop, tablet, and phone, card links, hover, keyboard focus,
    navigation drawer, and sign-in dialog. Complete.
 4. Accept an independent review and fix justified findings. Complete.
-5. Commit, push, open a pull request, wait for current-head checks and the merge
-   queue, then inspect the live homepage. Pending.
+5. Commit and push complete. [Pull request 2430](https://github.com/alethical-org/alethical/pull/2430)
+   is open. Current-head checks, the merge queue and live homepage acceptance remain.
 
 Keep this sequence current through the live result. Do not start a signed-in
 redesign or a new Design request as part of this authorization.

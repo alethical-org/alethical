@@ -22,7 +22,9 @@ Readers reach it through a private email link, not the account menu. See
   own research, short posts and guides, and it carries the green NEW chip while the section is new.
 - **About ▾** opens **About Us** (`/about`), **Site Metrics** (`/site-metrics`), and
   **Contact Us** (`/about/contact`).
-- **Sign in** is the one primary button when you are signed out. Pressing it opens the sign-in
+- **Sign in** is the account action when you are signed out. The signed-out homepage
+  uses the approved white outlined button; other screens retain their existing primary
+  treatment. Pressing it opens the sign-in
   dialog over the page you are on (`docs/product-onboarding/sign-in-guide.md`); there is no
   sign-in page to route to.
 - **The account control replaces Sign in once you are in**: an avatar with your first name on a
