@@ -33,11 +33,11 @@ Two traits, not 2 mutually exclusive kinds. §2.7 is why that distinction matter
   across members, and defines no classifications, so it sits under rules 1 to 12 like every other
   surface and needs no part of rule 13's exception. 5 long-form Guides are live, all posted 27 Aug
   2026 and all in the set "How the Money Works", in its reading order: *Who has to report their
-  money* at `/read/guides/who-has-to-report-their-money`, *What the records name, and what they
-  leave out* at `/read/guides/what-the-records-name`, *Why 2 official numbers can both be right*
-  at `/read/guides/why-2-official-numbers-can-both-be-right`, *Money spent without a campaign's
-  say* at `/read/guides/money-spent-without-a-campaigns-say`, and *Why nobody can follow a
-  dollar* at `/read/guides/why-nobody-can-follow-a-dollar`. That
+  money* at `/blog/guides/who-has-to-report-their-money`, *What the records name, and what they
+  leave out* at `/blog/guides/what-the-records-name`, *Why 2 official numbers can both be right*
+  at `/blog/guides/why-2-official-numbers-can-both-be-right`, *Money spent without a campaign's
+  say* at `/blog/guides/money-spent-without-a-campaigns-say`, and *Why nobody can follow a
+  dollar* at `/blog/guides/why-nobody-can-follow-a-dollar`. That
   completes the 5 pieces [issue 1752](https://github.com/alethical-org/alethical/issues/1752)
   fixed for the set "How the Money Works", and closes what
   [issue 1771](https://github.com/alethical-org/alethical/issues/1771) raised: the set no longer
@@ -58,19 +58,19 @@ Two traits, not 2 mutually exclusive kinds. §2.7 is why that distinction matter
 
 Ratified by Eugene, 27 Aug 2026, except where a different date is given.
 
-### 2.1 Addresses carry the trait, and the `/read` page lists everything
+### 2.1 Addresses carry the trait, and the `/blog` page lists everything
 
 | address | what it is |
 | --- | --- |
-| `/read` | the `/read` page: everything we publish, one combined listing |
-| `/read/research/<name>` | one piece carrying the research trait, including a piece that also teaches |
-| `/read/guides/<name>` | one piece carrying only the guide trait |
-| `/read/sets/<name>` | one set of pieces meant to be read together |
+| `/blog` | the `/blog` page: everything we publish, one combined listing |
+| `/blog/research/<name>` | one piece carrying the research trait, including a piece that also teaches |
+| `/blog/guides/<name>` | one piece carrying only the guide trait |
+| `/blog/sets/<name>` | one set of pieces meant to be read together |
 
 **A piece carrying both traits is addressed under `research`**, because rule 13 binds it in full and
 the address then states which promises apply to the page. See §2.7.
 
-**What flat lost on, twice.** A flat address with no folder word — `/read/<name>` in today's
+**What flat lost on, twice.** A flat address with no folder word — `/blog/<name>` in today's
 terms, written `/reports/<name>` at the time — was decided on 25 Aug 2026 and withdrawn on
 26 Aug when both its grounds failed checking; the full record is
 [`page-metadata-for-search-and-sharing-decisions.md`](page-metadata-for-search-and-sharing-decisions.md)
@@ -103,7 +103,7 @@ instead.
 
 ### 2.3 A set names only its published pieces, never its unwritten ones
 
-Ratified by Eugene 27 Aug 2026. A set box on the `/read` page lists the pieces that are
+Ratified by Eugene 27 Aug 2026. A set box on the `/blog` page lists the pieces that are
 published and nothing else. It never lists a title a reader cannot open, and it carries no count
 of how many pieces the set is eventually meant to hold.
 
@@ -121,13 +121,13 @@ is a commitment rather than a design choice, and none exists.
 nobody looks forward to piece 3. Reversible the moment owners and dates exist, by adding the
 titles back.
 
-**A set's own page follows the same rule.** `/read/sets/<name>` lists its published pieces and
+**A set's own page follows the same rule.** `/blog/sets/<name>` lists its published pieces and
 no others.
 
 ### 2.4 A set with no published pieces hides its box and keeps its page
 
-On the `/read` page, a set whose pieces are all unpublished shows no box. Its own
-`/read/sets/<name>` page stays reachable and stays served.
+On the `/blog` page, a set whose pieces are all unpublished shows no box. Its own
+`/blog/sets/<name>` page stays reachable and stays served.
 
 **What the drawn alternative lost on.** The design drew the empty box visible. A box with no rows
 tells a reader nothing and reads as broken. Keeping the page reachable is what
@@ -211,7 +211,7 @@ Counted 27 Aug 2026, before the 13 September helper split into `committeeMoney.t
 original file, and every one of the 21 is about filing to the Board. Renaming a public record to
 free the word is not available, so our own writing is the half that moves.
 
-**The long-form section is `RESEARCH REPORTS` (27 Sep 2026).** Eugene asked to make the green headings distinguish longer research from short posts. The `/read` section heading uses the qualified phrase, while individual article labels remain `RESEARCH` or `GUIDE`. `SHORT POSTS` stays broad enough for either trait; it does not become `SHORT RESEARCH POSTS`. This changes the section heading, not article kinds, addresses or source rules. The qualification distinguishes Alethical's writing from filed Board reports.
+**The long-form section is `RESEARCH REPORTS` (27 Sep 2026).** Eugene asked to make the green headings distinguish longer research from short posts. The `/blog` section heading uses the qualified phrase, while individual article labels remain `RESEARCH` or `GUIDE`. `SHORT POSTS` stays broad enough for either trait; it does not become `SHORT RESEARCH POSTS`. This changes the section heading, not article kinds, addresses or source rules. The qualification distinguishes Alethical's writing from filed Board reports.
 
 **Why "Guide" rather than "Explainer".** "Explainer" names a publishing format; "Guide" states the
 help on offer. Both are honest, and the reader-facing test is which one a person clicks when
@@ -288,10 +288,10 @@ forwards all shipped in one pull request; the 4 fields in §4 did not, and stay 
    intermediate hop:
    `/reports/the-money-only-goes-one-way` to `/reading/research/the-money-only-goes-one-way`.
 
-**It moved a second time the same day**, to `/read/research/the-money-only-goes-one-way`, when §2.13
-settled the bar's word. The 2 moves make 3 generations of address, and the rule the sequence exists
+**It moved a second time the same day**, to `/read/research/the-money-only-goes-one-way`, when the August ruling
+in §2.13 settled the bar's word as Read; §2.15 supplies its current Blog name. The 2 moves make 3 generations of address, and the rule the sequence exists
 to protect is what stops that compounding: every retired address forwards to its FINAL destination in
-1 hop, never through the address in between. `vercel.json` carries 7 permanent forwards to prove it.
+1 hop, never through the address in between. The August release carried 7 permanent forwards; §2.15 governs their current destinations.
 
 Sequence recommended by the peer coding consultant on 27 Aug 2026 and adopted. Its purpose is
 [`.claude/rules/workflow.md`](../../.claude/rules/workflow.md)'s prohibition on landing work under
@@ -303,14 +303,14 @@ Ratified by Eugene 27 Aug 2026, narrowing §2.2's wording at Design's own reques
 letting Design apply the narrowing quietly.
 
 **The rule.** A card carries its visible kind word where readers need it to tell mixed kinds
-apart. Under `GUIDES` or `RESEARCH REPORTS` on `/read`, the heading supplies the word. Short post rows
-on `/read` and cards on `/read/short-posts` also omit the visible word; each keeps a hidden
+apart. Under `GUIDES` or `RESEARCH REPORTS` on `/blog`, the heading supplies the word. Short post rows
+on `/blog` and cards on `/blog/short-posts` also omit the visible word; each keeps a hidden
 `Research: ` or `Guide: ` before its metadata for screen readers. Cards on
-`/read/topics/<topic>` keep the visible kind because a topic mixes kinds. A card also prints
+`/blog/topics/<topic>` keep the visible kind because a topic mixes kinds. A card also prints
 the word on the home page, in a search result, and in a related-piece list when needed.
 
 **Why the word depends on context.** An unqualified rule, "a card outside a set box carries the
-word", prints "Guide" on the `/read` page under a heading already reading `GUIDES`, twice in one
+word", prints "Guide" on the `/blog` page under a heading already reading `GUIDES`, twice in one
 glance. Design spotted this while drawing the page and asked to have the narrowing ratified rather
 than absorb it silently, which is the right instinct: a looser sentence already written down gets
 followed by the next person.
@@ -319,7 +319,7 @@ followed by the next person.
 card component needs to know whether a heading sits above it. That is a small amount of wiring and
 1 more state to get wrong.
 
-### 2.11 The `/read` page groups writing, with topic destinations alongside
+### 2.11 The `/blog` page groups writing, with topic destinations alongside
 
 Ratified by Eugene 27 Aug 2026, with the long-form heading clarified on 27 Sep 2026.
 `RESEARCH REPORTS` sits above `SHORT POSTS`, then `GUIDES`.
@@ -367,7 +367,7 @@ there, and where are the rest. §2.3 already forbids naming an unwritten piece; 
 whole run of them without naming any.
 
 **Where it applies.** Every surface, not a list: a piece's own page, its masthead, a card on the
-`/read` page, a row inside a set box, a share preview, a search result.
+`/blog` page, a row inside a set box, a share preview, a search result.
 
 **This is the second narrowing of the same line in one day.** The guide's position line began as
 "How the Money Works, piece 1 of 5", lost "of 5" under §2.3 on the ground that the set's size was a
@@ -379,26 +379,24 @@ set's name and nothing else.
 reading order from the piece itself. The order lives on the set's own page, where the pieces are
 listed in it.
 
-### 2.13 The bar says **Read**, one item with no dropdown, and the addresses match it
+### 2.13 The bar says **Blog**, one item with no dropdown, and the addresses match it
 
-Ratified by Eugene 27 Aug 2026, after §2.1's addresses had already shipped once at `/reading`.
+The single destination was ratified by Eugene 27 Aug 2026; its current name and addresses follow §2.15.
 
-**The rule.** The top bar's second item is the single word **Read**. It is a destination, not a
+**The rule.** The top bar's Blog item follows Money and Search. It is a destination, not a
 dropdown: one bar item on a computer with no panel behind it, and one row in the phone drawer with no
-heading over it. Every address takes the same word — `/read`, `/read/research/<name>`,
-`/read/guides/<name>`, `/read/sets/<name>` — and so does every internal name: the screen is
-`ReadScreen.tsx`, the route is `Read`, and the registry item's id is `read`. The visually hidden page heading on `/read` is also **Read**; the visible opening explains the subjects. One vocabulary for
-readers and code both, per §2.7.
+heading over it. Every address takes the same word — `/blog`, `/blog/research/<name>`,
+`/blog/guides/<name>`, `/blog/sets/<name>`. The visually hidden page heading on `/blog` is also **Blog**; the visible opening explains the subjects. The screen remains `ReadScreen.tsx`, the route remains `Read`, and the registry item's id remains `read`; these implementation names do not appear as the section name to readers.
 
 **Why the group went.** It held exactly 1 child, labelled "Campaign money". So the bar drew a
 dropdown containing a single item and the phone drawer drew a heading over a single row, which is
-furniture with nothing to disclose. Everything we publish sits on the one `/read` page, and a new set
+furniture with nothing to disclose. Everything we publish sits on the one `/blog` page, and a new set
 adds a box to that page rather than a row to the bar, so the group had no growth path either. The
 20 Aug 2026 reasoning that kept it — the child named a subject the header did not — is superseded:
 the header is now the reader-facing word, and the child is gone.
 
 **What the reader gains, and it is the point.** One tap instead of two on a phone, and the bar's
-second item now names a destination rather than a container. A reader looking for our writing reads
+Blog item names a destination rather than a container. A reader looking for our writing reads
 one word and arrives.
 
 **What it costs, stated plainly.** A third generation of address, so every link anyone has shared
@@ -410,22 +408,23 @@ working indefinitely, and §2.9 records the rule that keeps the chain from compo
 **The bar's own item is not marked by chrome, it is marked by ARIA.** The nav had no
 `aria-current="page"` anywhere, while 4 other surfaces in the app mark their current thing. The row
 whose link is the page being viewed now carries it, at both bands. A dropdown trigger never does: a
-trigger opens a panel and is not a page, so on `/money` the Money in politics row inside Search is
+trigger opens a panel and is not a page, so on `/money` the direct Money navigation link is
 marked and the Search trigger is not.
 
-**In the phone drawer the Read row is drawn at top level, not as another group row.** Ruled by
+**In the phone drawer the Blog row is drawn at top level, not as another group row.** Ruled by
 Eugene 27 Aug 2026, correcting a first build that drew it plain. The row is 60px tall with a 1px
 rule above and below (`alpha.ink10`), its label at 25px in the same weight as a group's rows, its
 NEW chip beside the label, and a drawn right arrow at the far end in the muted ink. The whole band
 between the 2 rules is the tap target.
 
 **Why the plain row lost.** The nav's job is to show the shape of the site. A row identical to
-Search's 4 children tells a phone reader that Read is one of them, when it is 1 of the 3 things this
-site does; the rules and the extra height are what say it sits at the top level. Design drew it this
+Search's children tells a phone reader that Blog is one of them, when it is a top-level destination;
+the rules and the extra height are what say it sits at the top level. Money uses the same direct-row
+treatment, with the full current order owned by [site-navigation-guide.md](../product-onboarding/site-navigation-guide.md). Design drew it this
 way and argued for it; the first build drew it plain because the brief it was given put drawer
 geometry out of scope, and the brief was what was wrong.
 
-**Still no heading over it.** A `READ` eyebrow would repeat its own child 14px below it, which is
+**Still no heading over it.** A `BLOG` eyebrow would repeat its own child 14px below it, which is
 the stutter that collapsing the group removed. The arrow is what explains the missing heading:
 nothing else in the drawer has one, and a destination has no children to label.
 
@@ -460,6 +459,28 @@ record a figure rests on.
 no change to any piece's text. The archive is evidence we can produce when asked, and rule 13 puts
 any change to a posted piece with the Alethical team.
 
+### 2.15 The section is Blog and its permanent addresses start with `/blog`
+
+Approved by Eugene, 30 Sep 2026: “change read in nav and url to "blog" and anywhere else needed to permanently change section name”.
+
+**Blog** is the public section name in the top bar, phone drawer, browser titles,
+page headings, return links and accessibility labels. Its combined listing is `/blog`.
+Research, Guides, Short posts, topics and reading sets keep their existing kinds,
+content, ordering and folder structure beneath `/blog`. “Read” remains an ordinary
+verb in article copy, and “Related reading” remains the name of related-article links.
+
+Every retired `/read` address permanently forwards straight to its matching `/blog`
+address, including articles, collections, topics and sets, with valid query choices
+and article anchors retained. Older `/reading`, `/reports` and `/money/reports`
+forwards also target `/blog` directly, keeping every retired address to 1 hop.
+Their existing restrictions still apply: the older flat report addresses represent
+research, never a guide that did not exist there.
+
+Canonical addresses, sitemap entries, newly generated emails, shared links and
+article navigation use `/blog`. Previously sent emails and saved `/read` links
+remain usable through the permanent forwards. The section rename does not change
+publication dates, accuracy-review dates, claims, evidence or article publication holds.
+
 ## 3. Open decisions
 
 **What a reader sees when our copy and Minnesota's disagree.** Today the disagreement is reported to
@@ -472,8 +493,8 @@ weekly check runs and reports either way, so nothing waits on this.
 
 ## 4. The 4 fields the design reads off a piece
 
-**All 4 shipped 27 Aug 2026**, in the change that built the guide page at
-`/read/guides/who-has-to-report-their-money` and the 2 groups on the `/read` page. They live on
+**All 4 are implemented**, on the guide page at
+`/blog/guides/who-has-to-report-their-money` and the groups on the `/blog` page. They live on
 `ResearchPiece` in `apps/frontend/src/lib/research.ts`.
 
 1. **Two trait flags on a piece** (`traits: { research, guide }`), not 1 kind. A single-value `kind`
@@ -484,7 +505,7 @@ weekly check runs and reports either way, so nothing waits on this.
    one.
 2. **Set membership and position** (`set: { name, position }`), optional per §2.2. The position
    orders a set and is printed nowhere a reader can see, per §2.12; the set's name is all a reader is
-   told, and it is not a link while `/read/sets/<name>` does not exist.
+   told, and it is not a link while `/blog/sets/<name>` does not exist.
 3. **Reading time**, computed by `pieceReadingMinutes` from the piece's own stored words at 200 words
    a minute, rounded to whole minutes and never below 1. Never typed. It appears on a guide's
    masthead and on a guide's card; a research piece's masthead stays at its 2 dates and nothing else,
@@ -521,7 +542,7 @@ inherit. The 3 halves that are invisible when dropped are pinned by
 rather than the other way round, `aria-controls` points at a list element that stays in the document
 while the box is shut, and the chevron is hidden from assistive technology.
 
-**What is still unbuilt:** a set's own page at `/read/sets/<name>`, and the "All of <set name>"
+**What is still unbuilt:** a set's own page at `/blog/sets/<name>`, and the "All of <set name>"
 link Design gives a box at 6 published pieces. Tracked on
 [issue 1752](https://github.com/alethical-org/alethical/issues/1752).
 
@@ -538,12 +559,12 @@ reviewable; it is recorded on
 Two items, both rode with §2.8's rename so the files were swept once. **Both are cleared, 27 Aug
 2026**; what each one was, and where it went, is below.
 
-- **"Shelf"** for the `/read` page broke
+- **"Shelf"** for the `/blog` page broke
   [`.claude/rules/workflow.md`](../../.claude/rules/workflow.md) rule 7, which requires literal
   names a newcomer can guess and bans metaphors. It arrived in a design bundle and had spread into
   `MoneyReportsShelfScreen.tsx`, its exported screen and route, 4 code comments, the navigation
   note at `apps/frontend/src/navigation/ia.ts`, and rule 13's own text. Replacement, now shipped:
-  **the `/read` page**, named by its address, which is Eugene's standing rule for naming any
+  **the `/blog` page**, named by its address, which is Eugene's standing rule for naming any
   page. The screen is `ReadScreen.tsx`, its route is `Read`, and the word "shelf" appears
   nowhere in the frontend or the API. (The screen and route were `ReadingScreen.tsx` and `Reading`
   for the few hours between that rename and §2.13.)
@@ -569,13 +590,13 @@ are not a plan we can run and are not adopted as one. What we can measure withou
 
 ## 7. Short posts from checked social material
 
-Eugene approved this format on 25 Sep 2026. [Issue 2377](https://github.com/alethical-org/alethical/issues/2377) owns its nonvisual foundation. Short posts are focused writing, not a word limit. They use the same piece identity and the same Research and Guide traits as longer writing. A piece may carry both traits, and Research still determines its one permanent `/read/research/<slug>` address; a Guide without Research uses `/read/guides/<slug>`. Editing its title does not change its slug or address.
+Eugene approved this format on 25 Sep 2026. [Issue 2377](https://github.com/alethical-org/alethical/issues/2377) owns its nonvisual foundation. Short posts are focused writing, not a word limit. They use the same piece identity and the same Research and Guide traits as longer writing. A piece may carry both traits, and Research still determines its one permanent `/blog/research/<slug>` address; a Guide without Research uses `/blog/guides/<slug>`. Editing its title does not change its slug or address.
 
 Angel finishes the social copy and image and provides available sources. Eugene gives those materials to the coding agent. The agent checks the claims against Alethical's held records before publication, resolves supported corrections, explains useful context, assigns topics, and recreates useful graphics. Eugene reviews the complete article and graphics. Each article needs its own publication instruction. The earlier plan to publish Angel's copy unchanged first is withdrawn for these adaptations.
 
 The new prepublication checks apply to social-derived Short posts, not retroactively to signed Research and Guides already live. Arithmetic only checks arithmetic. A factual claim needs a recorded source, period, method, coverage, checked scope, and human review. A missing Alethical record is a coverage gap, not proof a source claim is false. Official sources may fill a genuine gap when their own period and method are stated. Known errors block publication; generic disclaimers cannot excuse them.
 
-One controlled topic vocabulary describes subject independently of format and traits. It begins with Campaign finance, Lobbying, and Elections. The `/read` page groups Research reports, then Short posts, then Guides; shows the newest 3 Short posts with an All short posts link; hides that group until a Short post is published; and keeps each Short post out of the long-form groups and reading sets. `/read/short-posts` uses newest-first publication timestamps, 6 pieces per numbered page, and a stable tie-breaker. Checks and corrections never reset publication time or ordering. `/read/topics/<topic>` gathers published pieces across traits and format. The kind-label rule for each listing is in §2.10. No topic directory, new search box, or combined filters are part of this decision. Eugene authorized these screens on 26 Sep 2026; [issue 2396](https://github.com/alethical-org/alethical/issues/2396) owns implementation and release. Individual articles retain their separate publication gate.
+One controlled topic vocabulary describes subject independently of format and traits. It begins with Campaign finance, Lobbying, and Elections. The `/blog` page groups Research reports, then Short posts, then Guides; shows the newest 3 Short posts with an All short posts link; hides that group until a Short post is published; and keeps each Short post out of the long-form groups and reading sets. `/blog/short-posts` uses newest-first publication timestamps, 6 pieces per numbered page, and a stable tie-breaker. Checks and corrections never reset publication time or ordering. `/blog/topics/<topic>` gathers published pieces across traits and format. The kind-label rule for each listing is in §2.10. No topic directory, new search box, or combined filters are part of this decision. Eugene authorized these screens on 26 Sep 2026; [issue 2396](https://github.com/alethical-org/alethical/issues/2396) owns implementation and release. Individual articles retain their separate publication gate.
 
 Related reading names a few relevant pieces already published, never the current piece or an invented destination. Reader-facing article text and quantitative graphics draw from the same approved numeric inputs, including units, periods, denominators, and any remainder category. An overlap diagram must not imply unsupported area proportions. Its labels and any needed explanation follow [ui-copy-guide.md §Remove implied information from text and visuals](../design/ui-copy-guide.md#remove-implied-information-from-text-and-visuals); omit the generic overlap sentence in the approved organizations draft. A dated newer-record notice points to newer activity without silently recalculating a dated article. An amended source earns a dated explanation and revised finding; Alethical's own error is corrected in text and chart with a dated correction, leaving no wrong figure readable with a line through it. The original publication date follows Minnesota's calendar and stays fixed; a later correction has its own full-content review and release instruction. Records-through is the newest covered reporting-period end among cited records Alethical holds, not extraction day. A piece using only official sources names that outside-source coverage and uses their newest covered end; it never presents that date as coverage of records Alethical loaded. A purely explanatory Guide names source dates when known and never invents a numeric reporting period or date for an undated source. Different sources' coverage stays explicit.
 
@@ -617,7 +638,7 @@ The initial HTML includes the same ordered text, chart labels and values, necess
 
 The approved comparison bars share one zero and one scale, and accept nonnegative measured values. The percentage bar represents 1 named share plus an explicit remainder; multiple named shares use the approved data table. Overlap diagrams are nonproportional; their labels and any needed explanation follow §7 without automatic chart-reading commentary. Unsupported proportional inputs cannot pass publication checks. These display limits do not alter the underlying calculation helpers.
 
-The published registry is local to each website release. Numbered-page selections therefore replace immediately without a network wait or an artificial loading state. Each numbered link has an address; browser Back and refresh retain the selection. `/read/short-posts?post=<slug>` resolves the numbered page currently containing that published Short post, then returns focus to its title. Invalid page numbers, pages beyond the available results, unknown topics and unknown post targets return not found. Known empty collections stay readable, carry noindex, and stay out of the sitemap. When collection data comes from a service, the existing retained-results, retry and latest-request-wins requirements apply before that change ships.
+The published registry is local to each website release. Numbered-page selections therefore replace immediately without a network wait or an artificial loading state. Each numbered link has an address; browser Back and refresh retain the selection. `/blog/short-posts?post=<slug>` resolves the numbered page currently containing that published Short post, then returns focus to its title. Invalid page numbers, pages beyond the available results, unknown topics and unknown post targets return not found. Known empty collections stay readable, carry noindex, and stay out of the sitemap. When collection data comes from a service, the existing retained-results, retry and latest-request-wins requirements apply before that change ships.
 
 Quantitative chart inputs must fit the displayed precision: USD uses whole cents and other measured units allow up to 4 decimal places, within safe integer arithmetic after scaling. Unsupported precision fails publication instead of silently rounding source values. Comparison headers name each reporting period when the periods differ.
 
@@ -670,7 +691,7 @@ remain intact.
 ### 26 September 2026: accepted first post authorized for publication
 
 Eugene instructed publication of “2 records do not always mean 2 donations” at
-`/read/research/2-records-not-always-2-donations`. The accepted article, chart inputs,
+`/read/research/2-records-not-always-2-donations`; its current address follows §2.15. The accepted article, chart inputs,
 source scope and closing note stay unchanged. The article joins the Short posts
 archive, Campaign finance and Lobbying topics, sitemap, and the approved default
 comments list. Other private drafts retain their individual publication holds.
@@ -679,8 +700,8 @@ records approval times and the release checks.
 
 ### 7.2 Reading layout across the 3 published formats (27 September 2026)
 
-The `/read` page shows at most 3 items in each of Research reports, Short posts, and Guides. A guide group counts as 1 item, sorted by its newest published member, and only the first group starts open on `/read`. `/read/research` and `/read/guides` show 10 items per numbered page; guides never split a group. Groups start open on `/read/guides`, and `/read/sets/<name>` shows its complete published group. The existing 6-per-page limit for Short posts and topics remains. Each article kind appears once above its title as Research or Guide; homogeneous lists omit the repeated kind word, while topic lists retain it.
+The `/blog` page shows at most 3 items in each of Research reports, Short posts, and Guides. A guide group counts as 1 item, sorted by its newest published member, and only the first group starts open on `/blog`. `/blog/research` and `/blog/guides` show 10 items per numbered page; guides never split a group. Groups start open on `/blog/guides`, and `/blog/sets/<name>` shows its complete published group. The existing 6-per-page limit for Short posts and topics remains. Each article kind appears once above its title as Research or Guide; homogeneous lists omit the repeated kind word, while topic lists retain it.
 
 A guide's individual masthead shows reading time and **PUBLISHED AUGUST 2026** until a documented accuracy review earns a **CHECKED** date. A style change never updates that date. The 5 currently published guides take 25 minutes in total at 5 minutes each. The group shows shared topics once outside its fold button, including when collapsed. Standalone guides show their own topics. Article topics sit below dates, with **Topic** or **Topics** matching the count.
 
-Every article back link carries an allowlisted `/read` source address in the link itself, so a new tab can return to its source; a direct or shared visit uses **Back to Read**. The served initial HTML offers the same safe return link. Every article places the shared closing note below sources and above reader comments, then up to 3 editor-selected published Related reading links below comments. Related picks remain empty until their specific destinations pass review, and never repeat the current article or the next guide.
+Every article back link carries an allowlisted `/blog` source address in the link itself, so a new tab can return to its source; a direct or shared visit uses **Back to Blog**. The served initial HTML offers the same safe return link. Every article places the shared closing note below sources and above reader comments, then up to 3 editor-selected published Related reading links below comments. Related picks remain empty until their specific destinations pass review, and never repeat the current article or the next guide.

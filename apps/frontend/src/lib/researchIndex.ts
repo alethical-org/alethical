@@ -2,7 +2,7 @@
  * The published pieces without their text: each one's address, kind, title and
  * dates, for the surfaces every page loads before any screen does.
  *
- * `navigation/webRoutes.ts` answers whether a `/read/...` address exists,
+ * `navigation/webRoutes.ts` answers whether a `/blog/...` address exists,
  * `navigation/documentTitle.ts` names the browser tab and `lib/share.ts` builds a
  * piece's page metadata, and all 3 are in the program every page downloads before
  * anything draws. Reading the registry in `lib/research.ts` for that put every
@@ -11,7 +11,7 @@
  *
  * Each piece in `lib/researchPieces/` spreads its own entry from here into its
  * full record, so a slug, title or date is written once. `lib/research.ts`
- * re-exports every name here and keeps the full pieces, the /read page's other
+ * re-exports every name here and keeps the full pieces, the /blog page's other
  * wording and everything that needs a piece's text.
  */
 
@@ -53,7 +53,7 @@ export function topicFromSlug(value: string): TopicSlug | undefined {
 }
 
 export function topicPath(topic: TopicSlug): string {
-  return `/read/topics/${topic}`;
+  return `/blog/topics/${topic}`;
 }
 
 /** What every surface that loads before a screen may know about a piece. */
@@ -73,8 +73,8 @@ export interface PieceIndexEntry {
   /** Full ISO publication instant for Short post ordering. Never changed by checks. */
   publishedAt?: string;
   /**
-   * URL slug under the piece's own folder: /read/research/ for a piece
-   * carrying the research trait, /read/guides/ for one carrying only the
+   * URL slug under the piece's own folder: /blog/research/ for a piece
+   * carrying the research trait, /blog/guides/ for one carrying only the
    * guide trait (§2.1). `pieceAddressFolder` is the single place that decides.
    */
   slug: string;
@@ -117,7 +117,7 @@ export interface PieceIndexEntry {
 }
 
 /**
- * The /read page's own fixed wording, in one place because 3 surfaces draw
+ * The /blog page's own fixed wording, in one place because 3 surfaces draw
  * it: the screen, its search description in lib/share.ts, and the text
  * served in the first response before any JavaScript runs
  * (lib/pageSnapshot.ts). A second copy is how a served page and a rendered page
@@ -136,13 +136,13 @@ export interface PieceIndexEntry {
  * Read off the bar's own item because that is Design's whole reason for hiding
  * the title: 2 copies of the word could disagree, and this one cannot.
  */
-export const READ_PAGE_NAME = IA.find((item) => item.id === 'read')?.label ?? 'Read';
+export const READ_PAGE_NAME = IA.find((item) => item.id === 'read')?.label ?? 'Blog';
 
 /**
  * The page's descriptive title, for the 2 places its name has to survive out of
  * context: the back link at the top of a piece, and the share card. Neither has
  * the bar or the address beside it to supply the subject, so neither can use
- * `READ_PAGE_NAME`, because "Read" alone tells a person nothing about what they
+ * `READ_PAGE_NAME`, because "Blog" alone tells a person nothing about what they
  * would be opening.
  */
 export const READ_PAGE_HEADING = 'Campaign money research and guides';
@@ -183,7 +183,7 @@ export function pieceAddressFolder(piece: Pick<PieceIndexEntry, 'traits'>): 'res
 
 /** A piece's own address, the only one it answers on. */
 export function piecePath(piece: Pick<PieceIndexEntry, 'traits' | 'slug'>): string {
-  return `/read/${pieceAddressFolder(piece)}/${encodeURIComponent(piece.slug)}`;
+  return `/blog/${pieceAddressFolder(piece)}/${encodeURIComponent(piece.slug)}`;
 }
 
 const MONTH_LABELS = [

@@ -520,14 +520,8 @@ function NavDropdownTrigger({
 }
 
 /**
- * A bar item that IS a destination rather than a dropdown: Read, today the only
- * one. No caret, because there is no panel to disclose, and the same resting
- * colour and vertical padding as a trigger so the 3 bar items still sit on one
- * line (Design's nav drawing, 27 Aug 2026).
- *
- * `aria-current="page"` is the only thing the current page changes here. The
- * drawing gives the item no second visual state, and inventing one is a design
- * decision rather than a wiring one.
+ * Direct destinations use the same resting and hover treatment as menu triggers,
+ * without a caret. The current page is marked for assistive readers only.
  */
 function NavBarLink({
   item,
@@ -576,17 +570,8 @@ function MenuDrawerRow({
 }
 
 /**
- * The phone drawer's row for a bar item with no dropdown: Read, the only one.
- *
- * Drawn at top level rather than as another group row, because the nav's job is
- * to show the shape of the site: a row identical to Search's 4 children tells a
- * phone reader that Read is one of them, when it is 1 of the 3 things this site
- * does. The rules above and below and the taller row are what say it sits at the
- * top level (Design's nav drawing, ratified by Eugene 27 Aug 2026, correcting a
- * first build that drew this row plain).
- *
- * No heading over it. A READ eyebrow would repeat its own child 14px below it,
- * which is the stutter that collapsing the group removed in the first place.
+ * Money and Blog use the existing top-level phone row: taller than menu children,
+ * with rules above and below, a NEW chip and a decorative right arrow.
  */
 function MenuDrawerBarRow({
   item,

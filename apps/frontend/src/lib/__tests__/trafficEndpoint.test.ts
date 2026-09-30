@@ -49,7 +49,7 @@ const EMPTY_COMMITTEE_PROFILES = {
   differentProfilesViewed: { count: 0, capped: false, cap: 100 },
 };
 const READ_FILTER =
-  "environment eq 'production' and (requestPath eq '/read' or startswith(requestPath, '/read/'))";
+  "environment eq 'production' and (requestPath eq '/blog' or startswith(requestPath, '/blog/') or requestPath eq '/read' or startswith(requestPath, '/read/'))";
 const LEGACY_ASK_FILTER =
   "environment eq 'production' and (requestPath eq '/ask' or startswith(requestPath, '/ask/'))";
 
@@ -338,7 +338,7 @@ describe('public traffic totals', () => {
       [
         READ_FILTER,
         [
-          { requestPath: '/read/guides/test', pageviews: 7 },
+          { requestPath: '/blog/guides/test', pageviews: 7 },
           { requestPath: 'Others', pageviews: 33 },
         ],
       ],
@@ -381,7 +381,7 @@ describe('public traffic totals', () => {
         Object.values(breakdown.destinationPageViews).reduce((sum, value) => sum + value, 0),
       ).toBe(total);
     }
-    expect(JSON.stringify(body)).not.toContain('/read/guides/test');
+    expect(JSON.stringify(body)).not.toContain('/blog/guides/test');
     for (const filter of additions.keys()) {
       expect(
         fetcher.mock.calls.filter(
@@ -394,8 +394,10 @@ describe('public traffic totals', () => {
   it.each([
     [MONEY_FILTER, '/money', 'moneyOther'],
     [MONEY_FILTER, '/money/search', 'moneyOther'],
+    [READ_FILTER, '/blog', 'read'],
     [READ_FILTER, '/read', 'read'],
-    [READ_FILTER, '/read/reports/test', 'read'],
+    [READ_FILTER, '/read/guides/test', 'read'],
+    [READ_FILTER, '/blog/reports/test', 'read'],
     [LEGACY_ASK_FILTER, '/ask', 'legacyAsk'],
     [LEGACY_ASK_FILTER, '/ask/sessions/test', 'legacyAsk'],
   ])('counts an exact root or its slash child once: %s %s', async (filter, path, destination) => {
@@ -479,7 +481,7 @@ describe('public traffic totals', () => {
 
   it.each([
     [MONEY_FILTER, '/moneyed'],
-    [MONEY_FILTER, '/read'],
+    [MONEY_FILTER, '/blog'],
     [READ_FILTER, '/readers'],
     [READ_FILTER, '/money'],
     [LEGACY_ASK_FILTER, '/asking'],

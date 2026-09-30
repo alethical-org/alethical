@@ -60,7 +60,7 @@ def _articles() -> dict[str, dict]:
             )
             or article_id in result
             or len(article_id) > 200
-            or not path.startswith("/read/")
+            or not path.startswith("/blog/")
             or len(path.strip("/").split("/")) < 3
             or any(char in path for char in ("?", "#", "\\"))
         ):

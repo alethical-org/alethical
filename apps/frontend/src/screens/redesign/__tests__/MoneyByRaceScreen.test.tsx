@@ -404,7 +404,7 @@ describe('Money by race directory and focused group', () => {
       window.history.replaceState(
         {},
         '',
-        source === 'article address' ? '/read/guides/example#section' : '/money/races#house-1a',
+        source === 'article address' ? '/blog/guides/example#section' : '/money/races#house-1a',
       );
       render();
       expect(navigation.setParams).not.toHaveBeenCalled();

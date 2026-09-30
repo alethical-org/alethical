@@ -10,9 +10,9 @@ This guide records the approved product behavior. Release progress lives in
 ## Where readers can comment
 
 Every individual published Guide, Research piece, Short post, article and blog post
-has comments by default, including future editorial sections under `/read`.
+has comments by default, including future editorial sections under `/blog`.
 The article, its sources and correction notices stay above the comments.
-The `/read` page, section and topic lists, campaign-finance results, money pages,
+The `/blog` page, section and topic lists, campaign-finance results, money pages,
 bills, legislators and similar factual pages have no comments, comment counts or
 comment requests. Reader text never enters Alethical answers, reports or exports.
 

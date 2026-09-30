@@ -25,7 +25,7 @@ from alethical.db.models import (
 )
 from alethical.db.session import get_session_factory
 
-PIECE = {"title": "An example article", "path": "/read/guides/example"}
+PIECE = {"title": "An example article", "path": "/blog/guides/example"}
 ARTICLE = "comment-email-test"
 
 
@@ -265,7 +265,7 @@ def test_approved_email_copies(
     assert message["text"].startswith(opening)
     assert "PRIVATE COMMENT TEXT" not in message["text"]
     assert message["text"].count("/comment-emails#") == stop_count
-    link = f"https://www.alethical.com/read/guides/example#comment-{comment_id}"
+    link = f"https://www.alethical.com/blog/guides/example#comment-{comment_id}"
     stop_links = [
         line for line in message["text"].splitlines() if "/comment-emails#" in line
     ]

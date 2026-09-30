@@ -12,13 +12,13 @@ committees has its own browsable list, every committee page is reachable by brow
 than only by pasting an address, and a name that got paid opens every payment filed under
 that exact spelling
 ([#1780](https://github.com/alethical-org/alethical/issues/1780)). Our own signed research
-lives one level up, on the `/read` page, which the money landing points at. The `/read`
+lives one level up, on the `/blog` page, which the money landing points at. The `/blog`
 page lists 6 long-form pieces (1 Research piece and 5 Guides) and 3 Short posts:
 “2 records do not always mean 2 donations” at
-`/read/research/2-records-not-always-2-donations`, “Political donors appearing in both
-parties’ Minnesota caucus records” at `/read/research/organizations-both-parties`,
+`/blog/research/2-records-not-always-2-donations`, “Political donors appearing in both
+parties’ Minnesota caucus records” at `/blog/research/organizations-both-parties`,
 and “What Minnesota’s records show about lobbyist contributions, 2015–2026” at
-`/read/research/lobbyist-giving`.
+`/blog/research/lobbyist-giving`.
 
 Lobbying is available at `/money/lobbying`, with the copied lobbyist list, represented
 organisations and yearly spending. The earlier lobbying-under-development strip is removed
@@ -30,9 +30,11 @@ at `/money/outside-spending`. See [lobbying-guide.md](lobbying-guide.md).
 own writing carries a **Research** or **Guide** trait. A **Short post** is a focused format
 that can carry either or both traits (settled in
 [`published-writing-decisions.md §7`](../architecture/published-writing-decisions.md#7-short-posts-from-checked-social-material)).
-The `/read` page and its pieces were addressed `/money/reports`, then `/reports`, then
-`/read` before landing on `/read` on 27 Aug 2026, and every one of those old addresses forwards
-permanently and straight to the `/read` address it belongs to, never through the one in between.
+The `/blog` page and its pieces use Blog as their permanent section name.
+Every retired `/read` address forwards permanently and straight to its matching `/blog`
+address. Older `/money/reports`, `/reports` and `/reading` forwards also target `/blog`
+directly, never through an address in between. The name and address requirements are in
+[published-writing-decisions.md §2.15](../architecture/published-writing-decisions.md#215-the-section-is-blog-and-its-permanent-addresses-start-with-blog).
 
 ## Ways in
 
@@ -45,8 +47,8 @@ The landing and pure record-chooser directories do not gain Share buttons.
 [How sharing works](sharing-guide.md) owns the contextual window headings and
 non-repeating prepared messages.
 
-- Choose **Search**, then **Money in politics** (marked with a green NEW chip) in the shared
-  top menu, on a computer or in the phone menu.
+- Choose **Money** (marked with a green NEW chip) before Search in the shared top
+  menu, on a computer or in the phone menu. It opens `/money` directly.
 - Choose **Money in politics** on the homepage card headed **Follow the money**.
 - Open `/money` directly.
 - Type a name into the box on `/money` and press Enter or the Search button, which opens
@@ -65,13 +67,14 @@ number>` and `?spender=<registration number>` for one committee's or one group's
 - The retired address `/track/campaign-finance` (an old greyed "Campaign Finance" tracking
   row pointed there) shows the `/money` landing instead of an error.
 
-The `/read` page has its own way in, separate from this section: choose **Read** in the same top
+The `/blog` page has its own way in, separate from this section: choose **Blog** in the same top
 menu. It is one item with no menu behind it, on a computer and in the phone menu both, so it takes
 one click or one tap. In the phone menu it is a taller row than the ones under SEARCH and ABOUT,
 with a thin line above and below it and a small arrow at the right, which is how the menu says it is
-one of the 3 things the site does rather than a fifth Search row (settled 27 Aug 2026,
+one of the 4 top-level destinations rather than a Search child; Money uses the same row treatment
+([site-navigation-guide.md](site-navigation-guide.md#on-a-phone)). The Blog row's shape is settled in
 [`docs/architecture/published-writing-decisions.md`](../architecture/published-writing-decisions.md)
-§2.13).
+§2.13.
 
 **And search engines have their own way in, which is new.** Since 27 Aug 2026 every page in
 this section arrives from the server with its words and its links already in it, rather than
@@ -100,7 +103,8 @@ the files. If any of it is missing or unreadable the page just asks for the reco
 ## The landing page (`/money`)
 
 The heading, browser title and shared-link title name this destination **Money in
-politics**. Every link or empty-state button returning to `/money` uses that same
+politics**. The shared navigation's shorter **Money** label is the scoped exception.
+Every other link or empty-state button returning to `/money` uses that same
 name, including committee and lobbying pages. The homepage invitation and narrower
 Campaign money tabs keep their separate wording, as defined in
 [site-navigation-guide.md](site-navigation-guide.md#the-name-of-money).
@@ -1550,17 +1554,13 @@ with its title, its description and the figures above, and search engines may li
 subject's or a filtered view is `noindex`, because each committee has its own record page
 already.
 
-## The `/read` page (`/read`)
+## The `/blog` page (`/blog`)
 
-Reached from the top menu's **Read** item; the money landing's research row links to the
-newest piece itself rather than to this page. It has moved 3 times: it sat at `/money/reports` until 20 Aug 2026, when the nav gained
-its own group and it left the money section
-([#1698](https://github.com/alethical-org/alethical/issues/1698)), at `/reports` until the
-morning of 27 Aug 2026, when "report" went back to meaning only the document a campaign files
-with the state, and at `/read` until that evening, when the menu item became the single word
-**Read** and the addresses followed it. All 7 old addresses forward permanently and directly, so a
-link shared before any of the moves still opens the right page in one hop. Nothing about either page's contents changed with
-either move.
+Reached from the top menu's **Blog** item; the money landing's research row links to the
+newest piece itself rather than to this page. The `/blog` page and its pieces keep every
+retired `/read`, `/reading`, `/reports` and `/money/reports` address working through a
+permanent, direct forward. A saved link opens its matching Blog destination in 1 hop.
+The section rename changes no article content or publication date.
 
 This is the front door to the writing Alethical publishes in its own name
 ([`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md)).
@@ -1584,7 +1584,7 @@ part of rule 13's exception. Short post names a focused format, not a third kind
 limit: each Short post carries a Research or Guide trait, and a piece may carry both.
 Research still determines the 1 permanent article address for a both-traits piece.
 The SHORT POSTS group sits between the long-form groups, shows only the newest 3 published
-Short posts, and includes **All short posts** linking to `/read/short-posts`. It stays
+Short posts, and includes **All short posts** linking to `/blog/short-posts`. It stays
 entirely hidden until a Short post is published. A Short post appears in no long-form group
 or reading set in this first release
 ([`published-writing-decisions.md §7`](../architecture/published-writing-decisions.md#7-short-posts-from-checked-social-material)).
@@ -1619,8 +1619,8 @@ reads as 2 columns. A card carries, in this order:
   border turning green under the pointer is what says so.
 
 Short-post cards have their own shape. They show the Research or Guide trait, reading
-time and date, title, short description and topic links on `/read/short-posts` and
-`/read/topics/<topic>`. Under SHORT POSTS on `/read`, 1 shared box holds up to 3 rows,
+time and date, title, short description and topic links on `/blog/short-posts` and
+`/blog/topics/<topic>`. Under SHORT POSTS on `/blog`, 1 shared box holds up to 3 rows,
 each with its Research or Guide chip. The title opens the article; each topic is a
 separate link and keyboard stop. A topic click never opens the article.
 
@@ -1635,7 +1635,7 @@ The set's name is a control: clicking it folds the rows away and clicking again 
 back, and a small arrow at the right turns over to show which way it is. Folding hides the
 rows and keeps the count and the total, because those are how a reader decides whether to
 open it. The box itself is not a link and does not lift under the pointer, because it has
-nowhere to go: a set's own page at `/read/sets/<name>` is still unbuilt, and that address
+nowhere to go: a set's own page at `/blog/sets/<name>` is still unbuilt, and that address
 shows the ordinary "page not found" screen.
 
 **A set only lists what is published**, never a title a reader cannot open and never a count
@@ -1645,11 +1645,11 @@ opening a box is a statement that the next piece is coming shortly (§2.5).
 
 **Not built yet:** a set's own page, and the "All of <set name>" link Design gives a box once
 a set reaches 6 published pieces. The controlled topic pages below add a way to gather
-published writing by subject; the earlier question about replacing the `/read` page's
+published writing by subject; the earlier question about replacing the `/blog` page's
 long-form groups has not changed that page's order (§2.11).
 
 The 6 Research and Guide pieces already live keep their earlier publication policy.
-That policy made an article's own address and its `/read` link available on publication,
+That policy made an article's own address and its `/blog` link available on publication,
 and put the newest Research piece on `/money`. It also let an unchecked figure reach a
 search result, so checking promptly and correcting an agreed wrong figure mattered.
 A social-derived Short post needs the separate checks and article-specific instruction
@@ -1657,8 +1657,8 @@ below before publication. Search engines see a published piece the same day (Eug
 25 Aug 2026): its address goes into the site map (`/sitemap.xml`) and its page carries no
 instruction to skip it, unless Eugene names a reason to hold that particular piece back.
 
-The `/read` page and every piece's page hand their words over in the **very first response
-from the server**, before any of the app's own code runs: `/read` includes its visible
+The `/blog` page and every piece's page hand their words over in the **very first response
+from the server**, before any of the app's own code runs: `/blog` includes its visible
 cards and a plain link to the complete Short-post list once that group is populated;
 the numbered lists link to the older Short posts, and each article includes its text.
 That puts our own writing on the same
@@ -1668,49 +1668,49 @@ whether a search engine may _list_ a piece, which is still Eugene's per-piece de
 above: a piece marked to be skipped is served in full and still asks to be skipped.
 
 6 long-form pieces are posted: the research piece "The Money Only Goes One Way" at
-`/read/research/the-money-only-goes-one-way`, and the 5 Guides in "How the Money Works":
-"Who has to report their money" at `/read/guides/who-has-to-report-their-money`,
-"What the records name, and what they leave out" at `/read/guides/what-the-records-name`,
+`/blog/research/the-money-only-goes-one-way`, and the 5 Guides in "How the Money Works":
+"Who has to report their money" at `/blog/guides/who-has-to-report-their-money`,
+"What the records name, and what they leave out" at `/blog/guides/what-the-records-name`,
 "Why 2 official numbers can both be right" at
-`/read/guides/why-2-official-numbers-can-both-be-right`, "Money spent without a campaign’s
-say" at `/read/guides/money-spent-without-a-campaigns-say`, and "Why nobody can follow a
-dollar" at `/read/guides/why-nobody-can-follow-a-dollar`. This is their set reading order,
+`/blog/guides/why-2-official-numbers-can-both-be-right`, "Money spent without a campaign’s
+say" at `/blog/guides/money-spent-without-a-campaigns-say`, and "Why nobody can follow a
+dollar" at `/blog/guides/why-nobody-can-follow-a-dollar`. This is their set reading order,
 not a number printed beside each row. The published Short post “2 records do not always
-mean 2 donations” is at `/read/research/2-records-not-always-2-donations` and appears in
+mean 2 donations” is at `/blog/research/2-records-not-always-2-donations` and appears in
 the Campaign finance and Lobbying topic collections.
 
-## Short-post and topic collections (`/read/short-posts`, `/read/topics/<topic>`)
+## Short-post and topic collections (`/blog/short-posts`, `/blog/topics/<topic>`)
 
-`/read/short-posts` lists every published Short post, newest publication time first, with
+`/blog/short-posts` lists every published Short post, newest publication time first, with
 6 per numbered page. A stable article identity breaks a tie at the same time. Rechecking
 or correcting a piece does not move it in the list. Previous, numbered and Next links
 have their own addresses (`?page=2`), so refresh and browser Back retain the page.
 The first server response contains the page's article links and their words.
-`/read/short-posts?post=<slug>` finds the numbered page currently holding that published
+`/blog/short-posts?post=<slug>` finds the numbered page currently holding that published
 Short post and returns focus to its title. An unknown post, a bad page number or a page
 beyond the end opens the page-not-found screen. An empty list stays readable with
-**No short posts yet.** and **Back to Read**, stays out of the site map and tells search
+**No short posts yet.** and **Back to Blog**, stays out of the site map and tells search
 engines not to list it. The populated list links to the accepted first Short post and
 appears in the site map.
 
-`/read/topics/<topic>` gathers all published pieces assigned 1 of the controlled topics:
+`/blog/topics/<topic>` gathers all published pieces assigned 1 of the controlled topics:
 Campaign finance (`campaign-finance`), Lobbying (`lobbying`) or Elections (`elections`).
 It crosses Research, Guides and Short posts, with a both-traits piece shown once.
 The same newest-first and 6-per-page rules apply. The title opens the article at its
 single Research or Guide address; separate links open its other topics. The current
 topic is already named by the page heading and is omitted from each entry’s links. There is
 no topic directory, new search box or combined filter. A known topic with no pieces
-shows **No articles about this topic yet.** and **Back to Read**, stays out of the site map
+shows **No articles about this topic yet.** and **Back to Blog**, stays out of the site map
 and tells search engines not to list it. An unknown topic or out-of-range page is not
 a valid page. Every populated numbered page has its own main address for search engines.
 These lists are built from the published writing in the website release, so moving
 between their numbered pages does not wait for a network request or show a loading state.
 
-## One long-form research piece's page (`/read/research/{name}`)
+## One long-form research piece's page (`/blog/research/{name}`)
 
 Every posted research piece has a page here; an address with no piece behind it shows the
 ordinary "page not found" screen. **So does a real piece asked for under the wrong folder** —
-the guide's name under `/read/research/` is a missing page, not a second way in, because a
+the guide's name under `/blog/research/` is a missing page, not a second way in, because a
 piece has exactly 1 address and a reader must not be able to share one we do not name as the
 real one. A piece carrying both the research trait and the guide trait is addressed here too,
 and its label reads Research, because rule 13 binds it in full
@@ -1735,7 +1735,7 @@ and its label reads Research, because rule 13 binds it in full
   an ordinary link to its section, listed in the order the article reads, so it can be
   opened in a new tab, copied, or reached by keyboard. Choosing one puts that section's
   name in the address bar
-  (`/read/research/the-money-only-goes-one-way#the-one-way-valve`), so
+  (`/blog/research/the-money-only-goes-one-way#the-one-way-valve`), so
   a reader can share a link straight to a section and Back returns them to where they
   were reading. Opening an address that already names a section starts there. Each
   section's name is built from the words of its own heading, never its position in the
@@ -1759,7 +1759,7 @@ and its label reads Research, because rule 13 binds it in full
 Links run one way: a piece links out to record pages and official sources; no record page
 links back to a piece.
 
-## One long-form guide's page (`/read/guides/{name}`)
+## One long-form guide's page (`/blog/guides/{name}`)
 
 A guide is a short piece explaining 1 term in the words a person actually uses. It concludes
 nothing, adds no figures up across members and defines no labels of our own, so it lives under
@@ -1808,13 +1808,13 @@ Its body now links to "What the records name, and what they leave out". Links be
 published pieces are chosen by a person rather than added by software (§2.6 and
 [issue 1752](https://github.com/alethical-org/alethical/issues/1752)).
 
-## One Short post's page (`/read/research/{name}` or `/read/guides/{name}`)
+## One Short post's page (`/blog/research/{name}` or `/blog/guides/{name}`)
 
 A published Short post uses 1 stable article identity and 1 permanent address. Research
-goes under `/read/research/`, even when it also carries the Guide trait; Guide without
-Research goes under `/read/guides/`. Changing the title, rechecking the claims or
+goes under `/blog/research/`, even when it also carries the Guide trait; Guide without
+Research goes under `/blog/guides/`. Changing the title, rechecking the claims or
 correcting a figure does not change that address or the original publication time.
-The article starts with a return link to `/read/short-posts?post=<slug>`, which finds
+The article starts with a return link to `/blog/short-posts?post=<slug>`, which finds
 the page holding it now. The visible Research or Guide label, title, short description,
 publication and records-through dates for Research (or computed reading time and written
 or checked date for Guide), Share control and separate topic links follow. Share previews

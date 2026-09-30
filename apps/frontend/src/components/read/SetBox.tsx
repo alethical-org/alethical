@@ -17,9 +17,9 @@ import { linkProps, routePath } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
 
 /**
- * One set of pieces written to be read together, on the /read page: the set's
+ * One set of pieces written to be read together, on the /blog page: the set's
  * name, how many pieces and how long they run, and a row per published piece
- * (Design's `/read` handoff and its `RULE Set box`, 27 Aug 2026).
+ * (Design's `/blog` handoff and its `RULE Set box`, 27 Aug 2026).
  *
  * **The box is not a link and does not lift on hover.** Only its summary row is a
  * control, and each row inside is its own link. Lifting the box would promise a
@@ -121,7 +121,7 @@ export function SetBox({
   group,
   isMobile,
   onOpenPiece,
-  sourceHref = '/read',
+  sourceHref = '/blog',
   onTopic,
   onOpenPage,
   showPageLink = false,
@@ -230,8 +230,8 @@ export function SetBox({
                 isLast={index === group.pieces.length - 1}
                 isMobile={isMobile}
                 sourceHref={
-                  sourceHref === '/read'
-                    ? '/read'
+                  sourceHref === '/blog'
+                    ? '/blog'
                     : `${sourceHref}${sourceHref.includes('?') ? '&' : '?'}post=${encodeURIComponent(piece.slug)}`
                 }
                 onOpen={() => onOpenPiece(piece)}
@@ -243,7 +243,7 @@ export function SetBox({
       {showPageLink && (
         <Pressable
           {...({ dataSet: { setPageLink: '' } } as object)}
-          {...linkProps(`/read/sets/${group.slug}`, () => onOpenPage?.())}
+          {...linkProps(`/blog/sets/${group.slug}`, () => onOpenPage?.())}
           accessibilityLabel={`Open the ${group.name} group page`}
           style={styles.pageLink}
         >

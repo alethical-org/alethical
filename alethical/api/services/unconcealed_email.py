@@ -40,7 +40,7 @@ class PublishedResearch:
             raise ValueError("The research slug is invalid")
         if not self.title.strip() or any(char in self.title for char in "\r\n"):
             raise ValueError("The research title is invalid")
-        if self.public_url != f"{PUBLIC_ORIGIN}/read/research/{self.slug}":
+        if self.public_url != f"{PUBLIC_ORIGIN}/blog/research/{self.slug}":
             raise ValueError("Research must link directly to its public Alethical page")
         if self.records_through > self.published_on:
             raise ValueError("The records-through date cannot follow publication")
@@ -176,7 +176,7 @@ def is_direct_public_research_url(url: str) -> bool:
     return (
         parts.scheme == "https"
         and parts.netloc == "www.alethical.com"
-        and parts.path.startswith("/read/research/")
+        and parts.path.startswith("/blog/research/")
         and not parts.query
         and not parts.fragment
     )

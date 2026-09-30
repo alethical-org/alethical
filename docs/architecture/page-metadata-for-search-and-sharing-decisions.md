@@ -1007,21 +1007,21 @@ record.
 - Retired `/search` addresses permanently redirect to Bills. Chat and Account addresses temporarily
   redirect Home because those features may return. They still lead somewhere useful without making
   a browser remember a permanent move that later blocks the restored feature.
-- Our own writing has moved 3 times, and every old address forwards **permanently**: from
+- Our own writing has moved 4 times, and every old address forwards **permanently**: from
   `/money/reports` to `/reports` on 20 Aug 2026
   ([#1698](https://github.com/alethical-org/alethical/issues/1698)), from `/reports` to `/reading`
   on the morning of 27 Aug 2026, and from `/reading` to `/read` that evening, when the top bar's
   item became the single word Read (§20.6 and
-  [`published-writing-decisions.md`](published-writing-decisions.md) §2.1 and §2.13). Permanent,
+  [`published-writing-decisions.md`](published-writing-decisions.md) §2.1 and §2.13), and from `/read` to `/blog` on 30 Sep 2026
+  (the same decision record, §2.15). Permanent,
   because the page genuinely moved and is not coming back to the old address — the opposite of the
   Chat and Account case above. `/money/reports` had been in the pages sitemap since the listing
   shipped, `/reports/the-money-only-goes-one-way` had been visible to search engines since
   25 Aug 2026, and both `/reading` piece addresses were public and indexable the day they existed,
   so a permanent forward is what tells a search engine to carry that standing over rather than treat
-  the new address as a new page competing with a live one. **Every forward is direct, and 3
-  generations is where that rule earns its keep**: `vercel.json` holds 7 forwards and each one names
-  `/read`, never the address in between, so no reader is ever sent through 2 hops. The sitemap and
-  the served canonical address name the `/read` addresses only, so nothing we publish points at
+  the new address as a new page competing with a live one. **Every forward is direct**: each permanent forward names
+  `/blog`, never the address in between, so no reader is ever sent through 2 hops. The sitemap and
+  the served canonical address name the `/blog` addresses only, so nothing we publish points at
   a forward. The route table resolves every old address too, which is what keeps them working on a
   host with no forwarding rules — the dev server and a local static export. One narrowing survives
   the repointing: `/reports/:slug` and `/money/reports/:slug` resolve only for a piece carrying the
@@ -1153,7 +1153,7 @@ the existing 3-way split has plenty of room; it is a reporting convenience, not 
 
 ### 20.5 The discoverability rules for published writing
 
-Settled, and binding on the `/read` page and every piece that lives on it:
+Settled, and binding on the `/blog` page and every piece that lives on it:
 
 1. **Every piece stays reachable by an ordinary link from a page search engines visit, permanently**,
    not only while it is recent.
@@ -1176,11 +1176,10 @@ address with no folder word on 25 Aug 2026. **That decision is withdrawn**, beca
 rested on were checked the next day and neither survived. **Nested is ratified**, by Eugene on
 27 Aug 2026, and is recorded below with what each ground lost on.
 
-**The base word in this section is `/read`, and it was not always.** It was `/reports` when the
-section was written, `/reading` for part of 27 Aug 2026, and `/read` from that evening
-([`published-writing-decisions.md`](published-writing-decisions.md) §2.13). What was argued here is
-the folder shape — flat against nested — and that argument is untouched by which word sits in front
-of it.
+**The current base word is `/blog`.** The folder-shape decision applies to the
+current addresses, independently of the section name. The retired bases are `/reports`,
+`/reading` and `/read`; [published-writing-decisions.md §2.15](published-writing-decisions.md#215-the-section-is-blog-and-its-permanent-addresses-start-with-blog)
+owns the current name and permanent-forward requirements.
 
 #### What was decided here, and is no longer our position
 
@@ -1205,10 +1204,10 @@ Nested, with one combined listing:
 
 | address | what it is |
 | --- | --- |
-| `/read` | everything, one combined listing |
-| `/read/research/<name>` | one piece carrying the research trait |
-| `/read/guides/<name>` | one piece carrying only the guide trait |
-| `/read/sets/<name>` | one set |
+| `/blog` | everything, one combined listing |
+| `/blog/research/<name>` | one piece carrying the research trait |
+| `/blog/guides/<name>` | one piece carrying only the guide trait |
+| `/blog/sets/<name>` | one set |
 
 The folder words were `reports` and `explainers` when this section was first written; §2.6 of
 [`published-writing-decisions.md`](published-writing-decisions.md) settled them as `research` and
@@ -1220,8 +1219,8 @@ word has to be permanently reserved as a name a piece may never take.
 
 #### The folder words, settled 27 Aug 2026
 
-`/read/research/<name>` and `/read/guides/<name>`, with sets at `/read/sets/<name>` and one
-combined listing at `/read`. A piece carrying both traits is addressed under `research`, because
+`/blog/research/<name>` and `/blog/guides/<name>`, with sets at `/blog/sets/<name>` and one
+combined listing at `/blog`. A piece carrying both traits is addressed under `research`, because
 `.claude/rules/grounded-answers.md` rule 13 binds it in full and the address then states which
 promises apply to the page.
 
@@ -1248,20 +1247,18 @@ reader-visible text we cannot edit. It is dead twice over.
   the address, and where there is no folder the same question is answered by a sitemap per kind plus
   a kind field in our own records.
 
-**Every old address is forwarded, direct and permanent, with no intermediate hop.** Shipped
-27 Aug 2026, and repointed the same day when the base word became `/read`: `vercel.json` forwards
-`/reports`, `/money/reports` and `/reading` to `/read`; `/reports/:slug` and
-`/money/reports/:slug` to `/read/research/:slug`; and `/reading/research/:slug` and
-`/reading/guides/:slug` to their `/read` twins. Nothing points at `/reading` or `/reports`, which
-would have made a chain out of a forward. The earlier position here — that those 2 addresses stayed discontinued rather than
-forwarded — was written while nothing had been published at them; the one posted piece has been
-visible to search engines at `/reports/the-money-only-goes-one-way` since 25 Aug 2026, so a saved or
-cited link now exists and forwarding is what keeps it working. How many people have arrived through
-any old address is not measured and is not claimed here.
+**Every old address is forwarded, direct and permanent, with no intermediate hop.**
+`/read`, `/reports`, `/money/reports` and `/reading` forward to `/blog`.
+Retired `/read` and `/reading` article, collection, topic and set addresses forward
+straight to their `/blog` counterparts. `/reports/:slug` and `/money/reports/:slug`
+forward only to the research article at `/blog/research/:slug`. No generated link,
+sitemap entry or canonical address targets a retired base. The route table resolves
+the same retired addresses on local hosts without the deployment's forwarding rules.
+How many people have arrived through any retired address is not measured and is not claimed here.
 
 ### 20.7 What is deliberately not settled here
 
-- The `/read` page's layout, how it grows, and where the home page tells a first-time visitor we
+- The `/blog` page's layout, how it grows, and where the home page tells a first-time visitor we
   publish original research. Both are open questions with Design, tracked on
   [issue 1752](https://github.com/alethical-org/alethical/issues/1752).
 - Whether published writing carries a change date at all. The general pages sitemap carries none
@@ -1279,7 +1276,7 @@ any old address is not measured and is not claimed here.
 Built 25 Aug 2026 for [#1760](https://github.com/alethical-org/alethical/issues/1760), which is
 §20.4's first defect. §20 diagnosed it and holds the before measurement; this section records what
 shipped. It also satisfies §20.5 rule 3 — "the list must exist before any JavaScript runs" — for the
-`/read` page, which is the list every posted piece is reachable from today.
+`/blog` page, which is the list every posted piece is reachable from today.
 
 **The addresses below are the ones that were live on 25 Aug 2026.** The moves to `/reading` and
 then `/read/research/<name>` both shipped 27 Aug 2026 (§20.6, and
@@ -1293,8 +1290,8 @@ what the last bullet under Decision predicted.
 
 | address, as it was on 25 Aug 2026 | before | after | prose present |
 |---|---:|---:|---|
-| `/reports/the-money-only-goes-one-way`, now `/read/research/the-money-only-goes-one-way` | 8,125 bytes | **17,223 bytes** | yes. "Six organizations", "one-way valve", "Optometry", "886 million", "Enbridge Energy" all present |
-| `/reports`, now `/read` | 8,402 bytes | **9,391 bytes** | yes, with an ordinary link to every posted piece |
+| `/reports/the-money-only-goes-one-way`, now `/blog/research/the-money-only-goes-one-way` | 8,125 bytes | **17,223 bytes** | yes. "Six organizations", "one-way valve", "Optometry", "886 million", "Enbridge Energy" all present |
+| `/reports`, now `/blog` | 8,402 bytes | **9,391 bytes** | yes, with an ordinary link to every posted piece |
 
 ### Decision
 
@@ -1302,8 +1299,8 @@ what the last bullet under Decision predicted.
   short version, every section under its own heading, every paragraph, bullet and table in the
   piece's own order, the methodology inset where a section carries one, the dated newer-filings and
   correction banners where the piece carries them, and the "where these numbers come from" block.
-  Plus one link, back to the `/read` page.
-- The `/read` page serves its heading, its introduction, and an ordinary `<a href>` per posted
+  Plus one link, back to the `/blog` page.
+- The `/blog` page serves its heading, its introduction, and an ordinary `<a href>` per posted
   piece, carrying that piece's title, publication date and standfirst.
 - A table is served as a real `<table>`, matching how the loaded page marks one up, so a figure is
   announced with its column rather than as a loose run of text.
@@ -1311,7 +1308,7 @@ what the last bullet under Decision predicted.
   27 Aug 2026) is already on the server, so neither
   address asks the data service for anything. This is the cheapest case in this whole series: no
   query, no new field, no migration.
-- **The serving path is keyed to the resolved route, not to a path string**, so §20.6's `/read`
+- **The serving path is keyed to the resolved route, not to a path string**, so §20.6's August `/read`
   move needed no work here: whatever address resolves to the
   listing or to a piece gets the same body. That is also what "the guide surface ships with this from its first piece" means in
   practice — a new piece is a registry entry, not new serving work.
@@ -1820,7 +1817,7 @@ search-discovery and page-delivery repairs. The dated measurements are in
 [seo-indexing-audit-2026-09-07.md](../research/seo-indexing-audit-2026-09-07.md).
 
 The homepage's first response links to `/bills`, `/legislators`,
-`/find-my-legislator`, `/money` and `/read`, using the existing visible link
+`/find-my-legislator`, `/money` and `/blog`, using the existing visible link
 labels. The static shell and `homePageSnapshot` carry the same links, protected
 by their existing exact-match test. The homepage remains a static response.
 
@@ -1909,11 +1906,11 @@ subject, destination, and results-view behavior.
 ## 27. The served text is the app's own design
 
 The text `api/page.ts` puts in the first response is drawn in the app's design, not as a plain
-document: the same top bar (logo, Search, Read, About and the Sign in button's place), the same
+document: the same top bar (logo, Money, Search, Blog, About and the Sign in button's place), the same
 page header (back link, eyebrow, heading, chip row), and every block of facts in the same white
 card, at the same sizes and colours the app draws (`apps/frontend/public/index.html`'s
 `alethical-page-snapshot` style block; `renderPageSnapshot` in `apps/frontend/src/lib/pageSnapshot.ts`).
-The top bar's labels and its Read link come from the registry the app's own bar reads
+The top bar's labels and its direct Money and Blog links come from the registry the app's own bar reads
 (`apps/frontend/src/navigation/ia.ts`); the 2 dropdown menus cannot open before the app runs, so
 each links to the first page under it, and Sign in is a label holding the button's place rather
 than a link, because only the app can operate it.
@@ -2002,7 +1999,7 @@ download falls from 295,412 to 294,478 Brotli bytes: 934 bytes each visitor used
 nothing. Page speed is its own ranking factor, so this is a discovery fix rather than only a
 tidy-up, and it is what gave the bill change above room to ship.
 
-**4c. Each guide describes itself to a search engine.** The 5 guides at `/read/guides/...` sent
+**4c. Each guide describes itself to a search engine.** The 5 guides at `/blog/guides/...` sent
 one line each that was only a date, "Written August 2026.", because rule 13 holds a piece's
 claims out of metadata. Each now carries a sentence about what it covers, written from the
 guide's own words and stating no amount, while its share preview keeps the dates-only wording

@@ -218,7 +218,7 @@ describe('the research card', () => {
   });
 
   // With nothing published the card reads 1 line and nothing else: no count of 0 pieces,
-  // and no second link out to the /read page (proposed, refused).
+  // and no second link out to the /blog page (proposed, refused).
   it('says only that nothing is published yet, with no count and no full stop', () => {
     expect(RESEARCH_ROW_EMPTY).toBe('Nothing is published yet');
     expect(RESEARCH_ROW_EMPTY).not.toMatch(/\d/);

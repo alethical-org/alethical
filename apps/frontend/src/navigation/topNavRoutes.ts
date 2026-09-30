@@ -112,12 +112,12 @@ function normalizeNavPath(path: string) {
  * Two properties this deliberately has:
  *
  * - **Exact match only.** `aria-current="page"` claims "this link is the page
- *   you are on", nothing weaker. So `/read` marks Read and
- *   `/read/guides/{name}` marks nothing. A filtered list is still its own page,
+ *   you are on", nothing weaker. So `/blog` marks Blog and
+ *   `/blog/guides/{name}` marks nothing. A filtered list is still its own page,
  *   which is why the query string is dropped before comparing.
  * - **It returns a row id, never a menu key.** So a dropdown trigger can never
  *   take the mark: a trigger opens a panel and is not a page. On `/money` the
- *   Money in politics row inside Search is marked and the Search trigger is not.
+ *   Money link is marked and the Search trigger is not.
  */
 export function currentNavItemId(pathname: string): string | null {
   const here = normalizeNavPath(pathname);

@@ -149,7 +149,7 @@ def published_research_from_registry(
                 title=value("title"),
                 published_on=date.fromisoformat(value("publishedOn")),
                 records_through=date.fromisoformat(value("recordsThrough")),
-                public_url=f"https://www.alethical.com/read/research/{slug}",
+                public_url=f"https://www.alethical.com/blog/research/{slug}",
             )
             piece.validate()
         except ValueError as exc:

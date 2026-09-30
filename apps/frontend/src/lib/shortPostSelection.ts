@@ -33,7 +33,7 @@ export function newestPublishedFirst<T extends PieceIndexEntry>(pieces: readonly
   });
 }
 
-/** One entry appears in exactly one /read group. */
+/** One entry appears in exactly one /blog group. */
 export function readGroups(pieces: readonly PieceIndexEntry[] = PUBLISHED_PIECE_INDEX) {
   const sorted = newestPublishedFirst(unique(pieces));
   return {

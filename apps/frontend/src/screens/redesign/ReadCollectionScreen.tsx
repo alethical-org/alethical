@@ -35,10 +35,10 @@ export function ReadCollectionScreen({ navigation, route }: Props) {
     setGroup?.kind === 'group' ? setGroup.name : research ? 'Research reports' : 'Guides';
   const base =
     setGroup?.kind === 'group'
-      ? `/read/sets/${setGroup.slug}`
+      ? `/blog/sets/${setGroup.slug}`
       : research
-        ? '/read/research'
-        : '/read/guides';
+        ? '/blog/research'
+        : '/blog/guides';
   const page = setPage ? 1 : Number(route.params?.page ?? 1);
   const bySlug = new Map(publishedResearch().map((piece) => [piece.slug, piece]));
   const reports = collectionPage(researchReportItems(), page);
@@ -113,9 +113,9 @@ export function ReadCollectionScreen({ navigation, route }: Props) {
         <main className="read-collection">
           <style>{css}</style>
           <div className="read-collection-column">
-            <a className="read-collection-back" href={setPage ? '/read/guides' : '/read'}>
+            <a className="read-collection-back" href={setPage ? '/blog/guides' : '/blog'}>
               <ChevronLeft size={18} strokeWidth={2.2} aria-hidden />
-              <span>{setPage ? 'All guides' : 'Back to Read'}</span>
+              <span>{setPage ? 'All guides' : 'Back to Blog'}</span>
             </a>
             {!setPage && (
               <h1 ref={heading} tabIndex={-1}>

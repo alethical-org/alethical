@@ -9,9 +9,9 @@ import { STATIC_PAGE_METADATA } from '../staticPageMetadata';
 import { LOBBYING_DIRECTORY_COPY } from '../lobbyingDirectoryCopy';
 
 describe('one name for the /money destination', () => {
-  it('matches the menu, homepage button, heading, browser title, and share title', () => {
+  it('uses the short nav label while keeping the full destination name elsewhere', () => {
     expect(MONEY_SECTION_NAME).toBe('Money in politics');
-    expect(IA.find((item) => item.path === '/money')?.label).toBe(MONEY_SECTION_NAME);
+    expect(IA.find((item) => item.path === '/money')?.label).toBe('Money');
     expect(MONEY_PROMO_CTA).toBe(MONEY_SECTION_NAME);
     expect(MONEY_LANDING_HEADING).toBe(MONEY_SECTION_NAME);
     expect(STATIC_PAGE_METADATA['/money'].title).toBe('Money in politics in Minnesota | Alethical');

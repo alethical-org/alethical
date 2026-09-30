@@ -35,7 +35,7 @@ import { WHO_HAS_TO_REPORT_THEIR_MONEY } from './whoHasToReportTheirMoney';
  * link moves if that piece ever moves. Built here rather than with `piecePath` to
  * keep this module free of a cycle back through `lib/research.ts`.
  */
-const PIECE_ONE_PATH = `/read/guides/${WHO_HAS_TO_REPORT_THEIR_MONEY.slug}`;
+const PIECE_ONE_PATH = `/blog/guides/${WHO_HAS_TO_REPORT_THEIR_MONEY.slug}`;
 
 /**
  * The next piece's address as a literal, for the same reason the guide before
@@ -43,7 +43,7 @@ const PIECE_ONE_PATH = `/read/guides/${WHO_HAS_TO_REPORT_THEIR_MONEY.slug}`;
  * make a module-scope cycle the day it links back. A test asserts this equals its
  * real path.
  */
-const PIECE_FIVE_PATH = '/read/guides/why-nobody-can-follow-a-dollar';
+const PIECE_FIVE_PATH = '/blog/guides/why-nobody-can-follow-a-dollar';
 
 export const MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY: ResearchPiece = {
   ...MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY_INDEX_ENTRY,

@@ -599,7 +599,7 @@ const DESTINATIONS = [
   ['moneyPayments', 'Payments by name'],
   ['moneyOutsideSpending', 'Outside spending'],
   ['moneyOther', 'Other money pages'],
-  ['read', 'Read'],
+  ['read', 'Blog'],
   ['legacyAsk', 'Ask'],
   ['other', 'Other'],
 ] as const;

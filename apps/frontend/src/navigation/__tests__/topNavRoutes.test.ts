@@ -62,12 +62,12 @@ describe('a nav row that navigates also carries a link', () => {
 // though the bill header, the section rail, the profile tabs and the search
 // dropdowns all mark their own current thing.
 describe('the nav row that names the page being viewed', () => {
-  it('marks Read on the /read page', () => {
-    expect(currentNavItemId('/read')).toBe('read');
+  it('marks Read on the /blog page', () => {
+    expect(currentNavItemId('/blog')).toBe('read');
   });
 
   it('ignores a trailing slash, a query and a fragment', () => {
-    expect(currentNavItemId('/read/')).toBe('read');
+    expect(currentNavItemId('/blog/')).toBe('read');
     expect(currentNavItemId('/bills?q=water&page=2')).toBe('search-bills');
     expect(currentNavItemId('/money#lanes')).toBe('search-campaign-money');
   });
@@ -82,9 +82,9 @@ describe('the nav row that names the page being viewed', () => {
 
   it('marks nothing on a page below a nav row', () => {
     // `aria-current="page"` claims "this link is the page you are on", so a
-    // piece's own page is not the /read page and the home page is no row at all.
-    expect(currentNavItemId('/read/guides/who-has-to-report-their-money')).toBeNull();
-    expect(currentNavItemId('/read/research/the-money-only-goes-one-way')).toBeNull();
+    // piece's own page is not the /blog page and the home page is no row at all.
+    expect(currentNavItemId('/blog/guides/who-has-to-report-their-money')).toBeNull();
+    expect(currentNavItemId('/blog/research/the-money-only-goes-one-way')).toBeNull();
     expect(currentNavItemId('/money/committees')).toBeNull();
     expect(currentNavItemId('/')).toBeNull();
   });

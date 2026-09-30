@@ -1,5 +1,5 @@
 <!-- describes: apps/frontend/src/lib/researchPieces/whyNobodyCanFollowADollar.ts -->
-<!-- POSTED 27 Aug 2026, and live at `/read/guides/why-nobody-can-follow-a-dollar`.
+<!-- POSTED 27 Aug 2026, and live at `/blog/guides/why-nobody-can-follow-a-dollar`.
      This file is where the prose was written and settled before any container
      existed for it, exactly as the 4 guides before it were written, and it stays the source of
      record for the words. The shipped piece is
@@ -134,8 +134,8 @@
      between the drafts HERE, because `scripts/check_doc_references.py` requires a
      relative link inside `docs/` to resolve to a real file. The shipped piece points
      them at the reader-facing addresses,
-     `/read/guides/who-has-to-report-their-money` and
-     `/read/guides/why-2-official-numbers-can-both-be-right`.
+     `/blog/guides/who-has-to-report-their-money` and
+     `/blog/guides/why-2-official-numbers-can-both-be-right`.
 
      WHERE IT LINKS FORWARD: nowhere, per the paragraph above. A test asserts the
      shipped piece carries no section headed "Next" and never says "the next piece in

@@ -1,7 +1,7 @@
 <!-- Settled publication copy; includes chart text for accessible first-response output -->
 # Political donors appearing in both parties’ Minnesota caucus records
 
-Minnesota’s legislative caucus funds support DFL and Republican campaigns for the House and Senate. We examined [political committee and fund](https://www.alethical.com/read/guides/who-has-to-report-their-money) entries in the Minnesota Campaign Finance Board’s contribution records for 2015–2025.
+Minnesota’s legislative caucus funds support DFL and Republican campaigns for the House and Senate. We examined [political committee and fund](https://www.alethical.com/blog/guides/who-has-to-report-their-money) entries in the Minnesota Campaign Finance Board’s contribution records for 2015–2025.
 
 The comparison covers 4 recipients: DFL House Caucus, DFL Senate Caucus, House Republican Campaign Committee (HRCC) and Senate Victory Fund. It counts donors by their recorded registration numbers, which do not establish the companies or parent organizations behind them.
 

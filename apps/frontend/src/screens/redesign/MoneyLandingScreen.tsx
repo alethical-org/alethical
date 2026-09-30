@@ -218,7 +218,7 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
   useWarmMoneyDestinations(!summaryQuery.isPending && !filingsQuery.isPending);
   // Research only. The row's link says "Read the research", so a guide featured
   // here would be labelled as something it is not; a reader reaches guides
-  // through the bar's Read item.
+  // through the bar's Blog item.
   const pieces = piecesLabelledResearch();
   const newestPiece = pieces[0];
 

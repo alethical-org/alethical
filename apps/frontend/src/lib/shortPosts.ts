@@ -439,17 +439,17 @@ const APPROVED_LINK_ONLY_REVISIONS: Record<
 > = {
   'lobbyist-giving': {
     inline: [
-      { text: 'candidate committees', href: '/read/guides/who-has-to-report-their-money' },
+      { text: 'candidate committees', href: '/blog/guides/who-has-to-report-their-money' },
       {
         text: 'Some download entries repeat reported information',
-        href: '/read/research/2-records-not-always-2-donations',
+        href: '/blog/research/2-records-not-always-2-donations',
       },
     ],
     related: ['organizations-both-parties', 'why-2-official-numbers-can-both-be-right'],
   },
   'organizations-both-parties': {
     inline: [
-      { text: 'political committee and fund', href: '/read/guides/who-has-to-report-their-money' },
+      { text: 'political committee and fund', href: '/blog/guides/who-has-to-report-their-money' },
     ],
     related: ['lobbyist-giving', 'why-nobody-can-follow-a-dollar'],
   },
@@ -457,7 +457,7 @@ const APPROVED_LINK_ONLY_REVISIONS: Record<
     inline: [
       {
         text: 'checked against filings',
-        href: '/read/guides/why-2-official-numbers-can-both-be-right',
+        href: '/blog/guides/why-2-official-numbers-can-both-be-right',
       },
     ],
     related: ['lobbyist-giving', 'organizations-both-parties'],

@@ -1,5 +1,5 @@
 <!-- describes: apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts -->
-<!-- POSTED 27 Aug 2026, and live at `/read/guides/who-has-to-report-their-money`.
+<!-- POSTED 27 Aug 2026, and live at `/blog/guides/who-has-to-report-their-money`.
      This file is where the prose was written and settled before any container
      existed for it, and it stays the source of record for the words. The shipped
      piece is `apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts`, and
@@ -27,7 +27,7 @@
 
      THE FORWARD LINK IS PAID. This paragraph used to end "This paragraph gains a link
      to it the day that piece posts." Guide 2 posted on 27 Aug 2026 at
-     /read/guides/what-the-records-name, so the link went in and the sentence that
+     /blog/guides/what-the-records-name, so the link went in and the sentence that
      explained its absence came out with it. That is not an edit on our own initiative,
      which rule 13 point 2 forbids: the piece's own text instructed it, and issue #1752's
      linking rule 6 plus published-writing-decisions.md §2.6 both say a forward link goes
@@ -37,7 +37,7 @@
      other surface. NOT rule 13: adding figures up across members, defining derived
      classifications and reaching conclusions are permitted to signed research only, and
      a guide must not inherit any of it. A piece that does carry the research trait as
-     well is addressed under `/read/research/` and labelled Research, because rule 13
+     well is addressed under `/blog/research/` and labelled Research, because rule 13
      then binds it in full (§2.6 and §2.7 of the same file); this piece carries only the
      guide trait.
 

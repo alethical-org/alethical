@@ -103,7 +103,7 @@ describe('the set box fold control', () => {
   });
 });
 
-describe('the /read page’s own structure', () => {
+describe('the /blog page’s own structure', () => {
   it('shows no title and still names the page for a reader who cannot see it', () => {
     expect(READING).toContain('aria-level={1}');
     expect(READING).toContain('styles.hiddenHeading');
@@ -135,7 +135,7 @@ describe('the /read page’s own structure', () => {
   });
 
   it('does not build a set’s own page or its overflow link yet', () => {
-    // Both are Design's, at 6 published pieces; `/read/sets/{slug}` is unbuilt,
+    // Both are Design's, at 6 published pieces; `/blog/sets/{slug}` is unbuilt,
     // and we link only to what exists.
     // The words may appear in a comment saying it is not built; what must not
     // appear is a string the page would draw.

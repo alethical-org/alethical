@@ -98,8 +98,8 @@ describe('the shared address reader stays safe for the server build', () => {
 });
 
 describe('article return addresses', () => {
-  const article = '/read/research/the-money-only-goes-one-way';
-  const source = '/read/sets/how-the-money-works?post=who-has-to-report-their-money';
+  const article = '/blog/research/the-money-only-goes-one-way';
+  const source = '/blog/sets/how-the-money-works?post=who-has-to-report-their-money';
 
   it('keeps a published local collection when opening a saved article link', () => {
     expect(targetFromPathname(`${article}?from=${encodeURIComponent(source)}`)).toMatchObject({
@@ -117,9 +117,9 @@ describe('article return addresses', () => {
   it.each([
     'https://elsewhere.test/',
     '//elsewhere.test/',
-    '/read/sets/not-published',
-    '/read#next',
-    '/read/research/%',
+    '/blog/sets/not-published',
+    '/blog#next',
+    '/blog/research/%',
     '/reading',
     '/reports',
   ])('drops unsafe return address %s', (unsafe) => {
@@ -368,37 +368,37 @@ describe('campaign money routes', () => {
     expect(pathForRoute({ name: 'MoneyLanding' })).toBe('/money');
   });
 
-  // The /read page left the money section for the top level (#1698), left
+  // The /blog page left the money section for the top level (#1698), left
   // /reports on the morning of 27 Aug 2026, when "report" went back to meaning
   // only the document a campaign files with the state, and left /reading that
   // evening for the single word the bar now shows
   // (docs/architecture/published-writing-decisions.md §2.1 and §2.6).
-  it('round-trips the /read page through /read', () => {
-    expect(targetFromPathname('/read')).toEqual({ kind: 'read' });
-    expect(pathForRoute({ name: 'Read' })).toBe('/read');
+  it('round-trips the /blog page through /blog', () => {
+    expect(targetFromPathname('/blog')).toEqual({ kind: 'read' });
+    expect(pathForRoute({ name: 'Read' })).toBe('/blog');
   });
 
   it('opens Short posts and known topics at their own addresses', () => {
-    expect(targetFromPathname('/read/short-posts')).toEqual({ kind: 'shortPosts' });
-    expect(targetFromPathname('/read/topics/campaign-finance')).toEqual({
+    expect(targetFromPathname('/blog/short-posts')).toEqual({ kind: 'shortPosts' });
+    expect(targetFromPathname('/blog/topics/campaign-finance')).toEqual({
       kind: 'readTopic',
       topic: 'campaign-finance',
     });
     expect(pathForRoute({ name: 'ShortPosts', params: { page: '2', post: 'example' } })).toBe(
-      '/read/short-posts?page=2&post=example',
+      '/blog/short-posts?page=2&post=example',
     );
     expect(pathForRoute({ name: 'ReadTopic', params: { topic: 'lobbying', page: '1' } })).toBe(
-      '/read/topics/lobbying',
+      '/blog/topics/lobbying',
     );
   });
 
   it('refuses invalid and unavailable Short posts pages', () => {
     for (const path of [
-      '/read/short-posts?page=0',
-      '/read/short-posts?page=02',
-      '/read/short-posts?page=2',
-      '/read/topics/unknown',
-      '/read/topics/lobbying?page=2',
+      '/blog/short-posts?page=0',
+      '/blog/short-posts?page=02',
+      '/blog/short-posts?page=2',
+      '/blog/topics/unknown',
+      '/blog/topics/lobbying?page=2',
     ]) {
       expect(targetFromPathname(path)).toEqual({ kind: 'notFound', path });
     }
@@ -420,7 +420,7 @@ describe('campaign money routes', () => {
     }));
     try {
       PUBLISHED_PIECE_INDEX.push(...posts);
-      expect(targetFromPathname('/read/short-posts?page=1&post=route-test-0')).toEqual({
+      expect(targetFromPathname('/blog/short-posts?page=1&post=route-test-0')).toEqual({
         kind: 'shortPosts',
         page: '2',
         post: 'route-test-0',
@@ -434,27 +434,27 @@ describe('campaign money routes', () => {
   // (grounded-answers.md rule 13; the registry in lib/research.ts holds only
   // pieces that have actually posted).
   it('sends an unpublished research slug to NotFound', () => {
-    expect(targetFromPathname('/read/research/outsider-pattern')).toEqual({
+    expect(targetFromPathname('/blog/research/outsider-pattern')).toEqual({
       kind: 'notFound',
-      path: '/read/research/outsider-pattern',
+      path: '/blog/research/outsider-pattern',
     });
   });
 
-  it('writes a research URL under /read/research', () => {
+  it('writes a research URL under /blog/research', () => {
     expect(pathForRoute({ name: 'Research', params: { slug: 'outsider-pattern' } })).toBe(
-      '/read/research/outsider-pattern',
+      '/blog/research/outsider-pattern',
     );
   });
 
   // The posted guide, at the folder its traits put it in
   // (published-writing-decisions.md §2.1).
-  it('opens the posted guide under /read/guides', () => {
-    expect(targetFromPathname('/read/guides/who-has-to-report-their-money')).toEqual({
+  it('opens the posted guide under /blog/guides', () => {
+    expect(targetFromPathname('/blog/guides/who-has-to-report-their-money')).toEqual({
       kind: 'guide',
       slug: 'who-has-to-report-their-money',
     });
     expect(pathForRoute({ name: 'Guide', params: { slug: 'who-has-to-report-their-money' } })).toBe(
-      '/read/guides/who-has-to-report-their-money',
+      '/blog/guides/who-has-to-report-their-money',
     );
   });
 
@@ -462,20 +462,20 @@ describe('campaign money routes', () => {
   // absent page, not a second way in, or the same page would answer on 2
   // addresses and a reader could share the one we do not name as canonical.
   it('refuses a posted piece asked for under the wrong folder', () => {
-    expect(targetFromPathname('/read/research/who-has-to-report-their-money')).toEqual({
+    expect(targetFromPathname('/blog/research/who-has-to-report-their-money')).toEqual({
       kind: 'notFound',
-      path: '/read/research/who-has-to-report-their-money',
+      path: '/blog/research/who-has-to-report-their-money',
     });
-    expect(targetFromPathname('/read/guides/the-money-only-goes-one-way')).toEqual({
+    expect(targetFromPathname('/blog/guides/the-money-only-goes-one-way')).toEqual({
       kind: 'notFound',
-      path: '/read/guides/the-money-only-goes-one-way',
+      path: '/blog/guides/the-money-only-goes-one-way',
     });
   });
 
   it('sends an unpublished guide slug to NotFound', () => {
-    expect(targetFromPathname('/read/guides/not-a-guide')).toEqual({
+    expect(targetFromPathname('/blog/guides/not-a-guide')).toEqual({
       kind: 'notFound',
-      path: '/read/guides/not-a-guide',
+      path: '/blog/guides/not-a-guide',
     });
   });
 
@@ -483,16 +483,16 @@ describe('campaign money routes', () => {
   // (published-writing-decisions.md §2.1), so it is an absent page rather than an
   // empty shell promising one.
   it('does not serve a set address yet', () => {
-    expect(targetFromPathname('/read/sets/where-the-money-comes-from')).toEqual({
+    expect(targetFromPathname('/blog/sets/where-the-money-comes-from')).toEqual({
       kind: 'notFound',
-      path: '/read/sets/where-the-money-comes-from',
+      path: '/blog/sets/where-the-money-comes-from',
     });
   });
 
   // All 3 old addresses still land, so a link shared before any of the moves
   // works on any host — the production forwards in vercel.json never see the
   // app, but the dev server and a local static export have none.
-  it('lands an old /reading, /reports or /money/reports link on the /read page', () => {
+  it('lands an old /reading, /reports or /money/reports link on the /blog page', () => {
     expect(targetFromPathname('/reading')).toEqual({ kind: 'read' });
     expect(targetFromPathname('/reports')).toEqual({ kind: 'read' });
     expect(targetFromPathname('/money/reports')).toEqual({ kind: 'read' });
@@ -541,7 +541,7 @@ describe('campaign money routes', () => {
   it('opens the posted piece at its new address and at all 3 old ones', () => {
     const slug = 'the-money-only-goes-one-way';
     for (const path of [
-      `/read/research/${slug}`,
+      `/blog/research/${slug}`,
       `/reading/research/${slug}`,
       `/reports/${slug}`,
       `/money/reports/${slug}`,
@@ -796,15 +796,16 @@ describe('shared top navigation', () => {
   // Yours left the bar for the account menu and Read took second place (#1698;
   // labelled Reports, then Reading, until 27 Aug 2026). Both auth states carry
   // these same 3 entries.
-  it('offers Search, Read and About without an active Ask entry', () => {
+  it('offers Money, Search, Blog and About without an active Ask entry', () => {
     expect(NAV_BAR.map((entry) => (entry.kind === 'menu' ? entry.key : entry.item.id))).toEqual([
+      'search-campaign-money',
       'search',
       'read',
       'about',
     ]);
     expect(
       NAV_BAR.map((entry) => (entry.kind === 'menu' ? entry.label : entry.item.label)),
-    ).toEqual(['Search', 'Read', 'About']);
+    ).toEqual(['Money', 'Search', 'Blog', 'About']);
   });
 
   it('keeps no Yours group in the bar', () => {
@@ -820,21 +821,21 @@ describe('shared top navigation', () => {
 // docs/architecture/published-writing-decisions.md §2.1).
 describe('the bar\u2019s Read item', () => {
   it('is a plain destination with no dropdown behind it', () => {
-    const read = NAV_BAR.find((entry) => entry.kind === 'link');
+    const read = NAV_BAR.find((entry) => entry.kind === 'link' && entry.item.id === 'read');
     expect(read).toBeDefined();
     if (read?.kind !== 'link') throw new Error('Read is not a link entry');
     expect(read.item.id).toBe('read');
-    expect(read.item.label).toBe('Read');
-    expect(read.item.path).toBe('/read');
+    expect(read.item.label).toBe('Blog');
+    expect(read.item.path).toBe('/blog');
     expect(read.item.menu).toBeNull();
     expect(read.item.isNew).toBe(true);
     expect(read.item.authGated).toBe(false);
     // Nothing hangs off it, at either band.
-    expect(IA.filter((item) => item.id !== 'read' && item.path.startsWith('/read'))).toEqual([]);
+    expect(IA.filter((item) => item.id !== 'read' && item.path.startsWith('/blog'))).toEqual([]);
   });
 
-  it('is the only bar entry that is a destination', () => {
-    expect(NAV_BAR.filter((entry) => entry.kind === 'link')).toHaveLength(1);
+  it('shares direct destination navigation with Money', () => {
+    expect(NAV_BAR.filter((entry) => entry.kind === 'link')).toHaveLength(2);
   });
 });
 
@@ -930,12 +931,11 @@ describe('Search dropdown roadmap row', () => {
 
 // The Campaign money row is live, public, second in Search, and carries the
 // green NEW chip (campaign money IA §01).
-describe('Search dropdown Campaign money row', () => {
-  it('sits second among the live rows, between Bills and Legislators', () => {
+describe('top-level Money destination', () => {
+  it('leaves Search with Bills, Legislators and Find My Legislator', () => {
     const { live } = navDropdownItems('search');
     expect(live.map((item) => item.id)).toEqual([
       'search-bills',
-      'search-campaign-money',
       'search-legislators',
       'search-find-my-legislator',
     ]);
@@ -945,12 +945,13 @@ describe('Search dropdown Campaign money row', () => {
     const item = IA.find((entry) => entry.id === 'search-campaign-money');
     expect(item?.authGated).toBe(false);
     expect(item?.path).toBe('/money');
+    expect(item?.label).toBe('Money');
+    expect(item?.menu).toBeNull();
     expect(item?.isNew).toBe(true);
   });
 
   it('keeps money search reachable after lobbying is released', () => {
-    const item = IA.find((entry) => entry.id === 'search-campaign-money');
-    expect(item?.description).toBe('Search any name to find people, committees, and who got paid');
+    expect(targetFromPathname('/money').kind).toBe('moneyLanding');
     expect(targetFromPathname('/money/lobbying')).toEqual({ kind: 'lobbyingLanding' });
   });
 });
@@ -1048,5 +1049,54 @@ describe('article correction contact navigation', () => {
     expect(pathForRoute({ name: 'ContactUs', params: { article: '', title: 'Fake' } })).toBe(
       '/about/contact',
     );
+  });
+});
+
+describe('Blog rename preserves old public links', () => {
+  it.each([
+    ['/read', '/blog'],
+    ['/read/research/the-money-only-goes-one-way', '/blog/research/the-money-only-goes-one-way'],
+    ['/read/guides/what-the-records-name', '/blog/guides/what-the-records-name'],
+    ['/read/sets/how-the-money-works', '/blog/sets/how-the-money-works'],
+    ['/read/short-posts', '/blog/short-posts'],
+    ['/read/topics/campaign-finance', '/blog/topics/campaign-finance'],
+  ])('opens %s as the same page as %s', (oldPath, currentPath) => {
+    expect(targetFromPathname(oldPath)).toEqual(targetFromPathname(currentPath));
+    expect(stateFromPathname(oldPath)).toEqual(stateFromPathname(currentPath));
+  });
+  it('keeps an old article return address on the matching Blog collection', () => {
+    expect(
+      targetFromPathname('/read/guides/what-the-records-name?from=%2Fread%2Fguides'),
+    ).toMatchObject({
+      kind: 'guide',
+      from: '/blog/guides',
+    });
+  });
+  it('forwards Read and earlier addresses directly to Blog permanently', () => {
+    const config = JSON.parse(
+      readFileSync(join(__dirname, '../../../../..', 'vercel.json'), 'utf8'),
+    );
+    expect(config.redirects).toContainEqual({
+      source: '/read',
+      destination: '/blog',
+      permanent: true,
+    });
+    expect(config.redirects).toContainEqual({
+      source: '/read/:path*',
+      destination: '/blog/:path*',
+      permanent: true,
+    });
+    for (const redirect of config.redirects.filter((item: { source: string }) =>
+      ['/reports', '/money/reports', '/reading'].some(
+        (prefix) => item.source === prefix || item.source.startsWith(prefix + '/'),
+      ),
+    )) {
+      expect(redirect.destination).toMatch(/^\/blog(?:\/|$)/);
+      expect(redirect.permanent).toBe(true);
+    }
+  });
+  it('does not claim unknown retired Read addresses exist', () => {
+    expect(targetFromPathname('/read/topics/no-such-topic').kind).toBe('notFound');
+    expect(targetFromPathname('/readers').kind).toBe('notFound');
   });
 });

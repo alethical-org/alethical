@@ -120,7 +120,7 @@ describe('every forward link in the set', () => {
     expect(destination).toBeDefined();
     const source = researchBySlug(from);
     expect(source).toBeDefined();
-    const hrefs = JSON.stringify(source).match(/\/read\/guides\/[a-z0-9-]+/g) ?? [];
+    const hrefs = JSON.stringify(source).match(/\/blog\/guides\/[a-z0-9-]+/g) ?? [];
     expect(hrefs).toContain(piecePath(destination!));
   });
 
@@ -148,9 +148,9 @@ describe('the posted-research registry', () => {
   // Rule 13's publishing order: posting a piece puts it on the site straight
   // away, and holding it back from SEARCH ENGINES is the separate, later step.
   // These pins are what keep those two apart, so neither can drag the other.
-  it('puts every posted piece on the site, at its address and on the /read page', () => {
+  it('puts every posted piece on the site, at its address and on the /blog page', () => {
     expect(PUBLISHED_RESEARCH.length).toBeGreaterThan(0);
-    // publishedResearch() is what the /read page and the money landing's count read.
+    // publishedResearch() is what the /blog page and the money landing's count read.
     expect(publishedResearch()).toEqual(PUBLISHED_RESEARCH);
     for (const piece of PUBLISHED_RESEARCH) {
       expect(researchBySlug(piece.slug)).toBe(piece);
@@ -172,7 +172,7 @@ describe('the posted-research registry', () => {
 
     const open = researchPageMetadata(SAMPLE_PIECE);
     expect(open.noindex).toBe(false);
-    expect(open.canonicalPath).toBe('/read/research/sample-piece');
+    expect(open.canonicalPath).toBe('/blog/research/sample-piece');
   });
 
   it('names records it does not hold rather than dating them', () => {
@@ -366,8 +366,8 @@ describe('the 2 trait flags decide the label and the address', () => {
   it('addresses a both-traits piece under research, because rule 13 binds it in full', () => {
     expect(pieceAddressFolder({ traits: { research: true, guide: true } })).toBe('research');
     expect(pieceAddressFolder({ traits: { research: false, guide: true } })).toBe('guides');
-    expect(piecePath(SAMPLE_GUIDE)).toBe('/read/guides/sample-guide');
-    expect(piecePath(SAMPLE_PIECE)).toBe('/read/research/sample-piece');
+    expect(piecePath(SAMPLE_GUIDE)).toBe('/blog/guides/sample-guide');
+    expect(piecePath(SAMPLE_PIECE)).toBe('/blog/research/sample-piece');
   });
 
   it('sorts every posted piece into exactly 1 of the page\u2019s 3 groups', () => {
@@ -385,7 +385,7 @@ describe('the 2 trait flags decide the label and the address', () => {
   it('gives every posted piece 1 address, and never the other folder', () => {
     for (const piece of PUBLISHED_RESEARCH) {
       expect(piecePath(piece)).toBe(
-        `/read/${pieceAddressFolder(piece)}/${encodeURIComponent(piece.slug)}`,
+        `/blog/${pieceAddressFolder(piece)}/${encodeURIComponent(piece.slug)}`,
       );
       // A piece with neither trait would be labelled Guide by default, which
       // would be an accident rather than a decision.
@@ -824,9 +824,9 @@ describe('the second guide carries the structure its draft gives it', () => {
     );
     const inward = bodyRuns.filter((run) => run.kind === 'internalLink');
     expect(inward.map((run) => run.href)).toEqual([
-      '/read/guides/who-has-to-report-their-money',
-      '/read/guides/who-has-to-report-their-money',
-      '/read/guides/why-2-official-numbers-can-both-be-right',
+      '/blog/guides/who-has-to-report-their-money',
+      '/blog/guides/who-has-to-report-their-money',
+      '/blog/guides/why-2-official-numbers-can-both-be-right',
     ]);
     // Every destination is posted, which is the only reason a link may exist.
     for (const href of inward.map((run) => run.href)) {
@@ -859,7 +859,7 @@ describe('the second guide carries the structure its draft gives it', () => {
   });
 });
 
-describe('sets, as the /read page groups them', () => {
+describe('sets, as the /blog page groups them', () => {
   it('groups the published guides into the set they were written for', () => {
     const sets = publishedSets(piecesLabelledGuide());
     expect(sets).toHaveLength(1);
@@ -951,7 +951,7 @@ describe('the 3 guides that complete the set', () => {
     expect(guide).toBeDefined();
     expect(pieceKindLabel(guide)).toBe('Guide');
     expect(pieceAddressFolder(guide)).toBe('guides');
-    expect(piecePath(guide)).toBe(`/read/guides/${slug}`);
+    expect(piecePath(guide)).toBe(`/blog/guides/${slug}`);
     // Rule 13's publishing order point 4: everything we publish is visible to
     // search engines from the day it posts.
     expect(guide.indexed).toBe(true);
@@ -1044,7 +1044,7 @@ describe('the 3 guides that complete the set', () => {
 describe('a line sitting on its own takes no closing period', () => {
   // Eugene, 2 Sep 2026: a period says another sentence is coming, so on a line
   // with nothing after it the eye waits for something that never arrives. The
-  // rule reaches the lines the /read page writes itself; it does not reach an
+  // rule reaches the lines the /blog page writes itself; it does not reach an
   // explaining sentence inside a piece.
   it('ends the page’s own 3 lines without one', () => {
     for (const line of [READ_PAGE_INTRO, READ_PAGE_EMPTY_TITLE, READ_PAGE_EMPTY_BODY]) {
@@ -1059,7 +1059,7 @@ describe('a line sitting on its own takes no closing period', () => {
   it('leaves a posted piece’s own standfirst exactly as its author wrote it', () => {
     // The card's secondary line for a research piece is the piece's standfirst,
     // and rule 13's publishing order point 2 forbids changing an author's words
-    // to fit a rule of ours. So the /read page does draw one period, and the
+    // to fit a rule of ours. So the /blog page does draw one period, and the
     // no-period rule stops at the page's own lines.
     const withStandfirst = piecesLabelledResearch().filter((piece) => piece.dek !== '');
     expect(withStandfirst.length).toBeGreaterThan(0);

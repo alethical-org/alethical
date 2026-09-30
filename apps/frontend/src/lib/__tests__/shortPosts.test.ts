@@ -643,7 +643,7 @@ describe('Short post and topic selection', () => {
     expect(piecePath(checked)).toBe(piecePath(tied[0]));
   });
 
-  it('pages 6 at a time and shows the newest 3 on /read', () => {
+  it('pages 6 at a time and shows the newest 3 on /blog', () => {
     expect(shortPostsPage(1, pieces).items.map((piece) => piece.slug)).toEqual([
       'short-7',
       'short-6',

@@ -40,7 +40,7 @@ import { theme as t } from '../../theme/tokens';
 
 /**
  * One published piece of Alethical's own writing: a research piece at
- * /read/research/{slug}, or a guide at /read/guides/{slug}. One screen,
+ * /blog/research/{slug}, or a guide at /blog/guides/{slug}. One screen,
  * because the 2 are the same document shape and differ only in their masthead
  * ("Money report web.dc.html", screen B).
  *
@@ -57,7 +57,7 @@ import { theme as t } from '../../theme/tokens';
  *   it: "GUIDE · 5 MIN · WRITTEN AUGUST 2026". No piece number appears anywhere a
  *   reader can see it (§2.12).
  * - A piece belonging to a set names the set under its title, and only its name.
- *   No link: `/read/sets/{name}` is not built, and we link only to what
+ *   No link: `/blog/sets/{name}` is not built, and we link only to what
  *   exists (issue 1752's linking rule 6, and grounded-answers rule 2).
  *
  * Everything here renders from the piece registry (lib/research.ts), and no
@@ -457,7 +457,7 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
   const anchors = useMemo(() => researchSectionAnchors(piece?.sections ?? []), [piece]);
   const activeAnchor = useActiveSection(anchors, !isMobile);
 
-  // A page opened at /read/research/{slug}#{section} has to jump itself: the article
+  // A page opened at /blog/research/{slug}#{section} has to jump itself: the article
   // is drawn by JavaScript, so when the browser looks for the fragment's target
   // on load there is nothing there yet. Read once on the first render, then
   // re-asserted after the layout settles.
@@ -468,7 +468,7 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
     const jump = () => {
       const anchor = articleOpeningSection(
         window.location.pathname,
-        `/read/${route.name === 'Research' ? 'research' : 'guides'}/${route.params.slug}`,
+        `/blog/${route.name === 'Research' ? 'research' : 'guides'}/${route.params.slug}`,
         window.location.hash,
         anchors,
       );

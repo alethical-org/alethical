@@ -42,7 +42,7 @@ export const STATIC_PAGE_SUBJECTS: Record<string, string> = {
   '/money': 'Money in politics in Minnesota',
   '/money/committees': 'Committees — Minnesota campaign money',
   '/money/races': 'Money by race: Minnesota candidates by office and district',
-  '/read': 'Read',
+  '/blog': 'Blog',
   '/email-preferences': 'Email preferences',
   '/unsubscribe': 'Unsubscribe',
   '/comment-emails': 'Comment emails',

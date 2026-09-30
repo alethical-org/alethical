@@ -297,7 +297,7 @@ export const LOBBYIST_GIVING: ResearchPiece = {
           {
             kind: 'internalLink',
             text: 'candidate committees',
-            href: '/read/guides/who-has-to-report-their-money',
+            href: '/blog/guides/who-has-to-report-their-money',
           },
           text(
             ' from both major parties. Our comparison follows their lobbyist registration numbers through the state’s 2015–2026 contribution download and examines contributions to the 4 legislative caucus funds.',
@@ -360,7 +360,7 @@ export const LOBBYIST_GIVING: ResearchPiece = {
           {
             kind: 'internalLink',
             text: 'Some download entries repeat reported information',
-            href: '/read/research/2-records-not-always-2-donations',
+            href: '/blog/research/2-records-not-always-2-donations',
           },
           text(
             ', and some contributor names conflict with their registration numbers. The file does not identify the filing behind each entry, and some older filings needed to resolve these questions are unavailable.',
@@ -388,10 +388,10 @@ export const LOBBYIST_GIVING: ResearchPiece = {
       publicationInstructionAt: '2026-09-26T20:45:24.598Z',
       navigationRevision: {
         reviewedBy: 'Codex',
-        reviewedOn: '2026-09-27',
-        approvedNavigationFingerprint: '267ca371',
-        approvedOn: '2026-09-27',
-        releaseInstructionOn: '2026-09-27',
+        reviewedOn: '2026-09-30',
+        approvedNavigationFingerprint: 'b64ec861',
+        approvedOn: '2026-09-30',
+        releaseInstructionOn: '2026-09-30',
       },
     },
   },

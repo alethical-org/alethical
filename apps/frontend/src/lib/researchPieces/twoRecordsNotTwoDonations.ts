@@ -210,10 +210,10 @@ export const TWO_RECORDS_NOT_TWO_DONATIONS: ResearchPiece = {
       publicationInstructionAt: '2026-09-26T20:28:06Z',
       navigationRevision: {
         reviewedBy: 'Codex',
-        reviewedOn: '2026-09-27',
-        approvedNavigationFingerprint: '232f0610',
-        approvedOn: '2026-09-27',
-        releaseInstructionOn: '2026-09-27',
+        reviewedOn: '2026-09-30',
+        approvedNavigationFingerprint: 'e0d227d8',
+        approvedOn: '2026-09-30',
+        releaseInstructionOn: '2026-09-30',
       },
     },
   },
@@ -234,7 +234,7 @@ TWO_RECORDS_NOT_TWO_DONATIONS.shortPost!.body = [
       {
         kind: 'internalLink',
         text: 'checked against filings',
-        href: '/read/guides/why-2-official-numbers-can-both-be-right',
+        href: '/blog/guides/why-2-official-numbers-can-both-be-right',
       },
       {
         kind: 'text',

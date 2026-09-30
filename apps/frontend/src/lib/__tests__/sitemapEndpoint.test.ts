@@ -102,7 +102,7 @@ describe('sitemap endpoint', () => {
       '/money/lobbying/principals',
       '/money/lobbying/lobbyists',
       '/money/committees',
-      '/read',
+      '/blog',
       '/about',
       '/about/contact',
       '/privacy',
@@ -122,18 +122,18 @@ describe('sitemap endpoint', () => {
     // A published piece is in the sitemap from the day it posts, so the count
     // grows with every piece we publish rather than staying fixed.
     expect(body).toContain(
-      '<loc>https://www.alethical.com/read/research/the-money-only-goes-one-way</loc>',
+      '<loc>https://www.alethical.com/blog/research/the-money-only-goes-one-way</loc>',
     );
     // A guide is listed at its own folder, from the same registry.
     expect(body).toContain(
-      '<loc>https://www.alethical.com/read/guides/who-has-to-report-their-money</loc>',
+      '<loc>https://www.alethical.com/blog/guides/who-has-to-report-their-money</loc>',
     );
-    expect(body).toContain('<loc>https://www.alethical.com/read/topics/campaign-finance</loc>');
-    expect(body).toContain('<loc>https://www.alethical.com/read/topics/lobbying</loc>');
-    expect(body).toContain('<loc>https://www.alethical.com/read/topics/elections</loc>');
-    expect(body).toContain('<loc>https://www.alethical.com/read/short-posts</loc>');
+    expect(body).toContain('<loc>https://www.alethical.com/blog/topics/campaign-finance</loc>');
+    expect(body).toContain('<loc>https://www.alethical.com/blog/topics/lobbying</loc>');
+    expect(body).toContain('<loc>https://www.alethical.com/blog/topics/elections</loc>');
+    expect(body).toContain('<loc>https://www.alethical.com/blog/short-posts</loc>');
     expect(body).toContain(
-      '<loc>https://www.alethical.com/read/topics/campaign-finance?page=2</loc>',
+      '<loc>https://www.alethical.com/blog/topics/campaign-finance?page=2</loc>',
     );
     expect(body.match(/<url>/g)).toHaveLength(
       FIXED_PAGE_ROWS + DIRECTORY_PAGE_ROWS + indexedResearch().length + COLLECTION_PAGE_ROWS,
@@ -150,7 +150,7 @@ describe('sitemap endpoint', () => {
     for (const piece of indexedResearch()) {
       expect(body).toContain(`<loc>https://www.alethical.com${piecePath(piece)}</loc>`);
     }
-    // Every address the /read page and its pieces used to answer on is
+    // Every address the /blog page and its pieces used to answer on is
     // forwarded, never listed: a sitemap row for an address that answers with a
     // permanent forward asks Google to crawl a redirect
     // (docs/architecture/published-writing-decisions.md §2.1).
@@ -158,6 +158,9 @@ describe('sitemap endpoint', () => {
       '/reports',
       '/reports/the-money-only-goes-one-way',
       '/money/reports',
+      '/read',
+      '/read/research/the-money-only-goes-one-way',
+      '/read/guides/who-has-to-report-their-money',
       '/reading',
       '/reading/research/the-money-only-goes-one-way',
       '/reading/guides/who-has-to-report-their-money',
@@ -180,10 +183,10 @@ describe('sitemap endpoint', () => {
       FIXED_PAGE_ROWS + indexedResearch().length + COLLECTION_PAGE_ROWS,
     );
     expect(body).toContain(
-      '<loc>https://www.alethical.com/read/research/the-money-only-goes-one-way</loc>',
+      '<loc>https://www.alethical.com/blog/research/the-money-only-goes-one-way</loc>',
     );
     expect(body).toContain(
-      '<loc>https://www.alethical.com/read/guides/who-has-to-report-their-money</loc>',
+      '<loc>https://www.alethical.com/blog/guides/who-has-to-report-their-money</loc>',
     );
     expect(body).not.toContain('/bills?page=');
   });

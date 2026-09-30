@@ -31,7 +31,7 @@ A host being unreachable is **not** a failure. A timeout, a refused connection o
 a 5xx is the Board having a bad minute, not our link being wrong, and filing an
 issue for it would train everyone to ignore this. Those are reported and skipped.
 
-Internal links (``/read/...``) are resolved against the pieces' own slugs rather
+Internal links (``/blog/...``) are resolved against the pieces' own slugs rather
 than fetched, so a broken cross-link between 2 guides is caught with no network
 at all.
 
