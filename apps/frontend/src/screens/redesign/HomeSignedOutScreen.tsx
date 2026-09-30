@@ -609,7 +609,7 @@ export function HomeSignedOutScreen() {
       <SignedOutHomepage
         renderExample={(dimmed) => <AnswerCard dimmed={dimmed} />}
         renderNews={(bill, onPress) => (
-          <NewsCardMobile bill={bill} hotIssue onPress={onPress} standaloneCopy />
+          <NewsCardMobile bill={bill} hotIssue onPress={onPress} signedOut />
         )}
       />
     );
@@ -1105,10 +1105,10 @@ function statusToProgress(status: string): { filled: number; vetoed: boolean } {
 const billHeadline = (bill: Bill) => bill.aiAnalysis?.shortTitle || bill.title;
 
 /** Green mono bill badge (e.g. "HF 4138"). */
-function BillBadge({ label }: { label: string }) {
+function BillBadge({ label, signedOut = false }: { label: string; signedOut?: boolean }) {
   return (
-    <View style={m.billBadge}>
-      <Text style={m.billBadgeText}>{label}</Text>
+    <View style={[m.billBadge, signedOut && m.publicBillBadge]}>
+      <Text style={[m.billBadgeText, signedOut && m.publicBillBadgeText]}>{label}</Text>
     </View>
   );
 }
@@ -1118,46 +1118,51 @@ function NewsCardMobile({
   bill,
   hotIssue,
   onPress,
-  standaloneCopy = false,
+  signedOut = false,
 }: {
   bill: Bill;
   hotIssue: boolean;
   onPress: () => void;
-  standaloneCopy?: boolean;
+  signedOut?: boolean;
 }) {
   const [hovered, hoverProps] = useHover();
-  // Live data, so it goes through the shared cleaner (grounded-answers rule 9). Full
-  // text — the card clamps to 4 lines visually, which is not the same as dropping
-  // everything after the first sentence.
+  // Live data goes through the shared cleaner (grounded-answers rule 9).
+  // Signed-out news shows the complete summary; signed-in news keeps its
+  // existing 4-line visual limit without discarding later sentences.
   const summary = plainBillSummary(bill.aiAnalysis?.summary);
   // The summary is public data. Only remove its ending period when it is one
   // standalone sentence; multi-sentence summaries retain normal punctuation.
   const summaryCopy =
-    standaloneCopy && summary && /^[^.!?]+\.$/.test(summary) ? summary.slice(0, -1) : summary;
+    signedOut && summary && /^[^.!?]+\.$/.test(summary) ? summary.slice(0, -1) : summary;
   return (
     <Pressable
       {...linkProps(routePath.bill(bill.id), onPress)}
       {...hoverProps}
       style={[m.card, transition('border-color, box-shadow'), hovered && m.cardHover]}
     >
-      <View style={m.cardTopRow}>
-        <BillBadge label={bill.identifier} />
+      <View style={[m.cardTopRow, signedOut && m.publicNewsTop]}>
+        <BillBadge label={bill.identifier} signedOut={signedOut} />
         {hotIssue ? (
-          <View style={m.hotPill}>
-            <Text style={m.hotPillText}>🔥 Hot issue</Text>
+          <View style={[m.hotPill, signedOut && { paddingHorizontal: 10 }]}>
+            <Text style={[m.hotPillText, signedOut && m.publicHotText]}>🔥 Hot issue</Text>
           </View>
         ) : null}
       </View>
-      <Text style={m.newsTitle}>{billHeadline(bill)}</Text>
+      <Text style={[m.newsTitle, signedOut && m.publicNewsTitle]}>{billHeadline(bill)}</Text>
       {summary ? (
-        <Text style={m.newsSummary} numberOfLines={4}>
+        <Text
+          style={[m.newsSummary, signedOut && m.publicNewsSummary]}
+          numberOfLines={signedOut ? undefined : 4}
+        >
           {summaryCopy}
         </Text>
       ) : null}
-      <View style={m.cardMeta}>
-        <Text style={m.metaStatus}>{bill.status}</Text>
+      <View style={[m.cardMeta, signedOut && { marginTop: 12 }]}>
+        <Text style={[m.metaStatus, signedOut && m.publicNewsStatus]}>{bill.status}</Text>
         {bill.effectiveDate ? (
-          <Text style={m.metaEffective}>Effective {bill.effectiveDate}</Text>
+          <Text style={[m.metaEffective, signedOut && m.publicNewsEffective]}>
+            Effective {bill.effectiveDate}
+          </Text>
         ) : null}
       </View>
     </Pressable>
@@ -1967,6 +1972,26 @@ const m = StyleSheet.create({
     color: t.colors.text.secondary, // #4f5651
     // Stay on one line at the larger size.
     ...(isWeb ? ({ whiteSpace: 'nowrap' } as object) : null),
+  },
+  publicBillBadge: { borderRadius: 6, paddingHorizontal: 9 },
+  publicBillBadgeText: {
+    fontFamily: t.typography.body,
+    fontWeight: '800',
+    fontSize: 19,
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 0.76,
+  },
+  publicNewsTop: { flexWrap: 'wrap', gap: 8 },
+  publicHotText: { fontSize: 21, letterSpacing: 1.26 },
+  publicNewsTitle: { marginTop: 10, fontSize: 23, lineHeight: 29.9, letterSpacing: -0.23 },
+  publicNewsSummary: { fontSize: 21, lineHeight: 32.55, color: '#6b716b' },
+  publicNewsStatus: { fontSize: 21, lineHeight: 31.5, fontWeight: '400' },
+  publicNewsEffective: {
+    fontSize: 21,
+    lineHeight: 31.5,
+    fontWeight: '400',
+    fontVariant: ['tabular-nums'],
+    color: '#6f756f',
   },
   newsTitle: {
     marginTop: 12,

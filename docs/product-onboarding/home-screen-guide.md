@@ -217,7 +217,10 @@ bill.
 Signed-out phone Home uses this order: introduction, money, bills, services,
 In the News, and footer. In the News sits directly before the footer, with
 no general bill-activity or legislator-finder section after it. Its current pins
-remain HF 4138 and SF 856; each card uses that bill's real records.
+remain HF 4138 and SF 856; each card uses that bill's real records. Signed-out
+news shows the complete summary, with the approved larger phone text and
+equal-width digits on bill codes and dates. Signed-in news retains its existing
+4-line summary limit and visual treatment.
 
 Signed-in phone Home keeps its existing order: greeting and tracked bills, search
 actions and money, In the News, bill activity, Find My Legislator, and footer.
