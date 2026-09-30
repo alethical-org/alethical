@@ -331,6 +331,8 @@ export function ServicesScreen({ navigation }: RootScreenProps<'Services'>) {
                 gap: isMobile ? 24 : 30,
                 borderTopWidth: isMobile ? 1 : 0,
                 borderTopColor: '#1c1c1c',
+                marginHorizontal: isMobile ? -horizontal : 0,
+                paddingHorizontal: isMobile ? 16 : 0,
                 flexWrap: 'wrap',
                 flex: isMobile ? undefined : 1,
                 justifyContent: isMobile ? 'flex-start' : 'flex-end',

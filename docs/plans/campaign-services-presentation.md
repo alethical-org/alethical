@@ -13,7 +13,7 @@ recommendation, with no main-content changes. Downloaded at 18:24 Eastern; SHA25
 - [x] Compare the accepted bundle and independent review against the approved scope.
 - [x] Replace the shared header only at `/services`; keep real home and section links.
 - [x] Reuse Footer with scoped column alignment and tablet stacking.
-- [ ] Pass first-response checks, responsive browser checks and independent acceptance.
+- [x] Pass first-response checks, responsive browser checks and independent acceptance.
 - [ ] Merge, deploy and inspect the live result.
 - Preserve the established contact and social destinations; the bundle's private
   access notes and prototype link targets are superseded.
