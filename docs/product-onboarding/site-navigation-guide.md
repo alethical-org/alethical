@@ -48,10 +48,10 @@ Readers reach it through a private email link, not the account menu. See
 ## Inside the account menu
 
 The account menu uses matching outline pictures for Tracked, password, email, and sign out.
-Every action label has the same bold weight. The desktop popover is 360px wide with
-17px labels and at least 44px rows; phone labels are 19px with at least 56px rows.
+Every action label has the same bold weight. The desktop popover has room for
+longer labels; phone labels and touch targets are larger.
 The Admin group has 1 divider above its label and no divider between its 3 links.
-Empty icon spaces keep its labels aligned with the ordinary actions. Phone labels and touch targets are larger.
+Empty icon spaces keep its labels aligned with the ordinary actions.
 The count uses Libre Franklin with equal-width digits, and expands to fit the full number.
 It appears only after both the bill and committee lists have loaded and the total is positive.
 The password dialog keeps its own larger lock and success check mark.
@@ -77,7 +77,7 @@ shows when rows have scrolled. No empty error space is held at rest. Rows keep a
 of visible space; enlarged text can grow the menu rather than be clipped. If the screen cannot
 fit that larger menu, the menu itself scrolls. Changing screen size recalculates the available room.
 
-On phones, the bottom-anchored sheet has at most the screen height less 40px and grows upward for the message. On short screens, Close
+On phones, the bottom-anchored sheet grows upward for the message within the available screen. On short screens, Close
 stays visible while the account actions scroll by the added height before the browser paints.
 The scroll area owns the 22px side padding so the sign-out outline is not cropped. Its button
 reserves space for the longest state label even when text wraps. Close uses the matching sign-in
@@ -128,9 +128,9 @@ declared but unshown, so a roadmap pill may only stand in for a menu a reader ca
 
 Below 1100 pixels wide the dropdowns become a drawer opened from the bar.
 Below 768px the drawer covers the whole screen and hides the underlying page and
-its logo. The drawer symbol is 26px, in the same top-left position as the page symbol.
+its logo. The drawer symbol sits in the same top-left position as the page symbol.
 The phone bar has the wordmark and menu button; sign-in and account actions are
-reachable inside the drawer. From 768px to 1099px the drawer is a 366px panel on
+reachable inside the drawer. From 768px to 1099px the drawer is a fixed-width panel on
 the right, with the underlying page dimmed. Both layouts scroll internally. Search's and About's
 rows sit under their group headings; Money and Blog each have a direct top-level row.
 Money comes before Search, and Blog follows Search. Both direct rows use the existing
@@ -162,8 +162,8 @@ sizes, and spacing live in code (`apps/frontend/src/theme/tokens.ts`), never in 
 
 ## Navigation design accepted 30 September 2026
 
-Desktop links start 56px after the wordmark rather than at the right edge. The desktop
-wordmark uses a 40px symbol and 25px text. Money, Search, Blog and About keep their
+Desktop links follow the wordmark rather than sitting at the right edge.
+Money, Search, Blog and About keep their
 existing order. The account avatar opens the same popover; signed-out readers keep
 the existing green Sign in action. The signed-out homepage retains its separately
 approved outlined Sign in treatment. Every wordmark remains a link to Home.
