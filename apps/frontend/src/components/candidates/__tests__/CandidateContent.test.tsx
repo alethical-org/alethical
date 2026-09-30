@@ -118,6 +118,36 @@ function type(value: string) {
   return input;
 }
 
+it('shows the public unavailable state without collecting an address or calling lookup services', async () => {
+  const service: CandidateSearchServices = {
+    getElections: vi.fn(async () => [general]),
+    suggest: vi.fn(async () => []),
+    lookup: vi.fn(async () => result()),
+  };
+  await act(async () =>
+    root.render(
+      <CandidateSearchContent
+        recordsAvailable={false}
+        services={service}
+        initialAddress="100 Example Street"
+        onOpenProfile={() => {}}
+      />,
+    ),
+  );
+  await flush();
+  expect(host.textContent).toContain('Find My Candidates');
+  expect(host.textContent).toContain('Candidate records are not available on Alethical yet');
+  expect(host.querySelector('input, [role="combobox"]')).toBeNull();
+  expect(host.querySelector('a[href*="/candidates/"]')).toBeNull();
+  expect(
+    host.querySelector('a[href="https://www.sos.mn.gov/elections-voting/whats-on-my-ballot/"]'),
+  ).toBeTruthy();
+  expect(host.textContent).not.toMatch(/private|illustrative|census|example a|example b/i);
+  expect(service.getElections).not.toHaveBeenCalled();
+  expect(service.suggest).not.toHaveBeenCalled();
+  expect(service.lookup).not.toHaveBeenCalled();
+});
+
 it('names the address field, rejects empty input without a request, and keeps typed text after lookup failure', async () => {
   const lookup = vi
     .fn<CandidateSearchServices['lookup']>()
@@ -219,7 +249,7 @@ it('does not silently use an old election when none is upcoming', async () => {
     ),
   );
   await flush();
-  expect(host.textContent).toContain('Records for upcoming elections are not available yet');
+  expect(host.textContent).toContain('Candidate records are not available on Alethical yet');
   expect(lookup).not.toHaveBeenCalled();
   expect(host.querySelector('[role="combobox"]')).toBeNull();
 });
@@ -414,18 +444,18 @@ it('keeps a newer typed address when a slow earlier search finishes and preserve
   expect(host.textContent).toContain('300 Example Street');
 });
 
-it('describes the injected private service without claiming a Census request', async () => {
+it('describes the injected illustrative service without claiming a Census request', async () => {
   act(() =>
     root.render(
       <CandidateSearchContent
         services={services()}
         onOpenProfile={() => {}}
-        privacyDisclosure="Private preview: your address stays in this browser"
+        privacyDisclosure="Illustrative data: your address stays in this browser"
       />,
     ),
   );
   await flush();
-  expect(host.textContent).toContain('Private preview: your address stays in this browser');
+  expect(host.textContent).toContain('Illustrative data: your address stays in this browser');
   expect(host.textContent).not.toContain('Census Bureau');
 });
 

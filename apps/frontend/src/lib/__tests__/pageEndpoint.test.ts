@@ -136,6 +136,31 @@ async function serve(query: Record<string, string>) {
   return recorder.read();
 }
 
+it('serves the public candidates destination without example records or data-service requests', async () => {
+  stubNetwork(() => ({ status: 500 }));
+  const { body, status, headers } = await serve({ path: '/candidates' });
+  expect(status).toBe(200);
+  expect(body).toContain('<title>Find My Candidates | Alethical</title>');
+  expect(body).toContain('Live candidate search is not connected yet');
+  expect(body).toContain('href="https://www.alethical.com/candidates"');
+  expect(headers.get('X-Robots-Tag')).toBeUndefined();
+  expect(body).not.toMatch(/PRIVATE DRAFT|ILLUSTRATIVE DATA|preview-general-alex/);
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it('keeps illustrative candidate profiles unavailable on the public server even with the review flag', async () => {
+  vi.stubEnv('EXPO_PUBLIC_CANDIDATE_LOOKUP_PREVIEW', 'true');
+  try {
+    stubNetwork(() => ({ status: 500 }));
+    const { body, status } = await serve({ path: '/candidates/preview-general-alex' });
+    expect(status).toBe(404);
+    expect(body).not.toContain('ILLUSTRATIVE DATA');
+    expect(fetch).not.toHaveBeenCalled();
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});
+
 it('serves the approved article links in the first HTTP response of all 9 published pages', async () => {
   stubNetwork(() => ({ status: 500 }));
   expect(approvedInlineLinks).toHaveLength(7);

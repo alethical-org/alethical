@@ -27,6 +27,7 @@ import type {
 
 export function CandidateSearchContent({
   services,
+  recordsAvailable = true,
   onOpenProfile,
   initialAddress,
   addressLost,
@@ -43,7 +44,9 @@ export function CandidateSearchContent({
   );
   const [elections, setElections] = useState<CandidateElection[]>([]);
   const [selected, setSelected] = useState(state.requested?.electionId ?? '');
-  const [electionLoad, setElectionLoad] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [electionLoad, setElectionLoad] = useState<'loading' | 'ready' | 'error'>(
+    recordsAvailable ? 'loading' : 'ready',
+  );
   const [reload, setReload] = useState(0);
   const [changingAddress, setChangingAddress] = useState(() =>
     Boolean(
@@ -56,6 +59,7 @@ export function CandidateSearchContent({
   const displayed = state.displayed;
   const busy = state.status === 'loading' || state.status === 'updating';
   useEffect(() => {
+    if (!recordsAvailable) return;
     const controller = new AbortController();
     setElectionLoad('loading');
     void services
@@ -76,7 +80,7 @@ export function CandidateSearchContent({
         if (!controller.signal.aborted) setElectionLoad('error');
       });
     return () => controller.abort();
-  }, [services, reload]);
+  }, [services, reload, recordsAvailable]);
   useEffect(() => {
     if (!initialAddress?.trim() || autoStarted.current || state.requested || !selected) return;
     const election = elections.find((item) => item.id === selected);
@@ -133,7 +137,9 @@ export function CandidateSearchContent({
     setChangingAddress(true);
   };
   const noElection =
-    (electionLoad === 'ready' && !selected) || state.outcome?.kind === 'no-elections';
+    !recordsAvailable ||
+    (electionLoad === 'ready' && !selected) ||
+    state.outcome?.kind === 'no-elections';
   const form =
     noElection || electionLoad === 'error' ? null : (
       <CandidateAddressForm
@@ -175,7 +181,7 @@ export function CandidateSearchContent({
   ) : null;
   const noElectionNotice = noElection ? (
     <CandidateNotice>
-      <Text style={candidateText.strong}>Records for upcoming elections are not available yet</Text>
+      <Text style={candidateText.strong}>Candidate records are not available on Alethical yet</Text>
       <CandidateLink label="Minnesota sample ballot information" url={sampleBallotUrl} />
     </CandidateNotice>
   ) : null;
@@ -295,8 +301,9 @@ export function CandidateSearchContent({
                 { marginTop: 14, fontSize: isMobile ? 17 : 20, lineHeight: isMobile ? 26 : 30 },
               ]}
             >
-              Enter your Minnesota street address to see who has filed to run for office in your
-              area
+              {noElection
+                ? 'Candidates for Minnesota state and local offices'
+                : 'Enter your Minnesota street address to see who has filed to run for office in your area'}
             </Text>
             {addressLost ? (
               <View style={{ marginTop: 22 }}>
@@ -317,18 +324,20 @@ export function CandidateSearchContent({
               {errorNotice}
               {noElectionNotice}
             </View>
-            <View style={styles.privacy}>
-              <Text style={[candidateText.body, { fontSize: 14, lineHeight: 21 }]}>
-                {privacyDisclosure ??
-                  'Address lookup uses U.S. Census Bureau and Minnesota mapping services'}
-              </Text>
-              {!privacyDisclosure ? (
-                <Text style={[candidateText.body, { fontSize: 12, lineHeight: 19 }]}>
-                  This product uses the Census Bureau Data API but is not endorsed or certified by
-                  the Census Bureau.
+            {!noElection && (
+              <View style={styles.privacy}>
+                <Text style={[candidateText.body, { fontSize: 14, lineHeight: 21 }]}>
+                  {privacyDisclosure ??
+                    'Address lookup uses U.S. Census Bureau and Minnesota mapping services'}
                 </Text>
-              ) : null}
-            </View>
+                {!privacyDisclosure ? (
+                  <Text style={[candidateText.body, { fontSize: 12, lineHeight: 19 }]}>
+                    This product uses the Census Bureau Data API but is not endorsed or certified by
+                    the Census Bureau.
+                  </Text>
+                ) : null}
+              </View>
+            )}
           </View>
           {!isMobile && imageSource ? (
             <Image

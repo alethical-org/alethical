@@ -639,14 +639,18 @@ recommendation surface · admin tooling depth.
 > motive, or a person is corrupt. Alethical may connect the documented facts; it may not
 > manufacture the meaning between them.
 
-> **Candidate data is not promise tracking.** Candidate *profiles, search, and tracking* are
-> a planned direction, not built yet — [#147](https://github.com/alethical-org/alethical/issues/147)
-> (profiles/search) and [#148](https://github.com/alethical-org/alethical/issues/148)
-> (tracking), both on the `v8 candidates` milestone. What is permanently out is
-> *promise tracking and promise-vs-vote scoring* — the accountability-scoring features,
-> not candidate data surfaces.
-
-> **Candidates vs. promise tracking:** candidate *profiles, search, and tracking* are a planned direction, not built yet ([#147](https://github.com/alethical-org/alethical/issues/147) profiles/search and [#148](https://github.com/alethical-org/alethical/issues/148) tracking, both on the `v8 candidates` milestone). What stays out of scope above is *campaign/candidate promise tracking and promise-vs-vote scoring* specifically — the accountability-scoring features, not candidate data surfaces.
+> **Candidate data is not promise tracking.** The public `/candidates` destination is
+> approved on 30 September 2026, with a notice that records are not available on
+> Alethical yet and a link to official ballot information. Reviewed search/results
+> and read-only profiles exist with clearly labeled illustrative development data;
+> real candidate lookup still needs its live source connection and source checks
+> ([#147](https://github.com/alethical-org/alethical/issues/147)). Candidate tracking
+> remains planned ([#148](https://github.com/alethical-org/alethical/issues/148)).
+> Claim ownership and evidence rules remain unresolved. The
+> [candidate lookup build and release plan](../implementation/candidate-lookup-build-plan.md)
+> records the approval, current build and dated release history. What stays out is
+> _campaign/candidate promise tracking and promise-vs-vote scoring_: the
+> accountability-scoring features, not candidate data surfaces.
 
 ## Success criteria
 

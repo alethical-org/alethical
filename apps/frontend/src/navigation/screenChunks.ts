@@ -39,12 +39,10 @@ export const screenChunks = {
     import('../screens/FindMyLegislatorScreen').then((m) => ({
       default: m.FindMyLegislatorScreen,
     })),
+  Candidates: () =>
+    import('../screens/CandidatesScreen').then((m) => ({ default: m.CandidatesScreen })),
   ...(typeof __DEV__ !== 'undefined' && __DEV__
     ? {
-        Candidates: () =>
-          import('../screens/CandidatePreviewScreens').then((m) => ({
-            default: m.CandidatesScreen,
-          })),
         CandidateProfile: () =>
           import('../screens/CandidatePreviewScreens').then((m) => ({
             default: m.CandidateProfileScreen,
