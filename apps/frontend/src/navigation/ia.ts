@@ -35,7 +35,7 @@ export interface IaItem {
   path: string;
   /**
    * Dropdown this item lives under. `null` means it lives under none: either it
-   * is a bar item in its own right (Read, via `NAV_BAR` below) or it is reached
+   * is a bar item in its own right (Blog, via `NAV_BAR` below) or it is reached
    * from in-page actions rather than the bar at all (Ask).
    */
   menu: MenuKey | null;
@@ -60,13 +60,13 @@ export interface IaItem {
 }
 
 /**
- * Read — everything Alethical publishes in its own name, at `/read`.
+ * Blog — everything Alethical publishes in its own name, at `/blog`.
  *
  * It is a bar item with no dropdown, so it appears in `NAV_BAR` below as well as
  * in the registry. This was a `reading` menu holding a single row labelled
  * "Campaign money" until 27 Aug 2026: the bar showed a dropdown with one item in
  * it and the phone drawer showed a heading over one row. Everything we publish
- * sits on the one `/read` page, so the bar has nothing to disclose and the
+ * sits on the one `/blog` page, so the bar has nothing to disclose and the
  * drawer gains no nested layer (Design's nav drawing, 27 Aug 2026;
  * docs/architecture/published-writing-decisions.md §2.1).
  *
@@ -77,13 +77,13 @@ export interface IaItem {
  */
 const READ_ITEM: IaItem = {
   id: 'read',
-  label: 'Read',
-  path: '/read',
+  label: 'Blog',
+  path: '/blog',
   menu: null,
   availability: 'mvp',
   authGated: false,
   isNew: true,
-  note: 'Opens the /read page. A piece of our own research is the one surface allowed to add figures up across members (.claude/rules/grounded-answers.md rule 13).',
+  note: 'Opens the /blog page. A piece of our own research is the one surface allowed to add figures up across members (.claude/rules/grounded-answers.md rule 13).',
 };
 
 /**

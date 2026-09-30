@@ -41,11 +41,11 @@ it('gives an empty collection one underlinable label and a separate shared arrow
   const host = document.createElement('div');
   host.innerHTML = html;
   const link = host.querySelector<HTMLAnchorElement>('.sp-collection-empty a');
-  expect(link?.getAttribute('href')).toBe('/read');
+  expect(link?.getAttribute('href')).toBe('/blog');
   expect(link?.children).toHaveLength(2);
   expect(link?.children[0].tagName).toBe('svg');
   expect(link?.children[0].getAttribute('aria-hidden')).toBe('true');
-  expect(link?.children[1].textContent).toBe('Back to Read');
+  expect(link?.children[1].textContent).toBe('Back to Blog');
   expect(host.querySelector('style')?.textContent).toContain(
     '.sp-collection-empty a:hover span{text-decoration:underline}',
   );

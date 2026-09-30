@@ -33,7 +33,7 @@ def _piece(title: str = "The Money Only Goes One Way") -> PublishedResearch:
         title=title,
         published_on=date(2026, 8, 20),
         records_through=date(2026, 7, 20),
-        public_url="https://www.alethical.com/read/research/the-money-only-goes-one-way",
+        public_url="https://www.alethical.com/blog/research/the-money-only-goes-one-way",
     )
 
 
@@ -73,7 +73,7 @@ def test_email_refuses_missing_postal_and_non_public_address() -> None:
         title="Test",
         published_on=date(2026, 8, 20),
         records_through=date(2026, 7, 20),
-        public_url="https://example.com/read/research/the-money-only-goes-one-way",
+        public_url="https://example.com/blog/research/the-money-only-goes-one-way",
     )
     with pytest.raises(ValueError, match="public Alethical"):
         render_research_email(
@@ -95,7 +95,7 @@ def test_publication_check_requires_exact_live_title_dates_and_canonical(
     monkeypatch,
 ) -> None:
     body = """<html><head><title>The Money Only Goes One Way | Alethical</title>
-    <link rel="canonical" href="https://www.alethical.com/read/research/the-money-only-goes-one-way">
+    <link rel="canonical" href="https://www.alethical.com/blog/research/the-money-only-goes-one-way">
     <meta property="article:published_time" content="2026-08-20">
     <meta name="description" content="Published Aug 20, 2026 · records through Jul 20, 2026.">
     </head></html>"""
@@ -387,7 +387,7 @@ def test_confirmed_suppression_skips_recipient_without_stopping_campaign(
         title=piece.title,
         published_on=piece.published_on,
         records_through=piece.records_through,
-        public_url="https://www.alethical.com/read/research/suppression-test",
+        public_url="https://www.alethical.com/blog/research/suppression-test",
     )
     digest = sender._content_hash(piece, "Unconcealed <ask@alethical.com>", POSTAL)
     with Session(get_engine(), expire_on_commit=False) as db:

@@ -18,15 +18,15 @@ export type ArticleReturnContext = {
 export function articleReturnDestination(href: string): { href: string; label: string } | null {
   const path = safeArticleReturnPath(href);
   if (!path) return null;
-  if (path === '/read') return { href, label: 'Back to Read' };
-  if (path === '/read/research') return { href, label: 'All research reports' };
-  if (path === '/read/short-posts') return { href, label: 'All short posts' };
-  if (path === '/read/guides') return { href, label: 'All guides' };
-  const set = path.startsWith('/read/sets/')
-    ? guideSetBySlug(path.slice('/read/sets/'.length))
+  if (path === '/blog') return { href, label: 'Back to Blog' };
+  if (path === '/blog/research') return { href, label: 'All research reports' };
+  if (path === '/blog/short-posts') return { href, label: 'All short posts' };
+  if (path === '/blog/guides') return { href, label: 'All guides' };
+  const set = path.startsWith('/blog/sets/')
+    ? guideSetBySlug(path.slice('/blog/sets/'.length))
     : undefined;
   if (set) return { href, label: `Back to ${set}` };
-  const topic = TOPICS.find((item) => path === `/read/topics/${item.slug}`);
+  const topic = TOPICS.find((item) => path === `/blog/topics/${item.slug}`);
   return topic ? { href, label: `Back to ${topic.label}` } : null;
 }
 
@@ -38,7 +38,7 @@ export function captureArticleReturn(href: string): ArticleReturnContext | undef
 }
 
 export function articleReturnLink(context: ArticleReturnContext | undefined) {
-  return articleReturnDestination(context?.href ?? '') ?? { href: '/read', label: 'Back to Read' };
+  return articleReturnDestination(context?.href ?? '') ?? { href: '/blog', label: 'Back to Blog' };
 }
 
 /** The source travels in the actual link, so opening a new tab keeps its return link. */
@@ -54,18 +54,18 @@ export function articleReturnHref(
   page?: string,
   topic?: TopicSlug,
 ) {
-  if (kind === 'read') return '/read';
+  if (kind === 'read') return '/blog';
   const setSlug = guideSetSlug(pieceIndexBySlug(slug)?.set?.name ?? 'How the money works');
   const base =
     kind === 'archive'
-      ? '/read/short-posts'
+      ? '/blog/short-posts'
       : kind === 'topic'
-        ? `/read/topics/${topic}`
+        ? `/blog/topics/${topic}`
         : kind === 'research'
-          ? '/read/research'
+          ? '/blog/research'
           : kind === 'guides'
-            ? '/read/guides'
-            : `/read/sets/${setSlug}`;
+            ? '/blog/guides'
+            : `/blog/sets/${setSlug}`;
   const params = new URLSearchParams();
   if (page && page !== '1') params.set('page', page);
   params.set('post', slug);

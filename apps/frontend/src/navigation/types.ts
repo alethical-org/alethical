@@ -96,8 +96,8 @@ export type RootStackParamList = {
   ReadTopic: { topic: string; page?: string; post?: string };
   // One published piece of our own writing. Both names draw the same screen and
   // differ only in the address they write: a piece carrying the research trait
-  // lives at /read/research/{slug}, one carrying only the guide trait at
-  // /read/guides/{slug} (docs/architecture/published-writing-decisions.md
+  // lives at /blog/research/{slug}, one carrying only the guide trait at
+  // /blog/guides/{slug} (docs/architecture/published-writing-decisions.md
   // §2.1). The slug resolves against the piece registry (lib/research.ts); an
   // unknown slug, or the wrong folder for the piece, lands on NotFound.
   Research: { slug: string; returnContext?: import('../lib/articleReturn').ArticleReturnContext };

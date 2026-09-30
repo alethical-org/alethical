@@ -1,5 +1,5 @@
 <!-- describes: apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts -->
-<!-- POSTED 27 Aug 2026, and live at `/read/guides/what-the-records-name`.
+<!-- POSTED 27 Aug 2026, and live at `/blog/guides/what-the-records-name`.
      This file is where the prose was written and settled before any container existed
      for it, and it stays the source of record for the words. The shipped piece is
      `apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts`, and
@@ -220,12 +220,12 @@
      paragraphs, per issue #1752's linking rules. They stay relative links between the
      drafts HERE, because `scripts/check_doc_references.py` requires a relative link
      inside `docs/` to resolve to a real file. The shipped piece points them at piece 1's
-     reader-facing address, `/read/guides/who-has-to-report-their-money`, which is the
+     reader-facing address, `/blog/guides/who-has-to-report-their-money`, which is the
      swap this line used to ask the builder for; a test pins both to that address.
 
      WHERE IT LINKS FORWARD: 1 link to piece 3, in the closing paragraph. This paragraph
      used to end "This paragraph gains a link to it the day that piece posts". Piece 3
-     posted at /read/guides/why-2-official-numbers-can-both-be-right, so the link went in
+     posted at /blog/guides/why-2-official-numbers-can-both-be-right, so the link went in
      and the sentence explaining its absence came out with it, because that sentence
      becomes false the moment the link exists. That is not an edit on our own initiative,
      which rule 13 point 2 forbids: the piece's own text instructed it, and issue #1752's

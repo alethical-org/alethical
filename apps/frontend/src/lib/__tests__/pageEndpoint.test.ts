@@ -20,29 +20,29 @@ const approvedInlineLinks = [
   [
     'the-money-only-goes-one-way',
     'campaign accounts for state office',
-    '/read/guides/who-has-to-report-their-money',
+    '/blog/guides/who-has-to-report-their-money',
   ],
-  ['the-money-only-goes-one-way', 'only the named donations', '/read/guides/what-the-records-name'],
+  ['the-money-only-goes-one-way', 'only the named donations', '/blog/guides/what-the-records-name'],
   [
     'the-money-only-goes-one-way',
     'independent expenditures',
-    '/read/guides/money-spent-without-a-campaigns-say',
+    '/blog/guides/money-spent-without-a-campaigns-say',
   ],
-  ['lobbyist-giving', 'candidate committees', '/read/guides/who-has-to-report-their-money'],
+  ['lobbyist-giving', 'candidate committees', '/blog/guides/who-has-to-report-their-money'],
   [
     'lobbyist-giving',
     'Some download entries repeat reported information',
-    '/read/research/2-records-not-always-2-donations',
+    '/blog/research/2-records-not-always-2-donations',
   ],
   [
     'organizations-both-parties',
     'political committee and fund',
-    '/read/guides/who-has-to-report-their-money',
+    '/blog/guides/who-has-to-report-their-money',
   ],
   [
     '2-records-not-always-2-donations',
     'checked against filings',
-    '/read/guides/why-2-official-numbers-can-both-be-right',
+    '/blog/guides/why-2-official-numbers-can-both-be-right',
   ],
 ] as const;
 
@@ -769,22 +769,22 @@ describe('first-response page tags', () => {
     expect(readPageShell).toHaveBeenCalledTimes(1);
   });
 
-  // The /read page moved out of the money section on 20 Aug 2026 (#1698), off
+  // The /blog page moved out of the money section on 20 Aug 2026 (#1698), off
   // /reports on the morning of 27 Aug 2026 and off /reading that evening. The
   // server looks its wording up by path string, so a mismatch between the
   // route's new path and the wording table's key would compile fine and serve a
   // page with no title at all. All 3 old addresses are checked because a host
-  // with no forwards still has to serve them, and each one serves the /read
+  // with no forwards still has to serve them, and each one serves the /blog
   // canonical rather than its own.
-  it('titles the /read page at its own address, and at all 3 old ones', async () => {
+  it('titles the /blog page at its own address, and at all 3 old ones', async () => {
     stubNetwork(() => ({ status: 500 }));
 
-    for (const path of ['/read', '/reading', '/reports', '/money/reports']) {
+    for (const path of ['/blog', '/read', '/reading', '/reports', '/money/reports']) {
       const { body, status } = await serve({ path });
       expect(status).toBe(200);
       // The tab carries the page's own name, because the page shows no title.
       expect(body).toContain(`<title>${READ_PAGE_NAME} | Alethical</title>`);
-      expect(body).toContain('<link rel="canonical" href="https://www.alethical.com/read"');
+      expect(body).toContain('<link rel="canonical" href="https://www.alethical.com/blog"');
     }
   });
 
@@ -793,14 +793,14 @@ describe('first-response page tags', () => {
   // sent its text straight away. These two checks are the `curl` measurement in
   // the issue, run on every pull request, because a silent reopening is exactly
   // how the gap arrived.
-  it('sends the /read page its list, with a followable link per posted piece', async () => {
+  it('sends the /blog page its list, with a followable link per posted piece', async () => {
     const calls: string[] = [];
     stubNetwork((url) => {
       calls.push(url);
       return { status: 500 };
     });
 
-    const { body, status } = await serve({ path: '/read' });
+    const { body, status } = await serve({ path: '/blog' });
 
     expect(status).toBe(200);
     expect(body).toContain(`<h1>${READ_PAGE_NAME}</h1>`);
@@ -818,22 +818,22 @@ describe('first-response page tags', () => {
 
   it('serves the published Short posts archive and topic words in the first response', async () => {
     stubNetwork(() => ({ status: 500 }));
-    const archive = await serve({ path: '/read/short-posts' });
+    const archive = await serve({ path: '/blog/short-posts' });
     expect(archive.status).toBe(200);
     expect(archive.body).toContain('<h1>Short posts</h1>');
     expect(archive.body).toContain('2 records do not always mean 2 donations');
     expect(archive.body).not.toContain('noindex');
 
-    const topic = await serve({ path: '/read/topics/campaign-finance' });
+    const topic = await serve({ path: '/blog/topics/campaign-finance' });
     expect(topic.status).toBe(200);
     expect(topic.body).toContain('<h1>Campaign finance</h1>');
     expect(topic.body).toContain(`href="${piecePath(WHO_HAS_TO_REPORT_THEIR_MONEY)}"`);
     expect(topic.body).toContain(WHO_HAS_TO_REPORT_THEIR_MONEY.title);
     expect(topic.body).toContain(
-      '<link rel="canonical" href="https://www.alethical.com/read/topics/campaign-finance"',
+      '<link rel="canonical" href="https://www.alethical.com/blog/topics/campaign-finance"',
     );
 
-    const absent = await serve({ path: '/read/short-posts', page: '2' });
+    const absent = await serve({ path: '/blog/short-posts', page: '2' });
     expect(absent.status).toBe(404);
   });
 
@@ -845,7 +845,7 @@ describe('first-response page tags', () => {
     });
 
     const piece = MONEY_ONLY_GOES_ONE_WAY;
-    const { body, headers, status } = await serve({ path: `/read/research/${piece.slug}` });
+    const { body, headers, status } = await serve({ path: `/blog/research/${piece.slug}` });
 
     expect(status).toBe(200);
     expect(calls).toHaveLength(0);
@@ -882,7 +882,7 @@ describe('first-response page tags', () => {
     expect(headers.get('X-Robots-Tag')).toBeUndefined();
     expect(body).not.toContain('<meta name="robots" content="noindex" />');
     expect(body).toContain(
-      '<link rel="canonical" href="https://www.alethical.com/read/research/the-money-only-goes-one-way" />',
+      '<link rel="canonical" href="https://www.alethical.com/blog/research/the-money-only-goes-one-way" />',
     );
     // Rule 13 keeps a piece's claims out of its share preview and tags.
     const head = body.slice(0, body.indexOf('</head>'));
@@ -944,7 +944,7 @@ describe('first-response page tags', () => {
     expect(guide.indexed).toBe(true);
     expect(headers.get('X-Robots-Tag')).toBeUndefined();
     expect(body).toContain(
-      '<link rel="canonical" href="https://www.alethical.com/read/guides/who-has-to-report-their-money" />',
+      '<link rel="canonical" href="https://www.alethical.com/blog/guides/who-has-to-report-their-money" />',
     );
     // Title and dates only in the share card: no figure and no claim. The search
     // line describes the guide's own subject, handed in by this response because
@@ -965,8 +965,8 @@ describe('first-response page tags', () => {
     stubNetwork(() => ({ status: 500 }));
 
     for (const path of [
-      '/read/research/who-has-to-report-their-money',
-      '/read/guides/the-money-only-goes-one-way',
+      '/blog/research/who-has-to-report-their-money',
+      '/blog/guides/the-money-only-goes-one-way',
       '/reading/research/who-has-to-report-their-money',
       '/reading/guides/the-money-only-goes-one-way',
       '/reports/who-has-to-report-their-money',
@@ -981,9 +981,9 @@ describe('first-response page tags', () => {
     stubNetwork(() => ({ status: 500 }));
 
     for (const path of [
-      '/read/research/no-such-piece',
-      '/read/guides/no-such-guide',
-      '/read/sets/no-such-set',
+      '/blog/research/no-such-piece',
+      '/blog/guides/no-such-guide',
+      '/blog/sets/no-such-set',
     ]) {
       const { body, status } = await serve({ path });
       expect(status).toBe(404);

@@ -68,7 +68,7 @@ const FIXED_PAGES = [
   "/money/committees",
   "/money/races",
   "/money/outside-spending",
-  "/read",
+  "/blog",
   "/about",
   "/about/contact",
   "/privacy",
@@ -130,16 +130,16 @@ function pagesUrlset(
     page <= collectionPage(researchReportItems(), 1).pageCount;
     page += 1
   )
-    paths.push(readCollectionPagePath("/read/research", page));
+    paths.push(readCollectionPagePath("/blog/research", page));
   const guideItems = guideCollectionItems();
   for (let page = 1; page <= collectionPage(guideItems, 1).pageCount; page += 1)
-    paths.push(readCollectionPagePath("/read/guides", page));
+    paths.push(readCollectionPagePath("/blog/guides", page));
   for (const item of guideItems)
-    if (item.kind === "group") paths.push(`/read/sets/${item.slug}`);
+    if (item.kind === "group") paths.push(`/blog/sets/${item.slug}`);
   const indexedPieces = indexedResearch();
   const shortPosts = shortPostsPage(1, indexedPieces);
   for (let page = 1; page <= shortPosts.pageCount; page += 1) {
-    paths.push(readCollectionPagePath("/read/short-posts", page));
+    paths.push(readCollectionPagePath("/blog/short-posts", page));
   }
   for (const topic of TOPICS) {
     const collection = topicPage(topic.slug, 1, indexedPieces);

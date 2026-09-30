@@ -25,9 +25,9 @@ import { Container, Footer, PageBackground, TopNav } from '../../theme/primitive
 import { theme as t } from '../../theme/tokens';
 
 /**
- * The /read page — everything Alethical publishes in its own name, reached
- * from the bar's Read item (the money landing's research row links to the newest
- * piece itself) (grounded-answers.md rule 13; Design's `/read` handoff, 27 Aug 2026). It sat at
+ * The /blog page — everything Alethical publishes in its own name, reached
+ * from the bar's Blog item (the money landing's research row links to the newest
+ * piece itself) (grounded-answers.md rule 13; Design's `/blog` handoff, 27 Aug 2026). It sat at
  * /money/reports until #1698, at /reports until the morning of 27 Aug 2026, and at
  * /reading until that evening (docs/architecture/published-writing-decisions.md
  * §2.1).
@@ -66,7 +66,7 @@ import { theme as t } from '../../theme/tokens';
  *
  * Under GUIDES, a set of pieces written to be read together draws a `SetBox`
  * before the loose cards. A set with nothing published draws no box at all (§2.4)
- * while its own page stays reachable, and `/read/sets/{slug}` is not built yet.
+ * while its own page stays reachable, and `/blog/sets/{slug}` is not built yet.
  *
  * Deliberately not built here: a set's own page, and the "All of <set name>" link
  * that Design gives a set at 6 published pieces. Sorting the page by subject
@@ -226,7 +226,7 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
                             key={item.piece.slug}
                             piece={item.piece}
                             showKind={false}
-                            sourceHref="/read"
+                            sourceHref="/blog"
                             onOpen={() => openPiece(item.piece)}
                             onTopic={(topic) => navigation.navigate('ReadTopic', { topic })}
                           />
@@ -238,7 +238,7 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
                           piece={piece}
                           showKind={false}
                           variant={piece.traits.research ? 'report' : 'card'}
-                          sourceHref="/read"
+                          sourceHref="/blog"
                           onOpen={() => openPiece(piece)}
                           onTopic={(topic) => navigation.navigate('ReadTopic', { topic })}
                         />
@@ -249,10 +249,10 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
                     className="read-collection-link"
                     href={
                       group.shortPosts
-                        ? '/read/short-posts'
+                        ? '/blog/short-posts'
                         : group.heading === READ_RESEARCH_GROUP_HEADING
-                          ? '/read/research'
-                          : '/read/guides'
+                          ? '/blog/research'
+                          : '/blog/guides'
                     }
                   >
                     <span className="read-collection-link-label">

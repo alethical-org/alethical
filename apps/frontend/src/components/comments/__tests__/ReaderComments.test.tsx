@@ -140,7 +140,7 @@ beforeEach(() => {
     comment: item('posted', { body: 'A comment' }),
     settings: settings(),
   });
-  window.history.replaceState(null, '', '/read/guides/a');
+  window.history.replaceState(null, '', '/blog/guides/a');
   window.sessionStorage.clear();
   host = document.createElement('div');
   document.body.append(host);
@@ -161,7 +161,7 @@ describe('reader comments', () => {
     const id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
     mocks.list.mockResolvedValue({ items: [item(id)], next_cursor: null });
     mocks.conversation.mockResolvedValue({ items: [item(id)], next_cursor: null });
-    window.history.replaceState(null, '', `/read/guides/a#comment-${id}`);
+    window.history.replaceState(null, '', `/blog/guides/a#comment-${id}`);
     const frames: FrameRequestCallback[] = [];
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
       frames.push(callback),
@@ -193,7 +193,7 @@ describe('reader comments', () => {
     const id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
     const loading = deferred<{ items: ReaderComment[]; next_cursor: null }>();
     mocks.conversation.mockReturnValue(loading.promise);
-    window.history.replaceState(null, '', `/read/guides/a#comment-${id}`);
+    window.history.replaceState(null, '', `/blog/guides/a#comment-${id}`);
     const frames: FrameRequestCallback[] = [];
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
       frames.push(callback),
@@ -229,7 +229,7 @@ describe('reader comments', () => {
     await click('Sign in to reply');
     expect(mocks.signIn).toHaveBeenCalledWith({
       intent: 'nav',
-      returnTo: '/read/guides/a',
+      returnTo: '/blog/guides/a',
       scrollY: 0,
     });
     expect(

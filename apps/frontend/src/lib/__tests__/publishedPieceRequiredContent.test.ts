@@ -36,15 +36,15 @@ import { PUBLISHED_RESEARCH, piecePath, researchBySlug } from '../research';
  * checks underneath without somebody deciding what it must carry.
  */
 const PUBLISHED_ADDRESSES = [
-  '/read/research/organizations-both-parties',
-  '/read/research/lobbyist-giving',
-  '/read/research/2-records-not-always-2-donations',
-  '/read/research/the-money-only-goes-one-way',
-  '/read/guides/who-has-to-report-their-money',
-  '/read/guides/what-the-records-name',
-  '/read/guides/why-2-official-numbers-can-both-be-right',
-  '/read/guides/money-spent-without-a-campaigns-say',
-  '/read/guides/why-nobody-can-follow-a-dollar',
+  '/blog/research/organizations-both-parties',
+  '/blog/research/lobbyist-giving',
+  '/blog/research/2-records-not-always-2-donations',
+  '/blog/research/the-money-only-goes-one-way',
+  '/blog/guides/who-has-to-report-their-money',
+  '/blog/guides/what-the-records-name',
+  '/blog/guides/why-2-official-numbers-can-both-be-right',
+  '/blog/guides/money-spent-without-a-campaigns-say',
+  '/blog/guides/why-nobody-can-follow-a-dollar',
 ];
 
 const servedPage = (slug: string): string => {

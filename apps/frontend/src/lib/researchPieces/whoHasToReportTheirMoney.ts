@@ -318,7 +318,7 @@ export const WHO_HAS_TO_REPORT_THEIR_MONEY: ResearchPiece = {
               // slug change fails loudly rather than dangling.
               kind: 'internalLink',
               text: 'What the records name, and what they leave out',
-              href: '/read/guides/what-the-records-name',
+              href: '/blog/guides/what-the-records-name',
             },
             { kind: 'text', text: ' is the other side.' },
           ],

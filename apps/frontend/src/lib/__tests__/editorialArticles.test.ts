@@ -20,7 +20,7 @@ describe('server comment eligibility', () => {
     expect(manifest).toEqual(expected);
     expect(
       manifest.every((piece: { path: string }) =>
-        /^\/read\/(research|guides)\/[^/]+$/.test(piece.path),
+        /^\/blog\/(research|guides)\/[^/]+$/.test(piece.path),
       ),
     ).toBe(true);
   });

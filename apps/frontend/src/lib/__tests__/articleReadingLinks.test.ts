@@ -17,29 +17,29 @@ import {
 } from '../shortPosts';
 
 it('does not carry the old article’s section into a new article', () => {
-  const next = '/read/guides/what-the-records-name';
+  const next = '/blog/guides/what-the-records-name';
   expect(
-    articleOpeningSection('/read/guides/who-has-to-report-their-money', next, '#next', ['next']),
+    articleOpeningSection('/blog/guides/who-has-to-report-their-money', next, '#next', ['next']),
   ).toBeNull();
   expect(articleOpeningSection(next, next, '', ['next'])).toBeNull();
   expect(articleOpeningSection(next, next, '#next', ['next'])).toBe('next');
 });
 
 it('keeps a published local list as the return link in a new tab', () => {
-  const source = '/read/sets/how-the-money-works?post=who-has-to-report-their-money';
-  expect(safeArticleReturnPath(source)).toBe('/read/sets/how-the-money-works');
+  const source = '/blog/sets/how-the-money-works?post=who-has-to-report-their-money';
+  expect(safeArticleReturnPath(source)).toBe('/blog/sets/how-the-money-works');
   expect(articleReturnDestination(source)).toEqual({
     href: source,
     label: 'Back to How the Money Works',
   });
-  expect(articleHrefWithReturn('/read/guides/who-has-to-report-their-money', source)).toBe(
-    `/read/guides/who-has-to-report-their-money?from=${encodeURIComponent(source)}`,
+  expect(articleHrefWithReturn('/blog/guides/who-has-to-report-their-money', source)).toBe(
+    `/blog/guides/who-has-to-report-their-money?from=${encodeURIComponent(source)}`,
   );
   for (const unsafe of [
     'https://elsewhere.test/',
     '//elsewhere.test/',
-    '/read/sets/not-published',
-    '/read#next',
+    '/blog/sets/not-published',
+    '/blog#next',
   ]) {
     expect(safeArticleReturnPath(unsafe)).toBeNull();
   }
@@ -81,29 +81,29 @@ const approvedInline = [
   [
     'the-money-only-goes-one-way',
     'campaign accounts for state office',
-    '/read/guides/who-has-to-report-their-money',
+    '/blog/guides/who-has-to-report-their-money',
   ],
-  ['the-money-only-goes-one-way', 'only the named donations', '/read/guides/what-the-records-name'],
+  ['the-money-only-goes-one-way', 'only the named donations', '/blog/guides/what-the-records-name'],
   [
     'the-money-only-goes-one-way',
     'independent expenditures',
-    '/read/guides/money-spent-without-a-campaigns-say',
+    '/blog/guides/money-spent-without-a-campaigns-say',
   ],
-  ['lobbyist-giving', 'candidate committees', '/read/guides/who-has-to-report-their-money'],
+  ['lobbyist-giving', 'candidate committees', '/blog/guides/who-has-to-report-their-money'],
   [
     'lobbyist-giving',
     'Some download entries repeat reported information',
-    '/read/research/2-records-not-always-2-donations',
+    '/blog/research/2-records-not-always-2-donations',
   ],
   [
     'organizations-both-parties',
     'political committee and fund',
-    '/read/guides/who-has-to-report-their-money',
+    '/blog/guides/who-has-to-report-their-money',
   ],
   [
     '2-records-not-always-2-donations',
     'checked against filings',
-    '/read/guides/why-2-official-numbers-can-both-be-right',
+    '/blog/guides/why-2-official-numbers-can-both-be-right',
   ],
 ] as const;
 
@@ -227,7 +227,7 @@ describe('approved article reading links', () => {
     if (opening.kind !== 'paragraph') throw new Error('expected opening paragraph');
     const link = opening.runs.find((run) => run.kind === 'internalLink');
     if (!link || link.kind !== 'internalLink') throw new Error('expected new link');
-    link.href = '/read/guides/what-the-records-name';
+    link.href = '/blog/guides/what-the-records-name';
     rejectsEvenWithNewNavigationFingerprint(changedLink);
 
     const changedRelatedOrder = structuredClone(original);
@@ -236,4 +236,23 @@ describe('approved article reading links', () => {
     ].reverse();
     rejectsEvenWithNewNavigationFingerprint(changedRelatedOrder);
   });
+});
+
+it('keeps saved Read article links aimed at their section after the Blog rename', () => {
+  expect(
+    articleOpeningSection(
+      '/read/guides/what-the-records-name',
+      '/blog/guides/what-the-records-name',
+      '#sources',
+      ['sources'],
+    ),
+  ).toBe('sources');
+  expect(
+    articleOpeningSection(
+      '/read/guides/what-the-records-name',
+      '/blog/guides/who-has-to-report-their-money',
+      '#sources',
+      ['sources'],
+    ),
+  ).toBeNull();
 });

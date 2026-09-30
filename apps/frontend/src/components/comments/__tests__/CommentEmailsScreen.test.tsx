@@ -28,7 +28,7 @@ import { ApiError } from '../../../data/api';
 const state = (changes: Partial<CommentEmailStopState> = {}): CommentEmailStopState => ({
   article_id: 'a',
   article_title: 'Article A',
-  article_path: '/read/guides/a',
+  article_path: '/blog/guides/a',
   link_choice: 'replies',
   reply_emails: true,
   article_updates: true,

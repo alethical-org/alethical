@@ -93,7 +93,7 @@ type WebRouteTarget =
  * these 2 addresses, so honouring a guide's slug would create a second address
  * for a page that has one. `/reading/guides/{slug}` is the third retired
  * address and it is NOT one of these — a guide did answer there, from the
- * evening of 27 Aug 2026, so it forwards to `/read/guides/{slug}` below.
+ * evening of 27 Aug 2026, so it forwards to `/blog/guides/{slug}` below.
  */
 function retiredPieceAddress(slug: string, pathname: string): WebRouteTarget {
   const piece = pieceIndexBySlug(slug);
@@ -103,7 +103,10 @@ function retiredPieceAddress(slug: string, pathname: string): WebRouteTarget {
 }
 
 function normalizePathname(pathname: string) {
-  const trimmed = pathname.split('?')[0].replace(/\/+$/, '');
+  const trimmed = pathname
+    .split('?')[0]
+    .replace(/\/+$/, '')
+    .replace(/^\/read(?=\/|$)/, '/blog');
   return trimmed.length > 0 ? trimmed : '/';
 }
 
@@ -125,7 +128,7 @@ function readPageNumber(searchParams: URLSearchParams): number | null {
 function safeArticleReturnHref(href: string): boolean {
   if (!href.startsWith('/') || href.startsWith('//') || href.includes('\\') || href.includes('#'))
     return false;
-  if (href !== '/read' && !href.startsWith('/read?') && !href.startsWith('/read/')) return false;
+  if (href !== '/blog' && !href.startsWith('/blog?') && !href.startsWith('/blog/')) return false;
   try {
     const kind = targetFromPathname(href).kind;
     return (
@@ -310,13 +313,13 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     if (segments[0] === 'money') {
       return { kind: 'moneyLanding' };
     }
-    // The /read page, at the top level rather than inside the money section
-    // (#1698): the bar's Read item points here, and what it holds is not
+    // The /blog page, at the top level rather than inside the money section
+    // (#1698): the bar's Blog item points here, and what it holds is not
     // limited to money in the long run. '/reports' and '/reading' are the 2
     // addresses this page held before, and vercel.json forwards both
     // permanently and directly (docs/architecture/published-writing-decisions.md
     // §2.1).
-    if (segments[0] === 'read' || segments[0] === 'reading' || segments[0] === 'reports') {
+    if (segments[0] === 'blog' || segments[0] === 'reading' || segments[0] === 'reports') {
       return { kind: 'read' };
     }
     // '/chat' and '/account' are old-design or auth-gated surfaces with no shipped
@@ -332,7 +335,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   }
 
   if (
-    segments[0] === 'read' &&
+    segments[0] === 'blog' &&
     segments.length === 2 &&
     (segments[1] === 'research' || segments[1] === 'guides')
   ) {
@@ -357,13 +360,13 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     };
   }
 
-  if (segments[0] === 'read' && segments[1] === 'sets' && segments.length === 3) {
+  if (segments[0] === 'blog' && segments[1] === 'sets' && segments.length === 3) {
     return guideSetBySlug(segments[2])
       ? { kind: 'readSet', slug: segments[2], post: searchParams.get('post') ?? undefined }
       : { kind: 'notFound', path: pathname };
   }
 
-  if (segments[0] === 'read' && segments[1] === 'short-posts' && segments.length === 2) {
+  if (segments[0] === 'blog' && segments[1] === 'short-posts' && segments.length === 2) {
     const requestedPage = readPageNumber(searchParams);
     if (requestedPage === null) return { kind: 'notFound', path: pathname };
     const post = searchParams.get('post') ?? undefined;
@@ -389,7 +392,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     };
   }
 
-  if (segments[0] === 'read' && segments[1] === 'topics' && segments.length === 3) {
+  if (segments[0] === 'blog' && segments[1] === 'topics' && segments.length === 3) {
     const topic = topicFromSlug(segments[2]);
     const page = readPageNumber(searchParams);
     if (!topic || page === null) return { kind: 'notFound', path: pathname };
@@ -410,8 +413,8 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     };
   }
 
-  // One piece of our own writing, at /read/research/{slug} or
-  // /read/guides/{slug} (docs/architecture/published-writing-decisions.md
+  // One piece of our own writing, at /blog/research/{slug} or
+  // /blog/guides/{slug} (docs/architecture/published-writing-decisions.md
   // §2.1; grounded-answers.md rule 13). '/reading' is the folder these 2
   // addresses used on 27 Aug 2026 and is honoured here as well, so a link
   // shared that day still resolves on a host without vercel.json's forwards.
@@ -427,13 +430,13 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   //
   if (
     segments.length === 3 &&
-    (segments[0] === 'read' || segments[0] === 'reading') &&
+    (segments[0] === 'blog' || segments[0] === 'reading') &&
     (segments[1] === 'research' || segments[1] === 'guides')
   ) {
     const slug = decodeURIComponent(segments[2]);
     const piece = pieceIndexBySlug(slug);
     if (piece && pieceAddressFolder(piece) === segments[1]) {
-      const from = searchParams.get('from') ?? undefined;
+      const from = searchParams.get('from')?.replace(/^\/read(?=\/|\?|$)/, '/blog');
       const safeFrom = from && safeArticleReturnHref(from) ? from : undefined;
       return segments[1] === 'guides'
         ? { kind: 'guide', slug, from: safeFrom }
@@ -446,7 +449,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   // #1698 moved them to /reports, /reports until the morning of 27 Aug 2026 when
   // they moved to /reading, and /reading until that evening
   // (docs/architecture/published-writing-decisions.md §2.1). vercel.json
-  // forwards every one of them permanently and DIRECTLY to its final /read
+  // forwards every one of them permanently and DIRECTLY to its final /blog
   // address, never through the address in between; these branches are what make
   // a stale link land anyway on any host without those forwards — the dev
   // server, a local static export, or a client-side link written before a move.
@@ -802,10 +805,10 @@ export function pathForRoute(activeRoute: {
         : base;
     }
     case 'Read':
-      return '/read';
+      return '/blog';
     case 'ReadResearch':
     case 'ReadGuides': {
-      const base = activeRoute.name === 'ReadResearch' ? '/read/research' : '/read/guides';
+      const base = activeRoute.name === 'ReadResearch' ? '/blog/research' : '/blog/guides';
       const params = new URLSearchParams();
       if (activeRoute.params?.page && String(activeRoute.params.page) !== '1')
         params.set('page', String(activeRoute.params.page));
@@ -813,7 +816,7 @@ export function pathForRoute(activeRoute: {
       return params.size ? `${base}?${params}` : base;
     }
     case 'ReadSet': {
-      const base = `/read/sets/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
+      const base = `/blog/sets/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
       return activeRoute.params?.post
         ? `${base}?post=${encodeURIComponent(String(activeRoute.params.post))}`
         : base;
@@ -823,10 +826,10 @@ export function pathForRoute(activeRoute: {
       if (activeRoute.params?.page && String(activeRoute.params.page) !== '1')
         params.set('page', String(activeRoute.params.page));
       if (activeRoute.params?.post) params.set('post', String(activeRoute.params.post));
-      return params.size ? `/read/short-posts?${params}` : '/read/short-posts';
+      return params.size ? `/blog/short-posts?${params}` : '/blog/short-posts';
     }
     case 'ReadTopic': {
-      const base = `/read/topics/${encodeURIComponent(String(activeRoute.params?.topic ?? ''))}`;
+      const base = `/blog/topics/${encodeURIComponent(String(activeRoute.params?.topic ?? ''))}`;
       const params = new URLSearchParams();
       if (activeRoute.params?.page && String(activeRoute.params.page) !== '1')
         params.set('page', String(activeRoute.params.page));
@@ -835,7 +838,7 @@ export function pathForRoute(activeRoute: {
     }
     case 'Research':
     case 'Guide': {
-      const base = `/read/${activeRoute.name === 'Research' ? 'research' : 'guides'}/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
+      const base = `/blog/${activeRoute.name === 'Research' ? 'research' : 'guides'}/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
       const from = (activeRoute.params?.returnContext as { href?: string } | undefined)?.href;
       return from && safeArticleReturnHref(String(from))
         ? `${base}?from=${encodeURIComponent(String(from))}`

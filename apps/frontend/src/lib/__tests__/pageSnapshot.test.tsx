@@ -975,7 +975,7 @@ describe('the piece snapshot serves the piece’s own writing, unchanged', () =>
   });
 
   it('links back to the list, out to each source, and nowhere the site cannot honour', () => {
-    expect(snapshot.links).toEqual([{ label: 'Back to Read', href: '/read' }]);
+    expect(snapshot.links).toEqual([{ label: 'Back to Blog', href: '/blog' }]);
     // The 3 approved links in existing report sentences and 2 Related reading
     // links join the return and source links in the first response.
     expect(sourceAddresses.length).toBeGreaterThan(0);
@@ -1118,7 +1118,7 @@ describe('the guide snapshot serves the guide\u2019s own writing, unchanged', ()
     // existing forward links below the site's top bar.
     const pageBody = html.slice(html.indexOf('<main'));
     expect(pageBody.match(/href="/g)).toHaveLength(2 + hrefs.length + internal.length + 2);
-    expect(snapshot.links).toEqual([{ label: 'Back to Read', href: '/read' }]);
+    expect(snapshot.links).toEqual([{ label: 'Back to Blog', href: '/blog' }]);
   });
 
   it('prints no piece number anywhere in the served page', () => {
@@ -1157,7 +1157,7 @@ describe('the guide snapshot serves the guide\u2019s own writing, unchanged', ()
   });
 });
 
-describe('the /read page snapshot links to every posted piece', () => {
+describe('the /blog page snapshot links to every posted piece', () => {
   const pieces = publishedResearch();
   const snapshot = readPageSnapshot(pieces);
   const html = renderPageSnapshot(snapshot);
@@ -1192,7 +1192,7 @@ describe('the /read page snapshot links to every posted piece', () => {
       `PUBLISHED ${isoDateCommaCapsLabel(research.publishedOn)}`,
     );
     expect(pieceCardMetaLine(guide)).toContain(`${pieceReadingMinutes(guide)} MIN`);
-    expect(html).toContain(`href="/read/guides/${guide.slug}"`);
+    expect(html).toContain(`href="/blog/guides/${guide.slug}"`);
   });
 
   it('names a guide\u2019s set on its row, the way the card does', () => {
@@ -1202,7 +1202,7 @@ describe('the /read page snapshot links to every posted piece', () => {
     expect(html).not.toContain(`piece ${guide.set!.position}`);
   });
 
-  it('says what the /read page says when nothing is posted yet', () => {
+  it('says what the /blog page says when nothing is posted yet', () => {
     const empty = readPageSnapshot([]);
     expect(empty.records).toEqual([]);
     expect(empty.body).toEqual([READ_PAGE_INTRO, READ_PAGE_EMPTY_TITLE, READ_PAGE_EMPTY_BODY]);
@@ -1234,7 +1234,7 @@ describe('both screens keep reading the same registry the server reads', () => {
     }
   });
 
-  it('the /read page screen draws the shared wording', () => {
+  it('the /blog page screen draws the shared wording', () => {
     const source = readFileSync(
       join(HERE, '../../..', 'src/screens/redesign/ReadScreen.tsx'),
       'utf8',
@@ -2407,7 +2407,7 @@ describe('rendering', () => {
       { label: 'Search Legislators', href: '/legislators' },
       { label: 'Find My Legislator', href: '/find-my-legislator' },
       { label: 'Money in politics', href: '/money' },
-      { label: READ_PAGE_NAME, href: '/read' },
+      { label: READ_PAGE_NAME, href: '/blog' },
     ]);
   });
 

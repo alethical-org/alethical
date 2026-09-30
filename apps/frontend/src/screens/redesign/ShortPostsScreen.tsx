@@ -27,7 +27,7 @@ export function ShortPostsScreen({ navigation, route }: Props) {
     topic ? topicPage(topic.slug, page, pieces) : shortPostsPage(page, pieces)
   ) as PiecePage<ResearchPiece>;
   const title = topic?.label ?? 'Short posts';
-  const basePath = topic ? `/read/topics/${topic.slug}` : '/read/short-posts';
+  const basePath = topic ? `/blog/topics/${topic.slug}` : '/blog/short-posts';
   const heading = useRef<HTMLHeadingElement>(null);
   const reducedMotion = useReducedMotion();
   const requestedPage = useRef<{ page: number; control: HTMLAnchorElement } | undefined>(undefined);
@@ -82,9 +82,9 @@ export function ShortPostsScreen({ navigation, route }: Props) {
         <main className="sp-collection">
           <style>{collectionCss}</style>
           <div className="sp-collection-column">
-            <a className="sp-collection-back" href="/read">
+            <a className="sp-collection-back" href="/blog">
               <ChevronLeft size={18} strokeWidth={2.2} aria-hidden />
-              <span>Back to Read</span>
+              <span>Back to Blog</span>
             </a>
             {topic && (
               <>
@@ -97,9 +97,9 @@ export function ShortPostsScreen({ navigation, route }: Props) {
             {selection.total === 0 ? (
               <div className="sp-collection-empty">
                 <p>{topic ? 'No articles about this topic yet.' : 'No short posts yet.'}</p>
-                <a href="/read">
+                <a href="/blog">
                   <GreenLinkArrow />
-                  <span>Back to Read</span>
+                  <span>Back to Blog</span>
                 </a>
               </div>
             ) : (

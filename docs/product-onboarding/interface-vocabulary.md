@@ -29,7 +29,7 @@ saying "nav".
 
 | The thing | Our word | Never |
 | --- | --- | --- |
-| Any page | **its address**, `/read`, `/money` | the listing page, the reading page, the shelf, the index |
+| Any page | **its address**, `/blog`, `/money` | the listing page, the reading page, the shelf, the index |
 | The site's own navigation, either band | **nav** | top bar, the bar, top menu, menu, header |
 | A nav item that opens something rather than going somewhere | **trigger** | dropdown, flyout control |
 | What a trigger opens on the computer band | **panel** | dropdown, flyout, submenu |
@@ -38,12 +38,12 @@ saying "nav".
 | A published piece of our own writing that concludes | **research** | report, article, story |
 | A published piece that teaches one term | **guide** | explainer, basics, primer |
 | A group of pieces meant to be read together | **set** | series, collection, course |
-| The fold-open group of a set's pieces on `/read` | **set box** | accordion, disclosure, expander |
-| A piece's own listing item on `/read` | **card** | tile, entry, teaser |
+| The fold-open group of a set's pieces on `/blog` | **set box** | accordion, disclosure, expander |
+| A piece's own listing item on `/blog` | **card** | tile, entry, teaser |
 | The block of title and dates at the top of a piece | **masthead** | header, hero |
 | The line under a piece's title | **subtitle** | dek, standfirst, deck, blurb |
 | The small line above a title naming what a piece is | **kind label** | eyebrow, kicker, tag, chip |
-| The grey line under the heading on `/read` | **intro note** | dek, standfirst, subhead, blurb |
+| The grey line under the heading on `/blog` | **intro note** | dek, standfirst, subhead, blurb |
 | Minnesota's own filed disclosure document | **report** | filing, return, disclosure |
 
 ## The 2 rows that are corrections rather than confirmations

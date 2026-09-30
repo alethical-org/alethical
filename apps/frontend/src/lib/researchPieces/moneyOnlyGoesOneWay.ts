@@ -48,7 +48,7 @@ export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
             {
               kind: 'internalLink',
               text: 'campaign accounts for state office',
-              href: '/read/guides/who-has-to-report-their-money',
+              href: '/blog/guides/who-has-to-report-their-money',
             },
             {
               kind: 'text',
@@ -72,7 +72,7 @@ export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
             {
               kind: 'internalLink',
               text: 'only the named donations',
-              href: '/read/guides/what-the-records-name',
+              href: '/blog/guides/what-the-records-name',
             },
             { kind: 'text', text: '.' },
           ],
@@ -114,7 +114,7 @@ export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
             {
               kind: 'internalLink',
               text: 'independent expenditures',
-              href: '/read/guides/money-spent-without-a-campaigns-say',
+              href: '/blog/guides/money-spent-without-a-campaigns-say',
             },
             {
               kind: 'text',

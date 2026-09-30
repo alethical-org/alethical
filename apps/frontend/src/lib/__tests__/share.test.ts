@@ -356,7 +356,7 @@ describe('platform links', () => {
       title: 'The Money Only Goes One Way',
       description: 'Published Aug 20, 2026 · records through Jul 20, 2026.',
       previewDescription: 'Published Aug 20, 2026',
-      url: publicPageUrl('/read/research/the-money-only-goes-one-way'),
+      url: publicPageUrl('/blog/research/the-money-only-goes-one-way'),
     };
     const links = buildShareIntents(research);
 

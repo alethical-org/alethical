@@ -1634,11 +1634,11 @@ async function contentFor(
         lobbyingRecordDonationYear(target.year),
       );
     case "read":
-      // The /read page's own list, so the route to every posted piece exists before
+      // The /blog page's own list, so the route to every posted piece exists before
       // any program runs (#1760). The registry is on the server already, so
       // this asks the data service for nothing.
       return {
-        metadata: STATIC_PAGE_METADATA["/read"],
+        metadata: STATIC_PAGE_METADATA["/blog"],
         snapshot: renderPageSnapshot(readPageSnapshot(publishedResearch())),
       };
     case "readResearch":

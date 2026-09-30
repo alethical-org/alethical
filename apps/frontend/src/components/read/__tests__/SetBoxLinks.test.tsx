@@ -34,7 +34,7 @@ it('renders real hover and focus targets around group words, topics and the shar
   const host = document.createElement('div');
   host.innerHTML = html;
   const link = host.querySelector<HTMLElement>('[data-set-page-link]');
-  expect(link?.getAttribute('href')).toBe('/read/sets/how-the-money-works');
+  expect(link?.getAttribute('href')).toBe('/blog/sets/how-the-money-works');
   expect(link?.getAttribute('aria-label')).toBe('Open the How the Money Works group page');
   expect(link?.children).toHaveLength(2);
   expect(link?.querySelector('[data-set-page-words]')?.textContent).toBe('Open group page');

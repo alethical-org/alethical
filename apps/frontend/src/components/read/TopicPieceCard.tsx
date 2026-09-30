@@ -97,13 +97,13 @@ const topicPieceCss = `
 @media(max-width:767px){.topic-piece{padding:18px}.topic-piece .topic-piece-title{margin-top:9px;font-size:20px}.topic-piece-meta{font-size:10.5px}.topic-piece-dek{font-size:16px}.topic-piece-topics{margin-top:6px}.topic-piece-row{padding:16px 10px 6px;margin:0 -10px}.topic-piece-row .topic-piece-title{font-size:18px;line-height:1.35}.topic-piece-report{padding:22px 20px 14px}.topic-piece-report .topic-piece-title{font-size:25px;line-height:1.18}.topic-piece-report .topic-piece-dek{font-size:17px}}
 `;
 
-/** The /read preview uses rows inside one shared box, distinct from archive cards. */
+/** The /blog preview uses rows inside one shared box, distinct from archive cards. */
 export function ShortPostsPreview({
   pieces,
   onOpen,
   onTopic,
   onAll: _onAll,
-  sourceHref = '/read',
+  sourceHref = '/blog',
 }: {
   pieces: ResearchPiece[];
   onOpen: (piece: ResearchPiece) => void;

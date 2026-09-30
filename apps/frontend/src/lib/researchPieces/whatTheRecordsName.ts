@@ -57,7 +57,7 @@ import { WHO_HAS_TO_REPORT_THEIR_MONEY } from './whoHasToReportTheirMoney';
  * imported from `piecePath` to keep this module free of a cycle back through
  * `lib/research.ts`, which imports this file.
  */
-const PIECE_ONE_PATH = `/read/guides/${WHO_HAS_TO_REPORT_THEIR_MONEY.slug}`;
+const PIECE_ONE_PATH = `/blog/guides/${WHO_HAS_TO_REPORT_THEIR_MONEY.slug}`;
 
 export const WHAT_THE_RECORDS_NAME: ResearchPiece = {
   ...WHAT_THE_RECORDS_NAME_INDEX_ENTRY,
@@ -334,7 +334,7 @@ export const WHAT_THE_RECORDS_NAME: ResearchPiece = {
               // forbids: the piece's own text instructed it.
               kind: 'internalLink',
               text: 'Why 2 official numbers can both be right',
-              href: '/read/guides/why-2-official-numbers-can-both-be-right',
+              href: '/blog/guides/why-2-official-numbers-can-both-be-right',
             },
             { kind: 'text', text: ' is the next piece in this set.' },
           ],

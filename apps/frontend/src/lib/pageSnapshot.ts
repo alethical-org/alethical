@@ -462,7 +462,7 @@ export function homePageSnapshot(): PageSnapshot {
       { label: 'Search Legislators', href: '/legislators' },
       { label: 'Find My Legislator', href: '/find-my-legislator' },
       { label: MONEY_SECTION_NAME, href: '/money' },
-      { label: READ_PAGE_NAME, href: '/read' },
+      { label: READ_PAGE_NAME, href: '/blog' },
     ],
   };
 }
@@ -1079,7 +1079,7 @@ export function researchPageSnapshot(piece: ResearchPiece, from?: string): PageS
     bodyIsList: false,
     facts: [],
     sections,
-    links: [articleReturnDestination(from ?? '') ?? { label: 'Back to Read', href: '/read' }],
+    links: [articleReturnDestination(from ?? '') ?? { label: 'Back to Blog', href: '/blog' }],
   };
 }
 
@@ -1159,7 +1159,7 @@ export function shortPostPageSnapshot(piece: ResearchPiece, from?: string): Page
     bodyIsList: false,
     facts: [],
     sections,
-    links: [articleReturnDestination(from ?? '') ?? { label: 'Back to Read', href: '/read' }],
+    links: [articleReturnDestination(from ?? '') ?? { label: 'Back to Blog', href: '/blog' }],
   };
 }
 
@@ -1175,7 +1175,7 @@ function collectionRecord(piece: ResearchPiece): SnapshotRecordLink {
 
 export function shortPostsPageSnapshot(page: number): PageSnapshot {
   const selection = shortPostsPage(page, publishedResearch());
-  const links: SnapshotLink[] = [{ label: 'Back to Read', href: '/read' }];
+  const links: SnapshotLink[] = [{ label: 'Back to Blog', href: '/blog' }];
   for (const topic of TOPICS) {
     if (selection.items.some((piece) => piece.topics?.includes(topic.slug))) {
       links.push({ label: topic.label, href: topicPath(topic.slug) });
@@ -1184,10 +1184,10 @@ export function shortPostsPageSnapshot(page: number): PageSnapshot {
   if (page > 1)
     links.push({
       label: 'Previous page',
-      href: page === 2 ? '/read/short-posts' : `/read/short-posts?page=${page - 1}`,
+      href: page === 2 ? '/blog/short-posts' : `/blog/short-posts?page=${page - 1}`,
     });
   if (page < selection.pageCount)
-    links.push({ label: 'Next page', href: `/read/short-posts?page=${page + 1}` });
+    links.push({ label: 'Next page', href: `/blog/short-posts?page=${page + 1}` });
   return {
     heading: 'Short posts',
     subheading: '',
@@ -1203,8 +1203,8 @@ export function shortPostsPageSnapshot(page: number): PageSnapshot {
 export function readTopicPageSnapshot(topic: TopicSlug, page: number): PageSnapshot {
   const selection = topicPage(topic, page, publishedResearch());
   const label = TOPICS.find((entry) => entry.slug === topic)?.label ?? topic;
-  const base = `/read/topics/${topic}`;
-  const links: SnapshotLink[] = [{ label: 'Back to Read', href: '/read' }];
+  const base = `/blog/topics/${topic}`;
+  const links: SnapshotLink[] = [{ label: 'Back to Blog', href: '/blog' }];
   if (page > 1)
     links.push({ label: 'Previous page', href: page === 2 ? base : `${base}?page=${page - 1}` });
   if (page < selection.pageCount)
@@ -1248,17 +1248,17 @@ export function readCollectionPageSnapshot(
         : chosenGuides[0]?.kind === 'group'
           ? chosenGuides[0].name
           : 'Guides';
-  const base = kind === 'set' ? `/read/sets/${setSlug}` : `/read/${kind}`;
+  const base = kind === 'set' ? `/blog/sets/${setSlug}` : `/blog/${kind}`;
   const pages = kind === 'research' ? research.pageCount : collectionPage(guides, page).pageCount;
   const links: SnapshotLink[] = [
     {
-      label: kind === 'set' ? 'All guides' : 'Back to Read',
-      href: kind === 'set' ? '/read/guides' : '/read',
+      label: kind === 'set' ? 'All guides' : 'Back to Blog',
+      href: kind === 'set' ? '/blog/guides' : '/blog',
     },
   ];
   if (kind === 'guides')
     for (const item of chosenGuides)
-      if (item.kind === 'group') links.push({ label: item.name, href: `/read/sets/${item.slug}` });
+      if (item.kind === 'group') links.push({ label: item.name, href: `/blog/sets/${item.slug}` });
   if (page > 1)
     links.push({ label: 'Previous page', href: page === 2 ? base : `${base}?page=${page - 1}` });
   if (page < pages && kind !== 'set')
@@ -1276,7 +1276,7 @@ export function readCollectionPageSnapshot(
 }
 
 /**
- * The /read page, with one crawlable link per posted piece. The link is the
+ * The /blog page, with one crawlable link per posted piece. The link is the
  * point: without it the route to an older piece exists only after the app has
  * run, so an archive is unreachable on a first visit.
  */
@@ -1315,11 +1315,11 @@ export function readPageSnapshot(pieces: readonly ResearchPiece[]): PageSnapshot
     })),
     // The page's own back link, to the section the nav calls "Money in politics".
     links: [
-      ...(reports.length ? [{ label: 'All research reports', href: '/read/research' }] : []),
+      ...(reports.length ? [{ label: 'All research reports', href: '/blog/research' }] : []),
       ...(groups.shortPosts.length
-        ? [{ label: 'All short posts', href: '/read/short-posts' }]
+        ? [{ label: 'All short posts', href: '/blog/short-posts' }]
         : []),
-      ...(guides.length ? [{ label: 'All guides', href: '/read/guides' }] : []),
+      ...(guides.length ? [{ label: 'All guides', href: '/blog/guides' }] : []),
       { label: MONEY_SECTION_NAME, href: '/money' },
     ],
   };
@@ -1486,7 +1486,7 @@ export function moneyLandingPageSnapshot(
           ]
         : []),
     ],
-    links: [{ label: READ_PAGE_HEADING, href: '/read' }],
+    links: [{ label: READ_PAGE_HEADING, href: '/blog' }],
   };
 }
 

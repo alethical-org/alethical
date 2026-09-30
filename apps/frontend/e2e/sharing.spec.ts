@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-const path = '/read/research/the-money-only-goes-one-way';
+const path = '/blog/research/the-money-only-goes-one-way';
 const publicUrl = `https://www.alethical.com${path}`;
 
 test.beforeEach(async ({ page, baseURL }) => {

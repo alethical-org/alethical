@@ -43,9 +43,9 @@ import { WHO_HAS_TO_REPORT_THEIR_MONEY } from './whoHasToReportTheirMoney';
  * here rather than with `piecePath` to keep this module free of a cycle back
  * through `lib/research.ts`, which imports this file.
  */
-const PIECE_ONE_PATH = `/read/guides/${WHO_HAS_TO_REPORT_THEIR_MONEY.slug}`;
+const PIECE_ONE_PATH = `/blog/guides/${WHO_HAS_TO_REPORT_THEIR_MONEY.slug}`;
 
-const PIECE_TWO_PATH = `/read/guides/${WHAT_THE_RECORDS_NAME.slug}`;
+const PIECE_TWO_PATH = `/blog/guides/${WHAT_THE_RECORDS_NAME.slug}`;
 
 /**
  * The next piece's address as a literal, not computed from its slug: this file
@@ -53,7 +53,7 @@ const PIECE_TWO_PATH = `/read/guides/${WHAT_THE_RECORDS_NAME.slug}`;
  * links back here. A test in research.test.ts asserts this literal equals its real
  * path, so a slug change fails loudly rather than dangling.
  */
-const PIECE_FOUR_PATH = '/read/guides/money-spent-without-a-campaigns-say';
+const PIECE_FOUR_PATH = '/blog/guides/money-spent-without-a-campaigns-say';
 
 export const WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT: ResearchPiece = {
   ...WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT_INDEX_ENTRY,

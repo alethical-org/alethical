@@ -69,7 +69,7 @@ function scrollEvent(y: number): Parameters<typeof currentScroll.onScroll>[0] {
 
 describe('browser-history scroll restoration', () => {
   it('opens another article at the top when the reading screen is reused', () => {
-    window.history.replaceState({}, '', '/read/guides/first');
+    window.history.replaceState({}, '', '/blog/guides/first');
     initializeWebHistory();
     const screen = mountScroll(true, 'first');
     screen.flush();
@@ -77,7 +77,7 @@ describe('browser-history scroll restoration', () => {
     currentScroll.onScroll(scrollEvent(640));
     expect(readCurrentScrollPosition()).toBe(640);
 
-    pushWebHistory('/read/guides/second');
+    pushWebHistory('/blog/guides/second');
     screen.render(true, 'second');
     screen.flush();
 
@@ -91,7 +91,7 @@ describe('browser-history scroll restoration', () => {
   });
 
   it('restores the earlier article when Back returns after another article opens', () => {
-    window.history.replaceState({}, '', '/read/guides/first');
+    window.history.replaceState({}, '', '/blog/guides/first');
     initializeWebHistory();
     const firstEntry = window.history.state;
     const screen = mountScroll(true, 'first');
@@ -99,10 +99,10 @@ describe('browser-history scroll restoration', () => {
     screen.node.scrollTop = 640;
     currentScroll.onScroll(scrollEvent(640));
 
-    pushWebHistory('/read/guides/second');
+    pushWebHistory('/blog/guides/second');
     screen.render(true, 'second');
     screen.flush();
-    window.history.replaceState(firstEntry, '', '/read/guides/first');
+    window.history.replaceState(firstEntry, '', '/blog/guides/first');
     screen.render(true, 'first');
     screen.flush();
 
@@ -111,14 +111,14 @@ describe('browser-history scroll restoration', () => {
   });
 
   it('keeps the reading position for a section link within the same article', () => {
-    window.history.replaceState({}, '', '/read/guides/first');
+    window.history.replaceState({}, '', '/blog/guides/first');
     initializeWebHistory();
     const screen = mountScroll(true, 'first');
     screen.flush();
     screen.node.scrollTop = 640;
     currentScroll.onScroll(scrollEvent(640));
 
-    window.history.pushState(window.history.state, '', '/read/guides/first#sources');
+    window.history.pushState(window.history.state, '', '/blog/guides/first#sources');
     screen.render(true, 'first');
     screen.flush();
 

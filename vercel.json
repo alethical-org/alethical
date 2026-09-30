@@ -69,33 +69,35 @@
     }
   ],
   "redirects": [
+    { "source": "/read", "destination": "/blog", "permanent": true },
+    { "source": "/read/:path*", "destination": "/blog/:path*", "permanent": true },
     {
       "source": "/admin/site-metrics",
       "destination": "/admin/metrics",
       "permanent": true
     },
     { "source": "/search", "destination": "/bills", "permanent": true },
-    { "source": "/reports", "destination": "/read", "permanent": true },
+    { "source": "/reports", "destination": "/blog", "permanent": true },
     {
       "source": "/reports/:slug",
-      "destination": "/read/research/:slug",
+      "destination": "/blog/research/:slug",
       "permanent": true
     },
-    { "source": "/money/reports", "destination": "/read", "permanent": true },
+    { "source": "/money/reports", "destination": "/blog", "permanent": true },
     {
       "source": "/money/reports/:slug",
-      "destination": "/read/research/:slug",
+      "destination": "/blog/research/:slug",
       "permanent": true
     },
-    { "source": "/reading", "destination": "/read", "permanent": true },
+    { "source": "/reading", "destination": "/blog", "permanent": true },
     {
       "source": "/reading/research/:slug",
-      "destination": "/read/research/:slug",
+      "destination": "/blog/research/:slug",
       "permanent": true
     },
     {
       "source": "/reading/guides/:slug",
-      "destination": "/read/guides/:slug",
+      "destination": "/blog/guides/:slug",
       "permanent": true
     },
     { "source": "/chat", "destination": "/", "permanent": false },

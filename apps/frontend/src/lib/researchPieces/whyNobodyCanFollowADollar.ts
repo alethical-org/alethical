@@ -31,9 +31,9 @@ import { WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT } from './whyTwoOfficialNumb
  * registry rather than typed. Built here rather than with `piecePath` to keep this
  * module free of a cycle back through `lib/research.ts`.
  */
-const PIECE_ONE_PATH = `/read/guides/${WHO_HAS_TO_REPORT_THEIR_MONEY.slug}`;
+const PIECE_ONE_PATH = `/blog/guides/${WHO_HAS_TO_REPORT_THEIR_MONEY.slug}`;
 
-const PIECE_THREE_PATH = `/read/guides/${WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT.slug}`;
+const PIECE_THREE_PATH = `/blog/guides/${WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT.slug}`;
 
 export const WHY_NOBODY_CAN_FOLLOW_A_DOLLAR: ResearchPiece = {
   ...WHY_NOBODY_CAN_FOLLOW_A_DOLLAR_INDEX_ENTRY,

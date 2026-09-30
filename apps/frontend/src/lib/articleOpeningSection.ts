@@ -6,5 +6,6 @@ export function articleOpeningSection(
   anchors: readonly string[],
 ): string | null {
   const anchor = hash.replace(/^#/, '');
-  return pathname === articlePath && anchors.includes(anchor) ? anchor : null;
+  const currentPath = pathname.replace(/^\/read(?=\/|$)/, '/blog');
+  return currentPath === articlePath && anchors.includes(anchor) ? anchor : null;
 }

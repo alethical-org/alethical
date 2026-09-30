@@ -26,14 +26,14 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
   // The tab carries the page's own name, because the page itself shows no title:
   // the bar and the address already say the word, so a third visible instance is
   // what the naming rule forbids, and the tab is where the name still has to
-  // exist (Design's /read handoff, 27 Aug 2026). The share card keeps the
+  // exist (Design's /blog handoff, 27 Aug 2026). The share card keeps the
   // descriptive title instead, because a card has no bar or address beside it to
   // say what "Read" would mean.
-  '/read': pageMetadata({
+  '/blog': pageMetadata({
     title: titleFor(READ_PAGE_NAME),
     socialTitle: READ_PAGE_HEADING,
     description: READ_PAGE_INTRO,
-    canonicalPath: '/read',
+    canonicalPath: '/blog',
   }),
   '/email-preferences': pageMetadata({
     title: titleFor('Email preferences'),

@@ -1,7 +1,7 @@
 import { expect, test, type Locator } from '@playwright/test';
 
 async function expectWordsOnlyUnderline(link: Locator, visibleLabel: string) {
-  await expect(link).toHaveAttribute('href', /\/read\//);
+  await expect(link).toHaveAttribute('href', /\/blog\//);
   const parts = link.locator(':scope > *');
   await expect(parts).toHaveCount(2);
   const words = parts.first();
@@ -38,7 +38,7 @@ async function expectReturnUnderline(link: Locator, label: string) {
 test('Read collection links underline one whole label and leave the arrow bare', async ({
   page,
 }) => {
-  await page.goto('/read');
+  await page.goto('/blog');
   const collections = page.locator('a.read-collection-link');
   await expect(collections).toHaveCount(3);
   for (const [name, visible] of [
@@ -49,7 +49,7 @@ test('Read collection links underline one whole label and leave the arrow bare',
     await expectWordsOnlyUnderline(page.getByRole('link', { name, exact: true }), visible);
   }
 
-  await page.goto('/read/guides');
+  await page.goto('/blog/guides');
   await expectWordsOnlyUnderline(
     page.getByRole('link', { name: 'Open the How the Money Works group page' }),
     'Open group page',
@@ -57,29 +57,29 @@ test('Read collection links underline one whole label and leave the arrow bare',
 });
 
 test('reading return links underline the complete label but not the chevron', async ({ page }) => {
-  for (const path of ['/read/research', '/read/short-posts', '/read/guides']) {
+  for (const path of ['/blog/research', '/blog/short-posts', '/blog/guides']) {
     await page.goto(path);
     await expectReturnUnderline(
-      page.getByRole('link', { name: 'Back to Read', exact: true }),
-      'Back to Read',
+      page.getByRole('link', { name: 'Back to Blog', exact: true }),
+      'Back to Blog',
     );
   }
 
-  await page.goto('/read/sets/how-the-money-works');
+  await page.goto('/blog/sets/how-the-money-works');
   await expectReturnUnderline(
     page.getByRole('link', { name: 'All guides', exact: true }),
     'All guides',
   );
 
   for (const path of [
-    '/read/research/the-money-only-goes-one-way',
-    '/read/guides/who-has-to-report-their-money',
-    '/read/research/lobbyist-giving',
+    '/blog/research/the-money-only-goes-one-way',
+    '/blog/guides/who-has-to-report-their-money',
+    '/blog/research/lobbyist-giving',
   ]) {
     await page.goto(path);
     await expectReturnUnderline(
-      page.getByRole('link', { name: 'Back to Read', exact: true }),
-      'Back to Read',
+      page.getByRole('link', { name: 'Back to Blog', exact: true }),
+      'Back to Blog',
     );
   }
 });

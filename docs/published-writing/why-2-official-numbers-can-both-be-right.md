@@ -1,5 +1,5 @@
 <!-- describes: apps/frontend/src/lib/researchPieces/whyTwoOfficialNumbersCanBothBeRight.ts -->
-<!-- POSTED 27 Aug 2026, and live at `/read/guides/why-2-official-numbers-can-both-be-right`.
+<!-- POSTED 27 Aug 2026, and live at `/blog/guides/why-2-official-numbers-can-both-be-right`.
      This file is where the prose was written and settled before any container
      existed for it, exactly as the 2 guides before it were written, and it stays the source of
      record for the words. The shipped piece is
@@ -176,8 +176,8 @@
      sit in different paragraphs, per issue #1752's linking rules. They stay relative
      links between the drafts HERE, because `scripts/check_doc_references.py` requires a
      relative link inside `docs/` to resolve to a real file. The shipped piece points
-     them at the reader-facing addresses, `/read/guides/what-the-records-name` and
-     `/read/guides/who-has-to-report-their-money`.
+     them at the reader-facing addresses, `/blog/guides/what-the-records-name` and
+     `/blog/guides/who-has-to-report-their-money`.
 
      WHERE IT LINKS FORWARD: 1 link to piece 4, in the closing paragraph, added the day
      that piece posted. The shipped piece holds the address as a literal rather than

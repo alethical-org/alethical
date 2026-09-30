@@ -352,7 +352,7 @@ describe('prepared destination links', () => {
       title: 'A research title',
       description: 'Published Aug 20, 2026 · records through Jul 20, 2026.',
       previewDescription: 'Published Aug 20, 2026',
-      url: 'https://www.alethical.com/read/research/example-research',
+      url: 'https://www.alethical.com/blog/research/example-research',
     };
     const share = vi.fn().mockResolvedValue(undefined);
     setDeviceShare(share);

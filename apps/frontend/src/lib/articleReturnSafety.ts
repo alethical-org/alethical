@@ -12,12 +12,12 @@ export function safeArticleReturnPath(href: string): string | null {
   if (url.origin !== 'https://www.alethical.com' || url.hash) return null;
   const path = url.pathname;
   if (
-    path === '/read' ||
-    path === '/read/research' ||
-    path === '/read/short-posts' ||
-    path === '/read/guides' ||
-    (path.startsWith('/read/sets/') && guideSetBySlug(path.slice('/read/sets/'.length))) ||
-    TOPICS.some((topic) => path === `/read/topics/${topic.slug}`)
+    path === '/blog' ||
+    path === '/blog/research' ||
+    path === '/blog/short-posts' ||
+    path === '/blog/guides' ||
+    (path.startsWith('/blog/sets/') && guideSetBySlug(path.slice('/blog/sets/'.length))) ||
+    TOPICS.some((topic) => path === `/blog/topics/${topic.slug}`)
   )
     return path;
   return null;

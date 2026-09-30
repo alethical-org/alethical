@@ -96,9 +96,9 @@ describe('Short post article and charts', () => {
     };
     const markup = renderToStaticMarkup(<ShortPostRelatedReading piece={piece} />);
     expect((markup.match(/class="sp-related-row"/g) ?? []).length).toBe(3);
-    expect(markup).toContain('/read/research/organizations-both-parties');
-    expect(markup).toContain('/read/guides/what-the-records-name');
-    expect(markup).not.toContain('/read/research/lobbyist-giving');
+    expect(markup).toContain('/blog/research/organizations-both-parties');
+    expect(markup).toContain('/blog/guides/what-the-records-name');
+    expect(markup).not.toContain('/blog/research/lobbyist-giving');
   });
 
   it('keeps only unique published picks and does not repeat the next guide', () => {
@@ -114,8 +114,8 @@ describe('Short post article and charts', () => {
     };
     const markup = renderToStaticMarkup(<ShortPostRelatedReading piece={piece} />);
     expect((markup.match(/class="sp-related-row"/g) ?? []).length).toBe(1);
-    expect(markup).toContain('/read/guides/why-2-official-numbers-can-both-be-right');
-    expect(markup).not.toContain('/read/guides/what-the-records-name');
+    expect(markup).toContain('/blog/guides/why-2-official-numbers-can-both-be-right');
+    expect(markup).not.toContain('/blog/guides/what-the-records-name');
     expect(markup).not.toContain('never-published');
     expect(markup).toContain('.sp-related-wrap{box-sizing:border-box');
   });

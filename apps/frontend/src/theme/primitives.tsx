@@ -520,7 +520,7 @@ function NavDropdownTrigger({
 }
 
 /**
- * A bar item that IS a destination rather than a dropdown: Read, today the only
+ * A bar item that IS a destination rather than a dropdown: Blog, today the only
  * one. No caret, because there is no panel to disclose, and the same resting
  * colour and vertical padding as a trigger so the 3 bar items still sit on one
  * line (Design's nav drawing, 27 Aug 2026).
@@ -576,7 +576,7 @@ function MenuDrawerRow({
 }
 
 /**
- * The phone drawer's row for a bar item with no dropdown: Read, the only one.
+ * The phone drawer's row for a bar item with no dropdown: Blog, the only one.
  *
  * Drawn at top level rather than as another group row, because the nav's job is
  * to show the shape of the site: a row identical to Search's 4 children tells a

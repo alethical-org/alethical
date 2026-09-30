@@ -50,7 +50,7 @@ const FIND_MY_LEGISLATOR_FILTER = "requestPath eq '/find-my-legislator'";
 const MONEY_FILTER =
   "requestPath eq '/money' or startswith(requestPath, '/money/')";
 const READ_FILTER =
-  "requestPath eq '/read' or startswith(requestPath, '/read/')";
+  "requestPath eq '/blog' or startswith(requestPath, '/blog/') or requestPath eq '/read' or startswith(requestPath, '/read/')";
 const ASK_FILTER = "requestPath eq '/ask' or startswith(requestPath, '/ask/')";
 const BILL_PROFILE_FILTER = "startswith(requestPath, '/bills/')";
 const LEGISLATOR_PROFILE_FILTER = "startswith(requestPath, '/legislators/')";
@@ -748,7 +748,10 @@ export default async function handler(
           projectId,
           teamId,
           READ_FILTER,
-          (path) => path === "/read" || path.startsWith("/read/"),
+          (path) =>
+            ["/blog", "/read"].some(
+              (base) => path === base || path.startsWith(`${base}/`),
+            ),
         ),
       ),
       atStage(
@@ -856,7 +859,10 @@ export default async function handler(
           projectId,
           teamId,
           READ_FILTER,
-          (path) => path === "/read" || path.startsWith("/read/"),
+          (path) =>
+            ["/blog", "/read"].some(
+              (base) => path === base || path.startsWith(`${base}/`),
+            ),
         ),
       ),
       atStage(

@@ -13,7 +13,7 @@
  * cite filing bodies beyond Minnesota's Campaign Finance Board, and define
  * derived classifications — under rule 13's conditions. This file holds the
  * machinery for that surface. Posting a piece means adding its entry to
- * `PUBLISHED_RESEARCH`: the piece's page, the share preview, the /read page,
+ * `PUBLISHED_RESEARCH`: the piece's page, the share preview, the /blog page,
  * the money landing and the sitemap all read this registry. A piece's `indexed` flag
  * decides only whether search engines may list it.
  *
@@ -269,14 +269,14 @@ export interface ResearchPiece extends PieceIndexEntry {
   newerFilingsNote?: string;
 }
 
-/** The /read page's 2 empty-state lines. No terminal period on either: see
+/** The /blog page's 2 empty-state lines. No terminal period on either: see
  *  `READ_PAGE_INTRO` in `lib/researchIndex.ts`. */
 export const READ_PAGE_EMPTY_TITLE = 'Nothing published yet';
 export const READ_PAGE_EMPTY_BODY =
   'When we publish research or a guide on these records, it appears here, dated and carrying the date its records run through';
 
 /**
- * The 2 group headings on the /read page, research first (Eugene, 27 Aug
+ * The 2 group headings on the /blog page, research first (Eugene, 27 Aug
  * 2026, overruling the drawn order). Grouping by our own 2 kinds is deliberate
  * and its objection is recorded: a reader arrives with a subject in mind rather
  * than a genre, and the page is revisited at 4 sets or a dozen research pieces
@@ -308,7 +308,7 @@ export function researchSourceText(source: ResearchSource): string {
 
 /**
  * Every posted piece, newest first. Posting puts a piece on the site, so this
- * is what the /read page, the money landing and every address-based reader
+ * is what the /blog page, the money landing and every address-based reader
  * show. Whether a search engine may list it is the separate `indexed` flag.
  *
  * `PUBLISHED_PIECE_INDEX` in `lib/researchIndex.ts` lists the same pieces in the
@@ -328,7 +328,7 @@ export const PUBLISHED_RESEARCH: ResearchPiece[] = assertPublishedShortPosts([
   MONEY_ONLY_GOES_ONE_WAY,
 ]);
 
-/** Every posted piece, of either kind: the /read page reads this. */
+/** Every posted piece, of either kind: the /blog page reads this. */
 export function publishedResearch(): ResearchPiece[] {
   return PUBLISHED_RESEARCH;
 }
@@ -361,7 +361,7 @@ export function indexedResearch(): ResearchPiece[] {
  * with punctuation dropped and spaces turned into hyphens.
  *
  * Built from the words rather than the section's position, because a shared
- * `/read/research/{slug}#{anchor}` link has to survive a section being inserted above
+ * `/blog/research/{slug}#{anchor}` link has to survive a section being inserted above
  * it — a positional `#s3` would silently start pointing at a different section
  * (rule 13 is explicit that a posted piece's addresses are stable). Apostrophes
  * and quote marks are removed rather than hyphenated, so "the candidate's
@@ -510,7 +510,7 @@ export function pieceContentsLabel(piece: Pick<ResearchPiece, 'traits'>): string
 }
 
 /**
- * The quiet mono line at the top of a piece's card on the /read page: its
+ * The quiet mono line at the top of a piece's card on the /blog page: its
  * reading time, then its date.
  *
  * Every card in a column is one shape, because a column that changes shape per
@@ -545,7 +545,7 @@ export function pieceCardSecondaryLine(piece: ResearchPiece): string {
 
 /**
  * A set's own name slugged, for the id the fold control's `aria-controls` points
- * at and for `/read/sets/{slug}` when that page is built. Computed from the
+ * at and for `/blog/sets/{slug}` when that page is built. Computed from the
  * name by the same rule a section heading uses, so there is no second field to
  * fall out of step with the name a reader sees.
  */
@@ -553,7 +553,7 @@ export function pieceSetSlug(name: string): string {
   return researchSectionAnchor(name);
 }
 
-/** One set as the /read page draws it: its name, and its published pieces in reading order. */
+/** One set as the /blog page draws it: its name, and its published pieces in reading order. */
 export interface PieceSetGroup {
   name: string;
   slug: string;

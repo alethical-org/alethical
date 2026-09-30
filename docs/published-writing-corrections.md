@@ -83,8 +83,8 @@ covers every correction there has ever been.
 
 ### 31 August 2026 — 2 pieces — we no longer hold none of the lobbying records
 
-**Pieces:** [The Money Only Goes One Way](https://www.alethical.com/read/research/the-money-only-goes-one-way)
-and [Money spent without a campaign's say](https://www.alethical.com/read/guides/money-spent-without-a-campaigns-say)
+**Pieces:** [The Money Only Goes One Way](https://www.alethical.com/blog/research/the-money-only-goes-one-way)
+and [Money spent without a campaign's say](https://www.alethical.com/blog/guides/money-spent-without-a-campaigns-say)
 
 **Was:** both pieces told readers we hold none of Minnesota's lobbying records. *Money spent
 without a campaign's say* said it in bold — "Alethical holds none of these records." — and went on
@@ -115,7 +115,7 @@ cutting it would be an edit on our own initiative, which rule 13 point 2 forbids
 
 ### 28 August 2026 — *The Money Only Goes One Way* — how many counting choices were examined
 
-**Piece:** [The Money Only Goes One Way](https://www.alethical.com/read/research/the-money-only-goes-one-way)
+**Piece:** [The Money Only Goes One Way](https://www.alethical.com/blog/research/the-money-only-goes-one-way)
 
 **Was:** the method box explaining the $886 million lobbying figure said "That is **the** choice
 that could have moved these figures, and it does not" — naming one, the year boundary.
@@ -141,7 +141,7 @@ independent reviews of the piece.
 
 ### 28 August 2026 — *The Money Only Goes One Way* — a count of records
 
-**Piece:** [The Money Only Goes One Way](https://www.alethical.com/read/research/the-money-only-goes-one-way)
+**Piece:** [The Money Only Goes One Way](https://www.alethical.com/blog/research/the-money-only-goes-one-way)
 
 **Was:** the sources block named Minnesota's itemized-contributions download as
 "contributions (**583,120** records)".
@@ -161,7 +161,7 @@ money figure.
 
 ### 28 August 2026 — *What the records name, and what they leave out* — a handbook's revision date
 
-**Piece:** [What the records name, and what they leave out](https://www.alethical.com/read/guides/what-the-records-name)
+**Piece:** [What the records name, and what they leave out](https://www.alethical.com/blog/guides/what-the-records-name)
 
 **Was:** the sources block dated Minnesota's *Political Party Unit Handbook* to **7 March 2022**,
 and a sentence in it credited a walkthrough in that handbook as the source of text in the piece.
@@ -185,7 +185,7 @@ fresh decision.
 
 ### 27 August 2026 — *What the records name, and what they leave out* — 2 quotations removed
 
-**Piece:** [What the records name, and what they leave out](https://www.alethical.com/read/guides/what-the-records-name)
+**Piece:** [What the records name, and what they leave out](https://www.alethical.com/blog/guides/what-the-records-name)
 
 **Was:** "The handbooks are plain about where it goes. Gifts from donors who gave $200 or less in
 total 'should be added together and listed as a lump sum'. **The reporting form has a line for
@@ -219,7 +219,7 @@ to settle, not the editor's: rule 13 point 2a puts changes to a posted piece wit
 
 ### 26 August 2026 — *The Money Only Goes One Way* — what a middle-of-the-road campaign raises
 
-**Piece:** [The Money Only Goes One Way](https://www.alethical.com/read/research/the-money-only-goes-one-way)
+**Piece:** [The Money Only Goes One Way](https://www.alethical.com/blog/research/the-money-only-goes-one-way)
 
 **Was:** "The middle-of-the-road candidate for state office raises about **$13,400** for the whole
 campaign."
@@ -238,7 +238,7 @@ the recomputed number.
 
 ### 26 August 2026 — *The Money Only Goes One Way* — counting accounts as people
 
-**Piece:** [The Money Only Goes One Way](https://www.alethical.com/read/research/the-money-only-goes-one-way)
+**Piece:** [The Money Only Goes One Way](https://www.alethical.com/blog/research/the-money-only-goes-one-way)
 
 **Was:** "Over eleven years, all 1,699 candidates for state office combined raised $108 million."
 Three lines later, the comparison read "Twice the money of every **candidate** in the state put
@@ -262,7 +262,7 @@ accounts in one place and candidates in another.
 
 ### 25 August 2026 — *The Money Only Goes One Way* — which money the biggest comparison counts
 
-**Piece:** [The Money Only Goes One Way](https://www.alethical.com/read/research/the-money-only-goes-one-way)
+**Piece:** [The Money Only Goes One Way](https://www.alethical.com/blog/research/the-money-only-goes-one-way)
 
 **Was:** "Six organizations. Twice the money of every candidate in the state put together."
 

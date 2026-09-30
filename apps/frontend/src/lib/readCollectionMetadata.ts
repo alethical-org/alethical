@@ -13,7 +13,7 @@ export function shortPostsPageMetadata(page = 1, hasPosts = true): PageMetadata 
     title: titleFor(subject),
     socialTitle: subject,
     description: `Short posts about Minnesota public records, newest first.${page > 1 ? ` Page ${page}.` : ''}`,
-    canonicalPath: hasPosts ? readCollectionPagePath('/read/short-posts', page) : '',
+    canonicalPath: hasPosts ? readCollectionPagePath('/blog/short-posts', page) : '',
     noindex: !hasPosts,
   });
 }
@@ -25,7 +25,7 @@ export function readTopicPageMetadata(topic: TopicSlug, page = 1, hasPieces = tr
     title: titleFor(subject),
     socialTitle: subject,
     description: `Published writing about ${label.toLowerCase()} in Minnesota.${page > 1 ? ` Page ${page}.` : ''}`,
-    canonicalPath: hasPieces ? readCollectionPagePath(`/read/topics/${topic}`, page) : '',
+    canonicalPath: hasPieces ? readCollectionPagePath(`/blog/topics/${topic}`, page) : '',
     noindex: !hasPieces,
   });
 }
@@ -46,7 +46,7 @@ export function readingCollectionMetadata(
         : group?.kind === 'group'
           ? group.name
           : 'Guides';
-  const base = kind === 'set' ? `/read/sets/${setSlug}` : `/read/${kind}`;
+  const base = kind === 'set' ? `/blog/sets/${setSlug}` : `/blog/${kind}`;
   const subject = page > 1 ? `${title}, page ${page}` : title;
   return pageMetadata({
     title: titleFor(subject),

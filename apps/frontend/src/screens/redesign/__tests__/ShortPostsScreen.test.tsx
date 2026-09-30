@@ -77,7 +77,7 @@ describe('Short posts reader paths', () => {
   it('shows the empty archive without promising unpublished articles', () => {
     const { element, root } = mount();
     expect(element.textContent).toContain('No short posts yet.');
-    expect(element.querySelector('a')?.getAttribute('href')).toBe('/read');
+    expect(element.querySelector('a')?.getAttribute('href')).toBe('/blog');
     expect(element.querySelector('nav')).toBeNull();
     act(() => root.unmount());
   });
@@ -86,10 +86,10 @@ describe('Short posts reader paths', () => {
     const { element, root, navigate } = mount();
     expect(element.querySelector('a a')).toBeNull();
     expect(element.querySelector('[data-entry-link]')?.getAttribute('href')).toBe(
-      '/read/research/example-1?from=%2Fread%2Fshort-posts%3Fpost%3Dexample-1',
+      '/blog/research/example-1?from=%2Fblog%2Fshort-posts%3Fpost%3Dexample-1',
     );
     const topic = element.querySelector<HTMLAnchorElement>('.topic-piece-topics a')!;
-    expect(topic.getAttribute('href')).toBe('/read/topics/lobbying');
+    expect(topic.getAttribute('href')).toBe('/blog/topics/lobbying');
     act(() => topic.click());
     expect(navigate).toHaveBeenCalledExactlyOnceWith('ReadTopic', { topic: 'lobbying' });
     expect(element.querySelector('.topic-piece-dek')?.textContent).toBe(source.pieces[0].dek);
@@ -102,7 +102,7 @@ describe('Short posts reader paths', () => {
     const { element, root, navigate, render } = mount();
     expect(element.querySelectorAll('[data-entry]')).toHaveLength(6);
     const next = element.querySelector<HTMLAnchorElement>('a[aria-label="Page 2"]')!;
-    expect(next.getAttribute('href')).toBe('/read/short-posts?page=2');
+    expect(next.getAttribute('href')).toBe('/blog/short-posts?page=2');
     act(() => next.click());
     expect(navigate).toHaveBeenCalledWith('ShortPosts', { page: '2' });
     render('2');
@@ -132,7 +132,7 @@ describe('Short post context links', () => {
     expect(element.querySelector('.topic-piece-kind')?.textContent).toBe('Research');
     expect(element.querySelectorAll('.topic-piece-topics a')).toHaveLength(1);
     expect(element.querySelector('.topic-piece-topics a')?.getAttribute('href')).toBe(
-      '/read/topics/elections',
+      '/blog/topics/elections',
     );
     act(() => root.unmount());
   });

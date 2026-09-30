@@ -3,7 +3,7 @@ import { expect, test, type Browser, type BrowserContext, type Page } from '@pla
 // Requires the task's disposable PostgreSQL API on 18261 and fake Supabase app
 // on 19261. This suite refuses production and blocks every external request.
 const api = 'http://127.0.0.1:18261';
-const article = '/read/guides/what-the-records-name';
+const article = '/blog/guides/what-the-records-name';
 const articleId = 'guide-what-the-records-name';
 const accounts = {
   reader: {
@@ -108,7 +108,7 @@ test.describe('editorial comments with a real local database', () => {
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
       ).toBe(true);
-      await go('/read');
+      await go('/blog');
       await expect(page.getByRole('heading', { name: 'Read', exact: true })).toBeVisible();
       await expect(page.getByRole('heading', { name: 'Reader comments' })).toHaveCount(0);
       const money = await context.newPage();

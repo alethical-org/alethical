@@ -120,9 +120,9 @@ export function CommentEmailsScreen() {
             : 'You don’t receive reply emails'
       : null;
   const safeArticlePath =
-    state && /^\/read\//.test(state.article_path) && !/[?#\\]/.test(state.article_path)
+    state && /^\/blog\//.test(state.article_path) && !/[?#\\]/.test(state.article_path)
       ? state.article_path
-      : '/read';
+      : '/blog';
 
   return (
     <div className="rc rc-stop">

@@ -1,5 +1,5 @@
 <!-- describes: apps/frontend/src/lib/researchPieces/moneySpentWithoutACampaignsSay.ts -->
-<!-- POSTED 27 Aug 2026, and live at `/read/guides/money-spent-without-a-campaigns-say`.
+<!-- POSTED 27 Aug 2026, and live at `/blog/guides/money-spent-without-a-campaigns-say`.
      This file is where the prose was written and settled before any container
      existed for it, exactly as the 3 guides before it were written, and it stays the source of
      record for the words. The shipped piece is
@@ -202,7 +202,7 @@
      account crosses. It stays a relative link between the drafts HERE, because
      `scripts/check_doc_references.py` requires a relative link inside `docs/` to
      resolve to a real file; the shipped piece points it at the reader-facing address
-     `/read/guides/who-has-to-report-their-money`. Pieces 2 and 3 are deliberately not
+     `/blog/guides/who-has-to-report-their-money`. Pieces 2 and 3 are deliberately not
      linked: nothing here depends on a term either of them owns, and issue #1752's
      linking rules make a link a judgement rather than a habit. The $200 in the file's
      own heading is quoted as the Board's title for the file and no claim is made about

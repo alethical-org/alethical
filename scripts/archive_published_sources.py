@@ -107,7 +107,7 @@ def _link_check():
 def cited_addresses(links) -> dict[str, list[str]]:
     """Every outward address our published pieces cite, and which pieces cite it.
 
-    Internal links (``/read/...``) are the link check's business, not ours: there is no
+    Internal links (``/blog/...``) are the link check's business, not ours: there is no
     outside copy of our own page to keep. The 4 ``github.com`` addresses in the pieces
     are in the source files' own comments to the next builder rather than in anything a
     reader can click, so ``links_in`` never yields them.

@@ -51,7 +51,7 @@ describe('screenLoaderForPath', () => {
       '/money/races',
       '/money/outside-spending',
       '/money/search',
-      '/read',
+      '/blog',
       '/about',
       '/contact',
       '/privacy',

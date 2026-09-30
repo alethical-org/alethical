@@ -320,7 +320,7 @@ export const ORGANIZATIONS_BOTH_PARTIES: ResearchPiece = {
           {
             kind: 'internalLink',
             text: 'political committee and fund',
-            href: '/read/guides/who-has-to-report-their-money',
+            href: '/blog/guides/who-has-to-report-their-money',
           },
           text(
             ' entries in the Minnesota Campaign Finance Board’s contribution records for 2015–2025.',
@@ -374,10 +374,10 @@ export const ORGANIZATIONS_BOTH_PARTIES: ResearchPiece = {
       publicationInstructionAt: '2026-09-26T20:39:49.138Z',
       navigationRevision: {
         reviewedBy: 'Codex',
-        reviewedOn: '2026-09-27',
-        approvedNavigationFingerprint: '163d607a',
-        approvedOn: '2026-09-27',
-        releaseInstructionOn: '2026-09-27',
+        reviewedOn: '2026-09-30',
+        approvedNavigationFingerprint: 'cf796386',
+        approvedOn: '2026-09-30',
+        releaseInstructionOn: '2026-09-30',
       },
     },
   },
