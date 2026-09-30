@@ -1906,11 +1906,11 @@ subject, destination, and results-view behavior.
 ## 27. The served text is the app's own design
 
 The text `api/page.ts` puts in the first response is drawn in the app's design, not as a plain
-document: the same top bar (logo, Search, Blog, About and the Sign in button's place), the same
+document: the same top bar (logo, Money, Search, Blog, About and the Sign in button's place), the same
 page header (back link, eyebrow, heading, chip row), and every block of facts in the same white
 card, at the same sizes and colours the app draws (`apps/frontend/public/index.html`'s
 `alethical-page-snapshot` style block; `renderPageSnapshot` in `apps/frontend/src/lib/pageSnapshot.ts`).
-The top bar's labels and its Blog link come from the registry the app's own bar reads
+The top bar's labels and its direct Money and Blog links come from the registry the app's own bar reads
 (`apps/frontend/src/navigation/ia.ts`); the 2 dropdown menus cannot open before the app runs, so
 each links to the first page under it, and Sign in is a label holding the button's place rather
 than a link, because only the app can operate it.

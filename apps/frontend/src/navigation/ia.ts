@@ -1,6 +1,6 @@
 /**
  * Phase-0 IA contract — single source of truth for the new top-nav information
- * architecture (Search · Read · About · auth).
+ * architecture (Money · Search · Blog · About · auth).
  *
  * Ask stays reachable through its answer route and in-page actions, but it is not
  * a global navigation item. Every page now shares the same Ask-free menu.
@@ -13,8 +13,6 @@
  *
  * The reader-facing description is docs/product-onboarding/site-navigation-guide.md.
  */
-
-import { MONEY_SECTION_NAME } from '../lib/moneySectionName';
 
 /**
  * A menu an item can belong to. `track` no longer draws a group in the bar
@@ -58,6 +56,18 @@ export interface IaItem {
   /** Optional framing note. */
   note?: string;
 }
+
+/** Money is a direct public destination before Search in both website layouts. */
+const MONEY_ITEM: IaItem = {
+  // Keep the existing id so routing and saved menu references stay compatible.
+  id: 'search-campaign-money',
+  label: 'Money',
+  path: '/money',
+  menu: null,
+  availability: 'mvp',
+  authGated: false,
+  isNew: true,
+};
 
 /**
  * Blog — everything Alethical publishes in its own name, at `/blog`.
@@ -115,36 +125,7 @@ export const IA: IaItem[] = [
     description: 'Make sense of any bill, with the official text beside it',
     note: 'Carries the purple "Grounded Ask" pill in the nav dropdown.',
   },
-  {
-    // Second in Search, between the two subject indexes and the person pair
-    // (campaign money IA §01): named for what a person wants to know, not for
-    // what the tables are called. Public — the money section has no sign-in
-    // gate. The description promises only the record itself, because the
-    // section's search and list lanes ship after this landing does
-    // (grounded-answers.md rule 2, never advertise what you can't answer).
-    id: 'search-campaign-money',
-    // "Money in politics" since #1698: the row sits in Search, and the label is
-    // broader than "Campaign money" because the section will hold lobbying too.
-    // Position, NEW pill and destination all unchanged.
-    //
-    // The description names the search, and since #1696 the search works: the
-    // field on /money answers, and its results page groups people, committees and
-    // the names that got paid exactly as this row says. Nothing here has to lean
-    // on the under-development notice any more.
-    //
-    // Kept for the next person who reads rule 2 against this row: the wording was
-    // removed once (#1700) because /money answered a promised search with "Search
-    // is not built yet", and Eugene overruled that on 20 Aug 2026 on the grounds
-    // that the page declared itself unfinished. That argument is now moot rather
-    // than load-bearing — the row describes a capability that ships.
-    label: MONEY_SECTION_NAME,
-    path: '/money',
-    menu: 'search',
-    availability: 'mvp',
-    authGated: false,
-    description: 'Search any name to find people, committees, and who got paid',
-    isNew: true,
-  },
+  MONEY_ITEM,
   {
     id: 'search-legislators',
     // "Legislators" (not "Search Legislators") in the nav dropdown — we're already
@@ -330,23 +311,14 @@ export const IA: IaItem[] = [
 ];
 
 /**
- * The top bar, in bar order: 3 entries in both auth states, which differ only in
- * the right-hand control (Sign in, or the avatar).
- *
- * An entry is one of 2 things. A `menu` entry is a trigger that opens a panel of
- * rows and names no destination of its own. A `link` entry IS a destination and
- * has no panel. Read is the only `link` entry today.
- *
- * A "Yours" group used to sit second, holding one row: Tracked Bills. #1698
- * moved that row into the account menu, where a reader's own things belong, and
- * dropped the group from the bar. Read took second place, first as a group
- * labelled Reports, then Reading, and since 27 Aug 2026 as a single item
- * (`READ_ITEM` above records why the group went).
+ * The same 4 top-level entries appear in both auth states and website layouts.
+ * A menu entry opens a panel. Money and Blog link directly to their destinations.
  */
 export type NavBarEntry =
   { kind: 'menu'; key: MenuKey; label: string } | { kind: 'link'; item: IaItem };
 
 export const NAV_BAR: NavBarEntry[] = [
+  { kind: 'link', item: MONEY_ITEM },
   { kind: 'menu', key: 'search', label: 'Search' },
   { kind: 'link', item: READ_ITEM },
   { kind: 'menu', key: 'about', label: 'About' },

@@ -796,15 +796,16 @@ describe('shared top navigation', () => {
   // Yours left the bar for the account menu and Read took second place (#1698;
   // labelled Reports, then Reading, until 27 Aug 2026). Both auth states carry
   // these same 3 entries.
-  it('offers Search, Read and About without an active Ask entry', () => {
+  it('offers Money, Search, Blog and About without an active Ask entry', () => {
     expect(NAV_BAR.map((entry) => (entry.kind === 'menu' ? entry.key : entry.item.id))).toEqual([
+      'search-campaign-money',
       'search',
       'read',
       'about',
     ]);
     expect(
       NAV_BAR.map((entry) => (entry.kind === 'menu' ? entry.label : entry.item.label)),
-    ).toEqual(['Search', 'Blog', 'About']);
+    ).toEqual(['Money', 'Search', 'Blog', 'About']);
   });
 
   it('keeps no Yours group in the bar', () => {
@@ -820,7 +821,7 @@ describe('shared top navigation', () => {
 // docs/architecture/published-writing-decisions.md §2.1).
 describe('the bar\u2019s Read item', () => {
   it('is a plain destination with no dropdown behind it', () => {
-    const read = NAV_BAR.find((entry) => entry.kind === 'link');
+    const read = NAV_BAR.find((entry) => entry.kind === 'link' && entry.item.id === 'read');
     expect(read).toBeDefined();
     if (read?.kind !== 'link') throw new Error('Read is not a link entry');
     expect(read.item.id).toBe('read');
@@ -833,8 +834,8 @@ describe('the bar\u2019s Read item', () => {
     expect(IA.filter((item) => item.id !== 'read' && item.path.startsWith('/blog'))).toEqual([]);
   });
 
-  it('is the only bar entry that is a destination', () => {
-    expect(NAV_BAR.filter((entry) => entry.kind === 'link')).toHaveLength(1);
+  it('shares direct destination navigation with Money', () => {
+    expect(NAV_BAR.filter((entry) => entry.kind === 'link')).toHaveLength(2);
   });
 });
 
@@ -930,12 +931,11 @@ describe('Search dropdown roadmap row', () => {
 
 // The Campaign money row is live, public, second in Search, and carries the
 // green NEW chip (campaign money IA §01).
-describe('Search dropdown Campaign money row', () => {
-  it('sits second among the live rows, between Bills and Legislators', () => {
+describe('top-level Money destination', () => {
+  it('leaves Search with Bills, Legislators and Find My Legislator', () => {
     const { live } = navDropdownItems('search');
     expect(live.map((item) => item.id)).toEqual([
       'search-bills',
-      'search-campaign-money',
       'search-legislators',
       'search-find-my-legislator',
     ]);
@@ -945,12 +945,13 @@ describe('Search dropdown Campaign money row', () => {
     const item = IA.find((entry) => entry.id === 'search-campaign-money');
     expect(item?.authGated).toBe(false);
     expect(item?.path).toBe('/money');
+    expect(item?.label).toBe('Money');
+    expect(item?.menu).toBeNull();
     expect(item?.isNew).toBe(true);
   });
 
   it('keeps money search reachable after lobbying is released', () => {
-    const item = IA.find((entry) => entry.id === 'search-campaign-money');
-    expect(item?.description).toBe('Search any name to find people, committees, and who got paid');
+    expect(targetFromPathname('/money').kind).toBe('moneyLanding');
     expect(targetFromPathname('/money/lobbying')).toEqual({ kind: 'lobbyingLanding' });
   });
 });

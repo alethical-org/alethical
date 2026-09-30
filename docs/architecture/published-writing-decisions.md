@@ -383,7 +383,7 @@ listed in it.
 
 The single destination was ratified by Eugene 27 Aug 2026; its current name and addresses follow §2.15.
 
-**The rule.** The top bar's second item is the single word **Blog**. It is a destination, not a
+**The rule.** The top bar's Blog item follows Money and Search. It is a destination, not a
 dropdown: one bar item on a computer with no panel behind it, and one row in the phone drawer with no
 heading over it. Every address takes the same word — `/blog`, `/blog/research/<name>`,
 `/blog/guides/<name>`, `/blog/sets/<name>`. The visually hidden page heading on `/blog` is also **Blog**; the visible opening explains the subjects. The screen remains `ReadScreen.tsx`, the route remains `Read`, and the registry item's id remains `read`; these implementation names do not appear as the section name to readers.
@@ -396,7 +396,7 @@ adds a box to that page rather than a row to the bar, so the group had no growth
 the header is now the reader-facing word, and the child is gone.
 
 **What the reader gains, and it is the point.** One tap instead of two on a phone, and the bar's
-second item now names a destination rather than a container. A reader looking for our writing reads
+Blog item names a destination rather than a container. A reader looking for our writing reads
 one word and arrives.
 
 **What it costs, stated plainly.** A third generation of address, so every link anyone has shared
@@ -408,7 +408,7 @@ working indefinitely, and §2.9 records the rule that keeps the chain from compo
 **The bar's own item is not marked by chrome, it is marked by ARIA.** The nav had no
 `aria-current="page"` anywhere, while 4 other surfaces in the app mark their current thing. The row
 whose link is the page being viewed now carries it, at both bands. A dropdown trigger never does: a
-trigger opens a panel and is not a page, so on `/money` the Money in politics row inside Search is
+trigger opens a panel and is not a page, so on `/money` the direct Money navigation link is
 marked and the Search trigger is not.
 
 **In the phone drawer the Blog row is drawn at top level, not as another group row.** Ruled by
@@ -418,8 +418,9 @@ NEW chip beside the label, and a drawn right arrow at the far end in the muted i
 between the 2 rules is the tap target.
 
 **Why the plain row lost.** The nav's job is to show the shape of the site. A row identical to
-Search's 4 children tells a phone reader that Blog is one of them, when it is 1 of the 3 things this
-site does; the rules and the extra height are what say it sits at the top level. Design drew it this
+Search's children tells a phone reader that Blog is one of them, when it is a top-level destination;
+the rules and the extra height are what say it sits at the top level. Money uses the same direct-row
+treatment, with the full current order owned by [site-navigation-guide.md](../product-onboarding/site-navigation-guide.md). Design drew it this
 way and argued for it; the first build drew it plain because the brief it was given put drawer
 geometry out of scope, and the brief was what was wrong.
 

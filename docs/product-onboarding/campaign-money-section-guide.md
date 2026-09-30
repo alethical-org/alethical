@@ -47,8 +47,8 @@ The landing and pure record-chooser directories do not gain Share buttons.
 [How sharing works](sharing-guide.md) owns the contextual window headings and
 non-repeating prepared messages.
 
-- Choose **Search**, then **Money in politics** (marked with a green NEW chip) in the shared
-  top menu, on a computer or in the phone menu.
+- Choose **Money** (marked with a green NEW chip) before Search in the shared top
+  menu, on a computer or in the phone menu. It opens `/money` directly.
 - Choose **Money in politics** on the homepage card headed **Follow the money**.
 - Open `/money` directly.
 - Type a name into the box on `/money` and press Enter or the Search button, which opens
@@ -71,9 +71,10 @@ The `/blog` page has its own way in, separate from this section: choose **Blog**
 menu. It is one item with no menu behind it, on a computer and in the phone menu both, so it takes
 one click or one tap. In the phone menu it is a taller row than the ones under SEARCH and ABOUT,
 with a thin line above and below it and a small arrow at the right, which is how the menu says it is
-one of the 3 things the site does rather than a fifth Search row (settled 27 Aug 2026,
+one of the 4 top-level destinations rather than a Search child; Money uses the same row treatment
+([site-navigation-guide.md](site-navigation-guide.md#on-a-phone)). The Blog row's shape is settled in
 [`docs/architecture/published-writing-decisions.md`](../architecture/published-writing-decisions.md)
-§2.13).
+§2.13.
 
 **And search engines have their own way in, which is new.** Since 27 Aug 2026 every page in
 this section arrives from the server with its words and its links already in it, rather than
@@ -102,7 +103,8 @@ the files. If any of it is missing or unreadable the page just asks for the reco
 ## The landing page (`/money`)
 
 The heading, browser title and shared-link title name this destination **Money in
-politics**. Every link or empty-state button returning to `/money` uses that same
+politics**. The shared navigation's shorter **Money** label is the scoped exception.
+Every other link or empty-state button returning to `/money` uses that same
 name, including committee and lobbying pages. The homepage invitation and narrower
 Campaign money tabs keep their separate wording, as defined in
 [site-navigation-guide.md](site-navigation-guide.md#the-name-of-money).
