@@ -1,0 +1,11 @@
+01210301;Mark Johnson;0121;State Senator District 1;88;03;R
+01210402;Bjorn Solberg;0121;State Senator District 1;88;04;DFL
+01880301;John Burkel;0188;State Representative District 1A;88;03;R
+01880402;Leanna Sandahl;0188;State Representative District 1A;88;04;DFL
+02080401;Chris Swanson;0208;State Representative District 11A;88;04;DFL
+02080302;Jeff Dotseth;0208;State Representative District 11A;88;03;R
+03310901;Steven Young and Jane Kirby;0331;Governor & Lt Governor;88;09;GP
+03310402;Amy Klobuchar and Ben Schierer;0331;Governor & Lt Governor;88;04;DFL
+03310303;Lisa Demuth and Ryan Wilson;0331;Governor & Lt Governor;88;03;R
+03919001;Timothy Catlin;0391;County Commissioner District 1;01;90;NP
+03919001;John Heinrich;0391;County Commissioner District 1;02;90;NP
