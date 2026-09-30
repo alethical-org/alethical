@@ -6,6 +6,7 @@ import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t, prefersReducedMotion } from '../../theme/tokens';
 import { useResponsive } from '../../hooks/useResponsive';
+import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { useCampaignFinanceSummary, useFeaturedBills } from '../../hooks/useAppQueries';
 import { linkProps, routePath } from '../../navigation/links';
 import type { MenuKey } from '../../navigation/ia';
@@ -121,6 +122,7 @@ export function SignedOutHomepage({
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const summary = useCampaignFinanceSummary({ enabled: isFocused });
   const news = useFeaturedBills(NEWS, { enabled: isFocused && isMobile });
+  const scroll = useHistoryScrollRestoration(isFocused && (!isMobile || !news.isLoading));
   const newsById = new Map(news.data?.map((bill) => [bill.id, bill]));
   const newsBills = NEWS.flatMap((key) => newsById.get(key) ?? []);
   const inset = isMobile ? 20 : isTablet ? 40 : 56;
@@ -165,7 +167,7 @@ export function SignedOutHomepage({
 
   return (
     <PageBackground>
-      <ScrollView style={s.root} contentContainerStyle={s.content}>
+      <ScrollView {...scroll} style={s.root} contentContainerStyle={s.content}>
         <View
           style={[
             s.hero,
