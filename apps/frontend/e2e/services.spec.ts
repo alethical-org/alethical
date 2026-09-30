@@ -169,6 +169,12 @@ for (const width of [390, 1280]) {
       await page.getByRole('link', { name: link, exact: true }).click();
       await expect(page.getByRole('heading', { name: heading, exact: true })).toBeInViewport();
     }
+    const organizations = page.getByRole('tab', { name: /^For organizations/ });
+    const campaigns = page.getByRole('tab', { name: /^For individual campaigns/ });
+    await organizations.press('ArrowRight');
+    await expect(campaigns).toBeFocused();
+    await campaigns.press('Home');
+    await expect(organizations).toBeFocused();
   });
 }
 
