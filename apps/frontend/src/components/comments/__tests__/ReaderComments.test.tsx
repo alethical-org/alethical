@@ -58,6 +58,7 @@ vi.mock('../../../data/comments', () => ({
 }));
 import { ReaderComments } from '../ReaderComments';
 import { ApiError } from '../../../data/api';
+import { initializeWebHistory } from '../../../navigation/webHistory';
 import { CommentStateProvider } from '../CommentStateProvider';
 
 const settings = (fields: Partial<CommentSettings> = {}): CommentSettings => ({
@@ -154,6 +155,8 @@ afterEach(() => {
   act(() => root.unmount());
   host.remove();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  document.documentElement.removeAttribute('data-comment-return');
 });
 
 describe('reader comments', () => {
@@ -230,11 +233,94 @@ describe('reader comments', () => {
     expect(mocks.signIn).toHaveBeenCalledWith({
       intent: 'nav',
       returnTo: '/blog/guides/a',
-      scrollY: 0,
     });
     expect(
       JSON.parse(window.sessionStorage.getItem('alethical.comments.signInTarget')!),
     ).toMatchObject({ articleId: 'a', target: 'root' });
+  });
+
+  it.each([false, true])(
+    'positions a full-page return before settings or frames, with full storage=%s',
+    async (fullStorage) => {
+      const waiting = deferred<CommentSettings>();
+      mocks.settings.mockReturnValue(waiting.promise);
+      window.sessionStorage.setItem(
+        'alethical.comments.signInTarget',
+        JSON.stringify({
+          articleId: 'a',
+          target: null,
+          path: '/blog/guides/a',
+          createdAt: Date.now(),
+        }),
+      );
+      initializeWebHistory();
+      document.documentElement.setAttribute('data-comment-return', '');
+      const write = fullStorage
+        ? vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+            throw new DOMException('Full storage', 'QuotaExceededError');
+          })
+        : null;
+      const scroll = vi.fn();
+      Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+        configurable: true,
+        value: scroll,
+      });
+      const frames: FrameRequestCallback[] = [];
+      vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+        frames.push(callback),
+      );
+      await render();
+      write?.mockRestore();
+      expect(scroll).toHaveBeenCalledWith({ block: 'start', behavior: 'instant' });
+      expect(document.documentElement.hasAttribute('data-comment-return')).toBe(true);
+      expect(host.textContent).toContain('Loading');
+      await act(async () => waiting.resolve(settings({ public_name: null })));
+      await act(async () => frames.splice(0).forEach((frame) => frame(0)));
+      expect(document.activeElement).toBe(host.querySelector('input[type="text"]'));
+      expect(document.documentElement.hasAttribute('data-comment-return')).toBe(false);
+      delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
+    },
+  );
+
+  it('reveals and focuses the return field only after delayed public rows settle', async () => {
+    const listing = deferred<{ items: ReaderComment[]; next_cursor: null }>();
+    mocks.list.mockReturnValue(listing.promise);
+    window.sessionStorage.setItem(
+      'alethical.comments.signInTarget',
+      JSON.stringify({
+        articleId: 'a',
+        target: null,
+        path: '/blog/guides/a',
+        createdAt: Date.now(),
+      }),
+    );
+    document.documentElement.setAttribute('data-comment-return', '');
+    await render();
+    expect(document.activeElement).not.toBe(host.querySelector('textarea'));
+    expect(document.documentElement.hasAttribute('data-comment-return')).toBe(true);
+    await act(async () => listing.resolve({ items: [item('existing')], next_cursor: null }));
+    expect(host.textContent).toContain('Body existing');
+    expect(document.activeElement).toBe(host.querySelector('textarea'));
+    expect(document.documentElement.hasAttribute('data-comment-return')).toBe(false);
+  });
+
+  it('keeps public rows through in-place sign-in while clearing account fields', async () => {
+    mocks.user = null;
+    mocks.list.mockResolvedValue({ items: [item('existing')], next_cursor: 'next-page' });
+    await render();
+    await click('Sign in to comment');
+    const reloading = deferred<{ items: ReaderComment[]; next_cursor: null }>();
+    mocks.list.mockReturnValue(reloading.promise);
+    mocks.user = { id: 'reader' };
+    await render();
+    expect(host.textContent).toContain('Body existing');
+    expect(host.textContent).not.toContain('Loading comments…');
+    expect(document.activeElement).not.toBe(host.querySelector('textarea'));
+    await act(async () =>
+      reloading.resolve({ items: [item('existing'), item('new')], next_cursor: null }),
+    );
+    expect(host.textContent).toContain('Body new');
+    expect(document.activeElement).toBe(host.querySelector('textarea'));
   });
 
   it('accepts a single initial, sends one post, and keeps fields read-only while posting', async () => {
