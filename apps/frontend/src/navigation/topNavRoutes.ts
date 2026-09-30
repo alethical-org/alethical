@@ -8,7 +8,6 @@ type TopNavNavigateArgs =
   | ['MoneyLanding']
   | ['Read']
   | ['AboutUs']
-  | ['SiteMetrics']
   | ['ContactUs']
   | ['Tabs', { screen: 'Tracked' }];
 
@@ -57,9 +56,6 @@ export function navigateTopNavItem(
     case 'about-us':
       navigation.navigate('AboutUs');
       return true;
-    case 'about-site-metrics':
-      navigation.navigate('SiteMetrics');
-      return true;
     case 'about-contact':
       navigation.navigate('ContactUs');
       return true;
@@ -93,7 +89,6 @@ export const NAV_ITEM_HREFS: Record<string, string> = {
   // capability it can't deliver (grounded-answers rule 2).
   'track-bills': routePath.tracked(),
   'about-us': routePath.aboutUs(),
-  'about-site-metrics': routePath.siteMetrics(),
   'about-contact': routePath.contactUs(),
 };
 

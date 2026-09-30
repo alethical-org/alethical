@@ -830,7 +830,7 @@ describe('the bar\u2019s Read item', () => {
     expect(read.item.label).toBe('Blog');
     expect(read.item.path).toBe('/blog');
     expect(read.item.menu).toBeNull();
-    expect(read.item.isNew).toBe(true);
+    expect(read.item.isNew).toBeUndefined();
     expect(read.item.authGated).toBe(false);
     // Nothing hangs off it, at either band.
     expect(IA.filter((item) => item.id !== 'read' && item.path.startsWith('/blog'))).toEqual([]);
@@ -919,7 +919,7 @@ describe('Search dropdown roadmap row', () => {
     const { roadmap } = navDropdownItems('search');
     expect(roadmap.map((item) => item.label)).toEqual([
       'Candidates',
-      'Claimed Profiles',
+      'Claimed profiles',
       'News',
       'Ask AI',
     ]);
@@ -943,13 +943,13 @@ describe('top-level Money destination', () => {
     ]);
   });
 
-  it('is public and marked new', () => {
+  it('is public without a NEW badge', () => {
     const item = IA.find((entry) => entry.id === 'search-campaign-money');
     expect(item?.authGated).toBe(false);
     expect(item?.path).toBe('/money');
     expect(item?.label).toBe('Money');
     expect(item?.menu).toBeNull();
-    expect(item?.isNew).toBe(true);
+    expect(item?.isNew).toBeUndefined();
   });
 
   it('keeps money search reachable after lobbying is released', () => {
@@ -981,7 +981,7 @@ describe('Mobile menu roadmap row', () => {
   // roadmap. With that menu gone from the bar the chip pointed at a group a
   // reader could no longer open, so it goes (#1698).
   it('shows four chips, News by name and Ask AI last', () => {
-    expect(mobileNavRoadmapLabels()).toEqual(['Candidates', 'Claimed Profiles', 'News', 'Ask AI']);
+    expect(mobileNavRoadmapLabels()).toEqual(['Candidates', 'Claimed profiles', 'News', 'Ask AI']);
   });
 
   it('offers no More Tracking chip', () => {

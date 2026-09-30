@@ -17,6 +17,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -616,6 +617,7 @@ function AdminGroup({
   const phone = variant === 'phone';
   const usersHover = useFineHover();
   const metricsHover = useFineHover();
+  const siteMetricsHover = useFineHover();
   if (access.state !== 'allowed') return null;
   return (
     <View style={phone ? styles.sheetAdminGroup : styles.menuAdminGroup}>
@@ -639,7 +641,29 @@ function AdminGroup({
         ]}
       >
         <View style={phone ? styles.sheetIconBox : styles.menuIconBox} />
-        <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Users</Text>
+        <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>
+          User Accounts
+        </Text>
+        <ChevronRightIcon />
+      </Pressable>
+      <Pressable
+        {...({ dataSet: menuRowDataSet } as object)}
+        {...linkProps(routePath.siteMetrics(), () => {
+          onNavigate();
+          navigation.navigate('SiteMetrics');
+        })}
+        onHoverIn={siteMetricsHover.onHoverIn}
+        onHoverOut={siteMetricsHover.onHoverOut}
+        style={({ pressed }) => [
+          phone ? styles.sheetTrackedRow : styles.menuTrackedRow,
+          phone ? styles.sheetIconRow : styles.menuIconRow,
+          styles.adminRow,
+          siteMetricsHover.hovered && styles.menuRowHover,
+          pressed && (phone ? styles.sheetButtonPressed : styles.menuItemPressed),
+        ]}
+      >
+        <View style={phone ? styles.sheetIconBox : styles.menuIconBox} />
+        <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Site Metrics</Text>
         <ChevronRightIcon />
       </Pressable>
       <Pressable
@@ -659,7 +683,7 @@ function AdminGroup({
         ]}
       >
         <View style={phone ? styles.sheetIconBox : styles.menuIconBox} />
-        <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Metrics</Text>
+        <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Operations</Text>
         <ChevronRightIcon />
       </Pressable>
     </View>
@@ -1051,7 +1075,7 @@ function AccountSurfaceContent({
 }
 
 /** Desktop top nav: avatar + first name + chevron, opening a right-aligned menu. */
-export function AccountNavButton() {
+export function AccountNavButton({ compact = false }: { compact?: boolean } = {}) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
@@ -1103,13 +1127,21 @@ export function AccountNavButton() {
           onPress={() => {
             if (signOutFlow.state !== 'busy') setOpen((value) => !value);
           }}
-          style={({ pressed }) => [styles.navPill, pressed && styles.navPillPressed]}
+          style={({ pressed }) => [
+            styles.navPill,
+            compact && styles.navPillCompact,
+            pressed && styles.navPillPressed,
+          ]}
         >
-          <Avatar label={name} size={30} hovered={avatarHover.hovered} />
-          <Text numberOfLines={1} style={styles.navPillName}>
-            {firstName}
-          </Text>
-          <ChevronIcon />
+          <Avatar label={name} size={compact ? 44 : 30} hovered={avatarHover.hovered} />
+          {compact ? null : (
+            <>
+              <Text numberOfLines={1} style={styles.navPillName}>
+                {firstName}
+              </Text>
+              <ChevronIcon />
+            </>
+          )}
         </Pressable>
         {open ? (
           <AccountSurfaceContent
@@ -1139,6 +1171,7 @@ export function AccountNavButton() {
 }
 
 function PhoneAccountControl({ trigger }: { trigger: 'avatar' | 'drawer' }) {
+  const { height } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
@@ -1217,7 +1250,7 @@ function PhoneAccountControl({ trigger }: { trigger: 'avatar' | 'drawer' }) {
           />
           <View
             {...(isWeb ? ({ role: 'dialog', 'aria-label': 'Account' } as object) : null)}
-            style={styles.sheet}
+            style={[styles.sheet, { maxHeight: Math.max(0, height - 40) }]}
             accessibilityViewIsModal
             accessibilityLabel="Account"
           >
@@ -1338,6 +1371,13 @@ const styles = StyleSheet.create({
     paddingLeft: 5,
     paddingRight: 12,
   },
+  navPillCompact: {
+    padding: 0,
+    borderWidth: 0,
+    minWidth: 44,
+    minHeight: 44,
+    backgroundColor: 'transparent',
+  },
   navPillPressed: { backgroundColor: t.colors.surfaces.s200 },
   navPillName: {
     fontFamily: t.typography.ui,
@@ -1350,7 +1390,7 @@ const styles = StyleSheet.create({
     top: '100%',
     right: 0,
     marginTop: 10,
-    width: 288,
+    width: 360,
     zIndex: 1,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
@@ -1457,7 +1497,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     fontFamily: t.typography.ui,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
@@ -1475,7 +1515,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     fontFamily: t.typography.ui,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
@@ -1591,7 +1631,6 @@ const styles = StyleSheet.create({
   drawerAccountButtonPressed: { backgroundColor: t.colors.surfaces.s300 },
   sheetScrim: { flex: 1, backgroundColor: 'rgba(10,14,12,0.5)', justifyContent: 'flex-end' },
   sheet: {
-    maxHeight: '100%',
     backgroundColor: t.colors.surfaces.base,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -1669,7 +1708,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     fontFamily: t.typography.ui,
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
@@ -1700,7 +1739,7 @@ const styles = StyleSheet.create({
   sheetButtonText: {
     minWidth: 0,
     fontFamily: t.typography.ui,
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },

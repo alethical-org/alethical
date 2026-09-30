@@ -172,18 +172,14 @@ function Logo({
   if (variant === 'menu') {
     return (
       <View accessibilityRole="image" accessibilityLabel="Alethical">
-        <LogoMark height={30} fill={fill} />
+        <LogoMark height={isMobile ? 26 : 30} fill={fill} />
       </View>
     );
   }
 
-  // Top bar: mark + wordmark, sized per context:
-  //  - phone (<768): scaled down so the full wordmark fits beside Sign in + menu.
-  //  - desktop (>=1100): a touch smaller than tablet, since here the wordmark sits
-  //    beside the 18px inline nav links and full-size reads oversized next to them.
-  //  - tablet (768-1099): full size (inline links are collapsed into the menu).
-  const markH = isMobile ? 22 : isDesktop ? 30 : 34;
-  const fontSize = isMobile ? 20 : isDesktop ? 26 : 30;
+  // Match the accepted shared header at each layout band.
+  const markH = isMobile ? 26 : isDesktop ? 40 : 34;
+  const fontSize = isMobile ? 19 : isDesktop ? 25 : 30;
   return (
     <View
       style={{ flexDirection: 'row', alignItems: 'center', gap: Math.round(markH * 0.4) }}
@@ -194,7 +190,7 @@ function Logo({
       <Text
         style={{
           fontFamily: t.typography.wordmark,
-          fontWeight: '500',
+          fontWeight: '600',
           fontSize,
           lineHeight: fontSize,
           letterSpacing: fontSize * 0.16,
@@ -246,30 +242,6 @@ function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean 
             />
           </>
         ) : null}
-        {itemId === 'search-campaign-money' ? (
-          // A dollar-marked ledger sheet: money as a record, not a coin.
-          <>
-            <Rect x={4.5} y={3.5} width={15} height={17} rx={2} stroke={c} strokeWidth={2} />
-            <Path
-              d="M14.4 8.6c-.5-.8-1.4-1.2-2.4-1.2-1.4 0-2.5.8-2.5 2s1 1.7 2.5 2c1.5.3 2.5.9 2.5 2.1s-1.1 2-2.5 2c-1 0-1.9-.5-2.4-1.2M12 6v1.4M12 15.5V17"
-              stroke={c}
-              strokeWidth={2}
-              strokeLinecap="round"
-            />
-          </>
-        ) : null}
-        {itemId === 'read' ? (
-          // A page of prose with bars on it: our own writing about the record,
-          // as opposed to the record itself (nav design, 20 Aug 2026).
-          <>
-            <Path
-              d="M6 3.5h12a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1Z"
-              stroke={c}
-              strokeWidth={2}
-            />
-            <Path d="M9 16v-3M12 16v-6M15 16v-4" stroke={c} strokeWidth={2} strokeLinecap="round" />
-          </>
-        ) : null}
         {itemId === 'search-find-my-legislator' ? (
           <>
             <Path
@@ -308,13 +280,6 @@ function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean 
               strokeLinecap="round"
             />
             <Path d="M18 13.9c2.4.5 4 2.7 4 5.6" stroke={c} strokeWidth={2} strokeLinecap="round" />
-          </>
-        ) : null}
-        {itemId === 'about-site-metrics' ? (
-          <>
-            <Path d="M7 18V14" stroke={c} strokeWidth={2} strokeLinecap="round" />
-            <Path d="M12 18V10.5" stroke={c} strokeWidth={2} strokeLinecap="round" />
-            <Path d="M17 18V7" stroke={c} strokeWidth={2} strokeLinecap="round" />
           </>
         ) : null}
         {itemId === 'about-contact' ? (
@@ -654,6 +619,7 @@ export function TopNav({
   const { openSignIn } = useSignInModal();
   const [openMenuState, setOpenMenuState] = useState<MenuKey | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const signInAfterDrawer = useRef(false);
   const openMenu = openMenuProp !== undefined ? openMenuProp : openMenuState;
   const setOpenMenu = (menu: MenuKey | null) => {
     setOpenMenuState(menu);
@@ -671,8 +637,19 @@ export function TopNav({
       if (node && target && node.contains(target)) return;
       setOpenMenu(null);
     };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      const node = navTriggerGroupRef.current as HTMLElement | null;
+      const trigger = node?.querySelector<HTMLElement>('[aria-expanded="true"]');
+      setOpenMenu(null);
+      trigger?.focus();
+    };
     document.addEventListener('pointerdown', handlePointerDown, true);
-    return () => document.removeEventListener('pointerdown', handlePointerDown, true);
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown, true);
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openMenu]);
   // Hover-to-open, alongside click: pointing at a trigger opens its panel, and
@@ -730,7 +707,7 @@ export function TopNav({
 
   return (
     <Container style={styles.navRow}>
-      <View style={styles.navBar}>
+      <View style={[styles.navBar, isDesktop && styles.navBarDesktop]}>
         {onHome ? (
           <Pressable
             accessibilityLabel="Alethical home"
@@ -768,14 +745,14 @@ export function TopNav({
               )}
             </View>
             {isSignedIn ? (
-              <AccountNavButton />
+              <AccountNavButton compact />
             ) : (
               <PrimaryButton label="Sign in" onPress={() => openSignIn({ intent: 'nav' })} />
             )}
           </View>
         ) : (
           <View style={styles.navMobileRight}>
-            {isSignedIn ? (
+            {isMobile ? null : isSignedIn ? (
               <AccountAvatarButton />
             ) : (
               <PrimaryButton label="Sign in" onPress={() => openSignIn({ intent: 'nav' })} />
@@ -806,6 +783,11 @@ export function TopNav({
         transparent
         animationType="fade"
         onRequestClose={() => setDrawerOpen(false)}
+        onDismiss={() => {
+          if (!signInAfterDrawer.current) return;
+          signInAfterDrawer.current = false;
+          openSignIn({ intent: 'nav' });
+        }}
       >
         <View style={styles.menuScrim}>
           {/* Tapping the dimmed area beside the sheet closes the drawer, matching
@@ -817,7 +799,7 @@ export function TopNav({
             onPress={() => setDrawerOpen(false)}
             style={StyleSheet.absoluteFill}
           />
-          <View style={styles.menuSheet}>
+          <View style={[styles.menuSheet, isMobile && styles.menuSheetPhone]}>
             <View style={styles.menuSheetHeader}>
               <Logo variant="menu" />
               <Pressable
@@ -888,8 +870,11 @@ export function TopNav({
                   label="Sign in"
                   size="lg"
                   onPress={() => {
+                    // Let the drawer restore focus to its opener before the
+                    // sign-in dialog remembers where to return on dismissal.
+                    signInAfterDrawer.current = isWeb;
                     setDrawerOpen(false);
-                    openSignIn({ intent: 'nav' });
+                    if (!isWeb) openSignIn({ intent: 'nav' });
                   }}
                 />
               )}
@@ -1191,8 +1176,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  navBarDesktop: { justifyContent: 'flex-start', columnGap: 56 },
   navLinks: { flexDirection: 'row', alignItems: 'center', gap: 30 },
-  navTriggerGroup: { flexDirection: 'row', alignItems: 'center', gap: 34 },
+  navTriggerGroup: { flexDirection: 'row', alignItems: 'center', gap: 32 },
   navMobileRight: { flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 'auto' },
   // v2 dropdown triggers + panels
   navTriggerWrap: { position: 'relative', zIndex: 60 },
@@ -1343,17 +1329,13 @@ const styles = StyleSheet.create({
   },
   menuSubRowText: {
     fontFamily: t.typography.title,
-    fontSize: 21,
+    fontSize: 25,
     fontWeight: t.fontWeights.semibold,
     letterSpacing: -0.2,
     color: t.colors.text.primary,
   },
-  // A bar item's own drawer row: taller than a group row, ruled top and bottom,
-  // and ending in an arrow, and the whole band between the 2 rules is the tap
-  // target, so nothing in it is dead. Its words are set exactly like a group
-  // row's (menuSubRowText): the rules, the height and the arrow are what say
-  // Read sits at the top level, not louder type (Eugene, 28 Aug 2026, replacing
-  // the 25px/800 this row shipped with).
+  // Direct destinations keep the same type as the grouped rows, with dividing
+  // lines and a taller target to show their place in the navigation.
   menuBarRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1393,8 +1375,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   menuSheet: {
-    width: '84%',
-    maxWidth: 420,
+    width: 366,
     height: '100%',
     backgroundColor: t.colors.surfaces.base,
     borderTopLeftRadius: 24,
@@ -1402,6 +1383,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 24,
     paddingBottom: 28,
+  },
+  menuSheetPhone: {
+    width: '100%',
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
+    paddingTop: 26,
   },
   menuSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   menuList: { flex: 1, marginTop: 40 },

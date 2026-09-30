@@ -15,25 +15,26 @@ Readers reach it through a private email link, not the account menu. See
 ## What is in the bar
 
 - **Money** is a plain link to `/money`, before Search. It uses the same direct-link
-  treatment as Blog, including the green NEW chip in the drawer while the section is new.
-- **Search ▾** opens a dropdown of 3 live rows, each with a one-line description: **Bills**
-  (`/bills`), **Legislators** (`/legislators`), and **Find My Legislator** (`/find-my-legislator`).
+  treatment as Blog. Neither direct destination carries a NEW label.
+- **Search ▾** opens a dropdown of 3 live rows, each with a one-line description: **Bills and votes**
+  (`/bills`), **Legislators** (`/legislators`), and **Find my legislators** (`/find-my-legislator`).
 - **Blog** is a plain link, not a dropdown. It opens the `/blog` page, which lists Alethical's
-  own research, short posts and guides, and it carries the green NEW chip while the section is new.
-- **About ▾** opens **About Us** (`/about`), **Site Metrics** (`/site-metrics`), and
-  **Contact Us** (`/about/contact`).
+  own research, short posts and guides.
+- **About ▾** opens **About us** (`/about`) and
+  **Contact us** (`/about/contact`).
 - **Sign in** is the one primary button when you are signed out. Pressing it opens the sign-in
   dialog over the page you are on (`docs/product-onboarding/sign-in-guide.md`); there is no
   sign-in page to route to.
-- **The account control replaces Sign in once you are in**: an avatar with your first name on a
-  desktop-width browser, an avatar that opens a sheet on a phone. It holds a **Tracked**
+- **The account control replaces Sign in once you are in**: an avatar on a
+  desktop-width browser. On phones the account entry in the drawer opens a sheet. It holds a **Tracked**
   row, with the combined count of bills and committees you follow, leading to `/tracked`,
   then **Add a password** or **Change password**, **Email preferences** leading to
   `/email-preferences`, and **Sign out**. Password actions appear when email/password
   sign-in is enabled; an account whose sign-in methods are not yet known says **Password**.
   Approved administrators see an **Admin** group between Email preferences and Sign out,
-  with **Users**, leading to `/admin/users`, followed by **Metrics**, leading to
-  `/admin/metrics`. The `/admin/metrics` page title remains **Admin metrics**.
+  with **User Accounts** (`/admin/users`), **Site Metrics** (`/admin/site-metrics`),
+  and **Operations** (`/admin/operations`), in that order. These navigation labels
+  do not authorize changes to report-page copy.
   Desktop and phone use this same order. The signed-in profile supplies
   the menu hint; older responses use a separate access check. Every private read
   still requires a fresh permission check.
@@ -45,7 +46,10 @@ Readers reach it through a private email link, not the account menu. See
 ## Inside the account menu
 
 The account menu uses matching outline pictures for Tracked, password, email, and sign out.
-Every action label has the same bold weight. Phone labels and touch targets are larger.
+Every action label has the same bold weight. The desktop popover is 360px wide with
+17px labels and at least 44px rows; phone labels are 19px with at least 56px rows.
+The Admin group has 1 divider above its label and no divider between its 3 links.
+Empty icon spaces keep its labels aligned with the ordinary actions. Phone labels and touch targets are larger.
 The count uses Libre Franklin with equal-width digits, and expands to fit the full number.
 It appears only after both the bill and committee lists have loaded and the total is positive.
 The password dialog keeps its own larger lock and success check mark.
@@ -71,7 +75,7 @@ shows when rows have scrolled. No empty error space is held at rest. Rows keep a
 of visible space; enlarged text can grow the menu rather than be clipped. If the screen cannot
 fit that larger menu, the menu itself scrolls. Changing screen size recalculates the available room.
 
-On phones, the bottom-anchored sheet grows upward for the message. On short screens, Close
+On phones, the bottom-anchored sheet has at most the screen height less 40px and grows upward for the message. On short screens, Close
 stays visible while the account actions scroll by the added height before the browser paints.
 The scroll area owns the 22px side padding so the sign-out outline is not cropped. Its button
 reserves space for the longest state label even when text wraps. Close uses the matching sign-in
@@ -100,7 +104,7 @@ committee tabs that show campaign records rather than the whole `/money` section
 ## The greyed "ON THE ROADMAP" group
 
 Under Search's live rows sits a muted group of pills that cannot be pressed: **Candidates ·
-Claimed Profiles · News · Ask AI**. They name work that is planned, not built, and a pill never
+Claimed profiles · News · Ask AI**. They name work that is planned, not built, and a pill never
 leads anywhere. Only Search carries this group. Every other planned page in the list stays
 declared but unshown, so a roadmap pill may only stand in for a menu a reader can open.
 
@@ -116,7 +120,12 @@ declared but unshown, so a roadmap pill may only stand in for a menu a reader ca
 
 ## On a phone
 
-Below 1100 pixels wide the dropdowns become a drawer opened from the bar. Search's and About's
+Below 1100 pixels wide the dropdowns become a drawer opened from the bar.
+Below 768px the drawer covers the whole screen and hides the underlying page and
+its logo. The drawer symbol is 26px, in the same top-left position as the page symbol.
+The phone bar has the wordmark and menu button; sign-in and account actions are
+reachable inside the drawer. From 768px to 1099px the drawer is a 366px panel on
+the right, with the underlying page dimmed. Both layouts scroll internally. Search's and About's
 rows sit under their group headings; Money and Blog each have a direct top-level row.
 Money comes before Search, and Blog follows Search. Both direct rows use the existing
 Blog row's taller touch target, dividing lines and right-pointing arrow. The roadmap pills appear below in a
@@ -134,6 +143,8 @@ A page IS its address, and old addresses keep working:
   shipped page (`.claude/rules/grounded-answers.md` rule 8).
 - `/tracked` is a real page: signed in, your tracked bills; signed out, a card inviting you to
   sign in, never a bounce to Home.
+- `/site-metrics` temporarily forwards (307) to `/admin/site-metrics`. Both addresses require administrator access.
+- `/admin/metrics` opens Site Metrics at `/admin/site-metrics`; Operations is at `/admin/operations`.
 - `/admin` opens `/admin/users`, the private account list for approved administrators.
 - An address that is not a page shows the missing-page screen
   (`docs/product-onboarding/sharing-guide.md`, "What search engines get").
@@ -142,3 +153,30 @@ A page IS its address, and old addresses keep working:
 
 The bar follows the site's visual rules in `docs/design/design-principles.md`; exact colours,
 sizes, and spacing live in code (`apps/frontend/src/theme/tokens.ts`), never in a document.
+
+## Navigation design accepted 30 September 2026
+
+Desktop links start 56px after the wordmark rather than at the right edge. The desktop
+wordmark uses a 40px symbol and 25px text. Money, Search, Blog and About keep their
+existing order. The account avatar opens the same popover; signed-out readers keep
+the existing green Sign in action. The signed-out homepage retains its separately
+approved outlined Sign in treatment. Every wordmark remains a link to Home.
+
+Search's Bills and votes row says “Read bill summaries, check their status, and see
+how legislators voted”. Find my legislators retains “Enter your street address to
+see who represents you”. About uses sentence case: About us and Contact us.
+
+The accepted future candidate row is Find my candidates, immediately before Find
+my legislators, with “Enter your street address to see who’s running in your area”
+and a green NEW label. It stays absent until /candidates and its source coverage
+are ready. Candidates stays on the roadmap meanwhile; remove that roadmap pill
+when the live candidate row launches, so it is never shown twice.
+
+The account menu retains Tracked and its combined bill-and-committee count.
+The handoff's Tracked Bills label and its claim that only bills can be followed
+were outdated. Password wording still follows the account's actual sign-in methods.
+Unknown administrator permission shows the ordinary menu until access is allowed.
+Existing hover, keyboard-only focus, dismissal and sign-out failure behavior remain.
+Escape closes a desktop navigation dropdown and returns focus to its trigger.
+Opening Sign in from the drawer waits for the drawer to close and restore its
+menu opener, so closing Sign in returns keyboard visitors to Open menu.

@@ -66,7 +66,6 @@ const MONEY_ITEM: IaItem = {
   menu: null,
   availability: 'mvp',
   authGated: false,
-  isNew: true,
 };
 
 /**
@@ -80,10 +79,7 @@ const MONEY_ITEM: IaItem = {
  * drawer gains no nested layer (Design's nav drawing, 27 Aug 2026;
  * docs/architecture/published-writing-decisions.md §2.1).
  *
- * The NEW chip rides on this item, which is where the collapsed row's chip
- * already was. The phone drawer draws chips on its rows, and the bar draws none,
- * so the chip shows on the phone and not on the computer, exactly as the drawing
- * has it.
+ * Money and Blog no longer carry NEW labels in either navigation layout.
  */
 const READ_ITEM: IaItem = {
   id: 'read',
@@ -92,7 +88,6 @@ const READ_ITEM: IaItem = {
   menu: null,
   availability: 'mvp',
   authGated: false,
-  isNew: true,
   note: 'Opens the /blog page. A piece of our own research is the one surface allowed to add figures up across members (.claude/rules/grounded-answers.md rule 13).',
 };
 
@@ -117,12 +112,12 @@ export const IA: IaItem[] = [
   // Search — public discovery ("the library").
   {
     id: 'search-bills',
-    label: 'Bills',
+    label: 'Bills and votes',
     path: '/bills',
     menu: 'search',
     availability: 'mvp',
     authGated: false,
-    description: 'Make sense of any bill, with the official text beside it',
+    description: 'Read bill summaries, check their status, and see how legislators voted',
     note: 'Carries the purple "Grounded Ask" pill in the nav dropdown.',
   },
   MONEY_ITEM,
@@ -140,7 +135,7 @@ export const IA: IaItem[] = [
   },
   {
     id: 'search-find-my-legislator',
-    label: 'Find My Legislator',
+    label: 'Find my legislators',
     path: '/find-my-legislator',
     menu: 'search',
     availability: 'mvp',
@@ -180,7 +175,7 @@ export const IA: IaItem[] = [
   },
   {
     id: 'search-claimed-profiles',
-    label: 'Claimed Profiles',
+    label: 'Claimed profiles',
     path: '/search/claimed-profiles',
     menu: 'search',
     availability: 'roadmap',
@@ -285,7 +280,7 @@ export const IA: IaItem[] = [
   // About — static content.
   {
     id: 'about-us',
-    label: 'About Us',
+    label: 'About us',
     path: '/about',
     menu: 'about',
     availability: 'mvp',
@@ -293,16 +288,8 @@ export const IA: IaItem[] = [
     note: 'Mission, team, story.',
   },
   {
-    id: 'about-site-metrics',
-    label: 'Site Metrics',
-    path: '/site-metrics',
-    menu: 'about',
-    availability: 'mvp',
-    authGated: false,
-  },
-  {
     id: 'about-contact',
-    label: 'Contact Us',
+    label: 'Contact us',
     path: '/about/contact',
     menu: 'about',
     availability: 'mvp',
