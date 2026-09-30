@@ -192,8 +192,8 @@ bill.
 
 ## Small screens
 
-Signed-out phone Home uses this order: introduction, money, bills, services when
-ready, In the News, and footer. In the News sits directly before the footer, with
+Signed-out phone Home uses this order: introduction, money, bills, services,
+In the News, and footer. In the News sits directly before the footer, with
 no general bill-activity or legislator-finder section after it. Its current pins
 remain HF 4138 and SF 856; each card uses that bill's real records.
 
@@ -210,8 +210,8 @@ desktop and tablet, not phone or signed-in Home.
 ## The first response
 
 The text served before the app starts uses the same signed-out introduction,
-money card, and bills card as the screen. It omits held services and candidate
-features and the removed body search/finder links. Shared navigation still offers
+money card, bills card, and campaign services card as the screen. It omits held
+candidate features and the removed body search/finder links. Shared navigation still offers
 Money, Search, Blog, and About, including legislator search and Find My Legislator.
 `homePageSnapshot()` and the generated initial `public/index.html` stay in sync.
 
