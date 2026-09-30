@@ -1225,7 +1225,9 @@ export function ReaderComments({ articleId }: { articleId: string }) {
                 />
               </div>
             ) : (
-              <p role="status">Loading comment settings…</p>
+              <p className="rc-settings-loading" role="status">
+                Loading comment settings…
+              </p>
             )
           ) : (
             <>

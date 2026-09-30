@@ -34,7 +34,9 @@ cannot push the focused field offscreen. The field receives focus without a
 second browser-driven scroll. Reply returns still open the intended reply box. In-place sign-in keeps the public
 comment rows visible during their refresh; account settings, drafts and pending
 writes are still cleared when the account changes. Returned fields keep 8px of
-scroll clearance so their focus outline fits on screen. A
+scroll clearance so their focus outline fits on screen. The account-settings
+loading message reserves the sign-in button's 48px height so a return at the
+bottom does not shorten the discussion and move it. A
 cancelled, unrelated or expired sign-in request does not conceal a normal visit;
 if the article program fails to arrive, the loading guard releases after 10 seconds.
 
