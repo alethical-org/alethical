@@ -6,20 +6,22 @@ Net: Readers register through the existing Alethical account flow, then explicit
 
 Approved by Eugene on 25 September 2026: build after review of Alethical UX (9).zip. The v9 drawings own visual direction; v6 build facts supply the full behavior, with the corrections below. The Design update prompt was supplied while implementation proceeded. [Issue 2375](https://github.com/alethical-org/alethical/issues/2375) tracks delivery.
 
+The 30 September `/money` invitation build approval adopts `Alethical UX (41).zip` for that invitation only. Its concise wording and responsive invitation states replace the older invitation design. Sign-in, confirmation, preferences and sending behavior remain unchanged.
+
 ## Reader flow
 
 The dark invitation is the first item in Research at `/money`, above the article. Existing search, 6 record cards and public information stay available. Existing responsive bands switch at 768 and 1100 pixels. Invitation-to-article gaps are 28px on tablet/desktop and 24px on phone.
 
 Print these words verbatim. Copy improvements can be proposed separately with a reason; do not substitute them silently.
 
-- Heading: **Unconcealed**
-- Descriptor: **Minnesota campaign money and lobbying research**
-- Body: **We’ll email you about new research. Every piece is free to read on Alethical.**
-- Invitation: **Get Unconcealed by email**
+- Invitation sentence: Get **Unconcealed** research reports by email as we discover them
+- Invitation button: **Sign up**
 - Signed-out helper: **Create an account or sign in**
 - Subscribed: **You’re subscribed to Unconcealed** followed by **Email preferences**, 20px below.
 - Sign-in helper from this invitation: **Sign in or create an account to get Unconcealed research by email**
 - Create helper from this invitation: **Create your free account, then subscribe to Unconcealed**
+
+The invitation sentence is white, regular weight 400 with only Unconcealed at 800, and has no ending period. Use 24px desktop, 23px tablet and 21px phone, line height 1.15 and letter spacing -0.02em. Keep the dark panel and existing 340px desktop / 290px tablet action columns; stack actions 16px below the text on phone. Signed-out readers see the helper; signed-in readers do not. Keep a 176px minimum panel height for both signed-in states. Also reserve the actual wrapping subscribed status and Email preferences height with hidden, noninteractive text while the saved choice loads; a fixed floor alone does not prevent a phone layout jump. Keep the phone Sign up button directly below the sentence, reserving space underneath. Errors can grow naturally without the hidden reservation. Subscribed status has a 26px check circle followed by the status text, centered above Email preferences with a 20px gap. Viewing never subscribes, and the invitation remains present when no research is published.
 
 The existing sign-in controls and heading opening focus remain. The green review highlight around helper text is not product styling. The return from Google is fixed to `/money`; no caller-supplied return URL. A browser-bound, server-held intent lasts 30 minutes and survives account creation. It only opens confirmation and cannot grant consent.
 

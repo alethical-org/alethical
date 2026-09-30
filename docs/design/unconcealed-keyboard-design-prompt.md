@@ -31,7 +31,7 @@ This changes the helper sentence, not its title or buttons.
 6. Show click-outline behavior consistently across the /money invitation and Email preferences button, subscription choices/actions/success buttons, /email-preferences choices/save/reload/retry, and /unsubscribe actions/retry.
 
 Other settled details to retain
-- /money invitation button: “Get Unconcealed by email”.
+- /money invitation button: “Sign up”.
 - /money signed-out helper: “Create an account or sign in”. Do not repeat “free” here.
 - Account-creation helper: “Create your free account, then subscribe to Unconcealed”.
 - Delivery uses the account email, shown read-only. Do not suggest choosing another delivery address.
