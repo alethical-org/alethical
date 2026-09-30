@@ -1127,8 +1127,8 @@ function NewsCardMobile({
 }) {
   const [hovered, hoverProps] = useHover();
   // Live data goes through the shared cleaner (grounded-answers rule 9).
-  // Signed-out news shows the complete summary; signed-in news keeps its
-  // existing 4-line visual limit without discarding later sentences.
+  // Both news variants keep the existing 4-line visual limit without
+  // discarding later sentences from the source text.
   const summary = plainBillSummary(bill.aiAnalysis?.summary);
   // The summary is public data. Only remove its ending period when it is one
   // standalone sentence; multi-sentence summaries retain normal punctuation.
@@ -1150,10 +1150,7 @@ function NewsCardMobile({
       </View>
       <Text style={[m.newsTitle, signedOut && m.publicNewsTitle]}>{billHeadline(bill)}</Text>
       {summary ? (
-        <Text
-          style={[m.newsSummary, signedOut && m.publicNewsSummary]}
-          numberOfLines={signedOut ? undefined : 4}
-        >
+        <Text style={[m.newsSummary, signedOut && m.publicNewsSummary]} numberOfLines={4}>
           {summaryCopy}
         </Text>
       ) : null}
