@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { historyEntryFromState, initializeWebHistory } from '../webHistory';
 
@@ -31,7 +31,13 @@ function runPageHistoryProgram() {
 
 beforeEach(() => {
   window.sessionStorage.clear();
-  window.history.replaceState(null, '');
+  window.history.replaceState(null, '', '/');
+  document.documentElement.removeAttribute('data-comment-return');
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+  document.documentElement.removeAttribute('data-comment-return');
 });
 
 describe('the history entry the page writes for itself', () => {
@@ -114,4 +120,57 @@ describe('the history entry the page writes for itself', () => {
       Object.defineProperty(window, 'sessionStorage', storage);
     }
   });
+});
+
+describe('comment return before the first article paint', () => {
+  const pending = (fields = {}) => {
+    window.history.replaceState(null, '', '/blog/research/lobbyist-giving');
+    window.sessionStorage.setItem(
+      'alethical.comments.signInTarget',
+      JSON.stringify({
+        articleId: 'short-lobbyist-giving-2015-2026',
+        target: null,
+        path: '/blog/research/lobbyist-giving',
+        createdAt: Date.now(),
+        ...fields,
+      }),
+    );
+    window.sessionStorage.setItem(
+      'alethical.pendingSignIn',
+      JSON.stringify({
+        intent: 'nav',
+        returnTo: '/blog/research/lobbyist-giving',
+      }),
+    );
+  };
+  it('withholds the article top only for an active matching comment return and fails open', () => {
+    vi.useFakeTimers();
+    pending();
+    runPageHistoryProgram();
+    expect(document.documentElement.hasAttribute('data-comment-return')).toBe(true);
+    vi.advanceTimersByTime(10000);
+    expect(document.documentElement.hasAttribute('data-comment-return')).toBe(false);
+  });
+  it.each([
+    { path: '/blog/research/another' },
+    { createdAt: Date.now() - 31 * 60 * 1000 },
+    { createdAt: Date.now() + 60000 },
+  ])('does not conceal an unrelated or stale visit: %j', (fields) => {
+    pending(fields);
+    runPageHistoryProgram();
+    expect(document.documentElement.hasAttribute('data-comment-return')).toBe(false);
+  });
+  it('does not conceal a reload after sign-in was cancelled', () => {
+    pending();
+    window.sessionStorage.removeItem('alethical.pendingSignIn');
+    runPageHistoryProgram();
+    expect(document.documentElement.hasAttribute('data-comment-return')).toBe(false);
+  });
+});
+
+it('still initializes history when a comment return record is malformed', () => {
+  window.sessionStorage.setItem('alethical.comments.signInTarget', '{broken');
+  runPageHistoryProgram();
+  expect(window.history.state.__alethical.entryId).toEqual(expect.any(String));
+  expect(document.documentElement.hasAttribute('data-comment-return')).toBe(false);
 });

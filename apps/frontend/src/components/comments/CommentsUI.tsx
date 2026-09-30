@@ -260,6 +260,7 @@ export function CommentDialog({
 }
 
 export const COMMENTS_CSS = `
+.rc-region :is(input,textarea,button,[tabindex]){scroll-margin-block:8px}
 .rc {font-family:'Libre Franklin',sans-serif;color:#11150f;font-size:16px;line-height:1.5;box-sizing:border-box;min-width:0}
 .rc *, .rc *::before, .rc *::after {box-sizing:border-box}
 .rc h1,.rc h2,.rc h3,.rc p,.rc ol {margin:0}

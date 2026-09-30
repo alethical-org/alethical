@@ -26,7 +26,17 @@ The server accepts only these identities and owns article links in email.
 
 Anyone can read. A confirmed signed-in account is required to post or reply.
 `Sign in to comment` and `Sign in to reply` use the existing sign-in flow and return
-to the same article and intended writing box.
+to the same article and intended writing box. A Google return shows `Loading
+comments…` while the article program loads, then positions Reader comments before
+showing the article. Account settings and existing comments load together; the
+return reveals the intended writing field after both settle, so late comments
+cannot push the focused field offscreen. The field receives focus without a
+second browser-driven scroll. Reply returns still open the intended reply box. In-place sign-in keeps the public
+comment rows visible during their refresh; account settings, drafts and pending
+writes are still cleared when the account changes. Returned fields keep 8px of
+scroll clearance so their focus outline fits on screen. A
+cancelled, unrelated or expired sign-in request does not conceal a normal visit;
+if the article program fails to arrive, the loading guard releases after 10 seconds.
 
 Each account chooses 1 public name in 1 field. It starts empty and never uses the
 account email or its automatically generated display name. Any nonblank name is
