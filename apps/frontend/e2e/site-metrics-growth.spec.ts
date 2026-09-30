@@ -746,8 +746,11 @@ for (const viewport of [
         page.getByText('Restricted access. This account cannot view Site Metrics.'),
       ).toBeVisible();
       await expect(page.getByTestId('site-metrics-destinations')).toHaveCount(0);
+      if (viewport.name === 'phone') {
+        await page.getByRole('button', { name: 'Open menu' }).click();
+      }
       await expect(
-        page.getByRole('button', { name: /Account menu|Account panel for/ }),
+        page.getByRole('button', { name: /Account menu|Account panel for|Account for/ }),
       ).toBeVisible();
       await expect(page.getByText(/^OPEN (VERCEL|GOOGLE|BING|CHECKLY|CLOUDFLARE)/)).toHaveCount(0);
       const hrefs = await page
