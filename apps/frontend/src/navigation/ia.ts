@@ -138,7 +138,7 @@ export const IA: IaItem[] = [
     menu: 'search',
     availability: 'mvp',
     authGated: false,
-    description: 'Enter your street address to see who’s running in your area',
+    description: 'Find official ballot information for your area',
     isNew: true,
   },
   {

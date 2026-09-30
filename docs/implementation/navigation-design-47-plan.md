@@ -21,8 +21,13 @@ The bundle is retained outside the repository as the temporary visual reference.
 
 1. Complete: compared every pictured navigation/account state and implemented the settled differences.
 2. Complete: types, formatting and focused checks pass. Browser comparisons cover desktop 1100+, tablet 820, phone 390/375 and short phone 320; hover/focus, scroll, sign-in dismissal, account permissions/count/password states, and stable sign-out failure/retry/success. The full frontend run exposed 3 old candidate-availability expectations; all 127 route tests pass after updating those expectations. The required upload check will rerun the complete suite.
-3. In progress: independent browser acceptance reports matching desktop/dropdown/drawer geometry and working navigation; final review pending.
-4. Pending: pull request, required current-head checks, candidate public-route merge, merge queue, deployment, live reader checks and release report.
+3. Complete: independent browser acceptance reports matching desktop/dropdown/drawer geometry and working navigation, including 320px short screens. No material defect remains.
+4. In progress: mandatory upload checks passed; pull request, required current-head checks, candidate public-route merge, merge queue, deployment, live reader checks and release report remain.
+
+Public candidate release correction: the temporary destination supplies official ballot
+information and no address form. Its Search description therefore says “Find official
+ballot information for your area”. The candidate owner accepted this correction on
+30 September; address-entry wording remains contingent on working source-backed lookup.
 
 Do not call the work finished before step 4. Preserve the candidate-route release dependency and real-data/claim holds through release.
 

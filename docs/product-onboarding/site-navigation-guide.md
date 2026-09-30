@@ -177,12 +177,14 @@ how legislators voted”. Find my legislators retains “Enter your street addre
 see who represents you”. About uses sentence case: About us, Campaign services and Contact us.
 Opening Search or About turns only its upward arrow green; the word keeps its resting colour.
 
-Find my candidates sits immediately before Find my legislators, with “Enter your
-street address to see who’s running in your area” on desktop and a green NEW label
+Find my candidates sits immediately before Find my legislators, with “Find official
+ballot information for your area” on desktop and a green NEW label
 on both surfaces. The candidate destination is public by Eugene's 30 September
 correction. Until source-backed lookup is ready, /candidates clearly explains that
 real records are unavailable. Example records remain private. Candidates no longer
-appears in the roadmap group; candidate ownership claims remain held.
+appears in the roadmap group; candidate ownership claims remain held. The supporting
+line must describe the public destination's actual action; address-entry wording
+returns only when the address form and source-backed lookup ship.
 
 The account menu retains Tracked and its combined bill-and-committee count.
 The handoff's Tracked Bills label and its claim that only bills can be followed
