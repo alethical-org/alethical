@@ -49,8 +49,9 @@ Readers reach it through a private email link, not the account menu. See
 ## Inside the account menu
 
 The account menu uses matching outline pictures for Tracked, password, email, and sign out.
-Every action label has the same bold weight and size within its layout band. The desktop popover has room for
-longer labels; phone labels and touch targets are larger.
+Every action label has the same bold weight and size within its layout band. Tablet
+keeps its existing bottom sheet but uses the desktop action text size; phone action
+text is larger. The desktop popover has room for longer labels.
 The Admin group has 1 divider above its label and no divider between its 3 links.
 Empty icon spaces keep its labels aligned with the ordinary actions.
 The count uses Libre Franklin with equal-width digits, and expands to fit the full number.
@@ -71,14 +72,14 @@ The message remains visible while retrying. Each failed attempt is announced aga
 moving keyboard focus or briefly hiding the message. Closing and reopening clears the old
 failure. A successful sign-out removes the signed-in controls.
 
-On desktop and tablet, the menu measures its actual resting contents, including loaded counts
+On desktop, the menu measures its actual resting contents, including loaded counts
 and password labels. The footer containing Sign out stays in place when an error appears;
 the rows above it give up the needed room and scroll to their end. A small shade at the top
 shows when rows have scrolled. No empty error space is held at rest. Rows keep at least 44px
 of visible space; enlarged text can grow the menu rather than be clipped. If the screen cannot
 fit that larger menu, the menu itself scrolls. Changing screen size recalculates the available room.
 
-On phones, the bottom-anchored sheet grows upward for the message within the available screen. On short screens, Close
+On phones and tablets, the bottom-anchored sheet grows upward for the message within the available screen. On short screens, Close
 stays visible while the account actions scroll by the added height before the browser paints.
 The scroll area owns side padding so the sign-out outline is not cropped. Its button
 reserves space for the longest state label even when text wraps. Close uses the matching sign-in
