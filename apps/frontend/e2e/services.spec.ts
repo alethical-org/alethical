@@ -16,6 +16,24 @@ for (const width of [320, 375, 768, 924, 1100, 1280]) {
     await expect(page).toHaveTitle('Political intelligence and campaign services | Alethical');
     await expect(page.getByText('PRIVATE DESIGN PREVIEW')).toHaveCount(0);
     await expect(page.getByText('IN DEVELOPMENT', { exact: true })).toBeVisible();
+    await expect(page.getByRole('banner')).toHaveCount(1);
+    expect((await page.getByRole('banner').boundingBox())!.height).toBeLessThanOrEqual(
+      width < 768 ? 110 : 77,
+    );
+    await expect(page.getByRole('link', { name: 'Alethical home', exact: true })).toBeVisible();
+    const header = page.getByRole('banner');
+    const logo = header.getByRole('link', { name: 'Alethical home', exact: true });
+    expect((await logo.boundingBox())!.width).toBe(width < 360 ? 124 : width < 768 ? 140 : 183);
+    if (width < 768) {
+      const sections = page.getByRole('navigation', { name: 'Services sections' });
+      await expect(sections).toHaveCSS('gap', '24px');
+      await expect(sections).toHaveCSS('border-top-width', '1px');
+      await expect(header.getByRole('button', { name: 'Contact Us', exact: true })).toHaveCSS(
+        'padding-left',
+        width < 360 ? '14px' : '18px',
+      );
+    }
+    await page.screenshot({ path: test.info().outputPath(`services-header-${width}.png`) });
     const delivery = page.getByRole('heading', { name: 'Delivery and pricing', exact: true });
     await delivery.scrollIntoViewIfNeeded();
     const layout = await delivery.evaluate((element) => {
@@ -153,38 +171,77 @@ for (const width of [375, 1280]) {
 }
 
 for (const width of [375, 1280]) {
-  test(`About Services works above the presentation at ${width}px`, async ({ page }) => {
+  test(`shared navigation enters Services and its logo returns home at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto('/');
+    if (width < 1100) await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+    else await page.getByRole('button', { name: 'About', exact: true }).click();
+    const services = page
+      .locator('a[href="/services"]')
+      .filter({ hasText: /^(Campaign services|Services)$/ });
+    await services.click();
+    await expect(page).toHaveURL(/\/services$/);
+    await expect(page.getByRole('banner')).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Open menu', exact: true })).toHaveCount(0);
+    const home = page.getByRole('link', { name: 'Alethical home', exact: true });
+    await expect(home).toHaveAttribute('href', '/');
+    await home.click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(
+      page.getByRole('button', { name: width < 1100 ? 'Open menu' : 'Sign in', exact: true }),
+    ).toBeVisible();
+  });
+}
+
+for (const width of [320, 768, 1100]) {
+  test(`standard footer fits and its links work at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
     await page.goto('/services');
-    if (width < 1100) await page.getByRole('button', { name: 'Open menu', exact: true }).click();
-    else await page.getByRole('button', { name: 'About', exact: true }).click();
-    const services =
-      width < 1100
-        ? page.getByRole('dialog').getByRole('link', { name: 'Services', exact: true })
-        : page
-            .getByRole('link', { name: 'Services', exact: true })
-            .and(page.locator('a[href="/services"]'));
-    await expect(services).toHaveAttribute('href', '/services');
-    await expect(services).toHaveAttribute('aria-current', 'page');
-    await services.scrollIntoViewIfNeeded();
-    const hit = await services.evaluate((element) => {
-      const rect = element.getBoundingClientRect();
-      return element.contains(
-        document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2),
+    const footer = page.getByRole('contentinfo');
+    await footer.scrollIntoViewIfNeeded();
+    await expect(footer).toContainText('We hold these truths to be self-evident.');
+    for (const [label, href] of [
+      ['Contact Us', '/about/contact'],
+      ['Privacy Policy', '/privacy'],
+      ['Terms of Use', '/terms'],
+    ]) {
+      await expect(footer.getByRole('link', { name: label, exact: true })).toHaveAttribute(
+        'href',
+        href,
       );
+    }
+    await expect(
+      footer.locator('a[href="https://www.instagram.com/alethicaltruth"]'),
+    ).toBeVisible();
+    await expect(footer.locator('a[href="https://www.tiktok.com/@alethicaltruth"]')).toBeVisible();
+    await expect(footer.locator('a[target="_blank"]')).toHaveCount(6);
+    const privacy = footer.getByRole('link', { name: 'Privacy Policy', exact: true });
+    await privacy.hover();
+    await expect(privacy).toHaveCSS('text-decoration-line', 'underline');
+    const positions = await footer.evaluate((element) => {
+      const brand = [...element.querySelectorAll('div')].find((node) =>
+        [...node.childNodes].some(
+          (child) =>
+            child.nodeType === Node.TEXT_NODE &&
+            child.textContent?.startsWith('We hold these truths'),
+        ),
+      )!;
+      const social = element.querySelector('a[target="_blank"]')!;
+      return {
+        brand: brand.getBoundingClientRect().toJSON(),
+        social: social.getBoundingClientRect().toJSON(),
+        overflow: document.documentElement.scrollWidth > innerWidth,
+      };
     });
-    expect(hit).toBe(true);
-    await services.hover();
-    await services.click();
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-      'Political intelligence. Practical campaign support.',
-    );
-    await expect(services).toHaveCount(0);
-    if (width < 1100) await page.getByRole('button', { name: 'Open menu', exact: true }).click();
-    else await page.getByRole('button', { name: 'About', exact: true }).click();
-    await page.getByRole('link', { name: 'About us', exact: true }).click();
-    await expect(page).toHaveURL(/\/about$/);
-    await page.goBack();
-    await expect(page).toHaveURL(/\/services$/);
+    expect(positions.overflow).toBe(false);
+    if (width < 1100) expect(positions.social.y).toBeGreaterThan(positions.brand.y);
+    else expect(positions.social.x).toBeGreaterThan(positions.brand.x + positions.brand.width);
+    await page.screenshot({ path: test.info().outputPath(`services-footer-${width}.png`) });
+    await footer.getByRole('link', { name: 'Contact Us', exact: true }).click();
+    await expect(page).toHaveURL(/\/about\/contact$/);
+    await expect(page.getByRole('heading', { name: 'Contact us', exact: true })).toBeVisible();
   });
 }

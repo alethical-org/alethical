@@ -6,20 +6,27 @@
 campaigns. It requires no account. The same address carries readable service text
 before the interactive app loads, page-title and description information for search,
 and a sitemap entry. It contains no private client records or purchasing controls.
-The first response retains the approved dark content and light shared header,
+The first response retains the approved dark content and dedicated dark header,
 so starting the interactive app does not replace a white services presentation.
 
 ## Ways in
 
-- Choose About, then Services in the shared website navigation. Services sits after
+- Choose About, then Campaign services in the shared website navigation. Services sits after
   About us and before Contact us.
 - Choose Explore our services in the signed-out homepage's Campaign services card.
 - Open `/services` directly.
 
-The shared website navigation remains available above the black presentation.
-Local Services, Partners and Early work links scroll to those sections. Contact Us
-opens the contact panel. The production presentation omits the design's private
-preview label and duplicate website wordmark.
+`/services` has 1 dedicated dark header. Its supplied gradient wordmark links to `/`.
+Services, Partners and Early work scroll to those sections; Contact Us opens the
+campaign contact panel. On phones, the wordmark and Contact Us occupy the first row
+and the section links occupy a second row. The white shared navigation stays on
+other addresses. The production presentation omits the private-preview label.
+
+The standard dark Footer follows Delivery and pricing. It keeps the shared brand
+message, social accounts, Contact Us (`/about/contact`), Privacy Policy (`/privacy`)
+and Terms of Use (`/terms`). Its content aligns with the presentation's 1240px column.
+At 768–1099px the footer's brand message and links stack; at 1100px they share a row.
+The header contact panel and footer general-contact destination remain distinct.
 
 ## The presentation
 
@@ -81,6 +88,10 @@ prices, investor figures, funding guarantees or claims that money proves motive.
 Engagement details, partner arrangements and testimonial permissions remain in
 [the internal campaign services plan](../plans/campaign-services-presentation.md).
 
-Accepted design: `Alethical UX (44).zip`, completed September 30, 2026 at 16:01,
-SHA256 `8824ca383409734d2112e7fcfef68cb1dd64ccc269ba35771cc3c9a74c23ce8e`.
+Accepted header/footer update: `Alethical UX (48).zip`, downloaded September 30,
+2026 at 18:24 Eastern; SHA256
+`5a2cf8fe48966b54e502a4b7f198219b693e97e59f1842c3cd5bd7ab56f434ee`.
+Its main content matches the previously accepted `Alethical UX (44).zip`.
+The bundle's old private-access notes and prototype contact/social addresses do
+not override public access or the site's existing working destinations.
 The explicit public build instruction supersedes its older private-access notes.

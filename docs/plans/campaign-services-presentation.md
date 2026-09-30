@@ -2,7 +2,23 @@
 
 Status: Implementation authorized on 2026-09-30 by “bd services page which services in the nav will go to, see the task building nav & account menu”. `/services` is public. The accepted September 30 download restores the supported candidate names and coalition link. The older private access plan and name-removal instruction are superseded.
 
-## Delivery checkpoint
+## Header and footer update, September 30
+
+Authorized by “bd if it matches your rec?” after the recommendation of 1 dedicated
+dark header and the standard dark footer. `Alethical UX (48).zip` matches that
+recommendation, with no main-content changes. Downloaded at 18:24 Eastern; SHA256
+`5a2cf8fe48966b54e502a4b7f198219b693e97e59f1842c3cd5bd7ab56f434ee`.
+
+- Branch: `codex/services-header-footer`; [issue 2447](https://github.com/alethical-org/alethical/issues/2447).
+- [x] Compare the accepted bundle and independent review against the approved scope.
+- [x] Replace the shared header only at `/services`; keep real home and section links.
+- [x] Reuse Footer with scoped column alignment and tablet stacking.
+- [ ] Pass first-response checks, responsive browser checks and independent acceptance.
+- [ ] Merge, deploy and inspect the live result.
+- Preserve the established contact and social destinations; the bundle's private
+  access notes and prototype link targets are superseded.
+
+## Original delivery checkpoint
 
 - Branch: `codex/public-services`, in the services task's isolated worktree.
 - Tracking: [issue 2432](https://github.com/alethical-org/alethical/issues/2432).
@@ -13,7 +29,7 @@ Status: Implementation authorized on 2026-09-30 by “bd services page which ser
 - [x] Accept the independent reader review and Safari checks; the reader review passed at 1280, 390 and 320 widths.
 - [x] Rebase after the combined navigation release, [pull request 2431](https://github.com/alethical-org/alethical/pull/2431), then add Services after About us and enable the homepage services card. Other navigation and homepage work remain intact.
 - Current-head release checks and public browser evidence are recorded in [issue 2432](https://github.com/alethical-org/alethical/issues/2432) after deployment.
-- The public build omits the private-preview banner. Shared navigation replaces the prototype's duplicate wordmark; the local section links and Contact Us remain. No sign-in restriction, purchasing, customer profiles or outbound email sending is implemented.
+- The public build omits the private-preview banner. The original release used shared navigation in place of the prototype's wordmark; the local section links and Contact Us remain. No sign-in restriction, purchasing, customer profiles or outbound email sending is implemented.
 
 
 ## Current design review

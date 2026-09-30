@@ -23,6 +23,7 @@ export function servicesPageSnapshot(): PageSnapshot {
   const candidateNames = `${SERVICES_CANDIDATE_NAMES.slice(0, -1).join(', ')}, and ${SERVICES_CANDIDATE_NAMES.at(-1)}`;
   return {
     appearance: 'dark',
+    navigation: 'services',
     heading: SERVICES_HEADLINE,
     subheading: SERVICES_SUBTITLE,
     bodyHeading: '',
@@ -37,7 +38,8 @@ export function servicesPageSnapshot(): PageSnapshot {
           { kind: 'bullets' as const, items: [...audience.examples] },
         ],
       })),
-      ...SERVICES_GROUPS.map((group) => ({
+      ...SERVICES_GROUPS.map((group, index) => ({
+        id: index === 0 ? 'services-offering' : undefined,
         heading: group.title,
         blocks: [
           { kind: 'prose' as const, lines: [group.line] },
@@ -50,6 +52,7 @@ export function servicesPageSnapshot(): PageSnapshot {
         items: SERVICES_TOOLS.map((tool) => ({ label: tool.title, detail: tool.text })),
       },
       {
+        id: 'partners',
         heading: 'Specialist support, connected to your campaign.',
         body: [
           'Explore a broader range of campaign services through Alethical’s partner marketplace.',
@@ -61,6 +64,7 @@ export function servicesPageSnapshot(): PageSnapshot {
         bodyIsList: true,
       })),
       {
+        id: 'early-work',
         heading: SERVICES_EARLY_HEADING,
         blocks: [
           { kind: 'prose', lines: [SERVICES_EARLY_INTRO] },

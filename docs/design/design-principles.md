@@ -74,8 +74,9 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   decoration. A red ramp is reserved for genuine danger/veto status. Green fills carry **dark ink
   text, never white** (a deliberate contrast choice — see §3).
 - **Campaign services presentation.** `/services` uses the approved black background,
-  light text and green accents inside its customer presentation. Its shared website
-  header retains the normal light treatment. This is a scoped exception, described in
+  light text and green accents inside its customer presentation. It has 1 dedicated
+  dark header with a home-linked wordmark, section links and Contact Us, followed
+  by the existing dark footer. Other routes retain their shared navigation. This is a scoped exception, described in
   [services-guide.md](../product-onboarding/services-guide.md), not a restyle of record pages.
 - **Green roles on light surfaces.** UI-sized green text, including links such as
   `revisor.mn.gov →`, uses `text.greenOnLight` (`#0f7a45`). SVG strokes/fills use

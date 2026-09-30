@@ -31,14 +31,13 @@ import {
   SERVICES_TOOL_INTRO,
   SERVICES_TOOLS,
 } from '../../lib/services';
-import type { IaItem, MenuKey } from '../../navigation/ia';
-import { externalLinkProps } from '../../navigation/links';
-import { navigateTopNavItem } from '../../navigation/topNavRoutes';
+import { externalLinkProps, linkProps } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
-import { TopNav } from '../../theme/primitives';
+import { Footer } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
 
 const web = Platform.OS === 'web';
+const wordmark = require('../../../public/services-wordmark.png');
 const mark = require('../../../assets/services/alethical-mark.webp');
 const coalitionLogo = require('../../../assets/services/minnesota-forward-together.webp');
 const clamp = (min: number, value: number, max: number) => Math.max(min, Math.min(value, max));
@@ -90,11 +89,13 @@ function GreenButton({
   onPress,
   href,
   draft = false,
+  compact = false,
 }: {
   children: string;
   onPress?: () => void;
   href?: string;
   draft?: boolean;
+  compact?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
   return (
@@ -104,6 +105,7 @@ function GreenButton({
       onHoverOut={() => setHovered(false)}
       style={({ pressed }) => [
         styles.button,
+        compact && { paddingHorizontal: 14 },
         draft && styles.draftButton,
         hovered && styles.buttonHover,
         pressed && styles.buttonPressed,
@@ -229,7 +231,6 @@ function ContactPanel({ close, mobile }: { close: () => void; mobile: boolean })
 
 export function ServicesScreen({ navigation }: RootScreenProps<'Services'>) {
   const { width, isMobile, isDesktop } = useResponsive();
-  const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [audience, setAudience] = useState(0);
   const [hoveredAudience, setHoveredAudience] = useState<number | null>(null);
   const [dialog, setDialog] = useState(false);
@@ -274,43 +275,65 @@ export function ServicesScreen({ navigation }: RootScreenProps<'Services'>) {
     if (!web) return;
     const style = document.createElement('style');
     style.textContent =
-      '#services-page :focus-visible,#services-contact-panel :focus-visible{outline:2px solid #7C5CFF;outline-offset:2px} #services-page :focus:not(:focus-visible),#services-contact-panel :focus:not(:focus-visible){outline:none} #services-page ::selection{background:#35C46B;color:#06231a}';
+      '#services-page :focus-visible,#services-contact-panel :focus-visible{outline:2px solid #7C5CFF;outline-offset:2px} #services-page :focus:not(:focus-visible),#services-contact-panel :focus:not(:focus-visible){outline:none} #services-page [role=contentinfo] a:hover{ text-decoration:underline;text-decoration-color:#fff;text-underline-offset:3px } #services-page ::selection{background:#35C46B;color:#06231a}';
     document.head.appendChild(style);
     return () => style.remove();
   }, []);
-  const handleNavigate = (item: IaItem) => {
-    if (navigateTopNavItem(navigation, item)) setOpenMenu(null);
-  };
+  const wordmarkWidth = isMobile ? (width < 360 ? 124 : 140) : 183;
+  const homeLogo = (
+    <Pressable
+      {...linkProps('/', () => navigation.navigate('Tabs', { screen: 'Home' }))}
+      accessibilityLabel="Alethical home"
+      style={({ pressed }) => ({
+        minHeight: 44,
+        justifyContent: 'center',
+        opacity: pressed ? 0.72 : 1,
+      })}
+    >
+      <Image
+        source={wordmark}
+        aria-hidden
+        style={{ width: wordmarkWidth, height: (wordmarkWidth * 784) / 4482 }}
+      />
+    </Pressable>
+  );
   return (
     <View style={styles.root}>
-      <View style={{ backgroundColor: t.colors.surfaces.s200, zIndex: 60 }}>
-        <TopNav
-          openMenu={openMenu}
-          onOpenMenuChange={setOpenMenu}
-          onNavigate={handleNavigate}
-          onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
-        />
-      </View>
       <ScrollView nativeID="services-page" style={styles.root} stickyHeaderIndices={[0]}>
-        <View style={styles.sectionNav}>
+        <View style={styles.sectionNav} {...webProps({ role: 'banner' })}>
           <View
             style={[
               styles.sectionNavInner,
-              { paddingHorizontal: horizontal, gap: isMobile ? 0 : 30 },
+              { paddingHorizontal: horizontal, gap: isMobile ? 0 : 36 },
               isMobile && { flexDirection: 'column', alignItems: 'stretch', paddingVertical: 0 },
             ]}
           >
             {isMobile && (
-              <View style={{ minHeight: 64, alignItems: 'flex-end', justifyContent: 'center' }}>
-                <GreenButton onPress={() => setDialog(true)}>Contact Us</GreenButton>
+              <View
+                style={{
+                  minHeight: 64,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 16,
+                }}
+              >
+                {homeLogo}
+                <GreenButton compact={width < 360} onPress={() => setDialog(true)}>
+                  Contact Us
+                </GreenButton>
               </View>
             )}
+            {!isMobile && homeLogo}
             <View
               style={{
                 flexDirection: 'row',
-                gap: isMobile ? 16 : 30,
+                gap: isMobile ? 24 : 30,
+                borderTopWidth: isMobile ? 1 : 0,
+                borderTopColor: '#1c1c1c',
                 flexWrap: 'wrap',
                 flex: isMobile ? undefined : 1,
+                justifyContent: isMobile ? 'flex-start' : 'flex-end',
               }}
               {...webProps({ role: 'navigation', 'aria-label': 'Services sections' })}
             >
@@ -738,6 +761,9 @@ export function ServicesScreen({ navigation }: RootScreenProps<'Services'>) {
               )}
             </View>
           </View>
+        </View>
+        <View {...webProps({ role: 'contentinfo' })}>
+          <Footer services />
         </View>
       </ScrollView>
       {dialog && <ContactPanel close={closeDialog} mobile={isMobile} />}
