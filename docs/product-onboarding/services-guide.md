@@ -21,6 +21,9 @@ Services, Partners and Early work scroll to those sections; Contact Us opens the
 campaign contact panel. On phones, the wordmark and Contact Us occupy the first row
 and the section links occupy a second row. The white shared navigation stays on
 other addresses. The production presentation omits the private-preview label.
+Section links keep working after returning home and opening `/services` again,
+including when the browser changes between desktop and phone widths. Each link
+scrolls the current visit rather than a hidden earlier visit kept in browser navigation.
 
 The standard dark Footer follows Delivery and pricing. It keeps the shared brand
 message, social accounts, Contact Us (`/about/contact`), Privacy Policy (`/privacy`)

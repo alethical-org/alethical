@@ -238,6 +238,7 @@ export function ServicesScreen({ navigation }: RootScreenProps<'Services'>) {
   const [coalitionHovered, setCoalitionHovered] = useState(false);
   const [logoHovered, setLogoHovered] = useState(false);
   const [hoveredSection, setHoveredSection] = useState<string | null>(null);
+  const sections = useRef<Record<string, View | null>>({});
   const selectedAudience = SERVICES_AUDIENCES[audience];
   const horizontal = clamp(16, width * 0.04, 48);
   const inner = Math.min(width, 1240) - horizontal * 2;
@@ -266,7 +267,7 @@ export function ServicesScreen({ navigation }: RootScreenProps<'Services'>) {
   };
   const jump = (id: string) => {
     if (web)
-      document.getElementById(id)?.scrollIntoView({
+      (sections.current[id] as unknown as HTMLElement | null)?.scrollIntoView({
         behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
         block: 'start',
       });
@@ -512,6 +513,9 @@ export function ServicesScreen({ navigation }: RootScreenProps<'Services'>) {
           </View>
           <View
             nativeID="services-offering"
+            ref={(node) => {
+              sections.current['services-offering'] = node;
+            }}
             style={[styles.section, webStyle({ scrollMarginTop: isMobile ? 124 : 92 })]}
           >
             <View style={[container, split]}>
@@ -612,6 +616,9 @@ export function ServicesScreen({ navigation }: RootScreenProps<'Services'>) {
           </View>
           <View
             nativeID="partners"
+            ref={(node) => {
+              sections.current.partners = node;
+            }}
             style={[styles.section, webStyle({ scrollMarginTop: isMobile ? 124 : 92 })]}
           >
             <View style={[container, split]}>
@@ -641,6 +648,9 @@ export function ServicesScreen({ navigation }: RootScreenProps<'Services'>) {
           </View>
           <View
             nativeID="early-work"
+            ref={(node) => {
+              sections.current['early-work'] = node;
+            }}
             style={[styles.section, webStyle({ scrollMarginTop: isMobile ? 124 : 92 })]}
           >
             <View style={[container, split]}>
