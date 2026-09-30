@@ -11,6 +11,7 @@ const state = vi.hoisted(() => {
     bills: [] as object[] | undefined,
     committees: [] as object[] | undefined,
     admin: 'pending',
+    width: 375,
     navigate: vi.fn(),
   };
 });
@@ -41,10 +42,18 @@ vi.mock('../../../hooks/useAppQueries', () => ({
 vi.mock('../../../hooks/useAdminAccess', () => ({
   useAdminAccess: () => ({ state: state.admin }),
 }));
+vi.mock('../../../hooks/useResponsive', () => ({
+  useResponsive: () => ({
+    width: state.width,
+    isMobile: state.width < 768,
+    isTablet: state.width >= 768 && state.width < 1100,
+    isDesktop: state.width >= 1100,
+  }),
+}));
 vi.mock('../../../hooks/useReducedMotion', () => ({ useReducedMotion: () => true }));
 vi.mock('../SignInContainer', () => ({ SignInContainer: () => null }));
 
-import { AccountDrawerRow, AccountNavButton } from '../AccountControl';
+import { AccountAvatarButton, AccountDrawerRow, AccountNavButton } from '../AccountControl';
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT =
   true;
@@ -57,6 +66,7 @@ beforeEach(() => {
   state.bills = [];
   state.committees = [];
   state.admin = 'pending';
+  state.width = 375;
   state.navigate.mockReset();
   mount = document.createElement('div');
   document.body.appendChild(mount);
@@ -82,15 +92,43 @@ function row(label: string) {
 }
 
 describe.each([
-  ['desktop', <AccountNavButton compact />, 'Account panel for Marissa Chen'],
-  ['drawer', <AccountDrawerRow />, 'Account for Marissa Chen'],
-] as const)('%s account states', (_surface, control, openerLabel) => {
+  ['desktop', <AccountNavButton compact />, 'Account panel for Marissa Chen', 1280, 16],
+  ['tablet', <AccountAvatarButton />, 'Account menu', 900, 16],
+  ['drawer', <AccountDrawerRow />, 'Account for Marissa Chen', 375, 18],
+] as const)('%s account states', (_surface, control, openerLabel, width, labelSize) => {
   function open() {
+    state.width = width;
     render(control);
     const opener = document.querySelector<HTMLElement>(`[aria-label="${openerLabel}"]`);
     expect(opener).not.toBeNull();
     click(opener!);
   }
+
+  it('uses the approved action text size for its screen band, including sign-out space', () => {
+    state.admin = 'allowed';
+    open();
+    const labels = [
+      'Tracked',
+      'Add a password',
+      'Email preferences',
+      'User Accounts',
+      'Site Metrics',
+      'Operations',
+    ];
+    for (const label of labels) {
+      const text = [...row(label)!.querySelectorAll<HTMLElement>('*')].find(
+        (element) => element.children.length === 0 && element.textContent === label,
+      );
+      expect(text, label).toBeDefined();
+      expect(getComputedStyle(text!).fontSize, label).toBe(`${labelSize}px`);
+    }
+    const signOut = document.querySelector<HTMLElement>('[data-account-menu-sign-out-label]')!;
+    expect(getComputedStyle(signOut).fontSize).toBe(`${labelSize}px`);
+    const reservedLabel = [...document.querySelectorAll<HTMLElement>('[aria-hidden="true"]')].find(
+      (element) => element.textContent === 'Signing out…',
+    )!;
+    expect(getComputedStyle(reservedLabel).fontSize).toBe(`${labelSize}px`);
+  });
 
   it('prints a combined count only after both lists arrive, and hides empty counts', () => {
     state.bills = [{}, {}];
@@ -151,4 +189,24 @@ describe.each([
     expect(state.navigate).toHaveBeenCalledWith('AdminUsers');
     expect(row('User Accounts')).toBeUndefined();
   });
+});
+
+it.each([
+  [767, 18],
+  [768, 16],
+  [1099, 16],
+] as const)('keeps sheet geometry with %ipx screen and %ipx action text', (width, fontSize) => {
+  state.admin = 'allowed';
+  state.width = width;
+  const control = <AccountDrawerRow />;
+  render(control);
+  click(document.querySelector<HTMLElement>('[aria-label="Account for Marissa Chen"]')!);
+  const tracked = row('Tracked')!;
+  const label = [...tracked.querySelectorAll<HTMLElement>('*')].find(
+    (element) => element.children.length === 0 && element.textContent === 'Tracked',
+  )!;
+  expect(getComputedStyle(label).fontSize).toBe(`${fontSize}px`);
+  expect(getComputedStyle(tracked).minHeight).toBe('56px');
+  const signOut = document.querySelector<HTMLElement>('[data-account-menu-sign-out]')!;
+  expect(getComputedStyle(signOut).minHeight).toBe('56px');
 });

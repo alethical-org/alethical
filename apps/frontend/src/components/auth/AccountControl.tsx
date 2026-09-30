@@ -512,6 +512,7 @@ function TrackedRow({
   const navigation = useNavigation<never>();
   const count = useTrackedCount();
   const phone = variant === 'phone';
+  const { isTablet } = useResponsive();
   const hover = useFineHover();
   const press = () => {
     onNavigate();
@@ -539,7 +540,14 @@ function TrackedRow({
       <View style={phone ? styles.sheetIconBox : styles.menuIconBox}>
         <AccountMenuIcon name="bookmark" />
       </View>
-      <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Tracked</Text>
+      <Text
+        style={[
+          phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel,
+          phone && isTablet && styles.tabletActionText,
+        ]}
+      >
+        Tracked
+      </Text>
       {count === null ? null : (
         <Text style={phone ? styles.sheetTrackedCount : styles.menuTrackedCount}>{count}</Text>
       )}
@@ -577,6 +585,7 @@ function EmailPreferencesRow({
 }) {
   const navigation = useNavigation<any>();
   const phone = variant === 'phone';
+  const { isTablet } = useResponsive();
   const hover = useFineHover();
   return (
     <Pressable
@@ -597,7 +606,13 @@ function EmailPreferencesRow({
       <View style={phone ? styles.sheetIconBox : styles.menuIconBox}>
         <AccountMenuIcon name="email" />
       </View>
-      <Text style={[phone ? styles.sheetButtonText : styles.menuItemText, { flex: 1 }]}>
+      <Text
+        style={[
+          phone ? styles.sheetButtonText : styles.menuItemText,
+          phone && isTablet && styles.tabletActionText,
+          { flex: 1 },
+        ]}
+      >
         Email preferences
       </Text>
       {phone ? <ChevronRightIcon /> : null}
@@ -616,6 +631,7 @@ function AdminRow({
   onPress: () => void;
   phone: boolean;
 }) {
+  const { isTablet } = useResponsive();
   const hover = useFineHover();
   return (
     <Pressable
@@ -632,7 +648,14 @@ function AdminRow({
       ]}
     >
       <View style={phone ? styles.sheetIconBox : styles.menuIconBox} />
-      <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>{label}</Text>
+      <Text
+        style={[
+          phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel,
+          phone && isTablet && styles.tabletActionText,
+        ]}
+      >
+        {label}
+      </Text>
       <ChevronRightIcon />
     </Pressable>
   );
@@ -794,7 +817,11 @@ function SignOutLabel({
   flow: ReturnType<typeof useAccountSignOut>;
   phone?: boolean;
 }) {
-  const textStyle = phone ? styles.sheetButtonText : styles.menuItemText;
+  const { isTablet } = useResponsive();
+  const textStyle = [
+    phone ? styles.sheetButtonText : styles.menuItemText,
+    phone && isTablet && styles.tabletActionText,
+  ];
   return (
     <View style={styles.signOutLabelBox}>
       {isWeb ? (
@@ -1006,6 +1033,7 @@ function AccountSurfaceContent({
   /** Shut the panel or sheet before navigating away from it. */
   onLeave: () => void;
 }) {
+  const { isTablet } = useResponsive();
   const passwordCopy = passwordMethodCopy(signInMethods, email || 'your email');
   const passwordHover = useFineHover();
   if (variant === 'desktop') {
@@ -1065,7 +1093,13 @@ function AccountSurfaceContent({
             <View style={styles.sheetIconBox}>
               <AccountMenuIcon name="password" />
             </View>
-            <Text style={[styles.sheetButtonText, styles.sheetPasswordText]}>
+            <Text
+              style={[
+                styles.sheetButtonText,
+                isTablet && styles.tabletActionText,
+                styles.sheetPasswordText,
+              ]}
+            >
               {passwordCopy.rowLabel}
             </Text>
             <ChevronRightIcon />
@@ -1777,5 +1811,7 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
+  // Tablet retains the sheet layout, but uses the focused handoff's computer label size.
+  tabletActionText: { fontSize: 16 },
   phoneSignOutError: { fontSize: 15, lineHeight: 21, marginHorizontal: 14 },
 });

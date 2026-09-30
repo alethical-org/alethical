@@ -20,9 +20,9 @@ The bundle is retained outside the repository as the temporary visual reference.
 ## Delivery sequence
 
 1. Complete: compared every pictured navigation/account state and implemented the settled differences.
-2. Complete: types, formatting and focused checks pass. Browser comparisons cover desktop 1100+, tablet 820, phone 390/375 and short phone 320; hover/focus, scroll, sign-in dismissal, account permissions/count/password states, and stable sign-out failure/retry/success. The full frontend run exposed 3 old candidate-availability expectations; all 127 route tests pass after updating those expectations. The required upload check will rerun the complete suite.
+2. Complete: types, formatting and focused checks pass. Browser comparisons cover desktop 1100+, tablet 820/900, phone 390/375 and short phone 320; hover/focus, scroll, sign-in dismissal, account permissions/count/password states, and stable sign-out failure/retry/success. Full upload checks passed 3,893 frontend tests and 3,519 backend tests. The independent account review then caught tablet sheet labels using the phone size; the tablet-only correction passes 41 focused account tests and retains existing sheet geometry. The final upload repeats required checks.
 3. Complete: independent browser acceptance reports matching desktop/dropdown/drawer geometry and working navigation, including 320px short screens. No material defect remains.
-4. In progress: mandatory upload checks passed; pull request, required current-head checks, candidate public-route merge, merge queue, deployment, live reader checks and release report remain.
+4. In progress: [pull request 2451](https://github.com/alethical-org/alethical/pull/2451) holds the release and full comparison record. Required current-head checks, the candidate public-route merge in [pull request 2450](https://github.com/alethical-org/alethical/pull/2450), merge queue, deployment, live reader checks and release report remain. Final release evidence will be attached to the pull request.
 
 Public candidate release correction: the temporary destination supplies official ballot
 information and no address form. Its Search description therefore says “Find official
@@ -33,9 +33,9 @@ Do not call the work finished before step 4. Preserve the candidate-route releas
 
 ## Acceptance evidence
 
-- About drawing and build both measure 267.0703 × 218 CSS pixels; rows64 high and labels17.
-- Search opens with grey wording and green up-arrow. Mouse clicks add no keyboard outline; Tab shows the purple2px outline and Escape returns it to Search.
-- Phone header has22px inset and44px Close control. Short screens scroll all roadmap items above the fixed footer.
-- Account action labels are16px desktop and18px phone. Combined tracked count12 is7bills +5committees; unknown/zero suppress the number.
+- About drawing and build both measure 267.0703 × 218 CSS pixels; rows are 64px high and labels 17px.
+- Search opens with grey wording and green up-arrow. Mouse clicks add no keyboard outline; Tab shows the purple 2px outline and Escape returns it to Search.
+- Phone header has a 22px inset and 44px Close control. Short screens scroll all roadmap items above the fixed footer.
+- Account action labels are 16px on desktop/tablet and 18px on phone. Combined tracked count 12 is 7 bills + 5 committees; unknown/zero suppress the number.
 - Sign-out button positions remain unchanged during failure and retry on desktop and phone; busy blocks repeat submission; success removes the fake signed-in controls.
 - Browser account checks use actual components with fake providers, without real authentication or service writes.
