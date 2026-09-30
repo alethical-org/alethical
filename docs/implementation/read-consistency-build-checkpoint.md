@@ -1,5 +1,30 @@
 # Read consistency build checkpoint
 
+## Article width build, 30 Sep 2026
+
+Eugene's `bd unless you need design udpate?` authorizes the article-width build
+from `Alethical UX (43).zip` through live release. Branch: `codex/blog-full-width`.
+All article formats fill available width; Research keeps its contents rail,
+Guides and Short posts use full width, and comments lose their desktop/tablet
+caps. Preserve published text, figures, dates, links and publication approvals.
+Libre Franklin numeric text follows the saved Type rule. Shared Share uses the
+existing tablet bottom sheet and bounded desktop popover. These settled build
+corrections need a Design record update, not another drawing before release.
+
+1. Implement article widths and update their owning requirements. Complete.
+2. Run frontend checks and inspect phone, tablet and desktop in the browser.
+   Build, type check and all 3,811 frontend tests passed; all 3 formats fit at
+   phone/tablet/desktop widths. Fixed a clipped numeric table heading with a
+   160px numeric column, then inspected every numeric cell.
+3. Independently review the reader paths; repair material findings. Complete.
+   Section/related links and keyboard Share open/close passed. Local comments
+   show their readable failure state without a backend; live reads remain.
+4. Commit, upload, open a pull request, wait for current-head and merge-queue
+   checks, merge and inspect all article types at their live addresses.
+
+This layout release does not authorize new articles, changed research claims,
+new link selections, account changes or real comment/email test sends.
+
 ## Build resumed, 27 Sep 2026
 
 After reviewing `Alethical UX (32).zip`, Eugene asked whether the design was

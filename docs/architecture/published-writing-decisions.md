@@ -624,7 +624,26 @@ The Short post article uses an ordered body. Every quantitative graphic has exac
 
 On 27 September 2026 Eugene approved the exact link choices in [reading-links-review-2026-09-27.md](../implementation/reading-links-review-2026-09-27.md) and instructed their live release. This is a link-only revision to already published articles. The original reviewed prose, source checks, graphics, publication dates, and human approval fingerprints remain fixed. A separate navigation record checks the exact approved link labels, destinations, and order, and confirms that removing those links recovers each Short post's original reviewed fingerprint. It does not create a public correction, newer-filings notice, or new Checked date.
 
-The Short post article keeps its kind label once above the title, in unboxed blue monospace capitals (11px, weight 700, `0.14em`, `#2b6377`). Its publication line uses uppercase Libre Franklin (11.5px, weight 800, `0.01em`, equal-width digits, `#656c66`), `MON D, YYYY` dates with commas, and scope labels without colons. The “How this was calculated” and “Where these numbers come from” labels share the same monospace treatment (10.5px, weight 700, `0.12em`, `#4f5651`). The article ends with sources and disclosures, then reader comments, then Related reading, then the footer. Related reading uses the page background in a 700px column, a `rgba(17,21,15,0.14)` top line and 48px/72px top/bottom space on desktop or 34px/48px on phone. When comments are unavailable, Related reading follows the disclosures. These display rules do not change an article's reviewed facts or approve new related links; each editor selection still passes the article's publication review.
+The Short post article keeps its kind label once above the title, in unboxed blue monospace capitals (11px, weight 700, `0.14em`, `#2b6377`). Its publication line uses uppercase Libre Franklin (11.5px, weight 800, `0.01em`, equal-width digits, `#656c66`), `MON D, YYYY` dates with commas, and scope labels without colons. The “How this was calculated” and “Where these numbers come from” labels share the same monospace treatment (10.5px, weight 700, `0.12em`, `#4f5651`). The article ends with sources and disclosures, then reader comments, then Related reading, then the footer. Related reading uses the page background across the available article width, a `rgba(17,21,15,0.14)` top line and 48px/72px top/bottom space on desktop or 34px/48px on phone. When comments are unavailable, Related reading follows the disclosures. These display rules do not change an article's reviewed facts or approve new related links; each editor selection still passes the article's publication review.
+
+### Article widths, 30 September 2026
+
+Eugene authorized implementing `Alethical UX (43).zip` for all article formats.
+Article gutters are 20px below 768px, 40px from 768px through 1099px, and 56px
+from 1100px. Long-form Research retains its 226px contents rail and 56px gap
+from 768px; its reading column fills the remaining width without a 760px cap.
+Guides and Short posts fill the full available width without a side rail or
+700px cap. Guides retain the phone contents list; their tablet title is 44px
+with a 48px line height, while the desktop title remains 52px.
+Reader comments and Related reading fill their available width; the comments
+layout retains its 340px desktop rules card, 48px gap and stacked tablet order.
+Comments retain 16px phone gutters. The shared Share control keeps its existing
+bottom sheet below 1100px and window-bounded desktop popover.
+Numeric text uses Libre Franklin with equal-width digits at every screen size,
+following [design-principles.md §2 (Type)](../design/design-principles.md#2-the-green-visual-system).
+Numeric table columns leave enough room for their headings and values; the current
+long-form Research tables use a 160px numeric column. The illustrative figures
+in the drawing do not replace published article facts.
 
 The article metadata displays publication dates and reporting periods, with Share
 on the same row where space permits. Download/copy, retrieval and extraction dates
