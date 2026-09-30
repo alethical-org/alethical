@@ -17,7 +17,13 @@ for (const width of [320, 390, 900, 1600]) {
     // Scroll vertically, as a reader would. scrollIntoView can silently shift an
     // overflowing ancestor sideways and hide the defect this test must catch.
     await page.mouse.move(width / 2, 450);
-    await page.mouse.wheel(0, 10_000);
+    await expect
+      .poll(async () => {
+        await page.mouse.wheel(0, 10_000);
+        const box = await links.last().boundingBox();
+        return box !== null && box.y >= 0 && box.y + box.height <= 900;
+      })
+      .toBe(true);
     await expect(links.last()).toBeInViewport();
     const measure = () =>
       links.evaluateAll((nodes) =>
