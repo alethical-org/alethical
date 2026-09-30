@@ -1,0 +1,17 @@
+0013640109001;Jerry J. Eggert;4010;Town Supervisor Seat A (Acoma Township);43;00136;
+0017210019001;James Austinson;1001;Mayor (Ada);54;00172;
+0017210019002;Shawn Roux;1001;Mayor (Ada);54;00172;
+0000150009001;Kimberly Clement;5000;School Board Member (ISD #1) (Elect 4);01;;0001
+0000150009001;Christin Crabtree;5000;School Board Member At Large (SSD #1) (Elect 2);27;;0001
+0000150009002;Garrett Lee;5000;School Board Member (ISD #1) (Elect 4);01;;0001
+0000150009002;Stephanie Johnson;5000;School Board Member At Large (SSD #1) (Elect 2);27;;0001
+0000150009003;Ally Sanford;5000;School Board Member (ISD #1) (Elect 4);01;;0001
+0000150009004;Collin Beachy;5000;School Board Member At Large (SSD #1) (Elect 2);27;;0001
+0000150009004;Makto Rono;5000;School Board Member (ISD #1) (Elect 4);01;;0001
+0000150009005;Michael Baskins;5000;School Board Member At Large (SSD #1) (Elect 2);27;;0001
+0000150109001;Abdul Abdi;5010;School Board Member District 1 (SSD #1);27;;0001
+0000150109002;Ben Lattimore;5010;School Board Member District 1 (SSD #1);27;;0001
+0000150149001;Shannon Gibney;5014;School Board Member District 3 (SSD #1);27;;0001
+0000150189001;Molly Chase;5018;School Board Member District 5 (SSD #1);27;;0001
+0000150189002;Becca Dryden;5018;School Board Member District 5 (SSD #1);27;;0001
+0000060009001;Ellen Bomstad;6000;Hospital District Board Member At Large Itasca (Northern Itasca);31;;

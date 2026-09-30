@@ -1,0 +1,28 @@
+{
+  "source_url": "https://electionresultsfiles.sos.mn.gov/20261103/LocalCandTbl.txt",
+  "layout_url": "https://electionresults.sos.mn.gov/Results/MediaFileLayout/Index?erselectionId=201",
+  "downloaded_at": "2026-09-30T18:28:45.258635+00:00",
+  "election_date": "2026-11-03",
+  "source_stage": "test",
+  "full_source_sha256": "0330794c3daa84e2baf6ad34efa9779f08b635b89208a9b160dbbd6b00850f3d",
+  "original_row_numbers": [
+    1,
+    5,
+    6,
+    5156,
+    5157,
+    5158,
+    5159,
+    5160,
+    5161,
+    5162,
+    5163,
+    6523,
+    6524,
+    6545,
+    6554,
+    6555,
+    6563
+  ],
+  "scope": "Small unchanged row excerpt, not a complete election or race."
+}

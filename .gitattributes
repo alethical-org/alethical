@@ -1,3 +1,5 @@
 .gitattributes text eol=lf
 .github/workflows/*.yml text eol=lf
 .github/workflows/*.yaml text eol=lf
+# Official candidate excerpts retain their original CRLF bytes for importer tests.
+alethical/tests/fixtures/candidates/*.txt -text whitespace=cr-at-eol
