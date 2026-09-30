@@ -2,8 +2,8 @@
 
 <!-- describes: alethical/pipeline/candidate_catalogue.py, alethical/pipeline/candidate_ballot.py, apps/frontend/src/lib/candidateSearchState.ts, apps/frontend/src/components/candidates/CandidateSearchContent.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/screens/CandidatePreviewScreens.tsx, apps/frontend/src/lib/candidateLookupAvailability.ts, apps/frontend/metro.config.js -->
 
-**Net:** The dormant record-handling foundation has been released. Build the reviewed
-search and read-only profile screens in a private development preview. Public launch
+**Net:** The dormant record-handling foundation and reviewed private candidate
+search/results/read-only profiles have been released. Public launch
 still depends on supported local election areas, retained official records, freshness,
 and end-to-end source checks.
 
@@ -247,12 +247,14 @@ inactive pending source retention, broader reconciliation, coverage and launch c
 
 ### Current checkpoint
 
-Search/profile components, private routes, preview data and source parser are being
-built and checked in `codex/147-candidate-search-build`. The previous foundation was
-released through [pull request 2428](https://github.com/alethical-org/alethical/pull/2428).
+Search/profile components, private routes, preview data and the inactive source
+parser were released through [pull request 2438](https://github.com/alethical-org/alethical/pull/2438).
+The previous foundation was released through
+[pull request 2428](https://github.com/alethical-org/alethical/pull/2428).
 Public navigation, homepage activation, claims and production source connection are
-not part of this release. This task owns browser acceptance, independent review,
-checks, release and the next source-backed integration step.
+not part of this release. This task keeps the working private preview available and owns the next source-backed
+integration step. Original filing access, retained evidence, supported local coverage
+and freshness remain unresolved; claims also wait for an ownership-verification policy.
 
 The private development preview runs at `http://localhost:19047/candidates` from this
 worktree. It labels records **PRIVATE DRAFT · ILLUSTRATIVE DATA** and states that
@@ -273,8 +275,8 @@ website type checks pass. Production contains no illustrative candidate records.
 A hosted preview exceeded the unchanged startup-size limit by 104 bytes before the
 shared navigation reduction merged. Candidate route builders now compile out of
 production; after rebasing onto the new shared navigation, the local export is
-296,476 bytes against the unchanged 296,881-byte limit. Hosted release must pass its
-own size check. A password-bearing fake URL in a rejection test triggered the secret
+296,476 bytes against the unchanged 296,881-byte limit. Hosted preview passed its
+own size check at 296,464 bytes, preserving the same limit. A password-bearing fake URL in a rejection test triggered the secret
 scanner; the test now uses a password-free user-info URL, still rejected by the same
 rule. The new commit history passes the scanner without exclusions.
 The fresh user-path review passed keyboard and touch suggestions, explicit choices,
@@ -283,4 +285,10 @@ and retry, rapid election changes and narrow screens. An initially blank respons
 now states **No candidate records to show for this address and election**, without
 claiming nobody filed. The correction passed a fresh browser review at desktop and
 phone widths. Actual operating-system phone keyboard occlusion remains untested.
-Current-main release remains in progress.
+On 30 September 2026, website and server both reported release
+`4f4ab204193f9b36db0e9d3231542c6275c5d361`. The live `/candidates` and example-profile
+addresses returned 404 with that same website release and no illustrative records.
+The final independent visitor review passed after deployment.
+The accepted private preview stays at its original address; its worktree remains
+available while Eugene reviews it. Final release evidence and visitor acceptance are
+recorded on [issue 147](https://github.com/alethical-org/alethical/issues/147).
