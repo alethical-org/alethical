@@ -6,7 +6,7 @@
 representative serve one location. It also shows the location's state House, state
 Senate, and U.S. congressional district numbers.
 
-You do not need an account. Open **Search → Find My Legislator**, use the finder on the
+You do not need an account. Open **Search → Find my legislators**, use the finder on the
 home page, or go straight to `/find-my-legislator`.
 
 ---
