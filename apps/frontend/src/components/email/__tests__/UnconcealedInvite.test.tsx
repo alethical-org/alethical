@@ -20,6 +20,12 @@ const mocks = vi.hoisted(() => ({
   completeIntent: vi.fn(),
   read: vi.fn(),
 }));
+vi.mock('react-native-svg', () => ({
+  default: ({ children, ...props }: { children?: React.ReactNode }) => (
+    <svg {...props}>{children}</svg>
+  ),
+  Path: (props: Record<string, unknown>) => <path {...props} />,
+}));
 vi.mock('../../../providers/AuthProvider', () => ({ useAuth: () => mocks.auth }));
 vi.mock('../../../providers/signInModalContext', () => ({
   useSignInModal: () => ({ openSignIn: mocks.openSignIn }),
@@ -100,10 +106,58 @@ afterEach(() => {
 });
 
 describe('Unconcealed signup invitation', () => {
+  it('shows the concise invitation without the old repeated explanation', () => {
+    render();
+    expect(host.querySelector('[role="heading"]')?.textContent).toBe(
+      'Get Unconcealed research reports by email as we discover them',
+    );
+    expect(host.textContent).toContain('Create an account or sign in');
+    expect(host.textContent).not.toContain('Minnesota campaign money and lobbying research');
+    expect(host.textContent).not.toContain('Every piece is free to read');
+  });
+
+  it('takes a signed-in reader directly to confirmation without subscribing', async () => {
+    mocks.auth.isSignedIn = true;
+    mocks.auth.accessToken = 'token-a';
+    mocks.auth.user = { id: 'account-a', email: 'a@example.com' };
+    mocks.read.mockResolvedValue({ account_id: 'account-a', research: false });
+    render();
+    await settle();
+    expect(host.textContent).not.toContain('Create an account or sign in');
+    await act(async () => button('Sign up').click());
+    await settle();
+    expect(host.textContent).toContain('Confirmation open');
+    expect(mocks.createIntent).not.toHaveBeenCalled();
+    expect(mocks.completeIntent).not.toHaveBeenCalled();
+    expect(mocks.openSignIn).not.toHaveBeenCalled();
+  });
+
+  it('replaces signup with subscribed status and working email preferences after loading', async () => {
+    let finish!: (value: { account_id: string; research: boolean }) => void;
+    mocks.auth.isSignedIn = true;
+    mocks.auth.accessToken = 'token-a';
+    mocks.auth.user = { id: 'account-a', email: 'a@example.com' };
+    mocks.read.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    render();
+    expect(button('Sign up')).toBeDefined();
+    expect(host.textContent).not.toContain('Create an account or sign in');
+    await act(async () => finish({ account_id: 'account-a', research: true }));
+    expect(host.textContent).toContain('You’re subscribed to Unconcealed');
+    expect(host.textContent).not.toContain('Sign up');
+    act(() => button('Email preferences').click());
+    expect(onPreferences).toHaveBeenCalledTimes(1);
+    expect(mocks.createIntent).not.toHaveBeenCalled();
+    expect(mocks.completeIntent).not.toHaveBeenCalled();
+  });
+
   it('starts the ordinary account flow without subscribing anyone', async () => {
     render();
     await act(async () => {
-      button('Get Unconcealed by email').click();
+      button('Sign up').click();
     });
     expect(mocks.createIntent).toHaveBeenCalledWith('fake-browser-key-for-signup-test-case-1');
     expect(mocks.openSignIn).toHaveBeenCalledWith({ intent: 'newsletter', returnTo: '/money' });
@@ -115,7 +169,7 @@ describe('Unconcealed signup invitation', () => {
     mocks.createIntent.mockRejectedValue(new Error('service unavailable'));
     render();
     await act(async () => {
-      button('Get Unconcealed by email').click();
+      button('Sign up').click();
       await Promise.resolve();
     });
     expect(host.textContent).toContain('We couldn’t open email signup');
