@@ -877,6 +877,7 @@ const styles = StyleSheet.create({
     marginTop: 44,
     color: t.colors.text.primary,
     fontFamily: t.typography.title,
+    fontVariant: ['tabular-nums'],
     fontSize: 30,
     lineHeight: 36,
     fontWeight: t.fontWeights.heavy,
