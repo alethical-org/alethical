@@ -1,8 +1,26 @@
 import { test, expect } from '@playwright/test';
 import { suppressSiteMetrics } from './suppress-site-metrics';
 
-test.beforeEach(async ({ context }) => {
+test.beforeEach(async ({ context, baseURL }) => {
   await suppressSiteMetrics(context);
+  if (baseURL && ['localhost', '127.0.0.1'].includes(new URL(baseURL).hostname)) {
+    // Export previews are not production CORS origins. Preserve exact public
+    // GET responses locally; this does not change API records or its settings.
+    await context.route('https://api.alethical.com/**', async (route) => {
+      if (route.request().method() !== 'GET') return route.abort();
+      const response = await route.fetch({ timeout: 15_000 });
+      await route.fulfill({
+        response,
+        headers: { ...response.headers(), 'access-control-allow-origin': '*' },
+      });
+    });
+  }
+});
+
+test.afterEach(async ({ context }) => {
+  // Rendering-only checks can finish before unused GETs. Teardown cancellation
+  // is not a product failure; errors during the actual check still fail it.
+  await context.unrouteAll({ behavior: 'ignoreErrors' });
 });
 
 // Story 1 (home half), .claude/skills/browser-user-test/stories.md:
@@ -56,5 +74,38 @@ for (const width of [320, 375, 400, 900, 1100, 1600]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(
       false,
     );
+  });
+}
+
+for (const width of [390, 1600]) {
+  test(`Back returns to the homepage bill invitation at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/');
+    await expect(page.getByText(/registered campaigns, parties, and funds/)).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    const billLink =
+      width < 768
+        ? page.getByRole('link').filter({ hasText: 'HF 4138' }).first()
+        : page.getByRole('link', { name: 'View bill profile', exact: true });
+    await billLink.focus();
+    await billLink.scrollIntoViewIfNeeded();
+    const position = () =>
+      billLink.evaluate((node) => {
+        let parent = node.parentElement;
+        while (parent && getComputedStyle(parent).overflowY !== 'auto') {
+          parent = parent.parentElement;
+        }
+        return parent?.scrollTop ?? 0;
+      });
+    const before = await position();
+    expect(before).toBeGreaterThan(100);
+    // React Native Web saves its inner scroller after its trailing scroll event.
+    await page.waitForTimeout(150);
+    await billLink.click();
+    await page.waitForURL('**/bills/94-2026-HF4138');
+    await page.goBack();
+    await page.waitForURL(/\/$/);
+    await expect.poll(position).toBe(before);
+    await expect(billLink).toBeInViewport();
   });
 }

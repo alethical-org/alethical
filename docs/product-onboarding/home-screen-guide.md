@@ -44,6 +44,9 @@ has no free-form question box because reader-written questions are not a live fe
   actions do not depend on hovering.
 - The dark services action uses the approved lighter charcoal hover. The green
   money action and outlined bills action retain their approved hover treatments.
+- Browser Back returns to the same position on signed-out Home after a reader
+  opens a bill or another destination. Phone restoration waits for its news
+  records so the saved position is not lost while that section loads.
 - Standalone interface units containing 1 sentence omit the ending period even
   when they wrap. Paragraphs containing 2 or more sentences retain every period.
   Article prose, exact source quotations, legal text, and serious warnings keep
