@@ -1,4 +1,6 @@
-type RequestLike = { method?: string };
+import { requireSiteMetricsAdmin } from "./_lib/requireSiteMetricsAdmin";
+
+type RequestLike = { method?: string; headers?: Record<string, string | string[] | undefined> };
 type ResponseLike = {
   status: (code: number) => ResponseLike;
   setHeader: (name: string, value: string) => void;
@@ -22,7 +24,7 @@ type VitalsGroup = {
 };
 
 const ENDPOINT = "https://api.cloudflare.com/client/v4/graphql";
-const OK_CACHE = "public, max-age=0, s-maxage=300, stale-while-revalidate=60";
+const OK_CACHE = "private, no-store";
 const DAY_MS = 86_400_000;
 const MIN_SAMPLES = 50;
 // Cache/prefetch delivery is a separate dimension. Do not filter it out.
@@ -141,6 +143,7 @@ export default async function handler(
     sendJson(response, 405, { error: "Method not allowed." }, "no-store");
     return;
   }
+  if (!(await requireSiteMetricsAdmin(request, response))) return;
   const token = process.env.CLOUDFLARE_ANALYTICS_API_TOKEN?.trim();
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
   if (!token || !accountId) {

@@ -442,7 +442,7 @@ class RequestsTest(unittest.TestCase):
             "contents: read",
             "timeout-minutes:",
             "python -m unittest",
-            "python scripts/check_site_metrics_health.py",
+            "python -m scripts.check_site_metrics_privacy",
         ):
             self.assertIn(required, workflow)
         for forbidden in (

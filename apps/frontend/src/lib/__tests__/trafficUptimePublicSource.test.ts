@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+vi.mock('../../../../../api/_lib/requireSiteMetricsAdmin', () => ({
+  requireSiteMetricsAdmin: async () => true,
+}));
 import handler from '../../../../../api/traffic-uptime';
 
 // Selected fields from Checkly's public source on 2026-09-07. IDs are fake.

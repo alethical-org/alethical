@@ -1,11 +1,13 @@
-type RequestLike = { method?: string };
+import { requireSiteMetricsAdmin } from "./_lib/requireSiteMetricsAdmin";
+
+type RequestLike = { method?: string; headers?: Record<string, string | string[] | undefined> };
 type ResponseLike = {
   status: (code: number) => ResponseLike;
   setHeader: (name: string, value: string) => void;
   send: (body: string) => void;
 };
 
-const OK_CACHE = "public, max-age=0, s-maxage=300, stale-while-revalidate=60";
+const OK_CACHE = "private, no-store";
 const PUBLIC_ENDPOINT = "https://api.checklyhq.com/v1/status-page";
 const MAX_MONITOR_AGE_MS = 15 * 60 * 1000;
 type Measurement = {
@@ -161,6 +163,7 @@ export default async function handler(
     sendJson(response, 405, { error: "Method not allowed." }, "no-store");
     return;
   }
+  if (!(await requireSiteMetricsAdmin(request, response))) return;
   const accountId = process.env.CHECKLY_ACCOUNT_ID?.trim();
   const webId = process.env.CHECKLY_WEB_CHECK_ID?.trim();
   const apiId = process.env.CHECKLY_API_READY_CHECK_ID?.trim();

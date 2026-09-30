@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 const auth = vi.hoisted(() => ({
   signOut: vi.fn(async () => ({ ok: true }) as const),
+  access: 'denied',
 }));
 
 vi.mock('../../../providers/AuthProvider', () => ({
@@ -41,7 +42,7 @@ vi.mock('../../../hooks/useAppQueries', () => ({
 }));
 
 vi.mock('../../../hooks/useAdminAccess', () => ({
-  useAdminAccess: () => ({ state: 'denied' }),
+  useAdminAccess: () => ({ state: auth.access }),
 }));
 
 vi.mock('../../../hooks/useReducedMotion', () => ({
@@ -115,5 +116,35 @@ describe('desktop account menu escape', () => {
     expect(document.querySelector('[aria-label="Account"]')).not.toBeNull();
 
     act(() => root.unmount());
+  });
+});
+
+describe('administrator menu visibility', () => {
+  it.each(['loading', 'denied'])('hides private report links while access is %s', (state) => {
+    auth.access = state;
+    const { root } = mountMenu();
+    const panel = document.querySelector('[aria-label="Account"]');
+    expect(panel?.textContent).not.toContain('User Accounts');
+    expect(panel?.textContent).not.toContain('Site Metrics');
+    expect(panel?.textContent).not.toContain('Operations');
+    act(() => root.unmount());
+    auth.access = 'denied';
+  });
+
+  it('shows the 3 private destinations in order after access is allowed', () => {
+    auth.access = 'allowed';
+    const { root } = mountMenu();
+    const labels = [...document.querySelectorAll('[aria-label="Account"] a')].map((node) =>
+      node.textContent?.trim(),
+    );
+    expect(labels).toEqual([
+      'Tracked',
+      'Email preferences',
+      'User Accounts',
+      'Site Metrics',
+      'Operations',
+    ]);
+    act(() => root.unmount());
+    auth.access = 'denied';
   });
 });

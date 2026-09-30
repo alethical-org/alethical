@@ -407,7 +407,7 @@ export function AdminSiteMetricsScreen({ navigation }: RootScreenProps<'AdminSit
   const { openSignIn } = useSignInModal();
   const { isMobile } = useResponsive();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
-  useDocumentTitle('/admin/metrics', 'Admin metrics | Alethical');
+  useDocumentTitle('/admin/operations', 'Admin metrics | Alethical');
   return (
     <SearchPageShell
       openMenu={openMenu}
@@ -446,7 +446,7 @@ export function AdminSiteMetricsScreen({ navigation }: RootScreenProps<'AdminSit
           <Message>Sign in with an administrator account to view Admin metrics.</Message>
           <Action
             label="Sign in"
-            onPress={() => openSignIn({ intent: 'nav', returnTo: '/admin/metrics' })}
+            onPress={() => openSignIn({ intent: 'nav', returnTo: '/admin/operations' })}
           />
         </View>
       ) : access.state === 'loading' || isLoading ? (

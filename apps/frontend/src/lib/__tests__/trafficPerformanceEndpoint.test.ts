@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+vi.mock('../../../../../api/_lib/requireSiteMetricsAdmin', () => ({
+  requireSiteMetricsAdmin: async () => true,
+}));
 
 import handler from '../../../../../api/traffic-performance';
 
@@ -263,9 +266,7 @@ describe('Cloudflare document-load speed totals', () => {
     await handler({ method: 'GET' }, recorder.response);
 
     expect(recorder.read().body).toMatchObject({ lcpP75Ms: 4716, inpP75Ms: 64, clsP75: 0 });
-    expect(recorder.read().headers.get('Cache-Control')).toBe(
-      'public, max-age=0, s-maxage=300, stale-while-revalidate=60',
-    );
+    expect(recorder.read().headers.get('Cache-Control')).toBe('private, no-store');
   });
 
   it('returns a collecting state for zero measurements, including source negative sentinels', async () => {

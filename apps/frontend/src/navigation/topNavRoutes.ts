@@ -8,7 +8,6 @@ type TopNavNavigateArgs =
   | ['MoneyLanding']
   | ['Read']
   | ['AboutUs']
-  | ['SiteMetrics']
   | ['ContactUs']
   | ['Tabs', { screen: 'Tracked' }];
 
@@ -57,9 +56,6 @@ export function navigateTopNavItem(
     case 'about-us':
       navigation.navigate('AboutUs');
       return true;
-    case 'about-site-metrics':
-      navigation.navigate('SiteMetrics');
-      return true;
     case 'about-contact':
       navigation.navigate('ContactUs');
       return true;
@@ -93,7 +89,6 @@ export const NAV_ITEM_HREFS: Record<string, string> = {
   // capability it can't deliver (grounded-answers rule 2).
   'track-bills': routePath.tracked(),
   'about-us': routePath.aboutUs(),
-  'about-site-metrics': routePath.siteMetrics(),
   'about-contact': routePath.contactUs(),
 };
 
@@ -121,6 +116,6 @@ function normalizeNavPath(path: string) {
  */
 export function currentNavItemId(pathname: string): string | null {
   const here = normalizeNavPath(pathname);
-  const match = Object.entries(NAV_ITEM_HREFS).find(([, href]) => normalizeNavPath(href) === here);
+  const match = Object.entries(NAV_ITEM_HREFS).find(([, href]) => href === here);
   return match ? match[0] : null;
 }

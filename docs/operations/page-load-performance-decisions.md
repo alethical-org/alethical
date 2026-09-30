@@ -395,7 +395,7 @@ runtime, shared code and entry program. The dated measurements below describe th
 earlier shape; the new local result and its tradeoff have their own section below.
 `docs/operations/deployment.md` § What a web release ships owns the mechanics.
 
-The `/site-metrics` and `/admin/metrics` screens share 1 on-demand download through
+The `/admin/site-metrics` and `/admin/operations` screens share 1 on-demand download through
 `apps/frontend/src/screens/metricsScreens.ts`. The single import target in
 `apps/frontend/src/navigation/screenChunks.ts` keeps their shared report code out of the
 initial common download. Opening either route fetches both screens' code, but private

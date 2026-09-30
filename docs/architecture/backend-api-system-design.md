@@ -2296,6 +2296,7 @@ hour. `readers` contains current local-account and follow counts at `fetchedAt`,
 lifetime signup or creation totals. Team and test accounts are excluded at collection
 time for actions and creation totals, and at read time for current account and follow counts.
 The default `version=1` keeps the narrower response contract for existing clients.
+This GET requires current administrator access and returns `Cache-Control: private, no-store`.
 
 #### `GET /api/v1/site-metrics/accounts`
 
@@ -2306,7 +2307,8 @@ sign-in records count as 1 account, dated by their earliest included Supabase re
 The 7-day and 30-day comparisons end at the last completed UTC hour; current totals
 include the unfinished hour through `asOf`. Deletion can reduce a past period's count.
 The response contains counts and definitions, never account records. Source failure is
-`503`, not zero. Both public measurement GET routes allow 5-minute shared caching.
+`503`, not zero. Both measurement GET routes require current administrator access and
+return `Cache-Control: private, no-store`.
 
 #### `POST /api/v1/site-metrics/events`
 

@@ -2,7 +2,7 @@
 """Privately report existing Cloudflare page-speed measurements by address.
 
 This reads aggregates already held by Cloudflare; it adds no browser tracking and
-publishes nothing. The public /site-metrics page stays sitewide. No country,
+publishes nothing. The administrator-only /admin/site-metrics page stays sitewide. No country,
 device, browser, resource, referrer or reader identity is requested. The optional
 --what-moved report groups by an element of our own page.
 

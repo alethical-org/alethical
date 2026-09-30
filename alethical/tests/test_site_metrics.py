@@ -2,13 +2,20 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+import pytest
 from sqlalchemy import func, select
 
+from alethical.api.routers.admin import require_admin
 from alethical.db.schema import load_schema
 from alethical.db.session import get_session_factory
 
 
 schema = load_schema()
+
+
+@pytest.fixture(autouse=True)
+def permit_report_reads(client):
+    client.app.dependency_overrides[require_admin] = lambda: None
 
 
 def test_old_and_new_clients_have_separate_count_contracts(client):
@@ -36,7 +43,7 @@ def _totals(client, monkeypatch, excluded: str = "") -> dict:
     monkeypatch.setenv("TRAFFIC_EXCLUDED_ACCOUNT_IDS", excluded)
     response = client.get("/api/v1/site-metrics?version=2")
     assert response.status_code == 200
-    assert response.headers["cache-control"].startswith("public")
+    assert response.headers["cache-control"] == "private, no-store"
     return response.json()["data"]
 
 

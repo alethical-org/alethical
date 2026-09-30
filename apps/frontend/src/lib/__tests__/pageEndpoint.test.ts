@@ -157,7 +157,7 @@ it('serves the approved article links in the first HTTP response of all 9 publis
   }
 });
 
-it.each(['/admin', '/admin/users', '/admin/metrics', '/admin/site-metrics'])(
+it.each(['/admin', '/admin/users', '/admin/metrics', '/admin/site-metrics', '/admin/operations'])(
   'keeps %s private with no account HTML or analytics',
   async (path) => {
     const network = vi.fn();
@@ -168,9 +168,11 @@ it.each(['/admin', '/admin/users', '/admin/metrics', '/admin/site-metrics'])(
     expect(headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
     expect(headers.get('Referrer-Policy')).toBe('no-referrer');
     expect(body).toContain(
-      path === '/admin/metrics' || path === '/admin/site-metrics'
+      path === '/admin/operations'
         ? 'Admin metrics | Alethical'
-        : 'Users | Alethical',
+        : path === '/admin/metrics' || path === '/admin/site-metrics'
+          ? 'Site Metrics | Alethical'
+          : 'Users | Alethical',
     );
     expect(body).not.toContain('private@example.test');
     expect(body).not.toContain('Home snapshot');

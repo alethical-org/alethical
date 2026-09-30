@@ -63,7 +63,7 @@ jobs:
         # fails the job and never opens an issue, because warming is best-effort and
         # a red run here would be work for a person to read about a page that is
         # merely slow. Whether these addresses are UP is watched separately, by the
-        # uptime reading behind /site-metrics (api/traffic-uptime.ts).
+        # uptime reading in administrator-only Site Metrics (api/traffic-uptime.ts).
         run: |
           set -u
           # Every data address here is the app's own request, character for

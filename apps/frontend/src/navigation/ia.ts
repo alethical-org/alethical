@@ -53,8 +53,6 @@ export interface IaItem {
    * (campaign money IA, Aug 2026). Take it off once the section stops being new.
    */
   isNew?: boolean;
-  /** Optional framing note. */
-  note?: string;
 }
 
 /** Money is a direct public destination before Search in both website layouts. */
@@ -66,7 +64,6 @@ const MONEY_ITEM: IaItem = {
   menu: null,
   availability: 'mvp',
   authGated: false,
-  isNew: true,
 };
 
 /**
@@ -80,10 +77,7 @@ const MONEY_ITEM: IaItem = {
  * drawer gains no nested layer (Design's nav drawing, 27 Aug 2026;
  * docs/architecture/published-writing-decisions.md §2.1).
  *
- * The NEW chip rides on this item, which is where the collapsed row's chip
- * already was. The phone drawer draws chips on its rows, and the bar draws none,
- * so the chip shows on the phone and not on the computer, exactly as the drawing
- * has it.
+ * Money and Blog no longer carry NEW labels in either navigation layout.
  */
 const READ_ITEM: IaItem = {
   id: 'read',
@@ -92,8 +86,7 @@ const READ_ITEM: IaItem = {
   menu: null,
   availability: 'mvp',
   authGated: false,
-  isNew: true,
-  note: 'Opens the /blog page. A piece of our own research is the one surface allowed to add figures up across members (.claude/rules/grounded-answers.md rule 13).',
+  // Own research may add figures across members (.claude/rules/grounded-answers.md rule 13).
 };
 
 /**
@@ -111,19 +104,19 @@ export const IA: IaItem[] = [
     menu: null,
     availability: 'mvp',
     authGated: false,
-    note: 'Anonymous users get one stateless cited answer; follow-ups, history, and saved sessions require sign-in. Reached from in-page actions rather than the global navigation.',
+    // Anonymous Ask is one stateless cited answer; follow-ups and history require sign-in.
   },
 
   // Search — public discovery ("the library").
   {
     id: 'search-bills',
-    label: 'Bills',
+    label: 'Bills and votes',
     path: '/bills',
     menu: 'search',
     availability: 'mvp',
     authGated: false,
-    description: 'Make sense of any bill, with the official text beside it',
-    note: 'Carries the purple "Grounded Ask" pill in the nav dropdown.',
+    description: 'Read bill summaries, check their status, and see how legislators voted',
+    // Carries the purple "Grounded Ask" pill in the nav dropdown.
   },
   MONEY_ITEM,
   {
@@ -140,7 +133,7 @@ export const IA: IaItem[] = [
   },
   {
     id: 'search-find-my-legislator',
-    label: 'Find My Legislator',
+    label: 'Find my legislators',
     path: '/find-my-legislator',
     menu: 'search',
     availability: 'mvp',
@@ -180,7 +173,7 @@ export const IA: IaItem[] = [
   },
   {
     id: 'search-claimed-profiles',
-    label: 'Claimed Profiles',
+    label: 'Claimed profiles',
     path: '/search/claimed-profiles',
     menu: 'search',
     availability: 'roadmap',
@@ -198,7 +191,7 @@ export const IA: IaItem[] = [
     availability: 'roadmap',
     authGated: false,
     inNavDropdown: true,
-    note: 'Roadmap: "In the news", YouTube legislative sessions. Beyond current product-scope boundary.',
+    // "In the news" and YouTube sessions remain beyond current product scope.
   },
   {
     // Free-form "Ask AI" is a ROADMAP capability, not the shipped grounded Ask
@@ -244,7 +237,7 @@ export const IA: IaItem[] = [
     authGated: true,
     description: 'Follow a legislator — every bill they author, every vote they cast',
     inNavDropdown: true,
-    note: 'Roadmap: follow a legislator for activity notifications (#151).',
+    // Follow a legislator for activity notifications (#151) remains on the roadmap.
   },
   {
     id: 'track-issues',
@@ -285,24 +278,16 @@ export const IA: IaItem[] = [
   // About — static content.
   {
     id: 'about-us',
-    label: 'About Us',
+    label: 'About us',
     path: '/about',
     menu: 'about',
     availability: 'mvp',
     authGated: false,
-    note: 'Mission, team, story.',
-  },
-  {
-    id: 'about-site-metrics',
-    label: 'Site Metrics',
-    path: '/site-metrics',
-    menu: 'about',
-    availability: 'mvp',
-    authGated: false,
+    // Mission, team, story.
   },
   {
     id: 'about-contact',
-    label: 'Contact Us',
+    label: 'Contact us',
     path: '/about/contact',
     menu: 'about',
     availability: 'mvp',

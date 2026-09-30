@@ -76,7 +76,7 @@ created its local account record, the most recent time it gained a new sign-in m
 the last time the reader opened their tracked-bills page, and, only once the sign-in
 service has confirmed it, an email address.
 
-The local creation time records first authenticated use, not signup. The public Site Metrics
+The local creation time records first authenticated use, not signup. The private Site Metrics
 total uses current Supabase records and returns a count only. The private leadership page also
 groups surviving accounts by Supabase's original signup time. Both include unconfirmed accounts;
 deleted, deactivated, banned, anonymous, team, and test accounts are excluded. Linked sign-in
@@ -354,8 +354,8 @@ The published Privacy Policy names the recipients and purposes in this table.
 | **Minnesota Geospatial Information Office** | **The house number and street-name prefix, without city or ZIP**                                                      | While suggestions are open; also after Census retries find no match                                  | **Yes**                      |
 | Vercel                                      | Hosts the web app, so its request logs see every page address (§7)                                                    | Every page load                                                                                      | Yes                          |
 | Cloudflare                                  | Sits in front of the API; its Web Analytics script also receives page-speed and broad browser details                 | Every API call; every website visit after the script loads                                           | Yes                          |
-| Google Search Console                       | Sitewide search appearances and visits; Alethical publishes no search phrase, page, country, device, or person detail | When the public Site metrics totals refresh                                                          | Yes                          |
-| Bing Webmaster Tools                        | The same sitewide search totals and the same public limits                                                            | When the public Site metrics totals refresh                                                          | Yes                          |
+| Google Search Console                       | Sitewide search appearances and visits; Alethical publishes no search phrase, page, country, device, or person detail | When the private Site Metrics totals refresh                                                          | Yes                          |
+| Bing Webmaster Tools                        | The same sitewide search totals and the same private limits                                                           | When the private Site Metrics totals refresh                                                          | Yes                          |
 | Checkly                                     | The 3 public Alethical addresses it tests                                                                             | Every 2 minutes from North Virginia                                                                  | Yes                          |
 | Railway                                     | Runs the API and captures its log stream (§7)                                                                         | Every API call                                                                                       | Yes                          |
 | Sentry                                      | Error class, code stack, safe route pattern, and public operating labels; **no reader data**                          | Only when an import, sign-in service, answer provider, or API request fails                          | Yes                          |
@@ -593,7 +593,7 @@ in the Privacy Policy rather than discovered.
 name, email address, or account identifier. Before a page address is sent, everything
 after `?` or `#` is removed. Vercel receives no custom action events. Vercel produces
 combined page-view counts and a daily anonymous visitor estimate; Alethical keeps no
-per-reader analytics record of its own. The public `/site-metrics` page reads only combined
+per-reader analytics record of its own. The private `/admin/site-metrics` page reads only combined
 24-hour, 7-day, and 30-day totals through a server route whose Vercel access token never
 reaches the browser.
 
@@ -620,16 +620,16 @@ hour, and a count. They measure local first use and new bill or committee follow
 Supabase signups. Recording-start markers (`site_metric_coverage`) hold only a measurement
 name and its first recording time. Neither table identifies a person or which bill or
 committee they follow. These totals survive follow and account deletion; missing history
-is not filled from surviving records. The private `/admin/metrics` report reads
+is not filled from surviving records. The private `/admin/operations` report reads
 combined measurements and creates no reader-level activity history. Its server requires
 administrator permission separately from the team-and-test collection exclusion.
 
 **Search discovery, availability, and speed stay combined.** Google Search Console and
-Bing Webmaster Tools feed only sitewide 30-day appearance and visit totals to the public
-Site metrics page. Checkly opens only 3 public Alethical addresses. Cloudflare Web Analytics
+Bing Webmaster Tools feed only sitewide 30-day appearance and visit totals to the private
+`/admin/site-metrics` page. Checkly opens only 3 public Alethical addresses. Cloudflare Web Analytics
 uses no cookies, local storage, or fingerprinting, but it receives speed measurements,
 cleaned page paths, referrers, broad place and browser facts, and some element or resource
-details. Alethical publishes a sitewide speed score for the 30 completed UTC days only when
+details. Alethical shows administrators a sitewide speed score for the 30 completed UTC days only when
 Cloudflare reports at least 50 actual observations for that specific measurement. A total
 page-load count or an estimated sample count does not meet that requirement. Cloudflare's
 speed sample can include team visits; the Vercel team exclusion does not control its beacon.

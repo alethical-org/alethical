@@ -47,7 +47,7 @@ The landing and pure record-chooser directories do not gain Share buttons.
 [How sharing works](sharing-guide.md) owns the contextual window headings and
 non-repeating prepared messages.
 
-- Choose **Money** (marked with a green NEW chip) before Search in the shared top
+- Choose **Money** before Search in the shared top
   menu, on a computer or in the phone menu. It opens `/money` directly.
 - Choose **Search the money records** on the homepage card headed **Follow the money**.
 - Open `/money` directly.

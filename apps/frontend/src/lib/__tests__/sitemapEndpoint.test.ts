@@ -22,7 +22,7 @@ const COLLECTION_PAGE_ROWS =
  * adds one to the sitemap, and this stops failing on every publish for a reason
  * that is not a defect.
  */
-const FIXED_PAGE_ROWS = 17;
+const FIXED_PAGE_ROWS = 16;
 /** The numbered directory rows the live counts add: 2 for bills, 1 for
  *  legislators, 2 for the register of campaign committees. */
 const DIRECTORY_PAGE_ROWS = 5;
@@ -106,11 +106,11 @@ describe('sitemap endpoint', () => {
       '/about',
       '/about/contact',
       '/privacy',
-      '/site-metrics',
       '/terms',
     ]) {
       expect(body).toContain(`<loc>https://www.alethical.com${path}</loc>`);
     }
+    expect(body).not.toContain('<loc>https://www.alethical.com/site-metrics</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/bills?page=2</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/bills?page=3</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/legislators?page=2</loc>');

@@ -9,6 +9,7 @@ import pytest
 from sqlalchemy import delete, func, select
 
 from alethical.api.auth import get_auth_service
+from alethical.api.routers.admin import require_admin
 from alethical.api import auth as auth_module
 from alethical.api.services.auth import AuthenticatedPrincipal
 from alethical.api.services import site_metric_history as history_service
@@ -19,6 +20,11 @@ from alethical.db.session import get_session_factory
 
 schema = load_schema()
 AUTH = {"Authorization": "Bearer synthetic-only"}
+
+
+@pytest.fixture(autouse=True)
+def permit_report_reads(client):
+    client.app.dependency_overrides[require_admin] = lambda: None
 
 
 @pytest.fixture(autouse=True)

@@ -124,7 +124,7 @@ test.beforeEach(async ({ context, baseURL }) => {
 test('network boundary blocks vendor calls and discards event uploads locally', async ({
   page,
 }) => {
-  await page.goto('/admin/site-metrics');
+  await page.goto('/admin/operations');
   const outcomes = await page.evaluate(async () => {
     const urls = [
       'https://example.invalid/auth/v1/user',
@@ -158,7 +158,7 @@ for (const width of [390, 1280]) {
 
     test('allowed administrator sees private totals and range changes', async ({ page }) => {
       const state = await answers(page);
-      await page.goto('/admin/site-metrics');
+      await page.goto('/admin/operations');
       await expect(metric(page, 'Current surviving accounts created')).toHaveText(/23$/);
       await expect(metric(page, 'Surviving accounts created in last 7 days')).toHaveText(/4$/);
       await page.getByRole('button', { name: 'Last 30 days', exact: true }).click();
@@ -182,9 +182,9 @@ for (const width of [390, 1280]) {
 
     test('signed-out visitor cannot request private totals', async ({ page }) => {
       const state = await answers(page, { session: null });
-      await page.goto('/admin/site-metrics');
+      await page.goto('/admin/operations');
       await expect(
-        page.getByText('Sign in with an administrator account to view leadership metrics.'),
+        page.getByText('Sign in with an administrator account to view Admin metrics.'),
       ).toBeVisible();
       await expect(page.getByText('Current surviving accounts created')).toHaveCount(0);
       expect(state.accessTokens).toEqual([]);
@@ -193,9 +193,9 @@ for (const width of [390, 1280]) {
 
     test('signed-in nonadministrator cannot request private totals', async ({ page }) => {
       const state = await answers(page, { allowed: false });
-      await page.goto('/admin/site-metrics');
+      await page.goto('/admin/operations');
       await expect(
-        page.getByText('Restricted access. This account cannot view leadership metrics.'),
+        page.getByText('Restricted access. This account cannot view Admin metrics.'),
       ).toBeVisible();
       await expect(page.getByText('Current surviving accounts created')).toHaveCount(0);
       expect(state.accessTokens).toEqual([`Bearer ${state.session!.access_token}`]);
@@ -208,7 +208,7 @@ for (const width of [390, 1280]) {
         data[source] = null;
         data.errors[source] = `Synthetic ${source} source is unavailable.`;
         await answers(page, { data });
-        await page.goto('/admin/site-metrics');
+        await page.goto('/admin/operations');
         await expect(page.getByText(data.errors[source]!, { exact: true }).first()).toBeVisible();
         if (source !== 'accounts')
           await expect(metric(page, 'Current surviving accounts created')).toHaveText(/23$/);
@@ -227,7 +227,7 @@ for (const width of [390, 1280]) {
         page,
       }) => {
         const state = await answers(page);
-        await page.goto('/admin/site-metrics');
+        await page.goto('/admin/operations');
         await expect(metric(page, 'Current surviving accounts created')).toHaveText(/23$/);
         state.holdValidation = true;
         const next =
@@ -241,7 +241,7 @@ for (const width of [390, 1280]) {
         expect(state.reportTokens).toHaveLength(1);
         if (!next) {
           await expect(
-            page.getByText('Sign in with an administrator account to view leadership metrics.'),
+            page.getByText('Sign in with an administrator account to view Admin metrics.'),
           ).toBeVisible();
           return;
         }

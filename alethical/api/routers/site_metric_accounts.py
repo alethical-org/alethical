@@ -1,4 +1,4 @@
-"""Public counts from signup records, independent of product-action collection."""
+"""Private counts from signup records, independent of product-action collection."""
 
 import logging
 
@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
+from alethical.api.routers.admin import require_admin
 from alethical.api.services.account_signup_metrics import aggregate_account_signups
 from alethical.db.session import get_db
 
@@ -13,7 +14,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.get("/site-metrics/accounts")
+@router.get("/site-metrics/accounts", dependencies=[Depends(require_admin)])
 def account_signup_totals(db: Session = Depends(get_db)) -> JSONResponse:
     try:
         result = aggregate_account_signups(db)
@@ -27,7 +28,5 @@ def account_signup_totals(db: Session = Depends(get_db)) -> JSONResponse:
         )
     return JSONResponse(
         result,
-        headers={
-            "Cache-Control": "public, max-age=0, s-maxage=300, stale-while-revalidate=60"
-        },
+        headers={"Cache-Control": "private, no-store"},
     )

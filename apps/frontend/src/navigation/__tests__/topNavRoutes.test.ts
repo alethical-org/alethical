@@ -10,7 +10,6 @@ describe('top navigation routes', () => {
     ['search-campaign-money', ['MoneyLanding']],
     ['read', ['Read']],
     ['about-us', ['AboutUs']],
-    ['about-site-metrics', ['SiteMetrics']],
     ['about-contact', ['ContactUs']],
   ] as const)('sends %s through the full app route', (itemId, expectedCall) => {
     const navigate = vi.fn();
@@ -50,7 +49,6 @@ describe('a nav row that navigates also carries a link', () => {
     'search-campaign-money',
     'read',
     'about-us',
-    'about-site-metrics',
     'about-contact',
     'track-bills',
   ])('%s has an href', (itemId) => {

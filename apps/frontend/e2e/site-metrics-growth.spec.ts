@@ -10,6 +10,7 @@ import type {
   UptimeTotals,
 } from '../src/lib/traffic';
 import { suppressSiteMetrics } from './suppress-site-metrics';
+import { installPrivateSiteMetricsSession } from './private-site-metrics-session';
 
 test.beforeEach(async ({ context, baseURL }) => {
   test.skip(!baseURL || !['localhost', '127.0.0.1'].includes(new URL(baseURL).hostname));
@@ -221,8 +222,10 @@ async function installAnswers(page: Page, answers: Sources = fixture()) {
 }
 
 async function openMetrics(page: Page) {
-  await page.goto('/site-metrics');
+  await installPrivateSiteMetricsSession(page);
+  await page.goto('/admin/site-metrics');
   await expect(page.getByRole('heading', { name: 'Site Metrics', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'How people use Alethical' })).toBeVisible();
   await expect(page.getByText('Loading site metrics.')).toHaveCount(0, { timeout: 30_000 });
 }
 
@@ -271,23 +274,25 @@ async function loadProductionFonts(page: Page) {
     return css;
   })();
   await page.addStyleTag({ content: await productionFontCss });
-  expect(
-    await page.evaluate(async () => {
-      const faces = await Promise.all(
-        [
-          '400 14.5px "Libre Franklin"',
-          '500 13.5px "Libre Franklin"',
-          '700 14px "JetBrains Mono"',
-          '800 19px "Libre Franklin"',
-          '500 20px "Space Grotesk"',
-        ].map((font) => document.fonts.load(font)),
-      );
-      await document.fonts.ready;
-      return faces.every(
-        (loaded) => loaded.length > 0 && loaded.every((face) => face.status === 'loaded'),
-      );
-    }),
-  ).toBe(true);
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        const faces = await Promise.all(
+          [
+            '400 14.5px "Libre Franklin"',
+            '500 13.5px "Libre Franklin"',
+            '700 14px "JetBrains Mono"',
+            '800 19px "Libre Franklin"',
+            '500 20px "Space Grotesk"',
+          ].map((font) => document.fonts.load(font)),
+        );
+        await document.fonts.ready;
+        return faces.every(
+          (loaded) => loaded.length > 0 && loaded.every((face) => face.status === 'loaded'),
+        );
+      }),
+    )
+    .toBe(true);
 }
 
 async function destinationGeometry(page: Page) {
@@ -404,7 +409,13 @@ for (const width of [375, 390, 767, 768, 820, 1099, 1100, 1440]) {
     const readers = page.getByRole('heading', { name: 'Readers', exact: true }).locator('..');
     const cardBoxes = async () =>
       Promise.all(
-        [destinations, actions, explore, readers].map(async (card) => (await card.boundingBox())!),
+        [destinations, actions, explore, readers].map(async (card) => {
+          await expect(card).toBeVisible();
+          return card.evaluate((element) => {
+            const box = element.getBoundingClientRect();
+            return { y: box.y, height: box.height };
+          });
+        }),
       );
     const rowOffsets = () =>
       actions.getByTestId(/^site-metrics-action-row-\d+$/).evaluateAll((rows) => {
@@ -733,9 +744,16 @@ for (const viewport of [
       await page.route('**/api/v1/admin/access', (route) =>
         route.fulfill({ json: { data: { is_admin: false } } }),
       );
-      await openMetrics(page);
+      await page.goto('/admin/site-metrics');
       await expect(
-        page.getByRole('button', { name: /Account menu|Account panel for/ }),
+        page.getByText('Restricted access. This account cannot view Site Metrics.'),
+      ).toBeVisible();
+      await expect(page.getByTestId('site-metrics-destinations')).toHaveCount(0);
+      if (viewport.name === 'phone') {
+        await page.getByRole('button', { name: 'Open menu' }).click();
+      }
+      await expect(
+        page.getByRole('button', { name: /Account menu|Account panel for|Account for/ }),
       ).toBeVisible();
       await expect(page.getByText(/^OPEN (VERCEL|GOOGLE|BING|CHECKLY|CLOUDFLARE)/)).toHaveCount(0);
       const hrefs = await page
@@ -746,7 +764,7 @@ for (const viewport of [
           /vercel\.com\/dashboard|search\.google\.com\/search-console|bing\.com\/webmasters|app\.checklyhq\.com|dash\.cloudflare\.com/,
         );
       }
-      await expect(page.getByRole('link', { name: 'See detailed availability' })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'See detailed availability' })).toHaveCount(0);
     });
 
     test('health cards contain every note without empty stretched phone cards', async ({

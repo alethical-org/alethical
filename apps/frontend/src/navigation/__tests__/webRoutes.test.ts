@@ -20,23 +20,25 @@ const routeSource = readFileSync(join(__dirname, '..', 'webRoutes.ts'), 'utf8');
 
 describe('private admin addresses', () => {
   it.each(['/admin/metrics', '/admin/site-metrics'])(
-    'keeps %s private and ignores incoming search state',
+    'opens private Site Metrics at %s without incoming search state',
     (path) => {
-      expect(targetFromPathname(`${path}?email=private`)).toEqual({ kind: 'adminSiteMetrics' });
-      expect(stateFromPathname(path)?.routes[1]).toEqual({ name: 'AdminSiteMetrics' });
-      expect(pathForRoute({ name: 'AdminSiteMetrics', params: { email: 'private' } })).toBe(
-        '/admin/metrics',
-      );
+      expect(targetFromPathname(`${path}?email=private`)).toEqual({ kind: 'siteMetrics' });
+      expect(stateFromPathname(path)?.routes[1]).toEqual({ name: 'SiteMetrics' });
     },
   );
-  it('redirects the former metrics address to its canonical address', () => {
+  it('gives Operations its own private address and moves the old public address', () => {
+    expect(targetFromPathname('/admin/operations?email=private')).toEqual({
+      kind: 'adminSiteMetrics',
+    });
+    expect(pathForRoute({ name: 'AdminSiteMetrics' })).toBe('/admin/operations');
+    expect(pathForRoute({ name: 'SiteMetrics' })).toBe('/admin/site-metrics');
     const config = JSON.parse(
       readFileSync(join(__dirname, '../../../../..', 'vercel.json'), 'utf8'),
     );
     expect(config.redirects).toContainEqual({
-      source: '/admin/site-metrics',
-      destination: '/admin/metrics',
-      permanent: true,
+      source: '/site-metrics',
+      destination: '/admin/site-metrics',
+      permanent: false,
     });
   });
   it.each([
@@ -346,7 +348,7 @@ describe('live URLs still resolve to themselves', () => {
     expect(targetFromPathname('/privacy')).toEqual({ kind: 'privacy' });
     expect(targetFromPathname('/site-metrics')).toEqual({ kind: 'siteMetrics' });
     expect(targetFromPathname('/terms')).toEqual({ kind: 'terms' });
-    expect(pathForRoute({ name: 'SiteMetrics' })).toBe('/site-metrics');
+    expect(pathForRoute({ name: 'SiteMetrics' })).toBe('/admin/site-metrics');
   });
 
   it('round-trips the Contact us page through its public URL', () => {
@@ -828,7 +830,7 @@ describe('the bar\u2019s Read item', () => {
     expect(read.item.label).toBe('Blog');
     expect(read.item.path).toBe('/blog');
     expect(read.item.menu).toBeNull();
-    expect(read.item.isNew).toBe(true);
+    expect(read.item.isNew).toBeUndefined();
     expect(read.item.authGated).toBe(false);
     // Nothing hangs off it, at either band.
     expect(IA.filter((item) => item.id !== 'read' && item.path.startsWith('/blog'))).toEqual([]);
@@ -917,7 +919,7 @@ describe('Search dropdown roadmap row', () => {
     const { roadmap } = navDropdownItems('search');
     expect(roadmap.map((item) => item.label)).toEqual([
       'Candidates',
-      'Claimed Profiles',
+      'Claimed profiles',
       'News',
       'Ask AI',
     ]);
@@ -941,13 +943,13 @@ describe('top-level Money destination', () => {
     ]);
   });
 
-  it('is public and marked new', () => {
+  it('is public without a NEW badge', () => {
     const item = IA.find((entry) => entry.id === 'search-campaign-money');
     expect(item?.authGated).toBe(false);
     expect(item?.path).toBe('/money');
     expect(item?.label).toBe('Money');
     expect(item?.menu).toBeNull();
-    expect(item?.isNew).toBe(true);
+    expect(item?.isNew).toBeUndefined();
   });
 
   it('keeps money search reachable after lobbying is released', () => {
@@ -979,7 +981,7 @@ describe('Mobile menu roadmap row', () => {
   // roadmap. With that menu gone from the bar the chip pointed at a group a
   // reader could no longer open, so it goes (#1698).
   it('shows four chips, News by name and Ask AI last', () => {
-    expect(mobileNavRoadmapLabels()).toEqual(['Candidates', 'Claimed Profiles', 'News', 'Ask AI']);
+    expect(mobileNavRoadmapLabels()).toEqual(['Candidates', 'Claimed profiles', 'News', 'Ask AI']);
   });
 
   it('offers no More Tracking chip', () => {

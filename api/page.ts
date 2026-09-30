@@ -1579,7 +1579,7 @@ async function contentFor(
 
   switch (target.kind) {
     case "adminSiteMetrics":
-      return headOnly(STATIC_PAGE_METADATA["/admin/metrics"]);
+      return headOnly(STATIC_PAGE_METADATA["/admin/operations"]);
     case "adminUsers":
       return headOnly(STATIC_PAGE_METADATA["/admin/users"]);
     case "bill":
@@ -1760,7 +1760,7 @@ async function contentFor(
     case "privacy":
       return headOnly(STATIC_PAGE_METADATA["/privacy"]);
     case "siteMetrics":
-      return headOnly(STATIC_PAGE_METADATA["/site-metrics"]);
+      return headOnly(STATIC_PAGE_METADATA["/admin/site-metrics"]);
     case "terms":
       return headOnly(STATIC_PAGE_METADATA["/terms"]);
     case "aboutUs":
@@ -1894,7 +1894,7 @@ export default async function handler(
     requestedPath === "/email-preferences" ||
     requestedPath === "/unsubscribe" ||
     requestedPath === "/comment-emails";
-  const isAdminPage = ["adminUsers", "adminSiteMetrics"].includes(
+  const isAdminPage = ["adminUsers", "adminSiteMetrics", "siteMetrics"].includes(
     targetFromPathname(requestedPath).kind,
   );
 
