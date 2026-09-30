@@ -10,6 +10,7 @@ describe('top navigation routes', () => {
     ['search-campaign-money', ['MoneyLanding']],
     ['read', ['Read']],
     ['about-us', ['AboutUs']],
+    ['about-services', ['Services']],
     ['about-contact', ['ContactUs']],
   ] as const)('sends %s through the full app route', (itemId, expectedCall) => {
     const navigate = vi.fn();
@@ -49,6 +50,7 @@ describe('a nav row that navigates also carries a link', () => {
     'search-campaign-money',
     'read',
     'about-us',
+    'about-services',
     'about-contact',
     'track-bills',
   ])('%s has an href', (itemId) => {
@@ -62,6 +64,11 @@ describe('a nav row that navigates also carries a link', () => {
 describe('the nav row that names the page being viewed', () => {
   it('marks Read on the /blog page', () => {
     expect(currentNavItemId('/blog')).toBe('read');
+  });
+
+  it('marks Services on the public offering', () => {
+    expect(currentNavItemId('/services')).toBe('about-services');
+    expect(NAV_ITEM_HREFS['about-services']).toBe('/services');
   });
 
   it('ignores a trailing slash, a query and a fragment', () => {

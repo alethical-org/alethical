@@ -20,8 +20,9 @@ Readers reach it through a private email link, not the account menu. See
   (`/bills`), **Legislators** (`/legislators`), and **Find my legislators** (`/find-my-legislator`).
 - **Blog** is a plain link, not a dropdown. It opens the `/blog` page, which lists Alethical's
   own research, short posts and guides.
-- **About ▾** opens **About us** (`/about`) and
+- **About ▾** opens **About us** (`/about`), **Services** (`/services`), and
   **Contact us** (`/about/contact`).
+  Services keeps the labels aligned with an empty icon space; no new menu picture is invented.
 - **Sign in** is the account action when you are signed out. The signed-out homepage
   uses the approved white outlined button; other screens retain their existing primary
   treatment. Pressing it opens the sign-in

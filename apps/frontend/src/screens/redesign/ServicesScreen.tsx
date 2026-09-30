@@ -283,7 +283,7 @@ export function ServicesScreen({ navigation }: RootScreenProps<'Services'>) {
   };
   return (
     <View style={styles.root}>
-      <View style={{ backgroundColor: t.colors.surfaces.s200 }}>
+      <View style={{ backgroundColor: t.colors.surfaces.s200, zIndex: 60 }}>
         <TopNav
           openMenu={openMenu}
           onOpenMenuChange={setOpenMenu}

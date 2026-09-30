@@ -9,10 +9,10 @@ Status: Implementation authorized on 2026-09-30 by “bd services page which ser
 - Accepted source: `Alethical UX (44).zip`, completed September 30 at 16:01; SHA256 `8824ca383409734d2112e7fcfef68cb1dd64ccc269ba35771cc3c9a74c23ce8e`.
 - Exact interface, content and contact behavior are described by [services-guide.md](../product-onboarding/services-guide.md).
 - [x] Implement the native web screen, assets, route, server-readable content, metadata and sitemap entry.
-- [x] Check 320, 375, 768, 924, 1100 and 1280 layouts, keyboard audience controls, anchors, and contact focus/close/draft address. All 10 Chromium checks pass.
-- [x] Accept the independent reader review and Safari checks. All 10 Safari-engine checks pass; the reader review passed at 1280, 390 and 320 widths.
-- [ ] Rebase after the combined navigation release, [pull request 2431](https://github.com/alethical-org/alethical/pull/2431), then add Services after About us and enable the homepage services card. Keep other navigation and homepage work intact.
-- [ ] Complete current-head checks, release, public browser checks and issue report.
+- [x] Check 320, 375, 768, 924, 1100 and 1280 layouts, keyboard audience controls, anchors, and contact focus/close/draft address. The browser suite covers 14 checks in each engine, including homepage and About-menu entry points.
+- [x] Accept the independent reader review and Safari checks; the reader review passed at 1280, 390 and 320 widths.
+- [x] Rebase after the combined navigation release, [pull request 2431](https://github.com/alethical-org/alethical/pull/2431), then add Services after About us and enable the homepage services card. Other navigation and homepage work remain intact.
+- Current-head release checks and public browser evidence are recorded in [issue 2432](https://github.com/alethical-org/alethical/issues/2432) after deployment.
 - The public build omits the private-preview banner. Shared navigation replaces the prototype's duplicate wordmark; the local section links and Contact Us remain. No sign-in restriction, purchasing, customer profiles or outbound email sending is implemented.
 
 

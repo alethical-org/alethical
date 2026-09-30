@@ -151,3 +151,40 @@ for (const width of [375, 1280]) {
     await expect(card).toBeVisible();
   });
 }
+
+for (const width of [375, 1280]) {
+  test(`About Services works above the presentation at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto('/services');
+    if (width < 1100) await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+    else await page.getByRole('button', { name: 'About', exact: true }).click();
+    const services =
+      width < 1100
+        ? page.getByRole('dialog').getByRole('link', { name: 'Services', exact: true })
+        : page
+            .getByRole('link', { name: 'Services', exact: true })
+            .and(page.locator('a[href="/services"]'));
+    await expect(services).toHaveAttribute('href', '/services');
+    await expect(services).toHaveAttribute('aria-current', 'page');
+    await services.scrollIntoViewIfNeeded();
+    const hit = await services.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return element.contains(
+        document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2),
+      );
+    });
+    expect(hit).toBe(true);
+    await services.hover();
+    await services.click();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+      'Political intelligence. Practical campaign support.',
+    );
+    await expect(services).toHaveCount(0);
+    if (width < 1100) await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+    else await page.getByRole('button', { name: 'About', exact: true }).click();
+    await page.getByRole('link', { name: 'About us', exact: true }).click();
+    await expect(page).toHaveURL(/\/about$/);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/services$/);
+  });
+}
