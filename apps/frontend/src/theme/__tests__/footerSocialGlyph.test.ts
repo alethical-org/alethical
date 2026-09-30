@@ -20,9 +20,9 @@ describe('shared footer social marks', () => {
     expect(THEME_SOURCE).toContain('surface="footer"');
     expect(THEME_SOURCE).toContain("footerTopMobile: { flexDirection: 'column', gap: 32 }");
     expect(THEME_SOURCE).toContain("footerUtility: { alignItems: 'flex-end', gap: 28 }");
-    expect(THEME_SOURCE).toContain("footerUtilityMobile: { alignItems: 'flex-start', gap: 20 }");
+    expect(THEME_SOURCE).toContain("footerUtilityMobile: { alignItems: 'flex-start', gap: 20,");
     expect(THEME_SOURCE).toContain("footerSocialLinks: { flexDirection: 'row', gap: 10 }");
-    expect(THEME_SOURCE).toContain('footerSocialLinksMobile: { gap: 8 }');
+    expect(THEME_SOURCE).toContain('footerSocialLinksMobile: { gap: 8,');
   });
 
   it('keeps the accepted marks, optical sizes, circle sizes, and active colours', () => {
