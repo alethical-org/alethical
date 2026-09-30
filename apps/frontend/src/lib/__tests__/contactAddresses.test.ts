@@ -2,10 +2,11 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-// The only alethical.com addresses that exist. `ask@` is the published contact
+// The approved alethical.com addresses. `ask@` is the published contact
 // address, verified against the live production bundle on 6 Aug 2026; `eug@` is
 // the maintainer's own and appears in repo metadata rather than reader-facing
-// copy. Anything else in the source is invented.
+// copy. `angel@` was supplied by Eugene and is the accepted services contact
+// in Campaign Services on September 30, 2026. Anything else must be established.
 //
 // Why this test exists: a session drafting lockout copy wrote `hello@alethical.com`
 // from memory into user-facing text (#1092). It was caught by an unrelated guard
@@ -16,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 // have reached us. `.claude/rules/workflow.md` rule 9 requires resolving a
 // factual claim from its primary source rather than from memory, and a contact
 // address is exactly that kind of claim.
-const ALLOWED = new Set(['ask@alethical.com', 'eug@alethical.com']);
+const ALLOWED = new Set(['ask@alethical.com', 'eug@alethical.com', 'angel@alethical.com']);
 
 const SRC = join(__dirname, '..', '..');
 

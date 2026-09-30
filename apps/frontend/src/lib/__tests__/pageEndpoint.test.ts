@@ -735,6 +735,7 @@ describe('first-response page tags', () => {
 
   it.each([
     ['/about', 'TRUTH, UNCONCEALED', 'Facts before opinions'],
+    ['/services', 'Political intelligence', 'Campaign-finance research'],
     ['/about/contact', 'Contact us', 'mailto:'],
   ])('serves %s with its own readable body and no data request', async (path, heading, text) => {
     const fetch = vi.fn();
@@ -748,6 +749,33 @@ describe('first-response page tags', () => {
     expect(response.body).toContain(`rel="canonical" href="https://www.alethical.com${path}"`);
     expect(response.headers.get('X-Robots-Tag')).toBeUndefined();
     expect(response.body).not.toContain('content="noindex');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('keeps the services response public with its approved examples and contact path', async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    const response = await serve({ path: '/services' });
+    expect(response.status).toBe(200);
+    expect(response.body).toContain(
+      '<title>Political intelligence and campaign services | Alethical</title>',
+    );
+    expect(response.body).toContain('Already helping campaigns get started');
+    expect(response.body).toContain('href="mailto:angel@alethical.com?cc=ask@alethical.com"');
+    expect(response.body).toContain('href="https://forwardcoalition.com/candidates"');
+    for (const name of [
+      'Aaron Brutger',
+      'Kris Babler',
+      'Jay Reeves',
+      'Trent Dilks',
+      'Denise Slipy',
+      'Tara Killen',
+    ]) {
+      expect(response.body).toContain(name);
+    }
+    expect(response.body).toContain('IN DEVELOPMENT');
+    expect(response.body).not.toContain('Trina Swanson');
+    expect(response.headers.get('X-Robots-Tag')).toBeUndefined();
     expect(fetch).not.toHaveBeenCalled();
   });
 

@@ -160,6 +160,7 @@ export type RootStackParamList = {
   SiteMetrics: undefined;
   Terms: undefined;
   AboutUs: undefined;
+  Services: undefined;
   ContactUs: { article?: string } | undefined;
   ConfirmEmail: undefined;
   ResetPassword: undefined;

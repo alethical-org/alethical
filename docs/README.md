@@ -20,6 +20,7 @@ What we're building and what we deliberately aren't, plus the guides for learnin
 works. The specs come first; the guides and operating references near the end explain how
 things work in practice and are the place to start if you're new.
 
+- [How campaign services works](product-onboarding/services-guide.md) — public customer offering, audience choices, partner services, early work and the email contact panel
 - [Scope](product-onboarding/product-scope.md) — what the product is, its core principles, and what it deliberately does not do
 - [What we keep about readers](product-onboarding/user-data-retention-policy.md) — every piece of reader data we store, why it exists, how long we keep it, what deletion should mean, and the gaps that are not closed yet
 - [Grounded Ask build spec](product-onboarding/grounded-ask-spec.md) — the Ask surface: answer paths, the cite-or-refuse contract, answer-page states

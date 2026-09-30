@@ -70,6 +70,7 @@ const FIXED_PAGES = [
   "/money/outside-spending",
   "/blog",
   "/about",
+  "/services",
   "/about/contact",
   "/privacy",
   "/terms",

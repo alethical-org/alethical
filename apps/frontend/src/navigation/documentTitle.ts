@@ -50,6 +50,7 @@ export const STATIC_PAGE_SUBJECTS: Record<string, string> = {
   '/reset': 'Reset password',
   '/find-my-legislator': 'Find my legislator',
   '/about': 'About us',
+  '/services': 'Political intelligence and campaign services',
   '/about/contact': 'Contact us',
   '/privacy': 'Privacy Policy',
   '/admin/site-metrics': 'Site Metrics',

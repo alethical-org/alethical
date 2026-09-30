@@ -1,4 +1,5 @@
 import { MONEY_SECTION_NAME } from './moneySectionName';
+import { SERVICES_SUBTITLE } from './servicesMetadata';
 import { READ_PAGE_HEADING, READ_PAGE_INTRO, READ_PAGE_NAME } from './researchIndex';
 import {
   committeeListPageMetadata,
@@ -83,6 +84,12 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
     description:
       'Why this site exists, and how Minnesota’s official legislative record is turned into plain language.',
     canonicalPath: '/about',
+  }),
+  '/services': pageMetadata({
+    title: titleFor('Political intelligence and campaign services'),
+    socialTitle: 'Political intelligence and campaign services',
+    description: SERVICES_SUBTITLE,
+    canonicalPath: '/services',
   }),
   '/about/contact': pageMetadata({
     title: titleFor('Contact us'),
