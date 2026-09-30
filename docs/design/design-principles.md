@@ -701,7 +701,12 @@ surface's other approved visual choices.
 
 The article frame and ordinary body remain full width. From 768px, H1 titles
 have a 1040px maximum and balanced wrapping. Exact YYYY–YYYY title ranges stay
-on 1 line at every width without changing their characters. Long Research’s
+on 1 line at every width without changing their characters. At exceptional zoomed/narrow widths, a title whose unbroken
+year range exceeds the available space scrolls horizontally inside its own
+heading. Only an overflowing heading joins keyboard navigation, with the
+existing purple 2px focus outline and 2px offset. Keep its heading semantics,
+fonts, balanced wrapping and maximum width; ordinary titles add no keyboard
+stop or visible control. Long Research’s
 22px opening line under H1 has an 880px maximum; Guide and Short post openings
 retain their current widths. Essential method summaries, Full method controls,
 closing AI-preparation paragraphs and existing whole conclusion rows have an

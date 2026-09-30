@@ -655,7 +655,12 @@ updated drawings were not downloaded.
 From 768px, all article H1 titles have a 1040px maximum and balanced wrapping.
 Each exact 4-digit year range joined by an en dash stays together at every width
 inside an ordinary nonwrapping span. Title characters and document titles remain
-unchanged. Long Research’s existing 22px opening line under its title has an
+unchanged. At exceptional zoomed/narrow widths, a title whose unbroken
+year range exceeds the available space scrolls horizontally inside its own
+heading. Only an overflowing heading joins keyboard navigation, with the
+existing purple 2px focus outline and 2px offset. Keep its heading semantics,
+fonts, balanced wrapping and maximum width; ordinary titles add no keyboard
+stop or visible control. Long Research’s existing 22px opening line under its title has an
 880px maximum; Guide and Short post openings keep their existing widths.
 The essential paragraph and Full method control inside HOW THIS WAS CALCULATED,
 the closing AI-preparation paragraph, and each existing whole conclusion wrapper
