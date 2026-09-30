@@ -706,10 +706,52 @@ wrapping and spacing; do not leave an empty row for the removed wording.
 
 ### Build acceptance for controls
 
-For every changed surface, inventory its controls and approved resting, hover,
-keyboard-focus, disabled and busy states, including dialogs and inline forms.
-Read the actual drawings and written behavior together. A missing detail in
-build notes does not erase a detail the drawing specifies.
+**The accepted design defines the review scope, not the code changes.** For a
+screen build, include every section in the authorized screen, including reused
+components and content the builder did not edit. Reuse is an implementation
+choice, never evidence that a section already matches. A narrowly authorized
+control change covers that control and its affected uses within the agreed scope;
+it does not authorize an unrelated screen redesign.
+
+**Before implementation, make a design comparison record.** Keep it in the task's
+issue, pull request, or linked build notes. Name the accepted bundle and checksum,
+the drawings and screen widths, and any explicit user overrides. Read the actual
+drawings and written behavior together. A missing detail in build notes does not
+erase a detail the drawing specifies. List every section in display order, then
+its checkable requirements: exact copy and explanation lines, date and number
+formats, fonts and weights, layout and wrapping, spacing and alignment, colours,
+assets, and controls. Include approved resting, hover, keyboard-focus, disabled,
+busy, empty and error states, including dialogs and inline forms. State which
+requirements are shared across screen widths and which differ.
+
+**Every comparison needs a result and evidence.** For each requirement, record
+the expected result, the observed result, and a screenshot, browser measurement,
+or interaction check that supports it. Inspect screenshots at readable size;
+capturing them without comparing them does not finish a check. A section labelled
+"existing", "reused", or "unchanged" still needs this evidence. An intentional
+difference needs the exact approved exception or launch hold and its source.
+Do not invent an exception to excuse missing work. Record any newly approved
+exception or scope change with its source, and update the comparison record
+before continuing.
+
+**An independent reviewer starts from the design.** Before release, give a
+reviewer who did not implement the change the accepted drawings, governing
+requirements, approved exceptions, and working address. Ask them to compare the
+whole authorized surface and identify missing work, including reused sections.
+The builder's change list or completed checklist must not limit that review.
+The owning agent reconciles the review with the comparison record, corrects
+differences within the authorized scope, and reviews the corrected result. If
+independent review is unavailable, report that check as unfinished.
+
+**Working and matching are separate completion checks.** Passing tests, working
+links, and accessible controls do not prove the design was fully implemented.
+Do not merge or call the build complete while any design requirement is missing,
+untested, or different without an approved exception. Changes after review
+require renewed checks of the affected entries. After deployment, compare the
+released screen at the delivery address with the accepted design and record the
+release checked; a local preview does not prove the live result. Keep temporary
+drawings and screenshots with the task or review evidence, not in permanent
+product documentation.
 
 Use the loaded web font explicitly on shared buttons. Review browser-computed
 font family, weight and size, not just declarations in a stylesheet: a form
