@@ -2340,7 +2340,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     lineHeight: 30,
     color: '#1a201d',
-    maxWidth: 1040,
+    // The approved privacy-clause line break uses the available card width.
     marginBottom: 24,
   },
   answerSummaryBold: { fontWeight: t.fontWeights.semibold },
