@@ -40,8 +40,8 @@ title text, year-range boundaries, table contents and header semantics. Parent a
 Automated implementation checks: TypeScript passed; 15 focused title/table tests
 passed; the full frontend suite passed 3,886 tests across 311 files. All frontend
 formatting and both document-reference/organization checks passed. Production web
-export passed, with 296,592 compressed startup bytes against the unchanged
-296,881 limit. A hosted release must pass its own size measurement. Integrated article/comment tests passed58 checks after rebasing on the current shared code. The parent and independent reviewer accepted the final rendering; live comparison remains pending until release.
+export passed, with 296,590 compressed startup bytes against the unchanged
+296,881 limit. A hosted release must pass its own size measurement. Integrated article/comment tests passed58 checks after rebasing on the current shared code. The final full frontend suite passed3,896 tests across312 files after adding a resize fallback for environments without ResizeObserver; the previously failing3 contact-navigation checks now pass. Independent review accepted the fallback and cleanup. The parent and independent reviewer accepted the final rendering; live comparison remains pending until release.
 
 ## Article width build, 30 Sep 2026
 
