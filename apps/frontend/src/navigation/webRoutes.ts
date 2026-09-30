@@ -78,6 +78,7 @@ type WebRouteTarget =
   | { kind: 'siteMetrics' }
   | { kind: 'terms' }
   | { kind: 'aboutUs' }
+  | { kind: 'services' }
   | { kind: 'contactUs'; article?: string }
   | { kind: 'confirmEmail' }
   | { kind: 'resetPassword' }
@@ -298,6 +299,9 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     }
     if (segments[0] === 'about') {
       return { kind: 'aboutUs' };
+    }
+    if (segments[0] === 'services') {
+      return { kind: 'services' };
     }
     if (segments[0] === 'confirm') {
       return { kind: 'confirmEmail' };
@@ -962,6 +966,8 @@ export function pathForRoute(activeRoute: {
       return '/terms';
     case 'AboutUs':
       return '/about';
+    case 'Services':
+      return '/services';
     case 'ContactUs': {
       const article = activeRoute.params?.article;
       return typeof article === 'string' && article
@@ -1292,6 +1298,11 @@ export function stateFromPathname(pathname: string): WebNavigationState {
     case 'aboutUs':
       return {
         routes: [homeTabs, { name: 'AboutUs' }],
+        index: 1,
+      };
+    case 'services':
+      return {
+        routes: [homeTabs, { name: 'Services' }],
         index: 1,
       };
     case 'contactUs':

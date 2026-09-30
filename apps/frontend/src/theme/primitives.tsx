@@ -207,6 +207,9 @@ function Logo({
 
 /** Dropdown-row icon tiles — inline SVGs lifted from the DC source. */
 function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean }) {
+  // Services has no approved menu pictogram. Preserve label alignment without
+  // drawing an empty coloured icon tile.
+  if (itemId === 'about-services') return <View style={{ width: 40, height: 40 }} />;
   const c = disabled ? '#a4aba5' : t.colors.brand.graphics;
   return (
     <View style={[styles.menuRowIconTile, disabled && styles.menuRowIconTileDisabled]}>

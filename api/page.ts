@@ -24,6 +24,7 @@ import { billDescriptionLines } from "../apps/frontend/src/lib/billSummaryText";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { aboutPageSnapshot } from "../apps/frontend/src/lib/aboutUs";
+import { servicesPageSnapshot } from "../apps/frontend/src/lib/servicesPageSnapshot";
 import { contactPageSnapshot } from "../apps/frontend/src/lib/contactUs";
 
 import {
@@ -1767,6 +1768,11 @@ async function contentFor(
       return {
         metadata: STATIC_PAGE_METADATA["/about"],
         snapshot: renderPageSnapshot(aboutPageSnapshot()),
+      };
+    case "services":
+      return {
+        metadata: STATIC_PAGE_METADATA["/services"],
+        snapshot: renderPageSnapshot(servicesPageSnapshot()),
       };
     case "contactUs":
       return {

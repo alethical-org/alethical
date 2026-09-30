@@ -14,7 +14,12 @@ import { describe, expect, it } from 'vitest';
 
 import { IA, NAV_BAR, mobileNavRoadmapLabels, navDropdownItems } from '../ia';
 import { PUBLISHED_PIECE_INDEX, type PieceIndexEntry } from '../../lib/researchIndex';
-import { pathForRoute, stateFromPathname, targetFromPathname } from '../webRoutes';
+import {
+  pathForRoute,
+  pathnameFromNavigationState,
+  stateFromPathname,
+  targetFromPathname,
+} from '../webRoutes';
 
 const routeSource = readFileSync(join(__dirname, '..', 'webRoutes.ts'), 'utf8');
 
@@ -354,6 +359,18 @@ describe('live URLs still resolve to themselves', () => {
   it('round-trips the Contact us page through its public URL', () => {
     expect(targetFromPathname('/about/contact')).toEqual({ kind: 'contactUs' });
     expect(pathForRoute({ name: 'ContactUs' })).toBe('/about/contact');
+  });
+
+  it('round-trips the public services page without sign-in', () => {
+    expect(targetFromPathname('/services')).toEqual({ kind: 'services' });
+    expect(pathForRoute({ name: 'Services' })).toBe('/services');
+    const state = stateFromPathname('/services');
+    expect(state.routes[state.index ?? state.routes.length - 1]).toEqual({ name: 'Services' });
+    expect(pathnameFromNavigationState(state)).toBe('/services');
+    expect(targetFromPathname('/services/unknown')).toEqual({
+      kind: 'notFound',
+      path: '/services/unknown',
+    });
   });
 
   it('round-trips the About us page through its public URL', () => {

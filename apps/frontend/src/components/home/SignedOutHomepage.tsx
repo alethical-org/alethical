@@ -24,11 +24,9 @@ import { LinkArrow, linkArrowRow } from '../LinkArrow';
 import { isWeb, useFineHover } from '../billDetail/interactions';
 import { MoneyPromoCard } from './MoneyPromoCard';
 
-// Public service and candidate destinations have not launched. This gate is
-// deliberately build-time, not a request to probe a broken destination on load.
-// The services owner can enable the card with its working public route. Candidate
-// lookup integration belongs to the candidate build and is absent until then.
-export const HOME_SERVICES_READY = false;
+// The public services destination ships with this card. Candidate lookup stays
+// absent until its separate build supplies a working public destination.
+export const HOME_SERVICES_READY = true;
 const NEWS = ['94-2026-HF4138', '94-2025-SF856'];
 
 function Invitation({
@@ -148,7 +146,8 @@ export function SignedOutHomepage({
           heading={HOME_PUBLIC_SERVICES_HEADING}
           body={HOME_PUBLIC_SERVICES_BODY}
           label={HOME_PUBLIC_SERVICES_CTA}
-          href="/services"
+          href={routePath.services()}
+          onPress={() => navigation.navigate('Services')}
           paid
           phone={isMobile}
         />

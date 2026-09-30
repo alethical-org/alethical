@@ -60,6 +60,7 @@ const AdminSiteMetricsScreen = loadOnDemand(screenChunks.AdminSiteMetrics);
 const VoteDetailScreen = loadOnDemand(screenChunks.VoteDetail);
 const AskAnswerScreen = loadOnDemand(screenChunks.Ask);
 const AboutUsScreen = loadOnDemand(screenChunks.AboutUs);
+const ServicesScreen = loadOnDemand(screenChunks.Services);
 const BillDetailScreen = loadOnDemand(screenChunks.BillDetail);
 const HomeSignedOutScreen = loadOnDemand(screenChunks.Home);
 const CommitteeListScreen = loadOnDemand(screenChunks.CommitteeList);
@@ -875,6 +876,11 @@ export function RootNavigator() {
               name="AboutUs"
               component={AboutUsScreen}
               options={{ headerShown: false, title: 'About us' }}
+            />
+            <Stack.Screen
+              name="Services"
+              component={ServicesScreen}
+              options={{ headerShown: false, title: 'Services' }}
             />
             <Stack.Screen
               name="ContactUs"

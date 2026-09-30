@@ -302,6 +302,9 @@ import {
   HOME_PUBLIC_BILLS_HEADING,
   HOME_PUBLIC_BILLS_BODY,
   HOME_PUBLIC_BILLS_CTA,
+  HOME_PUBLIC_SERVICES_HEADING,
+  HOME_PUBLIC_SERVICES_BODY,
+  HOME_PUBLIC_SERVICES_CTA,
   MONEY_PROMO_HEADING,
 } from './homepage';
 
@@ -347,6 +350,8 @@ export interface SnapshotRecordLink extends SnapshotLink {
 }
 
 export interface PageSnapshot {
+  /** The approved dark presentation keeps its background before the app starts. */
+  appearance?: 'dark';
   /**
    * The small link above the heading that returns to the section this page sits
    * in, drawn exactly where the app draws its own (`/money` for a committee).
@@ -475,6 +480,11 @@ export function homePageSnapshot(): PageSnapshot {
         heading: HOME_PUBLIC_BILLS_HEADING,
         body: [HOME_PUBLIC_BILLS_BODY],
         items: [{ label: HOME_PUBLIC_BILLS_CTA, href: '/bills' }],
+      },
+      {
+        heading: HOME_PUBLIC_SERVICES_HEADING,
+        body: [HOME_PUBLIC_SERVICES_BODY],
+        items: [{ label: HOME_PUBLIC_SERVICES_CTA, href: '/services' }],
       },
     ],
     links: [],
@@ -2857,7 +2867,7 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
     : '';
 
   return [
-    '<div class="page-snapshot">',
+    `<div class="page-snapshot${snapshot.appearance === 'dark' ? ' page-snapshot-dark' : ''}">`,
     renderSnapshotNav(),
     '<main class="ps-inner">',
     snapshot.backLink

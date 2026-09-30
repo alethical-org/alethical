@@ -192,6 +192,16 @@ describe('page metadata', () => {
     expect(askPageMetadata(null).title).toBe('Ask about Minnesota legislation | Alethical');
   });
 
+  it('uses the approved public services title and description', () => {
+    const metadata = STATIC_PAGE_METADATA['/services'];
+    expect(metadata.title).toBe('Political intelligence and campaign services | Alethical');
+    expect(metadata.description).toBe(
+      'Campaign-finance research, websites, marketing, and custom software development shaped around your team’s needs.',
+    );
+    expect(metadata.canonicalPath).toBe('/services');
+    expect(metadata.noindex).toBe(false);
+  });
+
   it('gives every listed static page its own title and real address', () => {
     for (const [path, meta] of Object.entries(STATIC_PAGE_METADATA)) {
       expect(meta.canonicalPath).toBe(path);

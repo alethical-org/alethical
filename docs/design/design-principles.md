@@ -73,6 +73,10 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   is reserved specifically for the "Grounded Ask" / AI affordance and focus — it is a _meaning_, not
   decoration. A red ramp is reserved for genuine danger/veto status. Green fills carry **dark ink
   text, never white** (a deliberate contrast choice — see §3).
+- **Campaign services presentation.** `/services` uses the approved black background,
+  light text and green accents inside its customer presentation. Its shared website
+  header retains the normal light treatment. This is a scoped exception, described in
+  [services-guide.md](../product-onboarding/services-guide.md), not a restyle of record pages.
 - **Green roles on light surfaces.** UI-sized green text, including links such as
   `revisor.mn.gov →`, uses `text.greenOnLight` (`#0f7a45`). SVG strokes/fills use
   `brand.graphics` (`#149d5b`), and large bold display text may use
@@ -368,8 +372,10 @@ names wrap inside their available width instead of creating a horizontal scrollb
 >
 > **`selected` almost never becomes `aria-selected`, though — pick per control
 > ([#1036](https://github.com/alethical-org/alethical/issues/1036)).** `aria-selected` is only
-> meaningful inside a `listbox`, `tablist`, `grid` or `tree`, and this app has none of those. What
-> the fifteen sites actually needed:
+> meaningful inside a `listbox`, `tablist`, `grid` or `tree`. The `/services` audience chooser
+> is a complete `tablist`, so its tabs use `aria-selected` with arrow, Home and End navigation
+> and a linked `tabpanel`. The 15 ordinary controls reviewed in
+> [issue 1036](https://github.com/alethical-org/alethical/issues/1036) needed:
 >
 > | The control                                                                                                                      | Write                                                                                             | Why                                                       |
 > | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
@@ -428,12 +434,13 @@ names wrap inside their available width instead of creating a horizontal scrollb
 >
 > **`accessibilityRole` is fine, including the roles you would not expect.** Measured: `menuitem`
 > renders `role="menuitem"`, and `tab` renders `role="tab"`. Whether either _should_ be used is a
-> separate question, and the answer for both is no: our dropdowns are deliberately disclosures
-> containing a labelled group of buttons, not ARIA menus, and the three `tab` sites were dropped in
+> separate question: our dropdowns are deliberately disclosures containing a labelled group
+> of buttons, not ARIA menus, and the 3 incomplete `tab` sites were dropped in
 > [#1036](https://github.com/alethical-org/alethical/issues/1036) — they rendered a real `role="tab"`
 > with no `tablist` parent anywhere, and an ARIA tab promises arrow-key navigation and a roving
-> tabindex we have not built either. Both roles are a promise of keyboard behaviour, so do not reach
-> for one until that behaviour exists.
+> tabindex those controls did not provide. `/services` now provides that complete tab behavior,
+> including a linked panel. Both roles are a promise of keyboard behaviour, so use one only
+> when its complete structure and keyboard behavior exist.
 >
 > **Never conclude any of this from the source.** Every claim above was wrong at least once when
 > reasoned from the code: the same sweep that found the trap named the wrong component for it, and

@@ -20,6 +20,7 @@ What we're building and what we deliberately aren't, plus the guides for learnin
 works. The specs come first; the guides and operating references near the end explain how
 things work in practice and are the place to start if you're new.
 
+- [How campaign services works](product-onboarding/services-guide.md) — public customer offering, audience choices, partner services, early work and the email contact panel
 - [Scope](product-onboarding/product-scope.md) — what the product is, its core principles, and what it deliberately does not do
 - [What we keep about readers](product-onboarding/user-data-retention-policy.md) — every piece of reader data we store, why it exists, how long we keep it, what deletion should mean, and the gaps that are not closed yet
 - [Grounded Ask build spec](product-onboarding/grounded-ask-spec.md) — the Ask surface: answer paths, the cite-or-refuse contract, answer-page states
@@ -152,6 +153,7 @@ lasting decisions and release evidence have their permanent homes.
 - [Committee money refinements](plans/committee-money-refinements.md) — coordinated source-label and money-card refinements
 - [Committee empty-year refinements](plans/committee-empty-year-refinements.md) — missing figures, contribution terms and filed-report navigation
 - [Committee record delivery](plans/committee-record-redesign.md) — committee layout, filing lists and release checks
+- [Campaign services presentation](plans/campaign-services-presentation.md) — approved public offering, delivery checkpoint and deferred client arrangements
 - [Money races delivery](design/money-races-build-plan.md) — accepted race-page scope and completion checks
 - [Payments by year release evidence](operations/2141-payments-by-year-checkpoint.md) — real-row checks and remaining wording boundaries
 - [Refund-card release evidence](operations/2147-refund-card-checkpoint.md) — source corrections, metadata recovery evidence and the separate historical-data hold

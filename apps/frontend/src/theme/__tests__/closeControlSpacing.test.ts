@@ -91,6 +91,8 @@ describe('corner close-control spacing', () => {
       'screens/ChatSessionScreen.tsx',
       'screens/redesign/LegislatorProfileMobileScreen.tsx',
       'screens/redesign/LegislatorProfileWebScreen.tsx',
+      // e2e/services.spec.ts checks the actual phone and desktop corner insets.
+      'screens/redesign/ServicesScreen.tsx',
       'theme/primitives.tsx',
     ]);
   });

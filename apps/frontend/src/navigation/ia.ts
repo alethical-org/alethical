@@ -286,6 +286,14 @@ export const IA: IaItem[] = [
     // Mission, team, story.
   },
   {
+    id: 'about-services',
+    label: 'Services',
+    path: '/services',
+    menu: 'about',
+    availability: 'mvp',
+    authGated: false,
+  },
+  {
     id: 'about-contact',
     label: 'Contact us',
     path: '/about/contact',

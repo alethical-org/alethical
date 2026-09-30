@@ -16,6 +16,11 @@ describe('screenNameForPath', () => {
     expect(screenNameForPath('/money/outside-spending')).toBe('OutsideSpending');
   });
 
+  it('loads the public services screen for a direct visit', () => {
+    expect(screenNameForPath('/services')).toBe('Services');
+    expect(screenLoaderForPath('/services')).toBe(screenChunks.Services);
+  });
+
   it('reads the tab underneath the site root', () => {
     expect(screenNameForPath('/')).toBe('Home');
     expect(screenNameForPath('/tracked')).toBe('Tracked');
@@ -53,6 +58,7 @@ describe('screenLoaderForPath', () => {
       '/money/search',
       '/blog',
       '/about',
+      '/services',
       '/contact',
       '/privacy',
       '/terms',
