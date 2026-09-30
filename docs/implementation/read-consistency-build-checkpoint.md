@@ -43,6 +43,25 @@ formatting and both document-reference/organization checks passed. Production we
 export passed, with 296,590 compressed startup bytes against the unchanged
 296,881 limit. A hosted release must pass its own size measurement. Integrated article/comment tests passed58 checks after rebasing on the current shared code. The final full frontend suite passed3,896 tests across312 files after adding a resize fallback for environments without ResizeObserver; the previously failing3 contact-navigation checks now pass. Independent review accepted the fallback and cleanup. The parent and independent reviewer accepted the final rendering; live comparison remains pending until release.
 
+First-response acceptance: the article-only initial HTML now keeps the same
+1040px/balanced H1 cap and unbroken year range before the app runs. Parent and
+independent review used real article builders in script-free private fixtures.
+At1600px all3 formats measure1040px with their existing initial40px title font;
+both existing Research tables measure1422px with aligned172px numeric columns,
+full row rules and empty hidden spacers. Existing initial table type, padding,
+alignment, body widths and nonarticle snapshots stay unchanged. At320px the2
+Research tables scroll267/271px inside226px local frames, keyboard ArrowRight
+moves0→40px and leaves visible2px focus; page width stays320px. At native200%
+phone zoom the year-bearing initial H1 scrolls0→28.5px to expose the whole
+2015–2026 range, with keyboard focus visible and page width187px. The initial
+server response uses a static keyboard stop for year-bearing titles because it
+cannot measure overflow without a program; the running app retains its
+conditional stop only when the title actually overflows. Final frontend suite:
+3,903 tests across313 files; focused first-response tests303, type, formatting,
+document checks and production build pass. Startup size remains296,590 bytes
+against the unchanged296,881-byte limit. Current-head hosted checks, merge queue,
+deployment and live comparison remain the next release steps.
+
 ## Article width build, 30 Sep 2026
 
 Eugene's `bd unless you need design udpate?` authorizes the article-width build
