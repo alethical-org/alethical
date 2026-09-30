@@ -1,6 +1,6 @@
 # Alethical design principles — the green system
 
-<!-- describes: apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/components/GoBackLink.tsx, apps/frontend/src/components/LinkArrow.tsx, apps/frontend/src/components/ChangeBlock.tsx, apps/frontend/src/components/auth/LoadingButton.tsx, apps/frontend/src/components/auth/SignInDialog.tsx, apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/components/billDetail/SourceLine.tsx, apps/frontend/src/components/billDetail/billTrackButtonAppearance.ts, apps/frontend/src/components/lobbying/LobbyingPageFrame.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/hooks/useHistoryScrollRestoration.ts, apps/frontend/src/hooks/useResponsive.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/navigation/webHistory.ts, apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx, apps/frontend/src/theme/browserFill.ts, apps/frontend/src/theme/tokens.ts, apps/frontend/src/theme/primitives.tsx, apps/frontend/src/theme/pageBackground.ts -->
+<!-- describes: apps/frontend/src/components/ArticleTitleText.tsx, apps/frontend/src/components/ResearchBlockTable.tsx, apps/frontend/src/components/shortPosts/ShortPostArticle.tsx, apps/frontend/src/components/shortPosts/ShortPostChart.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/components/GoBackLink.tsx, apps/frontend/src/components/LinkArrow.tsx, apps/frontend/src/components/ChangeBlock.tsx, apps/frontend/src/components/auth/LoadingButton.tsx, apps/frontend/src/components/auth/SignInDialog.tsx, apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/components/billDetail/SourceLine.tsx, apps/frontend/src/components/billDetail/billTrackButtonAppearance.ts, apps/frontend/src/components/lobbying/LobbyingPageFrame.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/hooks/useHistoryScrollRestoration.ts, apps/frontend/src/hooks/useResponsive.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/navigation/webHistory.ts, apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx, apps/frontend/src/theme/browserFill.ts, apps/frontend/src/theme/tokens.ts, apps/frontend/src/theme/primitives.tsx, apps/frontend/src/theme/pageBackground.ts -->
 
 > **What this is.** The written design intent behind Alethical's green visual system: what
 > the product should feel like, and the visual/interaction rules that get it there. It is the
@@ -696,6 +696,30 @@ The wording and caveat rules live in
 [ui-copy-guide.md](ui-copy-guide.md#make-the-answer-easy-to-find).
 Approved from Eugene's first-post refinements on 26 September 2026; preserve each
 surface's other approved visual choices.
+
+### Article text limits and table columns
+
+The article frame and ordinary body remain full width. From 768px, H1 titles
+have a 1040px maximum and balanced wrapping. Exact YYYY–YYYY title ranges stay
+on 1 line at every width without changing their characters. Long Research’s
+22px opening line under H1 has an 880px maximum; Guide and Short post openings
+retain their current widths. Essential method summaries, Full method controls,
+closing AI-preparation paragraphs and existing whole conclusion rows have an
+880px maximum. Keep expanded method text and enclosing boxes full width. The
+conclusion limit includes its existing symbol and gap, not just its text.
+
+Article prose and chart tables remain 100% wide. Label columns use width 1% and
+no wrapping from 768px; phone labels may wrap. Numeric columns use width 1%, a
+160px minimum and no wrapping, growing for their widest heading or value. Keep
+Libre Franklin equal-width digits and current alignment. An empty aria-hidden
+spacer cell ends each header/body row, fills remaining width and carries the same
+row lines. Preserve the last real value’s padding and real header scope. Confine
+necessary horizontal scrolling to the table at every screen width, with keyboard
+access and the existing purple 2px keyboard-focus outline. Keep all other article
+styling and text unchanged. Approved by Eugene on 30 September 2026;
+[published-writing-decisions.md §Article widths](../architecture/published-writing-decisions.md#article-widths-30-september-2026)
+owns the scope and [issue 2448](https://github.com/alethical-org/alethical/issues/2448)
+owns the release.
 
 ### Article metadata and Share
 

@@ -1,5 +1,50 @@
 # Read consistency build checkpoint
 
+## Article readability refinements, 30 Sep 2026
+
+Source: Eugene’s pasted “Articles — width limits for the title, research opening
+line, short notes, conclusions and tables, 30 Sep 2026”, accepted under his
+“if so, build these too when ready” instruction.
+[Issue 2448](https://github.com/alethical-org/alethical/issues/2448) owns release.
+The named updated drawings and `build-facts-reading-round-3.md` §7d were not
+downloaded. The written proposal is the new target; `Alethical UX (43).zip`
+remains the prior appearance target outside the explicit exceptions below.
+
+Branch `codex/article-reading-limits`; isolated working copy
+`/private/tmp/alethical-article-reading-limits`. The build helper owns code,
+requirements and automated checks. The parent Codex task (blog,
+`01a0f3d4-2631-7852-ad53-79682f7aa6e2`) owns browser acceptance, pull request,
+merge, deployment and comparison at the live article addresses. Publication,
+authentication, account changes and real comment test writes remain excluded.
+
+Expected behavior and acceptance evidence:
+
+| Surface | Approved target | Observed / evidence |
+| --- | --- | --- |
+| All article H1 titles | From 768px, maximum 1040px and balanced wrapping; every YYYY–YYYY range stays on 1 line at all widths; exact characters retained | Implemented; exact title characters pass automated tests; browser acceptance pending at 1600px, including lobbyist giving 2015–2026 and no isolated final word/year |
+| Long Research opening under H1 | Existing 22px text limited to 880px; Guide and Short post openings unchanged | Pending browser comparison |
+| HOW THIS WAS CALCULATED | Essential paragraph and Full method control limited to 880px; expanded body and enclosing box remain full width | Pending browser comparison and control checks |
+| Closing AI note | AI-preparation paragraph limited to 880px; enclosing box unchanged | Pending browser comparison |
+| Existing conclusions | Whole symbol-plus-gap-plus-text wrapper limited to 880px; exact current symbol size and text preserved | Pending browser comparison of prose and chart conclusions |
+| Every article table | Full-width table; label column width 1%, no wrapping from 768px; numeric columns width 1%, minimum 160px and expand for widest content; 1 empty aria-hidden spacer cell per row including header; real row/column header associations; full-width row lines | Pending browser measurements: at 1600px first figure within 200px of longest label, headings and values readable without wrapping |
+| Overflowing tables | Local horizontal scroll at every width when necessary, keyboard accessible with existing approved visible focus | Pending 320/375/768/900/1099px and 200% text checks; no page overflow or concealed values |
+| Unchanged surfaces | Article frame, body paragraphs/subheads/lists/boxes, contents rail, comments, Related reading, footer, navigation and Share remain as built; every word/value/date/link, font, spacing, fill, border and radius preserved | Pending source-diff review and browser comparison |
+
+These are narrow exceptions to the earlier all-text-full-width direction.
+Numeric 160px is a floor, not a fixed cap. Tables may overflow locally on tablet
+as well as phone. Native fallback may retain its current table implementation;
+the shipped web target uses aligned HTML columns. Automated checks cover exact
+title text, year-range boundaries, table contents and header semantics. Parent
+browser and live evidence must replace pending entries before completion.
+
+Automated implementation checks: TypeScript passed; 15 focused title/table tests
+passed; the full frontend suite passed 3,886 tests across 311 files. All frontend
+formatting and both document-reference/organization checks passed. Production web
+export passed, with 296,607 compressed startup bytes against the unchanged
+296,881 limit. A hosted release must pass its own size measurement. Browser
+acceptance and live comparison remain pending; these checks do not establish
+visual acceptance.
+
 ## Article width build, 30 Sep 2026
 
 Eugene's `bd unless you need design udpate?` authorizes the article-width build

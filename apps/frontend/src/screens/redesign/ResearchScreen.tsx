@@ -1,3 +1,5 @@
+import { ArticleTitleText } from '../../components/ArticleTitleText';
+import { ResearchBlockTable } from '../../components/ResearchBlockTable';
 import { ReaderComments } from '../../components/comments/ReaderComments';
 import {
   ShortPostArticle,
@@ -295,6 +297,7 @@ function BlockTable({
   rows: string[][];
   totalRow?: boolean;
 }) {
+  if (isWeb) return <ResearchBlockTable columns={columns} rows={rows} totalRow={totalRow} />;
   return (
     <View style={styles.tableScroll}>
       <View role="table" style={[styles.table, totalRow && styles.tableNoBottom]}>
@@ -591,13 +594,18 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
                 aria-level={1}
                 style={[
                   styles.heading,
+                  !isMobile && styles.headingReadingLimit,
                   isMobile && styles.headingMobile,
                   isTablet && !piece.traits.research && styles.headingGuideTablet,
                 ]}
               >
-                {piece.title}
+                {isWeb ? <ArticleTitleText title={piece.title} /> : piece.title}
               </Text>
-              {piece.dek ? <Text style={styles.dek}>{piece.dek}</Text> : null}
+              {piece.dek ? (
+                <Text style={[styles.dek, piece.traits.research && styles.shortReadingLimit]}>
+                  {piece.dek}
+                </Text>
+              ) : null}
 
               <View style={[styles.mastheadRow, isMobile && styles.mastheadRowMobile]}>
                 <View style={styles.mastheadMeta}>
@@ -673,7 +681,7 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
                 </View>
               </View>
               <View style={styles.closingNote}>
-                <Text style={styles.closingText}>
+                <Text style={[styles.closingText, piece.aiAssisted && styles.shortReadingLimit]}>
                   <InlineRuns
                     runs={articleDisclosureRuns(
                       articleClosingNote(piece.aiAssisted),
@@ -792,6 +800,8 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.heavy,
     letterSpacing: -1.6,
   },
+  headingReadingLimit: { maxWidth: 1040, ...(isWeb ? ({ textWrap: 'balance' } as object) : null) },
+  shortReadingLimit: { maxWidth: 880 },
   headingMobile: { fontSize: 32, lineHeight: 37, letterSpacing: -0.9 },
   headingGuideTablet: { fontSize: 44, lineHeight: 48 },
   // The set's name under the title, quieter than a standfirst because it names

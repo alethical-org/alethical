@@ -641,9 +641,40 @@ Comments retain 16px phone gutters. The shared Share control keeps its existing
 bottom sheet below 1100px and window-bounded desktop popover.
 Numeric text uses Libre Franklin with equal-width digits at every screen size,
 following [design-principles.md §2 (Type)](../design/design-principles.md#2-the-green-visual-system).
-Numeric table columns leave enough room for their headings and values; the current
-long-form Research tables use a 160px numeric column. The illustrative figures
+Numeric table columns leave enough room for their headings and values; 160px is
+a minimum, and wider headings or values enlarge the column. The illustrative figures
 in the drawing do not replace published article facts.
+
+Eugene’s later “Articles — width limits for the title, research opening line,
+short notes, conclusions and tables, 30 Sep 2026” proposal makes these narrow
+exceptions to the full-width text direction. He authorized implementation with
+“if so, build these too when ready”. [Issue 2448](https://github.com/alethical-org/alethical/issues/2448)
+owns the checked release. This approval is the written proposal; the named
+updated drawings were not downloaded.
+
+From 768px, all article H1 titles have a 1040px maximum and balanced wrapping.
+Each exact 4-digit year range joined by an en dash stays together at every width
+inside an ordinary nonwrapping span. Title characters and document titles remain
+unchanged. Long Research’s existing 22px opening line under its title has an
+880px maximum; Guide and Short post openings keep their existing widths.
+The essential paragraph and Full method control inside HOW THIS WAS CALCULATED,
+the closing AI-preparation paragraph, and each existing whole conclusion wrapper
+(symbol, gap and text together) have an 880px maximum. Expanded Full method text,
+enclosing boxes, ordinary prose, headings, lists, contents rail, comments, Related
+reading and footer retain their full available widths and existing appearance.
+Conclusion symbols retain each surface’s existing size.
+
+Every article prose/chart table fills its available width. Its label column uses
+width 1% and stays on 1 line from 768px, while phone labels may wrap. Each numeric
+column uses width 1%, a 160px minimum, nonwrapping Libre Franklin equal-width
+digits, and its existing alignment. Wider headings and values enlarge the column.
+An empty, aria-hidden spacer cell ends every row, including the header, and fills
+the remaining width; row lines extend across it. Real column and row headers retain
+scope associations. The last real figure keeps its existing padding. Overflow
+scrolls inside the table at every width, including tablet, without widening the
+page; scrolling is keyboard accessible with the existing approved focus treatment.
+No wording, figures, dates, links, font sizes/weights, fills, spacing, padding,
+borders or radii change.
 
 The article metadata displays publication dates and reporting periods, with Share
 on the same row where space permits. Download/copy, retrieval and extraction dates
