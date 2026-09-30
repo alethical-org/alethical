@@ -133,3 +133,21 @@ test('section links reveal their heading and coalition links share one destinati
     );
   }
 });
+
+for (const width of [375, 1280]) {
+  test(`homepage campaign services card opens the public presentation at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto('/');
+    const card = page.getByRole('link', { name: /^Campaign services Get political/ });
+    await expect(card).toHaveAttribute('href', '/services');
+    await card.click();
+    await expect(page).toHaveURL(/\/services$/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+      'Political intelligence. Practical campaign support.',
+    );
+    await page.goBack();
+    await expect(card).toBeVisible();
+  });
+}

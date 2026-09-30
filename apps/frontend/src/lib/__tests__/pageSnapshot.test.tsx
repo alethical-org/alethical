@@ -2406,13 +2406,15 @@ describe('rendering', () => {
     expect(snapshot.sections?.map((section) => section.heading)).toEqual([
       'Follow the money',
       'Bills and votes',
+      'Campaign services',
     ]);
     const html = renderPageSnapshot(snapshot);
     expect(html).toContain('Search the money records');
     expect(html).toContain('Read plain-language bill summaries, see where they stand');
     expect(html).toContain('href="/money"');
     expect(html).toContain('href="/bills"');
-    expect(html).not.toContain('href="/services"');
+    expect(html).toContain('href="/services"');
+    expect(html).toContain('Explore our services');
     expect(html).not.toContain('href="/candidates"');
     // These remain available in shared navigation, but are not extra Home body links.
     const body = html.slice(html.indexOf('<main'));

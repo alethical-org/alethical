@@ -302,6 +302,9 @@ import {
   HOME_PUBLIC_BILLS_HEADING,
   HOME_PUBLIC_BILLS_BODY,
   HOME_PUBLIC_BILLS_CTA,
+  HOME_PUBLIC_SERVICES_HEADING,
+  HOME_PUBLIC_SERVICES_BODY,
+  HOME_PUBLIC_SERVICES_CTA,
   MONEY_PROMO_HEADING,
 } from './homepage';
 
@@ -475,6 +478,11 @@ export function homePageSnapshot(): PageSnapshot {
         heading: HOME_PUBLIC_BILLS_HEADING,
         body: [HOME_PUBLIC_BILLS_BODY],
         items: [{ label: HOME_PUBLIC_BILLS_CTA, href: '/bills' }],
+      },
+      {
+        heading: HOME_PUBLIC_SERVICES_HEADING,
+        body: [HOME_PUBLIC_SERVICES_BODY],
+        items: [{ label: HOME_PUBLIC_SERVICES_CTA, href: '/services' }],
       },
     ],
     links: [],

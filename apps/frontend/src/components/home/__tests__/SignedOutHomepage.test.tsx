@@ -90,14 +90,14 @@ describe('signed-out homepage destinations', () => {
     }
   });
 
-  it('hides unlaunched services and candidate lookup by default', () => {
+  it('shows launched services and keeps candidate lookup hidden by default', () => {
     const { page } = render();
-    expect(page.querySelector('a[href="/services"]')).toBeNull();
+    expect(page.querySelector('a[href="/services"]')).not.toBeNull();
     expect(page.querySelector('a[href="/candidates"]')).toBeNull();
     expect(page.querySelector('input')).toBeNull();
-    expect(page.textContent).not.toContain('Campaign services');
+    expect(page.textContent).toContain('Campaign services');
     expect(page.textContent).not.toContain('Find my candidates');
-    expect(page.querySelectorAll('a')).toHaveLength(2);
+    expect(page.querySelectorAll('a')).toHaveLength(3);
   });
 
   it('keeps the editorial answer on desktop and tablet only', () => {
