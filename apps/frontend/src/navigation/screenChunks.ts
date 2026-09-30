@@ -39,6 +39,18 @@ export const screenChunks = {
     import('../screens/FindMyLegislatorScreen').then((m) => ({
       default: m.FindMyLegislatorScreen,
     })),
+  ...(typeof __DEV__ !== 'undefined' && __DEV__
+    ? {
+        Candidates: () =>
+          import('../screens/CandidatePreviewScreens').then((m) => ({
+            default: m.CandidatesScreen,
+          })),
+        CandidateProfile: () =>
+          import('../screens/CandidatePreviewScreens').then((m) => ({
+            default: m.CandidateProfileScreen,
+          })),
+      }
+    : {}),
   Bills: () =>
     import('../screens/redesign/SearchBillsScreen').then((m) => ({ default: m.SearchBillsScreen })),
   Legislators: () =>

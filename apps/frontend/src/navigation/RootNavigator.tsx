@@ -35,6 +35,7 @@ import { loadOnDemand } from '../lib/loadOnDemand';
 import { MONEY_SECTION_NAME } from '../lib/moneySectionName';
 import { screenChunks } from './screenChunks';
 import { theme } from '../theme/tokens';
+import { candidatePreviewEnabled } from '../lib/candidateLookupAvailability';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -82,6 +83,10 @@ const ReadScreen = loadOnDemand(screenChunks.Read);
 const ReadCollectionScreen = loadOnDemand(screenChunks.ReadResearch);
 const ShortPostsScreen = loadOnDemand(screenChunks.ShortPosts);
 const NotFoundScreen = loadOnDemand(screenChunks.NotFound);
+const CandidatesScreen = __DEV__ ? loadOnDemand(screenChunks.Candidates!) : NotFoundScreen;
+const CandidateProfileScreen = __DEV__
+  ? loadOnDemand(screenChunks.CandidateProfile!)
+  : NotFoundScreen;
 const SearchBillsScreen = loadOnDemand(screenChunks.Bills);
 const SearchLegislatorsScreen = loadOnDemand(screenChunks.Legislators);
 const TrackedScreen = loadOnDemand(screenChunks.Tracked);
@@ -694,6 +699,20 @@ export function RootNavigator() {
               component={FindMyLegislatorScreen}
               options={{ headerShown: false, title: 'Find my legislator' }}
             />
+            {__DEV__ && candidatePreviewEnabled() && (
+              <>
+                <Stack.Screen
+                  name="Candidates"
+                  component={CandidatesScreen}
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="CandidateProfile"
+                  component={CandidateProfileScreen}
+                  options={{ headerShown: false }}
+                />
+              </>
+            )}
             <Stack.Screen
               name="Bills"
               component={SearchBillsScreen}

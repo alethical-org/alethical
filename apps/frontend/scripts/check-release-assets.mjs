@@ -12,6 +12,14 @@ if (entryFiles.length !== 1) {
   );
 }
 
+// Candidate review data and controls belong only to the local development preview.
+for (const file of bundleFiles) {
+  const source = await readFile(new URL(file, bundleDirectory), 'utf8');
+  if (/ILLUSTRATIVE DATA|preview-general-alex|candidatePreviewSettings/.test(source)) {
+    throw new Error(`Private candidate preview leaked into release file ${file}.`);
+  }
+}
+
 const releaseHtml = await readFile(new URL('../dist/index.html', import.meta.url), 'utf8');
 const vercelConfig = JSON.parse(
   await readFile(new URL('../../../vercel.json', import.meta.url), 'utf8'),

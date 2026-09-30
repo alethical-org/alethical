@@ -77,6 +77,9 @@ export type RootStackParamList = {
         locationFailure?: HomeLocationFailure;
       }
     | undefined;
+  // Candidate addresses stay in memory, never in route parameters or URLs.
+  Candidates: undefined;
+  CandidateProfile: { candidateId: string };
   // Campaign money section (campaign money IA handoff, Aug 2026). All public —
   // the section has no sign-in gate.
   MoneyLanding: undefined;

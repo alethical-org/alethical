@@ -1779,6 +1779,8 @@ async function contentFor(
       return headOnly(STATIC_PAGE_METADATA["/reset"]);
     case "chatSession":
       return headOnly(homePageMetadata());
+    case "candidates":
+    case "candidateProfile":
     case "notFound":
       throw new UnknownAddress(`unknown address ${path}`);
   }
