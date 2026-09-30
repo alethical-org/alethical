@@ -271,4 +271,10 @@ correction; the affected parser's final 45 tests pass. The complete website suit
 passed 3,852 tests; source-disclosure correction has its own focused check. Formatting,
 backend lint, database type checks and website type checks pass. The production export
 passes the unchanged startup-size limit and contains no illustrative candidate data.
-A fresh user-path review and current-main release remain in progress.
+The fresh user-path review passed keyboard and touch suggestions, explicit choices,
+profile/back/direct links, unknown records, reload/clear, slow edits, failed replacement
+and retry, rapid election changes and narrow screens. An initially blank response area
+now states **No candidate records to show for this address and election**, without
+claiming nobody filed. The correction passed a fresh browser review at desktop and
+phone widths. Actual operating-system phone keyboard occlusion remains untested.
+Current-main release remains in progress.

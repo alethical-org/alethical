@@ -428,3 +428,20 @@ it('describes the injected private service without claiming a Census request', a
   expect(host.textContent).toContain('Private preview: your address stays in this browser');
   expect(host.textContent).not.toContain('Census Bureau');
 });
+
+it('explains an empty response without claiming nobody is running', async () => {
+  act(() =>
+    root.render(
+      <CandidateSearchContent
+        initialAddress="100 Example Street, Sample City, MN"
+        services={services(async () => ({ ...result(), races: [] }))}
+        onOpenProfile={() => {}}
+      />,
+    ),
+  );
+  await flush();
+  await flush();
+  expect(host.textContent).toContain('No candidate records to show');
+  expect(host.textContent).toContain('No candidate records to show for this address and election');
+  expect(host.textContent).not.toContain('No filed candidates listed');
+});

@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { theme as t } from '../../theme/tokens';
 import {
   CandidateLink,
+  CandidateNotice,
   CandidateSourceLine,
   candidateText,
   sampleBallotUrl,
@@ -172,6 +173,13 @@ export function CandidateRaceGroups({
 }) {
   return (
     <View aria-busy={busy || undefined} style={styles.groups}>
+      {races.length === 0 ? (
+        <CandidateNotice>
+          <Text style={candidateText.strong}>
+            No candidate records to show for this address and election
+          </Text>
+        </CandidateNotice>
+      ) : null}
       {groups.map((group) => {
         const matched = races.filter((race) => race.group === group.key);
         return matched.length ? (
