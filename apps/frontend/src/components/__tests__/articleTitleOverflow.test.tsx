@@ -14,9 +14,38 @@ function Heading() {
   );
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe('Keyboard access to exceptionally narrow titles', () => {
+  it('measures immediately and follows window resize without ResizeObserver, then removes the listener', async () => {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    vi.stubGlobal('ResizeObserver', undefined);
+    let width = 147;
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(() => width);
+    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(180);
+    const addListener = vi.spyOn(window, 'addEventListener');
+    const removeListener = vi.spyOn(window, 'removeEventListener');
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    await act(async () => root.render(<Heading />));
+    const heading = host.querySelector('h1')!;
+    expect(heading.tabIndex).toBe(0);
+    expect(heading.textContent).toBe(LOBBYIST_GIVING.title);
+    const callback = addListener.mock.calls.find(([type]) => type === 'resize')?.[1];
+    expect(callback).toBeTypeOf('function');
+    width = 280;
+    await act(async () => window.dispatchEvent(new Event('resize')));
+    expect(heading.hasAttribute('tabindex')).toBe(false);
+    expect(heading.textContent).toBe(LOBBYIST_GIVING.title);
+    await act(async () => root.unmount());
+    expect(removeListener).toHaveBeenCalledWith('resize', callback);
+    host.remove();
+  });
+
   it('adds a keyboard stop only for overflow and retains the exact unbroken title', async () => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
     let resize = () => {};
