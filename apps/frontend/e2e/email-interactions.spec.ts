@@ -132,6 +132,47 @@ const sizes = [
   { name: 'phone', width: 390, height: 844 },
   { name: 'narrow phone', width: 320, height: 740 },
 ];
+for (const width of [320, 390, 768, 900, 1280]) {
+  test(`invitation at ${width}px keeps research still while subscribed status loads`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await mockEmailAccount(page);
+    let pendingRead: Route | undefined;
+    await page.route('**/api/v1/me/email-preferences', async (route) => {
+      if (route.request().method() === 'GET') pendingRead = route;
+      else await route.fallback();
+    });
+    await page.goto('/money');
+    const heading = page.getByRole('heading', {
+      name: 'Get Unconcealed research reports by email as we discover them',
+      exact: true,
+    });
+    await expect(heading).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sign up', exact: true })).toBeVisible();
+    await expect.poll(() => Boolean(pendingRead)).toBe(true);
+    const before = await heading.evaluate((element) => {
+      const panel = element.parentElement!.parentElement!;
+      return {
+        height: panel.getBoundingClientRect().height,
+        top: panel.getBoundingClientRect().top,
+      };
+    });
+    await pendingRead!.fulfill({ json: { data: { ...initialPreferences, research: true } } });
+    await expect(
+      page.getByRole('button', { name: 'Email preferences', exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sign up', exact: true })).toHaveCount(0);
+    const after = await heading.evaluate((element) => {
+      const panel = element.parentElement!.parentElement!;
+      return {
+        height: panel.getBoundingClientRect().height,
+        top: panel.getBoundingClientRect().top,
+      };
+    });
+    expect(after).toEqual(before);
+  });
+}
 for (const size of sizes) {
   test(`${size.name}: preference controls distinguish pointer and keyboard focus`, async ({
     page,
@@ -226,7 +267,7 @@ for (const size of sizes) {
       page.getByRole('button', { name: /Account panel for Email interaction test|Account menu/ }),
     ).toBeVisible();
 
-    const invite = page.getByRole('button', { name: 'Get Unconcealed by email', exact: true });
+    const invite = page.getByRole('button', { name: 'Sign up', exact: true });
     await invite.click();
     const dialog = page.getByRole('dialog');
     const choice = dialog.getByRole('checkbox');
@@ -285,7 +326,7 @@ for (const size of sizes) {
     await expect(
       page.getByRole('button', { name: /Account panel for Email interaction test|Account menu/ }),
     ).toBeVisible();
-    const invite = page.getByRole('button', { name: 'Get Unconcealed by email', exact: true });
+    const invite = page.getByRole('button', { name: 'Sign up', exact: true });
     await invite.click();
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByRole('checkbox')).toBeVisible();

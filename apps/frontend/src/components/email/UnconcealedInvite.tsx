@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { theme as t } from '../../theme/tokens';
 import { Platform, StyleSheet, Text, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { useFocusEffect } from '@react-navigation/native';
 
 import {
@@ -130,6 +131,25 @@ export function UnconcealedInvite({
   };
 
   const subscribed = isSignedIn && record?.account_id === identity && record.research === true;
+  const subscribedStatus = (
+    <View style={styles.subscribedRow}>
+      <View style={styles.tick} aria-hidden>
+        <Svg width={14} height={14} viewBox="0 0 24 24">
+          <Path
+            d="M5 12.5 L10 17.5 L19 7"
+            stroke="#3de08a"
+            strokeWidth={3}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+        </Svg>
+      </View>
+      <Text style={[styles.subscribedText, isMobile && styles.subscribedTextMobile]}>
+        You’re subscribed to Unconcealed
+      </Text>
+    </View>
+  );
   return (
     <>
       <View
@@ -144,13 +164,10 @@ export function UnconcealedInvite({
           <Text
             accessibilityRole="header"
             aria-level={3}
-            style={[styles.title, isMobile && styles.titleMobile]}
+            style={[styles.title, isTablet && styles.titleTablet, isMobile && styles.titleMobile]}
           >
-            Unconcealed
-          </Text>
-          <Text style={styles.subtitle}>Minnesota campaign money and lobbying research</Text>
-          <Text style={styles.body}>
-            We’ll email you about new research. Every piece is free to read on Alethical.
+            Get <Text style={styles.name}>Unconcealed</Text> research reports by email as we
+            discover them
           </Text>
         </View>
         <View
@@ -162,10 +179,7 @@ export function UnconcealedInvite({
         >
           {subscribed ? (
             <>
-              <View style={styles.subscribedRow}>
-                <Text style={styles.tick}>✓</Text>
-                <Text style={styles.subscribedText}>You’re subscribed to Unconcealed</Text>
-              </View>
+              {subscribedStatus}
               <View style={styles.preferencesAction}>
                 <EmailButton
                   label="Email preferences"
@@ -178,27 +192,55 @@ export function UnconcealedInvite({
             </>
           ) : (
             <>
-              <EmailButton
-                reserveLabel="Get Unconcealed by email"
-                label={starting ? 'Opening…' : 'Get Unconcealed by email'}
-                onPress={() => void start()}
-                busy={starting}
-                fullWidth
-                minHeight={isMobile ? 54 : 52}
-                testID="unconcealed-invite"
-              />
-              {!isSignedIn ? <Text style={styles.helper}>Create an account or sign in</Text> : null}
-              {error ? (
-                <>
-                  <EmailNotice kind="error">We couldn’t open email signup. Try again.</EmailNotice>
-                  <EmailButton
-                    label="Choose emails in account settings"
-                    kind="darkOutline"
-                    onPress={onPreferences}
-                    fullWidth
-                  />
-                </>
+              {isSignedIn && !error ? (
+                // Reserve the actual wrapping status, not just a fixed panel floor.
+                // This copy has no controls and is hidden from assistive technology.
+                <View aria-hidden pointerEvents="none" style={styles.reservedStatus}>
+                  {subscribedStatus}
+                  <View
+                    style={[
+                      styles.preferencesAction,
+                      styles.reservedButton,
+                      { minHeight: isMobile ? 54 : 52 },
+                    ]}
+                  >
+                    <Text style={styles.reservedButtonText}>Email preferences</Text>
+                  </View>
+                </View>
               ) : null}
+              <View
+                style={
+                  isSignedIn && !error
+                    ? [styles.centeredSignup, isMobile && styles.phoneSignup]
+                    : undefined
+                }
+              >
+                <EmailButton
+                  reserveLabel="Opening…"
+                  label={starting ? 'Opening…' : 'Sign up'}
+                  onPress={() => void start()}
+                  busy={starting}
+                  fullWidth
+                  minHeight={isMobile ? 54 : 52}
+                  testID="unconcealed-invite"
+                />
+                {!isSignedIn ? (
+                  <Text style={styles.helper}>Create an account or sign in</Text>
+                ) : null}
+                {error ? (
+                  <>
+                    <EmailNotice kind="error">
+                      We couldn’t open email signup. Try again.
+                    </EmailNotice>
+                    <EmailButton
+                      label="Choose emails in account settings"
+                      kind="darkOutline"
+                      onPress={onPreferences}
+                      fullWidth
+                    />
+                  </>
+                ) : null}
+              </View>
             </>
           )}
         </View>
@@ -241,7 +283,7 @@ const styles = StyleSheet.create({
   phone: {
     flexDirection: 'column',
     alignItems: 'stretch',
-    gap: 18,
+    gap: 16,
     paddingVertical: 26,
     paddingHorizontal: 18,
     borderRadius: 16,
@@ -250,32 +292,45 @@ const styles = StyleSheet.create({
   signedIn: { minHeight: 176 },
   words: { flex: 1, minWidth: 0 },
   title: {
-    fontFamily: t.typography.title,
-    fontWeight: t.fontWeights.heavy,
-    fontSize: 25,
-    lineHeight: 32,
-    color: '#ffffff',
-  },
-  titleMobile: { fontSize: 24 },
-  subtitle: {
-    fontFamily: t.typography.body,
-    fontWeight: t.fontWeights.semibold,
-    fontSize: 17,
-    lineHeight: 25,
-    color: '#e3e9e5',
-    marginTop: 3,
-  },
-  body: {
     fontFamily: t.typography.body,
     fontWeight: t.fontWeights.regular,
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#b9c2bc',
-    marginTop: 13,
+    fontSize: 24,
+    lineHeight: 27.6,
+    letterSpacing: -0.48,
+    color: '#ffffff',
+    ...(Platform.OS === 'web' ? { textWrap: 'pretty' as const } : null),
   },
+  titleTablet: { fontSize: 23, lineHeight: 26.45, letterSpacing: -0.46 },
+  titleMobile: { fontSize: 21, lineHeight: 24.15, letterSpacing: -0.42 },
+  name: { fontWeight: t.fontWeights.heavy },
   actionColumn: { width: 340, flexShrink: 0 },
   tabletAction: { width: 290 },
   phoneAction: { width: '100%' },
+  reservedStatus: { opacity: 0 },
+  reservedButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  reservedButtonText: {
+    fontFamily: t.typography.body,
+    fontWeight: t.fontWeights.bold,
+    fontSize: 17,
+    lineHeight: 24,
+    textAlign: 'center',
+  },
+  centeredSignup: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    justifyContent: 'center',
+  },
+  phoneSignup: { justifyContent: 'flex-start' },
   helper: {
     fontFamily: t.typography.body,
     fontWeight: t.fontWeights.regular,
@@ -285,26 +340,32 @@ const styles = StyleSheet.create({
     color: '#c3cbc5',
     marginTop: 12,
   },
-  subscribedRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  subscribedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 28,
+    gap: 10,
+  },
   tick: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 26,
+    height: 26,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 13,
     backgroundColor: 'rgba(61,224,138,0.16)',
     borderWidth: 1,
     borderColor: 'rgba(61,224,138,0.45)',
-    color: '#3de08a',
-    textAlign: 'center',
-    lineHeight: 38,
-    fontSize: 22,
   },
   subscribedText: {
-    flex: 1,
+    flexShrink: 1,
     fontFamily: t.typography.body,
     fontWeight: t.fontWeights.bold,
-    fontSize: 17,
+    fontSize: 16.5,
     lineHeight: 24,
     color: '#ffffff',
   },
+  subscribedTextMobile: { fontSize: 16 },
   preferencesAction: { marginTop: 20 },
 });
