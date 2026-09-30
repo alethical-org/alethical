@@ -1190,12 +1190,26 @@ and editable article correction links measured **296,142 bytes** in its single
 startup program. [Vercel deployment 9tUBcjVD7eAMyanG1hP7GQad7Lkd](https://vercel.com/alethical/alethical-web/9tUBcjVD7eAMyanG1hP7GQad7Lkd)
 stopped at the old limit, 120 bytes over, at 21:13:20 UTC. The build used
 [merge commit 2a437d47](https://github.com/alethical-org/alethical/commit/2a437d474c28ced895c8bfec73c501138d579b1f).
-The new limit is **296,881 bytes**, preserving the existing 739-byte margin over
+The 26 September limit was **296,881 bytes**, preserving the existing 739-byte margin over
 that hosted production measurement. This accepts the small startup increase for
 the approved publication and correction flow. Article bodies remain in their
 screen's later download; address and title metadata remain available at startup.
 The local 295,863-byte result and the successful preview did not establish the
 production size. The guard still rejects any build above the new measured limit.
+
+On 30 September, the hosted production build for the public `/candidates`
+destination measured **296,929 bytes** in its single startup program.
+[Vercel deployment kxLErEkh7dnJ99J8GX9f6H2RFzf9](https://vercel.com/alethical/alethical-web/kxLErEkh7dnJ99J8GX9f6H2RFzf9)
+stopped 48 bytes above the previous limit at 23:03:47 UTC, using
+[merge commit 8f652679](https://github.com/alethical-org/alethical/commit/8f652679857c34c899f2bd20d980279b34600dae).
+The current limit is **297,668 bytes**, the hosted production measurement plus
+the unchanged **739-byte** headroom. This accepts the approved public route's
+startup registration alongside the intervening releases. The candidate screen
+and its contents stay in a later download, and illustrative records remain
+excluded from production. The local export and hosted preview passed the old
+limit; neither represented production's exact settings and combined source.
+The boundary checks still reject even 1 byte over the new limit. No compression
+settings, asset exclusions or measuring rules change.
 
 **That 239-byte rise is compression packing, not source size, and the distinction
 decides whether chasing it is worth anything.** Measured against `origin/main` on one
