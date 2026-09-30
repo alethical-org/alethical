@@ -1,4 +1,12 @@
-import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import { useIsFocused } from '@react-navigation/native';
 import { ApiError } from '../../data/api';
 import { useAuth } from '../../providers/AuthProvider';
@@ -28,6 +36,7 @@ import {
   characterCount,
   commentDateLine,
   type DiscussionStore,
+  type PieceDiscussion,
   emptyDraft,
   mergeComments,
   visibleComments,
@@ -36,6 +45,8 @@ import {
   type PendingContribution,
 } from './state';
 import { useCommentStore } from './useCommentStore';
+
+import { saveCurrentScrollPosition } from '../../navigation/webHistory';
 
 const SIGN_IN_TARGET = 'alethical.comments.signInTarget';
 const newKey = () => crypto.randomUUID();
@@ -208,22 +219,50 @@ export function ReaderComments({ articleId }: { articleId: string }) {
   const { user, accessToken, isLoading: authLoading } = useAuth();
   const { openSignIn } = useSignInModal();
   const store = useCommentStore();
+  const publicView = useRef<{
+    articleId: string;
+    store: DiscussionStore;
+    rows: Pick<PieceDiscussion, 'items' | 'loadedRoots' | 'nextCursor'>;
+  } | null>(null);
+  // Public rows are identical for every account. Keep them through sign-in while
+  // the new account's store reloads, rather than collapsing the scroll area.
+  // Never carry settings, drafts, pending writes or account permissions across.
+  if (publicView.current?.store !== store && publicView.current?.articleId === articleId) {
+    store.patch(articleId, {
+      ...publicView.current.rows,
+      updating: publicView.current.rows.items.length > 0,
+    });
+  }
   const piece = useSyncExternalStore(
     store.subscribe,
     () => store.get(articleId),
     () => store.get(articleId),
   );
+  publicView.current = {
+    articleId,
+    store,
+    rows: { items: piece.items, loadedRoots: piece.loadedRoots, nextCursor: piece.nextCursor },
+  };
   const prefix = useId();
   const headingId = `${prefix}-comments`;
   const section = useRef<HTMLElement>(null);
+  const holdsCommentReturn = useRef(false);
+  const releaseCommentReturn = () => {
+    if (!holdsCommentReturn.current) return;
+    document.documentElement.removeAttribute('data-comment-return');
+    holdsCommentReturn.current = false;
+  };
   const current = useRef({ articleId, store, focused, mounted: true });
   current.current = { articleId, store, focused, mounted: true };
   const requestEpoch = useRef(new Map<string, number>());
   const nameRequests = store.nameRequests;
   const preferenceRequests = store.preferenceRequests;
-  const signInTarget = useRef<{ articleId: string; target: string | null; path: string } | null>(
-    null,
-  );
+  const signInTarget = useRef<{
+    articleId: string;
+    target: string | null;
+    path: string;
+    createdAt: number;
+  } | null>(null);
   const [dialog, setDialog] = useState<{
     articleId: string;
     store: DiscussionStore;
@@ -257,8 +296,12 @@ export function ReaderComments({ articleId }: { articleId: string }) {
     requestAnimationFrame(() => {
       if (!isVisible(ownerArticle, owner)) return;
       const node = section.current?.querySelector<HTMLElement>(`[id="${id}"]`);
-      node?.focus({ preventScroll: !scroll });
-      if (scroll) node?.scrollIntoView?.({ block: 'nearest' });
+      if (scroll) node?.scrollIntoView?.({ block: 'nearest', behavior: 'instant' });
+      if (node) {
+        // Leave room for the existing focus outline at the viewport edge.
+        releaseCommentReturn();
+        node.focus({ preventScroll: true });
+      }
     });
   };
   const apply = (result: CommentWriteResult) => {
@@ -317,6 +360,7 @@ export function ReaderComments({ articleId }: { articleId: string }) {
         loadedRoots: more ? [...new Set([...state.loadedRoots, ...roots])] : roots,
         nextCursor: page.next_cursor,
         loaded: true,
+        updating: false,
         loading: false,
         loadingMore: false,
         listError: false,
@@ -326,7 +370,12 @@ export function ReaderComments({ articleId }: { articleId: string }) {
       if (more && roots[0]) focus(`comment-${roots[0]}`, articleId, store);
     } catch {
       if (requestEpoch.current.get(articleId) !== epoch) return;
-      store.patch(articleId, { loading: false, loadingMore: false, listError: true });
+      store.patch(articleId, {
+        loading: false,
+        loadingMore: false,
+        updating: false,
+        listError: true,
+      });
       if (more) focus(`${prefix}-retry`);
     }
   };
@@ -396,18 +445,71 @@ export function ReaderComments({ articleId }: { articleId: string }) {
     );
   };
 
+  useLayoutEffect(() => {
+    // The HTML shell withholds the article top only during an active Google
+    // comment return. Position the real discussion before releasing that guard,
+    // without waiting for account/settings requests or an animation frame.
+    if (!focused || !document.documentElement.hasAttribute('data-comment-return')) return;
+    try {
+      const pending = JSON.parse(window.sessionStorage.getItem(SIGN_IN_TARGET) ?? 'null');
+      if (pending?.articleId !== articleId || pending?.path !== window.location.pathname) {
+        document.documentElement.removeAttribute('data-comment-return');
+        return;
+      }
+    } catch {
+      document.documentElement.removeAttribute('data-comment-return');
+      return;
+    }
+    const discussion = section.current;
+    if (!discussion) return;
+    holdsCommentReturn.current = true;
+    discussion.scrollIntoView?.({ block: 'start', behavior: 'instant' });
+    let scroller = discussion.parentElement;
+    while (scroller && !/(auto|scroll)/.test(window.getComputedStyle(scroller).overflowY)) {
+      scroller = scroller.parentElement;
+    }
+    try {
+      saveCurrentScrollPosition(scroller?.scrollTop ?? window.scrollY);
+    } catch {
+      // Full or blocked storage must not prevent the visible comment return.
+    }
+    return releaseCommentReturn;
+  }, [articleId, focused]);
+
+  useLayoutEffect(() => {
+    // Failed sign-in/settings must reveal a usable recovery screen. A successful
+    // return waits for the public list too, so inserting rows cannot move a
+    // writing field that has already received focus out of the viewport.
+    if (!focused || !holdsCommentReturn.current) return;
+    if ((!authLoading && !user) || (piece.settingsError && (piece.loaded || piece.listError))) {
+      section.current?.querySelector<HTMLElement>('.rc-form-card')?.scrollIntoView?.({
+        block: 'nearest',
+        behavior: 'instant',
+      });
+      releaseCommentReturn();
+    }
+  }, [focused, authLoading, user, piece.settingsError, piece.loaded, piece.listError]);
+
   const signIn = (target: string | null) => {
-    signInTarget.current = { articleId, target, path: window.location.pathname };
+    signInTarget.current = {
+      articleId,
+      target,
+      path: window.location.pathname,
+      createdAt: Date.now(),
+    };
     try {
       window.sessionStorage.setItem(SIGN_IN_TARGET, JSON.stringify(signInTarget.current));
     } catch {
       /* The in-place flow still works when browser storage is unavailable. */
     }
-    openSignIn({ intent: 'nav', returnTo: window.location.pathname, scrollY: window.scrollY });
+    // This article scrolls an inner ScrollView. Window scroll restoration would
+    // compete with the discussion's own return and field focus.
+    openSignIn({ intent: 'nav', returnTo: window.location.pathname });
   };
 
   useEffect(() => {
-    if (!focused || !piece.settings || !store.accountId) return;
+    if (!focused || !piece.settings || !store.accountId || (!piece.loaded && !piece.listError))
+      return;
     let pending: { articleId?: string; target?: string | null; path?: string };
     try {
       pending =
@@ -462,7 +564,7 @@ export function ReaderComments({ articleId }: { articleId: string }) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [articleId, store, !!piece.settings, focused]);
+  }, [articleId, store, !!piece.settings, piece.loaded, piece.listError, focused]);
 
   const finishContribution = (
     key: string,
@@ -1123,7 +1225,9 @@ export function ReaderComments({ articleId }: { articleId: string }) {
                 />
               </div>
             ) : (
-              <p role="status">Loading comment settings…</p>
+              <p className="rc-settings-loading" role="status">
+                Loading comment settings…
+              </p>
             )
           ) : (
             <>
