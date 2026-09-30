@@ -660,7 +660,16 @@ year range exceeds the available space scrolls horizontally inside its own
 heading. Only an overflowing heading joins keyboard navigation, with the
 existing purple 2px focus outline and 2px offset. Keep its heading semantics,
 fonts, balanced wrapping and maximum width; ordinary titles add no keyboard
-stop or visible control. Long Research’s existing 22px opening line under its title has an
+stop or visible control. The first HTML response carries the same title
+cap, balanced wrapping, exact year characters and local overflow. It marks only
+article titles, preserving every other first-response heading. With no program
+running to measure widths, a year-bearing article title always joins keyboard
+navigation; a title without a year range adds no stop. The loaded article still
+adds a stop only for actual overflow. Neither response changes title metadata. Existing real article tables in the first HTML
+also carry the approved clustered columns, 160px numeric minimum, nonwrapping
+labels from 768px, hidden empty spacer cells and contained keyboard scrolling.
+Other record tables keep their existing rendering. Short post tables already
+flattened to prose are not rebuilt as part of this title/table refinement. Long Research’s existing 22px opening line under its title has an
 880px maximum; Guide and Short post openings keep their existing widths.
 The essential paragraph and Full method control inside HOW THIS WAS CALCULATED,
 the closing AI-preparation paragraph, and each existing whole conclusion wrapper

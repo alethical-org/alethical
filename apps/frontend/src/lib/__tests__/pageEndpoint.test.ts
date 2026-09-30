@@ -904,7 +904,7 @@ describe('first-response page tags', () => {
 
     expect(status).toBe(200);
     expect(calls).toHaveLength(0);
-    expect(body).toContain(`<h1>${piece.title}</h1>`);
+    expect(body).toContain(`<h1 class="ps-article-title">${piece.title}</h1>`);
     expect(body).toContain('PUBLISHED AUG 20, 2026 · RECORDS THROUGH JUL 20, 2026');
 
     // Every sentence, bullet and section heading, read out of the registry so
@@ -960,7 +960,7 @@ describe('first-response page tags', () => {
 
     expect(status).toBe(200);
     expect(calls).toHaveLength(0);
-    expect(body).toContain(`<h1>${guide.title}</h1>`);
+    expect(body).toContain(`<h1 class="ps-article-title">${guide.title}</h1>`);
     // Kind, minutes and 1 date. No second date, and no piece number.
     expect(body).toContain('5 MIN · PUBLISHED AUGUST 2026');
     expect(body).not.toContain('RECORDS THROUGH');
@@ -1056,7 +1056,7 @@ describe('first-response page tags', () => {
     for (const path of [`/reports/${piece.slug}`, `/money/reports/${piece.slug}`]) {
       const { body, status } = await serve({ path });
       expect(status).toBe(200);
-      expect(body).toContain(`<h1>${piece.title}</h1>`);
+      expect(body).toContain(`<h1 class="ps-article-title">${piece.title}</h1>`);
     }
   });
 

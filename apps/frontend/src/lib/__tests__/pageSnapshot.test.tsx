@@ -989,8 +989,8 @@ describe('the piece snapshot serves the piece’s own writing, unchanged', () =>
 
   it('marks a table up as a table, so a figure is announced with its column', () => {
     expect(html).toContain('<table class="ps-table">');
-    expect(html).toContain('<th>Principal</th>');
-    expect(html).toContain('<td>Enbridge Energy</td>');
+    expect(html).toContain('<th scope="col">Principal</th>');
+    expect(html).toContain('<th scope="row">Enbridge Energy</th>');
   });
 
   it('escapes the piece’s own punctuation rather than breaking the markup', () => {

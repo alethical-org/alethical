@@ -317,6 +317,25 @@
         font-weight: 800;
         letter-spacing: -1px;
       }
+      .page-snapshot-article h1.ps-article-title {
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-wrap: anywhere;
+      }
+      .page-snapshot-article .ps-title-year {
+        white-space: nowrap;
+      }
+      .page-snapshot-article h1.ps-article-title:focus-visible {
+        outline: 2px solid #7c5cff;
+        outline-offset: 2px;
+        border-radius: 3px;
+      }
+      @media (min-width: 768px) {
+        .page-snapshot-article h1.ps-article-title {
+          max-width: 1040px;
+          text-wrap: balance;
+        }
+      }
       .page-snapshot .ps-sub {
         margin: 8px 0 0;
         color: #4f5651;
@@ -464,6 +483,45 @@
         letter-spacing: 0.06em;
         text-transform: uppercase;
         color: #4f5651;
+      }
+      .page-snapshot-article .ps-article-table-scroll {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+      }
+      .page-snapshot-article .ps-article-table-scroll:focus-visible {
+        outline: 2px solid #7c5cff;
+        outline-offset: 2px;
+        border-radius: 3px;
+      }
+      .page-snapshot-article .ps-table {
+        display: table;
+        overflow: visible;
+        font-variant-numeric: tabular-nums;
+      }
+      .page-snapshot-article .ps-table tr > :first-child {
+        width: 1%;
+      }
+      .page-snapshot-article .ps-table tr > :not(:first-child):not(.ps-table-spacer) {
+        width: 1%;
+        min-width: 160px;
+        white-space: nowrap;
+      }
+      .page-snapshot-article .ps-table .ps-table-spacer {
+        width: auto;
+        padding: 0;
+      }
+      .page-snapshot-article .ps-table tbody th {
+        font-size: 16px;
+        font-weight: 400;
+        letter-spacing: normal;
+        text-transform: none;
+        color: inherit;
+      }
+      @media (min-width: 768px) {
+        .page-snapshot-article .ps-table tr > :first-child {
+          white-space: nowrap;
+        }
       }
       .page-snapshot hr {
         border: 0;
