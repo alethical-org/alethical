@@ -701,6 +701,13 @@ export function pathForRoute(activeRoute: {
   name: keyof RootStackParamList | keyof MainTabParamList;
   params?: Record<string, unknown>;
 }): string {
+  // These names are never registered in production. Keep their URL builders
+  // inside the development branch so public visitors download none of them.
+  if (typeof __DEV__ !== 'undefined' && __DEV__ && candidatePreviewEnabled()) {
+    if (activeRoute.name === 'Candidates') return '/candidates';
+    if (activeRoute.name === 'CandidateProfile')
+      return `/candidates/${encodeURIComponent(String(activeRoute.params?.candidateId ?? ''))}`;
+  }
   switch (activeRoute.name) {
     case 'Home':
       return '/';
@@ -787,14 +794,6 @@ export function pathForRoute(activeRoute: {
         ? `/find-my-legislator?address=${encodeURIComponent(String(address))}`
         : '/find-my-legislator';
     }
-    case 'Candidates':
-      return typeof __DEV__ !== 'undefined' && __DEV__ && candidatePreviewEnabled()
-        ? '/candidates'
-        : '/not-found';
-    case 'CandidateProfile':
-      return typeof __DEV__ !== 'undefined' && __DEV__ && candidatePreviewEnabled()
-        ? `/candidates/${encodeURIComponent(String(activeRoute.params?.candidateId ?? ''))}`
-        : '/not-found';
     case 'MoneyLanding':
       return '/money';
     case 'EmailPreferences':
@@ -1033,6 +1032,19 @@ export function stateFromPathname(pathname: string): WebNavigationState {
     state: tabState('Home'),
   };
 
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    if (target.kind === 'candidates')
+      return { routes: [homeTabs, { name: 'Candidates' }], index: 1 };
+    if (target.kind === 'candidateProfile')
+      return {
+        routes: [
+          homeTabs,
+          { name: 'CandidateProfile', params: { candidateId: target.candidateId } },
+        ],
+        index: 1,
+      };
+  }
+
   switch (target.kind) {
     case 'tab':
       return {
@@ -1068,16 +1080,6 @@ export function stateFromPathname(pathname: string): WebNavigationState {
               year: target.year,
             },
           },
-        ],
-        index: 1,
-      };
-    case 'candidates':
-      return { routes: [homeTabs, { name: 'Candidates' }], index: 1 };
-    case 'candidateProfile':
-      return {
-        routes: [
-          homeTabs,
-          { name: 'CandidateProfile', params: { candidateId: target.candidateId } },
         ],
         index: 1,
       };
@@ -1332,8 +1334,9 @@ export function stateFromPathname(pathname: string): WebNavigationState {
         index: 1,
       };
     case 'notFound':
+    default:
       return {
-        routes: [homeTabs, { name: 'NotFound', params: { path: target.path } }],
+        routes: [homeTabs, { name: 'NotFound', params: { path: pathname } }],
         index: 1,
       };
   }

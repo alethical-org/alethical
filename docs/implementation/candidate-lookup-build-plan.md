@@ -266,11 +266,17 @@ election beside old rows; retain the grey coverage panel; print **1 ticket liste
 and use the leading back arrow. Shared input focus and link-arrow components supply
 the existing approved treatments. No further drawing is required for these repairs.
 
-Release checkpoint: 3,512 backend tests passed before the reserved write-in-code
-correction; the affected parser's final 45 tests pass. The complete website suite
-passed 3,852 tests; source-disclosure correction has its own focused check. Formatting,
-backend lint, database type checks and website type checks pass. The production export
-passes the unchanged startup-size limit and contains no illustrative candidate data.
+Release checkpoint: the current-main upload checks passed 3,519 backend tests and
+3,870 website tests. The final affected parser check passes 45 tests and routing/
+candidate checks pass 148 tests. Formatting, backend lint, database type checks and
+website type checks pass. Production contains no illustrative candidate records.
+A hosted preview exceeded the unchanged startup-size limit by 104 bytes before the
+shared navigation reduction merged. Candidate route builders now compile out of
+production; after rebasing onto the new shared navigation, the local export is
+296,476 bytes against the unchanged 296,881-byte limit. Hosted release must pass its
+own size check. A password-bearing fake URL in a rejection test triggered the secret
+scanner; the test now uses a password-free user-info URL, still rejected by the same
+rule. The new commit history passes the scanner without exclusions.
 The fresh user-path review passed keyboard and touch suggestions, explicit choices,
 profile/back/direct links, unknown records, reload/clear, slow edits, failed replacement
 and retry, rapid election changes and narrow screens. An initially blank response area
