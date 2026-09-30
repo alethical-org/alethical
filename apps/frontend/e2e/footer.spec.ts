@@ -3,6 +3,10 @@ import { suppressSiteMetrics } from './suppress-site-metrics';
 
 test.beforeEach(async ({ context }) => {
   await suppressSiteMetrics(context);
+  // Footer geometry is independent of optional news/count responses. Settle
+  // those requests immediately so arriving content cannot move the footer
+  // between the vertical scroll and its measurement.
+  await context.route('https://api.alethical.com/**', (route) => route.abort());
 });
 
 for (const width of [320, 390, 900, 1600]) {
