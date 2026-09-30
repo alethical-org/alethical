@@ -49,7 +49,7 @@ non-repeating prepared messages.
 
 - Choose **Money** (marked with a green NEW chip) before Search in the shared top
   menu, on a computer or in the phone menu. It opens `/money` directly.
-- Choose **Money in politics** on the homepage card headed **Follow the money**.
+- Choose **Search the money records** on the homepage card headed **Follow the money**.
 - Open `/money` directly.
 - Type a name into the box on `/money` and press Enter or the Search button, which opens
   the results page at `/money/search?q=…`.
