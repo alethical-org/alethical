@@ -1,3 +1,4 @@
+import { JSDOM } from 'jsdom';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -50,6 +51,39 @@ const graphic: ShortPostGraphic = {
 graphic.altDescription = chartDescription(graphic.input);
 
 describe('Short post article and charts', () => {
+  it('keeps each published table’s exact figures and accessible headers with 1 hidden spacer per row', () => {
+    for (const piece of [
+      LOBBYIST_GIVING,
+      ORGANIZATIONS_BOTH_PARTIES,
+      TWO_RECORDS_NOT_TWO_DONATIONS,
+    ]) {
+      const document = new JSDOM(renderToStaticMarkup(<ShortPostArticle piece={piece} />)).window
+        .document;
+      expect(document.querySelector('h1')?.textContent).toBe(piece.title);
+      for (const table of document.querySelectorAll('table')) {
+        for (const cell of table.querySelectorAll('thead th'))
+          expect(cell.getAttribute('scope')).toBe('col');
+        for (const row of table.querySelectorAll('tr')) {
+          expect(row.querySelectorAll('.sp-table-spacer')).toHaveLength(1);
+          expect(row.lastElementChild?.getAttribute('aria-hidden')).toBe('true');
+          expect(row.lastElementChild?.textContent).toBe('');
+        }
+        for (const row of table.querySelectorAll('tbody tr'))
+          expect(row.firstElementChild?.getAttribute('scope')).toBe('row');
+      }
+      const proseTables = piece.shortPost?.body?.filter((block) => block.kind === 'table') ?? [];
+      expect(
+        [...document.querySelectorAll('.sp-prose-table tbody')].map((body) =>
+          [...body.querySelectorAll('tr')].map((row) =>
+            [...row.children]
+              .filter((cell) => cell.getAttribute('aria-hidden') !== 'true')
+              .map((cell) => cell.textContent),
+          ),
+        ),
+      ).toEqual(proseTables.map((block) => block.rows));
+    }
+  });
+
   it('shows the approved publication line without changing the article records', () => {
     const markup = renderToStaticMarkup(<ShortPostArticle piece={LOBBYIST_GIVING} />);
     expect(markup).toContain(

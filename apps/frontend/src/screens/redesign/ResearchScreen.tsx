@@ -1,3 +1,5 @@
+import { ArticleTitleText, useArticleTitleOverflow } from '../../components/ArticleTitleText';
+import { ResearchBlockTable } from '../../components/ResearchBlockTable';
 import { ReaderComments } from '../../components/comments/ReaderComments';
 import {
   ShortPostArticle,
@@ -295,6 +297,7 @@ function BlockTable({
   rows: string[][];
   totalRow?: boolean;
 }) {
+  if (isWeb) return <ResearchBlockTable columns={columns} rows={rows} totalRow={totalRow} />;
   return (
     <View style={styles.tableScroll}>
       <View role="table" style={[styles.table, totalRow && styles.tableNoBottom]}>
@@ -443,6 +446,7 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
   // saves the position against the exact history entry.
   const scrollRestoration = useHistoryScrollRestoration(true, route.params.slug);
   const piece = researchBySlug(route.params.slug);
+  const titleOverflow = useArticleTitleOverflow(piece?.title ?? '');
   const returnLink = articleReturnLink(route.params.returnContext);
   const returnToSource = (event: MouseEvent<HTMLAnchorElement>) => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
@@ -564,7 +568,7 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
             <ChevronLeft size={18} strokeWidth={2.2} aria-hidden />
             <span className="article-return-label">{returnLink.label}</span>
           </a>
-          <style>{`.article-return{display:inline-flex;align-items:center;gap:9px;min-height:44px;color:#4b524b;font:600 16px 'Libre Franklin',sans-serif;text-decoration:none}@media(hover:hover){.article-return:hover{color:#11150f}.article-return:hover .article-return-label{text-decoration:underline}}.article-return:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}.article-topics{display:flex;align-items:center;flex-wrap:wrap;gap:0 8px;margin-top:12px;font-family:'Libre Franklin',sans-serif}.article-topics>span{font-size:14.5px;font-weight:700;color:#4f5651;margin-right:4px}.article-topics a{display:inline-flex;align-items:center;min-height:44px;color:#11150f;text-decoration:none}.article-topics a span{padding:6px 12px;border:1px solid rgba(17,21,15,.18);border-radius:8px;font-size:14.5px;font-weight:600;line-height:1.35;background:#fff}.article-topics a:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}@media(hover:hover){.article-topics a:hover span{background:#f1f3f2;border-color:rgba(17,21,15,.3)}}.article-topics a:active span{background:#e6e9e7}@media(max-width:767px){.article-topics{margin-top:10px}}`}</style>
+          <style>{`[data-article-title]:focus-visible{outline:2px solid #7c5cff;outline-offset:2px;border-radius:3px}.article-return{display:inline-flex;align-items:center;gap:9px;min-height:44px;color:#4b524b;font:600 16px 'Libre Franklin',sans-serif;text-decoration:none}@media(hover:hover){.article-return:hover{color:#11150f}.article-return:hover .article-return-label{text-decoration:underline}}.article-return:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}.article-topics{display:flex;align-items:center;flex-wrap:wrap;gap:0 8px;margin-top:12px;font-family:'Libre Franklin',sans-serif}.article-topics>span{font-size:14.5px;font-weight:700;color:#4f5651;margin-right:4px}.article-topics a{display:inline-flex;align-items:center;min-height:44px;color:#11150f;text-decoration:none}.article-topics a span{padding:6px 12px;border:1px solid rgba(17,21,15,.18);border-radius:8px;font-size:14.5px;font-weight:600;line-height:1.35;background:#fff}.article-topics a:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}@media(hover:hover){.article-topics a:hover span{background:#f1f3f2;border-color:rgba(17,21,15,.3)}}.article-topics a:active span{background:#e6e9e7}@media(max-width:767px){.article-topics{margin-top:10px}}`}</style>
 
           <View style={[styles.grid, isMobile && styles.gridMobile]}>
             {!isMobile && piece.traits.research ? (
@@ -587,17 +591,29 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
                   glance is what §2.10 narrows away. */}
               <Text style={styles.eyebrow}>{pieceKindLabel(piece).toUpperCase()}</Text>
               <Text
+                ref={isWeb ? (titleOverflow.ref as never) : undefined}
+                {...(isWeb
+                  ? ({
+                      tabIndex: titleOverflow.tabIndex,
+                      dataSet: { articleTitle: 'true' },
+                    } as object)
+                  : null)}
                 accessibilityRole="header"
                 aria-level={1}
                 style={[
                   styles.heading,
+                  !isMobile && styles.headingReadingLimit,
                   isMobile && styles.headingMobile,
                   isTablet && !piece.traits.research && styles.headingGuideTablet,
                 ]}
               >
-                {piece.title}
+                {isWeb ? <ArticleTitleText title={piece.title} /> : piece.title}
               </Text>
-              {piece.dek ? <Text style={styles.dek}>{piece.dek}</Text> : null}
+              {piece.dek ? (
+                <Text style={[styles.dek, piece.traits.research && styles.shortReadingLimit]}>
+                  {piece.dek}
+                </Text>
+              ) : null}
 
               <View style={[styles.mastheadRow, isMobile && styles.mastheadRowMobile]}>
                 <View style={styles.mastheadMeta}>
@@ -673,7 +689,7 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
                 </View>
               </View>
               <View style={styles.closingNote}>
-                <Text style={styles.closingText}>
+                <Text style={[styles.closingText, piece.aiAssisted && styles.shortReadingLimit]}>
                   <InlineRuns
                     runs={articleDisclosureRuns(
                       articleClosingNote(piece.aiAssisted),
@@ -783,6 +799,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   heading: {
+    ...(isWeb ? ({ overflowX: 'auto' } as object) : null),
     marginTop: 14,
     color: t.colors.text.primary,
     fontFamily: t.typography.title,
@@ -792,6 +809,8 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.heavy,
     letterSpacing: -1.6,
   },
+  headingReadingLimit: { maxWidth: 1040, ...(isWeb ? ({ textWrap: 'balance' } as object) : null) },
+  shortReadingLimit: { maxWidth: 880 },
   headingMobile: { fontSize: 32, lineHeight: 37, letterSpacing: -0.9 },
   headingGuideTablet: { fontSize: 44, lineHeight: 48 },
   // The set's name under the title, quieter than a standfirst because it names

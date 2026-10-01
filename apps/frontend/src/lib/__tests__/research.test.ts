@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { researchPageMetadata } from '../researchMetadata';
+import * as lightweightIndex from '../researchIndex';
 import {
   guidesOutsideEverySet,
   indexedResearch,
@@ -1115,6 +1116,20 @@ describe('the contents list is announced by the piece’s own kind', () => {
 });
 
 describe('the light index agrees with the full registry', () => {
+  it('does not load article-only date and share wording before a screen needs it', () => {
+    for (const name of [
+      'isoDateLabel',
+      'isoDateCommaCapsLabel',
+      'isoDateCapsLabel',
+      'isoMonthYearCapsLabel',
+      'researchShareDescription',
+      'pieceWrittenLine',
+      'pieceWrittenSentence',
+      'pieceShareDescription',
+    ]) {
+      expect(lightweightIndex).not.toHaveProperty(name);
+    }
+  });
   /**
    * `lib/researchIndex.ts` is what the address table and page metadata read
    * before any screen loads; `PUBLISHED_RESEARCH` holds the pieces with their

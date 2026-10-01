@@ -5,8 +5,8 @@ import {
   SHORT_POST_PRESENTATION_READY,
   TOPICS,
   piecePath,
-  isoDateCapsLabel,
 } from './researchIndex';
+import { isoDateCapsLabel } from './articleDateLabels';
 import {
   calculateChart,
   chartDescription,

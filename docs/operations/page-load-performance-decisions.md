@@ -906,6 +906,16 @@ What left, and the small module that now carries what startup needed:
 | `lib/share.ts`'s 6 builders for a committee, a member, payments under 1 name, outside spending, the name search and a member's share card (added 22 September 2026, part of 971 bytes) | the 7 title builders `navigation/documentTitle.ts` reads before a screen loads | `lib/screenPageMetadata.ts` |
 | the 5 guide search sentences on `PieceIndexEntry` (added 22 September 2026, part of 971 bytes) | each piece's address, title, dates and labels | each piece's own record in `lib/research.ts`, handed to `researchPageMetadata` by `api/page.ts` |
 
+30 September 2026 article release repair: article date and prepared-sharing
+formatters also leave `lib/researchIndex.ts`. Navigation keeps using only the
+light article identities and titles; the unchanged formatters now live in
+`lib/articleDateLabels.ts`, imported by article screens, chart labels and article
+metadata. The public `lib/research.ts` exports stay intact. All 8 function bodies
+and month labels are unchanged. The local first download falls from 296,814 to
+296,278 bytes; the 296,881-byte limit stays unchanged, and hosted builds still
+must pass their own size reading. This removes article-only startup work rather
+than depending on module-numbering or compression differences to pass the limit.
+
 Each original module re-exports what moved, so every screen keeps importing from
 where it always did, and every query key string is byte-identical
 (`apps/frontend/src/lib/__tests__/pageData.test.ts`). The cost is the one the

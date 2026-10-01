@@ -1,5 +1,84 @@
 # Read consistency build checkpoint
 
+## Article readability refinements, 30 Sep 2026
+
+Source: Eugene’s pasted “Articles — width limits for the title, research opening
+line, short notes, conclusions and tables, 30 Sep 2026”, accepted under his
+“if so, build these too when ready” instruction.
+[Issue 2448](https://github.com/alethical-org/alethical/issues/2448) owns release.
+The named updated drawings and `build-facts-reading-round-3.md` §7d were not
+downloaded. The written proposal is the new target; `Alethical UX (43).zip`
+remains the prior appearance target outside the explicit exceptions below.
+Prior bundle SHA-256: `55908464d5659f1d2388a458aa182b7e08c617da58819464a5c67f11ec57aa50`.
+
+Branch `codex/article-reading-limits`; isolated working copy
+`/private/tmp/alethical-article-reading-limits`. The build helper owns code,
+requirements and automated checks. The parent Codex task (blog,
+`01a0f3d4-2631-7852-ad53-79682f7aa6e2`) owns browser acceptance, pull request,
+merge, deployment and comparison at the live article addresses. Publication,
+authentication, account changes and real comment test writes remain excluded.
+
+Expected behavior and acceptance evidence:
+
+| Surface | Approved target | Observed / evidence |
+| --- | --- | --- |
+| All article H1 titles | From 768px, maximum 1040px and balanced wrapping; every YYYY–YYYY range stays on 1 line at all widths; exact characters retained | All 9 published titles at 1600px measure1040px, use balanced lines and have no isolated final word/year. Exact title characters pass automated tests. Lobbyist giving 2015–2026 occupies1 line at320/375/768/900/1099/1600px. Native Chrome200% at375px produces187px CSS viewport: title client148px/scroll180px. Keyboard Tab reaches title with visible2px purple focus; ArrowRight scrolls0→32.75px and reveals the entire year range inside heading bounds. At100%, phone335px and desktop1040px titles have no added keyboard stop. |
+| Long Research opening under H1 | Existing 22px text limited to 880px; Guide and Short post openings unchanged | Long report opening measures880px at1600px, with unchanged22px type. Guide opening remains1488px with unchanged19px type; Short post opening remains1488px. |
+| HOW THIS WAS CALCULATED | Essential paragraph and Full method control limited to 880px; expanded body and enclosing box remain full width | Essential summary and Full method control measure880px inside1488px box. Keyboard Space expands body to1438px usable width (1488px box less existing padding); focus stays on control. |
+| Closing AI note | AI-preparation paragraph limited to 880px; enclosing box unchanged | AI paragraph880px inside unchanged1488px box at1600px. |
+| Existing conclusions | Whole symbol-plus-gap-plus-text wrapper limited to 880px; exact current symbol size and text preserved | Prose conclusion and organizations chart conclusion measure880px including symbol, gap and text. Chart conclusion divider narrows with this approved whole-wrapper limit; its enclosing chart remains1488px. Existing symbol size and exact wording retained. |
+| Every article table | Full-width table; label column width 1%, no wrapping from 768px; numeric columns width 1%, minimum 160px and expand for widest content; 1 empty aria-hidden spacer cell per row including header; real row/column header associations; full-width row lines | All 5 published tables at1600px align each real column across rows. Numeric columns measure160px or expand to166.84/216.57/242.29px for headings. First figure lies24–109px from the longest label. Hidden empty spacers appear in every row and remain excluded from native accessibility tables; row lines span the article column. |
+| Overflowing tables | Local horizontal scroll at every width when necessary, keyboard accessible with existing approved visible focus | All 3 formats at320/375/768/900/1099px stay within viewport. Wider tables scroll locally; keyboard ArrowRight moves the focused320/375px table40px and keeps the existing2px purple focus visible. At768px lobbyist table717.96px scrolls within688px column, and long-report table440.35px within404px frame. At200% phone zoom, tables remain locally scrollable and the overflowing title is keyboard reachable; page width stays187px. |
+| Unchanged surfaces | Article frame, body paragraphs/subheads/lists/boxes, contents rail, comments, Related reading, footer, navigation and Share remain as built; every word/value/date/link, font, spacing, fill, border and radius preserved | Independent whole-scope source and appearance review found no changed words, values, dates, links, type, spacing or surrounding sections outside named exceptions. At1600px before/after, Guide/Short column1488px, Research column1206px, comments1600px and Related reading1488px are identical. Contents links land24px from top; Share opens and Escape closes/restores trigger. Phone Share works. |
+
+These are narrow exceptions to the earlier all-text-full-width direction.
+Numeric 160px is a floor, not a fixed cap. Tables may overflow locally on tablet
+as well as phone. Native fallback may retain its current table implementation;
+the shipped web target uses aligned HTML columns. Automated checks cover exact
+title text, year-range boundaries, table contents and header semantics. Parent and independent browser acceptance are complete; live comparison remains a release step.
+
+Automated implementation checks: TypeScript passed; 15 focused title/table tests
+passed; the full frontend suite passed 3,886 tests across 311 files. All frontend
+formatting and both document-reference/organization checks passed. Production web
+export passed, with 296,590 compressed startup bytes against the unchanged
+296,881 limit. A hosted release must pass its own size measurement. Integrated article/comment tests passed58 checks after rebasing on the current shared code. The final full frontend suite passed3,896 tests across312 files after adding a resize fallback for environments without ResizeObserver; the previously failing3 contact-navigation checks now pass. Independent review accepted the fallback and cleanup. The parent and independent reviewer accepted the final rendering; live comparison remains pending until release.
+
+First-response acceptance: the article-only initial HTML now keeps the same
+1040px/balanced H1 cap and unbroken year range before the app runs. Parent and
+independent review used real article builders in script-free private fixtures.
+At1600px all3 formats measure1040px with their existing initial40px title font;
+both existing Research tables measure1422px with aligned172px numeric columns,
+full row rules and empty hidden spacers. Existing initial table type, padding,
+alignment, body widths and nonarticle snapshots stay unchanged. At320px the2
+Research tables scroll267/271px inside226px local frames, keyboard ArrowRight
+moves0→40px and leaves visible2px focus; page width stays320px. At native200%
+phone zoom the year-bearing initial H1 scrolls0→28.5px to expose the whole
+2015–2026 range, with keyboard focus visible and page width187px. The initial
+server response uses a static keyboard stop for year-bearing titles because it
+cannot measure overflow without a program; the running app retains its
+conditional stop only when the title actually overflows. Final frontend suite:
+3,903 tests across313 files; focused first-response tests303, type, formatting,
+document checks and production build pass. Startup size remains296,590 bytes
+against the unchanged296,881-byte limit. Current-head hosted checks, merge queue,
+deployment and live comparison remain the next release steps.
+
+Current-main integration: rebased on the shared navigation, Services and narrow-phone
+footer releases through6c0855b5. Kept the existing Services navigation/footer selection
+and the new article marker together. The305 snapshot/endpoint checks pass; the
+production build passes296,814 /296,881 bytes. The parent’s1600px loaded article
+recheck retains1040px title,1488px table rules, aligned numeric columns and24px
+label-to-figure gap. Hosted and live acceptance will use this integrated head.
+
+Hosted build 5d470929 failed its unchanged download limit at296,908 /296,881
+bytes. Auto-merge was disabled before release. Removed actual article-only
+startup work by moving the exact8 date/share functions from researchIndex into
+articleDateLabels while retaining research.ts exports and all outputs. Parent
+and independent source review accepted the unchanged function bodies, consumers
+and one-way loading boundary. Focused450 and full3,929frontend checks pass; local
+production export296,278 /296,881bytes. Parent browser recheck accepts Research,
+Guide, prose Short post and chart Short post titles/tables and Guide Share dates.
+The next hosted build must establish its own size; no limit was raised.
+
 ## Article width build, 30 Sep 2026
 
 Eugene's `bd unless you need design udpate?` authorizes the article-width build

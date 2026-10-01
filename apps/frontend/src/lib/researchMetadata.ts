@@ -1,4 +1,5 @@
-import { piecePath, pieceShareDescription, type PieceIndexEntry } from './researchIndex';
+import { piecePath, type PieceIndexEntry } from './researchIndex';
+import { pieceShareDescription } from './articleDateLabels';
 import { clean, pageMetadata, titleFor, type PageMetadata } from './share';
 
 /**

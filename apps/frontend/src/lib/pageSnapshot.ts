@@ -362,6 +362,8 @@ export interface PageSnapshot {
   backLink?: SnapshotLink;
   /** The short capitalised label the app draws above the heading, e.g. `STATE PARTY COMMITTEE`. */
   eyebrow?: string;
+  /** Only article builders opt into approved article reading limits in the first response. */
+  article?: boolean;
   /** The page's `<h1>`. */
   heading: string;
   /** The identifying line beneath it, e.g. `HF 719 · 2025–26 LEGISLATIVE SESSION`. */
@@ -1085,6 +1087,7 @@ export function researchPageSnapshot(piece: ResearchPiece, from?: string): PageS
   ];
 
   return {
+    article: true,
     heading: piece.title,
     // A research piece's 2 dates, or a guide's kind, minutes and 1 date — the
     // same line the screen draws under the title.
@@ -1171,6 +1174,7 @@ export function shortPostPageSnapshot(piece: ResearchPiece, from?: string): Page
     });
   }
   return {
+    article: true,
     heading: piece.title,
     subheading:
       piece.shortPost?.recordsScope === 'cited-filings' ||
@@ -2694,7 +2698,7 @@ export function committeePaymentsPageSnapshot(
  * screen reader announces each figure with its column, which is how the loaded
  * page draws it too.
  */
-function renderSnapshotBlock(block: SnapshotBlock): string {
+function renderSnapshotBlock(block: SnapshotBlock, article = false): string {
   if (block.kind === 'runs') {
     return `<p class="ps-prose">${block.runs.map((run) => (run.kind === 'internalLink' || run.kind === 'externalLink' ? `<a href="${escapeHtml(run.href)}">${escapeHtml(run.text)}</a>` : escapeHtml(run.text))).join('')}</p>`;
   }
@@ -2713,21 +2717,25 @@ function renderSnapshotBlock(block: SnapshotBlock): string {
       .join('');
     return `<ul class="ps-list">${links}</ul>`;
   }
-  const head = `<tr>${block.columns.map((column) => `<th>${escapeHtml(column)}</th>`).join('')}</tr>`;
+  const spacer = article ? '<td class="ps-table-spacer" aria-hidden="true"></td>' : '';
+  const head = `<tr>${block.columns.map((column) => `<th${article ? ' scope="col"' : ''}>${escapeHtml(column)}</th>`).join('')}${spacer}</tr>`;
   const body = block.rows
     .map(
       (row) =>
         `<tr>${row
           .map((cell, index) => {
-            const tag = block.rowHeaders && index === 0 ? 'th' : 'td';
+            const tag = (block.rowHeaders || article) && index === 0 ? 'th' : 'td';
             const span = typeof cell === 'string' ? '' : ` colspan="${cell.colSpan}"`;
             const scope = tag === 'th' ? ' scope="row"' : '';
             return `<${tag}${scope}${span}>${escapeHtml(typeof cell === 'string' ? cell : cell.text)}</${tag}>`;
           })
-          .join('')}</tr>`,
+          .join('')}${spacer}</tr>`,
     )
     .join('');
-  return `<table class="ps-table">${block.caption ? `<caption>${escapeHtml(block.caption)}</caption>` : ''}<thead>${head}</thead><tbody>${body}</tbody></table>`;
+  const table = `<table class="ps-table">${block.caption ? `<caption>${escapeHtml(block.caption)}</caption>` : ''}<thead>${head}</thead><tbody>${body}</tbody></table>`;
+  return article
+    ? `<div class="ps-article-table-scroll" tabindex="0" role="region" aria-label="Article table">${table}</div>`
+    : table;
 }
 
 /**
@@ -2804,6 +2812,23 @@ const BACK_CHEVRON =
  * read as one page rather than an old design and a new one.
  */
 export function renderPageSnapshot(snapshot: PageSnapshot): string {
+  const titleParts = snapshot.article
+    ? snapshot.heading.split(/(\b\d{4}–\d{4}\b)/u)
+    : [snapshot.heading];
+  const isYearRange = (part: string) => /^\d{4}–\d{4}$/u.test(part);
+  const title = titleParts
+    .map((part) =>
+      snapshot.article && isYearRange(part)
+        ? `<span class="ps-title-year">${escapeHtml(part)}</span>`
+        : escapeHtml(part),
+    )
+    .join('');
+  // The script-free response cannot measure overflow. A year-bearing title remains
+  // reachable by keyboard; the loaded article only adds this stop when it overflows.
+  const titleAttributes = snapshot.article
+    ? ` class="ps-article-title"${titleParts.some(isYearRange) ? ' tabindex="0"' : ''}`
+    : '';
+
   const body = snapshot.body.length
     ? snapshot.bodyIsList
       ? `<ul class="ps-list">${snapshot.body.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
@@ -2825,7 +2850,7 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
   const sections = (snapshot.sections ?? [])
     .map((section) => {
       const orderedBlocks = (section.blocks ?? [])
-        .map((block) => renderSnapshotBlock(block))
+        .map((block) => renderSnapshotBlock(block, snapshot.article))
         .join('');
       const sectionBody = section.body?.length
         ? section.bodyIsList
@@ -2896,14 +2921,14 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
     : '';
 
   return [
-    `<div class="page-snapshot${snapshot.appearance === 'dark' ? ' page-snapshot-dark' : ''}">`,
+    `<div class="page-snapshot${snapshot.appearance === 'dark' ? ' page-snapshot-dark' : ''}${snapshot.article ? ' page-snapshot-article' : ''}">`,
     snapshot.navigation === 'services' ? renderServicesNav() : renderSnapshotNav(),
     '<main class="ps-inner">',
     snapshot.backLink
       ? `<a class="ps-back" href="${escapeHtml(snapshot.backLink.href)}">${BACK_CHEVRON}${escapeHtml(snapshot.backLink.label)}</a>`
       : '',
     snapshot.eyebrow ? `<p class="ps-eyebrow">${escapeHtml(snapshot.eyebrow)}</p>` : '',
-    `<h1>${escapeHtml(snapshot.heading)}</h1>`,
+    `<h1${titleAttributes}>${title}</h1>`,
     chips ||
       (snapshot.subheading ? `<p class="ps-sub">${escapeHtml(snapshot.subheading)}</p>` : ''),
     bodyCard,
