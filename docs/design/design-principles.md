@@ -747,12 +747,52 @@ it does not authorize an unrelated screen redesign.
 issue, pull request, or linked build notes. Name the accepted bundle and checksum,
 the drawings and screen widths, and any explicit user overrides. Read the actual
 drawings and written behavior together. A missing detail in build notes does not
-erase a detail the drawing specifies. List every section in display order, then
+erase a detail the drawing specifies. Inspect every in-scope drawing and its
+state selectors, opened menus, dialogs and written transitions, including
+unchanged screens. List every section in display order, then
 its checkable requirements: exact copy and explanation lines, date and number
 formats, fonts and weights, layout and wrapping, spacing and alignment, colours,
 assets, and controls. Include approved resting, hover, keyboard-focus, disabled,
-busy, empty and error states, including dialogs and inline forms. State which
-requirements are shared across screen widths and which differ.
+busy, empty, success and error states, including dialogs and inline forms. Give
+each requirement its own entry with its source, user role, starting state and
+expected result. State which requirements are shared across screen widths and
+which differ.
+
+**Check coverage before building.** A reviewer who did not create the comparison
+record reads the accepted handoff and compares it with that record before
+implementation. The reviewer looks for omitted screens, roles, states, text and
+actions, not just incorrect entries. Reconcile every finding before building the
+affected part. A handoff's statement that a screen is unchanged or outside one
+design round does not remove it from the user's authorized build. Explicit user
+scope and holds still govern; this check never authorizes additional work.
+
+**Follow every action through its outcome.** For each control, record who can use
+it, what opens or where it goes, the information it needs, the submission result,
+and failure recovery. Include cancel, back, retry and keyboard-focus behavior
+where applicable. A drawn action with an undefined destination or missing data
+remains unresolved. Resolve settled implementation details here; return open
+visual choices to Design and reserved product choices to the user. Do not omit
+an action or invent its required data to make the screen appear finished.
+
+**Exercise every in-scope user role in the browser.** Use safe test accounts
+and records to reach the actual visitor, applicant, owner and staff screens when
+those roles are in scope. Exercise their distinct success, rejection,
+more-information, failure and recovery paths required by the accepted design and
+governing requirements, even when the current implementation lacks them. Cover the
+supported desktop, tablet and phone layouts and their differing behavior. Code
+tests support these checks but do not replace using the rendered screens.
+Controlled test responses may exercise otherwise rare states, but record that
+limit separately from proof that the real data and submission path work. Never
+submit a real claim, send to real users or change production access just to test
+a screen. Missing safe access leaves the affected check unfinished.
+
+**Reconcile source and process changes with the design.** When the data source,
+available fields, permissions or review process changes, revisit every affected
+screen, field, message, attribution and outcome before continuing that part of
+the build. Record the approved basis and update the affected comparison entries
+and governing requirements. A technical substitution does not silently approve
+a different user experience. Carry settled corrections into the authorized
+build; follow the existing Design-send rules for updating Design's record.
 
 **Every comparison needs a result and evidence.** For each requirement, record
 the expected result, the observed result, and a screenshot, browser measurement,
@@ -775,8 +815,11 @@ independent review is unavailable, report that check as unfinished.
 
 **Working and matching are separate completion checks.** Passing tests, working
 links, and accessible controls do not prove the design was fully implemented.
-Do not merge or call the build complete while any design requirement is missing,
-untested, or different without an approved exception. Changes after review
+Every required comparison entry must have an observed result and supporting
+evidence, or an explicit approved exception with its source. Do not merge or call
+the build complete while any design requirement is missing, untested, or
+different without an approved exception. A completed checklist or a passing code
+test count alone does not establish coverage of the handoff. Changes after review
 require renewed checks of the affected entries. After deployment, compare the
 released screen at the delivery address with the accepted design and record the
 release checked; a local preview does not prove the live result. Keep temporary
