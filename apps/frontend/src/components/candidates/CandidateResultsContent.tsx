@@ -104,8 +104,8 @@ export function candidateOfficeLabel(office: string, votingArea?: string) {
   return office
     .replace(/^Governor & Lt Governor$/i, 'Governor and Lieutenant Governor')
     .replace(
-      /^Judge\s*-\s*(Supreme Court|Court of Appeals|\d+(?:st|nd|rd|th) District Court)\s+(\d+)$/i,
-      'Judge, $1, Seat $2',
+      /^(Judge|Associate Justice)\s*-\s*(Supreme Court|Court of Appeals|\d+(?:st|nd|rd|th) District Court)\s+(\d+)$/i,
+      '$1, $2, Seat $3',
     );
 }
 export function areaLabel(area: string) {

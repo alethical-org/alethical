@@ -253,6 +253,8 @@ it('announces initial loading once while the election source is slow', async () 
 });
 
 it.each([
+  ['Associate Justice - Supreme Court 1', 'Associate Justice, Supreme Court, Seat 1'],
+  ['Associate Justice - Supreme Court 4', 'Associate Justice, Supreme Court, Seat 4'],
   ['Judge - Supreme Court 4', 'Judge, Supreme Court, Seat 4'],
   ['Judge - Court of Appeals 9', 'Judge, Court of Appeals, Seat 9'],
   ['Judge - 9th District Court 12', 'Judge, 9th District Court, Seat 12'],
