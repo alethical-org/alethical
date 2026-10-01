@@ -4,7 +4,7 @@ import { act, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const state = vi.hoisted(() => ({ openSignIn: vi.fn(), onDismiss: () => {} }));
+const state = vi.hoisted(() => ({ openSignIn: vi.fn(), onDismiss: () => {}, isMobile: true }));
 vi.mock('react-native-svg', () => ({
   default: ({ children }: { children?: ReactNode }) => <svg>{children}</svg>,
   Circle: () => <circle />,
@@ -20,7 +20,7 @@ vi.mock('@react-navigation/native', () => ({
   useRoute: () => ({ name: 'Read' }),
 }));
 vi.mock('../../hooks/useResponsive', () => ({
-  useResponsive: () => ({ isMobile: true, isDesktop: false }),
+  useResponsive: () => ({ isMobile: state.isMobile, isDesktop: false }),
 }));
 vi.mock('../../providers/AuthProvider', () => ({ useAuth: () => ({ isSignedIn: false }) }));
 vi.mock('../../providers/signInModalContext', () => ({
@@ -51,10 +51,40 @@ import { TopNav } from '../primitives';
 
 afterEach(() => {
   state.openSignIn.mockClear();
+  state.isMobile = true;
   document.body.innerHTML = '';
 });
 
 describe('phone menu to Sign in', () => {
+  it('closes from the phone header without opening Sign in or adding a keyboard stop', () => {
+    const mount = document.createElement('div');
+    document.body.append(mount);
+    const root = createRoot(mount);
+    act(() => root.render(<TopNav />));
+    act(() => document.querySelector<HTMLElement>('[aria-label="Open menu"]')!.click());
+    const closeArea = document.querySelector<HTMLElement>(
+      '[data-testid="menu-header-close-area"]',
+    )!;
+    expect(closeArea).toBeTruthy();
+    expect(closeArea.tabIndex).toBe(-1);
+    act(() => closeArea.click());
+    expect(document.querySelector('[data-testid="menu-header-close-area"]')).toBeNull();
+    expect(document.querySelector('[aria-label="Open menu"]')).toBeTruthy();
+    expect(state.openSignIn).not.toHaveBeenCalled();
+    act(() => root.unmount());
+  });
+
+  it('keeps the tablet header separate from the phone closing area', () => {
+    state.isMobile = false;
+    const mount = document.createElement('div');
+    document.body.append(mount);
+    const root = createRoot(mount);
+    act(() => root.render(<TopNav />));
+    act(() => document.querySelector<HTMLElement>('[aria-label="Open menu"]')!.click());
+    expect(document.querySelector('[data-testid="menu-header-close-area"]')).toBeNull();
+    act(() => root.unmount());
+  });
+
   it('opens Sign in after the drawer restores its opener, once per press', () => {
     const mount = document.createElement('div');
     document.body.append(mount);

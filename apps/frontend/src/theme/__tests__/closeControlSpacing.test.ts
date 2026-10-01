@@ -65,8 +65,8 @@ describe('corner close-control spacing', () => {
 
   it('keeps the phone menu close control in its separately padded header', () => {
     expect(drawer).toMatch(/menuSheetHeader: \{[^}]*padding: 22/);
-    expect(drawer.indexOf('<View style={styles.menuSheetHeader}>')).toBeLessThan(
-      drawer.indexOf('<ScrollView style={styles.menuList}'),
+    expect(drawer.indexOf('styles.menuSheetHeader,')).toBeLessThan(
+      drawer.indexOf('style={styles.menuList}'),
     );
   });
 
