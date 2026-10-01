@@ -242,7 +242,7 @@ function CandidateSearchSession({
         styles.page,
         {
           paddingHorizontal: isMobile ? 20 : isDesktop ? 56 : 32,
-          paddingTop: isMobile ? 24 : isDesktop ? 36 : 32,
+          paddingTop: isMobile ? 32 : isDesktop ? 64 : 48,
         },
       ]}
     >
