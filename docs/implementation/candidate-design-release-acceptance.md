@@ -1,6 +1,6 @@
 # Candidate design build acceptance inventory
 
-Status: coverage accepted by the parent implementation owner on October 1, 2026 after independent comparison of build-facts sections, match-design items and the profile drawings, plus the search builder’s direct search-drawing comparison. The target tables retain the starting-code observations; the acceptance evidence below records completed checks and explicit limits. Local acceptance is complete; hosted release checks are in progress.
+Status: coverage accepted by the parent implementation owner on October 1, 2026 after independent comparison of build-facts sections, match-design items and the profile drawings, plus the search builder’s direct search-drawing comparison. The target tables retain the starting-code observations; the acceptance evidence below records completed checks and explicit limits. Local, hosted and live acceptance are complete, including the final court-label follow-up.
 
 ## Accepted inputs and scope
 
@@ -169,12 +169,12 @@ Account state coverage: public, approved owner, pending, loading, failure. Campa
 1. ACCEPTED: pin bundle checksum, define public search/profile/homepage-copy scope, independently compare this inventory and reconcile exact copy/arrow/source decisions.
 2. COMPLETE: source adapters, confirmed portraits/service, public search/profile, homepage copy, account controls and report-version behavior are integrated.
 3. COMPLETE: focused tests and exact settled Design notes are integrated. Source-dependent states remain conditional; claim/manage redraw stays excluded.
-4. COMPLETE: 3,650 backend tests and 4,010 frontend tests pass, with typecheck, formatting, document checks and production export. Chrome covers all 3 layout bands and safe controlled mutation/error responses.
+4. COMPLETE: 3,650 backend tests and 4,012 frontend tests pass, with typecheck, formatting, document checks and production export. Chrome covers all 3 layout bands and safe controlled mutation/error responses.
 5. COMPLETE: independent review started from all 8 handoff files and exercised complete public flows. All observed blocking findings are corrected and rechecked, including native print clipping.
-6. PENDING: commit, open pull request, current-head checks, merge and deployment under the existing user approval.
-7. PENDING: reach deployed addresses, inspect changed behavior and real links/photos/source disclosure, record live evidence and finish release/issue documentation.
+6. COMPLETE: the main release passed current-head and merge-queue checks, merged and deployed through [pull request 2463](https://github.com/alethical-org/alethical/pull/2463). The focused court-label correction passed its checks and merged through [pull request 2466](https://github.com/alethical-org/alethical/pull/2466).
+7. COMPLETE: real deployed search/profile paths, links, portraits and source disclosures passed the live checks recorded below; this record closes release acceptance.
 
-Resume checkpoint: local acceptance is complete. Carry the release through pull request, deployment and live acceptance under the existing authorization.
+Completion checkpoint: the approved public design release is live, including the court-label correction. This document retains the complete scope, checks and explicit evidence limits.
 
 
 ## Integrated acceptance evidence
@@ -218,3 +218,43 @@ portraits/connections, and the changed-statement state with **Reload statement**
 No replacement download is required by this settled-correction round. The saved
 export folder remains the pinned original input; these explicit corrections take
 precedence for implementation.
+
+
+## Live acceptance, October 1, 2026
+
+The main release reached both the website and API as
+[commit ed2f6785](https://github.com/alethical-org/alethical/commit/ed2f67851253b03af6e0abb133648631bab43637),
+through [pull request 2463](https://github.com/alethical-org/alethical/pull/2463).
+Independent Chrome review exercised real public records on www.alethical.com,
+including 390px and 900px layouts; the implementation owner separately inspected
+the confirmed portrait and legislator destinations.
+
+- Homepage prints “Who’s running where you live?” and “Explore the candidates in your Minnesota races, with links to official records”. A public University of Minnesota test address reaches real results with the address excluded from the URL.
+- At that address, the general-election response supplies State (36 races), County (3) and School board (2), with “Some local offices may be missing” separately in Coverage. Absent groups are not invented. Judges starts closed with 28 races in court order.
+- A State jump opens the closed State group and focuses its heading. Independent County state remains intact. Opening Mohamud Noor’s profile and returning restores the address, election and group choices.
+- The tablet election menu has a 2-line name/date and selected checkmark; Escape closes it and returns focus. Phone and tablet have no horizontal overflow, and candidate-footer links measure at least 44px.
+- All 7 registered live profiles return the expected confirmed legislator connection, current-service evidence, official portrait and election record. All 7 portrait URLs respond successfully from the Minnesota Legislative Reference Library.
+- Mohamud Noor’s portrait renders and “View legislator profile” opens his existing legislator profile. Cedrick Frazier’s current House office stays separate from his candidacy for Hennepin County Attorney. Lisa Demuth’s portrait appears in her named individual legislator panel, not as a portrait of the joint ticket with Ryan Wilson.
+- An unknown candidate ID reaches the safe shared not-found screen; Home returns successfully. No illustrative-person marks or development state controls appear in the reviewed production flows.
+- The sole live-review defect was raw Supreme Court labels for Associate Justice seats 1 and 4. The shared formatter now preserves “Associate Justice” and prints “Associate Justice, Supreme Court, Seat 1” or “Seat 4” in search and profiles. Independent review accepted both headings and Sarah Hennesy’s profile at the original preview; 2 new exact-source regression tests pass.
+
+The current production source exposes only the general election in the reviewed
+flow. Primary switching, slow responses, failures, report submission and account
+states therefore retain the controlled local and automated evidence above. No real
+production report, claim or sign-in was submitted, and physical phone keyboard or
+touch behavior is not claimed. The original preview remains
+http://localhost:19047/candidates in the task-owned checkout.
+
+The security dependency update to pypdf 6.19.0 clears the release scan’s advisories.
+All 3,650 backend tests pass with that version. Its PDF layout spacing required
+normalizing spaces in the existing calendar-header test without broadening the
+header window; all 101 calendar tests pass. The final court-label change passes
+4,012 frontend tests across 323 files, plus type and formatting checks.
+
+The court-label follow-up reached both the website and API as
+[commit 2db25f2f](https://github.com/alethical-org/alethical/commit/2db25f2f11f392a16a86a68ac6eb9c5574a583f7),
+through [pull request 2466](https://github.com/alethical-org/alethical/pull/2466).
+The public release-stamp checks pass for both services. A fresh live reload of
+Sarah Hennesy’s profile prints “Associate Justice, Supreme Court, Seat 1”. A new live
+address search followed by opening Judges shows both corrected Supreme Court seat
+1 and seat 4 headings.
