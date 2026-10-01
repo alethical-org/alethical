@@ -522,5 +522,14 @@ source sharing, coherent election updates, the redesigned public record and
 campaign/report states, and confirmed legislator connections with official portraits.
 The reviewed identity register enables 7 current saved records without a database
 migration or production data replacement. Unsupported identities remain unlinked.
-The original preview remains http://localhost:19047/candidates. Hosted checks and
-live acceptance remain required before reporting this design release as live.
+The original preview remains http://localhost:19047/candidates. The public design
+release is live through [pull request 2463](https://github.com/alethical-org/alethical/pull/2463),
+with the live-review court-label correction in
+[pull request 2466](https://github.com/alethical-org/alethical/pull/2466).
+Both website and API report
+[commit 2db25f2f](https://github.com/alethical-org/alethical/commit/2db25f2f11f392a16a86a68ac6eb9c5574a583f7).
+All 3,650 backend and 4,012 frontend tests pass. Independent live browser review
+covered homepage-to-results, group controls, profile/back navigation, phone/tablet
+layouts and unknown profiles. All 7 reviewed legislator connections and official
+portrait URLs respond correctly. The exact live paths, corrections and limits are
+saved in [Candidate design acceptance](candidate-design-release-acceptance.md#live-acceptance-october-1-2026).
