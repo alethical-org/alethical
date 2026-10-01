@@ -205,6 +205,11 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   wins and the build corrects the drawing. The `mobileLinkArrows.test.ts` check rejects typed link
   arrows, old local link drawings, and page-specific link-arrow vertical adjustments, while allowing
   the restored on-screen action treatments below.
+- **Candidate search and profile links keep their approved higher inline position.**
+  The candidate surfaces use the shared 19px geometry and 6px gap with
+  `LinkArrow`'s `candidate-inline` placement (`vertical-align: -0.26em`). This is
+  the scope of Eugene's approved newer arrow position. Other surfaces keep the
+  standard centered treatment. Return links retain the 18px chevron and 9px gap.
 - **A link's underline covers every word and the spaces between them, including the final word
   beside its arrow.** Keep each link's accepted always-visible or hover/focus-only underline
   behavior. A simple flex link with a separate arrow holds the whole label, including visually

@@ -4,12 +4,13 @@ import { ScrollView, Text, View } from 'react-native';
 import { CandidateProfileContent } from '../components/candidates/CandidateProfileContent';
 import {
   CandidateButton,
+  CandidateLink,
   CandidateNotice,
   candidateText,
 } from '../components/candidates/CandidateControls';
 import type { CandidateProfileRecord } from '../components/candidates/types';
 import { isNotFoundError } from '../data/api';
-import { getCandidateProfile } from '../data/candidates';
+import { candidateFlow, getCandidateProfile } from '../data/candidates';
 import { candidatePreviewEnabled } from '../lib/candidateLookupAvailability';
 import { useDocumentTitle } from '../navigation/documentTitle';
 import type { RootScreenProps } from '../navigation/types';
@@ -28,6 +29,21 @@ type ProfileState =
 export function CandidateProfileScreen(props: RootScreenProps<'CandidateProfile'>) {
   const { navigation, route } = props;
   const id = route.params.candidateId;
+  const fromSearch = Boolean(
+    candidateFlow
+      .getState()
+      .displayed?.results.races.some((race) =>
+        race.entries.some((entry) =>
+          entry.kind === 'candidate'
+            ? entry.candidate.id === id
+            : entry.id === id || entry.members.some((member) => member.id === id),
+        ),
+      ),
+  );
+  const returnToCandidates = () => {
+    if (!fromSearch) candidateFlow.clear();
+    navigation.navigate('Candidates');
+  };
   const illustrative = candidatePreviewEnabled() && /^preview-/.test(id);
   const [state, setState] = useState<ProfileState>({ id, kind: 'loading' });
   const [retry, setRetry] = useState(0);
@@ -67,13 +83,17 @@ export function CandidateProfileScreen(props: RootScreenProps<'CandidateProfile'
       />
     );
   return (
-    <PageBackground>
+    <PageBackground candidateSurface>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
+        <TopNav candidateSurface onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
         {current.kind === 'ready' ? (
           <CandidateProfileContent
             record={current.record}
-            onBack={() => navigation.navigate('Candidates')}
+            fromSearch={fromSearch}
+            onBack={returnToCandidates}
+            onOpenLegislator={(slug) =>
+              navigation.navigate('LegislatorProfile', { legislatorId: slug })
+            }
             onOpenProfile={(candidateId) =>
               navigation.navigate('CandidateProfile', { candidateId })
             }
@@ -87,6 +107,12 @@ export function CandidateProfileScreen(props: RootScreenProps<'CandidateProfile'
           </CandidateProfileContent>
         ) : (
           <View style={{ padding: 32, maxWidth: 760, width: '100%', alignSelf: 'center', flex: 1 }}>
+            <CandidateLink
+              internal
+              url="/candidates"
+              label={fromSearch ? 'Back to candidates' : 'Find my candidates'}
+              onPress={returnToCandidates}
+            />
             {current.kind === 'error' ? (
               <CandidateNotice error>
                 <Text style={candidateText.strong}>Candidate record is unavailable</Text>
@@ -94,11 +120,6 @@ export function CandidateProfileScreen(props: RootScreenProps<'CandidateProfile'
                   label="Try again"
                   kind="outline"
                   onPress={() => setRetry((value) => value + 1)}
-                />
-                <CandidateButton
-                  label="Back to candidates"
-                  kind="text"
-                  onPress={() => navigation.navigate('Candidates')}
                 />
               </CandidateNotice>
             ) : (
@@ -109,6 +130,7 @@ export function CandidateProfileScreen(props: RootScreenProps<'CandidateProfile'
           </View>
         )}
         <Footer
+          candidateSurface
           onContact={() => navigation.navigate('ContactUs')}
           onPrivacy={() => navigation.navigate('Privacy')}
           onTerms={() => navigation.navigate('Terms')}

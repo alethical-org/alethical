@@ -50,14 +50,14 @@ it('loads public statements and accepts reports without account data or cookies'
   const signal = new AbortController().signal;
   const id = 'a'.repeat(64);
   await api.getCandidateStatement(id, signal);
-  await api.reportCandidateStatement(id, 'Reason for review', signal);
+  await api.reportCandidateStatement(id, 'Reason for review', 7, signal);
   for (const [url, options] of vi.mocked(fetch).mock.calls) {
     expect(url).toMatch(/\/candidate-statements\/[a-f0-9]{64}/);
     expect(options).toMatchObject({ cache: 'no-store', credentials: 'omit' });
     expect((options?.headers as Record<string, string>).Authorization).toBeUndefined();
   }
   expect(vi.mocked(fetch).mock.calls[1][1]?.body).toBe(
-    JSON.stringify({ reason: 'Reason for review' }),
+    JSON.stringify({ reason: 'Reason for review', expected_version: 7 }),
   );
 });
 it('keeps private statement history and staff review data on authenticated no-store requests', async () => {

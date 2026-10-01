@@ -9,6 +9,8 @@ import type {
 export interface CandidateFlowState {
   resetVersion: number;
   draftAddress: string;
+  openGroups: Record<string, boolean>;
+  scrollOffset: number;
   status: 'idle' | 'loading' | 'updating' | 'success' | 'error';
   requested: CandidateLookupRequest | null;
   displayed: {
@@ -24,6 +26,8 @@ export function createCandidateFlow(services: CandidateSearchServices) {
   let state: CandidateFlowState = {
     resetVersion: 0,
     draftAddress: '',
+    openGroups: {},
+    scrollOffset: 0,
     status: 'idle',
     requested: null,
     displayed: null,
@@ -95,6 +99,14 @@ export function createCandidateFlow(services: CandidateSearchServices) {
         publish({
           resetVersion: state.resetVersion,
           draftAddress: request.address,
+          openGroups:
+            state.displayed?.results.matchedAddress === response.matchedAddress
+              ? state.openGroups
+              : {},
+          scrollOffset:
+            state.displayed?.results.matchedAddress === response.matchedAddress
+              ? state.scrollOffset
+              : 0,
           status: 'success',
           requested: request,
           outcome: null,
@@ -119,6 +131,8 @@ export function createCandidateFlow(services: CandidateSearchServices) {
       publish({
         resetVersion: state.resetVersion + 1,
         draftAddress: '',
+        openGroups: {},
+        scrollOffset: 0,
         status: 'idle',
         requested: null,
         displayed: null,
@@ -137,6 +151,13 @@ export function createCandidateFlow(services: CandidateSearchServices) {
       };
     },
     search,
+    setGroupOpen(group: string, open: boolean) {
+      if (!disposed) publish({ ...state, openGroups: { ...state.openGroups, [group]: open } });
+    },
+    setScrollOffset(offset: number) {
+      // Scroll is private navigation memory, not data state; avoid rerendering every scroll tick.
+      state = { ...state, scrollOffset: Math.max(0, offset) };
+    },
     setDraftAddress(address: string) {
       if (disposed || resetting) return;
       resetting = true;

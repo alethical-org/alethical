@@ -1,5 +1,8 @@
-import { useEffect, useState } from 'react';
-import { ScrollView, Text, View, StyleSheet } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ScrollView, Text, View, StyleSheet, useWindowDimensions } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
+import { useResponsive } from '../hooks/useResponsive';
+import type { CandidateFlow } from '../components/candidates/candidateFlow';
 import { CandidateSearchContent, CandidateProfileContent } from '../components/candidates';
 import { CandidateButton } from '../components/candidates/CandidateControls';
 import { candidatePreviewEnabled } from '../lib/candidateLookupAvailability';
@@ -8,6 +11,15 @@ import type { RootScreenProps } from '../navigation/types';
 import { Footer, PageBackground, TopNav } from '../theme/primitives';
 import { theme } from '../theme/tokens';
 import { NotFoundScreen } from './redesign/NotFoundScreen';
+import { CandidateClaimPanel } from '../components/candidates/CandidateClaimPanel';
+import {
+  profilePreviewServices,
+  previewProfile,
+  type ProfilePerson,
+  type ProfilePhoto,
+  type ProfileCampaign,
+  type ProfileReport,
+} from '../dev/candidateProfilePreview';
 import type * as Preview from '../dev/candidatePreview';
 
 // This module is lazy loaded, and illustrative records are imported only in a
@@ -87,16 +99,50 @@ function PreviewControls({ preview }: { preview: typeof Preview }) {
 function PreviewFrame({
   navigation,
   children,
+  flow,
+  search = false,
 }: {
   navigation: RootScreenProps<'Candidates'>['navigation'];
   children: React.ReactNode;
+  flow?: CandidateFlow;
+  search?: boolean;
 }) {
+  const scroll = useRef<ScrollView>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const { height } = useWindowDimensions();
+  const { isDesktop } = useResponsive();
+  const focused = useIsFocused();
+  useEffect(() => {
+    if (!focused || !flow || !search) return;
+    const frame = requestAnimationFrame(() =>
+      scroll.current?.scrollTo({ y: flow.getState().scrollOffset, animated: false }),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [focused, flow, search]);
   return (
-    <PageBackground>
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
-        {children}
+    <PageBackground candidateSurface>
+      <ScrollView
+        ref={scroll}
+        contentContainerStyle={{ flexGrow: 1 }}
+        scrollEventThrottle={100}
+        onScroll={
+          search && flow
+            ? (event) => flow.setScrollOffset(event.nativeEvent.contentOffset.y)
+            : undefined
+        }
+      >
+        <View onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
+          <TopNav candidateSurface onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
+        </View>
+        <View
+          style={
+            search && isDesktop ? { minHeight: Math.max(0, height - headerHeight) } : undefined
+          }
+        >
+          {children}
+        </View>
         <Footer
+          candidateSurface
           onContact={() => navigation.navigate('ContactUs')}
           onPrivacy={() => navigation.navigate('Privacy')}
           onTerms={() => navigation.navigate('Terms')}
@@ -116,7 +162,7 @@ export function CandidatesScreen({ navigation }: RootScreenProps<'Candidates'>) 
       />
     );
   return (
-    <PreviewFrame navigation={navigation}>
+    <PreviewFrame navigation={navigation} flow={preview?.candidatePreviewFlow} search>
       {preview ? (
         <>
           <PreviewControls preview={preview} />
@@ -138,7 +184,22 @@ export function CandidatesScreen({ navigation }: RootScreenProps<'Candidates'>) 
 }
 export function CandidateProfileScreen({ navigation, route }: RootScreenProps<'CandidateProfile'>) {
   const preview = usePreview();
-  const record = preview?.candidatePreviewProfile(route.params.candidateId);
+  const [person, setPerson] = useState<ProfilePerson>('no connection');
+  const [photo, setPhoto] = useState<ProfilePhoto>('missing');
+  const [campaign, setCampaign] = useState<ProfileCampaign>('published');
+  const [report, setReport] = useState<ProfileReport>('success');
+  const [account, setAccount] = useState<'public' | 'loading' | 'approved' | 'pending' | 'error'>(
+    'public',
+  );
+  const [entry, setEntry] = useState('search');
+  const [recordState, setRecordState] = useState('ready');
+  const [slow, setSlow] = useState(false);
+  const fixtureServices = useMemo(
+    () => profilePreviewServices(campaign, report, slow),
+    [campaign, report, slow],
+  );
+  const base = preview?.candidatePreviewProfile(route.params.candidateId);
+  const record = base ? previewProfile(base, person, photo, recordState === 'old') : undefined;
   useDocumentTitle(
     `/candidates/${route.params.candidateId}`,
     record ? `${record.candidate.name} | Alethical` : 'Candidate record | Alethical',
@@ -153,14 +214,128 @@ export function CandidateProfileScreen({ navigation, route }: RootScreenProps<'C
   return (
     <PreviewFrame navigation={navigation as never}>
       <View style={styles.review}>
-        <Text style={styles.reviewTitle}>ILLUSTRATIVE DATA</Text>
+        <Text style={styles.reviewTitle}>ILLUSTRATIVE DATA · SAFE LOCAL CONTROLS</Text>
+        <View style={styles.controls}>
+          <label>
+            Person{' '}
+            <select
+              aria-label="Person"
+              value={person}
+              onChange={(e) => setPerson(e.target.value as ProfilePerson)}
+            >
+              {[
+                'no connection',
+                'reelection',
+                'different office',
+                'former',
+                'service unknown',
+                'ticket',
+                'long name',
+              ].map((x) => (
+                <option key={x}>{x}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Photo{' '}
+            <select
+              aria-label="Photo"
+              value={photo}
+              onChange={(e) => setPhoto(e.target.value as ProfilePhoto)}
+            >
+              {['missing', 'loaded', 'failed'].map((x) => (
+                <option key={x}>{x}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Campaign{' '}
+            <select
+              aria-label="Campaign"
+              value={campaign}
+              onChange={(e) => setCampaign(e.target.value as ProfileCampaign)}
+            >
+              {['published', 'absent', 'failure'].map((x) => (
+                <option key={x}>{x}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Report response{' '}
+            <select
+              aria-label="Report response"
+              value={report}
+              onChange={(e) => setReport(e.target.value as ProfileReport)}
+            >
+              {['success', 'failure', 'limited', 'changed', 'removed'].map((x) => (
+                <option key={x}>{x}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Account{' '}
+            <select
+              aria-label="Account"
+              value={account}
+              onChange={(e) => setAccount(e.target.value as typeof account)}
+            >
+              {['public', 'loading', 'approved', 'pending', 'error'].map((x) => (
+                <option key={x}>{x}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Entry{' '}
+            <select aria-label="Entry" value={entry} onChange={(e) => setEntry(e.target.value)}>
+              {['search', 'direct'].map((x) => (
+                <option key={x}>{x}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Record{' '}
+            <select
+              aria-label="Record"
+              value={recordState}
+              onChange={(e) => setRecordState(e.target.value)}
+            >
+              {['ready', 'old'].map((x) => (
+                <option key={x}>{x}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <input type="checkbox" checked={slow} onChange={(e) => setSlow(e.target.checked)} />{' '}
+            Slow response
+          </label>
+        </View>
       </View>
       {record ? (
         <CandidateProfileContent
           record={record}
+          fromSearch={entry === 'search'}
+          onOpenLegislator={(slug) =>
+            navigation.navigate('LegislatorProfile', { legislatorId: slug })
+          }
           onBack={() => navigation.navigate('Candidates')}
           onOpenProfile={(candidateId) => navigation.navigate('CandidateProfile', { candidateId })}
-        />
+        >
+          <CandidateClaimPanel
+            key={`${campaign}:${report}:${account}:${slow}`}
+            record={record}
+            services={fixtureServices}
+            previewAccount={account}
+            onClaim={() =>
+              account === 'error'
+                ? setAccount('public')
+                : navigation.navigate('CandidateClaim', { candidateId: record.candidate.id })
+            }
+            onManage={() =>
+              navigation.navigate('CandidateManage', { candidateId: record.candidate.id })
+            }
+            onAdmin={() => navigation.navigate('AdminCandidateClaims')}
+          />
+        </CandidateProfileContent>
       ) : (
         <Text accessibilityLiveRegion="polite">Loading preview…</Text>
       )}

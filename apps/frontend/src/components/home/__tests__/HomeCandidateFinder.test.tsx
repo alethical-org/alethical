@@ -237,7 +237,9 @@ it.each([1440, 900, 375])('keeps the approved map and phone form choices at %ipx
   const field = host.querySelector('.hc-field')!;
   expect(field.querySelector('svg') !== null).toBe(width >= 768);
   expect(host.querySelector('textarea')?.getAttribute('autocomplete')).toBe('street-address');
-  expect(host.textContent).toContain('who is running');
+  expect(host.textContent).toContain(
+    'Explore the candidates in your Minnesota races, with links to official records',
+  );
   expect(host.textContent).toContain('Alethical does not save it');
 });
 it('ignores a late response after the homepage is removed', async () => {

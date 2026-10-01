@@ -1,0 +1,124 @@
+{
+  "reviewed_on": "2026-10-01",
+  "review_method": "Explicit cross-source review of the exact MyBallot candidate ID, full name, election, office, district and party against official member records and Alethical’s stored government member URL. Different-office and joint-ticket links additionally require a positive identity bridge retained in identity_evidence, such as the campaign biography reached from the official candidate record. These entries are confirmations, not a name-matching rule.",
+  "candidate_source": "https://myballotmn.sos.mn.gov/",
+  "links": [
+    {
+      "candidate_id": "677e8bb6e927a5df33d9b486844b2e8dbf3b31bd49816bdc0627fba488ba185f",
+      "candidate_name": "Mohamud Noor",
+      "election_id": "8334",
+      "election_date": "2026-11-03",
+      "office": "State Representative District 60B",
+      "party": "DEMOCRATIC-FARMER-LABOR",
+      "legislator_slug": "mohamud-noor",
+      "legislator_name": "Mohamud Noor",
+      "member_source_url": "https://www.house.mn.gov/members/profile/15528",
+      "chamber": "house",
+      "district": "60B",
+      "member_party": "DFL"
+    },
+    {
+      "candidate_id": "2aac573ec752af687b5d9d024cfc1530ae61127d9a5e90f7a6dc43721465cc1b",
+      "candidate_name": "Doron Clark",
+      "election_id": "8334",
+      "election_date": "2026-11-03",
+      "office": "State Senator District 60",
+      "party": "DEMOCRATIC-FARMER-LABOR",
+      "legislator_slug": "doron-clark",
+      "legislator_name": "Doron Clark",
+      "member_source_url": "https://www.senate.mn/members/member_bio.html?leg_id=15649",
+      "chamber": "senate",
+      "district": "60",
+      "member_party": "DFL"
+    },
+    {
+      "candidate_id": "a458d79a8838f12a9962a99e21d4657a97c747f7d848a6d10df3b4d86f3eed0f",
+      "candidate_name": "Josh Heintzeman",
+      "election_id": "8334",
+      "election_date": "2026-11-03",
+      "office": "State Representative District 6B",
+      "party": "REPUBLICAN",
+      "legislator_slug": "josh-heintzeman",
+      "legislator_name": "Josh Heintzeman",
+      "member_source_url": "https://www.house.mn.gov/members/profile/15435",
+      "chamber": "house",
+      "district": "06B",
+      "member_party": "R",
+      "identity_evidence": {
+        "review_notes": "Secretary of State candidacy and the official government member profile agree on full name, legislative chamber, district and party. Government district zero-padding is representational: 06B equals 6B and 06 equals 6. The saved member government profile URL and official portrait also match this reviewed identity."
+      }
+    },
+    {
+      "candidate_id": "8e78033d9be7ff9bae056b93f0bbf8c3127e73ceaf9248b75b7c8e93c72af7f9",
+      "candidate_name": "Keri Heintzeman",
+      "election_id": "8334",
+      "election_date": "2026-11-03",
+      "office": "State Senator District 6",
+      "party": "REPUBLICAN",
+      "legislator_slug": "keri-heintzeman",
+      "legislator_name": "Keri Heintzeman",
+      "member_source_url": "https://www.senate.mn/members/member_bio.html?leg_id=15651",
+      "chamber": "senate",
+      "district": "06",
+      "member_party": "R",
+      "identity_evidence": {
+        "review_notes": "Secretary of State candidacy and the official government member profile agree on full name, legislative chamber, district and party. Government district zero-padding is representational: 06B equals 6B and 06 equals 6. The saved member government profile URL and official portrait also match this reviewed identity."
+      }
+    },
+    {
+      "candidate_id": "a10f7a00034128a0bf9bd30dc42efe3a7c5431ea8bdf41e61f3ba81ea8e96d9b",
+      "candidate_name": "Cedrick Frazier",
+      "election_id": "8334",
+      "election_date": "2026-11-03",
+      "office": "County Attorney",
+      "party": "NONPARTISAN",
+      "legislator_slug": "cedrick-frazier",
+      "legislator_name": "Cedrick Frazier",
+      "member_source_url": "https://www.house.mn.gov/members/profile/15548",
+      "chamber": "house",
+      "district": "43A",
+      "member_party": "DFL",
+      "identity_evidence": {
+        "candidate_website": "http://cedrickfrazier.org",
+        "biography_url": "https://www.cedrickfrazier.org/about",
+        "review_notes": "The website supplied in the Secretary of State candidate record identifies Cedrick Frazier as a DFL State Representative running for Hennepin County Attorney and says he was elected to the Legislature in 2020. The official House member page independently confirms the same full name, DFL membership, district 43A, attorney occupation and 2020 election. Candidate NONPARTISAN identifies this county race; member DFL identifies his current House service."
+      }
+    },
+    {
+      "candidate_id": "dc7047b6bc44675d0d5186830236a63cde0624459fbe17313fbab44f26e24d00",
+      "candidate_name": "Lisa Demuth and Ryan Wilson",
+      "election_id": "8334",
+      "election_date": "2026-11-03",
+      "office": "Governor & Lt Governor",
+      "party": "REPUBLICAN",
+      "legislator_slug": "lisa-demuth",
+      "legislator_name": "Lisa Demuth",
+      "member_source_url": "https://www.house.mn.gov/members/profile/15498",
+      "chamber": "house",
+      "district": "13A",
+      "member_party": "R",
+      "identity_evidence": {
+        "candidate_website": "http://LisaforMN.com",
+        "biography_url": "https://lisaformn.com/about/",
+        "review_notes": "The Secretary of State ticket record names Lisa Demuth and Ryan Wilson and supplies LisaforMN.com. That governor campaign website identifies Lisa Demuth as the current House Speaker, serving her fourth House term after election in 2018. The official House member page independently confirms Speaker Lisa Demuth, Republican, district 13A, fourth term and 2018 election. This connection and portrait belong to Lisa Demuth alone, not Ryan Wilson or the joint ticket."
+      }
+    },
+    {
+      "candidate_id": "8a0fbff7f8c487137849add5cef656b2d6548aae2bef314383cf69e2c20245a4",
+      "candidate_name": "Carlie Kotyza-Witthuhn",
+      "election_id": "8334",
+      "election_date": "2026-11-03",
+      "office": "State Representative District 49B",
+      "party": "DEMOCRATIC-FARMER-LABOR",
+      "legislator_slug": "carlie-kotyza-witthuhn",
+      "legislator_name": "Carlie Kotyza-Witthuhn",
+      "member_source_url": "https://www.house.mn.gov/members/profile/15515",
+      "chamber": "house",
+      "district": "49B",
+      "member_party": "DFL",
+      "identity_evidence": {
+        "review_notes": "Secretary of State candidacy and the official government member profile agree on full name, legislative chamber, district and party. Government district zero-padding is representational: 06B equals 6B and 06 equals 6. The saved member government profile URL and official portrait also match this reviewed identity."
+      }
+    }
+  ]
+}

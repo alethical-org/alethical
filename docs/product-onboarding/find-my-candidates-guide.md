@@ -1,6 +1,6 @@
 # How Find My Candidates works
 
-<!-- describes: apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidateProfileScreen.tsx, apps/frontend/src/screens/CandidateAccountScreens.tsx, apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx, apps/frontend/src/components/candidates/*.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/data/candidates.ts, apps/frontend/src/data/candidateClaims.ts, apps/frontend/src/hooks/useCandidatePrivacyBoundary.ts, apps/frontend/src/lib/candidatePrivacy.ts, alethical/api/routers/candidates.py, alethical/api/routers/candidate_claims.py, alethical/api/services/candidate_lookup.py, alethical/api/services/candidate_claims.py, alethical/pipeline/candidate_ballot.py, alethical/db/models.py, alethical/alembic/versions/0066_candidate_lookup.py, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/lib/staticPageMetadata.ts, api/page.ts -->
+<!-- describes: apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidateProfileScreen.tsx, apps/frontend/src/screens/CandidateAccountScreens.tsx, apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx, apps/frontend/src/components/candidates/*.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/data/candidates.ts, apps/frontend/src/data/candidateClaims.ts, apps/frontend/src/hooks/useCandidatePrivacyBoundary.ts, apps/frontend/src/lib/candidatePrivacy.ts, alethical/api/routers/candidates.py, alethical/api/routers/candidate_claims.py, alethical/api/services/candidate_lookup.py, alethical/api/services/candidate_legislators.py, alethical/api/data/candidate_legislator_links.json, alethical/api/services/candidate_claims.py, alethical/pipeline/candidate_ballot.py, alethical/db/models.py, alethical/alembic/versions/0066_candidate_lookup.py, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/lib/staticPageMetadata.ts, api/page.ts -->
 
 ## Public address lookup
 
@@ -35,6 +35,17 @@ reloading or opening a new tab loses it.
 Results group state and federal offices, county offices, city or township offices,
 school board, and other supported local offices. Judicial offices are state offices.
 Each race carries its official source and the date Alethical read it, in Minnesota time.
+The 5 groups use matching jump buttons and collapsible heading bars. The last
+button says **Other local**. A **Judges** subsection at the end of State offices
+starts closed. New addresses start with the main groups open; returning from a
+profile restores the election, group state and scroll position. A jump button opens
+its target before moving focus there. Printing reveals all groups.
+
+Sources and check dates appear once per group when every race shares the exact
+same facts; differing sources and dates stay beside the affected race. General
+races show **1 seat to fill** or **{N} seats to fill** only when the source states
+the count. Ticket races and primaries omit this label. A primary selection says
+**Not every office has a primary**; official records decide which races appear.
 A seat count appears only when the source states it. Questions and generic WRITE-IN
 slots are excluded. A race with 1 candidate does not label that candidate a winner.
 
@@ -69,6 +80,21 @@ establishes ballot candidacy, not an original filing date; Alethical does not in
 After 24 hours, a saved record says it may be out of date. A fresh matching search updates
 it. MyBallot has no address-free profile endpoint, so a direct profile visit alone does
 not claim to refresh the official record.
+
+Candidate results open the candidate profile. A confirmed same-person legislator
+connection appears near the name with **View legislator profile** and **See their
+bills, votes, and work in office**. The connection register records the official
+identity evidence and validates the exact candidate record and held legislator
+before displaying the link. A matching name alone is insufficient.
+
+Confirmed current service is separate from the office sought. **Running for
+reelection** requires the same current office and district; **Formerly served as**
+requires a confirmed past service end date. Unknown service makes neither claim.
+After election day has passed in Minnesota, the record says **Candidate for**.
+Portraits use a confirmed person's existing official legislator image when
+available, preserve its whole proportions, and disappear cleanly on failure. A
+joint ticket retains its shared identity; a linked member's portrait and service
+sit beside that member's name in the legislator panel.
 
 The stored evidence contains candidate records and their source hash, not visitor
 addresses, coordinates, precinct names, range IDs or account associations. Private
@@ -108,6 +134,11 @@ Readers can report a published statement. Staff receive the reason and the exact
 and version reported, even if the campaign edits it before review. Reports and verification
 notes are private. Database failures return a generic unavailable response without
 passing private notes into server error logs. Public report submission is rate limited and sends no email.
+The browser submits the statement version shown. If it changed, the reason stays
+and **The campaign statement changed: reload it before reporting** appears with
+**Reload statement**. The refreshed text is shown before another report can be
+submitted. A removed statement cannot be reported. Rate-limit recovery uses the
+server's actual wait and restores submission without a page reload.
 
 ## Later work
 

@@ -2419,7 +2419,7 @@ describe('rendering', () => {
     expect(html).toContain('href="/candidates"');
     expect(html).toContain('Find my candidates');
     expect(html).toContain(
-      'Enter your Minnesota street address to see who is running for office in your area',
+      'Explore the candidates in your Minnesota races, with links to official records',
     );
     expect(html).not.toContain('<form');
     // These remain available in shared navigation, but are not extra Home body links.

@@ -494,7 +494,7 @@ export function homePageSnapshot(): PageSnapshot {
       },
       {
         heading: 'Who’s running where you live?',
-        body: ['Enter your Minnesota street address to see who is running for office in your area'],
+        body: ['Explore the candidates in your Minnesota races, with links to official records'],
         items: [{ label: 'Find my candidates', href: '/candidates' }],
       },
     ],

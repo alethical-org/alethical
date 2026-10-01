@@ -49,14 +49,26 @@ export function GreenLinkArrow() {
  * shorter and lower than the desktop arrow. Drawing it keeps the shape and alignment
  * identical everywhere.
  */
-export function LinkArrow({ color, style }: { color: string; style?: StyleProp<ViewStyle> }) {
+export function LinkArrow({
+  color,
+  style,
+  placement,
+}: {
+  color: string;
+  style?: StyleProp<ViewStyle>;
+  placement?: 'candidate-inline';
+}) {
   return (
     <Svg
       width={19}
       height={19}
       viewBox="0 0 24 24"
       fill="none"
-      style={StyleSheet.flatten([styles.arrow, style])}
+      style={StyleSheet.flatten([
+        styles.arrow,
+        placement === 'candidate-inline' && styles.candidateInline,
+        style,
+      ])}
       aria-hidden
       testID="link-arrow"
     >
@@ -96,6 +108,12 @@ const styles = StyleSheet.create({
       alignItems: 'center',
       verticalAlign: 'baseline',
     } as object),
+  },
+  // Candidate drawings use the approved higher inline position; other surfaces
+  // retain their existing alignment.
+  candidateInline: {
+    ...({ display: 'inline-block', verticalAlign: '-0.26em' } as object),
+    marginLeft: 6,
   },
   inlineArrow: { marginLeft: 6 },
 });

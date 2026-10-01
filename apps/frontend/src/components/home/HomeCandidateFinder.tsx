@@ -10,8 +10,8 @@ const loadCandidates = () => import('../../data/candidates');
 type CandidateModule = Awaited<ReturnType<typeof loadCandidates>>;
 const messages = {
   empty: 'Enter your full Minnesota street address',
-  'no-match': 'We couldn’t match that address. Check the street address, city, and ZIP code.',
-  failed: 'We couldn’t complete your search. Please try again.',
+  'no-match': 'We couldn’t match that address: check the street address, city, and ZIP code',
+  failed: 'We couldn’t complete your search: please try again',
 };
 
 /** Keep the address in temporary app memory and load the search only on submit. */
@@ -130,7 +130,7 @@ export function HomeCandidateFinder({
   const copy = (
     <div className="hc-copy">
       <h2 id={`${id}-title`}>Who’s running where you live?</h2>
-      <p>Enter your Minnesota street address to see who is running for office in your area</p>
+      <p>Explore the candidates in your Minnesota races, with links to official records</p>
     </div>
   );
   const form = (

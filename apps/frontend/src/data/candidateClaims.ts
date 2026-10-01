@@ -141,10 +141,15 @@ export function removeCandidateStatement(
     token,
   );
 }
-export function reportCandidateStatement(id: string, reason: string, signal: AbortSignal) {
+export function reportCandidateStatement(
+  id: string,
+  reason: string,
+  expectedVersion: number,
+  signal: AbortSignal,
+) {
   return publicApiPost<{ received: boolean }>(
     `/candidate-statements/${encodeURIComponent(id)}/reports`,
-    { reason },
+    { reason, expected_version: expectedVersion },
     { signal, cache: 'no-store', credentials: 'omit' },
   );
 }

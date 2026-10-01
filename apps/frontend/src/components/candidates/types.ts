@@ -33,7 +33,7 @@ export interface CandidatePerson {
 }
 export type CandidateEntry =
   | { kind: 'candidate'; candidate: CandidatePerson }
-  | { kind: 'ticket'; id: string; members: CandidatePerson[]; party?: string };
+  | { kind: 'ticket'; id: string; label?: string; members: CandidatePerson[]; party?: string };
 export type CandidateOfficeGroup = 'state' | 'county' | 'municipal' | 'school' | 'other';
 export interface CandidateRace {
   id: string;
@@ -87,4 +87,18 @@ export interface CandidateProfileRecord {
   filedWith?: string;
   website?: string;
   runningMate?: CandidatePerson;
+  isJointTicket?: boolean;
+  photo?: { url: string; credit?: string };
+  legislator?: {
+    id: string;
+    slug: string;
+    name: string;
+    profileUrl: string;
+    serviceStatus: 'current' | 'former' | 'unknown';
+    isReelection: boolean;
+    office?: string;
+    votingArea?: string;
+    photoUrl?: string;
+    source?: { authority: string; url: string };
+  };
 }

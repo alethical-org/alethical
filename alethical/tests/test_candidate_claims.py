@@ -364,12 +364,38 @@ def test_evidence_rejects_unsafe_links_without_echoing_private_value(client, url
     assert url not in response.text
 
 
+def test_report_rejects_a_statement_that_changed_since_the_reader_opened_it(client):
+    item = approved(client)
+    assert statement(client, item).status_code == 200
+    path = f"/api/v1/candidate-statements/{CANDIDATE}/reports"
+    assert client.post(path, json={"reason": "Please review"}).status_code == 422
+    assert (
+        statement(client, item, body="New campaign words", version=1).status_code == 200
+    )
+    response = client.post(
+        path, json={"reason": "Please review", "expected_version": 1}
+    )
+    assert response.status_code == 409
+    with get_session_factory()() as db:
+        assert not db.scalars(select(CandidateStatementReport)).all()
+    assert (
+        client.post(
+            path, json={"reason": "Please review", "expected_version": 2}
+        ).status_code
+        == 200
+    )
+    with get_session_factory()() as db:
+        report = db.scalar(select(CandidateStatementReport))
+        assert report.statement_body == "New campaign words"
+        assert report.statement_version == 2
+
+
 def test_reports_are_private_bounded_and_admin_resolved(client):
     item = approved(client)
     assert statement(client, item).status_code == 200
     response = client.post(
         f"/api/v1/candidate-statements/{CANDIDATE}/reports",
-        json={"reason": "The statement contains a threat"},
+        json={"reason": "The statement contains a threat", "expected_version": 1},
     )
     assert response.status_code == 200
     assert response.json() == {"received": True}
@@ -483,14 +509,14 @@ def test_public_reports_are_rate_limited_even_with_rotating_forwarded_headers(cl
     assert (
         client.post(
             path,
-            json={"reason": "Please review this text"},
+            json={"reason": "Please review this text", "expected_version": 1},
             headers={"X-Forwarded-For": "1.1.1.1"},
         ).status_code
         == 200
     )
     response = client.post(
         path,
-        json={"reason": "Please review this text"},
+        json={"reason": "Please review this text", "expected_version": 1},
         headers={"X-Forwarded-For": "8.8.8.8"},
     )
     assert response.status_code == 429
@@ -572,7 +598,7 @@ def test_database_failures_never_escape_with_private_evidence(
     else:
         response = client.post(
             f"/api/v1/candidate-statements/{CANDIDATE}/reports",
-            json={"reason": sentinel},
+            json={"reason": sentinel, "expected_version": 1},
         )
     assert response.status_code == 503
     assert sentinel not in response.text

@@ -176,6 +176,7 @@ def private_statement(
 class Report(BaseModel):
     model_config = ConfigDict(extra="forbid")
     reason: str = Field(min_length=1, max_length=2000)
+    expected_version: int = Field(ge=1)
 
 
 class Resolve(BaseModel):
@@ -203,7 +204,9 @@ def report_statement(
                 "Retry-After": str(limiter.retry_after_seconds(key, now) or 1),
             },
         )
-    return service.report_statement(db, candidate_id, payload.reason)
+    return service.report_statement(
+        db, candidate_id, payload.reason, expected_version=payload.expected_version
+    )
 
 
 @router.get("/admin/candidate-statement-reports", dependencies=[Depends(require_admin)])

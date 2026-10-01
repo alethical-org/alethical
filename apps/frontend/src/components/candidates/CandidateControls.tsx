@@ -12,7 +12,7 @@ import {
 import Svg, { Circle, Path } from 'react-native-svg';
 import { externalLinkProps, linkProps } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
-import { LinkArrow, LinkArrowLabel } from '../LinkArrow';
+import { LinkArrow } from '../LinkArrow';
 import type { CandidateSource } from './types';
 
 export const candidateColors = {
@@ -26,7 +26,7 @@ export function candidateDate(value: string) {
   const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00Z`) : null;
   return date && !Number.isNaN(date.getTime())
     ? date.toLocaleDateString('en-US', {
-        month: 'short',
+        month: 'long',
         day: 'numeric',
         year: 'numeric',
         timeZone: 'UTC',
@@ -56,6 +56,7 @@ export function CandidateButton({
   icon = 'search',
   kind = 'green',
   style,
+  href,
 }: {
   label: string;
   onPress(): void;
@@ -64,6 +65,7 @@ export function CandidateButton({
   icon?: 'search' | 'none';
   kind?: 'green' | 'outline' | 'text';
   style?: StyleProp<ViewStyle>;
+  href?: string;
 }) {
   const [hovered, setHovered] = useState(false);
   const control = useRef<View>(null);
@@ -84,13 +86,17 @@ export function CandidateButton({
   return (
     <Pressable
       ref={control}
-      accessibilityRole="button"
+      accessibilityRole={href ? 'link' : 'button'}
       aria-busy={busy || undefined}
       disabled={busy || disabled}
       accessibilityState={{ busy, disabled: busy || disabled }}
-      onPress={() => {
-        if (!busy && !disabled) onPress();
-      }}
+      {...(href && !busy && !disabled
+        ? linkProps(href, onPress)
+        : {
+            onPress: () => {
+              if (!busy && !disabled) onPress();
+            },
+          })}
       onHoverIn={() => {
         if (canHover()) setHovered(true);
       }}
@@ -192,52 +198,90 @@ export function CandidateLink({
       onHoverOut={() => setHovered(false)}
       style={[styles.link, style]}
     >
-      <Text
-        style={[styles.linkText, hovered && { color: '#11832b', textDecorationLine: 'underline' }]}
-      >
-        {label === 'Back to candidates' ? (
-          <>
-            <LinkArrow
-              color="#0f7a45"
-              style={{ transform: [{ rotate: '180deg' }], marginRight: 6 }}
-            />
-            {label}
-          </>
-        ) : internal ? (
-          <LinkArrowLabel label={label} />
+      <Text style={[styles.linkText, hovered && { color: '#11832b' }]}>
+        {Platform.OS === 'web' ? (
+          label === 'Back to candidates' ? (
+            <span>
+              <span style={{ whiteSpace: 'nowrap' }}>
+                <Svg
+                  width={18}
+                  height={18}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden
+                  style={{ marginRight: 9, verticalAlign: '-3px' } as object}
+                >
+                  <Path
+                    d="M14.5 5.5L8 12l6.5 6.5"
+                    stroke="#0f7a45"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Svg>
+                <span style={{ textDecoration: hovered ? 'underline' : 'none' }}>Back</span>
+              </span>
+              <span style={{ textDecoration: hovered ? 'underline' : 'none' }}> to candidates</span>
+            </span>
+          ) : (
+            <span>
+              <span style={{ textDecoration: hovered ? 'underline' : 'none' }}>
+                {label.slice(0, label.lastIndexOf(' ') + 1)}
+              </span>
+              <span style={{ whiteSpace: 'nowrap' }}>
+                <span style={{ textDecoration: hovered ? 'underline' : 'none' }}>
+                  {label.slice(label.lastIndexOf(' ') + 1)}
+                </span>
+                <LinkArrow color="#0f7a45" placement="candidate-inline" />
+              </span>
+            </span>
+          )
         ) : (
-          <>
-            {label.slice(0, label.lastIndexOf(' ') + 1)}
-            <Text
-              style={{
-                ...({
-                  whiteSpace: 'nowrap',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                } as object),
-              }}
-            >
-              {label.slice(label.lastIndexOf(' ') + 1)}
-              <LinkArrow
-                color="#0f7a45"
-                style={{ transform: [{ rotate: '-45deg' }], marginLeft: 6 }}
-              />
-            </Text>
-          </>
+          label
         )}
       </Text>
     </Pressable>
   );
 }
-export function CandidateSourceLine({ source }: { source: CandidateSource }) {
+export function CandidateSourceLine({
+  source,
+  group = false,
+  style,
+}: {
+  source: CandidateSource;
+  group?: boolean;
+  style?: StyleProp<ViewStyle>;
+}) {
   return (
-    <View style={styles.source}>
+    <View
+      style={[
+        styles.source,
+        group && {
+          borderTopWidth: 0,
+          backgroundColor: 'transparent',
+          paddingHorizontal: 14,
+          paddingTop: 8,
+          paddingBottom: 14,
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          columnGap: 18,
+        },
+        style,
+      ]}
+    >
       <CandidateLink url={source.url} label={`Candidate records from ${source.authority}`} />
-      <Text style={styles.small}>Records checked {candidateDate(source.checkedDate)}</Text>
+      <Text style={styles.small}>Checked {candidateDate(source.checkedDate)}</Text>
       {source.stale ? (
-        <Text style={[styles.small, { color: candidateColors.ink, fontWeight: '700' }]}>
-          These records may be out of date
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
+            <Circle cx={12} cy={12} r={9} stroke="#8f5a12" strokeWidth={1.8} />
+            <Path d="M12 6v6l4 2" stroke="#8f5a12" strokeWidth={1.8} strokeLinecap="round" />
+          </Svg>
+          <Text style={[styles.small, { color: '#8f5a12', fontWeight: '700' }]}>
+            May be out of date
+          </Text>
+        </View>
       ) : null}
     </View>
   );
@@ -338,19 +382,18 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(17,21,15,0.08)',
     paddingHorizontal: 18,
     paddingVertical: 10,
-    backgroundColor: '#fbfcfd',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    columnGap: 18,
-    rowGap: 4,
+    backgroundColor: '#fff',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 0,
     borderBottomLeftRadius: 14,
     borderBottomRightRadius: 14,
   },
   small: {
     fontFamily: t.typography.body,
-    fontSize: 14,
+    fontSize: 14.5,
     lineHeight: 21,
+    fontVariant: ['tabular-nums'],
     color: candidateColors.muted,
   },
   notice: {

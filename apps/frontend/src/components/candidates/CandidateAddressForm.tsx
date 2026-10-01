@@ -7,6 +7,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { useResponsive } from '../../hooks/useResponsive';
 import { theme as t } from '../../theme/tokens';
 import { fieldFocusRing, fieldOutlineReset } from '../../theme/fieldFocus';
@@ -18,9 +19,9 @@ import type {
 } from './types';
 
 const errors = {
-  'no-match': 'We couldn’t match that address. Check the street address, city, and ZIP code',
+  'no-match': 'We couldn’t match that address: check the street address, city, and ZIP code',
   'outside-minnesota': 'This search covers Minnesota addresses',
-  'rate-limited': 'Too many searches. Try again shortly',
+  'rate-limited': 'Too many searches: try again shortly',
 };
 export function CandidateAddressForm({
   services,
@@ -32,6 +33,8 @@ export function CandidateAddressForm({
   focus = false,
   onCancel,
   compact = false,
+  privacyDisclosure,
+  showBusyMessage = true,
 }: {
   services: CandidateSearchServices;
   address: string;
@@ -42,6 +45,8 @@ export function CandidateAddressForm({
   focus?: boolean;
   onCancel?(): void;
   compact?: boolean;
+  privacyDisclosure?: string;
+  showBusyMessage?: boolean;
 }) {
   const { isMobile, isDesktop } = useResponsive();
   const id = useId().replace(/:/g, '');
@@ -62,7 +67,7 @@ export function CandidateAddressForm({
     if (!field) return;
     const resize = () => {
       field.style.height = 'auto';
-      field.style.height = `${Math.max(60, field.scrollHeight)}px`;
+      field.style.height = `${Math.max(compact ? 54 : 58, field.scrollHeight)}px`;
     };
     resize();
     if (typeof ResizeObserver === 'undefined') return;
@@ -76,7 +81,7 @@ export function CandidateAddressForm({
     });
     observer.observe(field);
     return () => observer.disconnect();
-  }, [address]);
+  }, [address, compact]);
   const focusField = () => {
     inputRef.current?.focus();
     nativeRef.current?.focus();
@@ -140,9 +145,9 @@ export function CandidateAddressForm({
   const fieldKey = (event: ReactKeyboardEvent<HTMLElement>) => {
     if (event.key === 'Escape') {
       event.preventDefault();
+      if (!suggestOpen && !choicesOpen) onCancel?.();
       setSuggestOpen(false);
       setChoicesOpen(false);
-      onCancel?.();
       return;
     }
     if (
@@ -157,7 +162,7 @@ export function CandidateAddressForm({
       );
       return;
     }
-    if (event.key === 'Enter') {
+    if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
       event.preventDefault();
       if (suggestOpen && active >= 0 && suggestions[active]) pick(suggestions[active]);
       else submit();
@@ -184,7 +189,9 @@ export function CandidateAddressForm({
   const errorKind =
     outcome && outcome.kind in errors ? (outcome.kind as keyof typeof errors) : null;
   const message = busy
-    ? 'Finding candidates…'
+    ? showBusyMessage
+      ? 'Finding candidates…'
+      : ''
     : missing
       ? 'Enter your full Minnesota street address'
       : errorKind
@@ -194,20 +201,21 @@ export function CandidateAddressForm({
     !busy && (missing || errorKind === 'no-match' || errorKind === 'outside-minnesota');
   const inputStyle = {
     width: '100%',
-    minHeight: 60,
-    padding: '12px 18px',
+    minHeight: compact ? 54 : 58,
+    padding: compact ? '14px 16px' : '16px 18px',
     border: 'none',
-    borderRadius: 14,
+    borderRadius: compact ? 12 : 14,
     background: '#fff',
     color: '#11150f',
     fontFamily: t.typography.body,
-    fontSize: 17,
+    fontSize: compact ? 16.5 : 17,
     outline: 'none',
     boxSizing: 'border-box' as const,
     fontVariantNumeric: 'tabular-nums' as const,
     scrollMarginTop: 90,
     resize: 'none' as const,
     overflow: 'hidden',
+    overflowWrap: 'anywhere' as const,
     lineHeight: '26px',
   };
   return (
@@ -216,10 +224,13 @@ export function CandidateAddressForm({
         Full street address
       </Text>
       <View style={[styles.controls, (isMobile || compact) && { flexDirection: 'column' }]}>
-        <View style={styles.fieldWrap}>
+        <View
+          style={[styles.fieldWrap, (isMobile || compact) && { flex: undefined, width: '100%' }]}
+        >
           <View
             style={[
               styles.inputBorder,
+              compact && { minHeight: 56, borderRadius: 12 },
               {
                 borderColor: invalid
                   ? '#a3421a'
@@ -246,20 +257,23 @@ export function CandidateAddressForm({
                 aria-describedby={`${id}-message ${id}-help`}
                 autoComplete="street-address"
                 value={address}
-                placeholder="Street address, city, MN ZIP"
+                placeholder="350 S 5th St, Minneapolis, MN 55415"
                 style={inputStyle}
                 onChange={(event) => {
                   setMissing(false);
                   setChoicesOpen(false);
-                  onAddress(event.target.value);
+                  onAddress(event.target.value.replace(/[\r\n]+/g, ' '));
                 }}
-                onFocus={() => setFocused(true)}
+                onFocus={() => {
+                  setFocused(true);
+                  if (isMobile) inputRef.current?.scrollIntoView?.({ block: 'nearest' });
+                }}
                 onBlur={() => {
                   setFocused(false);
                   setSuggestOpen(false);
                 }}
                 onKeyDown={fieldKey}
-                onMouseEnter={() => setFieldHover(true)}
+                onMouseEnter={() => !isMobile && setFieldHover(true)}
                 onMouseLeave={() => setFieldHover(false)}
               />
             ) : (
@@ -270,7 +284,7 @@ export function CandidateAddressForm({
                 onChangeText={onAddress}
                 onSubmitEditing={submit}
                 autoComplete="street-address"
-                placeholder="Street address, city, MN ZIP"
+                placeholder="350 S 5th St, Minneapolis, MN 55415"
                 style={[styles.nativeInput, fieldOutlineReset]}
                 onFocus={() => setFocused(true)}
                 onBlur={() => setFocused(false)}
@@ -303,13 +317,14 @@ export function CandidateAddressForm({
           ) : null}
         </View>
         <CandidateButton
-          label="Find My Candidates"
+          label="Find my candidates"
           busy={busy}
           onPress={submit}
           style={{
             minHeight: compact ? 52 : 60,
             width: isMobile || compact ? '100%' : isDesktop ? 248 : 220,
-            alignSelf: 'stretch',
+            alignSelf: 'flex-start',
+            height: compact ? 52 : 60,
             borderRadius: 14,
           }}
         />
@@ -318,22 +333,35 @@ export function CandidateAddressForm({
         nativeID={`${id}-message`}
         aria-live="polite"
         accessibilityRole={errorKind === 'rate-limited' ? 'alert' : undefined}
-        style={styles.message}
+        style={[styles.message, compact && { marginTop: 10 }]}
       >
         {message ? (
-          <Text
-            style={[
-              candidateText.strong,
-              { fontSize: 15, lineHeight: 22, color: invalid ? '#a3421a' : '#11150f' },
-            ]}
-          >
-            {message}
-          </Text>
+          <>
+            {!busy ? <MessageIcon rate={errorKind === 'rate-limited'} /> : null}
+            <Text
+              style={[
+                candidateText.strong,
+                {
+                  fontSize: 15,
+                  lineHeight: 22,
+                  flexShrink: 1,
+                  color: invalid ? '#a3421a' : '#11150f',
+                },
+              ]}
+            >
+              {message}
+            </Text>
+          </>
         ) : null}
       </View>
-      <Text nativeID={`${id}-help`} style={[candidateText.body, { fontSize: 15, lineHeight: 22 }]}>
-        A city or ZIP code alone cannot identify your local races
-      </Text>
+      {compact ? (
+        <Text
+          nativeID={`${id}-help`}
+          style={[candidateText.body, { fontSize: 14.5, lineHeight: 22 }]}
+        >
+          A city or ZIP code alone cannot identify your local races
+        </Text>
+      ) : null}
       {choicesOpen ? (
         <View style={{ marginTop: 22, gap: 10 }}>
           <Text nativeID={`${id}-choices-heading`} style={[candidateText.strong, { fontSize: 17 }]}>
@@ -360,6 +388,17 @@ export function CandidateAddressForm({
           </View>
         </View>
       ) : null}
+      {!compact ? (
+        <View style={styles.privacy}>
+          <Text nativeID={`${id}-help`} style={styles.help}>
+            A city or ZIP code alone cannot identify your local races
+          </Text>
+          <Text style={styles.help}>
+            {privacyDisclosure ??
+              'Address lookup uses Minnesota Secretary of State and Minnesota mapping services'}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -377,6 +416,7 @@ function Choice({
   keepFieldFocus?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
+  const { isMobile } = useResponsive();
   return (
     <Pressable
       nativeID={id}
@@ -384,24 +424,101 @@ function Choice({
       aria-selected={selected}
       tabIndex={-1}
       onPress={onPress}
-      onHoverIn={() => setHovered(true)}
+      onHoverIn={() => !isMobile && setHovered(true)}
       onHoverOut={() => setHovered(false)}
       {...(Platform.OS === 'web' && keepFieldFocus
         ? { onMouseDown: (event: React.MouseEvent) => event.preventDefault() }
         : {})}
       style={[
         styles.choice,
+        keepFieldFocus && {
+          minHeight: 52,
+          paddingHorizontal: 12,
+          paddingVertical: 10,
+          borderRadius: 10,
+          borderWidth: 0,
+        },
+        selected && {
+          backgroundColor: keepFieldFocus ? '#e9f7ef' : '#f2fbf6',
+          borderColor: '#2ed47e',
+        },
         hovered && { backgroundColor: '#f5f6f7', borderColor: 'rgba(17,21,15,0.3)' },
-        selected && { backgroundColor: '#f2fbf6', borderColor: '#2ed47e' },
       ]}
     >
-      <Text style={[candidateText.strong, { flexShrink: 1 }]}>{label}</Text>
+      <Svg
+        width={18}
+        height={18}
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden
+        style={{ flexShrink: 0 }}
+      >
+        <Path
+          d="M12 21 C12 21 5 14.5 5 9.5 A7 7 0 0 1 19 9.5 C19 14.5 12 21 12 21 Z"
+          stroke="#4f5651"
+          strokeWidth={2}
+          strokeLinejoin="round"
+        />
+        <Circle cx={12} cy={9.5} r={2.5} stroke="#4f5651" strokeWidth={2} />
+      </Svg>
+      <Text
+        style={[candidateText.strong, { flex: 1, fontSize: 16, lineHeight: 22, fontWeight: '600' }]}
+      >
+        {label}
+      </Text>
+      {!keepFieldFocus ? (
+        <Svg
+          width={18}
+          height={18}
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden
+          style={{ flexShrink: 0 }}
+        >
+          <Path
+            d="M9 6 L15 12 L9 18"
+            stroke="#6f756f"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </Svg>
+      ) : null}
     </Pressable>
+  );
+}
+function MessageIcon({ rate }: { rate: boolean }) {
+  const color = rate ? '#8f5a12' : '#a3421a';
+  return (
+    <Svg
+      width={17}
+      height={17}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+      style={{ flexShrink: 0, marginTop: 2 }}
+    >
+      <Circle cx={12} cy={12} r={9} stroke={color} strokeWidth={2} />
+      <Path
+        d={rate ? 'M12 7 V12.5 L15.5 14.5' : 'M12 7.5 V13 M12 16 V16.1'}
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+    </Svg>
   );
 }
 const styles = StyleSheet.create({
   form: { marginTop: 28 },
-  controls: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  controls: { flexDirection: 'row', gap: 12, marginTop: 8, alignItems: 'flex-start' },
+  privacy: {
+    marginTop: 36,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(17,21,15,0.08)',
+    gap: 6,
+  },
+  help: { ...candidateText.body, fontSize: 14, lineHeight: 21 },
   fieldWrap: { flex: 1, minWidth: 0, zIndex: 2 },
   inputBorder: { borderWidth: 1, borderRadius: 14, backgroundColor: '#fff', minHeight: 60 },
   nativeInput: {
@@ -414,7 +531,7 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.body,
     fontSize: 17,
   },
-  message: { minHeight: 22, marginTop: 12 },
+  message: { minHeight: 22, marginTop: 12, flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   suggestions: {
     zIndex: 30,
     marginTop: 8,
@@ -443,7 +560,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     minHeight: 56,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: 'rgba(17,21,15,0.14)',

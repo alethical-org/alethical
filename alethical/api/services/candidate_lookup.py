@@ -636,6 +636,7 @@ def load_profile(
     db: Session, candidate_id: str, *, now: datetime | None = None
 ) -> dict | None:
     from alethical.db.models import CandidateRecord
+    from alethical.api.services.candidate_legislators import confirmed_legislator
 
     if not re.fullmatch(r"[a-f0-9]{64}", candidate_id):
         return None
@@ -643,6 +644,15 @@ def load_profile(
     if record is None:
         return None
     payload = {**record.public_payload, "source": dict(record.public_payload["source"])}
-    if (now or datetime.now(UTC)) - record.checked_at > timedelta(hours=24):
+    checked_now = now or datetime.now(UTC)
+    if checked_now - record.checked_at > timedelta(hours=24):
         payload["source"]["stale"] = True
+    payload["isJointTicket"] = payload.get("office") == "Governor & Lt Governor"
+    connection = confirmed_legislator(
+        db, payload, today=checked_now.astimezone(ZoneInfo("America/Chicago")).date()
+    )
+    if connection:
+        payload["legislator"] = connection
+        if connection.get("photoUrl") and not payload["isJointTicket"]:
+            payload["photo"] = {"url": connection["photoUrl"]}
     return payload
