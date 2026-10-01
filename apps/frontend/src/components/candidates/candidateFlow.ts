@@ -7,6 +7,7 @@ import type {
 } from './types';
 
 export interface CandidateFlowState {
+  resetVersion: number;
   draftAddress: string;
   status: 'idle' | 'loading' | 'updating' | 'success' | 'error';
   requested: CandidateLookupRequest | null;
@@ -21,6 +22,7 @@ export interface CandidateFlowState {
 /** Keep above search and profile routes; never save this flow to browser storage. */
 export function createCandidateFlow(services: CandidateSearchServices) {
   let state: CandidateFlowState = {
+    resetVersion: 0,
     draftAddress: '',
     status: 'idle',
     requested: null,
@@ -33,6 +35,9 @@ export function createCandidateFlow(services: CandidateSearchServices) {
   let disposed = false;
   let resetting = false;
   let lastElection: CandidateElection | null = null;
+  // Revisit only recent exact requests; all keys and responses remain private memory.
+  // Clear/dispose erases them alongside the visible address. Never cache failures.
+  const recent = new Map<string, { expiresAt: number; results: CandidateResults }>();
   const publish = (next: CandidateFlowState) => {
     state = next;
     for (const listener of [...listeners]) {
@@ -69,12 +74,26 @@ export function createCandidateFlow(services: CandidateSearchServices) {
     });
     try {
       if (token !== generation || disposed) return;
-      const response = await services.lookup(request, controller.signal);
+      const key = JSON.stringify(request);
+      const cached = recent.get(key);
+      if (cached && cached.expiresAt <= Date.now()) recent.delete(key);
+      const response =
+        cached && cached.expiresAt > Date.now()
+          ? cached.results
+          : await services.lookup(request, controller.signal);
       if (token !== generation || disposed) return;
       if (response.kind === 'results') {
         if (response.electionId !== election.id || !response.matchedAddress.trim())
           throw new Error('Invalid candidate result');
+        recent.delete(key);
+        recent.set(key, {
+          expiresAt:
+            cached && cached.expiresAt > Date.now() ? cached.expiresAt : Date.now() + 60_000,
+          results: response,
+        });
+        if (recent.size > 4) recent.delete(recent.keys().next().value!);
         publish({
+          resetVersion: state.resetVersion,
           draftAddress: request.address,
           status: 'success',
           requested: request,
@@ -96,7 +115,9 @@ export function createCandidateFlow(services: CandidateSearchServices) {
     try {
       invalidate();
       lastElection = null;
+      recent.clear();
       publish({
+        resetVersion: state.resetVersion + 1,
         draftAddress: '',
         status: 'idle',
         requested: null,

@@ -52,12 +52,16 @@ export function CandidateButton({
   label,
   onPress,
   busy = false,
+  disabled = false,
+  icon = 'search',
   kind = 'green',
   style,
 }: {
   label: string;
   onPress(): void;
   busy?: boolean;
+  disabled?: boolean;
+  icon?: 'search' | 'none';
   kind?: 'green' | 'outline' | 'text';
   style?: StyleProp<ViewStyle>;
 }) {
@@ -74,17 +78,18 @@ export function CandidateButton({
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     const element = control.current as unknown as HTMLElement | null;
-    if (busy) element?.setAttribute('aria-disabled', 'true');
+    if (busy || disabled) element?.setAttribute('aria-disabled', 'true');
     else element?.removeAttribute('aria-disabled');
-  }, [busy]);
+  }, [busy, disabled]);
   return (
     <Pressable
       ref={control}
       accessibilityRole="button"
       aria-busy={busy || undefined}
-      accessibilityState={{ busy, disabled: busy }}
+      disabled={busy || disabled}
+      accessibilityState={{ busy, disabled: busy || disabled }}
       onPress={() => {
-        if (!busy) onPress();
+        if (!busy && !disabled) onPress();
       }}
       onHoverIn={() => {
         if (canHover()) setHovered(true);
@@ -95,6 +100,7 @@ export function CandidateButton({
         kind === 'green' ? styles.green : kind === 'text' ? styles.textButton : styles.outline,
         hovered &&
           !busy &&
+          !disabled &&
           (kind === 'green'
             ? styles.greenHover
             : kind === 'text'
@@ -102,15 +108,17 @@ export function CandidateButton({
               : styles.outlineHover),
         pressed &&
           !busy &&
+          !disabled &&
           (kind === 'green'
             ? styles.greenPressed
             : kind === 'outline'
               ? styles.outlinePressed
               : null),
+        disabled && { opacity: 0.5 },
         style,
       ]}
     >
-      {kind === 'green' ? (
+      {kind === 'green' && (icon === 'search' || busy) ? (
         <View
           aria-hidden
           {...({ dataSet: { candidateSpinner: busy ? 'true' : 'false' } } as object)}

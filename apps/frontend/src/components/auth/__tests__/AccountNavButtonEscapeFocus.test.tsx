@@ -131,7 +131,7 @@ describe('administrator menu visibility', () => {
     auth.access = 'denied';
   });
 
-  it('shows the 3 private destinations in order after access is allowed', () => {
+  it('shows the 4 private destinations in order after access is allowed', () => {
     auth.access = 'allowed';
     const { root } = mountMenu();
     const labels = [...document.querySelectorAll('[aria-label="Account"] a')].map((node) =>
@@ -143,6 +143,7 @@ describe('administrator menu visibility', () => {
       'User Accounts',
       'Site Metrics',
       'Operations',
+      'Candidate requests',
     ]);
     act(() => root.unmount());
     auth.access = 'denied';

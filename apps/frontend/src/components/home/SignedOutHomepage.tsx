@@ -23,9 +23,9 @@ import {
 import { LinkArrow, linkArrowRow } from '../LinkArrow';
 import { isWeb, useFineHover } from '../billDetail/interactions';
 import { MoneyPromoCard } from './MoneyPromoCard';
+import { HomeCandidateFinder } from './HomeCandidateFinder';
 
-// The public services destination ships with this card. Candidate lookup stays
-// absent until its separate build supplies a working public destination.
+// The public services destination ships with this card.
 export const HOME_SERVICES_READY = true;
 const NEWS = ['94-2026-HF4138', '94-2025-SF856'];
 
@@ -270,6 +270,7 @@ export function SignedOutHomepage({
         ) : (
           <Container style={{ paddingHorizontal: inset }}>{invitationRow}</Container>
         )}
+        <HomeCandidateFinder onNavigate={() => navigation.navigate('Candidates')} />
         {!isMobile ? (
           <Container
             style={{

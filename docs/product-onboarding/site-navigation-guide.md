@@ -23,6 +23,7 @@ shared navigation described here. See [services-guide.md](services-guide.md).
   treatment as Blog. Neither direct destination carries a NEW label.
 - **Search ▾** opens a dropdown of 4 live rows, each with a one-line description: **Bills and votes**
   (`/bills`), **Legislators** (`/legislators`), **Find my candidates** (`/candidates`), and **Find my legislators** (`/find-my-legislator`).
+  The candidate row says **See who is running for office in your area** on desktop; phone rows have no supporting descriptions.
 - **Blog** is a plain link, not a dropdown. It opens the `/blog` page, which lists Alethical's
   own research, short posts and guides.
 - **About ▾** opens **About us** (`/about`), **Campaign services** (`/services`), and
@@ -41,7 +42,7 @@ shared navigation described here. See [services-guide.md](services-guide.md).
   sign-in is enabled; an account whose sign-in methods are not yet known says **Password**.
   Approved administrators see an **Admin** group between Email preferences and Sign out,
   with **User Accounts** (`/admin/users`), **Site Metrics** (`/admin/site-metrics`),
-  and **Operations** (`/admin/operations`), in that order. These navigation labels
+  **Operations** (`/admin/operations`), and **Candidate requests** (`/admin/candidate-claims`), in that order. These navigation labels
   do not authorize changes to report-page copy.
   Desktop and phone use this same order. The signed-in profile supplies
   the menu hint; older responses use a separate access check. Every private read
@@ -187,14 +188,12 @@ how legislators voted”. Find my legislators retains “Enter your street addre
 see who represents you”. About uses sentence case: About us, Campaign services and Contact us.
 Opening Search or About turns only its upward arrow green; the word keeps its resting colour.
 
-Find my candidates sits immediately before Find my legislators, with “Find official
-ballot information for your area” on desktop and a green NEW label
-on both surfaces. The candidate destination is public by Eugene's 30 September
-correction. Until source-backed lookup is ready, /candidates clearly explains that
-real records are unavailable. Example records remain private. Candidates no longer
-appears in the roadmap group; candidate ownership claims remain held. The supporting
-line must describe the public destination's actual action; address-entry wording
-returns only when the address form and source-backed lookup ship.
+Find my candidates sits immediately before Find my legislators, with “See who is
+running for office in your area” on desktop and a green NEW label on both surfaces.
+The `/candidates` destination is public and accepts a full street address for the
+supported Minnesota election. Official-source results link to public candidate
+profiles. Claiming requires an existing account and independent staff review.
+Illustrative records remain limited to an explicit development preview.
 
 The account menu retains Tracked and its combined bill-and-committee count.
 The handoff's Tracked Bills label and its claim that only bills can be followed

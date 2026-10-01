@@ -1,6 +1,7 @@
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -44,7 +45,7 @@ export function CandidateAddressForm({
 }) {
   const { isMobile, isDesktop } = useResponsive();
   const id = useId().replace(/:/g, '');
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const nativeRef = useRef<TextInput>(null);
   const choicesRef = useRef<View>(null);
   const generation = useRef(0);
@@ -56,6 +57,26 @@ export function CandidateAddressForm({
   const [focused, setFocused] = useState(false);
   const [missing, setMissing] = useState(false);
   const [fieldHover, setFieldHover] = useState(false);
+  useLayoutEffect(() => {
+    const field = inputRef.current;
+    if (!field) return;
+    const resize = () => {
+      field.style.height = 'auto';
+      field.style.height = `${Math.max(60, field.scrollHeight)}px`;
+    };
+    resize();
+    if (typeof ResizeObserver === 'undefined') return;
+    let width = field.getBoundingClientRect().width;
+    const observer = new ResizeObserver(() => {
+      const nextWidth = field.getBoundingClientRect().width;
+      if (nextWidth !== width) {
+        width = nextWidth;
+        resize();
+      }
+    });
+    observer.observe(field);
+    return () => observer.disconnect();
+  }, [address]);
   const focusField = () => {
     inputRef.current?.focus();
     nativeRef.current?.focus();
@@ -102,8 +123,7 @@ export function CandidateAddressForm({
     setSuggestions([]);
     setSuggestOpen(false);
     setChoicesOpen(false);
-    onAddress(choice.address);
-    onSubmit(choice.address, choice);
+    onSubmit(address, choice);
   };
   const submit = () => {
     if (busy) return;
@@ -186,6 +206,9 @@ export function CandidateAddressForm({
     boxSizing: 'border-box' as const,
     fontVariantNumeric: 'tabular-nums' as const,
     scrollMarginTop: 90,
+    resize: 'none' as const,
+    overflow: 'hidden',
+    lineHeight: '26px',
   };
   return (
     <View style={[styles.form, compact && { marginTop: 0 }]}>
@@ -208,7 +231,8 @@ export function CandidateAddressForm({
             ]}
           >
             {Platform.OS === 'web' ? (
-              <input
+              <textarea
+                rows={1}
                 ref={inputRef}
                 aria-labelledby={`${id}-label`}
                 role="combobox"
@@ -222,7 +246,7 @@ export function CandidateAddressForm({
                 aria-describedby={`${id}-message ${id}-help`}
                 autoComplete="street-address"
                 value={address}
-                placeholder="350 S 5th St, Minneapolis, MN 55415"
+                placeholder="Street address, city, MN ZIP"
                 style={inputStyle}
                 onChange={(event) => {
                   setMissing(false);
@@ -246,7 +270,7 @@ export function CandidateAddressForm({
                 onChangeText={onAddress}
                 onSubmitEditing={submit}
                 autoComplete="street-address"
-                placeholder="350 S 5th St, Minneapolis, MN 55415"
+                placeholder="Street address, city, MN ZIP"
                 style={[styles.nativeInput, fieldOutlineReset]}
                 onFocus={() => setFocused(true)}
                 onBlur={() => setFocused(false)}

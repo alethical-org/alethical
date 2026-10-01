@@ -41,14 +41,20 @@ export const screenChunks = {
     })),
   Candidates: () =>
     import('../screens/CandidatesScreen').then((m) => ({ default: m.CandidatesScreen })),
-  ...(typeof __DEV__ !== 'undefined' && __DEV__
-    ? {
-        CandidateProfile: () =>
-          import('../screens/CandidatePreviewScreens').then((m) => ({
-            default: m.CandidateProfileScreen,
-          })),
-      }
-    : {}),
+  CandidateProfile: () =>
+    import('../screens/CandidateProfileScreen').then((m) => ({
+      default: m.CandidateProfileScreen,
+    })),
+  CandidateClaim: () =>
+    import('../screens/CandidateAccountScreens').then((m) => ({ default: m.CandidateClaimScreen })),
+  CandidateManage: () =>
+    import('../screens/CandidateAccountScreens').then((m) => ({
+      default: m.CandidateManageScreen,
+    })),
+  AdminCandidateClaims: () =>
+    import('../screens/AdminCandidateClaimsScreen').then((m) => ({
+      default: m.AdminCandidateClaimsScreen,
+    })),
   Bills: () =>
     import('../screens/redesign/SearchBillsScreen').then((m) => ({ default: m.SearchBillsScreen })),
   Legislators: () =>

@@ -7,6 +7,7 @@ export function isPrivateMetricUrl(value: string): boolean {
     return (
       path === '/admin' ||
       path.startsWith('/admin/') ||
+      /^\/candidates\/[a-f0-9]{64}\/(?:claim|manage)$/.test(path) ||
       path === '/email-preferences' ||
       path === '/unsubscribe' ||
       path === '/comment-emails'

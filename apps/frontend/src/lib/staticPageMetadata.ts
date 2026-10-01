@@ -75,7 +75,7 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
     title: titleFor('Find My Candidates'),
     socialTitle: 'Find My Candidates',
     description:
-      'Candidates for Minnesota state and local offices. Live candidate search is not connected yet.',
+      'Enter a Minnesota street address to see source-backed candidates for state and local offices.',
     canonicalPath: '/candidates',
   }),
   '/find-my-legislator': pageMetadata({
@@ -130,6 +130,13 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
     socialTitle: 'Admin metrics',
     description: 'Private aggregate measurements for approved administrators.',
     canonicalPath: '/admin/operations',
+    noindex: true,
+  }),
+  '/admin/candidate-claims': pageMetadata({
+    title: titleFor('Candidate requests'),
+    socialTitle: 'Candidate requests',
+    description: 'Private candidate ownership requests and statement reports.',
+    canonicalPath: '/admin/candidate-claims',
     noindex: true,
   }),
   '/admin/users': pageMetadata({

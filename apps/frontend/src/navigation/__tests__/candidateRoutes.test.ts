@@ -50,3 +50,57 @@ describe('public candidate destination and development record review', () => {
     expect(targetFromPathname('/candidates/%3Cscript%3E').kind).toBe('notFound');
   });
 });
+
+it('opens public source record IDs in production with no private URL inputs', () => {
+  vi.stubGlobal('__DEV__', false);
+  const id = 'a'.repeat(64);
+  try {
+    expect(targetFromPathname(`/candidates/${id}?address=private-home&election=old`)).toEqual({
+      kind: 'candidateProfile',
+      candidateId: id,
+    });
+    expect(stateFromPathname(`/candidates/${id}`).routes.at(-1)).toEqual({
+      name: 'CandidateProfile',
+      params: { candidateId: id },
+    });
+    expect(
+      pathForRoute({
+        name: 'CandidateProfile',
+        params: { candidateId: id, address: 'private-home' },
+      }),
+    ).toBe(`/candidates/${id}`);
+    expect(targetFromPathname(`/candidates/${id}/claim`)).toEqual({
+      kind: 'candidateClaim',
+      candidateId: id,
+    });
+    expect(targetFromPathname(`/candidates/${'a'.repeat(63)}`).kind).toBe('notFound');
+    expect(
+      pathForRoute({ name: 'CandidateProfile', params: { candidateId: 'preview-general-alex' } }),
+    ).toBe('/404');
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+it('opens the production claim, manage and administrator routes without private route fields', () => {
+  vi.stubGlobal('__DEV__', false);
+  try {
+    const id = 'a'.repeat(64);
+    for (const [name, kind, path] of [
+      ['CandidateClaim', 'candidateClaim', `/candidates/${id}/claim`],
+      ['CandidateManage', 'candidateManage', `/candidates/${id}/manage`],
+    ] as const) {
+      expect(targetFromPathname(`${path}?address=private`)).toEqual({ kind, candidateId: id });
+      expect(pathForRoute({ name, params: { candidateId: id, evidence_url: 'private' } })).toBe(
+        path,
+      );
+      expect(stateFromPathname(path).routes.at(-1)).toEqual({ name, params: { candidateId: id } });
+    }
+    expect(targetFromPathname('/admin/candidate-claims')).toEqual({ kind: 'adminCandidateClaims' });
+    expect(stateFromPathname('/admin/candidate-claims').routes.at(-1)).toEqual({
+      name: 'AdminCandidateClaims',
+    });
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});

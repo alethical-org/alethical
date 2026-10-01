@@ -14,8 +14,10 @@ export function CandidateProfileContent({
   record,
   onBack,
   onOpenProfile,
+  children,
 }: {
   record: CandidateProfileRecord;
+  children?: React.ReactNode;
   onBack(): void;
   onOpenProfile?(id: string): void;
 }) {
@@ -120,6 +122,7 @@ export function CandidateProfileContent({
             />
           </View>
         ) : null}
+        {children}
       </View>
     </View>
   );

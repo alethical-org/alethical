@@ -1,68 +1,117 @@
 # How Find My Candidates works
 
-<!-- describes: apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidatePreviewScreens.tsx, apps/frontend/src/components/candidates/*.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/lib/candidateLookupAvailability.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/lib/staticPageMetadata.ts, api/page.ts -->
+<!-- describes: apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidateProfileScreen.tsx, apps/frontend/src/screens/CandidateAccountScreens.tsx, apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx, apps/frontend/src/components/candidates/*.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/data/candidates.ts, apps/frontend/src/data/candidateClaims.ts, apps/frontend/src/hooks/useCandidatePrivacyBoundary.ts, apps/frontend/src/lib/candidatePrivacy.ts, alethical/api/routers/candidates.py, alethical/api/routers/candidate_claims.py, alethical/api/services/candidate_lookup.py, alethical/api/services/candidate_claims.py, alethical/pipeline/candidate_ballot.py, alethical/db/models.py, alethical/alembic/versions/0066_candidate_lookup.py, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/lib/staticPageMetadata.ts, api/page.ts -->
 
-## The public `/candidates` page
+## Public address lookup
 
-`/candidates` is public. Anyone can open it without an account. The **Find my
-candidates** link in the Search menu is its approved entry point. Open `/candidates`
-directly or follow a shared link to the same address.
+Anyone can use `/candidates` without signing in. **Find my candidates** in Search
+opens the empty form. The homepage form carries an address through temporary memory;
+it never puts the address in a link or saved browser storage.
 
-The `/candidates` page says **Find My Candidates** and **Candidates for Minnesota
-state and local offices**. It shows a Minnesota outline and this notice:
+The full street address identifies the official street range, including house number,
+odd/even side, street direction, city, ZIP and any source-defined unit boundaries.
+A city or ZIP alone cannot choose a ballot. Ambiguous addresses require an explicit
+choice. An unsupported unit or overlapping range produces no match rather than a guess.
+Minnesota mapping services can supply a complete address when the ZIP is missing.
+The voter must confirm that complete address, even when only 1 choice is returned.
+The confirmation retains the original typed address so the service can recompute
+the same choice; approved abbreviations do not turn it into an unmatched address.
+Supplied unit numbers remain attached to the choice and must match official ranges.
 
-> Candidate records are not available on Alethical yet
+The connected source is [Minnesota MyBallot](https://myballotmn.sos.mn.gov/).
+The supported election is November 3, 2026, general election, source ID `8334`.
+The choice expires after election day in Minnesota; an older election never silently
+replaces it. Adding the next election requires a source check and an explicit update.
 
-This describes Alethical's source connection, not whether Minnesota has published
-candidate records. Alethical has not connected the live address lookup, election
-list, or public candidate record pages. The **Minnesota sample ballot information**
-link opens the [Secretary of State's ballot guidance](https://www.sos.mn.gov/elections-voting/whats-on-my-ballot/).
+Each search reads fresh ballot records. Street tables may be reused for 5 minutes,
+bounded to 32 ZIP tables and 8 MB of source text. The browser may reuse an identical
+successful search for 60 seconds, with at most 4 searches held in memory. Clearing
+the search or changing signed-in accounts erases these responses. Returning from a profile restores the search;
+reloading or opening a new tab loses it.
 
-The public `/candidates` page has no address box, election selector, candidate results,
-or claim controls. It collects no street address and makes no candidate lookup or
-address-suggestion request. It does not claim to send an address to the Census Bureau.
-Its public address returns a normal successful response, with its own title and a
-description that includes the current limitation. Illustrative candidate profile
-addresses return not found on the public server.
+## Results and their limits
 
-The unavailable notice is the current public state. It is not an empty result saying
-nobody is running. The public `/candidates` page has no candidate-service loading,
-retry, or failed-search state while that service remains unconnected. Opening the
-official ballot link is the available way to reach Minnesota's own information.
+Results group state and federal offices, county offices, city or township offices,
+school board, and other supported local offices. Judicial offices are state offices.
+Each race carries its official source and the date Alethical read it, in Minnesota time.
+A seat count appears only when the source states it. Questions and generic WRITE-IN
+slots are excluded. A race with 1 candidate does not label that candidate a winner.
 
-## Illustrative development review
+MyBallot supplies a joint governor/lieutenant-governor ticket as 1 label. Alethical
+preserves that label and its shared profile rather than guessing separate identities.
+Names sort by the supplied full name because this source does not supply a separate
+surname. Payment and ownership never change ordering or prominence.
 
-Developers can opt into the search/results/profile review with
-`EXPO_PUBLIC_CANDIDATE_LOOKUP_PREVIEW=true` in a development build. A production build
-never activates this review, even when that setting is present.
+The coverage panel says that some local offices may be missing. This is a source-wide
+coverage limit, not proof that a particular local race is absent. Minnesota says that
+some local sample ballots are unavailable. [Minnesota sample ballot information](https://www.sos.mn.gov/elections-voting/whats-on-my-ballot/)
+remains available from every result. Alethical does not claim to list every possible
+write-in candidate or to replace an official sample ballot.
 
-The review says **ILLUSTRATIVE DATA** and explains that its example names are not
-candidate records. It has no **PRIVATE DRAFT** label. Addresses entered there stay
-in temporary browser memory and the illustrative service makes no government lookup.
-They do not enter profile addresses, saved browser storage, or account records.
-Reloading clears the search. Returning from a profile within the same app restores
-the current search.
+A source outage, a missing address match, an empty candidate list and uncertain
+coverage remain distinct. The last successful results stay visible during a replacement
+and after a failed update, with their original address, election, source and dates.
+Only the newest request can replace them. Errors retain the typed address and offer retry.
 
-The review supports a full Minnesota street address, address suggestions, explicit
-choices for an ambiguous address, an election selector, and read-only profiles. Results
-group offices and alphabetize candidate names. Missing district coverage is stated
-before the races. An empty response says **No candidate records to show for this
-address and election**; it does not claim nobody filed.
+## Public candidate profiles
 
-While a replacement loads, the previous address, election, and results stay together.
-A failed replacement keeps the previous results and offers **Try again**. A newer
-search supersedes a slow older response. Example controls let reviewers exercise
-partial coverage, no match, an address outside Minnesota, too many searches, failed
-searches, ambiguous addresses, empty results, and slow responses. These are review
-examples, not public candidate evidence.
+`/candidates/<id>` is public and belongs to a specific candidate record, office and
+election. The address works independently of a visitor's search. Unknown IDs return
+not found; service failures return unavailable. IDs use source codes and the complete
+jurisdiction, not a name-only match. Supported state, federal, judicial and school
+district identities are shared across counties. County and municipal identities retain
+their county scope when the source does not establish a wider identity.
 
-## What remains separate
+Profiles display only supported fields: source name, office, voting area, election,
+party when supplied, campaign website when supplied, and source/check date. MyBallot
+establishes ballot candidacy, not an original filing date; Alethical does not invent one.
+After 24 hours, a saved record says it may be out of date. A fresh matching search updates
+it. MyBallot has no address-free profile endpoint, so a direct profile visit alone does
+not claim to refresh the official record.
 
-Real candidate results need retained official source records, election-specific
-matching, coverage and freshness checks, and a tested live connection. Candidate
-profile claiming also needs an approved ownership-verification process. Opening the
-public `/candidates` page does not release claims, candidate statements, uploaded
-evidence, verification emails, or paid candidate services.
+The stored evidence contains candidate records and their source hash, not visitor
+addresses, coordinates, precinct names, range IDs or account associations. Private
+address requests bypass browser and shared caches. Source exceptions do not expose
+submitted addresses. Illustrative records remain restricted to an explicitly enabled
+development preview and cannot appear in production.
+
+## Claiming and managing a profile
+
+`/candidates/<id>/claim` uses the existing Alethical account. Browsing remains public.
+An applicant supplies a public campaign or official-record link and a private explanation
+of their role and how ownership can be established. Alethical does not fetch applicant
+links automatically. A public filing, uploaded record, email domain or ordinary sign-in
+alone never grants control. No verification email is sent by this workflow.
+
+A confirmed, active account can request review and see its own status. A staff member
+uses `/admin/candidate-claims`, independently verifies control through a trusted contact,
+and records the private evidence before approval. The queue identifies the requesting
+account by its confirmed email address. Staff cannot approve their own claims.
+Approval requires a current-election source record checked within 24 hours. At most 1
+account can own a profile. Competing requests require review; ownership never transfers
+automatically. Staff can reject requests and revoke access. Applicants can withdraw.
+
+An approved owner uses `/candidates/<id>/manage` for a plain-text statement of at most
+2000 characters. Preview, publication, edits and removal keep the official record intact.
+The public campaign block identifies its authorship and explains what verified access
+means. Campaign statements are excluded from official-record answers and search material
+used by Grounded Ask. Private revision history remains available to the owner and staff.
+
+Updates include an account ID and a saved version. An account change or an older editor
+cannot overwrite a newer result. Revocation, withdrawal, deactivation and account deletion
+remove the public statement from subsequent reads. Account deletion also removes the
+account's private claims and statement history through database relationships.
+
+Readers can report a published statement. Staff receive the reason and the exact text
+and version reported, even if the campaign edits it before review. Reports and verification
+notes are private. Database failures return a generic unavailable response without
+passing private notes into server error logs. Public report submission is rate limited and sends no email.
+
+## Later work
+
+Candidate-specific paid services remain a later phase. This release does not add prices,
+checkout or service offers inside claimed profiles. It does not introduce promise tracking
+or promise-versus-vote scoring.
 
 The [candidate lookup build and release plan](../implementation/candidate-lookup-build-plan.md)
-holds the approved work order, source evidence and release history.
+records source evidence, tests and release history.

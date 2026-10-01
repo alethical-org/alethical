@@ -139,3 +139,44 @@ describe('temporary candidate flow', () => {
     expect(flow.getState().status).toBe('success');
   });
 });
+
+describe('short-lived private result reuse', () => {
+  it('reuses exact successful searches for 60 seconds without extending freshness', async () => {
+    let now = 1_000;
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now);
+    try {
+      const lookup = vi
+        .fn<CandidateSearchServices['lookup']>()
+        .mockResolvedValue(results(general.id));
+      const flow = createCandidateFlow(services(lookup));
+      const request = { address: '100 Example Street', electionId: general.id };
+      await flow.search(request, general);
+      now += 59_000;
+      await flow.search(request, general);
+      expect(lookup).toHaveBeenCalledTimes(1);
+      now += 1_000;
+      await flow.search(request, general);
+      expect(lookup).toHaveBeenCalledTimes(2);
+      now += 1_000;
+      await flow.search(request, general);
+      expect(lookup).toHaveBeenCalledTimes(2);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+  it('erases retained private requests on clear and limits exact-search reuse to 4 results', async () => {
+    const lookup = vi
+      .fn<CandidateSearchServices['lookup']>()
+      .mockResolvedValue(results(general.id));
+    const flow = createCandidateFlow(services(lookup));
+    for (let i = 0; i < 5; i++)
+      await flow.search({ address: `${i} Example Street`, electionId: general.id }, general);
+    await flow.search({ address: '0 Example Street', electionId: general.id }, general);
+    expect(lookup).toHaveBeenCalledTimes(6);
+    flow.clear();
+    expect(flow.getState().displayed).toBeNull();
+    expect(flow.getState().draftAddress).toBe('');
+    await flow.search({ address: '0 Example Street', electionId: general.id }, general);
+    expect(lookup).toHaveBeenCalledTimes(7);
+  });
+});

@@ -25,7 +25,27 @@ import type {
   CandidateSearchContentBaseProps,
 } from './types';
 
-export function CandidateSearchContent({
+type SearchProps = CandidateSearchContentBaseProps & { flow?: CandidateFlow };
+
+export function CandidateSearchContent(props: SearchProps) {
+  const [localFlow] = useState(() => createCandidateFlow(props.services));
+  const flow = props.flow ?? localFlow;
+  const state = useSyncExternalStore(flow.subscribe, flow.getState, flow.getState);
+  const initialVersion = useRef(state.resetVersion);
+  return (
+    <CandidateSearchSession
+      {...props}
+      key={state.resetVersion}
+      flow={flow}
+      initialAddress={
+        state.draftAddress ||
+        (state.resetVersion === initialVersion.current ? props.initialAddress : undefined)
+      }
+    />
+  );
+}
+
+function CandidateSearchSession({
   services,
   recordsAvailable = true,
   onOpenProfile,
@@ -33,11 +53,9 @@ export function CandidateSearchContent({
   addressLost,
   privacyDisclosure,
   imageSource,
-  flow: providedFlow,
-}: CandidateSearchContentBaseProps & { flow?: CandidateFlow }) {
+  flow,
+}: SearchProps & { flow: CandidateFlow }) {
   const { isMobile, isDesktop } = useResponsive();
-  const [localFlow] = useState(() => createCandidateFlow(services));
-  const flow = providedFlow ?? localFlow;
   const state = useSyncExternalStore(flow.subscribe, flow.getState, flow.getState);
   const [address, setAddress] = useState(
     () => state.draftAddress || state.requested?.address || initialAddress || '',
@@ -56,6 +74,7 @@ export function CandidateSearchContent({
     ),
   );
   const autoStarted = useRef(false);
+  const initialSearchAddress = useRef(initialAddress).current;
   const displayed = state.displayed;
   const busy = state.status === 'loading' || state.status === 'updating';
   useEffect(() => {
@@ -71,8 +90,13 @@ export function CandidateSearchContent({
         setSelected((current) =>
           current && sorted.some((election) => election.id === current)
             ? current
-            : (sorted.find((election) => election.date >= new Date().toISOString().slice(0, 10))
-                ?.id ?? ''),
+            : (sorted.find(
+                (election) =>
+                  election.date >=
+                  new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(
+                    new Date(),
+                  ),
+              )?.id ?? ''),
         );
         setElectionLoad('ready');
       })
@@ -82,12 +106,13 @@ export function CandidateSearchContent({
     return () => controller.abort();
   }, [services, reload, recordsAvailable]);
   useEffect(() => {
-    if (!initialAddress?.trim() || autoStarted.current || state.requested || !selected) return;
+    if (!initialSearchAddress?.trim() || autoStarted.current || state.requested || !selected)
+      return;
     const election = elections.find((item) => item.id === selected);
     if (!election) return;
     autoStarted.current = true;
-    void flow.search({ address: initialAddress, electionId: selected }, election);
-  }, [initialAddress, selected, elections, flow, state.requested]);
+    void flow.search({ address: initialSearchAddress, electionId: selected }, election);
+  }, [initialSearchAddress, selected, elections, flow, state.requested]);
   useEffect(() => {
     if (
       state.status === 'success' &&
@@ -111,9 +136,7 @@ export function CandidateSearchContent({
   };
   const selectElection = (election: CandidateElection) => {
     setSelected(election.id);
-    const currentAddress = changingAddress
-      ? address
-      : (displayed?.results.matchedAddress ?? address);
+    const currentAddress = changingAddress ? address : (displayed?.request.address ?? address);
     if (currentAddress.trim())
       void flow.search(
         {
@@ -303,7 +326,7 @@ export function CandidateSearchContent({
             >
               {noElection
                 ? 'Candidates for Minnesota state and local offices'
-                : 'Enter your Minnesota street address to see who has filed to run for office in your area'}
+                : 'Enter your Minnesota street address to see who is running for office in your area'}
             </Text>
             {addressLost ? (
               <View style={{ marginTop: 22 }}>

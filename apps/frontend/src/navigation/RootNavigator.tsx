@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../providers/AuthProvider';
 import { useResponsive } from '../hooks/useResponsive';
+import { useCandidatePrivacyBoundary } from '../hooks/useCandidatePrivacyBoundary';
 import { documentTitleForRoute } from './documentTitle';
 import { linkProps, routePath } from './links';
 import {
@@ -35,7 +36,6 @@ import { loadOnDemand } from '../lib/loadOnDemand';
 import { MONEY_SECTION_NAME } from '../lib/moneySectionName';
 import { screenChunks } from './screenChunks';
 import { theme } from '../theme/tokens';
-import { candidatePreviewEnabled } from '../lib/candidateLookupAvailability';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -85,9 +85,10 @@ const ReadCollectionScreen = loadOnDemand(screenChunks.ReadResearch);
 const ShortPostsScreen = loadOnDemand(screenChunks.ShortPosts);
 const NotFoundScreen = loadOnDemand(screenChunks.NotFound);
 const CandidatesScreen = loadOnDemand(screenChunks.Candidates);
-const CandidateProfileScreen = __DEV__
-  ? loadOnDemand(screenChunks.CandidateProfile!)
-  : NotFoundScreen;
+const CandidateProfileScreen = loadOnDemand(screenChunks.CandidateProfile);
+const CandidateClaimScreen = loadOnDemand(screenChunks.CandidateClaim);
+const CandidateManageScreen = loadOnDemand(screenChunks.CandidateManage);
+const AdminCandidateClaimsScreen = loadOnDemand(screenChunks.AdminCandidateClaims);
 const SearchBillsScreen = loadOnDemand(screenChunks.Bills);
 const SearchLegislatorsScreen = loadOnDemand(screenChunks.Legislators);
 const TrackedScreen = loadOnDemand(screenChunks.Tracked);
@@ -544,6 +545,7 @@ const styles = StyleSheet.create({
 });
 
 export function RootNavigator() {
+  useCandidatePrivacyBoundary();
   const isWeb = Platform.OS === 'web';
   const { isDesktop } = useResponsive();
   const lastPathRef = useRef('/');
@@ -705,15 +707,26 @@ export function RootNavigator() {
               component={CandidatesScreen}
               options={{ headerShown: false }}
             />
-            {__DEV__ && candidatePreviewEnabled() && (
-              <>
-                <Stack.Screen
-                  name="CandidateProfile"
-                  component={CandidateProfileScreen}
-                  options={{ headerShown: false }}
-                />
-              </>
-            )}
+            <Stack.Screen
+              name="CandidateProfile"
+              component={CandidateProfileScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CandidateClaim"
+              component={CandidateClaimScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CandidateManage"
+              component={CandidateManageScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="AdminCandidateClaims"
+              component={AdminCandidateClaimsScreen}
+              options={{ headerShown: false }}
+            />
             <Stack.Screen
               name="Bills"
               component={SearchBillsScreen}

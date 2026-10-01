@@ -144,9 +144,11 @@ export function CandidateCoverage({ gaps }: { gaps: CandidateCoverageGap[] }) {
       {gaps.map((gap, index) => (
         <View key={`${gap.kind}-${gap.office}-${index}`} style={styles.gap}>
           <Text style={candidateText.strong}>
-            {gap.kind === 'district-unconfirmed'
-              ? `We couldn’t confirm your district for ${gap.office}`
-              : `Candidate records are unavailable for ${gap.office}`}
+            {gap.kind === 'coverage-unconfirmed'
+              ? gap.office
+              : gap.kind === 'district-unconfirmed'
+                ? `We couldn’t confirm your district for ${gap.office}`
+                : `Candidate records are unavailable for ${gap.office}`}
           </Text>
           <CandidateLink label={`Election information from ${gap.authority}`} url={gap.url} />
         </View>

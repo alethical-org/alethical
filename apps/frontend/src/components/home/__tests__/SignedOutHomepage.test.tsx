@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import type { ReactNode } from 'react';
+import { createRequire } from 'node:module';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Bill } from '../../../data/types';
 import { HOME_PUBLIC_INTRO } from '../../../lib/homepage';
@@ -49,7 +50,21 @@ vi.mock('../../../theme/primitives', () => ({
 vi.mock('react-native-svg', () => ({
   default: () => null,
   Path: () => null,
+  Circle: () => null,
+  Polygon: () => null,
 }));
+
+const moduleRequire = createRequire(import.meta.url);
+const originalSvg = moduleRequire.extensions['.svg'];
+beforeAll(() => {
+  moduleRequire.extensions['.svg'] = (module) => {
+    module.exports = { uri: '/mn-outline.svg' };
+  };
+});
+afterAll(() => {
+  if (originalSvg) moduleRequire.extensions['.svg'] = originalSvg;
+  else delete moduleRequire.extensions['.svg'];
+});
 
 function render(options?: { servicesReady?: boolean }) {
   const example = vi.fn(() => <div data-testid="answer-example">Cited answer example</div>);
@@ -90,13 +105,14 @@ describe('signed-out homepage destinations', () => {
     }
   });
 
-  it('shows launched services and keeps candidate lookup hidden by default', () => {
+  it('shows launched services and the working candidate address form', () => {
     const { page } = render();
     expect(page.querySelector('a[href="/services"]')).not.toBeNull();
     expect(page.querySelector('a[href="/candidates"]')).toBeNull();
-    expect(page.querySelector('input')).toBeNull();
+    expect(page.querySelector('textarea[autocomplete="street-address"]')).not.toBeNull();
     expect(page.textContent).toContain('Campaign services');
-    expect(page.textContent).not.toContain('Find my candidates');
+    expect(page.textContent).toContain('Find my candidates');
+    expect(page.textContent).toContain('who is running for office');
     expect(page.querySelectorAll('a')).toHaveLength(3);
   });
 

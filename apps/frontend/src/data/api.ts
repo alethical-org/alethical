@@ -896,8 +896,13 @@ export async function getAdminAccessFromApi(accessToken: string, signal?: AbortS
   );
 }
 
-export async function publicApiRequest<T>(path: string, signal?: AbortSignal): Promise<T> {
+export async function publicApiRequest<T>(
+  path: string,
+  signal?: AbortSignal,
+  options: Pick<RequestInit, 'cache' | 'credentials'> = {},
+): Promise<T> {
   const response = await publicReadResponse(publicApiUrl(path), {
+    ...options,
     method: 'GET',
     headers: {
       Accept: 'application/json',
@@ -979,8 +984,13 @@ function currentClaimFreshness(
   };
 }
 
-async function publicApiPost<T>(path: string, body: unknown): Promise<T> {
+export async function publicApiPost<T>(
+  path: string,
+  body: unknown,
+  options: Pick<RequestInit, 'signal' | 'cache' | 'credentials'> = {},
+): Promise<T> {
   const response = await fetch(publicApiUrl(path), {
+    ...options,
     method: 'POST',
     headers: {
       Accept: 'application/json',

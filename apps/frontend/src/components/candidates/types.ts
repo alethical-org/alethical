@@ -45,7 +45,7 @@ export interface CandidateRace {
   source: CandidateSource;
 }
 export interface CandidateCoverageGap {
-  kind: 'district-unconfirmed' | 'records-unavailable';
+  kind: 'district-unconfirmed' | 'records-unavailable' | 'coverage-unconfirmed';
   office: string;
   authority: string;
   url: string;

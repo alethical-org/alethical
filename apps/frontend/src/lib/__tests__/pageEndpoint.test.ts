@@ -141,7 +141,7 @@ it('serves the public candidates destination without example records or data-ser
   const { body, status, headers } = await serve({ path: '/candidates' });
   expect(status).toBe(200);
   expect(body).toContain('<title>Find My Candidates | Alethical</title>');
-  expect(body).toContain('Live candidate search is not connected yet');
+  expect(body).toContain('Enter a Minnesota street address');
   expect(body).toContain('href="https://www.alethical.com/candidates"');
   expect(headers.get('X-Robots-Tag')).toBeUndefined();
   expect(body).not.toMatch(/PRIVATE DRAFT|ILLUSTRATIVE DATA|preview-general-alex/);
@@ -160,6 +160,65 @@ it('keeps illustrative candidate profiles unavailable on the public server even 
     vi.unstubAllEnvs();
   }
 });
+
+it('uses the public candidate record for profile metadata without address requests', async () => {
+  const id = 'a'.repeat(64);
+  stubNetwork((url) => {
+    expect(url).toBe(`https://api.alethical.com/api/v1/candidates/${id}`);
+    return {
+      status: 200,
+      payload: {
+        candidate: { id, name: 'Public Candidate', sortName: 'Candidate, Public' },
+        office: 'State Representative',
+        votingArea: 'House District 1A',
+        election: {
+          id: 'election',
+          label: 'General election',
+          date: '2026-11-03',
+          type: 'general',
+        },
+        source: {
+          authority: 'Minnesota Secretary of State',
+          url: 'https://myballotmn.sos.mn.gov/',
+          checkedDate: '2026-09-30',
+        },
+      },
+    };
+  });
+  const { body, status, headers } = await serve({ path: `/candidates/${id}?address=private-home` });
+  expect(status).toBe(200);
+  expect(body).toContain('<title>Public Candidate | Alethical</title>');
+  expect(body).toContain(`href="https://www.alethical.com/candidates/${id}"`);
+  expect(body).toContain('House District 1A');
+  expect(body).not.toContain('private-home');
+  expect(headers.get('Cache-Control')).toBe('no-store');
+});
+
+it('distinguishes missing candidate records from unavailable records', async () => {
+  const path = `/candidates/${'b'.repeat(64)}`;
+  stubNetwork(() => ({ status: 404 }));
+  expect((await serve({ path })).status).toBe(404);
+  stubNetwork(() => ({ status: 503 }));
+  expect((await serve({ path })).status).toBe(503);
+});
+
+it.each([
+  `/candidates/${'a'.repeat(64)}/claim`,
+  `/candidates/${'a'.repeat(64)}/manage`,
+  '/admin/candidate-claims',
+])(
+  'keeps private candidate account route %s out of caches, search engines and metrics',
+  async (path) => {
+    stubNetwork(() => ({ status: 500 }));
+    const { body, status, headers } = await serve({ path });
+    expect(status).toBe(200);
+    expect(headers.get('Cache-Control')).toBe('private, no-store');
+    expect(headers.get('Referrer-Policy')).toBe('no-referrer');
+    expect(headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
+    expect(body).not.toContain('cloudflareinsights.com');
+    expect(fetch).not.toHaveBeenCalled();
+  },
+);
 
 it('serves the approved article links in the first HTTP response of all 9 published pages', async () => {
   stubNetwork(() => ({ status: 500 }));

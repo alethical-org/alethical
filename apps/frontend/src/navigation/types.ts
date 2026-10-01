@@ -80,6 +80,9 @@ export type RootStackParamList = {
   // Candidate addresses stay in memory, never in route parameters or URLs.
   Candidates: undefined;
   CandidateProfile: { candidateId: string };
+  CandidateClaim: { candidateId: string };
+  CandidateManage: { candidateId: string };
+  AdminCandidateClaims: undefined;
   // Campaign money section (campaign money IA handoff, Aug 2026). All public —
   // the section has no sign-in gate.
   MoneyLanding: undefined;

@@ -110,9 +110,12 @@ const button = (text: string) =>
     element.textContent?.includes(text),
   )!;
 function type(value: string) {
-  const input = host.querySelector<HTMLInputElement>('input')!;
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
   act(() => {
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value);
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(
+      input,
+      value,
+    );
     input.dispatchEvent(new Event('input', { bubbles: true }));
   });
   return input;
@@ -137,7 +140,7 @@ it('shows the public unavailable state without collecting an address or calling 
   await flush();
   expect(host.textContent).toContain('Find My Candidates');
   expect(host.textContent).toContain('Candidate records are not available on Alethical yet');
-  expect(host.querySelector('input, [role="combobox"]')).toBeNull();
+  expect(host.querySelector('textarea, [role="combobox"]')).toBeNull();
   expect(host.querySelector('a[href*="/candidates/"]')).toBeNull();
   expect(
     host.querySelector('a[href="https://www.sos.mn.gov/elections-voting/whats-on-my-ballot/"]'),
@@ -158,7 +161,7 @@ it('names the address field, rejects empty input without a request, and keeps ty
   await flush();
   click(button('Find My Candidates'));
   expect(host.textContent).toContain('Enter your full Minnesota street address');
-  expect(host.querySelector('input')?.getAttribute('aria-invalid')).toBe('true');
+  expect(host.querySelector('textarea')?.getAttribute('aria-invalid')).toBe('true');
   expect(lookup).not.toHaveBeenCalled();
   const input = type('100 Example Street');
   click(button('Find My Candidates'));
@@ -262,7 +265,8 @@ it('requires a keyboard-confirmed ambiguous address and passes its choice to the
   const lookup = vi
     .fn<CandidateSearchServices['lookup']>()
     .mockResolvedValueOnce({ kind: 'ambiguous', choices: [choice] })
-    .mockResolvedValueOnce(result());
+    .mockResolvedValueOnce(result())
+    .mockResolvedValueOnce(result(primary.id));
   await act(async () =>
     root.render(
       <CandidateSearchContent
@@ -278,8 +282,21 @@ it('requires a keyboard-confirmed ambiguous address and passes its choice to the
   expect(lookup).toHaveBeenCalledOnce();
   press(list, 'Enter');
   await flush();
-  expect(lookup.mock.calls[1][0].confirmedChoice).toEqual(choice);
+  expect(lookup.mock.calls[1][0]).toMatchObject({
+    address: '100 Example Street',
+    confirmedChoice: choice,
+  });
   expect(host.querySelector('a[href="/candidates/general-a"]')).toBeTruthy();
+  const election = host.querySelector<HTMLElement>('[role="combobox"]')!;
+  press(election, 'Enter');
+  press(election, 'ArrowUp');
+  press(election, 'Enter');
+  await flush();
+  expect(lookup.mock.calls[2][0]).toMatchObject({
+    address: '100 Example Street',
+    electionId: primary.id,
+    confirmedChoice: choice,
+  });
 });
 it('does not invent filing facts or claim controls on a read-only candidate profile', () => {
   act(() =>
@@ -324,7 +341,7 @@ it('ignores an old address suggestion response and lets the keyboard choose the 
     root.render(<CandidateSearchContent services={service} onOpenProfile={() => {}} />),
   );
   await flush();
-  const field = host.querySelector<HTMLInputElement>('input')!;
+  const field = host.querySelector<HTMLTextAreaElement>('textarea')!;
   act(() => field.focus());
   type('100 Example');
   await act(async () => vi.advanceTimersByTime(180));
@@ -394,7 +411,7 @@ it('uses the same explicit address-choice flow when changing an address and keep
   press(list, 'Enter');
   await flush();
   expect(lookup.mock.calls[2][0].confirmedChoice).toEqual(choice);
-  expect(host.querySelector('input')).toBeNull();
+  expect(host.querySelector('textarea')).toBeNull();
   expect(host.textContent).toContain(choice.address);
 });
 
@@ -429,7 +446,7 @@ it('keeps a newer typed address when a slow earlier search finishes and preserve
   await act(async () => resolveOld({ ...result(), matchedAddress: '200 Example Street' }));
   await flush();
   expect(input.value).toBe('300 Example Street');
-  expect(host.querySelector('input')).toBe(input);
+  expect(host.querySelector('textarea')).toBe(input);
   expect(host.textContent).toContain('100 Example Street, Sample City, MN');
   expect(flow.getState().draftAddress).toBe('300 Example Street');
   act(() => root.render(<div>Candidate profile</div>));
@@ -437,10 +454,10 @@ it('keeps a newer typed address when a slow earlier search finishes and preserve
     root.render(<CandidateSearchContent services={service} flow={flow} onOpenProfile={() => {}} />),
   );
   await flush();
-  expect(host.querySelector<HTMLInputElement>('input')?.value).toBe('300 Example Street');
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('300 Example Street');
   click(button('Find My Candidates'));
   await flush();
-  expect(host.querySelector('input')).toBeNull();
+  expect(host.querySelector('textarea')).toBeNull();
   expect(host.textContent).toContain('300 Example Street');
 });
 
@@ -474,4 +491,82 @@ it('explains an empty response without claiming nobody is running', async () => 
   expect(host.textContent).toContain('No candidate records to show');
   expect(host.textContent).toContain('No candidate records to show for this address and election');
   expect(host.textContent).not.toContain('No filed candidates listed');
+});
+
+it('clears the rendered address and cancels suggestions when the private flow resets', async () => {
+  vi.useFakeTimers();
+  let resolve!: (value: { id: string; label: string; address: string }[]) => void;
+  const suggest = vi.fn<CandidateSearchServices['suggest']>(
+    () =>
+      new Promise((yes) => {
+        resolve = yes;
+      }),
+  );
+  const service = { ...services(), suggest };
+  const flow = createCandidateFlow(service);
+  await act(async () =>
+    root.render(<CandidateSearchContent services={service} flow={flow} onOpenProfile={() => {}} />),
+  );
+  await flush();
+  act(() => host.querySelector<HTMLTextAreaElement>('textarea')!.focus());
+  type('100 Private Street');
+  await act(async () => vi.advanceTimersByTime(180));
+  expect(suggest).toHaveBeenCalledOnce();
+  act(() => flow.clear());
+  await flush();
+  expect(suggest.mock.calls[0][1].aborted).toBe(true);
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('');
+  await act(async () =>
+    resolve([{ id: 'old', label: '100 Private Street', address: '100 Private Street' }]),
+  );
+  expect(host.querySelector('[role="option"]')).toBeNull();
+  expect(host.textContent).not.toContain('100 Private Street');
+});
+
+it('does not restore or automatically search an old initial address after elections finish across a reset', async () => {
+  const pending: { resolve(value: CandidateElection[]): void; signal: AbortSignal }[] = [];
+  const lookup = vi.fn<CandidateSearchServices['lookup']>(async () => result());
+  const service = {
+    ...services(lookup),
+    getElections: (signal: AbortSignal) =>
+      new Promise<CandidateElection[]>((resolve) => pending.push({ resolve, signal })),
+  };
+  const flow = createCandidateFlow(service);
+  flow.setDraftAddress('100 Private Street');
+  await act(async () =>
+    root.render(
+      <CandidateSearchContent
+        services={service}
+        flow={flow}
+        initialAddress="100 Private Street"
+        onOpenProfile={() => {}}
+      />,
+    ),
+  );
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('100 Private Street');
+  act(() => flow.clear());
+  expect(pending[0].signal.aborted).toBe(true);
+  await act(async () => {
+    for (const request of pending) request.resolve([general]);
+  });
+  await flush();
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('');
+  expect(lookup).not.toHaveBeenCalled();
+});
+
+it('keeps a November 3 election available during Minnesota evening after UTC has reached November 4', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-11-04T02:00:00Z'));
+  const election = { ...general, date: '2026-11-03' };
+  const lookup = vi.fn<CandidateSearchServices['lookup']>(async () => result());
+  const service = { ...services(lookup), getElections: async () => [election] };
+  await act(async () =>
+    root.render(<CandidateSearchContent services={service} onOpenProfile={() => {}} />),
+  );
+  await flush();
+  expect(host.querySelector('textarea')).toBeTruthy();
+  type('100 Example Street');
+  click(button('Find My Candidates'));
+  await flush();
+  expect(lookup).toHaveBeenCalledOnce();
 });

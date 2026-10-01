@@ -492,6 +492,11 @@ export function homePageSnapshot(): PageSnapshot {
         body: [HOME_PUBLIC_SERVICES_BODY],
         items: [{ label: HOME_PUBLIC_SERVICES_CTA, href: '/services' }],
       },
+      {
+        heading: 'Who’s running where you live?',
+        body: ['Enter your Minnesota street address to see who is running for office in your area'],
+        items: [{ label: 'Find my candidates', href: '/candidates' }],
+      },
     ],
     links: [],
   };
