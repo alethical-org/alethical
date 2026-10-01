@@ -871,8 +871,23 @@ export function TopNav({
             style={StyleSheet.absoluteFill}
           />
           <View style={[styles.menuSheet, isMobile && styles.menuSheetPhone]}>
-            <View style={styles.menuSheetHeader}>
-              <Logo variant="menu" />
+            <View
+              pointerEvents={isMobile ? 'box-none' : 'auto'}
+              style={[styles.menuSheetHeader, isMobile && styles.menuSheetHeaderPhone]}
+            >
+              {isMobile ? (
+                <Pressable
+                  testID="menu-header-close-area"
+                  accessible={false}
+                  focusable={false}
+                  tabIndex={-1}
+                  onPress={closeDrawer}
+                  style={StyleSheet.absoluteFill}
+                />
+              ) : null}
+              <View pointerEvents={isMobile ? 'none' : 'auto'}>
+                <Logo variant="menu" />
+              </View>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Close menu"
@@ -882,7 +897,13 @@ export function TopNav({
                 <X size={20} color={t.colors.ink} strokeWidth={2.2} />
               </Pressable>
             </View>
-            <ScrollView style={styles.menuList} contentContainerStyle={styles.menuListContent}>
+            <ScrollView
+              style={styles.menuList}
+              contentContainerStyle={[
+                styles.menuListContent,
+                isMobile && styles.menuListContentPhone,
+              ]}
+            >
               {/* The shared menu is Ask-free on every screen and at every width.
                   A bar item with no dropdown gets one row and no heading, drawn
                   at top level so it does not read as a 5th Search row
@@ -1460,8 +1481,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 22,
   },
+  // Move the existing 10px gap into the header's hit area without moving Money.
+  menuSheetHeaderPhone: { paddingBottom: 32 },
   menuList: { flex: 1 },
   menuListContent: { paddingVertical: 10, paddingHorizontal: 24, gap: 24 },
+  menuListContentPhone: { paddingTop: 0 },
   menuFooter: {
     backgroundColor: t.colors.surfaces.base,
     paddingTop: 14,

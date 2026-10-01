@@ -135,6 +135,10 @@ declared but unshown, so a roadmap pill may only stand in for a menu a reader ca
 Below 1100 pixels wide the dropdowns become a drawer opened from the bar.
 Below 768px the drawer covers the whole screen and hides the underlying page and
 its logo. The drawer has its own symbol and a full-size Close menu button.
+Clicking or tapping anywhere above the first horizontal line, including the
+symbol and blank space, closes the phone drawer. The X remains its keyboard
+close control; closing restores focus to Open menu. This larger closing area
+applies below 768px, without changing the tablet drawer or moving its links.
 The phone bar has the wordmark and menu button; sign-in and account actions are
 reachable inside the drawer. From 768px to 1099px the drawer is a fixed-width panel on
 the right, with the underlying page dimmed. Both layouts scroll internally. Search's and About's
