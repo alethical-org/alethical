@@ -1164,39 +1164,24 @@ export function Footer({
   onContact,
   onPrivacy,
   onTerms,
-  services = false,
+  layout,
 }: {
   onContact?: () => void;
   onPrivacy?: () => void;
   onTerms?: () => void;
-  services?: boolean;
+  layout?: Partial<Record<'container' | 'top' | 'utility' | 'social', ViewStyle>>;
 }) {
-  const { isMobile, isDesktop, width } = useResponsive();
+  const { isMobile } = useResponsive();
   const navigation = useNavigation<any>();
   return (
-    <View
-      style={[
-        styles.footer,
-        isMobile && styles.footerMobile,
-        services && { borderTopWidth: 1, borderTopColor: '#1f1f1f' },
-      ]}
-    >
+    <View style={[styles.footer, isMobile && styles.footerMobile]}>
       <Container
         style={[
           isMobile ? styles.footerContainerMobile : styles.footerContainer,
-          services && {
-            maxWidth: 1240,
-            alignSelf: 'center',
-            paddingHorizontal: isMobile ? 16 : Math.min(48, Math.max(16, width * 0.04)),
-          },
+          layout?.container,
         ]}
       >
-        <View
-          style={[
-            styles.footerTop,
-            (isMobile || (services && !isDesktop)) && styles.footerTopMobile,
-          ]}
-        >
+        <View style={[styles.footerTop, isMobile && styles.footerTopMobile, layout?.top]}>
           <View style={styles.footerBrand}>
             <Text style={[styles.footerTagline, isMobile && styles.footerTaglineMobile]}>
               We hold these truths to be self-evident.{'\n'}
@@ -1204,17 +1189,13 @@ export function Footer({
             </Text>
           </View>
           <View
-            style={[
-              styles.footerUtility,
-              isMobile && styles.footerUtilityMobile,
-              services && !isDesktop && { alignItems: 'flex-start' },
-            ]}
+            style={[styles.footerUtility, isMobile && styles.footerUtilityMobile, layout?.utility]}
           >
             <View
               style={[
                 styles.footerSocialLinks,
                 isMobile && styles.footerSocialLinksMobile,
-                services && { flexWrap: 'wrap' },
+                layout?.social,
               ]}
             >
               {SOCIAL_ACCOUNTS.map((social) => (

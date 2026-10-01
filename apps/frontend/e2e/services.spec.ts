@@ -152,6 +152,32 @@ test('section links reveal their heading and coalition links share one destinati
   }
 });
 
+for (const width of [390, 1280]) {
+  test(`section links target the current visit after returning home at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/services');
+    await page.getByRole('link', { name: 'Alethical home', exact: true }).click();
+    await page.getByRole('link', { name: /^Campaign services Get political/ }).click();
+    await page.setViewportSize({ width, height: 844 });
+    for (const [link, heading] of [
+      ['Partners', 'Specialist support, connected to your campaign.'],
+      ['Early work', 'Already helping campaigns get started.'],
+      ['Services', 'From research to practical support.'],
+    ]) {
+      await page.getByRole('link', { name: link, exact: true }).click();
+      await expect(page.getByRole('heading', { name: heading, exact: true })).toBeInViewport();
+    }
+    const organizations = page.getByRole('tab', { name: /^For organizations/ });
+    const campaigns = page.getByRole('tab', { name: /^For individual campaigns/ });
+    await organizations.press('ArrowRight');
+    await expect(campaigns).toBeFocused();
+    await campaigns.press('Home');
+    await expect(organizations).toBeFocused();
+  });
+}
+
 for (const width of [375, 1280]) {
   test(`homepage campaign services card opens the public presentation at ${width}px`, async ({
     page,
