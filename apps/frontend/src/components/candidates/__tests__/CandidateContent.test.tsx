@@ -3,7 +3,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { CandidateSearchContent } from '../CandidateSearchContent';
-import { CandidateProfileContent } from '../CandidateProfileContent';
+import { CandidateProfileContent, candidateElectionHasPassed } from '../CandidateProfileContent';
 import { createCandidateFlow } from '../candidateFlow';
 import type {
   CandidateElection,
@@ -138,8 +138,8 @@ it('shows the public unavailable state without collecting an address or calling 
     ),
   );
   await flush();
-  expect(host.textContent).toContain('Find My Candidates');
-  expect(host.textContent).toContain('Candidate records are not available on Alethical yet');
+  expect(host.textContent).toContain('Find my candidates');
+  expect(host.textContent).toContain('Records for upcoming elections are not available yet');
   expect(host.querySelector('textarea, [role="combobox"]')).toBeNull();
   expect(host.querySelector('a[href*="/candidates/"]')).toBeNull();
   expect(
@@ -159,12 +159,12 @@ it('names the address field, rejects empty input without a request, and keeps ty
     root.render(<CandidateSearchContent services={services(lookup)} onOpenProfile={() => {}} />),
   );
   await flush();
-  click(button('Find My Candidates'));
+  click(button('Find my candidates'));
   expect(host.textContent).toContain('Enter your full Minnesota street address');
   expect(host.querySelector('textarea')?.getAttribute('aria-invalid')).toBe('true');
   expect(lookup).not.toHaveBeenCalled();
   const input = type('100 Example Street');
-  click(button('Find My Candidates'));
+  click(button('Find my candidates'));
   await flush();
   expect(input.value).toBe('100 Example Street');
   expect(host.textContent).toContain('Candidate results are unavailable');
@@ -227,7 +227,7 @@ it('keeps old results and election attached while changing selection by keyboard
   expect(lookup.mock.calls[1][0].electionId).toBe(primary.id);
   expect(host.textContent).toContain('Updating candidates…');
   expect(host.querySelector('a[href="/candidates/general-a"]')).toBeTruthy();
-  expect(host.textContent).toContain('General election · Nov 5, 2030');
+  expect(host.textContent).toContain('General election · November 5, 2030');
   await act(async () => reject(new Error('failure')));
   await flush();
   expect(host.textContent).toContain('We couldn’t update the results');
@@ -252,7 +252,7 @@ it('does not silently use an old election when none is upcoming', async () => {
     ),
   );
   await flush();
-  expect(host.textContent).toContain('Candidate records are not available on Alethical yet');
+  expect(host.textContent).toContain('Records for upcoming elections are not available yet');
   expect(lookup).not.toHaveBeenCalled();
   expect(host.querySelector('[role="combobox"]')).toBeNull();
 });
@@ -371,7 +371,7 @@ it('keeps the same focused busy button and prevents repeat submission', async ()
   );
   await flush();
   type('100 Example Street');
-  const find = button('Find My Candidates');
+  const find = button('Find my candidates');
   act(() => find.focus());
   click(find);
   click(find);
@@ -379,7 +379,7 @@ it('keeps the same focused busy button and prevents repeat submission', async ()
   expect(document.activeElement).toBe(find);
   expect(find.getAttribute('aria-busy')).toBe('true');
   expect(find.getAttribute('aria-disabled')).toBe('true');
-  expect(find.textContent).toBe('Find My Candidates');
+  expect(find.textContent).toBe('Find my candidates');
   await act(async () => resolve(result()));
   await flush();
 });
@@ -403,7 +403,7 @@ it('uses the same explicit address-choice flow when changing an address and keep
   await flush();
   click(button('Change address'));
   type('200 Example Street');
-  click(button('Find My Candidates'));
+  click(button('Find my candidates'));
   await flush();
   expect(host.querySelector('a[href="/candidates/general-a"]')).toBeTruthy();
   expect(host.textContent).toContain('Choose your address');
@@ -440,7 +440,7 @@ it('keeps a newer typed address when a slow earlier search finishes and preserve
   await flush();
   click(button('Change address'));
   type('200 Example Street');
-  click(button('Find My Candidates'));
+  click(button('Find my candidates'));
   const input = type('300 Example Street');
   expect(lookup.mock.calls[1][1].aborted).toBe(true);
   await act(async () => resolveOld({ ...result(), matchedAddress: '200 Example Street' }));
@@ -455,7 +455,7 @@ it('keeps a newer typed address when a slow earlier search finishes and preserve
   );
   await flush();
   expect(host.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('300 Example Street');
-  click(button('Find My Candidates'));
+  click(button('Find my candidates'));
   await flush();
   expect(host.querySelector('textarea')).toBeNull();
   expect(host.textContent).toContain('300 Example Street');
@@ -566,7 +566,115 @@ it('keeps a November 3 election available during Minnesota evening after UTC has
   await flush();
   expect(host.querySelector('textarea')).toBeTruthy();
   type('100 Example Street');
-  click(button('Find My Candidates'));
+  click(button('Find my candidates'));
   await flush();
   expect(lookup).toHaveBeenCalledOnce();
+});
+
+it('uses Minnesota election day without implying a winner', () => {
+  expect(candidateElectionHasPassed('2026-11-03', new Date('2026-11-04T05:59:00Z'))).toBe(false);
+  expect(candidateElectionHasPassed('2026-11-03', new Date('2026-11-04T06:00:00Z'))).toBe(true);
+});
+it('keeps confirmed service distinct, links the same legislator and removes failed photos', () => {
+  const open = vi.fn();
+  const record = {
+    candidate: { id: 'sample', name: 'Sample Person', sortName: 'Person' },
+    election: general,
+    office: 'Attorney General',
+    votingArea: 'Statewide',
+    source,
+    photo: { url: 'https://example.org/portrait.jpg' },
+    legislator: {
+      id: 'person',
+      slug: 'sample-person',
+      name: 'Sample Person',
+      profileUrl: '/legislators/sample-person',
+      serviceStatus: 'current' as const,
+      isReelection: false,
+      office: 'State Senator',
+      votingArea: 'Senate District 12',
+    },
+  };
+  act(() =>
+    root.render(
+      <CandidateProfileContent record={record} onBack={() => {}} onOpenLegislator={open} />,
+    ),
+  );
+  expect(host.textContent).toContain('Currently serving asState Senator');
+  expect(host.textContent).toContain('Running forAttorney General');
+  const link = host.querySelector<HTMLAnchorElement>('a[href="/legislators/sample-person"]')!;
+  click(link);
+  expect(open).toHaveBeenCalledWith('sample-person');
+  const img = host.querySelector('img')!;
+  act(() => img.dispatchEvent(new Event('error')));
+  expect(host.querySelector('img')).toBeNull();
+  act(() =>
+    root.render(
+      <CandidateProfileContent
+        record={{ ...record, legislator: { ...record.legislator, serviceStatus: 'unknown' } }}
+        onBack={() => {}}
+      />,
+    ),
+  );
+  expect(host.textContent).not.toContain('Currently serving as');
+  expect(host.textContent).not.toContain('Formerly served as');
+  expect(host.querySelector('a[href="/legislators/sample-person"]')).toBeTruthy();
+});
+it('shows a reelection office once and offers Find my candidates on direct entry', () => {
+  act(() =>
+    root.render(
+      <CandidateProfileContent
+        fromSearch={false}
+        onBack={() => {}}
+        record={{
+          candidate: { id: 'sample', name: 'Sample Person', sortName: 'Person' },
+          election: general,
+          office: 'State Senator',
+          votingArea: 'Senate District 12',
+          source,
+          legislator: {
+            id: 'person',
+            slug: 'sample-person',
+            name: 'Sample Person',
+            profileUrl: '/legislators/sample-person',
+            serviceStatus: 'current',
+            isReelection: true,
+            office: 'State Senator',
+            votingArea: 'Senate District 12',
+          },
+        }}
+      />,
+    ),
+  );
+  expect(host.textContent).toContain('Running for reelection');
+  expect(host.textContent!.match(/State Senator/g)).toHaveLength(1);
+  expect(host.textContent).toContain('Find my candidates');
+  expect(host.textContent).not.toContain('Back to candidates');
+});
+
+it('shows source-provided election dates and matching office districts once', () => {
+  act(() =>
+    root.render(
+      <CandidateProfileContent
+        onBack={() => {}}
+        record={{
+          candidate: { id: 'sample', name: 'Sample Person', sortName: 'Person' },
+          election: {
+            id: '8334',
+            label: 'November 3, 2026 general election',
+            date: '2026-11-03',
+            type: 'general',
+          },
+          office: 'State Representative District 60B',
+          votingArea: 'House District 60B',
+          source,
+        }}
+      />,
+    ),
+  );
+  expect(host.textContent!.match(/November 3, 2026/g)).toHaveLength(1);
+  expect(host.textContent).toContain('General election');
+  expect(host.textContent).not.toContain('State Representative District 60B');
+  expect(host.textContent!.match(/State Representative/g)).toHaveLength(1);
+  expect(host.textContent!.match(/District 60B/g)).toHaveLength(1);
 });

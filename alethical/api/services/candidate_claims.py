@@ -474,11 +474,15 @@ def review(
     return result
 
 
-def report_statement(db: Session, candidate_id: str, reason: str) -> dict:
+def report_statement(
+    db: Session, candidate_id: str, reason: str, *, expected_version: int
+) -> dict:
     candidate = _candidate(db, candidate_id)
-    row = db.get(CandidateStatement, candidate.id)
+    row = db.get(CandidateStatement, candidate.id, populate_existing=True)
     if row is None or not public_statement(db, candidate_id)["statement"]:
         _fail(404, "Published candidate statement not found")
+    if row.version != expected_version:
+        _fail(409, "The campaign statement changed: reload it before reporting")
     reason = reason.strip()
     if not reason:
         _fail(422, "Explain what should be reviewed")

@@ -89,12 +89,18 @@ function useCurrentNavItemId(): string | null {
 export function PageBackground({
   children,
   flat = false,
+  candidateSurface = false,
 }: {
   children: ReactNode;
   flat?: boolean;
+  candidateSurface?: boolean;
 }) {
   const { isMobile } = useResponsive();
-  const backgroundStyle = flat ? { backgroundColor: '#f2f4f3' } : getPageBackgroundStyle(isMobile);
+  const backgroundStyle = candidateSurface
+    ? { backgroundColor: '#fbfcfd' }
+    : flat
+      ? { backgroundColor: '#f2f4f3' }
+      : getPageBackgroundStyle(isMobile);
   // Dots are drawn page-relative inside the scroll content (see PageDots), not here,
   // so they scroll with the page and fade near the top and bottom like the mockup.
   return <View style={[styles.pageBg, backgroundStyle]}>{children}</View>;
@@ -602,7 +608,15 @@ function MenuDrawerBarRow({
 }
 
 /** Navigation uses one bar treatment and a separate full-width drawer action. */
-function NavSignInButton({ drawer = false, onPress }: { drawer?: boolean; onPress: () => void }) {
+function NavSignInButton({
+  drawer = false,
+  candidateCompact = false,
+  onPress,
+}: {
+  drawer?: boolean;
+  candidateCompact?: boolean;
+  onPress: () => void;
+}) {
   const { isMobile } = useResponsive();
   const [hovered, hoverProps] = useHover();
   const showHover = hovered && !isMobile && finePointerCanHover();
@@ -611,13 +625,29 @@ function NavSignInButton({ drawer = false, onPress }: { drawer?: boolean; onPres
       accessibilityRole="button"
       onPress={onPress}
       {...hoverProps}
-      style={[
+      style={({ pressed }) => [
         styles.navSignIn,
         drawer && styles.drawerSignIn,
         showHover && (drawer ? styles.drawerSignInHover : styles.navSignInHover),
+        candidateCompact && {
+          minHeight: 44,
+          paddingVertical: 0,
+          paddingHorizontal: 16,
+          borderRadius: 10,
+          backgroundColor: pressed ? '#23ad66' : showHover ? '#28bf71' : '#2ed47e',
+          borderColor: '#2ed47e',
+        },
       ]}
     >
-      <Text style={[styles.navSignInText, drawer && styles.drawerSignInText]}>Sign in</Text>
+      <Text
+        style={[
+          styles.navSignInText,
+          drawer && styles.drawerSignInText,
+          candidateCompact && { fontSize: 15, fontWeight: '700', color: '#06231a' },
+        ]}
+      >
+        Sign in
+      </Text>
     </Pressable>
   );
 }
@@ -679,11 +709,13 @@ export function TopNav({
   onOpenMenuChange,
   onNavigate,
   onHome,
+  candidateSurface = false,
 }: {
   openMenu?: MenuKey | null;
   onOpenMenuChange?: (menu: MenuKey | null) => void;
   onNavigate?: (item: IaItem) => void;
   onHome?: () => void;
+  candidateSurface?: boolean;
 }) {
   const { isDesktop, isMobile } = useResponsive();
   const navigation = useNavigation<any>();
@@ -788,16 +820,31 @@ export function TopNav({
       (state as { hovered?: boolean }).hovered &&
       styles.hamburgerHover,
   ];
-  const navSignInButton = <NavSignInButton onPress={openNavSignIn} />;
+  const navSignInButton = (
+    <NavSignInButton candidateCompact={candidateSurface && !isDesktop} onPress={openNavSignIn} />
+  );
 
   return (
-    <Container style={styles.navRow}>
+    <Container
+      style={[
+        styles.navRow,
+        candidateSurface && {
+          paddingHorizontal: isMobile ? 20 : isDesktop ? 40 : 32,
+          paddingTop: isDesktop ? 22 : 14,
+          paddingBottom: 0,
+        },
+      ]}
+    >
       <View style={[styles.navBar, isDesktop && styles.navBarDesktop]}>
         {onHome ? (
           <Pressable
             accessibilityLabel="Alethical home"
             {...linkProps(routePath.home(), onHome)}
-            style={({ pressed }) => [styles.logoLink, pressed && styles.logoLinkPressed]}
+            style={({ pressed }) => [
+              styles.logoLink,
+              candidateSurface && { minHeight: 44, justifyContent: 'center' },
+              pressed && styles.logoLinkPressed,
+            ]}
           >
             <Logo />
           </Pressable>
@@ -833,7 +880,11 @@ export function TopNav({
           </View>
         ) : (
           <View style={styles.navMobileRight}>
-            {isMobile ? null : isSignedIn ? <AccountAvatarButton /> : navSignInButton}
+            {isMobile && !candidateSurface ? null : isSignedIn ? (
+              <AccountAvatarButton />
+            ) : (
+              navSignInButton
+            )}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={drawerOpen ? 'Close menu' : 'Open menu'}
@@ -1154,11 +1205,13 @@ function FooterLink({
   href,
   onPress,
   mobile,
+  minimumTarget = false,
 }: {
   label: string;
   href: string;
   onPress?: () => void;
   mobile?: boolean;
+  minimumTarget?: boolean;
 }) {
   const [hovered, hoverProps] = useHover();
   const [focused, setFocused] = useState(false);
@@ -1168,7 +1221,7 @@ function FooterLink({
       {...hoverProps}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
-      style={mobile ? styles.footerLinkTargetMobile : undefined}
+      style={mobile || minimumTarget ? styles.footerLinkTargetMobile : undefined}
     >
       {({ pressed }) => (
         <Text
@@ -1186,11 +1239,14 @@ export function Footer({
   onPrivacy,
   onTerms,
   layout,
+  candidateSurface = false,
 }: {
   onContact?: () => void;
   onPrivacy?: () => void;
   onTerms?: () => void;
   layout?: Partial<Record<'container' | 'top' | 'utility' | 'social', ViewStyle>>;
+  /** Candidate drawings use the compact utility footer at all three bands. */
+  candidateSurface?: boolean;
 }) {
   const { isMobile } = useResponsive();
   const navigation = useNavigation<any>();
@@ -1212,48 +1268,64 @@ export function Footer({
           <View
             style={[styles.footerUtility, isMobile && styles.footerUtilityMobile, layout?.utility]}
           >
-            <View
-              style={[
-                styles.footerSocialLinks,
-                isMobile && styles.footerSocialLinksMobile,
-                layout?.social,
-              ]}
-            >
-              {SOCIAL_ACCOUNTS.map((social) => (
-                <FooterSocialIconLink
-                  key={social.platform}
-                  social={social}
-                  surface="footer"
-                  mobile={isMobile}
-                />
-              ))}
-            </View>
+            {!candidateSurface ? (
+              <View
+                style={[
+                  styles.footerSocialLinks,
+                  isMobile && styles.footerSocialLinksMobile,
+                  layout?.social,
+                ]}
+              >
+                {SOCIAL_ACCOUNTS.map((social) => (
+                  <FooterSocialIconLink
+                    key={social.platform}
+                    social={social}
+                    surface="footer"
+                    mobile={isMobile}
+                  />
+                ))}
+              </View>
+            ) : null}
             <View style={[styles.footerLinks, isMobile && styles.footerLinksMobile]}>
-              <FooterLink
-                label="Contact Us"
-                href={routePath.contactUs()}
-                onPress={onContact ?? (() => navigation.navigate('ContactUs'))}
-                mobile={isMobile}
-              />
+              {!candidateSurface ? (
+                <FooterLink
+                  label="Contact Us"
+                  href={routePath.contactUs()}
+                  onPress={onContact ?? (() => navigation.navigate('ContactUs'))}
+                  mobile={isMobile}
+                  minimumTarget={candidateSurface}
+                />
+              ) : null}
               <FooterLink
                 label="Privacy Policy"
                 href={routePath.privacy()}
                 onPress={onPrivacy}
                 mobile={isMobile}
+                minimumTarget={candidateSurface}
               />
               <FooterLink
                 label="Terms of Use"
                 href={routePath.terms()}
                 onPress={onTerms}
                 mobile={isMobile}
+                minimumTarget={candidateSurface}
               />
+              {candidateSurface ? (
+                <FooterLink
+                  label="Contact us"
+                  href={routePath.contactUs()}
+                  onPress={onContact ?? (() => navigation.navigate('ContactUs'))}
+                  mobile={isMobile}
+                  minimumTarget={candidateSurface}
+                />
+              ) : null}
             </View>
           </View>
         </View>
         <View style={[styles.footerDivider, isMobile && styles.footerDividerMobile]} />
         <View style={[styles.footerBottom, isMobile && styles.footerBottomMobile]}>
           <Text style={[styles.footerMeta, isMobile && styles.footerMetaMobile]}>
-            © ALETHICAL · BUILT IN MINNESOTA
+            {candidateSurface && isMobile ? '© ALETHICAL' : '© ALETHICAL · BUILT IN MINNESOTA'}
           </Text>
           <Text style={[styles.footerMetaGreen, isMobile && styles.footerMetaMobile]}>
             TRUTH, UNCONCEALED

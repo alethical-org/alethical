@@ -507,3 +507,20 @@ authenticated claim, ownership and statement behavior is covered by isolated tes
 The release owner carries the tested change through upload checks, hosted checks,
 merge, deployment and live user-path checks. The linked issue holds their exact
 commit and deployment evidence rather than treating a local checkpoint as live.
+
+
+## Public design release, October 1, 2026
+
+Eugene authorized “set. build through live deployment without stop”. The pinned
+input is Alethical UX (51).zip; the complete scope and independent coverage review
+are recorded in [Candidate design acceptance](candidate-design-release-acceptance.md).
+Public search/profile drawings and homepage candidate-search copy are implemented;
+claim/manage redraw remains excluded. Existing staff-reviewed ownership is preserved.
+
+The release includes group disclosure/jump controls, subordinate Judges, exact
+source sharing, coherent election updates, the redesigned public record and
+campaign/report states, and confirmed legislator connections with official portraits.
+The reviewed identity register enables 7 current saved records without a database
+migration or production data replacement. Unsupported identities remain unlinked.
+The original preview remains http://localhost:19047/candidates. Hosted checks and
+live acceptance remain required before reporting this design release as live.

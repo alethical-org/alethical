@@ -44,7 +44,10 @@ def test_every_transcribed_date_and_condition_is_in_the_preserved_board_pdf(
             for page in PdfReader(path).pages
         )
     )
-    assert str(year) in text[:700]
+    # Layout extraction may insert a space between glyphs in the printed year.
+    # Keep the header bound while comparing the same whitespace-free text used
+    # for every report row below.
+    assert str(year) in text[:700].replace(" ", "")
     source = CALENDAR_SOURCES[(CalendarKey(key), year)]
     assert source["url"].endswith(filename)
     assert source["sha256"] == digest

@@ -112,7 +112,9 @@ describe('signed-out homepage destinations', () => {
     expect(page.querySelector('textarea[autocomplete="street-address"]')).not.toBeNull();
     expect(page.textContent).toContain('Campaign services');
     expect(page.textContent).toContain('Find my candidates');
-    expect(page.textContent).toContain('who is running for office');
+    expect(page.textContent).toContain(
+      'Explore the candidates in your Minnesota races, with links to official records',
+    );
     expect(page.querySelectorAll('a')).toHaveLength(3);
   });
 

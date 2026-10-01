@@ -13,7 +13,10 @@ const { getProfile } = vi.hoisted(() => {
 vi.mock('../../components/candidates/CandidateClaimPanel', () => ({
   CandidateClaimPanel: () => null,
 }));
-vi.mock('../../data/candidates', () => ({ getCandidateProfile: getProfile }));
+vi.mock('../../data/candidates', () => ({
+  getCandidateProfile: getProfile,
+  candidateFlow: { getState: () => ({ displayed: null }), clear: vi.fn() },
+}));
 vi.mock('../../navigation/documentTitle', () => ({ useDocumentTitle: vi.fn() }));
 vi.mock('../../theme/primitives', () => ({
   PageBackground: ({ children }: React.PropsWithChildren) => <div>{children}</div>,
@@ -24,6 +27,7 @@ vi.mock('../redesign/NotFoundScreen', () => ({ NotFoundScreen: () => <p>Page not
 vi.mock('react-native-svg', () => ({
   default: ({ children, ...props }: React.PropsWithChildren) => <svg {...props}>{children}</svg>,
   Path: (props: React.SVGProps<SVGPathElement>) => <path {...props} />,
+  Circle: (props: React.SVGProps<SVGCircleElement>) => <circle {...props} />,
 }));
 const id = 'a'.repeat(64);
 const secondId = 'b'.repeat(64);
@@ -76,9 +80,9 @@ it('opens a direct public profile with the record’s own election and source da
   expect(host.textContent).toContain('Loading candidate record');
   await flush();
   expect(host.textContent).toContain('Public Candidate');
-  expect(host.textContent).toContain('Nov 3, 2026');
-  expect(host.textContent).toContain('Records checked Sep 30, 2026');
-  expect(host.textContent).toContain('These records may be out of date');
+  expect(host.textContent).toContain('November 3, 2026');
+  expect(host.textContent).toContain('Checked September 30, 2026');
+  expect(host.textContent).toContain('May be out of date');
   act(() => host.querySelector<HTMLAnchorElement>('a[href="/candidates"]')!.click());
   expect(navigate).toHaveBeenCalledWith('Candidates');
 });

@@ -180,3 +180,28 @@ describe('short-lived private result reuse', () => {
     expect(lookup).toHaveBeenCalledTimes(7);
   });
 });
+
+it('keeps group choices through election changes and failed address changes, but resets for a successful new address', async () => {
+  const lookup = vi
+    .fn<CandidateSearchServices['lookup']>()
+    .mockResolvedValueOnce(results(general.id, '100 Original Street'))
+    .mockResolvedValueOnce(results(primary.id, '100 Original Street'))
+    .mockResolvedValueOnce({ kind: 'no-match' })
+    .mockResolvedValueOnce(results(general.id, '200 New Street'));
+  const flow = createCandidateFlow(services(lookup));
+  await flow.search({ address: '100 Original Street', electionId: general.id }, general);
+  flow.setGroupOpen('state', false);
+  flow.setGroupOpen('judges', true);
+  flow.setScrollOffset(600);
+  await flow.search({ address: '100 Original Street', electionId: primary.id }, primary);
+  expect(flow.getState().openGroups).toEqual({ state: false, judges: true });
+  expect(flow.getState().scrollOffset).toBe(600);
+  await flow.search({ address: 'unknown', electionId: general.id }, general);
+  expect(flow.getState().openGroups).toEqual({ state: false, judges: true });
+  await flow.search({ address: '200 New Street', electionId: general.id }, general);
+  expect(flow.getState().openGroups).toEqual({});
+  expect(flow.getState().scrollOffset).toBe(0);
+  flow.setGroupOpen('county', false);
+  flow.clear();
+  expect(flow.getState().openGroups).toEqual({});
+});

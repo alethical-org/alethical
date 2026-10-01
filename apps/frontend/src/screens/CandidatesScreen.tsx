@@ -1,5 +1,7 @@
-import { lazy, Suspense } from 'react';
-import { ScrollView, Text } from 'react-native';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
+import { useResponsive } from '../hooks/useResponsive';
 import { CandidateSearchContent } from '../components/candidates/CandidateSearchContent';
 import { candidateFlow, candidateSearchServices } from '../data/candidates';
 import { candidatePreviewEnabled } from '../lib/candidateLookupAvailability';
@@ -13,6 +15,18 @@ const Preview = __DEV__
 
 export function CandidatesScreen(props: RootScreenProps<'Candidates'>) {
   const { navigation } = props;
+  const scroll = useRef<ScrollView>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const { height } = useWindowDimensions();
+  const { isDesktop } = useResponsive();
+  const focused = useIsFocused();
+  useEffect(() => {
+    if (!focused) return;
+    const frame = requestAnimationFrame(() =>
+      scroll.current?.scrollTo({ y: candidateFlow.getState().scrollOffset, animated: false }),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [focused]);
   useDocumentTitle('/candidates', 'Find My Candidates | Alethical');
   if (__DEV__ && candidatePreviewEnabled() && Preview)
     return (
@@ -21,18 +35,30 @@ export function CandidatesScreen(props: RootScreenProps<'Candidates'>) {
       </Suspense>
     );
   return (
-    <PageBackground>
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
-        <CandidateSearchContent
-          services={candidateSearchServices}
-          flow={candidateFlow}
-          initialAddress={candidateFlow.getState().draftAddress}
-          privacyDisclosure="Address lookup uses Minnesota Secretary of State and Minnesota mapping services"
-          imageSource={require('../../assets/mn-outline-candidates.svg')}
-          onOpenProfile={(candidateId) => navigation.navigate('CandidateProfile', { candidateId })}
-        />
+    <PageBackground candidateSurface>
+      <ScrollView
+        ref={scroll}
+        contentContainerStyle={{ flexGrow: 1 }}
+        scrollEventThrottle={100}
+        onScroll={(event) => candidateFlow.setScrollOffset(event.nativeEvent.contentOffset.y)}
+      >
+        <View onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
+          <TopNav candidateSurface onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
+        </View>
+        <View style={isDesktop ? { minHeight: Math.max(0, height - headerHeight) } : undefined}>
+          <CandidateSearchContent
+            services={candidateSearchServices}
+            flow={candidateFlow}
+            initialAddress={candidateFlow.getState().draftAddress}
+            privacyDisclosure="Address lookup uses Minnesota Secretary of State and Minnesota mapping services"
+            imageSource={require('../../assets/mn-outline-candidates.svg')}
+            onOpenProfile={(candidateId) =>
+              navigation.navigate('CandidateProfile', { candidateId })
+            }
+          />
+        </View>
         <Footer
+          candidateSurface
           onContact={() => navigation.navigate('ContactUs')}
           onPrivacy={() => navigation.navigate('Privacy')}
           onTerms={() => navigation.navigate('Terms')}
