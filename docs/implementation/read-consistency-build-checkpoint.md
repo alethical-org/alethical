@@ -69,6 +69,16 @@ production build passes296,814 /296,881 bytes. The parent’s1600px loaded artic
 recheck retains1040px title,1488px table rules, aligned numeric columns and24px
 label-to-figure gap. Hosted and live acceptance will use this integrated head.
 
+Hosted build 5d470929 failed its unchanged download limit at296,908 /296,881
+bytes. Auto-merge was disabled before release. Removed actual article-only
+startup work by moving the exact8 date/share functions from researchIndex into
+articleDateLabels while retaining research.ts exports and all outputs. Parent
+and independent source review accepted the unchanged function bodies, consumers
+and one-way loading boundary. Focused450 and full3,929frontend checks pass; local
+production export296,278 /296,881bytes. Parent browser recheck accepts Research,
+Guide, prose Short post and chart Short post titles/tables and Guide Share dates.
+The next hosted build must establish its own size; no limit was raised.
+
 ## Article width build, 30 Sep 2026
 
 Eugene's `bd unless you need design udpate?` authorizes the article-width build
