@@ -682,6 +682,7 @@ function AdminGroup({
           ['User Accounts', routePath.adminUsers(), 'AdminUsers'],
           ['Site Metrics', routePath.siteMetrics(), 'SiteMetrics'],
           ['Operations', routePath.adminSiteMetrics(), 'AdminSiteMetrics'],
+          ['Candidate requests', '/admin/candidate-claims', 'AdminCandidateClaims'],
         ] as const
       ).map(([label, href, screen]) => (
         <AdminRow

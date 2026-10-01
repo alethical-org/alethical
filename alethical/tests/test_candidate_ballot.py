@@ -131,7 +131,7 @@ def test_same_candidate_identity_across_precincts_and_source_order():
     ]
 
 
-def test_local_code_collisions_do_not_merge_offices_or_counties():
+def test_school_code_collisions_keep_distinct_districts_and_reuse_same_district():
     first = parse()
     second = parse(
         source(candidate(OfficeTitle="School Board Member (SSD #9999) (Elect 2)"))
@@ -139,7 +139,7 @@ def test_local_code_collisions_do_not_merge_offices_or_counties():
     third = parse(source(candidate(), CountyName="Another Synthetic County"))
     changed_name = parse(source(candidate(CandidateScreenName="Another Example")))
     ids = {x.races[0].candidates[0].stable_id for x in (first, second, third)}
-    assert len(ids) == 3
+    assert len(ids) == 2
     assert (
         changed_name.races[0].candidates[0].stable_id
         == first.races[0].candidates[0].stable_id
@@ -378,3 +378,68 @@ def test_reserved_write_in_code_does_not_depend_on_display_spelling(label):
         source(candidate(UploadCandidateCode="9901", CandidateScreenName=label))
     )
     assert all(not race.candidates for race in parsed.races)
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "U.S. Senator",
+        "Governor & Lt Governor",
+        "Secretary of State",
+        "State Auditor",
+        "Attorney General",
+        "U.S. Representative District 5",
+        "State Senator District 59",
+        "State Representative District 59B",
+        "Associate Justice - Supreme Court 1",
+        "Judge - Court of Appeals 7",
+        "Judge - 4th District Court 1",
+        "School Board Member At Large (SSD #1) (Elect 2)",
+        "School Board Member District 2 (ISD #2142)",
+    ],
+)
+def test_explicit_jurisdiction_records_have_one_identity_across_counties(title):
+    first = parse(source(candidate(OfficeTitle=title), CountyName="County A"))
+    second = parse(source(candidate(OfficeTitle=title), CountyName="County B"))
+    assert first.races[0].stable_id == second.races[0].stable_id
+    assert (
+        first.races[0].candidates[0].stable_id
+        == second.races[0].candidates[0].stable_id
+    )
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "County Attorney",
+        "County Commissioner District 1",
+        "Mayor (Example)",
+        "Unrecognized Office",
+    ],
+)
+def test_county_and_unknown_jurisdictions_never_merge_across_counties(title):
+    first = parse(source(candidate(OfficeTitle=title), CountyName="County A"))
+    second = parse(source(candidate(OfficeTitle=title), CountyName="County B"))
+    assert first.races[0].stable_id != second.races[0].stable_id
+
+
+def test_school_type_number_subdistrict_and_municipality_remain_part_of_identity():
+    titles = [
+        "School Board Member District 1 (ISD #1)",
+        "School Board Member District 2 (ISD #1)",
+        "School Board Member District 1 (SSD #1)",
+        "School Board Member District 1 (ISD #11)",
+        "Mayor (City A)",
+        "Mayor (City B)",
+    ]
+    assert len(
+        {
+            parse(source(candidate(OfficeTitle=title))).races[0].stable_id
+            for title in titles
+        }
+    ) == len(titles)
+
+
+def test_unresolved_unit_cannot_fall_back_to_general_street_range():
+    with pytest.raises(CandidateBallotError):
+        match_street_range([street()], replace(ADDRESS, unit="UNIT A"))

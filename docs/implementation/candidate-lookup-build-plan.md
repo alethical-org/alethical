@@ -2,11 +2,14 @@
 
 <!-- describes: alethical/pipeline/candidate_catalogue.py, alethical/pipeline/candidate_ballot.py, apps/frontend/src/lib/candidateSearchState.ts, apps/frontend/src/components/candidates/CandidateSearchContent.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidatePreviewScreens.tsx, apps/frontend/src/lib/candidateLookupAvailability.ts, apps/frontend/src/lib/staticPageMetadata.ts, apps/frontend/src/navigation/webRoutes.ts, api/page.ts, apps/frontend/metro.config.js -->
 
-**Net:** `/candidates` is approved as a public destination. The current implementation
-shows an honest Alethical source-connection limit and an official ballot-information
-link. Illustrative search/results/profile review remains development-only. Real
-candidate lookup still needs retained source records, supported coverage, freshness
-and end-to-end source checks.
+**Net:** The complete public candidate lookup, claim review and campaign statement
+workflow is implemented. [Issue 147](https://github.com/alethical-org/alethical/issues/147)
+records the hosted checks and live release evidence. The original preview remains `http://localhost:19047/candidates`.
+The current behavior is owned by [How Find My Candidates works](../product-onboarding/find-my-candidates-guide.md).
+
+The dated sections below retain the earlier decisions and checkpoints. Eugene's latest
+instruction to finish the complete working feature supersedes the earlier interim stops;
+the active scope and verification checkpoints are recorded at the end of this plan.
 
 Owner: Codex task **candidate lookup** (`01a0f355-a105-7543-8036-7c5274c0d5b7`).
 Tracking: [Search candidates and candidate profiles](https://github.com/alethical-org/alethical/issues/147).
@@ -392,3 +395,115 @@ Real source connection is the next implementation work, not an unapproved produc
 choice. Source retention, election matching, privacy, honest local gaps and freshness
 remain completion checks. None of these measurements establishes statewide
 completeness or authorizes claims about everyone running.
+
+## Full working feature resumed, 30 September 2026
+
+Eugene explicitly corrected the artificial stop: “i told you earlier to build
+eveyrthing including what you have NEXT. build evveyrhting means everything to be
+fully working, the ideal build, why didnt you start it?” He then instructed:
+“update rules so you would have not stopped in this type of scenario given what I
+instructed, and then keep building through the end”. These instructions carry the
+existing full build through real data, profiles, claims, testing, release and live
+acceptance. The temporary public notice and completed research were checkpoints,
+not completion. Earlier implementation holds are replaced by the concrete checks
+below. Candidate-specific paid services remain the explicitly later phase.
+
+Current branch: `codex/147-complete-candidate-lookup`, same isolated checkout and
+original preview `http://localhost:19047/candidates`.
+
+1. Connect official current November ballots to full-address lookup. Match exact
+   official address ranges, never ZIP alone; use bounded source requests and
+   retain only sanitized public candidate evidence. Keep addresses out of logs,
+   URLs, stored accounts and saved public records. Show source failures and missing
+   local coverage honestly. Do not claim every Minnesota race is covered.
+2. Activate the approved search/results and election-specific public profile
+   screens, preserve temporary search state and stable updates, and wire homepage
+   and navigation wording to actual working lookup.
+3. Add claim requests to existing accounts. Public filing evidence establishes
+   candidacy, not ownership. A signed-in applicant supplies a public campaign or
+   filing reference and a private explanation. An Alethical administrator must
+   independently verify candidate identity/control through an official published
+   contact channel and record the evidence before approval. A public certificate
+   alone is insufficient. No automatic email send or automatic approval is added.
+4. An approved owner can maintain clearly labeled candidate-supplied text without
+   editing official names, office, party, election or source facts. Withdrawal,
+   rejection, revocation, account deletion and concurrent changes must be safe.
+   Provide working applicant status and administrator review, with no private
+   evidence exposed publicly. Candidate claims do not block voter lookup.
+5. Test exact addresses and local contests, source outages and election mismatch,
+   direct/back profiles, private-data handling, claim ownership, administrator
+   access, races between requests, and phone/desktop flows. Apply additive schema
+   changes only after migration and access-isolation tests pass.
+6. Complete current-main checks, independent review, release and real deployed
+   user-path tests. Keep this plan and issue147 current; no ready step becomes an
+   unowned “Next” item. Only a real access, safety or new user-owned decision can
+   block its affected work; continue the independent work.
+
+Work ownership: source-backed server lookup and production search/profile wiring
+run in separate helpers. The current task owns database changes, claims, combined
+acceptance and release. A separate helper corrects the canonical working rules
+without delaying this build.
+
+### Integration checkpoint
+
+The live source requires `Accept: text/plain`. Requesting `application/json` returns
+JSON encoded inside a JSON string; the parser intentionally continues to require the
+ordinary official object. Exact source range checks succeeded in Minneapolis, Eagan
+and Cook. The public University of Minnesota address `326 17th Ave SE, Minneapolis,
+MN 55414` succeeds with and without ZIP. City-hall examples not present in the official
+residential range table honestly return no match.
+
+The public form at the original preview returned real state, county and school-board
+races. Acceptance found and corrected a source-wide coverage caveat being formatted as
+one missing office, judicial offices grouped under local offices, and check dates shown
+in UTC instead of Minnesota time. Full source labels sort alphabetically because the
+source supplies no separate surname; joint-ticket labels remain intact.
+
+The saved global completion rule is merged in
+[tool-settings pull request 47](https://github.com/euglopi/tool-settings/pull/47) and active
+in the linked local Codex and Claude rules. This checkpoint does not finish the candidate
+build. Claims, homepage integration, independent acceptance, full checks and live release
+remain actively owned in this task.
+
+### Complete-build verification checkpoint
+
+The homepage now submits a real lookup and carries successful results or address
+choices to `/candidates` in temporary memory. The initial HTML also links to the
+public destination. The generic address placeholder replaces a city-hall example
+that is absent from Minnesota's residential street ranges. The Minnesota outline
+retains the supplied desktop/tablet treatment and is omitted on phone.
+
+Security review corrections now preserve apartment/unit input through no-ZIP
+matching, require confirmation of complete geocoded addresses, and distinguish
+malformed source data from an unmatched address. Private database failures are
+replaced with a generic response before the original exception can reach runtime
+logs. Staff review identifies the confirmed account email receiving ownership.
+
+The complete backend suite passed 3600 tests. Separate source, claim and migration
+checks include concurrent ownership/revocation, privacy boundaries, rollback and
+RLS. The migrated and declared database shapes match: 101 tables, 1127 columns.
+The homepage passed 174 focused tests and actual desktop/tablet/phone checks,
+including a real home-to-results lookup at the original preview address.
+
+Final rendered account-change clearing, Minnesota election-evening behavior,
+independent visitor review, current-main export, hosted checks and live release
+remain part of this same active build, not a deferred scope or a new approval.
+
+### Final local acceptance, 30 September 2026
+
+Independent security and signed-out visitor reviews accepted the working feature.
+Address confirmation without a ZIP, failed lookup and retry, direct public profiles,
+back navigation, signed-out claim entry, keyboard focus, and phone/tablet layouts
+passed at the original preview. Both address forms grow to show long addresses.
+Same-account sign-in refresh preserves an unsaved campaign draft; changing accounts
+still clears private state and cancels pending work.
+
+After rebasing onto current main, all 3985 frontend tests passed across 320 files.
+The production web export passed its local first-load check at 296623 bytes of
+297506. Hosted builds must pass their own measured limit. Completed sign-in and
+real candidate claims were deliberately not submitted during public browser testing;
+authenticated claim, ownership and statement behavior is covered by isolated tests.
+
+The release owner carries the tested change through upload checks, hosted checks,
+merge, deployment and live user-path checks. The linked issue holds their exact
+commit and deployment evidence rather than treating a local checkpoint as live.

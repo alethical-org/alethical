@@ -639,18 +639,14 @@ recommendation surface · admin tooling depth.
 > motive, or a person is corrupt. Alethical may connect the documented facts; it may not
 > manufacture the meaning between them.
 
-> **Candidate data is not promise tracking.** The public `/candidates` destination is
-> approved on 30 September 2026, with a notice that records are not available on
-> Alethical yet and a link to official ballot information. Reviewed search/results
-> and read-only profiles exist with clearly labeled illustrative development data;
-> real candidate lookup still needs its live source connection and source checks
-> ([#147](https://github.com/alethical-org/alethical/issues/147)). Candidate tracking
-> remains planned ([#148](https://github.com/alethical-org/alethical/issues/148)).
-> Claim ownership and evidence rules remain unresolved. The
-> [candidate lookup build and release plan](../implementation/candidate-lookup-build-plan.md)
-> records the approval, current build and dated release history. What stays out is
-> _campaign/candidate promise tracking and promise-vs-vote scoring_: the
-> accountability-scoring features, not candidate data surfaces.
+> **Candidate data is not promise tracking.** The public `/candidates` destination
+> connects full street addresses to Minnesota's official November ballot records.
+> Election-specific public profiles, manually reviewed ownership requests and clearly
+> attributed campaign statements are in the candidate lookup build. Source coverage
+> limits remain visible. [How Find My Candidates works](find-my-candidates-guide.md)
+> owns current behavior; the [candidate lookup build and release plan](../implementation/candidate-lookup-build-plan.md)
+> owns source evidence and release history. Candidate-specific paid tools remain later.
+> This does not add campaign promise tracking or promise-versus-vote scoring.
 
 ## Success criteria
 

@@ -1,3 +1,5 @@
+import { candidateProfileMetadata } from "../apps/frontend/src/lib/candidateMetadata";
+import type { CandidateProfileRecord } from "../apps/frontend/src/components/candidates/types";
 import { lobbyingPageMetadata } from "../apps/frontend/src/lib/lobbyingMetadata";
 import {
   lobbyingLandingSnapshot,
@@ -1581,6 +1583,22 @@ async function contentFor(
   switch (target.kind) {
     case "adminSiteMetrics":
       return headOnly(STATIC_PAGE_METADATA["/admin/operations"]);
+    case "candidateClaim":
+      return headOnly({
+        ...STATIC_PAGE_METADATA["/admin/candidate-claims"],
+        title: "Claim this profile | Alethical",
+        socialTitle: "Claim this profile",
+        canonicalPath: `/candidates/${target.candidateId}/claim`,
+      });
+    case "candidateManage":
+      return headOnly({
+        ...STATIC_PAGE_METADATA["/admin/candidate-claims"],
+        title: "Manage campaign content | Alethical",
+        socialTitle: "Manage campaign content",
+        canonicalPath: `/candidates/${target.candidateId}/manage`,
+      });
+    case "adminCandidateClaims":
+      return headOnly(STATIC_PAGE_METADATA["/admin/candidate-claims"]);
     case "adminUsers":
       return headOnly(STATIC_PAGE_METADATA["/admin/users"]);
     case "bill":
@@ -1787,7 +1805,19 @@ async function contentFor(
       return headOnly(homePageMetadata());
     case "candidates":
       return headOnly(STATIC_PAGE_METADATA["/candidates"]);
-    case "candidateProfile":
+    case "candidateProfile": {
+      // Only public election records enter this page response. Never call address lookup.
+      const record = await getApiResponse<CandidateProfileRecord>(
+        `/candidates/${target.candidateId}`,
+      );
+      if (
+        record.candidate?.id !== target.candidateId ||
+        !record.election?.id ||
+        !record.candidate.name?.trim()
+      )
+        throw new DataUnavailable("invalid candidate record");
+      return { ...headOnly(candidateProfileMetadata(record)), noStore: true };
+    }
     case "notFound":
       throw new UnknownAddress(`unknown address ${path}`);
   }
@@ -1903,9 +1933,14 @@ export default async function handler(
     requestedPath === "/email-preferences" ||
     requestedPath === "/unsubscribe" ||
     requestedPath === "/comment-emails";
-  const isAdminPage = ["adminUsers", "adminSiteMetrics", "siteMetrics"].includes(
-    targetFromPathname(requestedPath).kind,
-  );
+  const isAdminPage = [
+    "candidateClaim",
+    "candidateManage",
+    "adminCandidateClaims",
+    "adminUsers",
+    "adminSiteMetrics",
+    "siteMetrics",
+  ].includes(targetFromPathname(requestedPath).kind);
 
   let content: PageContent;
   let status = 200;

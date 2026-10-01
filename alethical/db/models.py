@@ -1021,6 +1021,127 @@ class UserAccount(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     chat_sessions: Mapped[list["ChatSession"]] = relationship(back_populates="user")
 
 
+class CandidateSnapshot(Base):
+    """Public ballot facts keyed by content, never a visitor's address or precinct."""
+
+    __tablename__ = "candidate_snapshot"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    election_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    source_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    public_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    checked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
+class CandidateRecord(Base):
+    """An election-specific official record, separate from an account's claim."""
+
+    __tablename__ = "candidate_record"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    election_id: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    election_date: Mapped[date] = mapped_column(Date, nullable=False)
+    public_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    source_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    checked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
+class CandidateClaim(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A private request. Public filing evidence never grants account ownership."""
+
+    __tablename__ = "candidate_claim"
+    candidate_id: Mapped[str] = mapped_column(
+        ForeignKey("candidate_record.id"), nullable=False, index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    evidence_url: Mapped[str] = mapped_column(Text, nullable=False)
+    request_note: Mapped[str] = mapped_column(Text, nullable=False)
+    review_note: Mapped[Optional[str]] = mapped_column(Text)
+    reviewed_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("user_account.id", ondelete="SET NULL")
+    )
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    __table_args__ = (
+        UniqueConstraint("candidate_id", "user_id"),
+        CheckConstraint(
+            "status IN ('pending', 'approved', 'rejected', 'withdrawn', 'revoked')",
+            name="status",
+        ),
+        Index(
+            "uq_candidate_claim_approved",
+            "candidate_id",
+            unique=True,
+            postgresql_where=text("status = 'approved'"),
+        ),
+    )
+
+
+class CandidateStatement(Base):
+    """Candidate-supplied words, visibly separate from official ballot facts."""
+
+    __tablename__ = "candidate_statement"
+    candidate_id: Mapped[str] = mapped_column(
+        ForeignKey("candidate_record.id"), primary_key=True
+    )
+    claim_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("candidate_claim.id", ondelete="CASCADE"), nullable=False
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    __table_args__ = (CheckConstraint("length(body) <= 2000", name="body_length"),)
+
+
+class CandidateStatementRevision(UUIDPrimaryKeyMixin, Base):
+    """Private history retained while its verified ownership request exists."""
+
+    __tablename__ = "candidate_statement_revision"
+    candidate_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("candidate_record.id"), nullable=False
+    )
+    claim_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("candidate_claim.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    action: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    __table_args__ = (
+        CheckConstraint("action IN ('published', 'removed')", name="action"),
+    )
+
+
+class CandidateStatementReport(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "candidate_statement_report"
+    candidate_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("candidate_record.id"), nullable=False
+    )
+    claim_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("candidate_claim.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    statement_body: Mapped[str] = mapped_column(Text, nullable=False)
+    statement_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class CommentProfile(Base):
     """A reader-chosen identity, separate from sign-in's email-derived display name."""
 

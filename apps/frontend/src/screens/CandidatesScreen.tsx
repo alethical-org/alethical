@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { ScrollView, Text } from 'react-native';
 import { CandidateSearchContent } from '../components/candidates/CandidateSearchContent';
-import type { CandidateSearchServices } from '../components/candidates/types';
+import { candidateFlow, candidateSearchServices } from '../data/candidates';
 import { candidatePreviewEnabled } from '../lib/candidateLookupAvailability';
 import { useDocumentTitle } from '../navigation/documentTitle';
 import type { RootScreenProps } from '../navigation/types';
@@ -10,14 +10,6 @@ import { Footer, PageBackground, TopNav } from '../theme/primitives';
 const Preview = __DEV__
   ? lazy(() => import('./CandidatePreviewScreens').then((m) => ({ default: m.CandidatesScreen })))
   : null;
-
-// No election list or lookup service is published yet. Never substitute examples
-// or collect an address while the source connection is unavailable.
-const unavailableServices: CandidateSearchServices = {
-  getElections: async () => [],
-  suggest: async () => [],
-  lookup: async () => ({ kind: 'no-elections' }),
-};
 
 export function CandidatesScreen(props: RootScreenProps<'Candidates'>) {
   const { navigation } = props;
@@ -33,10 +25,12 @@ export function CandidatesScreen(props: RootScreenProps<'Candidates'>) {
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
         <CandidateSearchContent
-          recordsAvailable={false}
-          services={unavailableServices}
+          services={candidateSearchServices}
+          flow={candidateFlow}
+          initialAddress={candidateFlow.getState().draftAddress}
+          privacyDisclosure="Address lookup uses Minnesota Secretary of State and Minnesota mapping services"
           imageSource={require('../../assets/mn-outline-candidates.svg')}
-          onOpenProfile={() => {}}
+          onOpenProfile={(candidateId) => navigation.navigate('CandidateProfile', { candidateId })}
         />
         <Footer
           onContact={() => navigation.navigate('ContactUs')}

@@ -2399,7 +2399,7 @@ describe('the money screens keep reading the helpers the server reads', () => {
 });
 
 describe('rendering', () => {
-  it('serves the current public home cards without held destinations or duplicate body searches', () => {
+  it('serves the current public home cards and real candidate destination', () => {
     const snapshot = homePageSnapshot();
 
     expect(snapshot.links).toEqual([]);
@@ -2407,6 +2407,7 @@ describe('rendering', () => {
       'Follow the money',
       'Bills and votes',
       'Campaign services',
+      'Who’s running where you live?',
     ]);
     const html = renderPageSnapshot(snapshot);
     expect(html).toContain('Search the money records');
@@ -2415,7 +2416,12 @@ describe('rendering', () => {
     expect(html).toContain('href="/bills"');
     expect(html).toContain('href="/services"');
     expect(html).toContain('Explore our services');
-    expect(html).not.toContain('href="/candidates"');
+    expect(html).toContain('href="/candidates"');
+    expect(html).toContain('Find my candidates');
+    expect(html).toContain(
+      'Enter your Minnesota street address to see who is running for office in your area',
+    );
+    expect(html).not.toContain('<form');
     // These remain available in shared navigation, but are not extra Home body links.
     const body = html.slice(html.indexOf('<main'));
     expect(body).not.toContain('href="/legislators"');

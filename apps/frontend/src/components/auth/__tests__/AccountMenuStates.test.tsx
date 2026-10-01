@@ -114,6 +114,7 @@ describe.each([
       'User Accounts',
       'Site Metrics',
       'Operations',
+      'Candidate requests',
     ];
     for (const label of labels) {
       const text = [...row(label)!.querySelectorAll<HTMLElement>('*')].find(
@@ -165,7 +166,7 @@ describe.each([
     expect(row('Change password')).toBeUndefined();
   });
 
-  it('shows the 3 administrator links only after access is allowed', () => {
+  it('shows the 4 administrator links only after access is allowed', () => {
     open();
     expect(row('User Accounts')).toBeUndefined();
     state.admin = 'restricted';
@@ -173,11 +174,14 @@ describe.each([
     expect(row('User Accounts')).toBeUndefined();
     state.admin = 'allowed';
     render(control);
-    const links = ['User Accounts', 'Site Metrics', 'Operations'].map((label) => row(label));
+    const links = ['User Accounts', 'Site Metrics', 'Operations', 'Candidate requests'].map(
+      (label) => row(label),
+    );
     expect(links.map((element) => element?.getAttribute('href'))).toEqual([
       '/admin/users',
       '/admin/site-metrics',
       '/admin/operations',
+      '/admin/candidate-claims',
     ]);
     expect(
       links[0]!.compareDocumentPosition(links[1]!) & Node.DOCUMENT_POSITION_FOLLOWING,

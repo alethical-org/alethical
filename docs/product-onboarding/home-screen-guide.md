@@ -32,11 +32,19 @@ has no free-form question box because reader-written questions are not a live fe
   tablet. Phone order is money, bills, services.
 - Signed-out Home removes Find My Legislator from the page body. The shared Search
   menu still offers `/find-my-legislator`.
-- The proposed candidate form remains held until its separate owner supplies working
-  `/candidates` search and supported filing coverage. This release does not draw,
-  store, or submit a candidate address and does not advertise that destination.
-  Eugene approved **Find my candidates** as the homepage candidate wording on
-  30 September 2026. Use that capitalization when the held candidate feature launches.
+- **Who’s running where you live?** follows the bills and services row. Its supporting
+  text says **Enter your Minnesota street address to see who is running for office
+  in your area**. The **Find my candidates** button submits a full street address
+  to the official Minnesota address and ballot services. A ZIP code alone is not enough.
+- A successful lookup opens `/candidates` with the results already available. An address
+  requiring confirmation opens the same destination with its choices. Failure stays
+  beside the homepage form with a retry. The address is carried in temporary memory,
+  never in the destination URL or browser storage. The form explains which government
+  services receive it and that Alethical does not save it.
+- The Minnesota outline sits to the right on desktop, beside the heading on tablet,
+  and is omitted on phone, following the supplied homepage drawing. The example input
+  is generic because the previously drawn city-hall address is absent from the official
+  residential address ranges. The button retains its dimensions while searching.
 - The money and tool cards each form 1 link: clicking anywhere opens the same
   destination as the drawn action. Each card is 1 keyboard stop. Pointer hover
   changes the border, shadow, and action and lifts the card 3px; reduced-motion
@@ -236,8 +244,8 @@ desktop and tablet, not phone or signed-in Home.
 ## The first response
 
 The text served before the app starts uses the same signed-out introduction,
-money card, bills card, and campaign services card as the screen. It omits held
-candidate features and the removed body search/finder links. Shared navigation still offers
+money card, bills card, campaign services card, and candidate introduction as the screen.
+The candidate introduction links to `/candidates` before the interactive form loads. Shared navigation still offers
 Money, Search, Blog, and About, including legislator search and Find My Legislator.
 `homePageSnapshot()` and the generated initial `public/index.html` stay in sync.
 

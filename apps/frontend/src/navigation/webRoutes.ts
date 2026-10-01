@@ -39,6 +39,9 @@ type WebRouteTarget =
   | { kind: 'findMyLegislator'; address?: string }
   | { kind: 'candidates' }
   | { kind: 'candidateProfile'; candidateId: string }
+  | { kind: 'candidateClaim'; candidateId: string }
+  | { kind: 'candidateManage'; candidateId: string }
+  | { kind: 'adminCandidateClaims' }
   | { kind: 'moneyLanding' }
   | { kind: 'emailPreferences' }
   | { kind: 'unsubscribe' }
@@ -241,14 +244,18 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
 
   if (normalized === '/candidates') return { kind: 'candidates' };
 
-  if (
-    typeof __DEV__ !== 'undefined' &&
-    __DEV__ &&
-    segments[0] === 'candidates' &&
-    candidatePreviewEnabled()
-  ) {
-    if (segments.length === 2 && /^[a-zA-Z0-9_-]+$/.test(segments[1]))
-      return { kind: 'candidateProfile', candidateId: segments[1] };
+  if (segments[0] === 'candidates' && segments.length === 3 && /^[a-f0-9]{64}$/.test(segments[1])) {
+    if (segments[2] === 'claim') return { kind: 'candidateClaim', candidateId: segments[1] };
+    if (segments[2] === 'manage') return { kind: 'candidateManage', candidateId: segments[1] };
+  }
+  if (normalized === '/admin/candidate-claims') return { kind: 'adminCandidateClaims' };
+  if (segments[0] === 'candidates' && segments.length === 2) {
+    const candidateId = segments[1];
+    if (
+      /^[a-f0-9]{64}$/.test(candidateId) ||
+      (candidatePreviewEnabled() && /^preview-[a-zA-Z0-9_-]+$/.test(candidateId))
+    )
+      return { kind: 'candidateProfile', candidateId };
   }
 
   // Private filters never come from or go into the address.
@@ -707,10 +714,21 @@ export function pathForRoute(activeRoute: {
   params?: Record<string, unknown>;
 }): string {
   if (activeRoute.name === 'Candidates') return '/candidates';
-  // Illustrative profile routes remain development-only.
-  if (typeof __DEV__ !== 'undefined' && __DEV__ && candidatePreviewEnabled()) {
-    if (activeRoute.name === 'CandidateProfile')
-      return `/candidates/${encodeURIComponent(String(activeRoute.params?.candidateId ?? ''))}`;
+  if (activeRoute.name === 'AdminCandidateClaims') return '/admin/candidate-claims';
+  if (activeRoute.name === 'CandidateClaim' || activeRoute.name === 'CandidateManage') {
+    const id = String(activeRoute.params?.candidateId ?? '');
+    return /^[a-f0-9]{64}$/.test(id)
+      ? `/candidates/${id}/${activeRoute.name === 'CandidateClaim' ? 'claim' : 'manage'}`
+      : '/404';
+  }
+  if (activeRoute.name === 'CandidateProfile') {
+    const candidateId = String(activeRoute.params?.candidateId ?? '');
+    if (
+      /^[a-f0-9]{64}$/.test(candidateId) ||
+      (candidatePreviewEnabled() && /^preview-[a-zA-Z0-9_-]+$/.test(candidateId))
+    )
+      return `/candidates/${encodeURIComponent(candidateId)}`;
+    return '/404';
   }
   switch (activeRoute.name) {
     case 'Home':
@@ -1039,16 +1057,24 @@ export function stateFromPathname(pathname: string): WebNavigationState {
   };
 
   if (target.kind === 'candidates') return { routes: [homeTabs, { name: 'Candidates' }], index: 1 };
-  if (typeof __DEV__ !== 'undefined' && __DEV__) {
-    if (target.kind === 'candidateProfile')
-      return {
-        routes: [
-          homeTabs,
-          { name: 'CandidateProfile', params: { candidateId: target.candidateId } },
-        ],
-        index: 1,
-      };
-  }
+  if (target.kind === 'candidateClaim' || target.kind === 'candidateManage')
+    return {
+      routes: [
+        homeTabs,
+        {
+          name: target.kind === 'candidateClaim' ? 'CandidateClaim' : 'CandidateManage',
+          params: { candidateId: target.candidateId },
+        },
+      ],
+      index: 1,
+    };
+  if (target.kind === 'adminCandidateClaims')
+    return { routes: [homeTabs, { name: 'AdminCandidateClaims' }], index: 1 };
+  if (target.kind === 'candidateProfile')
+    return {
+      routes: [homeTabs, { name: 'CandidateProfile', params: { candidateId: target.candidateId } }],
+      index: 1,
+    };
 
   switch (target.kind) {
     case 'tab':

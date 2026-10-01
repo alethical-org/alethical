@@ -10,6 +10,7 @@ const EXPECTED_CONSUMERS = [
   'components/auth/CodeField.tsx',
   'components/auth/EmailField.tsx',
   'components/auth/PasswordField.tsx',
+  'components/home/HomeCandidateFinder.tsx',
   'components/home/HomeLegislatorFinder.tsx',
   'screens/FindMyLegislatorScreen.tsx',
   'screens/redesign/ContactUsScreen.tsx',
@@ -30,7 +31,7 @@ function source(path: (typeof EXPECTED_CONSUMERS)[number]) {
 }
 
 describe('browser-filled field scope', () => {
-  it('opts in only the 7 approved field code paths', () => {
+  it('opts in only the approved field code paths', () => {
     const consumers = productionSourceFiles(SRC)
       .filter((path) => !path.endsWith('/theme/browserFill.ts'))
       .filter((path) => MARKERS.some((marker) => readFileSync(path, 'utf8').includes(marker)))

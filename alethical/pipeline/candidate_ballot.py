@@ -1,4 +1,4 @@
-"""Inactive, offline normalization of Minnesota's public sample-ballot response.
+"""Offline normalization of Minnesota's public sample-ballot response.
 
 This module does not fetch, save, or publish anything. Ballot availability never
 proves complete filing coverage or candidate ownership. Address-range matching
@@ -22,6 +22,10 @@ AUTHORITY = "Minnesota Secretary of State"
 
 class CandidateBallotError(ValueError):
     """Unsafe or unresolved source input; never an authoritative empty result."""
+
+
+class CandidateAddressNotFound(CandidateBallotError):
+    """Valid official ranges do not identify exactly one submitted address."""
 
 
 def _require(condition: bool, message: str) -> None:
@@ -50,6 +54,36 @@ def _code(value: object, field: str) -> str:
 def _identity(parts: tuple[str, ...]) -> str:
     encoded = json.dumps(parts, ensure_ascii=False, separators=(",", ":")).encode()
     return hashlib.sha256(encoded).hexdigest()
+
+
+def ballot_jurisdiction(office_title: str, county_name: str) -> str:
+    """Use the explicit source jurisdiction, never names or a postal city.
+
+    A complete numbered state/federal/judicial title or school district title
+    defines the same race across counties. Unrecognized titles remain scoped to
+    their county rather than risking a wrong merge.
+    """
+    statewide = {
+        "U.S. Senator",
+        "Governor & Lt Governor",
+        "Secretary of State",
+        "State Auditor",
+        "Attorney General",
+    }
+    district = (
+        r"U\.S\. Representative District [1-9][0-9]*",
+        r"State Senator District [1-9][0-9]*",
+        r"State Representative District [1-9][0-9]*[AB]",
+        r"Associate Justice - Supreme Court [1-9][0-9]*",
+        r"Judge - Court of Appeals [1-9][0-9]*",
+        r"Judge - [1-9][0-9]*(?:st|nd|rd|th) District Court [1-9][0-9]*",
+        r"School Board Member(?: At Large| District [1-9][0-9]*)? \((?:ISD|SSD|CSD) #[1-9][0-9]*\)(?: \(Elect [1-9][0-9]*\))?",
+    )
+    if office_title in statewide or any(
+        re.fullmatch(pattern, office_title) for pattern in district
+    ):
+        return "Minnesota"
+    return county_name
 
 
 @dataclass(frozen=True)
@@ -112,9 +146,10 @@ def parse_candidate_ballot(
 ) -> BallotCatalogue:
     """Remove private lookup fields while retaining minimal public ballot records.
 
-    Identity is deliberately conservative: election, county, full office title,
-    office code and candidate code. It does not establish identity across sources,
-    counties or elections. Precincts, range IDs, raw source bytes and addresses are
+    Identity uses election, explicit jurisdiction, full office title, office code
+    and candidate code. Unknown jurisdiction titles retain county scope. It does
+    not establish person identity across sources or elections. Precincts, range
+    IDs, raw source bytes and addresses are
     absent from the output, including its provenance URL.
     """
     _require(source_url == SOURCE_URL, "source URL must omit lookup parameters")
@@ -194,7 +229,13 @@ def parse_candidate_ballot(
                 and parsed.password is None,
                 "invalid campaign website",
             )
-        race_parts = (election_id, election_date.isoformat(), county, office, title)
+        race_parts = (
+            election_id,
+            election_date.isoformat(),
+            ballot_jurisdiction(title, county),
+            office,
+            title,
+        )
         race_id = _identity(race_parts)
         candidate = BallotCandidate(
             _identity((*race_parts, candidate_code)),
@@ -213,7 +254,15 @@ def parse_candidate_ballot(
         records[candidate_code] = candidate
     races = tuple(
         BallotRace(
-            _identity((election_id, election_date.isoformat(), county, office, title)),
+            _identity(
+                (
+                    election_id,
+                    election_date.isoformat(),
+                    ballot_jurisdiction(title, county),
+                    office,
+                    title,
+                )
+            ),
             office,
             title,
             county,
@@ -272,6 +321,34 @@ class StreetRangeMatch:
 
 def _same_text(left: str, right: str) -> bool:
     return " ".join(left.upper().split()) == " ".join(right.upper().split())
+
+
+def validate_street_rows(rows: Sequence[Mapping[str, object]]) -> None:
+    """Separate broken source structure from a valid address with no range."""
+    _require(
+        not isinstance(rows, (str, bytes)) and len(rows) <= 100_000,
+        "invalid street rows",
+    )
+    for row in rows:
+        _require(isinstance(row, Mapping), "invalid street row")
+        for key in ("FullStreetName", "CityName", "StateCode", "ZipCode"):
+            _text(row.get(key), key)
+        _require(row.get("StateCode") == "MN", "invalid street state")
+        _require(
+            bool(re.fullmatch(r"[0-9]{5}", str(row.get("ZipCode")))),
+            "invalid street ZIP",
+        )
+        low, high = row.get("HouseNumberLow"), row.get("HouseNumberHigh")
+        _require(
+            type(low) is int and type(high) is int and 0 <= low <= high,
+            "invalid house range",
+        )
+        _require(row.get("OddEvenInd") in ("B", "E", "O"), "unknown address parity")
+        _text(row.get("HouseNumberSuffix"), "HouseNumberSuffix", optional=True)
+        _require(type(row.get("DisplayUnitNbr")) is bool, "invalid unit requirement")
+        _text(row.get("UnitNumberRange"), "UnitNumberRange", optional=True)
+        range_id = row.get("ProdAddressRangeId")
+        _require(type(range_id) is int and range_id > 0, "invalid address range ID")
 
 
 def match_street_range(
@@ -340,9 +417,14 @@ def match_street_range(
             _require(bool(row_unit), "official unit information is unresolved")
             if not unit or not _same_text(row_unit, unit):
                 continue
+        elif unit:
+            # Unit-specific precincts cannot be guessed from a general street
+            # range when the official service has not settled the unit.
+            continue
         range_id = row.get("ProdAddressRangeId")
         _require(type(range_id) is int and range_id > 0, "invalid address range ID")
         assert isinstance(range_id, int)
         matches.append(range_id)
-    _require(len(matches) == 1, "address range is missing or ambiguous")
+    if len(matches) != 1:
+        raise CandidateAddressNotFound("address range is missing or ambiguous")
     return StreetRangeMatch(matches[0])

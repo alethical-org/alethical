@@ -24,6 +24,8 @@ from alethical.api.rate_limit import (
 from alethical.api.routers.admin import router as admin_router
 from alethical.api.routers.ask import router as ask_router
 from alethical.api.routers.contact import router as contact_router
+from alethical.api.routers.candidates import router as candidates_router
+from alethical.api.routers.candidate_claims import router as candidate_claims_router
 from alethical.api.routers.comments import router as comments_router
 from alethical.api.routers.email_subscriptions import (
     router as email_subscriptions_router,
@@ -132,6 +134,10 @@ def create_app() -> FastAPI:
                 "/api/v1/me/email-",
                 "/api/v1/comments/",
                 "/api/v1/me/comments/",
+                "/api/v1/candidate-claims",
+                "/api/v1/candidate-statements/",
+                "/api/v1/candidates/lookup",
+                "/api/v1/candidates/suggest",
             )
         ):
             response.headers["Cache-Control"] = "private, no-store"
@@ -196,8 +202,16 @@ def create_app() -> FastAPI:
     async def bound_comment_request_size(request: Request, call_next):
         # This is a transport limit, not a public-name length rule. Bound JSON
         # before parsing, including requests without a Content-Length header.
-        if request.method == "POST" and request.url.path.startswith(
-            ("/api/v1/comments/", "/api/v1/me/comments/")
+        if request.method in {"POST", "PUT", "DELETE"} and request.url.path.startswith(
+            (
+                "/api/v1/comments/",
+                "/api/v1/me/comments/",
+                "/api/v1/candidates/",
+                "/api/v1/candidate-claims",
+                "/api/v1/candidate-statements/",
+                "/api/v1/admin/candidate-claims",
+                "/api/v1/admin/candidate-statement-reports",
+            )
         ):
             body = bytearray()
             async for chunk in request.stream():
@@ -264,6 +278,10 @@ def create_app() -> FastAPI:
     app.include_router(ask_router, prefix="/api/v1", tags=["ask"])
     app.include_router(contact_router, prefix="/api/v1", tags=["contact"])
     app.include_router(comments_router, prefix="/api/v1", tags=["comments"])
+    app.include_router(candidates_router, prefix="/api/v1", tags=["candidates"])
+    app.include_router(
+        candidate_claims_router, prefix="/api/v1", tags=["candidate-claims"]
+    )
     app.include_router(
         email_subscriptions_router, prefix="/api/v1", tags=["email-subscriptions"]
     )

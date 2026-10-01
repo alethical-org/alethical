@@ -4,6 +4,9 @@ import { isPrivateMetricUrl } from '../siteMetricPrivacy';
 
 describe('private email pages', () => {
   it.each([
+    `https://www.alethical.com/candidates/${'a'.repeat(64)}/claim`,
+    `https://www.alethical.com/candidates/${'a'.repeat(64)}/manage`,
+    'https://www.alethical.com/admin/candidate-claims',
     'https://www.alethical.com/email-preferences',
     'https://www.alethical.com/unsubscribe#private-token',
     'https://www.alethical.com/comment-emails#token=fake-comment-token',
