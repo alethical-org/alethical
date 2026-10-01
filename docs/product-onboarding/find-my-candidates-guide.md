@@ -10,6 +10,7 @@ it never puts the address in a link or saved browser storage.
 
 The full street address identifies the official street range, including house number,
 odd/even side, street direction, city, ZIP and any source-defined unit boundaries.
+Both address entry boxes grow to keep long addresses fully visible.
 A city or ZIP alone cannot choose a ballot. Ambiguous addresses require an explicit
 choice. An unsupported unit or overlapping range produces no match rather than a guess.
 Minnesota mapping services can supply a complete address when the ZIP is missing.
@@ -98,7 +99,8 @@ means. Campaign statements are excluded from official-record answers and search 
 used by Grounded Ask. Private revision history remains available to the owner and staff.
 
 Updates include an account ID and a saved version. An account change or an older editor
-cannot overwrite a newer result. Revocation, withdrawal, deactivation and account deletion
+cannot overwrite a newer result. A same-account sign-in refresh preserves unsaved
+text; changing accounts clears it. Revocation, withdrawal, deactivation and account deletion
 remove the public statement from subsequent reads. Account deletion also removes the
 account's private claims and statement history through database relationships.
 

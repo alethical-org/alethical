@@ -118,7 +118,9 @@ committee tabs that show campaign records rather than the whole `/money` section
 ## The greyed "ON THE ROADMAP" group
 
 Under Search's live rows sits a muted group of pills that cannot be pressed: **Claimed profiles · News · Ask AI**. They name work that is planned, not built, and a pill never
-leads anywhere. Only Search carries this group. Every other planned page in the list stays
+leads anywhere. “Claimed profiles” names the planned searchable directory at
+`/search/claimed-profiles`; individual candidate-profile claims are already available
+from `/candidates/<id>`. Only Search carries this group. Every other planned page in the list stays
 declared but unshown, so a roadmap pill may only stand in for a menu a reader can open.
 
 ## What is deliberately not in the bar

@@ -3,7 +3,8 @@
 <!-- describes: alethical/pipeline/candidate_catalogue.py, alethical/pipeline/candidate_ballot.py, apps/frontend/src/lib/candidateSearchState.ts, apps/frontend/src/components/candidates/CandidateSearchContent.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidatePreviewScreens.tsx, apps/frontend/src/lib/candidateLookupAvailability.ts, apps/frontend/src/lib/staticPageMetadata.ts, apps/frontend/src/navigation/webRoutes.ts, api/page.ts, apps/frontend/metro.config.js -->
 
 **Net:** The complete public candidate lookup, claim review and campaign statement
-build is in release verification. The original preview remains `http://localhost:19047/candidates`.
+workflow is implemented. [Issue 147](https://github.com/alethical-org/alethical/issues/147)
+records the hosted checks and live release evidence. The original preview remains `http://localhost:19047/candidates`.
 The current behavior is owned by [How Find My Candidates works](../product-onboarding/find-my-candidates-guide.md).
 
 The dated sections below retain the earlier decisions and checkpoints. Eugene's latest
@@ -487,3 +488,22 @@ including a real home-to-results lookup at the original preview address.
 Final rendered account-change clearing, Minnesota election-evening behavior,
 independent visitor review, current-main export, hosted checks and live release
 remain part of this same active build, not a deferred scope or a new approval.
+
+### Final local acceptance, 30 September 2026
+
+Independent security and signed-out visitor reviews accepted the working feature.
+Address confirmation without a ZIP, failed lookup and retry, direct public profiles,
+back navigation, signed-out claim entry, keyboard focus, and phone/tablet layouts
+passed at the original preview. Both address forms grow to show long addresses.
+Same-account sign-in refresh preserves an unsaved campaign draft; changing accounts
+still clears private state and cancels pending work.
+
+After rebasing onto current main, all 3985 frontend tests passed across 320 files.
+The production web export passed its local first-load check at 296623 bytes of
+297506. Hosted builds must pass their own measured limit. Completed sign-in and
+real candidate claims were deliberately not submitted during public browser testing;
+authenticated claim, ownership and statement behavior is covered by isolated tests.
+
+The release owner carries the tested change through upload checks, hosted checks,
+merge, deployment and live user-path checks. The linked issue holds their exact
+commit and deployment evidence rather than treating a local checkpoint as live.
