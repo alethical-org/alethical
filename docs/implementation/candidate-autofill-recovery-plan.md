@@ -106,3 +106,33 @@ The existing preview at port 19047 stays the current task's target.
 - Shared Search/About pointer-gap repair keeps the same visible 26px gap, but
   includes it in the open menu's pointer area. This removes the race against
   the close timer without extending that timer or moving the menu.
+
+## Final live review follow-up
+
+The main repair shipped in https://github.com/alethical-org/alethical/pull/2474.
+Live candidate lookup returned the same 42 races for a public civic address with
+no country, United States, U.S.A. with dash punctuation, and balanced parentheses.
+The live legislator lookup also returned House and Senate matches with the country.
+All 24 deployed recovery checks passed in Chromium and WebKit. Physical phone
+keyboard autofill remains untested; phone-sized browsers are not that evidence.
+
+Independent live review then reproduced an additional editing defect: after Change
+address, typing the exact previous submitted address closed the form without a
+submission or network lookup. A screen effect treated equality with old results as
+a completed search. A failing regression test reproduced that same transition.
+Close editing only when a new successful result arrives, including a deliberately
+submitted cached result; retain drafts through failures, cancellation of older
+requests and profile navigation. Shared-use inspection located this effect only in
+candidate search; the homepage equality check runs inside explicit submission and
+does not share this trigger. Unit and browser checks cover typing the previous query,
+the absence of an unintended request, and explicit cached resubmission. The current
+candidate lookup task owns the follow-up release; original preview 19047 stays in use.
+
+The same review reproduced a second transition failure: clicking Search with an
+inline phone suggestion visible blurred the field and moved the button 128px before
+pointer release. The release landed on Election instead, requiring a second click.
+Apply the existing suggestion-choice keep-focus behavior to this form's submit
+button; preserve keyboard focus and visual layout. The browser regression failed
+before repair and covers the first mouse click and emulated touch tap afterward.
+Legislator web suggestions do not close on field blur, and the candidate homepage
+has no inline suggestions, so those paths do not share this cause.

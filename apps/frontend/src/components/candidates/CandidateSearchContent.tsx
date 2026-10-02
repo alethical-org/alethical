@@ -84,6 +84,7 @@ function CandidateSearchSession({
   const autoStarted = useRef(false);
   const initialSearchAddress = useRef(initialAddress).current;
   const displayed = state.displayed;
+  const previousDisplayed = useRef(displayed);
   const busy = state.status === 'loading' || state.status === 'updating';
   const retryBusy = retrying && busy;
   useEffect(() => {
@@ -123,14 +124,11 @@ function CandidateSearchSession({
     void flow.search({ address: initialSearchAddress, electionId: selected }, election);
   }, [initialSearchAddress, selected, elections, flow, state.requested]);
   useEffect(() => {
-    if (
-      state.status === 'success' &&
-      !state.outcome &&
-      displayed &&
-      displayed.request.address.trim() === address.trim()
-    )
-      setChangingAddress(false);
-  }, [state.status, state.outcome, displayed, address]);
+    // A new successful result ends editing, including a submitted cached result.
+    // Typing the previous request is not a submission and must keep the form open.
+    if (displayed && displayed !== previousDisplayed.current) setChangingAddress(false);
+    previousDisplayed.current = displayed;
+  }, [displayed]);
   const editAddress = (value: string) => {
     setAddress(value);
     flow.setDraftAddress(value);

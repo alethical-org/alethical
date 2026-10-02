@@ -57,6 +57,7 @@ export function CandidateButton({
   kind = 'green',
   style,
   href,
+  keepFieldFocus = false,
 }: {
   label: string;
   onPress(): void;
@@ -66,6 +67,7 @@ export function CandidateButton({
   kind?: 'green' | 'outline' | 'text';
   style?: StyleProp<ViewStyle>;
   href?: string;
+  keepFieldFocus?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
   const control = useRef<View>(null);
@@ -90,6 +92,9 @@ export function CandidateButton({
       aria-busy={busy || undefined}
       disabled={busy || disabled}
       accessibilityState={{ busy, disabled: busy || disabled }}
+      {...(Platform.OS === 'web' && keepFieldFocus
+        ? { onMouseDown: (event: React.MouseEvent) => event.preventDefault() }
+        : {})}
       {...(href && !busy && !disabled
         ? linkProps(href, onPress)
         : {

@@ -343,6 +343,9 @@ export function CandidateAddressForm({
         <CandidateButton
           label="Find my candidates"
           busy={busy}
+          // Keep suggestions from collapsing and moving this target between
+          // pointer press and release. Keyboard focus remains unchanged.
+          keepFieldFocus
           onPress={() => submit()}
           style={{
             minHeight: compact ? 52 : 60,
