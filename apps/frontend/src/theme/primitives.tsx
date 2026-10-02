@@ -429,10 +429,24 @@ function MenuPanel({ menu, onNavigate }: { menu: MenuKey; onNavigate?: (item: Ia
     if (!panel) return;
     const fitWindow = () =>
       setMaxHeight(Math.max(0, window.innerHeight - panel.getBoundingClientRect().top - 8));
+    // Firefox can leave a focused row partly clipped in a transformed scroller.
+    // Scroll only this panel, with space for the keyboard-focus outline.
+    const revealFocus = (event: FocusEvent) => {
+      const target = event.target as HTMLElement;
+      if (target === panel) return;
+      const row = target.getBoundingClientRect();
+      const box = panel.getBoundingClientRect();
+      const top = box.top + panel.clientTop + 4;
+      const bottom = box.top + panel.clientTop + panel.clientHeight - 4;
+      if (row.top < top || row.height > bottom - top) panel.scrollTop += row.top - top;
+      else if (row.bottom > bottom) panel.scrollTop += row.bottom - bottom;
+    };
     fitWindow();
+    panel.addEventListener('focusin', revealFocus);
     window.addEventListener('resize', fitWindow);
     window.addEventListener('scroll', fitWindow, true);
     return () => {
+      panel.removeEventListener('focusin', revealFocus);
       window.removeEventListener('resize', fitWindow);
       window.removeEventListener('scroll', fitWindow, true);
     };

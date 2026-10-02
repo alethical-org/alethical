@@ -144,8 +144,12 @@ test('short desktop windows keep menu rows reachable by scrolling and keyboard',
     if (await lastRow.evaluate((element) => element === document.activeElement)) break;
   }
   await expect(lastRow).toBeFocused();
-  const keyboardBox = (await lastRow.boundingBox())!;
-  expect(keyboardBox.y + keyboardBox.height).toBeLessThanOrEqual(400);
+  await expect
+    .poll(async () => {
+      const keyboardBox = (await lastRow.boundingBox())!;
+      return keyboardBox.y + keyboardBox.height;
+    })
+    .toBeLessThanOrEqual(400);
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/find-my-legislator$/);
 });
