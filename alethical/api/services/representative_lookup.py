@@ -14,6 +14,7 @@ import requests
 from shapely.geometry import Point, mapping, shape
 from shapely.geometry.base import BaseGeometry
 
+from alethical.api.services.address_format import normalize_address_format
 from alethical.api.services.legislative_districts import (
     LegislativeDistrictDataError,
     legislative_districts_for_point,
@@ -412,7 +413,7 @@ def _punctuation_free_address_candidates(
 def _minnesota_address_candidates(
     address_text: str,
 ) -> tuple[_ParsedMinnesotaAddress, ...]:
-    compact = re.sub(r"\s+", " ", address_text.strip())
+    compact = normalize_address_format(address_text)
     state_matches = list(re.finditer(r"\b(?:MN|MINNESOTA)\b", compact, re.IGNORECASE))
     if not state_matches:
         return ()
@@ -779,7 +780,7 @@ class MinnesotaAddressPointGeocoder:
             where_parts.append(f"UPPER(anumbersuf) = '{suffix}'")
 
         features, _ = self._request_features(where_parts, result_record_count=200)
-        active_features = [
+        active_features: list[object] = [
             feature
             for feature in features
             if isinstance(feature, dict)
@@ -1136,7 +1137,7 @@ class MinnesotaAddressPointGeocoder:
 
     @classmethod
     def _parse_suggestion_query(cls, address_text: str) -> _AddressPointQuery | None:
-        compact = re.sub(r"\s+", " ", address_text.strip())
+        compact = normalize_address_format(address_text)
         parts = [part.strip() for part in re.split(r"[,;]+", compact)]
         street = " ".join(_address_words(parts[0] if parts else ""))
         if re.match(r"^\d+[A-Z]?\s+\S", street, re.IGNORECASE) is None:

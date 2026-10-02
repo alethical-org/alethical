@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import {
   Animated,
@@ -21,6 +21,7 @@ import {
   locationFailureFromBrowserError,
 } from '../../lib/homeLegislatorFinder';
 import type { HomeFinderDestination, HomeFinderLayout } from '../../lib/homeLegislatorFinder';
+import { currentAddressInput } from '../../lib/currentAddressInput';
 import { browserFillTextInputProps } from '../../theme/browserFill';
 import { fieldFocusRing, fieldOutlineReset } from '../../theme/fieldFocus';
 import { prefersReducedMotion, theme as t } from '../../theme/tokens';
@@ -109,6 +110,13 @@ export function HomeLegislatorFinderForm({
   onFind,
   onUseLocation,
 }: FormProps) {
+  const localInputRef = useRef<TextInput>(null);
+  const fieldRef = inputRef ?? localInputRef;
+  useLayoutEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const field = fieldRef.current as unknown as HTMLInputElement | null;
+    if (field && field.value !== value) field.value = value;
+  }, [value, fieldRef]);
   const desktop = layout === 'desktop';
   const tablet = layout === 'tablet';
   const [locationHovered, setLocationHovered] = useState(false);
@@ -170,7 +178,7 @@ export function HomeLegislatorFinderForm({
         >
           <MapPin size={22} color={t.colors.text.faint} strokeWidth={2} aria-hidden />
           <TextInput
-            ref={inputRef}
+            ref={fieldRef}
             {...browserFillTextInputProps}
             accessibilityLabel="Full street address"
             aria-describedby={HOME_FINDER_HELP_ID}
@@ -185,7 +193,9 @@ export function HomeLegislatorFinderForm({
             placeholderTextColor={t.colors.text.faint}
             returnKeyType="search"
             style={[styles.input, desktop && styles.inputDesktop, fieldOutlineReset]}
-            value={value}
+            // Keep unreported browser fill through unrelated renders; the effect
+            // above synchronizes explicit address replacements on web.
+            {...(Platform.OS === 'web' ? { defaultValue: value } : { value })}
           />
           {desktop ? findButton : null}
         </View>
@@ -223,7 +233,9 @@ export function HomeLegislatorFinder({
 
   const find = () => {
     if (requestInFlight.current) return;
-    onNavigate(homeAddressDestination(value));
+    const visibleAddress = currentAddressInput(inputRef.current, value);
+    setValue(visibleAddress);
+    onNavigate(homeAddressDestination(visibleAddress));
   };
 
   const finishLocation = (destination: HomeFinderDestination) => {
@@ -269,8 +281,14 @@ export function HomeLegislatorFinder({
       reduceMotion={prefersReducedMotion()}
       inputRef={inputRef}
       onValueChange={setValue}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
+      onFocus={() => {
+        setValue(currentAddressInput(inputRef.current, value));
+        setFocused(true);
+      }}
+      onBlur={() => {
+        setValue(currentAddressInput(inputRef.current, value));
+        setFocused(false);
+      }}
       onFind={find}
       onUseLocation={useLocation}
     />

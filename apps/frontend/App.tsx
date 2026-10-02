@@ -21,8 +21,9 @@ import { ensureBrowserFillStyles } from './src/theme/browserFill';
  * downloads would put everything they share, the sign-in client included, into
  * the file every page fetches. `lib/auth/signInBundle.ts` says why.
  */
-const EmailLinkPage = loadOnDemand(() =>
-  loadSignInBundle().then((bundle) => ({ default: bundle.EmailLinkPage })),
+const EmailLinkPage = loadOnDemand(
+  () => loadSignInBundle().then((bundle) => ({ default: bundle.EmailLinkPage })),
+  { kind: 'screen' },
 );
 
 export default function App() {

@@ -46,10 +46,12 @@ import {
 
 const isWeb = Platform.OS === 'web';
 const t = theme;
-const FooterSocialIconLink = loadOnDemand(() =>
-  import('../components/SocialIconLink').then(({ SocialIconLink }) => ({
-    default: SocialIconLink,
-  })),
+const FooterSocialIconLink = loadOnDemand(
+  () =>
+    import('../components/SocialIconLink').then(({ SocialIconLink }) => ({
+      default: SocialIconLink,
+    })),
+  { kind: 'optional' },
 );
 
 function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () => void }] {

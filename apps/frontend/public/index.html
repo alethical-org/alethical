@@ -545,7 +545,7 @@
         font-weight: 600;
         text-decoration: none;
       }
-      /* Services keeps its approved dark content before the app starts. */
+      /* Services keeps its approved dark content before a screen draws. */
       .page-snapshot-dark {
         background: #0a0a0a;
         color: #ececec;
@@ -734,15 +734,8 @@
         }
       })();
     </script>
-    <!--
-      A release replaces every content-named file under /_expo/static/js/web/,
-      so a tab left open across one can ask for a file that is no longer there.
-      One reload puts the tab on the current release. Every file this page loads
-      directly counts, not only the first one: since #1966 the page also loads a
-      shared file, and screens arrive in their own files after this program has
-      run (src/lib/releaseReload.ts does the same for those, sharing this key so
-      the 2 of them cannot reload a tab twice).
-    -->
+    <!-- Startup files can recover once before a screen draws. Later download
+         failures must never reload a working page and discard private input. -->
     <script id="alethical-release-recovery">
       (function () {
         var reloadKey = 'alethical.release-program-reload';
@@ -750,6 +743,7 @@
         window.addEventListener(
           'error',
           function (event) {
+            if (window.__alethicalScreenDrawn) return;
             var target = event.target;
             if (!(target instanceof HTMLScriptElement) || !target.src) {
               return;

@@ -5,6 +5,7 @@ import { useResponsive } from '../../hooks/useResponsive';
 import { browserFillInputProps } from '../../theme/browserFill';
 import { AlertCircle, MapPin } from '../icons';
 import { LinkArrow } from '../LinkArrow';
+import { currentAddressInput } from '../../lib/currentAddressInput';
 
 const loadCandidates = () => import('../../data/candidates');
 type CandidateModule = Awaited<ReturnType<typeof loadCandidates>>;
@@ -66,7 +67,9 @@ export function HomeCandidateFinder({
 
   const submit = async () => {
     if (active.current) return;
-    const value = address.trim();
+    const visibleAddress = currentAddressInput(input.current, address);
+    const value = visibleAddress.trim();
+    setAddress(visibleAddress);
     // Only check for a house number and street. The server owns the exact match.
     if (!/^\d+\S*\s+\S/.test(value)) {
       setError('empty');
@@ -153,12 +156,16 @@ export function HomeCandidateFinder({
             enterKeyHint="search"
             rows={1}
             placeholder="Street address, city, MN ZIP"
-            value={address}
+            // Browser autofill can arrive without an input event. Let the field
+            // retain that text across unrelated parent renders until submission.
+            defaultValue=""
             readOnly={busy}
             aria-invalid={invalid}
             aria-describedby={`${id}-message ${id}-help ${id}-privacy`}
             onChange={(event) => {
-              setAddress(event.target.value.replace(/[\r\n]+/g, ' '));
+              const value = event.target.value.replace(/[\r\n]+/g, ' ');
+              event.target.value = value;
+              setAddress(value);
               setError(null);
             }}
             onKeyDown={(event) => {
@@ -168,9 +175,11 @@ export function HomeCandidateFinder({
               }
             }}
             onFocus={() => {
+              setAddress(currentAddressInput(input.current, address));
               // The pair has a scroll margin to leave room above a phone keyboard.
               if (isMobile) input.current?.closest('form')?.scrollIntoView({ block: 'nearest' });
             }}
+            onBlur={() => setAddress(currentAddressInput(input.current, address))}
           />
         </div>
         <button type="submit" disabled={busy} aria-disabled={busy} aria-busy={busy}>

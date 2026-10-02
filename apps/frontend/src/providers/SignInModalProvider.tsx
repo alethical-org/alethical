@@ -1,5 +1,7 @@
 import { PropsWithChildren, useMemo, useRef, useState } from 'react';
 
+import { AppFailureDialog } from '../components/AppFailureDialog';
+
 import { loadSignInBundle } from '../lib/auth/loadSignInBundle';
 import { signInWorkPendingOnLoad } from '../lib/auth/signInWorkPending';
 import { loadOnDemand } from '../lib/loadOnDemand';
@@ -30,18 +32,25 @@ import { SignInModalContext, type SignInModalValue } from './signInModalContext'
  * inward, rather than the machinery providing it: the value a screen holds must
  * not change identity when the fetch lands.
  */
-const SignInMachinery = loadOnDemand(() =>
-  loadSignInBundle().then((bundle) => ({ default: bundle.SignInMachinery })),
+const SignInMachinery = loadOnDemand(
+  () => loadSignInBundle().then((bundle) => ({ default: bundle.SignInMachinery })),
+  { kind: 'optional', onFailure: (props) => props.onLoadFailure() },
 );
 
 export function SignInModalProvider({ children }: PropsWithChildren) {
   const [wanted, setWanted] = useState(signInWorkPendingOnLoad);
   const [heldPress, setHeldPress] = useState<SignInRequest | null>(null);
+  const [failureOpen, setFailureOpen] = useState(false);
+  const failedRef = useRef(false);
   const realOpen = useRef<((request: SignInRequest) => void) | null>(null);
 
   const value = useMemo<SignInModalValue>(
     () => ({
       openSignIn: (request) => {
+        if (failedRef.current) {
+          setFailureOpen(true);
+          return;
+        }
         const open = realOpen.current;
         if (open) {
           open(request);
@@ -61,12 +70,17 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
       {children}
       {wanted ? (
         <SignInMachinery
+          onLoadFailure={() => {
+            failedRef.current = true;
+            setFailureOpen(true);
+          }}
           onReady={(open: (request: SignInRequest) => void) => {
             realOpen.current = open;
           }}
           initialRequest={heldPress}
         />
       ) : null}
+      {failureOpen ? <AppFailureDialog onClose={() => setFailureOpen(false)} /> : null}
     </SignInModalContext.Provider>
   );
 }

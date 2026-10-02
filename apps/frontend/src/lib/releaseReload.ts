@@ -1,31 +1,33 @@
 /**
- * One page reload per browser tab, for when a file this release needs is gone.
- *
- * A deployment replaces every content-named JavaScript file. A tab left open
- * across a release still holds the old page, so the piece it asks for next can
- * be missing. Reloading fetches the current page and the current files.
- *
- * The key is shared with the `alethical-release-recovery` program in
- * `apps/frontend/public/index.html`, which does the same for the first file a
- * page loads. One budget between them: if a reload has not fixed it, a second
- * one will not either, and a reload loop is worse than an error page.
+ * One automatic recovery reload per tab, only before a screen has drawn.
+ * Once interactive, a reload would destroy unsent forms and private search memory.
+ * The HTML script listener shares the in-memory startup flag and storage budget.
+ * No address, account or request data is stored by recovery.
  */
 const RELOAD_KEY = 'alethical.release-program-reload';
 
 type ReloadTarget = {
+  __alethicalScreenDrawn?: boolean;
   sessionStorage?: Storage;
   location?: { reload: () => void };
 };
 
+/** End automatic startup recovery when the first usable screen draws. */
+export function markScreenDrawn(
+  target: ReloadTarget | undefined = typeof window === 'undefined' ? undefined : window,
+): void {
+  if (target) target.__alethicalScreenDrawn = true;
+}
+
 export function requestReleaseReload(
   target: ReloadTarget | undefined = typeof window === 'undefined' ? undefined : window,
 ): boolean {
-  if (!target?.location) {
+  if (!target?.location || target.__alethicalScreenDrawn) {
     return false;
   }
 
   try {
-    if (target.sessionStorage?.getItem(RELOAD_KEY)) {
+    if (!target.sessionStorage || target.sessionStorage.getItem(RELOAD_KEY)) {
       return false;
     }
     target.sessionStorage?.setItem(RELOAD_KEY, '1');
