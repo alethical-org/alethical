@@ -36,7 +36,7 @@ afterEach(() => {
   host.remove();
   vi.restoreAllMocks();
 });
-it('keeps accepted summaries while the optional chunk loads and after recovery is declined', async () => {
+it('keeps accepted summaries while the optional chunk loads and after its download fails', async () => {
   const error = vi.spyOn(console, 'error').mockImplementation(() => {});
   document.body.append(host);
   // A real split, because the chart's dek is what explains the 2 contribution figures in
@@ -80,7 +80,7 @@ it('keeps accepted summaries while the optional chunk loads and after recovery i
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
   });
-  expect(requestReleaseReload).toHaveBeenCalled();
+  expect(requestReleaseReload).not.toHaveBeenCalled();
   expect(host.textContent).toContain('Official spending $5261240');
   expect(host.textContent).toContain(copy.chartFailed);
   expect(host.textContent).toContain(dekText(namedMoneyDefinition(false)));

@@ -91,14 +91,13 @@ for (const [src, sizes] of [
   }
 }
 
-const appSource = await readFile(resolve(projectRoot, 'App.tsx'), 'utf8');
+const htmlSource = await readFile(resolve(projectRoot, 'public/index.html'), 'utf8');
 if (
-  !appSource.includes("link.rel = 'apple-touch-icon'") ||
-  !appSource.includes("link.href = '/apple-touch-icon.png?brand=twin-peaks'")
+  !htmlSource.includes('<link rel="apple-touch-icon" href="/apple-touch-icon.png?brand=twin-peaks"')
 ) {
   errors.push('The web page does not name the iPhone saved-site icon');
 }
-if (!appSource.includes("link.href = '/manifest.json?brand=twin-peaks'")) {
+if (!htmlSource.includes('<link rel="manifest" href="/manifest.json?brand=twin-peaks"')) {
   errors.push('The web page does not request the current saved-site manifest');
 }
 

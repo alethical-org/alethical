@@ -1,5 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -41,6 +41,7 @@ import {
 import { recordSiteMetricEvent } from '../lib/siteMetricEvents';
 import type { IaItem, MenuKey } from '../navigation/ia';
 import type { RootStackParamList } from '../navigation/types';
+import { currentAddressInput } from '../lib/currentAddressInput';
 import { browserFillTextInputProps } from '../theme/browserFill';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../theme/fieldFocus';
 import { Container, Footer, PageBackground, TopNav } from '../theme/primitives';
@@ -232,6 +233,11 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   });
   const autoRanFor = useRef<string | null>(null);
   const addressInputRef = useRef<TextInput | null>(null);
+  useLayoutEffect(() => {
+    if (!isWeb) return;
+    const field = addressInputRef.current as unknown as HTMLInputElement | null;
+    if (field && field.value !== address) field.value = address;
+  }, [address]);
   const lastFoundResult = useRef<RepresentativeLookupResult | undefined>(undefined);
   const recordedFoundResult = useRef<RepresentativeLookupResult | undefined>(undefined);
   const geolocation = browserGeolocation();
@@ -464,15 +470,34 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 },
     );
   };
+  const editAddress = (value: string) => {
+    setAddress(value);
+    lookup.reset();
+    setClientError(null);
+    setSelectedCoordinate(undefined);
+    setChoiceClosed(false);
+    setSuggestionsOpen(true);
+    setChoiceIndex(0);
+  };
   const findAddress = () => {
     if (lookup.isPending || rateLimitSeconds > 0) return;
-    if (!address.trim()) {
+    const value = currentAddressInput(addressInputRef.current, address);
+    if (!value.trim()) {
+      setAddress(value);
       addressInputRef.current?.focus();
       return;
     }
-    runAddress(address);
+    runAddress(value);
   };
   const chooseAddress = (choice: RepresentativeAddressChoice) => {
+    if (lookup.isPending || rateLimitSeconds > 0) return;
+    const value = currentAddressInput(addressInputRef.current, address);
+    if (value !== address) {
+      setChoiceClosed(true);
+      setSuggestionsOpen(false);
+      findAddress();
+      return;
+    }
     const { serviceAddress } = prepareAddressLookup(choice.matchedAddress);
     setAddress(choice.matchedAddress);
     setChoiceClosed(true);
@@ -652,24 +677,22 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                   autoComplete="street-address"
                   placeholder={EXAMPLE_ADDRESS}
                   placeholderTextColor={t.colors.text.faint}
-                  value={address}
-                  onChangeText={(value) => {
-                    setAddress(value);
-                    lookup.reset();
-                    setClientError(null);
-                    setSelectedCoordinate(undefined);
-                    setChoiceClosed(false);
-                    setSuggestionsOpen(true);
-                    setChoiceIndex(0);
-                  }}
+                  // A suggestion or hover render must not erase browser-filled
+                  // text before its change event; explicit edits sync above.
+                  {...(isWeb ? { defaultValue: address } : { value: address })}
+                  onChangeText={editAddress}
                   onSubmitEditing={findAddress}
                   style={[styles.input, isMobile && styles.inputMobile, fieldOutlineReset]}
                   onFocus={() => {
+                    const value = currentAddressInput(addressInputRef.current, address);
+                    if (value !== address) editAddress(value);
                     addressFocusProps.onFocus();
                     setChoiceClosed(false);
                     if (!lookup.error && !clientError) setSuggestionsOpen(true);
                   }}
                   onBlur={() => {
+                    const value = currentAddressInput(addressInputRef.current, address);
+                    if (value !== address) editAddress(value);
                     addressFocusProps.onBlur();
                     if (!isWeb) setSuggestionsOpen(false);
                   }}

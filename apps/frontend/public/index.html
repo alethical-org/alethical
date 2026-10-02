@@ -7,6 +7,74 @@
       name="viewport"
       content="width=device-width, initial-scale=1, shrink-to-fit=no, interactive-widget=resizes-content"
     />
+    <!-- Fixed metadata and interaction styles belong in HTML, ready before any
+         app download. Avoid carrying runtime injectors in the initial program.
+         Browser-fill CSS is pinned to theme/browserFill.ts by browserFill.test.ts. -->
+    <link rel="manifest" href="/manifest.json?brand=twin-peaks" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?brand=twin-peaks" />
+    <meta name="theme-color" content="#111111" />
+    <style id="alethical-focus-visible">
+      a:not([data-arrow-focus]):focus-visible,
+      button:not([data-arrow-focus]):focus-visible,
+      [role="button"]:not([data-arrow-focus]):focus-visible,
+      [role="link"]:not([data-arrow-focus]):focus-visible,
+      [tabindex]:not(input):not(textarea):not(select):not([role="heading"]):not(
+          h1
+        ):not(h2):not(h3):not(h4):not(h5):not(h6):not(
+          [data-arrow-focus]
+        ):focus-visible {
+        outline: 2px solid #7c5cff !important;
+        outline-offset: 2px !important;
+      }
+    </style>
+    <style id="alethical-browser-fill">
+      input[data-alethical-browser-fill="true"]:autofill,
+      input[data-alethical-browser-fill="true"]:autofill:hover,
+      input[data-alethical-browser-fill="true"]:autofill:focus,
+      input[data-alethical-browser-fill="true"]:autofill:active {
+        background-color: #ffffff !important;
+        -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+        box-shadow: 0 0 0 1000px #ffffff inset !important;
+        -webkit-text-fill-color: #11150f !important;
+        color: #11150f !important;
+        caret-color: #11150f !important;
+      }
+      input[data-alethical-browser-fill="true"]:-webkit-autofill,
+      input[data-alethical-browser-fill="true"]:-webkit-autofill:hover,
+      input[data-alethical-browser-fill="true"]:-webkit-autofill:focus,
+      input[data-alethical-browser-fill="true"]:-webkit-autofill:active {
+        background-color: #ffffff !important;
+        -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+        box-shadow: 0 0 0 1000px #ffffff inset !important;
+        -webkit-text-fill-color: #11150f !important;
+        color: #11150f !important;
+        caret-color: #11150f !important;
+      }
+      @media (forced-colors: active) {
+        input[data-alethical-browser-fill="true"]:autofill,
+        input[data-alethical-browser-fill="true"]:autofill:hover,
+        input[data-alethical-browser-fill="true"]:autofill:focus,
+        input[data-alethical-browser-fill="true"]:autofill:active {
+          background-color: Canvas !important;
+          -webkit-box-shadow: none !important;
+          box-shadow: none !important;
+          -webkit-text-fill-color: CanvasText !important;
+          color: CanvasText !important;
+          caret-color: CanvasText !important;
+        }
+        input[data-alethical-browser-fill="true"]:-webkit-autofill,
+        input[data-alethical-browser-fill="true"]:-webkit-autofill:hover,
+        input[data-alethical-browser-fill="true"]:-webkit-autofill:focus,
+        input[data-alethical-browser-fill="true"]:-webkit-autofill:active {
+          background-color: Canvas !important;
+          -webkit-box-shadow: none !important;
+          box-shadow: none !important;
+          -webkit-text-fill-color: CanvasText !important;
+          color: CanvasText !important;
+          caret-color: CanvasText !important;
+        }
+      }
+    </style>
     <!--
       Everything between the two markers below is this page's own head, and
       api/page.ts replaces it per address before the response is sent, so a search
@@ -545,7 +613,7 @@
         font-weight: 600;
         text-decoration: none;
       }
-      /* Services keeps its approved dark content before the app starts. */
+      /* Services keeps its approved dark content before a screen draws. */
       .page-snapshot-dark {
         background: #0a0a0a;
         color: #ececec;
@@ -734,15 +802,8 @@
         }
       })();
     </script>
-    <!--
-      A release replaces every content-named file under /_expo/static/js/web/,
-      so a tab left open across one can ask for a file that is no longer there.
-      One reload puts the tab on the current release. Every file this page loads
-      directly counts, not only the first one: since #1966 the page also loads a
-      shared file, and screens arrive in their own files after this program has
-      run (src/lib/releaseReload.ts does the same for those, sharing this key so
-      the 2 of them cannot reload a tab twice).
-    -->
+    <!-- Startup files can recover once before a screen draws. Later download
+         failures must never reload a working page and discard private input. -->
     <script id="alethical-release-recovery">
       (function () {
         var reloadKey = 'alethical.release-program-reload';
@@ -750,6 +811,7 @@
         window.addEventListener(
           'error',
           function (event) {
+            if (window.__alethicalScreenDrawn) return;
             var target = event.target;
             if (!(target instanceof HTMLScriptElement) || !target.src) {
               return;

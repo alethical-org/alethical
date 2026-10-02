@@ -281,3 +281,46 @@ it('grows the address field and submits Enter without inserting a newline', asyn
   expect(services.lookup).toHaveBeenCalled();
   expect(navigate).toHaveBeenCalledOnce();
 });
+
+it.each(['button', 'keyboard'])(
+  'submits browser-filled text before a change event via %s',
+  async (method) => {
+    const { services } = setup(async () => ({ kind: 'no-match' }));
+    const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+    const filled = `${address}, United States`;
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(
+      input,
+      filled,
+    );
+    if (method === 'button') submit();
+    else
+      act(() =>
+        input.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+        ),
+      );
+    await flush();
+    expect(services.lookup).toHaveBeenCalledWith(
+      { address: filled, electionId: 'future' },
+      expect.any(AbortSignal),
+    );
+    expect(input.value).toBe(filled);
+  },
+);
+
+it('keeps a browser-filled address through blur and an unrelated homepage render', async () => {
+  const { services, navigate, load } = setup(async () => ({ kind: 'no-match' }));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  const filled = `${address}, United States`;
+  act(() => input.focus());
+  Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input, filled);
+  act(() => input.blur());
+  act(() => root.render(<HomeCandidateFinder onNavigate={navigate} load={load} />));
+  expect(input.value).toBe(filled);
+  submit();
+  await flush();
+  expect(services.lookup).toHaveBeenCalledWith(
+    { address: filled, electionId: 'future' },
+    expect.any(AbortSignal),
+  );
+});

@@ -22,8 +22,10 @@ import { useSignInModal } from '../../providers/signInModalContext';
 import { loadOnDemand } from '../../lib/loadOnDemand';
 import { EmailButton, EmailNotice } from './EmailControls';
 
-const UnconcealedConfirmation = loadOnDemand(() =>
-  import('./UnconcealedConfirmation').then((part) => ({ default: part.UnconcealedConfirmation })),
+const UnconcealedConfirmation = loadOnDemand(
+  () =>
+    import('./UnconcealedConfirmation').then((part) => ({ default: part.UnconcealedConfirmation })),
+  { kind: 'optional', onFailure: (props) => props.onLoadFailure() },
 );
 
 export function UnconcealedInvite({
@@ -247,6 +249,10 @@ export function UnconcealedInvite({
       </View>
       {confirmationOpen && isSignedIn ? (
         <UnconcealedConfirmation
+          onLoadFailure={() => {
+            setConfirmationOpen(false);
+            setError(true);
+          }}
           open={confirmationOpen && isSignedIn}
           accessToken={accessToken}
           accountId={identity}

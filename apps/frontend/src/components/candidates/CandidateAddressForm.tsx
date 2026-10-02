@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
+import { currentAddressInput } from '../../lib/currentAddressInput';
 import { useResponsive } from '../../hooks/useResponsive';
 import { theme as t } from '../../theme/tokens';
 import { fieldFocusRing, fieldOutlineReset } from '../../theme/fieldFocus';
@@ -62,6 +63,11 @@ export function CandidateAddressForm({
   const [focused, setFocused] = useState(false);
   const [missing, setMissing] = useState(false);
   const [fieldHover, setFieldHover] = useState(false);
+  useLayoutEffect(() => {
+    // Explicit address changes still update the field. Suggestion, hover, and
+    // other renders must not overwrite a browser fill whose event has not fired.
+    if (inputRef.current && inputRef.current.value !== address) inputRef.current.value = address;
+  }, [address]);
   useLayoutEffect(() => {
     const field = inputRef.current;
     if (!field) return;
@@ -124,15 +130,19 @@ export function CandidateAddressForm({
     }
   }, [choicesOpen]);
   const choices = outcome?.kind === 'ambiguous' ? outcome.choices : [];
-  const pick = (choice: CandidateAddressChoice) => {
-    setSuggestions([]);
-    setSuggestOpen(false);
-    setChoicesOpen(false);
-    onSubmit(address, choice);
-  };
-  const submit = () => {
+  const visibleAddress = () => currentAddressInput(inputRef.current, address);
+  const submit = (choice?: CandidateAddressChoice) => {
     if (busy) return;
-    if (!address.trim()) {
+    const value = visibleAddress();
+    // A browser-filled replacement invalidates any old highlighted suggestion.
+    const changed = value !== address;
+    if (changed) {
+      generation.current += 1;
+      setSuggestions([]);
+      setActive(-1);
+      onAddress(value);
+    }
+    if (!value.trim()) {
       setMissing(true);
       focusField();
       return;
@@ -140,8 +150,10 @@ export function CandidateAddressForm({
     setMissing(false);
     setSuggestOpen(false);
     setChoicesOpen(false);
-    onSubmit(address);
+    if (choice && !changed) onSubmit(value, choice);
+    else onSubmit(value);
   };
+  const pick = (choice: CandidateAddressChoice) => submit(choice);
   const fieldKey = (event: ReactKeyboardEvent<HTMLElement>) => {
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -256,19 +268,31 @@ export function CandidateAddressForm({
                 aria-invalid={invalid || undefined}
                 aria-describedby={`${id}-message ${id}-help`}
                 autoComplete="street-address"
-                value={address}
+                enterKeyHint="search"
+                defaultValue={address}
                 placeholder="350 S 5th St, Minneapolis, MN 55415"
                 style={inputStyle}
                 onChange={(event) => {
                   setMissing(false);
                   setChoicesOpen(false);
-                  onAddress(event.target.value.replace(/[\r\n]+/g, ' '));
+                  const value = event.target.value.replace(/[\r\n]+/g, ' ');
+                  event.target.value = value;
+                  onAddress(value);
                 }}
                 onFocus={() => {
+                  const value = visibleAddress();
+                  if (value !== address) onAddress(value);
                   setFocused(true);
                   if (isMobile) inputRef.current?.scrollIntoView?.({ block: 'nearest' });
                 }}
                 onBlur={() => {
+                  const value = visibleAddress();
+                  if (value !== address) {
+                    generation.current += 1;
+                    setSuggestions([]);
+                    setChoicesOpen(false);
+                    onAddress(value);
+                  }
                   setFocused(false);
                   setSuggestOpen(false);
                 }}
@@ -282,7 +306,7 @@ export function CandidateAddressForm({
                 accessibilityLabel="Full street address"
                 value={address}
                 onChangeText={onAddress}
-                onSubmitEditing={submit}
+                onSubmitEditing={() => submit()}
                 autoComplete="street-address"
                 placeholder="350 S 5th St, Minneapolis, MN 55415"
                 style={[styles.nativeInput, fieldOutlineReset]}
@@ -319,7 +343,7 @@ export function CandidateAddressForm({
         <CandidateButton
           label="Find my candidates"
           busy={busy}
-          onPress={submit}
+          onPress={() => submit()}
           style={{
             minHeight: compact ? 52 : 60,
             width: isMobile || compact ? '100%' : isDesktop ? 248 : 220,

@@ -30,5 +30,7 @@ export function prefetchCampaignMoneyTab() {
 }
 
 /** The profile's overview and unrelated screens do not need the donation browser. */
-export const CampaignMoneyTab: ComponentType<ComponentProps<typeof MoneyTab>> =
-  loadOnDemand(prefetchCampaignMoneyTab);
+export const CampaignMoneyTab: ComponentType<ComponentProps<typeof MoneyTab>> = loadOnDemand(
+  prefetchCampaignMoneyTab,
+  { kind: 'section' },
+);

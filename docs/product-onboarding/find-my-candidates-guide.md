@@ -1,6 +1,6 @@
 # How Find My Candidates works
 
-<!-- describes: apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidateProfileScreen.tsx, apps/frontend/src/screens/CandidateAccountScreens.tsx, apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx, apps/frontend/src/components/candidates/*.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/data/candidates.ts, apps/frontend/src/data/candidateClaims.ts, apps/frontend/src/hooks/useCandidatePrivacyBoundary.ts, apps/frontend/src/lib/candidatePrivacy.ts, alethical/api/routers/candidates.py, alethical/api/routers/candidate_claims.py, alethical/api/services/candidate_lookup.py, alethical/api/services/candidate_legislators.py, alethical/api/data/candidate_legislator_links.json, alethical/api/services/candidate_claims.py, alethical/pipeline/candidate_ballot.py, alethical/db/models.py, alethical/alembic/versions/0066_candidate_lookup.py, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/lib/staticPageMetadata.ts, api/page.ts -->
+<!-- describes: alethical/api/services/address_format.py, apps/frontend/src/lib/currentAddressInput.ts, apps/frontend/src/components/home/HomeCandidateFinder.tsx, apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidateProfileScreen.tsx, apps/frontend/src/screens/CandidateAccountScreens.tsx, apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx, apps/frontend/src/components/candidates/*.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/data/candidates.ts, apps/frontend/src/data/candidateClaims.ts, apps/frontend/src/hooks/useCandidatePrivacyBoundary.ts, apps/frontend/src/lib/candidatePrivacy.ts, alethical/api/routers/candidates.py, alethical/api/routers/candidate_claims.py, alethical/api/services/candidate_lookup.py, alethical/api/services/candidate_legislators.py, alethical/api/data/candidate_legislator_links.json, alethical/api/services/candidate_claims.py, alethical/pipeline/candidate_ballot.py, alethical/db/models.py, alethical/alembic/versions/0066_candidate_lookup.py, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/lib/staticPageMetadata.ts, api/page.ts -->
 
 ## Public address lookup
 
@@ -11,6 +11,23 @@ it never puts the address in a link or saved browser storage.
 The full street address identifies the official street range, including house number,
 odd/even side, street direction, city, ZIP and any source-defined unit boundaries.
 Both address entry boxes grow to keep long addresses fully visible.
+Typing, pasting and choosing a saved browser address use the same search. Keyboard
+Search and **Find my candidates** submit the address visible in the box, including
+a browser-filled value that arrived just before submission. The suggestion list
+follows the current box value; an older highlighted choice cannot replace a newly
+filled address. Entering or leaving the `/candidates` box also brings a newly
+browser-filled value into its suggestion state.
+
+After a complete street address, state and ZIP, **United States**, **United States
+of America**, **US**, **USA**, **U.S.** and **U.S.A.** are accepted without changing
+the address being matched. Spaces, commas, periods, semicolons, colons and dashes may separate or
+follow that final country label; balanced parentheses may surround the label.
+A final comma, period, semicolon or colon is also accepted
+without a country label. Line breaks, tabs and repeated spaces from saved addresses
+are treated as spaces. This cleanup preserves house numbers, units, directions,
+city, state and ZIP+4; it does not discard another country, unknown trailing words
+or other characters to force a match.
+
 A city or ZIP alone cannot choose a ballot. Ambiguous addresses require an explicit
 choice. An unsupported unit or overlapping range produces no match rather than a guess.
 Minnesota mapping services can supply a complete address when the ZIP is missing.
@@ -29,6 +46,12 @@ bounded to 32 ZIP tables and 8 MB of source text. The browser may reuse an ident
 successful search for 60 seconds, with at most 4 searches held in memory. Clearing
 the search or changing signed-in accounts erases these responses. Returning from a profile restores the search;
 reloading or opening a new tab loses it.
+Once a screen has drawn, a later program-download failure does not automatically
+reload the website and erase this memory. A failed screen or section shows its
+existing failure message and an explicit **Reload page** action; browser Back
+can return to earlier results while the visit remains open. Choosing to reload
+still clears candidate search memory. The shared recovery behavior is defined in
+[page-load-performance-decisions.md, Recover failed downloads without losing a working visit](../operations/page-load-performance-decisions.md#recover-failed-downloads-without-losing-a-working-visit).
 
 ## Results and their limits
 

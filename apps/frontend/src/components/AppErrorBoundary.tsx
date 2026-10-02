@@ -1,4 +1,4 @@
-import { Component, ErrorInfo, PropsWithChildren } from 'react';
+import { Component, ErrorInfo, PropsWithChildren, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { theme } from '../theme/tokens';
@@ -7,21 +7,63 @@ interface AppErrorBoundaryState {
   hasError: boolean;
 }
 
-export function AppFailureView({ onReload }: { onReload: () => void }) {
+export function AppFailureView({
+  onReload,
+  onClose,
+  compact = false,
+}: {
+  onReload?: () => void;
+  onClose?: () => void;
+  compact?: boolean;
+}) {
+  const [hovered, setHovered] = useState<string | null>(null);
+  const hover = (name: string) => {
+    if (
+      typeof matchMedia !== 'undefined' &&
+      matchMedia('(hover: hover) and (pointer: fine) and (min-width: 768px)').matches
+    )
+      setHovered(name);
+  };
   return (
-    <View style={styles.screen}>
+    <View
+      accessibilityLiveRegion="polite"
+      style={[styles.screen, compact && { minHeight: undefined, flex: undefined }]}
+    >
       <View style={styles.card}>
-        <Text accessibilityRole="header" aria-level={1} style={styles.heading}>
+        <Text accessibilityRole="header" aria-level={compact ? 2 : 1} style={styles.heading}>
           This page hit a problem
         </Text>
-        <Text style={styles.body}>Reload the page to try again.</Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={onReload}
-          style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
-        >
-          <Text style={styles.buttonLabel}>Reload page</Text>
-        </Pressable>
+        {onReload ? <Text style={styles.body}>Reload the page to try again</Text> : null}
+        {onReload ? (
+          <Pressable
+            onHoverIn={() => hover('reload')}
+            onHoverOut={() => setHovered(null)}
+            accessibilityRole="button"
+            onPress={onReload}
+            style={({ pressed }) => [
+              styles.button,
+              hovered === 'reload' && styles.buttonHovered,
+              pressed && styles.buttonPressed,
+            ]}
+          >
+            <Text style={styles.buttonLabel}>Reload page</Text>
+          </Pressable>
+        ) : null}
+        {onClose ? (
+          <Pressable
+            onHoverIn={() => hover('close')}
+            onHoverOut={() => setHovered(null)}
+            accessibilityRole="button"
+            onPress={onClose}
+            style={({ pressed }) => [
+              styles.button,
+              hovered === 'close' && styles.buttonHovered,
+              pressed && styles.buttonPressed,
+            ]}
+          >
+            <Text style={styles.buttonLabel}>Close</Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
@@ -94,6 +136,10 @@ const styles = StyleSheet.create({
   },
   buttonPressed: {
     opacity: 0.85,
+  },
+  buttonHovered: {
+    backgroundColor: theme.colors.brand.hover,
+    borderColor: theme.colors.brand.hover,
   },
   buttonLabel: {
     color: theme.colors.ink,

@@ -83,13 +83,43 @@ describe('approved browser-filled field treatment', () => {
     expect(styles[0]?.textContent).toBe(browserFillCss);
   });
 
-  it('is installed by the web app entry point', () => {
-    const app = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'App.tsx'),
+  it('ships matching browser-fill CSS before the app starts without a startup injector', () => {
+    const frontend = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+    const app = readFileSync(join(frontend, 'App.tsx'), 'utf8');
+    const html = readFileSync(join(frontend, 'public/index.html'), 'utf8');
+    const head = new DOMParser().parseFromString(html, 'text/html').head;
+    const styles = head.querySelectorAll(`#${BROWSER_FILL_STYLE_ID}`);
+    const compact = (css: string) => css.replace(/\s+/g, '');
+
+    expect(styles).toHaveLength(1);
+    expect(compact(styles[0]?.textContent ?? '')).toBe(compact(browserFillCss));
+    expect(app).not.toContain('ensureBrowserFillStyles');
+    expect(app).not.toContain('ensureFocusStyles');
+    expect(app).not.toContain('ensureManifest');
+    expect(app).not.toContain('ensureAppleTouchIcon');
+    expect(app).not.toContain('ensureThemeColor');
+  });
+
+  it('ships unchanged install metadata and keyboard focus before any app download', () => {
+    const html = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'public/index.html'),
       'utf8',
     );
-
-    expect(app).toContain("import { ensureBrowserFillStyles } from './src/theme/browserFill'");
-    expect(app).toContain('ensureBrowserFillStyles();');
+    const head = new DOMParser().parseFromString(html, 'text/html').head;
+    expect(head.querySelectorAll('link[rel="manifest"]')).toHaveLength(1);
+    expect(head.querySelector('link[rel="manifest"]')?.getAttribute('href')).toBe(
+      '/manifest.json?brand=twin-peaks',
+    );
+    expect(head.querySelectorAll('link[rel="apple-touch-icon"]')).toHaveLength(1);
+    expect(head.querySelector('link[rel="apple-touch-icon"]')?.getAttribute('href')).toBe(
+      '/apple-touch-icon.png?brand=twin-peaks',
+    );
+    expect(head.querySelectorAll('meta[name="theme-color"]')).toHaveLength(1);
+    expect(head.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#111111');
+    const focusStyles = head.querySelectorAll('#alethical-focus-visible');
+    expect(focusStyles).toHaveLength(1);
+    expect(focusStyles[0]?.textContent?.replace(/\s+/g, '')).toBe(
+      'a:not([data-arrow-focus]):focus-visible,button:not([data-arrow-focus]):focus-visible,[role="button"]:not([data-arrow-focus]):focus-visible,[role="link"]:not([data-arrow-focus]):focus-visible,[tabindex]:not(input):not(textarea):not(select):not([role="heading"]):not(h1):not(h2):not(h3):not(h4):not(h5):not(h6):not([data-arrow-focus]):focus-visible{outline:2pxsolid#7c5cff!important;outline-offset:2px!important;}',
+    );
   });
 });

@@ -55,10 +55,12 @@ import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
 
-const UnconcealedInvite = loadOnDemand(() =>
-  import('../../components/email/UnconcealedInvite').then((piece) => ({
-    default: piece.UnconcealedInvite,
-  })),
+const UnconcealedInvite = loadOnDemand(
+  () =>
+    import('../../components/email/UnconcealedInvite').then((piece) => ({
+      default: piece.UnconcealedInvite,
+    })),
+  { kind: 'section' },
 );
 
 /**

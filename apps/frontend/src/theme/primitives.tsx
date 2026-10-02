@@ -46,10 +46,12 @@ import {
 
 const isWeb = Platform.OS === 'web';
 const t = theme;
-const FooterSocialIconLink = loadOnDemand(() =>
-  import('../components/SocialIconLink').then(({ SocialIconLink }) => ({
-    default: SocialIconLink,
-  })),
+const FooterSocialIconLink = loadOnDemand(
+  () =>
+    import('../components/SocialIconLink').then(({ SocialIconLink }) => ({
+      default: SocialIconLink,
+    })),
+  { kind: 'optional' },
 );
 
 function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () => void }] {
@@ -133,20 +135,14 @@ export function Container({
   children,
   style,
   testID,
-  onLayout,
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   testID?: string;
-  onLayout?: ViewProps['onLayout'];
 }) {
   const { isMobile } = useResponsive();
   return (
-    <View
-      testID={testID}
-      onLayout={onLayout}
-      style={[styles.container, isMobile && styles.containerMobile, style]}
-    >
+    <View testID={testID} style={[styles.container, isMobile && styles.containerMobile, style]}>
       {children}
     </View>
   );
@@ -488,8 +484,8 @@ function MenuPanel({ menu, onNavigate }: { menu: MenuKey; onNavigate?: (item: Ia
   );
 }
 
-/** Brief grace period after leaving the trigger+panel cluster. The visible gap
- *  is part of the panel's hover region, so crossing it never depends on speed. */
+/** Briefly tolerate pointer movement outside the continuous trigger+panel
+ *  hover region. The transparent bridge handles the visible gap itself. */
 const HOVER_CLOSE_DELAY_MS = 140;
 
 /** Only pointers that can genuinely hover get hover-to-open — on a touch screen
@@ -550,9 +546,9 @@ function NavDropdownTrigger({
           style={[
             styles.menuPanelAnchor,
             {
+              // Keep the visible gap inside the hover region, so slow pointer
+              // travel reaches the panel without racing the close timer.
               top: triggerLayout.height,
-              // Keep the approved visual gap inside the hit area so slow pointer
-              // movement reaches the panel without starting the departure timer.
               paddingTop: 26,
               left: triggerLayout.width / 2,
               ...(isWeb
@@ -751,14 +747,12 @@ export function TopNav({
   onNavigate,
   onHome,
   candidateSurface = false,
-  onLayout,
 }: {
   openMenu?: MenuKey | null;
   onOpenMenuChange?: (menu: MenuKey | null) => void;
   onNavigate?: (item: IaItem) => void;
   onHome?: () => void;
   candidateSurface?: boolean;
-  onLayout?: ViewProps['onLayout'];
 }) {
   const { isDesktop, isMobile } = useResponsive();
   const navigation = useNavigation<any>();
@@ -805,8 +799,8 @@ export function TopNav({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openMenu]);
   // Hover-to-open, alongside click: pointing at a trigger opens its panel, and
-  // sliding across to the next trigger swaps panels. The panel includes its gap;
-  // the closing delay is a short grace period after leaving the entire cluster.
+  // sliding across to the next trigger swaps panels. The hover region bridges
+  // the visible gap; delayed closing tolerates brief departures at its edges.
   const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pointerOverTrigger = useRef(false);
   const cancelHoverClose = () => {
@@ -869,7 +863,6 @@ export function TopNav({
 
   return (
     <Container
-      onLayout={onLayout}
       style={[
         styles.navRow,
         candidateSurface && {

@@ -131,11 +131,12 @@ function PreviewFrame({
             : undefined
         }
       >
-        <TopNav
-          candidateSurface
+        <View
+          style={{ zIndex: 60 }}
           onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}
-          onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
-        />
+        >
+          <TopNav candidateSurface onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
+        </View>
         <View
           style={
             search && isDesktop ? { minHeight: Math.max(0, height - headerHeight) } : undefined

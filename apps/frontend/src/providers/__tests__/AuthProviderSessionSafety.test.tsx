@@ -272,6 +272,51 @@ describe('AuthProvider session races', () => {
     expect(testState.authValue.isSignedIn).toBe(false);
   });
 
+  it.each([true, false])(
+    'keeps visitors signed out and existing navigation usable when the sign-in download fails (startup=%s)',
+    async (startup) => {
+      testState.signInPendingOnLoad = startup;
+      const download = deferred<any>();
+      testState.nextBundleReply = download.promise;
+      const navigate = vi.fn();
+      mount = document.createElement('div');
+      document.body.appendChild(mount);
+      root = createRoot(mount);
+      await act(async () => {
+        root?.render(
+          <AuthProvider>
+            <AuthProbe />
+            <a
+              href="/candidates"
+              onClick={(event) => {
+                event.preventDefault();
+                navigate();
+              }}
+            >
+              Find my candidates
+            </a>
+            <input aria-label="Unsent address" defaultValue="350 S 5th St, Minneapolis, MN 55415" />
+          </AuthProvider>,
+        );
+      });
+      if (!startup) {
+        await act(async () => {
+          void loadSignInBundle().catch(() => undefined);
+        });
+      }
+      await act(async () => download.reject(new Error('sign-in download unavailable')));
+      expect(testState.authValue.isLoading).toBe(false);
+      expect(testState.authValue.isSignedIn).toBe(false);
+      expect(testState.authValue.user).toBeNull();
+      expect(testState.authValue.accessToken).toBeNull();
+      expect(testState.authValue.authError).toBeTruthy();
+      expect(signInBundle.supabase.auth.onAuthStateChange).not.toHaveBeenCalled();
+      expect(mount.querySelector('input')?.value).toBe('350 S 5th St, Minneapolis, MN 55415');
+      await act(async () => mount?.querySelector('a')?.click());
+      expect(navigate).toHaveBeenCalledOnce();
+    },
+  );
+
   it('accepts a successful sign-in requested after a fresh signed-out visit', async () => {
     testState.signInPendingOnLoad = false;
     await mountProvider();

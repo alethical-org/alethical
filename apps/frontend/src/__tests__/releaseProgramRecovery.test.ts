@@ -40,6 +40,7 @@ function loadRecovery(options: { storageThrows?: boolean } = {}) {
       reload,
     },
     sessionStorage,
+    __alethicalScreenDrawn: false,
   };
 
   expect(recoveryScript).toBeTruthy();
@@ -51,6 +52,9 @@ function loadRecovery(options: { storageThrows?: boolean } = {}) {
   expect(errorHandler).toBeTypeOf('function');
 
   return {
+    startApp: () => {
+      windowValue.__alethicalScreenDrawn = true;
+    },
     dispatch: (target: unknown) => errorHandler!({ target }),
     reload,
     sessionStorage,
@@ -101,4 +105,14 @@ describe('missing release program recovery', () => {
     expect(recovery.sessionStorage.getItem).not.toHaveBeenCalled();
     expect(recovery.sessionStorage.setItem).not.toHaveBeenCalled();
   });
+});
+
+it('keeps a working application intact after a late script error', () => {
+  const recovery = loadRecovery();
+  recovery.startApp();
+  recovery.dispatch(
+    new FakeScriptElement('https://www.alethical.com/_expo/static/js/web/optional-missing.js'),
+  );
+  expect(recovery.reload).not.toHaveBeenCalled();
+  expect(recovery.sessionStorage.setItem).not.toHaveBeenCalled();
 });
