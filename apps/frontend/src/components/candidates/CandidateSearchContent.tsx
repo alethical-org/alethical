@@ -366,15 +366,6 @@ function CandidateSearchSession({
               >
                 Find my candidates
               </Text>
-              {isMobile && imageSource ? (
-                <Image
-                  source={imageSource}
-                  aria-hidden
-                  accessible={false}
-                  resizeMode="contain"
-                  style={{ width: 56, height: 62 }}
-                />
-              ) : null}
             </View>
             <Text
               style={[
@@ -407,16 +398,17 @@ function CandidateSearchSession({
               </View>
             ) : null}
           </View>
-          {!isMobile && imageSource ? (
+          {imageSource ? (
             <Image
               source={imageSource}
               aria-hidden
               accessible={false}
               resizeMode="contain"
               style={{
-                width: isDesktop ? 300 : 200,
-                height: isDesktop ? 330 : 220,
-                marginTop: isDesktop ? 6 : 10,
+                width: isMobile ? 160 : isDesktop ? 300 : 200,
+                height: isMobile ? 176 : isDesktop ? 330 : 220,
+                marginTop: isMobile ? 40 : isDesktop ? 6 : 10,
+                ...(isMobile ? { alignSelf: 'center' } : {}),
               }}
             />
           ) : null}
