@@ -99,6 +99,13 @@ A source outage, a missing address match, an empty candidate list and uncertain
 coverage remain distinct. The last successful results stay visible during a replacement
 and after a failed update, with their original address, election, source and dates.
 Only the newest request can replace them. Errors retain the typed address and offer retry.
+Changing an address keeps the form open while typing, even when the draft equals the
+previous successful request. Only an explicitly submitted successful replacement or
+Escape cancellation closes editing; a submitted recent cached result follows the same transition.
+The search button must receive the first click or tap while address suggestions are
+visible. Keep the field focused during pointer activation so dismissing inline phone
+suggestions cannot move the button between press and release; keyboard focus and
+explicit outside dismissal retain their existing behavior.
 
 ## Public candidate profiles
 

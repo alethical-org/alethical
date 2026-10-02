@@ -420,6 +420,40 @@ it('uses the same explicit address-choice flow when changing an address and keep
   expect(host.textContent).toContain(choice.address);
 });
 
+it('keeps address editing open when typing the previous request and closes only after submitting', async () => {
+  const lookup = vi.fn<CandidateSearchServices['lookup']>().mockResolvedValue(result());
+  const service = services(lookup);
+  const flow = createCandidateFlow(service);
+  const renderSearch = () =>
+    root.render(
+      <CandidateSearchContent
+        services={service}
+        flow={flow}
+        initialAddress="100 Example Street"
+        onOpenProfile={() => {}}
+      />,
+    );
+  await act(async () => renderSearch());
+  await flush();
+  act(() => root.render(<div>Candidate profile</div>));
+  await act(async () => renderSearch());
+  await flush();
+  click(button('Change address'));
+  type('100 Example Street');
+  await flush();
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('100 Example Street');
+  expect(lookup).toHaveBeenCalledOnce();
+  type('100 Example Street, United States');
+  type('100 Example Street');
+  await flush();
+  expect(host.querySelector('textarea')).toBeTruthy();
+  click(button('Find my candidates'));
+  await flush();
+  expect(host.querySelector('textarea')).toBeNull();
+  // The submitted exact request can use the recent result without another network call.
+  expect(lookup).toHaveBeenCalledOnce();
+});
+
 it('keeps a newer typed address when a slow earlier search finishes and preserves it through profile navigation', async () => {
   let resolveOld!: (value: CandidateLookupResponse) => void;
   const waiting = new Promise<CandidateLookupResponse>((yes) => {

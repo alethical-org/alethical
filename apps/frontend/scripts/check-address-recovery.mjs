@@ -58,13 +58,15 @@ const results = {
   coverage: [],
 };
 const report = [];
-async function fresh() {
+async function fresh(contextOptions = {}) {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     serviceWorkers: 'block',
+    ...contextOptions,
   });
   const requests = [];
   const lookupReplies = [];
+  const suggestions = [];
   const page = await context.newPage();
   let documents = 0;
   page.on('request', (request) => {
@@ -76,7 +78,7 @@ async function fresh() {
     const json = (body) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
     if (path.endsWith('/candidates/elections')) return json([election]);
-    if (path.endsWith('/candidates/suggest')) return json([]);
+    if (path.endsWith('/candidates/suggest')) return json(suggestions);
     if (path.endsWith('/candidates/lookup')) {
       requests.push(request.postDataJSON());
       return json(lookupReplies.shift() ?? results);
@@ -95,7 +97,7 @@ async function fresh() {
     return route.continue();
   });
   page.setDefaultTimeout(20000);
-  return { context, page, requests, lookupReplies, documents: () => documents };
+  return { context, page, requests, lookupReplies, suggestions, documents: () => documents };
 }
 async function silentFill(field, value) {
   await field.evaluate((node, text) => {
@@ -152,9 +154,9 @@ async function lateScriptFailure(page) {
     path,
   );
 }
-async function check(name, operation) {
+async function check(name, operation, contextOptions) {
   if (only && !name.includes(only)) return;
-  const state = await fresh();
+  const state = await fresh(contextOptions);
   try {
     await operation(state);
     report.push({ check: name, result: 'passed' });
@@ -197,6 +199,53 @@ try {
         );
       });
     }
+  }
+  await check(
+    'editing the previous address stays open until explicit cached submission',
+    async (state) => {
+      await submitFixture(state.page, '/candidates', 'keyboard');
+      await state.page.getByRole('button', { name: 'Change address', exact: true }).click();
+      const field = state.page.getByRole('combobox', { name: 'Full street address', exact: true });
+      await field.fill('350 S');
+      await field.fill(countryAddress);
+      await state.page.waitForTimeout(1000);
+      assert.equal(await field.inputValue(), countryAddress);
+      assert.equal(state.requests.length, 1);
+      await field.press('Enter');
+      await field.waitFor({ state: 'detached' });
+      await waitForResults(state.page);
+      assert.equal(await field.count(), 0);
+      assert.equal(
+        state.requests.length,
+        1,
+        'Exact recent submission should use its cached result',
+      );
+    },
+  );
+  for (const action of ['click', 'tap']) {
+    await check(
+      `visible suggestions allow the first Search button ${action}`,
+      async (state) => {
+        await submitFixture(state.page, '/candidates', 'keyboard');
+        state.suggestions.push({ id: 'civic', label: publicAddress, address: publicAddress });
+        await state.page.getByRole('button', { name: 'Change address', exact: true }).click();
+        const field = state.page.getByRole('combobox', {
+          name: 'Full street address',
+          exact: true,
+        });
+        await field.fill(`${countryAddress} `);
+        await state.page.getByRole('option').waitFor();
+        const button = state.page.getByRole('button', { name: 'Find my candidates', exact: true });
+        const box = await button.boundingBox();
+        if (action === 'tap')
+          await state.page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+        else await state.page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+        await state.page.waitForFunction(() => !document.querySelector('textarea'));
+        await waitForResults(state.page);
+        assert.equal(state.requests.length, 1);
+      },
+      { hasTouch: true },
+    );
   }
   if (recovery) {
     await check(
