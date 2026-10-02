@@ -1,4 +1,4 @@
-<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/native-release-tools.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py apps/frontend/scripts/check-build-tool-security.mjs tools/native-release/** patches/metro@0.84.4.patch pnpm-lock.yaml -->
+<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/native-release-tools.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs tools/native-release/** patches/metro@0.84.4.patch patches/node-forge@1.4.0.patch pnpm-lock.yaml -->
 <!-- last-major-tool-review: 2026-08-15 -->
 
 # Keeping every tool supported and useful
@@ -17,7 +17,7 @@ the newest major release is never automatic.
 - The required `changes` check (`.github/workflows/ci.yml`) checks every locked
   Python and website JavaScript package, including development tools, before a pull request
   or merge-queue commit can pass. Every severity blocks release unless the exact
-  finding meets the recorded exception below. Missing packages, unreadable reports,
+  finding meets the recorded exception or installed repair below. Missing packages, unreadable reports,
   scanner errors, and timeouts fail the check rather than reporting a clean result.
 - Phone publishing packages have a separate lockfile (`tools/native-release/pnpm-lock.yaml`).
   Changes to those tools run their command and security checks in
@@ -72,6 +72,27 @@ The monthly check starts failing 180 days before one of these dates. That leaves
 to test and release a replacement before support ends.
 
 ## Recorded security exceptions
+
+The website build tools use node-forge 1.4.0 with the exact nested signature
+validation repair from [upstream pull request 1152](https://github.com/digitalbazaar/forge/pull/1152)
+at `ceba34402e329f0365134f23fe19898756527d65`. The
+[signature validation advisory](https://github.com/advisories/GHSA-86w9-cpqp-85rv)
+has no published fixed package. The official package name and version stay intact;
+the raw audit warning stays in the security log. This is a local code repair, not
+an exception for vulnerable code.
+
+The always-required security invocation installs the frozen JavaScript lockfile
+without running package scripts, then runs `check-node-forge-security.mjs` itself.
+Acceptance requires the exact advisory, package, version, reported dependency
+path, patch file fingerprint, lockfile patch fingerprint, and installed RSA code
+fingerprint. Both Expo consumers must resolve the repaired package. Signature checks
+use ordinary verification options and valid padding, accept valid SHA-256 signatures
+with and without NULL parameters, and reject extra nested elements in either form.
+The malformed test signatures are made with a known test private key to isolate the
+parser defect; they do not claim to recreate a forgery without that key.
+Installation failure, missing or changed repair evidence, changed findings, and
+unrelated advisories block release. A published fixed version requires a reviewed
+upgrade rather than silently carrying this local classification forward.
 
 The image-size exception ended on 25 September 2026 when the security feed
 reported a fixed release. Metro now uses image-size 2.0.3, published on

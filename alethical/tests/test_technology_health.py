@@ -204,6 +204,92 @@ def test_every_javascript_severity_blocks_release(severity: str) -> None:
     ]
 
 
+def forge_advisory() -> dict:
+    return {
+        "github_advisory_id": "GHSA-86w9-cpqp-85rv",
+        "module_name": "node-forge",
+        "severity": "high",
+        "vulnerable_versions": "<=1.4.0",
+        "patched_versions": "<0.0.0",
+        "findings": [
+            {"version": "1.4.0", "paths": [check_technology_health.FORGE_BUILD_PATH]}
+        ],
+    }
+
+
+def test_forge_finding_requires_installed_repair_and_keeps_other_findings() -> None:
+    report = javascript_report({"forge": forge_advisory()})
+    assert check_technology_health.javascript_audit_problems(report) == [
+        "GHSA-86w9-cpqp-85rv (high)"
+    ]
+    assert (
+        check_technology_health.javascript_audit_problems(report, forge_repaired=True)
+        == []
+    )
+    report["advisories"]["other"] = {"severity": "low"}
+    assert check_technology_health.javascript_audit_problems(
+        report, forge_repaired=True
+    ) == ["other (low)"]
+
+
+@pytest.mark.parametrize(
+    "change", ["id", "module", "version", "path", "fixed", "range", "severity"]
+)
+def test_forge_repair_cannot_accept_changed_findings(change: str) -> None:
+    advisory = forge_advisory()
+    if change == "id":
+        advisory["github_advisory_id"] = "GHSA-other"
+    elif change == "module":
+        advisory["module_name"] = "other"
+    elif change == "version":
+        advisory["findings"][0]["version"] = "1.3.1"
+    elif change == "path":
+        advisory["findings"][0]["paths"].append("apps__frontend>node-forge")
+    elif change == "fixed":
+        advisory["patched_versions"] = ">=1.4.1"
+    elif change == "range":
+        advisory["vulnerable_versions"] = "<=1.4.1"
+    else:
+        advisory["severity"] = "critical"
+    assert check_technology_health.javascript_audit_problems(
+        javascript_report({"forge": advisory}), forge_repaired=True
+    )
+
+
+@pytest.mark.parametrize("failure", ["install", "repair"])
+def test_failed_install_or_repair_keeps_forge_release_blocked(
+    monkeypatch, failure: str
+) -> None:
+    def run(command, root):
+        if command == ["pnpm", "audit", "--json"]:
+            return subprocess.CompletedProcess(
+                command,
+                1,
+                json.dumps(javascript_report({"forge": forge_advisory()})),
+                "",
+            )
+        if command[0] == "uvx":
+            report = {
+                "dependencies": [
+                    {"name": name, "version": version, "vulns": []}
+                    for name, version in check_technology_health.locked_python_packages(
+                        ROOT
+                    )
+                ]
+            }
+            return subprocess.CompletedProcess(command, 0, json.dumps(report), "")
+        status = int(
+            (failure == "install" and command[0] == "pnpm")
+            or (failure == "repair" and command[0] == "node")
+        )
+        return subprocess.CompletedProcess(command, status, "", "")
+
+    monkeypatch.setattr(check_technology_health, "_run", run)
+    problems = check_technology_health.run_security_audits(ROOT)
+    assert "GHSA-86w9-cpqp-85rv (high)" in problems
+    assert any("repair" in problem for problem in problems)
+
+
 @pytest.mark.parametrize("change", ["fixed", "package", "version", "path", "expired"])
 def test_image_size_exception_cannot_hide_changed_risk(change: str) -> None:
     advisory = image_size_advisory()

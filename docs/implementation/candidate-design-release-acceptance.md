@@ -36,7 +36,7 @@ Source abbreviations: S = `Candidates search.dc.html`; P = `Candidates profile.d
 | S01 | Visitor, direct/menu `/candidates` | Empty form, no account requirement. Heading and button “Find my candidates”. Support “See who’s running where you live in Minnesota, with candidate profiles linked to official records”. S/BF. | Existing heading/button capitalization and support differ. Compare text and order at 3 widths. |
 | S02 | Visitor, homepage search block | Exact approved support: “Explore the candidates in your Minnesota races, with links to official records”. Keep heading “Who’s running where you live?” and existing homepage behavior. Preserve truthful injected privacy disclosure. | Replace the old “Enter your Minnesota street address to see who is running for office in your area” support. Parent has reconciled the exact homepage copy. |
 | S03 | Visitor, homepage handoff | Typed address carried in temporary memory, `/candidates` address bar stays clean. Drawn arrival has populated field and finding feedback. Direct visits remain empty. | Existing homepage waits for search before navigating; scope is homepage copy, so report any timing difference explicitly rather than silently broadening. Verify actual route handoff and no address in URL. |
-| S04 | Visitor, entry layout | Desktop max1168, remaining-width form +300 outline, gap64; tablet200 outline/gap40; phone56×62 decorative outline beside title. H1 48/42/32; lead19/18/16.5; page top padding64/48/32, superseding S's36/32/24 under the user's October1 live-review correction. The same outer padding applies to results. Input/button top-aligned; desktop button248, tablet220, phone full width, height60. S plus explicit user correction. | Existing entry cap1080/form700/gap80 and map placement differ. Decorative outline excluded from accessibility tree. |
+| S04 | Visitor, entry layout | Desktop max1168, remaining-width form +300 outline, gap64; tablet200 outline/gap40; phone160×176 decorative outline centered below the address notes with40px above, superseding the beside-title outline under the user's October2 isolated mobile change. H1 48/42/32; lead19/18/16.5; page top padding64/48/32, superseding S's36/32/24 under the user's October1 live-review correction. The same outer padding applies to results. Input/button top-aligned; desktop button248, tablet220, phone full width, height60. S plus explicit user correction. | Existing entry cap1080/form700/gap80 and map placement differ. Decorative outline excluded from accessibility tree. |
 | S05 | Visitor, street field typing/paste | Label “Full street address”; placeholder “350 S 5th St, Minneapolis, MN 55415”. 60px minimum, radius14, font17. Grow for wrapped text without an internal scrollbar or clipping. Pasted line breaks become spaces; Enter picks/submits, no inserted newline. | Auto-growing textarea exists but paste normalization/IME guard need attention; compact height currently52. Check long address and composed text. |
 | S06 | Visitor, submit ready/busy | Search icon changes to spinner; button label stays unchanged. Field remains editable while request runs, repeated submission guarded. 22px minimum message space at12px below. | Current stretch alignment can change button height with textarea. Measure ready/busy/error. |
 | S07 | Visitor, helper/disclosure | Hairline36px after feedback,20px before helper; 14px/21px gray lines with6px gaps. City/ZIP limitation, actual-service privacy disclosure, and actual-service attribution only. Field described-by includes help. | Existing helper position/sizes differ. Census fallback cannot replace production Minnesota-service wording. |
@@ -258,3 +258,41 @@ The public release-stamp checks pass for both services. A fresh live reload of
 Sarah Hennesy’s profile prints “Associate Justice, Supreme Court, Seat 1”. A new live
 address search followed by opening Judges shows both corrected Supreme Court seat
 1 and seat 4 headings.
+
+
+## Isolated phone outline update, October 2, 2026
+
+User authorization: “bd mobile isolated change”. Latest completed download:
+`Alethical UX (52).zip`, downloaded October 2 at 08:13, SHA-256
+`8e7c8f1639775dff5751f8a8b7b5f8576ac883d3f36906bf84c55d83282996d1`.
+The isolated `review-prompt.md` and the updated entry drawing agree: below768px,
+remove the outline beside the heading and center the same shipped decorative
+asset below the address notes at160×176px, with40px above it. The heading receives
+the whole content column. Tablet200×220 and computer300×330 remain unchanged;
+results and candidate profiles are outside this update.
+
+The downloaded drawing's embedded Bands note still described the old56px
+beside-title outline. Its local review copy is corrected to the settled dimensions
+and placement; the drawing itself requires no visual correction.
+
+Delivery steps: implement the isolated entry change; run existing candidate tests,
+type and format checks; inspect phone and both larger layouts at the original
+http://localhost:19047/candidates preview; independent acceptance review; commit,
+push, green current-head checks, merge and live phone acceptance.
+
+Progress: implementation complete;20 existing candidate-content tests pass, type
+and format checks pass, and the changed-component design detector reports no
+findings. The390px working preview renders the map at160×176, centered atx115,
+with exactly40px after the final address note and no horizontal overflow. The
+image has empty alt text and aria-hidden=true. Independent acceptance covers
+320px,390px,900px and1280px: no horizontal overflow, full phone heading width,
+the exact phone map gap and dimensions, unchanged larger maps, and working empty
+address feedback with focus returned to the field. Live release acceptance is
+pending. Physical touch and the on-screen keyboard were not exercised.
+
+Release prerequisite: the newly published node-forge signature advisory blocks
+the required security check. The exact upstream nested-element validation repair
+is applied through the existing pnpm patch mechanism. The security invocation
+requires frozen installation, the exact repair fingerprints and installed
+valid/malformed signature checks before accepting that specific raw finding.
+The mobile change's scope and larger-screen appearance remain unchanged.
