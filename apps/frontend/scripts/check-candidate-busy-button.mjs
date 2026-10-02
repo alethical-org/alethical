@@ -98,8 +98,14 @@ for (const engine of [chromium, webkit]) {
       await page.getByLabel('Review state', { exact: true }).selectOption('no-match');
       await ready.focus();
       const compactBefore = await geometry(ready);
+      const racesBefore = await page.locator('.candidate-group-toggle').first().boundingBox();
       await ready.press('Enter');
       await verifyBusy(compactBefore, true);
+      assert.deepEqual(
+        await page.locator('.candidate-group-toggle').first().boundingBox(),
+        racesBefore,
+        'Retained race rows stay steady during an address search',
+      );
       await page
         .getByText('We couldn’t match that address: check the street address, city, and ZIP code', {
           exact: true,
@@ -115,12 +121,26 @@ for (const engine of [chromium, webkit]) {
       await page.getByRole('button', { name: 'Change address', exact: true }).click();
       await field.fill('300 Example Street');
       await page.getByLabel('Review state', { exact: true }).selectOption('failure');
+      const failedRacesBefore = await page.locator('.candidate-group-toggle').first().boundingBox();
       await ready.click();
       await busy.waitFor();
       await page.getByText('We couldn’t update the results', { exact: true }).waitFor();
       assert.equal(await ready.count(), 1);
+      if (width === 1280)
+        assert.deepEqual(
+          await page.locator('.candidate-group-toggle').first().boundingBox(),
+          failedRacesBefore,
+          'Failed address searches keep desktop retained races steady',
+        );
       await page.getByLabel('Review state', { exact: true }).selectOption('full');
       await page.getByRole('button', { name: 'Try again', exact: true }).click();
+      await busy.waitFor();
+      if (width === 1280)
+        assert.deepEqual(
+          await page.locator('.candidate-group-toggle').first().boundingBox(),
+          failedRacesBefore,
+          'Address retries keep desktop retained races steady',
+        );
       await page.getByRole('button', { name: 'Change address', exact: true }).waitFor();
       await page.getByRole('combobox', { name: /^Election/ }).click();
       await page.getByRole('option', { name: /State primary/ }).click();

@@ -322,6 +322,7 @@ function CandidateSearchSession({
               </CandidateNotice>
             ) : null}
             {isDesktop &&
+            !(changingAddress && selected === displayed.election.id) &&
             (state.status === 'updating' ||
               state.status === 'error' ||
               selected !== displayed.election.id) ? (

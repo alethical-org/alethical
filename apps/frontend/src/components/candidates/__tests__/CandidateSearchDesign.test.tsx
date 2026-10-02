@@ -3,6 +3,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { CandidateSearchContent } from '../CandidateSearchContent';
+import * as responsive from '../../../hooks/useResponsive';
 import {
   CandidateRaceGroups,
   candidateOfficeLabel,
@@ -208,13 +209,25 @@ it('keeps stale warnings with their own records when group source facts differ',
   expect(words.indexOf('May be out of date')).toBeLessThan(words.indexOf('Person fresh'));
 });
 
-it('names the retained address while editing and after a failed replacement, and keeps the typed text', async () => {
+it('keeps retained address results steady through desktop edits and failed replacements', async () => {
+  vi.spyOn(responsive, 'useResponsive').mockReturnValue({
+    width: 1280,
+    isDesktop: true,
+    isTablet: false,
+    isMobile: false,
+  });
   const results: CandidateResults = {
     kind: 'results',
     electionId: election.id,
     matchedAddress: '100 Original Street, MN 55415',
     races: [race('a')],
     coverage: [],
+  };
+  const other: CandidateElection = {
+    id: 'other-primary',
+    label: 'State primary election',
+    date: '2031-08-12',
+    type: 'primary',
   };
   let reject!: (error: Error) => void;
   const lookup = vi
@@ -225,9 +238,10 @@ it('names the retained address while editing and after a failed replacement, and
         new Promise((_, no) => {
           reject = no;
         }),
-    );
+    )
+    .mockImplementationOnce(() => new Promise(() => {}));
   const services: CandidateSearchServices = {
-    getElections: async () => [election],
+    getElections: async () => [election, other],
     suggest: async () => [],
     lookup,
   };
@@ -257,11 +271,13 @@ it('names the retained address while editing and after a failed replacement, and
   click(button('Find my candidates'));
   await flush();
   expect(host.querySelector('a[href="/candidates/a-person"]')).toBeTruthy();
+  expect(host.textContent?.match(/Showing results for State general election/g)).toBeNull();
   await act(async () => reject(new Error('failed')));
   await flush();
   expect(field.value).toBe('200 New Street Unit 2');
   expect(host.textContent).toContain('Showing results for 100 Original Street, MN 55415');
   expect(host.textContent).toContain('We couldn’t update the results');
+  expect(host.textContent?.match(/Showing results for State general election/g)).toHaveLength(1);
   expect(host.querySelector('[role="region"]')?.textContent).toContain('About these results');
   expect(
     host
@@ -269,6 +285,15 @@ it('names the retained address while editing and after a failed replacement, and
       .compareDocumentPosition(host.querySelector('[role="region"]')!) &
       Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
+  click(host.querySelector('button[role="combobox"]')!);
+  click(
+    [...host.querySelectorAll('[role="option"]')].find((node) =>
+      node.textContent?.includes('State primary'),
+    )!,
+  );
+  await flush();
+  expect(host.textContent?.match(/Showing results for State general election/g)).toHaveLength(1);
+  expect(host.querySelector('textarea')).toBe(field);
 });
 
 it('announces initial loading once while the election source is slow', async () => {

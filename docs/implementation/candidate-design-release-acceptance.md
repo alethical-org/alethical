@@ -339,6 +339,16 @@ WebKit browser checks at1280/900/390 cover entry/edit labels, dimensions, focus,
 repeat pointer/Enter activation, reserved error space, slow success, no-match,
 failed replacement/retry, reduced motion and unchanged election status. Production
 export passes its297506-byte first-load limit at297084 bytes. Parent acceptance,
-original preview integration and live release remain pending. Physical phone
+original preview integration and live release remain pending.
+
+Independent acceptance found a shared result-column trigger that inserted an extra
+election caption for an address-only update, moving desktop retained races41px.
+During address editing, omit that caption when the selected and displayed election
+match; retain it when elections differ and preserve existing election-update and
+retry notices. Component regression reproduces the original failure, and browser
+checks compare retained race positions during address search. This correction stays
+within the approved stable-update behavior and does not change election meanings.
+
+Physical phone
 keyboard, native autofill and screen-reader speech remain untested; DOM
 checks establish the single polite live region without claiming spoken output.
