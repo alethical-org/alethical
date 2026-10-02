@@ -42,8 +42,8 @@ and existing Design direction. New visual choices still require Design review.
 5. [x] Exercise browser flows, keyboard/button/choice submission, stale responses,
    delayed failures after success, back/profile/election paths, contact draft and
    money detail preservation, startup failures and account privacy resets.
-6. [ ] Independent review accepted; full upload checks passed; pull request and release remain.
-7. [ ] Live address/browser checks; record physical-device coverage honestly.
+6. [x] Main repair independently reviewed, full upload checks passed, released in pull request 2474.
+7. [x] Main repair live address/browser checks passed; physical-device limits recorded below.
 
 Phone-sized Chromium/WebKit testing is not native keyboard autofill testing.
 Actual iPhone/Android saved-address evidence is requested from Eugene, while
@@ -136,3 +136,10 @@ button; preserve keyboard focus and visual layout. The browser regression failed
 before repair and covers the first mouse click and emulated touch tap afterward.
 Legislator web suggestions do not close on field blur, and the candidate homepage
 has no inline suggestions, so those paths do not share this cause.
+
+The follow-up passes 39 focused tests, type checking, release export and its size
+limit. All 15 release-browser journeys pass in both Chromium and WebKit, and the
+3 added edit/click/tap journeys pass in Firefox. Independent real-source review
+at original preview 19047 passes mouse, emulated touch and Tab then Enter, plus
+editing, failed updates with retained results, and retry. The final issue comment
+records the follow-up deployment and live acceptance once complete.

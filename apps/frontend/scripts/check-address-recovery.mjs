@@ -212,6 +212,7 @@ try {
       assert.equal(await field.inputValue(), countryAddress);
       assert.equal(state.requests.length, 1);
       await field.press('Enter');
+      await field.waitFor({ state: 'detached' });
       await waitForResults(state.page);
       assert.equal(await field.count(), 0);
       assert.equal(
