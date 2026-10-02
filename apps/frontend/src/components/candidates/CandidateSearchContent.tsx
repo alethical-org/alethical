@@ -303,7 +303,6 @@ function CandidateSearchSession({
                 </Text>
               </CandidateNotice>
             ) : null}
-            <CandidateCoverage gaps={displayed.results.coverage} />
           </View>
           <View style={styles.races}>
             {state.outcome && !changingAddress && state.outcome.kind !== 'no-elections' ? (
@@ -333,14 +332,17 @@ function CandidateSearchSession({
                 {candidateDate(displayed.election.date)}
               </Text>
             ) : null}
-            <CandidateRaceGroups
-              races={displayed.results.races}
-              election={displayed.election}
-              busy={busy}
-              openGroups={state.openGroups}
-              onGroupOpen={flow.setGroupOpen}
-              onOpenProfile={onOpenProfile}
-            />
+            <View style={{ gap: 40 }}>
+              <CandidateRaceGroups
+                races={displayed.results.races}
+                election={displayed.election}
+                busy={busy}
+                openGroups={state.openGroups}
+                onGroupOpen={flow.setGroupOpen}
+                onOpenProfile={onOpenProfile}
+              />
+              {!noElection ? <CandidateCoverage gaps={displayed.results.coverage} /> : null}
+            </View>
           </View>
         </View>
       ) : (
