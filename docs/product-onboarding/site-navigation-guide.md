@@ -173,6 +173,12 @@ A page IS its address, and old addresses keep working:
 
 ## Look and feel
 
+Open dropdowns stay in front of the page content beneath them. Moving from Search
+or About into its dropdown and between rows keeps the dropdown open and lets each
+row receive the pointer. Page images and buttons must not cover or block the rows.
+In short windows, the dropdown scrolls within the space above the screen's bottom
+edge so every row remains reachable without moving the page behind it.
+
 The bar follows the site's visual rules in `docs/design/design-principles.md`; exact colours,
 sizes, and spacing live in code (`apps/frontend/src/theme/tokens.ts`), never in a document.
 

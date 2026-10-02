@@ -236,6 +236,11 @@ rest; `.claude/rules/grounded-answers.md` carries the product-behavior rules.
 
 14. **Write the change with discipline: think, minimum, surgical, goal-driven.** (Bias toward caution over raw speed; for trivial changes, use judgment.)
 
+    Every authorized menu build also follows [design-principles.md, Build acceptance
+    for controls](../../docs/design/design-principles.md#build-acceptance-for-controls),
+    including open-menu display order and pointer movement checks even when the
+    drawings omit them. Apply settled functional corrections during the build.
+
     - **Think before coding.** Don't assume silently: state assumptions, surface real ambiguity and tradeoffs rather than picking quietly, push back when a simpler approach exists. When a request spans independent subsystems, say so up front, name the pieces and the order, then take them one at a time — a scoping statement, not an approval gate. Surfacing ambiguity never gates routine, reversible work — rule 10's autonomy norms stand.
     - **Simplicity first.** Ship the minimum code that solves the problem: no features beyond what was asked, no abstractions for single-use code, no speculative flexibility, no error handling for impossible cases. If 200 lines could be 50, rewrite it. The test: would a senior engineer call this overcomplicated?
     - **Surgical changes.** Touch only what the task requires. Don't improve adjacent code, refactor what isn't broken, or restyle to taste — match the surrounding code even where you'd do it differently. Remove only what your own change orphaned; flag pre-existing dead code rather than deleting it unasked. Every changed line should trace to the request.

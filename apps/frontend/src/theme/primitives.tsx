@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import {
   ActivityIndicator,
@@ -417,12 +417,44 @@ function MenuPanel({ menu, onNavigate }: { menu: MenuKey; onNavigate?: (item: Ia
   const { live, roadmap } = navDropdownItems(menu);
   const currentItemId = useCurrentNavItemId();
   const compact = menu === 'about';
+  const panelRef = useRef<View>(null);
+  const [maxHeight, setMaxHeight] = useState<number>();
+  useLayoutEffect(() => {
+    if (!isWeb) return;
+    const panel = panelRef.current as unknown as HTMLElement | null;
+    if (!panel) return;
+    const fitWindow = () =>
+      setMaxHeight(Math.max(0, window.innerHeight - panel.getBoundingClientRect().top - 8));
+    // Firefox can leave a focused row partly clipped in a transformed scroller.
+    // Scroll only this panel, with space for the keyboard-focus outline.
+    const revealFocus = (event: FocusEvent) => {
+      const target = event.target as HTMLElement;
+      if (target === panel) return;
+      const row = target.getBoundingClientRect();
+      const box = panel.getBoundingClientRect();
+      const top = box.top + panel.clientTop + 4;
+      const bottom = box.top + panel.clientTop + panel.clientHeight - 4;
+      if (row.top < top || row.height > bottom - top) panel.scrollTop += row.top - top;
+      else if (row.bottom > bottom) panel.scrollTop += row.bottom - bottom;
+    };
+    fitWindow();
+    panel.addEventListener('focusin', revealFocus);
+    window.addEventListener('resize', fitWindow);
+    window.addEventListener('scroll', fitWindow, true);
+    return () => {
+      panel.removeEventListener('focusin', revealFocus);
+      window.removeEventListener('resize', fitWindow);
+      window.removeEventListener('scroll', fitWindow, true);
+    };
+  }, []);
   return (
     <View
+      ref={panelRef}
       style={[
         styles.menuPanel,
         compact ? styles.menuPanelCompact : { width: SEARCH_PANEL_WIDTH },
         t.shadows.panel as ViewStyle,
+        isWeb && ({ maxHeight, overflowY: 'auto', overscrollBehaviorY: 'contain' } as ViewStyle),
       ]}
     >
       <View style={[styles.menuPanelList, compact && styles.menuPanelListCompact]}>

@@ -131,7 +131,10 @@ function PreviewFrame({
             : undefined
         }
       >
-        <View onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
+        <View
+          style={{ zIndex: 60 }}
+          onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}
+        >
           <TopNav candidateSurface onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
         </View>
         <View

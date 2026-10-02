@@ -741,6 +741,30 @@ wrapping and spacing; do not leave an empty row for the removed wording.
 
 ### Build acceptance for controls
 
+**Open menus stay visible and receive input.** Every menu update, Design handoff
+and authorized build must check the open menu over realistic page content, even
+when drawings omit that state. Maps, images, buttons and sticky sections must not
+cover a menu or intercept pointer movement or clicks inside it. Preserve the
+intended priority of dialogs and other higher-level overlays. Check containing
+elements for clipping and isolated display layers; increasing a menu's own layer
+number cannot lift it out of a lower parent layer.
+
+Move the pointer from each trigger into its menu, between items and back,
+including slow and diagonal paths across the intended gap. The menu must remain
+open and selectable along that path. Reproduce early closing where reported and
+check which element receives input before changing dismissal behavior. Do not
+assume a sitewide hover defect or hide an overlap with longer close delays.
+Check keyboard opening and selection, visible focus, Escape, outside dismissal,
+touch, scrolling, wrapped text and screen edges across the supported layout
+bands. A screenshot proves neither pointer access nor successful selection.
+
+State this display order and interaction behavior in menu build handoffs. During
+authorized builds, correct confirmed failures using existing approved behavior,
+even when Design missed them, and add a focused browser regression check. Trace
+shared causes across affected uses within scope. Carry settled corrections into
+the design record without waiting for another drawing; genuinely open visual
+choices still follow the Design approval process.
+
 **The accepted design defines the review scope, not the code changes.** For a
 screen build, include every section in the authorized screen, including reused
 components and content the builder did not edit. Reuse is an implementation
