@@ -685,7 +685,8 @@ const styles = StyleSheet.create({
   },
   resultsLayout: { maxWidth: 1168, width: '100%', alignSelf: 'center', gap: 32 },
   desktopResults: { flexDirection: 'row', alignItems: 'flex-start', gap: 48 },
-  sidebar: { gap: 22, width: '100%' },
+  // Keep the election popup above the following race column on narrow screens.
+  sidebar: { gap: 22, width: '100%', zIndex: 1 },
   races: { flex: 1, minWidth: 0, width: '100%', gap: 18 },
   resultElection: { ...candidateText.strong, fontSize: 15, lineHeight: 23 },
   electionControl: {

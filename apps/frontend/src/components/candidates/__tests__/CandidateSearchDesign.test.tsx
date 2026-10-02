@@ -183,6 +183,31 @@ it('shares a source only when all source facts match and keeps generic coverage 
   expect(host.textContent).not.toContain('Election information from');
 });
 
+it('keeps stale warnings with their own records when group source facts differ', async () => {
+  const staleRace = { ...race('old'), source: { ...source, stale: true } };
+  const render = (races: CandidateRace[]) =>
+    act(async () =>
+      root.render(
+        <CandidateRaceGroups
+          races={races}
+          election={election}
+          busy={false}
+          onOpenProfile={() => {}}
+        />,
+      ),
+    );
+  await render([staleRace, { ...race('also-old'), source: staleRace.source }]);
+  expect(host.textContent?.match(/May be out of date/g)).toHaveLength(1);
+  expect(host.querySelectorAll('a[href="https://example.org/records"]')).toHaveLength(1);
+
+  await render([staleRace, race('fresh')]);
+  expect(host.textContent?.match(/May be out of date/g)).toHaveLength(1);
+  expect(host.querySelectorAll('a[href="https://example.org/records"]')).toHaveLength(2);
+  const words = host.textContent!;
+  expect(words.indexOf('May be out of date')).toBeGreaterThan(words.indexOf('Person old'));
+  expect(words.indexOf('May be out of date')).toBeLessThan(words.indexOf('Person fresh'));
+});
+
 it('names the retained address while editing and after a failed replacement, and keeps the typed text', async () => {
   const results: CandidateResults = {
     kind: 'results',
