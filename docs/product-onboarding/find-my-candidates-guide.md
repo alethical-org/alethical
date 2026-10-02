@@ -102,6 +102,14 @@ Only the newest request can replace them. Errors retain the typed address and of
 Changing an address keeps the form open while typing, even when the draft equals the
 previous successful request. Only an explicitly submitted successful replacement or
 Escape cancellation closes editing; a submitted recent cached result follows the same transition.
+While an address search runs, both **Find my candidates** buttons show a spinner
+and **Finding candidates…** inside their unchanged box. A screen reader receives
+1 polite waiting announcement; the line below stays reserved for errors without
+repeating the waiting message. Focus stays on the activated search button, repeated
+clicks and Enter cannot submit again, and reduced motion stops the spinner. The
+ready label returns after a result or error. Election changes keep their separate
+**Updating candidates…** status.
+
 The search button must receive the first click or tap while address suggestions are
 visible. Keep the field focused during pointer activation so dismissing inline phone
 suggestions cannot move the button between press and release; keyboard focus and

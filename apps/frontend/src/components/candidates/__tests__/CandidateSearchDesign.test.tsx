@@ -280,8 +280,13 @@ it('announces initial loading once while the election source is slow', async () 
   await act(async () =>
     root.render(<CandidateSearchContent services={services} onOpenProfile={() => {}} />),
   );
-  expect(host.textContent?.match(/Finding candidates…/g)).toHaveLength(1);
-  expect(button('Find my candidates').getAttribute('aria-disabled')).toBe('true');
+  expect(host.textContent?.match(/Finding candidates…/g)).toHaveLength(2);
+  expect(button('Finding candidates…').getAttribute('aria-disabled')).toBe('true');
+  const announcements = [...host.querySelectorAll('[aria-live="polite"]')].filter(
+    (node) => node.textContent === 'Finding candidates…',
+  );
+  expect(announcements).toHaveLength(1);
+  expect(getComputedStyle(announcements[0]).width).toBe('1px');
 });
 
 it.each([
