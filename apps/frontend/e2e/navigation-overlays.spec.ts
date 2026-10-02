@@ -116,6 +116,40 @@ test('candidate menus retain keyboard access, Escape and outside dismissal', asy
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
 });
 
+test('short desktop windows keep menu rows reachable by scrolling and keyboard', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1100, height: 400 });
+  await page.goto('/candidates');
+  const trigger = page.getByRole('button', { name: 'Search', exact: true });
+  await trigger.hover();
+  const before = (await trigger.boundingBox())!;
+  const firstRow = page.getByRole('link', { name: /Bills and votes Read/ });
+  const lastRow = page.getByRole('link', { name: /Find my legislators Enter/ });
+  await firstRow.hover();
+  await page.mouse.wheel(0, 1000);
+  await page.waitForTimeout(250);
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  expect((await trigger.boundingBox())!.y).toBe(before.y);
+  const lastBox = (await lastRow.boundingBox())!;
+  expect(lastBox.y).toBeGreaterThan(0);
+  expect(lastBox.y + lastBox.height).toBeLessThanOrEqual(400);
+  await expectRowReceivesPointer(lastRow);
+  await page.keyboard.press('Escape');
+  await trigger.focus();
+  await page.keyboard.press('Enter');
+  // Firefox also makes the overflowing scroll container a keyboard stop.
+  for (let index = 0; index < 8; index++) {
+    await page.keyboard.press('Tab');
+    if (await lastRow.evaluate((element) => element === document.activeElement)) break;
+  }
+  await expect(lastRow).toBeFocused();
+  const keyboardBox = (await lastRow.boundingBox())!;
+  expect(keyboardBox.y + keyboardBox.height).toBeLessThanOrEqual(400);
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/find-my-legislator$/);
+});
+
 test.describe('touch navigation', () => {
   test.use({ hasTouch: true });
   for (const width of [390, 900]) {

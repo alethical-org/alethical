@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import {
   ActivityIndicator,
@@ -421,12 +421,30 @@ function MenuPanel({ menu, onNavigate }: { menu: MenuKey; onNavigate?: (item: Ia
   const { live, roadmap } = navDropdownItems(menu);
   const currentItemId = useCurrentNavItemId();
   const compact = menu === 'about';
+  const panelRef = useRef<View>(null);
+  const [maxHeight, setMaxHeight] = useState<number>();
+  useLayoutEffect(() => {
+    if (!isWeb) return;
+    const panel = panelRef.current as unknown as HTMLElement | null;
+    if (!panel) return;
+    const fitWindow = () =>
+      setMaxHeight(Math.max(0, window.innerHeight - panel.getBoundingClientRect().top - 8));
+    fitWindow();
+    window.addEventListener('resize', fitWindow);
+    window.addEventListener('scroll', fitWindow, true);
+    return () => {
+      window.removeEventListener('resize', fitWindow);
+      window.removeEventListener('scroll', fitWindow, true);
+    };
+  }, []);
   return (
     <View
+      ref={panelRef}
       style={[
         styles.menuPanel,
         compact ? styles.menuPanelCompact : { width: SEARCH_PANEL_WIDTH },
         t.shadows.panel as ViewStyle,
+        isWeb && ({ maxHeight, overflowY: 'auto', overscrollBehaviorY: 'contain' } as ViewStyle),
       ]}
     >
       <View style={[styles.menuPanelList, compact && styles.menuPanelListCompact]}>
@@ -773,8 +791,8 @@ export function TopNav({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openMenu]);
   // Hover-to-open, alongside click: pointing at a trigger opens its panel, and
-  // sliding across to the next trigger swaps panels. Closing is delayed so the
-  // pointer can cross the gap between a trigger and its panel.
+  // sliding across to the next trigger swaps panels. The panel includes its gap;
+  // the closing delay is a short grace period after leaving the entire cluster.
   const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pointerOverTrigger = useRef(false);
   const cancelHoverClose = () => {
