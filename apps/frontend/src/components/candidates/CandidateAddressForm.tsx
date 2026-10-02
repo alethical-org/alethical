@@ -53,6 +53,7 @@ export function CandidateAddressForm({
   const id = useId().replace(/:/g, '');
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const nativeRef = useRef<TextInput>(null);
+  const buttonRef = useRef<View>(null);
   const choicesRef = useRef<View>(null);
   const generation = useRef(0);
   const [suggestions, setSuggestions] = useState<CandidateAddressChoice[]>([]);
@@ -150,6 +151,8 @@ export function CandidateAddressForm({
     setMissing(false);
     setSuggestOpen(false);
     setChoicesOpen(false);
+    // Focus belongs to this submitted action, not election changes or retries.
+    if (Platform.OS === 'web') (buttonRef.current as unknown as HTMLElement | null)?.focus();
     if (choice && !changed) onSubmit(value, choice);
     else onSubmit(value);
   };
@@ -341,6 +344,7 @@ export function CandidateAddressForm({
         <CandidateButton
           label="Find my candidates"
           busyLabel="Finding candidates…"
+          buttonRef={buttonRef}
           busy={busy}
           // Keep suggestions from collapsing and moving this target between
           // pointer press and release. Keyboard focus remains unchanged.

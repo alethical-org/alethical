@@ -325,20 +325,28 @@ with its search icon. The explicit rest column and restore instruction require
 “Find my candidates”; implementation preserves that settled ready label.
 
 Impact and prevention: both affected submits share CandidateAddressForm and
-CandidateButton. An optional busyLabel changes focus, cursor and spinner treatment
-for these2 submits; sibling claim/report/retry buttons retain their own behavior.
+CandidateButton. An optional busyLabel changes cursor and spinner treatment
+for these2 submits; explicit address submission focuses its own button rather than
+every transition into busy. Election selection and retry do not focus the address
+button. Try again retains its existing native-disabled waiting behavior, which
+can move focus to the document; keyboard recovery is tested separately.
+Sibling claim/report/retry buttons retain their own behavior.
 The candidate homepage hands its request to /candidates and has no waiting submit
 state. Error retry keeps its existing notice and suppresses the address form's
-announcement so readers receive1 waiting message. Focused component and browser
+announcement when the retry notice owns the wait. Initial and Change address
+retries instead keep the wait in the visible address button and its hidden region;
+the notice reserves its title space without repeating the waiting message. Election
+retries without an address form retain “Updating candidates…” and old-election
+context. Readers receive1 waiting announcement. Focused component and browser
 checks cover the common path and intentional differences. Parent owns acceptance,
 original preview19047 integration and live release; this worker owns code and checks
 in an isolated checkout. No source, privacy, stored-address or data changes.
 
-Completion evidence:68 focused candidate tests and TypeScript pass. Chromium and
+Completion evidence:69 focused candidate tests and TypeScript pass. Chromium and
 WebKit browser checks at1280/900/390 cover entry/edit labels, dimensions, focus,
 repeat pointer/Enter activation, reserved error space, slow success, no-match,
 failed replacement/retry, reduced motion and unchanged election status. Production
-export passes its297506-byte first-load limit at297084 bytes. Parent acceptance,
+export passes its297506-byte first-load limit at297085 bytes. Parent acceptance,
 original preview integration and live release remain pending.
 
 Independent acceptance found a shared result-column trigger that inserted an extra
@@ -349,6 +357,5 @@ retry notices. Component regression reproduces the original failure, and browser
 checks compare retained race positions during address search. This correction stays
 within the approved stable-update behavior and does not change election meanings.
 
-Physical phone
-keyboard, native autofill and screen-reader speech remain untested; DOM
+Physical phone keyboard, native autofill and screen-reader speech remain untested; DOM
 checks establish the single polite live region without claiming spoken output.

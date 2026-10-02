@@ -87,6 +87,7 @@ function CandidateSearchSession({
   const previousDisplayed = useRef(displayed);
   const busy = state.status === 'loading' || state.status === 'updating';
   const retryBusy = retrying && busy;
+  const addressRetry = retryBusy && (!displayed || changingAddress);
   useEffect(() => {
     if (!recordsAvailable) return;
     const controller = new AbortController();
@@ -178,7 +179,7 @@ function CandidateSearchSession({
         onAddress={editAddress}
         onSubmit={submit}
         busy={busy || electionLoad === 'loading'}
-        showBusyMessage={!retryBusy}
+        showBusyMessage={!retryBusy || addressRetry}
         outcome={state.outcome}
         focus={changingAddress}
         compact={Boolean(displayed)}
@@ -197,7 +198,7 @@ function CandidateSearchSession({
           >
             {displayed ? 'We couldn’t update the results' : 'Candidate results are unavailable'}
           </Text>
-          {retryBusy ? (
+          {retryBusy && !addressRetry ? (
             <Text
               style={[candidateText.strong, { position: 'absolute', top: 0, left: 0, right: 0 }]}
             >

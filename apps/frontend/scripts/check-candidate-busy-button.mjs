@@ -85,7 +85,7 @@ for (const engine of [chromium, webkit]) {
         exact: true,
       });
       const helpBefore = await help.boundingBox();
-      await ready.press('Enter');
+      await field.press('Enter');
       await verifyBusy(before);
       assert.deepEqual(
         await help.boundingBox(),
@@ -151,6 +151,31 @@ for (const engine of [chromium, webkit]) {
         await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
         false,
       );
+      // An initial failure's retry shares the address button's single waiting owner.
+      await page.goto(`${base}/candidates`);
+      await page.getByLabel('Review state', { exact: true }).waitFor();
+      await page.getByLabel('Slow request', { exact: true }).check();
+      await page.getByLabel('Review state', { exact: true }).selectOption('failure');
+      await field.fill('100 Example Street');
+      await ready.click();
+      await page.getByText('Candidate results are unavailable', { exact: true }).waitFor();
+      const retry = page.getByRole('button', { name: 'Try again', exact: true });
+      const retryBefore = await retry.boundingBox();
+      await page.getByLabel('Review state', { exact: true }).selectOption('full');
+      await retry.click();
+      await busy.waitFor();
+      assert.equal(await page.getByText('Finding candidates…', { exact: true }).count(), 2);
+      const retryAnnouncement = page
+        .locator('[aria-live="polite"]')
+        .filter({ hasText: /^Finding candidates…$/ });
+      assert.equal(await retryAnnouncement.count(), 1);
+      assert.equal(await retryAnnouncement.evaluate((node) => getComputedStyle(node).width), '1px');
+      assert.deepEqual(
+        await retry.boundingBox(),
+        retryBefore,
+        'Retry keeps its reserved failure space',
+      );
+      await page.getByRole('button', { name: 'Change address', exact: true }).waitFor();
       await page.screenshot({
         path: `/tmp/candidate-busy-${engine.name()}-${width}.png`,
         fullPage: true,

@@ -314,6 +314,52 @@ it('announces initial loading once while the election source is slow', async () 
   expect(getComputedStyle(announcements[0]).width).toBe('1px');
 });
 
+it('gives an initial address retry 1 waiting announcement inside its steady form', async () => {
+  let finish!: (value: { kind: 'no-match' }) => void;
+  const lookup = vi
+    .fn<CandidateSearchServices['lookup']>()
+    .mockRejectedValueOnce(new Error('source unavailable'))
+    .mockImplementationOnce(
+      () =>
+        new Promise((yes) => {
+          finish = yes;
+        }),
+    );
+  const services: CandidateSearchServices = {
+    getElections: async () => [election],
+    suggest: async () => [],
+    lookup,
+  };
+  await act(async () =>
+    root.render(
+      <CandidateSearchContent
+        services={services}
+        initialAddress="100 Example Street"
+        onOpenProfile={() => {}}
+      />,
+    ),
+  );
+  await flush();
+  expect(host.textContent).toContain('Candidate results are unavailable');
+  const retry = button('Try again');
+  click(retry);
+  await flush();
+  expect(button('Finding candidates…').getAttribute('aria-disabled')).toBe('true');
+  expect(host.textContent?.match(/Finding candidates…/g)).toHaveLength(2);
+  const announcements = [...host.querySelectorAll('[aria-live="polite"]')].filter(
+    (node) => node.textContent === 'Finding candidates…',
+  );
+  expect(announcements).toHaveLength(1);
+  expect(getComputedStyle(announcements[0]).width).toBe('1px');
+  expect(button('Try again')).toBe(retry);
+  click(retry);
+  click(button('Finding candidates…'));
+  expect(lookup).toHaveBeenCalledTimes(2);
+  await act(async () => finish({ kind: 'no-match' }));
+  await flush();
+  expect(button('Find my candidates').getAttribute('aria-disabled')).toBeNull();
+});
+
 it.each([
   ['Associate Justice - Supreme Court 1', 'Associate Justice, Supreme Court, Seat 1'],
   ['Associate Justice - Supreme Court 4', 'Associate Justice, Supreme Court, Seat 4'],

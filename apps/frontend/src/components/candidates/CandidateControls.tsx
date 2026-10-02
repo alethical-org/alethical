@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import {
   Linking,
   Platform,
@@ -59,6 +59,7 @@ export function CandidateButton({
   href,
   keepFieldFocus = false,
   busyLabel,
+  buttonRef,
 }: {
   label: string;
   onPress(): void;
@@ -70,10 +71,11 @@ export function CandidateButton({
   href?: string;
   keepFieldFocus?: boolean;
   busyLabel?: string;
+  buttonRef?: RefObject<View | null>;
 }) {
   const [hovered, setHovered] = useState(false);
-  const control = useRef<View>(null);
-  const previousBusy = useRef(busy);
+  const localRef = useRef<View>(null);
+  const control = buttonRef ?? localRef;
   useEffect(() => {
     if (Platform.OS !== 'web' || document.getElementById('alethical-candidate-controls')) return;
     const sheet = document.createElement('style');
@@ -87,11 +89,7 @@ export function CandidateButton({
     const element = control.current as unknown as HTMLElement | null;
     if (busy || disabled) element?.setAttribute('aria-disabled', 'true');
     else element?.removeAttribute('aria-disabled');
-    // Address searches retain their activated control, including keyboard submit.
-    // Do not steal focus while the election list initially loads.
-    if (busyLabel && busy && !previousBusy.current) element?.focus();
-    previousBusy.current = busy;
-  }, [busy, disabled, busyLabel]);
+  }, [busy, disabled, control]);
   return (
     <Pressable
       ref={control}
