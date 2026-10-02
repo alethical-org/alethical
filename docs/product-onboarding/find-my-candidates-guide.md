@@ -54,11 +54,23 @@ preserves that label and its shared profile rather than guessing separate identi
 Names sort by the supplied full name because this source does not supply a separate
 surname. Payment and ownership never change ordering or prominence.
 
-The coverage panel says that some local offices may be missing. This is a source-wide
+The **About these results** box follows the last available race group, with a 40px
+gap, at every screen width. It stays visible for a successful search with no races.
+Initial loading, an initial failure and no upcoming election do not show the box;
+retained results during an update or failed replacement keep their own notices.
+The box says that some local offices may be missing. This is a source-wide
 coverage limit, not proof that a particular local race is absent. Minnesota says that
 some local sample ballots are unavailable. [Minnesota sample ballot information](https://www.sos.mn.gov/elections-voting/whats-on-my-ballot/)
 remains available from every result. Alethical does not claim to list every possible
 write-in candidate or to replace an official sample ballot.
+
+The general warning and any named gaps stay together in that box with the
+candidate-list disclaimer and sample-ballot link. The current response does not
+identify a group for a gap, so the interface never guesses from office wording.
+Source dates and stale warnings stay with the affected groups or races.
+Empty race cards, including Judges, say **No candidates listed** and **The source
+lists no candidates for this race**. An empty sample-ballot list does not establish
+that nobody filed, and an absent office does not prove it is missing from the source.
 
 A source outage, a missing address match, an empty candidate list and uncertain
 coverage remain distinct. The last successful results stay visible during a replacement

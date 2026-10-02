@@ -170,7 +170,7 @@ it('names the address field, rejects empty input without a request, and keeps ty
   expect(host.textContent).toContain('Candidate results are unavailable');
   expect(host.textContent).not.toContain('hidden transport error');
 });
-it('shows coverage before races, alphabetical names and real profile links without claiming missing fields', async () => {
+it('shows notices after races, alphabetical names and real profile links without claiming missing fields', async () => {
   const open = vi.fn();
   await act(async () =>
     root.render(
@@ -182,9 +182,14 @@ it('shows coverage before races, alphabetical names and real profile links witho
     ),
   );
   await flush();
-  expect(host.textContent!.indexOf('Coverage for this address')).toBeLessThan(
-    host.textContent!.indexOf('State offices'),
-  );
+  const notice = host.querySelector('[role="region"]')!;
+  expect(notice).not.toBeNull();
+  expect(notice.textContent).toContain('About these results');
+  const lastCandidate = host.querySelectorAll('a[href^="/candidates/"]');
+  expect(lastCandidate).toHaveLength(2);
+  expect(
+    lastCandidate[1].compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
   expect(host.textContent!.indexOf('Example A')).toBeLessThan(
     host.textContent!.indexOf('Example B'),
   );

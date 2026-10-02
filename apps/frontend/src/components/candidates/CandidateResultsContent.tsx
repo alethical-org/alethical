@@ -172,10 +172,8 @@ export function CandidateRaceCard({
       ) : null}
       {entries.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={candidateText.strong}>No filed candidates listed</Text>
-          <Text style={candidateText.body}>
-            The available filing records list no candidates for this race
-          </Text>
+          <Text style={candidateText.strong}>No candidates listed</Text>
+          <Text style={candidateText.body}>The source lists no candidates for this race</Text>
         </View>
       ) : (
         entries.map((entry) => {
@@ -210,10 +208,16 @@ export function CandidateRaceCard({
   );
 }
 export function CandidateCoverage({ gaps }: { gaps: CandidateCoverageGap[] }) {
+  const headingId = useId();
   return (
-    <View style={styles.coverage}>
-      <Text accessibilityRole="header" aria-level={2} style={styles.coverageHeading}>
-        Coverage for this address
+    <View role="region" aria-labelledby={headingId} style={styles.coverage}>
+      <Text
+        nativeID={headingId}
+        accessibilityRole="header"
+        aria-level={2}
+        style={styles.coverageHeading}
+      >
+        About these results
       </Text>
       {gaps.map((gap, index) => (
         <View key={`${gap.kind}-${gap.office}-${index}`} style={styles.gap}>

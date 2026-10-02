@@ -183,6 +183,31 @@ it('shares a source only when all source facts match and keeps generic coverage 
   expect(host.textContent).not.toContain('Election information from');
 });
 
+it('keeps stale warnings with their own records when group source facts differ', async () => {
+  const staleRace = { ...race('old'), source: { ...source, stale: true } };
+  const render = (races: CandidateRace[]) =>
+    act(async () =>
+      root.render(
+        <CandidateRaceGroups
+          races={races}
+          election={election}
+          busy={false}
+          onOpenProfile={() => {}}
+        />,
+      ),
+    );
+  await render([staleRace, { ...race('also-old'), source: staleRace.source }]);
+  expect(host.textContent?.match(/May be out of date/g)).toHaveLength(1);
+  expect(host.querySelectorAll('a[href="https://example.org/records"]')).toHaveLength(1);
+
+  await render([staleRace, race('fresh')]);
+  expect(host.textContent?.match(/May be out of date/g)).toHaveLength(1);
+  expect(host.querySelectorAll('a[href="https://example.org/records"]')).toHaveLength(2);
+  const words = host.textContent!;
+  expect(words.indexOf('May be out of date')).toBeGreaterThan(words.indexOf('Person old'));
+  expect(words.indexOf('May be out of date')).toBeLessThan(words.indexOf('Person fresh'));
+});
+
 it('names the retained address while editing and after a failed replacement, and keeps the typed text', async () => {
   const results: CandidateResults = {
     kind: 'results',
@@ -237,6 +262,13 @@ it('names the retained address while editing and after a failed replacement, and
   expect(field.value).toBe('200 New Street Unit 2');
   expect(host.textContent).toContain('Showing results for 100 Original Street, MN 55415');
   expect(host.textContent).toContain('We couldn’t update the results');
+  expect(host.querySelector('[role="region"]')?.textContent).toContain('About these results');
+  expect(
+    host
+      .querySelector('a[href="/candidates/a-person"]')!
+      .compareDocumentPosition(host.querySelector('[role="region"]')!) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
 });
 
 it('announces initial loading once while the election source is slow', async () => {
@@ -365,3 +397,118 @@ it('separates real source election dates and office districts only when their fa
   );
   expect(areaLabel('Judicial District 9th')).toBe('9th Judicial District');
 });
+
+it.each(['general', 'primary', 'empty'] as const)(
+  'keeps one accessible notice after %s results, without inventing affected groups',
+  async (scenario) => {
+    const selected = {
+      ...election,
+      type: scenario === 'primary' ? ('primary' as const) : ('general' as const),
+    };
+    const results: CandidateResults = {
+      kind: 'results',
+      electionId: selected.id,
+      matchedAddress: '100 Example Street',
+      races:
+        scenario === 'empty'
+          ? []
+          : [
+              { ...race('county', 'County Sheriff'), group: 'county', entries: [] },
+              { ...race('school', 'School Board Member'), group: 'school' },
+              ...(scenario === 'general'
+                ? [{ ...race('other', 'Park Commissioner'), group: 'other' as const }]
+                : []),
+            ],
+      coverage: [
+        { kind: 'coverage-unconfirmed', office: '', authority: source.authority, url: source.url },
+        {
+          kind: 'records-unavailable',
+          office: 'Mayor, Sample City',
+          authority: source.authority,
+          url: source.url,
+        },
+      ],
+    };
+    const services: CandidateSearchServices = {
+      getElections: async () => [selected],
+      suggest: async () => [],
+      lookup: async () => results,
+    };
+    await act(async () =>
+      root.render(
+        <CandidateSearchContent
+          services={services}
+          initialAddress="100 Example Street"
+          onOpenProfile={() => {}}
+        />,
+      ),
+    );
+    await flush();
+    const notice = host.querySelector('[role="region"]')!;
+    const heading = document.getElementById(notice.getAttribute('aria-labelledby')!);
+    expect(heading?.textContent).toBe('About these results');
+    expect(host.querySelectorAll('[role="region"]')).toHaveLength(1);
+    expect(notice.textContent).toContain('Some local offices may be missing');
+    expect(notice.textContent).toContain(
+      'Candidate records are unavailable for Mayor, Sample City',
+    );
+    expect(
+      notice.querySelector('a[href="https://www.sos.mn.gov/elections-voting/whats-on-my-ballot/"]'),
+    ).toBeTruthy();
+    expect(host.textContent?.match(/Some local offices may be missing/g)).toHaveLength(1);
+    for (const group of host.querySelectorAll('.candidate-group-toggle')) {
+      expect(group.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+    expect(host.querySelector('nav')?.textContent ?? '').not.toContain('About these results');
+    if (scenario === 'empty')
+      expect(host.textContent).toContain(
+        'No candidate records to show for this address and election',
+      );
+    else {
+      expect(host.textContent).toContain('No candidates listed');
+      expect(host.textContent).toContain('The source lists no candidates for this race');
+      expect(host.textContent).not.toContain('No filed candidates');
+    }
+  },
+);
+
+it('uses the same source-limited empty wording in Judges', async () => {
+  await act(async () =>
+    root.render(
+      <CandidateRaceGroups
+        races={[{ ...race('judge', 'Judge - 9th District Court 12'), entries: [] }]}
+        election={election}
+        busy={false}
+        onOpenProfile={() => {}}
+      />,
+    ),
+  );
+  click(button('Judges'));
+  expect(host.textContent).toContain('No candidates listed');
+  expect(host.textContent).toContain('The source lists no candidates for this race');
+  expect(host.textContent).not.toContain('filing records');
+});
+
+it.each(['loading', 'failure', 'no-election'] as const)(
+  'hides result notices for %s before a successful search',
+  async (scenario) => {
+    const services: CandidateSearchServices = {
+      getElections: async () => (scenario === 'no-election' ? [] : [election]),
+      suggest: async () => [],
+      lookup: () =>
+        scenario === 'failure' ? Promise.reject(new Error('Unavailable')) : new Promise(() => {}),
+    };
+    await act(async () =>
+      root.render(
+        <CandidateSearchContent
+          services={services}
+          initialAddress="100 Example Street"
+          onOpenProfile={() => {}}
+        />,
+      ),
+    );
+    await flush();
+    expect(host.textContent).not.toContain('About these results');
+    expect(host.querySelector('[role="region"]')).toBeNull();
+  },
+);

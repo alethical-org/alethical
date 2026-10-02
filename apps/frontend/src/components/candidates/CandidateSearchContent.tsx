@@ -303,7 +303,6 @@ function CandidateSearchSession({
                 </Text>
               </CandidateNotice>
             ) : null}
-            <CandidateCoverage gaps={displayed.results.coverage} />
           </View>
           <View style={styles.races}>
             {state.outcome && !changingAddress && state.outcome.kind !== 'no-elections' ? (
@@ -333,14 +332,17 @@ function CandidateSearchSession({
                 {candidateDate(displayed.election.date)}
               </Text>
             ) : null}
-            <CandidateRaceGroups
-              races={displayed.results.races}
-              election={displayed.election}
-              busy={busy}
-              openGroups={state.openGroups}
-              onGroupOpen={flow.setGroupOpen}
-              onOpenProfile={onOpenProfile}
-            />
+            <View style={{ gap: 40 }}>
+              <CandidateRaceGroups
+                races={displayed.results.races}
+                election={displayed.election}
+                busy={busy}
+                openGroups={state.openGroups}
+                onGroupOpen={flow.setGroupOpen}
+                onOpenProfile={onOpenProfile}
+              />
+              {!noElection ? <CandidateCoverage gaps={displayed.results.coverage} /> : null}
+            </View>
           </View>
         </View>
       ) : (
@@ -683,7 +685,8 @@ const styles = StyleSheet.create({
   },
   resultsLayout: { maxWidth: 1168, width: '100%', alignSelf: 'center', gap: 32 },
   desktopResults: { flexDirection: 'row', alignItems: 'flex-start', gap: 48 },
-  sidebar: { gap: 22, width: '100%' },
+  // Keep the election popup above the following race column on narrow screens.
+  sidebar: { gap: 22, width: '100%', zIndex: 1 },
   races: { flex: 1, minWidth: 0, width: '100%', gap: 18 },
   resultElection: { ...candidateText.strong, fontSize: 15, lineHeight: 23 },
   electionControl: {
