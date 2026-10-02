@@ -7,6 +7,74 @@
       name="viewport"
       content="width=device-width, initial-scale=1, shrink-to-fit=no, interactive-widget=resizes-content"
     />
+    <!-- Fixed metadata and interaction styles belong in HTML, ready before any
+         app download. Avoid carrying runtime injectors in the initial program.
+         Browser-fill CSS is pinned to theme/browserFill.ts by browserFill.test.ts. -->
+    <link rel="manifest" href="/manifest.json?brand=twin-peaks" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?brand=twin-peaks" />
+    <meta name="theme-color" content="#111111" />
+    <style id="alethical-focus-visible">
+      a:not([data-arrow-focus]):focus-visible,
+      button:not([data-arrow-focus]):focus-visible,
+      [role="button"]:not([data-arrow-focus]):focus-visible,
+      [role="link"]:not([data-arrow-focus]):focus-visible,
+      [tabindex]:not(input):not(textarea):not(select):not([role="heading"]):not(
+          h1
+        ):not(h2):not(h3):not(h4):not(h5):not(h6):not(
+          [data-arrow-focus]
+        ):focus-visible {
+        outline: 2px solid #7c5cff !important;
+        outline-offset: 2px !important;
+      }
+    </style>
+    <style id="alethical-browser-fill">
+      input[data-alethical-browser-fill="true"]:autofill,
+      input[data-alethical-browser-fill="true"]:autofill:hover,
+      input[data-alethical-browser-fill="true"]:autofill:focus,
+      input[data-alethical-browser-fill="true"]:autofill:active {
+        background-color: #ffffff !important;
+        -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+        box-shadow: 0 0 0 1000px #ffffff inset !important;
+        -webkit-text-fill-color: #11150f !important;
+        color: #11150f !important;
+        caret-color: #11150f !important;
+      }
+      input[data-alethical-browser-fill="true"]:-webkit-autofill,
+      input[data-alethical-browser-fill="true"]:-webkit-autofill:hover,
+      input[data-alethical-browser-fill="true"]:-webkit-autofill:focus,
+      input[data-alethical-browser-fill="true"]:-webkit-autofill:active {
+        background-color: #ffffff !important;
+        -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+        box-shadow: 0 0 0 1000px #ffffff inset !important;
+        -webkit-text-fill-color: #11150f !important;
+        color: #11150f !important;
+        caret-color: #11150f !important;
+      }
+      @media (forced-colors: active) {
+        input[data-alethical-browser-fill="true"]:autofill,
+        input[data-alethical-browser-fill="true"]:autofill:hover,
+        input[data-alethical-browser-fill="true"]:autofill:focus,
+        input[data-alethical-browser-fill="true"]:autofill:active {
+          background-color: Canvas !important;
+          -webkit-box-shadow: none !important;
+          box-shadow: none !important;
+          -webkit-text-fill-color: CanvasText !important;
+          color: CanvasText !important;
+          caret-color: CanvasText !important;
+        }
+        input[data-alethical-browser-fill="true"]:-webkit-autofill,
+        input[data-alethical-browser-fill="true"]:-webkit-autofill:hover,
+        input[data-alethical-browser-fill="true"]:-webkit-autofill:focus,
+        input[data-alethical-browser-fill="true"]:-webkit-autofill:active {
+          background-color: Canvas !important;
+          -webkit-box-shadow: none !important;
+          box-shadow: none !important;
+          -webkit-text-fill-color: CanvasText !important;
+          color: CanvasText !important;
+          caret-color: CanvasText !important;
+        }
+      }
+    </style>
     <!--
       Everything between the two markers below is this page's own head, and
       api/page.ts replaces it per address before the response is sent, so a search

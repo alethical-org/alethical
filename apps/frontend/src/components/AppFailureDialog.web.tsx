@@ -25,6 +25,7 @@ export function AppFailureDialog({ onClose }: { onClose: () => void }) {
         height: '100vh',
         maxWidth: 'none',
         maxHeight: 'none',
+        scrollPadding: 6,
       }}
     >
       <AppFailureView onReload={() => window.location.reload()} onClose={onClose} />

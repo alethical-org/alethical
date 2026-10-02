@@ -421,6 +421,11 @@ section below owns that change and its measurements.
 
 ### Recover failed downloads without losing a working visit
 
+Fixed install metadata, keyboard-focus CSS and browser-fill CSS are emitted in
+`public/index.html` rather than injected by the startup program. Their values and
+selectors are unchanged and the browser-fill test pins the HTML to the CSS source.
+This keeps recovery available in the initial download without raising the size limit.
+
 Automatic release recovery is limited to startup before the first screen draws.
 The required initial screen preload and the same-origin program-file error
 listener share a 1-reload-per-tab budget (`alethical.release-program-reload`).
