@@ -452,8 +452,8 @@ function MenuPanel({ menu, onNavigate }: { menu: MenuKey; onNavigate?: (item: Ia
   );
 }
 
-/** How long an open panel survives after the pointer leaves the trigger+panel
- *  cluster. Long enough to cross the 30px gap between them without a flicker. */
+/** Briefly tolerate pointer movement outside the continuous trigger+panel
+ *  hover region. The transparent bridge handles the visible gap itself. */
 const HOVER_CLOSE_DELAY_MS = 140;
 
 /** Only pointers that can genuinely hover get hover-to-open — on a touch screen
@@ -514,7 +514,10 @@ function NavDropdownTrigger({
           style={[
             styles.menuPanelAnchor,
             {
-              top: triggerLayout.height + 26,
+              // Keep the visible gap inside the hover region, so slow pointer
+              // travel reaches the panel without racing the close timer.
+              top: triggerLayout.height,
+              paddingTop: 26,
               left: triggerLayout.width / 2,
               ...(isWeb
                 ? ({ transform: 'translateX(-50%)' } as unknown as ViewStyle)
@@ -764,8 +767,8 @@ export function TopNav({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openMenu]);
   // Hover-to-open, alongside click: pointing at a trigger opens its panel, and
-  // sliding across to the next trigger swaps panels. Closing is delayed so the
-  // pointer can cross the gap between a trigger and its panel.
+  // sliding across to the next trigger swaps panels. The hover region bridges
+  // the visible gap; delayed closing tolerates brief departures at its edges.
   const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pointerOverTrigger = useRef(false);
   const cancelHoverClose = () => {

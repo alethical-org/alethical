@@ -61,7 +61,7 @@ The existing preview at port 19047 stays the current task's target.
 - Backend: 512 focused tests pass, including common US country spellings, comma,
   period, semicolon, colon, dash and balanced-parenthesis boundaries. Foreign
   countries, incomplete ZIP+4 and unknown trailing words are preserved for rejection.
-- Frontend: 4,046 tests passed after the final browser-value preservation refinements.
+- Frontend: 4,055 tests passed after the final browser-value preservation refinements.
   All 36 release browser checks passed (12 each Chromium, WebKit and Firefox).
 - Additional proven browser cause: an unrelated React render can overwrite a saved
   address before the browser reports an input event. WebKit traced the value present
@@ -82,7 +82,7 @@ The existing preview at port 19047 stays the current task's target.
   into the original preview at port 19047.
 
 - Final production-style export: release assets, CSP, icon and first-load budget
-  pass; initial program is 297,074 of 297,506 allowed compressed bytes locally.
+  pass; initial program is 297,083 of 297,506 allowed compressed bytes locally.
   Hosted production must pass its own measurement. Fixed metadata/focus/autofill
   styles moved unchanged from runtime injectors to HTML to offset recovery cost.
 - The original preview's earlier read proxy allowed only election-list requests.
@@ -95,3 +95,14 @@ The existing preview at port 19047 stays the current task's target.
   leaving its focus outline visible; Chromium and WebKit passed all dialog checks.
 - The notice task accepted its merged changes at original preview 19047, using
   live public-address results at 390/900/1280 widths.
+
+- Final menu review found the candidate header wrapper below its sibling content,
+  which intercepted pointer movement into Search and About menus. Raise that
+  wrapper to the existing header layer; homepage and candidate-profile wrappers
+  do not share the defect. Cover continuous pointer paths, full row hit areas,
+  keyboard, touch, election selection and narrow-screen containment.
+- Hosted brand checks now inspect the static HTML that owns the saved-site icon
+  and manifest, matching the unchanged metadata moved out of the application code.
+- Shared Search/About pointer-gap repair keeps the same visible 26px gap, but
+  includes it in the open menu's pointer area. This removes the race against
+  the close timer without extending that timer or moving the menu.
