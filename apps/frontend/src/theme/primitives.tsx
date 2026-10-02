@@ -133,14 +133,20 @@ export function Container({
   children,
   style,
   testID,
+  onLayout,
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   testID?: string;
+  onLayout?: ViewProps['onLayout'];
 }) {
   const { isMobile } = useResponsive();
   return (
-    <View testID={testID} style={[styles.container, isMobile && styles.containerMobile, style]}>
+    <View
+      testID={testID}
+      onLayout={onLayout}
+      style={[styles.container, isMobile && styles.containerMobile, style]}
+    >
       {children}
     </View>
   );
@@ -450,8 +456,8 @@ function MenuPanel({ menu, onNavigate }: { menu: MenuKey; onNavigate?: (item: Ia
   );
 }
 
-/** How long an open panel survives after the pointer leaves the trigger+panel
- *  cluster. Long enough to cross the 30px gap between them without a flicker. */
+/** Brief grace period after leaving the trigger+panel cluster. The visible gap
+ *  is part of the panel's hover region, so crossing it never depends on speed. */
 const HOVER_CLOSE_DELAY_MS = 140;
 
 /** Only pointers that can genuinely hover get hover-to-open — on a touch screen
@@ -512,7 +518,10 @@ function NavDropdownTrigger({
           style={[
             styles.menuPanelAnchor,
             {
-              top: triggerLayout.height + 26,
+              top: triggerLayout.height,
+              // Keep the approved visual gap inside the hit area so slow pointer
+              // movement reaches the panel without starting the departure timer.
+              paddingTop: 26,
               left: triggerLayout.width / 2,
               ...(isWeb
                 ? ({ transform: 'translateX(-50%)' } as unknown as ViewStyle)
@@ -710,12 +719,14 @@ export function TopNav({
   onNavigate,
   onHome,
   candidateSurface = false,
+  onLayout,
 }: {
   openMenu?: MenuKey | null;
   onOpenMenuChange?: (menu: MenuKey | null) => void;
   onNavigate?: (item: IaItem) => void;
   onHome?: () => void;
   candidateSurface?: boolean;
+  onLayout?: ViewProps['onLayout'];
 }) {
   const { isDesktop, isMobile } = useResponsive();
   const navigation = useNavigation<any>();
@@ -826,6 +837,7 @@ export function TopNav({
 
   return (
     <Container
+      onLayout={onLayout}
       style={[
         styles.navRow,
         candidateSurface && {

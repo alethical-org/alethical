@@ -42,9 +42,11 @@ export function CandidatesScreen(props: RootScreenProps<'Candidates'>) {
         scrollEventThrottle={100}
         onScroll={(event) => candidateFlow.setScrollOffset(event.nativeEvent.contentOffset.y)}
       >
-        <View onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
-          <TopNav candidateSurface onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
-        </View>
+        <TopNav
+          candidateSurface
+          onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}
+          onHome={() => navigation.navigate('Tabs', { screen: 'Home' })}
+        />
         <View style={isDesktop ? { minHeight: Math.max(0, height - headerHeight) } : undefined}>
           <CandidateSearchContent
             services={candidateSearchServices}
