@@ -30,6 +30,8 @@ KNOWN_JAVASCRIPT_EXCEPTIONS = {
 # version, available fix, or overdue review closes this narrow exception.
 IMAGE_SIZE_REVIEW_EXPIRES = date(2026, 10, 18)
 IMAGE_SIZE_BUILD_PATH = "apps__frontend>expo>@expo/metro>metro>image-size"
+FORGE_ADVISORY = "GHSA-86w9-cpqp-85rv"
+FORGE_BUILD_PATH = "apps__frontend>expo>@expo/cli>node-forge"
 
 
 class VersionSource(NamedTuple):
@@ -415,7 +417,9 @@ def find_local_problems(root: Path, *, today: date | None = None) -> list[str]:
     return problems
 
 
-def javascript_audit_problems(payload: dict, *, today: date | None = None) -> list[str]:
+def javascript_audit_problems(
+    payload: dict, *, today: date | None = None, forge_repaired: bool = False
+) -> list[str]:
     today = today or date.today()
     if not isinstance(payload, dict) or "error" in payload:
         raise ValueError("JavaScript audit did not return a report")
@@ -440,6 +444,16 @@ def javascript_audit_problems(payload: dict, *, today: date | None = None) -> li
             raise ValueError("JavaScript audit returned an invalid advisory")
         advisory_id = advisory.get("github_advisory_id") or key
         findings = advisory.get("findings")
+        if (
+            forge_repaired
+            and advisory_id == FORGE_ADVISORY
+            and advisory.get("module_name") == "node-forge"
+            and advisory.get("severity") == "high"
+            and advisory.get("vulnerable_versions") == "<=1.4.0"
+            and advisory.get("patched_versions") == "<0.0.0"
+            and findings == [{"version": "1.4.0", "paths": [FORGE_BUILD_PATH]}]
+        ):
+            continue
         if (
             advisory_id in KNOWN_JAVASCRIPT_EXCEPTIONS
             and today < IMAGE_SIZE_REVIEW_EXPIRES
@@ -507,6 +521,7 @@ def security_audit_problems(
     language: str,
     *,
     expected_python: set[tuple[str, str]] | None = None,
+    forge_repaired: bool = False,
 ) -> list[str]:
     try:
         payload = json.loads(audited.stdout)
@@ -522,7 +537,7 @@ def security_audit_problems(
                     "The Python security review did not cover every locked package version"
                 )
         else:
-            problems = javascript_audit_problems(payload)
+            problems = javascript_audit_problems(payload, forge_repaired=forge_repaired)
             has_findings = bool(payload["advisories"])
     except (ValueError, TypeError):
         return [f"The {language} security review returned no complete readable result"]
@@ -638,7 +653,26 @@ def run_security_audits(root: Path) -> list[str]:
                 )
 
     audited = _run(["pnpm", "audit", "--json"], root)
-    problems.extend(security_audit_problems(audited, "JavaScript"))
+    # The raw registry warning remains visible. Only an installed, tested exact
+    # backport can resolve this specific finding, including in docs-only CI.
+    installed = _run(["pnpm", "install", "--frozen-lockfile", "--ignore-scripts"], root)
+    repaired = False
+    if installed.returncode:
+        problems.append("The JavaScript security repair installation failed")
+    else:
+        repair = _run(
+            ["node", "apps/frontend/scripts/check-node-forge-security.mjs"], root
+        )
+        repaired = repair.returncode == 0
+        if not repaired:
+            problems.append("The installed JavaScript security repair did not pass")
+        else:
+            print(repair.stdout.strip())
+    print("Raw JavaScript audit report:")
+    print(audited.stdout)
+    problems.extend(
+        security_audit_problems(audited, "JavaScript", forge_repaired=repaired)
+    )
     return problems
 
 
@@ -792,6 +826,11 @@ def main() -> int:
         )
     if args.online or args.security_only:
         report += (
+            "\nLocal security repair: node-forge 1.4.0 retains the raw "
+            "GHSA-86w9-cpqp-85rv warning. It passes only after frozen installation, "
+            "exact patch/lock/installed-code fingerprints, and valid/malformed "
+            "signature checks through both Expo consumers. Any changed finding "
+            "or failed repair check blocks release.\n"
             "\nRecorded exception policy: only image-size 1.2.1 in Expo's Metro "
             "build tool may retain "
             + ", ".join(sorted(KNOWN_JAVASCRIPT_EXCEPTIONS))

@@ -14,7 +14,7 @@
     "brand:generate": "node ./scripts/generate-brand-assets.mjs",
     "brand:check": "node ./scripts/check-brand-assets.mjs",
     "check:expo-packages": "node ./scripts/check-expo-packages.mjs",
-    "check:build-tool-security": "node ./scripts/check-build-tool-security.mjs",
+    "check:build-tool-security": "node --test ./scripts/test-node-forge-security.mjs && node ./scripts/check-build-tool-security.mjs",
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",

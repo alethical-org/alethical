@@ -284,5 +284,15 @@ Progress: implementation complete;20 existing candidate-content tests pass, type
 and format checks pass, and the changed-component design detector reports no
 findings. The390px working preview renders the map at160×176, centered atx115,
 with exactly40px after the final address note and no horizontal overflow. The
-image has empty alt text and aria-hidden=true. Independent and release acceptance
-remain pending.
+image has empty alt text and aria-hidden=true. Independent acceptance covers
+320px,390px,900px and1280px: no horizontal overflow, full phone heading width,
+the exact phone map gap and dimensions, unchanged larger maps, and working empty
+address feedback with focus returned to the field. Live release acceptance is
+pending. Physical touch and the on-screen keyboard were not exercised.
+
+Release prerequisite: the newly published node-forge signature advisory blocks
+the required security check. The exact upstream nested-element validation repair
+is applied through the existing pnpm patch mechanism. The security invocation
+requires frozen installation, the exact repair fingerprints and installed
+valid/malformed signature checks before accepting that specific raw finding.
+The mobile change's scope and larger-screen appearance remain unchanged.
