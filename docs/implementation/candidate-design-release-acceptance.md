@@ -38,7 +38,7 @@ Source abbreviations: S = `Candidates search.dc.html`; P = `Candidates profile.d
 | S03 | Visitor, homepage handoff | Typed address carried in temporary memory, `/candidates` address bar stays clean. Drawn arrival has populated field and finding feedback. Direct visits remain empty. | Existing homepage waits for search before navigating; scope is homepage copy, so report any timing difference explicitly rather than silently broadening. Verify actual route handoff and no address in URL. |
 | S04 | Visitor, entry layout | Desktop max1168, remaining-width form +300 outline, gap64; tablet200 outline/gap40; phone160×176 decorative outline centered below the address notes with40px above, superseding the beside-title outline under the user's October2 isolated mobile change. H1 48/42/32; lead19/18/16.5; page top padding64/48/32, superseding S's36/32/24 under the user's October1 live-review correction. The same outer padding applies to results. Input/button top-aligned; desktop button248, tablet220, phone full width, height60. S plus explicit user correction. | Existing entry cap1080/form700/gap80 and map placement differ. Decorative outline excluded from accessibility tree. |
 | S05 | Visitor, street field typing/paste | Label “Full street address”; placeholder “350 S 5th St, Minneapolis, MN 55415”. 60px minimum, radius14, font17. Grow for wrapped text without an internal scrollbar or clipping. Pasted line breaks become spaces; Enter picks/submits, no inserted newline. | Auto-growing textarea exists but paste normalization/IME guard need attention; compact height currently52. Check long address and composed text. |
-| S06 | Visitor, submit ready/busy | Search icon changes to spinner; button label stays unchanged. Field remains editable while request runs, repeated submission guarded. 22px minimum message space at12px below. | Current stretch alignment can change button height with textarea. Measure ready/busy/error. |
+| S06 | Visitor, submit ready/busy | Search icon changes to spinner with “Finding candidates…” inside the same button. A hidden polite live region announces once; no visible repeated busy line. Entry248/220/full width×60; Change address full width×52. Field remains editable, repeated pointer/Enter submission guarded, activated button keeps focus with aria-disabled and progress cursor. 22px minimum error space at12px below (10px for compact). | Current stretch alignment can change button height with textarea. Measure ready/busy/error. |
 | S07 | Visitor, helper/disclosure | Hairline36px after feedback,20px before helper; 14px/21px gray lines with6px gaps. City/ZIP limitation, actual-service privacy disclosure, and actual-service attribution only. Field described-by includes help. | Existing helper position/sizes differ. Census fallback cannot replace production Minnesota-service wording. |
 | S08 | Visitor, suggestions after supported typing | 6-character start; singular/plural heading. Desktop/tablet overlay8px below field; phone inline under field. Up/Down wrap; Enter select; Escape close with draft preserved and field focus retained. Accessible active descendant. | Exercise existing behavior plus phone keyboard, field visibility, suggestion reachability. Suggestions failure must not prevent normal submit. |
 | S09 | Visitor, ambiguous submitted address | “Choose your address”, explicit listbox selection with Up/Down/Enter/Space/click; no silent choice. Escape returns to field. | Existing listbox must survive visual updates; test multiple returned matches. |
@@ -296,3 +296,66 @@ is applied through the existing pnpm patch mechanism. The security invocation
 requires frozen installation, the exact repair fingerprints and installed
 valid/malformed signature checks before accepting that specific raw finding.
 The mobile change's scope and larger-screen appearance remain unchanged.
+
+
+## Isolated address search busy buttons, October 2, 2026
+
+User authorization: “bd for the candidate search button update see it?” Accepted
+`Alethical UX (55).zip`, downloaded October2 at14:02:40, SHA-256
+`ea9f1bb90e3fbbd0d7ab1f1d5e448eb0b269f665a37b21b817a519719a682c50`.
+The isolated `review-prompt-busy-button.md`, `build-facts-busy-button.md` and
+`Candidates search.dc.html` states2 and17 define the update. The actual drawing
+was rendered at1280/900/390. The owning task accepted comparison coverage before
+implementation. [Issue2478](https://github.com/alethical-org/alethical/issues/2478)
+tracks implementation and release.
+
+Comparison, in display order: preserve Full street address label and editable
+field; preserve entry button248/220/full width×60 and compact button full width×52,
+fill/border#2ed47e, ink#06231a and9px icon gap; change search icon to17px spinner,
+trackrgba(6,35,26,0.25), arc#06231a and2.4px stroke,0.8s linear animation stopped
+under reduced motion; print “Finding candidates…” exactly; retain focus with
+aria-disabled, progress cursor and guarded pointer/keyboard activation; suppress
+busy hover/press changes; keep22px error slot, margin12 entry/10 compact; retain1
+hidden polite announcement; restore “Find my candidates” on result/error. Preserve
+existing notes, retained results and election “Updating candidates…” status.
+The tablet drawing permits wrapped waiting text inside the fixed button.
+
+Objective bundle discrepancy: the idle entry drawing prints “Finding candidates…”
+with its search icon. The explicit rest column and restore instruction require
+“Find my candidates”; implementation preserves that settled ready label.
+
+Impact and prevention: both affected submits share CandidateAddressForm and
+CandidateButton. An optional busyLabel changes cursor and spinner treatment
+for these2 submits; explicit address submission focuses its own button rather than
+every transition into busy. Election selection and retry do not focus the address
+button. Try again retains its existing native-disabled waiting behavior, which
+can move focus to the document; keyboard recovery is tested separately.
+Sibling claim/report/retry buttons retain their own behavior.
+The candidate homepage hands its request to /candidates and has no waiting submit
+state. Error retry keeps its existing notice and suppresses the address form's
+announcement when the retry notice owns the wait. Initial and Change address
+retries instead keep the wait in the visible address button and its hidden region;
+the notice reserves its title space without repeating the waiting message. Election
+retries without an address form retain “Updating candidates…” and old-election
+context. Readers receive1 waiting announcement. Focused component and browser
+checks cover the common path and intentional differences. Parent owns acceptance,
+original preview19047 integration and live release; this worker owns code and checks
+in an isolated checkout. No source, privacy, stored-address or data changes.
+
+Completion evidence:69 focused candidate tests and TypeScript pass. Chromium and
+WebKit browser checks at1280/900/390 cover entry/edit labels, dimensions, focus,
+repeat pointer/Enter activation, reserved error space, slow success, no-match,
+failed replacement/retry, reduced motion and unchanged election status. Production
+export passes its297506-byte first-load limit at297085 bytes. Parent acceptance,
+original preview integration and live release remain pending.
+
+Independent acceptance found a shared result-column trigger that inserted an extra
+election caption for an address-only update, moving desktop retained races41px.
+During address editing, omit that caption when the selected and displayed election
+match; retain it when elections differ and preserve existing election-update and
+retry notices. Component regression reproduces the original failure, and browser
+checks compare retained race positions during address search. This correction stays
+within the approved stable-update behavior and does not change election meanings.
+
+Physical phone keyboard, native autofill and screen-reader speech remain untested; DOM
+checks establish the single polite live region without claiming spoken output.

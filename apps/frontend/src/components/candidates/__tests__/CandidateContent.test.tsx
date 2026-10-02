@@ -384,7 +384,9 @@ it('keeps the same focused busy button and prevents repeat submission', async ()
   expect(document.activeElement).toBe(find);
   expect(find.getAttribute('aria-busy')).toBe('true');
   expect(find.getAttribute('aria-disabled')).toBe('true');
-  expect(find.textContent).toBe('Find my candidates');
+  expect(find.textContent).toBe('Finding candidates…');
+  expect(find.getAttribute('disabled')).toBeNull();
+  expect(host.querySelector('[aria-live="polite"]')?.textContent).toContain('Finding candidates…');
   await act(async () => resolve(result()));
   await flush();
 });

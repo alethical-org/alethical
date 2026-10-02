@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import {
   Linking,
   Platform,
@@ -58,6 +58,8 @@ export function CandidateButton({
   style,
   href,
   keepFieldFocus = false,
+  busyLabel,
+  buttonRef,
 }: {
   label: string;
   onPress(): void;
@@ -68,9 +70,12 @@ export function CandidateButton({
   style?: StyleProp<ViewStyle>;
   href?: string;
   keepFieldFocus?: boolean;
+  busyLabel?: string;
+  buttonRef?: RefObject<View | null>;
 }) {
   const [hovered, setHovered] = useState(false);
-  const control = useRef<View>(null);
+  const localRef = useRef<View>(null);
+  const control = buttonRef ?? localRef;
   useEffect(() => {
     if (Platform.OS !== 'web' || document.getElementById('alethical-candidate-controls')) return;
     const sheet = document.createElement('style');
@@ -84,13 +89,13 @@ export function CandidateButton({
     const element = control.current as unknown as HTMLElement | null;
     if (busy || disabled) element?.setAttribute('aria-disabled', 'true');
     else element?.removeAttribute('aria-disabled');
-  }, [busy, disabled]);
+  }, [busy, disabled, control]);
   return (
     <Pressable
       ref={control}
       accessibilityRole={href ? 'link' : 'button'}
       aria-busy={busy || undefined}
-      disabled={busy || disabled}
+      disabled={disabled || (busy && !busyLabel)}
       accessibilityState={{ busy, disabled: busy || disabled }}
       {...(Platform.OS === 'web' && keepFieldFocus
         ? { onMouseDown: (event: React.MouseEvent) => event.preventDefault() }
@@ -126,6 +131,7 @@ export function CandidateButton({
               ? styles.outlinePressed
               : null),
         disabled && { opacity: 0.5 },
+        busy && busyLabel && Platform.OS === 'web' && ({ cursor: 'progress' } as object),
         style,
       ]}
     >
@@ -140,13 +146,13 @@ export function CandidateButton({
               cx={busy ? 12 : 11}
               cy={busy ? 12 : 11}
               r={busy ? 9 : 7}
-              stroke={busy ? '#6a8478' : '#06231a'}
-              strokeWidth={2}
+              stroke={busy ? (busyLabel ? 'rgba(6,35,26,0.25)' : '#6a8478') : '#06231a'}
+              strokeWidth={busy && busyLabel ? 2.4 : 2}
             />
             <Path
               d={busy ? 'M21 12a9 9 0 0 0-9-9' : 'M16.5 16.5L21 21'}
               stroke="#06231a"
-              strokeWidth={2}
+              strokeWidth={busy && busyLabel ? 2.4 : 2}
               strokeLinecap="round"
             />
           </Svg>
@@ -165,7 +171,7 @@ export function CandidateButton({
             } as object),
         ]}
       >
-        {label}
+        {busy && busyLabel ? busyLabel : label}
       </Text>
     </Pressable>
   );

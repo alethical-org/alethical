@@ -53,6 +53,7 @@ export function CandidateAddressForm({
   const id = useId().replace(/:/g, '');
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const nativeRef = useRef<TextInput>(null);
+  const buttonRef = useRef<View>(null);
   const choicesRef = useRef<View>(null);
   const generation = useRef(0);
   const [suggestions, setSuggestions] = useState<CandidateAddressChoice[]>([]);
@@ -150,6 +151,8 @@ export function CandidateAddressForm({
     setMissing(false);
     setSuggestOpen(false);
     setChoicesOpen(false);
+    // Focus belongs to this submitted action, not election changes or retries.
+    if (Platform.OS === 'web') (buttonRef.current as unknown as HTMLElement | null)?.focus();
     if (choice && !changed) onSubmit(value, choice);
     else onSubmit(value);
   };
@@ -201,9 +204,7 @@ export function CandidateAddressForm({
   const errorKind =
     outcome && outcome.kind in errors ? (outcome.kind as keyof typeof errors) : null;
   const message = busy
-    ? showBusyMessage
-      ? 'Finding candidates…'
-      : ''
+    ? ''
     : missing
       ? 'Enter your full Minnesota street address'
       : errorKind
@@ -342,6 +343,8 @@ export function CandidateAddressForm({
         </View>
         <CandidateButton
           label="Find my candidates"
+          busyLabel="Finding candidates…"
+          buttonRef={buttonRef}
           busy={busy}
           // Keep suggestions from collapsing and moving this target between
           // pointer press and release. Keyboard focus remains unchanged.
@@ -355,6 +358,9 @@ export function CandidateAddressForm({
             borderRadius: 14,
           }}
         />
+      </View>
+      <View aria-live="polite" style={styles.hiddenStatus}>
+        {busy && showBusyMessage ? <Text>Finding candidates…</Text> : null}
       </View>
       <View
         nativeID={`${id}-message`}
@@ -537,6 +543,16 @@ function MessageIcon({ rate }: { rate: boolean }) {
 }
 const styles = StyleSheet.create({
   form: { marginTop: 28 },
+  hiddenStatus: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    margin: -1,
+    overflow: 'hidden',
+    ...(Platform.OS === 'web'
+      ? ({ clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap' } as object)
+      : {}),
+  },
   controls: { flexDirection: 'row', gap: 12, marginTop: 8, alignItems: 'flex-start' },
   privacy: {
     marginTop: 36,
