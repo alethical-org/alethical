@@ -1,6 +1,5 @@
 import { Component, useEffect, useState, type ComponentProps, type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { requestReleaseReload } from '../../lib/releaseReload';
 import {
   moneyDetailsPageCopy as copy,
   namedMoneyDefinition,
@@ -26,9 +25,8 @@ export function preloadMoneyDetails(): Promise<typeof Details> {
       return module;
     },
     (error) => {
-      // A missing piece almost always means a release replaced it while this tab
-      // was open. One reload puts the tab on the current release.
-      requestReleaseReload();
+      // Optional details have local failure views; preserve the figures and
+      // any work elsewhere on the page until the reader chooses to refresh.
       throw error;
     },
   ));

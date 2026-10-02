@@ -1236,3 +1236,48 @@ def test_containment_rejects_wrong_parent_code():
 
     with pytest.raises(Exception, match="codes do not nest"):
         validate_district_containment(house, senate, house_code="1A", senate_code="2")
+
+
+@pytest.mark.parametrize(
+    "ending",
+    [
+        ", United States",
+        " USA",
+        "; U.S.A.",
+        ". United States of America,",
+        ",,u.s.,",
+        "\r\nUnited States.",
+    ],
+)
+def test_minnesota_fallback_accepts_country_after_complete_address(ending):
+    from alethical.api.services.representative_lookup import (
+        _minnesota_address_candidates,
+    )
+
+    address = "350 S 5th St, Minneapolis, MN 55415"
+    assert _minnesota_address_candidates(
+        address + ending
+    ) == _minnesota_address_candidates(address)
+
+
+def test_census_country_input_stays_first_before_relaxed_retry(monkeypatch):
+    requested = "350 S 5th St, Minneapolis, MN 55415, United States"
+    sent = []
+
+    def get(url, *, params, timeout):
+        sent.append(params["address"])
+        if len(sent) == 1:
+            return FakeResponse(census_payload())
+        return FakeResponse(
+            census_payload(census_match("350 S 5TH ST, MINNEAPOLIS, MN, 55415"))
+        )
+
+    monkeypatch.setattr(requests, "get", get)
+    assert CensusGeocoder().geocode_matches(requested)[0].requested_address == requested
+    assert sent == [requested, "350 S 5th St, MN"]
+
+
+def test_state_suggestion_parser_uses_same_country_cleanup():
+    address = "350 S 5th St, Minneapolis, MN 55415"
+    parse = MinnesotaAddressPointGeocoder._parse_suggestion_query
+    assert parse(address + ", United States") == parse(address)

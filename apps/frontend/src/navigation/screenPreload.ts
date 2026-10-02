@@ -1,3 +1,4 @@
+import { requestReleaseReload } from '../lib/releaseReload';
 import { loadAndRemember } from '../lib/loadOnDemand';
 import { screenChunks, type ScreenChunkName, type ScreenLoader } from './screenChunks';
 import { stateFromPathname } from './webRoutes';
@@ -53,7 +54,11 @@ export function preloadScreenForPath(pathname: string, timeoutMs = 4000): Promis
   return Promise.race([
     loadAndRemember(load).then(
       () => undefined,
-      () => undefined,
+      () => {
+        // Only an initial, required screen failure can recover automatically.
+        // If the preload timed out and the app started, the shared guard refuses.
+        requestReleaseReload();
+      },
     ),
     new Promise<void>((resolve) => {
       setTimeout(resolve, timeoutMs);

@@ -779,6 +779,24 @@ remains unresolved. Resolve settled implementation details here; return open
 visual choices to Design and reserved product choices to the user. Do not omit
 an action or invent its required data to make the screen appear finished.
 
+For each affected input or result flow, include typed, pasted and browser-filled
+values; immediate keyboard and button submission; correction after an error;
+suggestion selection; navigation away and back; slow or out-of-order responses;
+delayed optional-download failure; and the period after success when late work can
+still complete. Record these transitions in the existing comparison entries.
+Claims about native autofill and keyboards need actual supported-device evidence;
+a phone-sized desktop window does not supply it.
+
+Formatting cleanup must preserve meaning and each field's restrictions. Address
+cleanup does not apply to passwords, verification codes, names or general search
+text. Shared browser-fill appearance does not establish correct submission.
+Successful results and unsent input must survive unrelated late work within
+approved privacy boundaries. Optional or abandoned downloads must not force a
+whole-page reload; essential startup recovery remains available. Diagnose the
+actual trigger before declaring a reported reset fixed, and do not change storage
+or account privacy as a workaround. Return a new visual recovery treatment to
+Design only when approved treatments do not settle it.
+
 **Exercise every in-scope user role in the browser.** Use safe test accounts
 and records to reach the actual visitor, applicant, owner and staff screens when
 those roles are in scope. Exercise their distinct success, rejection,
@@ -813,6 +831,9 @@ before continuing.
 reviewer who did not implement the change the accepted drawings, governing
 requirements, approved exceptions, and working address. Ask them to compare the
 whole authorized surface and identify missing work, including reused sections.
+Include the shared impact-and-prevention record required by
+[workflow.md rule 14](../../.claude/rules/workflow.md), and ask the reviewer to find
+missed affected uses and missing prevention checks.
 The builder's change list or completed checklist must not limit that review.
 The owning agent reconciles the review with the comparison record, corrects
 differences within the authorized scope, and reviews the corrected result. If

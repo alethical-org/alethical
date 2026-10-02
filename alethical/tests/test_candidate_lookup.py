@@ -291,7 +291,7 @@ def test_api_private_headers_validation_errors_rate_limit_and_direct_profile(cli
     assert (
         client.post(
             "/api/v1/candidates/lookup",
-            json={"address": ADDRESS + "\n", "electionId": "8334"},
+            json={"address": ADDRESS + "\x00", "electionId": "8334"},
         ).status_code
         == 422
     )
@@ -535,3 +535,93 @@ def test_geocoded_long_street_words_confirm_against_official_abbreviations(clien
         )[0] == {"kind": "no-match"}
     finally:
         client.app.dependency_overrides.pop(get_candidate_lookup_service)
+
+
+@pytest.mark.parametrize(
+    "ending",
+    [
+        ", United States",
+        " USA",
+        "; U.S.A.",
+        ". United States of America,",
+        ",,u.s.,",
+        "\r\nUnited States.",
+    ],
+)
+def test_saved_address_country_uses_same_exact_suggestions_and_lookup(ending):
+    from alethical.api.services.representative_lookup import (
+        RepresentativeLookupNotFound,
+    )
+
+    class NoFallback:
+        def geocode_matches(self, text):
+            raise RepresentativeLookupNotFound()
+
+        def suggest_matches(self, text):
+            return []
+
+    address = "350 S 5th St, Minneapolis, MN 55415"
+    lookup, calls = service(
+        rows=[
+            street(
+                HouseNumberLow=350,
+                HouseNumberHigh=350,
+                FullStreetName="S 5TH ST",
+                CityName="MINNEAPOLIS",
+                ZipCode="55415",
+            )
+        ],
+        geocoder=NoFallback(),
+    )
+    choice = lookup.suggest(address)[0]
+    entered = address + ending
+    assert lookup.suggest(entered) == [choice]
+    assert lookup.lookup(entered, "8334")[0]["kind"] == "results"
+    assert lookup.lookup(entered, "8334", choice)[0]["kind"] == "results"
+    assert all("United States" not in str(params) for _, params in calls)
+
+
+def test_candidate_request_accepts_multiline_autofill_and_keeps_raw_length_limit():
+    from pydantic import ValidationError
+    from alethical.api.routers.candidates import AddressRequest
+
+    assert (
+        AddressRequest(
+            address="350 S 5th St,\r\nMinneapolis, MN\t55415, United States"
+        ).address
+        == "350 S 5th St, Minneapolis, MN 55415"
+    )
+    for address in [
+        "350 S 5th St\x00 MN 55415",
+        "350 S 5th St\x0b MN 55415",
+        "350 S 5th St\x7f MN 55415",
+        " " * 300 + "350 S 5th St MN 55415",
+    ]:
+        with pytest.raises(ValidationError):
+            AddressRequest(address=address)
+
+
+def test_country_cleanup_keeps_ambiguity_and_unit_validation():
+    lookup, _ = service(
+        rows=[street(), street(CityName="OTHER CITY", ProdAddressRangeId=124)]
+    )
+    entered = "100 EXAMPLE ST N MN 99999, United States"
+    result, _ = lookup.lookup(entered, "8334")
+    assert result["kind"] == "ambiguous"
+    assert len(result["choices"]) == 2
+    assert lookup.lookup(entered, "8334", result["choices"][1])[0]["kind"] == "results"
+    unit_lookup, _ = service(
+        rows=[street(DisplayUnitNbr=True, UnitNumberRange="UNIT B")]
+    )
+    assert unit_lookup.lookup(
+        "100 EXAMPLE ST N UNIT A, EXAMPLE CITY, MN 99999, USA", "8334"
+    )[0] == {"kind": "no-match"}
+    assert (
+        unit_lookup.lookup(
+            "100 EXAMPLE ST N UNIT B, EXAMPLE CITY, MN 99999, USA", "8334"
+        )[0]["kind"]
+        == "results"
+    )
+    assert lookup.lookup("100 EXAMPLE ST N, EXAMPLE CITY, WI 99999, USA", "8334")[
+        0
+    ] == {"kind": "outside-minnesota"}

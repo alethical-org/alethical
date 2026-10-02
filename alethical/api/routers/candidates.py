@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from alethical.api.problems import problem_exception
 from alethical.api.rate_limit import rate_limit, trusted_client_ip
+from alethical.api.services.address_format import normalize_address_format
 from alethical.api.services.candidate_lookup import (
     PRIVATE_HEADERS,
     CandidateLookupService,
@@ -35,6 +36,7 @@ class AddressRequest(BaseModel):
     @field_validator("address")
     @classmethod
     def safe_address(cls, value: str) -> str:
+        value = normalize_address_format(value)
         if any(ord(char) < 32 or ord(char) == 127 for char in value):
             raise ValueError("Enter a street address without control characters")
         return value.strip()

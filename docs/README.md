@@ -138,6 +138,7 @@ issues and pull requests establish what remains. Preserve explicit data-replacem
 a completed code release does not approve a held data run. Remove a finished plan once its
 lasting decisions and release evidence have their permanent homes.
 
+- [Candidate autofill and result recovery](implementation/candidate-autofill-recovery-plan.md) — shared address handling, stable results, related-use review and release evidence
 - [Candidate design acceptance](implementation/candidate-design-release-acceptance.md) — approved public search and profile controls, source limits, and release checks
 - [Candidate result notices](implementation/candidate-notices-last.md) — bottom notice placement, empty-race wording, affected uses and release evidence
 - [Candidate lookup delivery](implementation/candidate-lookup-build-plan.md) — staged candidate imports, private address handling, and the design and source requirements before launch

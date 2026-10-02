@@ -18,6 +18,7 @@ import requests
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
+from alethical.api.services.address_format import normalize_address_format
 from alethical.api.services.representative_lookup import (
     MINNESOTA_ADDRESS_POINTS_URL,
     MinnesotaAddressPointGeocoder,
@@ -182,7 +183,7 @@ def _parse_with_rows(
     text: str, rows: list[dict], *, prefix: bool = False
 ) -> list[StreetAddress]:
     """Match all supplied words against source streets, not coordinates or incumbents."""
-    text = " ".join(text.upper().strip().split())
+    text = normalize_address_format(text).upper()
     found = re.fullmatch(
         r"(\d{1,8})(?:\s+(1/2)|([A-Z]))?\s+(.+?)\s+(\d{5})(?:-\d{4})?", text
     )
@@ -322,6 +323,7 @@ class CandidateLookupService:
         return rows
 
     def suggest(self, text: str) -> list[dict]:
+        text = normalize_address_format(text)
         zip_match = re.search(r"\b(\d{5})(?:-\d{4})?$", text.strip())
         if zip_match:
             addresses = _parse_with_rows(
@@ -344,6 +346,7 @@ class CandidateLookupService:
     def resolve(
         self, text: str, confirmed: dict | None = None
     ) -> tuple[StreetAddress, list[dict]] | dict:
+        text = normalize_address_format(text)
         # Confirmation never acts as an arbitrary range selector or replacement
         # address. Recompute choices from the submitted original address first.
         zip_match = re.search(r"\b(\d{5})(?:-\d{4})?$", text.strip())

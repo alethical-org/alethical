@@ -1,13 +1,14 @@
 # How Find My Legislator works (plain-English guide)
 
-<!-- describes: apps/frontend/src/screens/FindMyLegislatorScreen.tsx, apps/frontend/src/components/MapPinPicker.tsx, apps/frontend/src/components/find/RepresentativeCard.tsx, apps/frontend/src/lib/findMyLegislator.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, alethical/api/routers/public.py, alethical/api/services/representative_lookup.py, alethical/api/serializers.py -->
+<!-- describes: alethical/api/services/address_format.py, apps/frontend/src/lib/currentAddressInput.ts, apps/frontend/src/components/home/HomeLegislatorFinder.tsx, apps/frontend/src/screens/FindMyLegislatorScreen.tsx, apps/frontend/src/components/MapPinPicker.tsx, apps/frontend/src/components/find/RepresentativeCard.tsx, apps/frontend/src/lib/findMyLegislator.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, alethical/api/routers/public.py, alethical/api/services/representative_lookup.py, alethical/api/serializers.py -->
 
 **Find My Legislator** tells you which current Minnesota state senator and state
 representative serve one location. It also shows the location's state House, state
 Senate, and U.S. congressional district numbers.
 
-You do not need an account. Open **Search → Find my legislators**, use the finder on the
-home page, or go straight to `/find-my-legislator`.
+You do not need an account. Open **Search → Find my legislators** or go straight to
+`/find-my-legislator`. The signed-in homepage also has this finder; the signed-out
+homepage has **Find my candidates**.
 
 ---
 
@@ -32,6 +33,12 @@ Choose an address to put its full official form in the box and find its legislat
 the same step. Or enter a full Minnesota street address and choose **Find**. Pressing
 Enter does the same thing.
 
+Keyboard and button submission read the address visible in the box, including a
+saved browser address filled just before submission. Entering or leaving the box
+also brings a browser-filled value into its current state. If that value replaced
+the text used for an older suggestion, choosing the old suggestion searches the
+newly visible address instead of selecting an unrelated location.
+
 - Include a house number and street name. A city or ZIP code alone is not enough
   because a city or ZIP can cross district lines.
 - Suggestions are Minnesota-only, so they do not need `MN`. Include `MN` for a full
@@ -39,6 +46,14 @@ Enter does the same thing.
 - Commas, periods, repeated spaces, and common street abbreviations do not have to be
   perfect. `4255 215th St E Farmington MN 55024` and
   `4255 215th St E, Farmington, MN 55024` are treated as the same address.
+- The Minnesota address parser accepts a final **United States**, **United States
+  of America**, **US**, **USA**, **U.S.** or **U.S.A.** after a complete street
+  address, state and ZIP. Spaces, commas, periods, semicolons, colons and dashes may separate or
+  follow that label; balanced parentheses may surround the label. A final comma,
+  period, semicolon or colon without a country is also
+  accepted. Line breaks, tabs and repeated spaces are treated as spaces. House
+  numbers, units, directions and ZIP+4 remain intact; other countries and unknown
+  trailing words are not removed to force a match.
 - A small 1-character typo in a street word of 5 or more characters can still match.
   This covers 1 added, missing, changed, or swapped character, such as `215ht` for
   `215th`.
@@ -54,6 +69,9 @@ and direction to rank the official matches.
 
 A brief timeout or server error gets 2 quick retries. If Census still does not answer,
 Alethical uses Minnesota's address list instead of ending the lookup immediately.
+The formatting cleanup also applies to that Minnesota fallback and the Minnesota
+street-only retry sent to Census. It does not change which source is tried first
+or the matching rules below.
 
 If 1 address is clearly closest, Alethical uses it. If several official addresses are
 equally close, **Choose your address** appears with up to 5 choices. Click or tap the
@@ -214,6 +232,13 @@ What happens to the location data:
 The full record of what Alethical keeps and shares is in
 [`docs/product-onboarding/user-data-retention-policy.md`](user-data-retention-policy.md)
 (What we keep about readers).
+
+A later program-download failure does not automatically reload a working visit.
+Failed screens or sections use the existing failure message and an explicit
+**Reload page** action. Browser Back can return to earlier screens without
+discarding their in-memory state. An explicit reload still follows this finder's
+existing address-in-the-link behavior. See
+[page-load-performance-decisions.md, Recover failed downloads without losing a working visit](../operations/page-load-performance-decisions.md#recover-failed-downloads-without-losing-a-working-visit).
 
 ---
 

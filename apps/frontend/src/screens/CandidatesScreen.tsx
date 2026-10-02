@@ -42,7 +42,11 @@ export function CandidatesScreen(props: RootScreenProps<'Candidates'>) {
         scrollEventThrottle={100}
         onScroll={(event) => candidateFlow.setScrollOffset(event.nativeEvent.contentOffset.y)}
       >
-        <View onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
+        <View
+          // Keep the header's dropdowns above the following search/results content.
+          style={{ zIndex: 60 }}
+          onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}
+        >
           <TopNav candidateSurface onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
         </View>
         <View style={isDesktop ? { minHeight: Math.max(0, height - headerHeight) } : undefined}>

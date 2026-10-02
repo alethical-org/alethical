@@ -1,6 +1,7 @@
-import { ComponentType, useEffect, useState } from 'react';
+import { ComponentType, useEffect, useLayoutEffect, useState } from 'react';
 
-import { requestReleaseReload } from './releaseReload';
+import { AppFailureView } from '../components/AppErrorBoundary';
+import { markScreenDrawn, requestReleaseReload } from './releaseReload';
 
 /** A part of the app that arrives in its own downloaded piece. */
 export type OnDemandLoader = () => Promise<{ default: ComponentType<any> }>;
@@ -51,12 +52,21 @@ export function loadAndRemember(load: OnDemandLoader): Promise<{ default: Compon
  * `components/campaignMoney/MoneyDetailsOnDemand.tsx` draws its chart this same
  * way, for the same reason.
  */
-export function loadOnDemand(load: OnDemandLoader): ComponentType<any> {
+type LoadOptions = {
+  kind: 'screen' | 'section' | 'optional';
+  onFailure?: (props: any) => void;
+};
+
+export function loadOnDemand(load: OnDemandLoader, options: LoadOptions): ComponentType<any> {
   return function LoadedOnDemand(props: any) {
     // Read once, when this part first draws, so a piece already in the browser
     // is drawn in the first frame with nothing fetched and nothing waited on.
     const [Ready, setReady] = useState(() => alreadyLoaded.get(load));
     const [missing, setMissing] = useState<unknown>(null);
+
+    useLayoutEffect(() => {
+      if (Ready && options.kind === 'screen') markScreenDrawn();
+    }, [Ready]);
 
     useEffect(() => {
       if (Ready) return;
@@ -66,10 +76,13 @@ export function loadOnDemand(load: OnDemandLoader): ComponentType<any> {
           if (stillDrawn) setReady(() => piece.default);
         },
         (error: unknown) => {
-          // A missing piece almost always means a release replaced it while
-          // this tab was open. One reload puts the tab on the current release.
-          requestReleaseReload();
-          if (stillDrawn) setMissing(error ?? new Error('a piece of the app is missing'));
+          // Late work from an abandoned component cannot disrupt its replacement.
+          // Interactive pages recover explicitly rather than losing private drafts.
+          if (!stillDrawn) return;
+          // Do not log the exception: loader URLs can contain private context.
+          console.error(`Unable to download an app ${options.kind}`);
+          if (options.kind === 'screen') requestReleaseReload();
+          setMissing(error ?? new Error('a piece of the app is missing'));
         },
       );
       return () => {
@@ -77,10 +90,20 @@ export function loadOnDemand(load: OnDemandLoader): ComponentType<any> {
       };
     }, [Ready]);
 
+    useEffect(() => {
+      if (missing) options.onFailure?.(props);
+    }, [missing]);
+
     if (missing) {
-      // Thrown while drawing, so the app's error screen catches it exactly as it
-      // caught a missing piece before.
-      throw missing;
+      if (options.kind === 'optional' || options.onFailure) return null;
+      // A download failure belongs to this screen/section. Keeping the navigator
+      // mounted lets Back return to earlier results without clearing private memory.
+      return (
+        <AppFailureView
+          compact={options.kind === 'section'}
+          onReload={() => globalThis.location?.reload()}
+        />
+      );
     }
 
     return Ready ? <Ready {...props} /> : null;

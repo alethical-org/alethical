@@ -14,17 +14,24 @@ import { loadOnDemand } from '../../lib/loadOnDemand';
  * 82,000 source bytes.
  */
 
+// These controls mount only after this same cached bundle has resolved and
+// authenticated the visitor. SignInMachinery owns the reachable failure state;
+// never put a whole-section failure card into a 44px navigation target.
+
 /** Desktop top nav: avatar + first name + chevron, opening a right-aligned menu. */
-export const AccountNavButton = loadOnDemand(() =>
-  loadSignInBundle().then((bundle) => ({ default: bundle.AccountNavButton })),
+export const AccountNavButton = loadOnDemand(
+  () => loadSignInBundle().then((bundle) => ({ default: bundle.AccountNavButton })),
+  { kind: 'optional' },
 );
 
 /** Phone top bar: a 44x44 avatar target that opens the account sheet. */
-export const AccountAvatarButton = loadOnDemand(() =>
-  loadSignInBundle().then((bundle) => ({ default: bundle.AccountAvatarButton })),
+export const AccountAvatarButton = loadOnDemand(
+  () => loadSignInBundle().then((bundle) => ({ default: bundle.AccountAvatarButton })),
+  { kind: 'optional' },
 );
 
 /** Phone drawer footer: a full-width account target opening the same account sheet. */
-export const AccountDrawerRow = loadOnDemand(() =>
-  loadSignInBundle().then((bundle) => ({ default: bundle.AccountDrawerRow })),
+export const AccountDrawerRow = loadOnDemand(
+  () => loadSignInBundle().then((bundle) => ({ default: bundle.AccountDrawerRow })),
+  { kind: 'optional' },
 );

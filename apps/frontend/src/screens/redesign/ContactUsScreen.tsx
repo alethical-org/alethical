@@ -43,10 +43,12 @@ import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fi
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { prefersReducedMotion, theme as t } from '../../theme/tokens';
 
-const ContactSocialIconLink = loadOnDemand(() =>
-  import('../../components/SocialIconLink').then(({ SocialIconLink }) => ({
-    default: SocialIconLink,
-  })),
+const ContactSocialIconLink = loadOnDemand(
+  () =>
+    import('../../components/SocialIconLink').then(({ SocialIconLink }) => ({
+      default: SocialIconLink,
+    })),
+  { kind: 'optional' },
 );
 
 const FIELD_LABELS: Record<ContactField, { label: string; optional?: boolean }> = {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { requestReleaseReload } from '../releaseReload';
+import { markScreenDrawn, requestReleaseReload } from '../releaseReload';
 
 function tab(stored: Record<string, string> = {}) {
   const reload = vi.fn();
@@ -59,4 +59,29 @@ describe('requestReleaseReload', () => {
   it('does nothing away from a browser', () => {
     expect(requestReleaseReload(undefined)).toBe(false);
   });
+});
+
+it('never reloads a working app, including when a late startup request fails', () => {
+  const browser = tab();
+  markScreenDrawn(browser.target);
+  expect(requestReleaseReload(browser.target)).toBe(false);
+  expect(browser.reload).not.toHaveBeenCalled();
+});
+
+it('does not reload when no storage can preserve the loop limit', () => {
+  const reload = vi.fn();
+  expect(requestReleaseReload({ location: { reload } })).toBe(false);
+  expect(reload).not.toHaveBeenCalled();
+});
+
+it('handles a browser refusing access to sessionStorage itself', () => {
+  const reload = vi.fn();
+  const target = {
+    location: { reload },
+    get sessionStorage(): Storage {
+      throw new Error('blocked');
+    },
+  };
+  expect(requestReleaseReload(target)).toBe(false);
+  expect(reload).not.toHaveBeenCalled();
 });

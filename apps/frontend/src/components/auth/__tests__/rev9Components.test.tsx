@@ -254,8 +254,10 @@ describe('rev 9 shared sign-in components', () => {
     expect(container).toContain('onRequestClose={onModalRequestClose}');
     expect(container).toContain("{...(isWeb ? ({ 'aria-hidden': true } as object) : null)}");
 
-    const app = readFileSync(join(HERE, '..', '..', '..', '..', 'App.tsx'), 'utf8');
-    expect(app).toContain(':not([role="heading"]):not(h1):not(h2):not(h3):not(h4):not(h5):not(h6)');
+    const html = readFileSync(join(HERE, '..', '..', '..', '..', 'public/index.html'), 'utf8');
+    expect(html.replace(/\s+/g, '')).toContain(
+      ':not([role="heading"]):not(h1):not(h2):not(h3):not(h4):not(h5):not(h6)',
+    );
   });
 
   it('keeps the Google busy words visible and equal to the accessible name', () => {

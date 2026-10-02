@@ -1,4 +1,4 @@
-<!-- describes: .github/workflows/production-release-failed.yml, apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/loadOnDemand.tsx, apps/frontend/src/navigation/screenPreload.ts, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py, scripts/report_origin_share_by_address.py, apps/frontend/src/lib/committeeConfirmation.ts, apps/frontend/src/lib/initialWindowMetrics.ts, apps/frontend/src/navigation/screenChunks.ts, apps/frontend/src/lib/moneyFormat.ts, apps/frontend/src/lib/researchIndex.ts, apps/frontend/src/lib/billStatus.ts, apps/frontend/src/data/campaignMoneyDetails.ts, apps/frontend/src/hooks/useCampaignMoneyYearStates.ts -->
+<!-- describes: apps/frontend/public/index.html, apps/frontend/src/lib/releaseReload.ts, apps/frontend/src/components/AppErrorBoundary.tsx, .github/workflows/production-release-failed.yml, apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/loadOnDemand.tsx, apps/frontend/src/navigation/screenPreload.ts, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py, scripts/report_origin_share_by_address.py, apps/frontend/src/lib/committeeConfirmation.ts, apps/frontend/src/lib/initialWindowMetrics.ts, apps/frontend/src/navigation/screenChunks.ts, apps/frontend/src/lib/moneyFormat.ts, apps/frontend/src/lib/researchIndex.ts, apps/frontend/src/lib/billStatus.ts, apps/frontend/src/data/campaignMoneyDetails.ts, apps/frontend/src/hooks/useCampaignMoneyYearStates.ts -->
 
 <!-- describes: apps/frontend/metro.config.js, patches/@expo__metro-config@57.0.7.patch, pnpm-workspace.yaml, pnpm-lock.yaml, apps/frontend/scripts/__tests__/sharedScreenChunks.test.ts, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeePaymentsPage.ts, apps/frontend/src/lib/committeeMoneyShared.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsBundle.ts, apps/frontend/src/components/campaignMoney/MoneyDetailsOnDemand.tsx, apps/frontend/src/lib/committeeOutsideSpending.ts -->
 
@@ -418,6 +418,59 @@ page: 17,736 bytes and the whole marketing page, for a reader who was never goin
 **Everything sign-in arrives when somebody needs it, the client that talks to the sign-in
 service included** ([#1976](https://github.com/alethical-org/alethical/issues/1976)). The
 section below owns that change and its measurements.
+
+### Recover failed downloads without losing a working visit
+
+Fixed install metadata, keyboard-focus CSS and browser-fill CSS are emitted in
+`public/index.html` rather than injected by the startup program. Their values and
+selectors are unchanged and the browser-fill test pins the HTML to the CSS source.
+This keeps recovery available in the initial download without raising the size limit.
+
+Automatic release recovery is limited to startup before the first screen draws.
+The required initial screen preload and the same-origin program-file error
+listener share a 1-reload-per-tab budget (`alethical.release-program-reload`).
+If browser storage is unavailable, neither path reloads automatically. The
+in-memory `__alethicalScreenDrawn` flag closes automatic recovery once a screen
+draws; it does not depend on an arbitrary delay or successful address lookup.
+No address, account, draft or request data is saved by this recovery mechanism.
+
+Every use of `loadOnDemand` declares whether it loads a screen, a section or
+optional content. A rejection after that component has been removed is ignored.
+Optional and section downloads never request an automatic whole-page reload.
+An active screen can request startup recovery only while the shared startup gate
+is open. Later screen and section failures remain local, keep the navigator
+mounted, and reuse **This page hit a problem**, **Reload the page to try again**
+and **Reload page**. Optional content uses its declared fallback or disappears
+cleanly. These decisions keep Back usable and protect unrelated results and
+unsent text rather than replacing the whole application with an error screen.
+
+A failed sign-in download opens the same recovery view in a browser modal dialog
+with **Close**, so it stays visible without moving the public screen. Closing it
+retains the public form or results. Keyboard focus stays inside the dialog and
+Escape closes it; the browser returns focus to the opening control. Reload and
+Close use the approved green-button pointer hover and keyboard-focus treatments.
+
+The shared money-details preload also leaves recovery to its existing local
+failure view and explicit refresh action. A failed optional download must not
+reload accepted filing figures or unrelated forms, even when it was requested
+ahead of a click. The HTML error listener uses the same screen-drawn gate so it
+cannot bypass the application-level policy.
+
+An explicit reader-requested reload still follows each feature's privacy rules.
+Candidate addresses remain only in temporary memory, so a reload clears them;
+the legislator finder retains its existing matched address in the browser link.
+Preventing unwanted reloads does not authorize saving private input to restore it.
+The feature owners are [find-my-candidates-guide.md](../product-onboarding/find-my-candidates-guide.md)
+and [find-my-legislator-guide.md](../product-onboarding/find-my-legislator-guide.md).
+
+Acceptance covers a required startup failure, exhausted or unavailable recovery
+storage, a failure after a working screen, a component removed before rejection,
+optional prefetch failure, local failure and explicit reload, and Back to retained
+results. Browser checks retain safe unsent form text and successful search results
+while late failures settle. A simulated late failure proves this recovery path;
+it does not identify the cause of an uncaptured visitor reset. Native autofill and
+keyboard completion require actual supported-device evidence, as required by
+[design-principles.md, Build acceptance for controls](../design/design-principles.md#build-acceptance-for-controls).
 
 ### The 8 September build: 2 screens put a shared part in the first download
 
