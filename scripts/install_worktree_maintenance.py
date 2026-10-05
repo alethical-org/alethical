@@ -14,7 +14,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-import worktree_cleanup as cleanup
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from scripts import worktree_cleanup as cleanup  # noqa: E402
 
 LABELS = ("com.alethical.worktree-cleanup", "com.alethical.wip-backup")
 

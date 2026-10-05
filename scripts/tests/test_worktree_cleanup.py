@@ -18,6 +18,8 @@ def load(name):
     spec = importlib.util.spec_from_file_location(name, SCRIPTS / (name + ".py"))
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    if name == "install_worktree_maintenance" and "worktree_cleanup" in sys.modules:
+        module.cleanup = sys.modules["worktree_cleanup"]
     return module
 
 
