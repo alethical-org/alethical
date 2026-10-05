@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -81,6 +83,227 @@ class CleanupTest(unittest.TestCase):
     def test_unreleased_folder_is_never_inferred_finished(self):
         self.assertEqual(self.cleanup.sweep(self.repo, self.state, True), [])
         self.assertTrue(self.tree.exists())
+
+    def test_no_queue_sweep_removes_empty_and_finder_only_external_shells(self):
+        empty = self.base / "alethical-wt-empty"
+        finder = self.base / "alethical-wt-finder"
+        empty.mkdir()
+        finder.mkdir()
+        (finder / ".DS_Store").write_bytes(b"Finder metadata")
+        self.assertFalse((self.state / "released").exists())
+        result = self.cleanup.sweep(self.repo, self.state, True)
+        self.assertEqual({r["path"] for r in result}, {str(empty), str(finder)})
+        self.assertTrue(all(r["state"] == "removed" for r in result))
+        self.assertFalse(empty.exists())
+        self.assertFalse(finder.exists())
+        self.assertTrue(self.tree.exists())
+        self.assertFalse(
+            any(
+                call.args[0][:2] == ["git", "fetch"]
+                for call in self.cleanup.run.call_args_list
+            )
+        )
+
+    def test_released_nested_worktree_removal_also_removes_its_empty_parent(self):
+        container = self.base / "alethical-wt-group"
+        container.mkdir()
+        (container / ".DS_Store").write_text("Finder metadata")
+        nested = container / "child"
+        self.git("worktree", "move", str(self.tree), str(nested))
+        self.tree = nested
+        self.release()
+        result = self.cleanup.sweep(self.repo, self.state, True)
+        self.assertEqual([row["state"] for row in result], ["removed", "removed"])
+        self.assertEqual(result[1]["kind"], "empty container")
+        self.assertFalse(container.exists())
+
+    def test_shell_dry_run_keeps_files_and_does_not_create_state(self):
+        shell = self.base / "alethical-wt-shell"
+        shell.mkdir()
+        finder = shell / ".DS_Store"
+        finder.write_bytes(b"Finder metadata")
+        before = finder.stat().st_mtime_ns
+        result = self.cleanup.sweep(self.repo, self.state, False)
+        self.assertEqual(result[0]["state"], "ready")
+        self.assertEqual(finder.read_bytes(), b"Finder metadata")
+        self.assertEqual(finder.stat().st_mtime_ns, before)
+        self.assertFalse(self.state.exists())
+
+    def test_dry_run_cli_creates_no_lock_or_state_folder(self):
+        shell = self.base / "alethical-wt-empty"
+        shell.mkdir()
+        with (
+            patch.object(
+                sys,
+                "argv",
+                [
+                    "worktree_cleanup.py",
+                    "--repo",
+                    str(self.repo),
+                    "--state",
+                    str(self.state),
+                    "sweep",
+                ],
+            ),
+            patch.object(sys, "stdout", new_callable=io.StringIO) as output,
+        ):
+            self.assertEqual(self.cleanup.main(), 0)
+        self.assertEqual(json.loads(output.getvalue())[0]["state"], "ready")
+        self.assertTrue(shell.is_dir())
+        self.assertFalse(self.state.exists())
+
+    def test_dry_run_existing_release_does_not_fetch_or_write_a_report(self):
+        self.release()
+        before = {p: p.read_bytes() for p in self.state.rglob("*") if p.is_file()}
+        self.cleanup.run.reset_mock()
+        self.assertEqual(
+            self.cleanup.sweep(self.repo, self.state, False)[0]["state"], "ready"
+        )
+        self.assertEqual(
+            before, {p: p.read_bytes() for p in self.state.rglob("*") if p.is_file()}
+        )
+        self.assertFalse(
+            any(
+                call.args[0][:2] == ["git", "fetch"]
+                for call in self.cleanup.run.call_args_list
+            )
+        )
+
+    def test_dry_run_and_ignored_file_inventory_do_not_execute_filesystem_monitor(self):
+        self.release()
+        marker = self.base / "monitor-was-run"
+        monitor = self.base / "filesystem-monitor"
+        monitor.write_text(
+            "#!/bin/sh\n"
+            + "printf ran >> "
+            + shlex.quote(str(marker))
+            + "\n"
+            + "printf 'token\\000/\\000'\n"
+        )
+        monitor.chmod(0o700)
+        self.git("config", "core.fsmonitor", str(monitor))
+        self.git("config", "core.fsmonitorHookVersion", "2")
+        # Prove the real fixture hook runs when Git is not guarded.
+        self.git("status", "--porcelain", root=self.tree)
+        self.assertTrue(marker.exists())
+        marker.unlink()
+        (self.tree / ".env").write_text("private fixture setting")
+        state_before = {p: p.read_bytes() for p in self.state.rglob("*") if p.is_file()}
+        index = (
+            Path(self.git("rev-parse", "--absolute-git-dir", root=self.tree)) / "index"
+        )
+        index_before = index.read_bytes()
+        self.assertEqual(
+            self.cleanup.sweep(self.repo, self.state, False)[0]["state"], "ready"
+        )
+        self.assertFalse(marker.exists())
+        self.assertEqual(index.read_bytes(), index_before)
+        self.assertEqual(
+            state_before,
+            {p: p.read_bytes() for p in self.state.rglob("*") if p.is_file()},
+        )
+        inventory = self.cleanup.private_files(self.tree)
+        self.assertEqual([row["path"] for row in inventory], [".env"])
+        self.assertFalse(marker.exists())
+
+    def test_shell_cleanup_keeps_source_private_children_links_and_other_names(self):
+        preserved = []
+        for name, filename in [
+            ("source", "source.py"),
+            ("private", ".env"),
+            ("nested", "child"),
+        ]:
+            path = self.base / ("alethical-wt-" + name)
+            path.mkdir()
+            if name == "nested":
+                (path / filename).mkdir()
+            else:
+                (path / filename).write_text("keep this work")
+            preserved.append(path)
+        target = self.base / "outside-target"
+        target.mkdir()
+        linked = self.base / "alethical-wt-linked"
+        linked.symlink_to(target, target_is_directory=True)
+        misleading = self.base / "alethical-wt-linked-finder"
+        misleading.mkdir()
+        (misleading / ".DS_Store").symlink_to(target, target_is_directory=True)
+        unrelated = self.base / "other-project"
+        unrelated.mkdir()
+        self.assertEqual(self.cleanup.sweep(self.repo, self.state, True), [])
+        self.assertTrue(
+            all(p.is_dir() for p in [*preserved, target, misleading, unrelated])
+        )
+        self.assertTrue(linked.is_symlink())
+        self.assertTrue((misleading / ".DS_Store").is_symlink())
+
+    def test_shell_with_exact_or_nested_git_registration_stays(self):
+        actual = self.cleanup.registrations(self.repo)
+        for suffix in ("", "/missing-child"):
+            with self.subTest(suffix=suffix):
+                shell = self.base / "alethical-wt-registered"
+                shell.mkdir(exist_ok=True)
+                with patch.object(
+                    self.cleanup,
+                    "registrations",
+                    return_value=[
+                        *actual,
+                        {"worktree": str(shell) + suffix},
+                    ],
+                ):
+                    result = self.cleanup.sweep(self.repo, self.state, True)
+                self.assertEqual(result[0]["state"], "held")
+                self.assertTrue(shell.exists())
+
+    def test_active_shell_and_unavailable_process_inspection_stay(self):
+        shell = self.base / "alethical-wt-active"
+        shell.mkdir()
+        for paths in ([str(shell)], [str(shell / "file-open-by-preview")]):
+            with (
+                self.subTest(paths=paths),
+                patch.object(self.cleanup, "process_paths", return_value=paths),
+            ):
+                self.assertEqual(
+                    self.cleanup.sweep(self.repo, self.state, True)[0]["state"], "held"
+                )
+                self.assertTrue(shell.exists())
+        with patch.object(
+            self.cleanup,
+            "process_paths",
+            side_effect=self.cleanup.CleanupError("cannot inspect"),
+        ):
+            self.assertEqual(
+                self.cleanup.sweep(self.repo, self.state, True)[0]["state"], "held"
+            )
+        self.assertTrue(shell.exists())
+
+    def test_new_source_at_rmdir_boundary_is_not_removed(self):
+        shell = self.base / "alethical-wt-racing"
+        shell.mkdir()
+        (shell / ".DS_Store").write_text("Finder metadata")
+        original = Path.rmdir
+
+        def introduce_work(path):
+            if path == shell:
+                (shell / "new-source.py").write_text("new work must survive")
+            return original(path)
+
+        with patch.object(Path, "rmdir", introduce_work):
+            result = self.cleanup.sweep(self.repo, self.state, True)
+        self.assertEqual(result[0]["state"], "held")
+        self.assertEqual((shell / "new-source.py").read_text(), "new work must survive")
+
+    def test_shell_checks_registrations_again_immediately_before_removal(self):
+        shell = self.base / "alethical-wt-resumed"
+        shell.mkdir()
+        actual = self.cleanup.registrations(self.repo)
+        with patch.object(
+            self.cleanup,
+            "registrations",
+            side_effect=[actual, [*actual, {"worktree": str(shell / "resumed-child")}]],
+        ):
+            result = self.cleanup.sweep(self.repo, self.state, True)
+        self.assertEqual(result[0]["state"], "held")
+        self.assertTrue(shell.exists())
 
     def test_real_removal_and_independent_recovery_of_code_and_private_settings(self):
         (self.tree / ".env").write_text("private fixture setting\n")

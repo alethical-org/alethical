@@ -22,8 +22,10 @@ The scheduled programs do not depend on the branch or working folder used to
 install them. Existing scheduled-job settings are saved before replacement.
 
 The free Mac helpers run at login, when the release queue changes, and once a day
-to retry held removals. Private source backups run every 5 minutes. These are
-ordinary local programs; no AI, paid API, email, or recurring coding task runs.
+to retry held removals and remove empty external container folders. The empty-folder
+check runs even when no working folders await cleanup. Private source backups run
+every 5 minutes. These are ordinary local programs; no AI, paid API, email, or
+recurring coding task runs.
 The existing `just install-wip-backup` command installs this complete setup too.
 `just stop-wip-backup` stops only the backup schedule and keeps saved copies.
 
@@ -87,6 +89,23 @@ writing into their original targets. Unsupported private links hold removal.
 A failed backup leaves the folder in place. Interrupted cleanup keeps its recovery
 record and can finish on a later run. Age never makes an unsafe folder eligible.
 The helper does not close chats, merge unfinished changes, or publish private work.
+
+### Empty external container folders
+
+After each sweep, the helper also examines immediate sibling folders of the
+shared checkout named `alethical-wt-*`. A folder is removable only when it is
+empty or contains just a regular Finder metadata file (`.DS_Store`). A link,
+source file, private setting, child folder, exact or nested Git registration,
+or program holding the folder open keeps it in place. Failed process inspection
+also keeps it. Removal uses ordinary file removal and a nonrecursive directory
+removal, so a newly arrived source file makes directory removal fail safely.
+
+This check does not search other projects or delete the contents of working
+folders. A report-only sweep (`python3 scripts/worktree_cleanup.py sweep`) keeps
+the folders, does not fetch remote changes, and writes no lock or status files.
+It uses the locally available main-branch information for its release checks.
+Git inspection also disables configured filesystem-monitor hooks, which can
+otherwise run programs even while listing unchanged files.
 
 ## Recover a removed folder
 

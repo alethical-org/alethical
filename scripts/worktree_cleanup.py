@@ -3,7 +3,8 @@
 
 Merging, age, silence and an absent process are never release signals. The owning
 task calls release after delivery/acceptance and after giving up every preview.
-The scheduler only retries those receipts. Codex-managed trees stay with Codex.
+The scheduler retries those receipts and removes empty external container shells.
+Codex-managed trees stay with Codex.
 """
 
 from __future__ import annotations
@@ -15,12 +16,13 @@ import json
 import os
 import shlex
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
 import tempfile
 import uuid
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -44,7 +46,14 @@ class CleanupError(Exception):
 def run(args: list[str], root: Path | None = None, check: bool = True) -> str:
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
     env["GIT_OPTIONAL_LOCKS"] = "0"
-    result = subprocess.run(args, cwd=root, env=env, capture_output=True, text=True)
+    # Even status/ls-files can execute a user-configured filesystem monitor.
+    # Disable it centrally, including raw -z reads that must preserve whitespace.
+    command = (
+        [args[0], "-c", "core.fsmonitor=false", *args[1:]]
+        if Path(args[0]).name == "git"
+        else args
+    )
+    result = subprocess.run(command, cwd=root, env=env, capture_output=True, text=True)
     if check and result.returncode:
         # Git can print private filenames/settings. Keep command output local.
         raise CleanupError(f"{args[0]} {args[1]} failed ({result.returncode})")
@@ -52,7 +61,7 @@ def run(args: list[str], root: Path | None = None, check: bool = True) -> str:
 
 
 def git(root: Path, *args: str) -> str:
-    return run(["git", "-c", "core.fsmonitor=false", *args], root).strip()
+    return run(["git", *args], root).strip()
 
 
 def now() -> str:
@@ -590,12 +599,22 @@ def finish_remainder(
                         blob = subprocess.run(
                             [
                                 "git",
+                                "-c",
+                                "core.fsmonitor=false",
                                 "--git-dir",
                                 str(recovery),
                                 "cat-file",
                                 "blob",
                                 oid,
                             ],
+                            env={
+                                **{
+                                    k: v
+                                    for k, v in os.environ.items()
+                                    if not k.startswith("GIT_")
+                                },
+                                "GIT_OPTIONAL_LOCKS": "0",
+                            },
                             capture_output=True,
                             check=True,
                         ).stdout
@@ -683,13 +702,93 @@ def require_scheduler(repo: Path, state: Path) -> None:
     run(["launchctl", "print", f"gui/{os.getuid()}/com.alethical.worktree-cleanup"])
 
 
+def empty_container_contents(path: Path) -> Path | None:
+    """An empty shell may contain only a regular Finder metadata file."""
+    if not stat.S_ISDIR(path.lstat().st_mode):
+        raise CleanupError("container is not an ordinary directory")
+    entries = list(path.iterdir())
+    if not entries:
+        return None
+    if (
+        len(entries) == 1
+        and entries[0].name == ".DS_Store"
+        and stat.S_ISREG(entries[0].lstat().st_mode)
+    ):
+        return entries[0]
+    raise CleanupError("container has files or folders that must stay")
+
+
+def tidy_empty_containers(repo: Path, state: Path, apply: bool) -> list[dict]:
+    """Remove only empty immediate external shells, never their source contents."""
+    common = Path(
+        git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    ).resolve()
+    shared = common.parent
+    if Path(git(shared, "rev-parse", "--show-toplevel")).resolve() != shared:
+        raise CleanupError("cannot identify the shared checkout for container cleanup")
+    results = []
+    for path in sorted(shared.parent.iterdir()):
+        if not path.name.startswith("alethical-wt-"):
+            continue
+        if path == state.resolve() or path in state.resolve().parents:
+            continue
+        try:
+            # Ordinary working folders, links and source files are not candidates.
+            empty_container_contents(path)
+            original = path.lstat()
+        except (CleanupError, OSError):
+            continue
+
+        def validate() -> Path | None:
+            current = path.lstat()
+            if (current.st_dev, current.st_ino) != (original.st_dev, original.st_ino):
+                raise CleanupError("container changed during cleanup")
+            finder = empty_container_contents(path)
+            for row in registrations(repo):
+                registered = Path(row["worktree"]).resolve()
+                if path == registered or path in registered.parents:
+                    raise CleanupError("container still has a Git registration")
+            if any(
+                p == str(path) or p.startswith(str(path) + "/") for p in process_paths()
+            ):
+                raise CleanupError("a program still holds the container open")
+            return finder
+
+        try:
+            validate()
+            if apply:
+                finder = validate()
+                if finder is not None:
+                    if not stat.S_ISREG(finder.lstat().st_mode):
+                        raise CleanupError("Finder metadata changed its file type")
+                    finder.unlink()
+                # Never recurse: a new source/private file makes this refuse.
+                path.rmdir()
+            results.append(
+                {
+                    "path": str(path),
+                    "kind": "empty container",
+                    "state": "removed" if apply else "ready",
+                }
+            )
+        except (CleanupError, OSError, ValueError, KeyError) as error:
+            results.append(
+                {
+                    "path": str(path),
+                    "kind": "empty container",
+                    "state": "held",
+                    "reason": str(error),
+                }
+            )
+    return results
+
+
 def sweep(repo: Path, state: Path, apply: bool) -> list[dict]:
     results = []
-    # Do not touch Git/network when there is no released work to retry.
+    # Empty-container cleanup needs local Git information, but never a fetch.
     queued = list((state / "released").glob("*.json"))
-    if not queued:
-        return results
-    run(["git", "fetch", "origin", "main", "--quiet"], repo)
+    if queued and apply:
+        run(["git", "fetch", "origin", "main", "--quiet"], repo)
     for receipt_file in queued:
         try:
             receipt = json.loads(receipt_file.read_text())
@@ -768,9 +867,12 @@ def sweep(repo: Path, state: Path, apply: bool) -> list[dict]:
             results.append(
                 {"receipt": str(receipt_file), "state": "held", "reason": str(error)}
             )
-    write_json(
-        state / "last-cleanup.json", {"time": now(), "apply": apply, "results": results}
-    )
+    results.extend(tidy_empty_containers(repo, state, apply))
+    if apply:
+        write_json(
+            state / "last-cleanup.json",
+            {"time": now(), "apply": apply, "results": results},
+        )
     return results
 
 
@@ -936,7 +1038,12 @@ def main() -> int:
     recover.add_argument("destination", type=Path)
     args = parser.parse_args()
     try:
-        with locked(args.state, wait=args.command == "sweep"):
+        guard = (
+            nullcontext()
+            if args.command == "sweep" and not args.apply
+            else locked(args.state, wait=args.command == "sweep")
+        )
+        with guard:
             if args.command == "release":
                 require_scheduler(args.repo, args.state)
                 run(["git", "fetch", "origin", "main", "--quiet"], args.repo)
