@@ -31,6 +31,9 @@ patchedDependencies:
   '@expo/metro-config@57.0.7':
     hash: 43c05fd34fdd436be9b01620933aa0382516626d65902e53b3517d4d920dccba
     path: patches/@expo__metro-config@57.0.7.patch
+  braces@3.0.3:
+    hash: ea29e28e84b25bb03e32f352eed8fc0dce67ad38b6cad073da15faf3e5ddcba2
+    path: patches/braces@3.0.3.patch
   metro@0.84.4:
     hash: 745d9cbaf87fa685fc820225527a92c32acebfd00dd1b6ea3f876b07db75e3b8
     path: patches/metro@0.84.4.patch
@@ -4858,7 +4861,7 @@ snapshots:
     dependencies:
       balanced-match: 4.0.4
 
-  braces@3.0.3:
+  braces@3.0.3(patch_hash=ea29e28e84b25bb03e32f352eed8fc0dce67ad38b6cad073da15faf3e5ddcba2):
     dependencies:
       fill-range: 7.1.1
 
@@ -5900,7 +5903,7 @@ snapshots:
 
   micromatch@4.0.8:
     dependencies:
-      braces: 3.0.3
+      braces: 3.0.3(patch_hash=ea29e28e84b25bb03e32f352eed8fc0dce67ad38b6cad073da15faf3e5ddcba2)
       picomatch: 2.3.2
 
   mime-db@1.52.0: {}
