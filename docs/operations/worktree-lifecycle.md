@@ -146,8 +146,12 @@ cleanup push private recovery refs to GitHub.
 ## Codex-managed folders
 
 Folders under `~/.codex/worktrees/` belong to the Codex app. This helper refuses
-to remove them or edit the app's saved state. Use the app's supported worktree
-archive action, preserving needed ignored files separately. Archiving a working
+to remove them or edit the app's saved state. After delivery and acceptance,
+the owning Codex task lists its attachments and archives its own working folder
+through the supported app tool, preserving needed ignored files separately.
+If its own managed checkout is not attached, the task attaches that exact
+checkout first. Another chat's checkout must never be attached for cleanup.
+Archiving a working
 folder and closing its chat are separate decisions.
 
 [Codex's worktree guide](https://learn.chatgpt.com/docs/environments/git-worktrees)

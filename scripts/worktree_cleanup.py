@@ -899,6 +899,16 @@ def hook(repo: Path, state: Path, payload: dict) -> dict | None:
     }
 
 
+def status_records(state: Path) -> list[dict]:
+    records = {}
+    for folder in ("completed", "released"):
+        for path in (state / folder).glob("*.json"):
+            row = json.loads(path.read_text())
+            key = row.get("recovery_id", row["id"])
+            records[key] = {"id": key, "path": row["path"], "status": row["status"]}
+    return list(records.values())
+
+
 def main() -> int:
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
@@ -976,22 +986,7 @@ def main() -> int:
                 restore(args.state, args.id, args.destination)
                 print(f"Recovered working files at {args.destination}")
             else:
-                records = [
-                    json.loads(p.read_text())
-                    for p in (args.state / "released").glob("*.json")
-                ]
-                print(
-                    json.dumps(
-                        [
-                            {
-                                "id": r.get("recovery_id", r["id"]),
-                                "path": r["path"],
-                                "status": r["status"],
-                            }
-                            for r in records
-                        ]
-                    )
-                )
+                print(json.dumps(status_records(args.state)))
         return 0
     except (CleanupError, OSError, ValueError) as error:
         if args.command == "hook":
