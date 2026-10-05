@@ -40,9 +40,8 @@ how a file hides inside one, and it failed twice inside a week:
   fire on correct edits.
 * Scripts a workflow reaches indirectly, through a ``just`` recipe or another script.
   Check 6 counts a script as run when its ``scripts/<name>`` path appears in a
-  workflow's ``run:`` step. Nothing in the repo does that today. If something ever
-  does, the page's sentence and this check both need the indirection spelled out, and
-  the failure message says so.
+  workflow's ``run:`` step. The 3 quick document checks reached through
+  ``local_checks.py quick-docs`` are named separately in the page's prose.
 
 A prose sentence that has been reworded so a pattern below no longer matches it exactly
 once is itself a failure, with its own message. Otherwise a rewrite would silently

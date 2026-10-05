@@ -359,6 +359,11 @@ def run_suites(snapshot: Path, suites: set[str]) -> None:
         if suite == "frontend":
             run(["pnpm", "install", "--frozen-lockfile"], snapshot, env=env)
             run(
+                ["pnpm", "--dir", "apps/frontend", "run", "brand:check"],
+                snapshot,
+                env=env,
+            )
+            run(
                 ["pnpm", "--dir", "apps/frontend", "run", "check:expo-packages"],
                 snapshot,
                 env=env,
@@ -463,19 +468,29 @@ def run_suites(snapshot: Path, suites: set[str]) -> None:
             raise CheckError("\n".join(errors))
 
 
+def run_quick_docs(snapshot: Path) -> None:
+    env = test_environment(snapshot)
+    for script in (
+        "check_doc_references.py",
+        "check_doc_structure.py",
+        "check_doc_quotes.py",
+    ):
+        run(["python3", f"scripts/{script}"], snapshot, env=env)
+
+
 def pre_push(root: Path, source: TextIO) -> None:
     # Parse all refs first so malformed input cannot test a subset and pass.
     for sha, files in push_targets(root, source.read()):
         suites = affected_suites(root, files, sha)
-        if not suites:
-            print(f"Local checks: {sha[:12]} needs neither app nor server tests.")
-            continue
+        checks = ", ".join(["documents", *sorted(suites)])
         print(
-            f"Local checks: testing {sha[:12]} ({', '.join(sorted(suites))}).",
+            f"Local checks: testing {sha[:12]} ({checks}).",
             flush=True,
         )
         with commit_snapshot(root, sha) as snapshot:
-            run_suites(snapshot, suites)
+            run_quick_docs(snapshot)
+            if suites:
+                run_suites(snapshot, suites)
     print("Local checks passed for the commits being pushed.")
 
 
@@ -554,8 +569,10 @@ def main() -> int:
             for name in git(root, "rev-parse", "--local-env-vars").splitlines():
                 os.environ.pop(name, None)
             pre_push(root, sys.stdin)
+        elif sys.argv[1:] == ["quick-docs"]:
+            run_quick_docs(root)
         else:
-            raise CheckError("Use local_checks.py staged or local_checks.py pre-push.")
+            raise CheckError("Use local_checks.py staged, pre-push, or quick-docs.")
     except (CheckError, OSError, ValueError) as error:
         print(f"Local checks stopped: {error}", file=sys.stderr)
         return 1

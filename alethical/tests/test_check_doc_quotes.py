@@ -167,8 +167,12 @@ def test_existing_pull_request_job_runs_the_quote_check():
     workflow = (check_doc_quotes.ROOT / ".github/workflows/ci.yml").read_text(
         encoding="utf-8"
     )
+    local_checks = (check_doc_quotes.ROOT / "scripts/local_checks.py").read_text(
+        encoding="utf-8"
+    )
 
-    assert workflow.count("python scripts/check_doc_quotes.py") == 1
+    assert workflow.count("python scripts/local_checks.py quick-docs") == 1
+    assert local_checks.count('"check_doc_quotes.py",') == 1
 
 
 def test_launch_enables_exact_quote_check_for_one_guide():

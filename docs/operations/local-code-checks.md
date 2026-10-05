@@ -103,9 +103,13 @@ The changed paths select suites through
 An affected area runs its entire suite, not just tests near changed files. Shared
 check machinery selects both areas. Files outside both groups select neither.
 
+Every code upload also runs the same quick document checks as GitHub: broken
+links to documents, missing entries in document indexes, and outdated quoted
+claims. These checks run even when neither app suite is selected.
+
 | Affected area | Checks before upload |
 | --- | --- |
-| Frontend app | Saved dependencies, package and build-tool compatibility, selected-file helper fixtures, frontend formatting, TypeScript, and the full `just test-frontend` suite |
+| Frontend app | Saved dependencies, brand assets, package and build-tool compatibility, selected-file helper fixtures, frontend formatting, TypeScript, and the full `just test-frontend` suite |
 | Python server | Saved and declared dependencies, local-check helper fixtures, Ruff code and formatting checks, ty, and the full `uv run --frozen pytest` suite |
 
 When both areas change, they run together. The helper waits for both to finish

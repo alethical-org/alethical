@@ -171,6 +171,7 @@ class LocalChecksTest(unittest.TestCase):
     def test_failed_suite_blocks_push_and_cleans_snapshot(self):
         with (
             patch.object(self.checks, "affected_suites", return_value={"frontend"}),
+            patch.object(self.checks, "run_quick_docs"),
             patch.object(
                 self.checks,
                 "run_suites",
@@ -185,6 +186,64 @@ class LocalChecksTest(unittest.TestCase):
         self.assertEqual(
             self.git("worktree", "list", "--porcelain").count("worktree "), 1
         )
+
+    def test_quick_document_checks_use_the_saved_snapshot(self):
+        (self.root / "first.txt").write_text("unfinished\n")
+        snapshots = []
+
+        def check_docs(snapshot):
+            snapshots.append(snapshot)
+            self.assertEqual((snapshot / "first.txt").read_text(), "first\n")
+
+        with (
+            patch.object(self.checks, "affected_suites", return_value=set()),
+            patch.object(self.checks, "run_quick_docs", side_effect=check_docs),
+            patch.object(self.checks, "run_suites") as suites,
+        ):
+            self.checks.pre_push(
+                self.root,
+                io.StringIO(f"refs/heads/x {self.base} refs/heads/x {'0' * 40}\n"),
+            )
+        self.assertEqual(len(snapshots), 1)
+        self.assertFalse(snapshots[0].exists())
+        suites.assert_not_called()
+
+    def test_failed_document_check_blocks_push_and_cleans_snapshot(self):
+        with (
+            patch.object(self.checks, "affected_suites", return_value=set()),
+            patch.object(
+                self.checks,
+                "run_quick_docs",
+                side_effect=self.checks.CheckError("document check failed"),
+            ),
+        ):
+            with self.assertRaisesRegex(
+                self.checks.CheckError, "document check failed"
+            ):
+                self.checks.pre_push(
+                    self.root,
+                    io.StringIO(f"refs/heads/x {self.base} refs/heads/x {'0' * 40}\n"),
+                )
+        self.assertEqual(
+            self.git("worktree", "list", "--porcelain").count("worktree "), 1
+        )
+
+    def test_quick_document_commands_are_shared(self):
+        with patch.object(self.checks, "run") as run:
+            self.checks.run_quick_docs(self.root)
+        self.assertEqual(
+            [call.args[0] for call in run.call_args_list],
+            [
+                ["python3", "scripts/check_doc_references.py"],
+                ["python3", "scripts/check_doc_structure.py"],
+                ["python3", "scripts/check_doc_quotes.py"],
+            ],
+        )
+
+    def test_github_uses_the_same_quick_checks(self):
+        workflow = (SCRIPT.parents[1] / ".github/workflows/ci.yml").read_text()
+        self.assertIn("run: python scripts/local_checks.py quick-docs", workflow)
+        self.assertIn("run: pnpm run brand:check", workflow)
 
 
 class DisposablePostgresTest(unittest.TestCase):
@@ -453,6 +512,12 @@ class DisposablePostgresTest(unittest.TestCase):
             if call.args[0] == ["uv", "run", "--frozen", "pytest"]
         ]
         self.assertEqual(len(pytest_calls), 1)
+        self.assertTrue(
+            any(
+                call.args[0] == ["pnpm", "--dir", "apps/frontend", "run", "brand:check"]
+                for call in run.call_args_list
+            )
+        )
         for call in run.call_args_list:
             self.assertNotIn("DATABASE_URL", call.kwargs["env"])
         self.assertEqual(len(self.removed()), 0)
