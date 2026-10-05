@@ -107,6 +107,8 @@ jobs:
         run: python -m unittest discover -s scripts/tests -p 'test_doc_structure.py'
       - name: Test local upload selection without database or network
         run: python -m unittest discover -s scripts/tests -p 'test_local_checks.py'
+      - name: Test working-folder backup and cleanup without production data
+        run: python -m unittest discover -s scripts/tests -p 'test_worktree_*.py'
       # Rule 16 (.claude/rules/workflow.md): added doc lines state what is
       # true now, never narrate decision history. Diff-based -- it reads only
       # the lines a PR adds, so the existing corpus and kept evidence never

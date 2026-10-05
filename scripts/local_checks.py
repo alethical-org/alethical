@@ -422,6 +422,20 @@ def run_suites(snapshot: Path, suites: set[str]) -> None:
                 env=env,
             )
             run(
+                [
+                    "python3",
+                    "-m",
+                    "unittest",
+                    "discover",
+                    "-s",
+                    "scripts/tests",
+                    "-p",
+                    "test_worktree_*.py",
+                ],
+                snapshot,
+                env=env,
+            )
+            run(
                 ["uvx", "ruff@0.15.0", "check", "alethical", "scripts"],
                 snapshot,
                 env=env,

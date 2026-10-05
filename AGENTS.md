@@ -125,7 +125,7 @@ see [manual server tests](CONTRIBUTING.md#manual-server-tests-use-a-temporary-po
     work. No git version guards this either. A tracked hook
     (`.githooks/post-checkout`) locks every new worktree as it is created, whichever
     tool ran `git worktree add`, so the command refuses and prints the lock reason.
-    `just worktree-rm` unlocks first, so the intended cleanup path still works.
+    `just worktree-rm <branch> <owner> <evidence>` queues recoverable cleanup after delivery and acceptance; the helper unlocks only after its safety checks pass.
     **The hook is broad but not total:** it only covers worktrees created after it is
     installed, `--force --force` still overrides it, `git worktree unlock` clears it,
     and it does nothing at all until someone runs `just install-hooks` in that clone
@@ -144,6 +144,26 @@ see [manual server tests](CONTRIBUTING.md#manual-server-tests-use-a-temporary-po
   project-wide replace across it, and exclude it from any sweep of ignored or
   "temporary" files. `.cursorignore` fences this path off for Cursor specifically, since
   a prose rule is not a mechanism; if your tool has an equivalent, use it too.
+
+## Finish the working-folder lifecycle
+
+After the requested delivery, live checks and acceptance are complete, the owning
+agent must finish cleanup before its final reply. A pending review or private
+preview keeps the folder and gets an explicit hold. A merge alone never proves
+that the task is complete.
+
+- External terminal and Claude folders: use the owner release command in
+  [working-folder cleanup and recovery](docs/operations/worktree-lifecycle.md).
+  The free Mac helper preserves recovery, waits for programs to release the folder,
+  and removes it without force. New Claude work revokes prior releases.
+- Codex-managed folders: use the supported `list_artifacts` and
+  `archive_worktree` tools after preserving needed ignored files privately outside
+  the folder. If this task's own managed checkout is not attached, attach that exact
+  checkout with `attach_worktree` first. Never attach or archive another chat's
+  checkout. Archive the folder while keeping the chat open; report the saved
+  recovery result. If the app protects the folder or a requested review remains,
+  retain it and name that specific hold. Never delete native app folders with Git
+  or rewrite the app's saved state.
 
 ## Cursor Cloud specific instructions
 

@@ -86,27 +86,23 @@ What the lock does and does not do: it makes a single `--force` fail and print w
 the lock, both on purpose. It is a guard against an accident, not a security
 boundary, and it only covers worktrees created after the hook is installed.
 
-**Because the lock is not a wall, also run `just install-wip-backup`.** Tested against a
-live agent on Aug 3 2026, the lock and every command-blocking rule turned out to be an
-*approval prompt* rather than a denial: once approved, deleting a locked worktree
-succeeded. With an agent that can ask for approval, no setting is a boundary, so the
-realistic goal is bounded loss rather than no damage.
+**On a Mac, run `just maintenance-install` once per machine.** It installs
+private backups every 5 minutes and automatic removal of working folders that
+all their owners explicitly release after delivery and acceptance. The existing
+`just install-wip-backup` command installs the same complete setup. The helpers
+run from saved copies outside every working folder, so removing a folder does
+not remove the program that maintains the others. No AI or paid service runs.
 
-That recipe snapshots every worktree's uncommitted work every 5 minutes, into a
-`refs/wip-backup/<worktree>` ref plus a small bundle under
-`~/Library/Application Support/alethical-wip-backups/`. It costs nothing to run, pushes
-nothing (this repo is public and uncommitted work has not been reviewed for publication),
-and cannot disturb you: it stages into a temporary index, so your own staged and unstaged
-state is never touched. Snapshots survive deleting the worktree and survive `git gc`. Stop
-it with `just stop-wip-backup`; take one on demand with `just back-up-wip`.
+Backups use a unique ID for each working folder and preserve both staged and
+on-disk source files without changing the real staging area. Ordinary ignored
+files, such as private settings, are excluded from these periodic backups;
+cleanup saves needed ignored files separately before removing a folder.
+`just back-up-wip` takes a backup immediately. `just stop-wip-backup` stops the
+periodic backup job only; it does not stop cleanup or remove saved copies.
 
-To get work back: `git show refs/wip-backup/<worktree>:<path>`, or
-`git restore --source refs/wip-backup/<worktree> -- <path>`. Recovery from a bundle after
-losing the whole repo is in the script's header comment.
-
-This exists because on Aug 3 2026 a 132-line production-schema audit was found existing as
-one uncommitted file, in one worktree, on one Mac, referenced by nothing. One command
-would have destroyed it.
+[Working-folder cleanup and recovery](docs/operations/worktree-lifecycle.md)
+owns installation, release and hold commands, recovery, and the separate
+boundary for working folders managed by the Codex app.
 
 Verify it's healthy:
 
@@ -238,8 +234,11 @@ ten bullets of shape at the top, then the numbered rules. The short version:
    automatically; fill in the template's **`Closes #<issue>`** line so the issue
    closes on merge (no issue? delete the line and say why in "What").
 4. **Merge** once the checks pass on the current head (squash-merge keeps `main` to
-   one commit per topic), then delete the branch and remove the worktree
-   (`just worktree-rm <branch>`).
+   one commit per topic), then finish deployment checks and acceptance. Release
+   the working folder only when every owner is finished and no preview needs it:
+   `just worktree-rm <branch> <owner-id> '<delivery evidence>'`. Cleanup keeps the
+   branch and a private recovery copy. Use the Codex app's archive control for
+   its managed working folders instead.
 
 Hand work between people and tools as branches or PRs, never as file copies —
 a copy outside git has no history, so nobody can cheaply tell whether it still
@@ -252,6 +251,7 @@ draws this workflow as commit graphs, with the habits and commands behind each s
 
 On every PR (`.github/workflows/ci.yml`):
 
+- **Working-folder safety** (always): `python3 -m unittest discover -s scripts/tests -p 'test_worktree_*.py'` exercises backup, cleanup, recovery, and installation in disposable folders, without production data or network services.
 - **Backend** (when backend paths change): `ruff check`, `ty check`, and `pytest` against a real Postgres
 - **Frontend** (when frontend paths change): `tsc --noEmit`, `prettier --check`, the Vitest suite, and a production build
 - **Doc references** (always, no path filter): `scripts/check_doc_references.py` confirms every `docs/...` path and every relative link inside `docs/` points at a real file. This one runs on every PR on purpose — a broken doc pointer is usually introduced by a docs-only or rules-only change, which the two jobs above skip. You can run it locally any time with `python scripts/check_doc_references.py`.
