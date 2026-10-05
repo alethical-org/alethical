@@ -56,3 +56,6 @@ patchedDependencies:
   query-string@7.1.3: patches/query-string@7.1.3.patch
   "@expo/metro-config@57.0.7": patches/@expo__metro-config@57.0.7.patch
   metro@0.84.4: patches/metro@0.84.4.patch
+  # No upstream repair exists for GHSA-vfj7-8cjw-p6xm. Limit pattern nesting
+  # before braces' recursive walkers can exhaust the Node.js call stack.
+  braces@3.0.3: patches/braces@3.0.3.patch

@@ -217,6 +217,61 @@ def forge_advisory() -> dict:
     }
 
 
+def braces_advisory() -> dict:
+    return {
+        "github_advisory_id": check_technology_health.BRACES_ADVISORY,
+        "module_name": "braces",
+        "severity": "high",
+        "vulnerable_versions": "<=3.0.3",
+        "patched_versions": "<0.0.0",
+        "findings": [
+            {
+                "version": "3.0.3",
+                "paths": [check_technology_health.BRACES_BUILD_PATH],
+            }
+        ],
+    }
+
+
+def test_braces_finding_requires_the_exact_installed_repair() -> None:
+    report = javascript_report({"braces": braces_advisory()})
+    assert check_technology_health.javascript_audit_problems(report) == [
+        "GHSA-vfj7-8cjw-p6xm (high)"
+    ]
+    assert (
+        check_technology_health.javascript_audit_problems(report, braces_repaired=True)
+        == []
+    )
+    report["advisories"]["other"] = {"severity": "low"}
+    assert check_technology_health.javascript_audit_problems(
+        report, braces_repaired=True
+    ) == ["other (low)"]
+
+
+@pytest.mark.parametrize(
+    "change", ["id", "module", "version", "path", "fixed", "range", "severity"]
+)
+def test_braces_repair_cannot_accept_changed_findings(change: str) -> None:
+    advisory = braces_advisory()
+    if change == "id":
+        advisory["github_advisory_id"] = "GHSA-other"
+    elif change == "module":
+        advisory["module_name"] = "other"
+    elif change == "version":
+        advisory["findings"][0]["version"] = "3.0.2"
+    elif change == "path":
+        advisory["findings"][0]["paths"].append("apps__frontend>braces")
+    elif change == "fixed":
+        advisory["patched_versions"] = ">=3.0.4"
+    elif change == "range":
+        advisory["vulnerable_versions"] = "<=3.0.4"
+    else:
+        advisory["severity"] = "critical"
+    assert check_technology_health.javascript_audit_problems(
+        javascript_report({"braces": advisory}), braces_repaired=True
+    )
+
+
 def test_forge_finding_requires_installed_repair_and_keeps_other_findings() -> None:
     report = javascript_report({"forge": forge_advisory()})
     assert check_technology_health.javascript_audit_problems(report) == [
