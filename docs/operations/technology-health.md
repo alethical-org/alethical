@@ -98,11 +98,12 @@ The website's Expo file scanners use braces 3.0.3. Its
 [deep-pattern advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
 has no fixed release. A local repair stops patterns nested beyond 100 levels
 before their shape can exhaust Node.js. The required security check reads the
-exact saved patch, lockfile, and installed code, then tests normal patterns and
-deep braces and parentheses through both Expo file scanners. The raw audit
-warning stays visible. A changed dependency path, version, advisory, or repair
-stops release until reviewed. A fixed upstream version should replace the local
-repair after compatibility checks pass.
+exact saved patch, lockfile, and installed code, then tests the repaired braces
+package reached from both Expo file scanners. Their current matching path does
+not call braces, so the check also tests that real file matching still works.
+The raw audit warning stays visible. A changed dependency path, version,
+advisory, or repair stops release until reviewed. A fixed upstream version
+should replace the local repair after compatibility checks pass.
 
 The image-size exception ended on 25 September 2026 when the security feed
 reported a fixed release. Metro now uses image-size 2.0.3, published on

@@ -863,9 +863,9 @@ def main() -> int:
             "or failed repair check blocks release.\n"
             "\nLocal security repair: braces 3.0.3 retains the raw "
             "GHSA-vfj7-8cjw-p6xm warning. It passes only after frozen installation, "
-            "exact patch/lock/installed-code fingerprints, and normal/deep pattern "
-            "checks through both Expo file scanners. Any changed finding or failed "
-            "repair check blocks release.\n"
+            "exact patch/lock/installed-code fingerprints, braces API checks in both "
+            "Expo dependency trees, and real file-scanner matching checks. Any changed "
+            "finding or failed repair check blocks release.\n"
             "\nRecorded exception policy: only image-size 1.2.1 in Expo's Metro "
             "build tool may retain "
             + ", ".join(sorted(KNOWN_JAVASCRIPT_EXCEPTIONS))

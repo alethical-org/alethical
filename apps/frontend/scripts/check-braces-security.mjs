@@ -30,7 +30,8 @@ assert.match(
 const deeplyNestedBraces = '{'.repeat(4000) + 'a' + '}'.repeat(4000);
 const deeplyNestedParens = '('.repeat(4000) + 'a' + ')'.repeat(4000);
 for (const consumer of ['@expo/metro-file-map', 'metro-file-map']) {
-  const consumerRequire = createRequire(require.resolve(`${consumer}/package.json`));
+  const consumerRoot = dirname(require.resolve(`${consumer}/package.json`));
+  const consumerRequire = createRequire(join(consumerRoot, 'package.json'));
   const micromatchRequire = createRequire(consumerRequire.resolve('micromatch'));
   const manifest = micromatchRequire('braces/package.json');
   assert.equal(manifest.version, '3.0.3');
@@ -54,8 +55,16 @@ for (const consumer of ['@expo/metro-file-map', 'metro-file-map']) {
       );
     }
   }
+
+  // The file scanner uses micromatch.some(), not the braces API above.
+  const scannerPath =
+    consumer === '@expo/metro-file-map' ? 'build/watchers/common.js' : 'src/watchers/common.js';
+  const { includedByGlob } = require(join(consumerRoot, scannerPath));
+  assert.equal(includedByGlob('f', ['src/{a,b}.js'], false, 'src/a.js'), true);
+  assert.equal(includedByGlob('f', ['src/{a,b}.js'], false, 'src/c.js'), false);
+  assert.equal(includedByGlob('f', [deeplyNestedBraces], false, 'src/a.js'), false);
 }
 
 console.log(
-  'GHSA-vfj7-8cjw-p6xm: exact installed depth guard blocks nested patterns in both Expo file scanners',
+  'GHSA-vfj7-8cjw-p6xm: exact depth guard passes through both Expo dependency trees; file matching still works',
 );
