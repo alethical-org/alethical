@@ -101,16 +101,12 @@ jobs:
       # Runs on every event: a broken document reference is usually introduced
       # by a docs-only or rules-only change, which the backend and frontend jobs
       # skip. Pure stdlib, so the Python setup above is the only dependency.
-      - name: Check doc references resolve
-        run: python scripts/check_doc_references.py
-      - name: Check documents are indexed and design exports stay out
-        run: python scripts/check_doc_structure.py
+      - name: Check document links, indexes, and quoted claims
+        run: python scripts/local_checks.py quick-docs
       - name: Test document structure checks without database or network
         run: python -m unittest discover -s scripts/tests -p 'test_doc_structure.py'
       - name: Test local upload selection without database or network
         run: python -m unittest discover -s scripts/tests -p 'test_local_checks.py'
-      - name: Check quoted doc claims still exist
-        run: python scripts/check_doc_quotes.py
       # Rule 16 (.claude/rules/workflow.md): added doc lines state what is
       # true now, never narrate decision history. Diff-based -- it reads only
       # the lines a PR adds, so the existing corpus and kept evidence never
@@ -295,6 +291,9 @@ jobs:
       # publishing tools have their own install and focused workflow.
       - name: Check secured web build-tool compatibility
         run: pnpm run check:build-tool-security
+
+      - name: Check website brand assets
+        run: pnpm run brand:check
 
       - name: Type check frontend
         run: pnpm exec tsc --noEmit
