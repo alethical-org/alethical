@@ -6,37 +6,20 @@
 
 # Snapshot every worktree's uncommitted work right now, so it does not exist in only
 # one place. Safe to run any time: it stages into a temporary index, so no worktree's
-# own staged/unstaged state is touched. See the script header for how to recover one.
+# own staged/unstaged state is touched. Recovery: docs/operations/worktree-lifecycle.md.
 back-up-wip:
   sh scripts/back-up-uncommitted-worktree-work.sh
   @git for-each-ref --format='  %(refname:short)  %(committerdate:relative)' refs/wip-backup || true
 
-# Run that snapshot automatically every 5 minutes (macOS only, costs nothing per run).
-# The worktree lock and Cursor's command rules both turned out to be approval prompts
-# rather than hard denials, so bounded loss is the realistic protection, not prevention.
-# Undo with: just stop-wip-backup
-install-wip-backup:
-  #!/bin/sh
-  set -e
-  plist="$HOME/Library/LaunchAgents/com.alethical.wip-backup.plist"
-  repo="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
-  mkdir -p "$HOME/Library/LaunchAgents"
-  cat > "$plist" <<PLIST
-  <?xml version="1.0" encoding="UTF-8"?>
-  <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-  <plist version="1.0"><dict>
-    <key>Label</key><string>com.alethical.wip-backup</string>
-    <key>ProgramArguments</key>
-    <array><string>/bin/sh</string><string>$repo/scripts/back-up-uncommitted-worktree-work.sh</string></array>
-    <key>EnvironmentVariables</key><dict><key>ALETHICAL_REPO</key><string>$repo</string></dict>
-    <key>StartInterval</key><integer>300</integer>
-    <key>RunAtLoad</key><true/>
-    <key>StandardErrorPath</key><string>$HOME/Library/Logs/alethical-wip-backup.log</string>
-  </dict></plist>
-  PLIST
-  launchctl bootout "gui/$(id -u)/com.alethical.wip-backup" 2>/dev/null || true
-  launchctl bootstrap "gui/$(id -u)" "$plist"
-  echo "✅ Snapshotting uncommitted work every 5 minutes. Errors go to ~/Library/Logs/alethical-wip-backup.log"
+# Install private backups plus owner-released cleanup (macOS, no AI calls).
+maintenance-install:
+  python3 scripts/install_worktree_maintenance.py
+
+# Keep the existing setup command as an alias for the complete durable installation.
+install-wip-backup: maintenance-install
+
+maintenance-status:
+  python3 scripts/worktree_cleanup.py status
 
 stop-wip-backup:
   -launchctl bootout "gui/$(id -u)/com.alethical.wip-backup"
@@ -62,22 +45,32 @@ worktree branch:
   git worktree add -b {{branch}} ../alethical-wt-{{branch}} origin/main
   # Lock it. `git worktree remove --force` deletes a worktree AND its uncommitted
   # work in one command; a lock makes that refuse and print this reason instead.
-  # `just worktree-rm` unlocks first, so the intended cleanup path still works.
+  # Owner-released cleanup checks safety and recovery before unlocking.
   # Tolerant of failure on purpose: with hooks installed, .githooks/post-checkout
   # has already locked it, and a second lock is an error. Kept as a belt so a clone
   # that never ran `just install-hooks` still gets locked worktrees from this recipe.
-  -git worktree lock ../alethical-wt-{{branch}} --reason "live session; if this is stale: just worktree-rm {{branch}}"
+  -git worktree lock ../alethical-wt-{{branch}} --reason "live session; release after delivery: just worktree-rm <branch> <owner-id> <evidence>"
   main_root="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"; [ -f "$main_root/.env" ] && ln -sf "$main_root/.env" ../alethical-wt-{{branch}}/.env || true
   cd ../alethical-wt-{{branch}} && pnpm install --frozen-lockfile
   @echo "✅ Worktree ready: ../alethical-wt-{{branch}} (branch {{branch}}). cd there to build, commit, and push."
 
-# Remove a worktree created by `just worktree` (run after its PR is merged).
-# Usage: just worktree-rm my-branch
-worktree-rm branch:
-  -git worktree unlock ../alethical-wt-{{branch}}
-  git worktree remove ../alethical-wt-{{branch}}
-  -git branch -D {{branch}}
-  @echo "🧹 Removed worktree ../alethical-wt-{{branch}}."
+# Queue cleanup after delivery and acceptance, retaining the branch and recovery copy.
+# Owner is the task/session ID; evidence states the completed delivery and checks.
+[positional-arguments]
+worktree-rm branch owner evidence:
+  python3 scripts/worktree_cleanup.py release --branch "$1" --owner "$2" --evidence "$3"
+
+[positional-arguments]
+worktree-release path owner evidence:
+  python3 scripts/worktree_cleanup.py release --worktree "$1" --owner "$2" --evidence "$3"
+
+[positional-arguments]
+worktree-hold path owner reason:
+  python3 scripts/worktree_cleanup.py hold --worktree "$1" --owner "$2" --reason "$3"
+
+[positional-arguments]
+worktree-restore id destination:
+  python3 scripts/worktree_cleanup.py restore "$1" "$2"
 
 # Read-only setup check. `just doctor ios` and `just doctor android` also check
 # the phone-only tool needed for that target.

@@ -118,6 +118,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [What runs, when, and what it costs](operations/jobs-and-scripts.md) — every GitHub workflow, command-line tool, and job-driven AI cost
 - [Copying the Board's lobbying files](operations/lobbying-source-import.md) — the paired import, contact-field exclusion, link checks and rollback
 - [Offline name-search comparison](operations/name-search-offline-benchmark.md) — how to compare name-search behavior without changing public results
+- [Working-folder cleanup and recovery](operations/worktree-lifecycle.md) — automatic removal after owner release, private backups, recovery, and Codex-managed folder limits
 - [Local code checks](operations/local-code-checks.md) — shared setup, selected-file formatting, exact-commit upload checks, and staged GitHub description-check activation
 - [Error monitoring](operations/error-monitoring.md) — which server failures alert through Sentry, the privacy limits, setup, incident checks, and why Alethical buys this instead of building it
 - [Repo and service settings](operations/repo-and-service-settings.md) — every setting that controls the project but doesn't live in the repo, and its intended value

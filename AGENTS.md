@@ -125,7 +125,7 @@ see [manual server tests](CONTRIBUTING.md#manual-server-tests-use-a-temporary-po
     work. No git version guards this either. A tracked hook
     (`.githooks/post-checkout`) locks every new worktree as it is created, whichever
     tool ran `git worktree add`, so the command refuses and prints the lock reason.
-    `just worktree-rm` unlocks first, so the intended cleanup path still works.
+    `just worktree-rm <branch> <owner> <evidence>` queues recoverable cleanup after delivery and acceptance; the helper unlocks only after its safety checks pass.
     **The hook is broad but not total:** it only covers worktrees created after it is
     installed, `--force --force` still overrides it, `git worktree unlock` clears it,
     and it does nothing at all until someone runs `just install-hooks` in that clone

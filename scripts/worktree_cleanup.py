@@ -1,0 +1,1012 @@
+#!/usr/bin/env python3
+"""Remove explicitly released external worktrees, with private recovery copies.
+
+Merging, age, silence and an absent process are never release signals. The owning
+task calls release after delivery/acceptance and after giving up every preview.
+The scheduler only retries those receipts. Codex-managed trees stay with Codex.
+"""
+
+from __future__ import annotations
+
+import argparse
+import fcntl
+import hashlib
+import json
+import os
+import shlex
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+import uuid
+from contextlib import contextmanager
+from datetime import datetime, timezone
+from pathlib import Path
+
+DEFAULT_STATE = (
+    Path.home() / "Library/Application Support/alethical-worktree-maintenance"
+)
+REPLACEABLE = {
+    "node_modules",
+    ".venv",
+    "__pycache__",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".expo",
+}
+
+
+class CleanupError(Exception):
+    """A failed safety check keeps the working folder intact."""
+
+
+def run(args: list[str], root: Path | None = None, check: bool = True) -> str:
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env["GIT_OPTIONAL_LOCKS"] = "0"
+    result = subprocess.run(args, cwd=root, env=env, capture_output=True, text=True)
+    if check and result.returncode:
+        # Git can print private filenames/settings. Keep command output local.
+        raise CleanupError(f"{args[0]} {args[1]} failed ({result.returncode})")
+    return result.stdout if result.returncode == 0 else ""
+
+
+def git(root: Path, *args: str) -> str:
+    return run(["git", "-c", "core.fsmonitor=false", *args], root).strip()
+
+
+def now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def write_json(path: Path, value: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with tempfile.NamedTemporaryFile("w", dir=path.parent, delete=False) as stream:
+        temporary = Path(stream.name)
+        try:
+            json.dump(value, stream, indent=2)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        except BaseException:
+            temporary.unlink(missing_ok=True)
+            raise
+    os.replace(temporary, path)
+
+
+@contextmanager
+def locked(state: Path, wait: bool = False):
+    state.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with (state / "cleanup.lock").open("a") as stream:
+        fcntl.flock(stream, fcntl.LOCK_EX | (0 if wait else fcntl.LOCK_NB))
+        yield
+
+
+def registrations(repo: Path) -> list[dict]:
+    # -z preserves whitespace/newlines in paths and lock reasons.
+    raw = run(["git", "worktree", "list", "--porcelain", "-z"], repo)
+    records = []
+    for block in raw.split("\0\0"):
+        record = {}
+        for line in block.split("\0"):
+            if line:
+                key, _, value = line.partition(" ")
+                record[key] = value
+        if record:
+            records.append(record)
+    return records
+
+
+def check_scope(repo: Path, path: Path) -> Path:
+    common = Path(
+        git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    ).resolve()
+    shared = common.parent
+    if path == shared or path == common or common in path.parents:
+        raise CleanupError("the shared checkout and its Git storage must stay")
+    # Native managed state must be changed through the owning app, not Git.
+    codex = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))).resolve()
+    if codex / "worktrees" in path.parents:
+        raise CleanupError("Codex owns this folder; use its supported archive action")
+    allowed = (
+        (path.parent == shared.parent and path.name.startswith("alethical-wt-"))
+        or shared / ".claude/worktrees" in path.parents
+        or any(
+            parent.name.startswith("alethical-wt-") and parent.parent == shared.parent
+            for parent in path.parents
+        )
+    )
+    if not allowed:
+        raise CleanupError(
+            "working folder is outside Alethical's external cleanup scope"
+        )
+    if path.is_symlink() or path != path.resolve():
+        raise CleanupError("working folder has a different real path")
+    return common
+
+
+def identity(repo: Path, path: Path) -> dict:
+    if path.is_symlink() or not path.is_dir() or path != path.resolve():
+        raise CleanupError("working folder is missing or has a different real path")
+    common = check_scope(repo, path)
+    matches = [r for r in registrations(repo) if r.get("worktree") == str(path)]
+    if len(matches) != 1:
+        raise CleanupError("working folder has a missing or duplicate Git registration")
+    row = matches[0]
+    if Path(git(path, "rev-parse", "--show-toplevel")).resolve() != path:
+        raise CleanupError("Git identifies a different working folder")
+    if (
+        Path(
+            git(path, "rev-parse", "--path-format=absolute", "--git-common-dir")
+        ).resolve()
+        != common
+    ):
+        raise CleanupError("working folder belongs to a different repository")
+    gitdir = Path(git(path, "rev-parse", "--absolute-git-dir")).resolve()
+    backlink = gitdir / "gitdir"
+    if (
+        not backlink.is_file()
+        or Path(backlink.read_text().strip()).resolve() != path / ".git"
+    ):
+        raise CleanupError("Git's registration points at a different folder")
+    head = git(path, "rev-parse", "HEAD")
+    branch = run(["git", "symbolic-ref", "-q", "HEAD"], path, check=False).strip()
+    if head != row.get("HEAD") or branch != row.get("branch", ""):
+        raise CleanupError("Git's registration differs from the live checkout")
+    key = hashlib.sha256(
+        os.fsencode(common) + b"\0" + os.fsencode(gitdir) + b"\0" + os.fsencode(path)
+    ).hexdigest()
+    return {
+        "id": key,
+        "path": str(path),
+        "common": str(common),
+        "gitdir": str(gitdir),
+        "head": head,
+        "branch": branch,
+        "lock": row.get("locked"),
+    }
+
+
+def is_ancestor(repo: Path, head: str, target: str) -> bool:
+    # Invalid or unavailable objects make rev-list fail closed.
+    return git(repo, "rev-list", "--count", f"{target}..{head}") == "0"
+
+
+def landing_proof(repo: Path, record: dict) -> dict:
+    branch = record["branch"].removeprefix("refs/heads/")
+    prs = []
+    if branch:
+        prs = json.loads(
+            run(
+                [
+                    "gh",
+                    "pr",
+                    "list",
+                    "--state",
+                    "all",
+                    "--head",
+                    branch,
+                    "--limit",
+                    "100",
+                    "--json",
+                    "number,state,headRefOid,mergeCommit,url",
+                ],
+                repo,
+            )
+        )
+        if any(pr["state"] == "OPEN" for pr in prs) or len(prs) == 100:
+            raise CleanupError(
+                "an open change or incomplete change list holds this folder"
+            )
+    if is_ancestor(repo, record["head"], "origin/main"):
+        return {
+            "kind": "reachable from main",
+            "main": git(repo, "rev-parse", "origin/main"),
+        }
+    for pr in prs:
+        if pr["state"] != "MERGED" or pr["headRefOid"] != record["head"]:
+            continue
+        merged = pr.get("mergeCommit") or {}
+        if merged.get("oid") and is_ancestor(repo, merged["oid"], "origin/main"):
+            return {
+                "kind": "exact merged change",
+                "url": pr["url"],
+                "merge": merged["oid"],
+            }
+    raise CleanupError("this exact saved version is not proven merged")
+
+
+def process_paths() -> list[str]:
+    executable = shutil.which("lsof")
+    if executable is None:
+        raise CleanupError("cannot inspect folders held open by other programs")
+    result = subprocess.run([executable, "-nP", "-Fpn"], capture_output=True, text=True)
+    if result.returncode not in (0, 1):
+        raise CleanupError("open-file inspection failed")
+    paths = [
+        os.path.realpath(line[1:].removesuffix(" (deleted)"))
+        for line in result.stdout.splitlines()
+        if line.startswith("n/")
+    ]
+    if not paths:
+        raise CleanupError("open-file inspection returned no usable inventory")
+    return paths
+
+
+def disposable(relative: str) -> bool:
+    return (
+        bool(REPLACEABLE.intersection(Path(relative).parts))
+        or relative == ".DS_Store"
+        or relative.endswith("/.DS_Store")
+        or relative == "apps/frontend/dist"
+        or relative.startswith("apps/frontend/dist/")
+    )
+
+
+def checksum(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def private_files(path: Path) -> list[dict]:
+    raw = run(
+        [
+            "git",
+            "ls-files",
+            "--others",
+            "--ignored",
+            "--exclude-standard",
+            "--directory",
+            "-z",
+        ],
+        path,
+    )
+    rows = []
+    seen = set()
+
+    def visit(relative: str):
+        if relative in seen or disposable(relative):
+            return
+        seen.add(relative)
+        file = path / relative
+        if file.is_symlink():
+            target = file.resolve()
+            if target.is_dir() or (target.exists() and not target.is_file()):
+                raise CleanupError("an ignored link needs separate preservation")
+            rows.append(
+                {
+                    "path": relative,
+                    "type": "link",
+                    "target": os.readlink(file),
+                    "target_hash": checksum(target) if target.is_file() else None,
+                }
+            )
+        elif file.is_file():
+            rows.append({"path": relative, "type": "file", "hash": checksum(file)})
+        elif file.is_dir():
+            rows.append({"path": relative, "type": "dir"})
+            for child in sorted(file.iterdir()):
+                visit(str(child.relative_to(path)))
+        else:
+            raise CleanupError("an ignored file has an unsupported type")
+
+    for item in sorted(raw.split("\0")):
+        if item:
+            visit(item.rstrip("/"))
+    return rows
+
+
+def eligible(repo: Path, receipt: dict, open_paths: list[str]) -> dict:
+    path = Path(receipt["path"])
+    current = identity(repo, path)
+    for key in ("id", "common", "gitdir", "head", "branch"):
+        if current[key] != receipt[key]:
+            raise CleanupError("working folder changed after its owner released it")
+    if (
+        receipt.get("status") not in ("released", "removing")
+        or not receipt.get("evidence")
+        or not receipt.get("owner")
+    ):
+        raise CleanupError("the owning task has not released this working folder")
+    if run(["git", "status", "--porcelain=v1", "--untracked-files=all"], path):
+        raise CleanupError("edited or untracked work holds this folder")
+    flags = run(["git", "ls-files", "-v", "-z"], path)
+    if any(
+        item and (item[0] == "S" or item[0].islower()) for item in flags.split("\0")
+    ):
+        raise CleanupError("Git flags hide working files from ordinary change checks")
+    if any(p == str(path) or p.startswith(str(path) + "/") for p in open_paths):
+        raise CleanupError("a program or preview still holds this folder open")
+    if any(path in Path(r["worktree"]).parents for r in registrations(repo)):
+        raise CleanupError("this folder contains another working folder")
+    for root, dirs, files in os.walk(path, followlinks=False):
+        relative = Path(root).relative_to(path)
+        if relative.parts and (".git" in dirs or ".git" in files):
+            raise CleanupError("this folder contains another repository")
+        dirs[:] = [d for d in dirs if d != ".git"]
+    current["proof"] = landing_proof(repo, current)
+    return current
+
+
+def archive(repo: Path, state: Path, record: dict) -> dict:
+    path = Path(record["path"])
+    if state.resolve() == path or path in state.resolve().parents:
+        raise CleanupError("recovery storage must be outside the folder being removed")
+    recovery = state / "recovery.git"
+    if not recovery.exists():
+        run(["git", "init", "--bare", str(recovery)])
+    ref = "refs/heads/recovery/" + record["id"] + "/" + record["head"]
+    # A separate Git store deduplicates history while remaining independent of the live repo.
+    run(
+        [
+            "git",
+            "fetch",
+            "--no-tags",
+            "--no-write-fetch-head",
+            str(repo),
+            f"{record['head']}:{ref}",
+        ],
+        recovery,
+    )
+    if git(recovery, "rev-parse", ref) != record["head"]:
+        raise CleanupError("saved recovery history does not match the released version")
+    run(["git", "fsck", "--full", "--no-reflogs", ref], recovery)
+    slot = state / "archives" / record["id"] / record["recovery_id"]
+    slot.mkdir(parents=True, exist_ok=True, mode=0o700)
+    payload = private_files(path)
+    existing = slot / "manifest.json"
+    if existing.exists():
+        saved = json.loads(existing.read_text())
+        if (
+            saved["payload"] != payload
+            or checksum(Path(saved["private"])) != saved["private_hash"]
+        ):
+            raise CleanupError(
+                "private files changed after this recovery generation was saved; retain and release anew"
+            )
+        return saved
+    with tempfile.NamedTemporaryFile(dir=slot, delete=False) as temporary:
+        pending = Path(temporary.name)
+    try:
+        with tarfile.open(pending, "w:gz", dereference=False) as tar:
+            for item in payload:
+                tar.add(
+                    path / item["path"],
+                    arcname="payload/" + item["path"],
+                    recursive=False,
+                )
+                if item["type"] == "link" and item["target_hash"]:
+                    tar.add(
+                        (path / item["path"]).resolve(),
+                        arcname="targets/"
+                        + hashlib.sha256(os.fsencode(item["path"])).hexdigest(),
+                        recursive=False,
+                    )
+        with tarfile.open(pending, "r:gz") as tar:
+            for item in payload:
+                member = tar.getmember("payload/" + item["path"])
+                if item["type"] == "file":
+                    if (
+                        hashlib.sha256(tar.extractfile(member).read()).hexdigest()
+                        != item["hash"]
+                    ):
+                        raise CleanupError(
+                            "saved private files do not match their originals"
+                        )
+                if item["type"] == "link":
+                    if member.linkname != item["target"]:
+                        raise CleanupError("saved private link changed")
+                    if item["target_hash"]:
+                        name = (
+                            "targets/"
+                            + hashlib.sha256(os.fsencode(item["path"])).hexdigest()
+                        )
+                        if (
+                            hashlib.sha256(tar.extractfile(name).read()).hexdigest()
+                            != item["target_hash"]
+                        ):
+                            raise CleanupError("saved private link target changed")
+        target = slot / "private.tar.gz"
+        os.replace(pending, target)
+    finally:
+        pending.unlink(missing_ok=True)
+    saved = {
+        **record,
+        "recovery": str(recovery),
+        "ref": ref,
+        "private": str(target),
+        "private_hash": checksum(target),
+        "payload": payload,
+        "archived_at": now(),
+    }
+    write_json(slot / "manifest.json", saved)
+    return saved
+
+
+def register(repo: Path, state: Path, path: Path, owner: str) -> dict:
+    record = identity(repo, path)
+    target = state / "owners" / (record["id"] + ".json")
+    owners = json.loads(target.read_text()).get("owners", {}) if target.exists() else {}
+    owners[owner] = {"status": "active", "started_at": now()}
+    record.update(owners=owners)
+    write_json(target, record)
+    released = state / "released" / (record["id"] + ".json")
+    if released.exists():
+        old = json.loads(released.read_text())
+        if old.get("status") in ("released", "removing"):
+            old.update(status="resumed", resumed_at=now())
+            write_json(released, old)
+    return record
+
+
+def retain(repo: Path, state: Path, path: Path, owner: str, reason: str) -> None:
+    if not reason.strip():
+        raise CleanupError("retaining a completed version needs its remaining work")
+    record = register(repo, state, path, owner)
+    record["owners"][owner] = {"status": "held", "reason": reason, "time": now()}
+    write_json(state / "owners" / (record["id"] + ".json"), record)
+
+
+def owner_check(state: Path, receipt: dict) -> None:
+    target = state / "owners" / (receipt["id"] + ".json")
+    if not target.exists():
+        return  # Explicit terminal releases do not require an AI host.
+    owners = json.loads(target.read_text()).get("owners", {})
+    if owners.get(receipt["owner"], {}).get("status") != "released" or any(
+        entry.get("status") != "released" for entry in owners.values()
+    ):
+        raise CleanupError("an owning task retained or resumed this folder")
+
+
+def release(repo: Path, state: Path, path: Path, owner: str, evidence: str) -> dict:
+    record = identity(repo, path)
+    if not owner.strip() or not evidence.strip():
+        raise CleanupError("release needs the owning task and its delivery evidence")
+    record.update(
+        owner=owner,
+        evidence=evidence,
+        status="released",
+        released_at=now(),
+        recovery_id=hashlib.sha256(
+            (record["id"] + uuid.uuid4().hex).encode()
+        ).hexdigest(),
+    )
+    # Reject unpublished versions now as well as at removal time.
+    record["proof"] = landing_proof(repo, record)
+    ownership = state / "owners" / (record["id"] + ".json")
+    if ownership.exists():
+        registered = json.loads(ownership.read_text())
+        if owner not in registered.get("owners", {}):
+            raise CleanupError("release does not identify a registered owning task")
+        registered["owners"][owner] = {"status": "released", "time": now()}
+        write_json(ownership, registered)
+    write_json(state / "released" / (record["id"] + ".json"), record)
+    return record
+
+
+def finish_remainder(
+    repo: Path, state: Path, receipt: dict, receipt_file: Path, apply: bool = True
+) -> None:
+    """Finish interrupted ordinary Git removal, only for independently saved bytes."""
+    path = Path(receipt["path"])
+    check_scope(repo, path)
+    if any(
+        row["worktree"] == str(path) or path in Path(row["worktree"]).parents
+        for row in registrations(repo)
+    ):
+        raise CleanupError("removal remainder still has a working-folder registration")
+    saved = json.loads(Path(receipt["manifest"]).read_text())
+    if any(
+        saved[key] != receipt[key] for key in ("id", "path", "head", "common", "gitdir")
+    ):
+        raise CleanupError("removal remainder differs from its recovery record")
+    recovery = Path(saved["recovery"])
+    if (
+        checksum(Path(saved["private"])) != saved["private_hash"]
+        or git(recovery, "rev-parse", saved["ref"]) != receipt["head"]
+    ):
+        raise CleanupError("removal remainder's recovery copy is damaged")
+    private = {row["path"]: row for row in saved["payload"]}
+    tracked = {}
+    for entry in run(["git", "ls-tree", "-r", "-z", saved["head"]], recovery).split(
+        "\0"
+    ):
+        if entry:
+            metadata, name = entry.split("\t", 1)
+            tracked[name] = metadata.split()
+    allowed = set(tracked) | set(private)
+    folders = {
+        str(parent)
+        for name in allowed
+        for parent in Path(name).parents
+        if str(parent) != "."
+    }
+
+    def validate(root: Path):
+        if root.is_symlink() or not root.is_dir():
+            raise CleanupError("removal remainder has a different type")
+        paths = process_paths()
+        if any(
+            p == str(root)
+            or p.startswith(str(root) + "/")
+            or p == str(path)
+            or p.startswith(str(path) + "/")
+            for p in paths
+        ):
+            raise CleanupError("a program resumed the removal remainder")
+        for directory, dirs, files in os.walk(root, followlinks=False):
+            relative = Path(directory).relative_to(root)
+            if relative.parts and (".git" in dirs or ".git" in files):
+                raise CleanupError("removal remainder contains another repository")
+            for name in files + [d for d in dirs if (Path(directory) / d).is_symlink()]:
+                file = Path(directory) / name
+                name = str(file.relative_to(root))
+                if name == ".git":
+                    if (
+                        file.is_symlink()
+                        or not file.is_file()
+                        or file.read_text().strip() != "gitdir: " + receipt["gitdir"]
+                    ):
+                        raise CleanupError(
+                            "removal remainder has a different Git pointer"
+                        )
+                elif disposable(name):
+                    continue
+                elif name in private:
+                    item = private[name]
+                    if item["type"] == "file":
+                        valid = (
+                            not file.is_symlink()
+                            and file.is_file()
+                            and checksum(file) == item["hash"]
+                        )
+                    elif item["type"] == "link":
+                        valid = (
+                            file.is_symlink()
+                            and os.readlink(file) == item["target"]
+                            and (
+                                checksum(file.resolve())
+                                if file.resolve().is_file()
+                                else None
+                            )
+                            == item["target_hash"]
+                        )
+                    else:
+                        valid = False
+                    if not valid:
+                        raise CleanupError(
+                            "private removal remainder changed after recovery"
+                        )
+                elif name in tracked:
+                    mode, kind, oid = tracked[name]
+                    if kind != "blob" or (mode == "120000") != file.is_symlink():
+                        raise CleanupError(
+                            "source removal remainder has a different type"
+                        )
+                    if file.is_symlink():
+                        blob = subprocess.run(
+                            [
+                                "git",
+                                "--git-dir",
+                                str(recovery),
+                                "cat-file",
+                                "blob",
+                                oid,
+                            ],
+                            capture_output=True,
+                            check=True,
+                        ).stdout
+                        valid = blob == os.fsencode(os.readlink(file))
+                    else:
+                        valid = (
+                            file.is_file()
+                            and git(recovery, "hash-object", "--no-filters", str(file))
+                            == oid
+                            and bool(file.stat().st_mode & 0o111) == (mode == "100755")
+                        )
+                    if not valid:
+                        raise CleanupError(
+                            "source removal remainder changed after recovery"
+                        )
+                else:
+                    raise CleanupError(
+                        "new unsaved work appeared in the removal remainder"
+                    )
+            for name in dirs:
+                child = Path(directory) / name
+                relative_name = str(child.relative_to(root))
+                if (
+                    not child.is_symlink()
+                    and not disposable(relative_name)
+                    and relative_name not in folders
+                    and private.get(relative_name, {}).get("type") != "dir"
+                ):
+                    raise CleanupError(
+                        "a new unsaved directory appeared in the removal remainder"
+                    )
+
+    quarantine = Path(
+        receipt.get("quarantine", str(Path(receipt["manifest"]).parent / "remainder"))
+    )
+    if (
+        quarantine != Path(receipt["manifest"]).parent / "remainder"
+        or state.resolve() not in quarantine.resolve().parents
+    ):
+        raise CleanupError("invalid removal remainder location")
+    if not apply:
+        if path.exists():
+            validate(path)
+        if quarantine.exists():
+            validate(quarantine)
+        return
+    if path.exists():
+        if quarantine.exists():
+            raise CleanupError("both original and quarantined removal remainders exist")
+        validate(path)
+        receipt["quarantine"] = str(quarantine)
+        write_json(receipt_file, receipt)
+        path.rename(quarantine)
+    if quarantine.exists():
+        validate(quarantine)
+        # rmtree's fd-based implementation avoids following replaced directory links.
+        if not shutil.rmtree.avoids_symlink_attacks:
+            raise CleanupError(
+                "this Python cannot safely remove a quarantined remainder"
+            )
+        shutil.rmtree(quarantine)
+    if path.exists():
+        raise CleanupError("a program recreated the original working folder")
+
+
+def save_receipt(state: Path, path: Path, receipt: dict) -> None:
+    # Keep every archived removal generation recoverable after the path is reused.
+    write_json(state / "completed" / (receipt["recovery_id"] + ".json"), receipt)
+    write_json(path, receipt)
+
+
+def require_scheduler(repo: Path, state: Path) -> None:
+    installation = json.loads((state / "installation.json").read_text())
+    common = Path(
+        git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    ).resolve()
+    if (
+        sys.platform != "darwin"
+        or not installation.get("activated")
+        or Path(installation["repository"]) != common.parent
+    ):
+        raise CleanupError(
+            "install the free Mac maintenance helper before releasing a folder"
+        )
+    run(["launchctl", "print", f"gui/{os.getuid()}/com.alethical.worktree-cleanup"])
+
+
+def sweep(repo: Path, state: Path, apply: bool) -> list[dict]:
+    results = []
+    # Do not touch Git/network when there is no released work to retry.
+    queued = list((state / "released").glob("*.json"))
+    if not queued:
+        return results
+    run(["git", "fetch", "origin", "main", "--quiet"], repo)
+    for receipt_file in queued:
+        try:
+            receipt = json.loads(receipt_file.read_text())
+            if receipt.get("status") not in ("released", "removing"):
+                continue
+            owner_check(state, receipt)
+            # A crash after Git removed the directory must leave recovery usable.
+            if receipt.get("status") == "removing" and not any(
+                row["worktree"] == receipt["path"] for row in registrations(repo)
+            ):
+                finish_remainder(repo, state, receipt, receipt_file, apply=apply)
+                if apply:
+                    receipt.update(status="removed", removed_at=now())
+                    save_receipt(state, receipt_file, receipt)
+                results.append(
+                    {
+                        "id": receipt["id"],
+                        "path": receipt["path"],
+                        "state": "removed" if apply else "reconcile ready",
+                    }
+                )
+                continue
+            current = eligible(repo, receipt, process_paths())
+            if not apply:
+                results.append(
+                    {"id": receipt["id"], "path": receipt["path"], "state": "ready"}
+                )
+                continue
+            saved = archive(repo, state, receipt)
+            receipt.update(
+                status="removing",
+                manifest=str(Path(saved["private"]).with_name("manifest.json")),
+            )
+            save_receipt(state, receipt_file, receipt)
+            owner_check(state, receipt)
+            current = eligible(repo, receipt, process_paths())
+            if private_files(Path(receipt["path"])) != saved["payload"]:
+                raise CleanupError("private files changed after recovery was saved")
+            unlocked = False
+            try:
+                if current["lock"] is not None:
+                    git(repo, "worktree", "unlock", receipt["path"])
+                    unlocked = True
+                # Never force: new source edits must make Git refuse removal.
+                git(repo, "worktree", "remove", receipt["path"])
+            except BaseException:
+                if not any(
+                    row["worktree"] == receipt["path"] for row in registrations(repo)
+                ):
+                    finish_remainder(repo, state, receipt, receipt_file)
+                else:
+                    if unlocked and Path(receipt["path"]).exists():
+                        git(
+                            repo,
+                            "worktree",
+                            "lock",
+                            "--reason",
+                            current["lock"] or "cleanup protection",
+                            receipt["path"],
+                        )
+                    raise
+            if Path(receipt["path"]).exists() or any(
+                r["worktree"] == receipt["path"] for r in registrations(repo)
+            ):
+                raise CleanupError("Git removal left a folder or registration behind")
+            receipt.update(
+                status="removed",
+                removed_at=now(),
+                manifest=str(Path(saved["private"]).with_name("manifest.json")),
+            )
+            save_receipt(state, receipt_file, receipt)
+            results.append(
+                {"id": receipt["id"], "path": receipt["path"], "state": "removed"}
+            )
+        except (CleanupError, OSError, ValueError, KeyError, TypeError) as error:
+            results.append(
+                {"receipt": str(receipt_file), "state": "held", "reason": str(error)}
+            )
+    write_json(
+        state / "last-cleanup.json", {"time": now(), "apply": apply, "results": results}
+    )
+    return results
+
+
+def restore(state: Path, key: str, destination: Path) -> None:
+    if len(key) != 64 or any(c not in "0123456789abcdef" for c in key):
+        raise CleanupError("invalid recovery identifier")
+    receipt_file = state / "completed" / (key + ".json")
+    if not receipt_file.exists():
+        receipt_file = state / "released" / (key + ".json")
+    receipt = json.loads(receipt_file.read_text())
+    saved = json.loads(Path(receipt["manifest"]).read_text())
+    destination = destination.absolute()
+    if destination.exists():
+        raise CleanupError("restore destination already exists")
+    if checksum(Path(saved["private"])) != saved["private_hash"]:
+        raise CleanupError("private recovery archive is damaged")
+    if git(Path(saved["recovery"]), "rev-parse", saved["ref"]) != saved["head"]:
+        raise CleanupError("recovery history is damaged")
+    run(
+        [
+            "git",
+            "clone",
+            "--no-hardlinks",
+            "--no-checkout",
+            saved["recovery"],
+            str(destination),
+        ]
+    )
+    git(destination, "checkout", "--detach", saved["head"])
+    git(destination, "remote", "remove", "origin")
+    # Recreate from our explicit manifest. Never use unbounded tar extraction.
+    with tarfile.open(saved["private"], "r:gz") as tar:
+        for item in saved["payload"]:
+            relative = Path(item["path"])
+            if (
+                relative.is_absolute()
+                or ".." in relative.parts
+                or relative.parts[0] == ".git"
+            ):
+                raise CleanupError("unsafe recovery path")
+            output = destination / relative
+            output.parent.mkdir(parents=True, exist_ok=True)
+            if item["type"] == "dir":
+                output.mkdir(exist_ok=True)
+            elif item["type"] == "file":
+                output.write_bytes(tar.extractfile("payload/" + item["path"]).read())
+                output.chmod(tar.getmember("payload/" + item["path"]).mode & 0o777)
+                if checksum(output) != item["hash"]:
+                    raise CleanupError("restored private file has different contents")
+            elif item["target_hash"]:
+                # Restore private settings as a local file, not by overwriting an external target.
+                name = (
+                    "targets/" + hashlib.sha256(os.fsencode(item["path"])).hexdigest()
+                )
+                output.write_bytes(tar.extractfile(name).read())
+                output.chmod(0o600)
+                if checksum(output) != item["target_hash"]:
+                    raise CleanupError("restored private link contents differ")
+            else:
+                output.symlink_to(item["target"])
+
+
+def hook(repo: Path, state: Path, payload: dict) -> dict | None:
+    """Register/revoke on new work; require a hold or release before a final reply.
+
+    Stop never authorizes removal. The gate does not interpret prose or transcripts.
+    Ordinary unfinished/dirty/unmerged turns proceed without a completion decision.
+    """
+    cwd = Path(payload.get("cwd", "")).absolute()
+    owner = payload.get("session_id")
+    if not owner or not payload.get("cwd"):
+        return None
+    try:
+        path = Path(git(cwd, "rev-parse", "--show-toplevel")).resolve()
+        record = identity(repo, path)
+    except CleanupError:
+        return None  # Main, native managed trees and other projects are out of scope.
+    event = payload.get("hook_event_name")
+    if event in ("SessionStart", "UserPromptSubmit"):
+        register(repo, state, path, owner)
+        command = f"{shlex.quote(sys.executable)} {shlex.quote(str(Path(__file__).resolve()))} --repo {shlex.quote(str(repo))} --state {shlex.quote(str(state))}"
+        context = (
+            f"Worktree cleanup owner is {owner}. When delivery and acceptance are finished, "
+            f"release this folder with: {command} release --worktree {shlex.quote(str(path))} "
+            f"--owner {shlex.quote(owner)} --evidence 'describe the finished delivery'. "
+            "If review or a preview remains, use the hold command with its reason. "
+            "Never release merely because a change merged."
+        )
+        return {
+            "hookSpecificOutput": {"hookEventName": event, "additionalContext": context}
+        }
+    if event != "Stop":
+        return None
+    target = state / "owners" / (record["id"] + ".json")
+    if not target.exists():
+        register(repo, state, path, owner)
+    registered = json.loads(target.read_text())
+    if registered.get("head") != record["head"] or owner not in registered.get(
+        "owners", {}
+    ):
+        registered = register(repo, state, path, owner)
+    disposition = registered.get("owners", {}).get(owner, {})
+    if disposition.get("status") in ("released", "held"):
+        return None
+    if run(["git", "status", "--porcelain=v1", "--untracked-files=all"], path):
+        return None
+    try:
+        run(["git", "fetch", "origin", "main", "--quiet"], repo)
+    except CleanupError:
+        return {
+            "decision": "block",
+            "reason": "Fresh delivery evidence is unavailable. Retain this working folder with hold and the remaining check, or retry when Git is available.",
+        }
+    try:
+        landing_proof(repo, record)
+    except CleanupError:
+        return None
+    return {
+        "decision": "block",
+        "reason": (
+            "This saved version is merged and clean, but its working folder has no finish decision. "
+            "If delivery and acceptance are complete, call the cleanup release command with this "
+            f"worktree and owner {owner}. Otherwise call hold with the remaining review/preview work. "
+            "The release queues recoverable cleanup; hold keeps the folder. Do not ask Eugene to clean it."
+        ),
+    }
+
+
+def main() -> int:
+    os.umask(0o077)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--repo", type=Path, default=Path.cwd())
+    parser.add_argument("--state", type=Path, default=DEFAULT_STATE)
+    sub = parser.add_subparsers(dest="command", required=True)
+    finish = sub.add_parser("release")
+    location = finish.add_mutually_exclusive_group(required=True)
+    location.add_argument("--worktree", type=Path)
+    location.add_argument("--branch")
+    finish.add_argument("--owner", required=True)
+    finish.add_argument("--evidence", required=True)
+    waiting = sub.add_parser("hold")
+    waiting.add_argument("--worktree", type=Path, required=True)
+    waiting.add_argument("--owner", required=True)
+    waiting.add_argument("--reason", required=True)
+    sub.add_parser("hook")
+    scan = sub.add_parser("sweep")
+    scan.add_argument("--apply", action="store_true")
+    sub.add_parser("status")
+    resume = sub.add_parser("resume")
+    resume.add_argument("--worktree", type=Path, required=True)
+    recover = sub.add_parser("restore")
+    recover.add_argument("id")
+    recover.add_argument("destination", type=Path)
+    args = parser.parse_args()
+    try:
+        with locked(args.state, wait=args.command == "sweep"):
+            if args.command == "release":
+                require_scheduler(args.repo, args.state)
+                run(["git", "fetch", "origin", "main", "--quiet"], args.repo)
+                path = args.worktree
+                if path is None:
+                    matches = [
+                        r["worktree"]
+                        for r in registrations(args.repo)
+                        if r.get("branch") == "refs/heads/" + args.branch
+                    ]
+                    if len(matches) != 1:
+                        raise CleanupError(
+                            "branch does not identify exactly 1 working folder"
+                        )
+                    path = Path(matches[0])
+                record = release(
+                    args.repo, args.state, path.absolute(), args.owner, args.evidence
+                )
+                print(
+                    json.dumps(
+                        {
+                            "queued": record["id"],
+                            "recovery_id": record["recovery_id"],
+                            "path": record["path"],
+                        }
+                    )
+                )
+            elif args.command == "resume":
+                register(args.repo, args.state, args.worktree.absolute(), "terminal")
+                print("This working folder is retained for resumed work.")
+            elif args.command == "hold":
+                retain(
+                    args.repo,
+                    args.state,
+                    args.worktree.absolute(),
+                    args.owner,
+                    args.reason,
+                )
+                print("The owning task retained this folder with its remaining work.")
+            elif args.command == "hook":
+                result = hook(args.repo, args.state, json.load(sys.stdin))
+                if result:
+                    print(json.dumps(result))
+            elif args.command == "sweep":
+                print(json.dumps(sweep(args.repo, args.state, args.apply)))
+            elif args.command == "restore":
+                restore(args.state, args.id, args.destination)
+                print(f"Recovered working files at {args.destination}")
+            else:
+                records = [
+                    json.loads(p.read_text())
+                    for p in (args.state / "released").glob("*.json")
+                ]
+                print(
+                    json.dumps(
+                        [
+                            {
+                                "id": r.get("recovery_id", r["id"]),
+                                "path": r["path"],
+                                "status": r["status"],
+                            }
+                            for r in records
+                        ]
+                    )
+                )
+        return 0
+    except (CleanupError, OSError, ValueError) as error:
+        if args.command == "hook":
+            print(
+                json.dumps(
+                    {
+                        "decision": "block",
+                        "reason": f"Worktree cleanup could not record resumed work: {error}. Retry before changing this folder.",
+                    }
+                )
+            )
+            return 2
+        print(f"Cleanup held: {error}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
