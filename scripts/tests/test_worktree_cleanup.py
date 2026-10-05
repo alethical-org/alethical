@@ -468,6 +468,10 @@ class CleanupTest(unittest.TestCase):
         self.assertEqual(
             self.cleanup.sweep(self.repo, self.state, True)[0]["state"], "removed"
         )
+        self.assertEqual(
+            {row["id"] for row in self.cleanup.status_records(self.state)},
+            {old["recovery_id"], new["recovery_id"]},
+        )
         for record, expected in (
             (old, "first settings"),
             (new, "replacement settings"),

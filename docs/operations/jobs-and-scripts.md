@@ -37,7 +37,8 @@ reviewer too, and its switch is off until its limits are approved.
 | Traffic access key (`.github/workflows/traffic-token-expiry.yml`) | Daily at 12:00 UTC | Opens 1 issue 60 days before the private Vercel Traffic key expires and adds 1 urgent note 14 days before | No paid AI call; reads 1 date stored in the repository |
 | Backend release (Railway Git connection) | A commit reaches `main` | Applies database changes, then releases the API if its readiness check passes | No paid AI call; build and hosting usage stays on the existing Railway account |
 | Website release (Vercel Git connection) | A relevant commit reaches `main` | Builds and releases the web app | No paid AI call; build and hosting usage stays on the existing Vercel account |
-| Unsaved-work backup (`com.alethical.wip-backup`) | Every 5 minutes after `just install-wip-backup` is installed on Eugene's Mac | Saves uncommitted work from each worktree to a local Git reference and an outside bundle | No outside service |
+| Unsaved-work backup (`com.alethical.wip-backup`) | Every 5 minutes after `just maintenance-install` or `just install-wip-backup` is installed on Eugene's Mac | Saves each working folder's staged and on-disk source separately, with a private outside bundle and a unique folder ID | No outside service or paid AI call |
+| Finished working-folder cleanup (`com.alethical.worktree-cleanup`) | At login, when an owner releases a folder, and daily to retry held removals | Saves independent recovery copies, then removes clean delivered folders only after every owner releases them and no program still uses them; Codex-managed folders use the app's own archive tool | No outside service charge or paid AI call; reads GitHub change status |
 
 The 16 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
 Time and Central Daylight Time, so their local hour changes by 1 during the year.
@@ -58,9 +59,10 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 82 runnable files. GitHub jobs call 29 of them
-directly and 3 document checks through `local_checks.py`. The Mac backup above
-calls 1. A workflow also calls
+The `scripts/` folder has 85 runnable files. GitHub jobs call 29 of them
+directly and 3 document checks through `local_checks.py`. The 2 Mac helpers above
+call `worktree_backup.py` and `worktree_cleanup.py`; the older shell command
+for source backups calls `worktree_backup.py` too. A workflow also calls
 `apps/frontend/scripts/traffic-token-expiry.mjs`, a similarly named script that
 lives in a different folder and is not part of this list or its totals. The
 complete list is grouped here so a new file cannot hide inside a total:
@@ -80,7 +82,8 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Compare printed-name search offline without paid calls or live changes | `benchmark_campaign_finance_name_search.py` |
 | Measure what real visitors waited for | `report_origin_share_by_address.py`, `report_page_speed_by_address.py` |
 | Maintain search and stored files | `archive_published_sources.py`, `build_rag_hnsw_index.py`, `mirror_raw_files.py` |
-| Protect unfinished work and rotating read grants | `back-up-uncommitted-worktree-work.sh`, `supabase_oauth_state.mjs` |
+| Protect unfinished work and rotating read grants | `back-up-uncommitted-worktree-work.sh`, `worktree_backup.py`, `supabase_oauth_state.mjs` |
+| Install free Mac maintenance and safely remove released working folders | `install_worktree_maintenance.py`, `worktree_cleanup.py` |
 | Decide whether our website host needs to rebuild | `vercel-ignore-build.sh` |
 | Check fresh change explanations | `check_pr_descriptions.py` |
 | Install shared Git hooks, format selected files, and test exact upload commits | `install_git_hooks.py`, `format_frontend.mjs`, `local_checks.py` |
@@ -186,6 +189,7 @@ embedding work is API-only.
 
 ## Related
 
+- [Working-folder cleanup and recovery](worktree-lifecycle.md) owns installation, owner release, removal safeguards, private backups and recovery.
 - [Local code checks](local-code-checks.md) owns per-worktree hook setup, selected-file
   formatting, isolated upload tests, and the staged description-check activation.
 - [Offline name-search comparison](name-search-offline-benchmark.md) explains the
