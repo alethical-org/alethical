@@ -32,6 +32,10 @@ IMAGE_SIZE_REVIEW_EXPIRES = date(2026, 10, 18)
 IMAGE_SIZE_BUILD_PATH = "apps__frontend>expo>@expo/metro>metro>image-size"
 FORGE_ADVISORY = "GHSA-86w9-cpqp-85rv"
 FORGE_BUILD_PATH = "apps__frontend>expo>@expo/cli>node-forge"
+BRACES_ADVISORY = "GHSA-vfj7-8cjw-p6xm"
+BRACES_BUILD_PATH = (
+    "apps__frontend>expo>@expo/cli>@expo/metro-file-map>micromatch>braces"
+)
 
 
 class VersionSource(NamedTuple):
@@ -418,7 +422,11 @@ def find_local_problems(root: Path, *, today: date | None = None) -> list[str]:
 
 
 def javascript_audit_problems(
-    payload: dict, *, today: date | None = None, forge_repaired: bool = False
+    payload: dict,
+    *,
+    today: date | None = None,
+    forge_repaired: bool = False,
+    braces_repaired: bool = False,
 ) -> list[str]:
     today = today or date.today()
     if not isinstance(payload, dict) or "error" in payload:
@@ -452,6 +460,16 @@ def javascript_audit_problems(
             and advisory.get("vulnerable_versions") == "<=1.4.0"
             and advisory.get("patched_versions") == "<0.0.0"
             and findings == [{"version": "1.4.0", "paths": [FORGE_BUILD_PATH]}]
+        ):
+            continue
+        if (
+            braces_repaired
+            and advisory_id == BRACES_ADVISORY
+            and advisory.get("module_name") == "braces"
+            and advisory.get("severity") == "high"
+            and advisory.get("vulnerable_versions") == "<=3.0.3"
+            and advisory.get("patched_versions") == "<0.0.0"
+            and findings == [{"version": "3.0.3", "paths": [BRACES_BUILD_PATH]}]
         ):
             continue
         if (
@@ -522,6 +540,7 @@ def security_audit_problems(
     *,
     expected_python: set[tuple[str, str]] | None = None,
     forge_repaired: bool = False,
+    braces_repaired: bool = False,
 ) -> list[str]:
     try:
         payload = json.loads(audited.stdout)
@@ -537,7 +556,11 @@ def security_audit_problems(
                     "The Python security review did not cover every locked package version"
                 )
         else:
-            problems = javascript_audit_problems(payload, forge_repaired=forge_repaired)
+            problems = javascript_audit_problems(
+                payload,
+                forge_repaired=forge_repaired,
+                braces_repaired=braces_repaired,
+            )
             has_findings = bool(payload["advisories"])
     except (ValueError, TypeError):
         return [f"The {language} security review returned no complete readable result"]
@@ -656,22 +679,29 @@ def run_security_audits(root: Path) -> list[str]:
     # The raw registry warning remains visible. Only an installed, tested exact
     # backport can resolve this specific finding, including in docs-only CI.
     installed = _run(["pnpm", "install", "--frozen-lockfile", "--ignore-scripts"], root)
-    repaired = False
+    repaired = {FORGE_ADVISORY: False, BRACES_ADVISORY: False}
     if installed.returncode:
         problems.append("The JavaScript security repair installation failed")
     else:
-        repair = _run(
-            ["node", "apps/frontend/scripts/check-node-forge-security.mjs"], root
-        )
-        repaired = repair.returncode == 0
-        if not repaired:
-            problems.append("The installed JavaScript security repair did not pass")
-        else:
-            print(repair.stdout.strip())
+        for advisory, script in (
+            (FORGE_ADVISORY, "check-node-forge-security.mjs"),
+            (BRACES_ADVISORY, "check-braces-security.mjs"),
+        ):
+            repair = _run(["node", f"apps/frontend/scripts/{script}"], root)
+            repaired[advisory] = repair.returncode == 0
+            if not repaired[advisory]:
+                problems.append(f"The installed {advisory} repair did not pass")
+            else:
+                print(repair.stdout.strip())
     print("Raw JavaScript audit report:")
     print(audited.stdout)
     problems.extend(
-        security_audit_problems(audited, "JavaScript", forge_repaired=repaired)
+        security_audit_problems(
+            audited,
+            "JavaScript",
+            forge_repaired=repaired[FORGE_ADVISORY],
+            braces_repaired=repaired[BRACES_ADVISORY],
+        )
     )
     return problems
 
@@ -831,6 +861,11 @@ def main() -> int:
             "exact patch/lock/installed-code fingerprints, and valid/malformed "
             "signature checks through both Expo consumers. Any changed finding "
             "or failed repair check blocks release.\n"
+            "\nLocal security repair: braces 3.0.3 retains the raw "
+            "GHSA-vfj7-8cjw-p6xm warning. It passes only after frozen installation, "
+            "exact patch/lock/installed-code fingerprints, and normal/deep pattern "
+            "checks through both Expo file scanners. Any changed finding or failed "
+            "repair check blocks release.\n"
             "\nRecorded exception policy: only image-size 1.2.1 in Expo's Metro "
             "build tool may retain "
             + ", ".join(sorted(KNOWN_JAVASCRIPT_EXCEPTIONS))
