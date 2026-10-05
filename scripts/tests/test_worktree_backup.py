@@ -7,6 +7,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -67,6 +68,48 @@ class WorktreeBackupTest(unittest.TestCase):
 
     def manifests(self):
         return [json.loads(p.read_text()) for p in self.dest.glob("*/manifest.json")]
+
+    def test_backup_never_runs_filesystem_monitor_and_keeps_source_and_staging(self):
+        (self.repo / "tracked").write_text("staged source\n")
+        self.git(self.repo, "add", "tracked")
+        (self.repo / "tracked").write_text("on-disk source\n")
+        (self.repo / "new").write_text("untracked source\n")
+        marker = self.root / "monitor-was-run"
+        monitor = self.root / "filesystem-monitor"
+        monitor.write_text(
+            "#!/bin/sh\nprintf ran >> "
+            + shlex.quote(str(marker))
+            + "\nprintf 'token\\000/\\000'\n"
+        )
+        monitor.chmod(0o700)
+        self.git(self.repo, "config", "core.fsmonitor", str(monitor))
+        self.git(self.repo, "config", "core.fsmonitorHookVersion", "2")
+        # Show that the real configured hook works, before testing its suppression.
+        status = self.git(self.repo, "status", "--porcelain")
+        self.assertTrue(marker.exists())
+        marker.unlink()
+        index = self.repo / ".git/index"
+        index_before = index.read_bytes()
+        self.assertEqual(self.module.run(self.repo, self.dest), 0)
+        self.assertFalse(marker.exists())
+        self.assertEqual(index.read_bytes(), index_before)
+        self.assertEqual((self.repo / "tracked").read_text(), "on-disk source\n")
+        self.assertEqual((self.repo / "new").read_text(), "untracked source\n")
+        manifest = self.manifests()[0]
+        recovery = self.root / "monitor-recovery"
+        recovery.mkdir()
+        self.git(recovery, "init", "-q")
+        self.git(recovery, "fetch", manifest["bundle"], manifest["ref"])
+        self.git(recovery, "checkout", "-q", "--detach", manifest["head"])
+        self.git(
+            recovery, "restore", "--source", manifest["snapshot"], "--worktree", "."
+        )
+        self.git(recovery, "read-tree", manifest["index_commit"])
+        self.assertEqual((recovery / "tracked").read_text(), "on-disk source\n")
+        self.assertEqual((recovery / "new").read_text(), "untracked source\n")
+        self.assertEqual(self.git(recovery, "show", ":tracked"), "staged source")
+        self.assertEqual(self.git(recovery, "status", "--porcelain"), status)
+        self.assertFalse(marker.exists())
 
     def test_same_basename_has_independent_restorable_bundles_and_preserves_legacy(
         self,

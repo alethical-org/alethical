@@ -32,8 +32,12 @@ def git(root: Path, *args: str, index: Path | None = None, check: bool = True) -
     env["GIT_AUTHOR_EMAIL"] = env["GIT_COMMITTER_EMAIL"] = "backup@localhost.invalid"
     if index is not None:
         env["GIT_INDEX_FILE"] = str(index)
+    # Reads and temporary-index staging must not invoke a filesystem monitor hook.
     result = subprocess.run(
-        ["git", "-C", str(root), *args], env=env, capture_output=True, check=False
+        ["git", "-c", "core.fsmonitor=false", "-C", str(root), *args],
+        env=env,
+        capture_output=True,
+        check=False,
     )
     if result.returncode and check:
         raise BackupError(f"Git {args[0]} failed")
