@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import './check-node-forge-security.mjs';
+import './check-source-map-security.mjs';
 
 const require = createRequire(import.meta.url);
 const frontendDirectory = join(dirname(fileURLToPath(import.meta.url)), '..');
