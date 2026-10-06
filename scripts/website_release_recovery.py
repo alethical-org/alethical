@@ -217,8 +217,6 @@ def eligible(head: str) -> tuple[bool, str]:
         raise StopRecovery(
             "The live release is outside the expected history; no automatic repair"
         )
-    if not release.waiting_commits(ROOT, served, head, release.website_paths()):
-        return False, served
     status, _ = release.report(
         head,
         release.WEBSITE.url,
@@ -226,6 +224,8 @@ def eligible(head: str) -> tuple[bool, str]:
         dt.datetime.now(dt.UTC),
         read_stamp=lambda _: (served, None),
     )
+    if status == release.REACHED:
+        return False, served
     if status != release.NOT_REACHED:
         raise StopRecovery(
             "The missing-release check has no mature verdict; no automatic repair"

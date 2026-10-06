@@ -2,6 +2,7 @@
 
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -81,7 +82,7 @@ def test_unknown_evidence_stops_instead_of_deploying(problem, served):
             recovery.eligible(HEAD)
 
 
-@pytest.mark.parametrize("verdict", [0, 2])
+@pytest.mark.parametrize("verdict", [2])
 def test_waiting_or_no_verdict_is_not_a_repair_trigger(verdict):
     with (
         patch.object(recovery, "current_main"),
@@ -96,6 +97,69 @@ def test_waiting_or_no_verdict_is_not_a_repair_trigger(verdict):
     ):
         with pytest.raises(recovery.StopRecovery):
             recovery.eligible(HEAD)
+        ci.assert_not_called()
+
+
+@pytest.mark.parametrize("side_branch", [True, False])
+def test_shared_checker_distinguishes_unknown_arrival_from_restored_inputs(
+    tmp_path, side_branch
+):
+    def git(*args):
+        return subprocess.run(
+            ["git", *args], cwd=tmp_path, check=True, capture_output=True, text=True
+        ).stdout.strip()
+
+    git("init", "-q", "-b", "main")
+    git("config", "user.email", "fixture@example.invalid")
+    git("config", "user.name", "Synthetic fixture")
+    source = tmp_path / "website.txt"
+    source.write_text("Original released input")
+    git("add", "website.txt")
+    git("commit", "-qm", "Synthetic original input")
+    served = git("rev-parse", "HEAD")
+    if side_branch:
+        git("checkout", "-qb", "feature")
+    source.write_text("Changed input")
+    git("commit", "-qam", "Synthetic changed input")
+    changed = git("rev-parse", "HEAD")
+    if side_branch:
+        served = changed
+        git("checkout", "-q", "main")
+        git("merge", "--no-ff", "-s", "ours", "-m", "Synthetic ours merge", "feature")
+    else:
+        git("revert", "--no-edit", changed)
+    head = git("rev-parse", "HEAD")
+    shared_report = recovery.release.report
+
+    def verdict(*args, **kwargs):
+        return shared_report(
+            *args,
+            **kwargs,
+            repo=tmp_path,
+            paths=["website.txt"],
+            read_arrival=lambda _: (None, "Synthetic unavailable timing"),
+        )
+
+    with (
+        patch.object(recovery, "ROOT", tmp_path),
+        patch.object(recovery, "current_main"),
+        patch.object(
+            recovery.release, "read_release_stamp", return_value=(served, None)
+        ),
+        patch.object(recovery.release, "report", side_effect=verdict),
+        patch.object(recovery, "successful_ci") as ci,
+    ):
+        if side_branch:
+            assert (
+                recovery.release.waiting_commits(
+                    tmp_path, served, head, ["website.txt"]
+                )
+                == []
+            )
+            with pytest.raises(recovery.StopRecovery, match="no mature verdict"):
+                recovery.eligible(head)
+        else:
+            assert recovery.eligible(head) == (False, served)
         ci.assert_not_called()
 
 
