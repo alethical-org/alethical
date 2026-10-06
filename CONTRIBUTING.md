@@ -131,8 +131,12 @@ needs no configuration. See `.env.example` for what each variable does.
 | `just test-frontend` | Run the frontend test suite (Vitest) |
 
 The commit hook formats the selected files and includes those results in the
-commit. The push hook runs the full app or server suite when that area changes,
-using an isolated copy of the exact commit Git intends to upload. Both suites
+commit. Before the long tests, the push hook runs GitHub's current security scan
+for every upload, including uploads without dependency changes. A failed scan
+stops the upload. It uses an isolated copy of the exact commit Git intends to
+upload and installs the frozen JavaScript dependencies once without package
+scripts; app tests reuse that installation. The hook prints the scan's elapsed
+time. It then runs the full app or server suite when that area changes. Both suites
 run together when both areas change. Upload tests start a disposable Postgres
 server of their own, not the shared development server on port 54329. Docker must
 be running and its `pgvector/pgvector:pg17` image must already be cached. The normal

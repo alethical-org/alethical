@@ -354,10 +354,11 @@ def disposable_postgres(snapshot: Path):
 
 
 def run_suites(snapshot: Path, suites: set[str]) -> None:
+    # The security gate already installed the frozen JavaScript dependencies in
+    # this exact snapshot and proved its local repairs. Reuse that installation.
     def check(suite: str) -> None:
         env = test_environment(snapshot)
         if suite == "frontend":
-            run(["pnpm", "install", "--frozen-lockfile"], snapshot, env=env)
             run(
                 ["pnpm", "--dir", "apps/frontend", "run", "brand:check"],
                 snapshot,
@@ -492,16 +493,35 @@ def run_quick_docs(snapshot: Path) -> None:
         run(["python3", f"scripts/{script}"], snapshot, env=env)
 
 
+def run_security(snapshot: Path) -> None:
+    # Always use CI's current-feed audit, including uploads with no dependency
+    # edits. Its frozen installation also supplies the frontend suite below.
+    started = time.monotonic()
+    print("Local checks: scanning locked packages before app tests.", flush=True)
+    try:
+        run(
+            ["python3", "scripts/check_technology_health.py", "--security-only"],
+            snapshot,
+            env=test_environment(snapshot),
+        )
+    finally:
+        print(
+            f"Local security scan finished in {time.monotonic() - started:.1f}s.",
+            flush=True,
+        )
+
+
 def pre_push(root: Path, source: TextIO) -> None:
     # Parse all refs first so malformed input cannot test a subset and pass.
     for sha, files in push_targets(root, source.read()):
         suites = affected_suites(root, files, sha)
-        checks = ", ".join(["documents", *sorted(suites)])
+        checks = ", ".join(["security", "documents", *sorted(suites)])
         print(
             f"Local checks: testing {sha[:12]} ({checks}).",
             flush=True,
         )
         with commit_snapshot(root, sha) as snapshot:
+            run_security(snapshot)
             run_quick_docs(snapshot)
             if suites:
                 run_suites(snapshot, suites)

@@ -50,8 +50,9 @@ content hash differs by construction and a check keyed on it would fire on every
 merge. The same build-setting difference is recorded in
 ``docs/operations/page-load-performance-decisions.md``.
 
-Reads 1 public page and the local git history. No database, no credentials, no
-Vercel token, no paid call.
+Reads 1 public page, the local git history and GitHub's main-arrival records.
+GitHub Actions supplies its read-only repository token. No database, provider
+token or paid call.
 """
 
 from __future__ import annotations
@@ -59,6 +60,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
 import re
 import subprocess
 import sys
@@ -106,6 +108,12 @@ API_GRACE_MINUTES = 15
 REACHED = 0
 NOT_REACHED = 1
 NO_VERDICT_YET = 2
+
+INPUT_CLOCK_LIMIT = (
+    "This clock follows whole files. A partial undo does not reset it while that file "
+    "still differs from the served release; this history does not claim every listed "
+    "edit remains missing."
+)
 
 
 def website_paths() -> list[str]:
@@ -281,13 +289,10 @@ WEBSITE = Service(
         "3. Check the live page yourself: "
         f"`curl -sL {PAGE_URL} | grep {RELEASE_COMMIT_META_NAME}` says which commit readers "
         "have.\n\n"
-        "### The usual cause\n\n"
-        "`vercel.json`'s `ignoreCommand` compares a commit against its immediate parent, and "
-        "the merge queue can advance `main` by several commits in 1 push. Vercel builds the "
-        "push's head only, and when that head happens to touch none of those paths every "
-        "earlier commit in the same push goes unbuilt, however much website code it changed. "
-        "Documents, scripts and tests all do it "
-        "([issue 2075](https://github.com/alethical-org/alethical/issues/2075))."
+        "### What the live result establishes\n\n"
+        "The website has not caught up with `main`. Its served commit does not tell "
+        "whether the cause is a missing release, a failed or unfinished build, a "
+        "rollback, or a stale response. Read the deployment record to distinguish them."
     ),
 )
 
@@ -324,9 +329,10 @@ API = Service(
         "### What this is, and what it is not\n\n"
         "Railway redeploys `alethical-api` on every push to `main`, and between 8 Aug and "
         "22 Sep 2026 it did so for 697 of 701 pushes, normally starting within 2 seconds. "
-        "So this is a dropped release rather than a disconnected watcher, which is what "
-        "makes it worth an alarm: it works often enough that nobody develops the habit of "
-        "checking ([issue 2046](https://github.com/alethical-org/alethical/issues/2046))."
+        "A missing live change does not establish that another push was dropped: a failed "
+        "or unfinished build, a rollback, or a stale response can also leave an older "
+        "commit live. Read Railway's deployment record to distinguish them "
+        "([issue 2046](https://github.com/alethical-org/alethical/issues/2046))."
     ),
 )
 
@@ -362,13 +368,50 @@ def is_ancestor(repo: Path, older: str, newer: str) -> bool:
 
 
 def waiting_commits(repo: Path, served: str, head: str, paths: list[str]) -> list[str]:
-    """The commits between the 2 that change what the website is built from.
+    """Input-change history within continuous differing-file intervals.
 
-    Oldest first, so the first of them is the one that has been waiting longest,
-    which is the clock this check runs on.
+    Each currently differing file starts its clock when it stops matching the
+    served version. Returning that input to its served state clears its earlier
+    changes. A fresh edit after that starts a fresh interval, even in the same
+    file. Files that still differ keep their older uninterrupted interval.
     """
-    listed = git(repo, "rev-list", "--reverse", f"{served}..{head}").split()
-    return [sha for sha in listed if changes_website(repo, f"{sha}^", sha, paths)]
+    # A merge introduces its whole first-parent diff at once. Commits prepared
+    # on its side branch did not reach main individually and have no main clock.
+    listed = git(
+        repo, "rev-list", "--first-parent", "--reverse", f"{served}..{head}"
+    ).split()
+    outstanding = {path: [] for path in changed_paths(repo, served, head, paths)}
+    for sha in listed:
+        for path in changed_paths(repo, f"{sha}^", sha, paths) & outstanding.keys():
+            if changes_website(repo, served, sha, [f":(literal){path}"]):
+                outstanding[path].append(sha)
+            else:
+                outstanding[path].clear()
+    waiting = {sha for commits in outstanding.values() for sha in commits}
+    return [sha for sha in listed if sha in waiting]
+
+
+def changed_paths(repo: Path, before: str, after: str, paths: list[str]) -> set[str]:
+    # No rename inference: moving a build input removes 1 path and adds another.
+    # Null-separated names preserve spaces and other characters in actual paths.
+    names = subprocess.run(
+        [
+            "git",
+            "diff",
+            "--name-only",
+            "-z",
+            "--no-renames",
+            before,
+            after,
+            "--",
+            *paths,
+        ],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    return set(filter(None, names.split("\0")))
 
 
 def changes_website(repo: Path, before: str, after: str, paths: list[str]) -> bool:
@@ -382,11 +425,79 @@ def changes_website(repo: Path, before: str, after: str, paths: list[str]) -> bo
     )
 
 
-def minutes_since_commit(repo: Path, sha: str, now: dt.datetime) -> float:
-    committed = dt.datetime.fromtimestamp(
-        int(git(repo, "show", "-s", "--format=%ct", sha)), dt.UTC
+def read_github_json(path: str):
+    """Read repository evidence, never deployment state or a local commit date."""
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": USER_AGENT}
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    request = urllib.request.Request(
+        f"https://api.github.com/repos/{path}", headers=headers
     )
-    return (now - committed).total_seconds() / 60
+    with urllib.request.urlopen(request, timeout=20) as response:
+        return json.loads(response.read())
+
+
+def github_time(value: str) -> dt.datetime:
+    stamp = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if stamp.tzinfo is None:
+        raise ValueError("GitHub arrival time has no time zone")
+    return stamp.astimezone(dt.UTC)
+
+
+def read_main_arrival(sha: str) -> tuple[dt.datetime | None, str | None]:
+    """Earliest recorded main arrival of this exact first-parent commit.
+
+    Queue commits are prepared before they reach main. Their matching main PR's
+    merged_at records that arrival, including intermediate commits in a batch
+    with no individual push run. A direct push head can instead use a push run's
+    created_at (a conservative upper bound), never its delayed run_started_at.
+    Missing evidence has no commit-date fallback: the watch stays inconclusive
+    and its caller eventually goes red rather than inventing an outage or passing.
+    """
+    repository = os.environ.get("GITHUB_REPOSITORY", "alethical-org/alethical")
+    try:
+        pulls = read_github_json(f"{repository}/commits/{sha}/pulls?per_page=100")
+        if not isinstance(pulls, list) or len(pulls) >= 100:
+            raise ValueError("incomplete pull request records")
+        merged = [
+            github_time(pull["merged_at"])
+            for pull in pulls
+            if pull["merge_commit_sha"] == sha
+            and pull["base"]["ref"] == "main"
+            and pull["merged_at"] is not None
+        ]
+        if merged:
+            return min(merged), None
+        runs = read_github_json(
+            f"{repository}/actions/runs?head_sha={sha}&event=push&branch=main&per_page=100"
+        )
+        if runs["total_count"] > len(runs["workflow_runs"]):
+            raise ValueError("incomplete push-run records")
+        pushed = [
+            github_time(run["created_at"])
+            for run in runs["workflow_runs"]
+            if run["head_sha"] == sha
+            and run["head_branch"] == "main"
+            and run["event"] == "push"
+        ]
+        if pushed:
+            return min(pushed), None
+    except Exception:  # noqa: BLE001 - unavailable evidence cannot establish an outage
+        return None, f"GitHub main-arrival evidence is unavailable for `{sha[:8]}`"
+    return None, f"GitHub has no recorded main arrival for `{sha[:8]}`"
+
+
+def arrival_age(
+    sha: str, now: dt.datetime, read_arrival
+) -> tuple[float | None, str | None]:
+    arrived, problem = read_arrival(sha)
+    if problem or arrived is None:
+        return None, problem or f"main-arrival time unavailable for `{sha[:8]}`"
+    waited = (now - arrived).total_seconds() / 60
+    if waited < 0:
+        return None, f"main-arrival time for `{sha[:8]}` is in the future"
+    return waited, None
 
 
 def plural(count: float, one: str, many: str) -> str:
@@ -403,10 +514,12 @@ def report(
     read_stamp=None,
     paths: list[str] | None = None,
     service: Service = WEBSITE,
+    read_arrival=None,
 ) -> tuple[int, str]:
     """The verdict, and the words to put in front of a person."""
     paths = paths if paths is not None else service.paths()
     read_stamp = read_stamp if read_stamp is not None else service.read
+    read_arrival = read_arrival if read_arrival is not None else read_main_arrival
     served, problem = read_stamp(url)
 
     if problem == "no-stamp":
@@ -416,7 +529,12 @@ def report(
         # commit. Both mean nothing can tell whether merges are reaching readers,
         # which is the whole defect this check exists to end, so it is reported
         # rather than passed over.
-        waited = minutes_since_commit(repo, head, now)
+        waited, problem = (
+            arrival_age(head, now, read_arrival) if grace_minutes else (0, None)
+        )
+        if problem:
+            return NO_VERDICT_YET, f"No verdict: {problem}. Release timing is unknown."
+        assert waited is not None
         if waited < grace_minutes:
             return (
                 NO_VERDICT_YET,
@@ -426,7 +544,12 @@ def report(
         return NOT_REACHED, (
             f"**Net:** {service.no_commit.format(url=url)}\n\n"
             f"{service.no_stamp} `main` is at "
-            f"`{head[:8]}`, merged {waited:.0f} {plural(waited, 'minute', 'minutes')} ago."
+            f"`{head[:8]}`. "
+            + (
+                f"It reached `main` {waited:.0f} {plural(waited, 'minute', 'minutes')} ago."
+                if grace_minutes
+                else "This check has no grace; arrival timing is not claimed."
+            )
         )
 
     if problem:
@@ -445,6 +568,12 @@ def report(
             f"that commit. Fetch the full history and ask again."
         )
 
+    if is_ancestor(repo, head, served):
+        return NO_VERDICT_YET, (
+            f"No verdict: production serves `{served[:8]}`, newer than the compared "
+            f"main head `{head[:8]}`. Refresh main and ask again."
+        )
+
     if not is_ancestor(repo, served, head):
         return NOT_REACHED, (
             f"**Net:** production is serving `{served[:8]}`, which is not in `main`'s history, "
@@ -453,34 +582,48 @@ def report(
             f"promoted from somewhere other than `main`, both look like this."
         )
 
-    waiting = waiting_commits(repo, served, head, paths)
-    if not waiting:
+    if not changes_website(repo, served, head, paths):
         return REACHED, (
-            f"Readers have `{served[:8]}` and `main` is at `{head[:8]}`, and nothing between "
-            f"them changes what {service.what} is built from. Correctly unbuilt."
+            f"Readers have `{served[:8]}` and `main` is at `{head[:8]}`, and their current "
+            f"inputs for {service.what} match. Correctly unbuilt."
         )
 
+    waiting = waiting_commits(repo, served, head, paths)
+    if not waiting:
+        return NO_VERDICT_YET, (
+            "No verdict: current build inputs differ, but their arrival cannot be "
+            "established from main's first-parent history."
+        )
     oldest = waiting[0]
-    waited = minutes_since_commit(repo, oldest, now)
+    waited, problem = (
+        arrival_age(oldest, now, read_arrival) if grace_minutes else (0, None)
+    )
+    if problem:
+        return NO_VERDICT_YET, f"No verdict: {problem}. Release timing is unknown."
+    assert waited is not None
     listed = "\n".join(
         f"- `{sha[:8]}` {git(repo, 'show', '-s', '--format=%s', sha)}"
         for sha in waiting
     )
     if waited < grace_minutes:
         return NO_VERDICT_YET, (
-            f"Waiting: {len(waiting)} merged "
-            f"{plural(len(waiting), 'change', 'changes')} not yet live, the oldest "
-            f"`{oldest[:8]}` merged {waited:.0f} "
+            f"Waiting: the current inputs for {service.what} differ from the served release. "
+            f"The oldest continuously differing file interval began with `{oldest[:8]}`, "
+            f"which reached `main` {waited:.0f} "
             f"{plural(waited, 'minute', 'minutes')} ago, inside the "
-            f"{grace_minutes:.0f}-minute grace."
+            f"{grace_minutes:.0f}-minute grace. {INPUT_CLOCK_LIMIT}"
         )
+    age = (
+        f"That commit reached `main` {waited:.0f} {plural(waited, 'minute', 'minutes')} ago."
+        if grace_minutes
+        else "This check has no grace; arrival timing is not claimed."
+    )
     return NOT_REACHED, (
-        f"**Net:** {len(waiting)} merged {plural(len(waiting), 'change', 'changes')} to "
-        f"{service.what} {plural(len(waiting), 'is', 'are')} not reaching readers. "
-        f"Production is built from `{served[:8]}` and the oldest waiting change, `{oldest[:8]}`, "
-        f"merged {waited:.0f} {plural(waited, 'minute', 'minutes')} ago. Nothing failed: a "
-        f"release for it never started.\n\n"
-        f"`main` is at `{head[:8]}`. Merged and not live:\n\n{listed}\n\n"
+        f"**Net:** the current inputs for {service.what} differ from the served release. "
+        f"Production is built from `{served[:8]}`. The oldest continuously differing file "
+        f"interval began with `{oldest[:8]}`. {age}\n\n"
+        f"`main` is at `{head[:8]}`. {INPUT_CLOCK_LIMIT}\n\n"
+        f"Input-change history since those files last matched the served release:\n\n{listed}\n\n"
         f"{service.repair}"
     )
 
