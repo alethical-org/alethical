@@ -42,6 +42,9 @@ dependencies = [
   # production services and Supabase packages that still import it directly.
   "httpx2>=2.12.0",
   "httpx>=0.28.1",
+  # The HTTP-helper regression test imports this directly. Keep the minimum at
+  # the release that repairs the items-view reference leak (CVE-2026-104874).
+  "multidict>=6.9.1",
   "pytest-asyncio>=1.4.0",
   "supabase>=2.31.0",
   # Imported directly by alethical/tests/test_auth_token_verification.py for

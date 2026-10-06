@@ -302,11 +302,12 @@ owns the current provider, email, password, and confirmation settings.
   ([issue 2052](https://github.com/alethical-org/alethical/issues/2052)). It watches
   only the `Production` environment, so a failed preview, which ships to nobody,
   opens nothing.
-- A release that never starts says so too, and it is a different watch because
-  nothing fails. `.github/workflows/production-release-missing.yml` reads which
+- A merged website change that stays behind is reported too.
+  `.github/workflows/production-release-missing.yml` reads which
   commit the live page says built it and compares that with `main`. It opens 1
-  issue when a merged change to a website path has not reached readers 10 minutes
-  after merging, comments on that same issue rather than opening another, and
+  issue when a website input file has continuously differed from the served
+  release for 10 minutes since reaching `main`, comments on that same issue rather
+  than opening another, and
   closes it once readers are up to date. A merge that changes no website path
   correctly needs no release and it says nothing. It exists because a merged website change once sat
   unbuilt for 29 minutes with every check green, no build failure anywhere, and
@@ -340,14 +341,38 @@ owns the current provider, email, password, and confirmation settings.
 - A merge that never reaches the API says so.
   `.github/workflows/api-release-missing.yml` reads that commit after every push
   to `main` and compares it with what `main` holds. It opens 1 issue when a
-  merged change to a path the API is built from has not reached the API 15
-  minutes after merging, comments on that same issue rather than opening
+  file the API is built from has continuously differed from the served release
+  for 15 minutes since reaching `main`, comments on that same issue rather than opening
   another, and closes it once the API is up to date. A merge that changes only
   the website or documents correctly needs no API release and it says nothing:
   3 of the 4 missed pushes above were exactly that, so a watch comparing against
   `main`'s tip would have cried wolf 3 times before the one that mattered
   arrived. The 15 minutes come from 246 measured releases, which reach a running
   API in 56 to 296 seconds.
+- Both missing-release checks start their grace from the oldest continuously
+  differing input-file interval on main's first-parent history. Compare
+  the served and current input states first: an edit fully undone before release
+  needs no build. For each differing file, keep only its changes since it last
+  matched the served file. Fully restoring that file clears its old clock, so
+  edits before that restoration cannot age a fresh edit afterward.
+  An input that continuously differs retains its clock through later edits.
+  This tracks file states, not inferred line-level or behavioral ownership.
+  If a fresh edit keeps a file different while an older edit in that file is
+  undone, its clock does not reset. Reports describe current input differences
+  and list input-change history, not edits claimed to remain unreleased.
+  GitHub's matching merged pull
+  request supplies its `merged_at` on `main`; a direct-push head without a matching
+  merged pull request uses the earliest matching main push run's `created_at`,
+  a conservative upper bound on arrival. Never use a commit's preparation time
+  or a runner's start time. Queue batches retain each merged change's arrival
+  even when GitHub created a push run only for the batch's head. Later pushes
+  cannot reset an older continuously differing file's clock. Each attempt reads current `main`
+  without replacing the checked-out checker. Missing, malformed, future or
+  incomplete arrival evidence produces no verdict; the workflow retries and
+  finishes red if its attempt limit expires, rather than inventing a delay or
+  passing an unproven release. Branch self-tests apply no grace and claim no
+  arrival time. The served commit establishes the live input state, not whether
+  a deployment started or failed.
 - **Whether an API release that started actually finished is not readable from
   GitHub.** Across those same 45 days, 23 more deployments went in progress and
   never recorded a success in GitHub's copy of Railway's record, while none ever

@@ -1,4 +1,4 @@
-<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/native-release-tools.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs apps/frontend/scripts/check-braces-security.mjs tools/native-release/** patches/metro@0.84.4.patch patches/node-forge@1.4.0.patch patches/braces@3.0.3.patch pnpm-lock.yaml -->
+<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/native-release-tools.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs apps/frontend/scripts/check-braces-security.mjs apps/frontend/scripts/check-source-map-security.mjs apps/frontend/scripts/test-source-map-security.mjs apps/frontend/scripts/test-compression-security.mjs tools/native-release/** patches/metro@0.84.4.patch patches/node-forge@1.4.0.patch patches/braces@3.0.3.patch patches/source-map-js@1.2.1.patch pnpm-lock.yaml uv.lock alethical/tests/test_multidict_security.py -->
 <!-- last-major-tool-review: 2026-08-15 -->
 
 # Keeping every tool supported and useful
@@ -104,6 +104,41 @@ not call braces, so the check also tests that real file matching still works.
 The raw audit warning stays visible. A changed dependency path, version,
 advisory, or repair stops release until reviewed. A fixed upstream version
 should replace the local repair after compatibility checks pass.
+
+The jsdom CSS parser and PostCSS use source-map-js 1.2.1 with the complete
+[upstream indexed-map repair](https://github.com/7rulnik/source-map-js/commit/cf7658058ceeaa8619d5ae0ec90be6905209d016).
+Its [section-offset advisory](https://github.com/advisories/GHSA-68fv-2mgg-jv7q)
+is fixed in 1.2.2, published on 30 September at 14:08:09 UTC. That package remains
+inside the saved 7-day waiting period until 7 October at 14:08:09 UTC. The exact
+backport preserves that waiting period rather than installing a young package.
+
+Acceptance requires the exact high-severity advisory, version 1.2.1, affected and
+fixed ranges, and the reported jsdom CSS-parser path. The patch, lock binding,
+and all 3 repaired installed files must match their saved fingerprints through
+both CSS consumers. Bounded child processes test invalid and excessive offsets,
+the combined offset of nested maps, large valid maps, linear nested-source
+reading, and ordinary CSS generation. The raw warning stays visible. Changed
+findings, missing or drifted repair evidence, installation failure, and failed
+behavior checks block release. The proven repair has no calendar expiration:
+each scan repeats the installed-code and behavior proof. During routine
+dependency updates, replace the backport with mature 1.2.2, remove its patch
+binding and exact audit classification, and retain compatibility checks. The
+existing dependency-update and technology-health checks own that upkeep; this
+repair needs no new scheduled job.
+
+Expo's compression package uses 1.8.2, the published fix for its
+[early-disconnect memory leak](https://github.com/expressjs/compression/security/advisories/GHSA-vc2v-76pw-4v95).
+That release clears the 7-day waiting period. Compatibility tests exercise the
+actual Expo dependency on a private loopback server: an early client disconnect
+must close its native gzip stream, and complete compressed responses must retain
+their original text.
+
+Python's HTTP helpers use multidict 6.9.1, the published fix for its
+[items-view memory leak](https://github.com/advisories/GHSA-54p9-h82j-f925).
+That release was published on 21 September and clears the saved package waiting
+period. Focused tests use the installed native extension to require correct
+union and subtraction results without retaining extra references to input
+objects. This is a package upgrade, not an audit exception.
 
 The image-size exception ended on 25 September 2026 when the security feed
 reported a fixed release. Metro now uses image-size 2.0.3, published on

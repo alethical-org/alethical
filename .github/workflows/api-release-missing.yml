@@ -59,7 +59,8 @@ name: API release missing
 # is the alarm; the red run only stops the Actions tab from reporting the opposite
 # of what happened.
 #
-# Costs nothing per run: 1 public request per attempt and the local git history.
+# Costs nothing per run: 1 public request per attempt, local git history and
+# read-only GitHub main-arrival records. Queue preparation time is not release time.
 
 on:
   push:
@@ -91,6 +92,8 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: read
+  actions: read
   issues: write
 
 jobs:
@@ -114,6 +117,8 @@ jobs:
 
       - name: Ask the API what it is running, until it catches up or the grace runs out
         id: check
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           # `set +e` on purpose. GitHub runs a `run:` block as `bash -e`, so the
           # check's own non-zero answer would kill this step before it printed a
@@ -130,9 +135,18 @@ jobs:
           grace=15
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then grace=0; fi
           while : ; do
-            python scripts/check_production_release_reached_readers.py \
-              --service api --grace-minutes "$grace" > verdict.txt 2>&1
-            status=$?
+            head="$GITHUB_SHA"
+            # Refresh the comparison, not the checked-out checker: runner delay
+            # must not turn a newer live release into a wrong-branch alarm.
+            if [ "$GITHUB_REF_NAME" = "main" ] && ! git fetch --no-tags origin main; then
+              echo "No verdict: current main could not be read." > verdict.txt
+              status=2
+            else
+              if [ "$GITHUB_REF_NAME" = "main" ]; then head=$(git rev-parse FETCH_HEAD); fi
+              python scripts/check_production_release_reached_readers.py \
+                --head "$head" --service api --grace-minutes "$grace" > verdict.txt 2>&1
+              status=$?
+            fi
             cat verdict.txt
             if [ "$status" != "2" ]; then break; fi
             if [ "$(date +%s)" -ge "$deadline" ]; then
@@ -151,7 +165,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const title = "A merge is not reaching the API, because no release ran";
+            const title = "A merged API change is not reaching readers";
             // Found by this marker rather than by its title, so the title can be
             // edited and a person can adopt an issue they are already working as
             // this watch's home by pasting the marker into it. Same rule as

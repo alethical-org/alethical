@@ -16,7 +16,7 @@ installs the exact saved Python and frontend dependencies, then installs 3 Git h
 | --- | --- | --- |
 | A worktree is created | `post-checkout` | Keeps the existing protection that locks the new worktree against accidental removal |
 | A commit is saved | `pre-commit` | Checks and formats supported files selected for that commit |
-| Commits are uploaded | `pre-push` | Tests each distinct upload commit in an isolated temporary worktree |
+| Commits are uploaded | `pre-push` | Scans locked packages before testing each distinct upload commit in an isolated temporary worktree |
 
 [`scripts/install_git_hooks.py`](../../scripts/install_git_hooks.py) copies all 3
 helpers into a versioned folder inside Git's shared storage. It changes
@@ -107,9 +107,27 @@ Every code upload also runs the same quick document checks as GitHub: broken
 links to documents, missing entries in document indexes, and outdated quoted
 claims. These checks run even when neither app suite is selected.
 
+Before document checks or app suites, every upload runs GitHub's current security
+scan ([`scripts/check_technology_health.py --security-only`](../../scripts/check_technology_health.py))
+against the exact saved commit. It reads the public advisory feeds again even when
+no dependency changed. It covers all locked Python and JavaScript packages,
+including development tools and Python versions for other platforms. An unreadable
+feed, failed scanner, incomplete inventory, or unreviewed finding stops the upload
+before the long tests start. The same exact installed-repair checks and narrow
+exceptions as GitHub apply; [technology health](technology-health.md#recorded-security-exceptions)
+owns that policy.
+
+The scan installs the frozen JavaScript dependencies once, without package scripts.
+The frontend suite reuses that installation, while retaining its separate build-tool
+compatibility checks. Python auditing reads the lock inventory without installing
+application packages; the backend suite still installs its saved dependencies.
+The helper prints the elapsed security-scan time, including installation and repair
+checks, on success or failure. Each distinct upload commit gets a fresh scan rather
+than borrowing a result from another commit or an earlier upload.
+
 | Affected area | Checks before upload |
 | --- | --- |
-| Frontend app | Saved dependencies, brand assets, package and build-tool compatibility, selected-file helper fixtures, frontend formatting, TypeScript, and the full `just test-frontend` suite |
+| Frontend app | Scanned saved dependencies, brand assets, package and build-tool compatibility, selected-file helper fixtures, frontend formatting, TypeScript, and the full `just test-frontend` suite |
 | Python server | Saved and declared dependencies, local-check helper fixtures, Ruff code and formatting checks, ty, and the full `uv run --frozen pytest` suite |
 
 When both areas change, they run together. The helper waits for both to finish

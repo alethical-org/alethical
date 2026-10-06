@@ -33,6 +33,7 @@ overrides:
   "metro@0.84.4>image-size": 2.0.3
   "@babel/core": 7.29.6 # 85 Babel plugins — arbitrary file read via sourceMappingURL
   brace-expansion: 5.0.12 # via minimatch — bounded expansion and recursion
+  compression: 1.8.2 # Expo CLI — release compressed streams after client disconnects
   "js-yaml@3": 3.15.2 # @oclif/core, istanbul: bound empty YAML merge sources
   "js-yaml@4": 4.3.2 # @expo/xcpretty: bound empty YAML merge sources
   "@xmldom/xmldom@0.8": 0.8.15 # @expo/plist: XML injection and resource limits
@@ -59,3 +60,5 @@ patchedDependencies:
   # No upstream repair exists for GHSA-vfj7-8cjw-p6xm. Limit pattern nesting
   # before braces' recursive walkers can exhaust the Node.js call stack.
   braces@3.0.3: patches/braces@3.0.3.patch
+  # Exact upstream CVE-2026-93749 repair while 1.2.2 is inside the 7-day wait.
+  source-map-js@1.2.1: patches/source-map-js@1.2.1.patch

@@ -171,6 +171,7 @@ class LocalChecksTest(unittest.TestCase):
     def test_failed_suite_blocks_push_and_cleans_snapshot(self):
         with (
             patch.object(self.checks, "affected_suites", return_value={"frontend"}),
+            patch.object(self.checks, "run_security"),
             patch.object(self.checks, "run_quick_docs"),
             patch.object(
                 self.checks,
@@ -197,6 +198,7 @@ class LocalChecksTest(unittest.TestCase):
 
         with (
             patch.object(self.checks, "affected_suites", return_value=set()),
+            patch.object(self.checks, "run_security"),
             patch.object(self.checks, "run_quick_docs", side_effect=check_docs),
             patch.object(self.checks, "run_suites") as suites,
         ):
@@ -211,6 +213,7 @@ class LocalChecksTest(unittest.TestCase):
     def test_failed_document_check_blocks_push_and_cleans_snapshot(self):
         with (
             patch.object(self.checks, "affected_suites", return_value=set()),
+            patch.object(self.checks, "run_security"),
             patch.object(
                 self.checks,
                 "run_quick_docs",
@@ -227,6 +230,137 @@ class LocalChecksTest(unittest.TestCase):
         self.assertEqual(
             self.git("worktree", "list", "--porcelain").count("worktree "), 1
         )
+
+    def test_security_runs_first_for_every_upload_area_in_the_saved_snapshot(self):
+        (self.root / "first.txt").write_text("unfinished\n")
+        (self.root / ".env").write_text("FAKE_PRIVATE_SETTING=fixture\n")
+        for affected in (set(), {"frontend"}, {"backend"}, {"frontend", "backend"}):
+            with self.subTest(affected=affected):
+                order = []
+                snapshots = []
+
+                def scan(snapshot):
+                    order.append("security")
+                    snapshots.append(snapshot)
+                    self.assertEqual((snapshot / "first.txt").read_text(), "first\n")
+                    self.assertEqual((snapshot / ".env").read_text(), "")
+
+                with (
+                    patch.object(self.checks, "affected_suites", return_value=affected),
+                    patch.object(self.checks, "run_security", side_effect=scan),
+                    patch.object(
+                        self.checks,
+                        "run_quick_docs",
+                        side_effect=lambda snapshot: order.append("documents"),
+                    ),
+                    patch.object(
+                        self.checks,
+                        "run_suites",
+                        side_effect=lambda snapshot, suites: order.append("suites"),
+                    ) as suites,
+                ):
+                    self.checks.pre_push(
+                        self.root,
+                        io.StringIO(
+                            f"refs/heads/x {self.base} refs/heads/x {'0' * 40}\n"
+                        ),
+                    )
+                self.assertEqual(
+                    order, ["security", "documents"] + (["suites"] if affected else [])
+                )
+                self.assertFalse(snapshots[0].exists())
+                if affected:
+                    suites.assert_called_once_with(snapshots[0], affected)
+                else:
+                    suites.assert_not_called()
+        self.assertEqual((self.root / "first.txt").read_text(), "unfinished\n")
+        self.assertEqual(
+            (self.root / ".env").read_text(), "FAKE_PRIVATE_SETTING=fixture\n"
+        )
+
+    def test_security_failure_blocks_documents_and_suites_and_cleans_snapshot(self):
+        for affected in (set(), {"frontend"}, {"backend"}, {"frontend", "backend"}):
+            with (
+                self.subTest(affected=affected),
+                patch.object(self.checks, "affected_suites", return_value=affected),
+                patch.object(
+                    self.checks,
+                    "run_security",
+                    side_effect=self.checks.CheckError("security scan failed"),
+                ),
+                patch.object(self.checks, "run_quick_docs") as docs,
+                patch.object(self.checks, "run_suites") as suites,
+            ):
+                with self.assertRaisesRegex(
+                    self.checks.CheckError, "security scan failed"
+                ):
+                    self.checks.pre_push(
+                        self.root,
+                        io.StringIO(
+                            f"refs/heads/x {self.base} refs/heads/x {'0' * 40}\n"
+                        ),
+                    )
+                docs.assert_not_called()
+                suites.assert_not_called()
+                self.assertEqual(
+                    self.git("worktree", "list", "--porcelain").count("worktree "), 1
+                )
+
+    def test_security_command_uses_github_scanner_without_inherited_credentials(self):
+        with (
+            patch.object(self.checks, "run") as run,
+            patch.dict(
+                "os.environ",
+                {
+                    "PATH": "/bin",
+                    "OPENAI_API_KEY": "fixture-key",
+                    "GITHUB_TOKEN": "fixture-token",
+                    "NPM_TOKEN": "fixture-token",
+                    "UV_INDEX_URL": "https://example.invalid/private",
+                    "GIT_DIR": "/elsewhere",
+                    "DATABASE_URL": "postgresql://example.invalid/production",
+                },
+                clear=True,
+            ),
+        ):
+            self.checks.run_security(self.root)
+        run.assert_called_once_with(
+            ["python3", "scripts/check_technology_health.py", "--security-only"],
+            self.root,
+            env={
+                "PATH": "/bin",
+                "CI": "true",
+                "ALETHICAL_DATABASE_TARGET": "local",
+                "ALETHICAL_LOG_DIR": str(self.root / "logs"),
+            },
+        )
+
+    def test_security_command_failure_propagates_and_reports_elapsed_time(self):
+        with (
+            patch.object(
+                self.checks, "run", side_effect=self.checks.CheckError("scan failed")
+            ),
+            patch.object(self.checks.time, "monotonic", side_effect=[10.0, 13.25]),
+            patch("sys.stdout", new_callable=io.StringIO) as output,
+        ):
+            with self.assertRaisesRegex(self.checks.CheckError, "scan failed"):
+                self.checks.run_security(self.root)
+        self.assertIn("Local security scan finished in 3.2s.", output.getvalue())
+
+    def test_suite_reuses_security_install_and_preserves_compatibility_checks(self):
+        with patch.object(self.checks, "run") as run:
+            self.checks.run_suites(self.root, {"frontend", "backend"})
+        commands = [call.args[0] for call in run.call_args_list]
+        self.assertFalse(
+            any(command[:2] == ["pnpm", "install"] for command in commands)
+        )
+        self.assertIn(["uv", "sync", "--frozen"], commands)
+        self.assertIn(
+            ["pnpm", "--dir", "apps/frontend", "run", "check:build-tool-security"],
+            commands,
+        )
+        self.assertIn(["just", "test-frontend"], commands)
+        self.assertIn(["uv", "run", "--frozen", "pytest"], commands)
 
     def test_quick_document_commands_are_shared(self):
         with patch.object(self.checks, "run") as run:

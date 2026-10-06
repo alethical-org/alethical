@@ -248,6 +248,110 @@ def test_braces_finding_requires_the_exact_installed_repair() -> None:
     ) == ["other (low)"]
 
 
+def source_map_advisory() -> dict:
+    return {
+        "github_advisory_id": check_technology_health.SOURCE_MAP_ADVISORY,
+        "module_name": "source-map-js",
+        "severity": "high",
+        "vulnerable_versions": ">=1.0.0 <1.2.2",
+        "patched_versions": ">=1.2.2",
+        "findings": [
+            {
+                "version": "1.2.1",
+                "paths": [check_technology_health.SOURCE_MAP_TEST_PATH],
+            }
+        ],
+    }
+
+
+def test_source_map_backport_requires_exact_repair_without_calendar_bypass() -> None:
+    report = javascript_report({"source-map": source_map_advisory()})
+    assert check_technology_health.javascript_audit_problems(
+        report, today=date(2026, 10, 6)
+    ) == ["GHSA-68fv-2mgg-jv7q (high)"]
+    assert (
+        check_technology_health.javascript_audit_problems(
+            report, today=date(2026, 10, 6), source_map_repaired=True
+        )
+        == []
+    )
+    assert (
+        check_technology_health.javascript_audit_problems(
+            report, today=date(2026, 10, 9), source_map_repaired=True
+        )
+        == []
+    )
+    report["advisories"]["other"] = {"severity": "low"}
+    assert check_technology_health.javascript_audit_problems(
+        report, today=date(2026, 10, 6), source_map_repaired=True
+    ) == ["other (low)"]
+
+
+@pytest.mark.parametrize(
+    "change",
+    ["id", "module", "version", "path", "fixed", "range", "severity", "findings"],
+)
+def test_source_map_backport_cannot_accept_changed_findings(change: str) -> None:
+    advisory = source_map_advisory()
+    if change == "id":
+        advisory["github_advisory_id"] = "GHSA-other"
+    elif change == "module":
+        advisory["module_name"] = "other"
+    elif change == "version":
+        advisory["findings"][0]["version"] = "1.2.0"
+    elif change == "path":
+        advisory["findings"][0]["paths"].append("apps__frontend>source-map-js")
+    elif change == "fixed":
+        advisory["patched_versions"] = ">=1.2.3"
+    elif change == "range":
+        advisory["vulnerable_versions"] = "<1.2.3"
+    elif change == "severity":
+        advisory["severity"] = "critical"
+    else:
+        advisory["findings"].append({"version": "1.2.1", "paths": ["other"]})
+    assert check_technology_health.javascript_audit_problems(
+        javascript_report({"source-map": advisory}),
+        today=date(2026, 10, 6),
+        source_map_repaired=True,
+    )
+
+
+@pytest.mark.parametrize("failure", ["install", "repair", "timeout"])
+def test_source_map_backport_install_or_proof_failure_blocks_release(
+    monkeypatch, failure
+) -> None:
+    def run(command, root):
+        if command == ["pnpm", "audit", "--json"]:
+            return subprocess.CompletedProcess(
+                command,
+                1,
+                json.dumps(javascript_report({"source-map": source_map_advisory()})),
+                "",
+            )
+        if command[0] == "uvx":
+            requirements = Path(command[command.index("--requirement") + 1]).read_text()
+            report = {
+                "dependencies": [
+                    {"name": name, "version": version, "vulns": []}
+                    for name, version in (
+                        line.split("==") for line in requirements.splitlines()
+                    )
+                ]
+            }
+            return subprocess.CompletedProcess(command, 0, json.dumps(report), "")
+        status = 0
+        if failure == "install" and command[:2] == ["pnpm", "install"]:
+            status = 1
+        if command == ["node", "apps/frontend/scripts/check-source-map-security.mjs"]:
+            status = 2 if failure == "timeout" else int(failure == "repair")
+        return subprocess.CompletedProcess(command, status, "", "")
+
+    monkeypatch.setattr(check_technology_health, "_run", run)
+    problems = check_technology_health.run_security_audits(ROOT)
+    assert "GHSA-68fv-2mgg-jv7q (high)" in problems
+    assert any("repair" in problem for problem in problems)
+
+
 @pytest.mark.parametrize(
     "change", ["id", "module", "version", "path", "fixed", "range", "severity"]
 )
