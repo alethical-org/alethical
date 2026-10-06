@@ -2351,6 +2351,35 @@ def test_the_callers_last_word_before_publish_can_refuse_and_nothing_goes_live(
     assert cf.live_release(db).id == published.release_id
 
 
+@pytest.mark.parametrize("delta", [Decimal("0.01"), Decimal("-0.01")])
+def test_changed_itemized_amount_cannot_reuse_a_previous_reconcile_waiver(
+    db, board, store, delta
+) -> None:
+    """A ruling covers both figures, even when only our payment sum moves a cent."""
+    seed_filings_snapshot(db, reported={("19200", 2025): "1500.00"})
+    published = publish_first(
+        db, board, store, waive=["contributions/reported_totals_reconcile:19200/2025"]
+    )
+    previous = contributions_checks(published)["reported_totals_reconcile"]
+    old_pair = previous.figures["19200:2025"]
+    rows = list(CONTRIBUTION_ROWS)
+    rows[0] = rows[0].replace("250.0000", f"{Decimal('250.0000') + delta:.4f}")
+    board.set_rows(Dataset.contributions, rows)
+
+    changed = run(db, board, store)
+
+    check = contributions_checks(changed)["reported_totals_reconcile"]
+    new_pair = check.figures["19200:2025"]
+    assert check.status == "failed", check.detail
+    assert check.blocks_publication
+    assert not changed.published
+    assert cf.live_release(db).id == published.release_id
+    assert new_pair["reported"] == old_pair["reported"] == "1500.00"
+    assert Decimal(new_pair["ours"]) == Decimal(old_pair["ours"]) + delta
+    assert f"then {old_pair['ours']} against 1500.00" in check.detail
+    assert f"now {new_pair['ours']} against 1500.00" in check.detail
+
+
 def test_a_reconcile_committee_year_waived_on_the_published_release_is_carried_not_failed(
     db, board, store
 ) -> None:

@@ -1,0 +1,10 @@
+diff --git a/Form.tsx b/Form.tsx
+index 05fba88..d9a9ff1 100644
+--- a/Form.tsx
++++ b/Form.tsx
+@@ -1,3 +1,3 @@
+-export function AddressForm(props: {onSubmit: () => void}) {
+- return <button onClick={props.onSubmit}>Search</button>;
++export function AddressForm(props: {onSearch: () => void}) {
++ return <button onClick={props.onSearch}>Search</button>;
+ }

@@ -1,0 +1,6 @@
+Found 1 changed files
+  Form.tsx: 1 changed functions
+Total: 1 changed functions
+  AddressForm: 0 callers, 0 callees
+Context: ~2,116 tokens (1 functions, 0 callers, 0 callees) | Estimated cost: $0.006 (claude-sonnet-4-20250514)
+Verdict: PASS

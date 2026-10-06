@@ -1,0 +1,225 @@
+{
+  "excerpts": "Excerpt objects preserve values from captured output; search lines remove only the historical snapshot root prefix; boundary outputs replace only config_path with a portable location",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "aa1510e4b011ea6ca14c37a01431815b3300268c47f2c553cae01d2c0a93ad89",
+      "bytes": 3335
+    },
+    {
+      "path": "evaluation.json",
+      "sha256": "3baee91e0f6d8617215059a435428d128ed70b68d2036380e3529b7e0f413b9d",
+      "bytes": 5017
+    },
+    {
+      "path": "fixtures/boundary-alethical/alembic/version.py",
+      "sha256": "5d20f46c488776541f219045c91d4316171d09e033690a76aee371dbfc0d7d18",
+      "bytes": 42
+    },
+    {
+      "path": "fixtures/boundary-alethical/api/readiness.py",
+      "sha256": "54abd25f9899e857df82fe8ee6664fedafb8b6e2d6429995c54b1d1996c75b67",
+      "bytes": 67
+    },
+    {
+      "path": "fixtures/boundary-python/api/route.py",
+      "sha256": "f6c619df1c9018f9e40e8f993b2e89c83ce9d16969bfe62778413c66e5d198c9",
+      "bytes": 71
+    },
+    {
+      "path": "fixtures/boundary-python/core/value.py",
+      "sha256": "ea9db0579d73c39296a93c75e78f700fb36fc90823cc2d691e5d94c4feef3481",
+      "bytes": 31
+    },
+    {
+      "path": "fixtures/boundary-python/governance.toml",
+      "sha256": "9708079e890139f0f5bbf4f10ffac30dc77955952ee22d3e97509a30a0f68395",
+      "bytes": 209
+    },
+    {
+      "path": "fixtures/boundary-typescript/api/route.tsx",
+      "sha256": "7441246c6defb0ef38772e8d6d60b246b52d59fdeec62142eb37f856a234a099",
+      "bytes": 104
+    },
+    {
+      "path": "fixtures/boundary-typescript/core/value.tsx",
+      "sha256": "fd5c08715f2a995e77c309162089745a97080df00448f96776da78c41c53b3c5",
+      "bytes": 42
+    },
+    {
+      "path": "fixtures/boundary-typescript/governance.toml",
+      "sha256": "6270f09eb41bac24faa748dd44b89a42007d8602e2b13ca408f1bb28f26acb8f",
+      "bytes": 213
+    },
+    {
+      "path": "fixtures/negative-comment/Form.tsx",
+      "sha256": "2c74b40b55b9a8b33059248d66606f99dee3fb2c1731e5b6498be80925c5db9f",
+      "bytes": 94
+    },
+    {
+      "path": "fixtures/negative-comment/Search.tsx",
+      "sha256": "51d33081d28843e952745c08ea6eb4cbc7457145c0d17d6346019cd666a1ac56",
+      "bytes": 90
+    },
+    {
+      "path": "fixtures/negative-comment.patch",
+      "sha256": "f20d3afea74c87a03eff878127888fb81a641b6d6274777fa333970365cdef56",
+      "bytes": 227
+    },
+    {
+      "path": "fixtures/python-alias/consumer.py",
+      "sha256": "49ec3b1b7e0ac9de5d254d742f3d0de28511f05a3344f9d4309e90ee53a2d498",
+      "bytes": 84
+    },
+    {
+      "path": "fixtures/python-alias/core.py",
+      "sha256": "fb26ad99945842f074856bb944a6c7e1620667c57f5b2c2e41372402e55d6ed8",
+      "bytes": 39
+    },
+    {
+      "path": "fixtures/python-alias/unrelated.py",
+      "sha256": "75d596038f5667b3e4a73e1498de59f86c628b144708429280c97b94b53ba93a",
+      "bytes": 112
+    },
+    {
+      "path": "fixtures/python-alias.patch",
+      "sha256": "66bf1e35f116a54fed67d78c72b741acbee3719d2e870f8ab4e7e20f09ae30fd",
+      "bytes": 171
+    },
+    {
+      "path": "fixtures/tsx-jsx/Form.tsx",
+      "sha256": "fd93aa2ef5a0f723cc71417923bc24672f15b8a1d43c222246946598e5456e41",
+      "bytes": 121
+    },
+    {
+      "path": "fixtures/tsx-jsx/Search.tsx",
+      "sha256": "7be5d625babb01850f5b610a0d24bd5ac4f6f0d70526740182d88baf5bab4784",
+      "bytes": 129
+    },
+    {
+      "path": "fixtures/tsx-jsx.patch",
+      "sha256": "840ad3ae9ffc6822260d9f2aef724ce2f36f82522bc810040e1b57f91d4b4f30",
+      "bytes": 354
+    },
+    {
+      "path": "outputs/blast-2368.excerpt.json",
+      "sha256": "e0fba3f9f888e3ae1677262af9e1a22d32ead6bf72c06d4464a60dac5a56f176",
+      "bytes": 22662
+    },
+    {
+      "path": "outputs/blast-2368.stderr",
+      "sha256": "c3aff3b6b7554122005f0bf80e103d08c7424bee47e962eb6263920b6a1917a6",
+      "bytes": 726
+    },
+    {
+      "path": "outputs/blast-2477.excerpt.json",
+      "sha256": "83859fe518e54fc3b997588b25c4a8a17d135bcbd0f4090495483fa648bb7ee9",
+      "bytes": 11359
+    },
+    {
+      "path": "outputs/blast-2477.stderr",
+      "sha256": "5d538c442217fdace5c9440c3aea87c7ff33f372ee5bf5f18d64b9c16f771ea8",
+      "bytes": 1004
+    },
+    {
+      "path": "outputs/blast-negative-comment.json",
+      "sha256": "2e41b720cde0bb83b3b9114aa2ef866d06c64fff85777868b1689391937ebb6d",
+      "bytes": 259
+    },
+    {
+      "path": "outputs/blast-negative-comment.stderr",
+      "sha256": "7d59922227c6d8740a85de3bc0c86db4fed1eeea76fa8bd39b74ecbfc4362c79",
+      "bytes": 242
+    },
+    {
+      "path": "outputs/blast-python-alias.json",
+      "sha256": "fc1b0ec7db46ceb668315c775bbb173ef550adc3fc8bb50797a1f25db4e36c03",
+      "bytes": 493
+    },
+    {
+      "path": "outputs/blast-python-alias.stderr",
+      "sha256": "25f92f17cbf772cac6a8b750bf7ec1e79aaac00c3d7a42da6a222b100b503cbb",
+      "bytes": 236
+    },
+    {
+      "path": "outputs/blast-tsx-jsx.json",
+      "sha256": "6b274136a23f8b1c7e9e3b7400b9b30d9ba8861cf8d7f46c99bcceb81e0b9f7f",
+      "bytes": 259
+    },
+    {
+      "path": "outputs/blast-tsx-jsx.stderr",
+      "sha256": "6ff31ff902068eca0ef8d182d1bb40d4d46e98b8ef5d594827e1f64f0eceba9e",
+      "bytes": 242
+    },
+    {
+      "path": "outputs/boundary-negative-python.json",
+      "sha256": "6821f82c854d80f49ea496c8b82e88634524d1dc6e9579c7d84784fb93bbea4b",
+      "bytes": 605
+    },
+    {
+      "path": "outputs/boundary-negative-typescript.json",
+      "sha256": "afcf8093663d2df14dba4654c8bfabea847b47f94cd3ab4498207ea7dc538f76",
+      "bytes": 613
+    },
+    {
+      "path": "outputs/boundary-python.json",
+      "sha256": "35f200e852aebcd96ce52152ea44a33e5b7fe4fbc6f438591f34ae7579a849a4",
+      "bytes": 1104
+    },
+    {
+      "path": "outputs/boundary-typescript.json",
+      "sha256": "8f5199a9c5d74558e4d155b6524c9282894acd77232e9be15c06bc1892e25d3f",
+      "bytes": 1121
+    },
+    {
+      "path": "outputs/external-name-collision.json",
+      "sha256": "e03e321a3b99b1cb65e87e03e2cb2ebb602d5e8d8b6907d57cef4a0291f84492",
+      "bytes": 1313
+    },
+    {
+      "path": "outputs/governance-2368.json",
+      "sha256": "58cb68d6329366ddd1c1f0ceba458513fa47958992a467a067521490e2ad2685",
+      "bytes": 1199
+    },
+    {
+      "path": "outputs/governance-2477.json",
+      "sha256": "721e8545111768e4600425acd1ab77f35e3870cc1924710e26062e37d8528289",
+      "bytes": 885
+    },
+    {
+      "path": "outputs/graph-2477.excerpt.json",
+      "sha256": "1937b098e08696ee36fd81cd83a32ac7240b37dea61a7a702271cf254c8ffdff",
+      "bytes": 734
+    },
+    {
+      "path": "outputs/rg-symbols-2368.txt",
+      "sha256": "252905a88353a13024b631d2856af2778d41f6abc33800362beeb8b003af3d9b",
+      "bytes": 5562
+    },
+    {
+      "path": "outputs/rg-symbols-2477.txt",
+      "sha256": "e5913d0caa8f79397abd0fc7a2bb5e2503b5b724a81fd60f52ec6a8a56f9df5a",
+      "bytes": 7605
+    },
+    {
+      "path": "pins.json",
+      "sha256": "2dc5978eaa4c4e56e518e4f5d74950f7c02008846ecffdd1f2122dd675de9687",
+      "bytes": 410
+    },
+    {
+      "path": "reproduce.py",
+      "sha256": "67527bbf39f01589c312a8386fa79445b58ac56c3950651200f3727b648feaf1",
+      "bytes": 4263
+    },
+    {
+      "path": "requirements.txt",
+      "sha256": "a8e9006a03a2dca9c9659bfc67c991cc358d57d68dd5b4fa157ef6f1eeefbf89",
+      "bytes": 700
+    },
+    {
+      "path": "timings.json",
+      "sha256": "82cbb6e76ae206959f747671a7a9b7618b3f8f82926d53e3faeaa2d12b21e7f8",
+      "bytes": 1949
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+Found 1 changed files
+  core.py: 1 changed functions
+Total: 1 changed functions
+  amount: 1 callers, 0 callees
+Context: ~2,064 tokens (1 functions, 1 callers, 0 callees) | Estimated cost: $0.006 (claude-sonnet-4-20250514)
+Verdict: PASS

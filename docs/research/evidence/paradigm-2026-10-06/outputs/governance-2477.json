@@ -1,0 +1,21 @@
+{
+  "source_sha256": "18cee9b593b074e0ef9602d458ed7d87b60eeed7d8704cc09bf572e0ec39a4da",
+  "config_path": "(auto-scan)",
+  "language": "typescript",
+  "module_count": 9,
+  "total_files_scanned": 407,
+  "violation_summaries": [
+    {
+      "rule": "no_cycles",
+      "module": "components",
+      "detail": "Circular dependency among 9 modules {components, data, dev, hooks, lib, navigation, providers, screens, theme}: components -> data -> components",
+      "severity": "error"
+    },
+    {
+      "rule": "no_file_cycles",
+      "module": "components/auth/SignInDialog.tsx",
+      "detail": "Circular file dependency: components/auth/SignInDialog.tsx -> theme/primitives.tsx -> components/auth/accountControls.tsx -> lib/auth/loadSignInBundle.ts -> lib/auth/signInBundle.ts -> providers/SignInMachinery.tsx -> components/auth/SignInDialog.tsx",
+      "severity": "error"
+    }
+  ]
+}

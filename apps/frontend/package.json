@@ -25,7 +25,8 @@
     "build:ios:simulator": "node ./scripts/with-root-env.mjs eas build --platform ios --profile simulator",
     "build:ios:preview": "node ./scripts/with-root-env.mjs eas build --platform ios --profile preview",
     "build:ios:testflight": "node ./scripts/with-root-env.mjs eas build --platform ios --profile production",
-    "submit:ios:testflight": "node ./scripts/with-root-env.mjs eas submit --platform ios --profile production --latest"
+    "submit:ios:testflight": "node ./scripts/with-root-env.mjs eas submit --platform ios --profile production --latest",
+    "check:address-recovery:local": "node ./scripts/check-address-recovery-local.mjs"
   },
   "dependencies": {
     "@expo/dom-webview": "57.0.1",

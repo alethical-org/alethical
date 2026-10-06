@@ -1,0 +1,27 @@
+{
+  "config_path": "fixtures/boundary-python/governance.toml",
+  "language": "python",
+  "module_count": 2,
+  "total_files_scanned": 2,
+  "violations": [],
+  "metrics": [
+    {
+      "name": "api",
+      "total_symbols": 1,
+      "externally_used_symbols": 0,
+      "internal_edges": 0,
+      "external_edges": 0,
+      "public_surface_ratio": 0.0,
+      "cohesion_ratio": null
+    },
+    {
+      "name": "core",
+      "total_symbols": 1,
+      "externally_used_symbols": 0,
+      "internal_edges": 0,
+      "external_edges": 0,
+      "public_surface_ratio": 0.0,
+      "cohesion_ratio": null
+    }
+  ]
+}

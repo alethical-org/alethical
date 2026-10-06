@@ -1,0 +1,182 @@
+{
+  "date": "2026-10-06",
+  "scope": "local deterministic context and import analysis only",
+  "ai_calls": 0,
+  "vendor_authentication": false,
+  "outside_spend": 0,
+  "machine_seconds_not_engineer_seconds": true,
+  "historical_cases_are_retrospective_not_predictive": true,
+  "pins": {
+    "blast-radius-cr": {
+      "revision": "30beabe3397151546c4482912b76934d594b1f83 2026-03-31T17:11:58+02:00",
+      "commit_count": 26,
+      "tags": []
+    },
+    "code-governance": {
+      "revision": "6e80099938d69815a10ce8deb11eb8cbfbd97094 2026-08-12T12:25:36+02:00",
+      "commit_count": 74,
+      "tags": [
+        "v0.4.0",
+        "v0.5.0"
+      ]
+    },
+    "skill_a_thon": {
+      "revision": "93bae98699af33a2358481687491466cee54a8b6 2026-03-19T20:06:51+01:00",
+      "commit_count": 8,
+      "tags": []
+    }
+  },
+  "cases": [
+    {
+      "name": "2477",
+      "revision": "63c7a1dfd0729f65d6871eeb70b789cbcd9e879a",
+      "patch": "generate from the recorded historical parent and revision",
+      "changed_functions": 6,
+      "caller_entries": 1,
+      "callee_entries": 15,
+      "truncated_returned_bodies": 1,
+      "rg_match_lines": 70,
+      "rg_match_files": 13
+    },
+    {
+      "name": "2368",
+      "revision": "2aa30d3fb06377361dd10decf9d3397e8c93a8aa",
+      "patch": "generate from the recorded historical parent and revision",
+      "changed_functions": 6,
+      "caller_entries": 18,
+      "callee_entries": 20,
+      "truncated_returned_bodies": 13,
+      "rg_match_lines": 53,
+      "rg_match_files": 11
+    },
+    {
+      "name": "python-alias",
+      "revision": "isolated fixture; inputs retained",
+      "patch": "fixtures/python-alias.patch",
+      "changed_functions": 1,
+      "caller_entries": 1,
+      "callee_entries": 0,
+      "truncated_returned_bodies": 0,
+      "rg_match_lines": 4,
+      "rg_match_files": 3
+    },
+    {
+      "name": "tsx-jsx",
+      "revision": "isolated fixture; inputs retained",
+      "patch": "fixtures/tsx-jsx.patch",
+      "changed_functions": 1,
+      "caller_entries": 0,
+      "callee_entries": 0,
+      "truncated_returned_bodies": 0,
+      "rg_match_lines": 3,
+      "rg_match_files": 2
+    },
+    {
+      "name": "negative-comment",
+      "revision": "isolated fixture; inputs retained",
+      "patch": "fixtures/negative-comment.patch",
+      "changed_functions": 1,
+      "caller_entries": 0,
+      "callee_entries": 0,
+      "truncated_returned_bodies": 0,
+      "rg_match_lines": 3,
+      "rg_match_files": 2
+    }
+  ],
+  "ground_truth_not_sent_to_tools": true,
+  "conclusions": {
+    "blast_radius_gate_recommended": false,
+    "governance_use": "optional import evidence; fix external package identity before enforcing gates",
+    "outside_judgment": "unobservable without returned service sample",
+    "substantial_engineer_time_savings": "not measured or established"
+  },
+  "boundary_controls": [
+    {
+      "name": "boundary-python",
+      "files": 2,
+      "violations": [
+        {
+          "rule": "enforce_cannot_depend_on",
+          "detail": "Forbidden dependency: 'api' imports 'core' (cannot_depend_on: ['core'])"
+        }
+      ]
+    },
+    {
+      "name": "boundary-negative-python",
+      "files": 2,
+      "violations": []
+    },
+    {
+      "name": "boundary-typescript",
+      "files": 2,
+      "violations": [
+        {
+          "rule": "enforce_cannot_depend_on",
+          "detail": "Forbidden dependency: 'api' imports 'core' (cannot_depend_on: ['core'])"
+        }
+      ]
+    },
+    {
+      "name": "boundary-negative-typescript",
+      "files": 2,
+      "violations": []
+    },
+    {
+      "name": "external-name-collision",
+      "files": 2,
+      "violations": [
+        {
+          "rule": "no_cycles",
+          "detail": "Circular dependency: alembic -> api -> alembic"
+        }
+      ]
+    }
+  ],
+  "expected_relationships": {
+    "python-alias": {
+      "callers": [
+        "consumer.py:report"
+      ],
+      "non_callers": [
+        "unrelated.py:other_report"
+      ],
+      "observed_missed": [
+        "consumer.py:report"
+      ],
+      "observed_false": [
+        "unrelated.py:other_report"
+      ]
+    },
+    "tsx-jsx": {
+      "callers": [
+        "Search.tsx:Search"
+      ],
+      "observed_missed": [
+        "Search.tsx:Search"
+      ]
+    },
+    "negative-comment": {
+      "changed_functions": [],
+      "observed_false_changed_functions": [
+        "Form.tsx:AddressForm"
+      ]
+    },
+    "2477": {
+      "confirmed_omitted": [
+        "CandidateSearchContent.tsx -> CandidateAddressForm JSX",
+        "CandidateAddressForm.tsx -> CandidateButton JSX"
+      ],
+      "confirmed_false": [
+        "useResponsive resolved to test double",
+        "editAddress caller from a separate local function in FindMyLegislatorScreen"
+      ]
+    },
+    "2368": {
+      "useful": "_checks_against_the_board -> _carried_reconcile_filer_years",
+      "confirmed_identity_noise": [
+        "as_json report functions",
+        "get/items/append/run/commit unrelated definitions"
+      ]
+    }
+  }
+}

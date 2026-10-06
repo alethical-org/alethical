@@ -1,0 +1,53 @@
+alethical/pipeline/campaign_finance_filings.py:1204:    def blocks_publication(self) -> bool:
+alethical/pipeline/campaign_finance_filings.py:1207:    def as_json(self) -> dict[str, str]:
+alethical/pipeline/campaign_finance_filings.py:1360:        return [check for check in self.checks if check.blocks_publication]
+alethical/pipeline/campaign_finance_filings.py:2905:    failed = [check for check in rechecked if check.blocks_publication]
+alethical/pipeline/campaign_finance_filings.py:3058:    snapshot.validation_json = {"checks": [check.as_json() for check in run.checks]}
+alethical/pipeline/campaign_finance_filings.py:3453:    snapshot.validation_json = {"checks": [check.as_json() for check in run.checks]}
+alethical/pipeline/lobbying_registrations.py:322:        validation_json={"checks": [c.as_json() for c in checks]},
+alethical/pipeline/lobbying_registrations.py:362:    if any(c.blocks_publication for c in checks):
+alethical/pipeline/lobbying_registrations.py:383:    active_snapshot.validation_json = {"checks": [c.as_json() for c in checks]}
+alethical/pipeline/lobbying_registrations.py:474:            if any(c.blocks_publication for c in report.checks):
+alethical/pipeline/lobbying_registrations.py:497:            if any(c.blocks_publication for c in report.checks):
+alethical/pipeline/campaign_finance.py:415:    def blocks_publication(self) -> bool:
+alethical/pipeline/campaign_finance.py:418:    def as_json(self) -> dict:
+alethical/pipeline/campaign_finance.py:614:        return [check for check in self.checks if check.blocks_publication]
+alethical/pipeline/campaign_finance.py:1432:        _checks_against_the_board(
+alethical/pipeline/campaign_finance.py:1569:def _checks_against_the_board(
+alethical/pipeline/campaign_finance.py:1603:    reconcile = _reported_totals_reconcile(spec, measured, filings)
+alethical/pipeline/campaign_finance.py:1610:        carried = _carried_reconcile_filer_years(baseline)
+alethical/pipeline/campaign_finance.py:1699:def _carried_reconcile_filer_years(
+alethical/pipeline/campaign_finance.py:1717:def _reported_totals_reconcile(
+alethical/pipeline/campaign_finance.py:2566:        failed = [check for check in rechecked if check.blocks_publication]
+alethical/pipeline/campaign_finance.py:2626:            "checks": [check.as_json() for check in outcome.checks]
+alethical/pipeline/campaign_finance.py:2735:    snapshot.validation_json = {"checks": [check.as_json() for check in outcome.checks]}
+alethical/pipeline/lobbying_expenditures.py:178:    def blocks_publication(self) -> bool:
+alethical/pipeline/lobbying_expenditures.py:181:    def as_json(self) -> dict:
+alethical/pipeline/lobbying_expenditures.py:235:        return [check for check in self.checks if check.blocks_publication]
+alethical/pipeline/lobbying_expenditures.py:1083:    failed = [check for check in rechecked if check.blocks_publication]
+alethical/pipeline/lobbying_expenditures.py:1141:    snapshot.validation_json = {"checks": [check.as_json() for check in outcome.checks]}
+alethical/pipeline/lobbying_expenditures.py:1223:    snapshot.validation_json = {"checks": [check.as_json() for check in outcome.checks]}
+alethical/tests/test_lobbying_registrations.py:103:    ).blocks_publication
+alethical/tests/test_lobbying_registrations.py:111:        c.blocks_publication
+alethical/tests/test_lobbying_registrations.py:116:        c.blocks_publication
+alethical/tests/test_lobbying_registrations.py:337:    ).blocks_publication
+alethical/tests/test_campaign_finance_stated_split.py:1455:    assert check.blocks_publication is False
+alethical/tests/test_campaign_finance_stated_split.py:1548:    assert check.blocks_publication is False
+alethical/tests/test_campaign_finance_stated_split.py:1584:    assert check.blocks_publication is False
+alethical/tests/test_report_origin_share_by_address.py:396:        report.as_json(
+alethical/tests/test_campaign_finance_load.py:1344:            assert not recorded[name].blocks_publication
+alethical/tests/test_campaign_finance_load.py:1384:    assert check.as_json()["filer_years"] == ["19200:2025"]
+alethical/tests/test_campaign_finance_load.py:2326:def test_a_reconcile_committee_year_waived_on_the_published_release_is_carried_not_failed(
+alethical/tests/test_campaign_finance_load.py:2352:    assert not check.blocks_publication
+alethical/tests/test_report_page_speed_by_address.py:312:    payload = json.loads(report.as_json(values, date(2026, 8, 8), date(2026, 9, 6)))
+alethical/tests/test_report_page_speed_by_address.py:348:            report.as_json(
+alethical/tests/test_report_page_speed_by_address.py:375:        report.as_json(
+alethical/tests/test_report_page_speed_by_address.py:619:            report.as_json(
+alethical/tests/test_report_page_speed_by_address.py:722:        report.as_json([entry(result)], date(2026, 8, 8), date(2026, 9, 6))
+alethical/tests/test_report_page_speed_by_address.py:737:        report.as_json([entry(result)], date(2026, 8, 8), date(2026, 9, 6))
+alethical/tests/test_report_page_speed_by_address.py:817:    payload = json.loads(report.as_json(readings, date(2026, 9, 15), date(2026, 9, 21)))
+alethical/tests/test_report_page_speed_by_address.py:836:    payload = json.loads(report.as_json(readings, date(2026, 8, 23), date(2026, 9, 21)))
+scripts/report_page_speed_by_address.py:717:def as_json(
+scripts/report_page_speed_by_address.py:959:        as_json(readings, started_on, ended_on, args.min_measurements, bound, clicks)
+scripts/report_origin_share_by_address.py:465:def as_json(
+scripts/report_origin_share_by_address.py:578:        as_json(
