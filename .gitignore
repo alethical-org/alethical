@@ -53,3 +53,9 @@ htmlcov/
 *.log
 *.tmp
 .vercel
+
+# Safe completion evidence is retained by GitHub or private task storage
+/website-recovery.json
+/reader-completion.json
+/reader-completion-results.json
+/apps/frontend/reader-completion-results.json

@@ -107,6 +107,10 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [Preventing repeated failures](operations/repeat-failure-review.md): history collection, examined causes, retained checks and the manual isolated browser command
 - [Repeat-failure review and Paradigm comparison, 6 October 2026](research/repeat-failure-review-2026-10-06.md): the limited history sample, demonstrated prevention gaps and public-tool comparison
 - [Portable Paradigm comparison evidence](research/evidence/paradigm-2026-10-06/README.md): pinned inputs, recorded local outputs and instructions for repeating the experiment
+- [Reader completion checks](operations/reader-completion-checks.md) — built public reader paths before release and live browser evidence after release
+- [Bounded website release recovery](operations/website-release-recovery.md) — 1 guarded repair per commit, production holds, saved evidence and recovery limits
+- [Agent job outcomes](operations/agent-job-outcomes.md) — private records of completed and unfinished jobs, time, human help, repeats and unknown spending
+
 - [Editorial comments delivery plan](operations/editorial-comments-build-plan.md) — implementation, test system, permissions, email activation and release checks
 - [Comments layout and article source dates](operations/comments-layout-dates-build.md) — approved discussion order, button typography, source-date placement and release checks
 - [Branching, drawn](operations/git-branching-guide.html) — visual companion to `CONTRIBUTING.md` "Branch & PR workflow", for onboarding: 2 commit graphs, one measuring this repo's real branch shape and one showing the dev/staging/production reference flow, plus the habits and commands behind each

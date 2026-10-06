@@ -1,7 +1,8 @@
 import { defineConfig } from '@playwright/test';
 
 // On-demand end-to-end checks (see .claude/skills/browser-user-test/SKILL.md).
-// Not wired into CI — that is a pending decision, not an oversight.
+// These full 3-engine stories are on demand. The required frontend CI job
+// runs the focused public reader subset in scripts/reader-completion-checks.mjs.
 // The app is client-rendered, so data-backed text can take a few seconds to
 // appear; the expect timeout is sized for that, not for slow assertions.
 export default defineConfig({
