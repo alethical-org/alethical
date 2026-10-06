@@ -11,7 +11,7 @@ is [repeat-failure-review.md](../operations/repeat-failure-review.md).
 ## History and prevention
 
 The collection covers 9 July through 6 October 2026, inclusive UTC: 1,605 merged
-changes. The first examined sample contains 5 changes; 1,600 remain unreviewed.
+changes, as collected at 13:45 UTC on 6 October. The first examined sample contains 5 changes; 1,600 remain unreviewed.
 Selection follows recent address-search failures and the exact scope of reviewed
 money disagreements, not a random sample. No whole-repository defect rate follows
 from it. The retained inventory keeps the collected metadata except change bodies;

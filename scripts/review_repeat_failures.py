@@ -444,6 +444,7 @@ def report(history, review=None):
         "",
         f"Repository: {one_line(history['repository'])}",
         f"Window: {history['window']['since']} through {history['window']['until']} (UTC)",
+        f"Collected at: {escaped_text(history['collected_at'])}",
         "",
         "Counts cover this inventory and the cases someone reviewed, not all bugs or fixes.",
         "Failure-related change counts do not establish recurrence; that requires "
