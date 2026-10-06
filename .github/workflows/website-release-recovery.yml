@@ -58,6 +58,11 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           pnpm --dir apps/frontend exec playwright install --with-deps chromium
+      - name: Install the pinned release tool without production credentials
+        run: |
+          npm install --prefix "$RUNNER_TEMP/alethical-release-tools" \
+            --ignore-scripts --no-audit --no-fund vercel@54.4.1
+          "$RUNNER_TEMP/alethical-release-tools/node_modules/.bin/vercel" --version
       - name: Read evidence and make at most 1 recovery attempt
         env:
           GH_TOKEN: ${{ github.token }}

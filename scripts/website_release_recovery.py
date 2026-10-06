@@ -286,7 +286,14 @@ def repair(head: str, result: dict, checkpoint=lambda: None):
     succeeded = False
     try:
         token = os.environ["VERCEL_TOKEN"]
-        cli = ["npx", "--yes", "vercel@54.4.1"]
+        # Installation finishes in a separate credential-free workflow step.
+        # Never let the production step invoke an on-demand package installer.
+        cli = [
+            str(
+                Path(os.environ["RUNNER_TEMP"])
+                / "alethical-release-tools/node_modules/.bin/vercel"
+            )
+        ]
         result["phase"] = "building_without_live_domain"
         checkpoint()
         # Build with production settings, but preserve the working domain until

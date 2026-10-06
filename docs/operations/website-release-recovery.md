@@ -95,8 +95,9 @@ The default mode reads the live stamp and current-main test evidence. It does no
 reserve an attempt, build, promote or change production. An eligible dry run is
 not a claim that all provider guards passed; those guards run before execution.
 Execution belongs to the trusted GitHub workflow, which supplies existing saved
-credentials only to the recovery step. Package installation receives none of
-the production deployment credentials.
+credentials only to the recovery step. The pinned Vercel command is installed
+before that step, with package install hooks disabled, and then called directly.
+Package installation receives none of the production deployment credentials.
 
 ## Acceptance and prevention
 

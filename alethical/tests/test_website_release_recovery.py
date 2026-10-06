@@ -321,6 +321,7 @@ def test_full_mutation_sequence_is_bounded_and_preserves_previous(failure, monke
     monkeypatch.setenv("GITHUB_REPOSITORY", recovery.REPOSITORY)
     monkeypatch.setenv("VERCEL_PROJECT_ID", "project")
     monkeypatch.setenv("VERCEL_TOKEN", "FAKE-test-credential")
+    monkeypatch.setenv("RUNNER_TEMP", "/tmp/synthetic-runner")
     calls = []
     snapshots = []
     main_changed = False
@@ -384,6 +385,12 @@ def test_full_mutation_sequence_is_bounded_and_preserves_previous(failure, monke
                 HEAD, result, checkpoint=lambda: snapshots.append(dict(result))
             )
     commands = [item[0] for item in calls if isinstance(item[0], list)]
+    assert all(
+        cmd[0]
+        == "/tmp/synthetic-runner/alethical-release-tools/node_modules/.bin/vercel"
+        for cmd in commands
+        if "deploy" in cmd or "promote" in cmd
+    )
     assert sum("deploy" in cmd for cmd in commands) == 1
     assert sum("promote" in cmd for cmd in commands) == (
         0 if failure in {"main_changed", "production_changed", "build_failed"} else 1
@@ -410,6 +417,9 @@ def test_production_tokens_are_only_on_recovery_step():
     )
     assert "VERCEL_TOKEN:" not in before and "GH_TOKEN:" not in before
     assert "VERCEL_TOKEN:" in recovery_step and "GH_TOKEN:" in recovery_step
+    assert "--ignore-scripts" in before
+    assert "vercel@54.4.1" in before
+    assert "npm install" not in recovery_step and "npx" not in recovery_step
 
 
 @pytest.mark.parametrize(
