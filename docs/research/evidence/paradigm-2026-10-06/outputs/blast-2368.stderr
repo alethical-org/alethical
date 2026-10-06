@@ -1,0 +1,13 @@
+Found 3 changed files
+  alethical/pipeline/campaign_finance.py: 5 changed functions
+  alethical/tests/test_campaign_finance_load.py: 1 changed functions
+  docs/architecture/campaign-finance-system-design.md: 0 changed functions
+Total: 6 changed functions
+  blocks_publication: 0 callers, 0 callees
+  as_json: 15 callers, 0 callees
+  _checks_against_the_board: 1 callers, 5 callees
+  _carried_reconcile_filer_years: 1 callers, 1 callees
+  _reported_totals_reconcile: 1 callers, 3 callees
+  test_a_reconcile_committee_year_waived_on_the_published_release_is_carried_not_failed: 0 callers, 11 callees
+Context: ~26,317 tokens (6 functions, 18 callers, 20 callees) | Estimated cost: $0.079 (claude-sonnet-4-20250514)
+Verdict: PASS

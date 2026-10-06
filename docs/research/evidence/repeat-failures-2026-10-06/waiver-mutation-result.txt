@@ -1,0 +1,4 @@
+Selected command: PYTHONPATH="$PWD/.tmp:$PWD" uv run --frozen pytest -p waiver_mutation alethical/tests/test_campaign_finance_load.py -k "changed_itemized_amount or a_reconcile_committee_year" -q
+Expected deliberate failure: new payment-sum tests reject an official-amount-only comparison.
+Observed: 2 failed, 1 passed, 75 deselected in 6.74s.
+Both failures are at assert check.status == "failed"; mutated status is "reported". The existing selected test passes.

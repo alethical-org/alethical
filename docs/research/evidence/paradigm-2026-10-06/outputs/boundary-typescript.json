@@ -1,0 +1,45 @@
+{
+  "config_path": "fixtures/boundary-typescript/governance.toml",
+  "language": "typescript",
+  "module_count": 2,
+  "total_files_scanned": 2,
+  "violations": [
+    {
+      "rule": "enforce_cannot_depend_on",
+      "module": "api",
+      "detail": "Forbidden dependency: 'api' imports 'core' (cannot_depend_on: ['core'])",
+      "severity": "error",
+      "evidence": [
+        {
+          "source_file": "api/route.tsx",
+          "source_module": "api",
+          "target_module": "core",
+          "imported_name": "readValue",
+          "line": 1,
+          "raw_statement": "import {readValue} from \"../core/value\";"
+        }
+      ],
+      "files": []
+    }
+  ],
+  "metrics": [
+    {
+      "name": "api",
+      "total_symbols": 1,
+      "externally_used_symbols": 0,
+      "internal_edges": 0,
+      "external_edges": 1,
+      "public_surface_ratio": 0.0,
+      "cohesion_ratio": 0.0
+    },
+    {
+      "name": "core",
+      "total_symbols": 1,
+      "externally_used_symbols": 1,
+      "internal_edges": 0,
+      "external_edges": 0,
+      "public_surface_ratio": 1.0,
+      "cohesion_ratio": null
+    }
+  ]
+}

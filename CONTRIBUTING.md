@@ -204,6 +204,13 @@ remains separate: agent-driven user stories and Playwright checks in
 [`browser-user-test` skill](.claude/skills/browser-user-test/SKILL.md).
 Those browser checks run on demand, not in CI, pending the cost and flakiness policy.
 
+For address entry and result replacement, run
+`pnpm --dir apps/frontend run check:address-recovery:local`. It builds a disposable
+release copy, serves it locally and runs Chromium and WebKit with fixture-only data.
+The [repeat-failure procedure](docs/operations/repeat-failure-review.md) covers browser
+installation, remaining device limits and the reviewed cause record. The free CI
+reference check preserves recorded test names; actual test runs establish behavior.
+
 Prefer a fixture of **real** data over invented strings: `src/lib/__tests__/fixtures/` holds real bill sections pulled from the production API, and its `README.md` explains what each one is there to catch and how to add more. Two of the bugs these tests pin were found by measuring against real text and would not have been caught by an example someone made up.
 
 Use `just format-staged` for the next commit, or `just format` for an intentional
@@ -255,6 +262,7 @@ draws this workflow as commit graphs, with the habits and commands behind each s
 
 On every PR (`.github/workflows/ci.yml`):
 
+- **Failure-prevention evidence** (always): history-tool tests, retained source/test references, and native process-cleanup tests run without browser or paid-service calls. Full address-recovery browser journeys remain on demand.
 - **Working-folder safety** (always): `python3 -m unittest discover -s scripts/tests -p 'test_worktree_*.py'` exercises backup, cleanup, recovery, and installation in disposable folders, without production data or network services.
 - **Backend** (when backend paths change): `ruff check`, `ty check`, and `pytest` against a real Postgres
 - **Frontend** (when frontend paths change): `tsc --noEmit`, `prettier --check`, the Vitest suite, and a production build

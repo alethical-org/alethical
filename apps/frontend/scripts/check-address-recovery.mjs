@@ -4,13 +4,15 @@
 // BASE_URL=http://localhost:19058 node scripts/check-address-recovery.mjs
 // Add --skip-recovery for an Expo development server without release chunks.
 import assert from 'node:assert/strict';
-import { chromium, firefox, webkit } from '@playwright/test';
+import { chromium, expect, firefox, webkit } from '@playwright/test';
 
 const base = process.env.BASE_URL;
 if (!base) throw new Error('Set BASE_URL to the preview or deployed site to check');
 const recovery = !process.argv.includes('--skip-recovery');
 const onlyIndex = process.argv.indexOf('--only');
 const only = onlyIndex < 0 ? '' : process.argv[onlyIndex + 1];
+if (onlyIndex >= 0 && (!only?.trim() || only.startsWith('--')))
+  throw new Error('--only needs a nonempty check-name filter');
 const browserType = process.argv.includes('--webkit')
   ? webkit
   : process.argv.includes('--firefox')
@@ -26,6 +28,10 @@ const election = {
   date: '2099-11-03',
   type: 'general',
 };
+const laterElections = [
+  { ...election, id: 'second-check', label: 'Second fixture election', date: '2099-12-03' },
+  { ...election, id: 'third-check', label: 'Third fixture election', date: '2100-01-03' },
+];
 const source = {
   authority: 'Browser check fixture',
   url: 'https://example.org/records',
@@ -67,6 +73,10 @@ async function fresh(contextOptions = {}) {
   const requests = [];
   const lookupReplies = [];
   const suggestions = [];
+  const elections = [election];
+  const pending = [];
+  let holdLookups = false;
+  const blocked = [];
   const page = await context.newPage();
   let documents = 0;
   page.on('request', (request) => {
@@ -74,14 +84,20 @@ async function fresh(contextOptions = {}) {
   });
   await context.route('**/*', async (route) => {
     const request = route.request();
-    const path = new URL(request.url()).pathname;
+    const url = new URL(request.url());
+    const path = url.pathname;
     const json = (body) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
-    if (path.endsWith('/candidates/elections')) return json([election]);
+    if (path.endsWith('/candidates/elections')) return json(elections);
     if (path.endsWith('/candidates/suggest')) return json(suggestions);
     if (path.endsWith('/candidates/lookup')) {
       requests.push(request.postDataJSON());
-      return json(lookupReplies.shift() ?? results);
+      if (holdLookups) {
+        pending.push(route);
+        return;
+      }
+      const reply = lookupReplies.shift() ?? results;
+      return typeof reply === 'function' ? reply(route) : json(reply);
     }
     if (path.endsWith(`/candidates/${candidateId}`))
       return json({
@@ -91,14 +107,62 @@ async function fresh(contextOptions = {}) {
         votingArea: 'House District 1A',
         source,
       });
-    // Never send contact forms, metrics, sign-in requests, or other writes.
-    if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method()))
-      return route.fulfill({ status: 204, body: '' });
-    return route.continue();
+    // Only this site's static files may reach a server. Unknown reads, sign-in,
+    // metrics and writes never leave this isolated check.
+    if (
+      url.origin === new URL(base).origin &&
+      ['GET', 'HEAD'].includes(request.method()) &&
+      !path.startsWith('/api/') &&
+      !path.startsWith('/_vercel/') &&
+      !path.startsWith('/cdn-cgi/')
+    )
+      return route.continue();
+    blocked.push({ origin: url.origin, path, method: request.method() });
+    return route.abort();
   });
   page.setDefaultTimeout(20000);
-  return { context, page, requests, lookupReplies, suggestions, documents: () => documents };
+  return {
+    context,
+    page,
+    requests,
+    lookupReplies,
+    suggestions,
+    elections,
+    pending,
+    blocked,
+    holdLookups: () => {
+      holdLookups = true;
+    },
+    documents: () => documents,
+  };
 }
+
+function replacement(electionId, name, address = publicAddress) {
+  return {
+    ...results,
+    electionId,
+    matchedAddress: address,
+    races: [
+      {
+        ...results.races[0],
+        entries: [
+          {
+            ...results.races[0].entries[0],
+            candidate: { ...results.races[0].entries[0].candidate, name },
+          },
+        ],
+      },
+    ],
+  };
+}
+async function answer(route, body, status = 200) {
+  await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+}
+async function selectElection(page, label) {
+  await page.getByRole('combobox', { name: /^Election/ }).click();
+  await page.getByRole('option', { name: new RegExp(label) }).click();
+}
+
 async function silentFill(field, value) {
   await field.evaluate((node, text) => {
     const prototype =
@@ -165,6 +229,7 @@ async function check(name, operation, contextOptions) {
     process.stderr.write(
       JSON.stringify({
         submitted: state.requests.length,
+        blocked: state.blocked,
         lastSubmissionMatchedVisibleFixture: state.requests.at(-1)?.address === countryAddress,
         location: await state.page.evaluate(() => location.pathname),
         fieldMatchesFixture: await state.page
@@ -247,6 +312,134 @@ try {
       { hasTouch: true },
     );
   }
+  await check(
+    'network boundary blocks outside reads, unknown API reads and writes',
+    async (state) => {
+      await state.page.goto(`${base}/candidates`, { waitUntil: 'domcontentloaded' });
+      const outcomes = await state.page.evaluate(async () => {
+        const probes = [
+          ['https://example.invalid/unmocked', 'GET'],
+          ['/api/unmocked', 'GET'],
+          ['/api/v1/site-metrics/events', 'POST'],
+          ['/_vercel/insights/view', 'GET'],
+        ];
+        return Promise.all(
+          probes.map(async ([url, method]) => {
+            try {
+              await fetch(url, { method });
+              return false;
+            } catch {
+              return true;
+            }
+          }),
+        );
+      });
+      assert.deepEqual(outcomes, [true, true, true, true]);
+      for (const [address, method] of [
+        ['https://example.invalid/unmocked', 'GET'],
+        ['/api/unmocked', 'GET'],
+        ['/api/v1/site-metrics/events', 'POST'],
+        ['/_vercel/insights/view', 'GET'],
+      ]) {
+        const url = new URL(address, base);
+        assert.ok(
+          state.blocked.some(
+            (entry) =>
+              entry.origin === url.origin && entry.path === url.pathname && entry.method === method,
+          ),
+          `Probe was not intercepted: ${method} ${url.origin}${url.pathname}`,
+        );
+      }
+    },
+  );
+  await check(
+    'failed replacement keeps the original results and labels through retry',
+    async (state) => {
+      state.elections.push(...laterElections);
+      await submitFixture(state.page, '/candidates', 'keyboard');
+      await state.page.getByRole('button', { name: 'Change address', exact: true }).click();
+      const field = state.page.getByRole('combobox', { name: 'Full street address', exact: true });
+      const changedAddress = '12805 St Croix Trl S, Hastings, MN 55033';
+      await field.fill(changedAddress);
+      state.holdLookups();
+      await field.press('Enter');
+      await expect.poll(() => state.pending.length).toBe(1);
+      await expect(
+        state.page.getByText('Illustrative Browser Candidate', { exact: true }),
+      ).toBeVisible();
+      await expect(state.page.getByText(publicAddress, { exact: true })).toBeVisible();
+      await expect(field).toHaveValue(changedAddress);
+      await answer(state.pending[0], { detail: 'Local fixture failure' }, 503);
+      await expect(
+        state.page.getByText('We couldn’t update the results', { exact: true }),
+      ).toBeVisible();
+      await expect(
+        state.page.getByText('Illustrative Browser Candidate', { exact: true }),
+      ).toBeVisible();
+      await expect(state.page.getByText(publicAddress, { exact: true })).toBeVisible();
+      await expect(state.page.getByRole('combobox', { name: /^Election/ })).toContainText(
+        election.label,
+      );
+      await state.page.getByRole('button', { name: 'Try again', exact: true }).click();
+      await expect.poll(() => state.pending.length).toBe(2);
+      await expect(
+        state.page.getByText('Illustrative Browser Candidate', { exact: true }),
+      ).toBeVisible();
+      await answer(
+        state.pending[1],
+        replacement(election.id, 'Replacement Fixture Candidate', changedAddress),
+      );
+      await expect(
+        state.page.getByText('Replacement Fixture Candidate', { exact: true }),
+      ).toBeVisible();
+      await expect(
+        state.page.getByText('Illustrative Browser Candidate', { exact: true }),
+      ).toHaveCount(0);
+      await expect(state.page.getByText(changedAddress, { exact: true })).toBeVisible();
+      assert.equal(state.requests.length, 3);
+      assert.equal(state.requests[1].address, changedAddress);
+      assert.deepEqual(state.requests[2], state.requests[1]);
+    },
+  );
+  await check(
+    'newest election stays visible when an older cancelled request finishes last',
+    async (state) => {
+      state.elections.push(...laterElections);
+      await submitFixture(state.page, '/candidates', 'keyboard');
+      state.holdLookups();
+      await selectElection(state.page, laterElections[0].label);
+      await expect.poll(() => state.pending.length).toBe(1);
+      await expect(
+        state.page.getByText('Illustrative Browser Candidate', { exact: true }),
+      ).toBeVisible();
+      await expect(
+        state.page.getByText(new RegExp(`Showing results for ${election.label}`)),
+      ).toBeVisible();
+      await selectElection(state.page, laterElections[1].label);
+      await expect.poll(() => state.pending.length).toBe(2);
+      await answer(state.pending[1], replacement(laterElections[1].id, 'Newest Fixture Candidate'));
+      await expect(state.page.getByText('Newest Fixture Candidate', { exact: true })).toBeVisible();
+      // A browser may have cancelled this fetch already. This journey establishes
+      // the supported HTTP-cancellation path; flow unit tests cover a service that
+      // ignores cancellation and still returns an older response.
+      await answer(
+        state.pending[0],
+        replacement(laterElections[0].id, 'Older Fixture Candidate'),
+      ).catch(() => {});
+      await state.page.evaluate(
+        () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+      );
+      await expect(state.page.getByText('Newest Fixture Candidate', { exact: true })).toBeVisible();
+      await expect(state.page.getByText('Older Fixture Candidate', { exact: true })).toHaveCount(0);
+      await expect(state.page.getByRole('combobox', { name: /^Election/ })).toContainText(
+        laterElections[1].label,
+      );
+      assert.deepEqual(
+        state.requests.map((request) => request.electionId),
+        [election.id, ...laterElections.map((item) => item.id)],
+      );
+    },
+  );
   if (recovery) {
     await check(
       'failed homepage search corrected by keyboard survives delayed script failure for 30 seconds',
@@ -377,6 +570,7 @@ try {
           'Candidate API fixtures test browser behavior, not government matching',
           '390px viewport is not physical iOS or Android testing',
           'Injected script failures do not establish the cause of the original reported reset',
+          'Late-request journey exercises HTTP cancellation; flow tests cover services ignoring cancellation',
         ],
       },
       null,

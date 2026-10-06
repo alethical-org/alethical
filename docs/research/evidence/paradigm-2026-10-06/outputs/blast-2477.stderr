@@ -1,0 +1,17 @@
+Found 7 changed files
+  apps/frontend/scripts/check-address-recovery.mjs: 0 changed functions
+  apps/frontend/src/components/candidates/CandidateAddressForm.tsx: 1 changed functions
+  apps/frontend/src/components/candidates/CandidateControls.tsx: 2 changed functions
+  apps/frontend/src/components/candidates/CandidateSearchContent.tsx: 2 changed functions
+  apps/frontend/src/components/candidates/__tests__/CandidateContent.test.tsx: 1 changed functions
+  docs/implementation/candidate-autofill-recovery-plan.md: 0 changed functions
+  docs/product-onboarding/find-my-candidates-guide.md: 0 changed functions
+Total: 6 changed functions
+  CandidateAddressForm: 0 callers, 8 callees
+  CandidateButton: 0 callers, 1 callees
+  onMouseDown: 0 callers, 0 callees
+  CandidateSearchSession: 0 callers, 6 callees
+  editAddress: 1 callers, 0 callees
+  renderSearch: 0 callers, 0 callees
+Context: ~6,793 tokens (6 functions, 1 callers, 15 callees) | Estimated cost: $0.020 (claude-sonnet-4-20250514)
+Verdict: PASS

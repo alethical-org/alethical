@@ -1,0 +1,70 @@
+apps/frontend/src/components/candidates/CandidateControls.tsx:51:export function CandidateButton({
+apps/frontend/src/components/candidates/CandidateControls.tsx:96:        ? { onMouseDown: (event: React.MouseEvent) => event.preventDefault() }
+apps/frontend/src/components/candidates/CandidateAddressForm.tsx:15:import { CandidateButton, candidateText } from './CandidateControls';
+apps/frontend/src/components/candidates/CandidateAddressForm.tsx:27:export function CandidateAddressForm({
+apps/frontend/src/components/candidates/CandidateAddressForm.tsx:343:        <CandidateButton
+apps/frontend/src/components/candidates/CandidateAddressForm.tsx:457:        ? { onMouseDown: (event: React.MouseEvent) => event.preventDefault() }
+apps/frontend/src/components/candidates/__tests__/CandidateContent.test.tsx:427:  const renderSearch = () =>
+apps/frontend/src/components/candidates/__tests__/CandidateContent.test.tsx:436:  await act(async () => renderSearch());
+apps/frontend/src/components/candidates/__tests__/CandidateContent.test.tsx:439:  await act(async () => renderSearch());
+apps/frontend/src/components/candidates/__tests__/CandidateAddressAutofill.test.tsx:5:import { CandidateAddressForm } from '../CandidateAddressForm';
+apps/frontend/src/components/candidates/__tests__/CandidateAddressAutofill.test.tsx:43:      <CandidateAddressForm
+apps/frontend/src/components/candidates/CandidateClaimPanel.tsx:16:import { CandidateButton, CandidateLink, candidateDate, candidateText } from './CandidateControls';
+apps/frontend/src/components/candidates/CandidateClaimPanel.tsx:88:          <CandidateButton
+apps/frontend/src/components/candidates/CandidateClaimPanel.tsx:134:      <CandidateButton
+apps/frontend/src/components/candidates/CandidateClaimPanel.tsx:197:        <CandidateButton
+apps/frontend/src/components/candidates/CandidateClaimPanel.tsx:269:          <CandidateButton
+apps/frontend/src/components/candidates/CandidateClaimPanel.tsx:301:              <CandidateButton
+apps/frontend/src/components/candidates/CandidateSearchContent.tsx:11:import { CandidateAddressForm } from './CandidateAddressForm';
+apps/frontend/src/components/candidates/CandidateSearchContent.tsx:13:  CandidateButton,
+apps/frontend/src/components/candidates/CandidateSearchContent.tsx:40:    <CandidateSearchSession
+apps/frontend/src/components/candidates/CandidateSearchContent.tsx:52:function CandidateSearchSession({
+apps/frontend/src/components/candidates/CandidateSearchContent.tsx:132:  const editAddress = (value: string) => {
+apps/frontend/src/components/candidates/CandidateSearchContent.tsx:175:      <CandidateAddressForm
+apps/frontend/src/components/candidates/CandidateSearchContent.tsx:178:        onAddress={editAddress}
+apps/frontend/src/components/candidates/CandidateSearchContent.tsx:216:        <CandidateButton
+apps/frontend/src/components/candidates/CandidateSearchContent.tsx:282:                <CandidateButton
+apps/frontend/src/components/candidates/CandidateSearchContent.tsx:321:                <CandidateButton kind="text" label="Change address" onPress={beginAddressEdit} />
+apps/frontend/src/components/candidates/CandidateSearchContent.tsx:613:                  ? { onMouseDown: (event: React.MouseEvent) => event.preventDefault() }
+apps/frontend/src/components/candidates/CandidateAccountControls.tsx:5:import { CandidateButton, candidateDate, candidateText } from './CandidateControls';
+apps/frontend/src/components/candidates/CandidateAccountControls.tsx:139:      <CandidateButton label={safe} kind="outline" onPress={onSafe} />
+apps/frontend/src/components/candidates/CandidateAccountControls.tsx:140:      <CandidateButton label={risky} kind="text" onPress={onRisky} />
+apps/frontend/src/components/candidates/CandidateReportDialog.tsx:6:import { CandidateButton } from './CandidateControls';
+apps/frontend/src/components/candidates/CandidateReportDialog.tsx:338:                <CandidateButton
+apps/frontend/src/components/candidates/CandidateReportDialog.tsx:346:                <CandidateButton
+apps/frontend/src/screens/FindMyLegislatorScreen.tsx:473:  const editAddress = (value: string) => {
+apps/frontend/src/screens/FindMyLegislatorScreen.tsx:683:                  onChangeText={editAddress}
+apps/frontend/src/screens/FindMyLegislatorScreen.tsx:688:                    if (value !== address) editAddress(value);
+apps/frontend/src/screens/FindMyLegislatorScreen.tsx:695:                    if (value !== address) editAddress(value);
+apps/frontend/src/screens/CandidateProfileScreen.tsx:6:  CandidateButton,
+apps/frontend/src/screens/CandidateProfileScreen.tsx:119:                <CandidateButton
+apps/frontend/src/screens/CandidatePreviewScreens.tsx:7:import { CandidateButton } from '../components/candidates/CandidateControls';
+apps/frontend/src/screens/CandidatePreviewScreens.tsx:87:        <CandidateButton
+apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx:8:  CandidateButton,
+apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx:143:          <CandidateButton label="Refresh queue" kind="outline" onPress={onDone} />
+apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx:149:            <CandidateButton
+apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx:162:            <CandidateButton
+apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx:171:          <CandidateButton
+apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx:235:      <CandidateButton label="Refresh queue" kind="outline" busy={busy} onPress={refresh} />
+apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx:246:          <CandidateButton label="Try again" kind="outline" onPress={refresh} />
+apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx:266:          <CandidateButton
+apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx:273:          <CandidateButton
+apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx:343:          <CandidateButton
+apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx:364:            <CandidateButton
+apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx:379:          <CandidateButton
+apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx:386:          <CandidateButton
+apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx:448:                <CandidateButton
+apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx:459:                <CandidateButton label="Try again" kind="outline" onPress={admin.retry} />
+apps/frontend/src/screens/CandidateAccountScreens.tsx:12:  CandidateButton,
+apps/frontend/src/screens/CandidateAccountScreens.tsx:158:          <CandidateButton
+apps/frontend/src/screens/CandidateAccountScreens.tsx:190:              <CandidateButton
+apps/frontend/src/screens/CandidateAccountScreens.tsx:198:            <CandidateButton
+apps/frontend/src/screens/CandidateAccountScreens.tsx:273:          <CandidateButton
+apps/frontend/src/screens/CandidateAccountScreens.tsx:407:          <CandidateButton label="Try again" kind="outline" onPress={() => void load(true)} />
+apps/frontend/src/screens/CandidateAccountScreens.tsx:459:            <CandidateButton
+apps/frontend/src/screens/CandidateAccountScreens.tsx:467:              <CandidateButton
+apps/frontend/src/screens/CandidateAccountScreens.tsx:484:              <CandidateButton
+apps/frontend/src/screens/CandidateAccountScreens.tsx:493:              <CandidateButton
+apps/frontend/src/screens/CandidateAccountScreens.tsx:516:          <CandidateButton
+apps/frontend/src/screens/CandidateAccountScreens.tsx:663:              <CandidateButton
+apps/frontend/src/screens/CandidateAccountScreens.tsx:671:                <CandidateButton

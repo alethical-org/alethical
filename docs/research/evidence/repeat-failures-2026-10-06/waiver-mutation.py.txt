@@ -1,0 +1,16 @@
+"""Isolated test-only mutation: incorrectly compare only the official figure."""
+import pytest
+
+@pytest.fixture(autouse=True)
+def compare_only_official_amount(monkeypatch):
+    from alethical.pipeline import campaign_finance as cf
+    original = cf._carried_reconcile_filer_years
+    class OfficialAmountOnly(dict):
+        def __eq__(self, other):
+            return isinstance(other, dict) and self.get('reported') == other.get('reported')
+    def mutated(*args, **kwargs):
+        result = original(*args, **kwargs)
+        if result is None:
+            return None
+        return {key: (OfficialAmountOnly(value) if isinstance(value, dict) else value) for key, value in result.items()}
+    monkeypatch.setattr(cf, '_carried_reconcile_filer_years', mutated)

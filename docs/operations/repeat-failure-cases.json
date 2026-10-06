@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "repository": "alethical-org/alethical",
+  "cases": [
+    {
+      "id": "candidate-result-replacement",
+      "summary": "Keep useful candidate results and their labels through failed replacements",
+      "cause": "Address input, retained result state and later program-download recovery cross browser and shared-flow boundaries. This case examines retained display state; it does not claim every repair in the referenced change shares that cause.",
+      "occurrences": [
+        {
+          "pr": 2474,
+          "role": "failure",
+          "evidence": "The address/recovery change describes browser-filled input and working-result loss. Current requirements retain the original address, election and results through replacement failure. https://github.com/alethical-org/alethical/pull/2474"
+        }
+      ],
+      "prevention": {
+        "status": "partial",
+        "description": "The manual isolated Chromium/WebKit run exercises retained original results and labels, failed replacement, retry and newest-election cancellation. Existing flow tests cover responses that ignore cancellation. Physical phone autofill and live backend availability remain separate checks.",
+        "checks": [
+          {
+            "path": "apps/frontend/scripts/check-address-recovery.mjs",
+            "anchor": "failed replacement keeps the original results and labels through retry"
+          },
+          {
+            "path": "apps/frontend/scripts/check-address-recovery.mjs",
+            "anchor": "newest election stays visible when an older cancelled request finishes last"
+          },
+          {
+            "path": "apps/frontend/src/components/candidates/__tests__/candidateFlow.test.ts",
+            "anchor": "keeps each displayed election and address together while changing selection and ignores a late older response"
+          }
+        ]
+      }
+    },
+    {
+      "id": "candidate-address-editing",
+      "summary": "Keep address editing open and accept the first click or tap",
+      "cause": "Matching the previous request closed editing before explicit submission; suggestion dismissal moved the phone button between pointer press and release. These are distinct demonstrated mechanisms in 1 repair, not 2 inferred incidents.",
+      "occurrences": [
+        {
+          "pr": 2477,
+          "role": "failure",
+          "evidence": "The repair and browser evidence establish the exact-address editing and button-movement failures. https://github.com/alethical-org/alethical/pull/2477"
+        },
+        {
+          "pr": 2479,
+          "role": "design",
+          "evidence": "Approved in-button waiting feedback follows the repair; it is not counted as another failure. https://github.com/alethical-org/alethical/pull/2479"
+        }
+      ],
+      "prevention": {
+        "status": "partial",
+        "description": "Existing editing and first-activation browser assertions run in the isolated local command. Native saved-address keyboard behavior remains untested by these simulated browser inputs.",
+        "checks": [
+          {
+            "path": "apps/frontend/src/components/candidates/__tests__/CandidateContent.test.tsx",
+            "anchor": "keeps address editing open when typing the previous request and closes only after submitting"
+          },
+          {
+            "path": "apps/frontend/scripts/check-address-recovery.mjs",
+            "anchor": "visible suggestions allow the first Search button"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reviewed-money-exception-identity",
+      "summary": "Carry a reviewed disagreement only while both amounts remain unchanged",
+      "cause": "The comparison needs to remember the exact scope of a prior human ruling. Forgetting that ruling repeats the same block; remembering only the committee-year can allow a changed disagreement without review.",
+      "occurrences": [
+        {
+          "pr": 2358,
+          "role": "failure",
+          "evidence": "The daily comparison repeatedly blocked already-reviewed unchanged disagreements. The repair retained their committee-years. https://github.com/alethical-org/alethical/pull/2358"
+        },
+        {
+          "pr": 2368,
+          "role": "failure",
+          "evidence": "The follow-up restricted carry-forward to the exact payment sum and official amount, including missing historic figures. It addresses the opposite failure of overly broad approval, not another instance of the unchanged-data block. https://github.com/alethical-org/alethical/pull/2368"
+        }
+      ],
+      "prevention": {
+        "status": "covered",
+        "description": "The loader tests cover changed official totals and newly changed payment sums in both cent directions, preserve the prior live release, and require changed disagreements to block. A mutation comparing only the official amount passes the old case but fails both new cases. This status covers that scoped invariant, not every loader failure.",
+        "checks": [
+          {
+            "path": "alethical/tests/test_campaign_finance_load.py",
+            "anchor": "test_changed_itemized_amount_cannot_reuse_a_previous_reconcile_waiver"
+          },
+          {
+            "path": "alethical/tests/test_campaign_finance_load.py",
+            "anchor": "test_a_reconcile_committee_year_waived_on_the_published_release_is_carried_not_failed"
+          }
+        ]
+      }
+    }
+  ]
+}

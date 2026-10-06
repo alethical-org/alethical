@@ -1,0 +1,13 @@
+[governance]
+root = "."
+language = "python"
+[[modules]]
+name = "api"
+path = "api/"
+cannot_depend_on = ["core"]
+[[modules]]
+name = "core"
+path = "core/"
+[rules]
+no_cycles = true
+enforce_cannot_depend_on = true

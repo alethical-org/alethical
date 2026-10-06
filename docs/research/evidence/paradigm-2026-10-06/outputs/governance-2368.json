@@ -1,0 +1,27 @@
+{
+  "source_sha256": "17ba7c1fc35559f783bf7fa0384d13007732a619f697feeaddc7b8c5c2e7aa44",
+  "config_path": "(auto-scan)",
+  "language": "python",
+  "module_count": 7,
+  "total_files_scanned": 185,
+  "violation_summaries": [
+    {
+      "rule": "no_cycles",
+      "module": "alembic",
+      "detail": "Circular dependency: alembic -> pipeline -> api -> alembic",
+      "severity": "error"
+    },
+    {
+      "rule": "no_file_cycles",
+      "module": "api/routers/leadership_metrics.py",
+      "detail": "Circular file dependency: api/routers/leadership_metrics.py -> api/routers/site_metrics.py -> api/routers/leadership_metrics.py",
+      "severity": "error"
+    },
+    {
+      "rule": "no_file_cycles",
+      "module": "pipeline/ai_enrichment.py",
+      "detail": "Circular file dependency among 9 files {pipeline/ai_enrichment.py, pipeline/anthropic_enrichment.py, pipeline/bill_summary_requests.py, pipeline/codex_enrichment.py, pipeline/minnesota.py, pipeline/oban.py, pipeline/oban_workers.py, pipeline/rag_ingest.py, pipeline/votes.py}: pipeline/ai_enrichment.py -> pipeline/minnesota.py -> pipeline/bill_summary_requests.py -> pipeline/ai_enrichment.py",
+      "severity": "error"
+    }
+  ]
+}

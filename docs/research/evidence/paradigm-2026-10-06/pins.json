@@ -1,0 +1,14 @@
+{
+  "blast-radius-cr": {
+    "revision": "30beabe3397151546c4482912b76934d594b1f83 2026-03-31T17:11:58+02:00",
+    "commit_count": 26
+  },
+  "code-governance": {
+    "revision": "6e80099938d69815a10ce8deb11eb8cbfbd97094 2026-08-12T12:25:36+02:00",
+    "commit_count": 74
+  },
+  "skill_a_thon": {
+    "revision": "93bae98699af33a2358481687491466cee54a8b6 2026-03-19T20:06:51+01:00",
+    "commit_count": 8
+  }
+}

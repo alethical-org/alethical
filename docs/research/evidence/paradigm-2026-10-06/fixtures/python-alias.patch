@@ -1,0 +1,8 @@
+diff --git a/core.py b/core.py
+index 4439ac4..90c9e35 100644
+--- a/core.py
++++ b/core.py
+@@ -1,2 +1,2 @@
+ def amount(row):
+-    return row["total"]
++    return row["net"]

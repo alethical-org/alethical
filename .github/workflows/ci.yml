@@ -105,6 +105,11 @@ jobs:
         run: python scripts/local_checks.py quick-docs
       - name: Test document structure checks without database or network
         run: python -m unittest discover -s scripts/tests -p 'test_doc_structure.py'
+      - name: Retain reviewed failure evidence and test history collection
+        run: |
+          python scripts/review_repeat_failures.py check --review docs/operations/repeat-failure-cases.json --root .
+          python -m unittest discover -s scripts/tests -p 'test_review_repeat_failures.py'
+          node --test apps/frontend/scripts/check-address-recovery-local.test.mjs
       - name: Test local upload selection without database or network
         run: python -m unittest discover -s scripts/tests -p 'test_local_checks.py'
       - name: Test working-folder backup and cleanup without production data

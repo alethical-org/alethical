@@ -1,0 +1,75 @@
+Address-result retention mutation proof, 2026-10-06
+
+Baseline: 6b9300714b6749480edd2eaf3c5fb91f51cb05a2
+https://github.com/alethical-org/alethical/commit/6b9300714b6749480edd2eaf3c5fb91f51cb05a2
+
+Purpose: prove the new failed-replacement journey catches a loss of already
+shown address results that the 15 saved browser journeys did not catch.
+The source product was unchanged. Only an owned temporary exported copy was
+mutated, then deleted. All service responses were mocked. Chromium was used.
+
+Exact exported JavaScript match (global regular expression):
+  /status:([a-zA-Z_$][\w$]*)\.displayed\?'updating':'loading',requested:/g
+Exact replacement:
+  status:$1.displayed?'updating':'loading',displayed:null,requested:
+This clears the displayed result as soon as a replacement request begins.
+The recorded replay changed 4 exported copies of the shared candidate flow.
+
+Old suite command (all 15 journeys):
+  BASE_URL=<owned-loopback-address> node <owned-temporary-directory>/legacy.mjs
+New journey command (1 journey):
+  BASE_URL=<owned-loopback-address> node apps/frontend/scripts/check-address-recovery.mjs --skip-recovery --only 'failed replacement'
+
+Recorded results:
+  Old suite: exit 0, 15 PASS
+  New journey: exit 1, 1 FAIL
+  FAIL failed replacement keeps the original results and labels through retry
+  expect(locator).toBeVisible() failed
+  Locator: getByText('Illustrative Browser Candidate', { exact: true })
+  element(s) not found
+
+The old script came from the baseline commit. Its assertions were untouched.
+Its single fallback route.continue() was restricted to same-origin static reads
+for safety. Unknown API and analytics reads were aborted. This routing change
+does not inspect or change result retention.
+
+Scope: 15 existing journeys were retained, not newly created. The 3 added journeys
+cover blocked network requests, failed replacements, and rapid election changes.
+The rapid-election browser journey exercises HTTP cancellation: a superseded
+request may already be cancelled before its held reply is released. It does not
+prove handling of a service that ignores cancellation; flow unit tests cover that
+case. This mutation proof establishes the failed-replacement coverage gap only.
+
+Reproduction preparation from the repository root:
+  just setup
+Use the locked local Playwright Chromium already installed for the manual check.
+The baseline commit must exist in local Git history.
+
+Use cleanEnvironment() from
+apps/frontend/scripts/check-address-recovery-local.mjs for the export process;
+use its existing exportServer() helper to serve an owned temporary directory on
+127.0.0.1 with an ephemeral port. Give the export a separate temporary Metro
+cache via TMPDIR, TEMP and TMP. Do not load .env or use a shared export/server.
+Run the same clean export command used by the manual runner, with the frontend
+as the working directory:
+  node ../../node_modules/expo/bin/cli export --platform web --output-dir <owned-temporary-directory>/export
+
+Apply the exact global JavaScript replacement recorded above inside that
+exported copy. Require at least 1 match; the recorded run matched 4 copies.
+Get the old suite from local history:
+  git show 6b9300714b6749480edd2eaf3c5fb91f51cb05a2:apps/frontend/scripts/check-address-recovery.mjs
+Save it as <owned-temporary-directory>/legacy.mjs, with access to the existing
+locked node_modules, and replace its single literal fallback:
+  return route.continue();
+with this safety-only restriction:
+  return new URL(request.url()).origin === new URL(base).origin && !path.startsWith('/api/') && !path.startsWith('/_vercel/') && !path.startsWith('/cdn-cgi/') ? route.continue() : route.abort();
+Run the old15 and new1 commands recorded above against the same mutated export.
+Keep export and browser processes owned and clean them up on interruption, using
+the manual runner's process-group cleanup. Stop the owned server and delete the
+owned temporary copy after collecting the outcomes. Do not alter product source.
+
+The clean-export reconstruction was rerun successfully on 2026-10-06:
+  4 matched copies; old15 exit 0; new1 exit 1 at the missing candidate assertion
+The reconstructed temporary export and server were removed after completion.
+A duplicate executable runner was deliberately omitted from this record; the
+maintained local runner owns export, serving and subprocess-cleanup behavior.

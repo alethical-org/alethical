@@ -1,0 +1,251 @@
+{
+  "source_sha256": "523592a1330f1b37562acac692b5153dceee75a6f2700502da72e2350fc4fc7d",
+  "selection": "selected unchanged context objects; 2368 as_json callers limited to unrelated report scripts",
+  "contexts": [
+    {
+      "function": {
+        "name": "CandidateAddressForm",
+        "file": "apps/frontend/src/components/candidates/CandidateAddressForm.tsx",
+        "start_line": 27,
+        "end_line": 431,
+        "containing_class": null,
+        "call_sites": [
+          "useResponsive",
+          "replace",
+          "useId",
+          "useRef",
+          "useRef",
+          "useRef",
+          "useRef",
+          "useState",
+          "useState",
+          "useState",
+          "useState",
+          "useState",
+          "useState",
+          "useState",
+          "useState",
+          "useLayoutEffect",
+          "useLayoutEffect",
+          "max",
+          "resize",
+          "getBoundingClientRect",
+          "getBoundingClientRect",
+          "resize",
+          "observe",
+          "disconnect",
+          "focus",
+          "focus",
+          "useEffect",
+          "focusField",
+          "useEffect",
+          "setSuggestions",
+          "setSuggestOpen",
+          "setActive",
+          "trim",
+          "abort",
+          "setTimeout",
+          "catch",
+          "then",
+          "suggest",
+          "trim",
+          "setSuggestions",
+          "setSuggestOpen",
+          "clearTimeout",
+          "abort",
+          "useEffect",
+          "setChoicesOpen",
+          "setChoiceActive",
+          "useEffect",
+          "focus",
+          "currentAddressInput",
+          "visibleAddress",
+          "setSuggestions",
+          "setActive",
+          "onAddress",
+          "trim",
+          "setMissing",
+          "focusField",
+          "setMissing",
+          "setSuggestOpen",
+          "setChoicesOpen",
+          "onSubmit",
+          "onSubmit",
+          "submit",
+          "preventDefault",
+          "onCancel",
+          "setSuggestOpen",
+          "setChoicesOpen",
+          "preventDefault",
+          "setActive",
+          "preventDefault",
+          "pick",
+          "submit",
+          "preventDefault",
+          "setChoicesOpen",
+          "focusField",
+          "preventDefault",
+          "setChoiceActive",
+          "preventDefault",
+          "pick",
+          "fieldFocusRing",
+          "setMissing",
+          "setChoicesOpen",
+          "replace",
+          "onAddress",
+          "visibleAddress",
+          "onAddress",
+          "setFocused",
+          "scrollIntoView",
+          "visibleAddress",
+          "setSuggestions",
+          "setChoicesOpen",
+          "onAddress",
+          "setFocused",
+          "setSuggestOpen",
+          "setFieldHover",
+          "setFieldHover",
+          "submit",
+          "setFocused",
+          "setFocused",
+          "map",
+          "pick",
+          "submit",
+          "map",
+          "pick"
+        ]
+      },
+      "change_type": "modified",
+      "callers": [],
+      "callees": [
+        {
+          "name": "useResponsive",
+          "file": "apps/frontend/src/screens/redesign/__tests__/OutsideSpendingBrowseScreen.test.tsx",
+          "start_line": 42,
+          "end_line": 42,
+          "containing_class": null,
+          "body": "() => ({ isMobile: state.mobile, isDesktop: !state.mobile, isTablet: false })"
+        },
+        {
+          "name": "resize",
+          "file": "apps/frontend/src/components/candidates/CandidateReportDialog.tsx",
+          "start_line": 86,
+          "end_line": 90,
+          "containing_class": null,
+          "body": "() =>\n      setViewport({\n        top: window.visualViewport?.offsetTop ?? 0,\n        height: window.visualViewport?.height ?? window.innerHeight,\n      })"
+        },
+        {
+          "name": "focus",
+          "file": "apps/frontend/src/components/comments/ReaderComments.tsx",
+          "start_line": 295,
+          "end_line": 306,
+          "containing_class": null,
+          "body": " ownerArticle = articleId, owner = store, scroll = false) => {\n    requestAnimationFrame(() => {\n      if (!isVisible(ownerArticle, owner)) return;\n      const node = section.current?.querySelector<HTMLElement>(`[id=\"${id}\"]`);\n      if (scroll) node?.scrollIntoView?.({ block: 'nearest', behavior: 'instant' });\n      if (node) {\n        // Leave room for the existing focus outline at the viewport edge.\n        releaseCommentReturn();\n        node.focus({ preventScroll: true });\n      }\n    });\n  };\n  const ap"
+        },
+        {
+          "name": "focusField",
+          "file": "apps/frontend/src/components/candidates/CandidateAddressForm.tsx",
+          "start_line": 91,
+          "end_line": 94,
+          "containing_class": null,
+          "body": " => {\n    inputRef.current?.focus();\n    nativeRef.current?.focus();\n  };\n"
+        },
+        {
+          "name": "suggest",
+          "file": "apps/frontend/src/components/candidates/__tests__/CandidateContent.test.tsx",
+          "start_line": 85,
+          "end_line": 85,
+          "containing_class": null,
+          "body": "async () => []"
+        },
+        {
+          "name": "visibleAddress",
+          "file": "apps/frontend/src/components/candidates/CandidateAddressForm.tsx",
+          "start_line": 133,
+          "end_line": 133,
+          "containing_class": null,
+          "body": " => currentAddressInput(inputRef.current, address);\n"
+        },
+        {
+          "name": "submit",
+          "file": "apps/frontend/src/screens/CandidateAccountScreens.tsx",
+          "start_line": 94,
+          "end_line": 128,
+          "containing_class": null,
+          "body": "async () => {\n    if (busy || !response) return;\n    if (!role || !safeCandidateUrl(evidence.trim()) || note.trim().length < 20) {\n      if (!role) roles.current?.focus();\n      setValidation(\n        'Choose your role, add a public campaign or official record link, and explain your authority in at least 20 characters',\n      );\n      return;\n    }\n    const scope = signal();\n    setBusy(true);\n    setFailed(false);\n    setValidation('');\n    try {\n      await requestCandidateClaim(\n        token,\n        {\n          candidate_id: record.candidate.id,\n          evidence_url: evidence.trim(),\n          request_note: `${role}\\n\\n${note.trim()}`,\n          expected_account_id: response.account_id,\n          expected_version: current?.version ?? 0,\n        },\n        scope,\n      );\n      if (!scope.aborted) {\n        setFormOpen(false);\n        await load();\n      }\n    } catch {\n      if (!scope.aborted) setFailed(true);\n    } finally {\n      if (!scope.aborted) setBusy(false);\n    }\n  }"
+        },
+        {
+          "name": "pick",
+          "file": "apps/frontend/src/screens/redesign/ResearchScreen.tsx",
+          "start_line": 142,
+          "end_line": 149,
+          "containing_class": null,
+          "body": "t current = anchors[0] ?? null;\n      for (const anchor of anchors) {\n        const node = document.getElementById(anchor);\n        if (node && node.getBoundingClientRect().top <= ACTIVE_LINE) current = anchor;\n      }\n      setActive(current);\n    };\n\n    const obs"
+        }
+      ]
+    },
+    {
+      "function": {
+        "name": "CandidateButton",
+        "file": "apps/frontend/src/components/candidates/CandidateControls.tsx",
+        "start_line": 51,
+        "end_line": 172,
+        "containing_class": null,
+        "call_sites": [
+          "useState",
+          "useRef",
+          "useEffect",
+          "getElementById",
+          "createElement",
+          "append",
+          "useEffect",
+          "setAttribute",
+          "removeAttribute",
+          "preventDefault",
+          "linkProps",
+          "onPress",
+          "canHover",
+          "setHovered",
+          "setHovered"
+        ]
+      },
+      "change_type": "modified",
+      "callers": [],
+      "callees": [
+        {
+          "name": "canHover",
+          "file": "apps/frontend/src/components/candidates/CandidateControls.tsx",
+          "start_line": 44,
+          "end_line": 50,
+          "containing_class": null,
+          "body": "function canHover() {\n  return (\n    Platform.OS === 'web' &&\n    typeof window !== 'undefined' &&\n    Boolean(window.matchMedia?.('(hover: hover) and (pointer: fine)').matches)\n  );\n}"
+        }
+      ]
+    },
+    {
+      "function": {
+        "name": "editAddress",
+        "file": "apps/frontend/src/components/candidates/CandidateSearchContent.tsx",
+        "start_line": 132,
+        "end_line": 135,
+        "containing_class": null,
+        "call_sites": [
+          "setAddress",
+          "setDraftAddress"
+        ]
+      },
+      "change_type": "modified",
+      "callers": [
+        {
+          "name": "FindMyLegislatorScreen",
+          "file": "apps/frontend/src/screens/FindMyLegislatorScreen.tsx",
+          "start_line": 198,
+          "end_line": 948,
+          "containing_class": null,
+          "body": " FindMyLegislatorScreen({ navigation, route }: Props) {\n  const { isMobile } = useResponsive();\n  const historyScrollProps = useHistoryScrollRestoration();\n  const requestedAddress =\n    typeof route.params?.address === 'string' ? route.params.address : undefined;\n  const requestedCoordinate = route.params?.coordinate;\n  const [address, setAddress] = useState(requestedAddress ?? '');\n  const [clientError, setClientError] = useState<ClientError>(\n    route.params?.locationFailure ? 'location' : null,\n  );\n  const [selectedCoordinate, setSelectedCoordinate] = useState<\n    RepresentativeLookupCoordinates | undefined\n  >(requestedCoordinate);\n  const [preserveMapViewport, setPreserveMapViewport] = useState(false);\n  const [mapViewport, setMapViewport] = useState<MapViewport>(MINNESOTA_MAP_VIEWPORT);\n  const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);\n  const [choiceIndex, setChoiceIndex] = useState(0);\n  const [choiceClosed, setChoiceClosed] = useState(false);\n  const [suggestionsOpen, setSuggestionsOpen] = useState(false);\n  const [suggestionInput, setSuggestionInput] = useState('');\n  const [findingLocation, setFindingLocation] = useState(false);\n  const [rateLimitSeconds, setRateLimitSeconds] = useState(0);\n  const [shimmerEnabled, setShimmerEnabled] = useState(false);\n  const [findHovered, setFindHovered] = useState(false);\n  const [locationHovered, setLocationHovered] = useState(false);\n  const { focused: addressFocused, focusProps: addressFocusProps } = useFieldFocus();\n  const lookup = useRepresentativeLookup();\n  const currentSuggestionInput = addressSuggestionInput(address) ?? '';\n  useDebouncedSearchCommit(currentSuggestionInput, suggestionInput, setSuggestionInput, 300);\n  const suggestionsAreCurrent = addressSuggestionResultsAreCurrent(\n    currentSuggestionInput,\n    suggestionInput,\n  );\n    # ... (703 lines truncated)\n                ) : null}\n              </View>\n            ) : null}\n          </View>\n\n          {state !== 'empty' ? renderMapSection() : null}\n        </Container>\n        <Footer\n          onPrivacy={() => navigation.navigate('Privacy')}\n          onTerms={() => navigation.navigate('Terms')}\n        />\n      </ScrollView>\n    </PageBackground>\n  );\n}\n\nconst styles = S"
+        }
+      ],
+      "callees": []
+    }
+  ]
+}

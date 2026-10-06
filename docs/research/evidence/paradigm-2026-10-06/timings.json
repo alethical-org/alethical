@@ -1,0 +1,95 @@
+{
+  "meaning": "single observed elapsed machine seconds; not engineer time; not equivalent outputs",
+  "runs": [
+    {
+      "name": "blast-2477",
+      "wall_seconds": 7.471656,
+      "exit_code": 0
+    },
+    {
+      "name": "blast-2368",
+      "wall_seconds": 2.846347,
+      "exit_code": 0
+    },
+    {
+      "name": "blast-python-alias",
+      "wall_seconds": 0.045942,
+      "exit_code": 0
+    },
+    {
+      "name": "blast-tsx-jsx",
+      "wall_seconds": 0.042999,
+      "exit_code": 0
+    },
+    {
+      "name": "blast-negative-comment",
+      "wall_seconds": 0.042779,
+      "exit_code": 0
+    },
+    {
+      "name": "governance-2477",
+      "wall_seconds": 0.907664,
+      "exit_code": 1
+    },
+    {
+      "name": "governance-2368",
+      "wall_seconds": 0.383865,
+      "exit_code": 1
+    },
+    {
+      "name": "rg-symbols-2477",
+      "wall_seconds": 0.034807,
+      "exit_code": 0
+    },
+    {
+      "name": "rg-symbols-2368",
+      "wall_seconds": 0.035661,
+      "exit_code": 0
+    },
+    {
+      "name": "rg-symbols-python-alias",
+      "wall_seconds": 0.012489,
+      "exit_code": 0
+    },
+    {
+      "name": "rg-symbols-tsx-jsx",
+      "wall_seconds": 0.009412,
+      "exit_code": 0
+    },
+    {
+      "name": "rg-symbols-negative-comment",
+      "wall_seconds": 0.00704,
+      "exit_code": 0
+    },
+    {
+      "name": "boundary-python",
+      "wall_seconds": 0.133697,
+      "exit_code": 1
+    },
+    {
+      "name": "boundary-negative-python",
+      "wall_seconds": 0.086116,
+      "exit_code": 0
+    },
+    {
+      "name": "boundary-typescript",
+      "wall_seconds": 0.092751,
+      "exit_code": 1
+    },
+    {
+      "name": "boundary-negative-typescript",
+      "wall_seconds": 0.078066,
+      "exit_code": 0
+    },
+    {
+      "name": "graph-2477",
+      "wall_seconds": 1.425392,
+      "exit_code": 0
+    },
+    {
+      "name": "external-name-collision",
+      "wall_seconds": 0.090391,
+      "exit_code": 1
+    }
+  ]
+}

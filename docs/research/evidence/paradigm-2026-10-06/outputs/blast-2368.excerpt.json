@@ -1,0 +1,187 @@
+{
+  "source_sha256": "aa28b5a6e1b06419d9440be08f3a21440933934736a8a485791b152748431733",
+  "selection": "selected unchanged context objects; 2368 as_json callers limited to unrelated report scripts",
+  "contexts": [
+    {
+      "function": {
+        "name": "as_json",
+        "file": "alethical/pipeline/campaign_finance.py",
+        "start_line": 418,
+        "end_line": 430,
+        "containing_class": "Check",
+        "call_sites": [
+          "list",
+          "dict"
+        ]
+      },
+      "change_type": "modified",
+      "callers": [
+        {
+          "name": "reading_as_json",
+          "file": "scripts/report_page_speed_by_address.py",
+          "start_line": 703,
+          "end_line": 714,
+          "containing_class": null,
+          "body": "def reading_as_json(entry: AddressReadings) -> dict:\n    return {\n        \"address\": entry.address.label,\n        \"mainContentMs\": entry.scored.main_content_ms,\n        \"mainContentMeasurements\": entry.scored.main_content_measurements,\n        \"layoutMovement\": entry.scored.layout_movement,\n        \"layoutMovementMeasurements\": entry.scored.layout_movement_measurements,\n        \"overTheLimit\": breaches(entry.scored),\n        \"everyClientMainContentMs\": entry.every_client.main_content_ms,\n        \"everyClientMeasurements\": entry.every_client.main_content_measurements,\n        \"automatedMeasurements\": entry.automated_measurements,\n    }"
+        },
+        {
+          "name": "as_json",
+          "file": "scripts/report_page_speed_by_address.py",
+          "start_line": 717,
+          "end_line": 758,
+          "containing_class": null,
+          "body": "def as_json(\n    document_loads: list[AddressReadings],\n    started_on: date,\n    ended_on: date,\n    min_measurements: int = MIN_MEASUREMENTS,\n    bound: str | None = None,\n    clicks: list[AddressReadings] | None = None,\n) -> str:\n    withheld = clicks_withheld_reason(started_on)\n    return json.dumps(\n        {\n            \"host\": HOST,\n            \"periodStartedOn\": started_on.isoformat(),\n            \"periodEndedOn\": ended_on.isoformat(),\n            \"percentile\": 75,\n            \"mainContentLimitMs\": MAIN_CONTENT_LIMIT_MS,\n            \"layoutMovementLimit\": LAYOUT_MOVEMENT_LIMIT,\n            \"measurementScope\": \"document-loads-and-clicks\",\n            \"navigationTypes\": DOCUMENT_NAVIGATION_TYPES,\n            \"clickNavigationTypes\": CLICK_NAVIGATION_TYPES,\n            \"knownBotsExcluded\": True,\n            \"sampleCountSource\": \"cloudflare-confidence\",\n            \"minimumSamples\": max(MIN_MEASUREMENTS, min_measurements),\n            \"populationNote\": population_note(started_on),\n            \"scoredPopulation\": \"readers\"\n            if can_separate(started_on)\n            else \"every-client\",\n            \"automatedClientsSeparated\": can_separate(started_on),\n            \"automatedClientPool\": {\n                browser: list(versions) for browser, versions in AUTOMATED_CLIENT_POOL\n            },\n            \"releaseBound\": bound,\n            \"documentLoads\": [reading_as_json(reading) for reading in document_loads],\n            \"clicksWithheldReason\": withheld,\n            \"clicks\": (\n                None\n                if withheld or clicks is None\n                else [reading_as_json(reading) for reading in clicks]\n            ),\n        },\n        indent=2,\n    )"
+        },
+        {
+          "name": "main",
+          "file": "scripts/report_page_speed_by_address.py",
+          "start_line": 776,
+          "end_line": 985,
+          "containing_class": null,
+          "body": "def main(argv: list[str] | None = None) -> int:\n    parser = argparse.ArgumentParser(description=__doc__ or \"\")\n    parser.add_argument(\n        \"--days\",\n        type=int,\n        default=30,\n        help=\"Complete UTC days ending yesterday; 30 by default.\",\n    )\n    parser.add_argument(\n        \"--since-release\",\n        metavar=\"COMMIT\",\n        help=(\n            \"Read only the days after this commit went live. The window starts on\"\n            \" the first whole UTC day after it merged, because the merge day itself\"\n            \" still holds the hours before it. Overrides --days.\"\n        ),\n    )\n    parser.add_argument(\n        \"--since\",\n        metavar=\"YYYY-MM-DD\",\n        help=(\n            \"Read from this date onwards. Overrides --days. For a release boundary\"\n            \" that is a date rather than a commit in this repository.\"\n        ),\n    )\n    parser.add_argument(\n        \"--min-measurements\",\n        type=int,\n        default=MIN_MEASUREMENTS,\n        help=\"Actual observations required for a score; at least 50.\",\n    )\n    parser.add_argument(\"--json\", action=\"store_true\", help=\"Print readings as JSON.\")\n    parser.add_argument(\n    # ... (160 lines truncated)\n            \"\\nNot judged: this window starts before\"\n            f\" {BROWSER_VERSION_RECORDED_FROM}, so the automated client pool cannot\"\n            \" be separated and no score here describes readers. Ask for a window\"\n            f\" starting on or after {BROWSER_VERSION_RECORDED_FROM}.\",\n            file=sys.stderr,\n        )\n        return 2\n    if args.fail_on_breach:\n        over = [\n            entry.address.label\n            for entry in readings\n            if entry.address.key.startswith(\"money\") and breaches(entry.scored)\n        ]\n        if over:\n            print(\"\\nOver a money-page limit: \" + \", \".join(over), file=sys.stderr)\n            return 1\n    return 0"
+        },
+        {
+          "name": "main",
+          "file": "scripts/report_origin_share_by_address.py",
+          "start_line": 518,
+          "end_line": 592,
+          "containing_class": null,
+          "body": "def main(argv: list[str] | None = None) -> int:\n    parser = argparse.ArgumentParser(description=__doc__ or \"\")\n    parser.add_argument(\n        \"--days\",\n        type=int,\n        default=DEFAULT_DAYS,\n        help=(\n            f\"Complete UTC days ending yesterday; {DEFAULT_DAYS} by default.\"\n            f\" Cloudflare keeps about 32 days, so {MAX_DAYS} is the ceiling here.\"\n        ),\n    )\n    parser.add_argument(\n        \"--include-verified-bots\",\n        action=\"store_true\",\n        help=\"Count verified bots too, which is what our own server really built.\",\n    )\n    parser.add_argument(\"--json\", action=\"store_true\", help=\"Print readings as JSON.\")\n    args = parser.parse_args(argv)\n    if args.days < 1:\n        parser.error(\"--days must be at least 1\")\n    if args.days > MAX_DAYS:\n        parser.error(f\"--days must be at most {MAX_DAYS}; Cloudflare keeps no more\")\n\n    token = (os.environ.get(\"CLOUDFLARE_ANALYTICS_API_TOKEN\") or \"\").strip()\n    account = (os.environ.get(\"CLOUDFLARE_ACCOUNT_ID\") or \"\").strip()\n    if not token or not account:\n        print(\n            \"Set CLOUDFLARE_ANALYTICS_API_TOKEN (Account Analytics Read) and\"\n            \" CLOUDFLARE_ACCOUNT_ID first.\",\n            file=sys.stderr,\n        )\n        return 2\n\n    # ... (25 lines truncated)\n    ]\n    print(\n        as_json(\n            readings,\n            started_on,\n            ended_on,\n            include_verified_bots=args.include_verified_bots,\n        )\n        if args.json\n        else format_report(\n            readings,\n            started_on,\n            ended_on,\n            include_verified_bots=args.include_verified_bots,\n        )\n    )\n    return 0"
+        }
+      ],
+      "callees": []
+    },
+    {
+      "function": {
+        "name": "_checks_against_the_board",
+        "file": "alethical/pipeline/campaign_finance.py",
+        "start_line": 1569,
+        "end_line": 1696,
+        "containing_class": null,
+        "call_sites": [
+          "Check",
+          "Check",
+          "_reported_totals_reconcile",
+          "_carried_reconcile_filer_years",
+          "get",
+          "get",
+          "Check",
+          "len",
+          "join",
+          "len",
+          "join",
+          "get",
+          "get",
+          "Check",
+          "len",
+          "join",
+          "len",
+          "join",
+          "tuple",
+          "replace",
+          "uncovered",
+          "tuple",
+          "fromkeys",
+          "Check",
+          "len",
+          "Check",
+          "join",
+          "_registrations_resolve"
+        ]
+      },
+      "change_type": "modified",
+      "callers": [
+        {
+          "name": "validate",
+          "file": "alethical/pipeline/campaign_finance.py",
+          "start_line": 1282,
+          "end_line": 1445,
+          "containing_class": null,
+          "body": "etSpec,\n    fetched: FetchedFile,\n    measured: Optional[Measurements],\n    baseline: Optional[Any],\n    *,\n    operator_approved: bool,\n    waivers: Waivers = NO_WAIVERS,\n    filings: Optional[Any] = None,\n    stated_split: Optional[Any] = None,\n) -> list[Check]:\n    \"\"\"Compare a candidate against the live release's snapshot for the same file.\n\n    Comparisons are against **recorded measurements**, never against old rows, so\n    a superseded set's rows can be pruned without losing the ability to check the\n    next download.\n\n    ``filings`` is the published snapshot of Minnesota's own figures and filer\n    directory (a ``FilingsContext`` from ``campaign_finance_filings``). Without it the\n    2 checks that need the Board's own statements report themselves as not run, with\n    the command that fixes that.\n\n    ``stated_split`` is what a previous run of #1433's comparison found for *these*\n    records (a ``StatedSplitCoverage``). It is looked up by record-set hash rather than\n    recomputed, so it is only present when the same records have already been compared\n    against their own filings. Without it that check reports itself not run, with the\n    command that fixes that.\n\n    ``operator_approved`` says this file's exact record hash was named by an\n    operator; ``waivers`` says which failed comparison checks, and for which years or\n    committee-years, that operator reviewed. A failed comparison is overridden only\n    when both hold and the waiver covers every affected qualifier; otherwise it fails.\n    Neither ever waives a structural check: a header that does not match, a record\n    with the wrong number of fields, a date that is not a date and an amount that\n    # ... (116 lines truncated)\n        _checks_against_the_board(\n            spec,\n            measured,\n            filings,\n            operator_approved=operator_approved,\n            waivers=waivers,\n            baseline=baseline,\n        )\n    )\n    # And the half that catches our rows being SHORT, which is the direction nothing\n    # announces (#1433). It reads a separate pass's stored answers rather than running\n    # one here, because one pass is about 1,300 report documents.\n    checks.append(_reported_itemized_split(spec, stated_split))\n    return checks\n\n\ndef _reported_itemized_split("
+        }
+      ],
+      "callees": [
+        {
+          "name": "_reported_totals_reconcile",
+          "file": "alethical/pipeline/campaign_finance.py",
+          "start_line": 1717,
+          "end_line": 1832,
+          "containing_class": null,
+          "body": ": DatasetSpec, measured: Measurements, filings: Any\n) -> Check:\n    \"\"\"Do our itemized rows fit inside what each filer itself reported taking in?\n\n    **The comparison is bounded by the figure's own coverage end**, because the\n    itemized download runs ahead of the figure. Filer 18336's 2026 figure covers\n    through 31 March while our rows for it run to 20 July, and $321,870.52 of its cash\n    contributions are dated after that. Comparing the year's whole sum against a figure\n    that stops in March compares two different periods and calls the difference an\n    error.\n\n    **Special-election filer-years are excluded rather than failed.** Such a filer\n    files a second report series that this route does not return, so its regular\n    figures are a part of the year and not the year: filer 19207's 2025 figure is\n    $0.00 against $7,000.00 of real itemized payments, all of them in the special\n    series. \u00a77 has those years read \"Not reported\" until both series are assembled.\n\n    What this catches is our rows being **too big** for the filer's own total, which is\n    what a file with 2 committees' amounts swapped would produce. What it cannot catch\n    is our rows being too small while still fitting, which needs the filing's own\n    stated itemized subtotal and is the separate not-run check above.\n    \"\"\"\n    name = \"reported_totals_reconcile\"\n    if spec.dataset is not Dataset.contributions:\n        return Check(\n            name,\n            \"not_run\",\n            \"this check compares itemized contributions against a reported \"\n            \"contributions figure, and this file carries neither. The Board publishes \"\n            \"no itemized-expenditure counterpart to reconcile against\",\n        )\n    comparable = {\n        filer_year: official\n    # ... (69 lines truncated)\n    if exceeded:\n        return Check(\n            name,\n            \"failed\",\n            f\"{len(exceeded)} filer-year(s) hold more itemized money than the filer \"\n            \"itself reported taking in, which would print as a negative amount of \"\n            \"unnamed money: \"\n            + \"; \".join(exceeded[:MAX_REPORTED_ROW_ERRORS])\n            + f\". {detail}\",\n            tuple(failed_filer_years),\n            figures=figures,\n        )\n    return Check(name, \"passed\", detail)\n\n\ndef _registrations_resolve(\n    spec: Da"
+        },
+        {
+          "name": "_carried_reconcile_filer_years",
+          "file": "alethical/pipeline/campaign_finance.py",
+          "start_line": 1699,
+          "end_line": 1714,
+          "containing_class": null,
+          "body": "baseline: Optional[Any],\n) -> dict[str, Optional[dict[str, str]]]:\n    \"\"\"The committee-years the published snapshot's reconcile check recorded, as\n    ``registration:year``, each with the 2 figures it recorded (``None`` when that\n    release recorded none), whatever status that check ended with (waived by a\n    person, or carried from an earlier release). Empty without a baseline.\"\"\"\n    recorded = getattr(baseline, \"validation_json\", None) or {}\n    for check in recorded.get(\"checks\") or []:\n        if check.get(\"name\") == \"reported_totals_reconcile\":\n            figures = check.get(\"figures\") or {}\n            return {\n                str(entry): figures.get(str(entry))\n                for entry in check.get(\"filer_years\") or []\n            }\n    return {}\n\n\ndef _reported_totals_reconcile(\n    s"
+        },
+        {
+          "name": "get",
+          "file": "scripts/repair_incomplete_vote_records.py",
+          "start_line": 61,
+          "end_line": 66,
+          "containing_class": "PacedSourceSession",
+          "body": "def get(self, url: str, **kwargs):  # noqa: ANN201\n        wait = self._last_started + self._interval_seconds - time.monotonic()\n        if wait > 0:\n            time.sleep(wait)\n        self._last_started = time.monotonic()\n        return self._session.get(url, **kwargs)"
+        },
+        {
+          "name": "uncovered",
+          "file": "alethical/pipeline/campaign_finance_filings.py",
+          "start_line": 1284,
+          "end_line": 1295,
+          "containing_class": "FilingsWaivers",
+          "body": "ck: str, qualifiers: Iterable[str] = ()\n    ) -> Optional[list[str]]:\n        wanted = list(qualifiers)\n        if wanted:\n            missing = [\n                f\"{check}:{qualifier}\"\n                for qualifier in wanted\n                if f\"{check}:{qualifier}\" not in self.keys\n            ]\n            return None if not missing else missing\n        return None if check in self.keys else [check]\n\n\nNO_FILINGS_WAIVERS = FilingsW"
+        },
+        {
+          "name": "_registrations_resolve",
+          "file": "alethical/pipeline/campaign_finance.py",
+          "start_line": 1835,
+          "end_line": 1889,
+          "containing_class": null,
+          "body": "etSpec, measured: Measurements, filings: Any\n) -> Check:\n    \"\"\"Does every registration number in the years we show name a filer Minnesota lists?\n\n    Asked only of the **2 newest years** the published filings cover, because the\n    directory lists *current* registrants and a filer who deregistered is legitimately\n    absent from it, more so the older the year. Measured on 23 Sep 2026 against the\n    1,626-row register: 0.8% of 2026's contribution filers and 1.9% of 2026's spending\n    filers are unknown, against 31.7% and 39.0% for 2022. When the totals first covered\n    2022 to 2026 the check read 26.16% and 34.10% over all 5 years and failed a publish\n    on nothing but how far back the totals reach. An unknown number is reported rather\n    than treated as fatal, which is what \u00a74.3 asks for \u2014 a filer registering between our\n    directory snapshot and this download is ordinary. What the ceiling catches is the\n    systematic break: a shifted column would make almost every number unknown at once,\n    in the newest years as much as in any other.\n\n    The **contributor** side of a row is deliberately not checked, only counted. A\n    contributor can be any person or a committee registered somewhere else entirely,\n    and 65.3% of them are unknown to Minnesota's directory as a matter of course, so\n    including them would make the number unreadable.\n    \"\"\"\n    name = \"registration_numbers_resolve_to_a_known_filer\"\n    years = sorted(int(year) for year in filings.years)[-NEWEST_YEARS_CHECKED:]\n    numbers: set[str] = set()\n    for year in years:\n        numbers |= measured.filer_numbers_by_year.get(year, set())\n    if not numbers:\n        return Check(\n            name,\n            \"not_run\",\n            \"this file holds no rows in \"\n            + (\", \".join(str(year) for year in years) or \"the published years\")\n            + \", which are the newest years the published filings cover\",\n    # ... (7 lines truncated)\n        f\"{len(filings.known_registrations):,} current registrants ({share:.2%})\"\n        + (f\", first few {', '.join(unknown[:5])}\" if unknown else \"\")\n        + f\". Separately and not checked: {counterparties:,} counterparty numbers are \"\n        \"not current Minnesota registrants, which is ordinary\"\n    )\n    if share > UNKNOWN_FILER_SHARE_CEILING:\n        return Check(\n            name,\n            \"failed\",\n            f\"{detail}. Above the {UNKNOWN_FILER_SHARE_CEILING:.0%} ceiling, which \"\n            \"means either the directory is badly out of date or this file's columns \"\n            \"have moved\",\n        )\n    return Check(name, \"passed\", detail)\n\n\ndef _baseline_repeat_fraction(baseline: Any"
+        }
+      ]
+    },
+    {
+      "function": {
+        "name": "_carried_reconcile_filer_years",
+        "file": "alethical/pipeline/campaign_finance.py",
+        "start_line": 1699,
+        "end_line": 1714,
+        "containing_class": null,
+        "call_sites": [
+          "getattr",
+          "get",
+          "get",
+          "get",
+          "str",
+          "get",
+          "str",
+          "get"
+        ]
+      },
+      "change_type": "modified",
+      "callers": [
+        {
+          "name": "_checks_against_the_board",
+          "file": "alethical/pipeline/campaign_finance.py",
+          "start_line": 1569,
+          "end_line": 1696,
+          "containing_class": null,
+          "body": " spec: DatasetSpec,\n    measured: Measurements,\n    filings: Optional[Any],\n    *,\n    operator_approved: bool = False,\n    waivers: Waivers = NO_WAIVERS,\n    baseline: Optional[Any] = None,\n) -> list[Check]:\n    \"\"\"\u00a74.3's 2 checks that need the Board's own figures and filer directory (#1408).\n\n    ``baseline`` is the published snapshot for this dataset. A committee-year the\n    reconciliation failed on that a person already waived on THAT release, with its\n    split already withheld, is a known disagreement carried forward rather than a new\n    failure: the daily job's first run (24 Sep 2026) quarantined every payments file on\n    exactly the 6 committee-years waived the night before, and would have done so every\n    day until the Board's own figures moved. A scheduled run still invents no exception:\n    it inherits the one a person recorded, by exact committee-year, and blocks on any\n    committee-year that list does not carry.\n\n    Both report ``not_run`` when no filings snapshot is published, because that is the\n    truth and it names the command that fixes it. Once one is published they pass or\n    fail.\n    \"\"\"\n    if filings is None:\n        reason = (\n            \"no filings snapshot is published, so there is no reported total and no \"\n            \"filer directory to check against. Fetch them with \"\n            \"scripts/load_campaign_finance_filings.py\"\n        )\n        return [\n            Check(\"reported_totals_reconcile\", \"not_run\", reason),\n            Check(\"registration_numbers_resolve_to_a_known_filer\", \"not_run\", reason),\n        ]\n    # ... (81 lines truncated)\n                f\"{len(qualifiers)} committee-year(s). The filer-years above must not \"\n                \"publish a split until they reconcile\",\n                all_pairs,\n                figures=reconcile.figures,\n            )\n        else:\n            reconcile = Check(\n                reconcile.name,\n                \"failed\",\n                f\"{reconcile.detail}. Not waived: {', '.join(missing)}\",\n                reconcile.filer_years,\n            )\n    return [reconcile, _registrations_resolve(spec, measured, filings)]\n\n\ndef _carried_reconcile_filer_years(\n "
+        }
+      ],
+      "callees": [
+        {
+          "name": "get",
+          "file": "scripts/repair_incomplete_vote_records.py",
+          "start_line": 61,
+          "end_line": 66,
+          "containing_class": "PacedSourceSession",
+          "body": "def get(self, url: str, **kwargs):  # noqa: ANN201\n        wait = self._last_started + self._interval_seconds - time.monotonic()\n        if wait > 0:\n            time.sleep(wait)\n        self._last_started = time.monotonic()\n        return self._session.get(url, **kwargs)"
+        }
+      ]
+    }
+  ]
+}
