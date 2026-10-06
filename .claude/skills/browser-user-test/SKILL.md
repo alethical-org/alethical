@@ -13,8 +13,10 @@ context** — it knows the product task, never the diff — drives the app in a 
 reports what breaks. Fresh context is the point: an agent that knows the implementation
 tests the diff; one that doesn't tests the product.
 
-Two layers, both on demand (deliberately not wired into CI yet — that is a pending
-decision, not an oversight):
+These 2 broader layers run on demand. The focused public reader subset runs in
+the required frontend CI job and after main releases;
+[reader-completion-checks.md](../../../docs/operations/reader-completion-checks.md)
+owns its scope and evidence:
 
 1. **Agent-driven user tests** — a spawned agent follows the stories in
    [`stories.md`](stories.md) or explores freely, judging what a human would judge
@@ -116,9 +118,9 @@ roles, never on style or DOM structure; keep each spec independent and read-only
 Stories with judgment in them (is the summary *readable*?) stay agent-driven — a spec
 can assert presence, not quality.
 
-## What this deliberately does not do yet
+## Scope beyond the automated subset
 
-Running these on every PR or merge is a **pending decision** (cost, flakiness policy,
-and CI wiring), not a technical gap. Until it lands, this skill is the trigger:
-frontend feature → run the stories. Component rendering and visual-regression testing
-remain uncovered on purpose (see CONTRIBUTING.md, "Frontend tests").
+The focused automatic subset does not replace these broader stories, phone and
+keyboard checks, visual acceptance or an independent reader review. A frontend
+feature triggers the relevant stories. Running every story and browser engine on
+every change needs its own cost and reliability decision.

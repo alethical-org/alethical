@@ -202,7 +202,11 @@ These are not a substitute for checking the site in a real browser. Browser auto
 remains separate: agent-driven user stories and Playwright checks in
 `apps/frontend/e2e/` (`just e2e`, Chrome, Firefox, and Safari), owned by the
 [`browser-user-test` skill](.claude/skills/browser-user-test/SKILL.md).
-Those browser checks run on demand, not in CI, pending the cost and flakiness policy.
+Those broader browser stories run on demand. The focused public reader subset
+runs in the required frontend CI job against the built website with fixed public
+records, and against the live website after main releases.
+[Reader completion checks](docs/operations/reader-completion-checks.md) owns its
+scope, read-only safety guards and saved commit evidence.
 
 For address entry and result replacement, run
 `pnpm --dir apps/frontend run check:address-recovery:local`. It builds a disposable

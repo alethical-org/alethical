@@ -2,7 +2,7 @@
 
 <!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py -->
 
-Net: The repository has 27 GitHub Actions workflows. 23 can start automatically
+Net: The repository has 29 GitHub Actions workflows. 25 can start automatically
 and 4 run only when a person starts them. Scheduled checks, releases, and local
 backups do not call paid AI services. Reader questions and deliberately started
 AI work do. The review of a failed campaign-money collection has a paid AI
@@ -12,6 +12,8 @@ reviewer too, and its switch is off until its limits are approved.
 
 | Work | Starts when | What it does | Usage-based cost |
 | --- | --- | --- | --- |
+| Public reader checks (`.github/workflows/reader-completion-checks.yml`) | A commit reaches `main`, a trusted caller, or by hand | Exercises real public reader actions and proves the intended website changes reached the live address | No paid AI call; existing GitHub runner usage and public GET reads |
+| Bounded website repair (`.github/workflows/website-release-recovery.yml`) | A trusted current-main missing-release alarm fails, or by hand with dry run on by default | Stages and promotes at most 1 proven missed website release per commit, preserving rollback holds and checking live reader actions | No paid AI call; existing GitHub and Vercel build/hosting usage |
 | Project checks (`.github/workflows/ci.yml`) | Pull request code events, merge-queue checks, and pushes to `main` | Runs the code, formatting, security, and document checks | No paid AI call; [standard GitHub-hosted runners are free for public repositories](https://docs.github.com/en/actions/concepts/billing-and-usage) |
 | Phone release tool checks (`.github/workflows/native-release-tools.yml`) | Pull requests that change phone release tools or settings, and by hand | Installs the optional phone publishing tools and checks their commands and security fixes | No paid AI call; standard GitHub-hosted runner for relevant changes only |
 | Latest change explanation (`.github/workflows/pr-description.yml`) | Pull request opens, code updates, reopens, ready-for-review events, description edits, and merge-queue checks | Reads the latest `Docs check:` explanation against the current code; does not rerun app or server tests or replace their results | No paid AI call; read-only GitHub requests on a standard free runner |
@@ -45,7 +47,7 @@ Time and Central Daylight Time, so their local hour changes by 1 during the year
 
 ## What GitHub runs only by hand
 
-These 4 workflows complete the total of 27:
+These 4 workflows complete the total of 29:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |
@@ -59,7 +61,7 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 86 runnable files. GitHub jobs call 30 of them
+The `scripts/` folder has 88 runnable files. GitHub jobs call 31 of them
 directly and 3 document checks through `local_checks.py`. The 2 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`; the older shell command
 for source backups calls `worktree_backup.py` too. A workflow also calls
@@ -78,6 +80,8 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Prepare a chosen public research email; live delivery is separately gated off | `send_unconcealed.py` |
 | Test reader comments with a disposable database and all outgoing mail disabled | `comments_local_qa.py` |
 | Review campaign-finance records | `recompute_lobbying_published_figures.py`, `record_disclosure_statement_readings.py`, `review_legislator_campaign_committees.py`, `show_party_and_caucus_money.py` |
+| Measure private agent job outcomes | `agent_job_outcomes.py` |
+| Recover 1 proven missed website release with saved evidence | `website_release_recovery.py` |
 | Measure AI answers and search | `answer_eval.py`, `retrieval_eval.py`, `try_queries.py`, `validate_query_rubric.py` |
 | Compare printed-name search offline without paid calls or live changes | `benchmark_campaign_finance_name_search.py` |
 | Collect change history by hand, report examined causes and retain prevention references | `review_repeat_failures.py` |

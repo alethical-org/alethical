@@ -1,0 +1,95 @@
+name: Bounded website release recovery
+
+on:
+  workflow_run:
+    workflows: [Production release missing]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Read evidence without creating a deployment
+        type: boolean
+        default: true
+
+# Shares the hand-run fallback's slot. Normal Vercel Git builds are also checked
+# at the provider before building and again before changing the live domain.
+concurrency:
+  group: vercel-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+  deployments: write
+
+jobs:
+  recover:
+    if: >-
+      github.repository == 'alethical-org/alethical' &&
+      ((github.event_name == 'workflow_run' &&
+        github.event.workflow_run.event != 'pull_request' &&
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        github.event.workflow_run.conclusion == 'failure') ||
+       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+    steps:
+      # Never check out the triggering run's code or consume its artifacts. The
+      # script separately binds the trusted alarm's commit to current main.
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Install the saved browser-check tools
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --dir apps/frontend exec playwright install --with-deps chromium
+      - name: Install the pinned release tool without production credentials
+        run: |
+          npm install --prefix "$RUNNER_TEMP/alethical-release-tools" \
+            --ignore-scripts --no-audit --no-fund vercel@54.4.1
+          "$RUNNER_TEMP/alethical-release-tools/node_modules/.bin/vercel" --version
+      - name: Read evidence and make at most 1 recovery attempt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ "$DRY_RUN" = 'true' ]; then
+            python scripts/website_release_recovery.py
+          else
+            python scripts/website_release_recovery.py --execute
+          fi
+      - name: Save the outcome even when recovery stops
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: website-recovery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            website-recovery.json
+            reader-completion.json
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Show the saved outcome
+        if: always()
+        run: |
+          if [ -f website-recovery.json ]; then
+            printf '```json\n' >> "$GITHUB_STEP_SUMMARY"
+            cat website-recovery.json >> "$GITHUB_STEP_SUMMARY"
+            printf '\n```\n' >> "$GITHUB_STEP_SUMMARY"
+          fi

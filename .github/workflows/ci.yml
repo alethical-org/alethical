@@ -268,6 +268,20 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
+      - name: Record pending built-reader evidence before setup
+        env:
+          CHECKED_COMMIT: ${{ github.sha }}
+        run: |
+          python3 - <<'PY_EVIDENCE'
+          import json, os
+          from pathlib import Path
+          Path("reader-completion-results.json").write_text(json.dumps({
+              "schema_version": 1, "phase": "premerge-setup-pending", "passed": False,
+              "checked_commit": os.environ["CHECKED_COMMIT"],
+              "checks": [], "failure": "browser-checks-not-started"
+          }) + "\n")
+          PY_EVIDENCE
+
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
         with:
@@ -312,9 +326,41 @@ jobs:
       # The type and format checks above cannot catch a wrong answer — they check
       # the code is spelled correctly, not that it does the right thing (#751).
       # Run the complete saved suite, including logic and rendered snapshots.
-      # Browser user-flow checks remain a separate release responsibility.
+      # The built reader paths below supplement these component tests.
       - name: Test frontend
         run: pnpm run test
 
       - name: Build frontend
+        env:
+          EXPO_PUBLIC_API_URL: https://api.alethical.com
+          ALETHICAL_COMMIT_SHA: ${{ github.sha }}
         run: pnpm run build
+
+      - name: Test reader-check privacy and target guards
+        run: node --test scripts/test-reader-completion-policy.mjs
+
+      - name: Install Chromium for reader checks
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Exercise the built public reader paths with fixed sample records
+        run: |
+          node scripts/serve-reader-check-build.mjs &
+          reader_server_pid=$!
+          trap 'kill "$reader_server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/ > /dev/null; then break; fi
+            sleep 1
+          done
+          node scripts/reader-completion-checks.mjs \
+            --base-url http://127.0.0.1:4173 --fixtures \
+            --checked-commit "$GITHUB_SHA" --expected-commit "$GITHUB_SHA" \
+            --output reader-completion-results.json
+
+      - name: Retain reader-check evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: built-reader-checks-${{ github.run_id }}-${{ github.run_attempt }}
+          path: apps/frontend/reader-completion-results.json
+          if-no-files-found: warn
+          retention-days: 30

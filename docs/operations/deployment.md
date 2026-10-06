@@ -407,7 +407,9 @@ owns the current provider, email, password, and confirmation settings.
   and documents (`505b9909`). Comparing against the head's own parent is what left a
   website change unbuilt on 8 Sep 2026
   ([issue 2093](https://github.com/alethical-org/alethical/issues/2093)), and the
-  repair for a missed release is the hand-run `vercel-deploy.yml` job.
+  [Bounded website release recovery](website-release-recovery.md) supplies 1 guarded
+  automatic repair attempt; the hand-run `vercel-deploy.yml` job remains available
+  for an operator's diagnosed repair.
 - Judge what readers are getting by the `Production` environment's own newest
   deployment state. The `Vercel` commit status does not say which environment ran,
   and the separate `alethical / production` environment is the API rather than the
@@ -415,9 +417,11 @@ owns the current provider, email, password, and confirmation settings.
   for already recovered.
 - Normal release: merge to `main`. Vercel and Railway each release through their own
   Git connection. Railway runs database migrations before replacing the API.
-- Missed Vercel release: use the Vercel deployment for the reviewed commit and promote
-  or redeploy it to Production. If GitHub Actions is healthy, the hand-run
-  `vercel-deploy.yml` job is the second path.
+- Missed Vercel release: [bounded website release recovery](website-release-recovery.md)
+  tries 1 repair when its trusted alarm, current tests and provider evidence permit
+  it. It preserves deliberate rollback and promotion holds. If it stops, diagnose
+  the saved evidence before an operator promotes or redeploys the reviewed commit.
+  The hand-run `vercel-deploy.yml` job remains a separate operator path.
 - Missed Railway release: in Railway, choose **Deploy Latest Commit** for service
   `alethical-api` in `production`. If GitHub Actions is healthy, the hand-run
   `railway-deploy.yml` job is the second path.
@@ -427,6 +431,10 @@ owns the current provider, email, password, and confirmation settings.
   is already on `main` and keeps the provider's release history readable.
 
 ## Final checks
+
+[Reader completion checks](reader-completion-checks.md) supplies saved public
+browser actions and intended-release evidence after main pushes. These scoped
+checks supplement the changed feature's checks and independent reader review.
 
 ```bash
 curl -fsS https://api.alethical.com/readyz

@@ -1,0 +1,91 @@
+name: Reader completion checks
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      expected_commit:
+        description: Main commit the release must contain
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reader-checks-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  readers:
+    name: Public reader actions
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out tested code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Record pending browser evidence before setup
+        env:
+          CHECKED_COMMIT: ${{ github.sha }}
+        run: |
+          python3 - <<'PY_EVIDENCE'
+          import json, os
+          from pathlib import Path
+          Path("reader-completion-results.json").write_text(json.dumps({
+              "schema_version": 1, "phase": "setup-pending", "passed": False,
+              "checked_commit": os.environ["CHECKED_COMMIT"],
+              "checks": [], "failure": "browser-checks-not-started"
+          }) + "\n")
+          PY_EVIDENCE
+
+      - name: Require trusted main before running repository code
+        run: test "$GITHUB_REF" = refs/heads/main
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install saved dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test target, privacy, and network safety guards
+        run: node --test apps/frontend/scripts/test-reader-completion-policy.mjs
+
+      - name: Install Chromium
+        run: pnpm --dir apps/frontend exec playwright install --with-deps chromium
+
+      # Uses the fixed official address, never a URL carried by an event.
+      # Newer main releases count only when local Git proves ancestry.
+      - name: Check intended main release and live public actions
+        env:
+          CHECKED_COMMIT: ${{ github.sha }}
+          EXPECTED_COMMIT: ${{ inputs.expected_commit || github.sha }}
+        run: |
+          test "$GITHUB_REF" = refs/heads/main
+          git merge-base --is-ancestor "$EXPECTED_COMMIT" origin/main
+          node apps/frontend/scripts/reader-completion-checks.mjs \
+            --checked-commit "$CHECKED_COMMIT" --expected-commit "$EXPECTED_COMMIT" \
+            --allow-newer --allow-equivalent --release-wait-seconds 600 \
+            --output reader-completion-results.json
+
+      - name: Retain reader-check evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reader-completion-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reader-completion-results.json
+          if-no-files-found: warn
+          retention-days: 30
