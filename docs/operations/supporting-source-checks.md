@@ -38,7 +38,7 @@ issues. A successful source check is not a new publication date.
   This uses no resident address, calls no address-based API, and claims neither
   statewide candidate completeness nor working results for an individual address.
   A new election ID/date still requires official evidence and review.
-- ZIP reference: quarterly, or a cheap daily date check. HUD aims to publish by
+- ZIP reference: weekly availability/review-deadline checks for the quarterly release. HUD aims to publish by
   the end of the month following each quarter. Compare that review deadline with
   the held reference's actual quarter-end. A due review is not evidence that a
   workbook is available. HUD requires sign-in; a complete authenticated workbook

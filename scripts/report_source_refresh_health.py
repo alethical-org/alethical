@@ -111,6 +111,20 @@ def packet(report: list[dict]) -> tuple[str, str, bool]:
                     )
                 )
             )
+        for key, label in (
+            ("missing_notice_window_years", "Notice filing windows need review for"),
+            (
+                "ballot_source_years_needing_review",
+                "Notice ballot sources need review for",
+            ),
+        ):
+            years = sorted(
+                year
+                for year in finding.get(key, [])
+                if type(year) is int and 2000 <= year <= 2199
+            )
+            if years:
+                lines.append(f"  - {label}: {', '.join(map(str, years))}.")
     fingerprint = hashlib.sha256(
         json.dumps(stable, sort_keys=True).encode()
     ).hexdigest()

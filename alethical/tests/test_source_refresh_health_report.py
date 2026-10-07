@@ -63,6 +63,24 @@ def test_new_official_session_changes_fingerprint():
     assert report.packet([before])[1] != report.packet([after])[1]
 
 
+def test_notice_calendar_review_names_only_valid_years():
+    body, _, _ = report.packet(
+        [
+            row(
+                "notices",
+                finding={
+                    "missing_notice_window_years": [2028, "private body", True, 9999],
+                    "ballot_source_years_needing_review": [2028],
+                },
+            )
+        ]
+    )
+    assert "Notice filing windows need review for: 2028" in body
+    assert "Notice ballot sources need review for: 2028" in body
+    assert "private body" not in body
+    assert "9999" not in body
+
+
 def test_input_order_does_not_create_another_notification():
     rows = [row(), row("candidates")]
     assert report.packet(rows)[1] == report.packet(list(reversed(rows)))[1]
