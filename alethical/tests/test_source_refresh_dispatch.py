@@ -30,6 +30,7 @@ def isolated(monkeypatch, seed_database):
     monkeypatch.setattr(service.jwt, "encode", lambda *a, **kw: "signed-test-jwt")
     real_jobs = service.jobs
     monkeypatch.setattr(service, "jobs", lambda *a: {"maps": real_jobs()["maps"]})
+    monkeypatch.setattr(service, "due_names", lambda db, **kw: ["maps"])
 
 
 def client_for(requests, *, dispatch=200, permissions=None):

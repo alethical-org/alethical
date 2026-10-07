@@ -18,7 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
 from alethical.db.models import SourceRefreshState
-from alethical.pipeline.record_refresh import jobs
+from alethical.pipeline.record_refresh import due_names, jobs
 
 API = "https://api.github.com"
 REPOSITORY = "alethical-org/alethical"
@@ -176,7 +176,9 @@ def dispatch_due(
             )
     result = []
     access_token = None
-    for name in jobs(now):
+    with session_factory() as db:
+        due = due_names(db, now=now)
+    for name in due:
         if len(result) >= max_dispatches or (stop_event and stop_event.is_set()):
             break
         with session_factory() as db:
