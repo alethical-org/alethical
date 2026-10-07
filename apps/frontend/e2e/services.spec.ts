@@ -53,7 +53,9 @@ for (const width of [320, 375, 768, 924, 1100, 1280]) {
     expect(layout.scrollWidth).toBeLessThanOrEqual(layout.width + 1);
     expect(layout.pageWidth).toBe(width);
     await expect(
-      page.getByText('Pricing is tailored to your needs', { exact: true }),
+      page
+        .locator('#services-page')
+        .getByText('Pricing is tailored to your needs', { exact: true }),
     ).toBeVisible();
     // Every software heading stays in its intended row, rather than wrapping the last tile.
     const tools = page.getByRole('heading', {

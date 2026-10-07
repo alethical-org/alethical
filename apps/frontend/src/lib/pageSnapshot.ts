@@ -1,5 +1,6 @@
 import { SOCIAL_ACCOUNTS } from './socialLinks';
 import { SERVICES_CONTACT_HREF } from './services';
+import { servicesPrintSnapshot } from './servicesPrint';
 import { articleReturnDestination } from './articleReturn';
 import {
   collectionPage,
@@ -2941,6 +2942,7 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
     links,
     '</main>',
     snapshot.navigation === 'services' ? renderServicesFooter() : '',
+    snapshot.navigation === 'services' ? servicesPrintSnapshot() : '',
     '</div>',
   ]
     .filter(Boolean)

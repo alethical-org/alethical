@@ -369,6 +369,8 @@ jobs:
             --base-url http://127.0.0.1:4173 --fixtures \
             --checked-commit "$GITHUB_SHA" --expected-commit "$GITHUB_SHA" \
             --output reader-completion-results.json
+          E2E_STATIC_BUILD=1 E2E_BASE_URL=http://127.0.0.1:4173 pnpm exec playwright test \
+            e2e/services-print.spec.ts --project=chromium
           # These failures must reach the money assertions. A crashed browser,
           # wrong release, or earlier navigation failure is not a successful test.
           for money_failure in unavailable wrong-amount missing-as-zero; do
@@ -408,6 +410,7 @@ jobs:
           name: built-reader-checks-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             apps/frontend/reader-completion-results.json
+            apps/frontend/test-results/**/*.pdf
             apps/frontend/reader-money-negative-*.json
           if-no-files-found: warn
           retention-days: 30

@@ -76,7 +76,8 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
 - **Campaign services presentation.** `/services` uses the approved black background,
   light text and green accents inside its customer presentation. It has 1 dedicated
   dark header with a home-linked wordmark, section links and Contact Us, followed
-  by the existing dark footer. Other routes retain their shared navigation. This is a scoped exception, described in
+  by the existing dark footer. Browser printing uses the approved white branding and
+  4 portrait sheets with both audiences visible; the screen remains dark. Other routes retain their shared navigation. This is a scoped exception, described in
   [services-guide.md](../product-onboarding/services-guide.md), not a restyle of record pages.
 - **Green roles on light surfaces.** UI-sized green text, including links such as
   `revisor.mn.gov →`, uses `text.greenOnLight` (`#0f7a45`). SVG strokes/fills use
