@@ -121,7 +121,8 @@ reminds the agent to register the next authorized outcome.
 
 Claude prompt identifiers supply the turn identity where available.
 A tool event uses its tool-use identifier for duplicate detection; a turn identifier
-alone cannot identify several tool calls. Events without usable identifiers remain
+alone cannot identify several tool calls. Stop and helper events remain separate observations, since the same turn or helper
+can stop more than once. Events without an invocation identifier remain
 separate observations and are reported as such. A finished reply (`Stop`), an error
 or an interruption never completes the job and never starts another agent turn.
 Failures to record produce fixed warnings, not copied exception or payload text.

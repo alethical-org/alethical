@@ -25,10 +25,11 @@ unrelated sessions produce no output and do not create state. Hook stdout is
 empty or host hook JSON with fixed additionalContext on SessionStart or
 UserPromptSubmit. It never blocks, completes, continues, or relaunches work.
 
-Deduplication uses tool-use IDs for tool events, agent IDs for subagent events,
-and turn IDs for prompt/stop/failure/interrupt events. Other events, and events
-without their relevant identity, remain separate observations. Event presence does
-not establish full host coverage, a working result, help, repeats, or AI cost.
+Deduplication uses tool-use IDs for tool events and turn/prompt IDs for prompt
+submission. Other events remain separate observations: a stop hook can continue
+and fire again within the same turn, and a helper may receive follow-up work.
+Event presence does not establish full host coverage, a working result, help,
+repeats, or AI cost.
 Trial membership is assigned at begin, under the writer transaction, to the first
 new explicitly eligible jobs after trial-start, including unfinished outcomes.
 A crash after ledger publication but before sidecar commit leaves an unbound
@@ -430,12 +431,7 @@ def hook(
     identity_kind = {
         "PostToolUse": "tool_use",
         "PostToolUseFailure": "tool_use",
-        "SubagentStart": "agent",
-        "SubagentStop": "agent",
         "UserPromptSubmit": "turn",
-        "Stop": "turn",
-        "StopFailure": "turn",
-        "Interrupt": "turn",
     }.get(event)
     identity_hash = hashes.get(identity_kind) if identity_kind else None
     dedupe = (

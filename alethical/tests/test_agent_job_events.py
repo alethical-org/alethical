@@ -591,3 +591,17 @@ def test_hostile_path_cannot_execute_checkout_git(tmp_path: Path, repo: Path):
     assert result.returncode == 0
     assert not marker.exists()
     assert "Session hash:" in result.stdout
+
+
+@pytest.mark.parametrize("event", ["Stop", "SubagentStop", "StopFailure", "Interrupt"])
+def test_stop_observations_never_assume_turn_or_helper_is_invocation_id(
+    tmp_path, repo, event
+):
+    state = tmp_path / "private"
+    register(state, repo)
+    for turn in ("synthetic-turn-1", "synthetic-turn-2", "synthetic-turn-2"):
+        events.hook(
+            state, "codex", payload(event, agent_id="synthetic-agent", turn_id=turn)
+        )
+    assert len(rows(state)) == 3
+    assert all(row["dedupe_key"] is None for row in rows(state))
