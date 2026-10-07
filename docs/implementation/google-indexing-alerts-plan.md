@@ -136,7 +136,7 @@ collected 20:00–21:00 UTC: 3 failures, including the labelled 20:41 committee 
 after upstream status 200, with no saturation. The other 2 failures came from the
 private traffic-admin endpoint. This completes natural failure-record acceptance.
 
-The first release is live at `b984d2163395631afce0c7dd3c80351aef76eef3`
+The first release is live at [commit b984d216](https://github.com/alethical-org/alethical/commit/b984d2163395631afce0c7dd3c80351aef76eef3)
 ([pull request 2517](https://github.com/alethical-org/alethical/pull/2517)).
 It adds bounded variant checks and fixed failure labels, without changing timeouts,
 cache policy or retry behavior. The released daily public check passed. An
@@ -187,7 +187,7 @@ recovery evidence cannot be reported as complete. Only fixed aggregate labels en
 the 35-day public artifacts.
 
 The recovery and notice-button release is live at
-`1ab1be2e8c9006e820ad936f3ca1545c99afe94f`
+[commit 1ab1be2e](https://github.com/alethical-org/alethical/commit/1ab1be2e8c9006e820ad936f3ca1545c99afe94f)
 ([pull request 2521](https://github.com/alethical-org/alethical/pull/2521)). All 37
 Google server-error examples return 200, retain their preferred address and contain
 a title; all 67 daily public checks pass. A new uncached committee-year read returned
@@ -252,9 +252,21 @@ Manual runs prove the hourly collector works, but its first actual scheduled run
 has not yet been observed. Do not describe a configured hourly cadence as observed
 continuous coverage.
 
-The current chat (seo, 01a117ab-5b6b-7b01-8a5d-f46e3a3c01b5) owns release of the
-provider-date repair, a real hosted coverage read using the genuine activation time,
-and the remaining Google and coverage follow-up. Inspect the next 2 daily coverage
+The monitoring repair shipped in
+[pull request 2522](https://github.com/alethical-org/alethical/pull/2522), at
+[commit 13223d55](https://github.com/alethical-org/alethical/commit/13223d55377ab1e9460512d1f78f448befdb8e8e).
+All 4,478 backend tests, current-head checks and exact merge-queue checks passed.
+The [hosted coverage run](https://github.com/alethical-org/alethical/actions/runs/37699803305)
+uses the genuine 7 October 20:24:18 UTC activation and counts 1 of 1 eligible hours,
+including both evidence channels, with zero gaps or saturation. It correctly reports
+startup rather than a full day of healthy evidence. The
+[hosted collector](https://github.com/alethical-org/alethical/actions/runs/37699565390)
+retains the 2 private-admin failures separately and records zero natural recoveries.
+All 67 hosted public checks pass. Current website inputs match the served reader
+release, so no new website build is needed for the monitoring-only repair.
+
+The current chat (seo, 01a117ab-5b6b-7b01-8a5d-f46e3a3c01b5) owns the remaining
+Google and coverage follow-up. Inspect the next 2 daily coverage
 reports after the 24-hour startup period. If either has at least 3 missing hours,
 review and build bounded catch-up collection; measure eligible-hour coverage rather
 than the number of timer executions. A 3-hour catch-up query is a candidate, not a
@@ -282,7 +294,7 @@ This repairs absent notice cards, not the unexplained whole-page 503 responses:
 the page function catches optional notice request failures. That catch also exists
 in the 25 September version. Release acceptance requires both affected requests to
 return 200 with missing dates preserved, and a working committee notice card.
-The API release is live at `9344208fbbb40f3b2447c1c741df39acd34703cb`
+The API release is live at [commit 9344208f](https://github.com/alethical-org/alethical/commit/9344208fbbb40f3b2447c1c741df39acd34703cb)
 ([pull request 2520](https://github.com/alethical-org/alethical/pull/2520)). Both
 affected requests return 200 with 3 notices and 1 missing received date each.
 The 18336 control returns 200 with all 10 missing received dates preserved.
