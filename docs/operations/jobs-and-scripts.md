@@ -65,7 +65,7 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 98 runnable files. GitHub jobs call 33 of them
+The `scripts/` folder has 98 runnable files. GitHub jobs call 34 of them
 directly and 3 document checks through `local_checks.py`. The 2 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`; the older shell command
 for source backups calls `worktree_backup.py` too. A workflow also calls
