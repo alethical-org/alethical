@@ -38,8 +38,8 @@ trusted-main **Reader completion checks**. It reads robots instructions, the
 It requires meaningful initial text, correct preferred addresses and indexing
 instructions; missing records and private views keep their deliberate treatment.
 Failures retain a JSON artifact for 35 days. Public response reads make no AI
-calls and use no credentials. The daily run also uses GitHub's read-only workflow
-token to inspect the hourly failure collector's coverage. It creates no daily
+calls and use no credentials. Daily and manually started runs also use GitHub's
+read-only workflow token to inspect the hourly failure collector's coverage. This creates no daily
 issue or message for a person to review.
 GitHub's normal failed-run notification is the fallback for a broken technical check.
 
@@ -98,13 +98,20 @@ remain readable and are reported as failure-only hours, not recovery coverage.
 
 A transient collection failure is tried once more and then recorded as a failed
 collection, without creating an hourly failed-run email. Authentication or format
-failures stop visibly. The daily scheduled public-search run checks 24 eligible
-hourly windows, leaving the newest completed hour time to arrive. Its fixed
+failures stop visibly. Scheduled and manually started public-search runs check
+24 eligible hourly windows, leaving the newest completed hour time to arrive. The fixed
 24-hour startup period begins at workflow creation; afterward, 3 missing or
 failed hours fail the daily check. A failed or unclassified recovery collection
 also makes that hour incomplete. Any saturated query fails the daily check,
 including during startup. A green hourly workflow alone does not prove that
 collection succeeded. Gaps remain explicit rather than interpreted as no errors.
+GitHub metadata dates may include fractional seconds and timezone offsets; the
+reader validates and normalizes them separately from the strict whole-second UTC
+format of saved reports. Invalid provider dates retain a fixed error without raw
+provider text. Queued or in-progress runs missing dates cannot supply coverage and
+do not hide older completed evidence. Setup crossing an hour boundary does not
+change which hour is counted: the validated report supplies the hour, bounded by
+the trusted run's start and end. Public report validation is unchanged.
 GitHub can delay or drop scheduled runs. A run delayed past the next hour collects
 that later completed hour, leaving the missed hour visible as a coverage gap.
 The daily check tolerates 1 or 2 missing or failed hours, but never saturation.

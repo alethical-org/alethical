@@ -61,7 +61,7 @@ jobs:
         run: python -m unittest scripts.tests.test_check_public_search_health
 
       - name: Test hourly evidence coverage offline
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: python -m unittest scripts.tests.test_check_page_failure_coverage
 
       - name: Read bounded public search health
@@ -73,7 +73,7 @@ jobs:
             --output public-search-health-results.json "${broader[@]}"
 
       - name: Read daily coverage of hourly failure evidence
-        if: always() && github.event_name == 'schedule' && github.repository == 'alethical-org/alethical' && github.ref == 'refs/heads/main'
+        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.repository == 'alethical-org/alethical' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: python scripts/check_page_failure_coverage.py --output page-failure-coverage.json
@@ -88,7 +88,7 @@ jobs:
           retention-days: 35
 
       - name: Retain daily failure coverage evidence
-        if: always() && github.event_name == 'schedule'
+        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         uses: actions/upload-artifact@v7
         with:
           name: page-failure-coverage-${{ github.run_id }}-${{ github.run_attempt }}
