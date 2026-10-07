@@ -19,6 +19,17 @@ import type {
   CandidateSource,
 } from './types';
 
+export {
+  candidateElectionLabel,
+  candidateOfficeLabel,
+  areaLabel,
+} from '../../lib/candidatePublicCopy';
+import {
+  candidateOfficeLabel,
+  candidatePartyLabel,
+  areaLabel,
+} from '../../lib/candidatePublicCopy';
+
 const groups = [
   {
     key: 'state',
@@ -81,35 +92,7 @@ function entryName(entry: CandidateEntry) {
     : (entry.label ?? entry.members.map((member) => member.name).join(' and '));
 }
 function partyLabel(party?: string) {
-  return party?.toUpperCase() === 'NONPARTISAN' ? 'Nonpartisan' : party;
-}
-export function candidateElectionLabel(election: CandidateElection) {
-  const prefix = `${candidateDate(election.date)} `;
-  if (!election.label.startsWith(prefix)) return election.label;
-  const label = election.label.slice(prefix.length);
-  if (!new RegExp(`^(?:state )?${election.type}(?: election)?$`, 'i').test(label))
-    return election.label;
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}
-export function candidateOfficeLabel(office: string, votingArea?: string) {
-  const legislative = office.match(
-    /^(State Representative|State Senator),?\s+District\s*(\d+[A-Z]?)$/i,
-  );
-  if (legislative && votingArea) {
-    const chamber = /^State Representative$/i.test(legislative[1]) ? 'House' : 'Senate';
-    const district = votingArea.match(new RegExp(`^${chamber} District\\s*(\\d+[A-Z]?)$`, 'i'));
-    if (district && district[1].toUpperCase() === legislative[2].toUpperCase())
-      return chamber === 'House' ? 'State Representative' : 'State Senator';
-  }
-  return office
-    .replace(/^Governor & Lt Governor$/i, 'Governor and Lieutenant Governor')
-    .replace(
-      /^(Judge|Associate Justice)\s*-\s*(Supreme Court|Court of Appeals|\d+(?:st|nd|rd|th) District Court)\s+(\d+)$/i,
-      '$1, $2, Seat $3',
-    );
-}
-export function areaLabel(area: string) {
-  return area.replace(/^Judicial District (\d+(?:st|nd|rd|th))$/i, '$1 Judicial District');
+  return candidatePartyLabel(party);
 }
 function isJudicial(race: CandidateRace) {
   return /\b(?:Supreme Court|Court of Appeals|District Court)\b/i.test(race.office);

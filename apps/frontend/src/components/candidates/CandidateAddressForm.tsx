@@ -1,3 +1,4 @@
+import { CANDIDATE_LOOKUP_COPY } from '../../lib/candidatePublicCopy';
 import {
   useEffect,
   useId,
@@ -234,7 +235,7 @@ export function CandidateAddressForm({
   return (
     <View style={[styles.form, compact && { marginTop: 0 }]}>
       <Text nativeID={`${id}-label`} style={candidateText.strong}>
-        Full street address
+        {CANDIDATE_LOOKUP_COPY.addressLabel}
       </Text>
       <View style={[styles.controls, (isMobile || compact) && { flexDirection: 'column' }]}>
         <View
@@ -424,12 +425,9 @@ export function CandidateAddressForm({
       {!compact ? (
         <View style={styles.privacy}>
           <Text nativeID={`${id}-help`} style={styles.help}>
-            A city or ZIP code alone cannot identify your local races
+            {CANDIDATE_LOOKUP_COPY.addressHelp}
           </Text>
-          <Text style={styles.help}>
-            {privacyDisclosure ??
-              'Address lookup uses Minnesota Secretary of State and Minnesota mapping services'}
-          </Text>
+          <Text style={styles.help}>{privacyDisclosure ?? CANDIDATE_LOOKUP_COPY.privacy}</Text>
         </View>
       ) : null}
     </View>

@@ -61,6 +61,7 @@ const FIXED_PAGES = [
   "/bills",
   "/legislators",
   "/find-my-legislator",
+  "/candidates",
   "/money",
   "/money/lobbying",
   "/money/lobbying/principals",

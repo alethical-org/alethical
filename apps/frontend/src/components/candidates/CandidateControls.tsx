@@ -15,32 +15,20 @@ import { theme as t } from '../../theme/tokens';
 import { LinkArrow } from '../LinkArrow';
 import type { CandidateSource } from './types';
 
+import {
+  candidateRecordsSourceLabel,
+  candidateCheckedLabel,
+  CANDIDATE_PROFILE_COPY,
+  safeCandidateUrl,
+} from '../../lib/candidatePublicCopy';
+export { candidateDate, safeCandidateUrl, sampleBallotUrl } from '../../lib/candidatePublicCopy';
+
 export const candidateColors = {
   ink: '#11150f',
   muted: '#4f5651',
   link: '#0f7a45',
   focus: '#7c5cff',
 };
-export const sampleBallotUrl = 'https://www.sos.mn.gov/elections-voting/whats-on-my-ballot/';
-export function candidateDate(value: string) {
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00Z`) : null;
-  return date && !Number.isNaN(date.getTime())
-    ? date.toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-        timeZone: 'UTC',
-      })
-    : value;
-}
-export function safeCandidateUrl(url: string) {
-  try {
-    const parsed = new URL(url);
-    return ['http:', 'https:'].includes(parsed.protocol) ? url : null;
-  } catch {
-    return null;
-  }
-}
 function canHover() {
   return (
     Platform.OS === 'web' &&
@@ -281,8 +269,8 @@ export function CandidateSourceLine({
         style,
       ]}
     >
-      <CandidateLink url={source.url} label={`Candidate records from ${source.authority}`} />
-      <Text style={styles.small}>Checked {candidateDate(source.checkedDate)}</Text>
+      <CandidateLink url={source.url} label={candidateRecordsSourceLabel(source.authority)} />
+      <Text style={styles.small}>{candidateCheckedLabel(source.checkedDate)}</Text>
       {source.stale ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -290,7 +278,7 @@ export function CandidateSourceLine({
             <Path d="M12 6v6l4 2" stroke="#8f5a12" strokeWidth={1.8} strokeLinecap="round" />
           </Svg>
           <Text style={[styles.small, { color: '#8f5a12', fontWeight: '700' }]}>
-            May be out of date
+            {CANDIDATE_PROFILE_COPY.stale}
           </Text>
         </View>
       ) : null}
