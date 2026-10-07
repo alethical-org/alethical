@@ -31,6 +31,12 @@ content generation, production record replacement, or new visual direction.
 - The search report and links report justify strengthening useful existing records
   and seeking relevant Minnesota references. Changes must remain source-backed;
   search exposure or a short page alone is not evidence of a content defect.
+- Google's complete 28-day Web window, 7 September through 4 October, reports
+  145 clicks, 9,718 impressions, displayed click-through rate 1.5% and average
+  position 7.8. Mobile contributes 59 clicks and 2,049 impressions. Its 285
+  reported query rows account for only 21 clicks and 995 impressions; omitted
+  queries cannot be classified as non-brand. The observed query evidence does
+  not establish a misleading summary or justify keyword padding.
 - Existing Cloudflare reader measurements for 30 September through 6 October
   show sitewide main content at 1,028 ms for the slower quarter boundary, with
   378 observations. Several profile and article families have fewer than 50
@@ -93,7 +99,9 @@ events, link taps and horizontal-overflow checks. A read-only test proxy supplie
 the public API response to loopback without widening production browser access.
 Physical phones remain untested. Firefox cannot start on this Mac because its
 browser sandbox helper is denied; this is not a demonstrated website failure.
-Live website data and phone-browser acceptance remain required.
+The same 12 browser stories pass on the live website, including both phone
+browser emulations. A broader live response run passes 81 checks with 73 public
+requests. The automatic release search-health run also passes.
 The 3 outreach drafts remain private; the University of Minnesota official
 reference service lists law-ref@umn.edu as its contact. Bing live fetches accept
 1 bill, 1 legislator and numbered bill results, and reject a truly missing bill
@@ -101,5 +109,29 @@ with 404. Its 30-day All filter for 6 September through 5 October reports
 9 clicks, 172 impressions and 5.23% click-through rate. Existing query evidence does not justify
 rewriting truthful summaries to satisfy a provider's length recommendation.
 The upload checks pass, including 4,224 server tests.
-[Pull request 2508](https://github.com/alethical-org/alethical/pull/2508) owns the release.
-Current-head checks, deployment and live acceptance remain unfinished.
+[Pull request 2508](https://github.com/alethical-org/alethical/pull/2508) merged
+as release `4c30e9acf78ee66ac0967a91b17a4d51e272c9ae` on 7 October. That exact
+commit reached the public website; its current-main tests and Reader completion
+checks pass. Independent source acceptance on that exact release found no
+material defect, missed affected use or missing prevention correction.
+
+Trusted-main notice initialization saved 18,599 inventory entries and sent 0
+old addresses. The automatic follow-up ran successfully without bulk submission.
+The fixed state branch contains only its saved state and deployment-disabled
+configuration. One deliberate notice for the changed `/candidates` first received
+202, retained its retry, then received 200. This proves receipt, not indexing.
+
+Fresh-context live reader review is partial: `/candidates` is readable on desktop,
+and continuous pointer movement keeps its Search menu open above content. The
+independent phone/detail/legal reading and a clean keyboard-menu test remain
+unfinished. Browser access was refused because the administrator-enforced policy
+could not be verified. No alternate browser route was used after that refusal.
+The implementation is live, but final reader acceptance and working-folder
+cleanup remain held until permitted browser access returns. Preserve the source,
+private evidence and review progress; do not report full acceptance or close the
+remaining review merely from the automated passes.
+
+Weekly provider review and the monthly comparison in
+[public-search-upkeep.md](../operations/public-search-upkeep.md) remain manual.
+The first comparable 30-day Bing follow-up is 6 November. Private outreach drafts
+are prepared; sending is still separately held. No paid recurring work was armed.
