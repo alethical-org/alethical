@@ -31,7 +31,7 @@ completion. Keep publication, privacy, source accuracy and spending boundaries i
   Railway's 18:16:56–18:19:50 release overlaps the later failure, but not the earlier
   one. Its previous release succeeded at 17:53:43. Association does not prove cause.
   Add fixed, private-text-free failure classification at both 503 exits and keep
-  timeout/cache/retry behavior unchanged until the evidence can distinguish causes.
+  cache behavior unchanged. The labelled 20:41 failure now supports the bounded read recovery described below.
 
 ## Evidence and current state
 
@@ -110,8 +110,8 @@ becomes ready at 18:19:39 and the prior process stops at 18:19:52. Both reader f
 precede that switch. Bounded prior-process logs contain nearby finance 200 replies,
 but no shared request IDs, query values, durations or body evidence connect them
 to the failing website reads. No recognized timeout or shutdown appears in either
-failure-minute sample. Leave handover, timeout and retry behavior unchanged until
-actual failure labels support a correction.
+failure-minute sample. Leave handover and the 5-second read limit unchanged; the
+20:41 labelled failure supports committee-only read recovery.
 
 Server-error revalidation waits for a demonstrated repair that is live, or 7
 consecutive complete, unsaturated daily sets with zero reader-page 503s. This is
@@ -119,7 +119,8 @@ a conservative operating threshold, not Google's published rule or a guarantee
 that failures cannot recur. Missing or unclassified evidence cannot prove stability.
 Reader pages exclude administration and private account routes; their failures
 remain counted separately and cannot establish a public indexing defect.
-The first classified failures remain the immediate diagnosis priority.
+A natural classified failure now establishes the stalled committee-response class;
+the pre-label fast failures and the lobbyists-list event remain unexplained.
 
 The local collector read for 18:00–19:00 UTC succeeded with 2 committee 503s,
 matching the original private source records and retaining no raw text. All 75
@@ -129,8 +130,11 @@ The hourly collector shipped in [pull request 2519](https://github.com/alethical
 Its first [hosted run](https://github.com/alethical-org/alethical/actions/runs/37681983059)
 collected 19:00–20:00 UTC with zero failures and no saturation. The coverage client's
 real authenticated artifact read succeeded, followed the signed download without
-forwarding credentials, and validated the report. Natural classified-failure
-acceptance remains pending because that hour contains no failures.
+forwarding credentials, and validated the report. A later
+[hosted run](https://github.com/alethical-org/alethical/actions/runs/37686646637)
+collected 20:00–21:00 UTC: 3 failures, including the labelled 20:41 committee timeout
+after upstream status 200, with no saturation. The other 2 failures came from the
+private traffic-admin endpoint. This completes natural failure-record acceptance.
 
 The first release is live at `b984d2163395631afce0c7dd3c80351aef76eef3`
 ([pull request 2517](https://github.com/alethical-org/alethical/pull/2517)).
@@ -140,8 +144,52 @@ independent browser review passed the committee year, bill text tab, guide artic
 navigation and candidate form's empty-input recovery; the parent also opened the
 live bill text. No phone layout or real address lookup was exercised in this
 non-visual release. No runtime failures appeared in the bounded 19:25–19:46 UTC
-read, so a natural labelled failure remains pending. Google started duplicate-address validation on
+read; the later 20:41 response supplies the first natural label. Google started duplicate-address validation on
 7 October after its live bill test returned the intended canonical address.
+
+## Bounded recovery for a stalled committee response
+
+At 20:41 UTC the website recorded `committee-finance`, `timeout`, upstream 200,
+and 1 attempt after 5 seconds. The data response had started but its body had not
+finished. A bounded 24-hour provider read ending 20:48 UTC contains 7 committee
+503s: 4 near 5 seconds and 3 fast responses (16, 98 and 242 milliseconds). These
+are request counts, not distinct pages or an error rate. The same window contains
+9 private traffic-admin failures and 1 5-second failure at `/money/lobbying/lobbyists`.
+That last response predates labels; its exact failing phase and cause remain unknown.
+Do not infer a body stall from duration alone or extend recovery to a slow list query.
+
+Only the required committee finance read may start a second identical GET. It
+starts at 2.5 seconds while the original remains alive, or immediately after a
+network failure or HTTP 502/503/504. Both share the original 5-second deadline.
+A complete answer must match the requested committee and year before it can win.
+A terminal first response before a second starts retains its existing outcome.
+When both are already running, a failed backup cannot defeat a valid original
+answer. With no valid answer, the original request determines the error. Pending
+original reads time out as 503; genuine original 404s remain 404. The loser and
+both timers are cancelled. Optional reads and cache policy remain unchanged.
+
+This preserves legitimate slower replies: a fresh uncached live committee page
+loaded in 1.572 seconds before the change. A separate 13-response timing sample
+included a 1.878-second response; that sample is not a full distribution or an SLO.
+Tests reproduce stalled 200 bodies, both attempts stalling, transient statuses,
+wrong identities and years, malformed data, contradictory backup errors, delayed
+original success, deadline races, cancellation, privacy and unchanged optional reads.
+
+A successful read that started 2 attempts emits fixed fields only. Counts distinguish
+whether the original or backup won; an original winner does not prove the backup
+helped. The hourly recorder searches the recovery marker at the provider, restricted
+to successful page responses, with its own 100-row cap, 4 MiB output cap and at most
+2 bounded 75-second commands. It never enumerates all successful page requests.
+A recovered read followed by a later page failure is outside that success count.
+Schema 2 retains separate failure and recovery collection status. Historical schema
+1 reports remain accepted as failure-only coverage. Missing, malformed or capped
+recovery evidence cannot be reported as complete. Only fixed aggregate labels enter
+the 35-day public artifacts.
+
+Release acceptance is pending: final review, full checks, live committee variants,
+a fresh-request timing comparison and a hosted schema-2 report. Natural recovery
+counts remain a follow-up until such an event occurs; do not induce a live outage.
+The current chat (seo, 01a117ab-5b6b-7b01-8a5d-f46e3a3c01b5) owns these checks.
 
 ## Work sequence
 
@@ -164,8 +212,38 @@ This repairs absent notice cards, not the unexplained whole-page 503 responses:
 the page function catches optional notice request failures. That catch also exists
 in the 25 September version. Release acceptance requires both affected requests to
 return 200 with missing dates preserved, and a working committee notice card.
-Keep the Sentry groups open until that live acceptance; keep the Google server-error
-investigation open independently. The current chat owns both follow-ups.
+The API release is live at `9344208fbbb40f3b2447c1c741df39acd34703cb`
+([pull request 2520](https://github.com/alethical-org/alethical/pull/2520)). Both
+affected requests return 200 with 3 notices and 1 missing received date each.
+The 18336 control returns 200 with all 10 missing received dates preserved.
+Independent browser acceptance shows the notices and official PDF links on both
+2026 committee pages. Sentry groups
+[ALETHICAL-API-E](https://alethical.sentry.io/issues/7754990405/) and
+[ALETHICAL-API-F](https://alethical.sentry.io/issues/7757007174/) are resolved after
+live acceptance; the release selector did not yet contain the repair, so resolution
+was not incorrectly attributed to its older listed release. Google server-error
+follow-up remains separate.
+The same acceptance exposed a separate existing keyboard defect: the matched-payment
+jump was a focusable link without an address, and Enter did nothing. Both parent and
+independent browser checks reproduce it on the Kosiak notice for registration 41348.
+The action changes controls and focuses a payment within the same screen. Use the
+existing payment-control button semantics while preserving its visible text and arrow;
+PDF links remain links. Component tests cover native button semantics, keyboard focusability, pointer
+activation and exact targets for Individuals and Other kinds. Browser Enter/Space
+activation remains a release check; the unit-test browser does not synthesize native
+button key activation. Repeat the reader path after release. This correction applies to every matched notice
+through the shared notice-row component, not unrelated navigation.
+The full frontend suite exposed the existing destination-arrow guard: on-screen
+buttons cannot use the green destination-link helper. The approved action rule in
+[design-principles.md](../design/design-principles.md) settles the correction:
+preserve the arrow drawing, 6px gap and final-word wrapping, but use near-black
+for the action label and arrow. A neutral wrapper shares the existing arrow layout;
+destination links keep their green treatment. The spoken name starts with the exact
+visible label and retains the existing date/contributor instruction, with consistent
+sentence endings. This follows WCAG 2.5.3 without changing visible copy or needing
+another visual direction. Tests cover neutral/green layout equivalence and names
+with and without a known payment-tab label.
+
 
 1. Complete category sampling and current outage diagnosis; retain dated evidence.
 2. Finish independent Claude review of the checker and routine monitoring choice.

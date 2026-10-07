@@ -1,5 +1,6 @@
 import { Platform, StyleProp, StyleSheet, Text, TextStyle, ViewStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { theme } from '../theme/tokens';
 
 /**
  * Destination-page links only. On-screen actions (reveal, retry, filters, and
@@ -22,6 +23,29 @@ export const GREEN_LINK_ARROW_COLOR = '#0f7a45';
  * together, while the arrow keeps the same 6px space and centered position.
  */
 export function LinkArrowLabel({ label, style }: { label: string; style?: StyleProp<TextStyle> }) {
+  return <ArrowLabel label={label} style={style} color={GREEN_LINK_ARROW_COLOR} />;
+}
+
+/** Same accepted drawing and wrapping, in the neutral color for on-screen actions. */
+export function ActionArrowLabel({
+  label,
+  style,
+}: {
+  label: string;
+  style?: StyleProp<TextStyle>;
+}) {
+  return <ArrowLabel label={label} style={style} color={theme.colors.text.primary} />;
+}
+
+function ArrowLabel({
+  label,
+  style,
+  color,
+}: {
+  label: string;
+  style?: StyleProp<TextStyle>;
+  color: string;
+}) {
   const lastSpace = label.lastIndexOf(' ');
   const start = lastSpace < 0 ? '' : `${label.slice(0, lastSpace)} `;
   const end = lastSpace < 0 ? label : label.slice(lastSpace + 1);
@@ -30,7 +54,7 @@ export function LinkArrowLabel({ label, style }: { label: string; style?: StyleP
       {start}
       <Text style={[styles.inheritDecoration, styles.keepTogether]}>
         {end}
-        <LinkArrow color={GREEN_LINK_ARROW_COLOR} style={styles.inlineArrow} />
+        <LinkArrow color={color} style={styles.inlineArrow} />
       </Text>
     </Text>
   );

@@ -89,13 +89,20 @@ def strict_json(raw: bytes) -> object:
 def validate_report(report: object) -> tuple[datetime, str]:
     """Validate every public field before using any artifact as coverage."""
     expected = set(
-        health.empty_report(*health.complete_hour(datetime.now(timezone.utc)))
+        health.empty_report(
+            *health.complete_hour(datetime.now(timezone.utc)), schema_version=1
+        )
     )
     if not isinstance(report, dict) or report.get("collection_status") not in (
         "collected",
         "failed",
     ):
         raise CoverageFailure("aggregate-shape-invalid")
+    version = report.get("schema_version")
+    if type(version) is not int or version not in (1, 2):
+        raise CoverageFailure("aggregate-shape-invalid")
+    if version == 2:
+        expected.add("recovery_collection")
     collected = report["collection_status"] == "collected"
     if set(report) != (expected - {"failure"} if collected else expected):
         raise CoverageFailure("aggregate-shape-invalid")
@@ -107,7 +114,7 @@ def validate_report(report: object) -> tuple[datetime, str]:
         raise CoverageFailure("aggregate-shape-invalid")
     if (
         type(report["schema_version"]) is not int
-        or report["schema_version"] != 1
+        or report["schema_version"] not in (1, 2)
         or type(report["limit"]) is not int
         or report["limit"] != 100
         or not number(report["attempt_count"], 0, 2)
@@ -198,7 +205,86 @@ def validate_report(report: object) -> tuple[datetime, str]:
         or (not collected and (report["rows_received"] or report["failures_count"]))
     ):
         raise CoverageFailure("aggregate-shape-invalid")
-    return start, "saturated" if report["saturated"] else report["collection_status"]
+    state = "saturated" if report["saturated"] else report["collection_status"]
+    if version == 2:
+        recovery_state = validate_recovery_report(
+            report["recovery_collection"], start, end
+        )
+        if recovery_state == "saturated" or state == "saturated":
+            state = "saturated"
+        elif recovery_state == "failed":
+            state = "failed"
+    return start, state
+
+
+def validate_recovery_report(report: object, start: datetime, end: datetime) -> str:
+    expected = set(health.empty_recovery_report())
+    if not isinstance(report, dict) or report.get("collection_status") not in (
+        "collected",
+        "failed",
+    ):
+        raise CoverageFailure("aggregate-shape-invalid")
+    collected = report["collection_status"] == "collected"
+    if set(report) != (expected - {"failure"} if collected else expected):
+        raise CoverageFailure("aggregate-shape-invalid")
+    if (
+        not number(report["limit"], 100, 100)
+        or not number(report["attempt_count"], 0, 2)
+        or any(
+            not number(report[key])
+            for key in ("rows_received", "recoveries_count", "unclassified_matches")
+        )
+        or type(report["saturated"]) is not bool
+        or report["saturated"] != (report["rows_received"] == 100)
+        or report["recoveries_count"] + report["unclassified_matches"]
+        > report["rows_received"]
+        or not isinstance(report["classifications"], list)
+        or len(report["classifications"]) > 100
+    ):
+        raise CoverageFailure("aggregate-shape-invalid")
+    if not collected and (
+        not isinstance(report["failure"], str)
+        or report["failure"] not in FAILURES
+        or report["rows_received"]
+        or report["recoveries_count"]
+        or report["unclassified_matches"]
+    ):
+        raise CoverageFailure("aggregate-shape-invalid")
+    total, seen = 0, set()
+    for entry in report["classifications"]:
+        if (
+            not isinstance(entry, dict)
+            or set(entry)
+            != {"minute", "winner_attempt", "trigger", "timing_bucket", "count"}
+            or not number(entry["winner_attempt"], 1, 2)
+            or not isinstance(entry["trigger"], str)
+            or entry["trigger"] not in ("slow", "network", "http")
+            or not isinstance(entry["timing_bucket"], str)
+            or entry["timing_bucket"] not in health.TIMING_BUCKETS
+            or not number(entry["count"], 1)
+        ):
+            raise CoverageFailure("aggregate-shape-invalid")
+        minute = timestamp(entry["minute"])
+        if minute.second or not start <= minute < end:
+            raise CoverageFailure("aggregate-shape-invalid")
+        identity = tuple(
+            entry[key]
+            for key in ("minute", "winner_attempt", "trigger", "timing_bucket")
+        )
+        if identity in seen:
+            raise CoverageFailure("aggregate-shape-invalid")
+        seen.add(identity)
+        total += entry["count"]
+    if total != report["recoveries_count"]:
+        raise CoverageFailure("aggregate-shape-invalid")
+    # A matching request without a usable event leaves the recovery count unknown.
+    return (
+        "saturated"
+        if report["saturated"]
+        else "failed"
+        if report["unclassified_matches"]
+        else report["collection_status"]
+    )
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -357,6 +443,7 @@ def coverage(client: GitHub, now: datetime) -> tuple[dict, int]:
             trusted.append(run)
     trusted.sort(key=lambda run: timestamp(run.get("run_started_at")), reverse=True)
     observed, sampled_hours, downloaded = {}, set(), 0
+    failure_only_hours = recovery_collected_hours = 0
     for run in trusted:
         predicted = health.complete_hour(timestamp(run["run_started_at"]))[0]
         if predicted not in windows or predicted in sampled_hours:
@@ -394,7 +481,8 @@ def coverage(client: GitHub, now: datetime) -> tuple[dict, int]:
         if downloaded >= MAX_ARTIFACTS:
             break
         downloaded += 1
-        start, status = validate_report(client.artifact(artifact["id"]))
+        aggregate = client.artifact(artifact["id"])
+        start, status = validate_report(aggregate)
         # Setup may cross an hour boundary. Accept only a window whose end fell
         # during this trusted run, and which is part of the eligible day.
         began = timestamp(run["run_started_at"])
@@ -404,6 +492,15 @@ def coverage(client: GitHub, now: datetime) -> tuple[dict, int]:
         if start in windows and start not in observed:
             observed[start] = status
             sampled_hours.add(start)
+            if aggregate["schema_version"] == 1:
+                failure_only_hours += 1
+            elif (
+                validate_recovery_report(
+                    aggregate["recovery_collection"], start, start + timedelta(hours=1)
+                )
+                == "collected"
+            ):
+                recovery_collected_hours += 1
     counts = {
         state: sum(observed.get(window, "missing") == state for window in windows)
         for state in ("collected", "failed", "saturated", "missing")
@@ -420,7 +517,7 @@ def coverage(client: GitHub, now: datetime) -> tuple[dict, int]:
         else "passed"
     )
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "coverage_status": status,
         "activation": health.iso(activation),
         "eligible_end": health.iso(health.complete_hour(now)[1] - timedelta(hours=1)),
@@ -430,6 +527,8 @@ def coverage(client: GitHub, now: datetime) -> tuple[dict, int]:
         "saturated_hours": counts["saturated"],
         "missing_hours": counts["missing"],
         "artifacts_read": downloaded,
+        "failure_only_hours": failure_only_hours,
+        "recovery_collected_hours": recovery_collected_hours,
         "failure_threshold": 3,
         "saturation_threshold": 1,
     }, 1 if status == "failed" else 0

@@ -247,16 +247,19 @@ cannot lower that limit.
 
 ### Frontend first-load recovery
 
-The successful path stays direct: a public read makes 1 request with no retry delay, and
+The successful path stays direct: a browser public read makes 1 request with no retry delay, and
 the release page does no recovery work unless its main program file fails to load.
 
-- Public GET requests have a 5-second limit per attempt and get at most 2 attempts total.
+- Browser public GET requests have a 5-second limit per attempt and get at most 2 attempts total.
   Only a network failure, timeout, or `5xx` server response gets the second attempt. A
   `4xx` response, including an honest missing record, is final and keeps its normal page
   behavior. For HTTP 503, the browser honors `Retry-After` up to 1 second before its
   second attempt. A longer requested wait returns the failure without retrying early.
   Cancellation stops the wait as well as an active request. Successful reads incur no
   delay.
+- Server-generated committee first responses use the separate bounded recovery in
+  [page-metadata-for-search-and-sharing-decisions.md](../architecture/page-metadata-for-search-and-sharing-decisions.md):
+  at most 2 overlapping required-finance reads within 1 total 5-second deadline.
 - Restoring a saved sign-in has a 5-second limit. The public home renders while that check
   runs, and every success, service error, rejected request, or timeout ends the loading
   state.

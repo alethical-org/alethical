@@ -1904,6 +1904,443 @@ describe('when the data service is unwell', () => {
   });
 });
 
+describe('bounded recovery of mandatory committee money reads', () => {
+  const privateText = 'PRIVATE-CALLBACK-REMOTE-ERROR-AND-BODY';
+  const query = {
+    path: '/money/committees/jane-fonda-climate-pac-41326',
+    year: '2025',
+    tab: 'filings',
+    q: privateText,
+    access_token: privateText,
+  };
+  const payload = {
+    data: {
+      registration_number: '41326',
+      year: 2025,
+      committee_name: 'Jane Fonda Climate PAC',
+      register: {
+        state: 'reported',
+        kind: 'political_committee_or_fund',
+        name: 'Jane Fonda Climate PAC',
+      },
+      money_in: { state: 'not_reported' },
+      money_out: { state: 'not_reported' },
+      split: { state: 'no_reported_total' },
+    },
+  };
+  type Plan = {
+    headerDelay?: number;
+    bodyDelay?: number;
+    status?: number;
+    payload?: unknown;
+    networkError?: boolean;
+    jsonError?: boolean;
+    stalledBody?: boolean;
+    ignoreAbort?: boolean;
+  };
+  let errorLog: ReturnType<typeof vi.spyOn>;
+  let recoveryLog: ReturnType<typeof vi.spyOn>;
+  let signals: AbortSignal[];
+  let cancellations: ReturnType<typeof vi.fn>[];
+  let financeCalls: string[];
+  let optionalCalls: string[];
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+    recoveryLog = vi.spyOn(console, 'info').mockImplementation(() => {});
+    signals = [];
+    cancellations = [];
+    financeCalls = [];
+    optionalCalls = [];
+  });
+
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    errorLog.mockRestore();
+    recoveryLog.mockRestore();
+  });
+
+  function network(plans: Plan[]) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, options: RequestInit) => {
+        if (!url.includes('/finance?')) {
+          optionalCalls.push(url);
+          return { ok: false, status: 503, body: null };
+        }
+        const plan = plans[financeCalls.length];
+        if (!plan) throw new Error('unexpected extra finance attempt');
+        financeCalls.push(url);
+        const signal = options.signal as AbortSignal;
+        signals.push(signal);
+        const wait = (delay?: number, stalled = false) =>
+          new Promise<void>((resolve, reject) => {
+            const abort = () => {
+              if (timer !== undefined) clearTimeout(timer);
+              signal.removeEventListener('abort', abort);
+              reject(new Error(privateText));
+            };
+            const timer = stalled
+              ? undefined
+              : setTimeout(() => {
+                  signal.removeEventListener('abort', abort);
+                  resolve();
+                }, delay ?? 0);
+            if (!plan.ignoreAbort) {
+              if (signal.aborted) abort();
+              else signal.addEventListener('abort', abort, { once: true });
+            }
+          });
+        if (plan.headerDelay) await wait(plan.headerDelay);
+        if (plan.networkError) throw new TypeError(privateText);
+        const cancel = vi.fn(async () => {});
+        cancellations.push(cancel);
+        const status = plan.status ?? 200;
+        return {
+          ok: status >= 200 && status < 300,
+          status,
+          headers: { get: () => null },
+          body: { cancel },
+          json: async () => {
+            await wait(plan.bodyDelay, plan.stalledBody);
+            if (plan.jsonError) throw new SyntaxError(privateText);
+            return plan.payload ?? payload;
+          },
+        };
+      }),
+    );
+  }
+
+  function recovered(winner: 1 | 2, trigger: 'slow' | 'network' | 'http') {
+    expect(errorLog).not.toHaveBeenCalled();
+    expect(recoveryLog).toHaveBeenCalledTimes(1);
+    const [text] = recoveryLog.mock.calls[0];
+    expect(recoveryLog.mock.calls[0]).toHaveLength(1);
+    expect(text).not.toContain(privateText);
+    expect(text).not.toMatch(/https?:|\/committees\/|year=|access_token/);
+    expect(JSON.parse(text)).toEqual({
+      event: 'page_read_recovery',
+      source_family: 'committee-finance',
+      attempt_count: 2,
+      winner_attempt: winner,
+      trigger,
+      elapsed_ms: expect.any(Number),
+    });
+    expect(Number.isInteger(JSON.parse(text).elapsed_ms)).toBe(true);
+    expect(financeCalls).toHaveLength(2);
+    expect(financeCalls[0]).toBe(financeCalls[1]);
+    expect(vi.getTimerCount()).toBe(0);
+  }
+
+  it('recovers a stalled 200 body without extending the 5-second deadline', async () => {
+    network([{ stalledBody: true }, {}]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(2499);
+    expect(financeCalls).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(financeCalls).toHaveLength(2);
+    await vi.advanceTimersByTimeAsync(1);
+    expect((await result).status).toBe(200);
+    expect(signals[0].aborted).toBe(true);
+    expect(cancellations[0]).toHaveBeenCalledOnce();
+    recovered(2, 'slow');
+  });
+
+  it('fails at 5 seconds when both 200 bodies stall, reporting 2 attempts and 200 headers', async () => {
+    network([{ stalledBody: true }, { stalledBody: true }]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect((await result).status).toBe(503);
+    expect(errorLog).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(errorLog.mock.calls[0][0])).toMatchObject({
+      source_family: 'committee-finance',
+      failure_kind: 'timeout',
+      upstream_status: 200,
+      attempt_count: 2,
+      elapsed_ms: 5000,
+    });
+    expect(errorLog.mock.calls[0][0]).not.toContain(privateText);
+    expect(recoveryLog).not.toHaveBeenCalled();
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each([502, 503, 504])('starts the second read immediately after HTTP %s', async (status) => {
+    network([{ status }, {}]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(1);
+    expect((await result).status).toBe(200);
+    expect(cancellations[0]).toHaveBeenCalledOnce();
+    recovered(2, 'http');
+  });
+
+  it('starts the second read immediately after a network failure', async () => {
+    network([{ networkError: true }, {}]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(1);
+    expect((await result).status).toBe(200);
+    recovered(2, 'network');
+  });
+
+  it('stops after 2 transient failures and clears both timers', async () => {
+    network([{ networkError: true }, { status: 503 }]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(1);
+    expect((await result).status).toBe(503);
+    expect(financeCalls).toHaveLength(2);
+    expect(errorLog).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(errorLog.mock.calls[0][0])).toMatchObject({
+      failure_kind: 'network',
+      attempt_count: 2,
+    });
+    expect(JSON.parse(errorLog.mock.calls[0][0])).not.toHaveProperty('upstream_status');
+    expect(recoveryLog).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each([
+    { status: 404 },
+    { status: 500 },
+    { status: 429 },
+    { jsonError: true },
+    { payload: { data: { ...payload.data, year: 2024 } } },
+    { payload: { data: { ...payload.data, registration_number: '99999' } } },
+  ])('does not retry a terminal first response: %j', async (plan) => {
+    network([plan]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(1);
+    expect((await result).status).toBe(plan.status === 404 ? 404 : 503);
+    expect(financeCalls).toHaveLength(1);
+    expect(recoveryLog).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('keeps the first read alive so its valid 3-second answer can win', async () => {
+    network([{ bodyDelay: 3000 }, { stalledBody: true }]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect((await result).status).toBe(200);
+    expect(signals[0].aborted).toBe(false);
+    expect(signals[1].aborted).toBe(true);
+    expect(cancellations[1]).toHaveBeenCalledOnce();
+    recovered(1, 'slow');
+  });
+
+  it.each([404, 500])(
+    'does not let backup HTTP %s defeat the healthy 3-second original',
+    async (status) => {
+      network([{ bodyDelay: 3000 }, { headerDelay: 100, status }]);
+      const result = serve(query);
+      await vi.advanceTimersByTimeAsync(3000);
+      expect((await result).status).toBe(200);
+      recovered(1, 'slow');
+    },
+  );
+
+  it('lets a valid backup win after the original returns a delayed 404', async () => {
+    network([{ headerDelay: 3000, status: 404 }, { bodyDelay: 700 }]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(3200);
+    expect((await result).status).toBe(200);
+    recovered(2, 'slow');
+  });
+
+  it.each([{ jsonError: true }, { payload: { data: { ...payload.data, year: 2016 } } }])(
+    'lets a validated backup win after a delayed invalid original: %j',
+    async (plan) => {
+      network([{ bodyDelay: 3000, ...plan }, { bodyDelay: 700 }]);
+      const result = serve(query);
+      await vi.advanceTimersByTimeAsync(3200);
+      expect((await result).status).toBe(200);
+      recovered(2, 'slow');
+    },
+  );
+
+  it.each([
+    { original: 500, backup: 404, status: 503 },
+    { original: 404, backup: 500, status: 404 },
+    { original: 404, backup: 404, status: 404 },
+  ])('keeps the original result when both delayed reads fail: %j', async (test) => {
+    network([
+      { headerDelay: 3000, status: test.original },
+      { headerDelay: 600, status: test.backup },
+    ]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(3100);
+    expect((await result).status).toBe(test.status);
+    if (test.status === 503) {
+      expect(errorLog).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(errorLog.mock.calls[0][0])).toMatchObject({
+        failure_kind: 'http',
+        upstream_status: test.original,
+        attempt_count: 2,
+      });
+      expect(errorLog.mock.calls[0][0]).not.toContain(privateText);
+    } else expect(errorLog).not.toHaveBeenCalled();
+    expect(recoveryLog).not.toHaveBeenCalled();
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each([404, 500])(
+    'keeps original HTTP %s when the pending backup reaches the deadline',
+    async (status) => {
+      network([{ headerDelay: 3000, status }, { stalledBody: true }]);
+      const result = serve(query);
+      await vi.advanceTimersByTimeAsync(5000);
+      expect((await result).status).toBe(status === 404 ? 404 : 503);
+      if (status !== 404) {
+        expect(JSON.parse(errorLog.mock.calls[0][0])).toMatchObject({
+          failure_kind: 'http',
+          upstream_status: status,
+          attempt_count: 2,
+          elapsed_ms: 5000,
+        });
+      } else expect(errorLog).not.toHaveBeenCalled();
+      expect(recoveryLog).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
+    },
+  );
+
+  it.each([502, 503, 504, 'network'] as const)(
+    'does not substitute a backup 404 for original %s',
+    async (first) => {
+      network([first === 'network' ? { networkError: true } : { status: first }, { status: 404 }]);
+      const result = serve(query);
+      await vi.advanceTimersByTimeAsync(1);
+      expect((await result).status).toBe(503);
+      expect(errorLog).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(errorLog.mock.calls[0][0])).toMatchObject({
+        failure_kind: first === 'network' ? 'network' : 'http',
+        attempt_count: 2,
+        ...(first === 'network' ? {} : { upstream_status: first }),
+      });
+      expect(errorLog.mock.calls[0][0]).not.toContain(privateText);
+      expect(recoveryLog).not.toHaveBeenCalled();
+      expect(financeCalls).toHaveLength(2);
+      expect(vi.getTimerCount()).toBe(0);
+    },
+  );
+
+  it('consumes a late loser rejection even when its reader ignores cancellation', async () => {
+    network([{ bodyDelay: 3000 }, { bodyDelay: 1000, jsonError: true, ignoreAbort: true }]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect((await result).status).toBe(200);
+    expect(signals[1].aborted).toBe(true);
+    await vi.advanceTimersByTimeAsync(500);
+    recovered(1, 'slow');
+  });
+
+  it('refuses a valid answer that finishes at the 5-second deadline', async () => {
+    network([{ bodyDelay: 5000 }, { stalledBody: true }]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect((await result).status).toBe(503);
+    expect(JSON.parse(errorLog.mock.calls[0][0])).toMatchObject({
+      failure_kind: 'timeout',
+      upstream_status: 200,
+      attempt_count: 2,
+    });
+    expect(recoveryLog).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each([
+    { status: 404 },
+    { status: 500 },
+    { jsonError: true },
+    { payload: { data: { ...payload.data, year: 2016 } } },
+  ])('keeps waiting for the original after a terminal backup response: %j', async (plan) => {
+    network([{ stalledBody: true }, plan]);
+    const result = serve(query);
+    let finished = false;
+    void result.then(() => {
+      finished = true;
+    });
+    await vi.advanceTimersByTimeAsync(2501);
+    expect(finished).toBe(false);
+    await vi.advanceTimersByTimeAsync(2499);
+    expect((await result).status).toBe(503);
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    expect(recoveryLog).not.toHaveBeenCalled();
+    expect(errorLog).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(errorLog.mock.calls[0][0])).toMatchObject({
+      failure_kind: 'timeout',
+      upstream_status: 200,
+      attempt_count: 2,
+      elapsed_ms: 5000,
+    });
+    expect(errorLog.mock.calls[0][0]).not.toContain(privateText);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('keeps the original payload error if the already-started backup stalls until the deadline', async () => {
+    network([
+      { bodyDelay: 3000, payload: { data: { ...payload.data, year: 2016 } } },
+      { stalledBody: true },
+    ]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect((await result).status).toBe(503);
+    expect(JSON.parse(errorLog.mock.calls[0][0])).toMatchObject({
+      failure_kind: 'payload',
+      attempt_count: 2,
+    });
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    expect(recoveryLog).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('lets the pending first response win after the second has a transient failure', async () => {
+    network([{ bodyDelay: 3000 }, { status: 504 }]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect((await result).status).toBe(200);
+    recovered(1, 'slow');
+  });
+
+  it('bounds requests that stall before headers as well as stalled bodies', async () => {
+    network([{ headerDelay: 10000 }, { headerDelay: 10000 }]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect((await result).status).toBe(503);
+    expect(JSON.parse(errorLog.mock.calls[0][0])).toMatchObject({
+      failure_kind: 'timeout',
+      attempt_count: 2,
+      elapsed_ms: 5000,
+    });
+    expect(JSON.parse(errorLog.mock.calls[0][0])).not.toHaveProperty('upstream_status');
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('preserves a healthy 1.878-second first response without a second request', async () => {
+    network([{ bodyDelay: 1878 }]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(1878);
+    expect((await result).status).toBe(200);
+    expect(financeCalls).toHaveLength(1);
+    expect(recoveryLog).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('does not add another read or recovery log to a fast valid result or optional failures', async () => {
+    network([{}]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(1);
+    expect((await result).status).toBe(200);
+    expect(financeCalls).toHaveLength(1);
+    expect(optionalCalls.length).toBeGreaterThan(0);
+    expect(new Set(optionalCalls).size).toBe(optionalCalls.length);
+    expect(errorLog).not.toHaveBeenCalled();
+    expect(recoveryLog).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
 describe('privacy-safe reasons for temporary page failures', () => {
   let failureLog: ReturnType<typeof vi.spyOn>;
   const secret = 'PRIVATE-CALLBACK-AND-REMOTE-TEXT';

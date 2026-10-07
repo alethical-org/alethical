@@ -184,19 +184,35 @@ describe('the large-contribution notices card', () => {
     expect(region?.getAttribute('role') ?? region?.tagName.toLowerCase()).toMatch(/region|section/);
   });
 
-  it('asks the payment list to open the matched payment', async () => {
-    reads.notices.mockResolvedValue(restoreSanity());
-    await draw(<CommitteeNoticesCard registrationNumber="41412" year={2026} today="2026-09-23" />);
-    const link = [...host.querySelectorAll('[role="link"]')].find((node) =>
-      node.getAttribute('aria-label')?.startsWith('Show the Aug 6, 2026 payment from HEAD'),
-    ) as HTMLElement;
-    await act(async () => link.click());
-    expect(reads.focus).toHaveBeenCalledWith({
-      tab: 'individuals',
-      groupKey: JSON.stringify(['individuals', 'Head, Martha M']),
-      recordNumber: 11,
-    });
-  });
+  it.each([
+    ['HEAD, MARTHA M', 'individuals', 'Head, Martha M', 11],
+    ['RESTORATION OF AMERICA PAC', 'other', 'RESTORATION OF AMERICA PAC', 5],
+  ] as const)(
+    'uses a native button to open the matched payment from %s exactly once',
+    async (name, tab, contributor, recordNumber) => {
+      reads.notices.mockResolvedValue(restoreSanity());
+      await draw(
+        <CommitteeNoticesCard registrationNumber="41412" year={2026} today="2026-09-23" />,
+      );
+      const control = [...host.querySelectorAll('[aria-label]')].find((node) =>
+        node.getAttribute('aria-label')?.includes(`payment from ${name} in the list above`),
+      ) as HTMLElement;
+      // Use the real react-native-web output. JSDOM does not perform native
+      // button activation for Enter/Space; those keys need browser acceptance.
+      expect(control.tagName).toBe('BUTTON');
+      expect(control.getAttribute('role')).toBe('button');
+      expect(control.tabIndex).toBe(0);
+      act(() => control.focus());
+      expect(document.activeElement).toBe(control);
+      await act(async () => control.click());
+      expect(reads.focus).toHaveBeenCalledTimes(1);
+      expect(reads.focus).toHaveBeenCalledWith({
+        tab,
+        groupKey: JSON.stringify([tab, contributor]),
+        recordNumber,
+      });
+    },
+  );
 
   it('says the list holds none for an open or past window, and marks the open one', async () => {
     reads.notices.mockResolvedValue(

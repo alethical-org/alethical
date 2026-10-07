@@ -211,9 +211,12 @@ export function noticeMatchedLabel(tabLabel: string): string {
   return `Also a payment in the list above, under ${tabLabel}`;
 }
 
-/** N4, accessible name: names the contributor and the date. */
-export function noticeMatchedAccessibleName(notice: CommitteeNotice): string {
-  return `Show the ${formatDay(notice.contributionDate)} payment from ${notice.contributor} in the list above`;
+/** N4, accessible name: visible words first, then the contributor and date. */
+export function noticeMatchedAccessibleName(
+  notice: CommitteeNotice,
+  tabLabel: string | null,
+): string {
+  return `${noticeStatusText(notice, tabLabel, null)}. Show the ${formatDay(notice.contributionDate)} payment from ${notice.contributor} in the list above.`;
 }
 
 /** N5, Design's supplied sentence: dates our copy and says nothing about what the Board

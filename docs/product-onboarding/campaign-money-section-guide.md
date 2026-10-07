@@ -1139,12 +1139,17 @@ Campaign money, top to bottom:
      description, and **LOAN**; then its status and **View notice PDF**, whose spoken name
      adds the contributor and the date: “View notice PDF, HEAD, MARTHA M, Aug 6, 2026”.
    - The status is one of 3. A payment row with the same contributor, date and amount,
-     ignoring only letter case and surrounding spaces, gives the link “Also a payment in
+     ignoring only letter case and surrounding spaces, gives the button “Also a payment in
      the list above, under {tab}”, which selects that tab, opens the row and moves focus
      to the payment (instantly under reduced motion). A gift dated after the end of the
      latest report in our copy, where that date is known, prints “Our latest copied report
      covers dates through {date}”. Every other notice prints “We have not linked this
      notice to a payment in our copied records”, which names no cause.
+   - The matched-payment button works with Enter and Space. Its label and arrow use the
+     approved near-black same-screen action treatment; the arrow keeps its shape, gap
+     and final-word wrapping. Its spoken name starts with the complete visible label,
+     then gives the existing contributor/date instruction. Official PDF destinations
+     remain green links.
    - An amended notice shows its latest filing marked **AMENDED**, with “As first filed:
      {value}” beneath it, and “Amended means the committee filed a revised version” under
      the windows.

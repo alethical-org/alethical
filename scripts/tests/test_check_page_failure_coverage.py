@@ -144,6 +144,116 @@ class SchemaTest(TestCase):
             coverage.strict_json(b'{"schema_version":1,"schema_version":1}')
 
 
+class RecoverySchemaTest(TestCase):
+    def setUp(self):
+        self.start = coverage.expected_windows(NOW, ACTIVATION)[0]
+        self.end = self.start + timedelta(hours=1)
+        self.base = report(self.start)
+        self.base.update(
+            schema_version=2,
+            recovery_collection=health.aggregate_recoveries(b"", self.start, self.end),
+        )
+
+    def test_v1_retains_failure_only_coverage_and_v2_requires_recovery_coverage(self):
+        self.assertEqual(coverage.validate_report(report(self.start))[1], "collected")
+        self.assertEqual(coverage.validate_report(self.base)[1], "collected")
+        missing = deepcopy(self.base)
+        missing.pop("recovery_collection")
+        with self.assertRaises(coverage.CoverageFailure):
+            coverage.validate_report(missing)
+        failed = deepcopy(self.base)
+        failed["recovery_collection"] = health.empty_recovery_report()
+        self.assertEqual(coverage.validate_report(failed)[1], "failed")
+        saturated = deepcopy(self.base)
+        saturated["recovery_collection"].update(rows_received=100, saturated=True)
+        self.assertEqual(coverage.validate_report(saturated)[1], "saturated")
+        unknown = deepcopy(self.base)
+        unknown["recovery_collection"].update(rows_received=1, unclassified_matches=1)
+        self.assertEqual(coverage.validate_report(unknown)[1], "failed")
+
+    def test_recovery_fields_and_counts_are_strict(self):
+        for changes in (
+            {"private": SECRET},
+            {"failure": SECRET},
+            {"collection_status": SECRET},
+            {"rows_received": True},
+            {"recoveries_count": 1},
+            {"unclassified_matches": 1},
+            {"saturated": True},
+            {"attempt_count": 3},
+            {"classifications": [{"private": SECRET}]},
+        ):
+            value = deepcopy(self.base)
+            value["recovery_collection"].update(changes)
+            with self.assertRaises(coverage.CoverageFailure) as raised:
+                coverage.validate_report(value)
+            self.assertNotIn(SECRET, str(raised.exception))
+
+    def test_recovery_classifications_validate_winner_trigger_window_and_totals(self):
+        base = deepcopy(self.base)
+        base["recovery_collection"].update(
+            rows_received=1,
+            recoveries_count=1,
+            classifications=[
+                {
+                    "minute": health.iso(self.start),
+                    "winner_attempt": 1,
+                    "trigger": "slow",
+                    "timing_bucket": "1s-5s",
+                    "count": 1,
+                }
+            ],
+        )
+        self.assertEqual(coverage.validate_report(base)[1], "collected")
+        for change in (
+            {"minute": health.iso(self.end)},
+            {"winner_attempt": True},
+            {"winner_attempt": 3},
+            {"trigger": SECRET},
+            {"timing_bucket": SECRET},
+            {"count": 2},
+        ):
+            value = deepcopy(base)
+            value["recovery_collection"]["classifications"][0].update(change)
+            with self.assertRaises(coverage.CoverageFailure):
+                coverage.validate_report(value)
+        duplicate = deepcopy(base)
+        duplicate["recovery_collection"]["classifications"] *= 2
+        duplicate["recovery_collection"].update(rows_received=2, recoveries_count=2)
+        with self.assertRaises(coverage.CoverageFailure):
+            coverage.validate_report(duplicate)
+
+    def test_daily_coverage_counts_failed_and_capped_recovery_channels(self):
+        for kind in ("failed", "saturated"):
+            client = FakeGitHub()
+            original = client.artifact
+
+            def artifact(identifier):
+                value = original(identifier)
+                start = coverage.timestamp(value["window"]["start"])
+                value.update(
+                    schema_version=2,
+                    recovery_collection=health.aggregate_recoveries(
+                        b"", start, start + timedelta(hours=1)
+                    ),
+                )
+                if identifier <= 3:
+                    if kind == "failed":
+                        value["recovery_collection"] = health.empty_recovery_report()
+                    else:
+                        value["recovery_collection"].update(
+                            rows_received=100, saturated=True
+                        )
+                return value
+
+            client.artifact = artifact
+            result, code = coverage.coverage(client, NOW)
+            self.assertEqual(code, 1)
+            self.assertEqual(result[kind + "_hours"], 3)
+            self.assertEqual(result["recovery_collected_hours"], 21)
+            self.assertEqual(result["failure_only_hours"], 0)
+
+
 class CoverageTest(TestCase):
     def test_daily_run_excludes_newest_completed_hour_and_reads_only_24_artifacts(self):
         client = FakeGitHub()
@@ -152,6 +262,8 @@ class CoverageTest(TestCase):
         self.assertEqual(result["eligible_end"], "2026-10-10T16:00:00Z")
         self.assertEqual(result["expected_hours"], 24)
         self.assertEqual(result["collected_hours"], 24)
+        self.assertEqual(result["failure_only_hours"], 24)
+        self.assertEqual(result["recovery_collected_hours"], 0)
         self.assertEqual(client.downloads, 24)
         self.assertNotIn(SECRET, json.dumps(result))
 

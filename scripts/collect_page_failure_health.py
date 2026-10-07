@@ -122,9 +122,9 @@ def complete_hour(now: datetime) -> tuple[datetime, datetime]:
     return end - timedelta(hours=1), end
 
 
-def empty_report(start: datetime, end: datetime) -> dict:
-    return {
-        "schema_version": 1,
+def empty_report(start: datetime, end: datetime, *, schema_version: int = 2) -> dict:
+    report = {
+        "schema_version": schema_version,
         "window": {"start": iso(start), "end": iso(end)},
         "collection_status": "failed",
         "failure": "collection-not-started",
@@ -138,6 +138,24 @@ def empty_report(start: datetime, end: datetime) -> dict:
         "minutes": [],
         "classifications": [],
         "unclassified_by_family": [],
+    }
+
+    if schema_version == 2:
+        report["recovery_collection"] = empty_recovery_report()
+    return report
+
+
+def empty_recovery_report() -> dict:
+    return {
+        "collection_status": "failed",
+        "failure": "collection-not-started",
+        "attempt_count": 0,
+        "limit": MAX_ROWS,
+        "rows_received": 0,
+        "recoveries_count": 0,
+        "unclassified_matches": 0,
+        "saturated": False,
+        "classifications": [],
     }
 
 
@@ -287,6 +305,8 @@ def unique_object(pairs: list[tuple]) -> dict:
 def request_family(path: str) -> str:
     # Values become only these fixed labels; never output a decoded or raw path.
     bare = path.split("?", 1)[0].lower()
+    if bare == "/api/traffic-performance":
+        return "admin-or-private"
     if any(
         part
         in {
@@ -325,7 +345,7 @@ def aggregate(raw: bytes, start: datetime, end: datetime) -> dict:
         raise CollectionFailure("provider-shape-changed") from None
     if len(rows) > MAX_ROWS:
         raise CollectionFailure("provider-row-limit")
-    report = empty_report(start, end)
+    report = empty_report(start, end, schema_version=1)
     report.update(
         collection_status="collected",
         rows_received=len(rows),
@@ -425,6 +445,130 @@ def aggregate(raw: bytes, start: datetime, end: datetime) -> dict:
     return report
 
 
+def recovery_diagnostic(message: object) -> tuple | None:
+    if not isinstance(message, str):
+        return None
+    try:
+        data = json.loads(message, object_pairs_hook=unique_object)
+    except (ValueError, RecursionError):
+        return None
+    if (
+        not isinstance(data, dict)
+        or set(data)
+        != {
+            "event",
+            "source_family",
+            "attempt_count",
+            "winner_attempt",
+            "trigger",
+            "elapsed_ms",
+        }
+        or data["event"] != "page_read_recovery"
+        or data["source_family"] != "committee-finance"
+        or type(data["attempt_count"]) is not int
+        or data["attempt_count"] != 2
+        or type(data["winner_attempt"]) is not int
+        or data["winner_attempt"] not in (1, 2)
+        or not isinstance(data["trigger"], str)
+        or data["trigger"] not in ("slow", "network", "http")
+        or type(data["elapsed_ms"]) is not int
+        or not 0 <= data["elapsed_ms"] <= 300_000
+    ):
+        return None
+    bucket = TIMING_BUCKETS[
+        next(
+            (
+                i
+                for i, limit in enumerate((100, 1000, 5000, 10000))
+                if data["elapsed_ms"] < limit
+            ),
+            4,
+        )
+    ]
+    return data["winner_attempt"], data["trigger"], bucket
+
+
+def aggregate_recoveries(raw: bytes, start: datetime, end: datetime) -> dict:
+    if len(raw) > MAX_BYTES:
+        raise CollectionFailure("command-output-limit")
+    try:
+        rows = [
+            json.loads(line, object_pairs_hook=unique_object)
+            for line in raw.decode("utf-8").splitlines()
+            if line.strip()
+        ]
+    except (UnicodeError, ValueError, RecursionError):
+        raise CollectionFailure("provider-shape-changed") from None
+    if len(rows) > MAX_ROWS:
+        raise CollectionFailure("provider-row-limit")
+    report = empty_recovery_report()
+    report.update(
+        collection_status="collected",
+        rows_received=len(rows),
+        saturated=len(rows) == MAX_ROWS,
+    )
+    report.pop("failure")
+    seen, classifications = set(), Counter()
+    total = unclassified = 0
+    for row in rows:
+        if (
+            not isinstance(row, dict)
+            or any(
+                type(row.get(key)) is not kind
+                for key, kind in {
+                    "id": str,
+                    "timestamp": int,
+                    "responseStatusCode": int,
+                    "logs": list,
+                }.items()
+            )
+            or row.get("source") != "serverless"
+            or row.get("environment") != "production"
+            or row["responseStatusCode"] != 200
+        ):
+            raise CollectionFailure("provider-shape-changed")
+        if row["id"] in seen:
+            continue
+        seen.add(row["id"])
+        timestamp = row["timestamp"]
+        if not int(start.timestamp() * 1000) <= timestamp < int(end.timestamp() * 1000):
+            continue
+        total += 1
+        messages = [
+            row.get("message") if row.get("messageTruncated") is not True else None
+        ] + [
+            entry.get("message")
+            for entry in row["logs"]
+            if isinstance(entry, dict) and entry.get("messageTruncated") is not True
+        ]
+        known = {
+            value
+            for message in messages
+            if (value := recovery_diagnostic(message)) is not None
+        }
+        if len(known) != 1:
+            unclassified += 1
+            continue
+        minute = iso(
+            datetime.fromtimestamp(timestamp / 1000, timezone.utc).replace(
+                second=0, microsecond=0
+            )
+        )
+        classifications[(minute, *next(iter(known)))] += 1
+    report.update(
+        recoveries_count=total - unclassified,
+        unclassified_matches=unclassified,
+        classifications=[
+            dict(
+                zip(("minute", "winner_attempt", "trigger", "timing_bucket"), key),
+                count=count,
+            )
+            for key, count in sorted(classifications.items())
+        ],
+    )
+    return report
+
+
 def collect(cli: str, now: datetime) -> tuple[dict, int]:
     start, end = complete_hour(now)
     report = empty_report(start, end)
@@ -434,6 +578,7 @@ def collect(cli: str, now: datetime) -> tuple[dict, int]:
     ]
     if not all(credentials):
         report["failure"] = "provider-credentials-missing"
+        report["recovery_collection"]["failure"] = "provider-credentials-missing"
         return report, 1
     token, org, project = credentials
     command = [
@@ -450,8 +595,6 @@ def collect(cli: str, now: datetime) -> tuple[dict, int]:
         "--no-branch",
         "--source",
         "serverless",
-        "--status-code",
-        "5xx",
         "--since",
         iso(start),
         "--until",
@@ -461,18 +604,32 @@ def collect(cli: str, now: datetime) -> tuple[dict, int]:
         str(MAX_ROWS),
         "--non-interactive",
     ]
-    for attempt in range(1, 3):
-        report["attempt_count"] = attempt
-        try:
-            report = aggregate(run_command(command), start, end)
-            report["attempt_count"] = attempt
-            return report, 0
-        except CollectionFailure as error:
-            report["failure"] = str(error)
-            if error.transient and attempt == 1:
-                continue
-            return report, 0 if error.transient else 1
-    return report, 1
+
+    def channel(filters, initial, parser):
+        for attempt in range(1, 3):
+            initial["attempt_count"] = attempt
+            try:
+                result = parser(run_command(command + filters), start, end)
+                result["attempt_count"] = attempt
+                return result, 0
+            except CollectionFailure as error:
+                initial["failure"] = str(error)
+                if error.transient and attempt == 1:
+                    continue
+                return initial, 0 if error.transient else 1
+        return initial, 1
+
+    failures, failure_code = channel(
+        ["--status-code", "5xx"], empty_report(start, end, schema_version=1), aggregate
+    )
+    # Server-side filtering is essential: do not enumerate every successful request.
+    recoveries, recovery_code = channel(
+        ["--status-code", "200", "--query", "page_read_recovery"],
+        empty_recovery_report(),
+        aggregate_recoveries,
+    )
+    report = {**failures, "schema_version": 2, "recovery_collection": recoveries}
+    return report, max(failure_code, recovery_code)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -492,6 +649,9 @@ def main(argv: list[str] | None = None) -> int:
         encoding="utf-8",
     )
     print(f"Page failure collection: {report['collection_status']}")
+    print(
+        f"Page recovery collection: {report['recovery_collection']['collection_status']}"
+    )
     return code
 
 

@@ -53,6 +53,19 @@ def encoded(rows):
 
 
 class AggregateTest(TestCase):
+    def test_only_exact_private_metrics_route_is_classified_as_admin(self):
+        for path in (
+            "/api/traffic-performance",
+            "/api/traffic-performance?private=" + SECRET,
+        ):
+            self.assertEqual(health.request_family(path), "admin-or-private")
+        for path in (
+            "/api/traffic-performance-public",
+            "/api/traffic-performance/extra",
+            "/api/other",
+        ):
+            self.assertEqual(health.request_family(path), "other")
+
     def test_exact_hour_boundaries_and_deduplication(self):
         result = health.aggregate(
             encoded(
@@ -225,6 +238,203 @@ class AggregateTest(TestCase):
             self.assertNotIn(SECRET, str(failure.exception))
 
 
+def recovery(**values):
+    return json.dumps(
+        {
+            "event": "page_read_recovery",
+            "source_family": "committee-finance",
+            "attempt_count": 2,
+            "winner_attempt": 2,
+            "trigger": "slow",
+            "elapsed_ms": 3100,
+            **values,
+        }
+    )
+
+
+class RecoveryAggregateTest(TestCase):
+    def test_winners_triggers_boundaries_and_duplicate_events(self):
+        rows = [
+            row(
+                "first",
+                responseStatusCode=200,
+                message=recovery(winner_attempt=1),
+                logs=[{"message": recovery(winner_attempt=1)}],
+            ),
+            row(
+                "second",
+                responseStatusCode=200,
+                message=recovery(trigger="network", elapsed_ms=90),
+            ),
+            row(
+                "second",
+                responseStatusCode=200,
+                message=recovery(trigger="network", elapsed_ms=90),
+            ),
+            row(
+                "http",
+                responseStatusCode=200,
+                message=recovery(trigger="http", elapsed_ms=900),
+            ),
+            row(
+                "outside",
+                responseStatusCode=200,
+                timestamp=int(END.timestamp() * 1000),
+                message=recovery(),
+            ),
+        ]
+        result = health.aggregate_recoveries(encoded(rows), START, END)
+        self.assertEqual(
+            (
+                result["recoveries_count"],
+                result["unclassified_matches"],
+                result["rows_received"],
+            ),
+            (3, 0, 5),
+        )
+        self.assertEqual(
+            result["classifications"],
+            [
+                {
+                    "minute": health.iso(START),
+                    "winner_attempt": 1,
+                    "trigger": "slow",
+                    "timing_bucket": "1s-5s",
+                    "count": 1,
+                },
+                {
+                    "minute": health.iso(START),
+                    "winner_attempt": 2,
+                    "trigger": "http",
+                    "timing_bucket": "100ms-1s",
+                    "count": 1,
+                },
+                {
+                    "minute": health.iso(START),
+                    "winner_attempt": 2,
+                    "trigger": "network",
+                    "timing_bucket": "under-100ms",
+                    "count": 1,
+                },
+            ],
+        )
+        self.assertNotIn(SECRET, json.dumps(result))
+
+    def test_unclassified_matches_cannot_claim_recovery_or_leak_private_data(self):
+        messages = [
+            SECRET,
+            recovery(extra=SECRET),
+            recovery(winner_attempt=True),
+            recovery(trigger=[SECRET]),
+            recovery(elapsed_ms=1.2),
+            recovery(attempt_count=1),
+            recovery(source_family=SECRET),
+            recovery(elapsed_ms=-1),
+            recovery().replace(
+                '"attempt_count": 2', '"attempt_count": 2, "attempt_count": 2'
+            ),
+        ]
+        rows = [
+            row(
+                str(i),
+                responseStatusCode=200,
+                message=m,
+                requestPath="/auth/callback?token=" + SECRET,
+            )
+            for i, m in enumerate(messages)
+        ]
+        rows.extend(
+            [
+                row(
+                    "truncated",
+                    responseStatusCode=200,
+                    message=recovery(),
+                    messageTruncated=True,
+                ),
+                row(
+                    "conflict",
+                    responseStatusCode=200,
+                    message=recovery(),
+                    logs=[{"message": recovery(winner_attempt=1)}],
+                ),
+            ]
+        )
+        result = health.aggregate_recoveries(encoded(rows), START, END)
+        self.assertEqual(
+            (result["recoveries_count"], result["unclassified_matches"]), (0, len(rows))
+        )
+        self.assertNotIn(SECRET, json.dumps(result))
+        self.assertNotIn("/auth", json.dumps(result))
+
+    def test_caps_and_shape_changes_are_not_healthy_empty_hours(self):
+        self.assertEqual(
+            health.aggregate_recoveries(b"", START, END)["collection_status"],
+            "collected",
+        )
+        rows = [
+            row(str(i), responseStatusCode=200, message=recovery()) for i in range(100)
+        ]
+        self.assertTrue(
+            health.aggregate_recoveries(encoded(rows), START, END)["saturated"]
+        )
+        for raw in (
+            encoded(rows + [row("overflow")]),
+            encoded([row()]),
+            SECRET.encode(),
+            encoded([row(responseStatusCode=True)]),
+        ):
+            with self.assertRaises(health.CollectionFailure):
+                health.aggregate_recoveries(raw, START, END)
+        with patch.object(health, "MAX_BYTES", 1):
+            with self.assertRaises(health.CollectionFailure):
+                health.aggregate_recoveries(b"{}", START, END)
+
+    @patch.dict(
+        os.environ,
+        {"VERCEL_TOKEN": SECRET, "VERCEL_ORG_ID": "fake", "VERCEL_PROJECT_ID": "fake"},
+    )
+    def test_only_server_filtered_success_query_and_independent_retry(self):
+        with patch.object(
+            health,
+            "run_command",
+            side_effect=[
+                b"",
+                health.CollectionFailure("command-timeout", transient=True),
+                encoded([row(responseStatusCode=200, message=recovery())]),
+            ],
+        ) as command:
+            result, code = health.collect("vercel", NOW)
+        self.assertEqual(
+            (code, result["schema_version"], result["attempt_count"]), (0, 2, 1)
+        )
+        self.assertEqual(
+            (
+                result["recovery_collection"]["attempt_count"],
+                result["recovery_collection"]["recoveries_count"],
+            ),
+            (2, 1),
+        )
+        failure_args = command.call_args_list[0].args[0]
+        self.assertNotIn("--query", failure_args)
+        for call in command.call_args_list[1:]:
+            args = call.args[0]
+            self.assertEqual(args[args.index("--status-code") + 1], "200")
+            self.assertEqual(args[args.index("--query") + 1], "page_read_recovery")
+            self.assertEqual(args[args.index("--limit") + 1], "100")
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_setup_and_missing_credentials_leave_both_channels_failed(self):
+        blank = health.empty_report(START, END)
+        self.assertEqual(
+            blank["recovery_collection"]["failure"], "collection-not-started"
+        )
+        result, code = health.collect("vercel", NOW)
+        self.assertEqual(code, 1)
+        self.assertEqual(
+            result["recovery_collection"]["failure"], "provider-credentials-missing"
+        )
+
+
 class CommandTest(TestCase):
     def test_both_pipes_are_capped_in_memory(self):
         command = [
@@ -276,12 +486,13 @@ class CommandTest(TestCase):
                     "provider-temporarily-unavailable", transient=True
                 ),
                 encoded([row()]),
+                b"",
             ],
         ) as command:
             result, code = health.collect("vercel", NOW)
         self.assertEqual(code, 0)
         self.assertEqual(result["attempt_count"], 2)
-        args = command.call_args[0][0]
+        args = command.call_args_list[0].args[0]
         for expected in [
             "--no-branch",
             "--json",
@@ -314,7 +525,7 @@ class CommandTest(TestCase):
             side_effect=health.CollectionFailure("command-timeout", transient=True),
         ) as command:
             result, code = health.collect("vercel", NOW)
-        self.assertEqual(command.call_count, 2)
+        self.assertEqual(command.call_count, 4)
         self.assertEqual(code, 0)
         self.assertEqual(result["collection_status"], "failed")
 
@@ -331,10 +542,12 @@ class CommandTest(TestCase):
             health.CollectionFailure("provider-auth-rejected"),
             b"private invalid output",
         ]:
-            with patch.object(health, "run_command", side_effect=[effect]) as command:
+            with patch.object(
+                health, "run_command", side_effect=[effect, effect]
+            ) as command:
                 result, code = health.collect("vercel", NOW)
             self.assertEqual(code, 1)
-            self.assertEqual(command.call_count, 1)
+            self.assertEqual(command.call_count, 2)
             self.assertEqual(result["collection_status"], "failed")
 
     def test_unexpected_error_still_writes_only_safe_failure(self):

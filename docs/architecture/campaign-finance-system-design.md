@@ -2158,6 +2158,14 @@ only.
   of the latest report this filer has filed in our copy of the catalogue is known and the gift is
   dated after it; the page then prints that date. `no_exact_match` for every other notice, which
   names no cause and never says the gift is missing.
+- **Matched-payment action.** The notice control opens and focuses a payment within the
+  current screen, so it is a native button supporting Enter and Space. Keep the visible
+  sentence and existing arrow layout. The action label and arrow use the neutral color
+  in [design-principles.md](../design/design-principles.md); official PDF links remain green
+  destination links. The accessible name starts with the exact visible sentence, followed
+  by the existing date-and-contributor instruction, with a period after each sentence.
+  This preserves the words needed for voice activation under
+  [WCAG 2.5.3](https://www.w3.org/WAI/WCAG22/Understanding/label-in-name.html).
 - **Amendments.** The catalogue's amendment marker for a notice file above 0 marks it amended; the
   row shows the latest filing with its earlier value kept readable on the record.
 - **A disclosure statement** is filed by an unregistered association giving to an
