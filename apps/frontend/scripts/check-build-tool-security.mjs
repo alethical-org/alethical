@@ -100,6 +100,23 @@ assert.equal(
   }`,
 );
 
+// Exercise the command quoting package through React Native's actual devtools
+// consumer. Never execute the resulting shell text: these are string checks.
+const nativeRequire = createRequire(require.resolve('react-native/package.json'));
+const devtoolsRequire = createRequire(nativeRequire.resolve('react-devtools-core'));
+const shellQuote = devtoolsRequire('shell-quote');
+for (const newline of ['\n', '\r', '\u2028', '\u2029']) {
+  assert.throws(
+    () => shellQuote.quote(['echo', 'ok', { comment: 'note' }, `a${newline}id;#`]),
+    TypeError,
+    'A line break after a comment must not become another shell command',
+  );
+}
+const literalArgs = ['echo', 'a b', "a'b", '$HOME', ';', 'line\nbreak'];
+assert.deepEqual(shellQuote.parse(shellQuote.quote(literalArgs)), literalArgs);
+assert.equal(shellQuote.quote(['echo', { comment: 'note' }]), 'echo #note');
+assertPackageVersion(devtoolsRequire, 'shell-quote', '1.11.0');
+
 const expoEntry = require.resolve('expo/bin/cli');
 const expoConfigResult = spawnSync(
   process.execPath,

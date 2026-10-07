@@ -126,6 +126,15 @@ binding and exact audit classification, and retain compatibility checks. The
 existing dependency-update and technology-health checks own that upkeep; this
 repair needs no new scheduled job.
 
+React Native's development tools use shell-quote 1.11.0, the published fix for
+[command injection after a comment](https://github.com/ljharb/shell-quote/security/advisories/GHSA-pqg4-j6r4-53mv).
+The release was published on 29 September 2026 at 02:34:24 UTC and clears the 7-day
+waiting period. The build-tool checks load the actual development-tools dependency,
+require rejection of all 4 line-break characters after a comment, and preserve
+ordinary quoted arguments, literal punctuation and comments. Tests compare strings
+and exceptions without executing generated shell commands. The security scan keeps
+its normal failure behavior; no warning is waived.
+
 Expo's compression package uses 1.8.2, the published fix for its
 [early-disconnect memory leak](https://github.com/expressjs/compression/security/advisories/GHSA-vc2v-76pw-4v95).
 That release clears the 7-day waiting period. Compatibility tests exercise the

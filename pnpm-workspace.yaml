@@ -44,7 +44,7 @@ overrides:
   "minimatch@3.1.5>brace-expansion": 2.1.7 # the 2.x line of the same DoS
   nanoid: 3.3.18 # React Navigation and build tools — infinite loop when a generator size is 0 (GHSA-2v37-7h3g-55p8)
   postcss: 8.5.23 # @expo/metro-config — source-map arbitrary file read
-  shell-quote: 1.9.0 # react-devtools-core — the CVE-2026-9277 critical
+  shell-quote: 1.11.0 # react-devtools-core — reject line breaks after comments (CVE-2026-102422)
   "ws@7": 7.5.11 # metro, react-native dev server
   "ws@8": 8.21.0 # @expo/cli and @supabase/realtime-js (which never imports it)
   undici: 8.10.2 # jsdom test HTTP client — patched request, cache and WebSocket handling
