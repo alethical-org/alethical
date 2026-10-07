@@ -2214,3 +2214,33 @@ interpretation, change notices, review cadence and honest evidence limits.
 The privacy statement's existing “Google API Services User Data Policy” wording
 is a real link to Google's official policy in both the initial response and
 the running website. The words and existing link styling remain unchanged.
+
+## 30. Event announcements are discoverable from their first response
+
+The approved event publishing scope lives in
+[published-writing-decisions.md §2.16](published-writing-decisions.md#216-events-reuse-the-blog-design-and-retain-a-permanent-address).
+The `/blog/events` collection and every published `/blog/events/<name>` announcement
+are public, have their own canonical address, enter the pages sitemap immediately,
+and are linked from `/blog` using ordinary crawlable links. Unknown event addresses
+return HTTP 404 and are not canonicalized to a real event.
+
+The event registry supplies titles, descriptions, the original-content optimized
+flyer, its dimensions and alternative text, and all visible event details. The first
+HTML response and mounted page use the same escaped event renderer. The flyer comes
+before the article text in both; the header supplies normal site navigation.
+The announcement's own flyer is its social image, with its actual dimensions, and
+is preloaded for the first visible page. Other pages retain their approved preview.
+
+Each event detail carries `Event` structured data matching visible facts: event name,
+local start/end times with explicit UTC offsets, venue and full address, organizer,
+image and free admission. While the event has not ended, the offer points to the
+actual Luma registration address and has price `0` and currency `USD`. The schema
+asserts no nominee, endorsement, seat availability, recording or additional host.
+After the event ends, the original date remains and the registration offer is omitted.
+The collection does not masquerade as a single event.
+
+This makes events eligible for discovery, not guaranteed immediate indexing or special
+search placement. Google's [Event structured-data guidance](https://developers.google.com/search/docs/appearance/structured-data/event)
+requires an individual address for each event and visible facts matching the markup.
+Focused endpoint checks cover initial content, canonical address, image dimensions,
+Central Time offsets, free registration, the ended state, missing pages and sitemap links.

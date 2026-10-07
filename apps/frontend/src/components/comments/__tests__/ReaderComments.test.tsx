@@ -223,25 +223,34 @@ describe('reader comments', () => {
     expect(host.querySelector('#reader-comments')).toBeNull();
   });
 
-  it('lets signed-out readers read and preserves the exact reply target for the existing sign-in flow', async () => {
-    mocks.user = null;
-    mocks.list.mockResolvedValue({ items: [item('root')], next_cursor: null });
-    await render();
-    expect(host.textContent).toContain('Body root');
-    expect(mocks.settings).not.toHaveBeenCalled();
-    await click('Sign in to reply');
-    expect(mocks.signIn).toHaveBeenCalledWith({
-      intent: 'nav',
-      returnTo: '/blog/guides/a',
-    });
-    expect(
-      JSON.parse(window.sessionStorage.getItem('alethical.comments.signInTarget')!),
-    ).toMatchObject({ articleId: 'a', target: 'root' });
-  });
+  it.each(['/blog/guides/a', '/blog/events/forward-debate-2026'])(
+    'preserves the exact reply target for sign-in from %s',
+    async (path) => {
+      window.history.replaceState(null, '', path);
+      mocks.user = null;
+      mocks.list.mockResolvedValue({ items: [item('root')], next_cursor: null });
+      await render();
+      expect(host.textContent).toContain('Body root');
+      expect(mocks.settings).not.toHaveBeenCalled();
+      await click('Sign in to reply');
+      expect(mocks.signIn).toHaveBeenCalledWith({
+        intent: 'nav',
+        returnTo: path,
+      });
+      expect(
+        JSON.parse(window.sessionStorage.getItem('alethical.comments.signInTarget')!),
+      ).toMatchObject({ articleId: 'a', target: 'root' });
+    },
+  );
 
-  it.each([false, true])(
-    'positions a full-page return before settings or frames, with full storage=%s',
-    async (fullStorage) => {
+  it.each([
+    { path: '/blog/guides/a', fullStorage: false },
+    { path: '/blog/guides/a', fullStorage: true },
+    { path: '/blog/events/forward-debate-2026', fullStorage: false },
+  ])(
+    'positions a full-page return before settings or frames: %j',
+    async ({ path, fullStorage }) => {
+      window.history.replaceState(null, '', path);
       const waiting = deferred<CommentSettings>();
       mocks.settings.mockReturnValue(waiting.promise);
       window.sessionStorage.setItem(
@@ -249,7 +258,7 @@ describe('reader comments', () => {
         JSON.stringify({
           articleId: 'a',
           target: null,
-          path: '/blog/guides/a',
+          path,
           createdAt: Date.now(),
         }),
       );

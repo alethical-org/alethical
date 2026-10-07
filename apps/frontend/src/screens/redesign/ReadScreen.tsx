@@ -1,3 +1,4 @@
+import { renderEventList } from '../../lib/eventMarkup';
 import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ShortPostsPreview, TopicPieceCard } from '../../components/read/TopicPieceCard';
@@ -274,6 +275,22 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
                 </View>
               ))
             )}
+            <Text
+              accessibilityRole="header"
+              aria-level={2}
+              style={[
+                styles.groupHeading,
+                isMobile && styles.groupHeadingMobile,
+                isMobile ? styles.groupHeadingLaterMobile : styles.groupHeadingLater,
+              ]}
+            >
+              EVENTS
+            </Text>
+            <div dangerouslySetInnerHTML={{ __html: renderEventList(Date.now(), true) }} />
+            <a className="read-collection-link" href="/blog/events">
+              <span className="read-collection-link-label">All events</span>
+              <GreenLinkArrow />
+            </a>
           </View>
         </Container>
 

@@ -192,6 +192,10 @@ export interface PageMetadata {
    * title through a summary that paraphrases it. Absent = the 2 are the same.
    */
   socialDescription?: string;
+  /** Host-authored event information matching the visible announcement. */
+  structuredData?: object[];
+  /** Use the event’s own supplied flyer rather than the generic site preview. */
+  socialImage?: { url: string; alt: string; width: number; height: number };
 }
 
 export function pageMetadata(

@@ -1,3 +1,10 @@
+import {
+  EVENTS_PATH,
+  eventPath,
+  eventHasEnded,
+  orderedEvents,
+  type PublishedEvent,
+} from './events';
 import { SOCIAL_ACCOUNTS } from './socialLinks';
 import { SERVICES_CONTACT_HREF } from './services';
 import { servicesPrintSnapshot } from './servicesPrint';
@@ -1318,7 +1325,11 @@ export function readCollectionPageSnapshot(
  * point: without it the route to an older piece exists only after the app has
  * run, so an archive is unreachable on a first visit.
  */
-export function readPageSnapshot(pieces: readonly ResearchPiece[]): PageSnapshot {
+export function readPageSnapshot(
+  pieces: readonly ResearchPiece[],
+  events: readonly PublishedEvent[] = orderedEvents(),
+  now = Date.now(),
+): PageSnapshot {
   const groups = readGroups(pieces);
   const bySlug = new Map(pieces.map((piece) => [piece.slug, piece]));
   const reports = researchReportItems()
@@ -1338,19 +1349,29 @@ export function readPageSnapshot(pieces: readonly ResearchPiece[]): PageSnapshot
     heading: READ_PAGE_NAME,
     subheading: '',
     bodyHeading: '',
-    body: pieces.length
-      ? [READ_PAGE_INTRO]
-      : [READ_PAGE_INTRO, READ_PAGE_EMPTY_TITLE, READ_PAGE_EMPTY_BODY],
+    body:
+      pieces.length || events.length
+        ? [READ_PAGE_INTRO]
+        : [READ_PAGE_INTRO, READ_PAGE_EMPTY_TITLE, READ_PAGE_EMPTY_BODY],
     bodyIsList: false,
     facts: [],
-    records: visible.map((piece) => ({
-      label: piece.title,
-      // The same lines the card draws: its minutes and date, then its standfirst
-      // or the set it belongs to.
-      detail: [pieceCardMetaLine(piece), pieceCardSecondaryLine(piece)].filter(Boolean).join(' · '),
-      // Each piece's own address, from the one function that decides the folder.
-      href: piecePath(piece),
-    })),
+    records: [
+      ...visible.map((piece) => ({
+        label: piece.title,
+        // The same lines the card draws: its minutes and date, then its standfirst
+        // or the set it belongs to.
+        detail: [pieceCardMetaLine(piece), pieceCardSecondaryLine(piece)]
+          .filter(Boolean)
+          .join(' · '),
+        // Each piece's own address, from the one function that decides the folder.
+        href: piecePath(piece),
+      })),
+      ...events.slice(0, 3).map((event) => ({
+        label: event.name,
+        detail: `${eventHasEnded(event, now) ? 'Past event · ' : ''}${event.dateLabel} · ${event.timeLabel} · ${event.tagline} · ${event.locationName} · ${event.city} · Free admission`,
+        href: eventPath(event),
+      })),
+    ],
     // The page's own back link, to the section the nav calls "Money in politics".
     links: [
       ...(reports.length ? [{ label: 'All research reports', href: '/blog/research' }] : []),
@@ -1358,6 +1379,7 @@ export function readPageSnapshot(pieces: readonly ResearchPiece[]): PageSnapshot
         ? [{ label: 'All short posts', href: '/blog/short-posts' }]
         : []),
       ...(guides.length ? [{ label: 'All guides', href: '/blog/guides' }] : []),
+      ...(events.length ? [{ label: 'All events', href: EVENTS_PATH }] : []),
       { label: MONEY_SECTION_NAME, href: '/money' },
     ],
   };
@@ -2947,6 +2969,11 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
   ]
     .filter(Boolean)
     .join('');
+}
+
+/** Event renderers escape their content and are shared with the mounted UI. */
+export function renderEventPageSnapshot(markup: string): string {
+  return `<div class="page-snapshot">${renderSnapshotNav()}<main class="ps-inner">${markup}</main></div>`;
 }
 
 /**

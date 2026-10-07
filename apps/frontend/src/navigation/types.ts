@@ -96,6 +96,8 @@ export type RootStackParamList = {
   LobbyingLobbyist: { slug: string; year?: string };
   Read: undefined;
   ReadResearch: { page?: string; post?: string } | undefined;
+  Events: undefined;
+  Event: { slug: string };
   ReadGuides: { page?: string; post?: string } | undefined;
   ReadSet: { slug: string; post?: string };
   ShortPosts: { page?: string; post?: string } | undefined;

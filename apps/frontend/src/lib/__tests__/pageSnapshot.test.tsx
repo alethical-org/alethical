@@ -1,3 +1,4 @@
+import { PUBLISHED_EVENTS } from '../events';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1184,7 +1185,7 @@ describe('the /blog page snapshot links to every posted piece', () => {
 
   it('gives every posted piece a real link a crawler can follow', () => {
     expect(pieces.length).toBeGreaterThan(1);
-    expect(snapshot.records).toHaveLength(pieces.length);
+    expect(snapshot.records).toHaveLength(pieces.length + PUBLISHED_EVENTS.length);
     for (const piece of pieces) {
       // Each piece's own folder, from the one function that decides it.
       expect(html).toContain(`href="${piecePath(piece)}"`);
@@ -1215,7 +1216,7 @@ describe('the /blog page snapshot links to every posted piece', () => {
   });
 
   it('says what the /blog page says when nothing is posted yet', () => {
-    const empty = readPageSnapshot([]);
+    const empty = readPageSnapshot([], []);
     expect(empty.records).toEqual([]);
     expect(empty.body).toEqual([READ_PAGE_INTRO, READ_PAGE_EMPTY_TITLE, READ_PAGE_EMPTY_BODY]);
   });

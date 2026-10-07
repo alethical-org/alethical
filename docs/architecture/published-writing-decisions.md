@@ -19,7 +19,7 @@ this file loosens it. Sequencing and open tasks live on
 
 ## 1. What we publish
 
-Two traits, not 2 mutually exclusive kinds. §2.7 is why that distinction matters.
+Research and Guide are 2 traits, not 2 mutually exclusive kinds. §2.7 explains the distinction. Host-authored event announcements are a separate publishing category, governed by §2.16.
 
 - **Research.** We add up the campaign-finance records we hold and publish what we found, signed
   and dated, with the arithmetic reproducible by a reader from the linked records. Rule 13 is the
@@ -480,6 +480,35 @@ Canonical addresses, sitemap entries, newly generated emails, shared links and
 article navigation use `/blog`. Previously sent emails and saved `/read` links
 remain usable through the permanent forwards. The section rename does not change
 publication dates, accuracy-review dates, claims, evidence or article publication holds.
+
+### 2.16 Events reuse the Blog design and retain a permanent address
+
+Approved by Eugene, 7 October 2026. The `/blog` page includes an `EVENTS` group
+using the existing section heading, box, row, type and responsive spacing patterns.
+The group links to `/blog/events`; each announcement has its own address below it.
+Existing Research reports, Short posts and Guides keep their relative order.
+
+The first announcement is The Forward Debate at `/blog/events/forward-debate-2026`.
+The supplied flyer appears before the article text, with its content unchanged.
+Aaron Brutger's flyer and article label remains “Republican primary candidate”,
+as expressly directed by Eugene. The article includes the confirmed event time,
+venue, free admission and the registration link `https://luma.com/3w69g6dw`.
+The Alethical icon links home and the Forward Coalition logo links to
+`https://forwardcoalition.com/candidates`; their presence does not
+assert an additional endorsement or co-host relationship.
+
+The event registry supplies the collection, article, initial HTML, metadata and
+sitemap. The page remains available after the end time, labelled as ended, without
+an active registration invitation or registration offer in structured data.
+A recap, recording or photos require actual supplied material; none is implied.
+Host announcements do not acquire Research or Guide traits, findings, research
+authorship claims or a research source-verification badge. The existing standard AI
+closing note and default reader comments apply to individual event articles too.
+Event article identities join the generated server eligibility registry; collection
+pages remain comment-free.
+
+Search and sharing behavior is owned by
+[page-metadata-for-search-and-sharing-decisions.md §30](page-metadata-for-search-and-sharing-decisions.md#30-event-announcements-are-discoverable-from-their-first-response).
 
 ## 3. Open decisions
 

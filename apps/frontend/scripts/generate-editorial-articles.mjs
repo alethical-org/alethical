@@ -35,14 +35,21 @@ const { assertPublishedPieceIndex } = load(
   path.resolve(here, '../src/lib/researchIndexValidation.ts'),
 );
 assertPublishedPieceIndex(PUBLISHED_PIECE_INDEX);
+const { EVENT_INDEX } = load(path.resolve(here, '../src/lib/eventsIndex.ts'));
 const identities = new Set();
-const articles = PUBLISHED_PIECE_INDEX.map((piece) => {
-  if (!piece.articleId || identities.has(piece.articleId)) {
-    throw new Error(`Published piece ${piece.slug} needs a unique stable articleId`);
-  }
-  identities.add(piece.articleId);
-  return { article_id: piece.articleId, title: piece.title, path: piecePath(piece) };
-}).sort((a, b) => a.article_id.localeCompare(b.article_id));
+const published = [
+  ...PUBLISHED_PIECE_INDEX.map((piece) => ({ ...piece, path: piecePath(piece) })),
+  ...EVENT_INDEX.map((event) => ({ ...event, path: `/blog/events/${event.slug}` })),
+];
+const articles = published
+  .map((piece) => {
+    if (!piece.articleId || identities.has(piece.articleId)) {
+      throw new Error(`Published piece ${piece.slug} needs a unique stable articleId`);
+    }
+    identities.add(piece.articleId);
+    return { article_id: piece.articleId, title: piece.title, path: piece.path };
+  })
+  .sort((a, b) => a.article_id.localeCompare(b.article_id));
 const destination = path.resolve(here, '../../../alethical/data/editorial_articles.json');
 const expected = `${JSON.stringify(articles, null, 2)}\n`;
 if (process.argv.includes('--check')) {
