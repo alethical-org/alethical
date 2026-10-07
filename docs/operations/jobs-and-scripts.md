@@ -2,7 +2,7 @@
 
 <!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py -->
 
-Net: The repository has 29 GitHub Actions workflows. 25 can start automatically
+Net: The repository has 31 GitHub Actions workflows. 27 can start automatically
 and 4 run only when a person starts them. Scheduled checks, releases, and local
 backups do not call paid AI services. Reader questions and deliberately started
 AI work do. The review of a failed campaign-money collection has a paid AI
@@ -13,6 +13,8 @@ reviewer too, and its switch is off until its limits are approved.
 | Work | Starts when | What it does | Usage-based cost |
 | --- | --- | --- | --- |
 | Public reader checks (`.github/workflows/reader-completion-checks.yml`) | A commit reaches `main`, a trusted caller, or by hand | Exercises real public reader actions and proves the intended website changes reached the live address | No paid AI call; existing GitHub runner usage and public GET reads |
+| Public search response checks (`.github/workflows/public-search-health.yml`) | Daily at 17:17 UTC, after successful trusted-main reader checks, or by hand; Monday samples more records | Checks public sitemaps, indexing instructions and useful initial text with bounded reads, retaining failure evidence for 35 days | No paid AI call or new service fee; existing GitHub runner usage and public GET reads |
+| Public changed-page notices (`.github/workflows/public-change-notices.yml`) | After a successful trusted-main public search check, or by hand on `main`; first initialization sends 0 old addresses | Saves a bounded public change queue on a deployment-disabled state branch; sends at most 100 validated notices and retains unaccepted changes and requested retry waits | No paid AI call, provider fee or new clock job; existing GitHub runner and public IndexNow endpoint |
 | Bounded website repair (`.github/workflows/website-release-recovery.yml`) | A trusted current-main missing-release alarm fails, or by hand with dry run on by default | Stages and promotes at most 1 proven missed website release per commit, preserving rollback holds and checking live reader actions | No paid AI call; existing GitHub and Vercel build/hosting usage |
 | Project checks (`.github/workflows/ci.yml`) | Pull request code events, merge-queue checks, and pushes to `main` | Runs the code, formatting, security, and document checks | No paid AI call; [standard GitHub-hosted runners are free for public repositories](https://docs.github.com/en/actions/concepts/billing-and-usage) |
 | Phone release tool checks (`.github/workflows/native-release-tools.yml`) | Pull requests that change phone release tools or settings, and by hand | Installs the optional phone publishing tools and checks their commands and security fixes | No paid AI call; standard GitHub-hosted runner for relevant changes only |
@@ -42,12 +44,12 @@ reviewer too, and its switch is off until its limits are approved.
 | Unsaved-work backup (`com.alethical.wip-backup`) | Every 5 minutes after `just maintenance-install` or `just install-wip-backup` is installed on Eugene's Mac | Saves each working folder's staged and on-disk source separately, with a private outside bundle and a unique folder ID | No outside service or paid AI call |
 | Finished working-folder cleanup (`com.alethical.worktree-cleanup`) | At login, when an owner releases a folder, and daily to retry held removals | Saves independent recovery copies, then removes clean delivered folders only after every owner releases them and no program still uses them; Codex-managed folders use the app's own archive tool | No outside service charge or paid AI call; reads GitHub change status |
 
-The 16 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
+The 17 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
 Time and Central Daylight Time, so their local hour changes by 1 during the year.
 
 ## What GitHub runs only by hand
 
-These 4 workflows complete the total of 29:
+These 4 workflows complete the total of 31:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |
@@ -61,7 +63,7 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 88 runnable files. GitHub jobs call 31 of them
+The `scripts/` folder has 90 runnable files. GitHub jobs call 33 of them
 directly and 3 document checks through `local_checks.py`. The 2 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`; the older shell command
 for source backups calls `worktree_backup.py` too. A workflow also calls
@@ -74,7 +76,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Purpose | Files |
 | --- | --- |
 | Import official records or test data | `build_legislative_district_boundaries.py`, `build_zip_state_reference.py`, `load_campaign_finance.py`, `collect_campaign_finance_notices.py`, `collect_campaign_finance_statements.py`, `load_campaign_finance_filings.py`, `refresh_campaign_finance.py` (the daily campaign-money refresh, all steps in order), `load_lobbying.py` (paired current lobbyists and spending), `load_lobbying_expenditures.py` (spending-only compatibility command), `load_minnesota_data.py`, `load_refund_summaries.py`, `load_sample_data.py` |
-| Check data, code, documents, local tools, and hosted settings | `audit_repaired_bill_prompt_context.py`, `check_bill_section_gaps.py`, `check_bill_summary_coverage.py`, `check_campaign_finance_stated_spending.py`, `check_campaign_finance_stated_split.py`, `check_declared_dependencies.py`, `check_doc_quotes.py`, `check_doc_references.py`, `check_doc_structure.py`, `check_doc_sync.py`, `check_home_hero_card_literals.py`, `check_hosted_service_settings.py`, `check_jobs_and_scripts_inventory.py`, `check_local_env.py`, `check_lobbyist_donor_evidence.py`, `check_no_cross_committee_total.py`, `check_no_merge_conflict_markers.py`, `check_no_nul_bytes.py`, `check_production_release_reached_readers.py`, `check_published_piece_links.py`, `check_rag_coverage.py`, `check_schema_drift.py`, `check_shared_checkout_rules_in_sync.py`, `check_site_metrics_health.py`, `check_site_metrics_privacy.py`, `check_technology_health.py`, `check_timeless_docs.py` |
+| Check data, code, documents, local tools, and hosted settings | `audit_repaired_bill_prompt_context.py`, `check_bill_section_gaps.py`, `check_bill_summary_coverage.py`, `check_campaign_finance_stated_spending.py`, `check_campaign_finance_stated_split.py`, `check_declared_dependencies.py`, `check_doc_quotes.py`, `check_doc_references.py`, `check_doc_structure.py`, `check_doc_sync.py`, `check_home_hero_card_literals.py`, `check_hosted_service_settings.py`, `check_jobs_and_scripts_inventory.py`, `check_local_env.py`, `check_lobbyist_donor_evidence.py`, `check_no_cross_committee_total.py`, `check_no_merge_conflict_markers.py`, `check_no_nul_bytes.py`, `check_production_release_reached_readers.py`, `check_public_search_health.py`, `check_published_piece_links.py`, `check_rag_coverage.py`, `check_schema_drift.py`, `check_shared_checkout_rules_in_sync.py`, `check_site_metrics_health.py`, `check_site_metrics_privacy.py`, `check_technology_health.py`, `check_timeless_docs.py` |
 | Fill missing fields on older records | `backfill_bill_action_committee_name.py`, `backfill_bill_section_body_blocks.py`, `backfill_bill_title_from_current_version.py`, `backfill_campaign_finance_filed_dates.py`, `backfill_campaign_finance_report_documents.py`, `backfill_companion_links.py`, `backfill_rag_bulk.py`, `backfill_vote_event_dates.py`, `enrich_refund_source_metadata.py` |
 | Repair damage from past bugs | `clean_stale_bill_versions.py`, `correct_bill_current_statuses.py`, `dedupe_ai_enrichment.py`, `delete_fixture_bills.py`, `dump_evidence_document.py`, `reanchor_rag_to_current_version.py`, `repair_companion_links.py`, `repair_incomplete_vote_records.py`, `repair_missing_bill_sections.py`, `repair_mojibake_text.py`, `repair_vote_roster_identities.py` |
 | Prepare a chosen public research email; live delivery is separately gated off | `send_unconcealed.py` |
@@ -86,7 +88,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Compare printed-name search offline without paid calls or live changes | `benchmark_campaign_finance_name_search.py` |
 | Collect change history by hand, report examined causes and retain prevention references | `review_repeat_failures.py` |
 | Measure what real visitors waited for | `report_origin_share_by_address.py`, `report_page_speed_by_address.py` |
-| Maintain search and stored files | `archive_published_sources.py`, `build_rag_hnsw_index.py`, `mirror_raw_files.py` |
+| Maintain search and stored files | `archive_published_sources.py`, `build_rag_hnsw_index.py`, `mirror_raw_files.py`, `notify_changed_public_pages.py` (bounded real public changes with durable receipts) |
 | Protect unfinished work and rotating read grants | `back-up-uncommitted-worktree-work.sh`, `worktree_backup.py`, `supabase_oauth_state.mjs` |
 | Install free Mac maintenance and safely remove released working folders | `install_worktree_maintenance.py`, `worktree_cleanup.py` |
 | Decide whether our website host needs to rebuild | `vercel-ignore-build.sh` |

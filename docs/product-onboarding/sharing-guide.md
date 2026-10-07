@@ -137,7 +137,7 @@ Every address names itself in the very first response, before any of the app's o
 - **A brief outage does not unlist real pages.** If the data service cannot be reached, the page says "temporarily unavailable" instead of "gone".
 - **`robots.txt`** (`https://www.alethical.com/robots.txt`) blocks nothing from being read. It points at the sitemap, and turns away only the two crawlers that exist to collect writing for training future AI models. Every search crawler and every "someone asked a question about this page" crawler is welcome.
 - **A record reached under another spelling forwards to its own address.** A committee or lobbying address whose name part is old or mistyped, and a legislator's long-code address, answer with a permanent forward to the record's one real address, keeping any `?year=` or `?tab=` in the address, instead of serving a second copy.
-- **`sitemap.xml`** (`https://www.alethical.com/sitemap.xml`) lists every bill, every legislator, every campaign committee whose page holds a filed record, every lobbying principal with spending rows and every currently registered lobbyist (`/sitemaps/lobbying-principals.xml`, `/sitemaps/lobbying-lobbyists.xml`), every Minnesota seat that has candidate committees registered for it (`/sitemaps/races.xml`), and every real numbered Bills, Legislators and Committees directory page. Bills and legislators carry the date they really last changed; a committee and a seat carry none, because we hold no date on which one committee's own record changed and a wrong date on 1,603 entries would cost us Google's trust in the field across the whole site. It is built when asked for and then cached, so a newly ingested bill appears without waiting for a release.
+- **`sitemap.xml`** (`https://www.alethical.com/sitemap.xml`) lists the fixed public destinations including `/candidates`, every bill, every legislator, every campaign committee whose page holds a filed record, every lobbying principal with spending rows and every currently registered lobbyist (`/sitemaps/lobbying-principals.xml`, `/sitemaps/lobbying-lobbyists.xml`), every Minnesota seat that has candidate committees registered for it (`/sitemaps/races.xml`), and every real numbered Bills, Legislators and Committees directory page. Bills and legislators carry the date they really last changed; a committee and a seat carry none, because we hold no date on which one committee's own record changed and a wrong date on 1,603 entries would cost us Google's trust in the field across the whole site. It is built when asked for and then cached, so a newly ingested bill appears without waiting for a release.
 - **Answer pages are readable but unlisted.** An `/ask` page asks not to appear in results, in its own response. It is deliberately not blocked in `robots.txt`, because a crawler that is blocked from fetching a page can never read the instruction inside it.
 - **Each legislator's search result names that member.** A profile's search-result line reads "See Rep. Aaron Repinski's committee assignments, chief-authored bills, and contact information in the Minnesota Legislature", so no 2 of the 200 profiles read alike. The card someone sees when pasting the link keeps the shorter line in the table above, because the member's name already sits on the line above it. A member who holds no seat now gets a shorter sentence, because their page shows no committee list and no contact details.
 - **A guide tells a search engine what it explains.** Each guide at `/blog/guides/...` carries its own sentence about what it covers, so somebody searching the question it answers can tell the page answers it. Its share card still carries only the title and the dates, and neither line states an amount or a finding.
@@ -164,8 +164,12 @@ before the name, because nothing in the record says which chamber they sat in, w
 belonged to, or which committees they sat on
 ([`.claude/rules/grounded-answers.md` rule 12](../../.claude/rules/grounded-answers.md) — a value we
 do not hold is reported as missing, never replaced by a plausible one). Home, Find My Legislator,
-and the plain Bills and Legislators directories arrive with their own readable text and links. Answer pages, legal pages and filtered
-lists generally carry no first-response snapshot, with the money-section exceptions described below:
+and the plain Bills and Legislators directories arrive with their own readable text and links. The `/privacy` and `/terms` pages arrive with their full existing legal text.
+The `/candidates` page arrives with public lookup instructions; a real
+`/candidates/<id>` address arrives with its held source-supported record,
+source/check date, stale warning when supplied, and any confirmed legislator link.
+Answer pages and filtered lists generally carry no first-response snapshot,
+with the money-section exceptions described below:
 where an address would otherwise show a reader nothing at all until the app arrives, it carries the
 page's own explanation. Serving those words changes nothing about whether a search engine may list
 the address.
@@ -261,7 +265,11 @@ private Track links, roadmap promises and the interactive contact form stay out
 of those initial snapshots. The bare outside-spending address is in the sitemap,
 while its filtered addresses retain their existing exclusion.
 
-Building the words above means reading the same records the page itself needs, so those records now
+Candidate profile first responses carry only the public facts listed above, not
+the complete API reply. Their interactive screens still read the public profile
+after startup; address lookup and private claim data are never seeded.
+
+Building the bill, legislator and money words above means reading the same records the page itself needs, so those records now
 travel in the same response and the page draws them straight away. Before this, the app asked for
 the identical records a second time about a second later, and a reader watched a loading state for
 another half-second — or as long as 3 seconds when our caches had gone cold — for figures that had

@@ -544,7 +544,8 @@ At release 2, lists, `/ask` and static pages got no snapshot. A list is a list o
 that release did not invent a summary of a result set that changes per reader. §18 later replaces the
 list boundary for unfiltered public directory pages only: it serves the exact records and page links,
 not a generated summary. Find My Legislator also receives its fixed instructions. Filtered lists,
-`/ask`, and static pages other than Home and Find My Legislator still get none.
+`/ask`, and private account views still get none. Later sections extend public
+static pages; §29 covers candidate instructions, saved public profiles and legal text.
 
 ### Two things §8C did not settle, and how the build settled them
 
@@ -1822,8 +1823,9 @@ shared static navigation also links to `/blog`. The signed-out redesign approved
 on 30 September 2026 removes the separate body links to legislator search and
 Find My Legislator. Those destinations remain in the loaded Search menu.
 The static shell and `homePageSnapshot` carry the same text and links, protected
-by their existing exact-match test. Candidate lookup stays out of both until its
-separate build supplies a working public destination. The homepage remains a static response.
+by their existing exact-match test. The working `/candidates` destination now appears
+in the Search menu and homepage address form. §29 adds its first-response content
+and sitemap entry without changing this navigation. The homepage remains a static response.
 
 The `/money` response links to every indexable destination its current cards
 offer: `/legislators`, `/money/committees`, `/money/races` and
@@ -2131,3 +2133,49 @@ Opening a link changes no preference: the reader explicitly chooses what to stop
 Comment text stays out of article metadata, structured data and initial snapshots.
 [editorial-comments-guide.md](../product-onboarding/editorial-comments-guide.md)
 owns those choices and the exact messages.
+
+
+## 29. Candidate and legal content, and ongoing public search checks
+
+The website's `/candidates`, `/candidates/<id>`, `/privacy` and `/terms` addresses
+carry useful text before the browser program loads. This extends the existing
+first-response pattern; the visible design and legal wording stay the same.
+Phone acceptance means the website in mobile browsers, not native iOS or Android.
+
+Candidate instructions share their source with the address form. A saved candidate
+profile includes only the official identity, office, voting area, election, supplied
+party/website, source link, check date and stale warning that the screen displays.
+Confirmed legislator links retain their reviewed identity and service rules.
+Direct visits do not refresh MyBallot, expose addresses or seed browser lookup
+results. Missing records remain 404; failed or malformed source records remain
+503; these responses retain `no-store`. Claim, manage and private account views
+remain excluded from public discovery. Privacy and terms use their unchanged
+complete legal text from the same source as the visible screens.
+
+The `/candidates` instructions belong in the public pages sitemap. This does not
+create a statewide candidate catalogue or add arbitrary saved candidate profiles
+from visitor lookups to a sitemap. The sitemap test covers actual public navigation
+destinations and explicitly excludes private, answer, tracked and unshipped routes.
+
+`check_public_search_health.py` reads the fixed HTTPS origin and all 7 sitemap
+children, checks safe canonical addresses, duplicate/private exclusions and key
+public destinations, then samples meaningful initial content, source/discovery
+links, search-bot access, missing-page responses and private-view exclusions.
+The daily sample rotates weekly; Monday samples more records. Bounds are 160
+requests including retries, 300 seconds, 4 MiB per response and 2 attempts per read.
+Redirects are refused before following them. Failure evidence uses fixed reasons,
+never remote response bodies, exception messages, credentials or private queries.
+The trusted-main workflow runs daily and after successful live reader checks,
+retaining evidence for 35 days. It makes no AI calls or repository writes.
+Response health is not evidence that a provider indexed every sampled address.
+
+Bill search descriptions retain the approved first summary sentence in §26.
+A low click count alone does not authorize keyword padding, unsupported claims,
+changed article subjects or duplicate pages. Ranking work follows actual query
+and position evidence, useful source-backed explanations and relevant citations.
+[Search upkeep](../operations/public-search-upkeep.md) owns provider coverage
+interpretation, change notices, review cadence and honest evidence limits.
+
+The privacy statement's existing “Google API Services User Data Policy” wording
+is a real link to Google's official policy in both the initial response and
+the running website. The words and existing link styling remain unchanged.

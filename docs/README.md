@@ -104,6 +104,8 @@ The words of every published reader-facing piece, one file each. Alethical calls
 
 ## Operations
 
+- [Public search upkeep](operations/public-search-upkeep.md) — bounded free checks, search-provider evidence, truthful change notices and weekly/monthly review
+
 - [Preventing repeated failures](operations/repeat-failure-review.md): history collection, examined causes, retained checks and the manual isolated browser command
 - [Repeat-failure review and Paradigm comparison, 6 October 2026](research/repeat-failure-review-2026-10-06.md): the limited history sample, demonstrated prevention gaps and public-tool comparison
 - [Portable Paradigm comparison evidence](research/evidence/paradigm-2026-10-06/README.md): pinned inputs, recorded local outputs and instructions for repeating the experiment

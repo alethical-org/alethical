@@ -416,7 +416,14 @@ it.each([
                   ? `${block.text}${block.linkText ?? ''}${block.trailingText ?? ''}`
                   : block.text,
               ];
-        for (const line of lines) expect(snapshot).toContain(escapeHtml(line));
+        for (const line of lines) {
+          expect(snapshot.replace(/<[^>]+>/g, '')).toContain(escapeHtml(line));
+        }
+        if (block.kind === 'callout' && block.linkHref) {
+          expect(snapshot).toContain(
+            `<a href="${escapeHtml(block.linkHref)}">${escapeHtml(block.linkText ?? '')}</a>`,
+          );
+        }
       }
     }
     expect(snapshot).not.toContain('Home snapshot');

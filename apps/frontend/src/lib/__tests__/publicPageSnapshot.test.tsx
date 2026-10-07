@@ -53,7 +53,13 @@ function snapshotLines(snapshot: PageSnapshot): string[] {
         ...(item.detail ? [item.detail] : []),
       ]),
       ...(section.blocks ?? []).flatMap((block) =>
-        block.kind === 'prose' ? block.lines : block.kind === 'bullets' ? block.items : [],
+        block.kind === 'prose'
+          ? block.lines
+          : block.kind === 'bullets'
+            ? block.items
+            : block.kind === 'runs'
+              ? [block.runs.map((run) => run.text).join('')]
+              : [],
       ),
     ]),
     ...snapshot.links.map((link) => link.label),
@@ -96,6 +102,17 @@ const record: CandidateProfileRecord = {
 afterEach(() => vi.useRealTimers());
 
 describe('public first-response copy matches the actual screens', () => {
+  it('opens the official Google policy from the visible privacy wording', () => {
+    const element = document.createElement('div');
+    element.innerHTML = renderToStaticMarkup(<PrivacyScreen />);
+    const link = [...element.querySelectorAll('a')].find(
+      (anchor) => anchor.textContent === 'Google API Services User Data Policy',
+    );
+    expect(link?.getAttribute('href')).toBe(
+      'https://developers.google.com/terms/api-services-user-data-policy',
+    );
+    expect(link?.getAttribute('rel')).toContain('noopener');
+  });
   it('serves the same candidate lookup instructions without running an address search', () => {
     const services: CandidateSearchServices = {
       getElections: vi.fn(async () => []),

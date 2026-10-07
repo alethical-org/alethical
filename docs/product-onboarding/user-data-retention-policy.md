@@ -1,4 +1,4 @@
-<!-- describes: alethical/db/models.py, alethical/api/auth.py, alethical/api/routers/me.py, alethical/api/routers/contact.py, alethical/api/services/auth.py, alethical/api/services/contact.py, alethical/api/services/representative_lookup.py, alethical/logging.py, alethical/monitoring.py, apps/frontend/src/screens/LegalScreens.tsx -->
+<!-- describes: alethical/db/models.py, alethical/api/auth.py, alethical/api/routers/me.py, alethical/api/routers/contact.py, alethical/api/services/auth.py, alethical/api/services/contact.py, alethical/api/services/representative_lookup.py, alethical/logging.py, alethical/monitoring.py, apps/frontend/src/screens/LegalScreens.tsx, apps/frontend/src/lib/legalContent.ts -->
 
 # What we keep about readers, and for how long
 
@@ -514,7 +514,7 @@ nothing to check the complete operation against. **The complete account deletion
 flow in §6 remains a proposal; comment erasure on account removal is implemented.**
 Building the complete flow is [#1040](https://github.com/alethical-org/alethical/issues/1040).
 
-**The published Privacy Policy now matches this document** (`apps/frontend/src/screens/LegalScreens.tsx`,
+**The published Privacy Policy matches these requirements** ([legalContent.ts](../../apps/frontend/src/lib/legalContent.ts) holds the shared words; [LegalScreens.tsx](../../apps/frontend/src/screens/LegalScreens.tsx) shows them,
 updated 26 September 2026 for editorial comments; its original alignment was
 [#1041](https://github.com/alethical-org/alethical/issues/1041)).
 _Information We Collect_ lists every category in §2 that a reader can actually reach: the

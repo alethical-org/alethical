@@ -1,7 +1,7 @@
 /** Exact legal copy shared by the visible screen and its first response. */
 export type LegalBlock =
   | { kind: 'paragraph'; text: string }
-  | { kind: 'callout'; text: string; linkText?: string; trailingText?: string }
+  | { kind: 'callout'; text: string; linkText?: string; linkHref?: string; trailingText?: string }
   | { kind: 'list'; items: string[] };
 
 type LegalSection = {
@@ -90,6 +90,7 @@ export const privacyContent: LegalDocumentContent = {
           kind: 'callout',
           text: 'Alethical’s use and transfer to any other app of information received from Google APIs will adhere to the ',
           linkText: 'Google API Services User Data Policy',
+          linkHref: 'https://developers.google.com/terms/api-services-user-data-policy',
           trailingText: ', including the Limited Use requirements.',
         },
         {

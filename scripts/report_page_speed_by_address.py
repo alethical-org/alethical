@@ -180,6 +180,33 @@ ADDRESSES: tuple[Address, ...] = (
         'requestPath: "/money/payments"',
     ),
     Address("bills", "/bills", 'requestPath: "/bills"'),
+    Address(
+        "bill_pages",
+        "/bills/<bill>",
+        'requestPath_like: "/bills/%", requestPath_notlike: "/bills/%/%"',
+    ),
+    Address("legislators", "/legislators", 'requestPath: "/legislators"'),
+    Address(
+        "legislator_pages",
+        "/legislators/<legislator>",
+        'requestPath_like: "/legislators/%", requestPath_notlike: "/legislators/%/%"',
+    ),
+    Address("candidates", "/candidates", 'requestPath: "/candidates"'),
+    Address(
+        "candidate_pages",
+        "/candidates/<candidate>",
+        # Account claim/manage screens are not public profile measurements.
+        'requestPath_like: "/candidates/%", requestPath_notlike: "/candidates/%/%"',
+    ),
+    Address("blog", "/blog", 'requestPath: "/blog"'),
+    Address(
+        "blog_research",
+        "/blog/research/<article>",
+        'requestPath_like: "/blog/research/%"',
+    ),
+    Address(
+        "blog_guides", "/blog/guides/<guide>", 'requestPath_like: "/blog/guides/%"'
+    ),
     Address("home", "/", 'requestPath: "/"'),
     Address("sitewide", "every address", ""),
 )

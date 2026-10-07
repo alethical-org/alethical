@@ -17,14 +17,23 @@ export function legalPageSnapshot(path: '/privacy' | '/terms'): PageSnapshot {
       blocks: section.blocks.map((block): SnapshotBlock =>
         block.kind === 'list'
           ? { kind: 'bullets', items: block.items }
-          : {
-              kind: 'prose',
-              lines: [
-                block.kind === 'callout'
-                  ? `${block.text}${block.linkText ?? ''}${block.trailingText ?? ''}`
-                  : block.text,
-              ],
-            },
+          : block.kind === 'callout' && block.linkText && block.linkHref
+            ? {
+                kind: 'runs',
+                runs: [
+                  { kind: 'text', text: block.text },
+                  { kind: 'externalLink', text: block.linkText, href: block.linkHref },
+                  { kind: 'text', text: block.trailingText ?? '' },
+                ],
+              }
+            : {
+                kind: 'prose',
+                lines: [
+                  block.kind === 'callout'
+                    ? `${block.text}${block.linkText ?? ''}${block.trailingText ?? ''}`
+                    : block.text,
+                ],
+              },
       ),
     })),
     links: [],

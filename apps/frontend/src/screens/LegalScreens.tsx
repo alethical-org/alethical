@@ -1,8 +1,9 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useResponsive } from '../hooks/useResponsive';
 import { RootStackParamList } from '../navigation/types';
+import { externalLinkProps } from '../navigation/links';
 import { Container, Footer, PageBackground, TopNav } from '../theme/primitives';
 import { theme } from '../theme/tokens';
 
@@ -81,7 +82,14 @@ function LegalBlockView({ block }: { block: LegalBlock }) {
     return (
       <Text style={[styles.paragraph, styles.callout]}>
         {block.text}
-        {block.linkText ? <Text style={styles.inlineLink}>{block.linkText}</Text> : null}
+        {block.linkText && block.linkHref ? (
+          <Text
+            style={styles.inlineLink}
+            {...externalLinkProps(block.linkHref, () => void Linking.openURL(block.linkHref!))}
+          >
+            {block.linkText}
+          </Text>
+        ) : null}
         {block.trailingText}
       </Text>
     );

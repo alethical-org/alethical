@@ -323,8 +323,8 @@ class PageHTML(HTMLParser):
         self.anchors: list[str] = []
         self.has_base = False
 
-    def handle_starttag(self, tag, attributes):
-        attrs = dict(attributes)
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
         if tag == "base":
             self.has_base = True
         if tag == "link" and "canonical" in (attrs.get("rel") or "").lower().split():
@@ -598,16 +598,12 @@ def run_checks(
 
         check(f"sitemap:{section}", read_section)
     for path in FIXED_PATHS:
-        # Candidates may intentionally lack a full-catalogue sitemap until a
-        # safe complete publication catalogue exists. All other fixed routes
-        # already belong to the public pages sitemap.
-        if path != "/candidates":
-            check(
-                f"discovery:{path}",
-                lambda row, path=path: require(
-                    path in seen, "important public address is missing from sitemap"
-                ),
-            )
+        check(
+            f"discovery:{path}",
+            lambda row, path=path: require(
+                path in seen, "important public address is missing from sitemap"
+            ),
+        )
     samples = select_samples(sections, today, broader=broader)
     for url in samples:
 
@@ -648,7 +644,7 @@ def main(argv: list[str] | None = None) -> int:
         help="4 deterministic samples per family instead of 2",
     )
     args = parser.parse_args(argv)
-    report = {
+    report: dict = {
         "schema_version": 1,
         "phase": "not-started",
         "passed": False,

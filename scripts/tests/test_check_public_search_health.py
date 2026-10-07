@@ -360,11 +360,7 @@ class SamplingAndEvidenceTest(TestCase):
 class WholeRunTest(TestCase):
     def setUp(self):
         self.sections = {
-            "pages": [
-                health.ORIGIN + path
-                for path in health.FIXED_PATHS
-                if path != "/candidates"
-            ],
+            "pages": [health.ORIGIN + path for path in health.FIXED_PATHS],
             "bills": [health.ORIGIN + "/bills/94-2025-HF719"],
             "legislators": [health.ORIGIN + "/legislators/a-real-member"],
             "committees": [health.ORIGIN + "/money/committees/a-real-committee-100"],
@@ -436,6 +432,14 @@ class WholeRunTest(TestCase):
         }
         self.assertIn("sitemap:bills", failures)
         self.assertIn("discovery:/privacy", failures)
+
+    def test_missing_candidate_lookup_is_a_discovery_failure(self):
+        self.sections["pages"].remove(health.ORIGIN + "/candidates")
+        report = self.run_fixture()
+        self.assertIn(
+            "discovery:/candidates",
+            [row["name"] for row in report["checks"] if not row["passed"]],
+        )
 
     def test_wrong_family_in_child_fails_before_sample(self):
         self.sections["bills"] = self.sections["legislators"]
