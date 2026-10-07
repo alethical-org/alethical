@@ -58,6 +58,9 @@ def legislative_copy_date(
             IngestionRun.target_type == "legislator_roster",
             IngestionRun.target_key == roster_slug,
             IngestionRun.status == IngestionStatus.succeeded,
+            IngestionRun.stats["members_seen"].as_integer() > 0,
+            IngestionRun.stats["members_seen"].as_integer()
+            == IngestionRun.stats["members_ingested"].as_integer(),
         )
     )
     return min(oldest, roster_date) if roster_date is not None else None

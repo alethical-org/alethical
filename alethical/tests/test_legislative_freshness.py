@@ -78,6 +78,7 @@ def test_roster_needs_own_completed_source_copy_for_current_session(corpus):
         adapter="minnesota_live",
         target_type="legislator_roster",
         target_key=scope.primary.slug,
+        stats={"members_seen": 201, "members_ingested": 201},
         status=IngestionStatus.succeeded,
         finished_at=datetime(2026, 6, 1, tzinfo=UTC),
     )
@@ -121,3 +122,35 @@ def test_meta_and_ask_use_source_scoped_date(corpus, monkeypatch):
         ((scope.primary.id,), {}),
         (scope.ids, {"roster_slug": scope.primary.slug}),
     ]
+
+
+def test_partial_or_empty_roster_does_not_supply_a_shared_date(corpus):
+    db, scope, _ = corpus
+    for stats in (
+        {},
+        {"members_seen": 201, "members_ingested": 1},
+        {"members_seen": 0, "members_ingested": 0},
+    ):
+        db.add(
+            IngestionRun(
+                adapter="minnesota_live",
+                target_type="legislator_roster",
+                target_key=scope.primary.slug,
+                status=IngestionStatus.succeeded,
+                finished_at=NEW,
+                stats=stats,
+            )
+        )
+    db.flush()
+    assert legislative_copy_date(db, scope.ids, roster_slug=scope.primary.slug) is None
+    complete = IngestionRun(
+        adapter="minnesota_live",
+        target_type="legislator_roster",
+        target_key=scope.primary.slug,
+        status=IngestionStatus.succeeded,
+        finished_at=OLD,
+        stats={"members_seen": 201, "members_ingested": 201},
+    )
+    db.add(complete)
+    db.flush()
+    assert legislative_copy_date(db, scope.ids, roster_slug=scope.primary.slug) == OLD
