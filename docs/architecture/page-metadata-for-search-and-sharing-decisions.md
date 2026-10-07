@@ -2169,6 +2169,26 @@ The trusted-main workflow runs daily and after successful live reader checks,
 retaining evidence for 35 days. It makes no AI calls or repository writes.
 Response health is not evidence that a provider indexed every sampled address.
 
+Public record year/tab variants are checked separately from sitemap discovery.
+They name the base record as their preferred address and preserve the requested
+year in known saved-data keys and year-bearing payloads. Omitted optional sources
+are reported as unproved, preserving the server's partial-response behavior.
+The extra checks share the same global limits and do not admit filtered addresses
+to discovery. Race samples use the same current year as the sitemap's inventory.
+Provider review includes all-known pages as well as submitted pages; neither
+filter's totals substitute for the other. [Google alert repair plan](../implementation/google-indexing-alerts-plan.md)
+records the October evidence and remaining uncertainty.
+
+Temporary page failures emit exactly 1 structured event at the response boundary.
+The event contains only fixed page/source families, content-or-shell phase,
+failure class, elapsed time, attempt count and an available numeric upstream status.
+It never includes a request path, query, address, header, body, error message or stack.
+Optional source failures that preserve a useful 200 response do not emit this event.
+Committee financial payloads must identify the requested committee and year before
+they can be rendered or seeded. Missing filings remain valid data, while malformed
+or mismatched payloads produce the existing uncached 503, never false figures or 404.
+No timeout, retry or cache-window change is justified by the October timing alone.
+
 Bill search descriptions retain the approved first summary sentence in §26.
 A low click count alone does not authorize keyword padding, unsupported claims,
 changed article subjects or duplicate pages. Ranking work follows actual query

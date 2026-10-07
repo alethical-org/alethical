@@ -9,6 +9,7 @@ from tempfile import TemporaryDirectory
 from unittest import TestCase
 from unittest.mock import patch
 from urllib.error import HTTPError, URLError
+from urllib.parse import parse_qsl, urlsplit
 from urllib.robotparser import RobotFileParser
 
 from scripts import check_public_search_health as health
@@ -136,6 +137,282 @@ class SitemapTest(TestCase):
                 health.xml_urls(response(body, "application/xml"), index=False)
         with self.assertRaises(health.HealthFailure):
             health.xml_urls(response("{}", "application/json"), index=False)
+
+
+def seeded_html(base, key, payload):
+    return html(
+        base,
+        extra='<script type="application/json" id="alethical-page-data">'
+        + json.dumps([{"key": key, "payload": payload}])
+        + "</script>",
+    )
+
+
+class PublicVariantTest(TestCase):
+    today = date(2026, 10, 7)
+    committee = health.ORIGIN + "/money/committees/example-100"
+
+    def test_variants_are_separate_from_strict_sitemap_discovery(self):
+        paths = (
+            "/money/committees/example-100?year=2015",
+            "/money/committees/example-100?tab=filings&year=2026",
+            "/money/committees/example-100/payments?tab=spent&year=2025",
+            "/money/committees/example-100/payments?tab=gave",
+            "/legislators/a-member?tab=money&year=2025",
+            "/money/races/house-1a?year=2025",
+            "/bills/94-2025-HF2771?tab=text",
+        )
+        for path in paths:
+            url = health.ORIGIN + path
+            with self.subTest(path=path):
+                self.assertEqual(health.safe_variant_url(url), url)
+                with self.assertRaises(health.HealthFailure):
+                    health.safe_url(url)
+                with self.assertRaises(health.HealthFailure):
+                    health.xml_urls(xml([url]), index=False)
+
+    def test_variants_reject_credentials_unknown_duplicate_and_encoded_parameters(self):
+        paths = (
+            "/money/committees/example-100?year=2025&year=2024",
+            "/money/committees/example-100?tab=filings&token=secret",
+            "/money/committees/example-100?year=2025%26token%3Dsecret",
+            "/money/committees/example-100?%79ear=2025",
+            "/money/committees/example-100?year=2025#fragment",
+            "/money/committees/example-100?year=02025",
+            "/money/committees/example-100?year=garbage",
+            "/money/committees/example-100?year=9999",
+            "/money/committees/example-100?tab=unknown",
+            "/money/committees/example-100/payments?tab=filings",
+            "/money/committees/example-100/claim?year=2025",
+            "/money/committees/%65xample-100?year=2025",
+            "/money/committees/example-100?year=2025\n",
+            "/money/races?year=2025",
+            "/legislators/a-member?year=2025",
+            "/bills/94-2025-HF2771?tab=text&year=2025",
+            "/ask?q=synthetic-private-query",
+        )
+        for path in paths:
+            with self.subTest(path=path), self.assertRaises(health.HealthFailure):
+                health.safe_variant_url(health.ORIGIN + path)
+        with self.assertRaises(health.HealthFailure):
+            health.safe_variant_url("https://other.invalid" + paths[0])
+
+    def test_year_validation_checks_exact_data_not_arbitrary_visible_years(self):
+        url = self.committee + "?year=2025"
+        key = ["committee-money", "100", 2025]
+        good = seeded_html(self.committee, key, {"year": 2025})
+        page = health.validate_page(
+            url, good, robots(), mode="variant", today=self.today
+        )
+        self.assertEqual(page.variant_year_check, "payload")
+        for payload in (
+            {"year": 2024, "note": "2025"},
+            {"note": "2025"},
+        ):
+            with self.assertRaises(health.HealthFailure):
+                health.validate_page(
+                    url,
+                    seeded_html(self.committee, key, payload),
+                    robots(),
+                    mode="variant",
+                    today=self.today,
+                )
+        with self.assertRaises(health.HealthFailure):
+            health.validate_page(
+                url,
+                html(self.committee, "The year is 2025"),
+                robots(),
+                mode="variant",
+                today=self.today,
+            )
+        with self.assertRaises(health.HealthFailure):
+            health.validate_page(
+                url,
+                seeded_html(
+                    self.committee, ["committee-money", "999", 2025], {"year": 2025}
+                ),
+                robots(),
+                mode="variant",
+                today=self.today,
+            )
+
+    def test_no_filing_still_answers_requested_year_without_inventing_figures(self):
+        url = self.committee + "?year=2015"
+        payload = {"year": 2015, "money_in": {"state": "not_reported"}}
+        health.validate_page(
+            url,
+            seeded_html(self.committee, ["committee-money", "100", 2015], payload),
+            robots(),
+            mode="variant",
+            today=self.today,
+        )
+
+    def test_default_year_and_app_malformed_year_fallback_are_explicit(self):
+        for raw, expected in (
+            (None, 2026),
+            ("bad", 2026),
+            ("2014", 2026),
+            ("2027", 2026),
+            ("2025", 2025),
+            ("2025extra", 2025),
+        ):
+            self.assertEqual(health.campaign_money_year(raw, self.today), expected)
+        url = self.committee + "?tab=gave"
+        health.validate_page(
+            url,
+            seeded_html(
+                self.committee, ["committee-money", "100", 2026], {"year": 2026}
+            ),
+            robots(),
+            mode="variant",
+            today=self.today,
+        )
+
+    def test_bill_variant_keeps_bare_canonical_and_all_public_guards(self):
+        base = health.ORIGIN + "/bills/94-2025-HF2771"
+        url = base + "?tab=text"
+        health.validate_page(
+            url, html(base), robots(), mode="variant", today=self.today
+        )
+        for example in (
+            html(url),
+            html(base, extra='<meta name="robots" content="noindex">'),
+            html(base, "Loading…"),
+            response("outage", status=503),
+        ):
+            with self.assertRaises(health.HealthFailure):
+                health.validate_page(
+                    url, example, robots(), mode="variant", today=self.today
+                )
+
+    def test_special_session_bill_text_is_a_supported_public_variant(self):
+        base = health.ORIGIN + "/bills/94-2025s1-SF12"
+        health.validate_page(
+            base + "?tab=text", html(base), robots(), mode="variant", today=self.today
+        )
+        for suffix in ("s0", "s100", "special", "s1%2Fprivate"):
+            with self.assertRaises(health.HealthFailure):
+                health.safe_variant_url(
+                    health.ORIGIN + f"/bills/94-2025{suffix}-SF12?tab=text"
+                )
+
+    def test_optional_legislator_seed_absence_is_not_claimed_as_year_proof(self):
+        base = health.ORIGIN + "/legislators/a-member"
+        url = base + "?tab=money&year=2025"
+        page = health.validate_page(
+            url, html(base), robots(), mode="variant", today=self.today
+        )
+        self.assertEqual(page.variant_year_check, "not-served")
+        with self.assertRaises(health.HealthFailure):
+            health.validate_page(
+                url,
+                seeded_html(
+                    base,
+                    ["legislator-campaign-money", "a-member", 2025],
+                    {"year": 2024},
+                ),
+                robots(),
+                mode="variant",
+                today=self.today,
+            )
+
+    def test_payments_direction_key_and_race_year_are_checked(self):
+        base = self.committee + "/payments"
+        url = base + "?tab=spent&year=2025"
+        good = seeded_html(
+            base,
+            ["committee-payments-list", "100", "made", 2025],
+            {"state": "reported"},
+        )
+        page = health.validate_page(
+            url, good, robots(), mode="variant", today=self.today
+        )
+        self.assertEqual(page.variant_year_check, "key-only")
+        self.assertEqual(page.variant_direction_check, "key-only")
+        with self.assertRaises(health.HealthFailure):
+            health.validate_page(
+                url,
+                seeded_html(
+                    base,
+                    ["committee-payments-list", "100", "received", 2025],
+                    {"state": "reported"},
+                ),
+                robots(),
+                mode="variant",
+                today=self.today,
+            )
+        race = health.ORIGIN + "/money/races/house-1a"
+        health.validate_page(
+            race + "?year=2025",
+            seeded_html(race, ["campaign-finance-races", 2025, "all"], {"year": 2025}),
+            robots(),
+            mode="variant",
+            today=self.today,
+        )
+
+    def test_unserved_payment_source_and_malformed_data_are_distinct(self):
+        base = self.committee + "/payments"
+        url = base + "?tab=spent&year=2025"
+        page = health.validate_page(
+            url,
+            html(base, "We could not load the payment records"),
+            robots(),
+            mode="variant",
+            today=self.today,
+        )
+        self.assertEqual(page.variant_year_check, "not-served")
+        self.assertEqual(page.variant_direction_check, "not-served")
+        for extra in (
+            '<script type="application/json" id="alethical-page-data">private malformed text</script>',
+            '<script type="application/json" id="alethical-page-data">{}</script>',
+            '<script type="application/json" id="alethical-page-data">[]</script>' * 2,
+        ):
+            with self.assertRaises(health.HealthFailure) as failure:
+                health.validate_page(
+                    url,
+                    html(base, extra=extra),
+                    robots(),
+                    mode="variant",
+                    today=self.today,
+                )
+            self.assertNotIn("private malformed text", str(failure.exception))
+
+    @patch.object(health.time, "sleep")
+    def test_variant_transport_uses_same_retry_and_global_budgets(self, sleep):
+        url = self.committee + "?year=2025"
+        fetcher = health.Fetcher()
+        with patch.object(
+            fetcher.opener, "open", side_effect=[Stream(code=503), Stream(b"ok")]
+        ):
+            self.assertEqual(fetcher.fetch(url, variant=True).body, b"ok")
+            self.assertEqual(fetcher.requests, 2)
+        for field, value in (("requests", health.MAX_REQUESTS), ("deadline", 0)):
+            fetcher = health.Fetcher()
+            setattr(fetcher, field, value)
+            with patch.object(fetcher.opener, "open") as opener:
+                with self.assertRaises(health.HealthFailure):
+                    fetcher.fetch(url, variant=True)
+                opener.assert_not_called()
+        fetcher = health.Fetcher()
+        with (
+            patch.object(health, "MAX_BYTES", 10),
+            patch.object(fetcher.opener, "open", return_value=Stream(b"x" * 11)),
+        ):
+            with self.assertRaisesRegex(health.HealthFailure, "size limit"):
+                fetcher.fetch(url, variant=True)
+
+    def test_variant_transport_still_refuses_redirects_and_unsafe_urls(self):
+        fetcher = health.Fetcher()
+        with patch.object(
+            fetcher.opener, "open", return_value=Stream(code=302)
+        ) as opener:
+            with self.assertRaisesRegex(health.HealthFailure, "redirect refused"):
+                fetcher.fetch(self.committee + "?year=2025", variant=True)
+            self.assertEqual(opener.call_count, 1)
+        with patch.object(fetcher.opener, "open") as opener:
+            with self.assertRaises(health.HealthFailure):
+                fetcher.fetch(self.committee + "?token=synthetic-secret", variant=True)
+            opener.assert_not_called()
 
 
 class PageTest(TestCase):
@@ -287,6 +564,45 @@ class TransportTest(TestCase):
 
 
 class SamplingAndEvidenceTest(TestCase):
+    def test_variant_sample_is_fixed_plus_bounded_rotating_known_records(self):
+        sections = {
+            "committees": [
+                health.ORIGIN + f"/money/committees/filer-{i}" for i in range(100, 200)
+            ],
+            "bills": [health.ORIGIN + f"/bills/94-2025-HF{i}" for i in range(1, 100)],
+            "legislators": [
+                health.ORIGIN + f"/legislators/member-{i}" for i in range(1, 100)
+            ],
+            "races": [
+                health.ORIGIN + f"/money/races/house-{i}a" for i in range(1, 100)
+            ],
+        }
+        first = health.select_variants(sections, date(2026, 10, 7), broader=False)
+        self.assertEqual(
+            first, health.select_variants(sections, date(2026, 10, 8), broader=False)
+        )
+        self.assertNotEqual(
+            first, health.select_variants(sections, date(2026, 10, 14), broader=False)
+        )
+        self.assertEqual(len(first), 9)
+        self.assertTrue(
+            all(url.endswith("?year=2026") for url in first if "/money/races/" in url)
+        )
+        self.assertLessEqual(
+            len(health.select_variants(sections, date(2026, 10, 7), broader=True)), 14
+        )
+        for path in health.VARIANT_REGRESSIONS:
+            self.assertIn(health.ORIGIN + path, first)
+        for url in first:
+            health.safe_variant_url(url)
+            self.assertNotIn("/ask", url)
+        with self.assertRaises(health.HealthFailure):
+            health.select_variants(
+                {"committees": [health.ORIGIN + "/confirm?token=synthetic"]},
+                date(2026, 10, 7),
+                broader=False,
+            )
+
     def test_samples_are_bounded_stable_and_rotate_without_fetching_every_record(self):
         sections = {
             name: [f"{health.ORIGIN}/bills/example-{i}" for i in range(100)]
@@ -376,6 +692,21 @@ class WholeRunTest(TestCase):
 
     def fetch(self, url, **kwargs):
         self.fetcher.requests += 1
+        if kwargs.get("variant"):
+            base = url.split("?", 1)[0]
+            path = urlsplit(base).path
+            params = dict(parse_qsl(urlsplit(url).query))
+            year = health.campaign_money_year(params.get("year"), date(2026, 10, 7))
+            if path.startswith("/money/committees/"):
+                registration = path.split("/")[3].rsplit("-", 1)[1]
+                key = ["committee-money", registration, year]
+            elif path.startswith("/money/races/"):
+                key = ["campaign-finance-races", year, "all"]
+            elif path.startswith("/legislators/"):
+                key = ["legislator-campaign-money", path.split("/")[2], year]
+            else:
+                return html(base)
+            return seeded_html(base, key, {"year": year})
         if url == health.ORIGIN + "/robots.txt":
             return response(
                 f"User-agent: *\nAllow: /\nSitemap: {health.ORIGIN}/sitemap.xml",
@@ -420,6 +751,48 @@ class WholeRunTest(TestCase):
         self.assertEqual(report["served_commit"], "a" * 40)
         self.assertEqual(report["release_match"], "not-compared")
         self.assertLess(report["request_count"], health.MAX_REQUESTS)
+        variant_checks = [
+            row for row in report["checks"] if row["name"].startswith("variant:")
+        ]
+        self.assertTrue(variant_checks)
+        self.assertTrue(all("year_check" in row for row in variant_checks))
+
+    def test_variant_outage_is_recorded_without_loosening_discovery(self):
+        original_fetch = self.fetch
+
+        def failing_fetch(url, **kwargs):
+            if kwargs.get("variant") and url.endswith("?tab=text"):
+                return response("outage", status=503)
+            return original_fetch(url, **kwargs)
+
+        with patch.object(self.fetcher, "fetch", side_effect=failing_fetch):
+            report = health.run_checks(
+                self.fetcher,
+                today=date(2026, 10, 7),
+                broader=False,
+                checked_commit=None,
+            )
+        failures = [row for row in report["checks"] if not row["passed"]]
+        self.assertFalse(report["passed"])
+        self.assertTrue(all(row["name"].startswith("variant:") for row in failures))
+        self.assertTrue(all(row["status"] == 503 for row in failures))
+
+    def test_variant_selection_failure_does_not_skip_private_or_missing_checks(self):
+        with patch.object(
+            health,
+            "select_variants",
+            side_effect=health.HealthFailure(
+                "variant record or parameters are not allowed"
+            ),
+        ):
+            report = self.run_fixture()
+        failures = [row["name"] for row in report["checks"] if not row["passed"]]
+        self.assertEqual(failures, ["variant-selection"])
+        completed = {row["name"] for row in report["checks"] if row["passed"]}
+        for path in health.MISSING_PATHS:
+            self.assertIn("missing:" + path, completed)
+        for path in health.PRIVATE_CHECKS:
+            self.assertIn("private:" + path, completed)
 
     def test_duplicate_across_sitemaps_and_missing_fixed_route_fail(self):
         self.sections["pages"].append(self.sections["bills"][0])

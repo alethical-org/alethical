@@ -1904,6 +1904,217 @@ describe('when the data service is unwell', () => {
   });
 });
 
+describe('privacy-safe reasons for temporary page failures', () => {
+  let failureLog: ReturnType<typeof vi.spyOn>;
+  const secret = 'PRIVATE-CALLBACK-AND-REMOTE-TEXT';
+
+  beforeEach(() => {
+    failureLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => failureLog.mockRestore());
+
+  function loggedFailure() {
+    expect(failureLog).toHaveBeenCalledTimes(1);
+    expect(failureLog.mock.calls[0]).toHaveLength(1);
+    const text = failureLog.mock.calls[0][0] as string;
+    expect(text).not.toContain(secret);
+    expect(text).not.toContain('https://');
+    expect(text).not.toContain('/bills/');
+    const log = JSON.parse(text);
+    expect(Object.keys(log).sort()).toEqual(
+      [
+        'attempt_count',
+        'elapsed_ms',
+        'event',
+        'failure_kind',
+        'page_family',
+        'phase',
+        'source_family',
+        ...(log.upstream_status === undefined ? [] : ['upstream_status']),
+      ].sort(),
+    );
+    expect(log.elapsed_ms).toBeGreaterThanOrEqual(0);
+    return log;
+  }
+
+  it('records an upstream server status once without request or response text', async () => {
+    stubNetwork(() => ({ status: 503, payload: { error: secret } }));
+    const result = await serve({ path: '/bills/94-2025-HF719', code: secret, q: secret });
+    expect(result.status).toBe(503);
+    expect(result.headers.get('Cache-Control')).toBe('no-store');
+    expect(loggedFailure()).toMatchObject({
+      event: 'page_response_failure',
+      phase: 'content',
+      page_family: 'bill',
+      source_family: 'bills',
+      failure_kind: 'http',
+      upstream_status: 503,
+      attempt_count: 1,
+    });
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['network', 'timeout', 'json'])(
+    'distinguishes %s failures without exception text',
+    async (kind) => {
+      if (kind === 'timeout') {
+        vi.spyOn(AbortSignal, 'timeout').mockReturnValue(AbortSignal.abort());
+      }
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => {
+          if (kind !== 'json') throw new Error(secret);
+          return {
+            ok: true,
+            status: 200,
+            headers: { get: () => null },
+            json: async () => {
+              throw new Error(secret);
+            },
+          };
+        }),
+      );
+      try {
+        expect((await serve({ path: '/bills/94-2025-HF719', token: secret })).status).toBe(503);
+        expect(loggedFailure()).toMatchObject({
+          phase: 'content',
+          source_family: 'bills',
+          failure_kind: kind,
+          attempt_count: 1,
+        });
+      } finally {
+        if (kind === 'timeout') vi.mocked(AbortSignal.timeout).mockRestore();
+      }
+    },
+  );
+
+  it.each([
+    undefined,
+    null,
+    [],
+    'invalid',
+    { registration_number: '99999', year: 2025 },
+    { registration_number: '41326', year: 2024 },
+  ])('classifies a malformed mandatory committee answer as payload failure', async (data) => {
+    stubNetwork(() => ({ status: 200, payload: { data } }));
+    expect(
+      (
+        await serve({
+          path: '/money/committees/jane-fonda-climate-pac-41326',
+          year: '2025',
+          tab: 'filings',
+        })
+      ).status,
+    ).toBe(503);
+    expect(loggedFailure()).toMatchObject({
+      phase: 'content',
+      page_family: 'moneyCommittee',
+      source_family: 'committee-finance',
+      failure_kind: 'payload',
+      attempt_count: 1,
+    });
+  });
+
+  it('reports an unknown content error without inspecting its message', async () => {
+    stubNetwork(() => ({ status: 200, payload: undefined }));
+    expect((await serve({ path: '/bills/94-2025-HF719', access_token: secret })).status).toBe(503);
+    expect(loggedFailure()).toMatchObject({
+      phase: 'content',
+      failure_kind: 'unknown',
+      source_family: 'none',
+      attempt_count: 0,
+    });
+  });
+
+  it('keeps reporting safe when the route reader itself throws', async () => {
+    const routes = await import('../../navigation/webRoutes');
+    const routeReader = vi.spyOn(routes, 'targetFromPathname').mockImplementation(() => {
+      throw new Error(secret);
+    });
+    try {
+      expect((await serve({ path: '/ask', q: secret })).status).toBe(503);
+      expect(loggedFailure()).toMatchObject({
+        phase: 'content',
+        page_family: 'unknown',
+        failure_kind: 'unknown',
+        attempt_count: 0,
+      });
+    } finally {
+      routeReader.mockRestore();
+    }
+  });
+
+  it.each(['/ask', '/confirm', '/reset', '/email-preferences', '/auth/callback'])(
+    'keeps private and authentication values out of a shell failure log at %s',
+    async (path) => {
+      readPageShell.mockRejectedValue(new Error(secret));
+      expect(
+        (await serve({ path, q: secret, code: secret, access_token: secret, state: secret }))
+          .status,
+      ).toBe(503);
+      expect(loggedFailure()).toMatchObject({
+        phase: 'shell',
+        source_family: 'shell',
+        failure_kind: 'unknown',
+        attempt_count: 0,
+      });
+    },
+  );
+
+  it('classifies missing shell markers without leaking the bundled text', async () => {
+    readPageShell.mockResolvedValue(`<html><head>${secret}</head></html>`);
+    expect((await serve({ path: '/privacy' })).status).toBe(503);
+    expect(loggedFailure()).toMatchObject({
+      phase: 'shell',
+      source_family: 'shell',
+      failure_kind: 'payload',
+      attempt_count: 0,
+    });
+  });
+
+  it('does not log ordinary missing records or successful private pages', async () => {
+    stubNetwork(() => ({ status: 404 }));
+    expect((await serve({ path: '/bills/94-2025-HF719' })).status).toBe(404);
+    expect((await serve({ path: '/email-preferences', token: secret })).status).toBe(200);
+    expect(failureLog).not.toHaveBeenCalled();
+  });
+
+  it('keeps an optional ownership-read failure partial and unlogged', async () => {
+    stubNetwork((url) =>
+      url.includes('/finance?')
+        ? {
+            status: 200,
+            payload: {
+              data: {
+                registration_number: '41326',
+                year: 2025,
+                committee_name: 'Jane Fonda Climate PAC',
+                register: {
+                  state: 'reported',
+                  kind: 'political_committee_or_fund',
+                  name: 'Jane Fonda Climate PAC',
+                },
+                money_in: { state: 'not_reported' },
+                money_out: { state: 'not_reported' },
+                split: { state: 'no_reported_total' },
+              },
+            },
+          }
+        : { status: 503 },
+    );
+    const result = await serve({
+      path: '/money/committees/jane-fonda-climate-pac-41326',
+      year: '2025',
+      tab: 'filings',
+    });
+    expect(result.status).toBe(200);
+    expect(result.headers.get('Cache-Control')).toBe('no-store');
+    expect(result.body).toContain(CONFIRMATION_UNAVAILABLE_LINE);
+    expect(failureLog).not.toHaveBeenCalled();
+  });
+});
+
 /**
  * The reads the function already makes, handed to the app in the same response
  * (issue #1966). Before this, `/money/committees` fetched the identical URL a
@@ -3654,6 +3865,7 @@ describe('a record reached under another spelling forwards to its own address', 
 
     const { status, body } = await serve({
       path: '/money/committees/jane-fonda-climate-pac-41326',
+      year: '2025',
     });
 
     expect(status).toBe(200);

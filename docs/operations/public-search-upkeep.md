@@ -41,6 +41,22 @@ Failures retain a JSON artifact for 35 days. It makes no AI calls, uses no
 credentials and creates no daily issue or message for a person to review.
 GitHub's normal failed-run notification is the fallback for a broken technical check.
 
+Record query variants have a separate, strict check path. Discovery still rejects
+record queries; passing a variant never admits it to a sitemap. The variant checks
+require useful initial content, an indexable 200 response and exactly 1 preferred
+address pointing to the base record. Known saved-data keys and payload years must
+match the requested record and year. Optional legislator/payment data that the page
+server omitted is recorded as `not-served`, not proof of correct year or direction.
+
+At most 9 daily or 14 Monday variant reads share the existing 160-request,
+300-second and 4 MiB-per-response limits. Committee, payment, legislator, race and
+bill-text views rotate weekly. Race variants use the current year, matching their
+sitemap inventory; older years need not contain the same seats. A failed variant
+selection is retained as a failed check without skipping missing/private checks.
+The 4 fixed October incident examples remain until Google's corresponding error
+validation passes; remove that temporary list in a reviewed change, retaining the
+rotating coverage and offline regression tests.
+
 A release remains incomplete until its intended commit has reached the public
 website and changed reader paths work. The search check records the served commit
 but deliberately does not replace the release ancestry checks.
@@ -55,10 +71,16 @@ A human or an explicitly started coding task reviews Google Search Console and
 Bing Webmaster Tools once weekly while a coverage repair is being evaluated.
 Compare indexed, discovered-not-indexed, crawled-not-indexed, soft-404 and server
 failure trends. Inspect a few new or changed examples from affected families.
+Read **All known pages** as well as **All submitted pages**, and keep their counts
+separate. The latter excludes many query variants and old addresses; a clean
+submitted-pages report does not establish that Google saw no sitewide errors.
 For a historical soft-404 whose public response is now useful, run the provider's
 live inspection and compare its rendered content with the current response.
 Do not invent extra text to satisfy an arbitrary minimum word count.
-Start validation once a demonstrated cause is repaired; do not restart it daily,
+Start validation once a demonstrated cause is repaired, or after affected examples
+and representative Google live tests pass with no evidence of an ongoing failure.
+When historical logs cannot establish the cause, state that explicitly. Do not
+restart validation daily,
 repeatedly submit unchanged addresses, or treat a successful live test as indexing.
 A reported failure with no current response defect remains a provider follow-up,
 not permission for unrelated data regeneration.

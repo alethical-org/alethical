@@ -90,9 +90,17 @@ SEARCH_AGENTS = (
     "PerplexityBot",
 )
 MAX_BYTES = 4 * 1024 * 1024
-MAX_REQUESTS = 160  # Includes retries. Daily runs usually use fewer than 50.
+MAX_REQUESTS = 160  # Includes base pages, public variants and retries.
 MAX_SECONDS = 300
 MAX_URLS = 50_000
+# Public addresses from the October 2026 incident, independent of discovery.
+# These are regressions to watch, not evidence of a current outage.
+VARIANT_REGRESSIONS = (
+    "/money/committees/laine-carolyn-senate-committee-17898?year=2025",
+    "/money/committees/wolgamott-dan-house-committee-17662?year=2019",
+    "/money/committees/bennett-peggy-house-committee-17686?tab=filings&year=2026",
+    "/bills/94-2025-HF2771?tab=text",
+)
 SHA = re.compile(r"^[0-9a-f]{40}$")
 PLACEHOLDERS = {"loading", "loading…", "loading...", "please wait", "alethical"}
 
@@ -159,6 +167,74 @@ def discovery_key(url: str) -> str:
     return unquote(parsed.path) + ("?" + parsed.query if parsed.query else "")
 
 
+def safe_variant_url(url: str, *, today: date | None = None) -> str:
+    """Only authored record-view checks; never a sitemap or anchor exception."""
+    require(
+        not re.search(r"[%\\\s\x00-\x1f\x7f]", url),
+        "variant address has an unsafe encoding or character",
+    )
+    try:
+        parsed = urlsplit(url)
+        safe_url(ORIGIN + parsed.path)
+        require(
+            parsed.scheme == "https"
+            and parsed.netloc == "www.alethical.com"
+            and not parsed.fragment
+            and len(url) <= 2048,
+            "variant is not a canonical public HTTPS address",
+        )
+        require(
+            re.fullmatch(r"[a-z]+=[a-z0-9]+(?:&[a-z]+=[a-z0-9]+)?", parsed.query)
+            is not None,
+            "variant query shape is not allowed",
+        )
+        pairs = parse_qsl(parsed.query, strict_parsing=True)
+        params = dict(pairs)
+        require(len(params) == len(pairs), "variant has duplicate parameters")
+        path = parsed.path
+        if re.fullmatch(
+            r"/money/committees/[a-z0-9]+(?:-[a-z0-9]+)*-[0-9]{1,6}(?:/payments)?", path
+        ):
+            tabs = (
+                {"gave", "spent"}
+                if path.endswith("/payments")
+                else {"gave", "spent", "filings", "about", "by"}
+            )
+            allowed = set(params) <= {"year", "tab"} and (
+                "tab" not in params or params["tab"] in tabs
+            )
+        elif re.fullmatch(r"/legislators/[a-z0-9]+(?:-[a-z0-9]+)*", path):
+            allowed = set(params) <= {"year", "tab"} and params.get("tab") == "money"
+        elif re.fullmatch(r"/money/races/[a-z0-9]+(?:-[a-z0-9]+)*", path):
+            allowed = set(params) == {"year"}
+        elif re.fullmatch(
+            r"/bills/[0-9]{2,3}-[0-9]{4}(?:s[1-9][0-9]?)?-(?:HF|SF)[1-9][0-9]{0,5}",
+            path,
+        ):
+            allowed = params == {"tab": "text"}
+        else:
+            allowed = False
+        require(allowed, "variant record or parameters are not allowed")
+        if "year" in params:
+            current = max((today or datetime.now(timezone.utc).date()).year, 2015)
+            require(
+                re.fullmatch(r"20[0-9]{2}", params["year"]) is not None
+                and 2015 <= int(params["year"]) <= current,
+                "variant year is outside the supported bounded range",
+            )
+        return url
+    except ValueError:
+        raise HealthFailure("variant address is malformed") from None
+
+
+def campaign_money_year(raw: str | None, today: date) -> int:
+    """Mirror campaignMoneyYear's parseInt and default for offline cases."""
+    current = max(today.year, 2015)
+    match = re.match(r"^[\s]*([+-]?[0-9]+)", raw or "")
+    parsed = int(match[1]) if match else None
+    return parsed if parsed is not None and 2015 <= parsed <= current else current
+
+
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
@@ -184,8 +260,14 @@ class Fetcher:
         self.requests = 0
         self.deadline = time.monotonic() + MAX_SECONDS
 
-    def fetch(self, url: str, *, private_check: bool = False) -> Response:
-        safe_url(url, private_check=private_check)
+    def fetch(
+        self, url: str, *, private_check: bool = False, variant: bool = False
+    ) -> Response:
+        require(not (private_check and variant), "private variant checks are forbidden")
+        if variant:
+            safe_variant_url(url)
+        else:
+            safe_url(url, private_check=private_check)
         for attempt in range(2):
             require(self.requests < MAX_REQUESTS, "request budget exhausted")
             remaining = self.deadline - time.monotonic()
@@ -322,9 +404,17 @@ class PageHTML(HTMLParser):
         self.content: list[str] = []
         self.anchors: list[str] = []
         self.has_base = False
+        self.page_data: list[list[str]] = []
+        self.reading_page_data = False
+        self.variant_year_check = "not-applicable"
+        self.variant_direction_check = "not-applicable"
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
+        if tag == "script" and attrs.get("id") == "alethical-page-data":
+            require(attrs.get("type") == "application/json", "page data is not JSON")
+            self.page_data.append([])
+            self.reading_page_data = True
         if tag == "base":
             self.has_base = True
         if tag == "link" and "canonical" in (attrs.get("rel") or "").lower().split():
@@ -357,12 +447,17 @@ class PageHTML(HTMLParser):
             self.handle_endtag(tag)
 
     def handle_endtag(self, tag):
+        if tag == "script":
+            self.reading_page_data = False
         for i in range(len(self.stack) - 1, -1, -1):
             if self.stack[i][0] == tag:
                 del self.stack[i:]
                 break
 
     def handle_data(self, data):
+        if self.reading_page_data:
+            self.page_data[-1].append(data)
+            return
         text = " ".join(data.split())
         if not text or not self.stack or self.stack[-1][1]:
             return
@@ -383,9 +478,100 @@ def tokens(values: list[str]) -> set[str]:
     return set(re.findall(r"[a-z]+", " ".join(values).lower()))
 
 
+def validate_variant_data(url: str, page: PageHTML, today: date) -> None:
+    """Check only known query keys, never an unrelated occurrence of a year.
+
+    api/page.ts deliberately omits failed optional legislator/payment reads.
+    Missing optional seeds remain visible in evidence as unproved, while keys
+    or payloads that claim a different year/direction fail. Absent filing figures
+    are valid: this checks scope, not amounts or the existence of a filing.
+    """
+    parsed = urlsplit(url)
+    if parsed.path.startswith("/bills/"):
+        return  # The first response intentionally serves Summary for every tab.
+    params = dict(parse_qsl(parsed.query))
+    year = campaign_money_year(params.get("year"), today)
+    if parsed.path.startswith("/money/committees/"):
+        registration = parsed.path.split("/")[3].rsplit("-", 1)[1]
+        expected = ["committee-money", registration, year]
+        if parsed.path.endswith("/payments"):
+            direction = "made" if params.get("tab") == "spent" else "received"
+            primary = ["committee-payments-list", registration, direction, year]
+            keys = [(expected, False, True), (primary, False, False)]
+            page.variant_direction_check = "not-served"
+        else:
+            keys = [(expected, True, True)]
+    elif parsed.path.startswith("/legislators/"):
+        keys = [
+            (
+                ["legislator-campaign-money", parsed.path.split("/")[2], year],
+                False,
+                True,
+            )
+        ]
+    else:
+        keys = [(["campaign-finance-races", year, "all"], True, True)]
+    require(len(page.page_data) <= 1, "page has duplicate data blocks")
+    entries = []
+    if page.page_data:
+        try:
+            entries = json.loads("".join(page.page_data[0]))
+        except (ValueError, RecursionError):
+            raise HealthFailure("page data is malformed JSON") from None
+        require(isinstance(entries, list), "page data is not an entry list")
+    proved = []
+    for expected, required, payload_year_required in keys:
+        matching = [
+            entry
+            for entry in entries
+            if isinstance(entry, dict)
+            and isinstance(entry.get("key"), list)
+            and entry["key"][:1] == expected[:1]
+        ]
+        if not matching:
+            require(not required, "requested year data is missing")
+            continue
+        require(
+            len(matching) == 1 and matching[0]["key"] == expected,
+            "page data key has the wrong record, year or direction",
+        )
+        if expected[0] == "committee-payments-list":
+            page.variant_direction_check = "key-only"
+        payload = matching[0].get("payload")
+        require(isinstance(payload, dict), "page data payload is not an object")
+        if payload_year_required or "year" in payload:
+            require(
+                type(payload.get("year")) is int and payload["year"] == year,
+                "page data payload has the wrong or missing year",
+            )
+            proved.append("payload")
+        else:
+            proved.append("key-only")
+        if "registration_number" in payload and parsed.path.startswith(
+            "/money/committees/"
+        ):
+            require(
+                str(payload["registration_number"]) == registration,
+                "page data payload has the wrong committee",
+            )
+    page.variant_year_check = (
+        "payload" if "payload" in proved else ("key-only" if proved else "not-served")
+    )
+
+
 def validate_page(
-    url: str, response: Response, robots: RobotFileParser, *, mode: str = "public"
+    url: str,
+    response: Response,
+    robots: RobotFileParser,
+    *,
+    mode: str = "public",
+    today: date | None = None,
 ) -> PageHTML:
+    require(
+        mode in ("public", "variant", "missing", "private"), "unknown page check mode"
+    )
+    if mode == "variant":
+        safe_variant_url(url, today=today)
     expected = 404 if mode == "missing" else 200
     require(
         response.status == expected,
@@ -398,7 +584,7 @@ def validate_page(
     page = PageHTML()
     page.feed(response.text())
     directives = tokens(page.robots + [response.headers.get("X-Robots-Tag", "")])
-    if mode != "public":
+    if mode not in ("public", "variant"):
         require(
             "noindex" in directives or "none" in directives,
             "excluded page is missing noindex",
@@ -421,8 +607,10 @@ def validate_page(
         "public page excludes search indexing",
     )
     require(not page.has_base, "page changes anchor address resolution")
+    canonical = url.split("?", 1)[0] if mode == "variant" else url
     require(
-        page.canonicals == [url], "page does not have exactly 1 self-canonical address"
+        page.canonicals == [canonical],
+        "page does not have exactly 1 expected canonical address",
     )
     require(
         bool(" ".join(page.title).strip())
@@ -441,6 +629,8 @@ def validate_page(
         all(robots.can_fetch(agent, url) for agent in SEARCH_AGENTS),
         "robots.txt blocks a search crawler",
     )
+    if mode == "variant":
+        validate_variant_data(url, page, today or datetime.now(timezone.utc).date())
     # Require links where the approved surface offers navigation. Policy text
     # and address lookup need no arbitrary links or catalogue of unrelated people.
     path = urlsplit(url).path
@@ -507,6 +697,50 @@ def select_samples(
     return sorted(selected)
 
 
+def select_variants(
+    sections: dict[str, list[str]], today: date, *, broader: bool
+) -> list[str]:
+    """Four fixed public regressions plus weekly-rotating record views.
+
+    At most 9 daily / 14 broader requests, sharing the global transport budget.
+    Only records from validated sitemap children seed the rotating sample;
+    filtered links discovered in page HTML never enter this path.
+    """
+    selected = {ORIGIN + path for path in VARIANT_REGRESSIONS}
+    week = (today - date(2026, 1, 5)).days // 7
+    year = max(today.year - 1, 2015)
+    for section in ("committees", "bills", "legislators", "races"):
+        ordered = sorted(safe_url(url) for url in sections.get(section, []))
+        if not ordered:
+            continue
+        count = min(2 if broader else 1, len(ordered))
+        for offset in range(count):
+            base = ordered[(week * count + offset) % len(ordered)]
+            require(not urlsplit(base).query, "variant source is not a base record")
+            if section == "committees":
+                tabs = ("gave", "spent", "filings", "about", "by")
+                selected.add(
+                    base + f"?tab={tabs[(week + offset) % len(tabs)]}&year={year}"
+                )
+                tab = "spent" if (week + offset) % 2 else "gave"
+                # Alternate explicit and default year to cover both app reads.
+                selected.add(
+                    base
+                    + f"/payments?tab={tab}"
+                    + (f"&year={year}" if week % 2 else "")
+                )
+            elif section == "bills":
+                selected.add(base + "?tab=text")
+            elif section == "legislators":
+                selected.add(base + f"?tab=money&year={year}")
+            else:
+                # The sitemap lists seats from the current year's race data.
+                # An older year's data need not contain those same seats.
+                selected.add(base + f"?year={max(today.year, 2015)}")
+    require(len(selected) <= 14, "variant sample exceeds bounded limit")
+    return sorted(safe_variant_url(url, today=today) for url in selected)
+
+
 def run_checks(
     fetcher: Fetcher,
     *,
@@ -528,7 +762,7 @@ def run_checks(
             "served_commit": None,
             "release_match": "not-compared",
             "sample": "weekly-broader" if broader else "daily",
-            "scope": "All 7 sitemap files and bounded initial-HTML samples; not proof of indexing, browser rendering, or numeric accuracy",
+            "scope": "All 7 sitemap files, bounded initial-HTML samples and public record query variants; not proof of indexing, browser rendering, or numeric accuracy",
             "checks": [],
             "request_count": 0,
         }
@@ -615,6 +849,23 @@ def run_checks(
                 report["served_commit"] = page.release
 
         check(f"page:{url.removeprefix(ORIGIN)}", read_page)
+    variants = []
+
+    def choose_variants(row):
+        variants.extend(select_variants(sections, today, broader=broader))
+        row["addresses"] = len(variants)
+
+    check("variant-selection", choose_variants)
+    for url in variants:
+
+        def read_variant(row, url=url):
+            response = fetcher.fetch(url, variant=True)
+            row["status"] = response.status
+            page = validate_page(url, response, robots, mode="variant", today=today)
+            row["year_check"] = page.variant_year_check
+            row["direction_check"] = page.variant_direction_check
+
+        check(f"variant:{url.removeprefix(ORIGIN)}", read_variant)
     for path, mode in [(p, "missing") for p in MISSING_PATHS] + [
         (p, "private") for p in PRIVATE_CHECKS
     ]:
