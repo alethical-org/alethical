@@ -123,8 +123,12 @@ The GitHub credential and artifact route remain to be exercised after release.
 The first release is live at `b984d2163395631afce0c7dd3c80351aef76eef3`
 ([pull request 2517](https://github.com/alethical-org/alethical/pull/2517)).
 It adds bounded variant checks and fixed failure labels, without changing timeouts,
-cache policy or retry behavior. A natural labelled failure and independent live
-reader acceptance remain pending. Google started duplicate-address validation on
+cache policy or retry behavior. The released daily public check passed. An
+independent browser review passed the committee year, bill text tab, guide article
+navigation and candidate form's empty-input recovery; the parent also opened the
+live bill text. No phone layout or real address lookup was exercised in this
+non-visual release. No runtime failures appeared in the bounded 19:25–19:46 UTC
+read, so a natural labelled failure remains pending. Google started duplicate-address validation on
 7 October after its live bill test returned the intended canonical address.
 
 ## Work sequence

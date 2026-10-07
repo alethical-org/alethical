@@ -10,16 +10,15 @@ import json
 import os
 from pathlib import Path
 import re
+import sys
 import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 from zipfile import BadZipFile, ZipFile
 
-try:
-    from scripts import collect_page_failure_health as health
-except ModuleNotFoundError:
-    import collect_page_failure_health as health
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from scripts import collect_page_failure_health as health  # noqa: E402
 
 REPOSITORY = "alethical-org/alethical"
 WORKFLOW_PATH = ".github/workflows/page-failure-health.yml"
