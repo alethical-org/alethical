@@ -111,7 +111,9 @@ format of saved reports. Invalid provider dates retain a fixed error without raw
 provider text. Queued or in-progress runs missing dates cannot supply coverage and
 do not hide older completed evidence. Setup crossing an hour boundary does not
 change which hour is counted: the validated report supplies the hour, bounded by
-the trusted run's start and end. Public report validation is unchanged.
+the trusted run's start and end. Coverage allows at most 24 artifact downloads,
+100 total requests and 180 seconds. Redirects count as requests; listing headroom
+covers duplicate and unfinished runs without weakening saved-report validation.
 GitHub can delay or drop scheduled runs. A run delayed past the next hour collects
 that later completed hour, leaving the missed hour visible as a coverage gap.
 The daily check tolerates 1 or 2 missing or failed hours, but never saturation.

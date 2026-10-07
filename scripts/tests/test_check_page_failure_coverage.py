@@ -438,8 +438,8 @@ class CoverageTest(TestCase):
         self,
     ):
         fixture = FakeGitHub()
-        missing = {101, 102}
-        for index, identifier in enumerate((101, 102, 103, 104, 105), 1):
+        missing = {101, 102, 106, 107}
+        for index, identifier in enumerate((101, 102, 103, 104, 105, 106, 107), 1):
             start = fixture.windows[-index]
             fixture.runs.append(
                 run(
@@ -487,8 +487,9 @@ class CoverageTest(TestCase):
         self.assertEqual(
             (code, result["collected_hours"], result["artifacts_read"]), (0, 24, 24)
         )
-        self.assertEqual(client.requests, 76)
-        self.assertEqual(client.opener.open.call_count, 76)
+        self.assertEqual(client.requests, 78)
+        self.assertLess(client.requests, coverage.MAX_REQUESTS)
+        self.assertEqual(client.opener.open.call_count, 78)
 
     def test_missing_and_failed_hours_need_three_gaps(self):
         windows = coverage.expected_windows(NOW, ACTIVATION)

@@ -24,7 +24,9 @@ REPOSITORY = "alethical-org/alethical"
 WORKFLOW_PATH = ".github/workflows/page-failure-health.yml"
 API_ROOT = f"https://api.github.com/repos/{REPOSITORY}"
 MAX_ARTIFACTS = 24
-MAX_REQUESTS = 76
+# 24 redirected downloads cost 48 requests. Leave headroom for run listings
+# without artifacts and manual duplicates, plus 2 workflow/list requests.
+MAX_REQUESTS = 100
 TOTAL_SECONDS = 180
 MAX_JSON_BYTES = 1024 * 1024
 MAX_ZIP_BYTES = 1024 * 1024

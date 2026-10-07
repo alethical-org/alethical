@@ -231,10 +231,12 @@ crossed an hour boundary, predicting the saved hour from the run start could ski
 a valid report. Both a first-eligible-hour case and an already-counted predicted-hour
 case counted 23 of 24 existing reports before repair. Selection now considers all
 eligible hours whose end can fall in the trusted run; the validated report chooses
-the actual hour. Both cases count all 24 afterward. Download/request limits and
-artifact attribution/time checks stay unchanged. A full-day transport regression
-uses 24 scheduled runs, 3 duplicate manual runs and 2 runs without saved reports;
-all 24 hours fit the unchanged 76-request limit, including real redirect accounting.
+the actual hour. Both cases count all 24 afterward. Download limits and artifact attribution/time checks stay unchanged. A full-day
+transport regression uses 24 scheduled runs, 3 duplicate manual runs and 4 runs
+without saved reports; all 24 hours need 78 requests, including real redirects.
+The former 76-request cap had no headroom after just 2 report-less runs. A bounded
+100-request cap allows extra listings while preserving 24 downloads, 180 seconds
+and fixed byte limits. The exhausted-budget test still fails closed.
 All 96 combined offline checks pass.
 The same coverage tests, read and retained output now run on manual dispatch as well
 as the daily schedule. Existing trusted-main and read-only token restrictions remain;
