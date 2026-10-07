@@ -14,10 +14,7 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
-try:
-    from scripts import worktree_cleanup as cleanup
-except ModuleNotFoundError:
-    import worktree_cleanup as cleanup
+from scripts import worktree_cleanup as cleanup
 
 
 IDENTITY_FIELDS = ("path", "common", "gitdir", "head", "branch")

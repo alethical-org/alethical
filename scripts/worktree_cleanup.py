@@ -26,6 +26,9 @@ from contextlib import contextmanager, nullcontext
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Preserve the repository package layout in the durable installed runtime too.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 DEFAULT_STATE = (
     Path.home() / "Library/Application Support/alethical-worktree-maintenance"
 )
@@ -947,10 +950,8 @@ def sweep(repo: Path, state: Path, apply: bool) -> list[dict]:
             state / "last-cleanup.json",
             {"time": now(), "apply": apply, "results": results},
         )
-        try:
-            from scripts.worktree_inventory import inspect_folders
-        except ModuleNotFoundError:
-            from worktree_inventory import inspect_folders
+        from scripts.worktree_inventory import inspect_folders
+
         write_json(state / "folder-inventory.json", inspect_folders(repo, state))
     return results
 
@@ -1183,10 +1184,8 @@ def main() -> int:
                 restore(args.state, args.id, args.destination)
                 print(f"Recovered working files at {args.destination}")
             elif args.command == "inspect":
-                try:
-                    from scripts.worktree_inventory import inspect_folders
-                except ModuleNotFoundError:
-                    from worktree_inventory import inspect_folders
+                from scripts.worktree_inventory import inspect_folders
+
                 print(json.dumps(inspect_folders(args.repo, args.state)))
             else:
                 print(json.dumps(status_records(args.state)))

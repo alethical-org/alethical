@@ -9,7 +9,7 @@ import unittest
 from contextlib import contextmanager, redirect_stdout
 from unittest.mock import patch
 
-import test_worktree_cleanup as fixtures
+from scripts.tests import test_worktree_cleanup as fixtures
 
 
 class InstallSafetyTest(unittest.TestCase):

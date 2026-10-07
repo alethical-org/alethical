@@ -2,11 +2,13 @@
 
 import json
 import plistlib
+import subprocess
 import sys
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
-import test_worktree_cleanup as fixtures
+from scripts.tests import test_worktree_cleanup as fixtures
 
 
 class ProfileTest(unittest.TestCase):
@@ -131,6 +133,38 @@ class ProfileTest(unittest.TestCase):
         )
         self.assertEqual(updated["protected_paths"], [str(self.tree)])
         self.assertEqual(updated["admitted_paths"], [str(self.tree)])
+
+    def test_installed_inventory_runs_outside_the_source_checkout(self):
+        installed = self.installer().install(
+            self.repo,
+            self.state,
+            self.base / "home",
+            activate=False,
+            project="commercialdeals",
+            admitted_paths=(self.tree,),
+            protected_paths=(self.tree,),
+        )
+        result = subprocess.run(
+            [
+                installed["python"],
+                str(Path(installed["runtime"]) / "worktree_cleanup.py"),
+                "--project",
+                "commercialdeals",
+                "--repo",
+                str(self.repo),
+                "--state",
+                str(self.state),
+                "inspect",
+            ],
+            cwd=self.base,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        report = json.loads(result.stdout)
+        self.assertFalse(report["errors"])
+        folder = next(row for row in report["folders"] if row["path"] == str(self.tree))
+        self.assertEqual(folder["coverage"], "installation hold")
 
     def test_codex_hook_merge_preserves_unrelated_configuration_and_never_trusts(self):
         installer = self.installer()

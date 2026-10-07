@@ -119,7 +119,7 @@ def install_locked(
     digest = hashlib.sha256(
         b"".join(name.encode() + content for name, content in data.items())
     ).hexdigest()[:20]
-    runtime = state / "runtime" / digest
+    runtime = state / "runtime" / digest / "scripts"
     runtime.mkdir(parents=True, exist_ok=True, mode=0o700)
     for name, content in data.items():
         target = runtime / name
