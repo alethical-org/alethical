@@ -17,9 +17,9 @@ import {
   SERVICES_TOOLS,
 } from './services';
 
-// The browser and the first response use this same print presentation. All copy
-// comes from the screen's content source; the approved shorter print title is
-// the sole wording exception. No saved PDF or second copy of the service text.
+// The browser and the first response use this same print presentation. Service
+// descriptions, lists and names come from the screen's content source; the
+// approved shorter print title is the sole wording exception. No saved PDF.
 const e = escapeHtml;
 const number = (value: string) => `<div class="sp-number">${value}</div>`;
 const list = (items: readonly string[]) =>
