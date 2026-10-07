@@ -1,0 +1,63 @@
+name: Page failure health
+
+on:
+  schedule:
+    - cron: "43 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: page-failure-health
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    if: github.repository == 'alethical-org/alethical' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+          clean: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+      - name: Record setup coverage gap
+        run: |
+          python - <<'PY_EVIDENCE'
+          import json
+          from datetime import datetime, timezone
+          from scripts.collect_page_failure_health import complete_hour, empty_report
+          from pathlib import Path
+          Path("page-failure-health.json").write_text(json.dumps(empty_report(*complete_hour(datetime.now(timezone.utc)))) + "\n")
+          PY_EVIDENCE
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Test bounded collection and privacy offline
+        run: python -m unittest scripts.tests.test_collect_page_failure_health
+      - name: Install pinned read tool without production credentials
+        run: |
+          npm install --prefix "$RUNNER_TEMP/alethical-failure-tools" \
+            --ignore-scripts --no-audit --no-fund vercel@56.3.2
+      - name: Collect the previous complete UTC hour
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          python scripts/collect_page_failure_health.py \
+            --cli "$RUNNER_TEMP/alethical-failure-tools/node_modules/.bin/vercel" \
+            --output page-failure-health.json
+      - name: Retain aggregate evidence even when collection fails
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: page-failure-health-${{ github.run_id }}-${{ github.run_attempt }}
+          path: page-failure-health.json
+          if-no-files-found: warn
+          retention-days: 35
