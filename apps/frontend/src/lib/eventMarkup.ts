@@ -1,4 +1,3 @@
-import { articleClosingNote, articleDisclosureRuns } from './articleDisclosure';
 import { escapeHtml as e } from './share';
 import {
   COALITION_CANDIDATES_URL,
@@ -60,11 +59,6 @@ export function renderEventsCollection(now = Date.now()): string {
 
 export function renderEventArticle(event: PublishedEvent, now = Date.now()): string {
   const ended = eventHasEnded(event, now);
-  const closingNote = articleDisclosureRuns(articleClosingNote(true), event.articleId)
-    .map((run) =>
-      run.kind === 'internalLink' ? `<a href="${e(run.href)}">${e(run.text)}</a>` : e(run.text),
-    )
-    .join('');
   const publishedLabel = new Intl.DateTimeFormat('en-US', {
     month: 'long',
     day: 'numeric',
@@ -73,7 +67,7 @@ export function renderEventArticle(event: PublishedEvent, now = Date.now()): str
   }).format(new Date(`${event.publishedOn}T12:00:00Z`));
   return `<article class="event-content event-article"><style>${eventCss}</style>
 <a class="event-back" href="${EVENTS_PATH}">‹ All events</a>
-<a href="${e(event.image)}" aria-label="Open the full-size Forward Debate flyer"><img class="event-flyer" src="${e(event.image)}" width="${event.imageWidth}" height="${event.imageHeight}" alt="${e(event.imageAlt)}" fetchpriority="high" decoding="async"></a>
+<a href="${e(event.image)}" aria-label="Open the full-size ${e(event.name)} flyer"><img class="event-flyer" src="${e(event.image)}" width="${event.imageWidth}" height="${event.imageHeight}" alt="${e(event.imageAlt)}" fetchpriority="high" decoding="async"></a>
 <p class="event-image-link"><a href="${e(event.image)}">Open full-size flyer to zoom in</a></p>
 <h1>${e(event.title)}</h1>
 <p class="event-published">Published <time datetime="${event.publishedOn}">${e(publishedLabel)}</time></p>
@@ -90,6 +84,5 @@ ${event.paragraphs.map((paragraph) => `<p>${e(paragraph)}</p>`).join('')}
 </section>
 ${ended ? `<p><a href="${e(event.signupUrl)}">View the event on Luma</a></p>` : `<h2>Join us in Sauk Rapids</h2><p>${e(event.invitation)}</p><p><a href="${e(event.signupUrl)}"><strong>RSVP for free on Luma →</strong></a></p>`}
 <div class="event-brands"><a href="/" aria-label="Alethical home"><img class="event-brand-icon" src="/services-print-mark.png" width="40" height="40" alt="">Alethical</a><a href="${COALITION_CANDIDATES_URL}" aria-label="Meet the Forward Coalition candidates"><img class="event-coalition-logo" src="/services-coalition.webp" alt="Minnesota Forward Together" width="600" height="205" loading="lazy"></a></div>
-<p class="event-published" style="margin-top:32px">${closingNote}</p>
 </article>`;
 }

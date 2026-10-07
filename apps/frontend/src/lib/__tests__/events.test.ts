@@ -23,12 +23,7 @@ describe('accessible event announcement', () => {
       expect(document.body.textContent).toContain(text);
     }
     expect(document.querySelector(`a[href="${event.signupUrl}"]`)?.textContent).toContain('RSVP');
-    expect(document.body.textContent).toContain(
-      'AI helped prepare this article and can make mistakes.',
-    );
-    expect(
-      document.querySelector('a[href="/about/contact?article=forward-debate-2026"]'),
-    ).not.toBeNull();
+    expect(document.body.textContent).not.toContain('AI helped prepare this article');
   });
   it('keeps an expired announcement readable without inviting a late RSVP', () => {
     const document = new JSDOM(renderEventArticle(event, Date.parse(event.endDate))).window

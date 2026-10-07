@@ -47,7 +47,7 @@ is a user-requested partner link, not the source for candidate office/status.
 - TypeScript and formatting pass. Full existing/new suite passed 4,151 tests; 5 additional route/accessibility cases pass. Production build passes first-download size guard after separating route identity from article copy.
 - Independent review found no blockers. Desktop and 390-pixel phone checks cover navigation, original image, signup target and logo links.
 - Google discovery uses the existing sitemap and ordinary links. Existing main-release search health and changed-page notice workflows cover the new URLs. Receipt is not proof of indexing.
-- Added the existing AI closing note, correction link and Reader comments. Event identities join the existing server registry so comment requests follow the same permissions and moderation rules.
+- Added Reader comments and event correction-link support. Eugene subsequently directed omitting the standard AI notice for all event promotions; the notice is removed and the standing exception recorded. Event identities join the existing server registry so comment requests follow the same permissions and moderation rules.
 - Remaining: commit, pull request checks, merge queue, frontend/backend deployment, live response/browser and search-notice checks.
 
 ## Search sources

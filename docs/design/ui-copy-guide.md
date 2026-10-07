@@ -270,6 +270,11 @@ as a test. This approval does not request a bulk edit of previously published po
 
 Approved by Eugene on 26 September 2026, replacing the older closing-note wording.
 
+**Event promotions omit the standard AI notice.** Eugene made this a standing
+exception for all event promotions on 7 October 2026. Event facts still require
+checking. Research, Guides, Short posts and other articles retain their existing
+closing-note requirements.
+
 ### Keep private-review status separate from article copy
 
 In a private article preview, the yellow top banner says **PRIVATE DRAFT**, once.
