@@ -91,8 +91,8 @@ collections and changes awaiting source access or human review.
   source deletion risks; workers are correcting those before release.
 - Campaign recovery has begun from the retained October 6 candidate under the exact
   3-pair decision on [issue 2394](https://github.com/alethical-org/alethical/issues/2394#issuecomment-6041765554).
-  Previous rows and archives have a guarded rollback proof. Payments wait for totals
-  acceptance and rollback readiness. No payment exception is authorized.
+  Previous rows and archives have a guarded rollback proof. Payment publication followed totals
+  acceptance and rollback readiness. No new payment exception was used.
 - Build tracking: [issue 2504](https://github.com/alethical-org/alethical/issues/2504).
 - Totals recovery published `131cb870-5a5a-4278-88fe-2f39b65604cc`.
   The 3 retained filer-years preserve their September 24 source dates; 41280/2025
@@ -110,6 +110,22 @@ collections and changes awaiting source access or human review.
   now available to the GitHub bill-refresh job; no new key or paid request was made.
 - Added pypdf's `fonts` extra after real Board PDFs reported a missing CFF font
   decoder. The held 41280/2025 amended PDF still extracts $3,414.16 with the decoder.
+
+- Final combined local upload checks passed 4,388 backend tests. Later independent
+  review fixed atomic publication follow-up markers, full-year recheck obligations,
+  incomplete-roster freshness and ongoing bill discovery despite retained failures.
+  Those fixes passed focused tests and await the final combined upload checks.
+- [Pull request 2511](https://github.com/alethical-org/alethical/pull/2511) is the
+  draft release. A test-only database password triggered GitHub's secret scanner;
+  the fixture now assembles its deliberately fake value at runtime, and the branch
+  history scan reports 0 findings. No real credential was present.
+- The existing hosted-settings check encountered a provider renewal HTTP 404, then
+  passed once rerun through its existing serialized workflow: all 18 Supabase
+  settings matched and both encrypted state copies were saved. Evidence is on
+  [issue 2495](https://github.com/alethical-org/alethical/issues/2495#issuecomment-6042502909).
+- The campaign rollback proof is retained in owner-only local storage under
+  `~/.local/state/alethical-record-refresh/2026-10-07/`. It describes the pre-payment
+  baseline and correctly refuses restoration after a different payment release.
 
 ## Model selection
 
