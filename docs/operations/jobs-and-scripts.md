@@ -63,7 +63,7 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 90 runnable files. GitHub jobs call 33 of them
+The `scripts/` folder has 91 runnable files. GitHub jobs call 34 of them
 directly and 3 document checks through `local_checks.py`. The 2 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`; the older shell command
 for source backups calls `worktree_backup.py` too. A workflow also calls
@@ -87,6 +87,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Measure AI answers and search | `answer_eval.py`, `retrieval_eval.py`, `try_queries.py`, `validate_query_rubric.py` |
 | Compare printed-name search offline without paid calls or live changes | `benchmark_campaign_finance_name_search.py` |
 | Collect change history by hand, report examined causes and retain prevention references | `review_repeat_failures.py` |
+| Run existing tests once and retain named money-prevention results for the exact tested code | `repeat_failure_runs.py` |
 | Measure what real visitors waited for | `report_origin_share_by_address.py`, `report_page_speed_by_address.py` |
 | Maintain search and stored files | `archive_published_sources.py`, `build_rag_hnsw_index.py`, `mirror_raw_files.py`, `notify_changed_public_pages.py` (bounded real public changes with durable receipts) |
 | Protect unfinished work and rotating read grants | `back-up-uncommitted-worktree-work.sh`, `worktree_backup.py`, `supabase_oauth_state.mjs` |

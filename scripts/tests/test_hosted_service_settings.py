@@ -760,6 +760,87 @@ class HostedSettingsTest(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(settings.print_results(expired_results), 1)
 
+    def test_supabase_failures_identify_the_stage_without_exposing_secrets(
+        self,
+    ) -> None:
+        for stage in ("renewal", "settings read"):
+            for status in (0, 401, 404, 429, 503, 200):
+                with (
+                    self.subTest(stage=stage, status=status),
+                    tempfile.TemporaryDirectory() as directory,
+                ):
+                    output = Path(directory) / "next-refresh-token"
+                    # Even a malformed success must remain unreadable, not matched.
+                    failure = settings.HttpResponse(
+                        status, {"secret": "private-response"}, "private-error"
+                    )
+                    responses = {"/v1/oauth/token": failure}
+                    if stage == "settings read":
+                        responses = {
+                            "/v1/oauth/token": settings.HttpResponse(
+                                200,
+                                {
+                                    "access_token": "private-access",
+                                    "refresh_token": "private-refresh",
+                                    "token_type": "bearer",
+                                },
+                            ),
+                            "/config/auth": settings.HttpResponse(
+                                status, ["private-response"], "private-error"
+                            ),
+                        }
+                    fetch = FakeFetch(responses)
+                    checker = settings.Checker(
+                        self.rows,
+                        env={
+                            "SUPABASE_OAUTH_REQUIRED": "true",
+                            "SUPABASE_OAUTH_STATE_REQUIRED": "true",
+                            "SUPABASE_OAUTH_CLIENT_ID": "client-id",
+                            "SUPABASE_OAUTH_CLIENT_SECRET": "private-client",
+                            "SUPABASE_OAUTH_REFRESH_TOKEN": "private-old-refresh",
+                            "SUPABASE_OAUTH_NEXT_REFRESH_TOKEN_FILE": str(output),
+                            "SUPABASE_PROJECT_REF": "test-project",
+                        },
+                        fetch=fetch,
+                    )
+                    checker.check_supabase()
+                    self.assertEqual(len(checker.results), 18)
+                    self.assertTrue(
+                        all(
+                            result.state is settings.State.UNVERIFIED
+                            for result in checker.results
+                        )
+                    )
+                    expected = (
+                        "Supabase OAuth renewal failed"
+                        if stage == "renewal"
+                        else "Supabase sign-in settings read failed"
+                    )
+                    reason = (
+                        f"HTTP {status}"
+                        if status not in {0, 200}
+                        else "request failed"
+                        if status == 0
+                        else "invalid token response"
+                        if stage == "renewal"
+                        else "invalid settings response"
+                    )
+                    expected += f": {reason}"
+                    if stage == "renewal":
+                        expected += "; sign-in settings were not read"
+                    self.assertTrue(
+                        all(expected == row.detail for row in checker.results)
+                    )
+                    self.assertEqual(len(fetch.calls), 1 if stage == "renewal" else 2)
+                    self.assertEqual(output.exists(), stage == "settings read")
+                    if output.exists():
+                        self.assertEqual(output.read_text(), "private-refresh")
+                        self.assertEqual(output.stat().st_mode & 0o777, 0o600)
+                    stream = io.StringIO()
+                    with contextlib.redirect_stdout(stream):
+                        self.assertEqual(settings.print_results(checker.results), 1)
+                    self.assertNotIn("private-", stream.getvalue())
+
     def test_supabase_template_drift_never_prints_template_contents(self) -> None:
         confirmation_template = settings.EMAIL_CONFIRMATION_TEMPLATE.read_text(
             encoding="utf-8"
