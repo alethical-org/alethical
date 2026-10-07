@@ -105,11 +105,10 @@ from alethical.pipeline.campaign_finance_recheck import (  # noqa: E402
 )
 from alethical.pipeline.campaign_finance_refresh import (  # noqa: E402
     hold_full_run_lease_until_exit,
+    finish_manual_publication,
 )
 from alethical.pipeline.cache_purge import (  # noqa: E402
-    clear_after_publish,
     when_a_money_download_release_lands,
-    when_the_money_checks_finish,
 )
 
 COMMITTEE_LINK_ALERT_TITLE = (
@@ -339,8 +338,6 @@ def main() -> int:
     def log(message: str) -> None:
         print(message, file=sys.stderr)
 
-    recheck = None
-    clearing_failed = False
     with Session(engine) as session:
         try:
             report = load_campaign_finance(
@@ -367,50 +364,19 @@ def main() -> int:
         if report.committee_link_contradictions and not args.dry_run:
             _file_committee_link_alert(report.committee_link_contradictions)
 
-        # Cleared before the re-check below rather than after it, because the re-check
-        # takes about 72 minutes and a reader should get the new figures now. The order
-        # is the one #1979 requires and the only one that works: publish first, then
-        # clear -- clearing before the new state is live merely makes the next reader
-        # save the old answer again. `clear_after_publish` does nothing when nothing
-        # published, because the previous release is still live and every saved copy of
-        # it is still the right answer.
-        clearing_failed |= clear_after_publish(
+        # A prior totals-only publication can owe checks even when these payment
+        # bytes are unchanged. Keep both retry markers until each step succeeds.
+        follow_up = finish_manual_publication(
+            session,
             when_a_money_download_release_lands(),
             published=report.published,
-            log=lambda message: print(message, flush=True),
+            dry_run=args.dry_run,
+            recheck=lambda db, log: recheck_stated_figures(
+                db, years=args.recheck_years, log=log
+            ),
+            log=log,
         )
-
-        # Only a run that published anything: an unchanged or quarantined run leaves the
-        # previous release live, and its verdicts still speak for the payments on
-        # screen. Waited for rather than handed off, because both checks can only read a
-        # release that is already published, so nothing is gained for a reader by
-        # returning early — and a hand-off is precisely what nobody was doing (#1922).
-        if report.published:
-            recheck = recheck_stated_figures(session, years=args.recheck_years, log=log)
-            print(recheck.summary(), flush=True)
-
-        # And again, because the re-check has just written the verdicts that
-        # `/committees/{n}/finance` and `/legislators/{id}/campaign-finance` serve as
-        # `stated_split_state` and `money_out.stated_spending_state`. Clearing only
-        # above would replace a stale copy with a fresh copy saying nobody compared this
-        # committee's figures, and leave that standing for the rest of the window.
-        # #1979 lists 4 events and this is a 5th.
-        clearing_failed |= clear_after_publish(
-            when_the_money_checks_finish(),
-            published=report.published,
-            log=lambda message: print(message, flush=True),
-        )
-
-    # A failed clearing exits non-zero and says so loudly. It never undoes the
-    # publish: the new set is correct and live, and what failed is the step that tells
-    # Cloudflare to stop handing out the old one. A clearing that failed quietly is
-    # the state #1979 calls worse than having no clearing at all, because it would
-    # justify a longer window it is not earning.
-    if report.refusal or (recheck is not None and recheck.failed):
-        return 1
-    if clearing_failed:
-        return 1
-    return 0
+    return 1 if report.refusal or not follow_up.ok else 0
 
 
 if __name__ == "__main__":

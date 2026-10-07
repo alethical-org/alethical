@@ -921,6 +921,9 @@ def _clear_and_mark(
     """Clear, and keep a ``clearing_pending`` marker for as long as it has not succeeded."""
     pending = state_get(db, CLEARING_PENDING_KEY) or {}
     owed = [event for event in pending.get("events", []) if event != clearing.event]
+    # Persist before the external request: an exception or stopped process must
+    # leave the same retry obligation as a returned failure.
+    state_set(db, CLEARING_PENDING_KEY, _clearing_marker([*owed, clearing.event]))
     if clear(clearing, published=True, log=log):
         report.failures.append(
             f"clearing saved pages failed after {clearing.event}; it is retried first "
@@ -930,7 +933,7 @@ def _clear_and_mark(
         return False
     if owed:
         state_set(db, CLEARING_PENDING_KEY, _clearing_marker(owed))
-    elif pending:
+    else:
         state_delete(db, CLEARING_PENDING_KEY)
     return True
 
@@ -983,17 +986,60 @@ def _retry_pending_recheck(
 def _after_publish(
     db: Session, report: RefreshReport, clearing: Clearing, *, clear, log, read_live
 ) -> None:
-    _clear_and_mark(db, report, clearing, clear=clear, log=log)
     live = read_live(db)
-    state_set(
+    pending = state_get(db, CLEARING_PENDING_KEY) or {}
+    events = [event for event in pending.get("events", []) if event != clearing.event]
+    state_update(
         db,
-        RECHECK_PENDING_KEY,
-        {
-            "recorded_at": datetime.now(UTC).isoformat(),
-            "after": clearing.event,
-            **live.as_marker(),
+        set_values={
+            CLEARING_PENDING_KEY: _clearing_marker([*events, clearing.event]),
+            RECHECK_PENDING_KEY: {
+                "recorded_at": datetime.now(UTC).isoformat(),
+                "after": clearing.event,
+                **live.as_marker(),
+            },
         },
     )
+    _clear_and_mark(db, report, clearing, clear=clear, log=log)
+
+
+def finish_manual_publication(
+    db: Session,
+    clearing: Clearing,
+    *,
+    published: bool,
+    dry_run: bool = False,
+    run_rechecks: bool = True,
+    clear=clear_after_publish,
+    recheck=recheck_stated_figures,
+    read_live=live_versions,
+    log=print,
+) -> RefreshReport:
+    """Record and finish manual publication work under the caller's writer lease.
+
+    A totals-only command leaves the generation-bound recheck marker for the next
+    payments command or shared refresh. Unchanged payments still finish that work.
+    The existing marker checker handles replaced/removed generations, and only 1
+    recheck attempt runs here. Dry runs neither mark nor clear anything.
+    """
+    report = RefreshReport(started_at=datetime.now(UTC), dry_run=dry_run)
+    if dry_run:
+        return report
+    if published:
+        _after_publish(db, report, clearing, clear=clear, log=log, read_live=read_live)
+    else:
+        _retry_pending_clearing(db, report, clear=clear, log=log)
+    if run_rechecks:
+        _retry_pending_recheck(
+            db, report, recheck=recheck, clear=clear, log=log, read_live=read_live
+        )
+    elif state_get(db, RECHECK_PENDING_KEY):
+        log("money re-checks are recorded for the next payments load or shared refresh")
+    report.live = read_live(db)
+    report.finished_at = datetime.now(UTC)
+    for failure in report.failures:
+        log(failure)
+    return report
 
 
 def _run_rechecks(db: Session, report: RefreshReport, *, recheck, clear, log) -> None:

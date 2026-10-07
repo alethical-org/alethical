@@ -848,7 +848,12 @@ year, because a totals publication replaces the whole set and a 2-year run would
 to 2023; download the 3 payment files, which serve no size, date or change marker, and
 publish when every check passes; after any publish clear the saved pages, run both
 re-checks and clear again once their verdicts are live, each unfinished step leaving its
-own marker (`clearing_pending`, `recheck_pending`) that only its success removes. A list is
+own marker (`clearing_pending`, `recheck_pending`) that only its success removes.
+Both obligations are committed before the external clearing request, so an interrupted
+request is retried too. Manual totals publication uses the same markers; the next
+payments command or shared refresh finishes the checks even when payment bytes are
+unchanged. Manual payment publication uses that same path and attempts the owed checks
+once, for the live source generation. A list is
 recorded as handled (`cf_refresh_state`) only after the work succeeded, and a list that
 could not be read, or came back in the wrong shape, is never recorded: the run reports it
 as incomplete while the payments half still runs. The first scheduled run finds no marker

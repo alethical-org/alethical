@@ -586,6 +586,17 @@ def call_loader(
     )
     monkeypatch.setattr(loader_script, "load_campaign_finance", fake_load)
     monkeypatch.setattr(loader_script, "recheck_stated_figures", fake_recheck)
+
+    def fake_followup(session, clearing, *, published, dry_run, recheck, log):
+        from types import SimpleNamespace
+
+        result = recheck(session, log=log) if published and not dry_run else None
+        return SimpleNamespace(ok=result is None or not result.failed)
+
+    # The real helper's pending retries and source-generation checks are covered
+    # with a database in test_campaign_finance_refresh.py.
+    monkeypatch.setattr(loader_script, "finish_manual_publication", fake_followup)
+
     monkeypatch.setattr("sys.argv", ["load_campaign_finance.py", *(argv or [])])
     return loader_script.main(), calls
 
