@@ -24,7 +24,9 @@ REPOSITORY = "alethical-org/alethical"
 WORKFLOW_PATH = ".github/workflows/page-failure-health.yml"
 API_ROOT = f"https://api.github.com/repos/{REPOSITORY}"
 MAX_ARTIFACTS = 24
-MAX_REQUESTS = 76
+# 24 redirected downloads cost 48 requests. Leave headroom for run listings
+# without artifacts and manual duplicates, plus 2 workflow/list requests.
+MAX_REQUESTS = 100
 TOTAL_SECONDS = 180
 MAX_JSON_BYTES = 1024 * 1024
 MAX_ZIP_BYTES = 1024 * 1024
@@ -65,6 +67,21 @@ def timestamp(value: object) -> datetime:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         raise CoverageFailure("aggregate-shape-invalid") from None
+
+
+def github_timestamp(value: object) -> datetime:
+    """Read bounded provider RFC3339 dates without loosening artifact dates."""
+    if not isinstance(value, str) or not re.fullmatch(
+        r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,9})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)",
+        value,
+    ):
+        raise CoverageFailure("github-timestamp-invalid")
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(
+            timezone.utc
+        )
+    except (ValueError, OverflowError):
+        raise CoverageFailure("github-timestamp-invalid") from None
 
 
 def number(value: object, low: int = 0, high: int = 100) -> bool:
@@ -404,7 +421,7 @@ def coverage(client: GitHub, now: datetime) -> tuple[dict, int]:
         or workflow.get("state") != "active"
     ):
         raise CoverageFailure("collector-workflow-invalid")
-    activation = timestamp(workflow.get("created_at"))
+    activation = github_timestamp(workflow.get("created_at"))
     windows = expected_windows(now, activation)
     query = urlencode(
         {
@@ -440,13 +457,28 @@ def coverage(client: GitHub, now: datetime) -> tuple[dict, int]:
                 or not re.fullmatch(r"[a-f0-9]{40}", run["head_sha"])
             ):
                 raise CoverageFailure("github-run-shape-invalid")
-            trusted.append(run)
-    trusted.sort(key=lambda run: timestamp(run.get("run_started_at")), reverse=True)
-    observed, sampled_hours, downloaded = {}, set(), 0
+            if run.get("status") in ("queued", "in_progress") and (
+                run.get("run_started_at") is None or run.get("updated_at") is None
+            ):
+                # An unfinished run is not coverage; an older completed run may be.
+                continue
+            began = github_timestamp(run.get("run_started_at"))
+            ended = github_timestamp(run.get("updated_at"))
+            if ended < began:
+                raise CoverageFailure("github-timestamp-invalid")
+            trusted.append((began, ended, run))
+    trusted.sort(key=lambda item: item[0], reverse=True)
+    observed, downloaded = {}, 0
     failure_only_hours = recovery_collected_hours = 0
-    for run in trusted:
-        predicted = health.complete_hour(timestamp(run["run_started_at"]))[0]
-        if predicted not in windows or predicted in sampled_hours:
+    for began, ended, run in trusted:
+        # Setup can cross an hour boundary. Consider every eligible hour this
+        # run could have saved; only its validated artifact identifies the hour.
+        earliest_end = began.replace(minute=0, second=0, microsecond=0)
+        if not any(
+            start not in observed
+            and earliest_end <= start + timedelta(hours=1) <= ended
+            for start in windows
+        ):
             continue
         listing = client.json(f"/actions/runs/{run['id']}/artifacts?per_page=10")
         if (
@@ -485,13 +517,14 @@ def coverage(client: GitHub, now: datetime) -> tuple[dict, int]:
         start, status = validate_report(aggregate)
         # Setup may cross an hour boundary. Accept only a window whose end fell
         # during this trusted run, and which is part of the eligible day.
-        began = timestamp(run["run_started_at"])
-        ended = timestamp(run["updated_at"])
-        if not began.replace(minute=0, second=0) <= start + timedelta(hours=1) <= ended:
+        if (
+            not began.replace(minute=0, second=0, microsecond=0)
+            <= start + timedelta(hours=1)
+            <= ended
+        ):
             raise CoverageFailure("aggregate-run-window-invalid")
         if start in windows and start not in observed:
             observed[start] = status
-            sampled_hours.add(start)
             if aggregate["schema_version"] == 1:
                 failure_only_hours += 1
             elif (
@@ -556,6 +589,7 @@ def main(argv: list[str] | None = None) -> int:
             "aggregate-archive-invalid",
             "collector-workflow-invalid",
             "github-run-shape-invalid",
+            "github-timestamp-invalid",
             "github-artifact-shape-invalid",
             "github-artifact-attribution-invalid",
             "aggregate-run-window-invalid",

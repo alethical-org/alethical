@@ -24,6 +24,14 @@ import time
 MAX_ROWS = 100
 MAX_BYTES = 4 * 1024 * 1024
 COMMAND_SECONDS = 75
+# Exact routes whose handlers requireSiteMetricsAdmin before serving data.
+ADMIN_API_PATHS = {
+    "/api/traffic",
+    "/api/traffic-performance",
+    "/api/traffic-uptime",
+    "/api/traffic-google",
+    "/api/traffic-bing",
+}
 PHASES = {"content", "shell"}
 FAILURE_KINDS = {"timeout", "network", "http", "json", "payload", "unknown"}
 SOURCE_FAMILIES = {
@@ -305,7 +313,7 @@ def unique_object(pairs: list[tuple]) -> dict:
 def request_family(path: str) -> str:
     # Values become only these fixed labels; never output a decoded or raw path.
     bare = path.split("?", 1)[0].lower()
-    if bare == "/api/traffic-performance":
+    if bare in ADMIN_API_PATHS:
         return "admin-or-private"
     if any(
         part

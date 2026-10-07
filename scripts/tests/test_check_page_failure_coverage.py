@@ -68,7 +68,9 @@ class FakeGitHub:
             return {"workflow_runs": self.runs}
         identifier = int(path.split("/")[3])
         current = next(r for r in self.runs if r["id"] == identifier)
-        start = health.complete_hour(coverage.timestamp(current["run_started_at"]))[0]
+        start = health.complete_hour(
+            coverage.github_timestamp(current["run_started_at"])
+        )[0]
         if self.reports.get(start) == "missing":
             return {"total_count": 0, "artifacts": []}
         artifact = {
@@ -84,7 +86,9 @@ class FakeGitHub:
     def artifact(self, identifier):
         self.downloads += 1
         current = next(r for r in self.runs if r["id"] == identifier)
-        start = health.complete_hour(coverage.timestamp(current["run_started_at"]))[0]
+        start = health.complete_hour(
+            coverage.github_timestamp(current["run_started_at"])
+        )[0]
         return report(start, self.reports.get(start, "collected"))
 
 
@@ -142,6 +146,118 @@ class SchemaTest(TestCase):
     def test_duplicate_json_keys_are_rejected(self):
         with self.assertRaises(coverage.CoverageFailure):
             coverage.strict_json(b'{"schema_version":1,"schema_version":1}')
+
+
+class GitHubTimestampTest(TestCase):
+    def test_provider_fractions_offsets_and_rollover_normalize_to_utc(self):
+        for value, expected in (
+            ("2026-10-07T16:24:18.000-04:00", "2026-10-07T20:24:18Z"),
+            ("2026-10-07T23:30:00-04:00", "2026-10-08T03:30:00Z"),
+            ("2026-10-07T01:30:00+02:00", "2026-10-06T23:30:00Z"),
+            ("2026-10-07T20:24:18.123456789Z", "2026-10-07T20:24:18Z"),
+            ("2026-10-07T20:24:18Z", "2026-10-07T20:24:18Z"),
+        ):
+            parsed = coverage.github_timestamp(value)
+            self.assertEqual(parsed.tzinfo, timezone.utc)
+            self.assertEqual(health.iso(parsed), expected)
+        self.assertEqual(
+            coverage.github_timestamp("2026-10-07T20:24:18.123Z").microsecond, 123000
+        )
+
+    def test_invalid_missing_zone_and_unbounded_dates_fail_with_fixed_reason(self):
+        for value in (
+            None,
+            True,
+            SECRET,
+            "2026-10-07T20:24:18",
+            "2026-10-07",
+            "2026-10-07T20:24:18+24:00",
+            "2026-10-07T20:24:18+01:60",
+            "2026-02-30T20:24:18Z",
+            "2026-10-07T25:24:18Z",
+            "2026-10-07T20:60:18Z",
+            "2026-10-07T20:24:60Z",
+            "2026-10-07T20:24:18.1234567890Z",
+            "0001-01-01T00:00:00+01:00",
+        ):
+            with self.assertRaisesRegex(
+                coverage.CoverageFailure, "^github-timestamp-invalid$"
+            ):
+                coverage.github_timestamp(value)
+
+    def test_saved_artifacts_still_require_whole_second_utc(self):
+        for value in (
+            "2026-10-07T16:24:18.000-04:00",
+            "2026-10-07T20:24:18.000Z",
+            "2026-10-07T20:24:18+00:00",
+        ):
+            with self.assertRaisesRegex(
+                coverage.CoverageFailure, "aggregate-shape-invalid"
+            ):
+                coverage.timestamp(value)
+
+    def test_real_creation_format_and_run_offsets_work_through_coverage(self):
+        client = FakeGitHub()
+        original_json = client.json
+
+        def provider_json(path):
+            result = original_json(path)
+            if path == "/actions/workflows/page-failure-health.yml":
+                result["created_at"] = "2026-10-07T16:24:18.000-04:00"
+            return result
+
+        client.json = provider_json
+        for current in client.runs:
+            for field in ("run_started_at", "updated_at"):
+                utc = coverage.timestamp(current[field])
+                current[field] = (utc - timedelta(hours=4)).strftime(
+                    "%Y-%m-%dT%H:%M:%S.123-04:00"
+                )
+        result, code = coverage.coverage(client, NOW)
+        self.assertEqual(
+            (code, result["activation"], result["collected_hours"]),
+            (0, "2026-10-07T20:24:18Z", 24),
+        )
+
+    def test_unfinished_missing_timestamps_do_not_hide_completed_coverage(self):
+        for status in ("queued", "in_progress"):
+            for field in ("run_started_at", "updated_at"):
+                client = FakeGitHub()
+                unfinished = run(1000, client.windows[-1], status=status)
+                unfinished[field] = None
+                client.runs.insert(0, unfinished)
+                result, code = coverage.coverage(client, NOW)
+                self.assertEqual(
+                    (code, result["collected_hours"], client.downloads), (0, 24, 24)
+                )
+
+    def test_missing_or_reversed_completed_times_fail_and_reason_is_saved(self):
+        for changes in (
+            {"run_started_at": None},
+            {"updated_at": None},
+            {"updated_at": "2020-01-01T00:00:00Z"},
+        ):
+            client = FakeGitHub()
+            client.runs[0].update(status="completed", **changes)
+            with self.assertRaisesRegex(
+                coverage.CoverageFailure, "github-timestamp-invalid"
+            ):
+                coverage.coverage(client, NOW)
+        with (
+            TemporaryDirectory() as folder,
+            patch.dict(os.environ, {"GH_TOKEN": SECRET}),
+            patch.object(
+                coverage,
+                "coverage",
+                side_effect=coverage.CoverageFailure("github-timestamp-invalid"),
+            ),
+            patch("sys.stdout", new_callable=StringIO),
+        ):
+            output = Path(folder) / "result.json"
+            self.assertEqual(coverage.main(["--output", str(output)]), 1)
+            self.assertEqual(
+                json.loads(output.read_text())["failure"], "github-timestamp-invalid"
+            )
 
 
 class RecoverySchemaTest(TestCase):
@@ -266,6 +382,114 @@ class CoverageTest(TestCase):
         self.assertEqual(result["recovery_collected_hours"], 0)
         self.assertEqual(client.downloads, 24)
         self.assertNotIn(SECRET, json.dumps(result))
+
+    def test_setup_crossing_hour_keeps_first_eligible_report(self):
+        client = FakeGitHub()
+        start = client.windows[0]
+        client.runs[0].update(
+            run_started_at=health.iso(start + timedelta(minutes=59)),
+            updated_at=health.iso(start + timedelta(hours=1, minutes=3)),
+        )
+        original = client.artifact
+
+        def artifact(identifier):
+            if identifier == 1:
+                client.downloads += 1
+                return report(start)
+            return original(identifier)
+
+        client.artifact = artifact
+        result, code = coverage.coverage(client, NOW)
+        self.assertEqual(
+            (code, result["collected_hours"], client.downloads), (0, 24, 24)
+        )
+
+    def test_crossing_run_is_not_skipped_when_predicted_hour_already_counted(self):
+        client = FakeGitHub()
+        previous, actual = client.windows[-2:]
+        client.runs[-2].update(
+            run_started_at=health.iso(
+                previous + timedelta(hours=1, minutes=59, seconds=30)
+            ),
+            updated_at=health.iso(
+                previous + timedelta(hours=1, minutes=59, seconds=50)
+            ),
+        )
+        client.runs[-1].update(
+            run_started_at=health.iso(actual + timedelta(minutes=59)),
+            updated_at=health.iso(actual + timedelta(hours=1, minutes=3)),
+        )
+        identifier = client.runs[-1]["id"]
+        original = client.artifact
+
+        def artifact(current):
+            if current == identifier:
+                client.downloads += 1
+                return report(actual)
+            return original(current)
+
+        client.artifact = artifact
+        result, code = coverage.coverage(client, NOW)
+        self.assertEqual(
+            (code, result["collected_hours"], client.downloads), (0, 24, 24)
+        )
+
+    def test_real_transport_budget_handles_full_day_manual_duplicates_and_missing_files(
+        self,
+    ):
+        fixture = FakeGitHub()
+        missing = {101, 102, 106, 107}
+        for index, identifier in enumerate((101, 102, 103, 104, 105, 106, 107), 1):
+            start = fixture.windows[-index]
+            fixture.runs.append(
+                run(
+                    identifier,
+                    start,
+                    event="workflow_dispatch",
+                    run_started_at=health.iso(start + timedelta(hours=1, minutes=50)),
+                    updated_at=health.iso(start + timedelta(hours=1, minutes=51)),
+                )
+            )
+        client = coverage.GitHub(SECRET)
+
+        def response(request, **kwargs):
+            address = request.full_url
+            if address.startswith("https://test.blob.core.windows.net/"):
+                identifier = int(address.rsplit("/", 1)[1])
+                body = BytesIO()
+                with ZipFile(body, "w") as archive:
+                    archive.writestr(
+                        "page-failure-health.json",
+                        json.dumps(fixture.artifact(identifier)),
+                    )
+                return BytesIO(body.getvalue())
+            suffix = address.removeprefix(coverage.API_ROOT)
+            if suffix.startswith("/actions/artifacts/"):
+                identifier = int(suffix.split("/")[3])
+                raise HTTPError(
+                    address,
+                    302,
+                    "redirect",
+                    {"Location": f"https://test.blob.core.windows.net/{identifier}"},
+                    BytesIO(),
+                )
+            if (
+                suffix.startswith("/actions/runs/")
+                and int(suffix.split("/")[3]) in missing
+            ):
+                value = {"total_count": 0, "artifacts": []}
+            else:
+                value = fixture.json(suffix)
+            return BytesIO(json.dumps(value).encode())
+
+        client.opener.open = Mock(side_effect=response)
+        result, code = coverage.coverage(client, NOW)
+        self.assertEqual(
+            (code, result["collected_hours"], result["artifacts_read"]), (0, 24, 24)
+        )
+        self.assertEqual(client.requests, 78)
+        self.assertLess(client.requests, coverage.MAX_REQUESTS)
+        self.assertEqual(client.opener.open.call_count, 78)
 
     def test_missing_and_failed_hours_need_three_gaps(self):
         windows = coverage.expected_windows(NOW, ACTIVATION)
@@ -451,7 +675,7 @@ class TransportTest(TestCase):
 
 
 class WorkflowTest(TestCase):
-    def test_daily_only_token_read_scope_and_retained_evidence(self):
+    def test_daily_and_manual_token_read_scope_and_retained_evidence(self):
         path = (
             Path(__file__).resolve().parents[2]
             / ".github/workflows/public-search-health.yml"
@@ -460,6 +684,9 @@ class WorkflowTest(TestCase):
         self.assertIn("actions: read", text)
         block = text.split("name: Read daily coverage")[1].split("- name:")[0]
         self.assertIn("github.event_name == 'schedule'", block)
+        self.assertIn("github.event_name == 'workflow_dispatch'", block)
+        self.assertIn("github.repository == 'alethical-org/alethical'", block)
+        self.assertIn("github.ref == 'refs/heads/main'", block)
         self.assertIn("if: always()", block)
         self.assertIn("GH_TOKEN: ${{ github.token }}", block)
         self.assertNotIn("secrets.", block)

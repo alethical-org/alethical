@@ -5,6 +5,7 @@ from io import StringIO
 import json
 import os
 from pathlib import Path
+import re
 import sys
 from tempfile import TemporaryDirectory
 from unittest import TestCase
@@ -53,18 +54,55 @@ def encoded(rows):
 
 
 class AggregateTest(TestCase):
-    def test_only_exact_private_metrics_route_is_classified_as_admin(self):
-        for path in (
-            "/api/traffic-performance",
-            "/api/traffic-performance?private=" + SECRET,
-        ):
-            self.assertEqual(health.request_family(path), "admin-or-private")
-        for path in (
-            "/api/traffic-performance-public",
-            "/api/traffic-performance/extra",
-            "/api/other",
-        ):
-            self.assertEqual(health.request_family(path), "other")
+    def test_only_exact_private_metrics_routes_are_classified_as_admin(self):
+        for path in health.ADMIN_API_PATHS:
+            for variant in (path, path + "?private=" + SECRET):
+                self.assertEqual(health.request_family(variant), "admin-or-private")
+            for variant in (path + "-public", path + "/extra"):
+                self.assertEqual(health.request_family(variant), "other")
+        self.assertEqual(health.request_family("/api/other"), "other")
+
+    def test_private_route_list_tracks_actual_guard_calls_in_api_handlers(self):
+        api = Path(__file__).resolve().parents[2] / "api"
+        guarded = set()
+        # Ignore quoted examples and comments, then require an actual awaited call.
+        # The production guard is imported by each handler; an unused import alone
+        # must not classify an endpoint as private.
+        non_code = re.compile(
+            r"\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|//[^\n]*|/\*.*?\*/",
+            re.DOTALL,
+        )
+        for handler in api.glob("*.ts"):
+            code = non_code.sub(" ", handler.read_text())
+            if re.search(r"\bawait\s+requireSiteMetricsAdmin\s*\(", code):
+                guarded.add("/api/" + handler.stem)
+        self.assertTrue(guarded)
+        self.assertEqual(health.ADMIN_API_PATHS, guarded)
+
+    def test_private_metrics_failures_are_counted_without_exposing_addresses(self):
+        result = health.aggregate(
+            encoded(
+                [
+                    row(str(i), requestPath=path + "?private=" + SECRET)
+                    for i, path in enumerate(sorted(health.ADMIN_API_PATHS))
+                ]
+            ),
+            START,
+            END,
+        )
+        self.assertEqual(result["failures_count"], 5)
+        self.assertEqual(
+            result["unclassified_by_family"],
+            [
+                {
+                    "minute": health.iso(START),
+                    "family": "admin-or-private",
+                    "count": 5,
+                }
+            ],
+        )
+        self.assertNotIn(SECRET, json.dumps(result))
+        self.assertNotIn("/api/", json.dumps(result))
 
     def test_exact_hour_boundaries_and_deduplication(self):
         result = health.aggregate(

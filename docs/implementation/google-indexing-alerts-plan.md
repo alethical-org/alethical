@@ -186,10 +186,80 @@ Schema 2 retains separate failure and recovery collection status. Historical sch
 recovery evidence cannot be reported as complete. Only fixed aggregate labels enter
 the 35-day public artifacts.
 
-Release acceptance is pending: final review, full checks, live committee variants,
-a fresh-request timing comparison and a hosted schema-2 report. Natural recovery
-counts remain a follow-up until such an event occurs; do not induce a live outage.
-The current chat (seo, 01a117ab-5b6b-7b01-8a5d-f46e3a3c01b5) owns these checks.
+The recovery and notice-button release is live at
+`1ab1be2e8c9006e820ad936f3ca1545c99afe94f`
+([pull request 2521](https://github.com/alethical-org/alethical/pull/2521)). All 37
+Google server-error examples return 200, retain their preferred address and contain
+a title; all 67 daily public checks pass. A new uncached committee-year read returned
+200 in 0.81 seconds. This single measurement does not establish a speed improvement.
+All 4,478 backend and 4,143 frontend tests passed, including 39 read-recovery cases;
+the exact merge commit passed the required queue checks.
+
+Independent live browser acceptance passed Enter and Space on matched notices for
+both individual and organization payments, including 390px phone layouts. The correct
+payment receives focus, the selected year remains 2026, official PDFs match the
+notice, action text and arrows are neutral, and destination links remain green.
+The parent repeated the individual Enter and organization Space paths and inspected
+the phone layout. Physical touch, actual screen-reader speech and other browser
+engines remain untested. The
+[hosted schema-2 run](https://github.com/alethical-org/alethical/actions/runs/37693797758)
+retained complete, unsaturated failure and recovery channels for 21:00–22:00 UTC.
+Its 2 failures were both the private `/api/traffic` endpoint; no recovery marker
+occurred. Natural recovery counts remain a follow-up, never a reason to induce a
+live outage. Google accepted a new server-error validation on 7 October; its status
+is Started, not Passed. Do not restart it while it runs.
+
+## Real scheduled-run acceptance and remaining coverage follow-up
+
+The first automatic
+[daily search run](https://github.com/alethical-org/alethical/actions/runs/37693392723)
+passed public checks but failed its coverage reader. GitHub returned workflow creation
+as `2026-10-07T16:24:18.000-04:00`; the reader incorrectly applied its public artifact's
+whole-second UTC format to provider metadata. A separate bounded provider-date parser
+accepts explicit offsets and fractional seconds and normalizes to UTC. Public saved
+reports retain their strict format. Invalid provider dates produce the fixed
+`github-timestamp-invalid` error. Unfinished queued or in-progress runs missing a
+start or update date cannot supply coverage and do not hide older completed evidence.
+All 5 exact traffic-admin routes (`/api/traffic`, `/api/traffic-performance`,
+`/api/traffic-uptime`, `/api/traffic-google` and `/api/traffic-bing`) use the existing
+private-admin category; each handler requires the admin guard and failure counts
+remain retained. Tests cover actual provider
+dates, UTC date/hour rollover, malformed and missing values, original artifact
+strictness, unfinished runs, reversed run times and exact private-route matching.
+Independent review identified a second reproducible coverage defect: when setup
+crossed an hour boundary, predicting the saved hour from the run start could skip
+a valid report. Both a first-eligible-hour case and an already-counted predicted-hour
+case counted 23 of 24 existing reports before repair. Selection now considers all
+eligible hours whose end can fall in the trusted run; the validated report chooses
+the actual hour. Both cases count all 24 afterward. Download limits and artifact attribution/time checks stay unchanged. A full-day
+transport regression uses 24 scheduled runs, 3 duplicate manual runs and 4 runs
+without saved reports; all 24 hours need 78 requests, including real redirects.
+The former 76-request cap had no headroom after just 2 report-less runs. A bounded
+100-request cap allows extra listings while preserving 24 downloads, 180 seconds
+and fixed byte limits. The exhausted-budget test still fails closed.
+All 96 combined offline checks pass.
+The same coverage tests, read and retained output now run on manual dispatch as well
+as the daily schedule. Existing trusted-main and read-only token restrictions remain;
+release-triggered checks are unchanged. This provides a real hosted acceptance path
+without a fake activation date or a new timer.
+
+An explicitly date-filtered GitHub query found 162 scheduled runs since 23 September,
+including 12 on 7 October. The daily search run arrived 4 hours 44 minutes after its
+configured time; other scheduled work arrived 6–7 hours late. This supports delayed
+provider clocks, not a global timer outage. No account or workflow reactivation is
+justified. GitHub documents that scheduled events can be delayed or dropped.
+Manual runs prove the hourly collector works, but its first actual scheduled run
+has not yet been observed. Do not describe a configured hourly cadence as observed
+continuous coverage.
+
+The current chat (seo, 01a117ab-5b6b-7b01-8a5d-f46e3a3c01b5) owns release of the
+provider-date repair, a real hosted coverage read using the genuine activation time,
+and the remaining Google and coverage follow-up. Inspect the next 2 daily coverage
+reports after the 24-hour startup period. If either has at least 3 missing hours,
+review and build bounded catch-up collection; measure eligible-hour coverage rather
+than the number of timer executions. A 3-hour catch-up query is a candidate, not a
+settled implementation. Keep all request, privacy, saturation and evidence bounds.
+Weekly AI review still waits for the separate recurring-usage approval.
 
 ## Work sequence
 
