@@ -52,8 +52,7 @@ on:
         description: "Exit 1 on purpose to prove the alert issue, reading and publishing nothing"
         type: boolean
         default: false
-  schedule:
-    - cron: "30 15 * * *"
+  # Scheduled starts now use source-record-refresh.yml and saved deadlines.
 
 concurrency:
   group: campaign-money-refresh

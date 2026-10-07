@@ -76,6 +76,7 @@ dependencies = [
   "pypdf>=6.19.0",
   # Manual HUD ZIP-reference workbook import; API requests read packaged JSON.
   "openpyxl==3.1.5",
+  "pyjwt[crypto]>=2.12.0",
 ]
 
 [tool.uv]

@@ -68,6 +68,50 @@ class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=naming_convention)
 
 
+class SourceRefreshState(Base):
+    """One durable deadline per named source job, not a public source-copy date."""
+
+    __tablename__ = "source_refresh_state"
+    name: Mapped[str] = mapped_column(Text, primary_key=True)
+    next_due_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    last_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    last_finished_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+    last_succeeded_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+    last_dispatched_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+    last_checked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    progress: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
+    finding: Mapped[Optional[dict]] = mapped_column(JSONB)
+    last_status: Mapped[Optional[str]] = mapped_column(Text)
+    failures: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    token: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    lease_expires_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+
+
+class SourceRefreshAttempt(Base):
+    """Bounded operational evidence; never source bodies or visitor details."""
+
+    __tablename__ = "source_refresh_attempt"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    exit_code: Mapped[Optional[int]] = mapped_column(Integer)
+    finding: Mapped[Optional[dict]] = mapped_column(JSONB)
+
+
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

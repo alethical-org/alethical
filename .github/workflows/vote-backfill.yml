@@ -9,9 +9,7 @@ name: Backfill roll-call votes
 
 on:
   workflow_dispatch:
-  schedule:
-    # 09:00 UTC daily (~3-4am America/Chicago — off-peak for the MN .gov sources)
-    - cron: "0 9 * * *"
+  # Scheduled starts now use source-record-refresh.yml, including safe corrections.
 
 concurrency:
   group: production-vote-backfill
