@@ -1,0 +1,77 @@
+name: Public search health
+
+# Free public GETs only. Daily checks retain evidence; Monday checks sample more
+# pages using a deterministic weekly rotation. These are response checks, never
+# a claim that a search provider has indexed the entire site.
+on:
+  schedule:
+    - cron: "17 17 * * *"
+  workflow_dispatch:
+  workflow_run:
+    workflows: [Reader completion checks]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-search-health
+  cancel-in-progress: false
+
+jobs:
+  check:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Record pending evidence before setup
+        run: |
+          python3 - <<'PY_EVIDENCE'
+          import json
+          from pathlib import Path
+          Path("public-search-health-results.json").write_text(json.dumps({
+              "schema_version": 1, "phase": "setup-pending", "passed": False,
+              "checks": [], "failure": "public-search-checks-not-started"
+          }) + "\n")
+          PY_EVIDENCE
+
+      # Do not execute event-provided code or URLs. This workflow uses no
+      # secrets, authentication, repository writes, or pull-request trigger.
+      - name: Require the trusted main branch
+        run: test "$GITHUB_REF" = refs/heads/main
+
+      - name: Check out trusted main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+          clean: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - name: Test public discovery, HTML, and request safety offline
+        run: python -m unittest scripts.tests.test_check_public_search_health
+
+      - name: Read bounded public search health
+        run: |
+          broader=()
+          if [ "$(date -u +%u)" = "1" ]; then broader=(--broader); fi
+          python scripts/check_public_search_health.py \
+            --checked-commit "$(git rev-parse HEAD)" \
+            --output public-search-health-results.json "${broader[@]}"
+
+      - name: Retain search evidence even after failure
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: public-search-health-${{ github.run_id }}-${{ github.run_attempt }}
+          path: public-search-health-results.json
+          if-no-files-found: warn
+          retention-days: 35
