@@ -276,3 +276,17 @@ def test_failed_job_can_be_reopened_without_losing_wait_time(tmp_path: Path):
     assert summary["recorded_completed_jobs"] == 0
     assert summary["started_jobs"] == 1
     assert latest["synthetic-job"]["started_at"] == START
+
+
+def test_expected_revision_refuses_stale_completion(tmp_path: Path):
+    ledger = tmp_path / "jobs.jsonl"
+    outcomes.save_record(ledger, completed())
+    changed = completed()
+    changed.update(state="paused", finished_at=None)
+    outcomes.save_record(ledger, changed, update=True)
+    before = ledger.read_bytes()
+    with pytest.raises(ValueError, match="changed during verification"):
+        outcomes.save_record(ledger, completed(), update=True, expected_revision=1)
+    assert ledger.read_bytes() == before
+    saved = outcomes.save_record(ledger, completed(), update=True, expected_revision=2)
+    assert saved["revision"] == 3
