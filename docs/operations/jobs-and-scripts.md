@@ -41,8 +41,8 @@ reviewer too, and its switch is off until its limits are approved.
 | Traffic access key (`.github/workflows/traffic-token-expiry.yml`) | Daily at 12:00 UTC | Opens 1 issue 60 days before the private Vercel Traffic key expires and adds 1 urgent note 14 days before | No paid AI call; reads 1 date stored in the repository |
 | Backend release (Railway Git connection) | A commit reaches `main` | Applies database changes, then releases the API if its readiness check passes | No paid AI call; build and hosting usage stays on the existing Railway account |
 | Website release (Vercel Git connection) | A relevant commit reaches `main` | Builds and releases the web app | No paid AI call; build and hosting usage stays on the existing Vercel account |
-| Unsaved-work backup (`com.alethical.wip-backup`) | Every 5 minutes after `just maintenance-install` or `just install-wip-backup` is installed on Eugene's Mac | Saves each working folder's staged and on-disk source separately, with a private outside bundle and a unique folder ID | No outside service or paid AI call |
-| Finished working-folder cleanup (`com.alethical.worktree-cleanup`) | At login, when an owner releases a folder, and daily to retry held removals | Saves independent recovery copies, then removes clean delivered folders only after every owner releases them and no program still uses them; Codex-managed folders use the app's own archive tool | No outside service charge or paid AI call; reads GitHub change status |
+| Unsaved-work backup (`com.alethical.wip-backup`, `com.commercialdeals.wip-backup`) | Every 5 minutes after each project's profile is installed on Eugene's Mac | Saves each working folder's staged and on-disk source separately, with private outside bundles and separate project storage | No outside service or paid AI call |
+| Working-folder inventory and released-folder cleanup (`com.alethical.worktree-cleanup`, `com.commercialdeals.worktree-cleanup`) | At login, when an owner releases a folder, and daily to refresh the report and retry held removals | Reports every registered folder, saves independent recovery copies, then removes admitted clean delivered folders only after every owner releases them and no program still uses them; persistent preview holds remain, and Codex-managed folders use the app's archive tool | No outside service charge or paid AI call; reads GitHub change status |
 
 The 17 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
 Time and Central Daylight Time, so their local hour changes by 1 during the year.
@@ -63,9 +63,10 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 91 runnable files. GitHub jobs call 34 of them
-directly and 3 document checks through `local_checks.py`. The 2 Mac helpers above
-call `worktree_backup.py` and `worktree_cleanup.py`; the older shell command
+The `scripts/` folder has 92 runnable files. GitHub jobs call 34 of them
+directly and 3 document checks through `local_checks.py`. The 4 Mac helpers above
+call `worktree_backup.py` and `worktree_cleanup.py`, which uses `worktree_inventory.py`
+for the complete folder report; the older shell command
 for source backups calls `worktree_backup.py` too. A workflow also calls
 `apps/frontend/scripts/traffic-token-expiry.mjs`, a similarly named script that
 lives in a different folder and is not part of this list or its totals. The
@@ -91,7 +92,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Measure what real visitors waited for | `report_origin_share_by_address.py`, `report_page_speed_by_address.py` |
 | Maintain search and stored files | `archive_published_sources.py`, `build_rag_hnsw_index.py`, `mirror_raw_files.py`, `notify_changed_public_pages.py` (bounded real public changes with durable receipts) |
 | Protect unfinished work and rotating read grants | `back-up-uncommitted-worktree-work.sh`, `worktree_backup.py`, `supabase_oauth_state.mjs` |
-| Install free Mac maintenance and safely remove released working folders | `install_worktree_maintenance.py`, `worktree_cleanup.py` |
+| Install free Mac maintenance, report every folder and safely remove released working folders | `install_worktree_maintenance.py`, `worktree_cleanup.py`, `worktree_inventory.py` |
 | Decide whether our website host needs to rebuild | `vercel-ignore-build.sh` |
 | Check fresh change explanations | `check_pr_descriptions.py` |
 | Install shared Git hooks, format selected files, and test exact upload commits | `install_git_hooks.py`, `format_frontend.mjs`, `local_checks.py` |
