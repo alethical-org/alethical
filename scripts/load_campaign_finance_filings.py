@@ -225,7 +225,7 @@ def main() -> int:
     # Every publication route takes the run-wide lease the daily refresh takes (#2344,
     # D3), before any network or database work, so a laptop publish cannot overlap a
     # scheduled run. A dry run writes nothing, the lease included. Held until this
-    # process exits; a run that dies frees it after 4 hours.
+    # process exits; a run that dies frees it after 6 hours.
     if not args.dry_run and not hold_full_run_lease_until_exit(
         engine, purpose="a hand-run campaign-money totals load"
     ):

@@ -304,7 +304,7 @@ def try_acquire_full_run_lease(
     expired or already belongs to this owner. The row comes back only when this owner
     now holds it. Called again by the holder it extends ``expires_at`` and keeps
     ``acquired_at``. Clocks: ``now`` is the caller's clock, and a lease's expiry is
-    compared against the clock of whoever asks next; a 4-hour lease dwarfs any drift
+    compared against the clock of whoever asks next; a 6-hour lease dwarfs any drift
     between a laptop and a GitHub runner.
     """
     moment = now or datetime.now(UTC)
@@ -442,7 +442,7 @@ def hold_full_run_lease(
 # The hand-run loader scripts cannot wrap their whole ``main()`` in a ``with`` block
 # without re-indenting every line of it, so they enter the lease here and it is
 # released when the interpreter exits, however the command ends. A crash that skips
-# ``atexit`` (a kill signal) is what the 4-hour expiry is for.
+# ``atexit`` (a kill signal) is what the 6-hour expiry is for.
 _PROCESS_LEASES = ExitStack()
 atexit.register(_PROCESS_LEASES.close)
 
