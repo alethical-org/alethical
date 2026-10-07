@@ -20,11 +20,25 @@ vi.mock('react-native-svg', () => ({
   Path: (props: React.SVGProps<SVGPathElement>) => <path {...props} />,
 }));
 
-import { GreenLinkArrow, LinkArrow, LinkArrowLabel, linkArrowRow } from '../LinkArrow';
+import {
+  ActionArrowLabel,
+  GreenLinkArrow,
+  LinkArrow,
+  LinkArrowLabel,
+  linkArrowRow,
+} from '../LinkArrow';
 
 const source = readFileSync(join(__dirname, '..', 'LinkArrow.tsx'), 'utf8');
 
 describe('LinkArrow', () => {
+  it('keeps the same final-word arrow layout for actions in the neutral color', () => {
+    const action = renderToStaticMarkup(
+      <ActionArrowLabel label="Also a payment under Individuals" />,
+    );
+    const link = renderToStaticMarkup(<LinkArrowLabel label="Also a payment under Individuals" />);
+    expect(action).toContain('stroke="#11150f"');
+    expect(action.replace('stroke="#11150f"', 'stroke="#0f7a45"')).toBe(link);
+  });
   it.each(['underline', 'none', 'underline line-through'] as const)(
     'carries %s across the final-word layout without decorating the arrow',
     (textDecorationLine) => {

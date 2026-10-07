@@ -152,8 +152,11 @@ describe('the words', () => {
     expect(noticeStatusText(matched, 'Individuals', null)).toBe(
       'Also a payment in the list above, under Individuals',
     );
-    expect(noticeMatchedAccessibleName(matched)).toBe(
-      'Show the Aug 6, 2026 payment from HEAD, MARTHA M in the list above',
+    expect(noticeMatchedAccessibleName(matched, 'Individuals')).toBe(
+      'Also a payment in the list above, under Individuals. Show the Aug 6, 2026 payment from HEAD, MARTHA M in the list above.',
+    );
+    expect(noticeMatchedAccessibleName(matched, null)).toBe(
+      'Also a payment in the list above. Show the Aug 6, 2026 payment from HEAD, MARTHA M in the list above.',
     );
     expect(noticePdfAccessibleName(matched)).toBe('View notice PDF, HEAD, MARTHA M, Aug 6, 2026');
     const after = notice({ status: 'not_yet_on_a_report' });

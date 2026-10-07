@@ -41,7 +41,7 @@ import { formatDay, formatMoney } from '../../lib/moneyFormat';
 import { requestPaymentFocus } from '../../lib/paymentFocusRequest';
 import { externalLinkProps } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
-import { LinkArrowLabel } from '../LinkArrow';
+import { ActionArrowLabel, LinkArrowLabel } from '../LinkArrow';
 import { Skeleton } from '../Skeleton';
 import { BoardPdfLink, OutwardArrow } from './DisclosureStatementPanel';
 
@@ -300,7 +300,7 @@ function NoticeRow({
         {notice.status === 'matched' && payment ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={noticeMatchedAccessibleName(notice)}
+            accessibilityLabel={noticeMatchedAccessibleName(notice, tabLabel)}
             onPress={() =>
               requestPaymentFocus({
                 tab: contributionTab(payment.contributorType),
@@ -316,7 +316,7 @@ function NoticeRow({
               Boolean('focused' in state && state.focused) && styles.focus,
             ]}
           >
-            <LinkArrowLabel label={status} style={styles.matchedText} />
+            <ActionArrowLabel label={status} style={styles.matchedText} />
           </Pressable>
         ) : (
           <Text style={[styles.statusText, notice.status !== 'matched' && styles.statusBlock]}>
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.body,
     fontSize: small,
     fontWeight: '700',
-    color: c.link,
+    color: t.colors.text.primary,
   },
   statusText: {
     fontFamily: t.typography.body,

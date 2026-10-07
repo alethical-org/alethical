@@ -227,12 +227,22 @@ The same acceptance exposed a separate existing keyboard defect: the matched-pay
 jump was a focusable link without an address, and Enter did nothing. Both parent and
 independent browser checks reproduce it on the Kosiak notice for registration 41348.
 The action changes controls and focuses a payment within the same screen. Use the
-existing payment-control button semantics while preserving its text and appearance;
+existing payment-control button semantics while preserving its visible text and arrow;
 PDF links remain links. Component tests cover native button semantics, keyboard focusability, pointer
 activation and exact targets for Individuals and Other kinds. Browser Enter/Space
 activation remains a release check; the unit-test browser does not synthesize native
 button key activation. Repeat the reader path after release. This correction applies to every matched notice
 through the shared notice-row component, not unrelated navigation.
+The full frontend suite exposed the existing destination-arrow guard: on-screen
+buttons cannot use the green destination-link helper. The approved action rule in
+[design-principles.md](../design/design-principles.md) settles the correction:
+preserve the arrow drawing, 6px gap and final-word wrapping, but use near-black
+for the action label and arrow. A neutral wrapper shares the existing arrow layout;
+destination links keep their green treatment. The spoken name starts with the exact
+visible label and retains the existing date/contributor instruction, with consistent
+sentence endings. This follows WCAG 2.5.3 without changing visible copy or needing
+another visual direction. Tests cover neutral/green layout equivalence and names
+with and without a known payment-tab label.
 
 
 1. Complete category sampling and current outage diagnosis; retain dated evidence.
