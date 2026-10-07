@@ -90,7 +90,7 @@ class NoticeRecord:
     contributor: str
     amount: Decimal
     contribution_date: date
-    received_on: date
+    received_on: Optional[date]
     employer: Optional[str]
     in_kind: bool
     in_kind_description: Optional[str]
@@ -307,7 +307,17 @@ def committee_notices(
                 )
             )
         records.sort(
-            key=lambda n: (n.contribution_date, n.received_on, n.amount), reverse=True
+            # Missing Board received dates sort last within a contribution date.
+            # The fallback is only a sort key; the served date remains None.
+            # The opaque ID resolves equal facts, not a filing chronology.
+            key=lambda n: (
+                n.contribution_date,
+                n.received_on is not None,
+                n.received_on or date.min,
+                n.amount,
+                n.id,
+            ),
+            reverse=True,
         )
         windows.append(
             WindowRecord(

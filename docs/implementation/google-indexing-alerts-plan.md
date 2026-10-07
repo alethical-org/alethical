@@ -101,10 +101,17 @@ Public page routes use server functions, so collection keeps the serverless
 source filter. Static asset failures are excluded. Provider failures before a
 function runs may leave no runtime record; bounded public checks remain separate.
 
-The current Railway handover values remain unobserved: the local CLI has no
-Railway login, and the dashboard asks for sign-in. Saved dashboard values also
-need not represent config-as-code overrides. Leave live handover behavior alone
-until actual failure labels and deployment timing support a correction.
+The existing project token allows read-only Railway API access when the client sends
+a User-Agent header. The dashboard has `/healthz`; both historical deployment
+records and the resolved file use `/readyz`, a 300-second startup check and 1 replica.
+File settings take precedence. Overlap/drain values are null, which does not establish
+the platform's effective defaults. The candidate process starts at 18:19:37 UTC,
+becomes ready at 18:19:39 and the prior process stops at 18:19:52. Both reader failures
+precede that switch. Bounded prior-process logs contain nearby finance 200 replies,
+but no shared request IDs, query values, durations or body evidence connect them
+to the failing website reads. No recognized timeout or shutdown appears in either
+failure-minute sample. Leave handover, timeout and retry behavior unchanged until
+actual failure labels support a correction.
 
 Server-error revalidation waits for a demonstrated repair that is live, or 7
 consecutive complete, unsaturated daily sets with zero reader-page 503s. This is
@@ -118,7 +125,12 @@ The local collector read for 18:00–19:00 UTC succeeded with 2 committee 503s,
 matching the original private source records and retaining no raw text. All 75
 combined offline checks pass, including hostile data, auth boundaries, truncated
 messages, time windows, failed startup, missing coverage and artifact limits.
-The GitHub credential and artifact route remain to be exercised after release.
+The hourly collector shipped in [pull request 2519](https://github.com/alethical-org/alethical/pull/2519).
+Its first [hosted run](https://github.com/alethical-org/alethical/actions/runs/37681983059)
+collected 19:00–20:00 UTC with zero failures and no saturation. The coverage client's
+real authenticated artifact read succeeded, followed the signed download without
+forwarding credentials, and validated the report. Natural classified-failure
+acceptance remains pending because that hour contains no failures.
 
 The first release is live at `b984d2163395631afce0c7dd3c80351aef76eef3`
 ([pull request 2517](https://github.com/alethical-org/alethical/pull/2517)).
@@ -132,6 +144,28 @@ read, so a natural labelled failure remains pending. Google started duplicate-ad
 7 October after its live bill test returned the intended canonical address.
 
 ## Work sequence
+
+### Separate committee-notice failure
+
+Sentry groups ALETHICAL-API-E and ALETHICAL-API-F contain 19 historical failures
+at the notice sort, from 25 September through 5 October. A read-only production
+query identifies 2 committee/year groups with the same contribution date and mixed
+known/missing Board received dates: registrations 19304 and 41348, both 2026.
+Both public notice requests returned 500 on 7 October. These requests may add
+events beyond the original 19. Missing Board dates are valid source data.
+
+The shared notice sorter compared a date with `None`. Preserve the contribution-date
+ordering, sort missing received dates last within that date, retain null in the
+response and add a stable ID tie-breaker. All 41 notice tests pass, including 8 new
+cases covering mixed and missing dates, equal facts, amount/date priorities, source
+links and exact payment matching. No data replacement or invented date is needed.
+
+This repairs absent notice cards, not the unexplained whole-page 503 responses:
+the page function catches optional notice request failures. That catch also exists
+in the 25 September version. Release acceptance requires both affected requests to
+return 200 with missing dates preserved, and a working committee notice card.
+Keep the Sentry groups open until that live acceptance; keep the Google server-error
+investigation open independently. The current chat owns both follow-ups.
 
 1. Complete category sampling and current outage diagnosis; retain dated evidence.
 2. Finish independent Claude review of the checker and routine monitoring choice.

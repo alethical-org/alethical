@@ -2137,6 +2137,11 @@ only.
   the second prints no date received by the Board, so that date is printed only where the notice
   states it. `.github/workflows/campaign-money-notices.yml` reads the page daily from 20 Oct to
   6 Nov 2026 and weekly otherwise, with 2 Feb 2027 as a review point.
+- **Notice ordering.** Newer contribution dates come first. Within the same contribution
+  date, known Board received dates come first, newest first, followed by missing dates.
+  Amount descending and then the opaque notice ID descending break ties consistently;
+  the ID does not imply chronology. A missing received date remains missing in the
+  response and display, never a substituted date.
 - **Covered years.** The card draws only for a year some completed copy of the list covers. A year
   outside every copy, a party unit, and a filer with no window draw no card at all, never an empty
   one.

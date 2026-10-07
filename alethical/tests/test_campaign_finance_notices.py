@@ -14,7 +14,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import select, text
 
 from alethical.api.services import committee_notices as service
 from alethical.db import models
@@ -557,6 +557,149 @@ def test_notice_status_matches_ignoring_case_and_says_so_when_it_cannot(
     # The officer is never served.
     assert "Gantt" not in json.dumps(body)
     assert "treasurer" not in json.dumps(body)
+
+
+@pytest.mark.parametrize(
+    "head_received,maduro_received,maduro_contribution,expected",
+    [
+        (
+            "August 07, 2026",
+            None,
+            "08/06/2026",
+            ["HEAD, MARTHA M", "MADURO DISTRIBUTORS INC"],
+        ),
+        (
+            None,
+            "August 07, 2026",
+            "08/06/2026",
+            ["MADURO DISTRIBUTORS INC", "HEAD, MARTHA M"],
+        ),
+        (None, None, "08/06/2026", ["HEAD, MARTHA M", "MADURO DISTRIBUTORS INC"]),
+        (
+            "August 07, 2026",
+            "August 08, 2026",
+            "08/06/2026",
+            ["MADURO DISTRIBUTORS INC", "HEAD, MARTHA M"],
+        ),
+        (
+            "August 07, 2026",
+            "August 07, 2026",
+            "08/06/2026",
+            ["HEAD, MARTHA M", "MADURO DISTRIBUTORS INC"],
+        ),
+        (
+            "August 07, 2026",
+            None,
+            "08/08/2026",
+            ["MADURO DISTRIBUTORS INC", "HEAD, MARTHA M"],
+        ),
+    ],
+)
+def test_notice_date_order_keeps_missing_received_dates_and_exact_matching(
+    db,
+    monkeypatch,
+    client,
+    head_received,
+    maduro_received,
+    maduro_contribution,
+    expected,
+):
+    texts = dict(RESTORE_TEXTS)
+    for identifier, received in (
+        ("260806_140546", head_received),
+        ("260806_140546_N1", maduro_received),
+    ):
+        texts[identifier] = texts[identifier].replace(
+            "Received by the Board August 07, 2026\n",
+            f"Received by the Board {received}\n" if received else "",
+        )
+    texts["260806_140546_N1"] = texts["260806_140546_N1"].replace(
+        "Date: 08/06/2026", f"Date: {maduro_contribution}"
+    )
+    collected, _store = _collect(db, monkeypatch, texts)
+    assert collected.ok and collected.parse_failures == []
+    _restore_sanity_money(db)
+
+    response = client.get(f"/api/v1/committees/{RESTORE_SANITY}/notices?year=2026")
+    assert response.status_code == 200
+    body = response.json()["data"]
+    rows = body["windows"][0]["notices"]
+    assert len(rows) == 2
+    assert [row["contributor"] for row in rows] == expected
+    by_name = {row["contributor"]: row for row in rows}
+    head, maduro = by_name["HEAD, MARTHA M"], by_name["MADURO DISTRIBUTORS INC"]
+    assert head["received_on"] == ("2026-08-07" if head_received else None)
+    assert maduro["received_on"] == (
+        datetime.strptime(maduro_received, "%B %d, %Y").date().isoformat()
+        if maduro_received
+        else None
+    )
+    assert head["contribution_date"] == "2026-08-06"
+    assert (
+        maduro["contribution_date"]
+        == datetime.strptime(maduro_contribution, "%m/%d/%Y").date().isoformat()
+    )
+    assert head["status"] == "matched" and head["matched_payment"] is not None
+    assert maduro["status"] == "no_exact_match" and maduro["matched_payment"] is None
+    assert Decimal(head["amount"]) == Decimal("50000")
+    assert Decimal(maduro["amount"]) == Decimal("15000")
+    pdf_prefix = (
+        "https://cfb.mn.gov/rptViewer/Main.php?do=viewPDF&year=26&type=notice"
+        "&period=PrePrimary&se=0&regnum=41412&date="
+    )
+    assert head["pdf_url"] == pdf_prefix + "260806_140546"
+    assert maduro["pdf_url"] == pdf_prefix + "260806_140546_N1"
+
+
+@pytest.mark.parametrize("missing_received", [False, True])
+def test_notices_with_equal_dates_and_amount_have_stable_id_order(
+    db, monkeypatch, missing_received
+):
+    texts = dict(RESTORE_TEXTS)
+    texts["260806_140546_N1"] = texts["260806_140546_N1"].replace(
+        "15,000.00", "50,000.00"
+    )
+    if missing_received:
+        texts = {
+            identifier: body.replace("Received by the Board August 07, 2026\n", "")
+            for identifier, body in texts.items()
+        }
+    collected, _store = _collect(db, monkeypatch, texts)
+    assert collected.ok
+    original_scalars = db.scalars
+    rows = original_scalars(
+        select(models.CampaignFinanceContributionNotice).where(
+            models.CampaignFinanceContributionNotice.registration_number
+            == RESTORE_SANITY
+        )
+    ).all()
+    assert len(rows) == 2
+    expected_ids = sorted((str(row.id) for row in rows), reverse=True)
+
+    for ordered in (rows, list(reversed(rows))):
+
+        class NoticeRows:
+            def all(self):
+                return list(ordered)
+
+        def scalars(statement, *args, **kwargs):
+            if (
+                statement.column_descriptions[0].get("entity")
+                is models.CampaignFinanceContributionNotice
+            ):
+                return NoticeRows()
+            return original_scalars(statement, *args, **kwargs)
+
+        monkeypatch.setattr(db, "scalars", scalars)
+        answer = service.committee_notices(
+            db,
+            registration_number=RESTORE_SANITY,
+            year=2026,
+            contributions_snapshot_id=None,
+            kind=FilerKind.political_committee_or_fund,
+            office=None,
+        )
+        assert [notice.id for notice in answer.windows[0].notices] == expected_ids
 
 
 def test_a_gift_after_the_latest_report_is_not_yet_on_a_report(db, monkeypatch, client):
