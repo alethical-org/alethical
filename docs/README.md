@@ -123,6 +123,9 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [Short posts foundation delivery plan](operations/short-posts-foundation-plan.md) — nonvisual build sequence, checks, and the drawing and publication boundaries for issue 2377
 - [How a legislator is matched to their campaign account](operations/how-a-legislator-is-matched-to-their-campaign-account.md) — the public audit record of the one decision no machine may make: what we claim, the 3 pieces of evidence a person reads, who signs, how a wrong match surfaces, how to challenge one, and where all 200 sitting members stand today
 - [What runs, when, and what it costs](operations/jobs-and-scripts.md) — every GitHub workflow, command-line tool, and job-driven AI cost
+- [Independent public-record wakeups](operations/source-refresh-dispatch.md) — saved deadlines, the restricted GitHub App and activation checks
+- [Supporting source checks](operations/supporting-source-checks.md) — candidate, district-map, ZIP and cited-source checks and review limits
+- [Automatic public-record updates](implementation/sitewide-record-refresh.md) — source coverage, authorization, review holds and release evidence
 - [Copying the Board's lobbying files](operations/lobbying-source-import.md) — the paired import, contact-field exclusion, link checks and rollback
 - [Offline name-search comparison](operations/name-search-offline-benchmark.md) — how to compare name-search behavior without changing public results
 - [Working-folder cleanup and recovery](operations/worktree-lifecycle.md) — automatic removal after owner release, private backups, recovery, and Codex-managed folder limits

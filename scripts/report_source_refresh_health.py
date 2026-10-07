@@ -107,7 +107,7 @@ def packet(report: list[dict]) -> tuple[str, str, bool]:
                     sorted(
                         code
                         for code in finding["unreviewed_session_codes"]
-                        if re.fullmatch(r"[0-9]{7}", code)
+                        if re.fullmatch(r"[0-9]{7,8}", code)
                     )
                 )
             )

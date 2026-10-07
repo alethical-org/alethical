@@ -76,10 +76,12 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
                 "{target}",
                 "--year-from",
                 "2022",
+                "--json",
             ),
             "https://cfb.mn.gov/",
             "Copy filing dates from official report evidence",
             lane="campaign",
+            review_exit=2,
         ),
         RefreshJob(
             "refunds",
@@ -99,10 +101,12 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
                 "--target",
                 "{target}",
                 "--refresh-existing",
+                "--json",
             ),
             "https://cfb.mn.gov/",
             "Recheck retained notice PDFs for corrections",
             lane="campaign",
+            review_exit=2,
         ),
         RefreshJob(
             "statement-amendments",
@@ -131,6 +135,7 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
             "Retain exact-generation donor evidence privately for review",
             lane="campaign",
             capture_json=True,
+            review_exit=2,
         )
     )
     definitions.append(
@@ -138,10 +143,16 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
             "notices",
             timedelta(days=1),
             timedelta(hours=2),
-            ("scripts/collect_campaign_finance_notices.py", "--target", "{target}"),
+            (
+                "scripts/collect_campaign_finance_notices.py",
+                "--target",
+                "{target}",
+                "--json",
+            ),
             "https://cfb.mn.gov/",
             "Collect newly posted notices without a hardcoded election year",
             lane="campaign",
+            review_exit=2,
         )
     )
     by_slug = {}
@@ -213,6 +224,7 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
                 "https://www.leg.mn.gov/",
                 "Collect missing rolls and rotate through saved rolls for corrections",
                 lane="legislative",
+                review_exit=2,
             ),
             RefreshJob(
                 "sessions",
@@ -530,7 +542,7 @@ def health(db: Session, *, now: datetime | None = None) -> list[dict]:
                 last_checked_at=completed,
                 finding=row.finding if row else None,
                 last_started_at=row.last_started_at if row else None,
-                next_due_at=row.next_due_at if row else None,
+                next_due_at=_next_due_at(row, job) if row else None,
                 running=running,
                 overdue=overdue,
                 failures=row.failures if row else 0,

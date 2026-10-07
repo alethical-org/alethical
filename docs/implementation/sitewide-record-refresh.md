@@ -75,8 +75,8 @@ collections and changes awaiting source access or human review.
 ## Progress
 
 - 7 October: fresh isolated parent branch and 3 independent build branches started.
-- 7 October: confirmed October 6 campaign refresh still fails the same source guards.
-  No production data has been changed by this build.
+- 7 October: confirmed October 6 campaign refresh still fails the same source guards;
+  source recovery began later in this build as recorded below.
 
 - Integrated campaign, legislative and supporting branches. Parent scheduler persists
   due times, chunk progress and source findings; source lanes prevent overlapping
@@ -94,6 +94,22 @@ collections and changes awaiting source access or human review.
   Previous rows and archives have a guarded rollback proof. Payments wait for totals
   acceptance and rollback readiness. No payment exception is authorized.
 - Build tracking: [issue 2504](https://github.com/alethical-org/alethical/issues/2504).
+- Totals recovery published `131cb870-5a5a-4278-88fe-2f39b65604cc`.
+  The 3 retained filer-years preserve their September 24 source dates; 41280/2025
+  now carries the official amended $3,414.16 total. Guarded rollback readiness
+  passed before the subsequent payments load. Payments published
+  `0a9c063d-3167-4ff2-9324-8fa1c7a8e671` and its report-document rechecks are running.
+  The local Cloudflare credential cannot clear saved answers (401); the existing
+  GitHub collection credential will be tested in the deployed workflow.
+- Full backend run: 4,358 passed, 13 failed. All 13 failures were corrected:
+  the missing source-limiter model, 2 outdated fake constructors covering 4 tests,
+  and the maintained job inventory. Focused repair checks passed; final combined
+  checks and release remain pending.
+- Existing Railway production `alethical-api` is the only service. Its summary
+  switch and 4 spending settings are unset. Its existing embedding credential is
+  now available to the GitHub bill-refresh job; no new key or paid request was made.
+- Added pypdf's `fonts` extra after real Board PDFs reported a missing CFF font
+  decoder. The held 41280/2025 amended PDF still extracts $3,414.16 with the decoder.
 
 ## Model selection
 

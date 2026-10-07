@@ -120,6 +120,8 @@ jobs:
     env:
       PYTHONPATH: .
       GH_TOKEN: ${{ github.token }}
+      SOURCE_REFRESH_PLAN_RESULT: ${{ needs.plan.result }}
+      SOURCE_REFRESH_COLLECT_RESULT: ${{ needs.collect.result }}
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v9.0.0
@@ -132,3 +134,30 @@ jobs:
       - run: uv sync --frozen
       - name: Group overdue jobs and changed source findings
         run: uv run python scripts/report_source_refresh_health.py
+      - name: Report failure to check source health
+        if: failure()
+        env:
+          GH_REPO: alethical-org/alethical
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, subprocess, tempfile
+          marker = "<!-- source-refresh-health:"
+          warning = "<!-- source-refresh-health:source-health-unavailable -->"
+          title = "Public-record updates need attention"
+          def gh(*args):
+              return subprocess.check_output(["gh", *args], text=True)
+          rows = json.loads(gh("issue", "list", "--state", "all", "--search", '"' + title + '" in:title', "--limit", "100", "--json", "number,body,state"))
+          owned = next((row for row in rows if marker in row["body"]), None)
+          if owned and warning in owned["body"] and owned["state"] == "OPEN":
+              raise SystemExit(0)
+          body = "Net: The automatic public-record health check could not finish.\n\nPrevious source findings remain unresolved until the health check succeeds.\n\n" + warning
+          with tempfile.TemporaryDirectory() as directory:
+              path = pathlib.Path(directory) / "warning.md"
+              path.write_text(body)
+              if owned:
+                  gh("issue", "edit", str(owned["number"]), "--body-file", str(path))
+                  if owned["state"] != "OPEN":
+                      gh("issue", "reopen", str(owned["number"]))
+              else:
+                  gh("issue", "create", "--title", title, "--body-file", str(path))
+          PY
