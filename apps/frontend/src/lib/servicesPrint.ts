@@ -77,7 +77,9 @@ export const SERVICES_PRINT_CSS = `
   /* First-response HTML is inside the app mount until React replaces it. */
   body:has(.services-print) #root:has(.services-print),.page-snapshot:has(.services-print){height:auto!important;min-height:0!important;overflow:visible!important;display:block!important;margin:0!important;padding:0!important}
   .page-snapshot:has(.services-print)>*:not(.services-print){display:none!important}
-  .services-print{display:block!important;color:#11150f;background:#fff;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:16px;line-height:normal;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  /* Keep fractional glyph widths: Linux's hinted advances otherwise wrap more
+     lines and push the second and third sheet footers onto extra pages. */
+  .services-print{display:block!important;color:#11150f;background:#fff;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:16px;line-height:normal;text-rendering:geometricPrecision;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .services-print *{box-sizing:border-box;animation:none!important;transition:none!important}
   .services-print h1,.services-print h2,.services-print h3,.services-print p,.services-print ul{margin:0;padding:0}
   .services-print h1,.services-print h2,.services-print h3{color:#11150f}
