@@ -1,0 +1,24 @@
+name: Bound browser dependency downloads
+description: Apply and check GitHub's x64 apt download limits before installing Chromium
+runs:
+  using: composite
+  steps:
+    - name: Bound apt download waits
+      shell: bash
+      run: |
+        if [ "$RUNNER_OS" != Linux ] || [ "$RUNNER_ARCH" != X64 ]; then
+          echo 'This browser setup requires a Linux X64 runner.' >&2
+          exit 1
+        fi
+        # Match the x64 runner-image settings without changing mirrors or trust.
+        # https://github.com/actions/runner-images/blob/c03600ca998467081ccec9bb9dbf5de6b68e862a/images/ubuntu/scripts/build/configure-apt.sh
+        sudo tee /etc/apt/apt.conf.d/zzzz-alethical-acquire > /dev/null <<'APT'
+        Acquire::Retries "1";
+        Acquire::http::Timeout "15";
+        Acquire::https::Timeout "15";
+        APT
+        # Read merged settings: a later override must fail, not silently undo this.
+        apt-config dump Acquire::Retries Acquire::http::Timeout Acquire::https::Timeout
+        test "$(apt-config shell value Acquire::Retries)" = "value='1'"
+        test "$(apt-config shell value Acquire::http::Timeout)" = "value='15'"
+        test "$(apt-config shell value Acquire::https::Timeout)" = "value='15'"

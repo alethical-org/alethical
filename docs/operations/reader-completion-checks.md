@@ -1,6 +1,6 @@
 # Reader completion checks
 
-<!-- describes: apps/frontend/scripts/reader-completion-*.mjs, apps/frontend/scripts/reader-official-bill.mjs, apps/frontend/scripts/reader-release-relation.mjs, apps/frontend/scripts/serve-reader-check-build.mjs, .github/workflows/reader-completion-checks.yml, .github/workflows/ci.yml -->
+<!-- describes: apps/frontend/scripts/reader-completion-*.mjs, apps/frontend/scripts/reader-official-bill.mjs, apps/frontend/scripts/reader-release-relation.mjs, apps/frontend/scripts/serve-reader-check-build.mjs, .github/workflows/reader-completion-checks.yml, .github/workflows/ci.yml, .github/actions/prepare-browser-install/action.yml -->
 
 Alethical's completion evidence includes what a reader can do on the deployed
 website. A successful build or merge alone does not establish that result.
@@ -92,6 +92,27 @@ unsupported command, a changed website, or a Git error cannot prove equivalence.
 Unrelated or unknown stamps fail. Reusable callers supply `expected_commit`; the workflow
 requires main and main ancestry before using it. Event-carried website addresses
 are never accepted.
+
+## Browser installation limits
+
+The required frontend checks, live reader checks and
+[website release recovery](website-release-recovery.md) share
+[browser installation preparation](../../.github/actions/prepare-browser-install/action.yml).
+These 3 workflows use GitHub's Linux X64 runners. The preparation rejects other
+runner types, which need their own supported settings before adoption.
+
+Ubuntu package downloads use 1 retry and 15-second HTTP/HTTPS connection and idle
+waits, matching the [official x64 runner settings](https://github.com/actions/runner-images/blob/c03600ca998467081ccec9bb9dbf5de6b68e862a/images/ubuntu/scripts/build/configure-apt.sh).
+The preparation prints and checks the effective settings, so an override cannot
+silently restore longer waits. Existing download mirrors and package signature
+checks stay intact. The 15-second limit applies to each stalled connection or
+idle transfer, not to the whole installation.
+
+Each workflow still installs Chromium and its system dependencies with
+`playwright install --with-deps chromium`. That step has a 10-minute total limit;
+an installation failure or timeout fails the browser check. The full required
+browser tests remain enabled. Changes to the shared preparation select frontend
+checks through [check-paths.json](../../.github/check-paths.json).
 
 ## Commands and evidence
 
