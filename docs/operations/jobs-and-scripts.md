@@ -49,7 +49,7 @@ Time and Central Daylight Time, so their local hour changes by 1 during the year
 
 ## What GitHub runs only by hand
 
-These 4 workflows complete the total of 31:
+These 4 workflows complete the total of 30:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |
