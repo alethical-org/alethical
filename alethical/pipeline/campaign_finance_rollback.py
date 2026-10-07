@@ -16,7 +16,11 @@ from sqlalchemy import text
 
 from alethical.db import models as schema
 from alethical.pipeline import campaign_finance_filings as filings
-from alethical.pipeline.campaign_finance_refresh import live_versions
+from alethical.pipeline.campaign_finance_refresh import (
+    live_versions,
+    stage_publication_followups,
+)
+from alethical.pipeline.cache_purge import when_a_filings_release_lands
 
 TABLES = ("cf_filer", "cf_filing_report", "cf_filing", "cf_filing_figure")
 
@@ -133,3 +137,5 @@ def restore_baseline(
             text("UPDATE cf_filing_current SET snapshot_id=:baseline WHERE id=true"),
             {"baseline": baseline.id},
         )
+
+        stage_publication_followups(db, when_a_filings_release_lands())

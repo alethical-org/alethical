@@ -2656,6 +2656,11 @@ def publish(
         text("UPDATE cf_current_release SET release_id = :release WHERE id = true"),
         {"release": release.id},
     )
+    # Keep the retry work durable even if pruning or the caller dies next.
+    from alethical.pipeline.campaign_finance_refresh import stage_publication_followups
+    from alethical.pipeline.cache_purge import when_a_money_download_release_lands
+
+    stage_publication_followups(db, when_a_money_download_release_lands())
     db.commit()
     return release.id
 

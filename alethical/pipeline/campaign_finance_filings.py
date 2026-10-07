@@ -3077,6 +3077,11 @@ def publish_filings(
         text("UPDATE cf_filing_current SET snapshot_id = :snapshot WHERE id = true"),
         {"snapshot": snapshot.id},
     )
+    # Keep the retry work durable even if pruning or the caller dies next.
+    from alethical.pipeline.campaign_finance_refresh import stage_publication_followups
+    from alethical.pipeline.cache_purge import when_a_filings_release_lands
+
+    stage_publication_followups(db, when_a_filings_release_lands())
     db.commit()
     run.published = True
     return snapshot.id
@@ -3375,6 +3380,13 @@ def restore_lost_filer_years(
             f"snapshots on {datetime.now(UTC).isoformat()}: {decision.strip()}"
         ).strip(),
     }
+    if copied:
+        from alethical.pipeline.campaign_finance_refresh import (
+            stage_publication_followups,
+        )
+        from alethical.pipeline.cache_purge import when_a_filings_release_lands
+
+        stage_publication_followups(db, when_a_filings_release_lands())
     db.commit()
     log(f"restored {copied} of {len(to_restore)} filer-year(s) into snapshot {live.id}")
     return copied

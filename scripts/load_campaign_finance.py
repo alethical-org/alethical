@@ -300,10 +300,9 @@ def main() -> int:
         default=None,
         metavar="YEAR",
         help="Which filing years the 2 money checks re-run for after a publish. "
-        f"Default {', '.join(str(year) for year in recheck_years())} — the current "
-        "year and the 2 before it, which is what the stored verdicts cover. The Board "
-        "serves no report document before 2023, so an older year can only record as "
-        "not checked.",
+        f"Default {', '.join(str(year) for year in recheck_years())}: every supported "
+        "year from 2022 through the current year. A narrower check leaves the full "
+        "refresh pending for the next run. Missing source evidence stays not checked.",
     )
     args = parser.parse_args()
 

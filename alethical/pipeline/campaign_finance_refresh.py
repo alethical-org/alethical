@@ -98,6 +98,7 @@ from alethical.pipeline.campaign_finance_recheck import (
     FIRST_SUPPORTED_YEAR,
     RecheckReport,
     recheck_stated_figures,
+    recheck_years,
 )
 from alethical.pipeline.cache_purge import (
     A_FILINGS_RELEASE,
@@ -479,13 +480,13 @@ def state_get(db: Session, key: str) -> Any:
     return None if row is None else row.value
 
 
-def state_update(
+def _stage_state_update(
     db: Session,
     *,
     set_values: Optional[Mapping[str, Any]] = None,
     delete_keys: Iterable[str] = (),
 ) -> None:
-    """Write and remove several keys in one commit, so a crash leaves no half-state."""
+    """Stage state changes in the caller's transaction without committing it."""
     for key, value in (set_values or {}).items():
         row = db.get(schema.CampaignFinanceRefreshState, key)
         if row is None:
@@ -497,6 +498,16 @@ def state_update(
         row = db.get(schema.CampaignFinanceRefreshState, key)
         if row is not None:
             db.delete(row)
+
+
+def state_update(
+    db: Session,
+    *,
+    set_values: Optional[Mapping[str, Any]] = None,
+    delete_keys: Iterable[str] = (),
+) -> None:
+    """Write and remove several keys in one commit, so a crash leaves no half-state."""
+    _stage_state_update(db, set_values=set_values, delete_keys=delete_keys)
     db.commit()
 
 
@@ -983,13 +994,21 @@ def _retry_pending_recheck(
     _run_rechecks(db, report, recheck=recheck, clear=clear, log=log)
 
 
-def _after_publish(
-    db: Session, report: RefreshReport, clearing: Clearing, *, clear, log, read_live
+def stage_publication_followups(
+    db: Session, clearing: Clearing, *, read_live=live_versions
 ) -> None:
+    """Save retry obligations in the SAME transaction as a changed live pointer.
+
+    Call after moving the pointer, before committing. Never commits or clears
+    external caches: rollback removes both the pointer change and these markers.
+    """
+    # Live-source readers refresh ORM identities; flush pending source metadata
+    # first so that refresh cannot discard this publication's status/provenance.
+    db.flush()
     live = read_live(db)
     pending = state_get(db, CLEARING_PENDING_KEY) or {}
     events = [event for event in pending.get("events", []) if event != clearing.event]
-    state_update(
+    _stage_state_update(
         db,
         set_values={
             CLEARING_PENDING_KEY: _clearing_marker([*events, clearing.event]),
@@ -1000,6 +1019,15 @@ def _after_publish(
             },
         },
     )
+
+
+def _after_publish(
+    db: Session, report: RefreshReport, clearing: Clearing, *, clear, log, read_live
+) -> None:
+    # Low-level publishers already persisted these with the pointer. Restaging
+    # also supports callers that supply their own publisher (and keeps owed events).
+    stage_publication_followups(db, clearing, read_live=read_live)
+    db.commit()
     _clear_and_mark(db, report, clearing, clear=clear, log=log)
 
 
@@ -1051,6 +1079,18 @@ def _run_rechecks(db: Session, report: RefreshReport, *, recheck, clear, log) ->
         report.failures.append(
             "a money re-check did not finish; it is retried on the next run: "
             + "; ".join(one.error or "" for one in outcome.outcomes if not one.ran)
+        )
+        return
+    missing_years = sorted(set(recheck_years()) - set(outcome.years))
+    if missing_years:
+        report.failures.append(
+            "money re-checks remain pending for supported years: "
+            + ", ".join(str(year) for year in missing_years)
+        )
+        # Partial checks can change public verdicts, so clear their cached pages,
+        # but preserve the full generation obligation for the next complete run.
+        _clear_and_mark(
+            db, report, when_the_money_checks_finish(), clear=clear, log=log
         )
         return
     # The re-check marker goes and the clearing marker arrives in one commit, so no

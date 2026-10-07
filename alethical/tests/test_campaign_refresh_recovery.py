@@ -11,6 +11,7 @@ from sqlalchemy import text
 
 from alethical.db import models as schema
 from alethical.pipeline import campaign_finance_rollback as rollback
+from alethical.pipeline import campaign_finance_refresh as refresh
 from alethical.pipeline import lobbyist_evidence_preparation as preparation
 from alethical.db.session import get_session_factory
 from alethical.tests.test_campaign_finance_lists_and_search import _clear
@@ -107,6 +108,9 @@ def test_exact_rollback_in_temporary_database_and_transaction_abort(db):
         text("UPDATE cf_filing_current SET snapshot_id=:id"), {"id": candidate.id}
     )
     db.commit()
+    refresh.state_update(
+        db, delete_keys=[refresh.RECHECK_PENDING_KEY, refresh.CLEARING_PENDING_KEY]
+    )
     replacement = str(candidate.id)
     rollback.restore_baseline(db, proof, expected_current=replacement)
     assert (
@@ -134,13 +138,20 @@ def test_exact_rollback_in_temporary_database_and_transaction_abort(db):
     assert (
         str(db.scalar(text("SELECT snapshot_id FROM cf_filing_current"))) == replacement
     )
-    # Actual committed restore on the disposable database changes only the pointer.
+    assert refresh.state_get(db, refresh.RECHECK_PENDING_KEY) is None
+    assert refresh.state_get(db, refresh.CLEARING_PENDING_KEY) is None
+    # Committed restore keeps source rows and records follow-up work atomically.
     rollback.restore_baseline(db, proof, expected_current=replacement, apply=True)
     db.commit()
     assert (
         str(db.scalar(text("SELECT snapshot_id FROM cf_filing_current"))) == baseline_id
     )
     assert rollback.retained_rows(db, baseline_id) == proof["rows"]
+    assert (
+        refresh.state_get(db, refresh.RECHECK_PENDING_KEY)["filings_snapshot_id"]
+        == baseline_id
+    )
+    assert refresh.state_get(db, refresh.CLEARING_PENDING_KEY)
 
 
 def test_candidate_refuses_missing_reviewed_pdf(tmp_path):
