@@ -299,7 +299,7 @@ function NoticeRow({
       <View style={[styles.statusRow, isMobile && styles.statusRowStacked]}>
         {notice.status === 'matched' && payment ? (
           <Pressable
-            accessibilityRole="link"
+            accessibilityRole="button"
             accessibilityLabel={noticeMatchedAccessibleName(notice)}
             onPress={() =>
               requestPaymentFocus({

@@ -421,7 +421,10 @@ function titleCase(value: string): string {
 
 async function getApiRead<T>(
   path: string,
+  validateForRecovery?: (body: T) => boolean,
 ): Promise<{ body: T; ageSeconds: number | null; elapsedMs: number }> {
+  if (validateForRecovery)
+    return getRecoverableApiRead(path, validateForRecovery);
   const started = performance.now();
   const signal = AbortSignal.timeout(API_TIMEOUT_MS);
   const failure = (kind: FailureKind, upstreamStatus?: number) =>
@@ -455,6 +458,178 @@ async function getApiRead<T>(
   } catch {
     throw failure(signal.aborted ? "timeout" : "json", response.status);
   }
+}
+
+/** Required committee money only: at most 2 identical reads under one deadline. */
+function getRecoverableApiRead<T>(
+  path: string,
+  validate: (body: T) => boolean,
+): Promise<{ body: T; ageSeconds: number | null; elapsedMs: number }> {
+  const started = performance.now();
+  const controllers: AbortController[] = [];
+  const responses: (Response | undefined)[] = [];
+  const cancelledResponses = new Set<Response>();
+  let attempts = 0;
+  let pending = 0;
+  let settled = false;
+  let originalFailed = false;
+  let originalError: unknown;
+  let trigger: "slow" | "network" | "http" = "slow";
+  let hedgeTimer: ReturnType<typeof setTimeout>;
+  let deadlineTimer: ReturnType<typeof setTimeout>;
+  const failure = (kind: FailureKind, upstreamStatus?: number) =>
+    new DataUnavailable("public API read failed", {
+      kind,
+      source: "committee-finance",
+      elapsedMs: elapsedMs(started),
+      attemptCount: attempts,
+      upstreamStatus,
+    });
+  const cancelBody = (response?: Response) => {
+    if (!response || cancelledResponses.has(response)) return;
+    cancelledResponses.add(response);
+    // A JSON reader may already hold the stream lock; abort also stops that read.
+    try {
+      void response?.body?.cancel().catch(() => {});
+    } catch {
+      // Cancellation must not replace the read's result.
+    }
+  };
+  const cleanup = (winner?: number) => {
+    clearTimeout(hedgeTimer);
+    clearTimeout(deadlineTimer);
+    controllers.forEach((controller, index) => {
+      if (index !== winner) {
+        controller.abort();
+        cancelBody(responses[index]);
+      }
+    });
+  };
+  return new Promise((resolve, reject) => {
+    const finishFailure = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(
+        error instanceof DataUnavailable && error.details
+          ? new DataUnavailable("public API read failed", {
+              ...error.details,
+              elapsedMs: elapsedMs(started),
+              attemptCount: attempts,
+            })
+          : error,
+      );
+    };
+    const deadlineFailure = () => {
+      finishFailure(
+        originalFailed
+          ? originalError
+          : failure("timeout", responses[0]?.status),
+      );
+    };
+    const startAttempt = () => {
+      const index = attempts++;
+      const controller = new AbortController();
+      controllers.push(controller);
+      pending++;
+      const read = async () => {
+        let response: Response;
+        try {
+          response = await fetch(`${API_ORIGIN}/api/v1${path}`, {
+            headers: { Accept: "application/json", Origin: SITE_ORIGIN },
+            signal: controller.signal,
+          });
+        } catch {
+          throw failure("network");
+        }
+        responses[index] = response;
+        if (settled) {
+          cancelBody(response);
+          return;
+        }
+        if (response.status === 404) throw new RecordNotFound(path);
+        if (!response.ok) throw failure("http", response.status);
+        let body: T;
+        try {
+          body = (await response.json()) as T;
+        } catch {
+          throw failure("json", response.status);
+        }
+        if (!validate(body)) throw failure("payload", response.status);
+        const rawAge = response.headers.get("age");
+        const age = rawAge === null ? null : Number.parseInt(rawAge, 10);
+        return {
+          body,
+          ageSeconds: age !== null && Number.isFinite(age) ? age : null,
+          elapsedMs: elapsedMs(started),
+        };
+      };
+      void read().then(
+        (result) => {
+          if (settled || !result) return;
+          if (performance.now() - started >= API_TIMEOUT_MS) {
+            deadlineFailure();
+            return;
+          }
+          settled = true;
+          cleanup(index);
+          if (attempts === 2) {
+            console.info(
+              JSON.stringify({
+                event: "page_read_recovery",
+                source_family: "committee-finance",
+                attempt_count: 2,
+                winner_attempt: index + 1,
+                trigger,
+                elapsed_ms: elapsedMs(started),
+              }),
+            );
+          }
+          resolve(result);
+        },
+        (error: unknown) => {
+          if (settled) return;
+          if (performance.now() - started >= API_TIMEOUT_MS) {
+            deadlineFailure();
+            return;
+          }
+          pending--;
+          controller.abort();
+          cancelBody(responses[index]);
+          if (index === 0) {
+            originalFailed = true;
+            originalError = error;
+          }
+          const details =
+            error instanceof DataUnavailable ? error.details : undefined;
+          const retryable =
+            details?.kind === "network" ||
+            (details?.kind === "http" &&
+              [502, 503, 504].includes(details.upstreamStatus ?? 0));
+          if (attempts === 1) {
+            // A terminal original result does not create a backup request.
+            if (!retryable) {
+              finishFailure(error);
+              return;
+            }
+            trigger = details?.kind === "network" ? "network" : "http";
+            clearTimeout(hedgeTimer);
+            startAttempt();
+          }
+          // Either validated answer can still win. If both fail, the original
+          // error determines whether the page is missing or temporarily unavailable.
+          if (pending === 0) finishFailure(originalError);
+        },
+      );
+    };
+    deadlineTimer = setTimeout(deadlineFailure, API_TIMEOUT_MS);
+    hedgeTimer = setTimeout(() => {
+      if (settled) return;
+      if (performance.now() - started >= API_TIMEOUT_MS) deadlineFailure();
+      else if (attempts === 1 && pending > 0) startAttempt();
+    }, API_TIMEOUT_MS / 2);
+    startAttempt();
+  });
 }
 
 async function getApiResponse<T>(path: string): Promise<T> {
@@ -1136,28 +1311,22 @@ async function committeeFinance(
 ): Promise<CommitteeMoneySnapshotSource> {
   const read = await getApiRead<{ data?: CommitteeMoneySnapshotSource }>(
     `/committees/${encodeURIComponent(registrationNumber)}/finance?year=${year}&include_confirmation=false`,
+    (body) => {
+      const payload = body?.data;
+      return (
+        !!payload &&
+        typeof payload === "object" &&
+        !Array.isArray(payload) &&
+        payload.registration_number === registrationNumber &&
+        payload.year === year
+      );
+    },
   );
-  const payload = read.body?.data;
-  if (
-    !payload ||
-    typeof payload !== "object" ||
-    Array.isArray(payload) ||
-    payload.registration_number !== registrationNumber ||
-    payload.year !== year
-  ) {
-    throw new DataUnavailable("invalid committee finance payload", {
-      kind: "payload",
-      source: "committee-finance",
-      elapsedMs: read.elapsedMs,
-      attemptCount: 1,
-      upstreamStatus: 200,
-    });
-  }
   const {
     confirmed_for: _confirmedFor,
     current_claim_validated_at: _currentClaimValidatedAt,
     ...money
-  } = payload as CommitteeMoneySnapshotSource & {
+  } = read.body.data as CommitteeMoneySnapshotSource & {
     confirmed_for?: unknown;
     current_claim_validated_at?: unknown;
   };

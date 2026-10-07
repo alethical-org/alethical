@@ -85,12 +85,24 @@ bodies or credentials are retained. Records are deduplicated within each fixed
 hour. A 100-row limit reports saturation instead of claiming complete coverage.
 Artifacts remain available for 35 days.
 
+The same run separately requests only successful responses containing the fixed
+`page_read_recovery` marker. The provider filters this query; the collector does
+not read every successful request. Each query has its own 100-row and 4 MiB cap,
+75-second command limit and at most 2 attempts. Schema 2 keeps recovery collection
+status independent from failure collection. Counts distinguish the original read
+winning from the backup winning, plus the trigger and timing bucket. An original
+winner is not proof that the backup rescued a page. A recovered data read on a page
+that later failed is outside this successful-page query. Malformed matching records
+remain unclassified, never counted as recoveries. Historical schema 1 artifacts
+remain readable and are reported as failure-only hours, not recovery coverage.
+
 A transient collection failure is tried once more and then recorded as a failed
 collection, without creating an hourly failed-run email. Authentication or format
 failures stop visibly. The daily scheduled public-search run checks 24 eligible
 hourly windows, leaving the newest completed hour time to arrive. Its fixed
 24-hour startup period begins at workflow creation; afterward, 3 missing or
-failed hours fail the daily check. Any saturated hour fails the daily check,
+failed hours fail the daily check. A failed or unclassified recovery collection
+also makes that hour incomplete. Any saturated query fails the daily check,
 including during startup. A green hourly workflow alone does not prove that
 collection succeeded. Gaps remain explicit rather than interpreted as no errors.
 GitHub can delay or drop scheduled runs. A run delayed past the next hour collects
