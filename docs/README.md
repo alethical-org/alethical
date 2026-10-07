@@ -164,6 +164,7 @@ lasting decisions and release evidence have their permanent homes.
 - [Lobbying search delivery](implementation/lobbying-search-plan.md) — agreed search behavior and release checks
 - [Money page refinements](implementation/money-page-refinements.md) — wording, search and navigation acceptance checks
 - [Outside-spending browse delivery](implementation/outside-spending-browse-plan.md) — all-years browsing, paging and source checks
+- [Public search delivery](implementation/sitewide-search-improvements-plan.md) — source-backed first responses, discoverability, free upkeep checks and live release acceptance
 - [Sharing delivery](implementation/sitewide-sharing-plan.md) — shared controls, address preservation and release checks
 - [Committee money refinements](plans/committee-money-refinements.md) — coordinated source-label and money-card refinements
 - [Committee empty-year refinements](plans/committee-empty-year-refinements.md) — missing figures, contribution terms and filed-report navigation
