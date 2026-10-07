@@ -1,3 +1,4 @@
+import { CANDIDATE_LOOKUP_COPY } from '../lib/candidatePublicCopy';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
@@ -54,7 +55,7 @@ export function CandidatesScreen(props: RootScreenProps<'Candidates'>) {
             services={candidateSearchServices}
             flow={candidateFlow}
             initialAddress={candidateFlow.getState().draftAddress}
-            privacyDisclosure="Address lookup uses Minnesota Secretary of State and Minnesota mapping services"
+            privacyDisclosure={CANDIDATE_LOOKUP_COPY.privacy}
             imageSource={require('../../assets/mn-outline-candidates.svg')}
             onOpenProfile={(candidateId) =>
               navigation.navigate('CandidateProfile', { candidateId })

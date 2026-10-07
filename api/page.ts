@@ -1,3 +1,9 @@
+import { legalPageSnapshot } from "../apps/frontend/src/lib/legalPageSnapshot";
+import {
+  candidateLookupPageSnapshot,
+  candidateProfilePageSnapshot,
+  validCandidateProfileRecord,
+} from "../apps/frontend/src/lib/candidatePageSnapshot";
 import { candidateProfileMetadata } from "../apps/frontend/src/lib/candidateMetadata";
 import type { CandidateProfileRecord } from "../apps/frontend/src/components/candidates/types";
 import { lobbyingPageMetadata } from "../apps/frontend/src/lib/lobbyingMetadata";
@@ -415,7 +421,7 @@ type CollectionPayload<T> = {
  * Home and unfiltered public directories use the crawlable paths in issue #1396.
  *
  * Whether an address serves a body and what a search engine is told about it are
- * 2 separate decisions. Answer and static pages send no snapshot. A filtered view
+ * 2 separate decisions. Private and answer pages send no snapshot. A filtered view
  * sends none either, with 2 exceptions that carry their page's own explanation
  * rather than any filtered result: `/money/search` and a `noindex` money address
  * that would otherwise show nothing at all until the program arrives (#1966).
@@ -1777,11 +1783,17 @@ async function contentFor(
     case "moneyCommitteePayments":
       return committeePaymentsContent(target.slug, target.year, target.tab);
     case "privacy":
-      return headOnly(STATIC_PAGE_METADATA["/privacy"]);
+      return {
+        metadata: STATIC_PAGE_METADATA["/privacy"],
+        snapshot: renderPageSnapshot(legalPageSnapshot("/privacy")),
+      };
     case "siteMetrics":
       return headOnly(STATIC_PAGE_METADATA["/admin/site-metrics"]);
     case "terms":
-      return headOnly(STATIC_PAGE_METADATA["/terms"]);
+      return {
+        metadata: STATIC_PAGE_METADATA["/terms"],
+        snapshot: renderPageSnapshot(legalPageSnapshot("/terms")),
+      };
     case "aboutUs":
       return {
         metadata: STATIC_PAGE_METADATA["/about"],
@@ -1804,19 +1816,22 @@ async function contentFor(
     case "chatSession":
       return headOnly(homePageMetadata());
     case "candidates":
-      return headOnly(STATIC_PAGE_METADATA["/candidates"]);
+      return {
+        metadata: STATIC_PAGE_METADATA["/candidates"],
+        snapshot: renderPageSnapshot(candidateLookupPageSnapshot()),
+      };
     case "candidateProfile": {
       // Only public election records enter this page response. Never call address lookup.
       const record = await getApiResponse<CandidateProfileRecord>(
         `/candidates/${target.candidateId}`,
       );
-      if (
-        record.candidate?.id !== target.candidateId ||
-        !record.election?.id ||
-        !record.candidate.name?.trim()
-      )
+      if (!validCandidateProfileRecord(record, target.candidateId))
         throw new DataUnavailable("invalid candidate record");
-      return { ...headOnly(candidateProfileMetadata(record)), noStore: true };
+      return {
+        metadata: candidateProfileMetadata(record),
+        snapshot: renderPageSnapshot(candidateProfilePageSnapshot(record)),
+        noStore: true,
+      };
     }
     case "notFound":
       throw new UnknownAddress(`unknown address ${path}`);

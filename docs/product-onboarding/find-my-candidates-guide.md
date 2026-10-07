@@ -1,10 +1,12 @@
 # How Find My Candidates works
 
-<!-- describes: alethical/api/services/address_format.py, apps/frontend/src/lib/currentAddressInput.ts, apps/frontend/src/components/home/HomeCandidateFinder.tsx, apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidateProfileScreen.tsx, apps/frontend/src/screens/CandidateAccountScreens.tsx, apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx, apps/frontend/src/components/candidates/*.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/data/candidates.ts, apps/frontend/src/data/candidateClaims.ts, apps/frontend/src/hooks/useCandidatePrivacyBoundary.ts, apps/frontend/src/lib/candidatePrivacy.ts, alethical/api/routers/candidates.py, alethical/api/routers/candidate_claims.py, alethical/api/services/candidate_lookup.py, alethical/api/services/candidate_legislators.py, alethical/api/data/candidate_legislator_links.json, alethical/api/services/candidate_claims.py, alethical/pipeline/candidate_ballot.py, alethical/db/models.py, alethical/alembic/versions/0066_candidate_lookup.py, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/lib/staticPageMetadata.ts, api/page.ts -->
+<!-- describes: alethical/api/services/address_format.py, apps/frontend/src/lib/currentAddressInput.ts, apps/frontend/src/components/home/HomeCandidateFinder.tsx, apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidateProfileScreen.tsx, apps/frontend/src/screens/CandidateAccountScreens.tsx, apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx, apps/frontend/src/components/candidates/*.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/data/candidates.ts, apps/frontend/src/data/candidateClaims.ts, apps/frontend/src/hooks/useCandidatePrivacyBoundary.ts, apps/frontend/src/lib/candidatePrivacy.ts, apps/frontend/src/lib/candidatePageSnapshot.ts, apps/frontend/src/lib/candidatePublicCopy.ts, alethical/api/routers/candidates.py, alethical/api/routers/candidate_claims.py, alethical/api/services/candidate_lookup.py, alethical/api/services/candidate_legislators.py, alethical/api/data/candidate_legislator_links.json, alethical/api/services/candidate_claims.py, alethical/pipeline/candidate_ballot.py, alethical/db/models.py, alethical/alembic/versions/0066_candidate_lookup.py, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/lib/staticPageMetadata.ts, api/page.ts -->
 
 ## Public address lookup
 
-Anyone can use `/candidates` without signing in. **Find my candidates** in Search
+Anyone can use `/candidates` without signing in. Its first response includes the
+existing lookup instructions and privacy explanation, and its address appears in
+the public pages sitemap. It does not publish a catalogue of saved candidate profiles. **Find my candidates** in Search
 opens the empty form. The homepage form carries an address through temporary memory;
 it never puts the address in a link or saved browser storage.
 
@@ -123,6 +125,10 @@ not found; service failures return unavailable. IDs use source codes and the com
 jurisdiction, not a name-only match. Supported state, federal, judicial and school
 district identities are shared across counties. County and municipal identities retain
 their county scope when the source does not establish a wider identity.
+
+The first response includes the same public facts, source/check dates, stale
+warnings and confirmed legislator links as the loaded screen, without caching
+private address requests or seeding visitor lookup results.
 
 Profiles display only supported fields: source name, office, voting area, election,
 party when supplied, campaign website when supplied, and source/check date. MyBallot

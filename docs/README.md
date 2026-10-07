@@ -104,6 +104,8 @@ The words of every published reader-facing piece, one file each. Alethical calls
 
 ## Operations
 
+- [Public search upkeep](operations/public-search-upkeep.md) — bounded free checks, search-provider evidence, truthful change notices and weekly/monthly review
+
 - [Preventing repeated failures](operations/repeat-failure-review.md): history collection, examined causes, retained checks and the manual isolated browser command
 - [Repeat-failure review and Paradigm comparison, 6 October 2026](research/repeat-failure-review-2026-10-06.md): the limited history sample, demonstrated prevention gaps and public-tool comparison
 - [Portable Paradigm comparison evidence](research/evidence/paradigm-2026-10-06/README.md): pinned inputs, recorded local outputs and instructions for repeating the experiment
@@ -162,6 +164,7 @@ lasting decisions and release evidence have their permanent homes.
 - [Lobbying search delivery](implementation/lobbying-search-plan.md) — agreed search behavior and release checks
 - [Money page refinements](implementation/money-page-refinements.md) — wording, search and navigation acceptance checks
 - [Outside-spending browse delivery](implementation/outside-spending-browse-plan.md) — all-years browsing, paging and source checks
+- [Public search delivery](implementation/sitewide-search-improvements-plan.md) — source-backed first responses, discoverability, free upkeep checks and live release acceptance
 - [Sharing delivery](implementation/sitewide-sharing-plan.md) — shared controls, address preservation and release checks
 - [Committee money refinements](plans/committee-money-refinements.md) — coordinated source-label and money-card refinements
 - [Committee empty-year refinements](plans/committee-empty-year-refinements.md) — missing figures, contribution terms and filed-report navigation

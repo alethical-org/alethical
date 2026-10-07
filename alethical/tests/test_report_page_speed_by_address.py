@@ -516,6 +516,19 @@ def test_money_addresses_are_retained():
     } <= {address.label for address in report.ADDRESSES}
 
 
+def test_public_profile_metrics_exclude_nested_private_account_screens():
+    by_key = {address.key: address for address in report.ADDRESSES}
+    for key, path in (
+        ("bill_pages", "/bills"),
+        ("legislator_pages", "/legislators"),
+        ("candidate_pages", "/candidates"),
+    ):
+        fragment = by_key[key].filter_fragment
+        assert f'requestPath_like: "{path}/%"' in fragment
+        assert f'requestPath_notlike: "{path}/%/%"' in fragment
+    assert by_key["candidates"].filter_fragment == 'requestPath: "/candidates"'
+
+
 def test_a_committee_page_is_asked_about_separately_from_its_payments_page():
     """Issue 2022 defect 5. Two pages with 2 speeds, averaged by one prefix match.
 

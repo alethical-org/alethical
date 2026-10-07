@@ -1,3 +1,5 @@
+import { privacyContent, termsContent } from '../legalContent';
+import type { CandidateProfileRecord } from '../../components/candidates/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runInNewContext } from 'node:vm';
 
@@ -144,6 +146,16 @@ it('serves the public candidates destination without example records or data-ser
   expect(body).toContain('Enter a Minnesota street address');
   expect(body).toContain('href="https://www.alethical.com/candidates"');
   expect(headers.get('X-Robots-Tag')).toBeUndefined();
+  const snapshot = body
+    .split('<!--alethical:page-snapshot-->')[1]
+    .split('<!--/alethical:page-snapshot-->')[0];
+  expect(snapshot).toContain('<h1>Find my candidates</h1>');
+  expect(snapshot).toContain('Full street address');
+  expect(snapshot).toContain('A city or ZIP code alone cannot identify your local races');
+  expect(snapshot).toContain(
+    'Address lookup uses Minnesota Secretary of State and Minnesota mapping services',
+  );
+  expect(snapshot).not.toContain('Home snapshot');
   expect(body).not.toMatch(/PRIVATE DRAFT|ILLUSTRATIVE DATA|preview-general-alex/);
   expect(fetch).not.toHaveBeenCalled();
 });
@@ -189,10 +201,236 @@ it('uses the public candidate record for profile metadata without address reques
   expect(status).toBe(200);
   expect(body).toContain('<title>Public Candidate | Alethical</title>');
   expect(body).toContain(`href="https://www.alethical.com/candidates/${id}"`);
-  expect(body).toContain('House District 1A');
+  const snapshot = body
+    .split('<!--alethical:page-snapshot-->')[1]
+    .split('<!--/alethical:page-snapshot-->')[0];
+  expect(snapshot).toContain('<h1>Public Candidate</h1>');
+  expect(snapshot).toContain('Official candidate record');
+  expect(snapshot).toContain('State Representative');
+  expect(snapshot).toContain('House District 1A');
+  expect(snapshot).toContain('November 3, 2026');
+  expect(snapshot).toContain('Checked September 30, 2026');
+  expect(snapshot).toContain('href="https://myballotmn.sos.mn.gov/"');
+  expect(snapshot).toContain('Candidate records from Minnesota Secretary of State');
   expect(body).not.toContain('private-home');
   expect(headers.get('Cache-Control')).toBe('no-store');
 });
+
+function publicCandidateRecord(): CandidateProfileRecord {
+  return {
+    candidate: {
+      id: 'a'.repeat(64),
+      name: 'Public Candidate',
+      sortName: 'Candidate, Public',
+      party: 'NONPARTISAN',
+    },
+    office: 'State Representative, District 1A',
+    votingArea: 'House District 1A',
+    election: {
+      id: '8334',
+      label: 'November 3, 2026 State General Election',
+      date: '2026-11-03',
+      type: 'general',
+    },
+    source: {
+      authority: 'Minnesota Secretary of State',
+      url: 'https://myballotmn.sos.mn.gov/',
+      checkedDate: '2026-10-01',
+      stale: true,
+    },
+    website: 'https://campaign.example.org/',
+    legislator: {
+      id: 'held-legislator',
+      slug: 'public-candidate',
+      name: 'Public Candidate',
+      profileUrl: '/legislators/public-candidate',
+      serviceStatus: 'current',
+      isReelection: true,
+      office: 'State Representative',
+      votingArea: 'House District 1A',
+      source: { authority: 'Minnesota House of Representatives', url: 'https://www.house.mn.gov/' },
+    },
+  };
+}
+
+it('serves only source-backed candidate facts, dates and the confirmed legislator link', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-10-07T12:00:00Z'));
+  try {
+    const record = publicCandidateRecord();
+    // Unknown payload fields never enter the public snapshot or seeded data.
+    const payload = {
+      ...record,
+      matchedAddress: 'private-address',
+      coordinates: [1, 2],
+      claimNotes: 'private-notes',
+      campaignStatement: 'campaign-authored-claim',
+      filedDate: 'invented-filing-date',
+    };
+    stubNetwork(() => ({ status: 200, payload }));
+    const { body, status, headers } = await serve({
+      path: `/candidates/${record.candidate.id}?address=private-query&token=private-token`,
+    });
+    expect(status).toBe(200);
+    const snapshot = body
+      .split('<!--alethical:page-snapshot-->')[1]
+      .split('<!--/alethical:page-snapshot-->')[0];
+    expect(snapshot).toContain('Running for reelection');
+    expect(snapshot).toContain('General Election · November 3, 2026');
+    expect(snapshot).toContain('Nonpartisan');
+    expect(snapshot).toContain('Checked October 1, 2026');
+    expect(snapshot).toContain('May be out of date');
+    expect(snapshot).toContain('href="/legislators/public-candidate"');
+    expect(snapshot).toContain('View legislator profile');
+    expect(snapshot).toContain('Service records from Minnesota House of Representatives');
+    expect(snapshot).toContain('href="https://campaign.example.org/"');
+    for (const privateText of [
+      'private-address',
+      'private-notes',
+      'campaign-authored-claim',
+      'invented-filing-date',
+      'private-query',
+      'private-token',
+    ])
+      expect(body).not.toContain(privateText);
+    expect(body).not.toContain('data-alethical-page-data');
+    expect(headers.get('Cache-Control')).toBe('no-store');
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('escapes candidate fields and omits an unsafe campaign website', async () => {
+  const record = publicCandidateRecord();
+  record.candidate.name = '<script>alert("name")</script> & Person';
+  record.candidate.party = '<img src=x onerror=alert(1)>';
+  record.office = '<b>Office</b>';
+  record.website = 'javascript:alert(1)';
+  stubNetwork(() => ({ status: 200, payload: record }));
+  const { body, status } = await serve({ path: `/candidates/${record.candidate.id}` });
+  expect(status).toBe(200);
+  expect(body).toContain(escapeHtml(record.candidate.name));
+  expect(body).toContain(escapeHtml(record.candidate.party));
+  expect(body).toContain(escapeHtml(record.office));
+  expect(body).not.toContain(record.candidate.name);
+  expect(body).not.toContain('javascript:');
+});
+
+it.each([
+  [
+    'wrong candidate',
+    (record: CandidateProfileRecord) => {
+      record.candidate.id = 'b'.repeat(64);
+    },
+  ],
+  [
+    'missing name',
+    (record: CandidateProfileRecord) => {
+      record.candidate.name = '';
+    },
+  ],
+  [
+    'missing election',
+    (record: CandidateProfileRecord) => {
+      record.election.id = '';
+    },
+  ],
+  [
+    'impossible election date',
+    (record: CandidateProfileRecord) => {
+      record.election.date = '2026-02-30';
+    },
+  ],
+  [
+    'missing office',
+    (record: CandidateProfileRecord) => {
+      record.office = '';
+    },
+  ],
+  [
+    'missing voting area',
+    (record: CandidateProfileRecord) => {
+      record.votingArea = '';
+    },
+  ],
+  [
+    'unsafe source',
+    (record: CandidateProfileRecord) => {
+      record.source.url = 'javascript:alert(1)';
+    },
+  ],
+  [
+    'missing check date',
+    (record: CandidateProfileRecord) => {
+      record.source.checkedDate = '';
+    },
+  ],
+  [
+    'mismatched legislator link',
+    (record: CandidateProfileRecord) => {
+      record.legislator!.profileUrl = '/legislators/somebody-else';
+    },
+  ],
+  [
+    'external legislator link',
+    (record: CandidateProfileRecord) => {
+      record.legislator!.profileUrl = 'https://other.example.org/';
+    },
+  ],
+])(
+  'returns unavailable for %s rather than publishing a partial or wrong identity',
+  async (_, mutate) => {
+    const record = publicCandidateRecord();
+    mutate(record);
+    stubNetwork(() => ({ status: 200, payload: record }));
+    const { body, status, headers } = await serve({ path: `/candidates/${'a'.repeat(64)}` });
+    expect(status).toBe(503);
+    expect(body).toBe('This page is temporarily unavailable.');
+    expect(headers.get('Cache-Control')).toBe('no-store');
+  },
+);
+
+it.each([
+  ['/privacy', privacyContent],
+  ['/terms', termsContent],
+] as const)(
+  'serves all visible legal text at %s without a data-service read',
+  async (path, content) => {
+    stubNetwork(() => ({ status: 500 }));
+    const { body, status, headers } = await serve({ path });
+    const snapshot = body
+      .split('<!--alethical:page-snapshot-->')[1]
+      .split('<!--/alethical:page-snapshot-->')[0];
+    expect(status).toBe(200);
+    expect(snapshot).toContain(`<h1>${content.title}</h1>`);
+    expect(snapshot.match(/<h1>/g)).toHaveLength(1);
+    expect(snapshot).toContain(escapeHtml(content.meta));
+    for (const section of content.sections) {
+      if (section.title) expect(snapshot).toContain(escapeHtml(section.title));
+      for (const block of section.blocks) {
+        const lines =
+          block.kind === 'list'
+            ? block.items
+            : [
+                block.kind === 'callout'
+                  ? `${block.text}${block.linkText ?? ''}${block.trailingText ?? ''}`
+                  : block.text,
+              ];
+        for (const line of lines) {
+          expect(snapshot.replace(/<[^>]+>/g, '')).toContain(escapeHtml(line));
+        }
+        if (block.kind === 'callout' && block.linkHref) {
+          expect(snapshot).toContain(
+            `<a href="${escapeHtml(block.linkHref)}">${escapeHtml(block.linkText ?? '')}</a>`,
+          );
+        }
+      }
+    }
+    expect(snapshot).not.toContain('Home snapshot');
+    expect(headers.get('X-Robots-Tag')).toBeUndefined();
+    expect(fetch).not.toHaveBeenCalled();
+  },
+);
 
 it('distinguishes missing candidate records from unavailable records', async () => {
   const path = `/candidates/${'b'.repeat(64)}`;
@@ -876,9 +1114,7 @@ describe('first-response page tags', () => {
     expect((await serve({ path: '/site-metrics' })).body).toContain(
       '<title>Site Metrics | Alethical</title>',
     );
-    expect((await serve({ path: '/privacy' })).body).toContain(
-      '<div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',
-    );
+    expect((await serve({ path: '/privacy' })).body).toContain('<h1>Privacy Policy</h1>');
     expect(calls).toHaveLength(0);
     expect(readPageShell).toHaveBeenCalledTimes(1);
   });

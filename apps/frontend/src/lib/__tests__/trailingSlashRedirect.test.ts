@@ -25,6 +25,16 @@ describe('Trailing-slash addresses', () => {
     expect(readConfig().trailingSlash).toBe(false);
   });
 
+  it('serves only the exact public IndexNow key before the page builder', () => {
+    const rewrites = readConfig().rewrites ?? [];
+    const keyPath = '/bba181e14e3741348fe3e03e995e7fab.txt';
+    expect(rewrites[0]).toEqual({ source: keyPath, destination: keyPath });
+    expect(rewrites.filter((rule) => rule.source.endsWith('.txt'))).toEqual([
+      { source: keyPath, destination: keyPath },
+    ]);
+    expect(rewrites.at(-1)?.destination).toBe('/api/page?path=/$1');
+  });
+
   // One final rule sends every non-file app address through the page builder.
   // Vercel applies the slash redirect before that rule, so the page builder and
   // the browser both see the same address without its ending slash.

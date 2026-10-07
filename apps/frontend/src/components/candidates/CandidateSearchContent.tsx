@@ -1,3 +1,4 @@
+import { CANDIDATE_LOOKUP_COPY } from '../../lib/candidatePublicCopy';
 import {
   useEffect,
   useId,
@@ -262,7 +263,7 @@ function CandidateSearchSession({
                 { fontSize: isMobile ? 28 : isDesktop ? 34 : 32, lineHeight: 40 },
               ]}
             >
-              Find my candidates
+              {CANDIDATE_LOOKUP_COPY.heading}
             </Text>
             {changingAddress ? (
               <View style={{ gap: 16 }}>
@@ -366,7 +367,7 @@ function CandidateSearchSession({
                   },
                 ]}
               >
-                Find my candidates
+                {CANDIDATE_LOOKUP_COPY.heading}
               </Text>
             </View>
             <Text
@@ -381,7 +382,7 @@ function CandidateSearchSession({
             >
               {noElection
                 ? 'Candidates for Minnesota state and local offices'
-                : 'See who’s running where you live in Minnesota, with candidate profiles linked to official records'}
+                : CANDIDATE_LOOKUP_COPY.intro}
             </Text>
             {addressLost ? (
               <View style={{ marginTop: 22 }}>

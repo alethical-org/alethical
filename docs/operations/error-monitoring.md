@@ -1,4 +1,4 @@
-<!-- describes: pyproject.toml, .env.example, alethical/monitoring.py, alethical/logging.py, alethical/api/main.py, alethical/api/problems.py, alethical/api/auth.py, alethical/api/routers/me.py, alethical/pipeline/minnesota.py, alethical/pipeline/oban.py, apps/frontend/src/screens/LegalScreens.tsx -->
+<!-- describes: pyproject.toml, .env.example, alethical/monitoring.py, alethical/logging.py, alethical/api/main.py, alethical/api/problems.py, alethical/api/auth.py, alethical/api/routers/me.py, alethical/pipeline/minnesota.py, alethical/pipeline/oban.py, apps/frontend/src/screens/LegalScreens.tsx, apps/frontend/src/lib/legalContent.ts -->
 
 # Error monitoring
 

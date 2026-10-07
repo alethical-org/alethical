@@ -12,6 +12,15 @@ import {
 import { candidateElectionLabel, candidateOfficeLabel, areaLabel } from './CandidateResultsContent';
 import type { CandidateProfileRecord } from './types';
 
+import {
+  candidateElectionHasPassed,
+  candidateServiceSourceLabel,
+  candidatePartyLabel,
+  candidateWebsiteLabel,
+  CANDIDATE_PROFILE_COPY,
+} from '../../lib/candidatePublicCopy';
+export { candidateElectionHasPassed } from '../../lib/candidatePublicCopy';
+
 /** An approved source image keeps its natural ratio; failure removes the whole slot. */
 export function CandidatePortrait({
   url,
@@ -48,17 +57,6 @@ export function CandidatePortrait({
       ) : null}
     </View>
   );
-}
-
-export function candidateElectionHasPassed(date: string, now = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Chicago',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(now);
-  const value = (type: string) => parts.find((part) => part.type === type)?.value;
-  return date < `${value('year')}-${value('month')}-${value('day')}`;
 }
 
 export function CandidateProfileContent({
@@ -172,8 +170,8 @@ export function CandidateProfileContent({
                   <View style={{ gap: 3, marginBottom: 12 }}>
                     <Text style={styles.label}>
                       {leg.serviceStatus === 'current'
-                        ? 'Currently serving as'
-                        : 'Formerly served as'}
+                        ? CANDIDATE_PROFILE_COPY.currentService
+                        : CANDIDATE_PROFILE_COPY.formerService}
                     </Text>
                     {leg.office ? (
                       <Text style={[candidateText.strong, { fontSize: 17 }]}>{leg.office}</Text>
@@ -184,12 +182,12 @@ export function CandidateProfileContent({
                   </View>
                 ) : null}
                 <Text style={[candidateText.body, { fontSize: 15.5, lineHeight: 23 }]}>
-                  See their bills, votes, and work in office
+                  {CANDIDATE_PROFILE_COPY.legislatorIntro}
                 </Text>
                 <CandidateLink
                   internal
                   url={leg.profileUrl}
-                  label="View legislator profile"
+                  label={CANDIDATE_PROFILE_COPY.legislatorLink}
                   onPress={onOpenLegislator ? () => onOpenLegislator(leg.slug) : undefined}
                 />
               </View>
@@ -206,7 +204,7 @@ export function CandidateProfileContent({
               >
                 <CandidateLink
                   url={leg.source.url}
-                  label={`Service records from ${leg.source.authority}`}
+                  label={candidateServiceSourceLabel(leg.source.authority)}
                 />
               </View>
             ) : null}
@@ -244,12 +242,16 @@ export function CandidateProfileContent({
                   },
                 ]}
               >
-                Official candidate record
+                {CANDIDATE_PROFILE_COPY.heading}
               </Text>
             </View>
             <View style={{ marginTop: 16, gap: 3 }}>
               <Text style={styles.label}>
-                {past ? 'Candidate for' : reelection ? 'Running for reelection' : 'Running for'}
+                {past
+                  ? CANDIDATE_PROFILE_COPY.past
+                  : reelection
+                    ? CANDIDATE_PROFILE_COPY.reelection
+                    : CANDIDATE_PROFILE_COPY.running}
               </Text>
               <Text
                 style={[
@@ -272,18 +274,13 @@ export function CandidateProfileContent({
             </View>
             {record.candidate.party ? (
               <Text style={[candidateText.party, { marginTop: 12 }]}>
-                {record.candidate.party.toUpperCase() === 'NONPARTISAN'
-                  ? 'Nonpartisan'
-                  : record.candidate.party}
+                {candidatePartyLabel(record.candidate.party)}
               </Text>
             ) : null}
             {record.website && safeCandidateUrl(record.website) ? (
               <View style={{ marginTop: 16 }}>
-                <Text style={styles.label}>Campaign website</Text>
-                <CandidateLink
-                  url={record.website}
-                  label={record.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-                />
+                <Text style={styles.label}>{CANDIDATE_PROFILE_COPY.website}</Text>
+                <CandidateLink url={record.website} label={candidateWebsiteLabel(record.website)} />
               </View>
             ) : null}
           </View>

@@ -1,0 +1,374 @@
+/** Exact legal copy shared by the visible screen and its first response. */
+export type LegalBlock =
+  | { kind: 'paragraph'; text: string }
+  | { kind: 'callout'; text: string; linkText?: string; linkHref?: string; trailingText?: string }
+  | { kind: 'list'; items: string[] };
+
+type LegalSection = {
+  number?: string;
+  title?: string;
+  blocks: LegalBlock[];
+};
+
+export type LegalDocumentContent = {
+  title: string;
+  meta: string;
+  sections: LegalSection[];
+};
+
+export const privacyContent: LegalDocumentContent = {
+  title: 'Privacy Policy',
+  meta: 'Effective date: August 15, 2026 · Last updated: September 26, 2026',
+  sections: [
+    {
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'This Privacy Policy explains how Alethical, LLC (“Alethical,” “we,” “us,” or “our”) collects, uses, and protects information when you use our website and application (the “Service”). By using the Service, you agree to the practices described here.',
+        },
+      ],
+    },
+    {
+      number: '01',
+      title: 'Information We Collect',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'When you sign in with Google, we receive basic profile information from your Google Account, limited to what you authorize. We also keep what you do in the Service. Here is the whole list:',
+        },
+        {
+          kind: 'list',
+          items: [
+            'Account information — your name, email address, and profile picture.',
+            'An account display name made from the part of your email address before the “@”. This is separate from the public name you choose for comments.',
+            'Public comments and replies: the public name you choose, your text, the article and reply target, and posted and edited dates. Anyone can read these contributions. A public name is not verified.',
+            'Authentication data — identifiers used to create and maintain your secure session.',
+            'Bills you follow — which bills you chose to follow, and any note you write on one.',
+            'Email choices: your choices for Unconcealed research emails, new-feature and service emails, direct comment replies, and updates on articles you follow. We keep those settings and delivery records to prevent duplicate sends.',
+            'Alert settings — a saved switch for whether a bill you follow should alert you. We are not sending those alerts yet.',
+            'Questions and messages you type in a conversation about a bill — your questions, and the answers we gave, kept with your account.',
+            'Questions you type into the Ask box — we do not save these to your account, but we do send them to the AI providers named below to answer them, and they appear in the page address.',
+            'Anonymous page-use totals — Vercel Web Analytics receives the page path after anything following “?” or “#” is removed. It counts page loads and makes a daily anonymous visitor estimate. It uses no analytics cookies, and we do not send your name, email address, or account identifier with a page load.',
+            'Anonymous action totals: Alethical records a fixed action name and time when a bill, legislator, or money search returns results, Find My Legislator returns a match, or an official Minnesota source link is opened. A request can include a random retry key for that action so a repeated delivery is counted once. That key is not used to recognize you across visits. Action records contain no search words, page paths, addresses, districts, account identifiers, or referrers.',
+            'Anonymous account-use and follow totals: Alethical also keeps hourly counts of first signed-in use and newly created bill or committee follows, without an account identifier in those counts. These counts start when recording begins and remain when a follow or account is removed. They are separate from the current account and follow records needed to run the Service.',
+            'User account totals: Alethical counts accounts still present in Supabase, including accounts awaiting email confirmation. Closed, banned, anonymous, team, and test accounts are excluded. Linked sign-in records count as 1 account. Deleted accounts are not included, so totals can decrease. The administrator-only /admin/site-metrics and /admin/operations reports show combined counts, not names, email addresses, or individual activity.',
+            'Anonymous page-speed measurements: Cloudflare Web Analytics receives the page path without the question text after “?”, timing measurements, the page element or resource tied to some speed measurements, the referring website, and broad place, device, and browser facts. It uses no cookies, local storage, or fingerprinting. Alethical shows administrators only sitewide speed scores for 30 complete UTC days, with each score shown after at least 50 actual measurements for that score. These cover full page loads, including reloads and restored pages, and exclude Cloudflare’s known bots. Team visits may remain in these measurements.',
+            'Contact messages — the name and phone number you choose to provide, your email address, subject, and message.',
+          ],
+        },
+        {
+          kind: 'paragraph',
+          text: 'We do not request access to your Gmail, Google Drive, contacts, or any other sensitive or restricted Google data.',
+        },
+      ],
+    },
+    {
+      number: '02',
+      title: 'How We Use Information',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'We use the information we collect to:',
+        },
+        {
+          kind: 'list',
+          items: [
+            'Authenticate you and provide secure access to your account.',
+            'Operate, maintain, and improve the Service.',
+            'Communicate with you about your account and security. Send research and feature emails separately when you choose them; you can stop either through Email preferences or the unsubscribe link. Stopping these emails keeps your account open and does not stop account security messages.',
+            'Receive and reply to messages you send through Contact us, and send you a copy.',
+            'Protect against fraud, abuse, and unauthorized access.',
+          ],
+        },
+      ],
+    },
+    {
+      number: '03',
+      title: 'Google API Services — Limited Use',
+      blocks: [
+        {
+          kind: 'callout',
+          text: 'Alethical’s use and transfer to any other app of information received from Google APIs will adhere to the ',
+          linkText: 'Google API Services User Data Policy',
+          linkHref: 'https://developers.google.com/terms/api-services-user-data-policy',
+          trailingText: ', including the Limited Use requirements.',
+        },
+        {
+          kind: 'paragraph',
+          text: 'We request only the minimum permissions needed to sign you in and identify your account. Separately, a read-only machine account reads sitewide click and appearance totals from Google Search Console. That machine account is not connected to your Google sign-in, and Alethical does not publish search phrases, page addresses, devices, countries, or personal records from it. We do not sell Google user data or use it for advertising.',
+        },
+      ],
+    },
+    {
+      number: '04',
+      title: 'How We Share Information',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'We do not sell your personal information. We share it only with:',
+        },
+        {
+          kind: 'list',
+          items: [
+            'Service providers who help us operate the Service under contractual confidentiality obligations — including Supabase (authentication and database) and Google (sign-in and sitewide Search Console totals).',
+            'Vercel, which hosts our website. Its hosting request logs record the address of every page you open, including anything carried inside that address. Separately, Vercel Web Analytics receives a cleaned page path with anything following “?” or “#” removed, then counts the page load without an analytics cookie or a name.',
+            'Cloudflare, which sits in front of the data service and passes those requests through. Cloudflare Web Analytics also measures page speed on the website as described above. Alethical shows administrators only sitewide 30-day speed scores and sample counts.',
+            'Bing Webmaster Tools, which gives Alethical sitewide totals for how often pages appeared in Bing results and how many visits those results sent. Alethical does not publish search phrases, page addresses, devices, countries, or personal records from it.',
+            'Checkly, which opens public Alethical addresses to test whether the website and data service are available. Alethical reads their availability percentages from Checkly’s public status dashboard. These checks use public Alethical addresses, not reader data.',
+            'Railway, which runs the part of the Service that answers those requests. Its logs record the paths requested. We strip email addresses and anything carried inside a web address out of every line we write.',
+            'Sentry, which alerts us when the Service or a data import fails. It receives the error type, the place in our code that failed, the software release, a route pattern with real identifiers removed, and public operating labels such as a bill number or provider name. We do not send Sentry request bodies, questions, messages, account details, log lines, or the error sentence itself.',
+            'AI providers who generate answers and summaries — Anthropic and OpenAI. When you ask a question, the question text and the bill passages it is answered from are sent to them. We do not send your name, email address, or account identifier with it.',
+            'The United States Census Bureau, when you look up your legislators by address. The address you type is sent to its public geocoding service to find your district. We do not store it.',
+            'The Minnesota Geospatial Information Office, while we show Minnesota address suggestions and when the Census Bureau cannot match a Minnesota address. We send only the house number and street name entered so far to its public address list, not the city or ZIP. We do not store it.',
+            'Resend, when you subscribe to Unconcealed. It receives your account email address and the email content to deliver public research you chose to receive. Unconcealed emails do not use open or click tracking.',
+            'Resend, when a comment email is sent. It receives the recipient address, public names used in the message, article title, contribution link and private stop links. Comment text is not included. Alethical’s Google Workspace inbox receives administrator alerts with the article title and contribution link.',
+            'Resend, when you use Contact us. It receives the form fields to deliver 1 copy to Alethical’s Google Workspace inbox and 1 copy to you. The Alethical app does not store the form in its database.',
+            'Legal authorities when required by law, regulation, or valid legal process.',
+            'A successor entity in connection with a merger, acquisition, or sale of assets, subject to this Policy.',
+          ],
+        },
+        {
+          kind: 'paragraph',
+          text: 'One thing worth knowing about questions: when you ask one, the question is carried inside the address of the answer page, so the answer has a link you can share (for example, /ask?q=your question). That means your question can be saved in your browser history, and it can appear in the request logs of the companies that host the site. We chose the shareable link on purpose, and we would rather you read that here than discover it later.',
+        },
+      ],
+    },
+    {
+      number: '05',
+      title: 'Data Retention',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'How long we keep something depends on what it is.',
+        },
+        {
+          kind: 'list',
+          items: [
+            'Your account, your name and email address, the bills you follow, the notes on them, and your alert settings — as long as your account exists.',
+            'Public comments and replies stay until you delete them, an administrator removes them, or your account is deleted. Removing a contribution erases its name and text; a placeholder can remain to keep other readers’ replies together.',
+            'Email choices and your delivery records stay while your account exists. Stop-link lookup records store a scrambled value. Prepared comment emails temporarily retain their private stop links until delivery finishes or is cancelled. Closing your account removes your choices, lookup records and reader deliveries.',
+            'Conversations about a bill, and every message in them — no longer than 24 months after the last message in that conversation, whether or not your account is still active. Text you typed is the most sensitive thing we hold, so it does not simply live forever alongside the account.',
+            'Bill alerts we have sent you — 90 days after we send them. A bill alert waiting to go out stays until it is sent.',
+            'Contact us messages — we do not save them in our database at all. Copies stay in our email inbox and with the company that delivers our email, under their own terms.',
+          ],
+        },
+        {
+          kind: 'paragraph',
+          text: 'We delete or anonymize information when it is no longer required, unless a longer retention period is required by law. When we delete something, it can still sit inside our database provider’s automatic backups for a while, and it ages out on their backup schedule.',
+        },
+      ],
+    },
+    {
+      number: '06',
+      title: 'Security',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'We use industry-standard safeguards to protect your information, including encryption in transit and access controls. No method of transmission or storage is fully secure, so we cannot guarantee absolute security.',
+        },
+      ],
+    },
+    {
+      number: '07',
+      title: 'Your Rights',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'Two things you can do yourself, right now: stop following any bill, using the same Track button you used to follow it, and take away Alethical’s access to your Google Account from your Google Account permissions page.',
+        },
+        {
+          kind: 'paragraph',
+          text: 'Everything else is done by hand, and we would rather say so than pretend otherwise. There is no button yet for deleting your account, deleting a single conversation, or downloading a copy of your information. Email us at ask@alethical.com and a person will do it for you. Depending on where you live, you may also have the right to see or correct your personal information, or to withdraw consent; ask at the same address and we will handle it the same way.',
+        },
+      ],
+    },
+    {
+      number: '08',
+      title: 'Cookies',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'We use cookies and similar technologies that are necessary to keep you signed in and to operate the Service. Vercel Web Analytics uses no cookies. Cloudflare Web Analytics uses no cookies, local storage, or fingerprinting. Alethical checks permission before each page-use event. For the current signed-in account, that permission comes from Alethical’s own server using the current sign-in token; the account identifier is not sent to Vercel. Page-use collection pauses while sign-in is unresolved or permission is unavailable. Team and test accounts are excluded from signed-in Vercel page-use collection, stored actions, and reader and follow totals. Alethical does not send Vercel page-use events or anonymous action events from /admin or its child addresses. These exclusions do not grant administrator access and do not apply to Cloudflare page-speed measurements. Anonymous totals cannot later be matched to an account to remove its earlier activity. You can control cookies through your browser settings, though some features may not function without them.',
+        },
+      ],
+    },
+    {
+      number: '09',
+      title: 'Children’s Privacy',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'The Service is not directed to children under 13 (or the minimum age required in your jurisdiction). We do not knowingly collect information from children. If you believe a child has provided us information, contact us and we will delete it.',
+        },
+      ],
+    },
+    {
+      number: '10',
+      title: 'Changes to This Policy',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'We may update this Policy from time to time. Material changes will be posted on this page with a revised effective date. Your continued use of the Service after changes take effect constitutes acceptance.',
+        },
+      ],
+    },
+    {
+      number: '11',
+      title: 'Contact Us',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'Questions about this Policy or your data? Contact us at ask@alethical.com.',
+        },
+        {
+          kind: 'paragraph',
+          text: 'Alethical, LLC — a Minnesota limited liability company. 29308 Crow Cir, Breezy Point, MN 56472, USA.',
+        },
+      ],
+    },
+  ],
+};
+
+export const termsContent: LegalDocumentContent = {
+  title: 'Terms of Service',
+  meta: 'Effective date: June 16, 2026 · Last updated: June 16, 2026',
+  sections: [
+    {
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'These Terms of Service (“Terms”) govern your access to and use of the website and application provided by Alethical, LLC (“Alethical,” “we,” “us,” or “our”) (the “Service”). By accessing or using the Service, you agree to be bound by these Terms. If you do not agree, do not use the Service.',
+        },
+      ],
+    },
+    {
+      number: '01',
+      title: 'Eligibility',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'You must be at least 13 years old (or the minimum age of digital consent in your jurisdiction) and able to form a binding contract to use the Service. By using it, you represent that you meet these requirements.',
+        },
+      ],
+    },
+    {
+      number: '02',
+      title: 'Accounts',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'You access the Service by signing in with your Google Account. You are responsible for the activity that occurs under your account and for maintaining the security of the credentials you use to sign in. Notify us promptly of any unauthorized use.',
+        },
+      ],
+    },
+    {
+      number: '03',
+      title: 'Acceptable Use',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'You agree not to:',
+        },
+        {
+          kind: 'list',
+          items: [
+            'Use the Service for any unlawful, harmful, or fraudulent purpose.',
+            'Attempt to gain unauthorized access to the Service, other accounts, or our systems.',
+            'Interfere with or disrupt the integrity or performance of the Service.',
+            'Reverse engineer, copy, or resell any part of the Service except as permitted by law.',
+          ],
+        },
+      ],
+    },
+    {
+      number: '04',
+      title: 'Intellectual Property',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'The Service, including its software, design, and content, is owned by Alethical and protected by intellectual property laws. We grant you a limited, non-exclusive, non-transferable license to use the Service for its intended purpose. All rights not expressly granted are reserved.',
+        },
+      ],
+    },
+    {
+      number: '05',
+      title: 'Third-Party Services',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'The Service relies on third-party providers, including Google and Supabase. Your use of those services is also subject to their respective terms and privacy policies. We are not responsible for third-party services.',
+        },
+      ],
+    },
+    {
+      number: '06',
+      title: 'Disclaimer of Warranties',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'The Service is provided “as is” and “as available” without warranties of any kind, express or implied, including merchantability, fitness for a particular purpose, and non-infringement. We do not warrant that the Service will be uninterrupted, secure, or error-free.',
+        },
+      ],
+    },
+    {
+      number: '07',
+      title: 'Limitation of Liability',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'To the maximum extent permitted by law, Alethical will not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of data, use, or profits, arising from your use of the Service. Our total liability for any claim will not exceed the amount you paid us, if any, in the twelve months preceding the claim.',
+        },
+      ],
+    },
+    {
+      number: '08',
+      title: 'Indemnification',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'You agree to indemnify and hold Alethical harmless from any claims, losses, or expenses arising from your use of the Service or your violation of these Terms.',
+        },
+      ],
+    },
+    {
+      number: '09',
+      title: 'Termination',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'We may suspend or terminate your access to the Service at any time if you violate these Terms or for any other reason at our discretion. You may stop using the Service at any time. Provisions that by their nature should survive termination will survive.',
+        },
+      ],
+    },
+    {
+      number: '10',
+      title: 'Governing Law',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'These Terms are governed by the laws of the State of Minnesota, without regard to its conflict-of-laws rules. Any disputes will be resolved exclusively in the state or federal courts located in Minnesota.',
+        },
+      ],
+    },
+    {
+      number: '11',
+      title: 'Changes to These Terms',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'We may update these Terms from time to time. Material changes will be posted on this page with a revised effective date. Your continued use of the Service after changes take effect constitutes acceptance.',
+        },
+      ],
+    },
+    {
+      number: '12',
+      title: 'Contact Us',
+      blocks: [
+        {
+          kind: 'paragraph',
+          text: 'Questions about these Terms? Contact us at ask@alethical.com.',
+        },
+      ],
+    },
+  ],
+};
