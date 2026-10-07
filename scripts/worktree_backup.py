@@ -10,6 +10,7 @@ backup is not proof that a live worktree can safely be deleted.
 
 from __future__ import annotations
 
+import argparse
 import fcntl
 import hashlib
 import json
@@ -276,8 +277,12 @@ def main() -> int:
             str(Path.home() / "Library/Application Support/alethical-wip-backups"),
         )
     )
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--repo", type=Path, default=repo)
+    parser.add_argument("--destination", type=Path, default=destination)
+    args = parser.parse_args()
     try:
-        return run(repo, destination)
+        return run(args.repo, args.destination)
     except (BackupError, OSError, ValueError) as error:
         print(f"backup: {type(error).__name__}; backup incomplete", file=sys.stderr)
         return 1

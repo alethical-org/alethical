@@ -152,6 +152,15 @@ agent must finish cleanup before its final reply. A pending review or private
 preview keeps the folder and gets an explicit hold. A merge alone never proves
 that the task is complete.
 
+At work start, inspect the current folder report (`just maintenance-status`).
+Recorded owners do not establish live chat activity; use the host's live task list
+for that. Register the current task through the installed lifecycle hook or the
+explicit owner command in [working-folder cleanup and recovery](docs/operations/worktree-lifecycle.md).
+Before finishing a turn, record a concrete hold for unfinished work or a pending
+review, including unsaved or unpublished work. Never infer completion from age,
+silence, clean files, or a merged change. Native Codex hooks require the user's
+supported trust review before they run; a prepared hook is not an active hook.
+
 - External terminal and Claude folders: use the owner release command in
   [working-folder cleanup and recovery](docs/operations/worktree-lifecycle.md).
   The free Mac helper preserves recovery, waits for programs to release the folder,
