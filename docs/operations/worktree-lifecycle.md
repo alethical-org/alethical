@@ -203,7 +203,12 @@ Retained work stays until its owner completes the requested outcome. The existin
 shared `worktree-triage` skill guides the judgment part of that review.
 
 Claude's installed plugin registers owners when work starts or resumes and asks
-for a release or specific hold before a final reply. It does not decide that work
+for a release or specific hold before a final reply. The finish hook blocks once:
+when the host marks a repeated finish attempt with `stop_hook_active`, it permits
+the reply without changing the saved ownership decision. A failed hold write leaves
+the owner active and the folder retained; it never becomes permission to remove it.
+This prevents repeated paid turns when a sandbox denies the hold command.
+It does not decide that work
 is finished from a merged change or from the wording of a reply. Start/finish hooks
 only affect sessions that load them; terminal work uses the explicit commands.
 

@@ -68,6 +68,24 @@ class ProfileTest(unittest.TestCase):
             self.assertEqual(
                 self.cleanup.hook(self.repo, self.state, payload)["decision"], "block"
             )
+            record = self.cleanup.identity(self.repo, native, allow_retained=True)
+            target = self.state / "owners" / (record["id"] + ".json")
+            before = target.read_bytes()
+            with patch.object(
+                self.cleanup, "write_json", side_effect=PermissionError("sandbox")
+            ):
+                with self.assertRaises(PermissionError):
+                    self.cleanup.retain(
+                        self.repo, self.state, native, "native-owner", "Review pending"
+                    )
+                payload["stop_hook_active"] = True
+                self.assertIsNone(self.cleanup.hook(self.repo, self.state, payload))
+            self.assertEqual(target.read_bytes(), before)
+            self.assertEqual(
+                json.loads(before)["owners"]["native-owner"]["status"], "active"
+            )
+            self.assertTrue(native.exists())
+            payload["stop_hook_active"] = False
             self.cleanup.retain(
                 self.repo,
                 self.state,

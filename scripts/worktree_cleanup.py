@@ -1021,6 +1021,12 @@ def hook(repo: Path, state: Path, payload: dict) -> dict | None:
     Stop never authorizes removal. The gate does not interpret prose or transcripts.
     Unfinished turns need an explicit hold, not permission to remove the folder.
     """
+    event = payload.get("hook_event_name")
+    if event == "Stop" and payload.get("stop_hook_active") is True:
+        # The host already resumed the agent for a Stop correction. Re-blocking
+        # can loop forever when the agent cannot write its hold in the sandbox.
+        # Leave recorded ownership unchanged, so cleanup still cannot remove it.
+        return None
     cwd = Path(payload.get("cwd", "")).absolute()
     owner = payload.get("session_id")
     if not owner or not payload.get("cwd"):
@@ -1032,7 +1038,6 @@ def hook(repo: Path, state: Path, payload: dict) -> dict | None:
         return (
             None  # Shared checkout, unadmitted paths and other projects stay untouched.
         )
-    event = payload.get("hook_event_name")
     if event in ("SessionStart", "UserPromptSubmit"):
         register(repo, state, path, owner)
         command = f"{shlex.quote(sys.executable)} {shlex.quote(str(Path(__file__).resolve()))} --project {PROJECT} --repo {shlex.quote(str(repo))} --state {shlex.quote(str(state))}"

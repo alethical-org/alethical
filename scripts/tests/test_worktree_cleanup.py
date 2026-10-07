@@ -552,6 +552,33 @@ class CleanupTest(unittest.TestCase):
         )
         self.assertIsNone(self.cleanup.hook(self.repo, self.state, payload))
 
+    def test_stop_reentry_does_not_loop_after_hold_write_is_denied(self):
+        owner = "sandboxed owner"
+        record = self.cleanup.register(self.repo, self.state, self.tree, owner)
+        payload = {
+            "cwd": str(self.tree),
+            "session_id": owner,
+            "hook_event_name": "Stop",
+        }
+        self.assertEqual(
+            self.cleanup.hook(self.repo, self.state, payload)["decision"], "block"
+        )
+        target = self.state / "owners" / (record["id"] + ".json")
+        before = target.read_bytes()
+        with patch.object(
+            self.cleanup, "write_json", side_effect=PermissionError("sandbox")
+        ):
+            with self.assertRaises(PermissionError):
+                self.cleanup.retain(
+                    self.repo, self.state, self.tree, owner, "Review pending"
+                )
+            payload["stop_hook_active"] = True
+            self.assertIsNone(self.cleanup.hook(self.repo, self.state, payload))
+        self.assertEqual(target.read_bytes(), before)
+        self.assertEqual(json.loads(before)["owners"][owner]["status"], "active")
+        self.assertEqual(self.cleanup.sweep(self.repo, self.state, True), [])
+        self.assertTrue(self.tree.exists())
+
     def test_multiple_owners_all_need_to_release(self):
         self.cleanup.register(self.repo, self.state, self.tree, "owning fixture task")
         self.cleanup.register(self.repo, self.state, self.tree, "another fixture task")
