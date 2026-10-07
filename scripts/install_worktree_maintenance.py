@@ -116,6 +116,9 @@ def install_locked(
     interpreter = durable_python(repo)
     names = ("worktree_cleanup.py", "worktree_backup.py", "worktree_inventory.py")
     data = {name: (sources / name).read_bytes() for name in names}
+    # A regular package must win over unrelated packages named scripts later on
+    # Python's search path; a namespace directory alone does not provide that.
+    data["__init__.py"] = b""
     digest = hashlib.sha256(
         b"".join(name.encode() + content for name, content in data.items())
     ).hexdigest()[:20]

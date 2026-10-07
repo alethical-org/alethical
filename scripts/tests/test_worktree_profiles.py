@@ -1,6 +1,7 @@
 """Project separation and native-app safety on disposable working folders."""
 
 import json
+import os
 import plistlib
 import subprocess
 import sys
@@ -144,6 +145,11 @@ class ProfileTest(unittest.TestCase):
             admitted_paths=(self.tree,),
             protected_paths=(self.tree,),
         )
+        unrelated = self.base / "unrelated"
+        (unrelated / "scripts").mkdir(parents=True)
+        (unrelated / "scripts/__init__.py").write_text(
+            "raise RuntimeError('unrelated scripts package was imported')\n"
+        )
         result = subprocess.run(
             [
                 installed["python"],
@@ -157,6 +163,7 @@ class ProfileTest(unittest.TestCase):
                 "inspect",
             ],
             cwd=self.base,
+            env={**os.environ, "PYTHONPATH": str(unrelated)},
             capture_output=True,
             text=True,
             check=True,
