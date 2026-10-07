@@ -99,9 +99,36 @@ giving, client lobbying spending or influence. It does not promise a number for 
 name. Missing source payments need a source refresh; ambiguous identities need additional
 official evidence. A disclaimer cannot turn either into a supported number.
 
-The full historical-source replacement remains separately held under
-[issue 2142](https://github.com/alethical-org/alethical/issues/2142) and
-[issue 2150](https://github.com/alethical-org/alethical/issues/2150). This procedure
+The 2015–2021 historical-source expansion remains separately held under
+[issue 2150](https://github.com/alethical-org/alethical/issues/2150). The supported
+2022–2026 totals replacement shipped under
+[issue 2142](https://github.com/alethical-org/alethical/issues/2142). This procedure
 never runs or changes that replacement or rewrites its published committee comparisons.
 The donor-specific repair is tracked in
 [issue 2325](https://github.com/alethical-org/alethical/issues/2325).
+
+## Scheduled private preparation
+
+`scripts/prepare_lobbyist_donor_evidence.py --target production` collects fresh
+catalogues and report PDFs for supported completed years, currently 2022–2025,
+with at most 2 concurrent official reads. It needs the existing database and raw
+storage credentials, but no saved local files and no paid model. It rejects a
+source release changing during collection. Current-year and held 2015–2021
+expansion are excluded.
+
+The command writes a content-addressed `.tar.gz` bundle under the private
+`campaign-finance/lobbyist-evidence/prepared/` prefix. It contains `audit.json`,
+`manifest.json`, and the complete `sources/` directory, including refused inputs.
+The manifest binds each file's SHA256 to the audit hash and exact source release
+IDs. The raw-file store reads back and hashes the uploaded bytes. The existing
+whole-bucket backup includes these objects. Standard output contains only source
+IDs, hashes, object key and counts. No database rows, donor proof, or human identity
+matches change. Failed or missing sources remain unavailable in the audit.
+
+After downloading a candidate privately and verifying the archive and manifest
+hashes, reviewers can use the extracted `sources/` with the existing
+`check_lobbyist_donor_evidence.py` command. Recompute the audit before review and
+use its newly printed hash for any separately approved `--publish`; a candidate
+bundle is never authorization to activate proof. Fresh source IDs or altered
+inputs require a new review. Schedule preparation after successful campaign source
+and comparison refreshes, with one preparation job at a time.

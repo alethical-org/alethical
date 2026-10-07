@@ -116,7 +116,7 @@ jobs:
         run: |
           scope="${{ inputs.statements }}"
           if [ -z "$scope" ] || [ "$scope" = "weekly default" ]; then
-            if [ "$(date -u +%u)" = "3" ]; then scope=committees; else scope=none; fi
+            if [ "$(date -u +%u)" = "3" ]; then scope=all; else scope=none; fi
           fi
           echo "statement scope: $scope" | tee -a notices-report.txt
           if [ "$scope" != "none" ]; then
