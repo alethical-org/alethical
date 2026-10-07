@@ -1,4 +1,6 @@
 from copy import deepcopy
+from dataclasses import asdict
+from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock
 
 import pytest
@@ -167,3 +169,99 @@ def test_first_scheduled_inventory_must_cover_existing_saved_bills(monkeypatch):
     monkeypatch.setattr(scheduled, "stored_bill_keys", lambda *_: {item(3).bill_key})
     with pytest.raises(RuntimeError, match="omitted 1"):
         run()
+
+
+@pytest.mark.parametrize("failure_kind", ["bill", "vote"])
+@pytest.mark.parametrize(
+    "started,interval",
+    [
+        (datetime(2026, 3, 1, tzinfo=UTC), timedelta(hours=4)),
+        (datetime(2026, 10, 7, tzinfo=UTC), timedelta(days=7)),
+    ],
+)
+def test_persistent_failure_cannot_freeze_new_bills_or_later_corrections(
+    monkeypatch, failure_kind, started, interval
+):
+    state, _ = setup(monkeypatch, count=3)
+    state.update(
+        inventory=[asdict(item(1)), asdict(item(2))],
+        inventory_sha256="previous-pass",
+        pass_complete=True,
+        pass_started_at=started.isoformat(),
+        failures=[item(2).bill_key] if failure_kind == "bill" else [],
+        failed_votes=[item(2).bill_key] if failure_kind == "vote" else [],
+    )
+    discovery = Mock(return_value=[item(1), item(2), item(3)])
+    monkeypatch.setattr(scheduled, "discover_complete_session_bills", discovery)
+    refreshed = []
+
+    def refresh(*_args, **kwargs):
+        keys = [row.bill_key for row in kwargs["inventory"]]
+        refreshed.append(keys)
+        return {
+            "failed": [{"bill_key": item(2).bill_key}]
+            if failure_kind == "bill" and item(2).bill_key in keys
+            else []
+        }
+
+    monkeypatch.setattr(scheduled, "refresh_bills", refresh)
+    monkeypatch.setattr(
+        scheduled,
+        "check_pending_votes",
+        lambda *_args, **kw: (
+            [item(2).bill_key]
+            if failure_kind == "vote" and item(2).bill_key in kw["bill_keys"]
+            else []
+        ),
+    )
+
+    def at(now):
+        return scheduled.run_chunk(
+            Mock(),
+            name="bills",
+            token="owned",
+            target="local",
+            session_code="0942025",
+            now=now,
+        )
+
+    before = started + interval - timedelta(seconds=1)
+    assert at(before) == 1
+    if state.get("pending_votes"):
+        assert at(before) == 75
+    discovery.assert_not_called()
+    refreshed.clear()
+    due = started + interval
+    assert [at(due) for _ in range(4)] == [75, 75, 75, 75]
+    discovery.assert_called_once()
+    assert refreshed == [[item(1).bill_key, item(2).bill_key], [item(3).bill_key]]
+    # The existing healthy bill was rechecked for corrections, the newly filed
+    # bill was collected, and the unresolved record still prevents full success.
+    assert state["failures" if failure_kind == "bill" else "failed_votes"] == [
+        item(2).bill_key
+    ]
+    assert at(due) == 1
+    discovery.assert_called_once()
+
+
+def test_due_discovery_rejection_preserves_failed_pass_and_vote_evidence(monkeypatch):
+    state, _ = setup(monkeypatch, count=1)
+    state.update(
+        inventory=[asdict(item(1)), asdict(item(2))],
+        inventory_sha256="previous-pass",
+        pass_complete=True,
+        pass_started_at="2026-03-01T00:00:00+00:00",
+        failures=[],
+        failed_votes=[item(2).bill_key],
+    )
+    held = deepcopy(state)
+    with pytest.raises(RuntimeError, match="omitted 1"):
+        scheduled.run_chunk(
+            Mock(),
+            name="bills",
+            token="owned",
+            target="local",
+            session_code="0942025",
+            now=datetime(2026, 3, 1, 4, tzinfo=UTC),
+        )
+    assert state == held

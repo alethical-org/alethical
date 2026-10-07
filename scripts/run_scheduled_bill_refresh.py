@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import asdict
+from datetime import UTC, datetime
 import hashlib
 import json
 import os
@@ -20,6 +21,7 @@ from sqlalchemy.orm import Session  # noqa: E402
 from alethical.db.models import Bill, LegislativeSession  # noqa: E402
 from alethical.db.session import NO_PREPARED_STATEMENTS, database_url_for_target  # noqa: E402
 from alethical.pipeline.legislative_refresh import refresh_bills  # noqa: E402
+from alethical.pipeline.legislative_calendar import session_refresh_interval  # noqa: E402
 from alethical.pipeline.minnesota import (  # noqa: E402
     BillSearchResult,
     discover_complete_session_bills,
@@ -89,7 +91,16 @@ def check_pending_votes(engine, *, target: str, bill_keys: list[str]) -> list[st
         source.close()
 
 
-def run_chunk(engine, *, name: str, token: str, target: str, session_code: str) -> int:
+def run_chunk(
+    engine,
+    *,
+    name: str,
+    token: str,
+    target: str,
+    session_code: str,
+    now: datetime | None = None,
+) -> int:
+    now = now or datetime.now(UTC)
     session_definition(session_code)
     progress = load_progress(engine, name, token)
     if progress.get("session_code", session_code) != session_code:
@@ -105,7 +116,20 @@ def run_chunk(engine, *, name: str, token: str, target: str, session_code: str) 
         progress["pending_votes"] = pending[CHUNK_SIZE:]
         save_progress(engine, name, token, progress)
         return CONTINUE
-    if "inventory" not in progress:
+    # Keep failed records available for bounded retries, without letting one
+    # unresolved record suppress all later bills and corrections indefinitely.
+    # A pass in flight stays pinned; only a finished pass can refresh discovery.
+    if "inventory" in progress and "pass_started_at" not in progress:
+        progress["pass_started_at"] = now.isoformat()
+        save_progress(engine, name, token, progress)
+    refresh_inventory = bool(
+        progress.get("pass_complete")
+        and (progress.get("failures") or progress.get("failed_votes"))
+        and now
+        >= datetime.fromisoformat(progress["pass_started_at"])
+        + session_refresh_interval(session_code, now.date())
+    )
+    if "inventory" not in progress or refresh_inventory:
         source = rate_limited_source_session(engine, target=target)
         try:
             inventory = discover_complete_session_bills(
@@ -118,6 +142,10 @@ def run_chunk(engine, *, name: str, token: str, target: str, session_code: str) 
             raise RuntimeError("The bill source inventory is empty or duplicated")
         missing = (
             set(progress.get("previous_inventory_keys", []))
+            | {
+                BillSearchResult(**item).bill_key
+                for item in progress.get("inventory", [])
+            }
             | stored_bill_keys(engine, session_code)
         ) - set(keys)
         if missing:
@@ -127,9 +155,10 @@ def run_chunk(engine, *, name: str, token: str, target: str, session_code: str) 
         progress.update(
             inventory=[asdict(item) for item in inventory],
             cursor=None,
-            failures=[],
+            failures=progress.get("failures", []),
             pending_votes=[],
             pass_complete=False,
+            pass_started_at=now.isoformat(),
             inventory_sha256=hashlib.sha256(json.dumps(keys).encode()).hexdigest(),
         )
         save_progress(engine, name, token, progress)
