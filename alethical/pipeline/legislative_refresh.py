@@ -153,8 +153,16 @@ def refresh_votes(
 
 def refresh_roster(engine: Any, *, session_code: str, target: str) -> dict[str, Any]:
     definition = session_definition(session_code)
-    if not definition.is_current:
-        raise ValueError("The live roster cannot be applied to a historical session")
+    from alethical.pipeline.roster_rollover import (
+        promote_roster_session,
+        roster_session_transition,
+    )
+
+    if (
+        definition.session_type != "regular"
+        or definition.start_date.date() > date.today()
+    ):
+        raise ValueError("The reviewed regular session has not started")
     source = rate_limited_source_session(engine, target=target)
     try:
         # Read and validate the complete canonical PDF before any roster writes.
@@ -170,10 +178,15 @@ def refresh_roster(engine: Any, *, session_code: str, target: str) -> dict[str, 
         )
         members = parse_roster_pdf(roster_text)
         with Session(engine) as db:
+            previous, target_session = roster_session_transition(
+                db, definition, today=date.today()
+            )
             pipeline = MinnesotaIngestionPipeline(
                 db, sess=source, conditional_bill_text=True
             )
-            stats = pipeline.ingest_roster(session_code=session_code)
+            stats = pipeline.ingest_roster(
+                session_code=session_code, validated_session_transition=True
+            )
             report = pipeline.reconcile_current_members(
                 definition.slug, roster_members=members
             )
@@ -181,6 +194,7 @@ def refresh_roster(engine: Any, *, session_code: str, target: str) -> dict[str, 
                 raise RuntimeError(
                     "The HTML roster does not cover every occupied PDF seat; retaining saved roster"
                 )
+            promoted = promote_roster_session(db, previous, target_session)
             db.commit()
         from alethical.pipeline.committee_memberships import backfill
 
@@ -207,6 +221,8 @@ def refresh_roster(engine: Any, *, session_code: str, target: str) -> dict[str, 
                 source_session=source,
             )
         return {
+            "promoted_current_session": promoted,
+            "session_slug": definition.slug,
             "bio": vars(bio),
             "roster": stats,
             "members": report.pdf_total,

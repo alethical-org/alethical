@@ -92,6 +92,8 @@ class BackfillStats:
     city_parsed: int = 0
     no_profile_url: int = 0
     fetch_errors: int = 0
+    write_errors: int = 0
+    source_errors: int = 0
     written: int = 0
     cleared: int = 0
 
@@ -332,7 +334,6 @@ def current_service_rows(
         .join(Chamber, Chamber.id == LegislatorServicePeriod.chamber_id)
         .where(
             LegislatorServicePeriod.is_current.is_(True),
-            LegislatorServicePeriod.profile_url.is_not(None),
         )
         .order_by(Chamber.slug, Legislator.sort_name)
     )
@@ -429,10 +430,25 @@ def backfill(
             lrl_url = LRL_BIO_URL.format(leg_id=lrl_id)
             try:
                 lrl_html = fetch_text(sess, lrl_url)
-                city = parse_lrl_city(lrl_html)
-                if biography is None and not city_only:
-                    biography = parse_lrl_bio(lrl_html)
-                lrl_ok = True
+                cleaned = strip_comments(lrl_html)
+                has_city = re.search(r"Labelresidence[^>]*>", cleaned, re.I)
+                has_occupation = re.search(
+                    r"Occupation \(when first elected\):\s*</span>\s*<span[^>]*>",
+                    cleaned,
+                    re.I | re.S,
+                )
+                has_education = re.search(r'LabelEducation"[^>]*>', cleaned, re.I)
+                if not has_city and not (has_occupation and has_education):
+                    stats.source_errors += 1
+                else:
+                    city = parse_lrl_city(lrl_html)
+                    if biography is None and not city_only:
+                        biography = parse_lrl_bio(lrl_html)
+                        if not (has_occupation and has_education):
+                            stats.source_errors += 1
+                    # Clearing a held bio needs both recognized fields, not just
+                    # an HTTP 200 or a surviving residence field on a partial page.
+                    lrl_ok = bool(has_occupation and has_education)
             except Exception as exc:  # noqa: BLE001
                 stats.fetch_errors += 1
                 print(f"lrl fetch error: {legislator_row.full_name} {lrl_url}: {exc}")
@@ -481,7 +497,7 @@ def backfill(
             # Only touch the city when LRL actually answered, so a transient LRL
             # fetch failure never wipes a previously-ingested value (elected/term
             # come from the member page, which already succeeded above).
-            if lrl_ok and city:
+            if city:
                 period.represented_city = city
             if parsed.biography:
                 legislator_row.biography = parsed.biography
@@ -495,6 +511,7 @@ def backfill(
             stats.written += 1
         except Exception as exc:  # noqa: BLE001
             db.rollback()
+            stats.write_errors += 1
             print(f"write error: {legislator_row.full_name}: {exc}")
 
     return stats

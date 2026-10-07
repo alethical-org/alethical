@@ -314,3 +314,10 @@ def test_future_sitting_uses_planned_start_without_invented_end():
 
     assert session_refresh_interval("0952027", date(2027, 1, 11)) == timedelta(days=7)
     assert session_refresh_interval("0952027", date(2027, 1, 12)) == timedelta(hours=4)
+
+
+def test_committee_collection_refuses_a_current_member_without_profile():
+    db = Mock()
+    db.execute.return_value.all.return_value = [(Mock(), Mock(slug="house"), None)]
+    with pytest.raises(RuntimeError, match="no profile URL"):
+        committee_memberships.current_legislator_rows(db, "session")

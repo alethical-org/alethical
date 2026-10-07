@@ -2617,9 +2617,12 @@ class MinnesotaIngestionPipeline:
         limit: int | None = None,
         fetch_profiles: bool = True,
         session_code: str = DEFAULT_SESSION_CODE,
+        validated_session_transition: bool = False,
     ) -> dict[str, Any]:
         definition = session_definition(session_code)
-        if not definition.is_current:
+        # The scheduled caller validates the full PDF's biennium and seats,
+        # locks the current DB session, and checks accepted next-session bills.
+        if not definition.is_current and not validated_session_transition:
             raise ValueError(
                 "The live roster can only populate the reviewed current session"
             )

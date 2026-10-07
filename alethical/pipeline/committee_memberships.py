@@ -163,7 +163,6 @@ def current_legislator_rows(db: Session, session_id: Any) -> list[tuple[Any, Any
         .where(
             LegislatorServicePeriod.session_id == session_id,
             LegislatorServicePeriod.is_current.is_(True),
-            LegislatorServicePeriod.profile_url.is_not(None),
         )
         .order_by(Chamber.slug, Legislator.sort_name)
     ).all()
@@ -171,7 +170,9 @@ def current_legislator_rows(db: Session, session_id: Any) -> list[tuple[Any, Any
     deduped: dict[tuple[Any, str], tuple[Any, Any, str]] = {}
     for legislator, chamber, profile_url in rows:
         if not profile_url:
-            continue
+            raise RuntimeError(
+                "A current member has no profile URL; retaining all saved memberships"
+            )
         deduped[(legislator.id, chamber.slug)] = (legislator, chamber, str(profile_url))
     return list(deduped.values())
 

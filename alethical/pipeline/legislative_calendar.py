@@ -33,8 +33,8 @@ REVIEWED_SITTINGS = (
 
 def session_refresh_interval(session_code: str, now: date) -> timedelta:
     definition = session_definition(session_code)
-    # Both yearly regular discovery lists must stay current while that biennium
-    # sits: bills introduced in 2025 can keep changing during the 2026 sitting.
+    # Either yearly regular discovery code returns the whole biennium, so both
+    # aliases share its clock. The scheduler selects only 1 job for their slug.
     intervals = [
         interval
         for interval in REVIEWED_SITTINGS

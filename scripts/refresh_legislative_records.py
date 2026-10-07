@@ -56,6 +56,9 @@ def main(argv: list[str] | None = None) -> int:
                 or report["service"]["write_errors"]
                 or report["service"]["no_data"]
                 or report["bio"]["fetch_errors"]
+                or report["bio"]["write_errors"]
+                or report["bio"]["source_errors"]
+                or report["bio"]["no_profile_url"]
             )
         else:
             report = refresh_votes(

@@ -79,3 +79,9 @@ Reconciliation targets one session (default `CURRENT_SESSION_SLUG`), mirroring t
 - Unit: `parse_roster_pdf` against a checked-in text fixture (a representative slice of `pdftotext -layout` output incl. a vacant seat, hyphenated/multi-word/diacritic names) asserts 200 members and exact fields.
 - Unit/integration: `reconcile_current_members` against a seeded session with a contested seat (successor + predecessor both current), a vacated seat, and a matched seat → asserts the predecessor and vacated member deactivate, the successor and matched member stay, and `dry_run` writes nothing.
 - Production: read-only dry-run prints the exact six deactivations; apply; re-query confirms 133 House + 67 Senate = 200 current, and Eichorn `is_current = False`.
+
+### Reviewed next-biennium rollover (October 2026)
+
+The roster scheduler selects the newest started, reviewed regular session. A complete official PDF must name that biennium and account for all 201 seats, including explicit vacancies, before any profile writes. The new session must already contain accepted official bill records. The importer then stages all profiles and reconciles every occupied PDF seat in the same transaction. Only complete agreement promotes the new session: the old current service and committee flags become false, the new session becomes the sole current session, and all historical rows remain. A failed source or reconciliation rolls back the transaction and retains the previous roster.
+
+Human-reviewed campaign-account links and their reviewed office/year bounds are not copied, widened, or otherwise changed during rollover. New members still require their own campaign-link review. Later committee, service-history and biography stages report their failures separately; a partial stage cannot claim a completely refreshed job. Missing member profile links block whole-list committee replacement, and unreadable biography responses preserve held biographies.
