@@ -85,9 +85,11 @@ export const SERVICES_PRINT_CSS = `
   .services-print h1,.services-print h2,.services-print h3{color:#11150f}
   .services-print img{display:block;height:auto;max-width:100%}
   .services-print a{color:inherit}
-  /* Use physical Letter height: Safari print vh follows the window, not paper.
-     A4 also fits this baseline, with extra white room below each sheet. */
-  .services-print-sheet{min-height:11in;padding:46px 56px 44px;display:flex;flex-direction:column;break-after:page;background:#fff;overflow:visible}
+  /* Pin both physical dimensions. Safari scales an auto-width print layout
+     up by 6.67%, spilling an 11in sheet footer onto another page. A fixed
+     Letter width restores the intended Letter scale; narrower paper fits
+     the same composition uniformly. */
+  .services-print-sheet{width:8.5in;min-height:11in;padding:46px 56px 44px;display:flex;flex-direction:column;break-after:page;background:#fff;overflow:visible}
   .services-print-sheet:last-child{break-after:auto}
   .services-print-content{flex:1;display:flex;flex-direction:column}
   .services-print-folio{margin-top:20px;border-top:1px solid rgba(17,21,15,.12);padding-top:11px;display:flex;justify-content:space-between;align-items:baseline;gap:16px;font-size:13px;line-height:1.4;color:#6f756f;font-variant-numeric:tabular-nums}

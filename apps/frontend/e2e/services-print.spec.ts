@@ -89,6 +89,7 @@ async function expectUnclippedSheets(print: Locator) {
         },
       );
       return {
+        width: bounds.width,
         background: getComputedStyle(sheet).backgroundColor,
         contentBottom: contentBounds.bottom,
         folioTop: folioBounds.top,
@@ -100,6 +101,9 @@ async function expectUnclippedSheets(print: Locator) {
     }),
   );
   for (const sheet of layout) {
+    // Safari auto-width printing enlarges text and spills footers. Keep the
+    // approved physical Letter width even when the browser window is narrow.
+    expect(sheet.width).toBeCloseTo(816, 0);
     expect(sheet.background).toBe('rgb(255, 255, 255)');
     expect(sheet.overflow).toEqual([]);
     expect(sheet.contentBottom).toBeLessThanOrEqual(sheet.folioTop - 8);
