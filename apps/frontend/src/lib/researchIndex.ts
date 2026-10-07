@@ -148,7 +148,7 @@ export const READ_PAGE_NAME = IA.find((item) => item.id === 'read')?.label ?? 'B
  * `READ_PAGE_NAME`, because "Blog" alone tells a person nothing about what they
  * would be opening.
  */
-export const READ_PAGE_HEADING = 'Campaign money research and guides';
+export const READ_PAGE_HEADING = 'Research, guides and events';
 
 /**
  * The note under the hidden title. A note rather than a heading, in regular
@@ -163,7 +163,7 @@ export const READ_PAGE_HEADING = 'Campaign money research and guides';
  * standfirst, drawn on its card, keeps the period its author wrote.
  */
 export const READ_PAGE_INTRO =
-  'What we found in Minnesota\u2019s public records, plus guides to how state government works';
+  'Research, guides and events that help you understand Minnesota government';
 
 /**
  * The label a reader sees for a piece: **Research** when it carries the research

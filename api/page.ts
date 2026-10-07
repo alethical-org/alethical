@@ -1,3 +1,12 @@
+import { eventBySlug } from "../apps/frontend/src/lib/events";
+import {
+  eventsPageMetadata,
+  eventPageMetadata,
+} from "../apps/frontend/src/lib/eventMetadata";
+import {
+  renderEventArticle,
+  renderEventsCollection,
+} from "../apps/frontend/src/lib/eventMarkup";
 import { legalPageSnapshot } from "../apps/frontend/src/lib/legalPageSnapshot";
 import {
   candidateLookupPageSnapshot,
@@ -64,6 +73,7 @@ import {
   readCollectionPageSnapshot,
   readPageSnapshot,
   renderPageSnapshot,
+  renderEventPageSnapshot,
   type BillDirectorySnapshotSource,
   type BillSnapshotSource,
   type CommitteeDirectorySnapshotSource,
@@ -1953,6 +1963,20 @@ async function contentFor(
         metadata: STATIC_PAGE_METADATA["/blog"],
         snapshot: renderPageSnapshot(readPageSnapshot(publishedResearch())),
       };
+    case "events":
+      return {
+        metadata: eventsPageMetadata(),
+        snapshot: renderEventPageSnapshot(renderEventsCollection()),
+      };
+    case "event": {
+      const event = eventBySlug(target.slug);
+      if (!event) throw new UnknownAddress(`no event ${target.slug}`);
+      const now = Date.now();
+      return {
+        metadata: eventPageMetadata(event, now),
+        snapshot: renderEventPageSnapshot(renderEventArticle(event, now)),
+      };
+    }
     case "readResearch":
     case "readGuides":
     case "readSet": {

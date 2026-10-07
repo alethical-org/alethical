@@ -1,5 +1,6 @@
 import type { PageSnapshot } from './pageSnapshot';
 import { PUBLISHED_PIECE_INDEX, piecePath } from './researchIndex';
+import { EVENT_INDEX } from './eventsIndex';
 import { SOCIAL_ACCOUNTS } from './socialLinks';
 
 export const CONTACT_PAGE_HEADING = 'Contact us';
@@ -50,14 +51,16 @@ export const initialContactFormState: ContactFormState = {
 export function correctionContactValues(article?: string): ContactValues {
   const blank = { ...initialContactFormState.values };
   if (!article) return blank;
-  const matches = PUBLISHED_PIECE_INDEX.filter(
-    (piece) => (piece.articleId ?? piece.slug) === article,
-  );
+  const published = [
+    ...PUBLISHED_PIECE_INDEX.map((piece) => ({ ...piece, path: piecePath(piece) })),
+    ...EVENT_INDEX.map((event) => ({ ...event, path: `/blog/events/${event.slug}` })),
+  ];
+  const matches = published.filter((piece) => (piece.articleId ?? piece.slug) === article);
   if (matches.length !== 1) return blank;
   const piece = matches[0];
   const subject = `Possible correction: ${piece.title}`;
   const longTitle = subject.length > 200;
-  const message = `I’d like to report a possible error in this article:\n${longTitle ? `${piece.title}\n` : ''}https://alethical.com${piecePath(piece)}\n\nWhat may be wrong:\n`;
+  const message = `I’d like to report a possible error in this article:\n${longTitle ? `${piece.title}\n` : ''}https://alethical.com${piece.path}\n\nWhat may be wrong:\n`;
   // Do not silently clip a title, URL or the reader's message to fit the API.
   if (message.length > 5000) return blank;
   return { ...blank, subject: longTitle ? 'Possible correction' : subject, message };

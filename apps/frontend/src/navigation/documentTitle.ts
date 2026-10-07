@@ -1,3 +1,4 @@
+import { eventIndexBySlug } from '../lib/eventsIndex';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
@@ -99,6 +100,12 @@ function titleWithoutRecord(route: TitledRoute): string | null {
       const piece = slug ? pieceIndexBySlug(slug) : undefined;
       // An unknown slug renders the NotFound screen, which titles itself.
       return piece ? titleFor(piece.title) : null;
+    }
+    case 'Events':
+      return titleFor('Events');
+    case 'Event': {
+      const event = eventIndexBySlug(String(route.params?.slug ?? ''));
+      return event ? titleFor(event.title) : null;
     }
     case 'ShortPosts': {
       const page = Number(route.params?.page ?? 1);

@@ -19,7 +19,7 @@ this file loosens it. Sequencing and open tasks live on
 
 ## 1. What we publish
 
-Two traits, not 2 mutually exclusive kinds. §2.7 is why that distinction matters.
+Research and Guide are 2 traits, not 2 mutually exclusive kinds. §2.7 explains the distinction. Host-authored event announcements are a separate publishing category, governed by §2.16.
 
 - **Research.** We add up the campaign-finance records we hold and publish what we found, signed
   and dated, with the arithmetic reproducible by a reader from the linked records. Rule 13 is the
@@ -481,6 +481,35 @@ article navigation use `/blog`. Previously sent emails and saved `/read` links
 remain usable through the permanent forwards. The section rename does not change
 publication dates, accuracy-review dates, claims, evidence or article publication holds.
 
+### 2.16 Events reuse the Blog design and retain a permanent address
+
+Approved by Eugene, 7 October 2026. The `/blog` page includes an `EVENTS` group
+using the existing section heading, box, row, type and responsive spacing patterns.
+The group links to `/blog/events`; each announcement has its own address below it.
+Existing Research reports, Short posts and Guides keep their relative order.
+
+The first announcement is The Forward Debate at `/blog/events/forward-debate-2026`.
+The supplied flyer appears before the article text, with its content unchanged.
+Aaron Brutger's flyer and article label remains “Republican primary candidate”,
+as expressly directed by Eugene. The article includes the confirmed event time,
+venue, free admission and the registration link `https://luma.com/3w69g6dw`.
+The Alethical icon links home and the Forward Coalition logo links to
+`https://forwardcoalition.com/candidates`; their presence does not
+assert an additional endorsement or co-host relationship.
+
+The event registry supplies the collection, article, initial HTML, metadata and
+sitemap. The page remains available after the end time, labelled as ended, without
+an active registration invitation or registration offer in structured data.
+A recap, recording or photos require actual supplied material; none is implied.
+Host announcements do not acquire Research or Guide traits, findings, research
+authorship claims or a research source-verification badge. Default reader comments apply to individual event articles too. All event promotions omit the standard AI notice, following Eugene’s standing
+instruction of 7 October 2026. Factual event details still require checking.
+Event article identities join the generated server eligibility registry; collection
+pages remain comment-free.
+
+Search and sharing behavior is owned by
+[page-metadata-for-search-and-sharing-decisions.md §30](page-metadata-for-search-and-sharing-decisions.md#30-event-announcements-are-discoverable-from-their-first-response).
+
 ## 3. Open decisions
 
 **What a reader sees when our copy and Minnesota's disagree.** Today the disagreement is reported to
@@ -600,7 +629,7 @@ One controlled topic vocabulary describes subject independently of format and tr
 
 Related reading names a few relevant pieces already published, never the current piece or an invented destination. Reader-facing article text and quantitative graphics draw from the same approved numeric inputs, including units, periods, denominators, and any remainder category. An overlap diagram must not imply unsupported area proportions. Its labels and any needed explanation follow [ui-copy-guide.md §Remove implied information from text and visuals](../design/ui-copy-guide.md#remove-implied-information-from-text-and-visuals); omit the generic overlap sentence in the approved organizations draft. A dated newer-record notice points to newer activity without silently recalculating a dated article. An amended source earns a dated explanation and revised finding; Alethical's own error is corrected in text and chart with a dated correction, leaving no wrong figure readable with a line through it. The original publication date follows Minnesota's calendar and stays fixed; a later correction has its own full-content review and release instruction. Records-through is the newest covered reporting-period end among cited records Alethical holds, not extraction day. A piece using only official sources names that outside-source coverage and uses their newest covered end; it never presents that date as coverage of records Alethical loaded. A purely explanatory Guide names source dates when known and never invents a numeric reporting period or date for an undated source. Different sources' coverage stays explicit.
 
-New or revised posts of every type use 1 closing note: “AI helped prepare this article and can make mistakes. We report what the cited public sources support and identify known gaps and uncertainty. Contact us to report a possible error so we can review it and make corrections.” Link “Contact us” to `/about/contact`. Omit the first sentence when AI did not help prepare the article. The note applies beyond social-derived writing and may appear in private drafts because it does not claim completed review. All 5 published guides and *The Money Only Goes One Way* carry `aiAssisted: true` in the writing index: the 5 guide manuscript commits explicitly credit Claude ([825a2357](https://github.com/alethical-org/alethical/commit/825a2357), [66bc1d77](https://github.com/alethical-org/alethical/commit/66bc1d77), [3de50d25](https://github.com/alethical-org/alethical/commit/3de50d25), [9a3d4838](https://github.com/alethical-org/alethical/commit/9a3d4838), [f505376a](https://github.com/alethical-org/alethical/commit/f505376a)); the research report's reader-facing methodology was prepared with Claude assistance ([8a862399](https://github.com/alethical-org/alethical/commit/8a862399)). This flag selects the closing sentence, not a claim that all source checking was delegated. [ui-copy-guide.md](../design/ui-copy-guide.md#standard-closing-note-for-every-post-type) owns the wording. Publication still requires all source checks, human review and a separate publication instruction. Each known material gap belongs beside the affected claim. No complete-accuracy guarantee is made. Following Eugene’s 26 September drafting-rule update, the generic contribution/motive/influence/wrongdoing note is not mandatory for new drafts. Use precise, supported wording and specific limitations instead of automatic boilerplate. [ui-copy-guide.md](../design/ui-copy-guide.md#keep-meaningful-uncertainty-remove-obvious-caveats) owns this rule; already published articles are outside this change.
+New or revised posts use 1 closing note, except event promotions, which omit the standard AI notice under Eugene’s 7 October 2026 instruction: “AI helped prepare this article and can make mistakes. We report what the cited public sources support and identify known gaps and uncertainty. Contact us to report a possible error so we can review it and make corrections.” Link “Contact us” to `/about/contact`. Omit the first sentence when AI did not help prepare the article. The note applies beyond social-derived writing and may appear in private drafts because it does not claim completed review. All 5 published guides and *The Money Only Goes One Way* carry `aiAssisted: true` in the writing index: the 5 guide manuscript commits explicitly credit Claude ([825a2357](https://github.com/alethical-org/alethical/commit/825a2357), [66bc1d77](https://github.com/alethical-org/alethical/commit/66bc1d77), [3de50d25](https://github.com/alethical-org/alethical/commit/3de50d25), [9a3d4838](https://github.com/alethical-org/alethical/commit/9a3d4838), [f505376a](https://github.com/alethical-org/alethical/commit/f505376a)); the research report's reader-facing methodology was prepared with Claude assistance ([8a862399](https://github.com/alethical-org/alethical/commit/8a862399)). This flag selects the closing sentence, not a claim that all source checking was delegated. [ui-copy-guide.md](../design/ui-copy-guide.md#standard-closing-note-for-every-post-type) owns the wording. Publication still requires all source checks, human review and a separate publication instruction. Each known material gap belongs beside the affected claim. No complete-accuracy guarantee is made. Following Eugene’s 26 September drafting-rule update, the generic contribution/motive/influence/wrongdoing note is not mandatory for new drafts. Use precise, supported wording and specific limitations instead of automatic boilerplate. [ui-copy-guide.md](../design/ui-copy-guide.md#keep-meaningful-uncertainty-remove-obvious-caveats) owns this rule; already published articles are outside this change.
 
 **26 September 2026, origin of the drafting update:** Eugene removed the generic contribution
 note from “2 records do not always mean 2 donations” because it states the obvious.

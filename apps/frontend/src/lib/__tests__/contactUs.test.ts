@@ -11,6 +11,7 @@ import {
 
 import { PUBLISHED_PIECE_INDEX, piecePath, type PieceIndexEntry } from '../researchIndex';
 import { ARTICLE_AI_NOTE, ARTICLE_SOURCE_NOTE, articleDisclosureRuns } from '../articleDisclosure';
+import { EVENT_INDEX } from '../eventsIndex';
 
 const originalPieces = [...PUBLISHED_PIECE_INDEX];
 afterEach(() => PUBLISHED_PIECE_INDEX.splice(0, PUBLISHED_PIECE_INDEX.length, ...originalPieces));
@@ -67,6 +68,12 @@ describe('Contact us form rules', () => {
 });
 
 describe('article correction links', () => {
+  it('resolves event corrections to the published event identity and address', () => {
+    const event = EVENT_INDEX[0];
+    const values = correctionContactValues(event.articleId);
+    expect(values.subject).toBe(`Possible correction: ${event.title}`);
+    expect(values.message).toContain(`https://alethical.com/blog/events/${event.slug}`);
+  });
   it('resolves the approved title and canonical address from a published legacy slug', () => {
     const piece = { ...PUBLISHED_PIECE_INDEX[0], articleId: undefined, slug: 'legacy-slug' };
     PUBLISHED_PIECE_INDEX.push(piece);

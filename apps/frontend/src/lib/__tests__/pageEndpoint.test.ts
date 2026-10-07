@@ -1154,7 +1154,9 @@ describe('first-response page tags', () => {
 
     expect(status).toBe(200);
     expect(body).toContain(`<h1>${READ_PAGE_NAME}</h1>`);
-    expect(body).toContain('plus guides to how state government works');
+    expect(body).toContain(
+      'Research, guides and events that help you understand Minnesota government',
+    );
     expect(publishedResearch().length).toBeGreaterThan(1);
     for (const piece of publishedResearch()) {
       // Each piece's own folder, so a crawler is never sent to an address the

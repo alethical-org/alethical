@@ -102,6 +102,8 @@ export const screenChunks = {
     import('../screens/redesign/ReadCollectionScreen').then((m) => ({
       default: m.ReadCollectionScreen,
     })),
+  Events: () => import('../screens/redesign/EventScreen').then((m) => ({ default: m.EventScreen })),
+  Event: () => import('../screens/redesign/EventScreen').then((m) => ({ default: m.EventScreen })),
   ReadGuides: () =>
     import('../screens/redesign/ReadCollectionScreen').then((m) => ({
       default: m.ReadCollectionScreen,

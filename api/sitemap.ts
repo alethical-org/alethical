@@ -1,3 +1,8 @@
+import {
+  EVENTS_PATH,
+  PUBLISHED_EVENTS,
+  eventPath,
+} from "../apps/frontend/src/lib/events";
 import { publicPageUrl } from "../apps/frontend/src/lib/share";
 import {
   collectionPage,
@@ -117,7 +122,11 @@ function pagesUrlset(
   data?: SitemapPayload,
   lobbyingCounts: Partial<Record<"principals" | "lobbyists", number>> = {},
 ): string {
-  const paths = [...FIXED_PAGES];
+  const paths = [
+    ...FIXED_PAGES,
+    EVENTS_PATH,
+    ...PUBLISHED_EVENTS.map(eventPath),
+  ];
   // A posted piece is in the sitemap from the day it posts (Eugene, 25 Aug 2026).
   // `indexed` is true on everything we publish; it stays as a way to hold one back
   // for a stated reason, not as a checking step every piece waits behind.

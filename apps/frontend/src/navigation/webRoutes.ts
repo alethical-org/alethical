@@ -1,3 +1,4 @@
+import { eventIndexBySlug } from '../lib/eventsIndex';
 import { candidatePreviewEnabled } from '../lib/candidateLookupAvailability';
 import { campaignMoneyYear } from '../lib/campaignMoneyYears';
 import { registrationNumberFromSlug } from '../lib/committeeRoute';
@@ -50,6 +51,8 @@ type WebRouteTarget =
   | { kind: 'lobbyingPrincipals' | 'lobbyingLobbyists'; params: Record<string, string> }
   | { kind: 'lobbyingPrincipal' | 'lobbyingLobbyist'; slug: string; year?: string }
   | { kind: 'read' }
+  | { kind: 'events' }
+  | { kind: 'event'; slug: string }
   | { kind: 'readResearch' | 'readGuides'; page?: string; post?: string }
   | { kind: 'readSet'; slug: string; post?: string }
   | { kind: 'shortPosts'; page?: string; post?: string }
@@ -361,6 +364,13 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   if (segments.length === 2 && segments[0] === 'about' && segments[1] === 'contact') {
     const article = searchParams.get('article') || undefined;
     return article ? { kind: 'contactUs', article } : { kind: 'contactUs' };
+  }
+
+  if (segments[0] === 'blog' && segments[1] === 'events') {
+    if (segments.length === 2) return { kind: 'events' };
+    if (segments.length === 3 && eventIndexBySlug(segments[2]))
+      return { kind: 'event', slug: segments[2] };
+    return { kind: 'notFound', path: pathname };
   }
 
   if (
@@ -852,6 +862,10 @@ export function pathForRoute(activeRoute: {
     }
     case 'Read':
       return '/blog';
+    case 'Events':
+      return '/blog/events';
+    case 'Event':
+      return `/blog/events/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
     case 'ReadResearch':
     case 'ReadGuides': {
       const base = activeRoute.name === 'ReadResearch' ? '/blog/research' : '/blog/guides';
@@ -1177,6 +1191,10 @@ export function stateFromPathname(pathname: string): WebNavigationState {
         routes: [homeTabs, { name: 'Read' }],
         index: 1,
       };
+    case 'events':
+      return { routes: [homeTabs, { name: 'Events' }], index: 1 };
+    case 'event':
+      return { routes: [homeTabs, { name: 'Event', params: { slug: target.slug } }], index: 1 };
     case 'readResearch':
     case 'readGuides':
       return {

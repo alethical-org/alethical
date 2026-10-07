@@ -82,6 +82,7 @@ const MoneyByRaceScreen = loadOnDemand(screenChunks.MoneyByRace, { kind: 'screen
 const ResearchScreen = loadOnDemand(screenChunks.Research, { kind: 'screen' });
 const ReadScreen = loadOnDemand(screenChunks.Read, { kind: 'screen' });
 const ReadCollectionScreen = loadOnDemand(screenChunks.ReadResearch, { kind: 'screen' });
+const EventScreen = loadOnDemand(screenChunks.Event, { kind: 'screen' });
 const ShortPostsScreen = loadOnDemand(screenChunks.ShortPosts, { kind: 'screen' });
 const NotFoundScreen = loadOnDemand(screenChunks.NotFound, { kind: 'screen' });
 const CandidatesScreen = loadOnDemand(screenChunks.Candidates, { kind: 'screen' });
@@ -793,6 +794,16 @@ export function RootNavigator() {
               name="ReadResearch"
               component={ReadCollectionScreen}
               options={{ headerShown: false, title: 'Research reports' }}
+            />
+            <Stack.Screen
+              name="Events"
+              component={EventScreen}
+              options={{ headerShown: false, title: 'Events' }}
+            />
+            <Stack.Screen
+              name="Event"
+              component={EventScreen}
+              options={{ headerShown: false, title: 'Event' }}
             />
             <Stack.Screen
               name="ReadGuides"

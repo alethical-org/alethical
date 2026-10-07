@@ -116,7 +116,7 @@ export function pageJsonLd(meta: PageMetadata): object[] {
       },
     ];
   }
-  return [];
+  return meta.structuredData ?? [];
 }
 
 /**
@@ -135,8 +135,8 @@ export function renderPageHead(meta: PageMetadata): string {
   // Empty on a "not found" page: it is not a copy of any real address, so it
   // declares none rather than pointing a search engine at an unrelated page.
   const url = meta.canonicalPath ? escapeHtml(publicPageUrl(meta.canonicalPath)) : '';
-  const image = escapeHtml(SOCIAL_PREVIEW_IMAGE_URL);
-  const imageAlt = escapeHtml(SOCIAL_PREVIEW_IMAGE_ALT);
+  const image = escapeHtml(meta.socialImage?.url ?? SOCIAL_PREVIEW_IMAGE_URL);
+  const imageAlt = escapeHtml(meta.socialImage?.alt ?? SOCIAL_PREVIEW_IMAGE_ALT);
   const jsonLd = pageJsonLd(meta)
     // `<` is escaped so a stored string can never close the script element early.
     .map(
@@ -168,8 +168,8 @@ export function renderPageHead(meta: PageMetadata): string {
     `    <meta property="og:description" content="${socialDescription}" />`,
     ...(url ? [`    <meta property="og:url" content="${url}" />`] : []),
     `    <meta property="og:image" content="${image}" />`,
-    `    <meta property="og:image:width" content="1200" />`,
-    `    <meta property="og:image:height" content="630" />`,
+    `    <meta property="og:image:width" content="${meta.socialImage?.width ?? 1200}" />`,
+    `    <meta property="og:image:height" content="${meta.socialImage?.height ?? 630}" />`,
     `    <meta property="og:image:alt" content="${imageAlt}" />`,
     `    <meta name="twitter:card" content="summary_large_image" />`,
     `    <meta name="twitter:title" content="${socialTitle}" />`,
