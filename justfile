@@ -19,6 +19,10 @@ maintenance-install:
 install-wip-backup: maintenance-install
 
 maintenance-status:
+  python3 scripts/worktree_cleanup.py inspect
+
+# Release and recovery history, separate from the full current folder inventory.
+maintenance-history:
   python3 scripts/worktree_cleanup.py status
 
 stop-wip-backup:

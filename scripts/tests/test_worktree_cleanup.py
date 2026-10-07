@@ -532,7 +532,7 @@ class CleanupTest(unittest.TestCase):
         self.release()
         self.assertIsNone(self.cleanup.hook(self.repo, self.state, payload))
 
-    def test_hook_from_subfolder_registers_actual_root_and_dirty_turn_can_stop(self):
+    def test_dirty_turn_needs_a_concrete_hold_before_stopping(self):
         subfolder = self.tree / "private"
         subfolder.mkdir()
         payload = {
@@ -544,6 +544,12 @@ class CleanupTest(unittest.TestCase):
         self.assertEqual(len(list((self.state / "owners").glob("*.json"))), 1)
         (self.tree / "source.txt").write_text("unfinished")
         payload["hook_event_name"] = "Stop"
+        self.assertEqual(
+            self.cleanup.hook(self.repo, self.state, payload)["decision"], "block"
+        )
+        self.cleanup.retain(
+            self.repo, self.state, self.tree, "fixture", "source change awaits tests"
+        )
         self.assertIsNone(self.cleanup.hook(self.repo, self.state, payload))
 
     def test_multiple_owners_all_need_to_release(self):
@@ -657,7 +663,7 @@ class CleanupTest(unittest.TestCase):
             self.cleanup.hook(self.repo, self.state, payload)["decision"], "block"
         )
 
-    def test_stop_refreshes_main_before_recognizing_finished_clean_work(self):
+    def test_stop_requires_decision_without_fetching_or_inferring_completion(self):
         owner = "owning fixture task"
         self.cleanup.register(self.repo, self.state, self.tree, owner)
         self.git("commit", "--allow-empty", "-qm", "new version", root=self.tree)
@@ -675,7 +681,7 @@ class CleanupTest(unittest.TestCase):
         self.assertEqual(
             self.cleanup.hook(self.repo, self.state, payload)["decision"], "block"
         )
-        self.assertEqual(self.git("rev-parse", "origin/main"), head)
+        self.assertEqual(self.git("rev-parse", "origin/main"), old)
 
     def test_reused_folder_keeps_distinct_private_recovery_generations(self):
         (self.tree / ".env").write_text("first settings")
