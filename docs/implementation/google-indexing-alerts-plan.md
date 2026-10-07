@@ -102,10 +102,16 @@ source filter. Static asset failures are excluded. Provider failures before a
 function runs may leave no runtime record; bounded public checks remain separate.
 
 The existing project token allows read-only Railway API access when the client sends
-a User-Agent header. The saved deployment configuration has `/healthz` and 1 San
-Francisco replica, but no explicit overlap/drain values. Effective config-as-code
-and historical logs remain under investigation. Leave live handover behavior alone
-until actual failure labels and deployment timing support a correction.
+a User-Agent header. The dashboard has `/healthz`; both historical deployment
+records and the resolved file use `/readyz`, a 300-second startup check and 1 replica.
+File settings take precedence. Overlap/drain values are null, which does not establish
+the platform's effective defaults. The candidate process starts at 18:19:37 UTC,
+becomes ready at 18:19:39 and the prior process stops at 18:19:52. Both reader failures
+precede that switch. Bounded prior-process logs contain nearby finance 200 replies,
+but no shared request IDs, query values, durations or body evidence connect them
+to the failing website reads. No recognized timeout or shutdown appears in either
+failure-minute sample. Leave handover, timeout and retry behavior unchanged until
+actual failure labels support a correction.
 
 Server-error revalidation waits for a demonstrated repair that is live, or 7
 consecutive complete, unsaturated daily sets with zero reader-page 503s. This is
