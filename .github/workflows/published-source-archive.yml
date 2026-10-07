@@ -141,7 +141,7 @@ jobs:
             --target production --verify-stored
 
       - name: Open or update an issue when a cited source has gone or changed
-        if: steps.archive.outputs.status != '0'
+        if: steps.archive.outputs.status != '' && steps.archive.outputs.status != '0'
         uses: actions/github-script@v7
         with:
           script: |
@@ -157,9 +157,9 @@ jobs:
             const marker = "<!-- published-source-archive -->";
             const body = [
               marker,
-              "Net: a document one of Alethical's published pieces cites is no longer",
-              "the document we cited. Either the address has stopped serving it, or",
-              "Minnesota is serving different bytes there now. Our own copy of what we",
+              "Net: a cited source changed, is missing, could not be stored, or remained",
+              "unreachable after 3 attempts. An unreachable source is not evidence",
+              "that its document is gone. Our own copy of what we",
               "cited is kept either way, so the published figure is still checkable,",
               "and a reader clicking the link may not find what the piece says is there.",
               "",
@@ -211,5 +211,5 @@ jobs:
             }
 
       - name: Fail the run when a cited source has gone or changed
-        if: steps.archive.outputs.status != '0'
+        if: steps.archive.outputs.status != '' && steps.archive.outputs.status != '0'
         run: exit 1
