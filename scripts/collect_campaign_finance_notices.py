@@ -80,6 +80,11 @@ def main() -> int:
     parser.add_argument("--database-url", default=None)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
+        "--refresh-existing",
+        action="store_true",
+        help="Re-download held notice PDFs to detect corrections at unchanged addresses.",
+    )
+    parser.add_argument(
         "--pdf-cache",
         default=None,
         help="A folder of notice PDFs already read. Read from it before asking the "
@@ -120,11 +125,12 @@ def main() -> int:
             dry_run=args.dry_run,
             cache=notices.PdfCache(args.pdf_cache),
             now=now,
+            refresh_existing=args.refresh_existing,
         )
         print(
             f"notices listed on the Board's page: {report.listed}; already held: "
             f"{report.already_held}; {'would read' if args.dry_run else 'read and kept'}: "
-            f"{report.new}"
+            f"{report.new}; changed PDFs: {report.changed}"
         )
         for line in report.page_errors:
             print(f"page problem: {line}")
@@ -204,7 +210,7 @@ def main() -> int:
         else "dry_run"
         if args.dry_run
         else "published"
-        if report.new
+        if report.new or report.changed
         else "unchanged",
         failed_checks=checks,
         details=[
@@ -213,7 +219,11 @@ def main() -> int:
             *ballot_failures,
             clearing_note,
         ],
-        counts={"notices listed": report.listed, "notices kept": report.new},
+        counts={
+            "notices listed": report.listed,
+            "notices kept": report.new,
+            "notices corrected": report.changed,
+        },
     )
     return exit_code
 

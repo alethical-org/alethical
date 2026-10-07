@@ -14,7 +14,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import select, text
 
 from alethical.api.services import committee_notices as service
 from alethical.db import models
@@ -1051,3 +1051,56 @@ def test_the_launch_readings_file_is_well_formed():
     assert (
         readings[("B", 2)].signed_on is None and readings[("B", 2)].received_on is None
     )
+
+
+def test_refresh_existing_detects_same_url_correction_and_keeps_old_bytes(
+    db, monkeypatch
+):
+    report, store = _collect(db, monkeypatch, RESTORE_TEXTS)
+    old_hashes = set(
+        db.scalars(select(models.CampaignFinanceContributionNotice.document_hash))
+    )
+    old_objects = set(store.objects)
+    monkeypatch.setattr(notices, "fetch_pdf", lambda *a: (b"changed PDF", None))
+    monkeypatch.setattr(notices, "pdf_text", lambda body: BOARD_LAYOUT)
+    report = notices.collect_notices(
+        db,
+        None,
+        store,
+        dry_run=False,
+        page_body=NOTICE_PAGE.encode(),
+        refresh_existing=True,
+    )
+    assert report.changed == 3 and report.new == 0
+    assert old_objects <= set(store.objects)
+    assert not old_hashes.intersection(
+        db.scalars(select(models.CampaignFinanceContributionNotice.document_hash))
+    )
+    report = notices.collect_notices(
+        db,
+        None,
+        store,
+        dry_run=False,
+        page_body=NOTICE_PAGE.encode(),
+        refresh_existing=True,
+    )
+    assert report.changed == 0 and report.already_held == 3
+
+
+def test_statement_correction_hides_old_review_until_matching_bytes_are_reviewed(
+    db, monkeypatch
+):
+    row = _statement(db, 1, reading=_read("Old donor", date(2026, 1, 1), "10"))
+    assert service.statement_detail(db, row.id) is not None
+    monkeypatch.setattr(notices, "fetch_pdf", lambda *a: (b"%PDF changed scan", None))
+    fetched, failures, _ = notices.fetch_missing_statement_pdfs(
+        db,
+        None,
+        MemoryStore(),
+        refresh_existing=True,
+    )
+    assert fetched == 1 and not failures
+    assert service.statement_detail(db, row.id) is None
+    result = service.statement_links(db, RESTORE_SANITY, 2026, None)
+    assert not result.linked
+    assert result.unlinked[0].state == "not_read"

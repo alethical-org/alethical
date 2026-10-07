@@ -1027,3 +1027,12 @@ def test_the_hand_run_totals_load_takes_the_lease_first_and_refuses_when_it_is_h
     monkeypatch.setattr("sys.argv", ["load_campaign_finance_filings.py", "--dry-run"])
     assert script.main() == 0
     assert events == ["load"]
+
+
+def test_lease_outlasts_workflow_timeout():
+    from pathlib import Path
+    import re
+
+    workflow = Path(".github/workflows/campaign-money-refresh.yml").read_text()
+    timeout = int(re.search(r"timeout-minutes: (\d+)", workflow).group(1))
+    assert refresh.FULL_RUN_LEASE_TTL > timedelta(minutes=timeout)

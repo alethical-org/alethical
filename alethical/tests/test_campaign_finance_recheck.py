@@ -487,10 +487,16 @@ def test_a_run_where_both_checks_worked_carries_no_banner() -> None:
 # --- Which years, and when it runs at all -------------------------------------
 
 
-def test_the_default_years_are_this_year_and_the_2_before_it() -> None:
-    """Narrower would silently shrink what the stored verdicts already cover; wider
-    could only add years the Board serves no document for."""
-    assert recheck.recheck_years(datetime(2026, 9, 2, tzinfo=UTC)) == (2024, 2025, 2026)
+def test_the_default_years_keep_every_supported_year() -> None:
+    """New hashes invalidate older supported years too, without opening held years."""
+    assert recheck.recheck_years(datetime(2026, 9, 2, tzinfo=UTC)) == (
+        2022,
+        2023,
+        2024,
+        2025,
+        2026,
+    )
+    assert recheck.recheck_years(datetime(2027, 1, 1, tzinfo=UTC))[-1] == 2027
 
 
 def test_named_years_are_used_and_deduplicated() -> None:

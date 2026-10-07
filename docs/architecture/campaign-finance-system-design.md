@@ -833,7 +833,7 @@ loader scripts, above the 2 short publish locks, so 2 starts at once produce 1 r
 lease is a row in `cf_refresh_state` (key `full_run_lease`: owner token, purpose,
 `acquired_at`, `expires_at`), taken or renewed in 1 `INSERT ... ON CONFLICT DO UPDATE`
 statement that succeeds only when the existing lease has expired or is already this
-owner's, released only by its owner, and expiring after 4 hours so a run that dies frees it
+owner's, released only by its owner, and expiring after 6 hours (beyond the workflow's 5-hour stop) so a run that dies frees it
 without a person. A row rather than `pg_try_advisory_lock` because production connects
 through Supabase's pooler in transaction mode, where a session-level lock can be released
 by, or left held on, a backend the run never sees again
@@ -860,6 +860,21 @@ and which totals snapshot are live at the end and whether this run published eac
 GitHub issue the run files quotes that summary rather than asserting anything itself.
 Freshness, wherever stated: payments checked daily; totals refreshed on list change and
 weekly; a run whose lists could not be read is reported as incomplete.
+
+The publication checks cover every supported year from 2022 through the current year;
+replacing a source hash makes older supported verdicts stale too. Failed totals and
+payment stages record explicit published counts, so a refusal cannot imply that an
+unrelated stage published nothing. Header-only or empty contribution downloads are an
+incomplete source read, never evidence that every confirmed committee identity is wrong.
+
+Periodic notice and disclosure-statement refreshes may use `--refresh-existing` to
+re-read PDFs at unchanged addresses. Identical bytes keep the original copy date;
+changed bytes are retained under their new hash while earlier raw files remain kept.
+A statement's reviewed reading is usable only while its reviewed hash matches the
+current PDF. Changed scans wait for review and do not supply old donor names or amounts.
+Routine catalogue scans include all filer kinds so candidate and party-unit amendment
+markers are included. Notices and statement details remain separate from campaign totals.
+
 
 **Related files release together.** Contributions, general expenditures, independent
 expenditures and the reports that cover the same period form one release. Files fetched on

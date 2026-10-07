@@ -421,6 +421,13 @@ def statement_links(
     linked: dict[int, AttachedStatement] = {}
     unlinked: list[ListedStatement] = []
     for statement, reading in order:
+        # A reading belongs to exact retained bytes. A corrected PDF needs review
+        # before its old donor names, amounts or repeat marker can be shown again.
+        if (
+            reading is not None
+            and reading.document_hash_read != statement.document_hash
+        ):
+            reading = None
         if reading is not None and reading.repeat_of_number is not None:
             continue
         match = None
@@ -513,6 +520,8 @@ def statement_detail(db: Session, statement_id: uuid.UUID) -> Optional[Statement
     if reading is None:
         return None
     statement = db.get(schema.CampaignFinanceDisclosureStatement, statement_id)
+    if statement is None or reading.document_hash_read != statement.document_hash:
+        return None
     base = dict(
         id=str(statement.id),
         recipient_registration_number=statement.recipient_registration_number,

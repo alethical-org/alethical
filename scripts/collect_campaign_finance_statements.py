@@ -67,13 +67,18 @@ def main() -> int:
     )
     parser.add_argument("--database-url", default=None)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--refresh-existing",
+        action="store_true",
+        help="Check retained statement PDFs for corrections at unchanged addresses.",
+    )
     parser.add_argument("--pdf-cache", default=None)
     parser.add_argument(
         "--kinds",
-        default="committees",
+        default="all",
         choices=sorted(KINDS),
         help="Which filers' catalogues to read. 'committees' (political committees and "
-        "funds, where statements are filed) is the routine scope; 'all' is the backfill.",
+        "funds only); 'all' also checks candidates and party units for amendment markers.",
     )
     parser.add_argument("--only", nargs="*", default=None, help="Registration numbers.")
     parser.add_argument("--year", type=int, default=datetime.now(UTC).year)
@@ -118,6 +123,7 @@ def main() -> int:
             scope=f"{args.kinds}{' only ' + ' '.join(args.only) if args.only else ''}",
             dry_run=args.dry_run,
             cache=notices.PdfCache(args.pdf_cache),
+            refresh_existing=args.refresh_existing,
         )
     print(
         f"catalogues read: {report.catalogues_read} of {len(wanted)}; statements listed: "

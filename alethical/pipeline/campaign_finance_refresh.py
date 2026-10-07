@@ -14,7 +14,7 @@ hand-started run and a laptop run all follow (D3 on
    session-level lock is unsafe: each statement may reach a different backend, so the
    lock can be released by, or left held on, a backend the run never sees again
    (https://supabase.com/docs/guides/database/connecting-to-postgres#transaction-mode-limitations).
-   The lease expires after 4 hours, so a crashed run frees it without a person; the
+   The lease expires after 6 hours, so a crashed run frees it without a person; the
    run that holds it renews it right before each publish, and a run that finds its
    lease taken by another owner does not publish.
 2. **Retry first.** A saved-page clearing that did not finish last time is retried
@@ -95,6 +95,7 @@ from alethical.pipeline.campaign_finance_filings import (
     live_filings_snapshot,
 )
 from alethical.pipeline.campaign_finance_recheck import (
+    FIRST_SUPPORTED_YEAR,
     RecheckReport,
     recheck_stated_figures,
 )
@@ -121,7 +122,6 @@ LIST_ACTIONS: tuple[str, ...] = (
 )
 
 FULL_REFRESH_EVERY = timedelta(days=7)
-FIRST_SUPPORTED_YEAR = 2022
 
 LAST_FULL_REFRESH_KEY = "totals_last_full_refresh_at"
 RECHECK_PENDING_KEY = "recheck_pending"
@@ -129,10 +129,10 @@ CLEARING_PENDING_KEY = "clearing_pending"
 
 # The one run-wide lease. Its row's ``value`` holds ``owner`` (a token unique to the
 # process that took it), ``purpose`` (what the run is, in words), ``acquired_at`` and
-# ``expires_at``. Four hours: the longest honest day is a 54-minute totals fetch, the
-# payments download and 72 minutes of re-checks, and the workflow's own limit is 5.
+# ``expires_at``. Six hours exceeds the workflow's 5-hour hard limit, including
+# termination grace. Publication still renews and checks ownership.
 FULL_RUN_LEASE_KEY = "full_run_lease"
-FULL_RUN_LEASE_TTL = timedelta(hours=4)
+FULL_RUN_LEASE_TTL = timedelta(hours=6)
 
 #: The 3 clearings a run can owe, by the event name a marker stores.
 CLEARINGS_BY_EVENT: dict[str, Callable[[], Clearing]] = {
@@ -466,7 +466,7 @@ def hold_full_run_lease_until_exit(
     log(
         f"another campaign-money run is under way ({describe_holder(lease.holder())}), "
         "so this command does nothing; run it again once that one finishes. A run "
-        "that died without releasing frees the lease 4 hours after it took it."
+        "that died without releasing frees the lease 6 hours after it took it."
     )
     return False
 

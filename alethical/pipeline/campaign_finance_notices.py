@@ -36,6 +36,8 @@ request) and only the PDFs it does not already hold.
 
 from __future__ import annotations
 
+import hashlib
+
 import gzip
 import html
 import io
@@ -855,6 +857,7 @@ class NoticeRunReport:
     listed: int = 0
     new: int = 0
     already_held: int = 0
+    changed: int = 0
     parse_failures: list[str] = field(default_factory=list)
     fetch_failures: list[str] = field(default_factory=list)
     page_errors: list[str] = field(default_factory=list)
@@ -907,8 +910,9 @@ def collect_notices(
     cache: Optional[PdfCache] = None,
     page_body: Optional[bytes] = None,
     now: Optional[datetime] = None,
+    refresh_existing: bool = False,
 ) -> NoticeRunReport:
-    """Read the notice page, fetch each notice PDF not yet held, and record it.
+    """Read notices and optionally check held PDFs for changes at the same URL.
 
     A failure keeps every record already held: nothing is deleted, a notice no longer
     listed keeps its row (``last_listed_at`` says when it was last seen), and the list's
@@ -948,7 +952,7 @@ def collect_notices(
             notice.board_notice_id,
         )
         row = held.get(key)
-        if row is not None and row.document_hash is not None:
+        if row is not None and row.document_hash is not None and not refresh_existing:
             report.already_held += 1
             if not dry_run:
                 row.last_listed_at = now
@@ -957,7 +961,7 @@ def collect_notices(
         body, failure = fetch_pdf(
             http,
             notice.pdf_url,
-            cache,
+            PdfCache(None) if refresh_existing else cache,
             f"notice-{notice.registration_number}-{notice.filing_year}-"
             f"{notice.notice_period}-{int(notice.special_election)}-"
             f"{notice.board_notice_id}.pdf",
@@ -965,12 +969,21 @@ def collect_notices(
         if body is None:
             report.fetch_failures.append(f"{notice.pdf_url}: {failure}")
             continue
+        if row is not None and row.document_hash == hashlib.sha256(body).hexdigest():
+            report.already_held += 1
+            if not dry_run:
+                row.last_listed_at = now
+                row.committee_name_as_listed = notice.committee_name_as_listed
+            continue
         parsed = parse_notice_text(pdf_text(body))
         if parsed.errors:
             report.parse_failures.append(
                 f"{notice.pdf_url}: {'; '.join(parsed.errors)}"
             )
-        report.new += 1
+        if row is None or row.document_hash is None:
+            report.new += 1
+        else:
+            report.changed += 1
         if dry_run:
             continue
         kept = keep_pdf(store, NOTICE_OBJECT_PREFIX, body)
@@ -1004,8 +1017,6 @@ def collect_notices(
             {n.filing_year for n in listed}
             | ({now.year} if now.year in NOTICE_WINDOWS else set())
         )
-        import hashlib
-
         db.add(
             schema.CampaignFinanceNoticeListCopy(
                 fetched_at=now,
@@ -1260,6 +1271,7 @@ def fetch_missing_statement_pdfs(
     cache: Optional[PdfCache] = None,
     now: Optional[datetime] = None,
     from_year: int = KEEP_STATEMENT_PDFS_FROM,
+    refresh_existing: bool = False,
 ) -> tuple[int, list[str], list[str]]:
     """Fetch and keep each listed statement's PDF that is not yet held, once.
 
@@ -1272,11 +1284,10 @@ def fetch_missing_statement_pdfs(
     failures: list[str] = []
     not_served: list[str] = []
     model = schema.CampaignFinanceDisclosureStatement
-    rows = db.scalars(
-        select(model).where(
-            model.document_hash.is_(None), model.filing_year >= from_year
-        )
-    ).all()
+    query = select(model).where(model.filing_year >= from_year)
+    if not refresh_existing:
+        query = query.where(model.document_hash.is_(None))
+    rows = db.scalars(query).all()
     for row in rows:
         url = statement_pdf_url(
             row.filing_year,
@@ -1287,7 +1298,7 @@ def fetch_missing_statement_pdfs(
         body, failure = fetch_pdf(
             http,
             url,
-            cache,
+            PdfCache(None) if refresh_existing else cache,
             f"statement-{row.recipient_registration_number}-{row.filing_year}-"
             f"{row.report_period}{row.statement_number}.pdf",
         )
@@ -1295,6 +1306,8 @@ def fetch_missing_statement_pdfs(
             (not_served if failure == NOT_SERVED else failures).append(
                 f"{url}: {failure}"
             )
+            continue
+        if row.document_hash == hashlib.sha256(body).hexdigest():
             continue
         kept = keep_pdf(store, STATEMENT_OBJECT_PREFIX, body)
         row.document_hash = kept.document_hash
@@ -1319,6 +1332,7 @@ def scan_catalogues_for_statements(
     cache: Optional[PdfCache] = None,
     spacing_seconds: float = 0.5,
     notice_amendment_http: Optional[requests.Session] = None,
+    refresh_existing: bool = False,
 ) -> StatementRunReport:
     """Read each filer's catalogue for statements and notice amendment markers.
 
@@ -1368,12 +1382,12 @@ def scan_catalogues_for_statements(
                     report.notice_amendments += 1
     if not dry_run:
         fetched, failures, not_served = fetch_missing_statement_pdfs(
-            db, http, store, cache=cache
+            db, http, store, cache=cache, refresh_existing=refresh_existing
         )
         report.pdfs_fetched = fetched
         report.failures.extend(failures)
         report.not_served.extend(not_served)
-        if report.catalogues_read == len(filers):
+        if report.catalogues_read == len(filers) and not report.failures:
             db.add(
                 schema.CampaignFinanceStatementScan(
                     started_at=started,
