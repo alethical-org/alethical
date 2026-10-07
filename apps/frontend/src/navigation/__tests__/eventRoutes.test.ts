@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { eventPath, PUBLISHED_EVENTS } from '../../lib/events';
 import { screenNameForPath } from '../screenPreload';
 import { pathForRoute, stateFromPathname, targetFromPathname } from '../webRoutes';
@@ -18,4 +18,15 @@ describe('event addresses', () => {
       expect(targetFromPathname(path)).toEqual({ kind: 'notFound', path });
     },
   );
+});
+
+// Exercise the reusable published route without lifting the real candidate-review hold.
+vi.mock('../../lib/eventsIndex', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../lib/eventsIndex')>();
+  const index = original.EVENT_INDEX.map((event) => ({ ...event, published: true }));
+  return {
+    EVENT_INDEX: index,
+    PUBLISHED_EVENT_INDEX: index,
+    eventIndexBySlug: (slug: string) => index.find((event) => event.slug === slug),
+  };
 });

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { PUBLISHED_PIECE_INDEX, piecePath } from '../researchIndex';
-import { EVENT_INDEX } from '../eventsIndex';
+import { PUBLISHED_EVENT_INDEX } from '../eventsIndex';
 
 describe('server comment eligibility', () => {
   it('covers every published editorial piece and no other address', () => {
@@ -17,7 +17,7 @@ describe('server comment eligibility', () => {
         title: piece.title,
         path: piecePath(piece),
       })),
-      ...EVENT_INDEX.map((event) => ({
+      ...PUBLISHED_EVENT_INDEX.map((event) => ({
         article_id: event.articleId,
         title: event.title,
         path: `/blog/events/${event.slug}`,

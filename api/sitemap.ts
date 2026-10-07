@@ -124,7 +124,7 @@ function pagesUrlset(
 ): string {
   const paths = [
     ...FIXED_PAGES,
-    EVENTS_PATH,
+    ...(PUBLISHED_EVENTS.length ? [EVENTS_PATH] : []),
     ...PUBLISHED_EVENTS.map(eventPath),
   ];
   // A posted piece is in the sitemap from the day it posts (Eugene, 25 Aug 2026).

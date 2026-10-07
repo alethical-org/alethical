@@ -35,11 +35,11 @@ const { assertPublishedPieceIndex } = load(
   path.resolve(here, '../src/lib/researchIndexValidation.ts'),
 );
 assertPublishedPieceIndex(PUBLISHED_PIECE_INDEX);
-const { EVENT_INDEX } = load(path.resolve(here, '../src/lib/eventsIndex.ts'));
+const { PUBLISHED_EVENT_INDEX } = load(path.resolve(here, '../src/lib/eventsIndex.ts'));
 const identities = new Set();
 const published = [
   ...PUBLISHED_PIECE_INDEX.map((piece) => ({ ...piece, path: piecePath(piece) })),
-  ...EVENT_INDEX.map((event) => ({ ...event, path: `/blog/events/${event.slug}` })),
+  ...PUBLISHED_EVENT_INDEX.map((event) => ({ ...event, path: `/blog/events/${event.slug}` })),
 ];
 const articles = published
   .map((piece) => {

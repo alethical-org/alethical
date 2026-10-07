@@ -48,7 +48,12 @@ is a user-requested partner link, not the source for candidate office/status.
 - Independent review found no blockers. Desktop and 390-pixel phone checks cover navigation, original image, signup target and logo links.
 - Google discovery uses the existing sitemap and ordinary links. Existing main-release search health and changed-page notice workflows cover the new URLs. Receipt is not proof of indexing.
 - Added Reader comments and event correction-link support. Eugene subsequently directed omitting the standard AI notice for all event promotions; the notice is removed and the standing exception recorded. Event identities join the existing server registry so comment requests follow the same permissions and moderation rules.
-- Remaining: commit, pull request checks, merge queue, frontend/backend deployment, live response/browser and search-notice checks.
+- Original release complete in [pull request 2523](https://github.com/alethical-org/alethical/pull/2523): live frontend/backend, phone review, sitemap, Google priority-crawl request and 2 received IndexNow notices. Local suites passed 4,159 frontend and 4,478 backend tests.
+- Current publication hold: Eugene directed taking the announcement down on 7 October 2026 for refinements and candidate approval. Preserve all copy, assets and layout. No republication until Eugene authorizes the candidates’ approved version.
+- A saved publication flag excludes the held event from direct routes, Blog listings, sitemaps, metadata, correction links and public comment eligibility. The flyer is retained outside the public asset directory. Empty Events navigation stays hidden.
+- Restore the retained flyer to its original public path and enable publication only after that approval. The permanent article address and complete implementation remain reusable.
+- This hold covers Alethical’s website, not the separately hosted Luma event.
+- Hold release checks: direct article, collection and flyer return 404; Blog and sitemap omit the event; saved content and image remain available for revision.
 
 ## Search sources
 

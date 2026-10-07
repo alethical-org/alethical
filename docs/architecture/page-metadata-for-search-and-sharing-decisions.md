@@ -2244,3 +2244,6 @@ search placement. Google's [Event structured-data guidance](https://developers.g
 requires an individual address for each event and visible facts matching the markup.
 Focused endpoint checks cover initial content, canonical address, image dimensions,
 Central Time offsets, free registration, the ended state, missing pages and sitemap links.
+
+
+The Forward Debate announcement is held from publication for refinements and candidate approval as of 7 October 2026. Its article and flyer return not found, and its URLs are omitted from public listings and sitemaps. Preserved event metadata is used again only after publication is approved.

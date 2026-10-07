@@ -1,6 +1,6 @@
 import type { PageSnapshot } from './pageSnapshot';
 import { PUBLISHED_PIECE_INDEX, piecePath } from './researchIndex';
-import { EVENT_INDEX } from './eventsIndex';
+import { PUBLISHED_EVENT_INDEX } from './eventsIndex';
 import { SOCIAL_ACCOUNTS } from './socialLinks';
 
 export const CONTACT_PAGE_HEADING = 'Contact us';
@@ -53,7 +53,7 @@ export function correctionContactValues(article?: string): ContactValues {
   if (!article) return blank;
   const published = [
     ...PUBLISHED_PIECE_INDEX.map((piece) => ({ ...piece, path: piecePath(piece) })),
-    ...EVENT_INDEX.map((event) => ({ ...event, path: `/blog/events/${event.slug}` })),
+    ...PUBLISHED_EVENT_INDEX.map((event) => ({ ...event, path: `/blog/events/${event.slug}` })),
   ];
   const matches = published.filter((piece) => (piece.articleId ?? piece.slug) === article);
   if (matches.length !== 1) return blank;
