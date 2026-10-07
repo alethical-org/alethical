@@ -64,7 +64,7 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 95 runnable files. GitHub jobs call 34 of them
+The `scripts/` folder has 96 runnable files. GitHub jobs call 34 of them
 directly and 3 document checks through `local_checks.py`. The 4 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`, which uses `worktree_inventory.py`
 for the complete folder report; the older shell command
@@ -88,7 +88,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Read current completion sources and retain a private receipt | `check_agent_job_completion.py` |
 | Install pinned local coding hooks while preserving other settings | `install_agent_job_hooks.py` |
 | Recover 1 proven missed website release with saved evidence | `website_release_recovery.py` |
-| Measure AI answers and search | `answer_eval.py`, `retrieval_eval.py`, `try_queries.py`, `validate_query_rubric.py` |
+| Measure AI answers and search | `answer_eval.py`, `graph_retrieval_eval.py`, `retrieval_eval.py`, `try_queries.py`, `validate_query_rubric.py` |
 | Compare printed-name search offline without paid calls or live changes | `benchmark_campaign_finance_name_search.py` |
 | Collect change history by hand, report examined causes and retain prevention references | `review_repeat_failures.py` |
 | Run existing tests once and retain named money-prevention results for the exact tested code | `repeat_failure_runs.py` |
@@ -133,6 +133,7 @@ on. The last 2 are off by default. No clock-based job above opens either.
 | Write a cited Ask answer (`alethical/api/routers/me.py`) | A reader asks a question with enough source text to answer | OpenAI or Anthropic text generation | Recurs with reader traffic; varies with answer length and configured model |
 | Write bill summaries, key points, questions, citations, and topic tags (`alethical/pipeline/anthropic_enrichment.py`, `ai_enrichment.py`, `bill_summary_requests.py`, `codex_enrichment.py`) | A person starts generation, or saved official text creates a ready request while all automatic-spending settings are open | Claude subscription, Anthropic API, OpenAI API, or Codex subscription, depending on the chosen path; the automatic request uses Anthropic API only | The older bulk run measured about $0.064 to $0.072 per bill, about $730 for 10,471 bills at list price or about $365 through the half-price batch path. Those figures do not approve the new automatic path; its per-bill and monthly limits must be measured and approved before its switch changes from `false` |
 | Build or replace a bill's search index (`alethical/pipeline/rag_ingest.py`, `scripts/backfill_rag_bulk.py`, or a queued RAG worker) | A person starts or queues an ingest or backfill that includes RAG | OpenAI embeddings | About $0.001 per bill in the measured run, or about $10 for 10,500 bills |
+| Run the private relationship search comparison (`scripts/graph_retrieval_eval.py`) | A person starts the command | Database export and comparison are read-only; only `embed --execute` makes 1 bounded OpenAI embedding request | Dry run by default; cached question vectors avoid repeat calls; no answer-writing call |
 | Run AI answer or retrieval evaluations (`scripts/answer_eval.py`, `scripts/retrieval_eval.py`, `scripts/try_queries.py`) | A person starts the command | OpenAI, Anthropic, or Voyage APIs, depending on the mode | Varies by mode; cached results avoid paying again for unchanged work |
 | Diagnose a failed campaign-money collection (`alethical/pipeline/collection_failure_review.py`) | A collection fails with new evidence while the switch below is on | Anthropic API, `claude-opus-5-5` | At most $0.44 a review and $8.80 a month; waiting for approval, below |
 
