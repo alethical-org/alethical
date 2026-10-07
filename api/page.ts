@@ -313,7 +313,100 @@ class RecordNotFound extends Error {}
 /** The address itself has no page, so the generic useful screen is the right body. */
 class UnknownAddress extends RecordNotFound {}
 /** We could not tell. Never a 404: a hiccup must not unlist a real page. */
-class DataUnavailable extends Error {}
+type FailureKind =
+  "timeout" | "network" | "http" | "json" | "payload" | "unknown";
+type SourceFamily =
+  | "committee-finance"
+  | "committee-confirmation"
+  | "committee-notices"
+  | "committee-disclosures"
+  | "committee-payments"
+  | "bills"
+  | "legislators"
+  | "campaign-finance"
+  | "lobbying"
+  | "candidates"
+  | "public-api"
+  | "shell"
+  | "none";
+type FailureDetails = {
+  kind: FailureKind;
+  source: SourceFamily;
+  elapsedMs: number;
+  attemptCount: number;
+  upstreamStatus?: number;
+};
+
+class DataUnavailable extends Error {
+  constructor(
+    message: string,
+    readonly details?: FailureDetails,
+  ) {
+    super(message);
+  }
+}
+
+function sourceFamily(path: string): SourceFamily {
+  const bare = path.split("?", 1)[0];
+  const committee =
+    /^\/committees\/[^/]+\/(finance|confirmation|notices|disclosure-statements|payments)$/.exec(
+      bare,
+    );
+  if (committee) {
+    return {
+      finance: "committee-finance",
+      confirmation: "committee-confirmation",
+      notices: "committee-notices",
+      "disclosure-statements": "committee-disclosures",
+      payments: "committee-payments",
+    }[committee[1]] as SourceFamily;
+  }
+  if (/^\/bills(?:\/|$)/.test(bare)) return "bills";
+  if (/^\/legislators(?:\/|$)/.test(bare)) return "legislators";
+  if (/^\/campaign-finance(?:\/|$)/.test(bare)) return "campaign-finance";
+  if (/^\/lobbying(?:\/|$)/.test(bare)) return "lobbying";
+  if (/^\/candidates(?:\/|$)/.test(bare)) return "candidates";
+  return "public-api";
+}
+
+function elapsedMs(started: number): number {
+  return Math.max(0, Math.round(performance.now() - started));
+}
+
+function failurePageFamily(
+  path: string,
+): ReturnType<typeof targetFromPathname>["kind"] | "unknown" {
+  try {
+    return targetFromPathname(path).kind;
+  } catch {
+    // Reporting a routing error must not try the same failing parser again.
+    return "unknown";
+  }
+}
+
+/** Exactly one fixed-shape log per 503, never an error object or request value. */
+function reportPageFailure(
+  phase: "content" | "shell",
+  pageFamily: ReturnType<typeof failurePageFamily>,
+  error: unknown,
+  started: number,
+) {
+  const details = error instanceof DataUnavailable ? error.details : undefined;
+  console.error(
+    JSON.stringify({
+      event: "page_response_failure",
+      phase,
+      page_family: pageFamily,
+      source_family: details?.source ?? (phase === "shell" ? "shell" : "none"),
+      failure_kind: details?.kind ?? "unknown",
+      elapsed_ms: details?.elapsedMs ?? elapsedMs(started),
+      attempt_count: details?.attemptCount ?? 0,
+      ...(details?.upstreamStatus !== undefined
+        ? { upstream_status: details.upstreamStatus }
+        : {}),
+    }),
+  );
+}
 
 function one(value: QueryValue): string {
   return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
@@ -328,19 +421,28 @@ function titleCase(value: string): string {
 
 async function getApiRead<T>(
   path: string,
-): Promise<{ body: T; ageSeconds: number | null }> {
+): Promise<{ body: T; ageSeconds: number | null; elapsedMs: number }> {
+  const started = performance.now();
+  const signal = AbortSignal.timeout(API_TIMEOUT_MS);
+  const failure = (kind: FailureKind, upstreamStatus?: number) =>
+    new DataUnavailable("public API read failed", {
+      kind,
+      source: sourceFamily(path),
+      elapsedMs: elapsedMs(started),
+      attemptCount: 1,
+      upstreamStatus,
+    });
   let response: Response;
   try {
     response = await fetch(`${API_ORIGIN}/api/v1${path}`, {
       headers: { Accept: "application/json", Origin: SITE_ORIGIN },
-      signal: AbortSignal.timeout(API_TIMEOUT_MS),
+      signal,
     });
   } catch {
-    throw new DataUnavailable(`could not reach ${path}`);
+    throw failure(signal.aborted ? "timeout" : "network");
   }
   if (response.status === 404) throw new RecordNotFound(path);
-  if (!response.ok)
-    throw new DataUnavailable(`API returned ${response.status}`);
+  if (!response.ok) throw failure("http", response.status);
   const rawAge = response.headers.get("age");
   const ageSeconds = rawAge === null ? null : Number.parseInt(rawAge, 10);
   try {
@@ -348,9 +450,10 @@ async function getApiRead<T>(
       body: (await response.json()) as T,
       ageSeconds:
         ageSeconds !== null && Number.isFinite(ageSeconds) ? ageSeconds : null,
+      elapsedMs: elapsedMs(started),
     };
   } catch {
-    throw new DataUnavailable(`unreadable response for ${path}`);
+    throw failure(signal.aborted ? "timeout" : "json", response.status);
   }
 }
 
@@ -1031,18 +1134,33 @@ async function committeeFinance(
   registrationNumber: string,
   year: number,
 ): Promise<CommitteeMoneySnapshotSource> {
+  const read = await getApiRead<{ data?: CommitteeMoneySnapshotSource }>(
+    `/committees/${encodeURIComponent(registrationNumber)}/finance?year=${year}&include_confirmation=false`,
+  );
+  const payload = read.body?.data;
+  if (
+    !payload ||
+    typeof payload !== "object" ||
+    Array.isArray(payload) ||
+    payload.registration_number !== registrationNumber ||
+    payload.year !== year
+  ) {
+    throw new DataUnavailable("invalid committee finance payload", {
+      kind: "payload",
+      source: "committee-finance",
+      elapsedMs: read.elapsedMs,
+      attemptCount: 1,
+      upstreamStatus: 200,
+    });
+  }
   const {
     confirmed_for: _confirmedFor,
     current_claim_validated_at: _currentClaimValidatedAt,
     ...money
-  } = await getApiData<
-    CommitteeMoneySnapshotSource & {
-      confirmed_for?: unknown;
-      current_claim_validated_at?: unknown;
-    }
-  >(
-    `/committees/${encodeURIComponent(registrationNumber)}/finance?year=${year}&include_confirmation=false`,
-  );
+  } = payload as CommitteeMoneySnapshotSource & {
+    confirmed_for?: unknown;
+    current_claim_validated_at?: unknown;
+  };
   return money;
 }
 
@@ -1848,15 +1966,26 @@ const PAGE_SHELL_PATH = resolve(process.cwd(), "apps/frontend/dist/index.html");
 
 async function pageShell(): Promise<string> {
   if (cachedShell) return cachedShell;
+  const started = performance.now();
   let html: string;
   try {
     html = await readFile(PAGE_SHELL_PATH, "utf8");
   } catch {
-    throw new DataUnavailable("could not read the page shell");
+    throw new DataUnavailable("could not read the page shell", {
+      kind: "unknown",
+      source: "shell",
+      elapsedMs: elapsedMs(started),
+      attemptCount: 0,
+    });
   }
   // Proves the bundled file is the real shell rather than an unrelated build file.
   if (!html.includes("alethical:page-head")) {
-    throw new DataUnavailable("page shell is missing its head markers");
+    throw new DataUnavailable("page shell is missing its head markers", {
+      kind: "payload",
+      source: "shell",
+      elapsedMs: elapsedMs(started),
+      attemptCount: 0,
+    });
   }
   cachedShell = html;
   return html;
@@ -1939,8 +2068,10 @@ export default async function handler(
   request: RequestLike,
   response: ResponseLike,
 ) {
+  const started = performance.now();
   const query = request.query ?? {};
   const requestedPath = one(query.path) || "/";
+  const pageFamily = failurePageFamily(requestedPath);
   const isEmailLinkPage =
     requestedPath === "/confirm" || requestedPath === "/reset";
   const isForgotPasswordBridge = requestedPath === "/forgot-password";
@@ -1955,7 +2086,7 @@ export default async function handler(
     "adminUsers",
     "adminSiteMetrics",
     "siteMetrics",
-  ].includes(targetFromPathname(requestedPath).kind);
+  ].includes(pageFamily);
 
   let content: PageContent;
   let status = 200;
@@ -1971,6 +2102,7 @@ export default async function handler(
       };
       status = 404;
     } else {
+      reportPageFailure("content", pageFamily, error, started);
       // A brief outage must never tell a search engine our pages are gone.
       response.setHeader("Content-Type", "text/plain; charset=utf-8");
       response.setHeader("Cache-Control", "no-store");
@@ -2005,7 +2137,8 @@ export default async function handler(
     } else if (isForgotPasswordBridge) {
       html = forgotPasswordBridgeShell(html);
     }
-  } catch {
+  } catch (error) {
+    reportPageFailure("shell", pageFamily, error, started);
     response.setHeader("Content-Type", "text/plain; charset=utf-8");
     response.setHeader("Cache-Control", "no-store");
     if (isPrivateEmailPage)
