@@ -87,13 +87,19 @@ handling, fair bounded selection and a deployment-disabled state branch;
 41 notice tests and 27 health tests pass. The public verification key is routed
 only at its exact address. Full website tests pass 4,081 cases. The build with
 public production settings uses 297,067 bytes against the 297,506-byte limit.
-Local legal reading and the repaired official link pass phone keyboard use. Local candidate
-and bill records cannot yet be accepted: production API cross-origin access
-from the loopback preview fails. Live website data acceptance remains required.
+Local public browser stories pass 12 cases in Chromium and WebKit: desktop
+keyboard use plus Android Chrome and iPhone Safari emulation with real touch
+events, link taps and horizontal-overflow checks. A read-only test proxy supplies
+the public API response to loopback without widening production browser access.
+Physical phones remain untested. Firefox cannot start on this Mac because its
+browser sandbox helper is denied; this is not a demonstrated website failure.
+Live website data and phone-browser acceptance remain required.
 The 3 outreach drafts remain private; the University of Minnesota official
 reference service lists law-ref@umn.edu as its contact. Bing live fetches accept
 1 bill, 1 legislator and numbered bill results, and reject a truly missing bill
 with 404. Its 30-day All filter for 6 September through 5 October reports
 9 clicks, 172 impressions and 5.23% click-through rate. Existing query evidence does not justify
 rewriting truthful summaries to satisfy a provider's length recommendation.
-Current-head checks, PR, deployment and live acceptance remain unfinished.
+The upload checks pass, including 4,224 server tests.
+[Pull request 2508](https://github.com/alethical-org/alethical/pull/2508) owns the release.
+Current-head checks, deployment and live acceptance remain unfinished.
