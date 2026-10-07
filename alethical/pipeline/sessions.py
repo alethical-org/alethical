@@ -54,7 +54,7 @@ class SessionDef:
     year_start: int
     year_end: int
     start_date: datetime
-    end_date: datetime
+    end_date: datetime | None
     # Exactly one definition may be current: the API resolves "the current session"
     # with a single-row read (``select … where is_current``), so a second current row
     # would make that read pick arbitrarily.
@@ -95,6 +95,20 @@ SESSION_DEFINITIONS: dict[str, SessionDef] = {
         # https://www.lrl.mn.gov/history/sessions).
         start_date=datetime(2025, 6, 9, tzinfo=UTC),
         end_date=datetime(2025, 6, 10, tzinfo=UTC),
+        is_current=False,
+    ),
+    "0952027": SessionDef(
+        slug="95-2027-regular",
+        name="95th Legislature (2027 - 2028) Regular Session",
+        session_number=95,
+        session_type="regular",
+        year_start=2027,
+        year_end=2028,
+        # Revisor's selector and House session information, read 2026-10-07:
+        # https://www.house.mn.gov/hinfo/news.asp. The 2027 deadline is not
+        # the actual final adjournment of the 2027-2028 biennium.
+        start_date=datetime(2027, 1, 12, tzinfo=UTC),
+        end_date=None,
         is_current=False,
     ),
 }

@@ -21,6 +21,7 @@ def item(number: int) -> BillSearchResult:
 
 def setup(monkeypatch, count=3):
     state = {}
+    monkeypatch.setattr(scheduled, "stored_bill_keys", lambda *_: set())
     writes = []
     monkeypatch.setattr(scheduled, "load_progress", lambda *_: deepcopy(state))
 
@@ -35,7 +36,7 @@ def setup(monkeypatch, count=3):
     )
     monkeypatch.setattr(
         scheduled,
-        "discover_session_bills",
+        "discover_complete_session_bills",
         lambda *_args, **_kw: [item(n) for n in range(1, count + 1)],
     )
     monkeypatch.setattr(scheduled, "check_pending_votes", lambda *_args, **_kw: [])
@@ -65,7 +66,7 @@ def test_chunks_pin_inventory_and_queue_votes_before_source_writes(monkeypatch):
     # The pinned manifest survives an unavailable or changed discovery source.
     monkeypatch.setattr(
         scheduled,
-        "discover_session_bills",
+        "discover_complete_session_bills",
         Mock(side_effect=AssertionError("must reuse pinned inventory")),
     )
     assert run() == 75
@@ -159,3 +160,10 @@ def test_vote_failure_does_not_hold_up_remaining_bill_inventory(monkeypatch):
     assert run() == 75
     assert run() == 0
     assert "failed_votes" not in state
+
+
+def test_first_scheduled_inventory_must_cover_existing_saved_bills(monkeypatch):
+    setup(monkeypatch, count=2)
+    monkeypatch.setattr(scheduled, "stored_bill_keys", lambda *_: {item(3).bill_key})
+    with pytest.raises(RuntimeError, match="omitted 1"):
+        run()

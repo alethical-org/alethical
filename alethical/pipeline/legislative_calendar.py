@@ -18,7 +18,7 @@ REVIEWED_AT = date(2026, 10, 7)
 class SittingInterval:
     session_code: str
     start: date
-    end: date
+    end: date | None
     special: bool = False
 
 
@@ -26,6 +26,8 @@ REVIEWED_SITTINGS = (
     SittingInterval("0942025", date(2025, 1, 14), date(2025, 5, 19)),
     SittingInterval("1942025", date(2025, 6, 9), date(2025, 6, 10), special=True),
     SittingInterval("0942026", date(2026, 2, 17), date(2026, 5, 18)),
+    # Scheduled convening, House session information; actual adjournment unknown.
+    SittingInterval("0952027", date(2027, 1, 12), None),
 )
 
 

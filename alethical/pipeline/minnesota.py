@@ -519,13 +519,19 @@ def discover_bill_range(
     ).prepare()
     xml_text = fetch_text(sess, request.url or "")
     root = ET.fromstring(xml_text)
+    if root.tag != "SEARCH_RESULTS" or root.find("API_INFO") is None:
+        raise MinnesotaIngestionError(
+            "Bill discovery returned an unreadable source envelope"
+        )
     results = []
     for result in root.findall(".//BILL_RESULT"):
         status_xml_uri = result.findtext("STATUS_XML_URI", "").strip()
         latest_text_html_uri = result.findtext("LATEST_TEXT_HTML_URI", "").strip()
         file_number = (result.findtext("FILE_NUMBER") or "").strip()
         if not file_number.isdigit():
-            continue
+            raise MinnesotaIngestionError(
+                "Bill discovery returned a nonnumeric file number"
+            )
         results.append(
             BillSearchResult(
                 chamber=chamber,
@@ -563,6 +569,56 @@ def discover_session_bills(
             ):
                 seen[(result.file_type, result.file_number)] = result
     return sorted(seen.values(), key=lambda item: (item.file_type, item.file_number))
+
+
+def discover_complete_session_bills(
+    sess: requests.Session, *, session_code: str = DEFAULT_SESSION_CODE
+) -> list[BillSearchResult]:
+    """Split capped source ranges until each response is demonstrably below its cap.
+
+    The official XML search returns at most 500 rows, observed 2026-10-07.
+    Splitting capped ranges avoids relying on response order or bill numbering
+    continuity. 99,999 is a safety ceiling, not a claim of unlimited coverage.
+    """
+    cap, ceiling = 500, 99_999
+    found: dict[str, BillSearchResult] = {}
+    for chamber, file_type in (("House", "HF"), ("Senate", "SF")):
+        pending = [(1, ceiling)]
+        while pending:
+            start, end = pending.pop()
+            rows = discover_bill_range(
+                sess,
+                chamber=chamber,
+                bill_range=f"{start}-{end}",
+                session_code=session_code,
+            )
+            numbers = [item.file_number for item in rows]
+            if len(numbers) != len(set(numbers)) or any(
+                item.file_type != file_type
+                or not start <= item.file_number <= end
+                or not item.status_xml_uri.startswith("https://api.revisor.mn.gov/")
+                or not item.latest_text_html_uri.startswith(
+                    "https://www.revisor.mn.gov/"
+                )
+                for item in rows
+            ):
+                raise MinnesotaIngestionError(
+                    "Bill discovery returned invalid or duplicate identities"
+                )
+            if ceiling in numbers:
+                raise MinnesotaIngestionError(
+                    "Bill discovery reached its safety ceiling"
+                )
+            if len(rows) >= cap:
+                if end - start + 1 < cap:
+                    raise MinnesotaIngestionError(
+                        "Bill discovery exceeded its range size"
+                    )
+                middle = (start + end) // 2
+                pending.extend(((middle + 1, end), (start, middle)))
+            else:
+                found.update((item.bill_key, item) for item in rows)
+    return sorted(found.values(), key=lambda item: (item.file_type, item.file_number))
 
 
 def parse_bill_xml(xml_text: str) -> dict[str, object]:

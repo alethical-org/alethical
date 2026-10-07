@@ -15,11 +15,15 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from sqlalchemy import create_engine, text  # noqa: E402
+from sqlalchemy import create_engine, select, text  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
+from alethical.db.models import Bill, LegislativeSession  # noqa: E402
 from alethical.db.session import NO_PREPARED_STATEMENTS, database_url_for_target  # noqa: E402
 from alethical.pipeline.legislative_refresh import refresh_bills  # noqa: E402
-from alethical.pipeline.minnesota import BillSearchResult, discover_session_bills  # noqa: E402
+from alethical.pipeline.minnesota import (  # noqa: E402
+    BillSearchResult,
+    discover_complete_session_bills,
+)
 from alethical.pipeline.sessions import session_definition  # noqa: E402
 from alethical.pipeline.votes import rate_limited_source_session, reconcile_saved_votes  # noqa: E402
 from scripts.load_minnesota_data import _validated_database_target  # noqa: E402
@@ -58,6 +62,17 @@ def save_progress(engine, name: str, token: str, progress: dict) -> None:
             raise RuntimeError("The bill refresh lost its lease before saving progress")
 
 
+def stored_bill_keys(engine, session_code: str) -> set[str]:
+    with Session(engine) as db:
+        return set(
+            db.scalars(
+                select(Bill.bill_key)
+                .join(LegislativeSession, Bill.session_id == LegislativeSession.id)
+                .where(LegislativeSession.slug == session_definition(session_code).slug)
+            )
+        )
+
+
 def check_pending_votes(engine, *, target: str, bill_keys: list[str]) -> list[str]:
     source = rate_limited_source_session(engine, target=target)
     try:
@@ -93,13 +108,18 @@ def run_chunk(engine, *, name: str, token: str, target: str, session_code: str) 
     if "inventory" not in progress:
         source = rate_limited_source_session(engine, target=target)
         try:
-            inventory = discover_session_bills(source, session_code=session_code)
+            inventory = discover_complete_session_bills(
+                source, session_code=session_code
+            )
         finally:
             source.close()
         keys = sorted(item.bill_key for item in inventory)
         if not keys or len(keys) != len(set(keys)):
             raise RuntimeError("The bill source inventory is empty or duplicated")
-        missing = set(progress.get("previous_inventory_keys", [])) - set(keys)
+        missing = (
+            set(progress.get("previous_inventory_keys", []))
+            | stored_bill_keys(engine, session_code)
+        ) - set(keys)
         if missing:
             raise RuntimeError(
                 f"The bill source inventory omitted {len(missing)} previously listed bills"

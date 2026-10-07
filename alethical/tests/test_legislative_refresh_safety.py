@@ -156,7 +156,7 @@ def test_unknown_session_refused_before_source_or_database_access():
     engine = Mock()
     for refresh in (refresh_bills, refresh_roster):
         with pytest.raises(ValueError, match="No legislative session mapped"):
-            refresh(engine, session_code="0952027", target="production")
+            refresh(engine, session_code="0952028", target="production")
     engine.assert_not_called()
 
 
@@ -200,7 +200,7 @@ def test_unknown_current_or_future_session_is_reviewed_not_invented():
     from scripts.check_legislative_sessions import unreviewed_session_codes
 
     html = '<select name="session"><option value="0942025">Current</option><option value="0952027">New</option><option value="2942026">Special</option><option value="0912019">Historical</option></select>'
-    assert unreviewed_session_codes(html) == ["0952027", "2942026"]
+    assert unreviewed_session_codes(html) == ["2942026"]
     with pytest.raises(ValueError, match="could not be read"):
         unreviewed_session_codes("<html>maintenance</html>")
 
@@ -215,7 +215,7 @@ def test_reviewed_calendar_refreshes_both_regular_years_during_continuing_sittin
     assert session_refresh_interval("1942025", date(2025, 6, 24)) == timedelta(hours=4)
     assert session_refresh_interval("1942025", date(2025, 6, 25)) == timedelta(days=7)
     with pytest.raises(ValueError, match="No legislative session mapped"):
-        session_refresh_interval("0952027", date(2027, 1, 12))
+        session_refresh_interval("0952028", date(2027, 1, 12))
 
 
 def test_embedding_failure_rolls_back_canonical_bill_too(monkeypatch):
@@ -266,3 +266,51 @@ def test_embedding_failure_rolls_back_canonical_bill_too(monkeypatch):
     db.rollback.assert_called_once()
     db.commit.assert_not_called()
     source.close.assert_called_once()
+
+
+def test_discovery_splits_source_cap_and_finds_sparse_high_number(monkeypatch):
+    from alethical.pipeline import minnesota
+
+    numbers = [*range(1, 501), 8001]
+    calls = []
+
+    def discover(_source, *, chamber, bill_range, session_code):
+        start, end = map(int, bill_range.split("-"))
+        calls.append((chamber, start, end))
+        selected = (
+            [n for n in numbers if start <= n <= end][-500:]
+            if chamber == "House"
+            else []
+        )
+        return [
+            minnesota.BillSearchResult(
+                chamber=chamber,
+                file_type="HF",
+                file_number=n,
+                description="Bill",
+                status_xml_uri=f"https://api.revisor.mn.gov/bills/v1/94/2025/0/HF/{n}/",
+                latest_text_html_uri=f"https://www.revisor.mn.gov/bills/94/2025/0/HF/{n}/latest/",
+                session_code=session_code,
+            )
+            for n in selected
+        ]
+
+    monkeypatch.setattr(minnesota, "discover_bill_range", discover)
+    rows = minnesota.discover_complete_session_bills(Mock(), session_code="0942026")
+    assert [row.file_number for row in rows] == numbers
+    assert len(calls) < 30
+
+
+def test_discovery_rejects_malformed_empty_source(monkeypatch):
+    from alethical.pipeline import minnesota
+
+    monkeypatch.setattr(minnesota, "fetch_text", lambda *_a: "<html>Maintenance</html>")
+    with pytest.raises(minnesota.MinnesotaIngestionError, match="source envelope"):
+        minnesota.discover_bill_range(Mock(), chamber="House", bill_range="1-500")
+
+
+def test_future_sitting_uses_planned_start_without_invented_end():
+    from alethical.pipeline.legislative_calendar import session_refresh_interval
+
+    assert session_refresh_interval("0952027", date(2027, 1, 11)) == timedelta(days=7)
+    assert session_refresh_interval("0952027", date(2027, 1, 12)) == timedelta(hours=4)
