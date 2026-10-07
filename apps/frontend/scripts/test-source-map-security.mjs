@@ -10,12 +10,11 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 const checker = 'apps/frontend/scripts/check-source-map-security.mjs';
-const patchPath = 'patches/source-map-js@1.2.1.patch';
 
 function fixture(t) {
   const directory = mkdtempSync(join(tmpdir(), 'alethical-source-map-security-'));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
-  for (const path of [checker, patchPath, 'pnpm-workspace.yaml', 'pnpm-lock.yaml']) {
+  for (const path of [checker]) {
     mkdirSync(dirname(join(directory, path)), { recursive: true });
     cpSync(join(root, path), join(directory, path));
   }
@@ -53,42 +52,39 @@ function runChecker(directory) {
   return result;
 }
 
-test('the exact upstream repair passes with both real CSS consumers', (t) => {
+test('the published 1.2.2 repair passes with both real CSS consumers', (t) => {
   const result = runChecker(fixture(t));
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /exact upstream repair passes/);
+  assert.match(result.stdout, /published 1.2.2 repair passes/);
 });
 
 const rejected = [
-  ['missing patch', (dir) => rmSync(join(dir, patchPath))],
-  ['changed patch', (dir) => change(dir, patchPath, (text) => `${text}\n`)],
-  [
-    'missing workspace binding',
-    (dir) =>
-      change(dir, 'pnpm-workspace.yaml', (text) =>
-        text.replace(/^  source-map-js@1\.2\.1: patches\/source-map-js@1\.2\.1\.patch\n/m, ''),
-      ),
-  ],
-  [
-    'changed lock hash',
-    (dir) =>
-      change(dir, 'pnpm-lock.yaml', (text) =>
-        text.replace(/(  source-map-js@1\.2\.1:\n    hash: )[a-f0-9]+/, `$1${'0'.repeat(64)}`),
-      ),
-  ],
   [
     'changed installed version',
     (dir) =>
       change(dir, 'node_modules/source-map-js/package.json', (text) => {
         const manifest = JSON.parse(text);
-        manifest.version = '1.2.2';
+        manifest.version = '1.2.1';
         return JSON.stringify(manifest);
       }),
   ],
-  ...['source-map-consumer.js', 'source-map-generator.js', 'source-node.js'].map((filename) => [
-    `changed installed ${filename}`,
-    (dir) => change(dir, `node_modules/source-map-js/lib/${filename}`, (text) => `${text}\n`),
-  ]),
+  [
+    'missing offset validation',
+    (dir) =>
+      change(dir, 'node_modules/source-map-js/lib/source-map-consumer.js', (text) =>
+        text.replace(
+          'if (!isValidOffset(offsetLine) || !isValidOffset(offsetColumn))',
+          'if (false)',
+        ),
+      ),
+  ],
+  [
+    'missing nested offset limit',
+    (dir) =>
+      change(dir, 'node_modules/source-map-js/lib/source-map-consumer.js', (text) =>
+        text.replace('if (totalOffsetLine > MAX_SECTION_OFFSET_LINE)', 'if (false)'),
+      ),
+  ],
   [
     'CSS parser resolving a different private package',
     (dir) => {
@@ -96,7 +92,12 @@ const rejected = [
       cpSync(join(dir, 'node_modules/source-map-js'), join(dir, privatePackage), {
         recursive: true,
       });
-      change(dir, `${privatePackage}/lib/source-map-consumer.js`, (text) => `${text}\n`);
+      change(dir, `${privatePackage}/lib/source-map-consumer.js`, (text) =>
+        text.replace(
+          'if (!isValidOffset(offsetLine) || !isValidOffset(offsetColumn))',
+          'if (false)',
+        ),
+      );
     },
   ],
   [
@@ -106,7 +107,12 @@ const rejected = [
       cpSync(join(dir, 'node_modules/source-map-js'), join(dir, privatePackage), {
         recursive: true,
       });
-      change(dir, `${privatePackage}/lib/source-map-generator.js`, (text) => `${text}\n`);
+      change(dir, `${privatePackage}/lib/source-map-consumer.js`, (text) =>
+        text.replace(
+          'if (!isValidOffset(offsetLine) || !isValidOffset(offsetColumn))',
+          'if (false)',
+        ),
+      );
     },
   ],
 ];
@@ -116,6 +122,6 @@ for (const [name, mutate] of rejected) {
     mutate(directory);
     const result = runChecker(directory);
     assert.equal(result.status, 1, result.stdout);
-    assert.doesNotMatch(result.stdout, /exact upstream repair passes/);
+    assert.doesNotMatch(result.stdout, /published 1.2.2 repair passes/);
   });
 }

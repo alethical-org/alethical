@@ -571,7 +571,7 @@ def representative_source_updated_at(db: Session, legislator_ids) -> datetime | 
     return min(dates) if dates else None
 
 
-_BILL_NUMBER_QUERY_RE = re.compile(r"^\s*([A-Za-z]{2})?\s*0*(\d+)\s*$")
+_BILL_NUMBER_QUERY_RE = re.compile(r"^(?:([A-Za-z]{2})\s*)?(\d+)$")
 
 
 def bill_number_clause(q: str):
@@ -581,10 +581,17 @@ def bill_number_clause(q: str):
     the bill with that file number in either chamber — users need not know the
     HF/SF prefix. Returns None when the query isn't a bill number, leaving keyword
     search untouched."""
-    match = _BILL_NUMBER_QUERY_RE.match(q)
+    match = _BILL_NUMBER_QUERY_RE.fullmatch(q.strip())
     if match is None:
         return None
-    file_type, file_number = match.group(1), int(match.group(2))
+    # Strip zeros once, after matching, rather than backtracking across 0* and
+    # \d+. Reject values PostgreSQL's integer column cannot hold before int().
+    digits = match.group(2).lstrip("0") or "0"
+    if len(digits) > 10:
+        return None
+    file_type, file_number = match.group(1), int(digits)
+    if file_number > 2_147_483_647:
+        return None
     if file_type is None:
         return Bill.file_number == file_number
     return and_(

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from html.parser import HTMLParser
 from typing import Any, Iterable
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import requests
 from sqlalchemy import delete, func, select, text, update
@@ -1888,7 +1888,7 @@ def parse_senate_profile(html_text: str, source_url: str) -> dict[str, object]:
 
 
 def parse_member_profile(html_text: str, source_url: str) -> dict[str, object]:
-    if "house.mn.gov" in source_url:
+    if urlsplit(source_url).hostname in {"house.mn.gov", "www.house.mn.gov"}:
         return parse_house_profile(html_text, source_url)
     return parse_senate_profile(html_text, source_url)
 

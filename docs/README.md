@@ -104,6 +104,9 @@ The words of every published reader-facing piece, one file each. Alethical calls
 
 ## Operations
 
+- [Security policy](../SECURITY.md) — supported clients and private vulnerability reporting
+
+
 - [Public search upkeep](operations/public-search-upkeep.md) — bounded free checks, search-provider evidence, truthful change notices and weekly/monthly review
 
 - [Preventing repeated failures](operations/repeat-failure-review.md): history collection, examined causes, retained checks and the manual isolated browser command
@@ -135,8 +138,8 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [Private repository cost outlook](operations/private-repository-cost-outlook.md) — the 2026-08-11 cost, security, access, job-limit, and Vercel-seat decision for making Alethical private
 - [API CDN setup](operations/api-cdn-setup.md) — Cloudflare in front of the API, plus email authentication records
 - [Page-load performance decisions](operations/page-load-performance-decisions.md): measured safe speed work, remaining tradeoffs, and the proof required before release
-- [iOS release workflow](operations/ios-release.md) — simulator QA, TestFlight, and ad hoc builds
-- [Android prototype handoff](operations/android-prototype-handoff.md) — the Expo/RN Android build path
+- [Native app publishing pause and restart](operations/ios-release.md) — what is retired and how approved native work can resume
+- [Android prototype: paused](operations/android-prototype-handoff.md) — historical recovery reference
 - [Windows local development notes](operations/local-dev-windows.md)
 - [Keeping docs current — decisions](operations/keeping-docs-current-decisions.md) — why the stale-docs check relies on declarations a human writes, and the four automated alternatives we measured and rejected
 - [Production database schema drift](operations/production-database-schema-drift.md) — the eleven ways production and the code disagreed, which side was right in each, and the CI check that now catches the next one

@@ -43,6 +43,7 @@ import os
 import re
 import time
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 import requests
 from sqlalchemy import and_, create_engine, or_, select
@@ -313,7 +314,10 @@ def lrl_id_from_profile_url(profile_url: str) -> str | None:
 
 def parse_bio(html_text: str, profile_url: str, chamber_slug: str) -> ParsedBio:
     cleaned = strip_comments(html_text)
-    if chamber_slug == "house" or "house.mn.gov" in profile_url:
+    if chamber_slug == "house" or urlsplit(profile_url).hostname in {
+        "house.mn.gov",
+        "www.house.mn.gov",
+    }:
         return parse_house_bio(cleaned)
     return parse_senate_bio(cleaned)
 

@@ -1,38 +1,8 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const root = join(dirname(fileURLToPath(import.meta.url)), '../../..');
-const patchPath = 'patches/source-map-js@1.2.1.patch';
-const patchHash = 'e4e78efb2329c1af0d75d4460723b07fba57a0c7e44adba9daef7ac19e0abd94';
-const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
-// These 3 installed files exactly match upstream's complete security repair:
-// https://github.com/7rulnik/source-map-js/commit/cf7658058ceeaa8619d5ae0ec90be6905209d016
-// Keep the mature 1.2.1 package until 1.2.2 clears the existing 7-day wait.
-const sourceHashes = {
-  'source-map-consumer.js': '9ad10db386da13c1f95e6a680d6298dbb306c77f57a9a3539e4595b723a7654b',
-  'source-map-generator.js': '07894c9ea1e674263e2e7694d43d4fb935e98549b93946205b9536c1420696c0',
-  'source-node.js': 'd1a0ef136bf0e974ba956506c88e91fef5d8681bbf10c486ff9566a7d6d76f3c',
-};
-
-assert.equal(sha256(readFileSync(join(root, patchPath))), patchHash);
-assert.match(
-  readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8'),
-  /^  source-map-js@1\.2\.1: patches\/source-map-js@1\.2\.1\.patch$/m,
-);
-assert.match(
-  readFileSync(join(root, 'pnpm-lock.yaml'), 'utf8'),
-  new RegExp(
-    `^  source-map-js@1\\.2\\.1:\\n    hash: ${patchHash}\\n    path: patches/source-map-js@1\\.2\\.1\\.patch\\n`,
-    'm',
-  ),
-);
-
 // Keep pathological inputs in a bounded child: an accidentally regressed
 // indexed-map loop must fail instead of hanging the security scan itself.
 const probe = String.raw`
@@ -85,11 +55,7 @@ const consumers = [
 ];
 for (const [name, consumerRequire] of consumers) {
   const entry = consumerRequire.resolve('source-map-js');
-  const packageRoot = dirname(entry);
-  assert.equal(consumerRequire('source-map-js/package.json').version, '1.2.1');
-  for (const [filename, hash] of Object.entries(sourceHashes)) {
-    assert.equal(sha256(readFileSync(join(packageRoot, 'lib', filename))), hash, filename);
-  }
+  assert.equal(consumerRequire('source-map-js/package.json').version, '1.2.2');
   const result = spawnSync(process.execPath, ['--max-old-space-size=128', '--eval', probe, entry], {
     encoding: 'utf8',
     timeout: 5000,
@@ -113,5 +79,5 @@ assert.match(css.css, /color: red/);
 assert.equal(css.map.toJSON().version, 3);
 
 console.log(
-  'GHSA-68fv-2mgg-jv7q: exact upstream repair passes indexed-map limits and both CSS consumers',
+  'GHSA-68fv-2mgg-jv7q: published 1.2.2 repair passes indexed-map limits and both CSS consumers',
 );

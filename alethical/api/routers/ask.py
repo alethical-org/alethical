@@ -654,7 +654,7 @@ _BILL_TITLE_LEAD_RE = re.compile(
     re.IGNORECASE,
 )
 _BILL_TITLE_TRAIL_RE = re.compile(
-    r"\s*\b(bill|law|act|statute|legislation)\b\s*$", re.IGNORECASE
+    r"\b(bill|law|act|statute|legislation)\b\s*$", re.IGNORECASE
 )
 # Below this the phrase carries too little signal to name a single bill safely.
 _MIN_TITLE_PHRASE_LENGTH = 4

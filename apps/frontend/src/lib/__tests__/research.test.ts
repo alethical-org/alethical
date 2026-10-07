@@ -753,8 +753,8 @@ describe('the first guide carries the structure its draft gives it', () => {
       .filter((run) => run.kind === 'externalLink')
       .map((run) => (run as { href: string }).href);
     expect(links).toHaveLength(11);
-    expect(links.filter((href) => href.includes('cfb.mn.gov'))).toHaveLength(8);
-    expect(links.filter((href) => href.includes('revisor.mn.gov'))).toHaveLength(3);
+    expect(links.filter((href) => new URL(href).hostname === 'cfb.mn.gov')).toHaveLength(8);
+    expect(links.filter((href) => new URL(href).hostname === 'www.revisor.mn.gov')).toHaveLength(3);
     expect(links.every((href) => href.startsWith('https://'))).toBe(true);
   });
 
@@ -811,8 +811,8 @@ describe('the second guide carries the structure its draft gives it', () => {
       .filter((run) => run.kind === 'externalLink')
       .map((run) => run.href);
     expect(links).toHaveLength(7);
-    expect(links.filter((href) => href.includes('cfb.mn.gov'))).toHaveLength(6);
-    expect(links.filter((href) => href.includes('revisor.mn.gov'))).toHaveLength(1);
+    expect(links.filter((href) => new URL(href).hostname === 'cfb.mn.gov')).toHaveLength(6);
+    expect(links.filter((href) => new URL(href).hostname === 'www.revisor.mn.gov')).toHaveLength(1);
     expect(links.every((href) => href.startsWith('https://'))).toBe(true);
   });
 
@@ -994,7 +994,11 @@ describe('the 3 guides that complete the set', () => {
       .map((run) => run.href);
     expect(links.length).toBeGreaterThan(0);
     expect(
-      links.every((href) => href.includes('cfb.mn.gov') || href.includes('revisor.mn.gov')),
+      links.every(
+        (href) =>
+          new URL(href).hostname === 'cfb.mn.gov' ||
+          new URL(href).hostname === 'www.revisor.mn.gov',
+      ),
     ).toBe(true);
     expect(links.every((href) => href.startsWith('https://'))).toBe(true);
     expect(guide.sources).toEqual([]);
